@@ -50,11 +50,19 @@ import com.microproject.dialog.ResourceSortOrderPanel;
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.frames.MainRibbonFrame;
+import com.microproject.pm.graphic.model.cache.GraphicNode;
+import com.microproject.pm.graphic.graph.GraphZone;
+import com.microproject.pm.graphic.gantt.GanttUI;
+import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.ui.ribbon.RibbonDisplayMode;
 import com.microproject.ui.ribbon.RibbonDisplayPreferences;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
+import com.microproject.pm.graphic.spreadsheet.renderer.NameCellComponent;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.options.CalendarOption;
+import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.ribbon.RibbonCommandResult;
@@ -420,6 +428,13 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		Project project = Project.createProject(pool, undo);
 		project.setResourcePoolProject(!largeProject);
 		project.initialize(false, false);
+		NormalTask renderedTask = null;
+		if (largeProject) {
+			renderedTask = project.createScriptedTask();
+			renderedTask.setName("Gantt Resize Render Task");
+			renderedTask.getCurrentSchedule().setStart(project.getStart());
+			renderedTask.setDuration(3 * CalendarOption.getInstance().getMillisPerDay());
+		}
 		pool.addProject(project);
 		Resource resource = pool.createScriptedResource();
 		resource.setName("Field Edit Resource");
@@ -432,6 +447,7 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 				extra.setName("Bulk Resource " + index);
 			}
 		}
+		if (renderedTask != null) project.recalculate();
 		int initialResourceCount = pool.getResourceList().size();
 		SwingUtilities.invokeAndWait(() -> {
 			window = new MainRibbonFrame("resource-field-edit", null);
@@ -447,6 +463,7 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		robot.setAutoDelay(45);
 		if (largeProject) {
 			DocumentFrame frame = manager.getFrameForProject(project);
+			NormalTask taskForGantt = renderedTask;
 			// DocumentFrame activates its first view in a queued EDT task.
 			GuiAcceptanceSupport.await(() -> {
 				boolean[] active = new boolean[1];
@@ -476,13 +493,25 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			GuiAcceptanceSupport.await(() -> frame.getActiveTopView() != null && frame.getActiveTopView().showsTasks(),
 				"physical Gantt ribbon command did not restore a task view");
 			SpreadSheet ganttSheet = frame.getGanttView().getSpreadSheet();
-			GuiAcceptanceSupport.await(() -> ganttSheet.isShowing() && ganttSheet.getRowCount() > 0,
-				"Gantt spreadsheet did not render after the physical view switch");
+			Gantt ganttChart = frame.getGanttView().getGantt();
+			GuiAcceptanceSupport.await(() -> ganttSheet.isShowing() && ganttChart.isShowing()
+				&& rowForTask(ganttSheet, taskForGantt) >= 0 && hasRenderedGanttTask(ganttChart, taskForGantt),
+				"Gantt spreadsheet and chart did not show the named fixture task after the physical view switch");
+			assertEquals("Gantt Resize Render Task", taskForGantt.getName(), "fixture task model name must be present");
+			int taskRow = rowForTask(ganttSheet, taskForGantt);
+			int taskNameColumn = findFieldColumn(ganttSheet, "Field.name");
+			assertEquals("Gantt Resize Render Task", renderedTaskName(ganttSheet, taskRow, taskNameColumn),
+				"task name must be rendered in the Gantt task table before resize");
 			resizeWindowWithRobot(robot, window);
-			assertRenderedPixels(robot, ganttSheet, "Gantt after resize");
-			clickVisibleCell(robot, window, ganttSheet, 0, 0);
-			GuiAcceptanceSupport.await(() -> ganttSheet.getSelectedRow() == 0,
-				"physical Gantt cell click did not reach the rendered task view after resize");
+			assertRenderedPixels(robot, ganttChart, "Gantt chart with named task after resize");
+			assertTrue(hasRenderedGanttTask(ganttChart, taskForGantt),
+				"the named task's bar must remain hit-testable in the Gantt chart after resize");
+			assertEquals("Gantt Resize Render Task", taskForGantt.getName(), "resize must preserve the fixture task model");
+			assertEquals("Gantt Resize Render Task", renderedTaskName(ganttSheet, taskRow, taskNameColumn),
+				"task name must remain rendered in the Gantt task table after resize");
+			clickVisibleCell(robot, window, ganttSheet, taskRow, taskNameColumn);
+			GuiAcceptanceSupport.await(() -> selectedTask(ganttSheet, taskForGantt),
+				"physical Gantt task-row click did not select the rendered task after resize");
 
 			click(robot, GuiAcceptanceSupport.findShowingButtonByText(window, viewTabText));
 			click(robot, RibbonGuiSupport.findVisibleOrExpand(robot, window.getRibbonPanel(), "RibbonResources"));
@@ -602,7 +631,7 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> {
 			Rectangle cell = sheet.getCellRect(row, column, true);
 			Rectangle visible = sheet.getVisibleRect();
-			assertTrue(visible.contains(cell), "Standard Rate cell must be fully visible before clicking; cell=" + cell
+		assertTrue(visible.contains(cell), "target cell must be fully visible before clicking; cell=" + cell
 				+ ", viewport=" + visible + ", table=" + sheet.getBounds());
 			Point location = sheet.getLocationOnScreen();
 			target[0] = new Rectangle(location.x + cell.x, location.y + cell.y, cell.width, cell.height);
@@ -619,9 +648,9 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 					hoveredCell[1] = sheet.columnAtPoint(localPointer[0]);
 				}
 			});
-			assertEquals(row, hoveredCell[0], "Robot hover must reach the visible Standard Rate row; pointer="
+			assertEquals(row, hoveredCell[0], "Robot hover must reach the visible target row; pointer="
 				+ localPointer[0] + ", screenCell=" + target[0]);
-			assertEquals(column, hoveredCell[1], "Robot hover must reach the visible Standard Rate column; pointer="
+			assertEquals(column, hoveredCell[1], "Robot hover must reach the visible target column; pointer="
 				+ localPointer[0] + ", screenCell=" + target[0]);
 			robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 			robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
@@ -629,8 +658,8 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		} finally {
 			SwingUtilities.invokeAndWait(() -> sheet.removeMouseListener(pressObserver));
 		}
-		assertEquals(row, pressedRow.get(), "physical mouse press must reach the visible Standard Rate row");
-		assertEquals(column, pressedColumn.get(), "physical mouse press must reach the visible Standard Rate column");
+		assertEquals(row, pressedRow.get(), "physical mouse press must reach the visible target row");
+		assertEquals(column, pressedColumn.get(), "physical mouse press must reach the visible target column");
 	}
 
 	private static void resizeWindowWithRobot(Robot robot, MainRibbonFrame window) throws Exception {
@@ -654,16 +683,16 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 				+ ", after=" + window.getBounds());
 	}
 
-	private static void assertRenderedPixels(Robot robot, SpreadSheet sheet, String description) throws Exception {
+	private static void assertRenderedPixels(Robot robot, javax.swing.JComponent component, String description) throws Exception {
 		Rectangle[] visibleBounds = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> {
-			Rectangle visible = sheet.getVisibleRect();
-			Point location = sheet.getLocationOnScreen();
+			Rectangle visible = component.getVisibleRect();
+			Point location = component.getLocationOnScreen();
 			visibleBounds[0] = new Rectangle(location.x + visible.x, location.y + visible.y,
 				Math.min(visible.width, 320), Math.min(visible.height, 180));
 		});
 		GuiAcceptanceSupport.await(() -> distinctScreenColors(robot, visibleBounds[0]) >= 4,
-			 description + " did not show varied rendered spreadsheet pixels in " + visibleBounds[0]);
+			description + " did not show varied rendered pixels in " + visibleBounds[0]);
 	}
 
 	private static int distinctScreenColors(Robot robot, Rectangle bounds) {
@@ -673,6 +702,91 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			for (int x = 0; x < image.getWidth(); x += 3)
 				colors.add(image.getRGB(x, y) & 0x00ffffff);
 		return colors.size();
+	}
+
+	private static boolean hasRenderedGanttTask(Gantt chart, NormalTask task) {
+		boolean[] rendered = { false };
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				var projection = chart.getCache().getVisibleNodes().getProjectionIndex();
+				for (int row = 0; row < projection.size() && !rendered[0]; row++) {
+					GraphicNode node = projection.nodeAt(row);
+					if (node.getNode().getImpl() != task) continue;
+					int y = (int) Math.round(((GanttUI) chart.getUI()).getBarY(row)
+						+ node.getGanttShapeOffset() + node.getGanttShapeHeight() / 2.0d);
+					for (int x = 0; x < chart.getWidth() && !rendered[0]; x++) {
+						GraphZone zone = chart.getUI().getNodeAt(x, y);
+						rendered[0] = zone != null && zone.getObject() instanceof GraphicNode hit
+							&& hit.getNode().getImpl() == task;
+					}
+				}
+			});
+		} catch (Exception exception) {
+			throw new AssertionError("Unable to inspect the rendered Gantt task", exception);
+		}
+		return rendered[0];
+	}
+
+	private static int rowForTask(SpreadSheet sheet, NormalTask task) {
+		int[] row = {-1};
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				SpreadSheetModel model = (SpreadSheetModel) sheet.getModel();
+				for (int index = 0; index < sheet.getRowCount(); index++) {
+					var node = model.getNodeForDisplayRow(index);
+					if (node != null && node.getImpl() == task) {
+						row[0] = index;
+						return;
+					}
+				}
+			});
+		} catch (Exception exception) {
+			throw new AssertionError("Unable to resolve the named Gantt task row", exception);
+		}
+		return row[0];
+	}
+
+	private static boolean selectedTask(SpreadSheet sheet, NormalTask task) {
+		boolean[] selected = { false };
+		try {
+			SwingUtilities.invokeAndWait(() -> selected[0] = sheet.getSelectedNodes().stream()
+				.anyMatch(node -> node.getImpl() == task));
+		} catch (Exception exception) {
+			throw new AssertionError("Unable to inspect the selected Gantt task", exception);
+		}
+		return selected[0];
+	}
+
+	private static int findFieldColumn(SpreadSheet sheet, String fieldId) {
+		int[] column = {-1};
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				for (int index = 0; index < sheet.getFieldArray().size(); index++) {
+					if (fieldId.equals(sheet.getFieldArray().get(index).getId())) {
+						column[0] = sheet.convertColumnIndexToView(index);
+						return;
+					}
+				}
+			});
+		} catch (Exception exception) {
+			throw new AssertionError("Unable to inspect the Gantt spreadsheet fields", exception);
+		}
+		if (column[0] < 0) throw new AssertionError("Missing spreadsheet field: " + fieldId);
+		return column[0];
+	}
+
+	private static String renderedTaskName(SpreadSheet sheet, int row, int column) {
+		String[] text = new String[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				Component rendered = sheet.prepareRenderer(sheet.getCellRenderer(row, column), row, column);
+				text[0] = rendered instanceof NameCellComponent name ? name.getText()
+					: rendered instanceof javax.swing.JLabel label ? label.getText() : rendered.toString();
+			});
+		} catch (Exception exception) {
+			throw new AssertionError("Unable to inspect the rendered task name", exception);
+		}
+		return text[0];
 	}
 
 	private static String expectedRateText(SpreadSheet sheet, int row, int column, Rate rate) throws Exception {
