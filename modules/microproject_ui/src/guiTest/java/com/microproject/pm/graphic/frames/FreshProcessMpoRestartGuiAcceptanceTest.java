@@ -45,6 +45,7 @@ import com.microproject.dialog.TaskInformationDialog;
 import com.microproject.init.Init;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
+import com.microproject.pm.graphic.spreadsheet.renderer.NameCellComponent;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.session.SessionFactory;
@@ -164,19 +165,29 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 			"a fresh-JVM MPO must accept a physical Insert");
 		GuiAcceptanceSupport.await(() -> dirtyUnchecked(project), "the fresh-JVM insertion must make the MPO dirty");
 		SpreadSheet sheet = onEdt(frame::getTopSpreadSheet);
-		int insertedRow = onEdt(sheet::getSelectedRow);
+		Task selectedAfterInsert = selectFirstTask(robot, frame);
+		assertEquals(selectedIdentity.uniqueId(), onEdt(selectedAfterInsert::getUniqueId),
+			"physical Insert must leave the intended existing task identity selected");
+		int editedRow = onEdt(() -> rowForTask(sheet, selectedAfterInsert));
 		int nameColumn = onEdt(() -> nameColumn(sheet));
-		Point nameCell = onEdt(() -> cellCenterOnScreen(sheet, insertedRow, nameColumn));
+		Point nameCell = onEdt(() -> cellCenterOnScreen(sheet, editedRow, nameColumn));
 		activateWindow(robot);
-		nameCell = onEdt(() -> cellCenterOnScreen(sheet, insertedRow, nameColumn));
+		nameCell = onEdt(() -> cellCenterOnScreen(sheet, editedRow, nameColumn));
 		robot.mouseMove(nameCell.x, nameCell.y);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		GuiAcceptanceSupport.awaitInputAndEventQueueIdle(robot, "physical selection of inserted task name cell");
+		GuiAcceptanceSupport.awaitInputAndEventQueueIdle(robot, "physical selection of existing task name cell");
+		assertEquals(editedRow, onEdt(sheet::getSelectedRow), "Robot must select the intended task row for renaming");
+		Task taskAtSelection = onEdt(() -> selectedTaskAt(sheet, editedRow));
+		assertEquals(selectedIdentity.uniqueId(), onEdt(taskAtSelection::getUniqueId),
+			"the physical name-cell click must select the intended stable task identity");
 		robot.keyPress(KeyEvent.VK_F2);
 		robot.keyRelease(KeyEvent.VK_F2);
-		GuiAcceptanceSupport.await(() -> onEdtUnchecked(sheet::isEditing), "F2 did not start editing the inserted task name");
+		GuiAcceptanceSupport.await(() -> onEdtUnchecked(sheet::isEditing), "F2 did not start editing the selected task name");
 		Component editor = onEdt(sheet::getEditorComponent);
+		assertTrue(editor instanceof JTextComponent, "task name editor must expose physical text input");
+		GuiAcceptanceSupport.await(() -> onEdtUnchecked(() -> editor.isFocusOwner()),
+			"F2 did not transfer focus to the task name editor");
 		StringBuilder inputEvents = new StringBuilder();
 		AWTEventListener eventRecorder = event -> {
 			if (event instanceof KeyEvent key) inputEvents.append("KEY id=").append(key.getID())
@@ -190,7 +201,11 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 		Toolkit.getDefaultToolkit().addAWTEventListener(eventRecorder,
 			AWTEvent.KEY_EVENT_MASK | AWTEvent.INPUT_METHOD_EVENT_MASK);
 		try {
-			writeEditDiagnostic("edit-before-typing.txt", project, sheet, insertedRow, nameColumn, editor, inputEvents);
+			writeEditDiagnostic("edit-before-typing.txt", project, sheet, editedRow, nameColumn, editor, inputEvents);
+			robot.keyPress(KeyEvent.VK_CONTROL);
+			robot.keyPress(KeyEvent.VK_A);
+			robot.keyRelease(KeyEvent.VK_A);
+			robot.keyRelease(KeyEvent.VK_CONTROL);
 			for (char character : "issue 967 persisted task".toCharArray()) {
 				int keyCode = character == ' ' ? KeyEvent.VK_SPACE : KeyEvent.getExtendedKeyCodeForChar(character);
 				if (keyCode == KeyEvent.VK_UNDEFINED) throw new AssertionError("No key code for " + character);
@@ -198,21 +213,26 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 				robot.keyRelease(keyCode);
 			}
 			robot.waitForIdle();
-			writeEditDiagnostic("edit-before-enter.txt", project, sheet, insertedRow, nameColumn, editor, inputEvents);
+			assertEquals("issue 967 persisted task", onEdt(() -> ((JTextComponent) editor).getText()),
+				"physical multi-character input must replace the existing task name before Enter");
+			assertEquals(selectedIdentity.name(), onEdt(selectedAfterRestart::getName),
+				"the project model must remain unchanged until the editor commits");
+			writeEditDiagnostic("edit-before-enter.txt", project, sheet, editedRow, nameColumn, editor, inputEvents);
 			robot.keyPress(KeyEvent.VK_ENTER);
 			robot.keyRelease(KeyEvent.VK_ENTER);
 			try {
 				GuiAcceptanceSupport.await(() -> onEdtUnchecked(() -> !sheet.isEditing()
-					&& "issue 967 persisted task".equals(sheet.getValueAt(insertedRow, nameColumn))),
-					"physical multi-character task-name edit did not commit to the rendered spreadsheet");
+					&& "issue 967 persisted task".equals(selectedAfterRestart.getName())
+					&& "issue 967 persisted task".equals(renderedCellText(sheet, editedRow, nameColumn))),
+					"physical multi-character task-name edit did not commit to the model and rendered spreadsheet");
 			} finally {
-				writeEditDiagnostic("edit-after-enter.txt", project, sheet, insertedRow, nameColumn, editor, inputEvents);
+				writeEditDiagnostic("edit-after-enter.txt", project, sheet, editedRow, nameColumn, editor, inputEvents);
 			}
 		} finally {
 			Toolkit.getDefaultToolkit().removeAWTEventListener(eventRecorder);
 		}
 		assertTrue(onEdt(() -> outlineRows(project).contains("issue 967 persisted task")),
-			"physical task-name edit did not update the project model");
+			"physical rename did not update the existing task in the project model");
 		clickImmediateBackstagePage(robot, "save");
 		GuiAcceptanceSupport.await(() -> !dirtyUnchecked(project), "the fresh-JVM edit did not save");
 		List<String> finalRows = onEdt(() -> outlineRows(project));
@@ -443,6 +463,27 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 			if (field != null && field.isNameField()) return sheet.convertColumnIndexToView(modelColumn);
 		}
 		throw new AssertionError("Task-name column is absent from the visible spreadsheet");
+	}
+
+	private static int rowForTask(SpreadSheet sheet, Task task) {
+		SpreadSheetModel model = (SpreadSheetModel) sheet.getModel();
+		for (int row = 0; row < sheet.getRowCount(); row++) {
+			var node = model.getNodeForDisplayRow(row);
+			if (node != null && node.getImpl() == task) return row;
+		}
+		throw new AssertionError("Task is absent from the visible spreadsheet: " + task.getUniqueId());
+	}
+
+	private static Task selectedTaskAt(SpreadSheet sheet, int row) {
+		var node = ((SpreadSheetModel) sheet.getModel()).getNodeForDisplayRow(row);
+		return node != null && node.getImpl() instanceof Task task ? task : null;
+	}
+
+	private static String renderedCellText(SpreadSheet sheet, int row, int column) {
+		Component rendered = sheet.prepareRenderer(sheet.getCellRenderer(row, column), row, column);
+		if (rendered instanceof NameCellComponent nameCell) return nameCell.getText();
+		if (rendered instanceof javax.swing.JLabel label) return label.getText();
+		return rendered.toString();
 	}
 
 	private static Point cellCenterOnScreen(SpreadSheet sheet, int row, int column) {
