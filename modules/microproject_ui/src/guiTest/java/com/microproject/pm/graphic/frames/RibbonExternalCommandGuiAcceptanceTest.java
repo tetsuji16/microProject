@@ -461,8 +461,36 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		clickBackstageOpenTile(robot);
 		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(savedMpo.toString()) != null,
 			"File/Open did not reopen the saved MPO");
-		assertEquals(expectedRows, outlineRows(manager.findFrameForProjectFile(savedMpo.toString()).getProject()),
+		DocumentFrame reopened = manager.findFrameForProjectFile(savedMpo.toString());
+		Project reopenedProject = reopened.getProject();
+		assertEquals(expectedRows, outlineRows(reopenedProject),
 			"reopening must show the rows that were saved, including the inserted one");
+
+		// Reopening data is insufficient: the reported failure leaves visible rows
+		// that cannot be selected or edited. Exercise the physical input route too.
+		Point[] reopenedRow = new Point[1];
+		SwingUtilities.invokeAndWait(() -> {
+			var sheet = reopened.getTopSpreadSheet();
+			Rectangle cell = sheet.getCellRect(2, 1, true);
+			Point origin = sheet.getLocationOnScreen();
+			reopenedRow[0] = new Point(origin.x + cell.x + cell.width / 2, origin.y + cell.y + cell.height / 2);
+		});
+		activateWindowForRobot(robot);
+		robot.mouseMove(reopenedRow[0].x, reopenedRow[0].y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		GuiAcceptanceSupport.awaitInputAndEventQueueIdle(robot, "reopened MPO task selection");
+		SwingUtilities.invokeAndWait(() -> assertEquals(2, reopened.getTopSpreadSheet().getSelectedRow(),
+			"the reopened MPO must allow a physical task selection"));
+		int reopenedRowsBefore = outlineRows(reopenedProject).size();
+		robot.keyPress(java.awt.event.KeyEvent.VK_INSERT);
+		robot.keyRelease(java.awt.event.KeyEvent.VK_INSERT);
+		GuiAcceptanceSupport.await(() -> outlineRows(reopenedProject).size() == reopenedRowsBefore + 1,
+			"Insert must mutate the reopened MPO through the physical keyboard route");
+		assertTrue(reopenedProject.needsSaving(), "the post-reopen insertion must mark the project dirty");
+		activateWindowForRobot(robot);
+		click(robot, findCommandButton(window.getRibbonPanel(), "RibbonSaveProject", robot));
+		GuiAcceptanceSupport.await(() -> !reopenedProject.needsSaving(), "post-reopen Save did not finish");
 	}
 
 	/** Every outline row in order: the task name, or an empty name for a blank row. */
