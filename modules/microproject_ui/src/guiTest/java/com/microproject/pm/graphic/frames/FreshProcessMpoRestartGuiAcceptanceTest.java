@@ -16,6 +16,7 @@ import java.awt.GraphicsEnvironment;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
+import java.awt.Window;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.nio.charset.StandardCharsets;
@@ -29,12 +30,14 @@ import java.util.concurrent.TimeUnit;
 
 import javax.swing.AbstractButton;
 import javax.swing.SwingUtilities;
+import javax.swing.text.JTextComponent;
 import javax.swing.WindowConstants;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.graphic.configuration.CellStyles;
+import com.microproject.dialog.TaskInformationDialog;
 import com.microproject.init.Init;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
@@ -44,6 +47,7 @@ import com.microproject.session.SessionFactory;
 import com.microproject.job.JobQueue;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.testsupport.GuiRobot;
+import com.microproject.testsupport.RibbonGuiSupport;
 import com.microproject.ui.ribbon.RibbonDisplayMode;
 import com.microproject.ui.ribbon.RibbonDisplayPreferences;
 import com.microproject.util.Alert;
@@ -52,6 +56,7 @@ import com.microproject.util.SwingFileChooserProvider;
 import com.microproject.util.UiServices;
 import com.microproject.ui.util.SwingAlertPresenter;
 import com.microproject.ui.util.SwingUiDispatcher;
+import com.microproject.strings.Messages;
 import com.microproject.util.UiDispatch;
 
 /** Two separately invoked GUI phases prove an MPO remains interactive across a JVM restart. */
@@ -86,7 +91,10 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 		openThroughBackstage(robot);
 		DocumentFrame frame = awaitFrame(source);
 		Project project = frame.getProject();
-		selectFirstTask(robot, frame);
+		Task selectedBeforeSave = selectFirstTask(robot, frame);
+		long selectedUid = onEdt(selectedBeforeSave::getUniqueId);
+		Files.writeString(workspace.resolve("selected-task.uid"), Long.toString(selectedUid),
+			StandardCharsets.UTF_8);
 		int rowsBefore = onEdt(() -> outlineRows(project).size());
 		robot.keyPress(KeyEvent.VK_INSERT);
 		robot.keyRelease(KeyEvent.VK_INSERT);
@@ -97,17 +105,18 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 		clickCommand(robot, "RibbonSaveProjectAs", "saveAs");
 		GuiAcceptanceSupport.await(() -> Files.isRegularFile(mpo) && !dirtyUnchecked(project),
 			"Save As did not publish and commit the MPO");
-		assertEquals(mpo.toString(), project.getFileName(), "Save As must associate the project with the MPO target");
+		assertEquals(mpo.toString(), onEdt(project::getFileName), "Save As must associate the project with the MPO target");
 		List<String> rowsAfterSave = onEdt(() -> outlineRows(project));
 		Files.writeString(workspace.resolve("expected-rows.txt"), encodeRows(rowsAfterSave), StandardCharsets.UTF_8);
-		Files.writeString(workspace.resolve("phase-one.pid"), Long.toString(ProcessHandle.current().pid()), StandardCharsets.UTF_8);
+		Files.writeString(workspace.resolve("phase-one.identity"), ProcessHandle.current().pid() + System.lineSeparator()
+			+ ProcessHandle.current().info().startInstant().orElseThrow().toEpochMilli(), StandardCharsets.UTF_8);
 
 		closeProject(robot, mpo);
 		Files.writeString(workspace.resolve("phase-one.complete"), "passed", StandardCharsets.UTF_8);
 		// The GUI test fork owns the application window. Its clean exit after this
 		// test provides the process boundary for phase two; title-bar close calls
 		// System.exit and would terminate Gradle's test worker before JUnit reports.
-		assertTrue(window.isDisplayable(), "the GUI worker must remain alive to report phase one");
+		assertTrue(onEdt(window::isDisplayable), "the GUI worker must remain alive to report phase one");
 	}
 
 	@Test
@@ -118,8 +127,13 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 		Path expectedRowsFile = workspace.resolve("expected-rows.txt");
 		assertTrue(Files.isRegularFile(mpo), "phase one must leave the MPO for the fresh JVM");
 		assertTrue(Files.isRegularFile(expectedRowsFile), "phase one must persist its expected task outline");
-		long phaseOnePid = Long.parseLong(Files.readString(workspace.resolve("phase-one.pid"), StandardCharsets.UTF_8));
-		assertTrue(phaseOnePid != ProcessHandle.current().pid(), "phase two must run in a fresh GUI test JVM");
+		String[] phaseOneIdentity = Files.readString(workspace.resolve("phase-one.identity"), StandardCharsets.UTF_8).split("\\R");
+		long phaseOnePid = Long.parseLong(phaseOneIdentity[0]);
+		long phaseOneStarted = Long.parseLong(phaseOneIdentity[1]);
+		long phaseTwoPid = ProcessHandle.current().pid();
+		long phaseTwoStarted = ProcessHandle.current().info().startInstant().orElseThrow().toEpochMilli();
+		assertTrue(phaseOnePid != phaseTwoPid || phaseOneStarted != phaseTwoStarted,
+			"phase two must run in a fresh GUI test JVM, even if Windows reuses a PID");
 
 		createWindow("microProject — #967 fresh process reopen phase");
 		installChooser(mpo, mpo);
@@ -130,13 +144,45 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 		List<String> phaseOneRows = decodeRows(Files.readAllLines(expectedRowsFile, StandardCharsets.UTF_8));
 		assertEquals(phaseOneRows, onEdt(() -> outlineRows(project)), "fresh-JVM reopen must restore the POD-derived MPO rows");
 
-		selectFirstTask(robot, frame);
+		Task selectedAfterRestart = selectFirstTask(robot, frame);
+		TaskIdentity selectedIdentity = onEdt(() -> new TaskIdentity(selectedAfterRestart.getUniqueId(),
+			selectedAfterRestart.getId(), selectedAfterRestart.getName()));
+		long expectedTaskUid = Long.parseLong(Files.readString(workspace.resolve("selected-task.uid"), StandardCharsets.UTF_8));
+		assertEquals(expectedTaskUid, selectedIdentity.uniqueId(),
+			"the selected stable task identity must survive the process restart");
+		openTaskInformation(robot, selectedIdentity);
 		int rowsBefore = onEdt(() -> outlineRows(project).size());
 		robot.keyPress(KeyEvent.VK_INSERT);
 		robot.keyRelease(KeyEvent.VK_INSERT);
 		GuiAcceptanceSupport.await(() -> outlineCountUnchecked(project) == rowsBefore + 1,
 			"a fresh-JVM MPO must accept a physical Insert");
 		GuiAcceptanceSupport.await(() -> dirtyUnchecked(project), "the fresh-JVM insertion must make the MPO dirty");
+		SpreadSheet sheet = onEdt(frame::getTopSpreadSheet);
+		int insertedRow = onEdt(sheet::getSelectedRow);
+		int nameColumn = onEdt(() -> nameColumn(sheet));
+		Point nameCell = onEdt(() -> cellCenterOnScreen(sheet, insertedRow, nameColumn));
+		activateWindow(robot);
+		nameCell = onEdt(() -> cellCenterOnScreen(sheet, insertedRow, nameColumn));
+		robot.mouseMove(nameCell.x, nameCell.y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		GuiAcceptanceSupport.awaitInputAndEventQueueIdle(robot, "physical selection of inserted task name cell");
+		robot.keyPress(KeyEvent.VK_F2);
+		robot.keyRelease(KeyEvent.VK_F2);
+		GuiAcceptanceSupport.await(() -> onEdtUnchecked(sheet::isEditing), "F2 did not start editing the inserted task name");
+		for (char character : "issue 967 persisted task".toCharArray()) {
+			int keyCode = character == ' ' ? KeyEvent.VK_SPACE : KeyEvent.getExtendedKeyCodeForChar(character);
+			if (keyCode == KeyEvent.VK_UNDEFINED) throw new AssertionError("No key code for " + character);
+			robot.keyPress(keyCode);
+			robot.keyRelease(keyCode);
+		}
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> onEdtUnchecked(() -> !sheet.isEditing()
+			&& "issue 967 persisted task".equals(sheet.getValueAt(insertedRow, nameColumn))),
+			"physical multi-character task-name edit did not commit to the rendered spreadsheet");
+		assertTrue(onEdt(() -> outlineRows(project).contains("issue 967 persisted task")),
+			"physical task-name edit did not update the project model");
 		clickCommand(robot, "RibbonSaveProject", null);
 		GuiAcceptanceSupport.await(() -> !dirtyUnchecked(project), "the fresh-JVM edit did not save");
 		List<String> finalRows = onEdt(() -> outlineRows(project));
@@ -145,8 +191,10 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 		installChooser(mpo, mpo);
 		openThroughBackstage(robot);
 		DocumentFrame reloaded = awaitFrame(mpo);
-		assertEquals(finalRows, onEdt(() -> outlineRows(reloaded.getProject())),
+		List<String> reloadedRows = onEdt(() -> outlineRows(reloaded.getProject()));
+		assertEquals(finalRows, reloadedRows,
 			"the edit made after the process restart must survive a subsequent save and reload");
+		assertTrue(reloadedRows.contains("issue 967 persisted task"), "the named task must survive MPO save and reload");
 		closeProject(robot, mpo);
 		Files.writeString(workspace.resolve("phase-two.complete"), "passed", StandardCharsets.UTF_8);
 	}
@@ -210,7 +258,7 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 			window.setAlwaysOnTop(true);
 			window.setVisible(true);
 		});
-		GuiAcceptanceSupport.await(() -> window.isShowing(), "GUI acceptance window did not show");
+		GuiAcceptanceSupport.await(() -> onEdtUnchecked(window::isShowing), "GUI acceptance window did not show");
 	}
 
 	private void installChooser(Path openPath, Path savePath) {
@@ -227,38 +275,56 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 
 	private void openThroughBackstage(Robot robot) throws Exception {
 		clickTab(robot, "File", "ファイル");
-		GuiAcceptanceSupport.await(() -> named(window, "officeBackstageView") != null, "File tab did not open Backstage");
+		GuiAcceptanceSupport.await(() -> onEdtUnchecked(() -> named(window, "officeBackstageView") != null), "File tab did not open Backstage");
 		clickNamed(robot, "officeBackstageNav-open");
 		clickNamed(robot, "officeBackstageCommand-RibbonOpenProject");
 	}
 
 	private void clickCommand(Robot robot, String commandId, String page) throws Exception {
 		clickTab(robot, "File", "ファイル");
-		GuiAcceptanceSupport.await(() -> named(window, "officeBackstageView") != null, "File tab did not open Backstage");
+		GuiAcceptanceSupport.await(() -> onEdtUnchecked(() -> named(window, "officeBackstageView") != null), "File tab did not open Backstage");
 		if (page != null) clickNamed(robot, "officeBackstageNav-" + page);
 		clickNamed(robot, "officeBackstageCommand-" + commandId);
 	}
 
 	private void clickTab(Robot robot, String english, String japanese) throws Exception {
-		Component tab = findText(window.getRibbonPanel(), english, japanese);
+		Component tab = onEdt(() -> findText(window.getRibbonPanel(), english, japanese));
 		assertNotNull(tab, "File tab is missing");
 		click(robot, tab);
 	}
 
 	private void clickNamed(Robot robot, String name) throws Exception {
-		GuiAcceptanceSupport.await(() -> named(window, name) instanceof AbstractButton button && button.isShowing() && button.isEnabled(),
+		GuiAcceptanceSupport.await(() -> onEdtUnchecked(() -> named(window, name) instanceof AbstractButton button && button.isShowing() && button.isEnabled()),
 			"Backstage command is not visible and enabled: " + name);
-		click(robot, named(window, name));
+		click(robot, onEdt(() -> named(window, name)));
 	}
 
 	private DocumentFrame awaitFrame(Path path) throws Exception {
-		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(path.toString()) != null,
-			"File/Open did not publish " + path.getFileName());
-		return manager.findFrameForProjectFile(path.toString());
+		GuiAcceptanceSupport.await(() -> initializedFrameForPathUnchecked(path),
+			"File/Open did not initialize the task spreadsheet and load task rows for " + path.getFileName());
+		return onEdt(() -> manager.findFrameForProjectFile(path.toString()));
 	}
 
-	private void selectFirstTask(Robot robot, DocumentFrame frame) throws Exception {
-		SpreadSheet sheet = frame.getTopSpreadSheet();
+	private boolean initializedFrameForPathUnchecked(Path path) {
+		return onEdtUnchecked(() -> {
+			DocumentFrame frame = manager.findFrameForProjectFile(path.toString());
+			if (frame == null || frame.getProject() == null || frame.getTopSpreadSheet() == null) return false;
+			SpreadSheet sheet = frame.getTopSpreadSheet();
+			SpreadSheetModel model = (SpreadSheetModel) sheet.getModel();
+			for (int row = 0; row < sheet.getRowCount(); row++) {
+				var node = model.getNodeForDisplayRow(row);
+				if (node != null && node.getImpl() instanceof Task task && !task.isSummary()) return true;
+			}
+			return false;
+		});
+	}
+
+	private DocumentFrame frameForPathUnchecked(Path path) {
+		return onEdtUnchecked(() -> manager.findFrameForProjectFile(path.toString()));
+	}
+
+	private Task selectFirstTask(Robot robot, DocumentFrame frame) throws Exception {
+		SpreadSheet sheet = onEdt(frame::getTopSpreadSheet);
 		int row = onEdt(() -> {
 			SpreadSheetModel model = (SpreadSheetModel) sheet.getModel();
 			for (int candidate = 0; candidate < sheet.getRowCount(); candidate++) {
@@ -290,18 +356,75 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 			return node != null && node.getImpl() instanceof Task task && !task.isSummary() ? task : null;
 		});
 		assertNotNull(selected, "selection must identify a real non-summary task");
-		assertTrue(selected.getUniqueId() > 0, "selection must resolve to a stable persisted task identity");
+		assertTrue(onEdt(selected::getUniqueId) > 0, "selection must resolve to a stable persisted task identity");
+		return selected;
 	}
+
+	private void openTaskInformation(Robot robot, TaskIdentity selectedTask) throws Exception {
+		Component taskTab = onEdt(() -> findText(window.getRibbonPanel(), "Task", "タスク"));
+		assertNotNull(taskTab, "Task ribbon tab is missing");
+		click(robot, taskTab);
+		AbstractButton information = RibbonGuiSupport.findVisibleOrExpand(robot, window, "RibbonTaskInformation");
+		GuiAcceptanceSupport.await(information::isEnabled, "Task Information command is not enabled for the selected task");
+		click(robot, information);
+		GuiAcceptanceSupport.await(FreshProcessMpoRestartGuiAcceptanceTest::taskInformationDialogUnchecked,
+			"physical Task Properties > Information route did not open Task Information");
+		TaskInformationDialog dialog = onEdt(FreshProcessMpoRestartGuiAcceptanceTest::taskInformationDialog);
+		assertNotNull(dialog);
+		String expectedTitle = Messages.getString("TaskInformationDialog.TaskInformation") + " - " + selectedTask.id();
+		assertEquals(expectedTitle, onEdt(dialog::getTitle), "dialog must describe the selected task identity");
+		assertTrue(onEdt(() -> containsText(dialog, selectedTask.name())),
+			"Task Information must show the selected task's name");
+		robot.keyPress(KeyEvent.VK_ESCAPE);
+		robot.keyRelease(KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> !taskInformationDialogUnchecked(),
+			"Task Information must close through the physical Escape route");
+	}
+
+	private static TaskInformationDialog taskInformationDialog() {
+		for (Window candidate : Window.getWindows())
+			if (candidate instanceof TaskInformationDialog dialog && dialog.isShowing()) return dialog;
+		return null;
+	}
+
+	private static boolean containsText(Component root, String expected) {
+		if (root instanceof JTextComponent text && expected.equals(text.getText())) return true;
+		if (root instanceof Container container) {
+			for (Component child : container.getComponents()) if (containsText(child, expected)) return true;
+		}
+		return false;
+	}
+
+	private static boolean taskInformationDialogUnchecked() {
+		return onEdtUnchecked(() -> taskInformationDialog() != null);
+	}
+
+	private static int nameColumn(SpreadSheet sheet) {
+		SpreadSheetModel model = (SpreadSheetModel) sheet.getModel();
+		for (int modelColumn = 0; modelColumn < model.getColumnCount(); modelColumn++) {
+			var field = model.getFieldInColumn(modelColumn);
+			if (field != null && field.isNameField()) return sheet.convertColumnIndexToView(modelColumn);
+		}
+		throw new AssertionError("Task-name column is absent from the visible spreadsheet");
+	}
+
+	private static Point cellCenterOnScreen(SpreadSheet sheet, int row, int column) {
+		Rectangle cell = sheet.getCellRect(row, column, true);
+		Point origin = sheet.getLocationOnScreen();
+		return new Point(origin.x + cell.x + Math.max(2, cell.width / 2), origin.y + cell.y + cell.height / 2);
+	}
+
+	private record TaskIdentity(long uniqueId, long id, String name) { }
 
 	private void closeProject(Robot robot, Path path) throws Exception {
 		clickCommand(robot, "RibbonCloseProject", null);
-		GuiAcceptanceSupport.await(() -> manager.findFrameForProjectFile(path.toString()) == null,
+		GuiAcceptanceSupport.await(() -> frameForPathUnchecked(path) == null,
 			"project did not close cleanly");
 	}
 
 	private void activateWindow(Robot robot) throws Exception {
 		SwingUtilities.invokeAndWait(() -> window.toFront());
-		GuiAcceptanceSupport.await(() -> window.isActive(), "application window did not activate");
+		GuiAcceptanceSupport.await(() -> onEdtUnchecked(window::isActive), "application window did not activate");
 		robot.waitForIdle();
 	}
 
@@ -367,6 +490,11 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 		java.util.concurrent.FutureTask<T> task = new java.util.concurrent.FutureTask<>(action);
 		SwingUtilities.invokeLater(task);
 		return task.get(5, TimeUnit.SECONDS);
+	}
+
+	private static <T> T onEdtUnchecked(java.util.concurrent.Callable<T> action) {
+		try { return onEdt(action); }
+		catch (Exception failure) { throw new IllegalStateException("Could not inspect Swing state on EDT", failure); }
 	}
 
 	private static Component named(Component root, String name) {
