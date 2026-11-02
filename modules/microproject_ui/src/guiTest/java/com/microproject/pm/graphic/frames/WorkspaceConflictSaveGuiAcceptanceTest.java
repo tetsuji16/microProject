@@ -17,6 +17,7 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -25,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 import javax.swing.AbstractButton;
 import javax.swing.JLabel;
 import javax.swing.SwingUtilities;
+import javax.swing.text.JTextComponent;
 import java.util.concurrent.Callable;
 import java.util.concurrent.FutureTask;
 
@@ -41,6 +43,9 @@ import com.microproject.graphic.configuration.CellStyles;
 import com.microproject.init.Init;
 import com.microproject.job.JobQueue;
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
+import com.microproject.pm.graphic.spreadsheet.renderer.NameCellComponent;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
@@ -99,10 +104,13 @@ class WorkspaceConflictSaveGuiAcceptanceTest {
 			"the peer session must publish a distinct workspace after the UI session captured its baseline");
 		peerSession = null;
 
-		String savedName = "MPO data retained after workspace conflict";
-		SwingUtilities.invokeAndWait(() -> project.setName(savedName));
+		assertFalse(onEdt(project::needsSaving), "the opened MPO fixture must begin clean before the user edit");
+		Task task = onEdt(() -> project.getTaskList().stream()
+			.filter(candidate -> "workspace conflict task".equals(candidate.getName())).findFirst().orElseThrow());
+		String savedTaskName = "workspace conflict task saved after conflict";
+		editTaskName(robot, frame, task, savedTaskName);
 		GuiAcceptanceSupport.await(() -> onEdtUnchecked(project::needsSaving),
-			"the project edit must make the physical Save operation eligible");
+			"the physical task-name edit must make the Save operation eligible");
 		clickFilePageCommand(robot, "save");
 		String savedWarning = "The project was saved, but workspace recovery remains unresolved. Both workspace copies were preserved.";
 		GuiAcceptanceSupport.await(() -> onEdtUnchecked(() -> !project.needsSaving()
@@ -114,8 +122,8 @@ class WorkspaceConflictSaveGuiAcceptanceTest {
 		try (var input = Files.newInputStream(mpo)) {
 			reopened = new MpoFileImporter().loadProject(input);
 		}
-		assertEquals(savedName, reopened.getName(), "the real Save route must persist project data despite workspace conflict");
-		Task persistedTask = reopened.getTaskList().stream().filter(task -> "workspace conflict task".equals(task.getName()))
+		assertEquals("Workspace conflict fixture", reopened.getName(), "the real Save route must retain the MPO project");
+		Task persistedTask = reopened.getTaskList().stream().filter(candidate -> savedTaskName.equals(candidate.getName()))
 			.findFirst().orElseThrow(() -> new AssertionError("MPO save lost its original task data"));
 		assertTrue(persistedTask instanceof NormalTask);
 	}
@@ -208,6 +216,76 @@ class WorkspaceConflictSaveGuiAcceptanceTest {
 	private void clickFilePageCommand(Robot robot, String page) throws Exception {
 		click(robot, onEdt(() -> findText(window.getRibbonPanel(), "File", "ファイル")));
 		clickNamed(robot, "officeBackstageNav-" + page);
+	}
+
+	private void editTaskName(Robot robot, DocumentFrame frame, Task task, String value) throws Exception {
+		SpreadSheet sheet = onEdt(frame::getTopSpreadSheet);
+		int[] cell = onEdt(() -> new int[] { rowForTask(sheet, task), nameColumn(sheet) });
+		Point point = onEdt(() -> cellCenterOnScreen(sheet, cell[0], cell[1]));
+		SwingUtilities.invokeAndWait(window::toFront);
+		GuiAcceptanceSupport.await(() -> onEdtUnchecked(window::isActive), "application window did not activate for task edit");
+		point = onEdt(() -> cellCenterOnScreen(sheet, cell[0], cell[1]));
+		robot.mouseMove(point.x, point.y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		GuiAcceptanceSupport.awaitInputAndEventQueueIdle(robot, "physical selection of task name cell");
+		assertEquals(cell[0], onEdt(sheet::getSelectedRow), "Robot must select the task-name row");
+		robot.keyPress(KeyEvent.VK_F2);
+		robot.keyRelease(KeyEvent.VK_F2);
+		GuiAcceptanceSupport.await(() -> onEdtUnchecked(sheet::isEditing), "physical F2 did not start task-name editing");
+		JTextComponent input = onEdt(() -> (JTextComponent) ((NameCellComponent) sheet.getEditorComponent()).getTextComponent());
+		GuiAcceptanceSupport.await(() -> onEdtUnchecked(input::isFocusOwner), "task-name editor did not receive focus");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_A);
+		robot.keyRelease(KeyEvent.VK_A);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		for (char character : value.toCharArray()) {
+			int keyCode = character == ' ' ? KeyEvent.VK_SPACE : KeyEvent.getExtendedKeyCodeForChar(character);
+			if (keyCode == KeyEvent.VK_UNDEFINED) throw new AssertionError("No physical key for character: " + character);
+			robot.keyPress(keyCode);
+			robot.keyRelease(keyCode);
+		}
+		robot.waitForIdle();
+		assertEquals(value, onEdt(input::getText), "Robot must deliver the complete replacement task name");
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> onEdtUnchecked(() -> !sheet.isEditing() && value.equals(task.getName())
+			&& value.equals(renderedTaskName(sheet, task))),
+			"physical task-name input did not commit to both model and rendered spreadsheet");
+	}
+
+	private static int rowForTask(SpreadSheet sheet, Task task) {
+		SpreadSheetModel model = (SpreadSheetModel) sheet.getModel();
+		for (int row = 0; row < sheet.getRowCount(); row++) {
+			var node = model.getNodeForDisplayRow(row);
+			if (node != null && node.getImpl() == task) return row;
+		}
+		throw new AssertionError("Task is not visible in the task spreadsheet: " + task.getUniqueId());
+	}
+
+	private static int nameColumn(SpreadSheet sheet) {
+		SpreadSheetModel model = (SpreadSheetModel) sheet.getModel();
+		for (int modelColumn = 0; modelColumn < model.getColumnCount(); modelColumn++) {
+			var field = model.getFieldInColumn(modelColumn);
+			if (field != null && field.isNameField()) return sheet.convertColumnIndexToView(modelColumn);
+		}
+		throw new AssertionError("Task-name column is absent from the visible spreadsheet");
+	}
+
+	private static Point cellCenterOnScreen(SpreadSheet sheet, int row, int column) {
+		sheet.scrollRectToVisible(sheet.getCellRect(row, column, true));
+		Rectangle cell = sheet.getCellRect(row, column, true);
+		Point origin = sheet.getLocationOnScreen();
+		return new Point(origin.x + cell.x + Math.max(2, cell.width / 2), origin.y + cell.y + cell.height / 2);
+	}
+
+	private static String renderedTaskName(SpreadSheet sheet, Task task) {
+		int row = rowForTask(sheet, task);
+		int column = nameColumn(sheet);
+		Component rendered = sheet.prepareRenderer(sheet.getCellRenderer(row, column), row, column);
+		if (rendered instanceof NameCellComponent nameCell) return nameCell.getText();
+		if (rendered instanceof JLabel label) return label.getText();
+		return rendered.toString();
 	}
 
 	private void clickNamed(Robot robot, String name) throws Exception {
