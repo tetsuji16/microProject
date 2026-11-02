@@ -8,19 +8,23 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongFunction;
+
+import com.microproject.util.UiDispatch;
 
 /** Transient per-project barrier and revision for mutations that publish snapshots. */
 public final class ProjectMutationState {
 	private static final ReentrantLock COORDINATOR = new ReentrantLock(true);
 	private static final ThreadLocal<CoordinatorContext> CONTEXT = new ThreadLocal<>();
+	static final long EDT_COORDINATOR_TIMEOUT_MILLIS = 5_000L;
 	private final Deque<Scope> scopes = new ArrayDeque<>();
 	private volatile long revision;
 
 	/** Acquires the project mutation barrier. Scopes must be closed in LIFO order. */
 	public Scope begin() {
-		COORDINATOR.lock();
+		acquireCoordinator();
 		if (CONTEXT.get() == null) CONTEXT.set(new CoordinatorContext());
 		Scope scope = new Scope(this, Thread.currentThread());
 		scopes.push(scope);
@@ -51,12 +55,39 @@ public final class ProjectMutationState {
 
 	/** Runs a read or membership operation under the same process-wide coordination boundary. */
 	public static <T> T coordinated(java.util.function.Supplier<T> operation) {
-		COORDINATOR.lock();
+		acquireCoordinator();
 		if (CONTEXT.get() == null) CONTEXT.set(new CoordinatorContext());
 		try {
 			return operation.get();
 		} finally {
 			releaseCoordinator();
+		}
+	}
+
+	/**
+	 * Acquires the process-wide coordinator. On the UI dispatch thread the wait is
+	 * bounded so a stuck background holder cannot freeze interaction indefinitely.
+	 */
+	private static void acquireCoordinator() {
+		if (COORDINATOR.isHeldByCurrentThread()) {
+			COORDINATOR.lock();
+			return;
+		}
+		if (!UiDispatch.isDispatchThread()) {
+			COORDINATOR.lock();
+			return;
+		}
+		try {
+			if (!COORDINATOR.tryLock(EDT_COORDINATOR_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
+				throw new ProjectMutationBusyException(
+						"Model mutation coordinator was busy for more than "
+								+ EDT_COORDINATOR_TIMEOUT_MILLIS + " ms on the UI thread");
+			}
+		} catch (InterruptedException interrupted) {
+			Thread.currentThread().interrupt();
+			throw new ProjectMutationBusyException(
+					"Interrupted while waiting for the model mutation coordinator on the UI thread",
+					interrupted);
 		}
 	}
 
