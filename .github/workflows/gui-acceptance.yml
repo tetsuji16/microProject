@@ -22,6 +22,11 @@ on:
         description: 'Optional targeted Gradle test filter (FQCN or FQCN.method); manual dispatch only'
         required: false
         type: string
+      issue_967_fresh_process:
+        description: 'Run the two-process POD-to-MPO diagnostic journey'
+        required: false
+        default: false
+        type: boolean
       gui_test_locale:
         description: 'Locale for a manual targeted test only'
         required: false
@@ -98,7 +103,7 @@ jobs:
           }
           $requiredContext = 'GUI acceptance'
           $filter = '${{ inputs.gui_test_filter }}'
-          $runKind = if (-not [string]::IsNullOrWhiteSpace($filter)) { "targeted ($filter; suite=$requestedSuite)" } else { $requestedSuite }
+          $runKind = if ('${{ inputs.issue_967_fresh_process }}' -eq 'true') { 'two-process #967 diagnostic' } elseif (-not [string]::IsNullOrWhiteSpace($filter)) { "targeted ($filter; suite=$requestedSuite)" } else { $requestedSuite }
           $lines = @(
             '## GUI acceptance gate',
             '',
@@ -109,7 +114,11 @@ jobs:
           )
           Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value ($lines -join [Environment]::NewLine)
           Write-Host "Selected GUI suite: $requestedSuite (event=$env:GITHUB_EVENT_NAME)"
-          if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch' -and -not [string]::IsNullOrWhiteSpace($env:GUI_TEST_FILTER)) {
+          if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch' -and '${{ inputs.issue_967_fresh_process }}' -eq 'true') {
+            if (-not [string]::IsNullOrWhiteSpace($env:GUI_TEST_FILTER)) { throw 'Choose either the fresh-process journey or a test filter.' }
+            Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value '- Actual run: two-process #967 diagnostic journey; this is not the full GUI gate.'
+            .\.github\scripts\test-issue-967-fresh-process.ps1
+          } elseif ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch' -and -not [string]::IsNullOrWhiteSpace($env:GUI_TEST_FILTER)) {
             $focusedLocale = if ([string]::IsNullOrWhiteSpace($env:GUI_TEST_LOCALE)) { 'ja' } else { $env:GUI_TEST_LOCALE }
             $focusedScale = if ([string]::IsNullOrWhiteSpace($env:GUI_TEST_SCALE)) { '1.0' } else { $env:GUI_TEST_SCALE }
             .\.github\scripts\run-gui-acceptance.ps1 -Suite $requestedSuite -TestFilter $env:GUI_TEST_FILTER -Locale $focusedLocale -Scale $focusedScale
