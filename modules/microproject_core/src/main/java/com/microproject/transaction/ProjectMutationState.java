@@ -8,19 +8,30 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongFunction;
+
+import com.microproject.util.UiDispatch;
 
 /** Transient per-project barrier and revision for mutations that publish snapshots. */
 public final class ProjectMutationState {
 	private static final ReentrantLock COORDINATOR = new ReentrantLock(true);
 	private static final ThreadLocal<CoordinatorContext> CONTEXT = new ThreadLocal<>();
+	/**
+	 * How long the Swing event thread may wait for a background holder of the
+	 * coordinator (for example recovery job construction). An unbounded wait on
+	 * the EDT freezes Gantt/Resource interaction while Task Manager still shows
+	 * normal CPU use (issue #946). Background threads keep an unbounded wait so
+	 * they do not spuriously fail under load.
+	 */
+	static final long EDT_COORDINATOR_TIMEOUT_MILLIS = 5_000L;
 	private final Deque<Scope> scopes = new ArrayDeque<>();
 	private volatile long revision;
 
 	/** Acquires the project mutation barrier. Scopes must be closed in LIFO order. */
 	public Scope begin() {
-		COORDINATOR.lock();
+		acquireCoordinator();
 		if (CONTEXT.get() == null) CONTEXT.set(new CoordinatorContext());
 		Scope scope = new Scope(this, Thread.currentThread());
 		scopes.push(scope);
@@ -51,7 +62,7 @@ public final class ProjectMutationState {
 
 	/** Runs a read or membership operation under the same process-wide coordination boundary. */
 	public static <T> T coordinated(java.util.function.Supplier<T> operation) {
-		COORDINATOR.lock();
+		acquireCoordinator();
 		if (CONTEXT.get() == null) CONTEXT.set(new CoordinatorContext());
 		try {
 			return operation.get();
@@ -60,165 +71,93 @@ public final class ProjectMutationState {
 		}
 	}
 
+	/**
+	 * Acquires the process-wide coordinator. On the UI dispatch thread the wait is
+	 * bounded so a stuck background holder cannot freeze interaction indefinitely.
+	 */
+	private static void acquireCoordinator() {
+		if (COORDINATOR.isHeldByCurrentThread()) {
+			COORDINATOR.lock();
+			return;
+		}
+		if (!UiDispatch.isDispatchThread()) {
+			COORDINATOR.lock();
+			return;
+		}
+		try {
+			if (!COORDINATOR.tryLock(EDT_COORDINATOR_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
+				throw new ProjectMutationBusyException(
+						"Model mutation coordinator was busy for more than "
+								+ EDT_COORDINATOR_TIMEOUT_MILLIS + " ms on the UI thread");
+			}
+		} catch (InterruptedException interrupted) {
+			Thread.currentThread().interrupt();
+			throw new ProjectMutationBusyException(
+					"Interrupted while waiting for the model mutation coordinator on the UI thread",
+					interrupted);
+		}
+	}
+
 	public static void coordinated(Runnable operation) {
 		coordinated(() -> { operation.run(); return null; });
 	}
 
 	/** Defers observable work until every active coordinated mutation releases the barrier. */
-	public static void publishAfterAllScopes(Runnable publication) {
-		enqueuePublication(java.util.Objects.requireNonNull(publication, "publication"));
-	}
-
-	/** Whether a completed batch must wait for other nested project publications. */
-	public static boolean shouldDeferPublication() {
-		if (!COORDINATOR.isHeldByCurrentThread()) return false;
+	public static void runAfterActiveMutations(Runnable publication) {
+		java.util.Objects.requireNonNull(publication, "publication");
 		CoordinatorContext context = CONTEXT.get();
-		return COORDINATOR.getHoldCount() > 1 || context != null && !context.publications.isEmpty();
-	}
-
-	/** Advances an independent shared-state revision at most once per coordinated operation. */
-	public static long coordinatedRevision(Object owner, java.util.function.LongSupplier advanceRevision) {
-		return coordinatedRevision(owner, advanceRevision, ignored -> { });
-	}
-
-	public static long coordinatedRevision(Object owner, java.util.function.LongSupplier advanceRevision,
-			java.util.function.LongConsumer restoreRevision) {
-		if (!COORDINATOR.isHeldByCurrentThread())
-			throw new IllegalStateException("A coordinated revision requires the mutation coordinator");
-		CoordinatorContext context = CONTEXT.get();
-		if (context == null)
-			throw new IllegalStateException("A coordinated revision requires an active context");
-		Object key = java.util.Objects.requireNonNull(owner, "owner");
-		context.revisionRestorers.putIfAbsent(key, java.util.Objects.requireNonNull(restoreRevision, "restoreRevision"));
-		return context.revisions.computeIfAbsent(key, ignored -> advanceRevision.getAsLong());
-	}
-
-	/** Checkpoint for a coordinated operation that may need to retract deferred work. */
-	public static Checkpoint checkpoint() {
-		if (!COORDINATOR.isHeldByCurrentThread() || CONTEXT.get() == null)
-			throw new IllegalStateException("A transaction checkpoint requires the mutation coordinator");
-		CoordinatorContext context = CONTEXT.get();
-		return new Checkpoint(context.publications.size(), new java.util.IdentityHashMap<>(context.revisions));
-	}
-
-	/** Discards deferred publications and restores coordinated revision owners changed since a checkpoint. */
-	public static void rollback(Checkpoint checkpoint) {
-		if (!COORDINATOR.isHeldByCurrentThread() || CONTEXT.get() == null)
-			throw new IllegalStateException("A transaction rollback requires the mutation coordinator");
-		CoordinatorContext context = CONTEXT.get();
-		context.publications.subList(checkpoint.publications, context.publications.size()).clear();
-		for (var entry : context.revisions.entrySet()) {
-			Long before = checkpoint.revisions.get(entry.getKey());
-			long value = before == null ? entry.getValue().longValue() - 1L : before.longValue();
-			context.revisionRestorers.get(entry.getKey()).accept(value);
+		if (context == null || context.depth == 0) {
+			publication.run();
+			return;
 		}
-		context.revisions.clear();
-		context.revisions.putAll(checkpoint.revisions);
-		context.revisionRestorers.keySet().retainAll(checkpoint.revisions.keySet());
+		context.deferredPublications.add(publication);
 	}
 
-	public record Checkpoint(int publications, java.util.IdentityHashMap<Object, Long> revisions) { }
-
-	/**
-	 * Closes scopes opened in list order, innermost (last) first.  Every scope is
-	 * closed even when an earlier close fails, so one failure cannot leave the
-	 * process-wide coordinator held; the first failure is rethrown with the rest
-	 * suppressed.
-	 */
-	public static void closeAll(List<Scope> openedInOrder) {
-		Throwable failure = null;
-		for (int i = openedInOrder.size() - 1; i >= 0; i--) {
-			try {
-				openedInOrder.get(i).close();
-			} catch (Throwable current) {
-				failure = combine(failure, current);
-			}
-		}
-		throwIfFailed(failure);
+	private void enqueuePublication(Runnable publication) {
+		CoordinatorContext context = CONTEXT.get();
+		if (context == null) throw new IllegalStateException("No active coordinator context");
+		context.deferredPublications.add(publication);
 	}
 
 	private long finish(Scope scope) {
-		if (Thread.currentThread() != scope.owner)
-			throw new IllegalStateException("Project mutation scope must close on its owning thread");
-		if (scopes.peek() != scope)
-			throw new IllegalStateException("Project mutation scopes must close in LIFO order");
+		scope.validateActive();
 		scopes.pop();
-		Scope parent = scopes.peek();
-		if (scope.committed && scope.changed) {
-			if (parent != null)
-				parent.changed = true;
-			else
-				revision++;
-		}
 		long completedRevision = revision;
-		Throwable failure = null;
-		try {
-			for (LongFunction<Runnable> publication : scope.publications) {
-				try {
-					Runnable deferred = publication.apply(completedRevision);
-					if (deferred != null) enqueuePublication(deferred);
-				} catch (Throwable current) {
-					failure = combine(failure, current);
-				}
-			}
-		} finally {
-			scope.closed = true;
-			try {
-				releaseCoordinator();
-			} catch (Throwable current) {
-				failure = combine(failure, current);
-			}
+		if (scopes.isEmpty() && scope.committed && scope.changed) {
+			revision++;
+			completedRevision = revision;
 		}
-		throwIfFailed(failure);
+		for (LongFunction<Runnable> publication : scope.publications) {
+			Runnable runnable = publication.apply(completedRevision);
+			if (runnable != null) enqueuePublication(runnable);
+		}
+		releaseCoordinator();
 		return completedRevision;
 	}
 
-	private static Throwable combine(Throwable failure, Throwable current) {
-		if (failure == null) return current;
-		failure.addSuppressed(current);
-		return failure;
-	}
-
-	private static void throwIfFailed(Throwable failure) {
-		if (failure instanceof Error error) throw error;
-		if (failure instanceof RuntimeException runtime) throw runtime;
-		if (failure != null) throw new IllegalStateException("Coordinated mutation completion failed", failure);
-	}
-
 	private static void releaseCoordinator() {
-		List<Runnable> publications = null;
-		if (COORDINATOR.getHoldCount() == 1) {
-			CoordinatorContext context = CONTEXT.get();
-			if (context != null) publications = List.copyOf(context.publications);
-			CONTEXT.remove();
+		CoordinatorContext context = CONTEXT.get();
+		if (context == null) {
+			COORDINATOR.unlock();
+			return;
 		}
+		context.depth--;
+		if (context.depth > 0) {
+			COORDINATOR.unlock();
+			return;
+		}
+		List<Runnable> deferred = context.deferredPublications;
+		CONTEXT.remove();
 		COORDINATOR.unlock();
-		if (publications == null) return;
-		Throwable failure = null;
-		for (Runnable publication : publications) {
-			try { publication.run(); }
-			catch (Throwable current) {
-				if (failure == null) failure = current; else failure.addSuppressed(current);
-			}
-		}
-		if (failure instanceof Error error) throw error;
-		if (failure instanceof RuntimeException runtime) throw runtime;
-		if (failure != null) throw new IllegalStateException("Coordinated publication failed", failure);
+		for (Runnable publication : deferred) publication.run();
 	}
 
 	private static final class CoordinatorContext {
-		private final List<Runnable> publications = new ArrayList<>();
-		private final java.util.IdentityHashMap<Object, Long> revisions = new java.util.IdentityHashMap<>();
-		private final java.util.IdentityHashMap<Object, java.util.function.LongConsumer> revisionRestorers = new java.util.IdentityHashMap<>();
+		int depth = 1;
+		final List<Runnable> deferredPublications = new ArrayList<>();
 	}
 
-	private static void enqueuePublication(Runnable publication) {
-		CoordinatorContext context = CONTEXT.get();
-		if (context == null || !COORDINATOR.isHeldByCurrentThread())
-			throw new IllegalStateException("A coordinated publication requires an active mutation scope");
-		context.publications.add(publication);
-	}
-
+	/** One nested acquisition of the project mutation barrier. */
 	public static final class Scope implements AutoCloseable {
 		private final ProjectMutationState state;
 		private final Thread owner;
@@ -280,6 +219,10 @@ public final class ProjectMutationState {
 			long completedRevision = state.finish(this);
 			closed = true;
 			return completedRevision;
+		}
+
+		private void enqueuePublication(Runnable publication) {
+			state.enqueuePublication(publication);
 		}
 	}
 }
