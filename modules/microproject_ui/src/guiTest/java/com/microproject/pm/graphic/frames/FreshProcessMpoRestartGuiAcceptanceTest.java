@@ -173,6 +173,7 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 		Point nameCell = onEdt(() -> cellCenterOnScreen(sheet, editedRow, nameColumn));
 		activateWindow(robot);
 		nameCell = onEdt(() -> cellCenterOnScreen(sheet, editedRow, nameColumn));
+		GuiAcceptanceSupport.awaitMultiClickIntervalElapsed(robot);
 		robot.mouseMove(nameCell.x, nameCell.y);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
