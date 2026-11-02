@@ -664,4 +664,3 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 		return null;
 	}
 }
-
