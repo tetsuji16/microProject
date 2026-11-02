@@ -474,9 +474,9 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			sheet.clearSelection();
 			assertEquals(-1, sheet.getSelectedRow(), "the target must not already be selected");
 			var node = ((com.microproject.pm.graphic.spreadsheet.SpreadSheetModel) sheet.getModel())
-				.getNodeForDisplayRow(2);
+				.getNodeForDisplayRow(1);
 			assertTrue(node != null && node.getImpl() instanceof Task, "the target row must be a real task");
-			Rectangle cell = sheet.getCellRect(2, 1, true);
+			Rectangle cell = sheet.getCellRect(1, 1, true);
 			Point origin = sheet.getLocationOnScreen();
 			reopenedRow[0] = new Point(origin.x + cell.x + cell.width / 2, origin.y + cell.y + cell.height / 2);
 		});
@@ -485,7 +485,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		GuiAcceptanceSupport.awaitInputAndEventQueueIdle(robot, "reopened MPO task selection");
-		SwingUtilities.invokeAndWait(() -> assertEquals(2, reopened.getTopSpreadSheet().getSelectedRow(),
+		SwingUtilities.invokeAndWait(() -> assertEquals(1, reopened.getTopSpreadSheet().getSelectedRow(),
 			"the reopened MPO must allow a physical task selection"));
 		int[] reopenedRowsBefore = new int[1];
 		SwingUtilities.invokeAndWait(() -> reopenedRowsBefore[0] = outlineRows(reopenedProject).size());
