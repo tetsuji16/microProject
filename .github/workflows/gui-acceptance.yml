@@ -173,6 +173,22 @@ jobs:
         shell: pwsh
         timeout-minutes: 50
         run: .\.github\scripts\test-issue-967-fresh-process.ps1
+      - name: Capture fresh-process failure diagnostics
+        if: failure()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $diagnostics = 'modules/microproject_ui/build/reports/guiTest-artifacts'
+          New-Item -ItemType Directory -Force -Path $diagnostics | Out-Null
+          Get-Process java,javaw -ErrorAction SilentlyContinue |
+            Select-Object Id,ProcessName,CPU,StartTime,Path |
+            Out-File (Join-Path $diagnostics 'java-processes.txt')
+          $jcmd = Join-Path $env:JAVA_HOME 'bin/jcmd.exe'
+          if (-not (Test-Path -LiteralPath $jcmd)) { $jcmd = 'jcmd' }
+          Get-Process java,javaw -ErrorAction SilentlyContinue | ForEach-Object {
+            & $jcmd $_.Id Thread.print 2>&1 | Out-File (Join-Path $diagnostics ("thread-dump-$($_.Id).txt"))
+          }
+
       - name: Upload fresh-process GUI evidence
         if: always()
         uses: actions/upload-artifact@v4
