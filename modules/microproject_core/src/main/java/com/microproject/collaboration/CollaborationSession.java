@@ -40,7 +40,9 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.function.LongSupplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -77,12 +79,15 @@ public class CollaborationSession {
 	private final String clientInstanceId;
 	private final Map<Long, ProjectMergeService.TaskState> lockBaselineStates = new LinkedHashMap<Long, ProjectMergeService.TaskState>();
 	private final Map<Long, Long> lockBaselineGenerations = new LinkedHashMap<Long, Long>();
+	private final Map<Long, Long> lostLockBaselineGenerations = new LinkedHashMap<Long, Long>();
 	private volatile ExternalProjectReloadHandler externalReloadHandler;
 	private volatile Consumer<String> externalChangeNoticeHandler;
 	private volatile Timer timer;
 	private final Object stateLock = new Object();
 	private final Object lifecycleLock = new Object();
 	private final AtomicReference<Object> operationGateToken = new AtomicReference<Object>();
+	private final AtomicLong workspaceSaveGeneration = new AtomicLong();
+	private volatile LongSupplier workspaceSaveClock = System::currentTimeMillis;
 	private final ThreadLocal<Object> acquisitionBatchToken = new ThreadLocal<Object>();
 	private final AtomicBoolean stopFinalizationStarted = new AtomicBoolean();
 	private final CompletableFuture<Void> stopFinalization = new CompletableFuture<Void>();
@@ -97,6 +102,9 @@ public class CollaborationSession {
 	private volatile boolean externalChangeWarned;
 	private volatile boolean externalReloadRequested;
 	private volatile boolean pendingExternalReload;
+	private volatile boolean workspaceFallbackAmbiguous;
+	private volatile boolean workspaceBaselineKnown;
+	private volatile String workspaceBaselinePayload;
 	private volatile long pendingExternalReloadModified;
 	private volatile long pendingExternalReloadLength;
 	private volatile long pendingExternalReloadDetectedAt;
@@ -141,7 +149,9 @@ public class CollaborationSession {
 		synchronized (lifecycleLock) {
 			if (stopped || timer != null) return;
 			registerUser();
-			refreshKnownState(store.load());
+			Metadata initial = store.load();
+			captureWorkspaceBaseline(initial);
+			refreshKnownState(initial);
 			timer = new Timer("projectlibre-collaboration-" + clientInstanceId, true);
 			timer.scheduleAtFixedRate(new TimerTask() {
 				@Override
@@ -150,6 +160,12 @@ public class CollaborationSession {
 				}
 			}, POLL_INTERVAL_MS, POLL_INTERVAL_MS);
 		}
+	}
+
+	private void captureWorkspaceBaseline(Metadata metadata) {
+		UserWorkspaceState state = metadata == null ? null : metadata.getPerUserWorkspace().get(userKey);
+		workspaceBaselinePayload = state == null ? null : state.getWorkspacePayload();
+		workspaceBaselineKnown = true;
 	}
 
 	/**
@@ -293,17 +309,18 @@ public class CollaborationSession {
 
 	private void performStopFinalization() {
 		store.beginClosing();
-		try {
-			saveWorkspace(project == null ? null : project.getCollaborationWorkspace(), true);
-		} catch (Exception e) {
-			logger.log(Level.FINE, "Failed to save workspace on session stop", e);
-		}
+		WorkspaceSetting closingWorkspace = project == null ? null : project.getCollaborationWorkspace();
+		boolean workspaceSaved = saveWorkspace(closingWorkspace, true);
 		try {
 			lockManager.releaseAll();
 		} catch (RuntimeException e) {
 			logger.log(Level.WARNING, "Collaboration locks could not be released; leases will expire", e);
 		} finally {
-			synchronized (lockBaselineStates) { lockBaselineStates.clear(); lockBaselineGenerations.clear(); }
+				synchronized (lockBaselineStates) {
+					lockBaselineStates.clear();
+					lockBaselineGenerations.clear();
+					lostLockBaselineGenerations.clear();
+				}
 		}
 		boolean unregistered = false;
 		try {
@@ -312,11 +329,22 @@ public class CollaborationSession {
 		} catch (RuntimeException e) {
 			logger.log(Level.WARNING, "Collaboration session metadata could not be unregistered; artifacts stay in place", e);
 		}
-		if (unregistered) removeProjectArtifacts();
+		if (workspaceSaved && unregistered) {
+			LocalWorkspaceStore localWorkspaces = projectFile == null ? null : new LocalWorkspaceStore(projectFile, userKey);
+			if (closingWorkspace == null && localWorkspaces != null && localWorkspaces.hasAnyFallback()) {
+				throw new IllegalStateException("A local workspace fallback is pending; shared artifacts were retained");
+			}
+			removeProjectArtifacts();
+		}
+		if (!workspaceSaved) throw new IllegalStateException("The latest collaboration workspace could not be saved; shared files were retained");
 	}
 
 	void awaitStopFinalizationForTests() {
 		stopFinalization.join();
+	}
+
+	void setWorkspaceSaveClockForTests(LongSupplier clock) {
+		workspaceSaveClock = Objects.requireNonNull(clock);
 	}
 
 	/** Leaves nothing beside the project once no other user needs it (issue #967). */
@@ -505,6 +533,11 @@ public class CollaborationSession {
 		}
 		Long taskId = Long.valueOf(task.getUniqueId());
 		synchronized (lockBaselineStates) {
+			if (lostLockBaselineGenerations.containsKey(taskId) && lockBaselineStates.containsKey(taskId)) {
+				lockBaselineGenerations.put(taskId, Long.valueOf(generation));
+				lostLockBaselineGenerations.put(taskId, Long.valueOf(generation));
+				return;
+			}
 			if (!replace && lockBaselineStates.containsKey(taskId)) {
 				lockBaselineGenerations.put(taskId, Long.valueOf(generation));
 				return;
@@ -522,13 +555,19 @@ public class CollaborationSession {
 
 	private void refreshLockBaselines() {
 		for (Long taskId : lockManager.getLocalLocks()) {
+			Long generation = lockManager.getHeldGeneration(taskId.longValue());
+			if (generation == null) continue;
 			Task task = project == null ? null : project.findByUniqueId(taskId.longValue());
 			ProjectMergeService.TaskState state = ProjectMergeService.TaskState.capture(task);
 			synchronized (lockBaselineStates) {
-				if (state != null) lockBaselineStates.put(taskId, state);
+				if (state != null) {
+					lockBaselineStates.put(taskId, state);
+					lockBaselineGenerations.put(taskId, generation);
+				}
 				else {
 					lockBaselineStates.remove(taskId);
 					lockBaselineGenerations.remove(taskId);
+					lostLockBaselineGenerations.remove(taskId);
 				}
 			}
 		}
@@ -551,7 +590,7 @@ public class CollaborationSession {
 		try {
 			TaskLockManager.AcquireOutcome outcome = lockManager.acquireWithStatus(task.getUniqueId());
 			if (!outcome.acquired && outcome.confirmedFailure) {
-				removeBaselineIfNotNewer(Long.valueOf(task.getUniqueId()), outcome.generation);
+				markBaselineLostIfNotNewer(Long.valueOf(task.getUniqueId()), outcome.generation);
 			} else if (outcome.acquired && outcome.newlyAcquired) {
 				rememberLockBaseline(task, true, outcome.generation);
 			} else if (outcome.acquired) {
@@ -572,10 +611,20 @@ public class CollaborationSession {
 
 	private void removeBaselineIfNotNewer(Long taskId, long generation) {
 		synchronized (lockBaselineStates) {
+			if (lostLockBaselineGenerations.containsKey(taskId)) return;
 			Long current = lockBaselineGenerations.get(taskId);
 			if (current != null && current.longValue() <= generation) {
 				lockBaselineStates.remove(taskId);
 				lockBaselineGenerations.remove(taskId);
+			}
+		}
+	}
+
+	private void markBaselineLostIfNotNewer(Long taskId, long generation) {
+		synchronized (lockBaselineStates) {
+			Long current = lockBaselineGenerations.get(taskId);
+			if (current != null && current.longValue() <= generation) {
+				lostLockBaselineGenerations.put(taskId, current);
 			}
 		}
 	}
@@ -644,7 +693,23 @@ public class CollaborationSession {
 	public void afterSave() {
 		projectStatsRefreshPending = true;
 		refreshProjectStatsIfPending();
+		Map<Long, Long> savedLostGenerations;
+		synchronized (lockBaselineStates) {
+			savedLostGenerations = new LinkedHashMap<Long, Long>(lostLockBaselineGenerations);
+		}
 		refreshLockBaselines();
+		Set<Long> activeLocks = lockManager.getLocalLocks();
+		synchronized (lockBaselineStates) {
+			for (Map.Entry<Long, Long> savedLost : savedLostGenerations.entrySet()) {
+				Long taskId = savedLost.getKey();
+				if (!savedLost.getValue().equals(lostLockBaselineGenerations.get(taskId))) continue;
+				if (!activeLocks.contains(taskId)) {
+					lockBaselineStates.remove(taskId);
+					lockBaselineGenerations.remove(taskId);
+				}
+				lostLockBaselineGenerations.remove(taskId);
+			}
+		}
 		refreshKnownFileStats();
 		resetExternalChangeState(true);
 	}
@@ -661,6 +726,22 @@ public class CollaborationSession {
 	public void afterExternalProjectRefresh() {
 		refreshKnownFileStats();
 		resetExternalChangeState(true);
+	}
+
+	/** Completes a successful refresh and releases only unchanged lost-lock baselines. */
+	public void afterExternalProjectRefresh(ExternalProjectRefreshLease lease) {
+		if (lease != null) {
+			synchronized (lockBaselineStates) {
+				for (Map.Entry<Long, Long> entry : lease.unchangedLostTaskGenerations.entrySet()) {
+					if (entry.getValue().equals(lostLockBaselineGenerations.get(entry.getKey()))) {
+						lostLockBaselineGenerations.remove(entry.getKey());
+						lockBaselineStates.remove(entry.getKey());
+						lockBaselineGenerations.remove(entry.getKey());
+					}
+				}
+			}
+		}
+		afterExternalProjectRefresh();
 	}
 
 	/** Returns true only for the first warning in one failed-refresh period. */
@@ -715,7 +796,10 @@ public class CollaborationSession {
 			if (stopped || lockManager.hasPendingOperations()) {
 				throw new CollaborationLockUnavailableException("A task lock operation changed during external refresh");
 			}
-			return new ExternalProjectRefreshLease(token, lockManager.getLocalLocks());
+			LostBaselineSnapshot lost = snapshotLostLockBaselines();
+			Set<Long> protectedTaskIds = new java.util.LinkedHashSet<Long>(lockManager.getLocalLocks());
+			protectedTaskIds.addAll(lost.dirty.keySet());
+			return new ExternalProjectRefreshLease(token, protectedTaskIds, lost.dirty, lost.unchanged);
 		} catch (RuntimeException failure) {
 			releaseOperationGate(token);
 			throw failure;
@@ -725,13 +809,19 @@ public class CollaborationSession {
 	public final class ExternalProjectRefreshLease implements AutoCloseable {
 		private final Object token;
 		private final Set<Long> lockedTaskIds;
+		private final Map<Long, Long> dirtyLostTaskGenerations;
+		private final Map<Long, Long> unchangedLostTaskGenerations;
 
-		private ExternalProjectRefreshLease(Object token, Set<Long> lockedTaskIds) {
+		private ExternalProjectRefreshLease(Object token, Set<Long> lockedTaskIds,
+				Map<Long, Long> dirtyLostTaskGenerations, Map<Long, Long> unchangedLostTaskGenerations) {
 			this.token = token;
 			this.lockedTaskIds = java.util.Collections.unmodifiableSet(new java.util.LinkedHashSet<Long>(lockedTaskIds));
+			this.dirtyLostTaskGenerations = java.util.Collections.unmodifiableMap(new LinkedHashMap<Long, Long>(dirtyLostTaskGenerations));
+			this.unchangedLostTaskGenerations = java.util.Collections.unmodifiableMap(new LinkedHashMap<Long, Long>(unchangedLostTaskGenerations));
 		}
 
 		public Set<Long> getLockedTaskIds() { return lockedTaskIds; }
+		public Set<Long> getDirtyLostTaskIds() { return dirtyLostTaskGenerations.keySet(); }
 
 		@Override
 		public void close() {
@@ -773,57 +863,162 @@ public class CollaborationSession {
 			for (Map.Entry<Long, Long> lost : lostLocks.entrySet()) {
 				Long baselineGeneration = lockBaselineGenerations.get(lost.getKey());
 				if (baselineGeneration != null && baselineGeneration.longValue() <= lost.getValue().longValue()) {
-					lockBaselineStates.remove(lost.getKey());
-					lockBaselineGenerations.remove(lost.getKey());
+					lostLockBaselineGenerations.put(lost.getKey(), baselineGeneration);
 				}
 			}
 		}
+	}
+
+	private LostBaselineSnapshot snapshotLostLockBaselines() {
+		LostBaselineSnapshot snapshot = new LostBaselineSnapshot();
+		synchronized (lockBaselineStates) {
+			for (Map.Entry<Long, Long> lost : lostLockBaselineGenerations.entrySet()) {
+				ProjectMergeService.TaskState baseline = lockBaselineStates.get(lost.getKey());
+				Task currentTask = project == null ? null : project.findByUniqueId(lost.getKey().longValue());
+				ProjectMergeService.TaskState current = ProjectMergeService.TaskState.capture(currentTask);
+				Map<Long, Long> destination = baseline != null && current != null && baseline.matches(current)
+					? snapshot.unchanged : snapshot.dirty;
+				destination.put(lost.getKey(), lost.getValue());
+			}
+		}
+		return snapshot;
 	}
 	public void saveWorkspace(WorkspaceSetting workspace) {
 		saveWorkspace(workspace, false);
 	}
 
-	private void saveWorkspace(WorkspaceSetting workspace, boolean closingSession) {
-		if (workspace == null || (stopped && !closingSession)) {
-			return;
-		}
+	private boolean saveWorkspace(WorkspaceSetting workspace, boolean closingSession) {
+		if (workspace == null) return true;
+		if (stopped && !closingSession) return false;
+		long saveGeneration = workspaceSaveGeneration.incrementAndGet();
+		String payload;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream();
 				ObjectOutputStream objectOut = new ObjectOutputStream(out)) {
 			objectOut.writeObject(workspace);
-			String payload = Base64.getEncoder().encodeToString(out.toByteArray());
+			payload = Base64.getEncoder().encodeToString(out.toByteArray());
+		} catch (Exception e) {
+			logger.log(Level.WARNING, "Failed to serialize workspace state for user " + userKey, e);
+			return false;
+		}
+		long saveStartedAt = workspaceSaveClock.getAsLong();
+		LocalWorkspaceStore localWorkspaceStore = projectFile == null ? null : new LocalWorkspaceStore(projectFile, userKey);
+		if (localWorkspaceStore != null && !workspaceBaselineKnown) {
+			captureWorkspaceBaseline(store.load());
+		}
+		boolean fallbackNeeded = localWorkspaceStore != null;
+		boolean fallbackSaved = false;
+		if (fallbackNeeded && localWorkspaceStore != null) {
+			try {
+				localWorkspaceStore.saveFallback(payload, clientInstanceId, saveGeneration, saveStartedAt);
+				fallbackSaved = true;
+				localWorkspaceStore.clearFallbacksForSessionBefore(clientInstanceId, saveGeneration);
+			} catch (Exception e) {
+				logger.log(Level.WARNING, "Could not stage a local workspace fallback for user " + userKey, e);
+			}
+		}
+		if (workspaceFallbackAmbiguous) {
+			logger.warning("Workspace save is blocked because the local fallback and shared sidecar have conflicting layouts; this session's layout was retained locally when possible");
+			return false;
+		}
+		if (localWorkspaceStore != null) {
+			try {
+				localWorkspaceStore.ensureFallbacksAgreeWithSidecar(payload);
+			} catch (java.io.IOException ambiguous) {
+				workspaceFallbackAmbiguous = true;
+				logger.log(Level.SEVERE, "Workspace save is ambiguous; preserving all local copies and the shared sidecar", ambiguous);
+				return false;
+			}
+		}
+		boolean[] committed = new boolean[1];
+		boolean[] blockedBySidecarConflict = new boolean[1];
+		try {
 			store.mutate(metadata -> {
+				if (saveGeneration != workspaceSaveGeneration.get()) return;
+				UserWorkspaceState existing = metadata.getPerUserWorkspace().get(userKey);
+				String existingPayload = existing == null ? null : existing.getWorkspacePayload();
+				if (!Objects.equals(existingPayload, workspaceBaselinePayload)
+						&& !Objects.equals(existingPayload, payload)) {
+					blockedBySidecarConflict[0] = true;
+					return;
+				}
 				UserWorkspaceState state = new UserWorkspaceState();
 				state.setUserKey(userKey);
 				state.setDisplayName(displayName);
-				state.setSavedAt(System.currentTimeMillis());
+				state.setSavedAt(saveStartedAt);
 				state.setWorkspacePayload(payload);
 				metadata.getPerUserWorkspace().put(userKey, state);
 				store.refreshProjectStats(metadata);
+				committed[0] = true;
 			});
-			refreshKnownState(store.load());
+			if (!committed[0]) {
+				if (blockedBySidecarConflict[0]) {
+					workspaceFallbackAmbiguous = true;
+					logger.warning("Workspace save was blocked because the shared sidecar changed concurrently; both versions were retained");
+				}
+				if (fallbackSaved && !blockedBySidecarConflict[0])
+					localWorkspaceStore.clearFallbacksForSessionThrough(clientInstanceId, saveGeneration);
+				return false;
+			}
+			workspaceBaselinePayload = payload;
+			workspaceBaselineKnown = true;
+			if (localWorkspaceStore != null && fallbackSaved) {
+				try {
+					localWorkspaceStore.clearFallbacksForSessionThrough(clientInstanceId, saveGeneration);
+				} catch (Exception e) {
+					logger.log(Level.WARNING, "Could not clear the workspace fallback marker for user " + userKey, e);
+				}
+			}
+			try {
+				refreshKnownState(store.load());
+			} catch (RuntimeException e) {
+				logger.log(Level.FINE, "Workspace was saved but metadata refresh failed", e);
+			}
+			return true;
 		} catch (Exception e) {
 			logger.log(Level.WARNING, "Failed to save workspace state for user " + userKey, e);
+			if (closingSession && !fallbackSaved) {
+				logger.warning("The latest workspace could not be saved locally; the shared sidecar will be retained");
+			}
+			return false;
 		}
 	}
 
 	public WorkspaceSetting loadWorkspace() {
 		Metadata metadata = store.load();
-		if (metadata == null) {
+		UserWorkspaceState state = metadata == null ? null : metadata.getPerUserWorkspace().get(userKey);
+		LocalWorkspaceStore localWorkspaceStore = projectFile == null ? null : new LocalWorkspaceStore(projectFile, userKey);
+		String sidecarPayload = state == null ? null : state.getWorkspacePayload();
+		String fallbackPayload;
+		try {
+			fallbackPayload = localWorkspaceStore == null ? null
+				: localWorkspaceStore.loadFallbackComparedTo(sidecarPayload);
+		} catch (java.io.IOException ambiguous) {
+			workspaceFallbackAmbiguous = true;
+			logger.log(Level.SEVERE, "Workspace recovery is ambiguous; retaining sidecar " + store.getSidecarFile()
+					+ " and local recovery files " + (localWorkspaceStore == null ? java.util.Collections.emptyList()
+							: localWorkspaceStore.getFallbackFiles()), ambiguous);
 			return null;
 		}
-		UserWorkspaceState state = metadata.getPerUserWorkspace().get(userKey);
-		String payload = state != null && state.getWorkspacePayload() != null
-			? state.getWorkspacePayload()
-			: projectFile == null ? null : new LocalWorkspaceStore(projectFile, userKey).load();
+		String payload = fallbackPayload != null ? fallbackPayload
+			: sidecarPayload != null ? sidecarPayload
+				: localWorkspaceStore == null ? null : localWorkspaceStore.load();
 		if (payload == null) {
+			workspaceBaselinePayload = sidecarPayload;
+			workspaceBaselineKnown = true;
 			return null;
 		}
+		workspaceBaselinePayload = sidecarPayload;
+		workspaceBaselineKnown = true;
 		byte[] data = Base64.getDecoder().decode(payload);
 		try (var in = SafeObjectInput.create(new ByteArrayInputStream(data))) {
 				return (WorkspaceSetting) in.readObject();
 			} catch (Exception e) {
 			return null;
 		}
+	}
+
+	public boolean hasAmbiguousWorkspaceFallback() {
+		return workspaceFallbackAmbiguous;
 	}
 
 	public String getSidecarFileName() {
@@ -836,6 +1031,11 @@ public class CollaborationSession {
 
 	public void setExternalChangeNoticeHandler(Consumer<String> externalChangeNoticeHandler) {
 		this.externalChangeNoticeHandler = externalChangeNoticeHandler;
+	}
+
+	private static final class LostBaselineSnapshot {
+		private final Map<Long, Long> dirty = new LinkedHashMap<Long, Long>();
+		private final Map<Long, Long> unchanged = new LinkedHashMap<Long, Long>();
 	}
 
 	private static final class KnownMetadataState {

@@ -58,6 +58,204 @@ class CollaborationSessionSameUserLifecycleTest {
 	}
 
 	@Test
+	@ResourceLock(Resources.SYSTEM_PROPERTIES)
+	void workspaceFallbackMarkersAreSessionScopedAndDivergentValuesStayAmbiguous() throws Exception {
+		Path projectFile = Files.createFile(tempDir.resolve("workspace-fallback-generations.mpo"));
+		String previousRoot = isolatedWorkspaceRoot();
+		try {
+			LocalWorkspaceStore local = new LocalWorkspaceStore(projectFile.toFile(), "alice");
+			String firstPayload = java.util.Base64.getEncoder().encodeToString("first".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+			String secondPayload = java.util.Base64.getEncoder().encodeToString("second".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+			local.saveFallback(firstPayload, "session-a", 1L, 100L);
+			local.saveFallback(secondPayload, "session-b", 1L, 200L);
+
+			assertNull(local.loadFallback(), "timestamps cannot select between divergent session fallbacks");
+			local.clearFallbacksForSessionThrough("session-a", 1L);
+			assertEquals(secondPayload, local.loadFallback(), "one session cannot clear another session's marker");
+			assertTrue(local.hasFallback("session-b"));
+
+			local.saveFallback(firstPayload, "session-a", 2L, 300L);
+			assertNull(local.loadFallback(), "a later timestamp cannot resolve divergent fallback content");
+			local.clearFallbacksForSessionThrough("session-a", 2L);
+			assertEquals(secondPayload, local.loadFallback(), "clearing through generation two leaves session-b's fallback intact");
+			assertThrows(java.io.IOException.class, () -> local.save(firstPayload),
+					"retirement must preserve divergent local values regardless of clock timestamps");
+			assertEquals(secondPayload, local.loadFallback(), "an ambiguous retirement leaves the fallback marker in place");
+			local.clearFallbacksForSessionThrough("session-b", 1L);
+			local.save(firstPayload);
+			assertEquals(firstPayload, local.load(), "a strictly newer sidecar capture safely wins retirement");
+			assertNull(local.loadFallback());
+		} finally {
+			restoreWorkspaceRoot(previousRoot);
+		}
+	}
+
+	@Test
+	@ResourceLock(Resources.SYSTEM_PROPERTIES)
+	void workspaceClockReversalDoesNotChooseBetweenFallbackAndSidecar() throws Exception {
+		Path projectFile = Files.createFile(tempDir.resolve("workspace-load-capture-order.mpo"));
+		String previousRoot = isolatedWorkspaceRoot();
+		CollaborationMetadataStore store = new CollaborationMetadataStore(projectFile.toFile());
+		LocalWorkspaceStore local = new LocalWorkspaceStore(projectFile.toFile(), "alice");
+		String oldPayload = serializeWorkspace(new TestWorkspace("older-fallback"));
+		String newPayload = serializeWorkspace(new TestWorkspace("newer-sidecar"));
+		try {
+			local.saveFallback(oldPayload, "old-session", 1L, 9_000L);
+			store.mutate(metadata -> {
+				UserWorkspaceState state = new UserWorkspaceState();
+				state.setUserKey("alice");
+			state.setSavedAt(1_000L);
+				state.setWorkspacePayload(newPayload);
+				metadata.getPerUserWorkspace().put("alice", state);
+			});
+			CollaborationSession skewed = new CollaborationSession(null, projectFile.toString(), "alice");
+			assertNull(skewed.loadWorkspace(), "different PCs' clocks cannot determine which divergent layout is newer");
+			assertTrue(skewed.hasAmbiguousWorkspaceFallback());
+			assertTrue(local.hasFallback("old-session"), "loading a newer sidecar does not clear another session's marker");
+			assertEquals(newPayload, store.load().getPerUserWorkspace().get("alice").getWorkspacePayload());
+			local.clearFallbacksForSessionThrough("old-session", 1L);
+
+			String equalTimeSidecar = serializeWorkspace(new TestWorkspace("equal-time-sidecar"));
+			local.saveFallback(oldPayload, "ambiguous-session", 1L, 3_000L);
+			store.mutate(metadata -> {
+				UserWorkspaceState state = metadata.getPerUserWorkspace().get("alice");
+				state.setSavedAt(3_000L);
+				state.setWorkspacePayload(equalTimeSidecar);
+			});
+			CollaborationSession ambiguous = new CollaborationSession(null, projectFile.toString(), "alice");
+			assertNull(ambiguous.loadWorkspace(), "divergent values are not silently resolved");
+			assertTrue(ambiguous.hasAmbiguousWorkspaceFallback());
+			ambiguous.saveWorkspace(new TestWorkspace("must-not-overwrite"));
+			assertFalse(ambiguous.stopAndAwaitClose(3000L), "ambiguous layouts prevent sidecar retirement");
+			assertTrue(Files.isRegularFile(CollaborationMetadataStore.buildSidecarFile(projectFile.toFile()).toPath()));
+			assertEquals(equalTimeSidecar, store.load().getPerUserWorkspace().get("alice").getWorkspacePayload(),
+					"the sidecar payload remains unchanged while the fallback is ambiguous");
+			assertTrue(local.hasFallback("ambiguous-session"));
+		} finally {
+			restoreWorkspaceRoot(previousRoot);
+		}
+	}
+
+	@Test
+	@ResourceLock(Resources.SYSTEM_PROPERTIES)
+	void divergentFallbackSurvivesDelayedSidecarCommitRegardlessOfClockOrder() throws Exception {
+		Path projectFile = Files.createFile(tempDir.resolve("workspace-fallback-commit-order.mpo"));
+		String previousRoot = isolatedWorkspaceRoot();
+		ControlledStore store = new ControlledStore(projectFile.toFile());
+		Project olderProject = project();
+		olderProject.setCollaborationWorkspace(new TestWorkspace("older-capture"));
+		Project newerProject = project();
+		newerProject.setCollaborationWorkspace(new TestWorkspace("newer-fallback"));
+		CollaborationSession olderSession = new CollaborationSession(olderProject, projectFile.toString(), "alice", store);
+		CollaborationSession newerSession = new CollaborationSession(newerProject, projectFile.toString(), "alice", store);
+		ExecutorService executor = Executors.newSingleThreadExecutor();
+		try {
+			olderSession.start();
+			newerSession.start();
+			olderSession.setWorkspaceSaveClockForTests(() -> 1_000L);
+			store.pauseNextTransaction();
+			Future<?> olderSave = executor.submit(() -> olderSession.saveWorkspace(olderProject.getCollaborationWorkspace()));
+			assertTrue(store.awaitTransaction(5, TimeUnit.SECONDS), "the older payload is paused before metadata commit");
+
+			LocalWorkspaceStore local = new LocalWorkspaceStore(projectFile.toFile(), "alice");
+			assertFalse(newerSession.stopAndAwaitClose(3_000L), "the concurrent close is preserved locally after detecting conflict");
+			java.util.List<Path> fallbackCopies = local.getFallbackFiles();
+			assertEquals(2, fallbackCopies.size(), "both the paused writer and closing session stage independent recovery copies");
+			Set<String> fallbackMarkers = new LinkedHashSet<String>();
+			for (Path fallback : fallbackCopies) {
+				String payload = java.util.Base64.getEncoder().encodeToString(Files.readAllBytes(fallback));
+				fallbackMarkers.add(((TestWorkspace) deserializeWorkspace(payload)).marker);
+			}
+			assertEquals(Set.of("older-capture", "newer-fallback"), fallbackMarkers,
+					"each session's distinct workspace payload is recoverable while the commit is paused");
+
+			store.resumeTransaction();
+			olderSave.get(5, TimeUnit.SECONDS);
+			UserWorkspaceState committed = store.load().getPerUserWorkspace().get("alice");
+			assertEquals(1_000L, committed.getSavedAt(), "the delayed writer retains its payload capture time");
+			assertNull(new CollaborationSession(null, projectFile.toString(), "alice").loadWorkspace(),
+				"a fallback and sidecar with different payloads remain ambiguous regardless of timestamps");
+			assertEquals(1, local.getFallbackFiles().size(), "the successful delayed writer clears only its own fallback");
+			assertEquals("newer-fallback", ((TestWorkspace) deserializeWorkspace(local.loadFallback())).marker,
+					"the conflicted closing session's fallback remains after the delayed commit");
+			assertThrows(java.io.IOException.class, () -> local.save(committed.getWorkspacePayload()),
+				"retirement cannot discard a divergent fallback based on clock order");
+		} finally {
+			store.resumeTransaction();
+			olderSession.stop();
+			newerSession.stop();
+			executor.shutdownNow();
+			restoreWorkspaceRoot(previousRoot);
+		}
+	}
+
+	@Test
+	@ResourceLock(Resources.SYSTEM_PROPERTIES)
+	void concurrentDivergentWorkspaceCommitKeepsFallbackAlongsideCommittedSidecar() throws Exception {
+		Path projectFile = Files.createFile(tempDir.resolve("workspace-fallback-equal-time.mpo"));
+		String previousRoot = isolatedWorkspaceRoot();
+		ControlledStore store = new ControlledStore(projectFile.toFile());
+		Project firstProject = project();
+		firstProject.setCollaborationWorkspace(new TestWorkspace("committed-first"));
+		Project secondProject = project();
+		secondProject.setCollaborationWorkspace(new TestWorkspace("rejected-second"));
+		CollaborationSession first = new CollaborationSession(firstProject, projectFile.toString(), "alice", store);
+		CollaborationSession second = new CollaborationSession(secondProject, projectFile.toString(), "alice", store);
+		try {
+			first.start();
+			second.start();
+			first.setWorkspaceSaveClockForTests(() -> 5_000L);
+			second.setWorkspaceSaveClockForTests(() -> 5_000L);
+			first.saveWorkspace(firstProject.getCollaborationWorkspace());
+
+			assertFalse(second.stopAndAwaitClose(3000L), "a concurrent divergent workspace save is conservatively rejected");
+			assertTrue(Files.isRegularFile(CollaborationMetadataStore.buildSidecarFile(projectFile.toFile()).toPath()),
+					"the committed sidecar remains while the rejected workspace is recoverable");
+			UserWorkspaceState committed = store.load().getPerUserWorkspace().get("alice");
+			assertEquals("committed-first", ((TestWorkspace) deserializeWorkspace(committed.getWorkspacePayload())).marker,
+					"the committed workspace remains in the sidecar");
+			String rejectedFallback = new LocalWorkspaceStore(projectFile.toFile(), "alice").loadFallback();
+			assertNotNull(rejectedFallback, "the rejected writer's session marker remains visible");
+			assertEquals(5_000L, committed.getSavedAt());
+			assertEquals("rejected-second", ((TestWorkspace) deserializeWorkspace(rejectedFallback)).marker,
+					"the rejected session's different content remains in its local fallback");
+		} finally {
+			first.stop();
+			second.stop();
+			restoreWorkspaceRoot(previousRoot);
+		}
+	}
+
+	@Test
+	@ResourceLock(Resources.SYSTEM_PROPERTIES)
+	void laterWorkspaceSaveSupersedesThisSessionsFailedFallbackGeneration() throws Exception {
+		Path projectFile = Files.createFile(tempDir.resolve("workspace-own-generation-retry.mpo"));
+		String previousRoot = isolatedWorkspaceRoot();
+		ControlledStore store = new ControlledStore(projectFile.toFile());
+		Project project = project();
+		project.setCollaborationWorkspace(new TestWorkspace("first-failed-layout"));
+		CollaborationSession session = new CollaborationSession(project, projectFile.toString(), "alice", store);
+		LocalWorkspaceStore local = new LocalWorkspaceStore(projectFile.toFile(), "alice");
+		try {
+			session.start();
+			store.failNextTransaction();
+			session.saveWorkspace(project.getCollaborationWorkspace());
+			assertEquals("first-failed-layout", ((TestWorkspace) deserializeWorkspace(local.loadFallback())).marker,
+					"the failed first save remains recoverable");
+
+			project.setCollaborationWorkspace(new TestWorkspace("second-successful-layout"));
+			session.saveWorkspace(project.getCollaborationWorkspace());
+			assertNull(local.loadFallback(), "successful newer generation clears this session's superseded fallback");
+			CollaborationSession reopened = new CollaborationSession(null, projectFile.toString(), "alice", store);
+			assertEquals("second-successful-layout", ((TestWorkspace) reopened.loadWorkspace()).marker,
+					"the later successful layout is restored after reopen");
+		} finally {
+			session.stop();
+			restoreWorkspaceRoot(previousRoot);
+		}
+	}
+
+	@Test
 	void stoppingOneSameUserSessionKeepsTheOtherSessionMetadataUsable() throws Exception {
 		Path projectFile = Files.createFile(tempDir.resolve("same-user.mpo"));
 		Project project = project();
@@ -171,6 +369,82 @@ class CollaborationSessionSameUserLifecycleTest {
 		} finally {
 			first.stop();
 			second.stop();
+		}
+	}
+
+	@Test
+	void changedTaskBaselineSurvivesLeaseLossAndReacquisitionUntilSuccessfulSave() throws Exception {
+		Path projectFile = Files.createFile(tempDir.resolve("lost-lease-dirty-baseline.mpo"));
+		Project project = project();
+		NormalTask task = project.createScriptedTask();
+		long taskId = task.getUniqueId();
+		CollaborationMetadataStore store = new CollaborationMetadataStore(projectFile.toFile());
+		CollaborationSession alice = new CollaborationSession(project, projectFile.toString(), "alice");
+		CollaborationSession bob = new CollaborationSession(project, projectFile.toString(), "bob");
+		try {
+			alice.start();
+			bob.start();
+			assertTrue(alice.tryAcquireTaskLock(task));
+			task.setName("Alice unsaved edit");
+			store.mutate(metadata -> {
+				CollaborationMetadataStore.LockRecord lease = metadata.getLocks().get(Long.toString(taskId));
+				assertNotNull(lease);
+				lease.setLeaseUntil(System.currentTimeMillis() - 1L);
+			});
+			assertTrue(bob.tryAcquireTaskLock(task));
+			assertFalse(alice.tryAcquireTaskLock(task), "a contested reacquire confirms the earlier lease was lost");
+			assertTrue(baselineMap(alice).containsKey(taskId), "confirmed acquisition failure must preserve the task baseline");
+
+			CollaborationSession.ExternalProjectRefreshLease lostLeaseRefresh = alice.beginExternalProjectRefresh();
+			assertTrue(lostLeaseRefresh.getLockedTaskIds().contains(taskId), "dirty local tasks remain protected after their lease is lost");
+			assertTrue(lostLeaseRefresh.getDirtyLostTaskIds().contains(taskId));
+			alice.afterExternalProjectRefresh(lostLeaseRefresh);
+			lostLeaseRefresh.close();
+			assertTrue(baselineMap(alice).containsKey(taskId), "the original acquisition baseline remains available for conflict checks");
+
+			assertFalse(alice.tryAcquireTaskLock(task), "the current owner still controls the task");
+			bob.stop();
+			assertTrue(alice.tryAcquireTaskLock(task), "the former owner can reacquire after release");
+			try (CollaborationSession.ExternalProjectRefreshLease reacquiredRefresh = alice.beginExternalProjectRefresh()) {
+				assertTrue(reacquiredRefresh.getDirtyLostTaskIds().contains(taskId), "reacquisition does not erase the dirty baseline");
+			}
+
+			alice.afterSave();
+			try (CollaborationSession.ExternalProjectRefreshLease savedRefresh = alice.beginExternalProjectRefresh()) {
+				assertFalse(savedRefresh.getDirtyLostTaskIds().contains(taskId), "a successful save rebases and releases the lost-lock conflict");
+				assertTrue(savedRefresh.getLockedTaskIds().contains(taskId), "the current verified lease still protects the task");
+			}
+		} finally {
+			alice.stop();
+			bob.stop();
+		}
+	}
+
+	@Test
+	void unchangedTaskAfterLeaseLossRemainsEligibleForExternalRefresh() throws Exception {
+		Path projectFile = Files.createFile(tempDir.resolve("lost-lease-unchanged-baseline.mpo"));
+		Project project = project();
+		NormalTask task = project.createScriptedTask();
+		long taskId = task.getUniqueId();
+		CollaborationMetadataStore store = new CollaborationMetadataStore(projectFile.toFile());
+		CollaborationSession alice = new CollaborationSession(project, projectFile.toString(), "alice");
+		CollaborationSession bob = new CollaborationSession(project, projectFile.toString(), "bob");
+		try {
+			alice.start();
+			bob.start();
+			assertTrue(alice.tryAcquireTaskLock(task));
+			store.mutate(metadata -> metadata.getLocks().get(Long.toString(taskId)).setLeaseUntil(System.currentTimeMillis() - 1L));
+			assertTrue(bob.tryAcquireTaskLock(task));
+
+			CollaborationSession.ExternalProjectRefreshLease refresh = alice.beginExternalProjectRefresh();
+			assertFalse(refresh.getLockedTaskIds().contains(taskId), "unchanged local data does not suppress external values");
+			assertFalse(refresh.getDirtyLostTaskIds().contains(taskId));
+			alice.afterExternalProjectRefresh(refresh);
+			refresh.close();
+			assertFalse(baselineMap(alice).containsKey(taskId), "successful refresh releases the unchanged stale baseline");
+		} finally {
+			alice.stop();
+			bob.stop();
 		}
 	}
 
@@ -676,6 +950,43 @@ class CollaborationSessionSameUserLifecycleTest {
 		}
 	}
 
+	@Test
+	@ResourceLock(Resources.SYSTEM_PROPERTIES)
+	void failedClosingWorkspaceSavePreservesUnorderedSidecarAndFallbackForManualRecovery() throws Exception {
+		Path projectFile = Files.createFile(tempDir.resolve("close-workspace-save-failure.mpo"));
+		Project project = project();
+		project.setCollaborationWorkspace(new TestWorkspace("older-layout"));
+		String previousRoot = isolatedWorkspaceRoot();
+		ControlledStore store = new ControlledStore(projectFile.toFile());
+		CollaborationSession session = new CollaborationSession(project, projectFile.toString(), "alice", store);
+		Path sidecar = CollaborationMetadataStore.buildSidecarFile(projectFile.toFile()).toPath();
+		try {
+			session.start();
+			session.saveWorkspace(project.getCollaborationWorkspace());
+			project.setCollaborationWorkspace(new TestWorkspace("latest-layout"));
+			store.failNextTransaction();
+
+			assertFalse(session.stopAndAwaitClose(3000L), "the failed final workspace write is reported to project close");
+			assertTrue(Files.isRegularFile(sidecar), "a failed latest-layout write must not retire the shared sidecar");
+
+			Project reopenedProject = project();
+			CollaborationSession reopened = new CollaborationSession(reopenedProject, projectFile.toString(), "alice");
+			reopened.start();
+			WorkspaceSetting recoveredWorkspace = reopened.loadWorkspace();
+			assertNull(recoveredWorkspace,
+					"without synchronized clocks, a different fallback and sidecar remain unresolved");
+			assertTrue(reopened.hasAmbiguousWorkspaceFallback());
+			assertTrue(new LocalWorkspaceStore(projectFile.toFile(), "alice").hasAnyFallback(),
+					"the failed writer's local recovery copy remains available for manual recovery");
+			reopened.stop();
+			assertTrue(Files.exists(sidecar), "unresolved workspace copies prevent sidecar retirement");
+			assertTrue(new LocalWorkspaceStore(projectFile.toFile(), "alice").hasAnyFallback());
+		} finally {
+			session.stop();
+			restoreWorkspaceRoot(previousRoot);
+		}
+	}
+
 	private Process startChildSession(Path projectFile, Path logFile) throws Exception {
 		String java = Path.of(System.getProperty("java.home"), "bin",
 				System.getProperty("os.name").toLowerCase().contains("win") ? "java.exe" : "java").toString();
@@ -730,6 +1041,21 @@ class CollaborationSessionSameUserLifecycleTest {
 		Project project = Project.createProject(ResourcePool.createRourcePool("test", undoController), undoController);
 		project.initialize(false, false);
 		return project;
+	}
+
+	private static WorkspaceSetting deserializeWorkspace(String payload) throws Exception {
+		byte[] serialized = java.util.Base64.getDecoder().decode(payload);
+		try (var input = com.microproject.util.SafeObjectInput.create(new java.io.ByteArrayInputStream(serialized))) {
+			return (WorkspaceSetting) input.readObject();
+		}
+	}
+
+	private static String serializeWorkspace(WorkspaceSetting workspace) throws Exception {
+		try (var bytes = new java.io.ByteArrayOutputStream();
+				var output = new java.io.ObjectOutputStream(bytes)) {
+			output.writeObject(workspace);
+			return java.util.Base64.getEncoder().encodeToString(bytes.toByteArray());
+		}
 	}
 
 	private static Map<?, ?> baselineMap(CollaborationSession session) throws Exception {

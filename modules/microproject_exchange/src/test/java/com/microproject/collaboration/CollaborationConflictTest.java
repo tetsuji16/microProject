@@ -49,6 +49,10 @@ import net.sf.mpxj.writer.ProjectWriter;
 import com.microproject.exchange.mpxj.ProjectWriterFactory;
 
 import com.microproject.exchange.LocalFileImporter;
+import com.microproject.exchange.MpoConflictRecoveryException;
+import com.microproject.exchange.MpoFileImporter;
+import com.microproject.exchange.MpoFileImporter;
+import com.microproject.exchange.MpoConflictRecoveryException;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.resource.ResourcePoolFactory;
 import com.microproject.pm.task.Project;
@@ -250,6 +254,150 @@ class CollaborationConflictTest {
 	@Test
 	void podConflictDetectionOnlyFlagsChangedLockedTasks() throws Exception {
 		assertConflictDetectionOnlyFlagsChangedLockedTasks("pod");
+	}
+
+	@Test
+	void expiredTaskLeaseProtectsDirtyRefreshAndMpoSaveCreatesRecoveryCopy() throws Exception {
+		ProjectMergeService mergeService = new ProjectMergeService();
+		File workbook = createWorkbook("Original task", "Unchanged task");
+		Project initial = mergeService.loadExternalProject(workbook.getAbsolutePath());
+		assertNotNull(initial);
+		File sharedMpo = Files.createTempFile(tempDir, "expired-lease-save-conflict", ".mpo").toFile();
+		saveNativeMpo(initial, sharedMpo);
+
+		Project aliceProject = mergeService.loadExternalProject(sharedMpo.getAbsolutePath());
+		Project bobProject = mergeService.loadExternalProject(sharedMpo.getAbsolutePath());
+		assertNotNull(aliceProject);
+		assertNotNull(bobProject);
+		com.microproject.pm.task.Task aliceTask = (com.microproject.pm.task.Task) aliceProject.getTasks().get(0);
+		com.microproject.pm.task.Task bobTask = (com.microproject.pm.task.Task) bobProject.getTasks().get(0);
+		long taskId = aliceTask.getUniqueId();
+		CollaborationSession alice = new CollaborationSession(aliceProject, sharedMpo.getAbsolutePath(), "alice");
+		CollaborationSession bob = new CollaborationSession(bobProject, sharedMpo.getAbsolutePath(), "bob");
+		Path recoveryCopy = null;
+		try {
+			alice.start();
+			assertTrue(alice.tryAcquireTaskLock(aliceTask));
+			aliceTask.setName("Alice unsaved edit");
+			assertTrue(aliceProject.needsSaving(), "Alice's change must remain unsaved in the open project");
+
+			bob.start();
+			CollaborationMetadataStore metadataStore = new CollaborationMetadataStore(sharedMpo);
+			metadataStore.mutate(metadata -> {
+				CollaborationMetadataStore.LockRecord lease = metadata.getLocks().get(Long.toString(taskId));
+				assertNotNull(lease);
+				lease.setLeaseUntil(System.currentTimeMillis() - 1L);
+			});
+			assertTrue(bob.tryAcquireTaskLock(bobTask), "Bob takes the task after Alice's lease expires");
+			bobTask.setName("Bob committed edit");
+			saveNativeMpo(bobProject, sharedMpo);
+			byte[] bobCommittedArchive = Files.readAllBytes(sharedMpo.toPath());
+
+			try (CollaborationSession.ExternalProjectRefreshLease refresh = alice.beginExternalProjectRefresh()) {
+				assertTrue(refresh.getDirtyLostTaskIds().contains(Long.valueOf(taskId)),
+						"refresh identifies Alice's locally changed task after confirming the lease expired");
+				ProjectMergeService.ApplyResult refreshed = mergeService.applyExternalTaskUpdates(
+						aliceProject, sharedMpo.getAbsolutePath(), refresh.getLockedTaskIds());
+				assertFalse(refreshed.hasLoadFailure());
+				assertTrue(refreshed.getSkippedLockedTaskIds().contains(Long.valueOf(taskId)),
+						"the external refresh leaves Alice's unsaved task untouched");
+				assertEquals("Alice unsaved edit", aliceTask.getName());
+				alice.afterExternalProjectRefresh(refresh);
+			}
+
+			MpoFileImporter aliceWriter = new MpoFileImporter();
+			aliceWriter.setFileName(sharedMpo.getAbsolutePath());
+			aliceWriter.setProject(aliceProject);
+			MpoConflictRecoveryException conflict = assertThrows(MpoConflictRecoveryException.class, aliceWriter::exportFile,
+					"saving Alice's preserved stale-base edit must report the concurrent same-task change");
+			recoveryCopy = conflict.recoveryCopy();
+			assertFalse(conflict.conflicts().isEmpty());
+			assertArrayEquals(bobCommittedArchive, Files.readAllBytes(sharedMpo.toPath()),
+					"the shared MPO remains Bob's committed version instead of being silently overwritten");
+			Project sharedAfterConflict = mergeService.loadExternalProject(sharedMpo.getAbsolutePath());
+			assertEquals("Bob committed edit", ((com.microproject.pm.task.Task) sharedAfterConflict.getTasks().get(0)).getName());
+			assertTrue(Files.isRegularFile(recoveryCopy));
+			Project recoveredAlice = mergeService.loadExternalProject(recoveryCopy.toString());
+			assertEquals("Alice unsaved edit", ((com.microproject.pm.task.Task) recoveredAlice.getTasks().get(0)).getName(),
+					"the recovery copy contains Alice's protected unsaved value");
+		} finally {
+			if (recoveryCopy != null) Files.deleteIfExists(recoveryCopy);
+			alice.stop();
+			bob.stop();
+		}
+	}
+
+	@Test
+	void expiredDirtyTaskSurvivesExternalRefreshAndMpoConflictRecovery() throws Exception {
+		File workbook = createWorkbook("Initial locked task", "Initial independent task");
+		Project seedProject = new ProjectMergeService().loadExternalProject(workbook.getAbsolutePath());
+		assertNotNull(seedProject);
+		File shared = Files.createTempFile(tempDir, "lost-lease-mpo-", ".mpo").toFile();
+		MpoFileImporter seed = new MpoFileImporter();
+		seed.setFileName(shared.getAbsolutePath());
+		seed.setProject(seedProject);
+		seed.exportFile();
+
+		Project local = new ProjectMergeService().loadExternalProject(shared.getAbsolutePath());
+		Project remote = new ProjectMergeService().loadExternalProject(shared.getAbsolutePath());
+		assertNotNull(local);
+		assertNotNull(remote);
+		com.microproject.pm.task.Task localLocked = (com.microproject.pm.task.Task) local.getTasks().get(0);
+		com.microproject.pm.task.Task localIndependent = (com.microproject.pm.task.Task) local.getTasks().get(1);
+		com.microproject.pm.task.Task remoteLocked = (com.microproject.pm.task.Task) remote.findByUniqueId(localLocked.getUniqueId());
+		com.microproject.pm.task.Task remoteIndependent = (com.microproject.pm.task.Task) remote.findByUniqueId(localIndependent.getUniqueId());
+		assertNotNull(remoteLocked);
+		assertNotNull(remoteIndependent);
+
+		CollaborationMetadataStore store = new CollaborationMetadataStore(shared);
+		CollaborationSession alice = new CollaborationSession(local, shared.getAbsolutePath(), "alice");
+		CollaborationSession bob = new CollaborationSession(remote, shared.getAbsolutePath(), "bob");
+		Path recoveryCopy = null;
+		try {
+			alice.start();
+			assertTrue(alice.tryAcquireTaskLock(localLocked));
+			localLocked.setName("Alice unsaved value");
+
+			remoteLocked.setName("Bob committed value");
+			remoteIndependent.setName("Bob independent update");
+			MpoFileImporter remoteWriter = new MpoFileImporter();
+			remoteWriter.setFileName(shared.getAbsolutePath());
+			remoteWriter.setProject(remote);
+			remoteWriter.exportFile();
+
+			bob.start();
+			store.mutate(metadata -> metadata.getLocks().get(Long.toString(localLocked.getUniqueId()))
+				.setLeaseUntil(System.currentTimeMillis() - 1L));
+			assertTrue(bob.tryAcquireTaskLock(remoteLocked));
+
+			CollaborationSession.ExternalProjectRefreshLease refresh = alice.beginExternalProjectRefresh();
+			try {
+				assertTrue(refresh.getDirtyLostTaskIds().contains(localLocked.getUniqueId()));
+				ProjectMergeService.ApplyResult result = new ProjectMergeService().applyExternalTaskUpdates(
+					local, shared.getAbsolutePath(), refresh.getLockedTaskIds());
+				assertFalse(result.hasLoadFailure());
+				assertTrue(result.getSkippedLockedTaskIds().contains(localLocked.getUniqueId()));
+				assertEquals("Alice unsaved value", localLocked.getName(), "lease loss must not overwrite the unsaved local edit");
+				assertEquals("Bob independent update", localIndependent.getName(), "unmodified tasks still receive external updates");
+				alice.afterExternalProjectRefresh(refresh);
+			} finally {
+				refresh.close();
+			}
+
+			MpoFileImporter localWriter = new MpoFileImporter();
+			localWriter.setFileName(shared.getAbsolutePath());
+			localWriter.setProject(local);
+			MpoConflictRecoveryException conflict = assertThrows(MpoConflictRecoveryException.class, localWriter::exportFile,
+				"the existing MPO journal must report the divergent same-field edits rather than replacing either branch");
+			recoveryCopy = conflict.recoveryCopy();
+			assertEquals("Alice unsaved value", ((com.microproject.pm.task.Task) new ProjectMergeService()
+				.loadExternalProject(recoveryCopy.toString()).findByUniqueId(localLocked.getUniqueId())).getName(),
+				"the MPO recovery copy must preserve the lease-lost local value");
+		} finally {
+			alice.stop();
+			bob.stop();
+			if (recoveryCopy != null) Files.deleteIfExists(recoveryCopy);
+		}
 	}
 
 	private void assertConflictDetectionOnlyFlagsChangedLockedTasks(String extension) throws Exception {
@@ -518,6 +666,13 @@ class CollaborationConflictTest {
 			return createPodFile(firstTaskName, secondTaskName);
 		}
 		return createWorkbook(firstTaskName, secondTaskName);
+	}
+
+	private static void saveNativeMpo(Project project, File target) throws Exception {
+		MpoFileImporter exporter = new MpoFileImporter();
+		exporter.setFileName(target.getAbsolutePath());
+		exporter.setProject(project);
+		exporter.exportFile();
 	}
 
 	private File createPodFile(String firstTaskName, String secondTaskName) throws Exception {

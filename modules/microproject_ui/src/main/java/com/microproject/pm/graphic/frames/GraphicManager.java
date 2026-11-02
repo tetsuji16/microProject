@@ -929,6 +929,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			return;
 		}
 		DocumentFrame frame = getFrameForProject(project);
+		if (frame != null && session.hasAmbiguousWorkspaceFallback()) {
+			frame.statusBar.setMessage("Local and shared workspace layouts conflict. Both copies were preserved; workspace saving is paused until the conflict is resolved.");
+		}
 		if (frame != null && project.getCollaborationWorkspace() != null) {
 			frame.restoreWorkspace(project.getCollaborationWorkspace(), SavableToWorkspace.VIEW);
 			project.setCollaborationWorkspace(null);
@@ -990,7 +993,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		try {
 			ProjectMergeService.ApplyResult result = new ProjectMergeService().applyExternalTaskUpdates(project, fileName, lockedTaskIds);
 			if (session != null && !result.hasLoadFailure()) {
-				session.afterExternalProjectRefresh();
+				session.afterExternalProjectRefresh(refreshLease);
 			}
 			if (result.hasLoadFailure()) {
 				if (session != null) {
@@ -1015,7 +1018,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			}
 			DocumentFrame frame = getFrameForProject(project);
 			if (frame != null) {
-				frame.statusBar.setMessage(null);
+				if (refreshLease != null && !refreshLease.getDirtyLostTaskIds().isEmpty()) {
+					frame.statusBar.setMessage("Unsaved changes remain on task(s) after a collaboration lock expired; external refresh kept them. Reacquire the lock and save or use Save Copy.");
+				} else {
+					frame.statusBar.setMessage(null);
+				}
 			}
 		} catch (RuntimeException | Error failure) {
 			if (session != null) session.afterExternalProjectRefreshFailure();
@@ -3657,6 +3664,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 						persistCollaborationWorkspace(savedProject);
 					}
 					refreshSaveStatus(true);
+					CollaborationSession savedSession = savedProject.getCollaborationSession();
+					if (frame != null && savedSession != null && savedSession.hasAmbiguousWorkspaceFallback()) {
+						frame.statusBar.setMessage("The project was saved, but workspace recovery remains unresolved. Both workspace copies were preserved.");
+					}
 					Runnable continuation = afterSaveNewProject;
 					afterSaveNewProject = null;
 					if (continuation != null) SwingUtilities.invokeLater(continuation);
