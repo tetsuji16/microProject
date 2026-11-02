@@ -126,6 +126,12 @@ jobs:
             .\.github\scripts\run-gui-acceptance.ps1 -Suite $requestedSuite
           }
 
+      - name: Run fresh-process POD to MPO journey
+        if: ${{ github.event_name == 'schedule' }}
+        shell: pwsh
+        timeout-minutes: 15
+        run: .\.github\scripts\test-issue-967-fresh-process.ps1
+
       - name: Capture GUI failure diagnostics
         if: failure()
         shell: pwsh
