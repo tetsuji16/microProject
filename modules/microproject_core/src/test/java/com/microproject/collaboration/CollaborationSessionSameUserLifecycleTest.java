@@ -139,6 +139,63 @@ class CollaborationSessionSameUserLifecycleTest {
 
 	@Test
 	@ResourceLock(Resources.SYSTEM_PROPERTIES)
+	void fallbackConflictNoticeAllowsRetryAndClearsAfterSuccessfulResolution() throws Exception {
+		Path projectFile = Files.createFile(tempDir.resolve("workspace-conflict-notice-retry.mpo"));
+		String previousRoot = isolatedWorkspaceRoot();
+		CollaborationMetadataStore store = new CollaborationMetadataStore(projectFile.toFile());
+		LocalWorkspaceStore local = new LocalWorkspaceStore(projectFile.toFile(), "alice");
+		String sharedPayload = serializeWorkspace(new TestWorkspace("shared-layout"));
+		String recoveredPayload = serializeWorkspace(new TestWorkspace("recovery-layout"));
+		store.mutate(metadata -> {
+			UserWorkspaceState state = new UserWorkspaceState();
+			state.setUserKey("alice");
+			state.setWorkspacePayload(sharedPayload);
+			metadata.getPerUserWorkspace().put("alice", state);
+		});
+		local.saveFallback(recoveredPayload, "other-instance", 1L, 1_000L);
+		CollaborationSession session = new CollaborationSession(null, projectFile.toString(), "alice", store);
+		try {
+			assertNull(session.loadWorkspace());
+			assertTrue(session.hasWorkspaceConflictNotice(), "loading divergent copies raises a visible conflict notice");
+			assertTrue(session.saveWorkspace(new TestWorkspace("recovery-layout")),
+					"a later retry matching the preserved recovery copy can resolve the conflict");
+			assertFalse(session.hasWorkspaceConflictNotice(), "a successful resolving save clears the notice");
+			assertEquals("recovery-layout", ((TestWorkspace) session.loadWorkspace()).marker);
+		} finally {
+			session.stop();
+			restoreWorkspaceRoot(previousRoot);
+		}
+	}
+
+	@Test
+	void sidecarCompareAndSwapConflictIsReportedAndClearsAfterSuccessfulRetry() throws Exception {
+		Path projectFile = Files.createFile(tempDir.resolve("workspace-cas-conflict-notice.mpo"));
+		CollaborationMetadataStore store = new CollaborationMetadataStore(projectFile.toFile());
+		String baselinePayload = serializeWorkspace(new TestWorkspace("baseline-layout"));
+		String externalPayload = serializeWorkspace(new TestWorkspace("external-layout"));
+		store.mutate(metadata -> {
+			UserWorkspaceState state = new UserWorkspaceState();
+			state.setUserKey("alice");
+			state.setWorkspacePayload(baselinePayload);
+			metadata.getPerUserWorkspace().put("alice", state);
+		});
+		CollaborationSession session = new CollaborationSession(null, null, "alice", store);
+		try {
+			assertEquals("baseline-layout", ((TestWorkspace) session.loadWorkspace()).marker);
+			store.mutate(metadata -> metadata.getPerUserWorkspace().get("alice").setWorkspacePayload(externalPayload));
+
+			assertFalse(session.saveWorkspace(new TestWorkspace("local-layout")), "a changed sidecar rejects a stale workspace write");
+			assertTrue(session.hasWorkspaceConflictNotice(), "the rejected compare-and-swap remains visible");
+			assertTrue(session.saveWorkspace(new TestWorkspace("external-layout")),
+					"retrying with the current sidecar value is an idempotent successful save");
+			assertFalse(session.hasWorkspaceConflictNotice(), "a later successful save clears the conflict notice");
+		} finally {
+			session.stop();
+		}
+	}
+
+	@Test
+	@ResourceLock(Resources.SYSTEM_PROPERTIES)
 	void divergentFallbackSurvivesDelayedSidecarCommitRegardlessOfClockOrder() throws Exception {
 		Path projectFile = Files.createFile(tempDir.resolve("workspace-fallback-commit-order.mpo"));
 		String previousRoot = isolatedWorkspaceRoot();
