@@ -514,9 +514,11 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			assertTrue(hasGanttTaskHitRegion(ganttChart, taskForGantt),
 				"the selected task bar must have a Gantt hit region after zoom: "
 					+ ganttDiagnostic(frame.getGanttView(), ganttChart, taskForGantt));
+			physicallyCenterTaskInGanttViewport(robot, frame.getGanttView(), ganttChart, taskForGantt);
+			assertTaskBarPixels(robot, frame.getGanttView(), ganttChart, taskForGantt);
 			resizeWindowWithRobot(robot, window);
-			GuiAcceptanceSupport.await(() -> visibleRangeContains(frame.getGanttView(), taskForGantt),
-				"resizing moved the selected task outside the visible date range: "
+			GuiAcceptanceSupport.await(() -> visibleRangeContainsTaskCenter(frame.getGanttView(), taskForGantt),
+				"resizing moved the selected task's center outside the visible date range: "
 					+ ganttDiagnostic(frame.getGanttView(), ganttChart, taskForGantt));
 			assertTaskBarPixels(robot, frame.getGanttView(), ganttChart, taskForGantt);
 			assertTrue(hasGanttTaskHitRegion(ganttChart, taskForGantt),
@@ -734,6 +736,43 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 	private static boolean visibleRangeContains(GanttView view, NormalTask task) {
 		SelectedTasksTimescaleZoom.DateRange range = view.getVisibleDateRange();
 		return range != null && range.start() <= task.getStart() && range.end() >= task.getEnd();
+	}
+
+	private static boolean visibleRangeContainsTaskCenter(GanttView view, NormalTask task) {
+		SelectedTasksTimescaleZoom.DateRange range = view.getVisibleDateRange();
+		long center = task.getStart() + (task.getEnd() - task.getStart()) / 2;
+		return range != null && range.start() <= center && range.end() >= center;
+	}
+
+	private static void physicallyCenterTaskInGanttViewport(Robot robot, GanttView view, Gantt chart, NormalTask task)
+		throws Exception {
+		Rectangle[] target = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle visible = chart.getVisibleRect();
+			Point origin = chart.getLocationOnScreen();
+			target[0] = new Rectangle(origin.x + visible.x + visible.width / 2,
+				origin.y + visible.y + visible.height / 2, 1, 1);
+		});
+		robot.mouseMove(target[0].x, target[0].y);
+		for (int attempt = 0; attempt < 40; attempt++) {
+			double fraction = taskCenterViewportFraction(view, task);
+			if (fraction >= 0.40d && fraction <= 0.60d) return;
+			robot.keyPress(KeyEvent.VK_SHIFT);
+			robot.mouseWheel(fraction > 0.60d ? 1 : -1);
+			robot.keyRelease(KeyEvent.VK_SHIFT);
+			robot.waitForIdle();
+		}
+		double finalFraction = taskCenterViewportFraction(view, task);
+		assertTrue(finalFraction >= 0.40d && finalFraction <= 0.60d,
+			"physical Shift+wheel could not center the selected task in the Gantt viewport; fraction=" + finalFraction
+				+ ", " + ganttDiagnostic(view, chart, task));
+	}
+
+	private static double taskCenterViewportFraction(GanttView view, NormalTask task) {
+		SelectedTasksTimescaleZoom.DateRange range = view.getVisibleDateRange();
+		if (range == null || range.end() <= range.start()) return Double.NaN;
+		long center = task.getStart() + (task.getEnd() - task.getStart()) / 2;
+		return (double) (center - range.start()) / (range.end() - range.start());
 	}
 
 	private static String ganttDiagnostic(GanttView view, Gantt chart, NormalTask task) {
