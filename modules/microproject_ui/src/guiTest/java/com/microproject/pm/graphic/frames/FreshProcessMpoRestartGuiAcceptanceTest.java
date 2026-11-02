@@ -12,13 +12,17 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.AWTEvent;
+import java.awt.Toolkit;
 import java.awt.GraphicsEnvironment;
+import java.awt.KeyboardFocusManager;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Window;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.AWTEventListener;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -172,17 +176,41 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 		robot.keyPress(KeyEvent.VK_F2);
 		robot.keyRelease(KeyEvent.VK_F2);
 		GuiAcceptanceSupport.await(() -> onEdtUnchecked(sheet::isEditing), "F2 did not start editing the inserted task name");
-		for (char character : "issue 967 persisted task".toCharArray()) {
-			int keyCode = character == ' ' ? KeyEvent.VK_SPACE : KeyEvent.getExtendedKeyCodeForChar(character);
-			if (keyCode == KeyEvent.VK_UNDEFINED) throw new AssertionError("No key code for " + character);
-			robot.keyPress(keyCode);
-			robot.keyRelease(keyCode);
+		Component editor = onEdt(sheet::getEditorComponent);
+		StringBuilder inputEvents = new StringBuilder();
+		AWTEventListener eventRecorder = event -> {
+			if (event instanceof KeyEvent key) inputEvents.append("KEY id=").append(key.getID())
+				.append(" code=").append(key.getKeyCode()).append(" char=").append((int) key.getKeyChar())
+				.append(" source=").append(key.getSource().getClass().getName())
+				.append(" consumed=").append(key.isConsumed()).append(System.lineSeparator());
+			else if (event instanceof java.awt.event.InputMethodEvent ime) inputEvents.append("IME id=").append(ime.getID())
+				.append(" text=").append(ime.getText()).append(" committed=").append(ime.getCommittedCharacterCount())
+				.append(System.lineSeparator());
+		};
+		Toolkit.getDefaultToolkit().addAWTEventListener(eventRecorder,
+			AWTEvent.KEY_EVENT_MASK | AWTEvent.INPUT_METHOD_EVENT_MASK);
+		try {
+			writeEditDiagnostic("edit-before-typing.txt", project, sheet, insertedRow, nameColumn, editor, inputEvents);
+			for (char character : "issue 967 persisted task".toCharArray()) {
+				int keyCode = character == ' ' ? KeyEvent.VK_SPACE : KeyEvent.getExtendedKeyCodeForChar(character);
+				if (keyCode == KeyEvent.VK_UNDEFINED) throw new AssertionError("No key code for " + character);
+				robot.keyPress(keyCode);
+				robot.keyRelease(keyCode);
+			}
+			robot.waitForIdle();
+			writeEditDiagnostic("edit-before-enter.txt", project, sheet, insertedRow, nameColumn, editor, inputEvents);
+			robot.keyPress(KeyEvent.VK_ENTER);
+			robot.keyRelease(KeyEvent.VK_ENTER);
+			try {
+				GuiAcceptanceSupport.await(() -> onEdtUnchecked(() -> !sheet.isEditing()
+					&& "issue 967 persisted task".equals(sheet.getValueAt(insertedRow, nameColumn))),
+					"physical multi-character task-name edit did not commit to the rendered spreadsheet");
+			} finally {
+				writeEditDiagnostic("edit-after-enter.txt", project, sheet, insertedRow, nameColumn, editor, inputEvents);
+			}
+		} finally {
+			Toolkit.getDefaultToolkit().removeAWTEventListener(eventRecorder);
 		}
-		robot.keyPress(KeyEvent.VK_ENTER);
-		robot.keyRelease(KeyEvent.VK_ENTER);
-		GuiAcceptanceSupport.await(() -> onEdtUnchecked(() -> !sheet.isEditing()
-			&& "issue 967 persisted task".equals(sheet.getValueAt(insertedRow, nameColumn))),
-			"physical multi-character task-name edit did not commit to the rendered spreadsheet");
 		assertTrue(onEdt(() -> outlineRows(project).contains("issue 967 persisted task")),
 			"physical task-name edit did not update the project model");
 		clickImmediateBackstagePage(robot, "save");
@@ -512,6 +540,38 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 		});
 		Files.writeString(workspace.resolve(fileName), report, StandardCharsets.UTF_8);
 		System.out.println(fileName + System.lineSeparator() + report);
+	}
+
+	private void writeEditDiagnostic(String fileName, Project project, SpreadSheet sheet, int row, int column,
+			Component editor, StringBuilder inputEvents) throws Exception {
+		String state = onEdt(() -> {
+			var node = ((SpreadSheetModel) sheet.getModel()).getNodeForDisplayRow(row);
+			Object impl = node == null ? null : node.getImpl();
+			Object fieldValue = row >= 0 && row < sheet.getRowCount() && column >= 0 && column < sheet.getColumnCount()
+				? sheet.getValueAt(row, column) : "<outside-table>";
+			Component focus = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+			String editorText = editor instanceof JTextComponent text ? text.getText() : "<not-text-component>";
+			String selected = sheet.getSelection().getActiveRow() + "," + sheet.getSelection().getActiveColumn();
+			List<String> taskNames = new ArrayList<>();
+			Object root = project.getTaskOutline().getHierarchy().getRoot();
+			for (var iterator = project.getTaskOutline().iterator(); iterator.hasNext();) {
+				var outlineNode = iterator.next();
+				if (outlineNode != root && outlineNode.getImpl() instanceof Task task) taskNames.add(task.getName());
+			}
+			String tasks = String.join(" | ", taskNames);
+			return "editing=" + sheet.isEditing() + " editRow=" + sheet.getEditingRow() + " editColumn=" + sheet.getEditingColumn()
+				+ " selected=" + selected + " targetRow=" + row + " targetColumn=" + column + System.lineSeparator()
+				+ "nodeClass=" + (node == null ? "<null>" : node.getClass().getName())
+				+ " nodeVoid=" + (node != null && node.isVoid()) + " implClass=" + (impl == null ? "<null>" : impl.getClass().getName())
+				+ " implName=" + (impl instanceof Task task ? task.getName() : "<not-task>") + System.lineSeparator()
+				+ "fieldValue=" + fieldValue + " editorClass=" + (editor == null ? "<null>" : editor.getClass().getName())
+				+ " editorText=" + editorText + " editorFocus=" + (editor != null && editor.isFocusOwner())
+				+ " focusOwner=" + (focus == null ? "<null>" : focus.getClass().getName()) + System.lineSeparator()
+				+ "projectTasks=" + tasks + System.lineSeparator();
+		});
+		Files.writeString(workspace.resolve(fileName), state + "inputEvents=" + System.lineSeparator() + inputEvents,
+			StandardCharsets.UTF_8);
+		System.out.println(fileName + System.lineSeparator() + state + "inputEvents=" + System.lineSeparator() + inputEvents);
 	}
 
 	private static String encodeRows(List<String> rows) {
