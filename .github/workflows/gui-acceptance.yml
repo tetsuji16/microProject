@@ -22,6 +22,11 @@ on:
         description: 'Optional targeted Gradle test filter (FQCN or FQCN.method); manual dispatch only'
         required: false
         type: string
+      issue_967_fresh_process:
+        description: 'Run the two-process POD-to-MPO diagnostic journey'
+        required: false
+        default: false
+        type: boolean
       gui_test_locale:
         description: 'Locale for a manual targeted test only'
         required: false
@@ -98,7 +103,7 @@ jobs:
           }
           $requiredContext = 'GUI acceptance'
           $filter = '${{ inputs.gui_test_filter }}'
-          $runKind = if (-not [string]::IsNullOrWhiteSpace($filter)) { "targeted ($filter; suite=$requestedSuite)" } else { $requestedSuite }
+          $runKind = if ('${{ inputs.issue_967_fresh_process }}' -eq 'true') { 'two-process #967 diagnostic' } elseif (-not [string]::IsNullOrWhiteSpace($filter)) { "targeted ($filter; suite=$requestedSuite)" } else { $requestedSuite }
           $lines = @(
             '## GUI acceptance gate',
             '',
@@ -109,7 +114,11 @@ jobs:
           )
           Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value ($lines -join [Environment]::NewLine)
           Write-Host "Selected GUI suite: $requestedSuite (event=$env:GITHUB_EVENT_NAME)"
-          if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch' -and -not [string]::IsNullOrWhiteSpace($env:GUI_TEST_FILTER)) {
+          if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch' -and '${{ inputs.issue_967_fresh_process }}' -eq 'true') {
+            if (-not [string]::IsNullOrWhiteSpace($env:GUI_TEST_FILTER)) { throw 'Choose either the fresh-process journey or a test filter.' }
+            Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value '- Actual run: two-process #967 diagnostic journey; this is not the full GUI gate.'
+            .\.github\scripts\test-issue-967-fresh-process.ps1
+          } elseif ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch' -and -not [string]::IsNullOrWhiteSpace($env:GUI_TEST_FILTER)) {
             $focusedLocale = if ([string]::IsNullOrWhiteSpace($env:GUI_TEST_LOCALE)) { 'ja' } else { $env:GUI_TEST_LOCALE }
             $focusedScale = if ([string]::IsNullOrWhiteSpace($env:GUI_TEST_SCALE)) { '1.0' } else { $env:GUI_TEST_SCALE }
             .\.github\scripts\run-gui-acceptance.ps1 -Suite $requestedSuite -TestFilter $env:GUI_TEST_FILTER -Locale $focusedLocale -Scale $focusedScale
@@ -120,25 +129,48 @@ jobs:
       - name: Capture GUI failure diagnostics
         if: failure()
         shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Continue'
-          $diagnostics = 'modules/microproject_ui/build/reports/guiTest-artifacts'
-          New-Item -ItemType Directory -Force -Path $diagnostics | Out-Null
-          Get-Process java,javaw -ErrorAction SilentlyContinue |
-            Select-Object Id,ProcessName,CPU,StartTime,Path |
-            Out-File (Join-Path $diagnostics 'java-processes.txt')
-          $jcmd = Join-Path $env:JAVA_HOME 'bin/jcmd.exe'
-          if (-not (Test-Path -LiteralPath $jcmd)) { $jcmd = 'jcmd' }
-          Get-Process java,javaw -ErrorAction SilentlyContinue | ForEach-Object {
-            $dump = Join-Path $diagnostics ("thread-dump-$($_.Id).txt")
-            & $jcmd $_.Id Thread.print 2>&1 | Out-File $dump
-          }
+        run: .\.github\scripts\capture-gui-failure-diagnostics.ps1
 
       - name: Upload GUI acceptance evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: gui-audit-evidence-${{ github.run_id }}
+          if-no-files-found: error
+          path: |
+            modules/microproject_ui/build/reports/tests/guiTest
+            modules/microproject_ui/build/test-results/guiTest
+            modules/microproject_ui/build/reports/guiTest-artifacts
+
+  fresh-process-audit:
+    if: ${{ github.event_name == 'schedule' }}
+    name: Fresh-process MPO audit
+    runs-on: windows-latest
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build fresh desktop install
+        shell: pwsh
+        run: .\gradlew.bat installDist --console=plain
+      - name: Run fresh-process POD to MPO journey
+        shell: pwsh
+        timeout-minutes: 50
+        run: .\.github\scripts\test-issue-967-fresh-process.ps1
+      - name: Capture fresh-process failure diagnostics
+        if: failure()
+        shell: pwsh
+        run: .\.github\scripts\capture-gui-failure-diagnostics.ps1
+
+      - name: Upload fresh-process GUI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fresh-process-mpo-evidence-${{ github.run_id }}
           if-no-files-found: error
           path: |
             modules/microproject_ui/build/reports/tests/guiTest
