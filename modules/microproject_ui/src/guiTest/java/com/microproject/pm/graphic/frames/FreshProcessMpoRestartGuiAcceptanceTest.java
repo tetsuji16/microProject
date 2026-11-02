@@ -183,7 +183,7 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 			"physical multi-character task-name edit did not commit to the rendered spreadsheet");
 		assertTrue(onEdt(() -> outlineRows(project).contains("issue 967 persisted task")),
 			"physical task-name edit did not update the project model");
-		clickCommand(robot, "RibbonSaveProject", null);
+		clickImmediateBackstagePage(robot, "save");
 		GuiAcceptanceSupport.await(() -> !dirtyUnchecked(project), "the fresh-JVM edit did not save");
 		List<String> finalRows = onEdt(() -> outlineRows(project));
 
@@ -285,6 +285,13 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> onEdtUnchecked(() -> named(window, "officeBackstageView") != null), "File tab did not open Backstage");
 		if (page != null) clickNamed(robot, "officeBackstageNav-" + page);
 		clickNamed(robot, "officeBackstageCommand-" + commandId);
+	}
+
+	private void clickImmediateBackstagePage(Robot robot, String page) throws Exception {
+		clickTab(robot, "File", "ファイル");
+		GuiAcceptanceSupport.await(() -> onEdtUnchecked(() -> named(window, "officeBackstageView") != null),
+			"File tab did not open Backstage");
+		clickNamed(robot, "officeBackstageNav-" + page);
 	}
 
 	private void clickTab(Robot robot, String english, String japanese) throws Exception {
@@ -417,7 +424,7 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 	private record TaskIdentity(long uniqueId, long id, String name) { }
 
 	private void closeProject(Robot robot, Path path) throws Exception {
-		clickCommand(robot, "RibbonCloseProject", null);
+		clickImmediateBackstagePage(robot, "close");
 		GuiAcceptanceSupport.await(() -> frameForPathUnchecked(path) == null,
 			"project did not close cleanly");
 	}
