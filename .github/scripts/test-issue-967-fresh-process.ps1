@@ -22,7 +22,7 @@ try {
       throw "GUI runner returned without executing and completing $phase. Workspace: $resolvedWorkspace"
     }
     if ($phase -like 'phaseOne*') {
-      foreach ($required in @('fresh-process.mpo', 'expected-rows.txt', 'phase-one.identity', 'selected-task.uid')) {
+      foreach ($required in @('fresh-process.mpo', 'expected-rows.txt', 'phase-one.identity', 'phase-one-node-counts.txt', 'selected-task.uid')) {
         if (-not (Test-Path -LiteralPath (Join-Path $resolvedWorkspace $required) -PathType Leaf)) {
           throw "Phase one omitted required evidence $required. Workspace: $resolvedWorkspace"
         }
