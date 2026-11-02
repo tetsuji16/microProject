@@ -10,12 +10,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.GraphicsEnvironment;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Window;
+import java.awt.image.BufferedImage;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
@@ -495,17 +497,31 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			SpreadSheet ganttSheet = frame.getGanttView().getSpreadSheet();
 			Gantt ganttChart = frame.getGanttView().getGantt();
 			GuiAcceptanceSupport.await(() -> ganttSheet.isShowing() && ganttChart.isShowing()
-				&& rowForTask(ganttSheet, taskForGantt) >= 0 && hasRenderedGanttTask(ganttChart, taskForGantt),
+				&& rowForTask(ganttSheet, taskForGantt) >= 0 && hasGanttTaskHitRegion(ganttChart, taskForGantt),
 				"Gantt spreadsheet and chart did not show the named fixture task after the physical view switch");
 			assertEquals("Gantt Resize Render Task", taskForGantt.getName(), "fixture task model name must be present");
 			int taskRow = rowForTask(ganttSheet, taskForGantt);
 			int taskNameColumn = findFieldColumn(ganttSheet, "Field.name");
 			assertEquals("Gantt Resize Render Task", renderedTaskName(ganttSheet, taskRow, taskNameColumn),
 				"task name must be rendered in the Gantt task table before resize");
+			clickVisibleCell(robot, window, ganttSheet, taskRow, taskNameColumn);
+			GuiAcceptanceSupport.await(() -> selectedTask(ganttSheet, taskForGantt),
+				"physical task-row click did not select the named task before viewport alignment");
+			SwingUtilities.invokeAndWait(() -> frame.getGanttView().zoomToSelectedTasks());
+			GuiAcceptanceSupport.await(() -> visibleRangeContains(frame.getGanttView(), taskForGantt),
+				"zoom to selected task did not bring the complete task date range into the visible Gantt viewport: "
+					+ ganttDiagnostic(frame.getGanttView(), ganttChart, taskForGantt));
+			assertTrue(hasGanttTaskHitRegion(ganttChart, taskForGantt),
+				"the selected task bar must have a Gantt hit region after zoom: "
+					+ ganttDiagnostic(frame.getGanttView(), ganttChart, taskForGantt));
 			resizeWindowWithRobot(robot, window);
-			assertRenderedPixels(robot, ganttChart, "Gantt chart with named task after resize");
-			assertTrue(hasRenderedGanttTask(ganttChart, taskForGantt),
-				"the named task's bar must remain hit-testable in the Gantt chart after resize");
+			GuiAcceptanceSupport.await(() -> visibleRangeContains(frame.getGanttView(), taskForGantt),
+				"resizing moved the selected task outside the visible date range: "
+					+ ganttDiagnostic(frame.getGanttView(), ganttChart, taskForGantt));
+			assertTaskBarPixels(robot, frame.getGanttView(), ganttChart, taskForGantt);
+			assertTrue(hasGanttTaskHitRegion(ganttChart, taskForGantt),
+				"the named task bar must remain hit-testable after resize: "
+				+ ganttDiagnostic(frame.getGanttView(), ganttChart, taskForGantt));
 			assertEquals("Gantt Resize Render Task", taskForGantt.getName(), "resize must preserve the fixture task model");
 			assertEquals("Gantt Resize Render Task", renderedTaskName(ganttSheet, taskRow, taskNameColumn),
 				"task name must remain rendered in the Gantt task table after resize");
@@ -521,7 +537,6 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			GuiAcceptanceSupport.await(resourceSheet::isShowing,
 				"Resource spreadsheet did not render after the physical view switch");
 			resizeWindowWithRobot(robot, window);
-			assertRenderedPixels(robot, resourceSheet, "Resource after resize");
 		}
 		SpreadSheet sheet = manager.getFrameForProject(project).getResourceView().getSpreadSheet();
 		GuiAcceptanceSupport.await(() -> sheet.isShowing() && rowFor(sheet, resource) >= 0,
@@ -533,6 +548,8 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		int column = sheet.convertColumnIndexToView(modelColumn);
 		int row = rowFor(sheet, resource);
 		clickVisibleCell(robot, window, sheet, row, column);
+		if (largeProject) assertRenderedCellPixels(robot, sheet, row, column,
+			expectedRateText(sheet, row, column, resource.getStandardRate()), "20.0/h Resource Standard Rate after resize");
 		try {
 			GuiAcceptanceSupport.await(sheet::isFocusOwner, "Standard Rate cell did not receive physical focus");
 		} catch (AssertionError failure) {
@@ -683,28 +700,82 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 				+ ", after=" + window.getBounds());
 	}
 
-	private static void assertRenderedPixels(Robot robot, javax.swing.JComponent component, String description) throws Exception {
-		Rectangle[] visibleBounds = new Rectangle[1];
+	private static void assertRenderedCellPixels(Robot robot, SpreadSheet sheet, int row, int column,
+		String expectedText, String description)
+		throws Exception {
+		Rectangle[] screenCell = new Rectangle[1];
+		Color[] background = new Color[1];
+		String[] rendererText = new String[1];
 		SwingUtilities.invokeAndWait(() -> {
-			Rectangle visible = component.getVisibleRect();
-			Point location = component.getLocationOnScreen();
-			visibleBounds[0] = new Rectangle(location.x + visible.x, location.y + visible.y,
-				Math.min(visible.width, 320), Math.min(visible.height, 180));
+			Rectangle cell = sheet.getCellRect(row, column, true);
+			Point origin = sheet.getLocationOnScreen();
+			screenCell[0] = new Rectangle(origin.x + cell.x, origin.y + cell.y, cell.width, cell.height);
+			Component renderer = sheet.prepareRenderer(sheet.getCellRenderer(row, column), row, column);
+			background[0] = renderer.getBackground();
+			rendererText[0] = renderer instanceof javax.swing.JLabel label ? label.getText() : renderer.toString();
 		});
-		GuiAcceptanceSupport.await(() -> distinctScreenColors(robot, visibleBounds[0]) >= 4,
-			description + " did not show varied rendered pixels in " + visibleBounds[0]);
-	}
-
-	private static int distinctScreenColors(Robot robot, Rectangle bounds) {
-		java.awt.image.BufferedImage image = robot.createScreenCapture(bounds);
+		assertEquals(expectedText, rendererText[0], description + " must render the current model value");
+		BufferedImage image = robot.createScreenCapture(screenCell[0]);
+		int backgroundRgb = background[0].getRGB() & 0x00ffffff;
+		int nonBackground = 0;
 		java.util.Set<Integer> colors = new java.util.HashSet<>();
-		for (int y = 0; y < image.getHeight(); y += 3)
-			for (int x = 0; x < image.getWidth(); x += 3)
-				colors.add(image.getRGB(x, y) & 0x00ffffff);
-		return colors.size();
+		for (int y = 0; y < image.getHeight(); y++)
+			for (int x = 0; x < image.getWidth(); x++) {
+				int rgb = image.getRGB(x, y) & 0x00ffffff;
+				colors.add(rgb);
+				if (rgb != backgroundRgb) nonBackground++;
+			}
+		assertTrue(nonBackground >= 10 && colors.size() >= 3,
+			description + " lacked rendered cell pixels; screenCell=" + screenCell[0] + ", text=" + rendererText[0]
+				+ ", rendererBackground=" + String.format("#%06X", backgroundRgb) + ", nonBackgroundPixels="
+				+ nonBackground + ", distinctColors=" + colors.size());
 	}
 
-	private static boolean hasRenderedGanttTask(Gantt chart, NormalTask task) {
+	private static boolean visibleRangeContains(GanttView view, NormalTask task) {
+		SelectedTasksTimescaleZoom.DateRange range = view.getVisibleDateRange();
+		return range != null && range.start() <= task.getStart() && range.end() >= task.getEnd();
+	}
+
+	private static String ganttDiagnostic(GanttView view, Gantt chart, NormalTask task) {
+		SelectedTasksTimescaleZoom.DateRange range = view.getVisibleDateRange();
+		return "task=" + task.getName() + "[" + task.getStart() + ".." + task.getEnd() + "], visibleDates=" + range
+			+ ", chartVisible=" + chart.getVisibleRect() + ", chartSize=" + chart.getSize()
+			+ ", taskX=" + chart.getCoord().toX(task.getStart()) + ".." + chart.getCoord().toX(task.getEnd());
+	}
+
+	private static void assertTaskBarPixels(Robot robot, GanttView view, Gantt chart, NormalTask task) throws Exception {
+		Rectangle[] sample = new Rectangle[1];
+		int[] expectedRgb = new int[1];
+		SwingUtilities.invokeAndWait(() -> {
+			var projection = chart.getCache().getVisibleNodes().getProjectionIndex();
+			for (int row = 0; row < projection.size(); row++) {
+				GraphicNode node = projection.nodeAt(row);
+				if (node.getNode().getImpl() != task) continue;
+				double startX = chart.getCoord().toX(task.getStart());
+				double endX = chart.getCoord().toX(task.getEnd());
+				double y = ((GanttUI) chart.getUI()).getBarY(row) + node.getGanttShapeOffset()
+					+ node.getGanttShapeHeight() / 2.0d;
+				Point origin = chart.getLocationOnScreen();
+				int centerX = (int) Math.round((startX + endX) / 2.0d);
+				int centerY = (int) Math.round(y);
+				sample[0] = new Rectangle(origin.x + centerX - 3, origin.y + centerY - 3, 7, 7);
+				expectedRgb[0] = chart.getDisplayedBarColors(task).middleRgb() & 0x00ffffff;
+				return;
+			}
+		});
+		assertTrue(sample[0] != null, "task is missing from the Gantt visible projection: "
+			+ ganttDiagnostic(view, chart, task));
+		BufferedImage image = robot.createScreenCapture(sample[0]);
+		int expected = 0;
+		for (int y = 0; y < image.getHeight(); y++)
+			for (int x = 0; x < image.getWidth(); x++)
+				if ((image.getRGB(x, y) & 0x00ffffff) == expectedRgb[0]) expected++;
+		assertTrue(expected >= 3, "task-bar crop did not contain its rendered middle color; sample=" + sample[0]
+			+ ", expectedColor=" + String.format("#%06X", expectedRgb[0]) + ", matchingPixels=" + expected
+			+ ", " + ganttDiagnostic(view, chart, task));
+	}
+
+	private static boolean hasGanttTaskHitRegion(Gantt chart, NormalTask task) {
 		boolean[] rendered = { false };
 		try {
 			SwingUtilities.invokeAndWait(() -> {
