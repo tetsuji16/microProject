@@ -28,4 +28,21 @@ Base: `e8a4a2350` (origin/master). Latest report: v0.1.0.1290, the row inserted 
 - An older release waiting on a retired marker does not check the mark.
 - A file held longer than the close wait stays until the same user next opens and closes the project; a Save As on the window's thread has the 300 ms wait. A damaged sidecar is never removed.
 
-Next slice: release, reporter retest (A6).
+## 2026-11-02 reporter update: reopened MPO cannot be operated
+
+Baseline: `51b441ce6c94714d00251360afaf3687c40d7202`, clean worktree. The reporter confirmed 1292 removes lock files, then reported that a single application instance reopening an MPO saved from POD cannot select or edit tasks. The two-instance result may instead have been a freeze. A black rectangle on resize was also reported; #946 tracks responsiveness and repaint. No shared cause has been established.
+
+| ID | Required result | State |
+| --- | --- | --- |
+| A7 | Reporter POD -> Save As MPO -> application close -> fresh application -> open MPO: select and inspect a task, add/edit a task, save and reopen with changes intact | Open: physical end-to-end reproduction and diagnosis required. Existing GUI route closes only the project and compares rows; it does not restart the application or verify interaction after reopen. |
+| A8 | Determine what happens with two independent instances, preserve both users' data, and communicate any edit denial; evaluate the reporter's proposed read-only behavior against the existing per-task collaboration contract | Open: behavior and cause not established. |
+| A9 | Investigate reported resize rectangle and freeze with #946 evidence; verify physical interaction and rendered state after resize | Open: #1015 repaint change is merged after 1292, but reporter's failure is not proven fixed. |
+| A10 | Explain the different lock files and their limits to the reporter | Open. |
+
+Next slice: establish a physical single-instance reproduction on the current candidate using the reporter's POD and actual application restart. Capture screenshot, logs, thread dump and model/selection state upon failure before choosing a fix. Do not infer lock contention from a marker file's existence or claim a fix from a successful import alone. The two-instance policy and resize investigation follow without weakening the original acceptance criteria. Release and reporter verification remain pending.
+
+## Baseline diagnostic attempt
+
+- `./gradlew.bat installDist --console=plain`: passed at baseline `51b441ce6`; fresh runnable layout built.
+- `.\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter 'com.microproject.pm.graphic.frames.RibbonExternalCommandGuiAcceptanceTest.robotSavesImportedMppAsMpoAndCancellationOrOverwriteRefusalKeepsSource' -Locale en -Scale 1.0`: failed before valid product evidence as `GUI_ENVIRONMENT_CONTENDED`; Chrome overlapped the test window. Foreground evidence: `modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.frames.RibbonExternalCommandGuiAcceptanceTest.robotSavesImportedMppAsMpoAndCancellationOrOverwriteRefusalKeepsSource-en-1-0-2069f093d8d24758a6ff2e582c987eee/`. Failure screenshot capture itself failed with a GDI+ error. No product conclusion can be drawn.
+- Adversarial review: project-wide single-writer locking would contradict the existing task-lease and merge contract in `docs/mpof/onedrive-collaboration.md`. The reported selection failure is not evidence of a lease rejection. Preserve that contract while investigating.
