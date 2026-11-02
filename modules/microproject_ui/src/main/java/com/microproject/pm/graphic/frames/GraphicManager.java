@@ -971,35 +971,57 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			return;
 		}
 		String fileName = project.getFileName();
-		ProjectMergeService.ApplyResult result = new ProjectMergeService().applyExternalTaskUpdates(project, fileName,
-			session == null ? null : session.getLocalLocks());
-		if (session != null && !result.hasLoadFailure()) {
-			session.afterExternalProjectRefresh();
-		}
-		if (result.hasLoadFailure()) {
-			if (session != null) {
+		Set<Long> lockedTaskIds = null;
+		CollaborationSession.ExternalProjectRefreshLease refreshLease = null;
+		if (session != null) {
+			try {
+				refreshLease = session.beginExternalProjectRefresh();
+				lockedTaskIds = refreshLease.getLockedTaskIds();
+			} catch (RuntimeException leaseCheckFailure) {
 				session.afterExternalProjectRefreshFailure();
-			}
-			logger.log(Level.WARNING, "External project refresh failed for " + fileName + " ("
-				+ result.getLoadStatus() + ")", result.getLoadFailure());
-			if (session == null || session.shouldWarnExternalProjectRefreshFailure()) {
-				String message = "External refresh failed (" + result.getLoadStatus() + "); change remains pending.";
-				DocumentFrame frame = getFrameForProject(project);
-				if (result.getLoadStatus() == ProjectMergeService.LoadStatus.TRANSIENT_FAILURE && frame != null) {
-					frame.statusBar.setMessage(message + " Retrying.");
-				} else {
-					Alert.warn("The external project could not be refreshed (" + result.getLoadStatus()
-						+ "). The change remains pending; retry or save a copy.");
+				if (session.shouldWarnExternalProjectRefreshFailure()) {
+					DocumentFrame frame = getFrameForProject(project);
+					if (frame != null) frame.statusBar.setMessage("Collaboration locks could not be checked; external refresh will retry.");
 				}
+				logger.log(Level.FINE, "External project refresh deferred because collaboration locks could not be checked for " + fileName, leaseCheckFailure);
+				return;
 			}
-			return;
 		}
-		if (result.hasChanges()) {
-			repaintProject(project);
-		}
-		DocumentFrame frame = getFrameForProject(project);
-		if (frame != null) {
-			frame.statusBar.setMessage(null);
+		try {
+			ProjectMergeService.ApplyResult result = new ProjectMergeService().applyExternalTaskUpdates(project, fileName, lockedTaskIds);
+			if (session != null && !result.hasLoadFailure()) {
+				session.afterExternalProjectRefresh();
+			}
+			if (result.hasLoadFailure()) {
+				if (session != null) {
+					session.afterExternalProjectRefreshFailure();
+				}
+				logger.log(Level.WARNING, "External project refresh failed for " + fileName + " ("
+					+ result.getLoadStatus() + ")", result.getLoadFailure());
+				if (session == null || session.shouldWarnExternalProjectRefreshFailure()) {
+					String message = "External refresh failed (" + result.getLoadStatus() + "); change remains pending.";
+					DocumentFrame frame = getFrameForProject(project);
+					if (result.getLoadStatus() == ProjectMergeService.LoadStatus.TRANSIENT_FAILURE && frame != null) {
+						frame.statusBar.setMessage(message + " Retrying.");
+					} else {
+						Alert.warn("The external project could not be refreshed (" + result.getLoadStatus()
+							+ "). The change remains pending; retry or save a copy.");
+					}
+				}
+				return;
+			}
+			if (result.hasChanges()) {
+				repaintProject(project);
+			}
+			DocumentFrame frame = getFrameForProject(project);
+			if (frame != null) {
+				frame.statusBar.setMessage(null);
+			}
+		} catch (RuntimeException | Error failure) {
+			if (session != null) session.afterExternalProjectRefreshFailure();
+			throw failure;
+		} finally {
+			if (refreshLease != null) refreshLease.close();
 		}
 	}
 

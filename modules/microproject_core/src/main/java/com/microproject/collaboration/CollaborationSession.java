@@ -37,6 +37,9 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -59,6 +62,7 @@ public class CollaborationSession {
 	public static final int SAVE_CANCEL = 0;
 	public static final int SAVE_PROCEED = 1;
 	public static final int SAVE_AS_COPY = 2;
+	public static final long CLOSE_OPERATION_WAIT_TIMEOUT_MS = 3000L;
 
 	public interface ExternalProjectReloadHandler {
 		void reload(Project project);
@@ -72,10 +76,19 @@ public class CollaborationSession {
 	private final String displayName;
 	private final String clientInstanceId;
 	private final Map<Long, ProjectMergeService.TaskState> lockBaselineStates = new LinkedHashMap<Long, ProjectMergeService.TaskState>();
+	private final Map<Long, Long> lockBaselineGenerations = new LinkedHashMap<Long, Long>();
 	private volatile ExternalProjectReloadHandler externalReloadHandler;
 	private volatile Consumer<String> externalChangeNoticeHandler;
 	private volatile Timer timer;
 	private final Object stateLock = new Object();
+	private final Object lifecycleLock = new Object();
+	private final AtomicReference<Object> operationGateToken = new AtomicReference<Object>();
+	private final ThreadLocal<Object> acquisitionBatchToken = new ThreadLocal<Object>();
+	private final AtomicBoolean stopFinalizationStarted = new AtomicBoolean();
+	private final CompletableFuture<Void> stopFinalization = new CompletableFuture<Void>();
+	private volatile boolean stopDeferredUntilOperationCompletes;
+	private boolean closeWaitOwnsFinalization;
+	private boolean stopFinalizationAbandoned;
 	private volatile long lastKnownProjectModified;
 	private volatile long lastKnownProjectLength;
 	private volatile KnownMetadataState lastKnownMetadataState;
@@ -102,7 +115,8 @@ public class CollaborationSession {
 		this.displayName = this.userKey;
 		this.clientInstanceId = UUID.randomUUID().toString();
 		this.store = store;
-		this.lockManager = new TaskLockManager(store, this.userKey, this.displayName, this.clientInstanceId);
+		this.lockManager = new TaskLockManager(store, this.userKey, this.displayName, this.clientInstanceId, true,
+				() -> !stopped, this::isTaskAcquisitionAllowed);
 		refreshKnownFileStats();
 	}
 
@@ -124,15 +138,18 @@ public class CollaborationSession {
 	}
 
 	public void start() {
-		registerUser();
-		refreshKnownState(store.load());
-		timer = new Timer("projectlibre-collaboration-" + clientInstanceId, true);
-		timer.scheduleAtFixedRate(new TimerTask() {
-			@Override
-			public void run() {
-				runGuardedPoll(CollaborationSession.this::poll);
-			}
-		}, POLL_INTERVAL_MS, POLL_INTERVAL_MS);
+		synchronized (lifecycleLock) {
+			if (stopped || timer != null) return;
+			registerUser();
+			refreshKnownState(store.load());
+			timer = new Timer("projectlibre-collaboration-" + clientInstanceId, true);
+			timer.scheduleAtFixedRate(new TimerTask() {
+				@Override
+				public void run() {
+					runGuardedPoll(CollaborationSession.this::poll);
+				}
+			}, POLL_INTERVAL_MS, POLL_INTERVAL_MS);
+		}
 	}
 
 	/**
@@ -153,27 +170,153 @@ public class CollaborationSession {
 
 	/** Ends the session, whether or not it got as far as starting.  Failures never block closing the project. */
 	public void stop() {
-		if (stopped) return;
-		store.beginClosing();
+		synchronized (lifecycleLock) {
+			if (stopped) return;
+			stopDeferredUntilOperationCompletes = true;
+			stopped = true;
+		}
 		Timer runningTimer = timer;
 		timer = null;
-		if (runningTimer != null) {
-			runningTimer.cancel();
+		if (runningTimer != null) runningTimer.cancel();
+		if (operationGateToken.get() != null) {
+			if (operationGateToken.get() == null) finishStop(true);
+			return;
+		}
+		finishStop(false);
+	}
+
+	/** Stops collaboration and waits for any in-flight guarded operation off the EDT. */
+	public boolean stopAndAwaitClose(long timeoutMillis) {
+		if (com.microproject.util.UiDispatch.isDispatchThread()) {
+			throw new IllegalStateException("Collaboration close must be coordinated by a background job");
+		}
+		if (timeoutMillis < 0L) throw new IllegalArgumentException("timeoutMillis must not be negative");
+		Timer runningTimer;
+		synchronized (lifecycleLock) {
+			if (stopFinalizationAbandoned) return false;
+			if (!stopped) {
+				stopDeferredUntilOperationCompletes = true;
+				stopped = true;
+			}
+			closeWaitOwnsFinalization = !stopFinalizationStarted.get();
+			runningTimer = timer;
+			timer = null;
+		}
+		if (runningTimer != null) runningTimer.cancel();
+
+		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+		while (operationGateToken.get() != null) {
+			long remaining = deadline - System.nanoTime();
+			if (remaining <= 0L) {
+				synchronized (lifecycleLock) {
+					if (operationGateToken.get() != null && !stopFinalizationStarted.get()) {
+						stopFinalizationAbandoned = true;
+						closeWaitOwnsFinalization = false;
+						return false;
+					}
+				}
+				break;
+			}
 			try {
-				saveWorkspace(project.getCollaborationWorkspace());
-			} catch (Exception e) {
-				logger.log(Level.FINE, "Failed to save workspace on session stop", e);
+				long sleepMillis = Math.max(1L, Math.min(20L,
+						java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(remaining)));
+				Thread.sleep(sleepMillis);
+			} catch (InterruptedException interrupted) {
+				Thread.currentThread().interrupt();
+				synchronized (lifecycleLock) {
+					if (operationGateToken.get() != null && !stopFinalizationStarted.get()) {
+						stopFinalizationAbandoned = true;
+						closeWaitOwnsFinalization = false;
+						return false;
+					}
+				}
+				break;
 			}
 		}
-		stopped = true;
+
+		boolean runCloseFinalizer;
+		synchronized (lifecycleLock) {
+			if (stopFinalizationAbandoned) return false;
+			if (operationGateToken.get() != null) return false;
+			if (System.nanoTime() >= deadline && !stopFinalizationStarted.get()) {
+				stopFinalizationAbandoned = true;
+				closeWaitOwnsFinalization = false;
+				return false;
+			}
+			closeWaitOwnsFinalization = false;
+			runCloseFinalizer = stopFinalizationStarted.compareAndSet(false, true);
+		}
+		if (runCloseFinalizer) runStopFinalizer(false);
+		if (runCloseFinalizer) return !stopFinalization.isCompletedExceptionally();
+		long remaining = deadline - System.nanoTime();
+		try {
+			if (remaining <= 0L && !stopFinalization.isDone()) return false;
+			stopFinalization.get(Math.max(0L, remaining), java.util.concurrent.TimeUnit.NANOSECONDS);
+			return true;
+		} catch (java.util.concurrent.TimeoutException timeout) {
+			return false;
+		} catch (InterruptedException interrupted) {
+			Thread.currentThread().interrupt();
+			return false;
+		} catch (java.util.concurrent.ExecutionException failure) {
+			logger.log(Level.WARNING, "Collaboration session cleanup failed during project close", failure.getCause());
+			return false;
+		}
+	}
+
+	private void finishStop(boolean deferred) {
+		synchronized (lifecycleLock) {
+			if (stopFinalizationAbandoned || closeWaitOwnsFinalization || operationGateToken.get() != null
+					|| !stopFinalizationStarted.compareAndSet(false, true)) return;
+		}
+		runStopFinalizer(deferred);
+	}
+
+	private void runStopFinalizer(boolean deferred) {
+		Runnable finalizer = () -> {
+			try {
+				performStopFinalization();
+				stopFinalization.complete(null);
+			} catch (Throwable failure) {
+				stopFinalization.completeExceptionally(failure);
+				logger.log(Level.WARNING, "Collaboration session cleanup failed", failure);
+			}
+		};
+		if (deferred) {
+			Thread worker = new Thread(finalizer, "microproject-collaboration-close-" + clientInstanceId);
+			worker.setDaemon(true);
+			worker.start();
+		} else {
+			finalizer.run();
+		}
+	}
+
+	private void performStopFinalization() {
+		store.beginClosing();
+		try {
+			saveWorkspace(project == null ? null : project.getCollaborationWorkspace(), true);
+		} catch (Exception e) {
+			logger.log(Level.FINE, "Failed to save workspace on session stop", e);
+		}
 		try {
 			lockManager.releaseAll();
 		} catch (RuntimeException e) {
 			logger.log(Level.WARNING, "Collaboration locks could not be released; leases will expire", e);
 		} finally {
-			lockBaselineStates.clear();
+			synchronized (lockBaselineStates) { lockBaselineStates.clear(); lockBaselineGenerations.clear(); }
 		}
-		removeProjectArtifacts();
+		boolean unregistered = false;
+		try {
+			store.mutate(metadata -> CollaborationMetadataStore.removeSession(metadata, userKey, clientInstanceId, System.currentTimeMillis()));
+			unregistered = true;
+		} catch (RuntimeException e) {
+			logger.log(Level.WARNING, "Collaboration session metadata could not be unregistered; artifacts stay in place", e);
+		}
+		if (unregistered) removeProjectArtifacts();
+	}
+
+	void awaitStopFinalizationForTests() {
+		stopFinalization.join();
 	}
 
 	/** Leaves nothing beside the project once no other user needs it (issue #967). */
@@ -199,16 +342,10 @@ public class CollaborationSession {
 	}
 
 	private void registerUser(boolean refreshKnownState) {
+		if (stopped) return;
 		store.mutate(metadata -> {
-			UserRecord record = metadata.getUsers().get(userKey);
-			if (record == null) {
-				record = new UserRecord();
-				record.setUserKey(userKey);
-				metadata.getUsers().put(userKey, record);
-			}
-			record.setDisplayName(displayName);
-			record.setClientInstanceId(clientInstanceId);
-			record.setLastSeenAt(System.currentTimeMillis());
+			if (stopped) return;
+			CollaborationMetadataStore.upsertSession(metadata, userKey, displayName, clientInstanceId, System.currentTimeMillis());
 			store.refreshProjectStats(metadata);
 		});
 		if (refreshKnownState) {
@@ -229,7 +366,7 @@ public class CollaborationSession {
 			refreshProjectStatsIfPending();
 		}
 		if (now - lastHeartbeatAt >= HEARTBEAT_INTERVAL_MS) {
-			lockManager.renewAll();
+			reconcileLostLockBaselines(lockManager.renewAll());
 			lastHeartbeatAt = now;
 			registerUser(false);
 		}
@@ -362,17 +499,24 @@ public class CollaborationSession {
 		}
 	}
 
-	private void rememberLockBaseline(Task task) {
+	private void rememberLockBaseline(Task task, boolean replace, long generation) {
 		if (task == null) {
 			return;
 		}
 		Long taskId = Long.valueOf(task.getUniqueId());
-		if (lockBaselineStates.containsKey(taskId)) {
-			return;
-		}
-		ProjectMergeService.TaskState state = ProjectMergeService.TaskState.capture(task);
-		if (state != null) {
-			lockBaselineStates.put(taskId, state);
+		synchronized (lockBaselineStates) {
+			if (!replace && lockBaselineStates.containsKey(taskId)) {
+				lockBaselineGenerations.put(taskId, Long.valueOf(generation));
+				return;
+			}
+			ProjectMergeService.TaskState state = ProjectMergeService.TaskState.capture(task);
+			if (state != null) {
+				lockBaselineStates.put(taskId, state);
+				lockBaselineGenerations.put(taskId, Long.valueOf(generation));
+			} else {
+				lockBaselineStates.remove(taskId);
+				lockBaselineGenerations.remove(taskId);
+			}
 		}
 	}
 
@@ -380,26 +524,60 @@ public class CollaborationSession {
 		for (Long taskId : lockManager.getLocalLocks()) {
 			Task task = project == null ? null : project.findByUniqueId(taskId.longValue());
 			ProjectMergeService.TaskState state = ProjectMergeService.TaskState.capture(task);
-			if (state != null) {
-				lockBaselineStates.put(taskId, state);
-			} else {
-				lockBaselineStates.remove(taskId);
+			synchronized (lockBaselineStates) {
+				if (state != null) lockBaselineStates.put(taskId, state);
+				else {
+					lockBaselineStates.remove(taskId);
+					lockBaselineGenerations.remove(taskId);
+				}
 			}
 		}
 	}
 
 	/** Acquires a task lock without showing UI; suitable for background sync. */
 	public boolean tryAcquireTaskLock(Task task) {
-		if (task == null) {
-			return true;
+		Object token = acquireOperationGate();
+		acquisitionBatchToken.set(token);
+		try {
+			return acquireTaskLock(task).acquired;
+		} finally {
+			acquisitionBatchToken.remove();
+			releaseOperationGate(token);
 		}
-		long taskId = task.getUniqueId();
-		if (lockManager.isLockedByCurrentUser(taskId)) {
-			return true;
+	}
+
+	private TaskLockManager.AcquireOutcome acquireTaskLock(Task task) {
+		if (task == null) return new TaskLockManager.AcquireOutcome(true, false, false, 0L);
+		try {
+			TaskLockManager.AcquireOutcome outcome = lockManager.acquireWithStatus(task.getUniqueId());
+			if (!outcome.acquired && outcome.confirmedFailure) {
+				removeBaselineIfNotNewer(Long.valueOf(task.getUniqueId()), outcome.generation);
+			} else if (outcome.acquired && outcome.newlyAcquired) {
+				rememberLockBaseline(task, true, outcome.generation);
+			} else if (outcome.acquired) {
+				rememberLockBaseline(task, false, outcome.generation);
+			}
+			return outcome;
+		} catch (RuntimeException failure) {
+			Long retainedGeneration = lockManager.getHeldGeneration(task.getUniqueId());
+			if (retainedGeneration != null) {
+				synchronized (lockBaselineStates) {
+					Long taskId = Long.valueOf(task.getUniqueId());
+					if (lockBaselineStates.containsKey(taskId)) lockBaselineGenerations.put(taskId, retainedGeneration);
+				}
+			}
+			throw failure;
 		}
-		if (!lockManager.acquire(taskId)) return false;
-		rememberLockBaseline(task);
-		return true;
+	}
+
+	private void removeBaselineIfNotNewer(Long taskId, long generation) {
+		synchronized (lockBaselineStates) {
+			Long current = lockBaselineGenerations.get(taskId);
+			if (current != null && current.longValue() <= generation) {
+				lockBaselineStates.remove(taskId);
+				lockBaselineGenerations.remove(taskId);
+			}
+		}
 	}
 
 	public String describeLockOwner(Task task) {
@@ -411,37 +589,47 @@ public class CollaborationSession {
 		if (tasks == null) {
 			return null;
 		}
-		java.util.List<Long> newlyAcquired = new java.util.ArrayList<>();
+		Object batchToken = acquireOperationGate();
+		acquisitionBatchToken.set(batchToken);
+		try {
+			return tryAcquireTasksWithinBatch(tasks);
+		} finally {
+			acquisitionBatchToken.remove();
+			releaseOperationGate(batchToken);
+		}
+	}
+
+	private Task tryAcquireTasksWithinBatch(Iterable<Task> tasks) {
+		Map<Long, Long> newlyAcquired = new LinkedHashMap<Long, Long>();
 		for (Task task : tasks) {
 			if (task == null) continue;
 			long taskId = task.getUniqueId();
-			boolean alreadyHeld = lockManager.isLockedByCurrentUser(taskId);
 			try {
-				if (!tryAcquireTaskLock(task)) {
+				TaskLockManager.AcquireOutcome outcome = acquireTaskLock(task);
+				if (!outcome.acquired) {
 					releaseNewlyAcquiredLocks(newlyAcquired);
 					return task;
 				}
+				if (outcome.newlyAcquired) newlyAcquired.put(Long.valueOf(taskId), Long.valueOf(outcome.generation));
 			} catch (RuntimeException e) {
-				if (!alreadyHeld && lockManager.isLockedByCurrentUser(taskId)) {
-					newlyAcquired.add(Long.valueOf(taskId));
-				}
 				releaseNewlyAcquiredLocks(newlyAcquired);
 				throw e;
 			}
-			if (!alreadyHeld) newlyAcquired.add(Long.valueOf(taskId));
 		}
 		return null;
 	}
 
-	private void releaseNewlyAcquiredLocks(java.util.List<Long> taskIds) {
-		for (Long taskId : taskIds) {
+	private void releaseNewlyAcquiredLocks(Map<Long, Long> taskIds) {
+		for (Map.Entry<Long, Long> entry : taskIds.entrySet()) {
+			Long taskId = entry.getKey();
+			boolean released = false;
 			try {
-				lockManager.release(taskId.longValue());
+				released = lockManager.releaseIfGeneration(taskId.longValue(), entry.getValue().longValue());
 			} catch (RuntimeException e) {
 				// release() forgets the local lease in a finally block; an unreleased lease expires.
 				logger.log(Level.WARNING, "Could not roll back a task lock after a later lock request failed", e);
 			}
-			lockBaselineStates.remove(taskId);
+			if (released) removeBaselineIfNotNewer(taskId, entry.getValue().longValue());
 		}
 	}
 
@@ -515,8 +703,88 @@ public class CollaborationSession {
 	public Set<Long> getLocalLocks() {
 		return lockManager.getLocalLocks();
 	}
+
+	/** Reconciles task leases and holds an acquisition gate until the refresh finishes. */
+	public ExternalProjectRefreshLease beginExternalProjectRefresh() {
+		Object token = acquireOperationGate();
+		try {
+			if (stopped || lockManager.hasPendingOperations()) {
+				throw new CollaborationLockUnavailableException("A task lock operation is still in progress");
+			}
+			reconcileLostLockBaselines(lockManager.renewAll());
+			if (stopped || lockManager.hasPendingOperations()) {
+				throw new CollaborationLockUnavailableException("A task lock operation changed during external refresh");
+			}
+			return new ExternalProjectRefreshLease(token, lockManager.getLocalLocks());
+		} catch (RuntimeException failure) {
+			releaseOperationGate(token);
+			throw failure;
+		}
+	}
+
+	public final class ExternalProjectRefreshLease implements AutoCloseable {
+		private final Object token;
+		private final Set<Long> lockedTaskIds;
+
+		private ExternalProjectRefreshLease(Object token, Set<Long> lockedTaskIds) {
+			this.token = token;
+			this.lockedTaskIds = java.util.Collections.unmodifiableSet(new java.util.LinkedHashSet<Long>(lockedTaskIds));
+		}
+
+		public Set<Long> getLockedTaskIds() { return lockedTaskIds; }
+
+		@Override
+		public void close() {
+			releaseOperationGate(token);
+		}
+	}
+
+	private Object acquireOperationGate() {
+		Object token = new Object();
+		if (stopped || !operationGateToken.compareAndSet(null, token))
+			throw new CollaborationLockUnavailableException("Collaboration metadata operation is busy");
+		if (stopped) {
+			releaseOperationGate(token);
+			throw new CollaborationLockUnavailableException("Collaboration session is closing");
+		}
+		return token;
+	}
+
+	private void releaseOperationGate(Object token) {
+		if (operationGateToken.compareAndSet(token, null) && stopped) {
+			boolean shouldFinalize;
+			synchronized (lifecycleLock) {
+				shouldFinalize = !closeWaitOwnsFinalization && !stopFinalizationAbandoned;
+			}
+			if (shouldFinalize) finishStop(stopDeferredUntilOperationCompletes);
+		}
+	}
+
+	private boolean isTaskAcquisitionAllowed() {
+		if (stopped) return false;
+		Object gate = operationGateToken.get();
+		Object batch = acquisitionBatchToken.get();
+		return gate == null || (batch != null && gate == batch);
+	}
+
+	private void reconcileLostLockBaselines(Map<Long, Long> lostLocks) {
+		if (lostLocks.isEmpty()) return;
+		synchronized (lockBaselineStates) {
+			for (Map.Entry<Long, Long> lost : lostLocks.entrySet()) {
+				Long baselineGeneration = lockBaselineGenerations.get(lost.getKey());
+				if (baselineGeneration != null && baselineGeneration.longValue() <= lost.getValue().longValue()) {
+					lockBaselineStates.remove(lost.getKey());
+					lockBaselineGenerations.remove(lost.getKey());
+				}
+			}
+		}
+	}
 	public void saveWorkspace(WorkspaceSetting workspace) {
-		if (workspace == null || stopped) {
+		saveWorkspace(workspace, false);
+	}
+
+	private void saveWorkspace(WorkspaceSetting workspace, boolean closingSession) {
+		if (workspace == null || (stopped && !closingSession)) {
 			return;
 		}
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -586,7 +854,7 @@ public class CollaborationSession {
 				if (record == null) {
 					continue;
 				}
-				if (Objects.equals(currentUserKey, entry.getKey())) {
+				if (Objects.equals(currentUserKey, entry.getKey()) || Objects.equals(currentUserKey, record.getUserKey())) {
 					continue;
 				}
 				if (record.getLastSeenAt() > 0L && record.getLastSeenAt() + TaskLockManager.DEFAULT_LEASE_MS * 2 < now) {

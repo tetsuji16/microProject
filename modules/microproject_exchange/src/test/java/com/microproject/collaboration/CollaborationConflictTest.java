@@ -452,9 +452,15 @@ class CollaborationConflictTest {
 			alice.start();
 			bob.start();
 			alice.stop();
+			CollaborationMetadataStore.Metadata afterAliceStops = new CollaborationMetadataStore(project).load();
+			assertTrue(afterAliceStops.getUsers().containsKey("alice"));
+			assertTrue(afterAliceStops.getUsers().containsKey("bob"), "the other user's record survives the first close");
 			bob.stop();
 			assertTrue(sidecar.exists(), "the other user's record must survive either close");
 			assertTrue(marker.exists());
+			CollaborationMetadataStore.Metadata afterBothStop = new CollaborationMetadataStore(project).load();
+			assertTrue(afterBothStop.getUsers().containsKey("alice"));
+			assertTrue(afterBothStop.getUsers().containsKey("bob"), "offline user records keep the shared sidecar available");
 		} finally {
 			if (previousRoot == null) System.clearProperty(TemporaryRoot.ROOT_PROPERTY);
 			else System.setProperty(TemporaryRoot.ROOT_PROPERTY, previousRoot);
