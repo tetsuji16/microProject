@@ -470,6 +470,29 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			GuiAcceptanceSupport.await(() -> frame.getActiveTopView() instanceof ResourceView,
 				"physical Resource ribbon command did not activate Resource View");
 			assertEquals(initialResourceCount, pool.getResourceList().size(), "opening the view must retain all resources");
+
+			click(robot, GuiAcceptanceSupport.findShowingButtonByText(window, viewTabText));
+			click(robot, RibbonGuiSupport.findVisibleOrExpand(robot, window.getRibbonPanel(), "RibbonGantt"));
+			GuiAcceptanceSupport.await(() -> frame.getActiveTopView() != null && frame.getActiveTopView().showsTasks(),
+				"physical Gantt ribbon command did not restore a task view");
+			SpreadSheet ganttSheet = frame.getGanttView().getSpreadSheet();
+			GuiAcceptanceSupport.await(() -> ganttSheet.isShowing() && ganttSheet.getRowCount() > 0,
+				"Gantt spreadsheet did not render after the physical view switch");
+			resizeWindowWithRobot(robot, window);
+			assertRenderedPixels(robot, ganttSheet, "Gantt after resize");
+			clickVisibleCell(robot, window, ganttSheet, 0, 0);
+			GuiAcceptanceSupport.await(() -> ganttSheet.getSelectedRow() == 0,
+				"physical Gantt cell click did not reach the rendered task view after resize");
+
+			click(robot, GuiAcceptanceSupport.findShowingButtonByText(window, viewTabText));
+			click(robot, RibbonGuiSupport.findVisibleOrExpand(robot, window.getRibbonPanel(), "RibbonResources"));
+			GuiAcceptanceSupport.await(() -> frame.getActiveTopView() instanceof ResourceView,
+				"physical Resource ribbon command did not restore Resource View after Gantt resize");
+			SpreadSheet resourceSheet = frame.getResourceView().getSpreadSheet();
+			GuiAcceptanceSupport.await(resourceSheet::isShowing,
+				"Resource spreadsheet did not render after the physical view switch");
+			resizeWindowWithRobot(robot, window);
+			assertRenderedPixels(robot, resourceSheet, "Resource after resize");
 		}
 		SpreadSheet sheet = manager.getFrameForProject(project).getResourceView().getSpreadSheet();
 		GuiAcceptanceSupport.await(() -> sheet.isShowing() && rowFor(sheet, resource) >= 0,
@@ -608,6 +631,48 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		}
 		assertEquals(row, pressedRow.get(), "physical mouse press must reach the visible Standard Rate row");
 		assertEquals(column, pressedColumn.get(), "physical mouse press must reach the visible Standard Rate column");
+	}
+
+	private static void resizeWindowWithRobot(Robot robot, MainRibbonFrame window) throws Exception {
+		Rectangle[] before = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> {
+			window.toFront();
+			window.requestFocus();
+			before[0] = window.getBounds();
+		});
+		GuiAcceptanceSupport.await(() -> window.isActive() && window.isFocused(),
+			"document window did not become active before physical resize");
+		robot.mouseMove(before[0].x + before[0].width - 3, before[0].y + before[0].height - 3);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseMove(before[0].x + before[0].width + 70, before[0].y + before[0].height + 55);
+		robot.delay(150);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> window.getWidth() >= before[0].width + 30
+			&& window.getHeight() >= before[0].height + 20,
+			"physical native-window resize did not change the application bounds: before=" + before[0]
+				+ ", after=" + window.getBounds());
+	}
+
+	private static void assertRenderedPixels(Robot robot, SpreadSheet sheet, String description) throws Exception {
+		Rectangle[] visibleBounds = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle visible = sheet.getVisibleRect();
+			Point location = sheet.getLocationOnScreen();
+			visibleBounds[0] = new Rectangle(location.x + visible.x, location.y + visible.y,
+				Math.min(visible.width, 320), Math.min(visible.height, 180));
+		});
+		GuiAcceptanceSupport.await(() -> distinctScreenColors(robot, visibleBounds[0]) >= 4,
+			 description + " did not show varied rendered spreadsheet pixels in " + visibleBounds[0]);
+	}
+
+	private static int distinctScreenColors(Robot robot, Rectangle bounds) {
+		java.awt.image.BufferedImage image = robot.createScreenCapture(bounds);
+		java.util.Set<Integer> colors = new java.util.HashSet<>();
+		for (int y = 0; y < image.getHeight(); y += 3)
+			for (int x = 0; x < image.getWidth(); x += 3)
+				colors.add(image.getRGB(x, y) & 0x00ffffff);
+		return colors.size();
 	}
 
 	private static String expectedRateText(SpreadSheet sheet, int row, int column, Rate rate) throws Exception {
