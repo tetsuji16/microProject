@@ -469,6 +469,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		// Reopening data is insufficient: the reported failure leaves visible rows
 		// that cannot be selected or edited. Exercise the physical input route too.
 		Point[] reopenedRow = new Point[1];
+		activateWindowForRobot(robot);
 		SwingUtilities.invokeAndWait(() -> {
 			var sheet = reopened.getTopSpreadSheet();
 			sheet.clearSelection();
@@ -480,7 +481,6 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			Point origin = sheet.getLocationOnScreen();
 			reopenedRow[0] = new Point(origin.x + cell.x + cell.width / 2, origin.y + cell.y + cell.height / 2);
 		});
-		activateWindowForRobot(robot);
 		robot.mouseMove(reopenedRow[0].x, reopenedRow[0].y);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
