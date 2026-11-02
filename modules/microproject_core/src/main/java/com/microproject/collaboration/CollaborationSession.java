@@ -87,7 +87,9 @@ public class CollaborationSession {
 	private final Object lifecycleLock = new Object();
 	private final AtomicReference<Object> operationGateToken = new AtomicReference<Object>();
 	private final AtomicLong workspaceSaveGeneration = new AtomicLong();
+	private final AtomicLong workspaceFallbackDurableGeneration = new AtomicLong();
 	private volatile LongSupplier workspaceSaveClock = System::currentTimeMillis;
+	private volatile java.util.function.LongConsumer workspaceFallbackStagedHook = generation -> { };
 	private final ThreadLocal<Object> acquisitionBatchToken = new ThreadLocal<Object>();
 	private final AtomicBoolean stopFinalizationStarted = new AtomicBoolean();
 	private final CompletableFuture<Void> stopFinalization = new CompletableFuture<Void>();
@@ -345,6 +347,16 @@ public class CollaborationSession {
 
 	void setWorkspaceSaveClockForTests(LongSupplier clock) {
 		workspaceSaveClock = Objects.requireNonNull(clock);
+	}
+
+	void setWorkspaceFallbackStagedHookForTests(java.util.function.LongConsumer hook) {
+		workspaceFallbackStagedHook = Objects.requireNonNull(hook);
+	}
+
+	private void clearSupersededFallbackIfSafe(LocalWorkspaceStore localWorkspaceStore, long generation) throws java.io.IOException {
+		if (workspaceFallbackDurableGeneration.get() > generation) {
+			localWorkspaceStore.clearFallbacksForSessionThrough(clientInstanceId, generation);
+		}
 	}
 
 	/** Leaves nothing beside the project once no other user needs it (issue #967). */
@@ -912,8 +924,10 @@ public class CollaborationSession {
 			try {
 				localWorkspaceStore.saveFallback(payload, clientInstanceId, saveGeneration, saveStartedAt);
 				fallbackSaved = true;
+				workspaceFallbackDurableGeneration.accumulateAndGet(saveGeneration, Math::max);
+				workspaceFallbackStagedHook.accept(saveGeneration);
 				if (saveGeneration != workspaceSaveGeneration.get()) {
-					localWorkspaceStore.clearFallbacksForSessionThrough(clientInstanceId, saveGeneration);
+					clearSupersededFallbackIfSafe(localWorkspaceStore, saveGeneration);
 					return false;
 				}
 				localWorkspaceStore.clearFallbacksForSessionBefore(clientInstanceId, saveGeneration);
@@ -924,7 +938,7 @@ public class CollaborationSession {
 		if (saveGeneration != workspaceSaveGeneration.get()) {
 			if (fallbackSaved && localWorkspaceStore != null) {
 				try {
-					localWorkspaceStore.clearFallbacksForSessionThrough(clientInstanceId, saveGeneration);
+					clearSupersededFallbackIfSafe(localWorkspaceStore, saveGeneration);
 				} catch (Exception cleanupFailure) {
 					logger.log(Level.WARNING, "Could not discard a superseded workspace fallback generation", cleanupFailure);
 				}
@@ -941,7 +955,7 @@ public class CollaborationSession {
 			} catch (java.io.IOException ambiguous) {
 				if (saveGeneration != workspaceSaveGeneration.get()) {
 					try {
-						localWorkspaceStore.clearFallbacksForSessionThrough(clientInstanceId, saveGeneration);
+						clearSupersededFallbackIfSafe(localWorkspaceStore, saveGeneration);
 					} catch (Exception cleanupFailure) {
 						logger.log(Level.WARNING, "Could not discard a superseded workspace fallback generation", cleanupFailure);
 					}
@@ -982,7 +996,7 @@ public class CollaborationSession {
 					logger.warning("Workspace save was blocked because the shared sidecar changed concurrently; both versions were retained");
 				}
 				if (fallbackSaved && !blockedBySidecarConflict[0])
-					localWorkspaceStore.clearFallbacksForSessionThrough(clientInstanceId, saveGeneration);
+					clearSupersededFallbackIfSafe(localWorkspaceStore, saveGeneration);
 				return false;
 			}
 			if (localWorkspaceStore != null && fallbackSaved) {

@@ -258,6 +258,74 @@ class CollaborationSessionSameUserLifecycleTest {
 
 	@Test
 	@ResourceLock(Resources.SYSTEM_PROPERTIES)
+	void durableOlderFallbackSurvivesNewGenerationSerializationFailure() throws Exception {
+		assertOlderFallbackSurvivesNewGenerationFailure(false, "workspace-fallback-new-serialization-failure.mpo");
+	}
+
+	@Test
+	@ResourceLock(Resources.SYSTEM_PROPERTIES)
+	void durableOlderFallbackSurvivesNewGenerationStagingFailure() throws Exception {
+		assertOlderFallbackSurvivesNewGenerationFailure(true, "workspace-fallback-new-staging-failure.mpo");
+	}
+
+	private void assertOlderFallbackSurvivesNewGenerationFailure(boolean failStaging, String projectName) throws Exception {
+		Path projectFile = Files.createFile(tempDir.resolve(projectName));
+		String previousRoot = isolatedWorkspaceRoot();
+		CollaborationSession session = new CollaborationSession(null, projectFile.toString(), "alice");
+		LocalWorkspaceStore local = new LocalWorkspaceStore(projectFile.toFile(), "alice");
+		CountDownLatch olderFallbackStaged = new CountDownLatch(1);
+		CountDownLatch resumeOlderSave = new CountDownLatch(1);
+		ExecutorService executor = Executors.newSingleThreadExecutor();
+		Future<?> olderSave = null;
+		Path failedGenerationMarker = null;
+		try {
+			session.setWorkspaceSaveClockForTests(() -> 12_345L);
+			session.setWorkspaceFallbackStagedHookForTests(generation -> {
+				if (generation != 1L) return;
+				olderFallbackStaged.countDown();
+				try {
+					if (!resumeOlderSave.await(5, TimeUnit.SECONDS)) throw new IllegalStateException("older fallback barrier timed out");
+				} catch (InterruptedException interrupted) {
+					Thread.currentThread().interrupt();
+					throw new IllegalStateException("older fallback barrier interrupted", interrupted);
+				}
+			});
+			olderSave = executor.submit(() -> session.saveWorkspace(new TestWorkspace("durable-older-layout")));
+			assertTrue(olderFallbackStaged.await(5, TimeUnit.SECONDS), "generation one is durable before generation two starts");
+			assertEquals("durable-older-layout", ((TestWorkspace) deserializeWorkspace(local.loadFallback())).marker);
+
+			if (failStaging) {
+				Path generationOne = local.getFallbackFiles().get(0);
+				String generationOneName = generationOne.getFileName().toString();
+				String generationTwoName = generationOneName.substring(0, generationOneName.lastIndexOf('.') + 1) + "2";
+				failedGenerationMarker = generationOne.resolveSibling(generationTwoName);
+				Files.createDirectory(failedGenerationMarker);
+				session.saveWorkspace(new TestWorkspace("undurable-new-layout"));
+				assertTrue(Files.isDirectory(failedGenerationMarker), "generation two could not atomically replace its blocked target");
+				Files.delete(failedGenerationMarker);
+			} else {
+				session.saveWorkspace(new UnserializableWorkspace());
+			}
+
+			resumeOlderSave.countDown();
+			olderSave.get(5, TimeUnit.SECONDS);
+			assertEquals("durable-older-layout", ((TestWorkspace) deserializeWorkspace(local.loadFallback())).marker,
+					"generation one remains the last durable recovery copy when generation two fails");
+			CollaborationSession reopened = new CollaborationSession(null, projectFile.toString(), "alice");
+			assertEquals("durable-older-layout", ((TestWorkspace) reopened.loadWorkspace()).marker,
+					"reopen can recover the last durably staged workspace");
+		} finally {
+			resumeOlderSave.countDown();
+			if (failedGenerationMarker != null) Files.deleteIfExists(failedGenerationMarker);
+			if (olderSave != null) olderSave.get(5, TimeUnit.SECONDS);
+			session.stop();
+			executor.shutdownNow();
+			restoreWorkspaceRoot(previousRoot);
+		}
+	}
+
+	@Test
+	@ResourceLock(Resources.SYSTEM_PROPERTIES)
 	void staleOlderFallbackStagedAfterNewerGenerationCleanupCannotBlockLatestWorkspace() throws Exception {
 		Path projectFile = Files.createFile(tempDir.resolve("workspace-fallback-late-older-generation.mpo"));
 		String previousRoot = isolatedWorkspaceRoot();
@@ -1260,6 +1328,14 @@ class CollaborationSessionSameUserLifecycleTest {
 
 		private TestWorkspace(String marker) {
 			this.marker = marker;
+		}
+	}
+
+	private static final class UnserializableWorkspace implements WorkspaceSetting {
+		private static final long serialVersionUID = 1L;
+
+		private void writeObject(java.io.ObjectOutputStream output) throws java.io.IOException {
+			throw new java.io.IOException("injected workspace serialization failure");
 		}
 	}
 }
