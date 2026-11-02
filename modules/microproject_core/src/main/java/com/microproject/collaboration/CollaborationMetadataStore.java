@@ -373,6 +373,22 @@ public class CollaborationMetadataStore {
 		});
 	}
 
+	/** Runs the completion hook after durable metadata replacement and before releasing the metadata lock. */
+	public void mutateAndAfterCommit(MetadataMutation mutation, java.util.function.Consumer<Metadata> afterCommit) {
+		withLockedMetadata(new MetadataCallback<Object>() {
+			@Override
+			public Object execute(Metadata metadata) {
+				mutation.mutate(metadata);
+				return null;
+			}
+
+			@Override
+			public void afterCommit(Metadata metadata) {
+				afterCommit.accept(metadata);
+			}
+		});
+	}
+
 	public <T> T withLockedMetadata(MetadataCallback<T> callback) {
 		String lockKey;
 		try {
@@ -486,6 +502,7 @@ public class CollaborationMetadataStore {
 				return result;
 			}
 			writeMetadataIfChanged(useLegacy ? null : originalBytes, metadata);
+			callback.afterCommit(metadata);
 			return result;
 		} catch (Exception e) {
 			return callback.onError(e);
@@ -652,6 +669,9 @@ public class CollaborationMetadataStore {
 
 	public interface MetadataCallback<T> {
 		T execute(Metadata metadata);
+
+		default void afterCommit(Metadata metadata) {
+		}
 
 		default T onError(Exception e) {
 			if (e instanceof CollaborationLockUnavailableException lockUnavailable) {

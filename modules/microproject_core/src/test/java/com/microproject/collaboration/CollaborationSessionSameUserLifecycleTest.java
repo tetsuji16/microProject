@@ -26,6 +26,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.Test;
@@ -251,6 +252,95 @@ class CollaborationSessionSameUserLifecycleTest {
 					"the later successful layout is restored after reopen");
 		} finally {
 			session.stop();
+			restoreWorkspaceRoot(previousRoot);
+		}
+	}
+
+	@Test
+	@ResourceLock(Resources.SYSTEM_PROPERTIES)
+	void staleOlderFallbackStagedAfterNewerGenerationCleanupCannotBlockLatestWorkspace() throws Exception {
+		Path projectFile = Files.createFile(tempDir.resolve("workspace-fallback-late-older-generation.mpo"));
+		String previousRoot = isolatedWorkspaceRoot();
+		CollaborationSession session = new CollaborationSession(null, projectFile.toString(), "alice");
+		LocalWorkspaceStore local = new LocalWorkspaceStore(projectFile.toFile(), "alice");
+		CountDownLatch olderSavePausedBeforeFallback = new CountDownLatch(1);
+		CountDownLatch resumeOlderSave = new CountDownLatch(1);
+		AtomicInteger clockCalls = new AtomicInteger();
+		ExecutorService executor = Executors.newSingleThreadExecutor();
+		Future<?> olderSave = null;
+		try {
+			session.setWorkspaceSaveClockForTests(() -> {
+				if (clockCalls.getAndIncrement() == 0) {
+					olderSavePausedBeforeFallback.countDown();
+					try {
+						if (!resumeOlderSave.await(5, TimeUnit.SECONDS)) throw new IllegalStateException("older workspace save barrier timed out");
+					} catch (InterruptedException interrupted) {
+						Thread.currentThread().interrupt();
+						throw new IllegalStateException("older workspace save barrier interrupted", interrupted);
+					}
+					return 1_000L;
+				}
+				return 2_000L;
+			});
+			olderSave = executor.submit(() -> session.saveWorkspace(new TestWorkspace("stale-older-layout")));
+			assertTrue(olderSavePausedBeforeFallback.await(5, TimeUnit.SECONDS),
+					"generation one pauses after capture and before staging its local fallback");
+
+			session.saveWorkspace(new TestWorkspace("latest-layout"));
+			UserWorkspaceState latest = new CollaborationMetadataStore(projectFile.toFile()).load().getPerUserWorkspace().get("alice");
+			assertNotNull(latest);
+			assertEquals("latest-layout", ((TestWorkspace) deserializeWorkspace(latest.getWorkspacePayload())).marker,
+					"generation two commits the current sidecar and completes its fallback cleanup first");
+			assertTrue(local.getFallbackFiles().isEmpty());
+
+			resumeOlderSave.countDown();
+			olderSave.get(5, TimeUnit.SECONDS);
+
+			assertFalse(session.hasAmbiguousWorkspaceFallback(), "a superseded generation cannot leave a conflicting fallback behind");
+			assertTrue(local.getFallbackFiles().isEmpty(), "generation one is discarded after it resumes too late");
+			CollaborationSession reopened = new CollaborationSession(null, projectFile.toString(), "alice");
+			assertEquals("latest-layout", ((TestWorkspace) reopened.loadWorkspace()).marker,
+					"reopening restores the newest committed layout instead of becoming ambiguous");
+		} finally {
+			resumeOlderSave.countDown();
+			if (olderSave != null) olderSave.get(5, TimeUnit.SECONDS);
+			session.stop();
+			executor.shutdownNow();
+			restoreWorkspaceRoot(previousRoot);
+		}
+	}
+
+	@Test
+	@ResourceLock(Resources.SYSTEM_PROPERTIES)
+	void workspaceBaselinePublishesBeforeMetadataLockAllowsNextSameSessionSave() throws Exception {
+		Path projectFile = Files.createFile(tempDir.resolve("workspace-baseline-commit-window.mpo"));
+		String previousRoot = isolatedWorkspaceRoot();
+		CommitPauseStore store = new CommitPauseStore(projectFile.toFile());
+		CollaborationSession session = new CollaborationSession(null, projectFile.toString(), "alice", store);
+		ExecutorService executor = Executors.newSingleThreadExecutor();
+		Future<?> firstSave = null;
+		try {
+			session.start();
+			store.pauseAfterNextCommit();
+			firstSave = executor.submit(() -> session.saveWorkspace(new TestWorkspace("first-committed")));
+			assertTrue(store.awaitCommit(5, TimeUnit.SECONDS), "the first sidecar commit finishes before its caller returns");
+
+			session.saveWorkspace(new TestWorkspace("second-committed"));
+			UserWorkspaceState latest = store.load().getPerUserWorkspace().get("alice");
+			assertEquals("second-committed", ((TestWorkspace) deserializeWorkspace(latest.getWorkspacePayload())).marker,
+					"the next same-session save sees the first commit as its current baseline");
+			assertFalse(session.hasAmbiguousWorkspaceFallback(), "a same-session commit window is not an external conflict");
+
+			store.resumeAfterCommit();
+			firstSave.get(5, TimeUnit.SECONDS);
+			CollaborationSession reopened = new CollaborationSession(null, projectFile.toString(), "alice", store);
+			assertEquals("second-committed", ((TestWorkspace) reopened.loadWorkspace()).marker,
+					"the later save remains the restored layout after the first caller resumes");
+		} finally {
+			store.resumeAfterCommit();
+			if (firstSave != null) firstSave.get(5, TimeUnit.SECONDS);
+			session.stop();
+			executor.shutdownNow();
 			restoreWorkspaceRoot(previousRoot);
 		}
 	}
@@ -1124,6 +1214,43 @@ class CollaborationSessionSameUserLifecycleTest {
 				}
 			}
 			return super.withLockedMetadata(callback);
+		}
+	}
+
+	private static final class CommitPauseStore extends CollaborationMetadataStore {
+		private final AtomicBoolean pauseAfterCommit = new AtomicBoolean();
+		private volatile CountDownLatch commitEntered = new CountDownLatch(0);
+		private volatile CountDownLatch resumeCommit = new CountDownLatch(0);
+
+		private CommitPauseStore(java.io.File projectFile) {
+			super(projectFile);
+		}
+
+		void pauseAfterNextCommit() {
+			commitEntered = new CountDownLatch(1);
+			resumeCommit = new CountDownLatch(1);
+			pauseAfterCommit.set(true);
+		}
+
+		boolean awaitCommit(long timeout, TimeUnit unit) throws InterruptedException {
+			return commitEntered.await(timeout, unit);
+		}
+
+		void resumeAfterCommit() {
+			resumeCommit.countDown();
+		}
+
+		@Override
+		public void mutateAndAfterCommit(MetadataMutation mutation, java.util.function.Consumer<Metadata> afterCommit) {
+			super.mutateAndAfterCommit(mutation, afterCommit);
+			if (!pauseAfterCommit.compareAndSet(true, false)) return;
+			commitEntered.countDown();
+			try {
+				if (!resumeCommit.await(5, TimeUnit.SECONDS)) throw new IllegalStateException("post-commit test barrier timed out");
+			} catch (InterruptedException interrupted) {
+				Thread.currentThread().interrupt();
+				throw new IllegalStateException("post-commit test barrier interrupted", interrupted);
+			}
 		}
 	}
 

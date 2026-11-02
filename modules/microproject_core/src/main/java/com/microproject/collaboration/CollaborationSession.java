@@ -901,6 +901,7 @@ public class CollaborationSession {
 			return false;
 		}
 		long saveStartedAt = workspaceSaveClock.getAsLong();
+		if (saveGeneration != workspaceSaveGeneration.get()) return false;
 		LocalWorkspaceStore localWorkspaceStore = projectFile == null ? null : new LocalWorkspaceStore(projectFile, userKey);
 		if (localWorkspaceStore != null && !workspaceBaselineKnown) {
 			captureWorkspaceBaseline(store.load());
@@ -911,10 +912,24 @@ public class CollaborationSession {
 			try {
 				localWorkspaceStore.saveFallback(payload, clientInstanceId, saveGeneration, saveStartedAt);
 				fallbackSaved = true;
+				if (saveGeneration != workspaceSaveGeneration.get()) {
+					localWorkspaceStore.clearFallbacksForSessionThrough(clientInstanceId, saveGeneration);
+					return false;
+				}
 				localWorkspaceStore.clearFallbacksForSessionBefore(clientInstanceId, saveGeneration);
 			} catch (Exception e) {
 				logger.log(Level.WARNING, "Could not stage a local workspace fallback for user " + userKey, e);
 			}
+		}
+		if (saveGeneration != workspaceSaveGeneration.get()) {
+			if (fallbackSaved && localWorkspaceStore != null) {
+				try {
+					localWorkspaceStore.clearFallbacksForSessionThrough(clientInstanceId, saveGeneration);
+				} catch (Exception cleanupFailure) {
+					logger.log(Level.WARNING, "Could not discard a superseded workspace fallback generation", cleanupFailure);
+				}
+			}
+			return false;
 		}
 		if (workspaceFallbackAmbiguous) {
 			logger.warning("Workspace save is blocked because the local fallback and shared sidecar have conflicting layouts; this session's layout was retained locally when possible");
@@ -924,7 +939,14 @@ public class CollaborationSession {
 			try {
 				localWorkspaceStore.ensureFallbacksAgreeWithSidecar(payload);
 			} catch (java.io.IOException ambiguous) {
-				workspaceFallbackAmbiguous = true;
+				if (saveGeneration != workspaceSaveGeneration.get()) {
+					try {
+						localWorkspaceStore.clearFallbacksForSessionThrough(clientInstanceId, saveGeneration);
+					} catch (Exception cleanupFailure) {
+						logger.log(Level.WARNING, "Could not discard a superseded workspace fallback generation", cleanupFailure);
+					}
+					return false;
+				}
 				logger.log(Level.SEVERE, "Workspace save is ambiguous; preserving all local copies and the shared sidecar", ambiguous);
 				return false;
 			}
@@ -932,7 +954,7 @@ public class CollaborationSession {
 		boolean[] committed = new boolean[1];
 		boolean[] blockedBySidecarConflict = new boolean[1];
 		try {
-			store.mutate(metadata -> {
+			store.mutateAndAfterCommit(metadata -> {
 				if (saveGeneration != workspaceSaveGeneration.get()) return;
 				UserWorkspaceState existing = metadata.getPerUserWorkspace().get(userKey);
 				String existingPayload = existing == null ? null : existing.getWorkspacePayload();
@@ -949,18 +971,20 @@ public class CollaborationSession {
 				metadata.getPerUserWorkspace().put(userKey, state);
 				store.refreshProjectStats(metadata);
 				committed[0] = true;
+			}, metadata -> {
+				if (committed[0]) {
+					workspaceBaselinePayload = payload;
+					workspaceBaselineKnown = true;
+				}
 			});
 			if (!committed[0]) {
 				if (blockedBySidecarConflict[0]) {
-					workspaceFallbackAmbiguous = true;
 					logger.warning("Workspace save was blocked because the shared sidecar changed concurrently; both versions were retained");
 				}
 				if (fallbackSaved && !blockedBySidecarConflict[0])
 					localWorkspaceStore.clearFallbacksForSessionThrough(clientInstanceId, saveGeneration);
 				return false;
 			}
-			workspaceBaselinePayload = payload;
-			workspaceBaselineKnown = true;
 			if (localWorkspaceStore != null && fallbackSaved) {
 				try {
 					localWorkspaceStore.clearFallbacksForSessionThrough(clientInstanceId, saveGeneration);
