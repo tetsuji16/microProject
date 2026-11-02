@@ -108,6 +108,7 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 		assertEquals(mpo.toString(), onEdt(project::getFileName), "Save As must associate the project with the MPO target");
 		List<String> rowsAfterSave = onEdt(() -> outlineRows(project));
 		Files.writeString(workspace.resolve("expected-rows.txt"), encodeRows(rowsAfterSave), StandardCharsets.UTF_8);
+		writeNodeDiagnostics("phase-one-node-counts.txt", project);
 		Files.writeString(workspace.resolve("phase-one.identity"), ProcessHandle.current().pid() + System.lineSeparator()
 			+ ProcessHandle.current().info().startInstant().orElseThrow().toEpochMilli(), StandardCharsets.UTF_8);
 
@@ -142,6 +143,7 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 		DocumentFrame frame = awaitFrame(mpo);
 		Project project = frame.getProject();
 		List<String> phaseOneRows = decodeRows(Files.readAllLines(expectedRowsFile, StandardCharsets.UTF_8));
+		writeNodeDiagnostics("phase-two-node-counts.txt", project);
 		assertEquals(phaseOneRows, onEdt(() -> outlineRows(project)), "fresh-JVM reopen must restore the POD-derived MPO rows");
 
 		Task selectedAfterRestart = selectFirstTask(robot, frame);
@@ -477,11 +479,39 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 		List<String> rows = new ArrayList<>();
 		Object root = project.getTaskOutline().getHierarchy().getRoot();
 		for (var iterator = project.getTaskOutline().iterator(); iterator.hasNext();) {
-			var node = iterator.next();
-			if (node != root) rows.add(node.getImpl() instanceof Task task ? task.getName() : "");
+			com.microproject.grouping.core.Node node = (com.microproject.grouping.core.Node) iterator.next();
+			if (node == root) continue;
+			if (node.isVoid()) rows.add("");
+			else if (node.getImpl() instanceof Task task) rows.add(task.getName());
 		}
 		while (!rows.isEmpty() && rows.getLast().isEmpty()) rows.removeLast();
 		return rows;
+	}
+
+	private void writeNodeDiagnostics(String fileName, Project project) throws Exception {
+		String report = onEdt(() -> {
+			java.util.Map<String, Integer> classes = new java.util.TreeMap<>();
+			int voidCount = 0;
+			int taskCount = 0;
+			int otherCount = 0;
+			Object root = project.getTaskOutline().getHierarchy().getRoot();
+			for (var iterator = project.getTaskOutline().iterator(); iterator.hasNext();) {
+				com.microproject.grouping.core.Node node = (com.microproject.grouping.core.Node) iterator.next();
+				if (node == root) continue;
+				Object impl = node.getImpl();
+				classes.merge("isVoid=" + node.isVoid() + "; node=" + node.getClass().getName()
+					+ "; impl=" + (impl == null ? "<null>" : impl.getClass().getName()), 1, Integer::sum);
+				if (node.isVoid()) voidCount++;
+				else if (impl instanceof Task) taskCount++;
+				else otherCount++;
+			}
+			StringBuilder details = new StringBuilder();
+			classes.forEach((key, count) -> details.append(key).append(" => ").append(count).append(System.lineSeparator()));
+			return "taskRows=" + taskCount + System.lineSeparator() + "voidRows=" + voidCount + System.lineSeparator()
+				+ "otherRows=" + otherCount + System.lineSeparator() + details;
+		});
+		Files.writeString(workspace.resolve(fileName), report, StandardCharsets.UTF_8);
+		System.out.println(fileName + System.lineSeparator() + report);
 	}
 
 	private static String encodeRows(List<String> rows) {
