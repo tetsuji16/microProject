@@ -18,13 +18,6 @@ import com.microproject.util.UiDispatch;
 public final class ProjectMutationState {
 	private static final ReentrantLock COORDINATOR = new ReentrantLock(true);
 	private static final ThreadLocal<CoordinatorContext> CONTEXT = new ThreadLocal<>();
-	/**
-	 * How long the Swing event thread may wait for a background holder of the
-	 * coordinator (for example recovery job construction). An unbounded wait on
-	 * the EDT freezes Gantt/Resource interaction while Task Manager still shows
-	 * normal CPU use (issue #946). Background threads keep an unbounded wait so
-	 * they do not spuriously fail under load.
-	 */
 	static final long EDT_COORDINATOR_TIMEOUT_MILLIS = 5_000L;
 	private final Deque<Scope> scopes = new ArrayDeque<>();
 	private volatile long revision;
@@ -139,44 +132,53 @@ public final class ProjectMutationState {
 		return new Checkpoint(context.publications.size(), new java.util.IdentityHashMap<>(context.revisions));
 	}
 
-	/** Retracts publications and shared revisions recorded after the checkpoint. */
+	/** Discards deferred publications and restores coordinated revision owners changed since a checkpoint. */
 	public static void rollback(Checkpoint checkpoint) {
 		if (!COORDINATOR.isHeldByCurrentThread() || CONTEXT.get() == null)
 			throw new IllegalStateException("A transaction rollback requires the mutation coordinator");
-		java.util.Objects.requireNonNull(checkpoint, "checkpoint");
 		CoordinatorContext context = CONTEXT.get();
-		if (checkpoint.publicationCount > context.publications.size())
-			throw new IllegalStateException("Checkpoint is newer than the current publications");
-		context.publications.subList(checkpoint.publicationCount, context.publications.size()).clear();
-		java.util.IdentityHashMap<Object, Long> retained = new java.util.IdentityHashMap<>();
+		context.publications.subList(checkpoint.publications, context.publications.size()).clear();
 		for (var entry : context.revisions.entrySet()) {
-			if (checkpoint.revisions.containsKey(entry.getKey())) retained.put(entry.getKey(), entry.getValue());
-			else {
-				var restore = context.revisionRestorers.get(entry.getKey());
-				if (restore != null) restore.accept(entry.getValue());
-			}
+			Long before = checkpoint.revisions.get(entry.getKey());
+			long value = before == null ? entry.getValue().longValue() - 1L : before.longValue();
+			context.revisionRestorers.get(entry.getKey()).accept(value);
 		}
 		context.revisions.clear();
-		context.revisions.putAll(retained);
+		context.revisions.putAll(checkpoint.revisions);
+		context.revisionRestorers.keySet().retainAll(checkpoint.revisions.keySet());
 	}
 
-	/** Snapshot of deferred publications and shared revisions under one coordinator acquisition. */
-	public static final class Checkpoint {
-		private final int publicationCount;
-		private final java.util.IdentityHashMap<Object, Long> revisions;
-		private Checkpoint(int publicationCount, java.util.IdentityHashMap<Object, Long> revisions) {
-			this.publicationCount = publicationCount;
-			this.revisions = revisions;
+	public record Checkpoint(int publications, java.util.IdentityHashMap<Object, Long> revisions) { }
+
+	/**
+	 * Closes scopes opened in list order, innermost (last) first.  Every scope is
+	 * closed even when an earlier close fails, so one failure cannot leave the
+	 * process-wide coordinator held; the first failure is rethrown with the rest
+	 * suppressed.
+	 */
+	public static void closeAll(List<Scope> openedInOrder) {
+		Throwable failure = null;
+		for (int i = openedInOrder.size() - 1; i >= 0; i--) {
+			try {
+				openedInOrder.get(i).close();
+			} catch (Throwable current) {
+				failure = combine(failure, current);
+			}
 		}
+		throwIfFailed(failure);
 	}
 
 	private long finish(Scope scope) {
-		scope.validateActive();
+		if (Thread.currentThread() != scope.owner)
+			throw new IllegalStateException("Project mutation scope must close on its owning thread");
+		if (scopes.peek() != scope)
+			throw new IllegalStateException("Project mutation scopes must close in LIFO order");
 		scopes.pop();
+		Scope parent = scopes.peek();
 		if (scope.committed && scope.changed) {
-			if (!scopes.isEmpty()) {
-				// Nested commit: parent remains responsible for advancing revision.
-			} else
+			if (parent != null)
+				parent.changed = true;
+			else
 				revision++;
 		}
 		long completedRevision = revision;
@@ -248,7 +250,6 @@ public final class ProjectMutationState {
 		context.publications.add(publication);
 	}
 
-	/** One nested acquisition of the project mutation barrier. */
 	public static final class Scope implements AutoCloseable {
 		private final ProjectMutationState state;
 		private final Thread owner;
@@ -301,12 +302,15 @@ public final class ProjectMutationState {
 		@Override public void close() {
 			if (closed) return;
 			state.finish(this);
+			closed = true;
 		}
 
 		/** Closes this scope and returns its exact revision before another writer can advance it. */
 		public long closeAndGetRevision() {
 			if (closed) throw new IllegalStateException("Project mutation scope is already closed");
-			return state.finish(this);
+			long completedRevision = state.finish(this);
+			closed = true;
+			return completedRevision;
 		}
 	}
 }
