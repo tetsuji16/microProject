@@ -644,13 +644,13 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			"document window did not become active before physical resize");
 		robot.mouseMove(before[0].x + before[0].width - 3, before[0].y + before[0].height - 3);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-		robot.mouseMove(before[0].x + before[0].width + 70, before[0].y + before[0].height + 55);
+		robot.mouseMove(before[0].x + before[0].width - 80, before[0].y + before[0].height - 60);
 		robot.delay(150);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		robot.waitForIdle();
-		GuiAcceptanceSupport.await(() -> window.getWidth() >= before[0].width + 30
-			&& window.getHeight() >= before[0].height + 20,
-			"physical native-window resize did not change the application bounds: before=" + before[0]
+		GuiAcceptanceSupport.await(() -> window.getWidth() <= before[0].width - 50
+			&& window.getHeight() <= before[0].height - 35,
+			"physical native-window resize did not shrink the application bounds meaningfully: before=" + before[0]
 				+ ", after=" + window.getBounds());
 	}
 
