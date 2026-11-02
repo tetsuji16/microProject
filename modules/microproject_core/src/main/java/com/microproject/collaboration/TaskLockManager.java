@@ -56,8 +56,16 @@ public class TaskLockManager {
 			public Boolean execute(Metadata metadata) {
 				cleanupExpiredLocks(metadata, System.currentTimeMillis());
 				LockRecord existing = metadata.getLocks().get(String.valueOf(taskId));
+				// Metadata holds one user record per userKey. A prior instance of the same
+				// user (crash, force-quit, or a second local process) can leave a live
+				// lease under a different clientInstanceId. That blocks selection and
+				// edits for the current instance until the 15s lease expires. Reclaim
+				// same-user leases; only a different userKey is a hard conflict.
 				if (existing != null && !ownerKey.equals(existing.getOwnerKey())) {
-					return Boolean.FALSE;
+					String existingUser = existing.getUserKey();
+					if (existingUser == null || !userKey.equals(existingUser)) {
+						return Boolean.FALSE;
+					}
 				}
 				long now = System.currentTimeMillis();
 				LockRecord record = existing == null ? new LockRecord() : existing;
