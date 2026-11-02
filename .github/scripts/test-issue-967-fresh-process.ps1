@@ -22,9 +22,23 @@ try {
       throw "GUI runner returned without executing and completing $phase. Workspace: $resolvedWorkspace"
     }
     if ($phase -like 'phaseOne*') {
-      foreach ($required in @('fresh-process.mpo', 'expected-rows.txt', 'phase-one.pid')) {
+      foreach ($required in @('fresh-process.mpo', 'expected-rows.txt', 'phase-one.identity', 'selected-task.uid')) {
         if (-not (Test-Path -LiteralPath (Join-Path $resolvedWorkspace $required) -PathType Leaf)) {
           throw "Phase one omitted required evidence $required. Workspace: $resolvedWorkspace"
+        }
+      }
+    }
+    if ($phase -like 'phaseOne*') {
+      $identity = Get-Content -LiteralPath (Join-Path $resolvedWorkspace 'phase-one.identity')
+      $phaseOnePid = [int]$identity[0]
+      $phaseOneStart = [DateTimeOffset]::FromUnixTimeMilliseconds([long]$identity[1]).UtcDateTime
+      $stillRunning = Get-Process -Id $phaseOnePid -ErrorAction SilentlyContinue
+      if ($null -ne $stillRunning) {
+        $observedStart = $stillRunning.StartTime.ToUniversalTime()
+        # Fail closed if a reused PID has a start time indistinguishable at the
+        # process timestamp resolution; a false failure is safer than overlap.
+        if ([Math]::Abs(($observedStart - $phaseOneStart).TotalSeconds) -lt 2) {
+          throw "Phase-one GUI worker PID $phaseOnePid is still alive; refusing to start phase two. Workspace: $resolvedWorkspace"
         }
       }
     }
