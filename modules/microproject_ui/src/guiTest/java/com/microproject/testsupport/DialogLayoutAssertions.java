@@ -20,16 +20,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.AbstractButton;
-import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JSpinner;
-import javax.swing.JLabel;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.JRootPane;
 import javax.swing.JViewport;
 import javax.swing.SwingUtilities;
-import javax.swing.text.JTextComponent;
 
 /** Shared visual invariants for text-bearing controls in dialogs. */
 public final class DialogLayoutAssertions {

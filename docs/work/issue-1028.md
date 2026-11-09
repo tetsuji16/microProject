@@ -8,35 +8,44 @@ Baseline working tree: clean
 
 ## Goal and scope
 
-Move display-independent text clipping/layout assertions into `src/test`, add headless L2 layout coverage for the seven named dialog families in Japanese and English, remove only equivalent layout-only Robot methods, preserve physical input journeys, and move `NativeChooserSnapshotParserTest` if its source class is in `src/main`.
+Move display-independent dialog text clipping checks to `src/test`; add equivalent Japanese and English headless coverage for the seven named dialog families where a body panel can be built without a top-level window; remove only duplicate layout-only Robot coverage; preserve physical journeys. Do not change `src/main`.
 
-Out of scope: changing production code, weakening assertions/locales, deleting physical input coverage, DPI visual audit.
-Blockers: none; prerequisite PR #1029 and latest master baseline are present.
+Out of scope: visual/DPI audit and product code changes.
+Blockers: Preferences dialog body has no separate headless construction seam; documented on #1028 (comment 6745938744), existing Robot layout checks retained as directed.
 
 ## Acceptance
 
 | ID | Required result/evidence | State | Evidence (SHA + link) |
 |---|---|---|---|
-| A1 | Headless assertion helper in src/test; GUI helper delegates with no duplicate logic | open | Pending |
-| A2 | Seven named dialog families have equivalent headless layout tests or issue comments explain impossibility | open | Pending |
-| A3 | Only corresponding layout-only Robot methods removed; physical routes retained | open | Pending |
-| A4 | Same assertions and Japanese/English locale coverage | open | Pending |
-| A5 | NativeChooserSnapshotParserTest relocated if currently in main | open | Source inventory pending |
-| A6 | Focused UI tests, GUI compilation, exact-head CI build (3 OS) and GUI acceptance pass | open | Pending |
-| A7 | No src/main changes | open | Pending |
+| A1 | Shared assertion in src/test; GUI helper delegates without duplicate clipping logic | pass | `0d83d62ed`; `HeadlessLayoutAssertions` and delegation |
+| A2 | Seven dialog families have a test or issue comment for inability | pass | Six headless tests; Preferences constraint comment on #1028 |
+| A3 | Equivalent layout-only Robot coverage removed; physical routes retained | pass | Six target GUI test updates; Resource Information layout-only Robot class removed; other routes kept |
+| A4 | Assertions not weakened; Japanese and English tested | pass | Six tests execute both locales with original clipping assertion |
+| A5 | NativeChooserSnapshotParserTest moved if under src/main | pass | Inventory shows it is already under `src/guiTest/java`; condition does not apply |
+| A6 | Focused UI tests, GUI compile, PR 3-OS build and GUI acceptance pass | open | Local commands passed; exact PR CI pending |
+| A7 | No production code changes | pass | Diff contains no `src/main` paths |
 
 ## Current slice
 
-**Next slice:** Extract the display-independent assertion methods, then migrate each dialog as one commit.
-**Done when:** Helper extraction compiles and preserves the current recursive clipping rules.
-**Then:** Add the seven dialog headless tests and classify/removal table.
+**Next slice:** Push the reviewed branch, create master PR, and wait for its exact-head build and GUI acceptance.
+**Done when:** Build passes on Linux/Windows/macOS and GUI acceptance passes on PR head.
+**Then:** Merge PR and close #1028.
 
 ## Remaining blockers
 
-- Required tests and exact PR CI are outstanding.
+- Exact PR CI is outstanding.
+- PreferencesDialogBox remains on Robot layout checks until a product body-builder seam is introduced; this is explicitly documented on the issue.
 
 ## Latest evidence
 
-- Baseline `git status` clean at `59b78535c91e3dcbded2262412ba4ed41375bfe8`.
-- Inventory: seven target GUI test classes use `DialogLayoutAssertions`; also two out-of-scope GUI classes use it. `NativeChooserSnapshotParserTest` is currently under `src/guiTest`, not `src/main`.
-- No implementation or verification yet.
+- Headless tests added for Baseline, Change Working Time, Find, Project Information, Resource Information, and Resource Mapping. Each runs English and Japanese locales. `HeadlessDialogAssertionsTest` verifies nested layout and failure detection.
+- Robot physical routes retained for Baseline, Change Working Time, Find, Project Information, and Resource Mapping. Resource Information's layout-only Robot class was removed after its General panel received headless coverage. Preferences remains unchanged.
+- NativeChooserSnapshotParserTest is under `src/guiTest`, not `src/main`; no relocation is needed.
+- Tested source before the documentation-only branch integration: `24fbfbbcd` plus current `src/main`-free dialog changes. Scoped `origin/master` integration adds #1027 journey coverage and does not change migrated dialog builders or tests.
+- Commands passed:
+  - `.\gradlew.bat :microproject_ui:test --tests "*LayoutTest" --tests "*NativeChooserSnapshotParserTest" --console=plain`
+  - `.\gradlew.bat :microproject_ui:compileGuiTestJava --console=plain`
+  - `.\gradlew.bat :microproject_ui:test --console=plain`
+  - `git diff --check`
+- `src/main` unchanged. No local Robot execution; PR GUI acceptance remains the physical verification gate.
+- Prerequisite #1029 merged as `25b534e9`; #1027 has now also merged as `2b55231d`.
