@@ -20,7 +20,7 @@ two disagree on which layer or which run is required, this document wins.
 | Layer | Where | Runs | What belongs here |
 |---|---|---|---|
 | L1 model | `src/test` in core, application, exchange | every PR, 3 OSes | Scheduling, calendars, hierarchy, file read/write, Undo of model edits. |
-| L2 headless UI | `microproject_ui/src/test` (`java.awt.headless=true`) | every PR, 3 OSes | Command route: dispatch a `CommandId` (see `CommandRouteMatrixTest`), then check the model, rejection result, Undo/Redo, and MPO reload. Enablement and selection rules. Dialog content-panel layout with the container-based `DialogLayoutAssertions` checks. Renderers and table models. |
+| L2 headless UI | `microproject_ui/src/test` (`java.awt.headless=true`) | every PR, 3 OSes | Command route: dispatch a `CommandId` on a real document with `HeadlessDocumentFixture` (example: `HeadlessDocumentCommandTest`), then check the model, rejection result, Undo/Redo, and MPO reload. Enablement and selection rules. Dialog content-panel layout with the container-based `DialogLayoutAssertions` checks. Renderers and table models. |
 | L3 physical journey | `microproject_ui/src/guiTest`, tagged `@GuiJourney` | every PR (Windows) | One Robot test per **input mechanism** (below), proving that a real click, key, or drag reaches the canonical command and that the result is visible. Not one per command. |
 | L4 visual audit | full `guiTest` and the locale × scale matrix | weekly schedule, stable release, or shared layout changes | Screenshots, clipping at 125/150%, English layout, window shell. |
 
@@ -82,10 +82,13 @@ Rules for agents and contributors:
 The existing suite predates this rule. Work through these issues, tracked
 under #773:
 
-1. Switch `smoke` to the journey tag and remove the hand-maintained list (#1027).
-2. Move command-behavior and dialog-layout checks from `guiTest` to L2, and
-   move unit-level classes out of `guiTest`.
-3. Split the largest test classes and remove dependence on the run date.
+1. #1027 (done): switch `smoke` to the journey tag and remove the
+   hand-maintained list.
+2. #1028: move dialog-layout checks to L2, and move unit-level classes out of
+   `guiTest`.
+3. #1034: replace command-behavior Robot tests with L2 tests that use
+   `HeadlessDocumentFixture`.
+4. #1025: remove dependence on the run date.
 
 Until each is done, keep the existing tests passing; do not delete a Robot
 test before its L2 replacement is merged.
