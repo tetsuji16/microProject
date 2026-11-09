@@ -10,6 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static com.microproject.testsupport.DialogLayoutAssertions.physicallyClick;
 import static com.microproject.testsupport.DialogLayoutAssertions.physicallyScrollIntoView;
 
+import com.microproject.testsupport.GuiJourney;
+import com.microproject.testsupport.GuiJourney.InputMechanism;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
 import java.awt.Component;
@@ -308,6 +310,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 	}
 
 	@Test
+	@GuiJourney(InputMechanism.DIALOG)
 	void robotOpensWorkingTimeDialogAndCancelsWithoutCommit() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		originalFormatLocale = Locale.getDefault(Locale.Category.FORMAT);

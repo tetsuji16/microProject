@@ -61,7 +61,7 @@ try {
 	def test_pull_request_gui_gate_is_named_and_defaults_to_smoke(self):
 		self.assertRegex(self.gui, r"(?m)^name: GUI acceptance$")
 		self.assertRegex(self.gui, r"(?ms)^  gui-acceptance:\n    name: GUI acceptance\b")
-		self.assertRegex(self.gui, r"(?ms)gui_suite:\n.*?default: smoke\n.*?options:\n          - smoke\n          - visual\n          - full")
+		self.assertRegex(self.gui, r"(?ms)gui_suite:\n.*?default: smoke\n.*?options:\n          - smoke\n          - journeys\n          - visual\n          - full")
 		self.assertIn("if ($env:GITHUB_EVENT_NAME -eq 'schedule') { $requestedSuite = 'full' }", self.gui)
 		self.assertIn("else { $requestedSuite = 'smoke' }", self.gui)
 		self.assertNotIn("codex/stable-", self.gui)

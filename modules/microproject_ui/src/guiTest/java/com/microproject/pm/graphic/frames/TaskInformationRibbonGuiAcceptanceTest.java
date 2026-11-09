@@ -15,6 +15,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static com.microproject.testsupport.DialogLayoutAssertions.physicallyScrollIntoView;
 
+import com.microproject.testsupport.GuiJourney;
+import com.microproject.testsupport.GuiJourney.InputMechanism;
 import java.awt.GraphicsEnvironment;
 import java.awt.GraphicsConfiguration;
 import java.awt.Insets;
@@ -5884,6 +5886,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	@GuiJourney(InputMechanism.CONTEXT_MENU)
 	void robotTaskPopupInsertAddsSelectedRowCountBelowSelectionAndOneUndoRevertsBatch() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
@@ -6546,6 +6549,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	@GuiJourney(InputMechanism.RIBBON_CLICK)
 	void linkAndUnlinkSelectedTasksThroughRibbonRoundTripsDependency() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		beginCommandDiagnosticCapture();

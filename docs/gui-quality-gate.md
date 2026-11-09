@@ -80,9 +80,11 @@ change. They are not a checklist to repeat for every source edit.
    Add save/reload coverage only when project data or its persistence path is
    affected.
 3. **New or changed physical route, or a reproduced GUI command regression.**
-   Test route wiring and add/update one Robot journey for the affected command
-   family. Reuse that journey for sibling entry points when they share the same
-   command pipeline; do not repeat it for every syntactic refactor or locale.
+   Test route wiring headlessly (dispatch the `CommandId` and check the
+   model, Undo/Redo, and reload). Physical Robot coverage is one
+   `@GuiJourney` per input mechanism, not per command family; add a Robot
+   test only for a new input mechanism or a defect that reproduces only
+   through real OS input or focus. See [Test strategy](test-strategy.md).
 4. **Changed visual layout.** Run the shared layout assertions for the affected
    surface. Exercise locale/scale combinations that can expose the changed
    constraint. Run the full ja/en × 100/125/150% matrix for broad/shared layout
@@ -115,8 +117,10 @@ remove the duplicate responsibility that made the defect possible.
    tasks.  Reuse it for indent/outdent, expand/collapse, link/unlink,
    hide/show, Undo/Redo, and save/reload.  Add a new fixture only when it
    exercises a new state transition.
-5. **One full Robot journey per affected command family.** Run it when a
-   physical route or user-visible command contract changes. A Robot test must
+5. **One Robot journey per input mechanism.** The `@GuiJourney` tests prove
+   that ribbon clicks, shortcuts, cell edits, drags, context menus, header
+   clicks, dialogs, file choosers, and the window shell reach the canonical
+   command; command behavior is proven headlessly. A Robot test must
    not be duplicated for every visual variant when a headless contract test
    covers the same state machine. Visual tests share a dialog/ribbon harness;
    rerun only the locale/scale legs relevant to the changed constraint, except
@@ -302,9 +306,10 @@ and stable task IDs, never only object identity or a blank event source.
 - A GUI compatibility claim cannot be closed from a passing action dispatch,
   a screenshot, or a comparison with an undocumented observed behavior.  The
   MSP-source evidence and the complete command contract above are mandatory.
-- Run focused unit tests and focused `guiTest` before review. Run the full
-  `:microproject_ui:test` and `:microproject_ui:guiTest --max-workers=1` before a
-  release or when shared command, selection, layout, or shortcut code changes.
+- Run focused unit tests before review; CI runs the GUI journeys. Run the full
+  `:microproject_ui:guiTest --max-workers=1` (or dispatch the `full` workflow)
+  only before a release or when shared layout, theme, scaling, or window-shell
+  code changes.
   If local desktop automation is unavailable, use the Windows GUI acceptance
   workflow for the physical route instead of treating the local omission as a
   passing result.
