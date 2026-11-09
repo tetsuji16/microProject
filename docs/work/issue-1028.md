@@ -52,4 +52,3 @@ Blockers: Preferences dialog body has no separate headless construction seam; do
 
 - Exact PR head 424018a757de2d6a9d578cf5d93a53bf2d898109: GUI acceptance passed ([run 42660060078](https://github.com/tetsuji16/microProject/actions/runs/42660060078)); Linux/Windows/macOS Build passed ([run 42660059944](https://github.com/tetsuji16/microProject/actions/runs/42660059944)).
 - PR [#1032](https://github.com/tetsuji16/microProject/pull/1032) is ready to merge; issue closure follows merge.
-
