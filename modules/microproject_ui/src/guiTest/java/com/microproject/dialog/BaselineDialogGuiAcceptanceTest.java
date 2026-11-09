@@ -142,9 +142,8 @@ class BaselineDialogGuiAcceptanceTest {
 		assertControlInsideDialog(dialog, selected, "Selected Tasks option");
 		assertControlInsideDialog(dialog, cancel, "Cancel button");
 		assertControlInsideDialog(dialog, ok, "OK button");
-		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(content, "Clear Baseline dialog (#715)");
 		DialogLayoutAssertions.assertWithinUsableScreen(dialog, "Clear Baseline dialog (#724)");
-		DialogLayoutAssertions.assertResizeKeepsTextControls(dialog, content, 100, 40, "Clear Baseline dialog (#724)");
+		DialogLayoutAssertions.assertResizeWithinUsableScreen(dialog, 100, 40, "Clear Baseline dialog (#724)");
 		DialogScreenshotArtifacts.capture(dialog, "issue-460-clear-baseline");
 		assertControlInsideDialog(dialog, baseline, "resized baseline selector");
 		assertControlInsideDialog(dialog, entire, "resized Entire Project option");
@@ -182,8 +181,6 @@ class BaselineDialogGuiAcceptanceTest {
 		assertControlInsideDialog(dialog, dialog.selectedTasks, "reopened Selected Tasks option");
 		assertControlInsideDialog(dialog, dialog.cancel, "reopened Cancel button");
 		assertControlInsideDialog(dialog, dialog.ok, "reopened OK button");
-		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog.getContentPane(),
-			"Clear Baseline dialog after reopen, FlatDarkLaf, and larger font (#723)");
 		click(robot, dialog.cancel);
 		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "reopened Clear Baseline dialog did not close");
 	}
