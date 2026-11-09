@@ -1,6 +1,6 @@
 # Issue #1028 — Move dialog layout checks to headless tests
 
-State: IN PROGRESS
+State: COMPLETE
 Issue: https://github.com/tetsuji16/microProject/issues/1028
 Contract frozen at: 2026-11-10, issue body fetched from GitHub
 Baseline HEAD: `59b78535c91e3dcbded2262412ba4ed41375bfe8`
@@ -22,18 +22,18 @@ Blockers: Preferences dialog body has no separate headless construction seam; do
 | A3 | Equivalent layout-only Robot coverage removed; physical routes retained | pass | Six target GUI test updates; Resource Information layout-only Robot class removed; other routes kept |
 | A4 | Assertions not weakened; Japanese and English tested | pass | Six tests execute both locales with original clipping assertion |
 | A5 | NativeChooserSnapshotParserTest moved if under src/main | pass | Inventory shows it is already under `src/guiTest/java`; condition does not apply |
-| A6 | Focused UI tests, GUI compile, PR 3-OS build and GUI acceptance pass | open | Local commands passed; exact PR CI pending |
+| A6 | Focused UI tests, GUI compile, PR 3-OS build and GUI acceptance pass | pass | Exact PR head 424018a7: all 3 OS Build and GUI acceptance passed |
 | A7 | No production code changes | pass | Diff contains no `src/main` paths |
 
 ## Current slice
 
-**Next slice:** Push the reviewed branch, create master PR, and wait for its exact-head build and GUI acceptance.
-**Done when:** Build passes on Linux/Windows/macOS and GUI acceptance passes on PR head.
-**Then:** Merge PR and close #1028.
+**Next slice:** None.
+**Done when:** All acceptance criteria passed and PR #1032 merged.
+**Then:** Complete.
 
 ## Remaining blockers
 
-- Exact PR CI is outstanding.
+- None.
 - PreferencesDialogBox remains on Robot layout checks until a product body-builder seam is introduced; this is explicitly documented on the issue.
 
 ## Latest evidence
@@ -49,3 +49,7 @@ Blockers: Preferences dialog body has no separate headless construction seam; do
   - `git diff --check`
 - `src/main` unchanged. No local Robot execution; PR GUI acceptance remains the physical verification gate.
 - Prerequisite #1029 merged as `25b534e9`; #1027 has now also merged as `2b55231d`.
+
+- Exact PR head 424018a757de2d6a9d578cf5d93a53bf2d898109: GUI acceptance passed ([run 42660060078](https://github.com/tetsuji16/microProject/actions/runs/42660060078)); Linux/Windows/macOS Build passed ([run 42660059944](https://github.com/tetsuji16/microProject/actions/runs/42660059944)).
+- PR [#1032](https://github.com/tetsuji16/microProject/pull/1032) is ready to merge; issue closure follows merge.
+
