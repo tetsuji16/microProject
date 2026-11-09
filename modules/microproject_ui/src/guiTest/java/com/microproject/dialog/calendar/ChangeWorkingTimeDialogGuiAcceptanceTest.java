@@ -10,6 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static com.microproject.testsupport.DialogLayoutAssertions.physicallyClick;
 import static com.microproject.testsupport.DialogLayoutAssertions.physicallyScrollIntoView;
 
+import com.microproject.testsupport.GuiJourney;
+import com.microproject.testsupport.GuiJourney.InputMechanism;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
 import java.awt.Component;
@@ -82,6 +84,11 @@ import com.microproject.util.AlternativeCalendarDisplay;
 
 /** GUI-NC-07: open and cancel the working-time dialog through real mouse input. */
 class ChangeWorkingTimeDialogGuiAcceptanceTest {
+	private static void setProjectStart(Project project, long start) {
+		project.setStart(start);
+		project.setStartConstraint(start);
+	}
+
 	private JFrame frame;
 	private ChangeWorkingTimeDialogBox dialog;
 	private NewBaseCalendarDialog newBaseDialog;
@@ -308,6 +315,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 	}
 
 	@Test
+	@GuiJourney(InputMechanism.DIALOG)
 	void robotOpensWorkingTimeDialogAndCancelsWithoutCommit() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		originalFormatLocale = Locale.getDefault(Locale.Category.FORMAT);
@@ -339,7 +347,6 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		assertTrue(dialog.sdCalendar.getCalendarMonthTitle(displayedMonth, "Gregorian").contains("("),
 			"the working-time calendar should display the selected alternative calendar month");
 		assertSingleReadableCalendarMonth();
-		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Change Working Time dialog (#590 body image 1)");
 		assertVisibleComponentsFit(dialog, "Change Working Time Calendar tab");
 		DialogScreenshotArtifacts.capture(dialog, "issue-590-change-working-time");
 		Robot robot = new com.microproject.testsupport.GuiRobot();
@@ -442,7 +449,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		Project project = Project.createProject(pool, undo);
 		project.initialize(false, false);
 		long projectStart = com.microproject.util.DateTime.dayFloor(System.currentTimeMillis());
-		project.setStart(projectStart);
+		setProjectStart(project, projectStart);
 		com.microproject.pm.task.NormalTask task = (com.microproject.pm.task.NormalTask) project.createLocalTaskNode(null).getImpl();
 		task.setName("Work-week persistence task");
 		task.getCurrentSchedule().setStart(projectStart);

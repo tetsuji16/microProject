@@ -116,7 +116,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		// arithmetic is the narrow deterministic interpretation under this fixture.
 		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
 		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = createTask(project, "Elapsed FS predecessor", 1);
 		NormalTask successor = createTask(project, "Elapsed FS successor", 1);
 		NormalTask unrelated = createTask(project, "Elapsed FS unrelated", 1);
@@ -169,7 +169,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		// not an MSP measurement; standard-calendar normalization leaves it at Monday 10:00.
 		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
 		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = createTask(project, "Negative elapsed FS predecessor", 1);
 		NormalTask successor = createTask(project, "Negative elapsed FS successor", 1);
 		NormalTask unrelated = createTask(project, "Negative elapsed FS unrelated", 1);
@@ -228,7 +228,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		// 04:00 to the standard-calendar Tuesday 08:00 boundary are inferred, not measured.
 		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
 		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = createTask(project, "Negative elapsed SS predecessor", 1);
 		NormalTask successor = createTask(project, "Negative elapsed SS successor", 1);
 		NormalTask unrelated = createTask(project, "Negative elapsed SS unrelated", 1);
@@ -289,7 +289,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		// not an MSP measurement.
 		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
 		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = createTask(project, "Negative elapsed FF predecessor", 1);
 		NormalTask successor = createTask(project, "Negative elapsed FF successor", 1);
 		NormalTask unrelated = createTask(project, "Negative elapsed FF unrelated", 1);
@@ -349,7 +349,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		// successor. The 50% duration arithmetic and exact boundary are document-derived.
 		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
 		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = createTask(project, "Percent SS predecessor", 1);
 		NormalTask successor = createTask(project, "Percent SS successor", 1);
 		NormalTask unrelated = createTask(project, "Percent SS unrelated", 1);
@@ -414,7 +414,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		// The percentage arithmetic and exact boundary are document-derived, not measured MSP behavior.
 		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
 		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = createTask(project, "Negative percent SS predecessor", 1);
 		NormalTask successor = createTask(project, "Negative percent SS successor", 1);
 		NormalTask unrelated = createTask(project, "Negative percent SS unrelated", 1);
@@ -481,7 +481,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		// successor. The 50% duration arithmetic and exact boundary are document-derived.
 		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
 		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = createTask(project, "Percent FF predecessor", 1);
 		NormalTask successor = createTask(project, "Percent FF successor", 1);
 		NormalTask unrelated = createTask(project, "Percent FF unrelated", 1);
@@ -548,7 +548,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		// not measured MSP behavior.
 		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
 		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = createTask(project, "Negative percent FF predecessor", 1);
 		NormalTask successor = createTask(project, "Negative percent FF successor", 1);
 		NormalTask unrelated = createTask(project, "Negative percent FF unrelated", 1);
@@ -618,7 +618,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		// document-derived rule here; these exact clock dates are not MSP measurements.
 		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
 		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = createTask(project, "Percent FS predecessor", 1);
 		NormalTask successor = createTask(project, "Percent FS successor", 1);
 		NormalTask unrelated = createTask(project, "Percent FS unrelated", 1);
@@ -685,7 +685,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		// not measured MSP behavior.
 		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
 		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = createTask(project, "Percent SF predecessor", 1);
 		NormalTask successor = createTask(project, "Percent SF successor", 1);
 		NormalTask unrelated = createTask(project, "Percent SF unrelated", 1);
@@ -755,7 +755,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		// not measured MSP behavior.
 		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
 		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = createTask(project, "Negative percent SF predecessor", 1);
 		NormalTask successor = createTask(project, "Negative percent SF successor", 1);
 		NormalTask unrelated = createTask(project, "Negative percent SF unrelated", 1);
@@ -824,7 +824,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		// not measured MSP behavior.
 		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
 		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = createTask(project, "Negative percent FS predecessor", 1);
 		NormalTask successor = createTask(project, "Negative percent FS successor", 1);
 		NormalTask unrelated = createTask(project, "Negative percent FS unrelated", 1);
@@ -890,7 +890,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		// wall-clock arithmetic is this fixture's narrow inference, not measured MSP behavior.
 		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
 		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = createTask(project, "Elapsed SS predecessor", 1);
 		NormalTask successor = createTask(project, "Elapsed SS successor", 1);
 		NormalTask unrelated = createTask(project, "Elapsed SS unrelated", 1);
@@ -944,7 +944,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		// elapsed-hour boundary arithmetic below is document-derived, not measured.
 		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
 		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = createTask(project, "Elapsed FF predecessor", 1);
 		NormalTask successor = createTask(project, "Elapsed FF successor", 1);
 		NormalTask unrelated = createTask(project, "Elapsed FF unrelated", 1);
@@ -999,7 +999,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		// successor; the exact elapsed-hour boundary below is document-derived, not measured.
 		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
 		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = createTask(project, "Elapsed SF predecessor", 1);
 		NormalTask successor = createTask(project, "Elapsed SF successor", 1);
 		NormalTask unrelated = createTask(project, "Elapsed SF unrelated", 1);
@@ -1060,7 +1060,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		// below are inferred, not an MSP measurement.
 		// https://support.microsoft.com/en-us/project/link-tasks-in-a-project
 		// https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = createTask(project, "Negative elapsed SF predecessor", 1);
 		NormalTask successor = createTask(project, "Negative elapsed SF successor", 1);
 		NormalTask unrelated = createTask(project, "Negative elapsed SF unrelated", 1);
@@ -1118,7 +1118,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		long thursdayThirteen = timestamp(2030, Calendar.JUNE, 6, 13);
 		long fridayThirteen = timestamp(2030, Calendar.JUNE, 7, 13);
 		long twelveHours = 12L * 60L * 60L * 1000L;
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		((WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(new WorkDay(tuesdayMidnight));
 
 		NormalTask predecessor = createTask(project, "FS lead predecessor", 1);
@@ -1181,7 +1181,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		long tuesdayMidnight = timestamp(2030, Calendar.JUNE, 4, 0);
 		long tuesdayEight = timestamp(2030, Calendar.JUNE, 4, 8);
 		long thursdayEight = timestamp(2030, Calendar.JUNE, 6, 8);
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		((WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(new WorkDay(tuesdayMidnight));
 
 		NormalTask predecessor = createTask(project, "holiday-lag predecessor", 1);
@@ -1217,7 +1217,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		long wednesdayEight = timestamp(2030, Calendar.JUNE, 5, 8);
 		long wednesdayThirteen = timestamp(2030, Calendar.JUNE, 5, 13);
 		long fourHours = day() / 2;
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		((WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(new WorkDay(tuesdayMidnight));
 
 		NormalTask predecessor = createTask(project, "SF lag predecessor", 1);
@@ -1283,7 +1283,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		long tuesdayMidnight = timestamp(2030, Calendar.JUNE, 4, 0);
 		long wednesdayEight = timestamp(2030, Calendar.JUNE, 5, 8);
 		long wednesdaySeventeen = timestamp(2030, Calendar.JUNE, 5, 17);
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		((WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(new WorkDay(tuesdayMidnight));
 
 		NormalTask predecessor = createTask(project, "FF lead predecessor", 1);
@@ -1333,7 +1333,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		long wednesdaySeventeen = timestamp(2030, Calendar.JUNE, 5, 17);
 		long twelveHours = 12L * 60L * 60L * 1000L;
 		long twoHours = 2L * 60L * 60L * 1000L;
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		((WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(new WorkDay(tuesdayMidnight));
 
 		NormalTask predecessor = createTask(project, "FF lead predecessor SNET", 1);
@@ -1407,7 +1407,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		long fridayEight = timestamp(2030, Calendar.JUNE, 7, 8);
 		long fridaySeventeen = timestamp(2030, Calendar.JUNE, 7, 17);
 		long twelveHours = 12L * 60L * 60L * 1000L;
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		((WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(new WorkDay(tuesdayMidnight));
 
 		NormalTask predecessor = createTask(project, "SS lead predecessor", 1);
@@ -1479,7 +1479,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		long fridayEight = timestamp(2030, Calendar.JUNE, 7, 8);
 		long fridaySeventeen = timestamp(2030, Calendar.JUNE, 7, 17);
 		long twelveHours = 12L * 60L * 60L * 1000L;
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		((WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(new WorkDay(tuesdayMidnight));
 
 		NormalTask predecessor = createTask(project, "SF lead predecessor", 1);
@@ -1543,7 +1543,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		long wednesdayMidnight = timestamp(2026, Calendar.NOVEMBER, 4, 0);
 		long thursdayEight = timestamp(2026, Calendar.NOVEMBER, 5, 8);
 		long thursdaySeventeen = timestamp(2026, Calendar.NOVEMBER, 5, 17);
-		project.setStart(tuesdayEight);
+		setProjectStart(project, tuesdayEight);
 
 		NormalTask predecessor = createTask(project, "successor-calendar predecessor", 1);
 		NormalTask successor = createTask(project, "successor-calendar successor", 1);
@@ -1613,7 +1613,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
 		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
 		long tuesdayEight = timestamp(2030, Calendar.JUNE, 4, 8);
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		String typeName = type == DependencyType.FS ? "FS" : "FF";
 		NormalTask predecessor = createTask(project, "SNET " + typeName + " predecessor", predecessorDurationDays);
 		NormalTask successor = createTask(project, "SNET " + typeName + " successor", 1);
@@ -1701,7 +1701,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
 		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
 		long tuesdayMidnight = timestamp(2030, Calendar.JUNE, 4, 0);
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		((WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(new WorkDay(tuesdayMidnight));
 		NormalTask predecessor = createTask(project, "SNET lag predecessor", 1);
 		NormalTask successor = createTask(project, "SNET lag successor", 1);
@@ -1793,7 +1793,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
 		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
 		long tuesdaySeventeen = timestamp(2030, Calendar.JUNE, 4, 17);
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = createTask(project, "SNET SF predecessor", 1);
 		NormalTask successor = createTask(project, "SNET SF successor", 1);
 		NormalTask unrelated = createTask(project, "unrelated", 1);
@@ -1858,7 +1858,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		long mondayEight = timestamp(2030, Calendar.JUNE, 3, 8);
 		long mondaySeventeen = timestamp(2030, Calendar.JUNE, 3, 17);
 		long initialSuccessorFinish = timestamp(2030, Calendar.JUNE, 4, 17);
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = createTask(project, "SNET SS predecessor", 1);
 		NormalTask successor = createTask(project, "SNET SS successor", 1);
 		NormalTask unrelated = createTask(project, "unrelated", 1);
@@ -1961,7 +1961,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		long thursdaySeventeen = timestamp(2030, Calendar.JUNE, 6, 17);
 		long fridayEight = timestamp(2030, Calendar.JUNE, 7, 8);
 		long fridaySeventeen = timestamp(2030, Calendar.JUNE, 7, 17);
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		((WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(new WorkDay(tuesdayMidnight));
 
 		NormalTask predecessor = createTask(project, "calendar-lag predecessor", 1);
@@ -2242,6 +2242,18 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		project.initialize(false, false);
 		project.setWorkCalendar(((WorkingCalendar) project.getWorkCalendar()).makeScratchCopy());
 		return new Fixture(project, undo);
+	}
+
+	/**
+	 * Sets the project start the way the scheduling engine reads it.
+	 * {@link Project#setStart(long)} only stores the field; forward scheduling
+	 * starts from the scheduling algorithm's start constraint, which
+	 * {@link Project#createProject} initializes to today. Without this, a project
+	 * start earlier than today is ignored and the result depends on the run date.
+	 */
+	private static void setProjectStart(Project project, long start) {
+		project.setStart(start);
+		project.setStartConstraint(start);
 	}
 
 	private NormalTask createTask(Project project, String name, int durationDays) {

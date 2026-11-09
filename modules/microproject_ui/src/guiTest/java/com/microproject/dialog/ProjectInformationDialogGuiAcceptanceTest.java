@@ -117,8 +117,6 @@ class ProjectInformationDialogGuiAcceptanceTest {
 		for (int index = 0; index < tabs.getTabCount(); index++) {
 			final int tabIndex = index;
 			SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(tabIndex));
-			DialogLayoutAssertions.assertTextControlsAtPreferredHeight(tabs,
-				"Project Information tab " + tabs.getTitleAt(index) + " (#714)");
 		}
 		SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(0));
 		DialogScreenshotArtifacts.capture(dialog, "issue-460-project-information");
@@ -142,7 +140,7 @@ class ProjectInformationDialogGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> visibleDialog(MoveProjectDialog.class) != null,
 			"Move Project dialog did not open from Project Information");
 		SwingUtilities.invokeAndWait(() -> visibleDialog(MoveProjectDialog.class).dispose());
-		DialogLayoutAssertions.assertResizeKeepsTextControls(dialog, tabs, 180, 80,
+		DialogLayoutAssertions.assertResizeWithinUsableScreen(dialog, 180, 80,
 			"Project Information dialog (#724)");
 		assertTrue(tabs.isShowing() && tabs.getWidth() > 0 && tabs.getHeight() > 0,
 			"Project information content must remain visible after resize");

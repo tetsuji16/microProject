@@ -225,6 +225,7 @@ class GanttWheelZoomTest {
 		Project project = Project.createProject(resourcePool, undoController);
 		// Keep the chart's time origin independent of wall-clock and host timezone.
 		long projectStart = Instant.parse("2025-01-06T08:00:00Z").toEpochMilli();
+		// The chart uses this as its visible time origin; no task schedule is calculated.
 		project.setStart(projectStart);
 		project.setEnd(projectStart + 30L * 24 * 60 * 60 * 1000);
 		return new Gantt(project, "Gantt");

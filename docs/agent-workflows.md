@@ -1,0 +1,206 @@
+# Task-specific repository workflows
+
+Read the relevant section below when the task involves issue execution, Microsoft Project compatibility decisions, ribbon/UI architecture, refactoring duplicated paths, verification, running the desktop app, or packaging/release. `AGENTS.md` remains the authoritative source for repository goals and invariants.
+
+## Microsoft compatibility decisions
+
+
+- Never leave an interaction or issue unspecified merely because an agent
+  cannot perform a physical MSP experiment.  Microsoft-published support and
+  specification material is the normative source; record the exact source in
+  the issue and in the regression test's rationale.
+- When Microsoft documentation states an interaction directly, implement that
+  behavior.  When it defines the component or shortcut but not every detail,
+  choose the narrowest Office-consistent rule: preserve the existing selection
+  scope, do not mutate unrelated model data, resolve navigation against visible
+  view coordinates before model conversion, and make modifier keys extend or
+  toggle selection only where documented.
+- Mark a behavior as a *document-derived compatibility decision* when it is an
+  inference from published documentation rather than an empirical MSP run. Do
+  not present it as a measured result.
+- If Microsoft Project has no equivalent feature (for example a product-only
+  hide command or calendar-whitespace range gesture), call it a product
+  extension. Define a deterministic contract using the same Office selection,
+  filtering, Undo/Redo, and persistence principles; do not claim MSP parity.
+- Delegated agents must apply these rules, cite the source and resulting rule in
+  their report, and add a regression test for the selected contract. They must
+  escalate only when authoritative sources conflict, not because MSP is absent.
+- Prefer the smallest change that fixes the root cause. Trace the relevant input, state transition, model/view conversion, persistence, and reload path before editing.
+- Preserve unrelated user changes. Existing uncommitted changes are not a blocker, but inspect `git status` before and after work and never discard changes you did not create.
+- Do not claim a fix is complete when only a symptom is hidden. If the root cause or a required verification remains uncertain, state that explicitly.
+
+
+## Start here
+
+For stabilization work, follow `docs/gui-recovery-sequence.md` and do not bypass an earlier shared-cause phase for a later cosmetic symptom.
+For issue execution, follow [`docs/issue-execution.md`](issue-execution.md)
+and keep one current-state packet per issue in `docs/work/`. Freeze the full
+acceptance contract at intake; work one finite slice at a time and never close
+by deferring a failed original criterion. The main agent coordinates the work and
+reviews integrated changes. Delegate a bounded task when an available helper can
+improve time or token efficiency without compromising quality or data handling;
+parallelize only independent tasks. Use a concise, self-contained handoff and keep
+reports focused. Review diffs and evidence, record tested SHA when useful, and reuse
+matching evidence. Capture GUI failure artifacts and model state before edits; after
+two failed fixes to the same failure, require root-cause review and a reproducer or
+diagnostic before trying another fix. Do not change display resolution or weaken
+visual assertions.
+
+
+Read only what the task needs:
+
+1. `README.md` for the current build, release, and repository layout.
+2. `docs/build-and-run.md` for desktop launch and manual UI verification.
+3. `TEST_PLAN.md` for risk-specific regression cases.
+4. The target module's `build.gradle.kts`, nearby tests, callers, and persisted formats.
+
+When reproducing a previously investigated failure or test-fixture issue, also
+check [`docs/testing/regression-investigation-notes.md`](testing/regression-investigation-notes.md)
+for confirmed causes and known false leads; add only compact, source-backed
+findings there when new evidence can prevent a repeated investigation.
+
+Use `rg` / `rg --files` for discovery. Search by symbol and behavior before introducing a new helper; this codebase contains legacy and compatibility paths that may look duplicated but serve different formats or UI flows.
+
+
+## Ribbon renderer decision
+
+- The application ribbon renderer is Swing-based (`ModernRibbonPanel`). Do not
+  replace it with Flamingo `JRibbon` or build a second parallel renderer. This
+  is a deliberate decision recorded in
+  [`docs/architecture/ADR-0002-swing-ribbon-renderer.md`](architecture/ADR-0002-swing-ribbon-renderer.md).
+- Flamingo may remain for unrelated menu, icon, or shared UI APIs that still
+  use it; that is not permission to use its ribbon renderer. Do not add new
+  Flamingo dependencies or ribbon-specific adapters without first revisiting
+  the ADR with a rendered screenshot comparison against the current Microsoft
+  Office reference and a demonstrated benefit over the Swing implementation.
+- The decision follows the rollback in commit `e5ebc5631`: Flamingo's default
+  ribbon structure and styling did not match the requested current Office
+  appearance, and adapting it added styling/UI complexity without improving
+  fidelity. Reusing an established library is not automatically the lower-cost
+  choice when its component model conflicts with the target design.
+
+
+## Refactoring when similar implementations appear
+
+This codebase (a large legacy fork) carries multiple overlapping implementations for the
+same concern — e.g. several keystroke-binding helpers (`addCtrlAccel`, `addShortcut`,
+`applyMicrosoftShortcuts` + `putCtrlAccel`/`putShortcut`), parallel menu/ribbon paths, and
+legacy `com.projectlibre*` compatibility code. When you discover **two or more paths that
+do the same job**, treat that as a latent bug source (a future change fixes only one path
+and silently diverges) and consolidate rather than leave both:
+
+- **Trigger (refactor, do not just patch):** you find duplicated responsibility directly
+  involved in the task — duplicate helpers, copy-pasted logic, or parallel code paths that
+  a single fix must keep in sync. Symptom-hiding edits (fixing only the path you happened
+  to hit) are explicitly disallowed by this guide.
+- **Confirm before consolidating:** search every caller (`rg -n "<symbol>" modules/*/src`)
+  so you keep the API the rest of the code uses and delete only the dead/duplicated one.
+  Some near-duplicates are intentional (different file formats, legacy vs. ribbon UI) —
+  preserve those; only merge what is genuinely the same behavior.
+- **Consolidate to one canonical implementation:** route all callers through the single
+  helper, then delete the dead duplicate. Prefer extracting a small, side-effect-free core
+  (e.g. `putCtrlAccel(InputMap, ActionMap, ...)`) that the legacy callers and new callers
+  both delegate to.
+- **Keep verification proportionate:** if the refactor is within one module, run that
+  module's tests; if it touches a shared helper, run the callers' modules too. The
+  completion list below still applies — do not claim the merge is safe without running.
+
+### Keyboard-shortcut wiring rule (hardened after issue #47)
+
+Shortcut keys MUST resolve through exactly **one** registration layer: the document
+root-pane `InputMap`/`ActionMap` (`WHEN_IN_FOCUSED_WINDOW`), installed by
+`GraphicManager.applyMicrosoftShortcuts(...)` via `putCtrlAccel`/`putShortcut`. No other
+layer may bind the same key:
+
+- No `KeyListener` on `SpreadSheet` for shortcut keys (was a source of double-firing:
+  the listener and the root-pane input map both ran). Removed.
+- No `InputMap.put(...)` on the component's `WHEN_FOCUSED` for keys already wired
+  globally (`Ctrl+X/C/V/D`, `Delete`, `Insert`, `F2`, `F3`, `Ctrl+F`). Removed the
+  `NodeListTransferHandler` and `SpreadSheet` component-level duplicate registrations.
+- Every key maps to **one** action constant. Never register the same `KeyStroke` to two
+  different constants (a past bug had `Ctrl+Delete` bound twice, last-write-wins, so the
+  intended `ClearContents` was silently overwritten by `Delete`).
+- Keep shortcut wiring **headless-safe**: `Toolkit.getMenuShortcutKeyMaskEx()` throws
+  `HeadlessException`, so resolve the menu-shortcut mask through `menuShortcutMask()`
+  (falls back to `InputEvent.CTRL_DOWN_MASK`). This keeps `applyMicrosoftShortcuts`
+  unit-testable without a window.
+
+If a new shortcut is needed, add it in `applyMicrosoftShortcuts` only — never re-open a
+component-level `InputMap` for it.
+- Do not require backward compatibility for internal APIs, implementation details, or formats other than MPO. MPO must keep reading files produced by earlier supported microProject releases. POD's serialized format is immutable: do not change its field layout/order, identifiers, version markers, or other wire details; refactor implementation behind that unchanged format and verify it against fixed POD fixtures. Keep external-format interoperability tests (MPP/MPX/XML/XLSX, etc.) focused on their current supported contracts, not compatibility with old microProject releases. Use deterministic writes, clear failure behavior, and relevant round-trip tests.
+- Do not hand-edit generated output under `**/build/`, `build/releases/`, `docs/downloads/`, or `isolated-build/`.
+
+
+## Efficient verification
+
+Choose the narrowest command that exercises the change, then widen verification in proportion to risk.
+
+```powershell
+# One module
+.\gradlew.bat :microproject_core:test --console=plain
+.\gradlew.bat :microproject_application:test --console=plain
+.\gradlew.bat :microproject_exchange:test --console=plain
+.\gradlew.bat :microproject_ui:test --console=plain
+.\gradlew.bat :microproject_reports:test --console=plain
+
+# One test class (replace module and class)
+.\gradlew.bat :microproject_ui:test --tests "com.example.MyTest" --console=plain
+
+# Repository-wide verification
+.\gradlew.bat clean build --console=plain
+```
+
+- Add or update a focused regression test for a bug fix when practical. Reproduce the failure before the fix when possible.
+- `build` runs the module tests locally. `.github/workflows/build.yml` runs maintenance-script checks and, on Linux, Windows, and macOS, `build installDist` without `-x test`, so a successful build includes the enabled module test tasks on every release OS. When a test fails on one OS, check the same assumption on the others before pushing a fix. `.github/workflows/gui-acceptance.yml` provides Windows desktop Robot evidence; its pull-request/push default is `smoke`, the workflow-compatible alias for the `@GuiJourney` input-mechanism suite, and its scheduled audit is `full`. The release workflow requires full GUI acceptance for stable releases and defaults other release runs to `smoke`.
+- For Swing tests, keep them headless-compatible and perform Swing state changes/assertions on the EDT where required.
+- For GUI-observable behavior changes, follow `docs/gui-quality-gate.md`. A dispatched Action, no exception, or visible dialog alone is never a passing result: verify the affected physical route, preconditions, model and rendered view state, Undo/Redo, and persistence where applicable. Test command behavior headlessly at the lowest layer that observes it; physical Robot coverage is one `@GuiJourney` per input mechanism, as set out in `docs/test-strategy.md`. Add visual assertions for changed layout constraints. Behavior-preserving source modernization does not require repeated Robot or locale/DPI matrix runs; choose the smallest relevant test set and run the broad GUI suite at release/scheduled gates.
+- Treat spreadsheet editing as an input transaction, never as a parser-only or
+  single-key test.  Any change to editor startup, keyboard/IME handling, field
+  conversion, or scheduling-field rendering must satisfy U-26 in `TEST_PLAN.md`:
+  a multi-character physical route, an editor-attachment event burst, IME
+  reconversion, committed domain plus rendered values, and save/reload after a
+  structural mutation.  `setText`, one character, or an editor-text assertion
+  alone is insufficient.
+- Treat a context menu as a physical command route, not a constructed
+  `JPopupMenu`. For a changed or reported popup command, test a real Robot
+  right-click on the originating header/row plus the menu item; assert the
+  canonical mutation's model/view/Undo state. A `doClick` test may cover route
+  integration but never substitutes for that physical proof. Keep one shared
+  fixture per popup family (column layout, task row, filter) and include
+  save/reload for any project-persisted mutation.
+- Do not respond to GUI regressions by accumulating isolated test cases.  First consolidate all equivalent menu/ribbon/context-menu/shortcut paths into one command pipeline with one typed selection resolver, one mutation/Undo path, and one observable result.  Build compact reusable fixtures that assert shared invariants across command families; add a new scenario only for a new transition, boundary, or failure mode.  Remove redundant tests after consolidation.
+- For scheduling, Gantt, progress, or spreadsheet changes, cover zero/empty values, boundaries, intermediate and 100% progress, hierarchy/dependency changes, and save/reload when relevant.
+- For import/export or collaboration changes, cover malformed or missing data, round trips, conflicts/concurrency where relevant, and preservation of existing user data.
+
+
+## Running the desktop app
+
+`build` does not guarantee that an existing runnable layout was refreshed. Before manual UI verification, regenerate `installDist`:
+
+```powershell
+.\gradlew.bat clean build installDist --console=plain
+.\scripts\run_microproject_clean.bat
+```
+
+For a faster logged incremental launch, use `scripts\run_microproject.ps1`; see `docs/build-and-run.md` for its options. The authoritative runnable layout is:
+
+```text
+modules\microproject_ui\build\install\microproject_ui
+```
+
+Never validate against an older `build/install` copy. For UI changes, record the scenario and sample file used, and verify state after redraw plus save/reload when applicable. If the local machine has no usable desktop session or window manager, continue implementation and headless verification; record physical GUI acceptance as pending and use the Windows GUI workflow for that evidence. A passing build is not physical GUI evidence.
+
+
+## Packaging and release work
+
+- Run packaging only when the change touches distribution, runtime modules, dependencies, icons, licenses, file associations, or release behavior.
+- Useful tasks are `stageAppDist`, `verifyPackagedFileImports`, `packageWindowsAppImage`, `packageWindowsMsi`, and `packageWindowsExe`.
+- `jpackage` requires a full JDK; MSI/EXE creation also requires WiX. Outputs belong under `build/releases/v<version>/`.
+- `website/index.html` is the canonical o-server documentation entry point. `docs/*.html` are legacy redirects. GitHub Pages publishes redirect stubs from `pages-redirect/`. Publish binaries as GitHub Release assets; `docs/downloads/` is scratch space and must not be committed.
+
+
+## Completion checklist
+
+- Review `git diff` and `git status`; confirm every changed file is intentional and no generated/sample side effect leaked in.
+- Report what changed, the exact verification commands and outcomes, and any manual checks.
+- Report skipped or failed verification and the remaining risk. Do not describe tests as passing if they were not run.

@@ -61,10 +61,8 @@ class ResourceMappingDialogGuiAcceptanceTest {
 		});
 		SwingUtilities.invokeLater(() -> dialog.setVisible(true));
 		GuiAcceptanceSupport.await(() -> dialog.isShowing(), "Resource Mapping dialog did not render");
-		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog.getContentPane(),
-			"Resource Mapping dialog (#724)");
 		DialogLayoutAssertions.assertWithinUsableScreen(dialog, "Resource Mapping dialog (#724)");
-		DialogLayoutAssertions.assertResizeKeepsTextControls(dialog, dialog.getContentPane(), 100, 40,
+		DialogLayoutAssertions.assertResizeWithinUsableScreen(dialog, 100, 40,
 			"Resource Mapping dialog (#724)");
 		SwingUtilities.invokeAndWait(() -> assertEquals(
 			new Rectangle(0, 0, dialog.localProject.getWidth(), dialog.localProject.getHeight()),

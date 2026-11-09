@@ -105,6 +105,8 @@ import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.testsupport.GuiJourney;
+import com.microproject.testsupport.GuiJourney.InputMechanism;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.GanttProgress;
@@ -659,6 +661,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	 * sole wheel owner. Whatever the gesture, the task model, selection and Undo history must stay unchanged.
 	 */
 	@Test
+	@GuiJourney(InputMechanism.GANTT_WHEEL)
 	void physicalGanttWheelModifiersHaveOneScrollOwnerAndOneStep() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(40);

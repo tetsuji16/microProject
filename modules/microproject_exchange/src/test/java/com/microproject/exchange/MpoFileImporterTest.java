@@ -176,7 +176,7 @@ class MpoFileImporterTest {
 		DependencyService.getInstance().newDependency(
 			predecessor, successor, DependencyType.SS, halfDurationPercent, this);
 		successor.setManuallyScheduled(false);
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		project.recalculate();
 		assertEquals(mondayThirteen, successor.getStart());
 		assertEquals(tuesdayThirteen, successor.getEnd());
@@ -241,7 +241,7 @@ class MpoFileImporterTest {
 		DependencyService.getInstance().newDependency(
 			predecessor, successor, DependencyType.SS, negativeHalfDurationPercent, this);
 		successor.setManuallyScheduled(false);
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		project.recalculate();
 		assertEquals(mondayThirteen, successor.getStart());
 		assertEquals(tuesdayThirteen, successor.getEnd());
@@ -306,7 +306,7 @@ class MpoFileImporterTest {
 		Dependency dependency = DependencyService.getInstance().newDependency(
 			predecessor, successor, DependencyType.FS, halfDurationPercent, this);
 		successor.setManuallyScheduled(false);
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		project.recalculate();
 		assertEquals(tuesdayThirteen, successor.getStart());
 		assertEquals(wednesdayThirteen, successor.getEnd());
@@ -368,7 +368,7 @@ class MpoFileImporterTest {
 		DependencyService.getInstance().newDependency(
 			predecessor, successor, DependencyType.FF, halfDurationPercent, this);
 		successor.setManuallyScheduled(false);
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		project.recalculate();
 		assertEquals(mondayThirteen, successor.getStart());
 		assertEquals(tuesdayThirteen, successor.getEnd());
@@ -433,7 +433,7 @@ class MpoFileImporterTest {
 		Dependency dependency = DependencyService.getInstance().newDependency(
 			predecessor, successor, DependencyType.FF, negativeHalfDurationPercent, this);
 		successor.setManuallyScheduled(false);
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		project.recalculate();
 		assertEquals(wednesdayTwelve, predecessor.getEffectiveWorkCalendar().add(
 			predecessor.getEnd(), dependency.getLeadValue(), true));
@@ -501,7 +501,7 @@ class MpoFileImporterTest {
 		DependencyService.getInstance().newDependency(
 			predecessor, successor, DependencyType.FS, negativeHalfDurationPercent, this);
 		successor.setManuallyScheduled(false);
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		project.recalculate();
 		assertEquals(mondayThirteen, successor.getStart());
 		assertEquals(tuesdayThirteen, successor.getEnd());
@@ -568,7 +568,7 @@ class MpoFileImporterTest {
 		Dependency dependency = DependencyService.getInstance().newDependency(
 			predecessor, successor, DependencyType.SF, halfDurationPercent, this);
 		successor.setManuallyScheduled(false);
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		project.recalculate();
 		assertEquals(tuesdayThirteen, predecessor.getEffectiveWorkCalendar().add(
 			predecessor.getStart(), dependency.getLeadValue(), false));
@@ -635,7 +635,7 @@ class MpoFileImporterTest {
 		Dependency dependency = DependencyService.getInstance().newDependency(
 			predecessor, successor, DependencyType.SF, negativeHalfDurationPercent, this);
 		successor.setManuallyScheduled(false);
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		project.recalculate();
 		assertEquals(-oneDay / 2, com.microproject.datatype.Duration.millis(dependency.getLeadValue()));
 		assertEquals(tuesdayTwelve, predecessor.getEffectiveWorkCalendar().add(
@@ -703,7 +703,7 @@ class MpoFileImporterTest {
 		Dependency dependency = DependencyService.getInstance().newDependency(
 			predecessor, successor, DependencyType.FS, fourElapsedHours, this);
 		successor.setManuallyScheduled(false);
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		project.recalculate();
 		assertEquals(mondaySixteen, successor.getStart());
 		assertEquals(tuesdaySixteen, successor.getEnd());
@@ -831,7 +831,7 @@ class MpoFileImporterTest {
 		Dependency dependency = DependencyService.getInstance().newDependency(
 			predecessor, successor, DependencyType.SS, -fourElapsedHours, this);
 		successor.setManuallyScheduled(false);
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		project.recalculate();
 		assertEquals(tuesdayFour, predecessor.getStart() + com.microproject.datatype.Duration.millis(dependency.getLag()));
 		assertEquals(tuesdayEight, successor.getStart());
@@ -902,7 +902,7 @@ class MpoFileImporterTest {
 		Dependency dependency = DependencyService.getInstance().newDependency(
 			predecessor, successor, DependencyType.FF, -fourElapsedHours, this);
 		successor.setManuallyScheduled(false);
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		project.recalculate();
 		assertEquals(tuesdayTen, predecessor.getEnd() + com.microproject.datatype.Duration.millis(dependency.getLag()));
 		assertEquals(tuesdayEight, successor.getStart());
@@ -973,7 +973,7 @@ class MpoFileImporterTest {
 		Dependency dependency = DependencyService.getInstance().newDependency(
 			predecessor, successor, DependencyType.SF, -fourElapsedHours, this);
 		successor.setManuallyScheduled(false);
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		project.recalculate();
 		assertEquals(tuesdayFour, predecessor.getStart() + com.microproject.datatype.Duration.millis(dependency.getLag()));
 		assertEquals(tuesdayEight, successor.getStart());
@@ -1039,7 +1039,7 @@ class MpoFileImporterTest {
 		Dependency dependency = DependencyService.getInstance().newDependency(
 			predecessor, successor, DependencyType.SS, fourElapsedHours, this);
 		successor.setManuallyScheduled(false);
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		project.recalculate();
 		assertEquals(mondayThirteen, successor.getStart());
 		assertEquals(tuesdayThirteen, successor.getEnd());
@@ -1101,7 +1101,7 @@ class MpoFileImporterTest {
 		Dependency dependency = DependencyService.getInstance().newDependency(
 			predecessor, successor, DependencyType.FF, fourElapsedHours, this);
 		successor.setManuallyScheduled(false);
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		project.recalculate();
 		assertEquals(mondayFourteen, successor.getStart());
 		assertEquals(mondaySixteen, successor.getEnd());
@@ -1163,7 +1163,7 @@ class MpoFileImporterTest {
 		DependencyService.getInstance().newDependency(
 			predecessor, successor, DependencyType.SF, fourElapsedHours, this);
 		successor.setManuallyScheduled(false);
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		project.recalculate();
 		assertEquals(mondayTen, successor.getStart());
 		assertEquals(mondayThirteen, successor.getEnd());
@@ -1426,7 +1426,7 @@ class MpoFileImporterTest {
 		var calendar = (com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar();
 		calendar.setName("MPO project FS Tuesday exception");
 		calendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(tuesdayMidnight));
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = (NormalTask) firstTask(project);
 		predecessor.setName("MPO FS lead predecessor");
 		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
@@ -1497,7 +1497,7 @@ class MpoFileImporterTest {
 		long twelveHourLead = -12L * 60L * 60L * 1000L;
 		var calendar = (com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar();
 		calendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(tuesdayMidnight));
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = (NormalTask) firstTask(project);
 		predecessor.setName("MPO FF lead predecessor");
 		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
@@ -1574,7 +1574,7 @@ class MpoFileImporterTest {
 		var calendar = (com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar();
 		calendar.setName("MPO project FF Tuesday exception with SNET");
 		calendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(tuesdayMidnight));
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = (NormalTask) firstTask(project);
 		predecessor.setName("MPO FF lead SNET predecessor");
 		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
@@ -1652,7 +1652,7 @@ class MpoFileImporterTest {
 		var calendar = (com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar();
 		calendar.setName("MPO project SF Tuesday exception");
 		calendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(tuesdayMidnight));
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = (NormalTask) firstTask(project);
 		predecessor.setName("MPO SF lead predecessor");
 		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
@@ -1728,7 +1728,7 @@ class MpoFileImporterTest {
 		long twelveHourLead = -12L * 60L * 60L * 1000L;
 		var calendar = (com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar();
 		calendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(tuesdayMidnight));
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = (NormalTask) firstTask(project);
 		predecessor.setName("MPO SS lead predecessor");
 		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
@@ -1798,7 +1798,7 @@ class MpoFileImporterTest {
 			"MPO project Tuesday exception");
 		((com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(
 			new com.microproject.pm.calendar.WorkDay(tuesdayMidnight));
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = (NormalTask) firstTask(project);
 		predecessor.setName("MPO SNET lag predecessor");
 		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
@@ -1883,7 +1883,7 @@ class MpoFileImporterTest {
 		predecessor.setName("MPO SNET SS predecessor");
 		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
 		successor.setName("MPO SNET SS successor");
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
 		predecessor.setDuration(oneDay);
 		successor.setDuration(oneDay);
@@ -1938,7 +1938,7 @@ class MpoFileImporterTest {
 		predecessor.setName("MPO SNET FF predecessor");
 		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
 		successor.setName("MPO SNET FF successor");
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		predecessor.setDuration(predecessorDurationDays
 			* com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
 		successor.setDuration(com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
@@ -1989,7 +1989,7 @@ class MpoFileImporterTest {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("set-fields-mpo", undo), undo);
 		project.initialize(false, false);
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 
 		NormalTask predecessor = (NormalTask) project.createLocalTaskNode(null).getImpl();
 		predecessor.setName("SetFields SS predecessor");
@@ -2054,7 +2054,7 @@ class MpoFileImporterTest {
 		((com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar()).setName("MPO project Tuesday exception");
 		((com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(
 			new com.microproject.pm.calendar.WorkDay(tuesday));
-		project.setStart(mondayEight);
+		setProjectStart(project, mondayEight);
 		NormalTask predecessor = (NormalTask) project.createLocalTaskNode(null).getImpl();
 		predecessor.setName("Calendar SS predecessor");
 		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
@@ -5441,6 +5441,12 @@ class MpoFileImporterTest {
 				assertEquals(liveExport, backExport, "exported baseline duration" + label);
 			}
 		}
+	}
+
+	/** Sets the schedule origin used by MPO round-trip date assertions. */
+	private static void setProjectStart(Project project, long start) {
+		project.setStart(start);
+		project.setStartConstraint(start);
 	}
 
 	private static Project projectForRoundTrip() {

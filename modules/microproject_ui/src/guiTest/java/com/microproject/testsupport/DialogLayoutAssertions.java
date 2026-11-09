@@ -20,16 +20,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.AbstractButton;
-import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JSpinner;
-import javax.swing.JLabel;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.JRootPane;
 import javax.swing.JViewport;
 import javax.swing.SwingUtilities;
-import javax.swing.text.JTextComponent;
 
 /** Shared visual invariants for text-bearing controls in dialogs. */
 public final class DialogLayoutAssertions {
@@ -40,18 +37,8 @@ public final class DialogLayoutAssertions {
 
 	/** Ensures visible, non-empty text controls retain their font-derived height. */
 	public static void assertTextControlsAtPreferredHeight(Container root, String context) throws Exception {
-		final String[] clipping = new String[1];
-		Runnable inspect = () -> {
-			layoutTree(root);
-			clipping[0] = findClippedTextControl(root);
-		};
-		if (SwingUtilities.isEventDispatchThread())
-			inspect.run();
-		else
-			SwingUtilities.invokeAndWait(inspect);
-		assertTrue(clipping[0] == null, () -> context + " clips a text control: " + clipping[0]);
+		HeadlessLayoutAssertions.assertTextControlsAtPreferredHeight(root, context);
 	}
-
 	/** Scrolls a dialog body with physical wheel input until a clipped control is fully reachable. */
 	public static void physicallyScrollIntoView(Robot robot, Component component, String description) throws Exception {
 		Rectangle[] target = new Rectangle[1];
@@ -281,6 +268,13 @@ public final class DialogLayoutAssertions {
 	/** Grows a visible top-level dialog/window and checks its content and usable-screen bounds. */
 	public static void assertResizeKeepsTextControls(Window window, Container content, int widthGrowth,
 			int heightGrowth, String context) throws Exception {
+		assertResizeWithinUsableScreen(window, widthGrowth, heightGrowth, context);
+		assertTextControlsAtPreferredHeight(content, context + " after resize");
+	}
+
+	/** Resizes a visible window and checks its usable-screen bounds without text-layout assertions. */
+	public static void assertResizeWithinUsableScreen(Window window, int widthGrowth, int heightGrowth,
+			String context) throws Exception {
 		final Rectangle[] resized = new Rectangle[1];
 		Runnable resize = () -> {
 			window.setSize(window.getWidth() + widthGrowth, window.getHeight() + heightGrowth);
@@ -291,7 +285,6 @@ public final class DialogLayoutAssertions {
 		else SwingUtilities.invokeAndWait(resize);
 		assertTrue(resized[0].width > 0 && resized[0].height > 0, context + " did not resize");
 		assertWithinUsableScreen(window, context);
-		assertTextControlsAtPreferredHeight(content, context + " after resize");
 	}
 
 	/** Checks the top-level window stays on-screen after packing, centering, or resizing. */
@@ -322,51 +315,4 @@ public final class DialogLayoutAssertions {
 			context + " escapes usable screen after native geometry settles bounds=" + bounds[0] + " usable=" + usable[0]);
 	}
 
-	private static String findClippedTextControl(Container root) {
-		Component[] children = root.getComponents();
-		for (int first = 0; first < children.length; first++) {
-			Component child = children[first];
-			if (!child.isVisible() || !hasVisibleText(child))
-				continue;
-			Rectangle bounds = child.getBounds();
-			if (bounds.width <= 0 || bounds.height <= 0 || bounds.x < 0 || bounds.y < 0
-					|| bounds.x + bounds.width > root.getWidth() || bounds.y + bounds.height > root.getHeight())
-				return child.getClass().getName() + " escapes parent bounds=" + bounds + " parent=" + root.getSize();
-			if (child.getHeight() < child.getPreferredSize().height)
-				return child.getClass().getName() + " bounds=" + bounds + " preferred=" + child.getPreferredSize();
-			for (int second = first + 1; second < children.length; second++) {
-				Component sibling = children[second];
-				if (sibling.isVisible() && hasVisibleText(sibling) && bounds.intersects(sibling.getBounds()))
-					return child.getClass().getName() + " overlaps " + sibling.getClass().getName()
-						+ " bounds=" + bounds + " sibling=" + sibling.getBounds();
-			}
-		}
-		for (Component child : root.getComponents()) {
-			if (!child.isVisible())
-				continue;
-			if (child instanceof Container nested) {
-				String clipping = findClippedTextControl(nested);
-				if (clipping != null)
-					return clipping;
-			}
-		}
-		return null;
-	}
-
-	private static boolean hasVisibleText(Component component) {
-		if (component instanceof JTextComponent)
-			return true;
-		if (component instanceof JComboBox<?>)
-			return true;
-		if (component instanceof JLabel label)
-			return label.getText() != null && !label.getText().isBlank();
-		return component instanceof AbstractButton button && button.getText() != null && !button.getText().isBlank();
-	}
-
-	private static void layoutTree(Container root) {
-		root.doLayout();
-		for (Component child : root.getComponents())
-			if (child instanceof Container nested)
-				layoutTree(nested);
-	}
 }
