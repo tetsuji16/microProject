@@ -34,7 +34,7 @@ Blockers: Preferences dialog body has no separate headless construction seam; do
 ## Remaining blockers
 
 - None.
-- PreferencesDialogBox remains on Robot layout checks until a product body-builder seam is introduced; this is explicitly documented on the issue.
+- None.
 
 ## Latest evidence
 
@@ -47,8 +47,8 @@ Blockers: Preferences dialog body has no separate headless construction seam; do
   - `.\gradlew.bat :microproject_ui:compileGuiTestJava --console=plain`
   - `.\gradlew.bat :microproject_ui:test --console=plain`
   - `git diff --check`
-- `src/main` unchanged. No local Robot execution; PR GUI acceptance remains the physical verification gate.
+- `src/main` unchanged. No local Robot execution. Exact PR head 89053b271f43b2111452db95ff557b287c6dd248 passed GUI acceptance ([run 42661077554](https://github.com/tetsuji16/microProject/actions/runs/42661077554)) and Linux/Windows/macOS Build ([run 42661077339](https://github.com/tetsuji16/microProject/actions/runs/42661077339)).
 - Prerequisite #1029 merged as `25b534e9`; #1027 has now also merged as `2b55231d`.
 
 - Exact PR head 424018a757de2d6a9d578cf5d93a53bf2d898109: GUI acceptance passed ([run 42660060078](https://github.com/tetsuji16/microProject/actions/runs/42660060078)); Linux/Windows/macOS Build passed ([run 42660059944](https://github.com/tetsuji16/microProject/actions/runs/42660059944)).
-- PR [#1032](https://github.com/tetsuji16/microProject/pull/1032) is ready to merge; issue closure follows merge.
+- PR [#1032](https://github.com/tetsuji16/microProject/pull/1032) merged as `930ecb4c2ad3287bcc40a456d29ccd3fa6d038dd`; issue #1028 closed.
