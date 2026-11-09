@@ -11,6 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microproject.testsupport.GuiJourney;
+import com.microproject.testsupport.GuiJourney.InputMechanism;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Color;
@@ -696,6 +698,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 
 	/** #398: physical File/Open Escape and Cancel both cancel the real chooser without changing documents. */
 	@Test
+	@GuiJourney(InputMechanism.FILE_CHOOSER)
 	void robotEscapeAndCancelCloseTheFileOpenChooserWithoutOpeningAProject() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
 			"A desktop session is required for Robot acceptance coverage.");

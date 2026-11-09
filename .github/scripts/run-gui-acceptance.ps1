@@ -1,5 +1,5 @@
 param(
-  [ValidateSet('smoke', 'full', 'visual')]
+  [ValidateSet('smoke', 'journeys', 'full', 'visual')]
   [string]$Suite = 'smoke',
   [string]$TestFilter,
   [ValidateSet('ja', 'en')]

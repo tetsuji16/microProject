@@ -9,6 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microproject.testsupport.GuiJourney;
+import com.microproject.testsupport.GuiJourney.InputMechanism;
 import java.awt.Dimension;
 import java.awt.Component;
 import java.awt.GraphicsEnvironment;
@@ -117,6 +119,7 @@ class U26SpreadsheetInputTransactionGuiAcceptanceTest {
 	}
 
 	@Test
+	@GuiJourney(InputMechanism.CELL_EDIT)
 	void robotTypesDurationAndPercentAsOneInputTransaction() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
 			"A desktop session is required for U-26 physical input coverage.");

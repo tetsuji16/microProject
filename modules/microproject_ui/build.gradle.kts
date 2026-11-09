@@ -177,8 +177,21 @@ tasks.register<Test>("guiTest") {
 			guiSmokeTestPatterns.forEach(::includeTestsMatching)
 			smokeTestClasses.forEach(::includeTestsMatching)
 		}
+	} else if (guiTestSuite == "journeys") {
+		// One physical journey per user input mechanism, marked with
+		// @GuiJourney (JUnit tag "gui-journey"). Command behavior is covered by
+		// headless tests in src/test; see docs/test-strategy.md. Scope class
+		// discovery to the files that declare a journey so forkEvery=1 does not
+		// start a JVM for every acceptance class.
+		val guiTestJavaDir = file("src/guiTest/java")
+		val journeyClasses = fileTree(guiTestJavaDir) { include("**/*GuiAcceptanceTest.java") }
+			.filter { it.readText().contains("@GuiJourney(") }
+			.map { it.relativeTo(guiTestJavaDir).invariantSeparatorsPath.removeSuffix(".java") + ".class" }
+		require(journeyClasses.isNotEmpty()) { "No @GuiJourney tests found under $guiTestJavaDir" }
+		include(journeyClasses)
+		useJUnitPlatform { includeTags("gui-journey") }
 	} else require(guiTestSuite == "full") {
-		"guiTestSuite must be 'full' or 'smoke'"
+		"guiTestSuite must be 'full', 'smoke' or 'journeys'"
 	}
 	// This two-invocation acceptance case uses a shared temp workspace and a fresh
 	// Gradle test worker per phase. Keep it out of ordinary full-suite discovery;

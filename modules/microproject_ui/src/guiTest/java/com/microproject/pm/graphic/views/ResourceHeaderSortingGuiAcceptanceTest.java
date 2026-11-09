@@ -9,6 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microproject.testsupport.GuiJourney;
+import com.microproject.testsupport.GuiJourney.InputMechanism;
 import java.awt.GraphicsEnvironment;
 import java.awt.Color;
 import java.awt.Component;
@@ -115,6 +117,7 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 	}
 
 	@Test
+	@GuiJourney(InputMechanism.HEADER_CLICK)
 	void physicalHeaderClickSortsAndTogglesWithoutMutatingResources() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();

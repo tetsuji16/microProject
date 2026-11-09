@@ -236,6 +236,7 @@ MS Project 互換性に関する形式テストでは read と write を独立�
 - Headless unit test: `java.awt.headless=true`。Swing/EDT 系は `SwingUtilities.invokeAndWait` を使う。
 - GUI acceptance test: Windows のデスクトップセッションで `:microproject_ui:guiTest` を実行する。`installDist` を依存に含み、Robot 操作の失敗時は `microproject_ui/build/reports/guiTest-artifacts/` に画面を保存する。
 - B-10の結果は過去の実行記録で代用しない。現行commit、locale、DPI、fixture、実行コマンド、完走時刻、成果物パスを同じ検証記録に残す。後続実行で失敗した場合は、以前の `BUILD SUCCESSFUL` 記録を現行合格証拠として扱わない。
+- テストの層と実行範囲: `docs/test-strategy.md` に従う。契約は観測できる最も低い層で確かめ、物理 Robot テストは入力方法ごとに 1 つ（`@GuiJourney`）とする。
 - GUI quality gate: `docs/gui-quality-gate.md` を正本とする。変更した契約に必要な層（物理操作、モデル／表示、Undo/Redo、保存再読込、視覚レイアウト）を選んで実行する。挙動を変えないリファクタリングで同じRobot/UI matrixを繰り返さず、対象モジュールのテストを優先する。広範なGUI smoke/full matrixはリリースまたは定期監査で実行する。
 - Sample data: `samples/sampledata.mpp`, `samples/Commercial construction project plan.{mpp,pod,xlsx,xml,json}`。
 - 一時ファイル: JUnit の temp directory を使い、POD/XLSX/sidecar を毎回隔離。
