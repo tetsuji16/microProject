@@ -132,6 +132,7 @@ class ProjectScheduleBehaviorTest {
 		Project project = createProject();
 		long start = project.getStart();
 		long end = project.getEffectiveWorkCalendar().add(start, 2L * day(), false);
+		// This test edits the project span only; it does not schedule task dates.
 		project.setStart(start);
 		project.setEnd(end);
 		ScheduleInterval oldInterval = new ScheduleInterval(start, end);
@@ -150,6 +151,7 @@ class ProjectScheduleBehaviorTest {
 		Project project = createProject();
 		long originalStart = project.getStart();
 		long originalEnd = project.getEffectiveWorkCalendar().add(originalStart, 3L * day(), false);
+		// This backup/restore test exercises the stored span, not the schedule origin.
 		project.setStart(originalStart);
 		project.setEnd(originalEnd);
 		Object backup = project.backupDetail();
@@ -158,6 +160,7 @@ class ProjectScheduleBehaviorTest {
 
 		long movedStart = project.getEffectiveWorkCalendar().add(originalStart, day(), false);
 		long movedEnd = project.getEffectiveWorkCalendar().add(originalEnd, day(), false);
+		// Keep the mutation limited to the stored span being backed up and restored.
 		project.setStart(movedStart);
 		project.setEnd(movedEnd);
 

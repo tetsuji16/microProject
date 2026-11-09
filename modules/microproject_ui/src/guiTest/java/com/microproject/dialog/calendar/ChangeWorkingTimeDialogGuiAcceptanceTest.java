@@ -82,6 +82,11 @@ import com.microproject.util.AlternativeCalendarDisplay;
 
 /** GUI-NC-07: open and cancel the working-time dialog through real mouse input. */
 class ChangeWorkingTimeDialogGuiAcceptanceTest {
+	private static void setProjectStart(Project project, long start) {
+		project.setStart(start);
+		project.setStartConstraint(start);
+	}
+
 	private JFrame frame;
 	private ChangeWorkingTimeDialogBox dialog;
 	private NewBaseCalendarDialog newBaseDialog;
@@ -442,7 +447,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		Project project = Project.createProject(pool, undo);
 		project.initialize(false, false);
 		long projectStart = com.microproject.util.DateTime.dayFloor(System.currentTimeMillis());
-		project.setStart(projectStart);
+		setProjectStart(project, projectStart);
 		com.microproject.pm.task.NormalTask task = (com.microproject.pm.task.NormalTask) project.createLocalTaskNode(null).getImpl();
 		task.setName("Work-week persistence task");
 		task.getCurrentSchedule().setStart(projectStart);

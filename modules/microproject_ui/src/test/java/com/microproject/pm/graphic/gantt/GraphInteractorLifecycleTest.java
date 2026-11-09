@@ -67,6 +67,7 @@ class GraphInteractorLifecycleTest {
 		ResourcePool resourcePool = ResourcePool.createRourcePool("interactor-lifecycle-test", undoController);
 		Project project = Project.createProject(resourcePool, undoController);
 		long projectStart = Instant.parse("2025-01-06T08:00:00Z").toEpochMilli();
+		// The chart uses this as its visible time origin; no task schedule is calculated.
 		project.setStart(projectStart);
 		project.setEnd(projectStart + 30L * 24 * 60 * 60 * 1000);
 		return new Gantt(project, "Gantt");
