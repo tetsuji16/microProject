@@ -52,6 +52,8 @@ public class CollaborationMetadataStore {
 	private static final long EDT_LOCK_TIMEOUT_MILLIS = 300L;
 	private static final long CLOSE_TIMEOUT_MILLIS = 3000L;
 	private static final long CLOSE_RETRY_MILLIS = 50L;
+	static final long SESSION_TTL_MS = 120000L;
+	private static final String SESSION_ENTRY_PREFIX = "__microproject_session_v1__";
 	public static final int SCHEMA_VERSION = 1;
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 	private static final Object JVM_LOCK_REGISTRY_GUARD = new Object();
@@ -139,7 +141,7 @@ public class CollaborationMetadataStore {
 	public boolean removeArtifactsIfUnowned() {
 		final long now = System.currentTimeMillis();
 		try {
-			return Boolean.TRUE.equals(withLockedMetadata((RetiringCallback) metadata -> !hasLiveLease(metadata, now)));
+			return Boolean.TRUE.equals(withLockedMetadata((RetiringCallback) metadata -> !hasLiveLease(metadata, now) && !hasFreshSession(metadata, now) && !hasUnrecognizedSessionKey(metadata)));
 		} catch (CollaborationLockUnavailableException error) {
 			logger.log(Level.FINE, "Collaboration lock is busy during cleanup " + projectFile, error);
 			return false;
@@ -172,11 +174,13 @@ public class CollaborationMetadataStore {
 	private Boolean attemptRetire(String userKey, String clientInstanceId, WorkspaceKeeper keeper) {
 		try {
 			return withLockedMetadata((RetiringCallback) metadata -> {
-				if (legacySidecarFile.exists() || hasLiveLease(metadata, System.currentTimeMillis())) return false;
+				long now = System.currentTimeMillis();
+				if (legacySidecarFile.exists() || hasLiveLease(metadata, now) || hasFreshSession(metadata, now) || hasUnrecognizedSessionKey(metadata)) return false;
 				if (!userKey.equals(soleKey(metadata.getUsers(), userKey))
 						|| !userKey.equals(soleKey(metadata.getPerUserWorkspace(), userKey))) return false;
 				UserRecord record = metadata.getUsers().get(userKey);
-				if (record != null && !clientInstanceId.equals(record.getClientInstanceId())) return false;
+				if (record != null && record.getClientInstanceId() != null
+						&& !clientInstanceId.equals(record.getClientInstanceId())) return false;
 				UserWorkspaceState workspace = metadata.getPerUserWorkspace().get(userKey);
 				if (workspace != null && workspace.getWorkspacePayload() != null) {
 					try {
@@ -192,6 +196,120 @@ public class CollaborationMetadataStore {
 			logger.log(Level.FINE, "Collaboration lock is busy during close " + projectFile, busy);
 			return null;
 		}
+	}
+
+	static void upsertSession(Metadata metadata, String userKey, String displayName, String instanceId, long now) {
+		if (userKey.equals(sessionEntryKey(instanceId))) throw new IllegalStateException("User key collides with reserved session key");
+		UserRecord canonical = canonicalUser(metadata, userKey);
+		expireSessionEntries(metadata, now);
+		if (canonical != null && canonical.getClientInstanceId() != null
+				&& !canonical.getClientInstanceId().equals(instanceId)
+				&& (isFresh(canonical.getLastSeenAt(), now) || canonical.getLastSeenAt() <= 0L)) {
+			putSessionRecord(metadata, userKey, canonical.getDisplayName(), canonical.getClientInstanceId(), canonical.getLastSeenAt());
+		}
+		putSessionRecord(metadata, userKey, displayName, instanceId, now);
+		if (canonical == null) {
+			canonical = new UserRecord();
+			canonical.setUserKey(userKey);
+			metadata.getUsers().put(userKey, canonical);
+		}
+		canonical.setUserKey(userKey);
+		canonical.setDisplayName(displayName);
+		canonical.setClientInstanceId(instanceId);
+		canonical.setLastSeenAt(now);
+	}
+
+	static boolean removeSession(Metadata metadata, String userKey, String instanceId, long now) {
+		expireSessionEntries(metadata, now);
+		String ownKey = sessionEntryKey(instanceId);
+		UserRecord own = metadata.getUsers().get(ownKey);
+		if (own != null && isSessionRecord(ownKey, own, instanceId) && userKey.equals(own.getUserKey())) metadata.getUsers().remove(ownKey);
+		UserRecord canonical = canonicalUser(metadata, userKey);
+		if (canonical != null && instanceId.equals(canonical.getClientInstanceId())) {
+			UserRecord replacement = null;
+			for (Map.Entry<String, UserRecord> entry : metadata.getUsers().entrySet()) {
+				if (isSessionRecord(entry.getKey(), entry.getValue(), null)
+						&& userKey.equals(entry.getValue().getUserKey())
+						&& isFresh(entry.getValue().getLastSeenAt(), now)) { replacement = entry.getValue(); break; }
+			}
+			if (replacement == null) {
+				// Keep the offline user's record while another user still has data in
+				// this sidecar. A sole offline record may be removed with the sidecar
+				// after its workspace has been preserved locally.
+				canonical.setClientInstanceId(null);
+				canonical.setLastSeenAt(0L);
+			} else {
+				canonical.setUserKey(userKey);
+				canonical.setDisplayName(replacement.getDisplayName());
+				canonical.setClientInstanceId(replacement.getClientInstanceId());
+				canonical.setLastSeenAt(replacement.getLastSeenAt());
+			}
+		}
+		return !hasFreshSession(metadata, now);
+	}
+
+	static boolean hasFreshSession(Metadata metadata, long now) {
+		for (Map.Entry<String, UserRecord> entry : metadata.getUsers().entrySet())
+			if (entry.getValue() != null && entry.getValue().getClientInstanceId() != null
+					&& (isFresh(entry.getValue().getLastSeenAt(), now) || entry.getValue().getLastSeenAt() <= 0L)) return true;
+		return false;
+	}
+
+	private static boolean hasUnrecognizedSessionKey(Metadata metadata) {
+		for (Map.Entry<String, UserRecord> entry : metadata.getUsers().entrySet()) {
+			if (entry.getKey().startsWith(SESSION_ENTRY_PREFIX) && !isSessionRecord(entry.getKey(), entry.getValue(), null)) return true;
+		}
+		return false;
+	}
+
+	static void refreshExistingSession(Metadata metadata, String userKey, String displayName, String instanceId, long now) {
+		UserRecord canonical = canonicalUser(metadata, userKey);
+		if (canonical == null) {
+			canonical = new UserRecord();
+			canonical.setUserKey(userKey);
+			metadata.getUsers().put(userKey, canonical);
+		}
+		if (instanceId.equals(canonical.getClientInstanceId()) || canonical.getClientInstanceId() == null) {
+			canonical.setDisplayName(displayName); canonical.setLastSeenAt(now);
+			canonical.setClientInstanceId(instanceId);
+		}
+		String key = sessionEntryKey(instanceId);
+		UserRecord instance = metadata.getUsers().get(key);
+		if (isSessionRecord(key, instance, instanceId) && userKey.equals(instance.getUserKey())) {
+			instance.setDisplayName(displayName); instance.setLastSeenAt(now);
+		}
+	}
+
+	private static UserRecord canonicalUser(Metadata metadata, String userKey) {
+		UserRecord record = metadata.getUsers().get(userKey);
+		if (record != null && record.getUserKey() != null && !userKey.equals(record.getUserKey()))
+			throw new IllegalStateException("User key is already occupied by another collaboration record");
+		return record;
+	}
+
+	private static void expireSessionEntries(Metadata metadata, long now) {
+		metadata.getUsers().entrySet().removeIf(entry -> isSessionRecord(entry.getKey(), entry.getValue(), null)
+				&& entry.getValue().getLastSeenAt() > 0L && !isFresh(entry.getValue().getLastSeenAt(), now));
+	}
+
+	static boolean isFresh(long lastSeen, long now) {
+		return lastSeen > 0L && (now <= lastSeen || now - lastSeen <= SESSION_TTL_MS);
+	}
+	private static String sessionEntryKey(String instanceId) { return SESSION_ENTRY_PREFIX + instanceId; }
+	private static boolean isSessionRecord(String key, UserRecord record, String instanceId) {
+		return record != null && record.getClientInstanceId() != null && record.getUserKey() != null
+				&& !key.equals(record.getUserKey())
+				&& key.equals(sessionEntryKey(record.getClientInstanceId()))
+				&& (instanceId == null || instanceId.equals(record.getClientInstanceId()));
+	}
+	private static void putSessionRecord(Metadata metadata, String userKey, String displayName, String instanceId, long now) {
+		String key = sessionEntryKey(instanceId);
+		UserRecord existing = metadata.getUsers().get(key);
+		if (existing != null && (!isSessionRecord(key, existing, instanceId) || !userKey.equals(existing.getUserKey())))
+			throw new IllegalStateException("Reserved collaboration session key is already occupied");
+		UserRecord record = existing == null ? new UserRecord() : existing;
+		record.setUserKey(userKey); record.setDisplayName(displayName); record.setClientInstanceId(instanceId); record.setLastSeenAt(now);
+		metadata.getUsers().put(key, record);
 	}
 
 	/**
@@ -251,6 +369,22 @@ public class CollaborationMetadataStore {
 			public Object execute(Metadata metadata) {
 				mutation.mutate(metadata);
 				return null;
+			}
+		});
+	}
+
+	/** Runs the completion hook after durable metadata replacement and before releasing the metadata lock. */
+	public void mutateAndAfterCommit(MetadataMutation mutation, java.util.function.Consumer<Metadata> afterCommit) {
+		withLockedMetadata(new MetadataCallback<Object>() {
+			@Override
+			public Object execute(Metadata metadata) {
+				mutation.mutate(metadata);
+				return null;
+			}
+
+			@Override
+			public void afterCommit(Metadata metadata) {
+				afterCommit.accept(metadata);
 			}
 		});
 	}
@@ -368,6 +502,7 @@ public class CollaborationMetadataStore {
 				return result;
 			}
 			writeMetadataIfChanged(useLegacy ? null : originalBytes, metadata);
+			callback.afterCommit(metadata);
 			return result;
 		} catch (Exception e) {
 			return callback.onError(e);
@@ -534,6 +669,9 @@ public class CollaborationMetadataStore {
 
 	public interface MetadataCallback<T> {
 		T execute(Metadata metadata);
+
+		default void afterCommit(Metadata metadata) {
+		}
 
 		default T onError(Exception e) {
 			if (e instanceof CollaborationLockUnavailableException lockUnavailable) {

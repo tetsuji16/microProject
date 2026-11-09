@@ -67,6 +67,11 @@ public class DocumentStatusBar extends JPanel {
 		modeLabel.setText(message == null || message.isBlank() ? Messages.getString("StatusBar.Ready") : message);
 	}
 
+	/** Clears a transient message only when it is still the message this caller set. */
+	public void clearMessageIfEquals(String message) {
+		if (message != null && message.equals(modeLabel.getText())) setMessage(null);
+	}
+
 	public void setZoom(int scaleIndex, int scaleCount) {
 		zoomLabel.setText(formatZoom(scaleIndex, scaleCount));
 	}
