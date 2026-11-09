@@ -1543,7 +1543,7 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		long wednesdayMidnight = timestamp(2026, Calendar.NOVEMBER, 4, 0);
 		long thursdayEight = timestamp(2026, Calendar.NOVEMBER, 5, 8);
 		long thursdaySeventeen = timestamp(2026, Calendar.NOVEMBER, 5, 17);
-		project.setStart(tuesdayEight);
+		setProjectStart(project, tuesdayEight);
 
 		NormalTask predecessor = createTask(project, "successor-calendar predecessor", 1);
 		NormalTask successor = createTask(project, "successor-calendar successor", 1);
@@ -2242,6 +2242,18 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		project.initialize(false, false);
 		project.setWorkCalendar(((WorkingCalendar) project.getWorkCalendar()).makeScratchCopy());
 		return new Fixture(project, undo);
+	}
+
+	/**
+	 * Sets the project start the way the scheduling engine reads it.
+	 * {@link Project#setStart(long)} only stores the field; forward scheduling
+	 * starts from the scheduling algorithm's start constraint, which
+	 * {@link Project#createProject} initializes to today. Without this, a project
+	 * start earlier than today is ignored and the result depends on the run date.
+	 */
+	private static void setProjectStart(Project project, long start) {
+		project.setStart(start);
+		project.setStartConstraint(start);
 	}
 
 	private NormalTask createTask(Project project, String name, int durationDays) {
