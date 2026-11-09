@@ -47,7 +47,7 @@ Blockers: Preferences dialog body has no separate headless construction seam; do
   - `.\gradlew.bat :microproject_ui:compileGuiTestJava --console=plain`
   - `.\gradlew.bat :microproject_ui:test --console=plain`
   - `git diff --check`
-- `src/main` unchanged. No local Robot execution. Exact PR head 89053b271f43b2111452db95ff557b287c6dd248 passed GUI acceptance ([run 42661077554](https://github.com/tetsuji16/microProject/actions/runs/42661077554)) and Linux/Windows/macOS Build ([run 42661077339](https://github.com/tetsuji16/microProject/actions/runs/42661077339)).
+- `src/main` unchanged. No local Robot execution. PR head 89053b271f43b2111452db95ff557b287c6dd248 passed GUI acceptance ([run 42661077554](https://github.com/tetsuji16/microProject/actions/runs/42661077554)) and Linux/Windows/macOS Build ([run 42661077339](https://github.com/tetsuji16/microProject/actions/runs/42661077339)).
 - Prerequisite #1029 merged as `25b534e9`; #1027 has now also merged as `2b55231d`.
 
 - Exact PR head 424018a757de2d6a9d578cf5d93a53bf2d898109: GUI acceptance passed ([run 42660060078](https://github.com/tetsuji16/microProject/actions/runs/42660060078)); Linux/Windows/macOS Build passed ([run 42660059944](https://github.com/tetsuji16/microProject/actions/runs/42660059944)).
