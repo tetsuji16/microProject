@@ -6225,6 +6225,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	@GuiJourney(InputMechanism.TASK_ROW_DRAG)
 	void physicalTaskRowHeaderDragReordersStableTasksAndSurvivesUndoAndReload() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		beginCommandDiagnosticCapture();
@@ -7507,6 +7508,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	@GuiJourney(InputMechanism.TASK_ROW_CLICK)
 	void physicalTaskInspectorFollowsSelectionAndNavigatesOnlyVisiblePredecessors() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();

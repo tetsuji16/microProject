@@ -130,8 +130,10 @@ remove the duplicate responsibility that made the defect possible.
    one and remove the other.  Test code is production code and follows the
    same no-duplication rule.
 
-The Windows GUI workflow uses the compact `-PguiTestSuite=smoke` matrix on
-pull requests and pushes by default, and runs `full` for its scheduled audit.
+The Windows GUI workflow uses the compact `-PguiTestSuite=smoke` gate on pull
+requests and pushes by default. `smoke` is an alias for the tagged journey
+suite: one physical test per declared input mechanism. The scheduled audit
+runs `full`.
 The release workflow defaults beta candidates to `smoke` and requires `full`
 for stable candidates. Neither suite is a default per-PR requirement for a
 behavior-preserving source modernization; the affected module tests remain
@@ -336,8 +338,8 @@ them.  In particular:
   GUI extension must assert zero unexpected windows and no surviving test-owned
   non-daemon helpers at teardown; the CI watchdog remains mandatory.
 - The compact release `smoke` gate is not the complete U-21 visual matrix.
-  It must still run the representative functional journey at the canonical
-  desktop scale. Stable release publication runs the complete Japanese
+  It runs the tagged representative journeys at the canonical desktop scale.
+  Stable release publication runs the complete Japanese
   functional suite at 100% and the reusable visual/targeted-command suite in
   English at 100%. Broader `full` audits retain Japanese and English at 100%,
   125%, and 150%; those additional scale legs remain useful audit evidence but

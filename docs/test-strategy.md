@@ -40,15 +40,18 @@ once at L3. Do not multiply the two.
 | `KEYBOARD_SHORTCUT` | `TwoDocumentShortcutIsolationGuiAcceptanceTest.physicalCtrlDeleteAndUndoStayWithEachActiveDocument` |
 | `CELL_EDIT` | `U26SpreadsheetInputTransactionGuiAcceptanceTest.robotTypesDurationAndPercentAsOneInputTransaction` |
 | `GANTT_DRAG` | `GanttBarDateDragGuiAcceptanceTest.robotDragBetweenBarsCreatesDependencyAndUndoRestoresModel` |
+| `TASK_ROW_DRAG` | `TaskInformationRibbonGuiAcceptanceTest.physicalTaskRowHeaderDragReordersStableTasksAndSurvivesUndoAndReload` |
+| `GANTT_WHEEL` | `TaskTableGanttGridGuiAcceptanceTest.physicalGanttWheelModifiersHaveOneScrollOwnerAndOneStep` |
+| `TASK_ROW_CLICK` | `TaskInformationRibbonGuiAcceptanceTest.physicalTaskInspectorFollowsSelectionAndNavigatesOnlyVisiblePredecessors` |
 | `CONTEXT_MENU` | `TaskInformationRibbonGuiAcceptanceTest.robotTaskPopupInsertAddsSelectedRowCountBelowSelectionAndOneUndoRevertsBatch` |
 | `HEADER_CLICK` | `ResourceHeaderSortingGuiAcceptanceTest.physicalHeaderClickSortsAndTogglesWithoutMutatingResources` |
 | `DIALOG` | `ChangeWorkingTimeDialogGuiAcceptanceTest.robotOpensWorkingTimeDialogAndCancelsWithoutCommit` |
 | `FILE_CHOOSER` | `RibbonExternalCommandGuiAcceptanceTest.robotEscapeAndCancelCloseTheFileOpenChooserWithoutOpeningAProject` |
 | `WINDOW_SHELL` | `ApplicationCloseGuiAcceptanceTest.closingTheApplicationWindowLeavesOnlyTheProjectFile` |
 
-The `smoke` suite still uses the hand-maintained list in
-`modules/microproject_ui/build.gradle.kts` until the migration below replaces
-it with the journey tag.
+Gradle checks during configuration that every declared `InputMechanism` is
+annotated on exactly one test. The `smoke` name remains for workflow and release
+defaults, and selects the same tagged journeys as `journeys`.
 
 ## What to run for a change
 
@@ -79,7 +82,7 @@ Rules for agents and contributors:
 The existing suite predates this rule. Work through these issues, tracked
 under #773:
 
-1. Switch `smoke` to the journey tag and remove the hand-maintained list.
+1. Switch `smoke` to the journey tag and remove the hand-maintained list (#1027).
 2. Move command-behavior and dialog-layout checks from `guiTest` to L2, and
    move unit-level classes out of `guiTest`.
 3. Split the largest test classes and remove dependence on the run date.

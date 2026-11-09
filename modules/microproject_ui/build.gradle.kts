@@ -125,66 +125,32 @@ tasks.register<Test>("guiTest") {
 	classpath = files(tasks.jar).plus(guiTestSourceSet.runtimeClasspath)
 	useJUnitPlatform()
 	val guiTestSuite = providers.gradleProperty("guiTestSuite").orElse("full").get()
-	val guiSmokeTestPatterns = listOf(
-		"com.microproject.pm.graphic.spreadsheet.common.U26SpreadsheetInputTransactionGuiAcceptanceTest.robotTypesDurationAndPercentAsOneInputTransaction",
-		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalTaskRowHeaderDragReordersStableTasksAndSurvivesUndoAndReload",
-		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalTaskSortSupportsAscendingStartAndDescendingFinishForViewAndOutline",
-		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalTaskInspectorFollowsSelectionAndNavigatesOnlyVisiblePredecessors",
-		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalReportPrintPreviewShowsEveryPageThroughTheSharedGraphPageableRoute",
-		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.formatPainterCopiesTaskTextStyleOnceOrContinuouslyWithUndoAndMpoReload",
-		"com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalTaskTableDurationEditDoesNotPanGanttViewport",
-		"com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalTaskTableDateEditRepositionsBarWithoutPanningGanttViewport",
-		"com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalGanttWheelScrollsByOneOwnerStep",
-		"com.microproject.pm.graphic.views.ResourceHeaderSortingGuiAcceptanceTest.physicalHeaderClickSortsAndTogglesWithoutMutatingResources",
-		"com.microproject.pm.graphic.views.ResourceHeaderSortingGuiAcceptanceTest.physicalResourceStandardRateEditUndoRedoAndMpoRoundTrip",
-		"com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotDragBetweenBarsCreatesDependencyAndUndoRestoresModel",
-		"com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotResizeProgressAndSplitUseTypedScheduleGatewayWithUndoAndPersistence",
-		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.robotClickOnTaskPropertiesInformationOpensTaskInformation",
-		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.robotOpensIssue590DialogsWithoutClippedText",
-		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.robotCalendarOptionsRibbonRouteOpensUsableDialog",
-		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.robotCalendarCommandOpensUsableCalendarDialog",
-		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.linkAndUnlinkSelectedTasksThroughRibbonRoundTripsDependency",
-		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.respectLinksRibbonRouteMovesTheSelectedManualTaskAndRoundTripsUndoRedoAndMpo",
-		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.inactivateTaskRibbonRouteKeepsTaskVisibleAndSupportsUndoRedoAndMpo",
-		"com.microproject.dialog.calendar.ChangeWorkingTimeDialogGuiAcceptanceTest.robotOpensWorkingTimeDialogAndCancelsWithoutCommit",
-		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.robotNetworkAndWbsRibbonRoutesRenderTheirDedicatedViews",
-		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.indentAndOutdentSelectedTaskThroughRibbonRoundTripsHierarchy",
-		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.robotTaskPopupInsertAddsSelectedRowCountBelowSelectionAndOneUndoRevertsBatch",
-		"com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.deleteThroughRibbonUsesTheSharedEditPipelineAndUndoRestoresTheRow",
-		"com.microproject.pm.graphic.frames.RibbonExternalCommandGuiAcceptanceTest.robotInvokesRealFileRibbonCommandsAndOpensTheirDialogs",
-		"com.microproject.dialog.ProjectInformationDialogGuiAcceptanceTest.projectInformationShowsAllTabsAndButtonsAfterResize",
-		"com.microproject.dialog.assignment.AssignmentDialogGuiAcceptanceTest.robotReplaceWithActualWorkPreservesActualsAndSupportsUndoRedo",
-		"com.microproject.dialog.CriticalChainStatusDialogGuiAcceptanceTest.robotAppliesCcpmAndUndoRedoSurvivesMpoReload",
-		"com.microproject.pm.graphic.frames.RibbonExternalCommandGuiAcceptanceTest.robotEscapeAndCancelCloseTheFileOpenChooserWithoutOpeningAProject",
-		"com.microproject.pm.graphic.frames.RibbonExternalCommandGuiAcceptanceTest.robotSavesImportedMppAsMpoAndCancellationOrOverwriteRefusalKeepsSource",
-		"com.microproject.ui.shell.WindowShellNativeDecorationGuiAcceptanceTest.physicalCaptionDragUsesNativeWindowShell",
-		"com.microproject.pm.graphic.frames.ApplicationCloseGuiAcceptanceTest.closingTheApplicationWindowLeavesOnlyTheProjectFile"
-	)
 	inputs.property("guiTestSuite", guiTestSuite)
-	if (guiTestSuite == "smoke") {
-		// Keep Gradle's test discovery (and forkEvery=1 worker creation) scoped to
-		// the physical acceptance classes in the smoke suite. Most classes run only
-		// selected methods; the ribbon class runs in full to catch interactions
-		// between its Backstage and document-tab routes. In full mode we leave
-		// Test.include unset so normal --tests filtering remains unrestricted.
-		val smokeTestClasses = setOf(
-			"com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest",
-			"com.microproject.pm.graphic.frames.RibbonExternalCommandGuiAcceptanceTest"
-		)
-		val smokeClasses = guiSmokeTestPatterns.map { it.substringBeforeLast('.') }.toSet() + smokeTestClasses
-		include(smokeClasses.map { "${it.replace('.', '/')}.class" })
-		filter {
-			guiSmokeTestPatterns.forEach(::includeTestsMatching)
-			smokeTestClasses.forEach(::includeTestsMatching)
-		}
-	} else if (guiTestSuite == "journeys") {
-		// One physical journey per user input mechanism, marked with
-		// @GuiJourney (JUnit tag "gui-journey"). Command behavior is covered by
-		// headless tests in src/test; see docs/test-strategy.md. Scope class
-		// discovery to the files that declare a journey so forkEvery=1 does not
-		// start a JVM for every acceptance class.
-		val guiTestJavaDir = file("src/guiTest/java")
-		val journeyClasses = fileTree(guiTestJavaDir) { include("**/*GuiAcceptanceTest.java") }
+	val guiTestJavaDir = file("src/guiTest/java")
+	val journeyAnnotation = Regex("""@GuiJourney\(InputMechanism\.(\w+)\)""")
+	val journeyJavaFiles = fileTree(guiTestJavaDir) { include("**/*.java") }.files
+	val journeySource = file("src/guiTest/java/com/microproject/testsupport/GuiJourney.java").readText()
+	val mechanismEnumBody = Regex("""enum InputMechanism\s*\{([^}]*)\}""")
+		.find(journeySource)?.groupValues?.get(1)
+		?: error("Could not find GuiJourney.InputMechanism in GuiJourney.java")
+	val declaredMechanisms = mechanismEnumBody.lineSequence()
+		.mapNotNull { Regex("""^\s*([A-Z][A-Z0-9_]*)\s*[,;]?\s*$""").find(it)?.groupValues?.get(1) }
+		.toList()
+	val annotatedMechanisms = journeyJavaFiles.flatMap { source ->
+		journeyAnnotation.findAll(source.readText()).map { it.groupValues[1] }.toList()
+	}
+	val mechanismCounts = annotatedMechanisms.groupingBy { it }.eachCount()
+	val missingMechanisms = declaredMechanisms.filter { mechanismCounts[it] == null }
+	val duplicateMechanisms = mechanismCounts.filterValues { it > 1 }.keys.sorted()
+	val unknownMechanisms = mechanismCounts.keys - declaredMechanisms.toSet()
+	require(missingMechanisms.isEmpty() && duplicateMechanisms.isEmpty() && unknownMechanisms.isEmpty()) {
+		"Each GuiJourney.InputMechanism must annotate exactly one test. " +
+			"Missing: ${missingMechanisms.sorted()}; duplicate: $duplicateMechanisms; " +
+			"unknown: ${unknownMechanisms.sorted()}"
+	}
+	if (guiTestSuite == "smoke" || guiTestSuite == "journeys") {
+		// smoke remains the workflow-compatible name for the per-input journey suite.
+		val journeyClasses = journeyJavaFiles
 			.filter { it.readText().contains("@GuiJourney(") }
 			.map { it.relativeTo(guiTestJavaDir).invariantSeparatorsPath.removeSuffix(".java") + ".class" }
 		require(journeyClasses.isNotEmpty()) { "No @GuiJourney tests found under $guiTestJavaDir" }
