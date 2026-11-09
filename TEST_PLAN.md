@@ -47,7 +47,7 @@ MS Project 互換性に関する形式テストでは read と write を独立�
 | Usage Detail の左右ビュー生成 | TaskInformationRibbonGuiAcceptanceTest.usageDetailViewRouteConstructsWithoutRuntimeFailure: 割当済み1日タスクからTask/Resource Usageの左右モデルと行を確認 |
 | Timesheet 初期化とキャンセル | TaskInformationRibbonGuiAcceptanceTest.timesheetRouteConstructsItsDedicatedSpreadsheet: 実割当行、モデル作業量不変、Escape終了、既存ビューとUndo状態維持をRobot確認 |
 | Resource Pool 作成と初期ビュー | ResourcePoolInitialViewGuiAcceptanceTest.physicalCreateResourcePoolCommandOpensUsableResourceView: 物理Resource ribbonコマンドから作成しResourceView/Sheetを確認（現GUI実行は未通過、後述の環境・表示問題を切り分け中） |
-| 表の期間・進捗・日付、階層・依存、バー変更 | U26、TaskTableGanttGrid、TaskInformationRibbon、GanttBarDateDrag の smoke |
+| 表の期間・進捗・日付、階層・依存、バー変更 | 入力機構ごとの `@GuiJourney`（`smoke` はその別名）。モデル、Undo/Redo、MPO 再読込は headless L1/L2 テストで確認 |
 | CCPM Configure/Apply→Undo/Redo→MPO→network/buffer | CriticalChainStatusDialogGuiAcceptanceTest の統合旅程 |
 | 空行を挟むタスクの ID と予定を MPO 保存・再読込で保持 | MpoFileImporterTest の既存 native schedule snapshot 契約を強化 |
 | CCPM Clear の Undo が監視履歴と撤回記録を完全復元 | CriticalChainServiceTest の既存 clearUndoRedo 契約 |
@@ -227,7 +227,7 @@ MS Project 互換性に関する形式テストでは read と write を独立�
 | B-06 | 異常 | JAVA_HOME 未設定/不正 | package task | 既定 JDK 25 fallback または明確な失敗 |
 | B-07 | 異常 | WiX なし | MSI/EXE package | 原因が分かる失敗、途中成果物破損なし |
 | B-08 | 境界 | docs downloads 既存巨大 part | publish split exe | 古い part 削除、新 part/rebuild bat 生成 |
-| B-09 | リリース前GUIゲート | Windows release runner、clean checkout、生成済み `installDist` | `:microproject_ui:guiTest -PguiTestSuite=smoke --max-workers=1` を実行し、Issue #587の共有原因を代表するタスク表／Gantt、ポップアップ、ダイアログ、ビュー切替、物理入力、Undo/Redo、エラー監視を確認。全体スイートは定期／手動監査で `-PguiTestSuite=full` を実行 | headless unit testだけでは合格にしない。代表GUI受入が全件成功し、失敗時は `guiTest-artifacts` の画面とログを成果物として残す。release jobはこのゲート失敗時に公開処理へ進まない |
+| B-09 | リリース前GUIゲート | Windows release runner、clean checkout、生成済み `installDist` | `:microproject_ui:guiTest -PguiTestSuite=smoke --max-workers=1` を実行する（`smoke` は宣言済み入力機構ごとに1本の `@GuiJourney` を選ぶ）。全体スイートは定期／手動監査で `-PguiTestSuite=full` を実行 | headless unit testだけでは合格にしない。全ての代表 journey が成功し、失敗時は `guiTest-artifacts` の画面とログを成果物として残す。release jobはこのゲート失敗時に公開処理へ進まない |
 | B-10 | GUIゲート実装の強制性 | Windows release runner、現行commit、fresh `installDist`、日本語/英語、100/125/150% | B-09の機能ゲートに加え、日英×3倍率の視覚／代表Robot行列を実行する。各レッグを個別に記録し、外側のプロセス watchdog でEDT・モーダル・非daemon AWT停止を検出し、失敗時はjcmd・Window/Process一覧・JUnit XML・画面証跡を保存する。予期しないエラー画面、ダイアログ、EDT/AWT例外、未捕捉stderr/XMLスタックトレースは、テストが成功を返しても失敗扱いにする。期待される入力拒否のAlertログは、メッセージ・閉じる操作・モデル保持を確認したうえで例外と区別する。ゲート開始時に前回XMLを削除し、終了後に新しいJUnit XMLのskipを解析する。 |
 
 ## 4. テスト環境・前提条件
