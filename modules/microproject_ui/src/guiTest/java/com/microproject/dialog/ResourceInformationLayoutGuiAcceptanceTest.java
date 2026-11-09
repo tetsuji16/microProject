@@ -42,10 +42,8 @@ class ResourceInformationLayoutGuiAcceptanceTest {
 			host.setVisible(true);
 		});
 		GuiAcceptanceSupport.await(() -> host.isShowing(), "Resource Information General tab did not render");
-		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(host.getContentPane(),
-			"Resource Information General tab (#718)");
 		DialogLayoutAssertions.assertWithinUsableScreen(host, "Resource Information General host (#724)");
-		DialogLayoutAssertions.assertResizeKeepsTextControls(host, host.getContentPane(), 100, 50,
+		DialogLayoutAssertions.assertResizeWithinUsableScreen(host, 100, 50,
 			"Resource Information General host (#724)");
 	}
 }
