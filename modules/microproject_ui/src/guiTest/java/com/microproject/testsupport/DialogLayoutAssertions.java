@@ -271,6 +271,13 @@ public final class DialogLayoutAssertions {
 	/** Grows a visible top-level dialog/window and checks its content and usable-screen bounds. */
 	public static void assertResizeKeepsTextControls(Window window, Container content, int widthGrowth,
 			int heightGrowth, String context) throws Exception {
+		assertResizeWithinUsableScreen(window, widthGrowth, heightGrowth, context);
+		assertTextControlsAtPreferredHeight(content, context + " after resize");
+	}
+
+	/** Resizes a visible window and checks its usable-screen bounds without text-layout assertions. */
+	public static void assertResizeWithinUsableScreen(Window window, int widthGrowth, int heightGrowth,
+			String context) throws Exception {
 		final Rectangle[] resized = new Rectangle[1];
 		Runnable resize = () -> {
 			window.setSize(window.getWidth() + widthGrowth, window.getHeight() + heightGrowth);
@@ -281,7 +288,6 @@ public final class DialogLayoutAssertions {
 		else SwingUtilities.invokeAndWait(resize);
 		assertTrue(resized[0].width > 0 && resized[0].height > 0, context + " did not resize");
 		assertWithinUsableScreen(window, context);
-		assertTextControlsAtPreferredHeight(content, context + " after resize");
 	}
 
 	/** Checks the top-level window stays on-screen after packing, centering, or resizing. */
