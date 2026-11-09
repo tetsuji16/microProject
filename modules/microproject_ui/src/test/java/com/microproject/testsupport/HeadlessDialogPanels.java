@@ -40,6 +40,31 @@ public final class HeadlessDialogPanels {
 		throw new AssertionError("Dialog fixture field not found: " + fieldName);
 	}
 
+	public static Object get(Object target, String fieldName) {
+		for (Class<?> type = target.getClass(); type != null; type = type.getSuperclass()) {
+			try {
+				Field field = type.getDeclaredField(fieldName);
+				field.setAccessible(true);
+				return field.get(target);
+			} catch (NoSuchFieldException ignored) {
+				// Continue through the object's superclass hierarchy.
+			} catch (ReflectiveOperationException exception) {
+				throw new AssertionError("Could not read headless dialog fixture field " + fieldName, exception);
+			}
+		}
+		throw new AssertionError("Dialog fixture field not found: " + fieldName);
+	}
+
+	public static Object getStatic(Class<?> type, String fieldName) {
+		try {
+			Field field = type.getDeclaredField(fieldName);
+			field.setAccessible(true);
+			return field.get(null);
+		} catch (ReflectiveOperationException exception) {
+			throw new AssertionError("Could not read headless dialog fixture field " + fieldName, exception);
+		}
+	}
+
 	private static Unsafe unsafe() {
 		try {
 			Field field = Unsafe.class.getDeclaredField("theUnsafe");
