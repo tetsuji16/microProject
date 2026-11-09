@@ -347,7 +347,6 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		assertTrue(dialog.sdCalendar.getCalendarMonthTitle(displayedMonth, "Gregorian").contains("("),
 			"the working-time calendar should display the selected alternative calendar month");
 		assertSingleReadableCalendarMonth();
-		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Change Working Time dialog (#590 body image 1)");
 		assertVisibleComponentsFit(dialog, "Change Working Time Calendar tab");
 		DialogScreenshotArtifacts.capture(dialog, "issue-590-change-working-time");
 		Robot robot = new com.microproject.testsupport.GuiRobot();

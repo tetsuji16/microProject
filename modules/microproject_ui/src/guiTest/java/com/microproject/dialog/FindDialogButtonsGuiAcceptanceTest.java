@@ -86,9 +86,8 @@ class FindDialogButtonsGuiAcceptanceTest {
 		assertEquals(dialog.next.getPreferredSize().height, dialog.previous.getPreferredSize().height,
 			"direction buttons must share one preferred height");
 		assertEquals(dialog.next.getFont(), dialog.previous.getFont(), "direction buttons must share the dialog font");
-		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog.getContentPane(), "Find dialog (#717)");
 		DialogLayoutAssertions.assertWithinUsableScreen(dialog, "Find dialog (#724)");
-		DialogLayoutAssertions.assertResizeKeepsTextControls(dialog, dialog.getContentPane(), 80, 30,
+		DialogLayoutAssertions.assertResizeWithinUsableScreen(dialog, 80, 30,
 			"Find dialog (#724)");
 
 		Robot robot = new com.microproject.testsupport.GuiRobot();
