@@ -44,6 +44,12 @@ public @interface GuiJourney {
 		CELL_EDIT,
 		/** Mouse drag on the Gantt chart. */
 		GANTT_DRAG,
+		/** Mouse drag on a task table row header. */
+		TASK_ROW_DRAG,
+		/** Mouse wheel scrolling or zooming over the synchronized Gantt view. */
+		GANTT_WHEEL,
+		/** Mouse click on a task row to change the active selection. */
+		TASK_ROW_CLICK,
 		/** Right-click context menu command. */
 		CONTEXT_MENU,
 		/** Column header click. */

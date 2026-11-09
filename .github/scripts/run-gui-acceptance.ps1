@@ -453,7 +453,7 @@ foreach ($testSelector in $visualTests) {
     throw "Visual GUI test selector does not map to a source file: $testSelector ($sourcePath)"
   }
   if ($null -ne $methodName) {
-    $methodPattern = '(?m)^\s*@Test\s*(?:\r?\n\s*)+void\s+' + [regex]::Escape($methodName) + '\s*\('
+    $methodPattern = '(?m)^\s*@Test\s*(?:\r?\n\s*@[^\r\n]+\s*)*(?:\r?\n\s*)+void\s+' + [regex]::Escape($methodName) + '\s*\('
     $methodMatches = [regex]::Matches([System.IO.File]::ReadAllText($sourcePath), $methodPattern)
     if ($methodMatches.Count -ne 1) {
       throw "Visual GUI test method must map to exactly one @Test source method: $testSelector ($sourcePath)"
