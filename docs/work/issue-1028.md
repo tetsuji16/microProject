@@ -34,7 +34,6 @@ Blockers: Preferences dialog body has no separate headless construction seam; do
 ## Remaining blockers
 
 - None.
-- None.
 
 ## Latest evidence
 
