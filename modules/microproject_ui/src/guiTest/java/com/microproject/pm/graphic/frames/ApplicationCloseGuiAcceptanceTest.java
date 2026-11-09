@@ -7,6 +7,8 @@ package com.microproject.pm.graphic.frames;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import com.microproject.testsupport.GuiJourney;
+import com.microproject.testsupport.GuiJourney.InputMechanism;
 import java.awt.GraphicsEnvironment;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -36,6 +38,7 @@ class ApplicationCloseGuiAcceptanceTest {
 	Path temp;
 
 	@Test
+	@GuiJourney(InputMechanism.WINDOW_SHELL)
 	void closingTheApplicationWindowLeavesOnlyTheProjectFile() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required.");
 		Assumptions.assumeTrue(System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win"),

@@ -16,6 +16,7 @@ on:
         type: choice
         options:
           - smoke
+          - journeys
           - visual
           - full
       gui_test_filter:

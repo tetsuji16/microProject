@@ -9,6 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microproject.testsupport.GuiJourney;
+import com.microproject.testsupport.GuiJourney.InputMechanism;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
@@ -559,6 +561,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 	}
 
 	@Test
+	@GuiJourney(InputMechanism.GANTT_DRAG)
 	void robotDragBetweenBarsCreatesDependencyAndUndoRestoresModel() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(DependencyType.FS, false);
