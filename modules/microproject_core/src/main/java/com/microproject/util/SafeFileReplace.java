@@ -52,17 +52,24 @@ public final class SafeFileReplace {
 			return true;
 		}
 		try {
-			forceToDisk(temp.toPath());
-		} catch (IOException e) {
-			logger.log(Level.WARNING, "Could not flush " + temp + " to disk before replacing " + target, e);
-		}
-		try {
-			moveAtomically(temp.toPath(), target.toPath(), true);
+			replaceDurably(temp.toPath(), target.toPath(), true);
 			return true;
 		} catch (IOException e) {
 			logger.log(Level.WARNING, "Safe replace failed: could not move " + temp + " onto " + target, e);
 			return false;
 		}
+	}
+
+	/**
+	 * Forces {@code temp} to disk and then moves it onto {@code target}. If the
+	 * flush fails nothing is moved, so an existing {@code target} stays intact and
+	 * the caller sees the {@link IOException}.
+	 *
+	 * @see #moveAtomically(Path, Path, boolean)
+	 */
+	public static void replaceDurably(Path temp, Path target, boolean replaceExisting) throws IOException {
+		forceToDisk(temp);
+		moveAtomically(temp, target, replaceExisting);
 	}
 
 	/**

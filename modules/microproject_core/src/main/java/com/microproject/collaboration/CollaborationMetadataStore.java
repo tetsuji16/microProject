@@ -603,7 +603,7 @@ public class CollaborationMetadataStore {
 		Path temporary = Files.createTempFile(parent, sidecarFile.getName() + ".", ".tmp");
 		try {
 			writeTempFile(temporary, bytes);
-			SafeFileReplace.moveAtomically(temporary, sidecarFile.toPath(), true);
+			SafeFileReplace.replaceDurably(temporary, sidecarFile.toPath(), true);
 		} finally {
 			Files.deleteIfExists(temporary);
 		}

@@ -520,7 +520,7 @@ public final class AutoRecoveryStore {
 			try (OutputStream output = Files.newOutputStream(temporary.path())) {
 				properties.store(output, "ProjectLibre AutoRecovery");
 			}
-			SafeFileReplace.moveAtomically(temporary.path(), metadata, true);
+			SafeFileReplace.replaceDurably(temporary.path(), metadata, true);
 		}
 	}
 
