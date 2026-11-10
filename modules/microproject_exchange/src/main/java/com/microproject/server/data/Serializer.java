@@ -637,6 +637,7 @@ public class Serializer {
     	project.setLastModificationDate(projectData.getLastModificationDate());
     	//project.setExternalId(projectData.getExternalId());
     	boolean fixCorruption=false;
+	List<String> failedAssignments=new ArrayList<>();
 
 
     	WorkCalendar calendar=project.getWorkCalendar();
@@ -840,6 +841,7 @@ public class Serializer {
     								assignment=(Assignment)deserialize(assignmentData,reindex);
     							} catch (Exception e) {
      								logger.log(Level.WARNING, "Failed to deserialize assignment", e);
+								failedAssignments.add(task.getName() + " / " + resource.getName());
      							}
     						}
     						if (assignmentData.getSerialized() == null||(assignmentData.getSerialized() != null&&assignment==null)) { // timesheet created
@@ -1009,10 +1011,23 @@ public class Serializer {
     		project.setForceNonIncrementalDistributions(true);
     	}
     	project.setVersion(Project.CURRENT_VERSION);
+	addAssignmentRestoreWarning(project,failedAssignments);
 
     	return project;
     	}
 
+
+    private static final int MAX_LISTED_ASSIGNMENT_FAILURES=10;
+    /** Tells the user which assignments were replaced by defaults because they could not be restored. */
+    private static void addAssignmentRestoreWarning(Project project,List<String> failedAssignments){
+	if (failedAssignments.isEmpty()) return;
+	StringBuilder message=new StringBuilder(Messages.format("Message.assignmentsNotRestored",failedAssignments.size()));
+	int listed=Math.min(failedAssignments.size(),MAX_LISTED_ASSIGNMENT_FAILURES);
+	for (int i=0;i<listed;i++) message.append('\n').append(failedAssignments.get(i));
+	if (failedAssignments.size()>listed)
+		message.append('\n').append(Messages.format("Message.assignmentsNotRestoredMore",failedAssignments.size()-listed));
+	project.addLoadWarning(message.toString());
+    }
 
     public static void connectDependency(Dependency dependency,Task predecessor,Task successor){
 		try {
