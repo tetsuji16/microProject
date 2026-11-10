@@ -636,7 +636,7 @@ public class MpoFileImporter extends FileImporter {
 
 	/** Replaces the destination only after the complete archive has been written. */
 	protected void moveTemporary(Path temporary, Path target) throws IOException {
-		SafeFileReplace.moveAtomically(temporary, target, true);
+		SafeFileReplace.replaceDurably(temporary, target, true);
 	}
 
 	@Override
@@ -2095,7 +2095,7 @@ public class MpoFileImporter extends FileImporter {
 				}
 				Path recovery = target.toPath().toAbsolutePath().resolveSibling(target.getName()
 					+ ".conflict-" + java.util.UUID.randomUUID() + ".mpo");
-				SafeFileReplace.moveAtomically(temporary.toPath(), recovery, false);
+				SafeFileReplace.replaceDurably(temporary.toPath(), recovery, false);
 				moved = true;
 				return recovery;
 			} finally {
@@ -2791,7 +2791,7 @@ public class MpoFileImporter extends FileImporter {
 				for (java.util.Map.Entry<String, byte[]> entry : entries.entrySet())
 					writeEntry(zip, entry.getKey(), entry.getValue());
 			}
-			SafeFileReplace.moveAtomically(temporary, extractedFile, true);
+			SafeFileReplace.replaceDurably(temporary, extractedFile, true);
 			moved = true;
 		} finally {
 			if (!moved) TemporaryCleanupQueue.deleteOrEnqueue(temporary);

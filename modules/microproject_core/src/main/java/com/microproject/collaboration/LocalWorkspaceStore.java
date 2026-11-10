@@ -53,7 +53,7 @@ final class LocalWorkspaceStore {
 		Path temporary = Files.createTempFile(directory, "workspace-fallback.", ".tmp");
 		try {
 			Files.write(temporary, Base64.getDecoder().decode(payload));
-			SafeFileReplace.moveAtomically(temporary, target, true);
+			SafeFileReplace.replaceDurably(temporary, target, true);
 		} finally {
 			Files.deleteIfExists(temporary);
 		}
@@ -65,7 +65,7 @@ final class LocalWorkspaceStore {
 		Path temporary = Files.createTempFile(directory, "workspace.", ".tmp");
 		try {
 			Files.write(temporary, Base64.getDecoder().decode(payload));
-			SafeFileReplace.moveAtomically(temporary, file, true);
+			SafeFileReplace.replaceDurably(temporary, file, true);
 		} finally {
 			Files.deleteIfExists(temporary);
 		}
