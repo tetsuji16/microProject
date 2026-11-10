@@ -11,6 +11,7 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.URI;
 import java.net.URL;
+import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -63,6 +64,10 @@ public final class MicroProjectUpdater {
     private static final String KEY_CHECK_ENABLED = "checkEnabled";
     private static final String KEY_LAST_CHECK_MILLIS = "lastCheckMillis";
     private static final long CHECK_INTERVAL_MILLIS = 24L * 60 * 60 * 1000; // 24h
+
+    /** Update feed connect/read timeouts, so an unresponsive network cannot stall startup. */
+    static final int CONNECT_TIMEOUT_MILLIS = 5000;
+    static final int READ_TIMEOUT_MILLIS = 10000;
 
     private MicroProjectUpdater() {
     }
@@ -164,8 +169,24 @@ public final class MicroProjectUpdater {
      * @return the configuration, or {@code null} if it cannot be read or fails
      *         signature verification (so the caller can fall back to a launch).
      */
-    @SuppressWarnings("deprecation") // URI.toURL() is the simplest cross-scheme stream opener here
     static Configuration readConfiguration(URI uri, PublicKey publicKey) {
+        return readConfiguration(uri, publicKey, CONNECT_TIMEOUT_MILLIS, READ_TIMEOUT_MILLIS);
+    }
+
+    /** Only {@code https} and local {@code file} feeds are trusted; anything else is never contacted. */
+    static boolean isAllowedFeedScheme(URI uri) {
+        String scheme = uri == null ? null : uri.getScheme();
+        return "https".equalsIgnoreCase(scheme) || "file".equalsIgnoreCase(scheme);
+    }
+
+    @SuppressWarnings("deprecation") // URI.toURL() is the simplest cross-scheme stream opener here
+    static Configuration readConfiguration(URI uri, PublicKey publicKey,
+            int connectTimeoutMillis, int readTimeoutMillis) {
+        if (!isAllowedFeedScheme(uri)) {
+            System.err.println("update4j: rejected update feed " + uri
+                    + " (only https and file feeds are accepted); launching without update.");
+            return null;
+        }
         try {
             Reader in;
             if ("file".equalsIgnoreCase(uri.getScheme())) {
@@ -174,7 +195,10 @@ public final class MicroProjectUpdater {
                 }
                 in = Files.newBufferedReader(Paths.get(uri), StandardCharsets.UTF_8);
             } else {
-                in = new InputStreamReader(uri.toURL().openStream(), StandardCharsets.UTF_8);
+                URLConnection connection = uri.toURL().openConnection();
+                connection.setConnectTimeout(connectTimeoutMillis);
+                connection.setReadTimeout(readTimeoutMillis);
+                in = new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8);
             }
             try (Reader r = in) {
                 return publicKey != null

@@ -18,7 +18,9 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Writer;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -119,9 +121,7 @@ class BootstrapUpdateTest {
             config.write(w);
         }
 
-        HttpServer s = startServer(serverDir);
-        int port = s.getAddress().getPort();
-        URI uri = URI.create("http://127.0.0.1:" + port + "/configuration.xml");
+        URI uri = serverDir.resolve("configuration.xml").toUri();
 
         Configuration loaded = MicroProjectUpdater.readConfiguration(uri, kp.getPublic());
         assertNotNull(loaded, "signed feed must load with the correct public key");
@@ -159,9 +159,7 @@ class BootstrapUpdateTest {
                 "signature=\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\"");
         Files.writeString(configFile, tampered, StandardCharsets.UTF_8);
 
-        HttpServer s = startServer(serverDir);
-        int port = s.getAddress().getPort();
-        URI uri = URI.create("http://127.0.0.1:" + port + "/configuration.xml");
+        URI uri = serverDir.resolve("configuration.xml").toUri();
 
         Configuration loaded = MicroProjectUpdater.readConfiguration(uri, kp.getPublic());
         assertNull(loaded,
@@ -194,9 +192,7 @@ class BootstrapUpdateTest {
         // declares the good-content checksum, so update() must reject it.
         Files.writeString(serverDir.resolve(APP_FILE), "TAMPERED content");
 
-        HttpServer s = startServer(serverDir);
-        int port = s.getAddress().getPort();
-        URI uri = URI.create("http://127.0.0.1:" + port + "/configuration.xml");
+        URI uri = serverDir.resolve("configuration.xml").toUri();
 
         Configuration loaded = MicroProjectUpdater.readConfiguration(uri, kp.getPublic());
         assertNotNull(loaded, "config signature is intact, so it still loads");
@@ -213,6 +209,47 @@ class BootstrapUpdateTest {
         URI dead = URI.create("https://127.0.0.1:1/configuration.xml");
         Configuration loaded = MicroProjectUpdater.readConfiguration(dead, kp.getPublic());
         assertNull(loaded, "an unreachable feed must yield null so the app still launches");
+    }
+
+    @Test
+    void unresponsiveFeedReturnsWithinConfiguredTimeout() throws Exception {
+        KeyPair kp = generateRsa();
+        try (ServerSocket silent = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
+            URI uri = URI.create("https://127.0.0.1:" + silent.getLocalPort() + "/configuration.xml");
+
+            long start = System.nanoTime();
+            Configuration loaded = MicroProjectUpdater.readConfiguration(uri, kp.getPublic(), 300, 300);
+            long elapsedMillis = (System.nanoTime() - start) / 1_000_000;
+
+            assertNull(loaded, "a feed that never answers must be treated as no update");
+            assertTrue(elapsedMillis < 5000, "read must give up near the timeout, took " + elapsedMillis + " ms");
+        }
+        assertTrue(MicroProjectUpdater.CONNECT_TIMEOUT_MILLIS + MicroProjectUpdater.READ_TIMEOUT_MILLIS <= 15000,
+                "default timeouts must keep startup within 15 seconds");
+    }
+
+    @Test
+    void onlyHttpsAndFileFeedsAreAccepted() throws Exception {
+        KeyPair kp = generateRsa();
+        AtomicInteger requests = new AtomicInteger();
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", exchange -> {
+            requests.incrementAndGet();
+            exchange.sendResponseHeaders(404, -1);
+            exchange.close();
+        });
+        server.start();
+
+        URI http = URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/configuration.xml");
+        assertNull(MicroProjectUpdater.readConfiguration(http, kp.getPublic()));
+        assertEquals(0, requests.get(), "a rejected http feed must never be contacted");
+        assertNull(MicroProjectUpdater.readConfiguration(URI.create("ftp://example.test/configuration.xml"),
+                kp.getPublic()));
+
+        assertFalse(MicroProjectUpdater.isAllowedFeedScheme(http));
+        assertFalse(MicroProjectUpdater.isAllowedFeedScheme(URI.create("ftp://example.test/c.xml")));
+        assertTrue(MicroProjectUpdater.isAllowedFeedScheme(URI.create("https://example.test/c.xml")));
+        assertTrue(MicroProjectUpdater.isAllowedFeedScheme(URI.create("file:///C:/updates/c.xml")));
     }
 
     @Test
