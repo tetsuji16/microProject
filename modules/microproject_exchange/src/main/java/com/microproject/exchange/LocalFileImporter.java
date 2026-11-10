@@ -40,6 +40,7 @@ import java.nio.file.Path;
 import javax.swing.SwingUtilities;
 
 import com.microproject.job.Job;
+import com.microproject.port.SaveFailureFeedback;
 import com.microproject.job.JobRunnable;
 import com.microproject.pm.task.Project;
 import com.microproject.server.data.DataUtil;
@@ -193,6 +194,19 @@ public class LocalFileImporter extends FileImporter {
 		return exception instanceof ClassNotFoundException
 				&& PodFormatIdentifiers.LEGACY_MISSING_PROJECT_DATA.equals(exception.getMessage());
 	}
+	/** A failed POD save; the original file was left untouched. */
+	static final class PodSaveException extends IOException implements SaveFailureFeedback {
+		private static final long serialVersionUID = 1L;
+		private final String temporaryFileName;
+		PodSaveException(String temporaryFileName, Throwable cause) {
+			super("Could not save the POD document; temporary file " + temporaryFileName, cause);
+			this.temporaryFileName = temporaryFileName;
+		}
+		@Override
+		public String userFacingMessage() {
+			return Messages.format("Format.join", Messages.getString("Message.saveErrorTmpFile"), temporaryFileName);
+		}
+	}
 	@Override
 	public void exportFile() throws Exception{
 		File file=new File(fileName).getAbsoluteFile();
@@ -206,7 +220,7 @@ public class LocalFileImporter extends FileImporter {
 		File tmpFile = Files.createTempFile(parent, file.getName() + ".", ".tmp").toFile();
 		String tmpFileName = tmpFile.getAbsolutePath();
 		boolean replaced = false;
-		boolean error=false;
+		Exception failure=null;
 		try {
 		try (FileOutputStream fout = new FileOutputStream(tmpFile);
 			 BufferedOutputStream bout = new BufferedOutputStream(fout);
@@ -229,8 +243,8 @@ public class LocalFileImporter extends FileImporter {
 				t2=System.currentTimeMillis();
 				logger.info("Saving...Done in " + (t2 - t1) + " ms"); //$NON-NLS-1$ //$NON-NLS-2$
 			} catch (Exception e) {
-				error=true;
-				logger.log(Level.WARNING, "Error during file import", e);
+				failure=e;
+				logger.log(Level.WARNING, "Error while serializing POD document " + file, e);
 			}
 			try{
 				if (project.getTasks().isEmpty()) {
@@ -257,25 +271,22 @@ public class LocalFileImporter extends FileImporter {
 					bout.flush();
 				}
 			}catch (Exception e) {
-				error=true;
-				logger.log(Level.WARNING, "Error during file import", e);
+				if (failure==null) failure=e;
+				logger.log(Level.WARNING, "Error while writing the embedded XML of POD document " + file, e);
 			}
 		} catch (Exception e) {
-			error=true;
-			logger.log(Level.WARNING, "Error during file import", e);
+			if (failure==null) failure=e;
+			logger.log(Level.WARNING, "Error while writing POD document " + file, e);
 		}
-		// Don't replace the original file if an error occurred.
-		if (error){
-			Alert.error(Messages.format("Format.join", Messages.getString("Message.saveErrorTmpFile"), tmpFileName));
-		}else{
-			if (!SafeFileReplace.replace(tmpFile, file)) {
-				// The original is preserved by the safe replace; cleanup is handled
-				// by the finally block even when Windows denies the first delete.
-				Alert.error(Messages.format("Format.join", Messages.getString("Message.saveErrorTmpFile"), tmpFileName));
-			} else {
-				replaced = true;
-			}
+		// Don't replace the original file if an error occurred; tell the caller so the
+		// project is not reported as saved.
+		if (failure!=null) throw new PodSaveException(tmpFileName, failure);
+		if (!SafeFileReplace.replace(tmpFile, file)) {
+			// The original is preserved by the safe replace; cleanup is handled
+			// by the finally block even when Windows denies the first delete.
+			throw new PodSaveException(tmpFileName, null);
 		}
+		replaced = true;
 		} finally {
 			if (!replaced) {
 				TemporaryCleanupQueue.deleteOrEnqueue(tmpFile.toPath());
