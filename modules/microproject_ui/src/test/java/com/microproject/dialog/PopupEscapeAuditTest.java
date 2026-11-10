@@ -64,7 +64,7 @@ class PopupEscapeAuditTest {
 	void startupAndTipDialogsHaveEscapeCoverageHooks() throws Exception {
 		String mainSource = source("modules/microproject_ui/src/main/java/com/microproject/pm/graphic/gantt/Main.java");
 
-		assertTrue(mainSource.contains("PopupDialogSupport.showMessageDialog("));
+		// Main no longer shows a startup dialog; it must not reintroduce a raw JOptionPane.
 		assertFalse(mainSource.contains("JOptionPane.showMessageDialog("));
 	}
 
