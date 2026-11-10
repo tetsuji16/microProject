@@ -73,7 +73,13 @@ plugins {
 group = "com.microproject"
 version = providers.gradleProperty("releaseVersion").getOrElse("0.1.0")
 val minimumJavaRelease = 25
-val activeToolchainVersion = maxOf(minimumJavaRelease, JavaVersion.current().majorVersion.toInt())
+// javac -Xlint categories that still report warnings; tracked in follow-up issues (#1050).
+val lintDebtCategories = listOf(
+    "dangling-doc-comments", "deprecation", "rawtypes", "cast", "static", "unchecked",
+    "this-escape", "try", "lossy-conversions", "classfile", "auxiliaryclass",
+    "empty", "fallthrough", "restricted"
+).joinToString(",") { "-$it" }
+val activeToolchainVersion =maxOf(minimumJavaRelease, JavaVersion.current().majorVersion.toInt())
 
 subprojects {
 	apply(plugin = "java-library")
@@ -111,6 +117,20 @@ subprojects {
     tasks.withType<JavaCompile>().configureEach {
         options.encoding = "UTF-8"
         options.release.set(minimumJavaRelease)
+        // Issue #1050: -Xlint is always on. Categories that still have warnings
+        // are excluded from the default build, which runs with -Werror so the
+        // clean categories cannot regress. Run with -PlintReport to see every
+        // category (no -Werror, and without javac's default 100-warning cap).
+        if (providers.gradleProperty("lintReport").isPresent) {
+            options.compilerArgs.addAll(listOf("-Xlint:all,-serial,-processing", "-Xmaxwarns", "100000"))
+        } else {
+            options.compilerArgs.add("-Xlint:all,-serial,-processing,$lintDebtCategories")
+            // Test sources are not gated yet: microproject_ui tests use sun.misc.Unsafe,
+            // whose "internal proprietary API" warning has no lint category to exclude.
+            if (name == "compileJava") {
+                options.compilerArgs.add("-Werror")
+            }
+        }
     }
 
     tasks.withType<ProcessResources>().configureEach {

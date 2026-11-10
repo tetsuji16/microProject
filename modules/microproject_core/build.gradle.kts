@@ -12,7 +12,7 @@ dependencies {
     // log4j2/logback are excluded project-wide (see root build.gradle.kts) because they
     // recurse via StackWalker on modern JDKs and break Configuration.getInstance()/.pod load.
     implementation(libs.slf4j.simple)
-    testImplementation(platform("org.junit:junit-bom:5.10.2"))
+    testImplementation(platform(libs.junit.bom))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
