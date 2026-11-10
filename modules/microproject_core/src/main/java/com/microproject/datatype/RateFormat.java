@@ -49,32 +49,28 @@ public class RateFormat extends Format implements TimeUnit {
 		return NumberFormat.getPercentInstance();
 	}
 
-	private static RateFormat moneyInstance = null;
-	private static RateFormat instance = null;
-	private static RateFormat percentInstance = null;
-	private static RateFormat nonTemporalInstance = null;
+	private static final class Holder {
+		static final RateFormat INSTANCE = new RateFormat(null,false,false,true);
+		static final RateFormat MONEY_INSTANCE = new RateFormat(null,true,false,true);
+		static final RateFormat PERCENT_INSTANCE = new RateFormat(null,false,true,true);
+		static final RateFormat NON_TEMPORAL_INSTANCE = new RateFormat(null,false,false,false);
+	}
 	private String timeUnitLabel;
 	private boolean money;
 	public boolean percent;
 	private boolean temporal;
 	public static RateFormat getInstance(Object object, boolean money, boolean percent, boolean temporal) {
-		if (instance == null) {
-			instance = new RateFormat(null,false,false,true);
-			moneyInstance = new RateFormat(null,true,false,true);
-			percentInstance = new RateFormat(null,false,true,true);
-			nonTemporalInstance = new RateFormat(null,false,false,false);
-		}
 		String timeUnit = unitLabelOfObject(object);
 		if (percent)
-			return percentInstance;
+			return Holder.PERCENT_INSTANCE;
 		if (timeUnit != null)
 			return new RateFormat(timeUnit, money,false,temporal);
 		if (money)
-			return moneyInstance;
+			return Holder.MONEY_INSTANCE;
 		else if (temporal)
-			return instance;
+			return Holder.INSTANCE;
 		else
-			return nonTemporalInstance;
+			return Holder.NON_TEMPORAL_INSTANCE;
 	}
 	
 	public static String unitLabelOfObject(Object object) {

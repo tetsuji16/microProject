@@ -320,11 +320,10 @@ public class WorkingHours implements Cloneable, Serializable {
 		}
 		return result;
 	}
-	private static WorkingHours defaultWorkingHours = null;
-	
-	public static WorkingHours getDefault() {
-		if (defaultWorkingHours == null) {
-			defaultWorkingHours = new WorkingHours();
+	private static final class DefaultHolder {
+		static final WorkingHours INSTANCE = create();
+		private static WorkingHours create() {
+			WorkingHours hours = new WorkingHours();
 			try {
 				Calendar cal = DateTime.calendarInstance();
 				cal.setTimeInMillis(0);
@@ -332,42 +331,45 @@ public class WorkingHours implements Cloneable, Serializable {
 				long start = cal.getTimeInMillis();
 				cal.set(Calendar.HOUR_OF_DAY,12);
 				long end = cal.getTimeInMillis();
-				
-				defaultWorkingHours.setInterval(0,start, end);
-				
+
+				hours.setInterval(0,start, end);
+
 				cal.set(Calendar.HOUR_OF_DAY,13);
 				start = cal.getTimeInMillis();
 				cal.set(Calendar.HOUR_OF_DAY,17);
 				end = cal.getTimeInMillis();
-				defaultWorkingHours.setInterval(1,start, end);
-				
-				
-				
+				hours.setInterval(1,start, end);
 			} catch (WorkRangeException e) {
 				logger.log(Level.WARNING, "Failed to build default working hours", e);
 			}
+			return hours;
 		}
-		return defaultWorkingHours;
 	}
-	private static WorkingHours nonStopWorkingHours = null;
-	
-	public static WorkingHours getNonStop() {
-		if (nonStopWorkingHours == null) {
-			nonStopWorkingHours = new WorkingHours();
+
+	public static WorkingHours getDefault() {
+		return DefaultHolder.INSTANCE;
+	}
+
+	private static final class NonStopHolder {
+		static final WorkingHours INSTANCE = create();
+		private static WorkingHours create() {
+			WorkingHours hours = new WorkingHours();
 			try {
 				Calendar cal = DateTime.calendarInstance();
 				cal.setTimeInMillis(0);
 				cal.set(Calendar.HOUR_OF_DAY,0);
 				long start = cal.getTimeInMillis();
-				
-				nonStopWorkingHours.setInterval(0,start, start);
-				
-				
+
+				hours.setInterval(0,start, start);
 			} catch (WorkRangeException e) {
 				logger.log(Level.WARNING, "Failed to build nonstop working hours", e);
 			}
+			return hours;
 		}
-		return nonStopWorkingHours;
+	}
+
+	public static WorkingHours getNonStop() {
+		return NonStopHolder.INSTANCE;
 	}
 
 	
