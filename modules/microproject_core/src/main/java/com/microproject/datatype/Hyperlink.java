@@ -52,7 +52,11 @@ public class Hyperlink implements Serializable {
 		this.label = label;
 	}
 	public String toString() {
-		return "<html><a href=\"" + address + "\">" + label + "</a></html>";
+		return "<html><a href=\"" + escapeHtml(address) + "\">" + escapeHtml(label) + "</a></html>";
+	}
+	private static String escapeHtml(String text) {
+		return String.valueOf(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
+				.replace("'", "&#39;");
 	}
 	public void invoke() {
 		String address = getAddress();

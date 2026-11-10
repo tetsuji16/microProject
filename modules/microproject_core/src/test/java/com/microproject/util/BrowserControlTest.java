@@ -55,6 +55,25 @@ class BrowserControlTest {
 	}
 
 	@Test
+	void reportsRejectedAddressesToLauncher() {
+		String[] rejectedUrl = new String[1];
+		BrowserControl.setBrowserLauncher(new BrowserControl.BrowserLauncher() {
+			@Override
+			public void displayURL(String url) {
+			}
+
+			@Override
+			public void rejected(String url) {
+				rejectedUrl[0] = url;
+			}
+		});
+
+		BrowserControl.displayURL("ms-msdt:/id");
+
+		assertEquals("ms-msdt:/id", rejectedUrl[0]);
+	}
+
+	@Test
 	void doesNothingWhenNoDesktopLauncherIsInstalled() {
 		BrowserControl.setBrowserLauncher(null);
 

@@ -30,6 +30,10 @@ public final class BrowserControl {
 	@FunctionalInterface
 	public interface BrowserLauncher {
 		void displayURL(String url);
+
+		/** Called instead of {@link #displayURL} when the policy refuses {@code url}. */
+		default void rejected(String url) {
+		}
 	}
 
 	private static volatile BrowserLauncher browserLauncher;
@@ -47,9 +51,12 @@ public final class BrowserControl {
 	 * @return {@code true} if the address was handed to the installed launcher
 	 */
 	public static boolean displayURL(String url) {
-		if (ExternalLinkPolicy.classify(url) == ExternalLinkPolicy.Decision.REJECT)
-			return false;
 		BrowserLauncher currentLauncher = browserLauncher;
+		if (ExternalLinkPolicy.classify(url) == ExternalLinkPolicy.Decision.REJECT) {
+			if (currentLauncher != null)
+				currentLauncher.rejected(url);
+			return false;
+		}
 		if (currentLauncher == null)
 			return false;
 		currentLauncher.displayURL(url);
