@@ -1222,15 +1222,21 @@ class CollaborationSessionSameUserLifecycleTest {
 	}
 
 	private static void awaitFile(Path path, Process child) throws Exception {
-		long deadline = System.nanoTime() + Duration.ofSeconds(15).toNanos();
-		while (!Files.exists(path) && System.nanoTime() < deadline && child.isAlive()) Thread.sleep(25L);
+		try {
+			com.microproject.testsupport.TestAwait.awaitTrue(() -> Files.exists(path) || !child.isAlive(), Duration.ofSeconds(15), path.getFileName().toString());
+		} catch (AssertionError timedOut) {
+			// reported by the assertion below together with the child's exit state
+		}
 		assertTrue(Files.exists(path), "timed out waiting for " + path.getFileName()
 				+ (child.isAlive() ? "" : "; child exited with " + child.exitValue()));
 	}
 
 	private static void awaitFileAbsent(Path path, long timeout, TimeUnit unit) throws InterruptedException {
-		long deadline = System.nanoTime() + unit.toNanos(timeout);
-		while (Files.exists(path) && System.nanoTime() < deadline) Thread.sleep(20L);
+		try {
+			com.microproject.testsupport.TestAwait.awaitTrue(() -> !Files.exists(path), Duration.ofNanos(unit.toNanos(timeout)), path.getFileName() + " to disappear");
+		} catch (AssertionError timedOut) {
+			// callers assert on the resulting state
+		}
 	}
 
 	public static final class ChildSessionProcess {
@@ -1241,8 +1247,8 @@ class CollaborationSessionSameUserLifecycleTest {
 			session.start();
 			try {
 				Files.writeString(control.resolve("child-session.ready"), "ready");
-				long deadline = System.nanoTime() + Duration.ofSeconds(15).toNanos();
-				while (!Files.exists(control.resolve("child-session.stop")) && System.nanoTime() < deadline) Thread.sleep(25L);
+				com.microproject.testsupport.TestAwait.awaitTrue(() -> Files.exists(control.resolve("child-session.stop")), Duration.ofSeconds(15),
+						"parent stop signal");
 				if (!Files.exists(control.resolve("child-session.stop"))) throw new IllegalStateException("timed out waiting for parent stop signal");
 			} finally {
 				session.stop();
@@ -1282,8 +1288,17 @@ class CollaborationSessionSameUserLifecycleTest {
 	private static void awaitSessionStopped(CollaborationSession session, long timeout, TimeUnit unit) throws Exception {
 		Field stopped = CollaborationSession.class.getDeclaredField("stopped");
 		stopped.setAccessible(true);
-		long deadline = System.nanoTime() + unit.toNanos(timeout);
-		while (!stopped.getBoolean(session) && System.nanoTime() < deadline) Thread.sleep(20L);
+		try {
+			com.microproject.testsupport.TestAwait.awaitTrue(() -> {
+				try {
+					return stopped.getBoolean(session);
+				} catch (IllegalAccessException access) {
+					throw new AssertionError(access);
+				}
+			}, Duration.ofNanos(unit.toNanos(timeout)), "session to be marked stopped");
+		} catch (AssertionError timedOut) {
+			// asserted below
+		}
 		assertTrue(stopped.getBoolean(session), "the close job should mark the session closing before waiting for its refresh token");
 	}
 

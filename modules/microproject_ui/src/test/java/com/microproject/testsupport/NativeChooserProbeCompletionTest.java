@@ -62,6 +62,7 @@ class NativeChooserProbeCompletionTest {
 		NativeChooserProbeCompletion.awaitPrepared(preparation, () -> {
 			if (reads.getAndIncrement() == 0) return "nativeChooserProbe processStartedUtc=2026-10-15T16:25:40Z\\n";
 			try {
+				// Fixed sleep kept: simulates a slow observer start-up.
 				Thread.sleep(200);
 			} catch (InterruptedException interrupted) {
 				Thread.currentThread().interrupt();

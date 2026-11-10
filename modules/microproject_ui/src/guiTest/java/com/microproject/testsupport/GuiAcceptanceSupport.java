@@ -52,12 +52,11 @@ public final class GuiAcceptanceSupport {
 	}
 
 	public static void await(BooleanSupplier condition, String message) throws Exception {
-		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-		while (System.nanoTime() < deadline) {
-			if (condition.getAsBoolean()) return;
-			Thread.sleep(25);
+		try {
+			TestAwait.awaitTrue(condition, java.time.Duration.ofSeconds(5), message);
+		} catch (AssertionError timedOut) {
+			assertTrue(false, message);
 		}
-		assertTrue(false, message);
 	}
 
 	/** Drains Robot input and then the AWT queue under one bounded deadline. */

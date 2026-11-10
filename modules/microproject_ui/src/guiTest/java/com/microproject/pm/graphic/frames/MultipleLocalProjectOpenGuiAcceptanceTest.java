@@ -91,16 +91,22 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 		deleteMpoSidecars(existingFile);
 		if (existingFile != null) Files.deleteIfExists(existingFile);
 		if (fixtureDirectory != null) {
-			for (int attempt = 0; attempt < 5; attempt++) {
-				try (var children = Files.list(fixtureDirectory)) {
-					for (Path child : children.toList()) Files.deleteIfExists(child);
-				}
-				try {
-					Files.deleteIfExists(fixtureDirectory);
-					break;
-				} catch (java.nio.file.DirectoryNotEmptyException lateSidecar) {
-					Thread.sleep(100);
-				}
+			try {
+				com.microproject.testsupport.TestAwait.awaitTrue(() -> {
+					try {
+						try (var children = Files.list(fixtureDirectory)) {
+							for (Path child : children.toList()) Files.deleteIfExists(child);
+						}
+						Files.deleteIfExists(fixtureDirectory);
+						return true;
+					} catch (java.nio.file.DirectoryNotEmptyException lateSidecar) {
+						return false;
+					} catch (java.io.IOException unreadable) {
+						throw new java.io.UncheckedIOException(unreadable);
+					}
+				}, java.time.Duration.ofMillis(500), "the fixture directory to empty");
+			} catch (AssertionError lateSidecars) {
+				// best-effort cleanup, as before
 			}
 		}
 		if (previousJobQueueCaptured) SessionFactory.getInstance().setJobQueue(previousJobQueue);
@@ -281,14 +287,22 @@ class MultipleLocalProjectOpenGuiAcceptanceTest {
 	}
 
 	private static Component awaitNamed(Component root, String name, String message) throws Exception {
-		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(10);
-		Component component;
-		do {
-			component = findByNameOnEdt(root, name);
-			if (component != null && component.isShowing()) return component;
-			Thread.sleep(50);
-		} while (System.nanoTime() < deadline);
-		throw new AssertionError(message);
+		Component[] found = new Component[1];
+		try {
+			com.microproject.testsupport.TestAwait.awaitTrue(() -> {
+				try {
+					Component component = findByNameOnEdt(root, name);
+					if (component == null || !component.isShowing()) return false;
+					found[0] = component;
+					return true;
+				} catch (Exception lookupFailed) {
+					throw new AssertionError(lookupFailed);
+				}
+			}, java.time.Duration.ofSeconds(10), name);
+		} catch (AssertionError timedOut) {
+			throw new AssertionError(message);
+		}
+		return found[0];
 	}
 
 	private static Component findByTextOnEdt(Component root, String... labels) throws Exception {

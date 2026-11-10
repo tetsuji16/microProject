@@ -4921,14 +4921,14 @@ class MpoFileImporterTest {
 	}
 
 	private static void awaitWorkerReady(Process worker, Path ready, Path log) throws Exception {
-		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(30);
-		while (!Files.exists(ready)) {
-			if (!worker.isAlive())
-				throw new AssertionError("MPO worker exited before loading its editor snapshot: " + readWorkerLog(log));
-			if (System.nanoTime() >= deadline)
-				throw new AssertionError("MPO worker did not load its editor snapshot in time: " + readWorkerLog(log));
-			Thread.sleep(20L);
+		try {
+			com.microproject.testsupport.TestAwait.awaitTrue(() -> Files.exists(ready) || !worker.isAlive(), java.time.Duration.ofSeconds(30),
+				"the MPO worker's editor snapshot");
+		} catch (AssertionError timedOut) {
+			throw new AssertionError("MPO worker did not load its editor snapshot in time: " + readWorkerLog(log));
 		}
+		if (!Files.exists(ready))
+			throw new AssertionError("MPO worker exited before loading its editor snapshot: " + readWorkerLog(log));
 	}
 
 	private static void assertWorkerSucceeded(Process worker, Path log) throws Exception {
@@ -4942,6 +4942,14 @@ class MpoFileImporterTest {
 			return;
 		worker.destroyForcibly();
 		worker.waitFor(5, java.util.concurrent.TimeUnit.SECONDS);
+	}
+
+	private static boolean workerLogContains(Path log, String marker) {
+		try {
+			return readWorkerLog(log).contains(marker);
+		} catch (IOException unreadable) {
+			return false;
+		}
 	}
 
 	private static String readWorkerLog(Path log) throws IOException {
@@ -6387,15 +6395,15 @@ class MpoFileImporterTest {
 			worker = startMpoSaveWorker(shared, taskId, "name", "Saved after lock release", ready, release, log);
 			awaitWorkerReady(worker, ready, log);
 			Files.createFile(release);
-			long attemptDeadline = System.nanoTime()
-					+ java.util.concurrent.TimeUnit.SECONDS.toNanos(10);
-			while (!readWorkerLog(log).contains("MPO_SAVE_ATTEMPT=")) {
-				if (!worker.isAlive())
-					throw new AssertionError("MPO worker exited before attempting its save: " + readWorkerLog(log));
-				if (System.nanoTime() >= attemptDeadline)
-					throw new AssertionError("MPO worker did not attempt save in time: " + readWorkerLog(log));
-				Thread.sleep(20L);
+			Process savingWorker = worker;
+			try {
+				com.microproject.testsupport.TestAwait.awaitTrue(() -> workerLogContains(log, "MPO_SAVE_ATTEMPT=") || !savingWorker.isAlive(),
+					java.time.Duration.ofSeconds(10), "the MPO worker's save attempt");
+			} catch (AssertionError timedOut) {
+				throw new AssertionError("MPO worker did not attempt save in time: " + readWorkerLog(log));
 			}
+			if (!readWorkerLog(log).contains("MPO_SAVE_ATTEMPT="))
+				throw new AssertionError("MPO worker exited before attempting its save: " + readWorkerLog(log));
 			assertTrue(worker.isAlive(), "save must wait while another process owns the transaction lock");
 			org.junit.jupiter.api.Assertions.assertArrayEquals(originalArchive, Files.readAllBytes(shared.toPath()),
 					"the shared archive must remain unchanged while the lock is held");

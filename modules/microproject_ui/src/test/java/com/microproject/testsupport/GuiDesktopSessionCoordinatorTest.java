@@ -74,11 +74,11 @@ class GuiDesktopSessionCoordinatorTest {
 					}
 					Path diagnosticLog = eventLog.resolveSibling(eventLog.getFileName().toString()
 						.replaceFirst("\\.log$", ".diagnostic.log"));
-					long probeDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
-					while (System.nanoTime() < probeDeadline && (!Files.exists(diagnosticLog)
-						|| !Files.readString(diagnosticLog, StandardCharsets.UTF_8)
-							.contains("monitorFirstOverlapProbeExited="))) {
-						Thread.sleep(50);
+					try {
+						TestAwait.awaitTrue(() -> GuiDesktopSessionCoordinator.logContains(diagnosticLog,
+							"monitorFirstOverlapProbeExited="), Duration.ofSeconds(10), "the first overlap probe");
+					} catch (AssertionError timedOut) {
+						// asserted below
 					}
 					assertTrue(Files.readString(diagnosticLog, StandardCharsets.UTF_8)
 						.contains("monitorFirstOverlapProbeExited="),

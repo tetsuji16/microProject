@@ -140,9 +140,11 @@ class AutoRecoveryStoreProcessTest {
 	private void signal(String name) throws IOException { Files.writeString(directory.resolve(name), "go"); }
 	private void await(String name) throws Exception { waitFor(directory.resolve(name)); }
 	private static void waitFor(Path path) throws Exception {
-		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
-		while (!Files.exists(path) && System.nanoTime() < deadline) Thread.sleep(20);
-		if (!Files.exists(path)) throw new IOException("Timed out waiting for " + path);
+		try {
+			com.microproject.testsupport.TestAwait.awaitTrue(() -> Files.exists(path), java.time.Duration.ofSeconds(10), path.toString());
+		} catch (AssertionError timedOut) {
+			throw new IOException("Timed out waiting for " + path);
+		}
 	}
 
 	public static void main(String[] args) throws Exception {
@@ -152,7 +154,7 @@ class AutoRecoveryStoreProcessTest {
 			try (FileChannel channel = FileChannel.open(dir.resolve(".recovery.lock"), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
 				var lock = channel.lock()) {
 				Files.writeString(dir.resolve(name + ".ready"), "ready");
-				Thread.sleep(TimeUnit.MINUTES.toMillis(1));
+				new java.util.concurrent.CountDownLatch(1).await(1, TimeUnit.MINUTES); // hold the lock until the parent kills this process
 			}
 			return;
 		}
@@ -165,6 +167,7 @@ class AutoRecoveryStoreProcessTest {
 		else if (action.equals("publish")) store.recordCompletedSnapshot(11, "Plan", null, Instant.now(), snapshot);
 		else {
 			Thread worker = Thread.currentThread();
+			// Fixed sleep kept: delays the interrupt so it lands while claimOffered waits for the lock.
 			Thread interrupter = new Thread(() -> { try { Thread.sleep(300); worker.interrupt(); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); } });
 			interrupter.start();
 			try { store.claimOffered(candidate); throw new AssertionError("claim unexpectedly succeeded"); }

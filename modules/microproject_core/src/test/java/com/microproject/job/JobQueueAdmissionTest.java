@@ -151,7 +151,11 @@ class JobQueueAdmissionTest {
 				joined.close();
 			});
 		// The EDT route resolves its admission key on a background thread.
-		for (int wait = 0; wait < 500 && coalescedCount.get() < 1; wait++) Thread.sleep(10);
+		try {
+			com.microproject.testsupport.TestAwait.awaitTrue(() -> coalescedCount.get() >= 1, java.time.Duration.ofSeconds(5), "a coalesced admission");
+		} catch (AssertionError timedOut) {
+			// asserted below
+		}
 		assertEquals(1, admittedCount.get(), "a terminal job remains reserved until its UI callback releases it");
 		assertEquals(1, coalescedCount.get());
 

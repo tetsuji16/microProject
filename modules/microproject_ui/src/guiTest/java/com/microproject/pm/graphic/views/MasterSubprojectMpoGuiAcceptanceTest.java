@@ -374,11 +374,14 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 	}
 
 	private static void awaitAsyncChildLoad(Project runtimeMaster) throws Exception {
-		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
-		while (System.nanoTime() < deadline) {
-			SubProj reference = findSubproject(runtimeMaster);
-			if (reference != null && reference.getSubproject() != null) return;
-			Thread.sleep(25);
+		try {
+			com.microproject.testsupport.TestAwait.awaitTrue(() -> {
+				SubProj reference = findSubproject(runtimeMaster);
+				return reference != null && reference.getSubproject() != null;
+			}, java.time.Duration.ofSeconds(20), "the master child async load");
+			return;
+		} catch (AssertionError timedOut) {
+			// fall through to the diagnostic failure below
 		}
 		SubProj reference = findSubproject(runtimeMaster);
 		assertTrue(reference != null && reference.getSubproject() != null,
@@ -479,16 +482,18 @@ class MasterSubprojectMpoGuiAcceptanceTest {
 		if (graphicManager == null) return;
 		JobQueue queue = graphicManager.getJobQueue();
 		final long[] idleSince = {0L};
-		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(20);
-		while (System.nanoTime() < deadline) {
-			if (queue.hasExecutingJobs()) {
-				idleSince[0] = 0L;
-			} else {
+		try {
+			com.microproject.testsupport.TestAwait.awaitTrue(() -> {
+				if (queue.hasExecutingJobs()) {
+					idleSince[0] = 0L;
+					return false;
+				}
 				if (idleSince[0] == 0L) idleSince[0] = System.nanoTime();
-				if (System.nanoTime() - idleSince[0] >= java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(300))
-					return;
-			}
-			Thread.sleep(25L);
+				return System.nanoTime() - idleSince[0] >= java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(300);
+			}, java.time.Duration.ofSeconds(20), "scheduled document jobs to become idle");
+			return;
+		} catch (AssertionError timedOut) {
+			// fall through to the diagnostic failure below
 		}
 		Thread[] active = new Thread[Math.max(8, queue.activeCount() * 2)];
 		int activeCount = queue.enumerate(active, true);

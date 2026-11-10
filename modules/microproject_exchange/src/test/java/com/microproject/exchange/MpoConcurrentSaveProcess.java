@@ -96,11 +96,10 @@ public final class MpoConcurrentSaveProcess {
 		}
 		Files.createFile(ready);
 
-		long deadline = System.nanoTime() + Duration.ofSeconds(30).toNanos();
-		while (!Files.exists(release)) {
-			if (System.nanoTime() >= deadline)
-				throw new IllegalStateException("Timed out waiting for parent to release concurrent saves");
-			Thread.sleep(20L);
+		try {
+			com.microproject.testsupport.TestAwait.awaitTrue(() -> Files.exists(release), Duration.ofSeconds(30), "parent release");
+		} catch (AssertionError timedOut) {
+			throw new IllegalStateException("Timed out waiting for parent to release concurrent saves");
 		}
 
 		MpoFileImporter writer = switch (crashPoint) {

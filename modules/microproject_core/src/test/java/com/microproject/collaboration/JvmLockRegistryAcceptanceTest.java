@@ -102,10 +102,11 @@ class JvmLockRegistryAcceptanceTest {
 		owner.start();
 		assertTrue(entered.await(5, TimeUnit.SECONDS));
 		waiter.start();
-		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-		while (CollaborationMetadataStore.jvmLockReferenceCountForTests(project.toFile()) < 2
-				&& System.nanoTime() < deadline) {
-			Thread.sleep(1);
+		try {
+			com.microproject.testsupport.TestAwait.awaitTrue(() -> CollaborationMetadataStore.jvmLockReferenceCountForTests(project.toFile()) >= 2,
+					java.time.Duration.ofSeconds(5), "the waiter to join the lock registry");
+		} catch (AssertionError timedOut) {
+			// asserted below
 		}
 		int registeredReferences = CollaborationMetadataStore.jvmLockReferenceCountForTests(project.toFile());
 		release.countDown();
