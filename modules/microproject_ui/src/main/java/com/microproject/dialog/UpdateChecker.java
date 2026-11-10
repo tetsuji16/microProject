@@ -11,6 +11,7 @@ import java.io.InterruptedIOException;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -19,6 +20,7 @@ import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
+import java.util.Set;
 import java.util.stream.Stream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -47,6 +49,10 @@ public final class UpdateChecker {
 	private static final Logger logger = Logger.getLogger(UpdateChecker.class.getName());
 	static final String RELEASES_URL = "https://github.com/tetsuji16/microProject/releases/latest";
 	private static final String API_URL = "https://api.github.com/repos/tetsuji16/microProject/releases/latest";
+	/** The only hosts a release installer may be downloaded from (over https, without user info). */
+	static final Set<String> TRUSTED_DOWNLOAD_HOSTS = Set.of("github.com", "objects.githubusercontent.com",
+			"release-assets.githubusercontent.com");
+	private static final int MAX_DOWNLOAD_REDIRECTS = 5;
 	private static final int TIMEOUT_MILLIS = 5000;
 	private static final int MAX_RELEASE_JSON_BYTES = 1024 * 1024;
 	private static final String STAGING_DIRECTORY_PROPERTY = "microproject.update.staging-directory";
@@ -122,6 +128,10 @@ public final class UpdateChecker {
 						MsiAsset asset = extractMsiAsset(json);
 						if (asset == null) {
 							result = new UpdateResult(current, latest, null);
+						} else if (!isTrustedDownloadUrl(asset.url())) {
+							// Nothing is downloaded; the caller falls back to pointing at the release page.
+							logger.warning("Refusing to download an installer from an untrusted address: " + asset.url());
+							result = new UpdateResult(current, latest.trim(), null);
 						} else {
 							Path installer = stageInstaller(asset, latest.trim());
 							result = new UpdateResult(current, latest.trim(), installer);
@@ -300,11 +310,33 @@ public final class UpdateChecker {
 		return output.toString(StandardCharsets.UTF_8);
 	}
 
-	static Path stageInstaller(MsiAsset asset, String version) throws IOException {
-		return stageInstaller(asset, version, stagingDirectory());
+	/** Whether {@code url} is an https address on a host release installers are published from. */
+	static boolean isTrustedDownloadUrl(String url) {
+		if (url == null) return false;
+		URI uri;
+		try {
+			uri = new URI(url);
+		} catch (URISyntaxException e) {
+			return false;
+		}
+		String host = uri.getHost();
+		return "https".equalsIgnoreCase(uri.getScheme()) && uri.getRawUserInfo() == null
+				&& uri.getRawAuthority() != null && uri.getRawAuthority().indexOf('@') < 0
+				&& (uri.getPort() == -1 || uri.getPort() == 443)
+				&& host != null && TRUSTED_DOWNLOAD_HOSTS.contains(host.toLowerCase(java.util.Locale.ROOT));
 	}
 
+	static Path stageInstaller(MsiAsset asset, String version) throws IOException {
+		return stageInstaller(asset, version, stagingDirectory(), UpdateChecker::isTrustedDownloadUrl);
+	}
+
+	/** Test seam: stages from any address, so tests can serve the installer from a local server. */
 	static Path stageInstaller(MsiAsset asset, String version, Path stagingDirectory) throws IOException {
+		return stageInstaller(asset, version, stagingDirectory, url -> true);
+	}
+
+	static Path stageInstaller(MsiAsset asset, String version, Path stagingDirectory,
+			java.util.function.Predicate<String> trustedUrl) throws IOException {
 		if (asset == null || version == null || version.isBlank() || version.indexOf('\n') >= 0 || version.indexOf('\r') >= 0) {
 			throw new IllegalArgumentException("asset/version");
 		}
@@ -320,12 +352,8 @@ public final class UpdateChecker {
 		Path manifest = manifestPath(installer);
 		String checksum = null;
 		try {
-			HttpURLConnection connection = (HttpURLConnection) URI.create(asset.url()).toURL().openConnection();
+			HttpURLConnection connection = openInstallerConnection(asset.url(), trustedUrl);
 			try {
-				connection.setConnectTimeout(TIMEOUT_MILLIS);
-				connection.setReadTimeout(30000);
-				connection.setInstanceFollowRedirects(true);
-				if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) throw new IOException("Installer download returned HTTP " + connection.getResponseCode());
 				try (InputStream in = connection.getInputStream(); OutputStream out = Files.newOutputStream(part)) {
 					copyDownload(in, out);
 				}
@@ -353,6 +381,39 @@ public final class UpdateChecker {
 			deleteQuietly(part, "partial installer");
 			if (!isCurrentStagedInstaller(installer)) deleteUpdateFiles(new StagedUpdate(installer, manifest, version));
 		}
+	}
+
+	/** Opens the installer address, following redirects by hand so every hop is checked. */
+	private static HttpURLConnection openInstallerConnection(String url, java.util.function.Predicate<String> trustedUrl)
+			throws IOException {
+		String current = url;
+		for (int hop = 0; hop <= MAX_DOWNLOAD_REDIRECTS; hop++) {
+			if (!trustedUrl.test(current)) throw new IOException("Installer address is not trusted: " + current);
+			HttpURLConnection connection = (HttpURLConnection) URI.create(current).toURL().openConnection();
+			boolean keep = false;
+			try {
+				connection.setConnectTimeout(TIMEOUT_MILLIS);
+				connection.setReadTimeout(30000);
+				connection.setInstanceFollowRedirects(false);
+				int code = connection.getResponseCode();
+				if (code == HttpURLConnection.HTTP_OK) {
+					keep = true;
+					return connection;
+				}
+				String location = connection.getHeaderField("Location");
+				boolean redirect = code == HttpURLConnection.HTTP_MOVED_PERM || code == HttpURLConnection.HTTP_MOVED_TEMP
+						|| code == HttpURLConnection.HTTP_SEE_OTHER || code == 307 || code == 308;
+				if (!redirect || location == null) throw new IOException("Installer download returned HTTP " + code);
+				try {
+					current = URI.create(current).resolve(location).toString();
+				} catch (IllegalArgumentException e) {
+					throw new IOException("Installer download redirected to an invalid address", e);
+				}
+			} finally {
+				if (!keep) connection.disconnect();
+			}
+		}
+		throw new IOException("Installer download redirected too many times");
 	}
 
 	private static void copyDownload(InputStream in, OutputStream out) throws IOException {
