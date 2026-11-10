@@ -352,15 +352,21 @@ public class ProjectMergeService {
 		EmbeddedPodXmlInputStream stream = new EmbeddedPodXmlInputStream(
 			new BufferedInputStream(new FileInputStream(fileName), EmbeddedPodXmlInputStream.BUFFER_SIZE),
 			com.microproject.exchange.PodFormatIdentifiers.EMBEDDED_XML_SEPARATOR.getBytes(StandardCharsets.UTF_8));
-		if (!stream.locateSeparator()) {
-			stream.close();
-			logger.log(Level.FINE, "POD XML separator not found: {0} bytes scanned in {1} ms",
-				new Object[] { Long.valueOf(stream.getBytesScanned()), Long.valueOf(elapsedMillis(startedAt)) });
-			return null;
+		boolean handedOff = false;
+		try {
+			if (!stream.locateSeparator()) {
+				logger.log(Level.FINE, "POD XML separator not found: {0} bytes scanned in {1} ms",
+					new Object[] { Long.valueOf(stream.getBytesScanned()), Long.valueOf(elapsedMillis(startedAt)) });
+				return null;
+			}
+			logger.log(Level.FINE, "POD XML separator found: {0} byte file scanned in {1} ms",
+				new Object[] { Long.valueOf(fileSize), Long.valueOf(elapsedMillis(startedAt)) });
+			handedOff = true;
+			return stream;
+		} finally {
+			if (!handedOff)
+				stream.close();
 		}
-		logger.log(Level.FINE, "POD XML separator found: {0} byte file scanned in {1} ms",
-			new Object[] { Long.valueOf(fileSize), Long.valueOf(elapsedMillis(startedAt)) });
-		return stream;
 	}
 
 	private static long elapsedMillis(long startedAt) {

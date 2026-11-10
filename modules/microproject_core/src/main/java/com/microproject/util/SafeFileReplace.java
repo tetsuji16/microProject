@@ -6,10 +6,12 @@ package com.microproject.util;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -50,11 +52,29 @@ public final class SafeFileReplace {
 			return true;
 		}
 		try {
+			forceToDisk(temp.toPath());
+		} catch (IOException e) {
+			logger.log(Level.WARNING, "Could not flush " + temp + " to disk before replacing " + target, e);
+		}
+		try {
 			moveAtomically(temp.toPath(), target.toPath(), true);
 			return true;
 		} catch (IOException e) {
 			logger.log(Level.WARNING, "Safe replace failed: could not move " + temp + " onto " + target, e);
 			return false;
+		}
+	}
+
+	/**
+	 * Forces the content and metadata of {@code file} to the storage device.
+	 *
+	 * <p>An atomic move only makes the directory entry switch atomically. Unless
+	 * the temporary file was forced first, a power loss shortly after the move can
+	 * leave the target with the new name and empty or partial content.
+	 */
+	public static void forceToDisk(Path file) throws IOException {
+		try (FileChannel channel = FileChannel.open(file, StandardOpenOption.WRITE)) {
+			channel.force(true);
 		}
 	}
 

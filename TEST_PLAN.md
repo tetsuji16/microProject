@@ -1,8 +1,8 @@
-# ProjectLibre テストプラン
+# microProject テストプラン
 
 ## 1. テスト目的・背景
 
-このリポジトリは ProjectLibre デスクトップアプリの開発フォークで、主な品質保証対象は以下です。
+このリポジトリは microProject デスクトップアプリを開発しており、主な品質保証対象は以下です。
 
 - プロジェクト計画データの読込/保存/再読込が破損なく行えること
 - `MPP / XML / MPX / Planner / XLSX / POD` の交換経路と形式別の保証範囲。MPP は現時点で import の部分実装のみを確認しており、MPP export は未実装として追跡する（[形式別監査](docs/MSP_STANDARD_COMMAND_INVENTORY.md#file-format-coverage-at-current-master)）
@@ -54,6 +54,32 @@ MS Project 互換性に関する形式テストでは read と write を独立�
 | 子 modal を閉じた後のモデルレス親への Escape | AssignmentDialogGuiAcceptanceTest。active window と focus owner の復帰を先に検証 |
 | ベータ起動が安定版 feed を取得せず、ファイル引数を保持 | BootstrapUpdateTest の loopback feed hit=0 契約、AppImage launcher config 検査 |
 | ダイアログの実際の重なり・文字欠け | 既存共有 assertion。FlatLaf JSpinner の縦 stepper 同士が共有する1px境界だけ除外 |
+
+## 1.3 issue に書く試験条件
+
+issue の「検証」と PR の説明には、変更の種類に合う行のコマンドを書く。狭いコマンドを先に実行し、通ってから広いコマンドを実行する。表にない種類の変更は、最も近い行を選び、選んだ理由を issue に書く。
+
+| 変更の種類 | 必ず実行する | 追加で実行する条件 |
+|---|---|---|
+| core の計算、モデル、ユーティリティ | 変更したクラスのテスト：`.\gradlew.bat :microproject_core:test --tests "<クラス>" --console=plain`、次に `:microproject_core:test` | 公開メソッドの動作を変えたら、呼び出し側のモジュールの `test` |
+| 開く、保存、復元の手順（application） | `:microproject_application:test` | 保存の形式に触れたら、下の「ファイル形式」の行 |
+| ファイル形式の読み書き（exchange、MPO / MPP / POD / XML） | `:microproject_exchange:test`。保存して読み直すテスト（round-trip）を 1 件以上、追加または更新する | POD は、既存の fixture のバイト列が変わらないことを確かめる。MPO は、過去のバージョンの fixture が読めることを確かめる |
+| Swing の部品、ダイアログ（画面の経路は変えない） | 変更したクラスのテスト、次に `:microproject_ui:test` | 文言やレイアウトを変えたら、日本語と英語の表示を確かめる |
+| 利用者が操作する経路（メニュー、リボン、ショートカット、表の編集） | 上の行に加えて、`docs/gui-quality-gate.md` の手順。PR の必須チェック `GUI acceptance` が通ること | 入力の方法を増やしたら、`@GuiJourney` を 1 件足す。同じ経路の重複は足さない |
+| 起動、更新（bootstrap） | `:microproject_bootstrap:test` | 配布物の構成を変えたら、`.\gradlew.bat clean build installDist --console=plain` |
+| ビルド、CI、依存関係 | `.\gradlew.bat build --console=plain`。ワークフローを変えたら、PR 上で、そのワークフローが実際に動いた結果を確かめる | 依存を足したら、`verifyDependencyAllowlist` |
+| パッケージ名、モジュールの境界 | `.\gradlew.bat verifyArchitectureBoundaries verifyArchitectureBoundaryFixtures verifyNamingConventions --console=plain` | なし |
+| `scripts/` の保守スクリプト | `python -m unittest discover -s scripts/tests`、`python scripts/test_source_inventory.py --check --output build/audit/test-source-inventory.json` | なし |
+| 文書だけ | `git diff --check` | リンクを足したら、リンク先のファイルと見出しがあることを確かめる |
+
+すべての変更に共通する条件：
+
+- 不具合の修正には、修正の前に失敗し、修正の後に通るテストを 1 件付ける。付けられないときは、理由を PR に書く。
+- テストを追加、削除、移動したら、`python scripts/test_source_inventory.py --check --output build/audit/test-source-inventory.json` が通ることを確かめる。
+- `git diff --check` が空であること。
+- 完了を報告するときは、実行したコマンドと結果（終了コード、失敗したテストの名前）を書く。実行していない確認は「未実行」と書く。
+- テストが 1 つの OS だけで失敗したら、再実行する前に、ほかの OS の結果を見る。同じテストが 2 回失敗したら、再実行をやめて原因を調べる。
+- テストを無効にする、期待値を弱める、待ち時間を延ばすだけの変更で通さない。必要なら、別の issue にして理由を書く。
 
 ## 2. 対象コンポーネント / 関数一覧
 

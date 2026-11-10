@@ -23,6 +23,9 @@
  *******************************************************************************/
 package com.microproject.datatype;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -38,5 +41,28 @@ class RateComparisonTest {
 	void comparisonDoesNotOverflowForLargeRates() {
 		assertTrue(new Rate(-1.0e20).compareTo(new Rate(1.0e20)) < 0);
 		assertTrue(new Rate(1.0e20).compareTo(new Rate(-1.0e20)) > 0);
+	}
+
+	@Test
+	void ratesWithDifferentTimeUnitsAreNotEqual() {
+		Rate perHour = new Rate(1.0, TimeUnit.HOURS);
+		Rate perDay = new Rate(1.0, TimeUnit.DAYS);
+		assertNotEquals(perHour, perDay);
+		assertNotEquals(perDay, perHour);
+		assertTrue(perHour.compareTo(perDay) != 0);
+		assertEquals(-Integer.signum(perHour.compareTo(perDay)), Integer.signum(perDay.compareTo(perHour)));
+	}
+
+	@Test
+	void equalRatesHaveEqualHashCodesAndEqualsIsSymmetric() {
+		Rate a = new Rate(2.5, TimeUnit.HOURS);
+		Rate b = new Rate(2.5, TimeUnit.HOURS);
+		assertEquals(a, b);
+		assertEquals(b, a);
+		assertEquals(a.hashCode(), b.hashCode());
+		assertEquals(0, a.compareTo(b));
+		assertFalse(a.equals(null));
+		assertFalse(a.equals("2.5"));
+		assertNotEquals(a, new Rate(3.0, TimeUnit.HOURS));
 	}
 }

@@ -70,7 +70,24 @@ public final class Rate implements Comparable, Serializable, Cloneable {
 	public int compareTo(Object arg0) {
 		if (!(arg0 instanceof Rate rate))
 			throw new IllegalArgumentException();
-		return Double.compare(value, rate.value);
+		int result = Double.compare(value, rate.value);
+		if (result != 0)
+			return result;
+		return Integer.compare(timeUnit, rate.timeUnit);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (!(obj instanceof Rate rate))
+			return false;
+		return compareTo(rate) == 0;
+	}
+
+	@Override
+	public int hashCode() {
+		return 31 * Double.hashCode(value) + timeUnit;
 	}
 	
 	public String toString() {

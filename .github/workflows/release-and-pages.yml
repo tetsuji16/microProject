@@ -52,17 +52,17 @@ jobs:
           - os: macos-latest
             platform: macos-aarch64
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Install fonts used by report rendering tests
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install --yes fonts-noto-cjk
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
           java-version: '25'
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@48b5f213c81028ace310571dc5ec0fbbca0b2947 # v4
       - name: Derive package version
         id: version
         shell: bash
@@ -116,14 +116,14 @@ jobs:
           test -d "$root/microProject.app"
           (cd "$root" && ditto -c -k --sequesterRsrc --keepParent microProject.app "microProject-${{ steps.version.outputs.release_version }}-macos-aarch64.zip")
       - name: Upload OS package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: package-${{ matrix.platform }}
           path: build/releases/v${{ steps.version.outputs.release_version }}/microProject-*-*.zip
           if-no-files-found: error
       - name: Upload failed Gradle test reports
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: failed-gradle-test-reports-${{ matrix.platform }}-${{ github.run_id }}
           if-no-files-found: warn
@@ -143,14 +143,14 @@ jobs:
       release_tag: ${{ steps.version.outputs.release_tag }}
       prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
           java-version: '25'
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@48b5f213c81028ace310571dc5ec0fbbca0b2947 # v4
 
       - name: Install WiX
         shell: pwsh
@@ -264,7 +264,7 @@ jobs:
 
       - name: Upload GUI acceptance evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: gui-acceptance-evidence-${{ github.run_id }}
           if-no-files-found: warn
@@ -311,7 +311,7 @@ jobs:
 
       - name: Download Linux and macOS packages
         if: ${{ needs.unix-packages.result == 'success' }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: package-*
           path: unix-packages
@@ -361,7 +361,7 @@ jobs:
 
       - name: Create GitHub release
         if: ${{ success() }}
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: ${{ steps.version.outputs.release_tag }}
           name: microProject ${{ steps.version.outputs.release_tag }}
@@ -379,20 +379,21 @@ jobs:
     # must not request a deployment from the protected github-pages environment.
     if: ${{ github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Configure Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: pages-redirect
 
       - name: Deploy Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

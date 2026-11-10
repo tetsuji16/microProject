@@ -24,12 +24,16 @@
 package com.microproject.core.util;
 
 import java.lang.reflect.InvocationTargetException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * @author Laurent Chretienneau
  *
  */
 public class ResourceUtil {
+	private static final Logger logger = Logger.getLogger(ResourceUtil.class.getName());
+
 	public static ClassLoader getClassLoader(){
 		return ResourceUtil.class.getClassLoader();
 	}
@@ -40,9 +44,8 @@ public class ResourceUtil {
 				Class<?> c=Class.forName(p+"."+simpleClassName, true, getClassLoader());
 				return c.getDeclaredConstructor().newInstance();
 			} catch (ClassNotFoundException e) {
-			} catch (InstantiationException e) {
-			} catch (IllegalAccessException e) {
-			} catch (NoSuchMethodException e) {
+			} catch (InstantiationException | IllegalAccessException | NoSuchMethodException e) {
+				logger.log(Level.WARNING, "Failed to instantiate " + p + "." + simpleClassName, e);
 			} catch (InvocationTargetException e) {
 				return ResourceUtil.<RuntimeException>rethrow(e.getCause());
 			}

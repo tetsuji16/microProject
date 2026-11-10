@@ -45,6 +45,7 @@ import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -554,44 +555,54 @@ public final class LocaleDialog extends AbstractDialog {
         externalList.setEnabled(false);
 	}
 	
-	public void exportResourceFile(Class sibling, String file) {
-        File generatedDir=ConfigurationFile.getGeneratedDirectory(directoryField.getText());
-        if (generatedDir==null)
-        	return;
-		
-        ClassLoader cl = getClass().getClassLoader();
-        	try (InputStream in = sibling.getResourceAsStream(file+".properties")) {
-            	if (in == null)
-                	throw new FileNotFoundException();
-            
-            	byte[] buf = new byte[in.available()];
-            	in.read(buf);
-            	File target = new File(generatedDir,file+".properties");
-            	try (OutputStream out = new FileOutputStream(target)) {
-                	out.write(buf);
-            	}
-            } catch (IOException e) {
-        }
-    }
-	public void exportResourceFileUTF8(Class sibling, String file) {
-        File generatedDir=ConfigurationFile.getExportDirectory(directoryField.getText());
-        if (generatedDir==null)
-        	return;
-		
-        ClassLoader cl = getClass().getClassLoader();
-        try {
-        	InputStream in = sibling.getResourceAsStream(file+".properties");        	
-            if (in == null)
-            	throw new FileNotFoundException();
-            
-            String text=getFileContent(in, "ISO-8859-1",true);
-            File target = new File(generatedDir,file+".txt");
-            FileWriter out = new FileWriter(target);
-            out.write(text);
-            out.close();            	   
-        } catch (IOException e) {
-        }
-    }
+	/** Copies the bundled resource to {@code target}; throws if the resource is missing or the copy fails. */
+	static void copyResource(InputStream in, File target) throws IOException {
+		if (in == null)
+			throw new FileNotFoundException();
+		byte[] bytes = in.readAllBytes();
+		Files.write(target.toPath(), bytes);
+	}
+
+	private void reportExportFailure(String file, IOException e) {
+		logger.log(Level.WARNING, "Failed to export locale resource " + file, e);
+		displayMessage(Messages.getString("Message.badLocaleDirectory"));
+	}
+
+	/** @return true when the resource was written; failures are logged and shown in the dialog. */
+	public boolean exportResourceFile(Class sibling, String file) {
+		File generatedDir=ConfigurationFile.getGeneratedDirectory(directoryField.getText());
+		if (generatedDir==null)
+			return false;
+
+		try (InputStream in = sibling.getResourceAsStream(file+".properties")) {
+			copyResource(in, new File(generatedDir,file+".properties"));
+			return true;
+		} catch (IOException e) {
+			reportExportFailure(file, e);
+			return false;
+		}
+	}
+	/** @return true when the resource was written; failures are logged and shown in the dialog. */
+	public boolean exportResourceFileUTF8(Class sibling, String file) {
+		File generatedDir=ConfigurationFile.getExportDirectory(directoryField.getText());
+		if (generatedDir==null)
+			return false;
+
+		try (InputStream in = sibling.getResourceAsStream(file+".properties")) {
+			if (in == null)
+				throw new FileNotFoundException();
+
+			String text=getFileContent(in, "ISO-8859-1",true);
+			File target = new File(generatedDir,file+".txt");
+			try (FileWriter out = new FileWriter(target)) {
+				out.write(text);
+			}
+			return true;
+		} catch (IOException e) {
+			reportExportFailure(file, e);
+			return false;
+		}
+	}
 	
 	public void refreshFiles() {
 		files.clear();

@@ -46,6 +46,15 @@ class BrowserControlTest {
 	}
 
 	@Test
+	void doesNotHandRejectedAddressesToLauncher() {
+		String[] openedUrl = new String[1];
+		BrowserControl.setBrowserLauncher(url -> openedUrl[0] = url);
+
+		assertEquals(false, BrowserControl.displayURL("ms-msdt:/id"));
+		assertEquals(null, openedUrl[0]);
+	}
+
+	@Test
 	void doesNothingWhenNoDesktopLauncherIsInstalled() {
 		BrowserControl.setBrowserLauncher(null);
 
