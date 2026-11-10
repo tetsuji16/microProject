@@ -2742,15 +2742,19 @@ public class MpoFileImporter extends FileImporter {
 		}
 	}
 
-	private static long rewriteExtractedProjectReferences(Path extractedFile,
+	static long rewriteExtractedProjectReferences(Path extractedFile,
 			java.util.Map<String, String> extractedBySource) throws IOException {
 		java.util.Map<String, byte[]> entries = new java.util.LinkedHashMap<String, byte[]>();
+		int[] totalBytes = new int[1];
+		int entryCount = 0;
 		try (ZipInputStream zip = new ZipInputStream(Files.newInputStream(extractedFile), StandardCharsets.UTF_8)) {
 			ZipEntry entry;
 			while ((entry = zip.getNextEntry()) != null) {
+				if (++entryCount > MpoArchiveBudgetValidator.DEFAULT_BUDGET.maxEntries())
+					throw new IOException("Embedded project exceeds " + MpoArchiveBudgetValidator.DEFAULT_BUDGET.maxEntries() + " entries");
 				MpoArchiveBudgetValidator.validateEntryName(entry.getName(), MpoArchiveBudgetValidator.DEFAULT_BUDGET);
 				if (entry.isDirectory()) continue;
-				entries.put(entry.getName(), zip.readAllBytes());
+				entries.put(entry.getName(), readEntry(zip, totalBytes));
 			}
 		}
 		byte[] projectXml = entries.get(PROJECT_ENTRY);
