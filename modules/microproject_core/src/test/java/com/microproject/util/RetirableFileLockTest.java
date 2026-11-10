@@ -101,6 +101,7 @@ class RetirableFileLockTest {
 			for (int round = 0; round < ROUNDS; round++) {
 				try (RetirableFileLock lock = RetirableFileLock.acquire(marker, FileChannel::lock)) {
 					int value = Integer.parseInt(Files.readString(counter));
+					// Fixed sleep kept: widens the critical section on purpose so a broken lock loses an update.
 					Thread.sleep(1L);
 					Files.writeString(counter, Integer.toString(value + 1));
 					lock.retire();

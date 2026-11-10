@@ -99,6 +99,7 @@ public final class WindowAcceptanceAssertions {
 				if (last.showing() && last.enabled() == expectedEnabled && isInside(last.localMouse(), last.size()))
 					break;
 			}
+			// Fixed sleep kept: the loop re-moves the Robot pointer every pass and cannot be a pure condition wait.
 			Thread.sleep(25);
 			last = pointerSnapshot(component);
 			appendPointerTransition(observedTransitions, previous, last);

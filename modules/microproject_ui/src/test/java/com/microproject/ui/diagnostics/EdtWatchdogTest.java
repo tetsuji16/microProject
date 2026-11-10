@@ -60,11 +60,13 @@ class EdtWatchdogTest {
 				assertTrue(dump.get().contains("AWT-EventQueue #"));
 				assertTrue(dump.get().contains("Thread #" + namedThread.threadId()));
 				assertFalse(dump.get().contains("secret-C:"));
+				// Fixed sleep kept: blocks the EDT for a set time to exceed the watchdog threshold.
 				Thread.sleep(400);
 				assertEquals(1, reports.get());
 			}
 			release.countDown();
 			EventQueue.invokeAndWait(() -> { });
+			// Fixed sleep kept: elapsed time is what the watchdog threshold measures.
 			Thread.sleep(350);
 			assertEquals(1, reports.get());
 		} finally {
@@ -120,6 +122,7 @@ class EdtWatchdogTest {
 			}
 			try (EdtWatchdog watchdog = EdtWatchdog.start(150)) {
 				assertTrue(report.await(5, TimeUnit.SECONDS));
+				// Fixed sleep kept: blocks the EDT for a set time to exceed the watchdog threshold.
 				Thread.sleep(500);
 				assertEquals(1, reports.get());
 			}
@@ -150,6 +153,7 @@ class EdtWatchdogTest {
 		logger.addHandler(handler);
 		try (EdtWatchdog watchdog = EdtWatchdog.start(250)) {
 			EventQueue.invokeAndWait(() -> { });
+			// Fixed sleep kept: elapsed time is what the watchdog threshold measures.
 			Thread.sleep(600);
 			assertEquals(0, reports.get());
 		} finally {

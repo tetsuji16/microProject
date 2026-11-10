@@ -27,6 +27,8 @@ slf4j = "2.0.17"
 slf4j-simple = "2.0.17"
 logback = "1.5.18"
 log4j = "2.24.3"
+junit-bom = "5.10.2"
+junit4 = "4.13.2"
 update4j = "1.5.9"
 
 [libraries]
@@ -58,6 +60,9 @@ jfreechart = { module = "org.jfree:jfreechart", version.ref = "jfreechart" }
 org-netbeans-swing-outline = { module = "org.netbeans.api:org-netbeans-swing-outline", version.ref = "netbeans" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "log4j" }
+log4j-to-slf4j = { module = "org.apache.logging.log4j:log4j-to-slf4j", version.ref = "log4j" }
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit-bom" }
+junit4 = { module = "junit:junit", version.ref = "junit4" }
 mpxj = { module = "net.sf.mpxj:mpxj", version.ref = "mpxj" }
 pdfbox = { module = "org.apache.pdfbox:pdfbox", version.ref = "pdfbox" }
 poi = { module = "org.apache.poi:poi", version.ref = "poi" }

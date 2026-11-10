@@ -3,7 +3,7 @@ dependencies {
     implementation(project(":microproject_core"))
     implementation(libs.commons.csv)
     implementation(libs.slf4j.api)
-    testImplementation(platform("org.junit:junit-bom:5.10.2"))
+    testImplementation(platform(libs.junit.bom))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

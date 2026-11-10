@@ -1604,7 +1604,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		clickCell(robot, fixture.sheet, taskRow, column);
 		GuiAcceptanceSupport.await(() -> fixture.sheet.getSelectedRow() == taskRow, "clicking the cell did not select its row");
 		assertFalse(fixture.sheet.isEditing(), "a click on a cell that is not active only selects it");
-		Thread.sleep(900); // past the multi-click interval so the next click is a new single click
+		GuiAcceptanceSupport.awaitMultiClickIntervalElapsed(robot); // so the next click is a new single click
 		clickCell(robot, fixture.sheet, taskRow, column);
 		JComboBox<?> list = awaitTaskModeList(fixture.sheet);
 		GuiAcceptanceSupport.await(list::isPopupVisible, "a click on the active Task Mode cell did not open the list");
@@ -1656,7 +1656,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		// The highlight starts on the current value (Auto Scheduled, second item): Up moves to Manually Scheduled.
 		robot.keyPress(KeyEvent.VK_UP);
 		robot.keyRelease(KeyEvent.VK_UP);
-		Thread.sleep(200);
+		GuiAcceptanceSupport.awaitInputAndEventQueueIdle(robot, "the list highlight to move up");
 		robot.keyPress(KeyEvent.VK_ENTER);
 		robot.keyRelease(KeyEvent.VK_ENTER);
 		GuiAcceptanceSupport.await(() -> task.isManuallyScheduled(), "arrow plus Enter did not choose Manually Scheduled");
@@ -1673,7 +1673,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		robot.keyRelease(KeyEvent.VK_N);
 		JComboBox<?> typedList = awaitTaskModeList(fixture.sheet);
 		GuiAcceptanceSupport.await(typedList::isPopupVisible, "a typed character did not open the Task Mode list");
-		Thread.sleep(300);
+		GuiAcceptanceSupport.awaitInputAndEventQueueIdle(robot, "the typed list highlight to settle");
 		robot.keyPress(KeyEvent.VK_ENTER);
 		robot.keyRelease(KeyEvent.VK_ENTER);
 		GuiAcceptanceSupport.await(() -> !task.isManuallyScheduled(), "typing n plus Enter did not choose Auto Scheduled");
@@ -1816,6 +1816,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		// Wait until the screen is repainted and two consecutive captures agree.
 		BufferedImage previous = robot.createScreenCapture(area[0]);
 		for (int attempt = 0; attempt < 30; attempt++) {
+			// Fixed sleep kept: sampling interval between two screen captures that must agree.
 			Thread.sleep(100);
 			BufferedImage current = robot.createScreenCapture(area[0]);
 			if (countDifferent(previous, current) == 0) return current;

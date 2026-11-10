@@ -441,6 +441,7 @@ class MpoTransactionBoundaryTest {
 		Thread editor = new Thread(() -> {
 			while (!stop.get()) {
 				localTask.setName("edit " + edits.incrementAndGet());
+				// Fixed sleep kept: paces a background editor so it keeps mutating while the save runs.
 				try { Thread.sleep(5L); } catch (InterruptedException interrupted) { return; }
 			}
 		});

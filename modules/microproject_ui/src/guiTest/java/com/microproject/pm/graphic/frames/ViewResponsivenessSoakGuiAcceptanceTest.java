@@ -203,12 +203,13 @@ class ViewResponsivenessSoakGuiAcceptanceTest {
 	}
 
 	private boolean selectedWithin(SpreadSheet sheet, int row, long millis) throws Exception {
-		long end = System.currentTimeMillis() + millis;
-		while (System.currentTimeMillis() < end) {
-			if (Integer.valueOf(row).equals(onEdtQuiet(sheet::getSelectedRow))) return true;
-			Thread.sleep(50);
+		try {
+			com.microproject.testsupport.TestAwait.awaitTrue(() -> Integer.valueOf(row).equals(onEdtQuiet(sheet::getSelectedRow)),
+				java.time.Duration.ofMillis(millis), "row " + row + " to be selected");
+			return true;
+		} catch (AssertionError timedOut) {
+			return false;
 		}
-		return false;
 	}
 
 	private String describeMiss(Robot robot, SpreadSheet sheet, int row, int cycle, int rows) throws Exception {
@@ -239,7 +240,7 @@ class ViewResponsivenessSoakGuiAcceptanceTest {
 
 	private void clickCell(Robot robot, SpreadSheet sheet, int[] cell) throws Exception {
 		// Keep repeated clicks on one screen spot from registering as a double-click.
-		Thread.sleep(800);
+		GuiAcceptanceSupport.awaitMultiClickIntervalElapsed(robot);
 		Rectangle[] r = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> {
 			sheet.scrollRectToVisible(sheet.getCellRect(cell[0], cell[1], true));
@@ -266,8 +267,12 @@ class ViewResponsivenessSoakGuiAcceptanceTest {
 		String previous = onEdt(task::getName);
 		robot.keyPress(KeyEvent.VK_F2);
 		robot.keyRelease(KeyEvent.VK_F2);
-		long editDeadline = System.currentTimeMillis() + 5_000;
-		while (!Boolean.TRUE.equals(onEdtQuiet(sheet::isEditing)) && System.currentTimeMillis() < editDeadline) Thread.sleep(50);
+		try {
+			com.microproject.testsupport.TestAwait.awaitTrue(() -> Boolean.TRUE.equals(onEdtQuiet(sheet::isEditing)), java.time.Duration.ofSeconds(5),
+				"the sheet to enter edit mode");
+		} catch (AssertionError timedOut) {
+			// the miss is recorded below
+		}
 		if (!Boolean.TRUE.equals(onEdtQuiet(sheet::isEditing))) {
 			String line = "F2 task=" + previous + " summary=" + onEdt(task::isWbsParent) + " editable=" + onEdt(() -> sheet.isCellEditable(cell[0], cell[1]))
 				+ " " + describeMiss(robot, sheet, cell[0], 0, onEdt(sheet::getRowCount));

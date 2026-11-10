@@ -242,8 +242,11 @@ class UnsavedSubprojectRefreshGuiAcceptanceTest {
 	}
 
 	private static void awaitCompletion(AtomicBoolean completed, String message) throws Exception {
-		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(20);
-		while (!completed.get() && System.nanoTime() < deadline) Thread.sleep(25);
+		try {
+			com.microproject.testsupport.TestAwait.awaitTrue(completed::get, java.time.Duration.ofSeconds(20), message);
+		} catch (AssertionError timedOut) {
+			// asserted below
+		}
 		assertTrue(completed.get(), message);
 	}
 

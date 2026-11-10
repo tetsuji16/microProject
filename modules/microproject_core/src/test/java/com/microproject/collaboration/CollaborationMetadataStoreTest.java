@@ -252,6 +252,7 @@ class CollaborationMetadataStoreTest {
 			FileInputStream scanner = new FileInputStream((holdSidecar ? sidecar : marker).toFile());
 			Thread finishes = new Thread(() -> {
 				try {
+					// Fixed sleep kept: the test needs the scanner handle to stay open for a real time span.
 					Thread.sleep(500L);
 					scanner.close();
 				} catch (InterruptedException | IOException stopped) {

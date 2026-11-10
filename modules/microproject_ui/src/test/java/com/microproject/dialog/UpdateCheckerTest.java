@@ -375,6 +375,7 @@ class UpdateCheckerTest {
 		server = HttpServer.create(new InetSocketAddress(0), 0);
 		server.createContext("/release", exchange -> {
 			try {
+				// Fixed sleep kept: simulates a slow server response.
 				if (delayMillis > 0) Thread.sleep(delayMillis);
 				byte[] response = body.getBytes(StandardCharsets.UTF_8);
 				exchange.sendResponseHeaders(status, response.length);
