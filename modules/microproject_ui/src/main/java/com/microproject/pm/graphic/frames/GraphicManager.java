@@ -35,7 +35,6 @@ import java.awt.event.KeyEvent;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowStateListener;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -160,6 +159,7 @@ import com.microproject.pm.graphic.frames.workspace.NamedFrame;
 import com.microproject.pm.graphic.frames.workspace.NamedFrameEvent;
 import com.microproject.pm.graphic.frames.workspace.NamedFrameListener;
 import com.microproject.pm.graphic.laf.LafManager;
+import com.microproject.pm.graphic.laf.LafManagerImpl;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeEvent;
@@ -390,27 +390,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	public LafManager getLafManager(){
-		if (lafManager==null){
-			try {
-				String lafName=Messages.getMetaString("LafManager");
-				lafManager=(LafManager)Class.forName(lafName).getConstructor(GraphicManager.class).newInstance(this);
-			} catch (IllegalArgumentException e) {
-				logger.log(Level.WARNING, "Failed to instantiate LAF manager", e);
-			} catch (SecurityException e) {
-				logger.log(Level.WARNING, "Failed to instantiate LAF manager", e);
-			} catch (InstantiationException e) {
-				logger.log(Level.WARNING, "Failed to instantiate LAF manager", e);
-			} catch (IllegalAccessException e) {
-				logger.log(Level.WARNING, "Failed to instantiate LAF manager", e);
-			} catch (InvocationTargetException e) {
-				logger.log(Level.WARNING, "Failed to instantiate LAF manager", e);
-			} catch (NoSuchMethodException e) {
-				logger.log(Level.WARNING, "Failed to instantiate LAF manager", e);
-			} catch (ClassNotFoundException e) {
-				logger.log(Level.WARNING, "Failed to instantiate LAF manager", e);
-			}
-			//lafManager=new LafManager(this);
-		}
+		if (lafManager==null)
+			lafManager=new LafManagerImpl(this);
 		return lafManager;
 	}
 
