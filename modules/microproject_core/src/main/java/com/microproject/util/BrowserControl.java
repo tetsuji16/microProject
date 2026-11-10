@@ -41,9 +41,18 @@ public final class BrowserControl {
 		browserLauncher = launcher;
 	}
 
-	public static void displayURL(String url) {
+	/**
+	 * Opens {@code url} unless {@link ExternalLinkPolicy} rejects it.
+	 *
+	 * @return {@code true} if the address was handed to the installed launcher
+	 */
+	public static boolean displayURL(String url) {
+		if (ExternalLinkPolicy.classify(url) == ExternalLinkPolicy.Decision.REJECT)
+			return false;
 		BrowserLauncher currentLauncher = browserLauncher;
-		if (currentLauncher != null)
-			currentLauncher.displayURL(url);
+		if (currentLauncher == null)
+			return false;
+		currentLauncher.displayURL(url);
+		return true;
 	}
 }

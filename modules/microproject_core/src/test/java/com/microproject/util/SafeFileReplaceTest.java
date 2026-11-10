@@ -83,4 +83,19 @@ class SafeFileReplaceTest {
 		assertTrue(SafeFileReplace.replace(f, f));
 		assertEquals("DATA", read(f));
 	}
+
+	@Test
+	void forceToDiskKeepsContentAndRejectsMissingFile() throws Exception {
+		java.nio.file.Path dir = java.nio.file.Files.createTempDirectory("force-to-disk");
+		java.nio.file.Path file = dir.resolve("plan.tmp");
+		java.nio.file.Files.writeString(file, "content");
+
+		SafeFileReplace.forceToDisk(file);
+
+		org.junit.jupiter.api.Assertions.assertEquals("content", java.nio.file.Files.readString(file));
+		org.junit.jupiter.api.Assertions.assertThrows(java.io.IOException.class,
+				() -> SafeFileReplace.forceToDisk(dir.resolve("missing.tmp")));
+		java.nio.file.Files.delete(file);
+		java.nio.file.Files.delete(dir);
+	}
 }
