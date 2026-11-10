@@ -36,22 +36,30 @@ public class Mutex {
 	}
 
 	public synchronized void waitUntilUnlocked(){
+		boolean interrupted=false;
 		while (locked){
 			try {
 				wait();
 			} catch (InterruptedException e) {
+				interrupted=true; // keep waiting, restore the flag once done so the wait does not spin
 			}
 		}
+		if (interrupted)
+			Thread.currentThread().interrupt();
 	}
 	
 	public synchronized void waitAndLock(){
+		boolean interrupted=false;
 		while (locked){
 			try {
 				wait();
 			} catch (InterruptedException e) {
+				interrupted=true; // keep waiting, restore the flag once done so the wait does not spin
 			}
 		}
 		locked=true;
+		if (interrupted)
+			Thread.currentThread().interrupt();
 	}
 	
 	public synchronized void lock(){
