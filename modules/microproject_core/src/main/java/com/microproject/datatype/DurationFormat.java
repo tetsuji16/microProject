@@ -46,40 +46,30 @@ public class DurationFormat extends Format {
 	private final boolean showPlusSign;
 	private final boolean isWork;
 	private final boolean canBeNonTemporal;
-	private static Format instance = null;
+	private static final class Holder {
+		static final DurationFormat INSTANCE = new DurationFormat(false, false, false);
+		static final DurationFormat PROJECT_INSTANCE = new DurationFormat(false, false, false);
+		static final DurationFormat SIGNED_INSTANCE = new DurationFormat(true, false, false);
+		static final DurationFormat WORK_INSTANCE = new DurationFormat(false, true, false);
+		static final DurationFormat NON_TEMPORAL_WORK_INSTANCE = new DurationFormat(false, true, true);
+	}
 	public static Format getInstance() {
-		if (instance == null)
-			instance = new DurationFormat(false, false, false);
-		return instance;
+		return Holder.INSTANCE;
 	}
 
-	private static DurationFormat projectInstance = null;
 	/** Returns the stateless formatter used with explicit per-project defaults. */
 	public static DurationFormat getProjectInstance() {
-		if (projectInstance == null)
-			projectInstance = new DurationFormat(false, false, false);
-		return projectInstance;
+		return Holder.PROJECT_INSTANCE;
 	}
-	private static Format signedInstance = null;
 	public static Format getSignedInstance() {
-		if (signedInstance == null)
-			signedInstance = new DurationFormat(true, false, false);
-		return signedInstance;
+		return Holder.SIGNED_INSTANCE;
 	}
-	private static Format workInstance = null;
 	public static Format getWorkInstance() {
-		if (workInstance == null) {
-			workInstance = new DurationFormat(false, true, false);
-		}
-		return workInstance;
+		return Holder.WORK_INSTANCE;
 	}
-	
-	private static Format nonTemporalWorkInstance = null;
+
 	public static Format getNonTemporalWorkInstance() {
-		if (nonTemporalWorkInstance == null) {
-			nonTemporalWorkInstance = new DurationFormat(false, true, true);
-		}
-		return nonTemporalWorkInstance;
+		return Holder.NON_TEMPORAL_WORK_INSTANCE;
 	}
 	
 	private static final int SINGULAR = 0;

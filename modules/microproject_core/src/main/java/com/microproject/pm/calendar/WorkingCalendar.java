@@ -482,7 +482,7 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 	// (positive) object ids.
 	private static final long STANDARD_CALENDAR_UNIQUE_ID_BASE = -1_000_000L;
 
-	static WorkingCalendar getStandardInstance() {
+	static synchronized WorkingCalendar getStandardInstance() {
 		if (standardInstance != null)
 			return standardInstance;
 
@@ -509,7 +509,7 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 		return standardInstance;
 
 	}
-	static WorkingCalendar getDefaultInstance() {
+	static synchronized WorkingCalendar getDefaultInstance() {
 		if (defaultInstance != null)
 			return defaultInstance;
 
@@ -526,7 +526,7 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 		return defaultInstance;
 	}
 	private static WorkingCalendar _24HoursInstance = null;
-	static WorkingCalendar get24HoursInstance() {
+	static synchronized WorkingCalendar get24HoursInstance() {
 		if (_24HoursInstance != null)
 			return _24HoursInstance;
 		_24HoursInstance = getStandardBasedInstance();
@@ -550,7 +550,7 @@ public class WorkingCalendar implements WorkCalendar,  Serializable, Comparable 
 	}
 
 	private static WorkingCalendar nightShiftInstance = null;
-	static WorkingCalendar getNightShiftInstance() {
+	static synchronized WorkingCalendar getNightShiftInstance() {
 		if (nightShiftInstance != null)
 			return nightShiftInstance;
 		nightShiftInstance = WorkingCalendar.getStandardBasedInstance();
