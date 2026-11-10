@@ -33,7 +33,7 @@ Read the relevant section below when the task involves issue execution, Microsof
 ## Start here
 
 For stabilization work, follow `docs/gui-recovery-sequence.md` and do not bypass an earlier shared-cause phase for a later cosmetic symptom.
-For issue execution, follow [`docs/issue-execution.md`](issue-execution.md)
+For writing, labelling, and triaging issues, follow [`docs/issue-authoring.md`](issue-authoring.md). For issue execution, follow [`docs/issue-execution.md`](issue-execution.md)
 and keep one current-state packet per issue in `docs/work/`. Freeze the full
 acceptance contract at intake; work one finite slice at a time and never close
 by deferring a failed original criterion. The main agent coordinates the work and

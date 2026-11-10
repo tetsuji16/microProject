@@ -1,8 +1,8 @@
-# ProjectLibre agent guide
+# microProject agent guide
 
 ## Instruction hierarchy
 
-This is the authoritative repository instruction set. Read `docs/agent-workflows.md` before issue execution, Microsoft compatibility decisions, GUI/ribbon work, refactoring, verification, file-format or persistence changes, generated-output changes, desktop runs, or packaging/release. `TEST_PLAN.md` records the regression matrix; do not add copy-pasted cases instead of consolidating duplicate behavior. GUI requirements remain in `docs/gui-quality-gate.md` and `docs/gui-recovery-sequence.md`.
+This is the authoritative repository instruction set. Read `docs/agent-workflows.md` before issue execution, Microsoft compatibility decisions, GUI/ribbon work, refactoring, verification, file-format or persistence changes, generated-output changes, desktop runs, or packaging/release. `TEST_PLAN.md` records the regression matrix; do not add copy-pasted cases instead of consolidating duplicate behavior. GUI requirements remain in `docs/gui-quality-gate.md` and `docs/gui-recovery-sequence.md`. Before writing, splitting, labelling, or closing an issue, read `docs/issue-authoring.md`; the verification commands an issue must name are listed in `TEST_PLAN.md` section 1.3.
 
 ## Goal and scope
 
@@ -83,3 +83,6 @@ Anything that still carries the `projectLibre` / `ProjectLibre`
 - Preserve all existing user changes. Inspect `git status` before and after the task; never discard changes you did not create.
 - Trace the relevant callers, state transitions, persistence, and reload paths before editing. Search by symbol and behavior with `rg` / `rg --files`.
 - Choose verification proportionate to risk. Report exact commands, results, and any remaining uncertainty; do not claim unrun checks passed.
+- Never push directly to `master`. Create a work branch from `master` and open a pull request; the required checks are `build` and `GUI acceptance`. One pull request addresses one issue and says `Closes #N` (or `Refs #N` when part of the issue remains).
+- An issue body is the specification for its implementer. Write issues so that someone who has not seen the surrounding discussion can finish them: required sections, checkable completion criteria, and labels are defined in `docs/issue-authoring.md`. If an issue's steps do not match the current code, comment on the issue instead of guessing.
+- Do not name the tools or models used for the work in commits, pull requests, issues, or comments.

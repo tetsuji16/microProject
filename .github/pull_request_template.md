@@ -1,4 +1,21 @@
+## Summary
+
+<!-- One pull request addresses one issue. Use "Closes #N", or "Refs #N" when part of the issue remains. -->
+
+- Issue:
+- What changed and why:
+
+## Verification
+
+<!-- Exact commands and results, chosen from TEST_PLAN.md section 1.3. Write "not run" for anything you did not run. -->
+
+- [ ] `<command>` → `<result>`
+- [ ] `git diff --check` is empty.
+- [ ] Each completion criterion of the issue is met, or listed under "Risk / remaining work".
+
 ## Command contract (required for GUI-observable changes)
+
+<!-- Skip this section, "Implementation" and "Evidence" when no user-visible route changes. -->
 
 <!-- Complete this before requesting review. See docs/gui-quality-gate.md. -->
 
