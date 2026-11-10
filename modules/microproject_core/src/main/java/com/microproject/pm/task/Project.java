@@ -181,6 +181,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	private transient boolean isGroupDirty = false;
 	private transient boolean isDirty = false;
 	private transient boolean readOnly = false;
+	private transient List<String> loadWarnings;
 	private transient SubprojectHandler subprojectHandler;
 	public transient static Project lastDeserialized = null;
 	long start;
@@ -2923,6 +2924,22 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	public final boolean isReadOnly() {
 		return readOnly;
+	}
+
+	/** Records a problem found while loading this project that the user should be told about. */
+	public final void addLoadWarning(String message) {
+		if (loadWarnings == null)
+			loadWarnings = new ArrayList<>();
+		loadWarnings.add(message);
+	}
+
+	/** Returns the unreported load warnings and clears them. */
+	public final List<String> takeLoadWarnings() {
+		if (loadWarnings == null)
+			return new ArrayList<>();
+		List<String> warnings = new ArrayList<>(loadWarnings);
+		loadWarnings.clear();
+		return warnings;
 	}
 
 	public final void setReadOnly(boolean readOnly) {

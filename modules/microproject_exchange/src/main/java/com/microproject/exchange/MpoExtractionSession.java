@@ -57,7 +57,7 @@ public final class MpoExtractionSession implements AutoCloseable {
 		try {
 			Files.writeString(part, session.manifestContents("open"),
 					java.nio.charset.StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
-			SafeFileReplace.moveAtomically(part, session.manifest, false);
+			SafeFileReplace.replaceDurably(part, session.manifest, false);
 			return session;
 		} catch (IOException | RuntimeException exception) {
 			deleteWithRetry(part);
@@ -105,7 +105,7 @@ public final class MpoExtractionSession implements AutoCloseable {
 		try {
 			Files.writeString(part, manifestContents("closed"), java.nio.charset.StandardCharsets.UTF_8,
 					StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
-			SafeFileReplace.moveAtomically(part, manifest, true);
+			SafeFileReplace.replaceDurably(part, manifest, true);
 		} catch (IOException exception) {
 			// Deletion still proceeds. If the manifest remains open, its process
 			// identity prevents this process from reclaiming it; a later process can

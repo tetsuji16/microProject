@@ -363,7 +363,7 @@ public final class UpdateChecker {
 			if (Files.size(part) == 0) throw new IOException("Downloaded installer is empty");
 			checksum = sha256(part);
 			if (!asset.sha256().equalsIgnoreCase(checksum)) throw new IOException("Downloaded installer checksum mismatch");
-			SafeFileReplace.moveAtomically(part, installer, true);
+			SafeFileReplace.replaceDurably(part, installer, true);
 			writeManifest(manifest, version, checksum, Instant.now());
 			StagedUpdate previous;
 			synchronized (STAGED_UPDATE_LOCK) {
@@ -467,7 +467,7 @@ public final class UpdateChecker {
 					+ "createdAt=" + createdAt + "\n";
 			Files.writeString(partial, content, StandardCharsets.UTF_8,
 					java.nio.file.StandardOpenOption.CREATE_NEW, java.nio.file.StandardOpenOption.WRITE);
-			SafeFileReplace.moveAtomically(partial, manifest, true);
+			SafeFileReplace.replaceDurably(partial, manifest, true);
 		} finally {
 			deleteQuietly(partial, "partial update manifest");
 		}

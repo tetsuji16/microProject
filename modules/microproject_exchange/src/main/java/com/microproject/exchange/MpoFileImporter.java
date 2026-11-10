@@ -636,7 +636,7 @@ public class MpoFileImporter extends FileImporter {
 
 	/** Replaces the destination only after the complete archive has been written. */
 	protected void moveTemporary(Path temporary, Path target) throws IOException {
-		SafeFileReplace.moveAtomically(temporary, target, true);
+		SafeFileReplace.replaceDurably(temporary, target, true);
 	}
 
 	@Override
@@ -2095,7 +2095,7 @@ public class MpoFileImporter extends FileImporter {
 				}
 				Path recovery = target.toPath().toAbsolutePath().resolveSibling(target.getName()
 					+ ".conflict-" + java.util.UUID.randomUUID() + ".mpo");
-				SafeFileReplace.moveAtomically(temporary.toPath(), recovery, false);
+				SafeFileReplace.replaceDurably(temporary.toPath(), recovery, false);
 				moved = true;
 				return recovery;
 			} finally {
@@ -2742,15 +2742,19 @@ public class MpoFileImporter extends FileImporter {
 		}
 	}
 
-	private static long rewriteExtractedProjectReferences(Path extractedFile,
+	static long rewriteExtractedProjectReferences(Path extractedFile,
 			java.util.Map<String, String> extractedBySource) throws IOException {
 		java.util.Map<String, byte[]> entries = new java.util.LinkedHashMap<String, byte[]>();
+		int[] totalBytes = new int[1];
+		int entryCount = 0;
 		try (ZipInputStream zip = new ZipInputStream(Files.newInputStream(extractedFile), StandardCharsets.UTF_8)) {
 			ZipEntry entry;
 			while ((entry = zip.getNextEntry()) != null) {
+				if (++entryCount > MpoArchiveBudgetValidator.DEFAULT_BUDGET.maxEntries())
+					throw new IOException("Embedded project exceeds " + MpoArchiveBudgetValidator.DEFAULT_BUDGET.maxEntries() + " entries");
 				MpoArchiveBudgetValidator.validateEntryName(entry.getName(), MpoArchiveBudgetValidator.DEFAULT_BUDGET);
 				if (entry.isDirectory()) continue;
-				entries.put(entry.getName(), zip.readAllBytes());
+				entries.put(entry.getName(), readEntry(zip, totalBytes));
 			}
 		}
 		byte[] projectXml = entries.get(PROJECT_ENTRY);
@@ -2791,7 +2795,7 @@ public class MpoFileImporter extends FileImporter {
 				for (java.util.Map.Entry<String, byte[]> entry : entries.entrySet())
 					writeEntry(zip, entry.getKey(), entry.getValue());
 			}
-			SafeFileReplace.moveAtomically(temporary, extractedFile, true);
+			SafeFileReplace.replaceDurably(temporary, extractedFile, true);
 			moved = true;
 		} finally {
 			if (!moved) TemporaryCleanupQueue.deleteOrEnqueue(temporary);

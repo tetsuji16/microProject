@@ -298,6 +298,11 @@ public class ProjectFactory {
 						loadedProject.setReadOnly(true);
 						loadedProject.setLocal(true);
 					}
+
+					// Tell the user about data the importer had to replace with defaults.
+					if (loadedProject != null)
+						for (String warning : loadedProject.takeLoadWarnings())
+							Alert.warn(warning);
 				});
 			}
 		},false);

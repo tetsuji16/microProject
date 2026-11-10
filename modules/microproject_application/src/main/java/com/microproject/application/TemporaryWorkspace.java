@@ -207,7 +207,7 @@ public final class TemporaryWorkspace implements AutoCloseable {
 			StringBuilder content = new StringBuilder();
 			values.forEach((key, value) -> content.append(key).append('=').append(value).append('\n'));
 			Files.writeString(temporary, content, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
-			SafeFileReplace.moveAtomically(temporary, manifest, true);
+			SafeFileReplace.replaceDurably(temporary, manifest, true);
 		} finally {
 			deleteQuietly(temporary, "partial temporary manifest");
 		}
