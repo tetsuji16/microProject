@@ -2252,7 +2252,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		} catch (Exception e) {
 			ErrorLogger.log("SubprojectHandler initialization failed", e);
 			logger.warning("SubprojectHandler not valid in meta.properties");
-			System.exit(-1);
+			throw new IllegalStateException("SubprojectHandler could not be initialized from meta.properties", e);
 		}
 	}
 	public void postDeserialization(){
@@ -3296,7 +3296,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		} catch (Exception e) {
 			ErrorLogger.log("ProjectRoleManager initialization failed", e);
 			logger.warning("ProjectRoleManager not valid in meta.properties");
-			System.exit(-1);
+			throw new IllegalStateException("ProjectRoleManager could not be reset from meta.properties", e);
 		}
 	}
 
