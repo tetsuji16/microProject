@@ -25,7 +25,11 @@ package com.microproject.pm.resource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.HashSet;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
@@ -48,6 +52,24 @@ class ResourceImplTest {
 		assertTrue(resource.fieldHideActualFixedCost(FieldContext.DEFAULT_CONTEXT));
 		assertEquals(45L, resource.getStartOffset());
 		assertEquals(67L, resource.getFinishOffset());
+	}
+
+	@Test
+	void resourcesSharingOneGlobalResourceKeepIdentityEquality() {
+		DelegatingEnterpriseResource global = new DelegatingEnterpriseResource();
+		ResourceImpl first = new ResourceImpl(global);
+		ResourceImpl second = new ResourceImpl(global);
+
+		assertNotEquals(first, second);
+		assertEquals(first.hashCode(), second.hashCode());
+
+		Set<ResourceImpl> resources = new HashSet<>();
+		resources.add(first);
+		resources.add(second);
+		resources.add(first);
+		assertEquals(2, resources.size());
+		assertTrue(resources.contains(first));
+		assertTrue(resources.contains(second));
 	}
 
 	@Test

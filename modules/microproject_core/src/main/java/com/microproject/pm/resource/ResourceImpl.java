@@ -440,6 +440,9 @@ public class ResourceImpl implements Resource, HasAvailability, HasResourceIndic
 	public WorkCalendar getWorkCalendar() {
 		return globalResource.getWorkCalendar();
 	}
+	// Equality is identity by design (no equals override): distinct ResourceImpl instances
+	// sharing one global resource are not equal. Delegating hashCode keeps them in the same
+	// bucket, which is consistent with identity equals.
 	public int hashCode() {
 		return globalResource.hashCode();
 	}
