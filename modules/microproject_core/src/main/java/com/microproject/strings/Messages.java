@@ -43,39 +43,44 @@ import com.microproject.util.ClassLoaderUtils;
 public class Messages {
 	private static final Logger logger = Logger.getLogger(Messages.class.getName());
 	private static final String META_BUNDLE_NAME = "com.microproject.configuration.meta"; //$NON-NLS-1$
-	private static ResourceBundle metaBundle = null;
+	private static volatile ResourceBundle metaBundle = null;
 
 	public static void setMetaBundle(String bundleName) {
 		metaBundle = ResourceBundle.getBundle(bundleName,Locale.getDefault(),ClassLoaderUtils.getLocalClassLoader()/*Messages.class.getClassLoader()*/);
 	}
 
 	public static String getMetaString(String key) {
-		if (metaBundle==null){
+		ResourceBundle meta = metaBundle;
+		if (meta==null){
 			lock.lock(); //use lock to avoid useless synchronized when it's already initialized
 			try{
-				if (metaBundle==null){ //if it hasn't been initialized by an other thread
-					metaBundle=ResourceBundle.getBundle(META_BUNDLE_NAME,Locale.getDefault(),ClassLoaderUtils.getLocalClassLoader()/*Messages.class.getClassLoader()*/);
+				meta = metaBundle;
+				if (meta==null){ //if it hasn't been initialized by an other thread
+					meta=ResourceBundle.getBundle(META_BUNDLE_NAME,Locale.getDefault(),ClassLoaderUtils.getLocalClassLoader()/*Messages.class.getClassLoader()*/);
+					metaBundle=meta;
 				}
 			}finally{
 				lock.unlock();
 			}
 		}
-		return metaBundle.getString(key);
+		return meta.getString(key);
 	}
 
-	static LinkedList<ResourceBundle> bundles = null;
+	static volatile LinkedList<ResourceBundle> bundles = null;
 	static Lock lock=new ReentrantLock();
 
 	private static ResourceBundle[] bundleArray = null;
 	private static String getStringFromBundles(String key) {
 		if (key==null)
 			return null;
-		LinkedList<ResourceBundle> buns = new LinkedList<>();
-		LinkedList<String> foundBundles = new LinkedList<>();
-		if (bundles==null) {
+		LinkedList<ResourceBundle> current = bundles;
+		if (current==null) {
 			lock.lock(); //use lock to avoid useless synchronized when it's already initialized
 			try {
-				if (bundles==null){ //if it hasn't been initialized by an other thread
+				current = bundles;
+				if (current==null){ //if it hasn't been initialized by an other thread
+					LinkedList<ResourceBundle> buns = new LinkedList<>();
+					LinkedList<String> foundBundles = new LinkedList<>();
 					String bundleNames[] = getMetaString("ResourceBundles").split(";", -1);
 					String directoryBundleNames[] = getMetaString("DirectoryResourceBundles").split(";", -1);
 
@@ -110,13 +115,15 @@ public class Messages {
 							foundBundles.add(pos,bname);
 						}
 					}
+					// publish only a fully built list; on failure the field stays null and the next call retries
+					bundles = buns;
+					current = buns;
 				}
 			} finally {
-				bundles = buns;
 				lock.unlock();
 			}
 		}
-		for (ResourceBundle bundle : bundles) {
+		for (ResourceBundle bundle : current) {
 			try {
 				return bundle.getString(key);
 			} catch (MissingResourceException e) {
