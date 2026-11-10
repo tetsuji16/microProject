@@ -12,6 +12,7 @@ jobs:
       github.event.issue.state == 'closed' &&
       github.event.issue.pull_request == null
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Reopen the issue when the comment is exactly /reopen
         env:
