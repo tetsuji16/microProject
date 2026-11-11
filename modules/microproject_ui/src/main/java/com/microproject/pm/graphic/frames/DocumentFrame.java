@@ -652,7 +652,7 @@ public class DocumentFrame extends NamedFrame implements
 			? TaskVisibilityService.hideTasks(project, affectedTasks, getUndoController())
 			: TaskVisibilityService.showTasks(project, affectedTasks, getUndoController());
 		getGraphicManager().setButtonState(getSelectedImpl(), project);
-		getGraphicManager().traceUi((hide ? "hide-selected" : "show-all")
+		GraphicManager.traceUi((hide ? "hide-selected" : "show-all")
 			+ " result changedTasks=" + changed);
 		return new RibbonCommandResult(command.actionId(),
 			changed > 0 ? RibbonCommandResult.Status.CHANGED : RibbonCommandResult.Status.NO_CHANGE,
@@ -1262,7 +1262,7 @@ public class DocumentFrame extends NamedFrame implements
 			selectionReason, selection.stableTaskIds());
 		if (taskNodes.size() > 1)
 			undoRedoSelection = new ArrayList<>(taskNodes);
-		getGraphicManager().traceUi("link start selectedTasks=" + taskNodes.size()
+		GraphicManager.traceUi("link start selectedTasks=" + taskNodes.size()
 				+ " undo=" + canUndoState() + " redo=" + canRedoState());
 		finishAnyOperations();
 		try {
@@ -1271,13 +1271,13 @@ public class DocumentFrame extends NamedFrame implements
 			RibbonCommandResult rejection = editableTaskRejection(CommandId.LINK, selection, 2);
 			if (rejection != null) {
 				lastTaskCommandResult = rejection;
-				getGraphicManager().traceUi("link rejected reason=" + rejection.reason() + " selectedTasks=" + taskNodes.size());
+				GraphicManager.traceUi("link rejected reason=" + rejection.reason() + " selectedTasks=" + taskNodes.size());
 				return;
 			}
 			if (snapshot == null) {
 				publishTaskCommandResult(CommandId.LINK, RibbonCommandResult.Status.REJECTED,
 					"task-selection-not-stable", taskNodes);
-				getGraphicManager().traceUi("link rejected reason=task-selection-not-stable selectedTasks=" + taskNodes.size());
+				GraphicManager.traceUi("link rejected reason=task-selection-not-stable selectedTasks=" + taskNodes.size());
 				return;
 			}
 			TaskCommandResult result = TaskCommandGateway.execute(sheet,
@@ -1288,12 +1288,12 @@ public class DocumentFrame extends NamedFrame implements
 					|| result.status() == TaskCommandResult.Status.NO_CHANGE)
 				sheet.restoreTaskRowSelection(taskNodes);
 			refreshUndoButtonsSafely();
-			getGraphicManager().traceUi("link complete selectedTasks=" + taskNodes.size()
+			GraphicManager.traceUi("link complete selectedTasks=" + taskNodes.size()
 				+ " result=" + result.status() + " undo=" + canUndoState() + " redo=" + canRedoState());
 		} catch (InvalidAssociationException e) {
 			publishTaskCommandResult(CommandId.LINK, RibbonCommandResult.Status.REJECTED,
 				"invalid-association", taskNodes);
-			getGraphicManager().traceUi("link rejected reason=invalid-association message=" + e.getMessage());
+			GraphicManager.traceUi("link rejected reason=invalid-association message=" + e.getMessage());
 			Alert.error(e.getMessage(),this);
 		}
 	}
@@ -1308,19 +1308,19 @@ public class DocumentFrame extends NamedFrame implements
 			selectionReason, selection.stableTaskIds());
 		if (taskNodes.size() > 1)
 			undoRedoSelection = new ArrayList<>(taskNodes);
-		getGraphicManager().traceUi("unlink start selectedTasks=" + taskNodes.size()
+		GraphicManager.traceUi("unlink start selectedTasks=" + taskNodes.size()
 				+ " undo=" + canUndoState() + " redo=" + canRedoState());
 		finishAnyOperations();
 		RibbonCommandResult rejection = editableTaskRejection(CommandId.UNLINK, selection, 1);
 		if (rejection != null) {
 			lastTaskCommandResult = rejection;
-			getGraphicManager().traceUi("unlink rejected reason=" + rejection.reason());
+			GraphicManager.traceUi("unlink rejected reason=" + rejection.reason());
 			return;
 		}
 		if (snapshot == null) {
 			publishTaskCommandResult(CommandId.UNLINK, RibbonCommandResult.Status.REJECTED,
 				"task-selection-not-stable", taskNodes);
-			getGraphicManager().traceUi("unlink rejected reason=task-selection-not-stable selectedTasks=" + taskNodes.size());
+			GraphicManager.traceUi("unlink rejected reason=task-selection-not-stable selectedTasks=" + taskNodes.size());
 			return;
 		}
 		TaskDependencyIntent.DependencyTarget selectedDependencyTarget = null;
@@ -1333,7 +1333,7 @@ public class DocumentFrame extends NamedFrame implements
 				if (selected == null) {
 					publishTaskCommandResult(CommandId.UNLINK, RibbonCommandResult.Status.REJECTED,
 						"dependency-not-selected", taskNodes);
-					getGraphicManager().traceUi("unlink cancelled reason=dependency-not-selected");
+					GraphicManager.traceUi("unlink cancelled reason=dependency-not-selected");
 					return;
 				}
 				selectedDependencyTarget = TaskDependencyIntent.DependencyTarget.from(selected);
@@ -1355,7 +1355,7 @@ public class DocumentFrame extends NamedFrame implements
 				|| result.status() == TaskCommandResult.Status.NO_CHANGE)
 			sheet.restoreTaskRowSelection(taskNodes);
 		refreshUndoButtonsSafely();
-		getGraphicManager().traceUi("unlink complete selectedTasks=" + taskNodes.size()
+		GraphicManager.traceUi("unlink complete selectedTasks=" + taskNodes.size()
 				+ " result=" + result.status() + " undo=" + canUndoState() + " redo=" + canRedoState());
 	}
 
@@ -1379,7 +1379,7 @@ public class DocumentFrame extends NamedFrame implements
 	public void doUndoRedo(boolean isUndo) {
 		if (!isActive())
 			return;
-		getGraphicManager().traceUi((isUndo ? "undo" : "redo") + " start canUndo=" + canUndoState() + " canRedo=" + canRedoState());
+		GraphicManager.traceUi((isUndo ? "undo" : "redo") + " start canUndo=" + canUndoState() + " canRedo=" + canRedoState());
 		SelectionSnapshot selectionSnapshot = SelectionSnapshot.capture(getActiveSpreadSheet(), undoRedoSelection);
 		if (selectionSnapshot.selectedNodes.size() > 1)
 			undoRedoSelection = new ArrayList<>(selectionSnapshot.selectedNodes);
@@ -1399,7 +1399,7 @@ public class DocumentFrame extends NamedFrame implements
 			// Node-cache projection may finish on the next EDT turn. Refresh once
 			// more after that projection so ribbon state cannot lag the model.
 			SwingUtilities.invokeLater(() -> getGraphicManager().setButtonState(getSelectedImpl(), project));
-			getGraphicManager().traceUi((isUndo ? "undo" : "redo") + " complete canUndo=" + canUndoState() + " canRedo=" + canRedoState()
+			GraphicManager.traceUi((isUndo ? "undo" : "redo") + " complete canUndo=" + canUndoState() + " canRedo=" + canRedoState()
 					+ " selectedTasks=" + getSelectedTaskNodes(false, true).size());
 		}
 	}
@@ -1595,43 +1595,43 @@ public class DocumentFrame extends NamedFrame implements
 			// pre-commit JTable row indexes.  Resolve rows from this same stable
 			// node snapshot so mutation and selection restoration target one set.
 			int[] selectedRows = ss.nodesToRows(taskNodes);
-			getGraphicManager().traceUi(diagnosticId + " start selectedTasks=" + taskNodes.size()
+			GraphicManager.traceUi(diagnosticId + " start selectedTasks=" + taskNodes.size()
 				+ " rows=" + selectedRows.length + " undo=" + canUndoState() + " redo=" + canRedoState());
 			if (project == null || project.isReadOnly()) {
 				publishTaskCommandResultWithSelectedIds(command, RibbonCommandResult.Status.REJECTED,
 					"document-read-only", selection.stableTaskIds());
-				getGraphicManager().traceUi(diagnosticId + " rejected reason=document-read-only");
+				GraphicManager.traceUi(diagnosticId + " rejected reason=document-read-only");
 				return;
 			}
 			if (!selection.isEligible(1)) {
 				publishTaskCommandResultWithSelectedIds(command, RibbonCommandResult.Status.REJECTED,
 					selection.rejectionReason(), selection.stableTaskIds());
-				getGraphicManager().traceUi(diagnosticId + " rejected reason=" + selection.rejectionReason());
+				GraphicManager.traceUi(diagnosticId + " rejected reason=" + selection.rejectionReason());
 				return;
 			}
 			if (selectedRows.length != taskNodes.size()) {
 				publishTaskCommandResult(command, RibbonCommandResult.Status.REJECTED,
 					"selection-not-visible", taskNodes);
-				getGraphicManager().traceUi(diagnosticId + " rejected reason=selection-not-visible");
+				GraphicManager.traceUi(diagnosticId + " rejected reason=selection-not-visible");
 				return;
 			}
 			if (command == CommandId.OUTDENT && taskNodes.stream().noneMatch(DocumentFrame::canOutdent)) {
 				publishTaskCommandResult(command, RibbonCommandResult.Status.REJECTED,
 					"cannot-outdent", taskNodes);
-				getGraphicManager().traceUi(diagnosticId + " rejected reason=cannot-outdent");
+				GraphicManager.traceUi(diagnosticId + " rejected reason=cannot-outdent");
 				return;
 			}
 			if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, diagnosticId)) {
 				publishTaskCommandResult(command, RibbonCommandResult.Status.REJECTED,
 					LOCK_DENIED_REASON, taskNodes);
-				getGraphicManager().traceUi(diagnosticId + " rejected reason=" + LOCK_DENIED_REASON + " selectedTasks=" + taskNodes.size());
+				GraphicManager.traceUi(diagnosticId + " rejected reason=" + LOCK_DENIED_REASON + " selectedTasks=" + taskNodes.size());
 				return;
 			}
 			ss.executeAction(actionId, selectedRows);
 			ss.restoreTaskRowSelection(taskNodes);
 			publishTaskCommandResult(command, RibbonCommandResult.Status.CHANGED, "", taskNodes);
 			refreshUndoButtonsSafely();
-			getGraphicManager().traceUi(diagnosticId + " complete selectedTasks=" + taskNodes.size()
+			GraphicManager.traceUi(diagnosticId + " complete selectedTasks=" + taskNodes.size()
 					+ " undo=" + canUndoState() + " redo=" + canRedoState());
 		}
 	}
@@ -2272,7 +2272,7 @@ public class DocumentFrame extends NamedFrame implements
 		formatPainterStyle = TaskFormatPainterService.capture(source);
 		formatPainterContinuous = false;
 		getMenuManager().setActionSelected("RibbonFormatPainter", true);
-		getGraphicManager().traceUi("format-painter armed sourceTask=" + source.getUniqueId());
+		GraphicManager.traceUi("format-painter armed sourceTask=" + source.getUniqueId());
 	}
 
 	void cancelFormatPainter() {
@@ -2282,7 +2282,7 @@ public class DocumentFrame extends NamedFrame implements
 		formatPainterSource = null;
 		formatPainterContinuous = false;
 		getMenuManager().setActionSelected("RibbonFormatPainter", false);
-		getGraphicManager().traceUi("format-painter cancelled");
+		GraphicManager.traceUi("format-painter cancelled");
 	}
 
 	private void applyFormatPainterToSelection(SelectionNodeEvent event) {
@@ -2319,7 +2319,7 @@ public class DocumentFrame extends NamedFrame implements
 		}
 		List<Long> changed = TaskFormatPainterService.apply(project, targets, formatPainterStyle,
 			getUndoController());
-		getGraphicManager().traceUi("format-painter applied targets=" + changed.size()
+		GraphicManager.traceUi("format-painter applied targets=" + changed.size()
 			+ " continuous=" + formatPainterContinuous);
 		if (!formatPainterContinuous)
 			cancelFormatPainter();

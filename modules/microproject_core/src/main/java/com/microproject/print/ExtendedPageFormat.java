@@ -240,6 +240,7 @@ public class ExtendedPageFormat extends PageFormat implements Cloneable,Serializ
 		case PageFormat.LANDSCAPE: orientation=OrientationRequested.LANDSCAPE;
 			break;
 		case PageFormat.REVERSE_LANDSCAPE: orientation=OrientationRequested.REVERSE_LANDSCAPE;
+			break;
 		default: orientation=OrientationRequested.PORTRAIT;
 			break;
 		}

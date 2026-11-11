@@ -570,7 +570,7 @@ class TaskCommandGatewayTest {
 			assertEquals(0, publishedSchedules.get(), "failed schedule edits must not notify schedule observers");
 			CountDownLatch barrierAvailable = new CountDownLatch(1);
 			Thread writer = new Thread(() -> {
-				try (var ignored = fixture.project().getMutationState().begin()) { barrierAvailable.countDown(); }
+				try (var _ = fixture.project().getMutationState().begin()) { barrierAvailable.countDown(); }
 			}, "gateway-failed-schedule-barrier-check");
 			writer.setDaemon(true);
 			writer.start();

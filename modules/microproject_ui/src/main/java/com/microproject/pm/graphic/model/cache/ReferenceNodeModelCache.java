@@ -435,7 +435,7 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 		Runnable refresh = () -> {
 			if (closed || generation != bindingGeneration || !receiveEvents) return;
 			if (document instanceof Project project) {
-				try (var ignored = project.getMutationState().begin()) {
+				try (var _ = project.getMutationState().begin()) {
 					if (closed || generation != bindingGeneration || !receiveEvents) return;
 					long revision = project.getMutationState().revision();
 					if (eventRevision >= 0 && eventRevision <= lastInstalledRevision) return;

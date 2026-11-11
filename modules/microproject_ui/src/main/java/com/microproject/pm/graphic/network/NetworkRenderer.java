@@ -236,6 +236,8 @@ public abstract class NetworkRenderer extends GraphRenderer{
 		else return shape.getBounds();
 	}
     protected double[] segment=new double[6];
+	// SEG_LINETO deliberately continues into the SEG_CLOSE branch, which draws the segment.
+	@SuppressWarnings("fallthrough")
 	protected void updateLinkConnections(GraphicNode node,double[] linkPoints){
 		GeneralPath shape=getShape(node);
 		if (shape==null) return;

@@ -2554,7 +2554,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		void setWork(long work, FieldContext context) {
 			work = Duration.millis(work);
 			if (isLabor() && work < 60000) {
-				work *= Duration.timeUnitFactor(TimeUnit.HOURS);
+				work = (long) (work * Duration.timeUnitFactor(TimeUnit.HOURS));
 			}
 			long remainingWork = work - getActualWork(null);
 			WorkCalendar cal = getEffectiveWorkCalendar();
