@@ -61,7 +61,7 @@ public class PrintDocumentFactory {
 			SpreadSheet sp=frame.getActiveSpreadSheet();
 			SpreadSheetFieldArray fieldArray=sp.getFieldArrayWithWidths(null);
 			List<Integer> colWidth=null;
-			cache=NodeModelCacheFactory.getInstance().createFilteredCache((ReferenceNodeModelCache)frame.getReferenceCache(true),"OfflineGantt",null);
+			cache=NodeModelCacheFactory.getInstance().createFilteredCache(frame.getReferenceCache(true),"OfflineGantt",null);
 			((GanttSVGRenderer)renderer).init(frame.getProject(),cache,fieldArray,colWidth,frame.getScale(),true);
 			renderer.getParams().setSupportLeftAndRightParts(true);
 		}else if (view instanceof ResourceView){
@@ -69,7 +69,7 @@ public class PrintDocumentFactory {
 			SpreadSheet sp=frame.getActiveSpreadSheet();
 			SpreadSheetFieldArray fieldArray=sp.getFieldArrayWithWidths(null);
 			List<Integer> colWidth=null;
-			cache=NodeModelCacheFactory.getInstance().createFilteredCache((ReferenceNodeModelCache)frame.getReferenceCache(false),"OfflineResources",null);
+			cache=NodeModelCacheFactory.getInstance().createFilteredCache(frame.getReferenceCache(false),"OfflineResources",null);
 			((GanttSVGRenderer)renderer).init(frame.getProject(),cache,fieldArray,colWidth,frame.getScale(),false);
 		}else if (view instanceof ProjectView){
 			renderer=new GanttSVGRenderer();
@@ -81,15 +81,15 @@ public class PrintDocumentFactory {
 			((GanttSVGRenderer)renderer).init(frame.getProject(),cache,fieldArray,colWidth,frame.getScale(),false);
 		}else if (view instanceof PertView){
 			renderer=new NetworkSVGRenderer();
-			cache=NodeModelCacheFactory.getInstance().createFilteredCache((ReferenceNodeModelCache)frame.getReferenceCache(true),"Network",null);
+			cache=NodeModelCacheFactory.getInstance().createFilteredCache(frame.getReferenceCache(true),"Network",null);
 			((NetworkSVGRenderer)renderer).init(frame.getProject(),cache,NetworkSVGRenderer.PERT,frame.getScale());
 		}else if (view instanceof TreeView treeView){
 			renderer=new NetworkSVGRenderer();
 			if ("WBS".equals(treeView.getViewName())){
-				cache=NodeModelCacheFactory.getInstance().createFilteredCache((ReferenceNodeModelCache)frame.getReferenceCache(true),"WBS",null);
+				cache=NodeModelCacheFactory.getInstance().createFilteredCache(frame.getReferenceCache(true),"WBS",null);
 				((NetworkSVGRenderer)renderer).init(frame.getProject(),cache,NetworkSVGRenderer.WBS,frame.getScale());
 			}else{
-				cache=NodeModelCacheFactory.getInstance().createFilteredCache((ReferenceNodeModelCache)frame.getReferenceCache(false),"RBS",null);
+				cache=NodeModelCacheFactory.getInstance().createFilteredCache(frame.getReferenceCache(false),"RBS",null);
 				((NetworkSVGRenderer)renderer).init(frame.getProject(),cache,NetworkSVGRenderer.RBS,frame.getScale());
 			}
 		}else return null;

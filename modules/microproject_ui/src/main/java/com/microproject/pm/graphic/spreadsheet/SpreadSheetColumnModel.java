@@ -203,7 +203,7 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 		tc.setHeaderRenderer(new SpreadSheetColumnHeaderRenderer());
 
 		if (columnIndex == 0) {
-			Field field = (Field) originalFieldArray.get(columnIndex);
+			Field field = originalFieldArray.get(columnIndex);
 			tc.setIdentifier(field); // store the field with the column
 			// tc.setIdentifier(null); // store the field with the column
 			tc.setPreferredWidth(0);
@@ -212,7 +212,7 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 			// nothing
 		} else {
 			super.addColumn(tc);
-			Field field = (Field) originalFieldArray.get(columnIndex);
+			Field field = originalFieldArray.get(columnIndex);
 			tc.setIdentifier(field); // store the field with the column
 
 			if (field.isNameField()) {
@@ -370,12 +370,12 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
  * @return
  */
 	public Field getFieldInNonTranslatedColumn(int col) {
-		return (Field)fieldArray.get(col);
+		return fieldArray.get(col);
 	}
 
 	public Field getFieldInColumn(int col) {
 //		return (Field)fieldArray.get(col);
-		return (Field) originalFieldArray.get(col);
+		return originalFieldArray.get(col);
 
 //		if (col >= getColumnCount()) // on initializing
 //			return (Field) fieldArray.get(col);

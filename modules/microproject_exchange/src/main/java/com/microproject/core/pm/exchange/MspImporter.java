@@ -702,7 +702,7 @@ public class MspImporter {
 			}
 			converter.from(mpxBaseCalendar, calendar, state);
 			// register into the global calendar service via the import bridge
-			ImportedCalendarService.getInstance().addImportedCalendar((WorkingCalendar) calendar, mpxBaseCalendar);
+			ImportedCalendarService.getInstance().addImportedCalendar(calendar, mpxBaseCalendar);
 			state.mapBaseCalendar(calendar, mpxBaseCalendar);
 		}
 		if (standardBaseCalendar == null) {

@@ -500,7 +500,7 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
 
 		public Node getParent(Node child) {
 			if (parentMap.containsKey(child)){
-				return (Node)parentMap.get(child);
+				return parentMap.get(child);
 			}
 			else return refCache.getModel().getParent(child);
 		}

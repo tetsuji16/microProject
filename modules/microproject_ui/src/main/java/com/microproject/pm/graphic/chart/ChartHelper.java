@@ -197,7 +197,7 @@ public class ChartHelper implements TimeDistributedConstants {
 	}
 
 	public static Color getColorForField(Object field) {
-		Color result = (Color) getMap().get(field);
+		Color result = getMap().get(field);
 		if (result == null)
 			result = FlatUiSupport.labelForeground();
 		return result;

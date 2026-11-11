@@ -115,7 +115,7 @@ public abstract class AbstractNetworkLayout implements NetworkLayout {
 		listenerList.remove(NetworkLayoutListener.class, l);
 	}
 	public NetworkLayoutListener[] getNetworkLayoutListeners() {
-		return (NetworkLayoutListener[]) listenerList.getListeners(NetworkLayoutListener.class);
+		return listenerList.getListeners(NetworkLayoutListener.class);
 	}
 	protected void fireLayoutChanged() {
 		Object[] listeners = listenerList.getListenerList();

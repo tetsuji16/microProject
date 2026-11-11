@@ -56,7 +56,7 @@ public class NetworkSVGRenderer implements SVGRenderer, CacheListener, Cloneable
 	protected Project project;
 	private NodeModelCache cache;
 	public void init(Project project, ReferenceNodeModelCache refCache) {
-		init(project, NodeModelCacheFactory.getInstance().createFilteredCache((ReferenceNodeModelCache)refCache,"Network",null),PERT,-1);
+		init(project, NodeModelCacheFactory.getInstance().createFilteredCache(refCache,"Network",null),PERT,-1);
 	}
 	/** Initializes this renderer with a dedicated cache that this renderer will close on cleanup. */
 	public void init(Project project, NodeModelCache cache,int type,int scale) {

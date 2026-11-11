@@ -425,7 +425,7 @@ public class ComponentFactory {
 					component.setInputVerifier(new FieldVerifier(field,objectRef, getValueFromComponent(component, field)){
 						public boolean verify(JComponent component) {
 							final JComboBox c=(JComboBox)component;
-							Object  newValue = (Object)ComponentFactory.getValueFromComponent(component, field);
+							Object  newValue = ComponentFactory.getValueFromComponent(component, field);
 							Object publicValue=c.getItemAt(AccessControlPolicy.Kind.PUBLIC.code());
 							if (newValue != value){
 								Integer oldValue=(Integer)field.getValue(objectRef, context);

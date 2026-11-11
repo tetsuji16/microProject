@@ -342,8 +342,8 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 				Dependency dep = (Dependency) association;
 				HasDependencies pre=dep.getPredecessor();
 				HasDependencies suc=dep.getSuccessor();
-				GraphicNode preGNode=(GraphicNode)implMap.get(pre);
-				GraphicNode sucGNode=(GraphicNode)implMap.get(suc);
+				GraphicNode preGNode=implMap.get(pre);
+				GraphicNode sucGNode=implMap.get(suc);
 				if (preGNode!=null&&sucGNode!=null){
 					currentDependencies.add(dep);
 					if (edgeCache.getElement(dep) == null)
@@ -467,8 +467,8 @@ public class ReferenceNodeModelCache implements ObjectEvent.Listener, HierarchyL
 			Dependency dependency = ((Dependency)object);
 			if (dependency.getDocument() == document || dependency.getMasterDocument() == document) { // links can come from other projects too, but successor should be in this project
 				if (change.eventType() == ObjectEvent.CREATE) {
-					Node preNode=(Node)model.search(dependency.getPredecessor());
-					Node sucNode=(Node)model.search(dependency.getSuccessor());
+					Node preNode=model.search(dependency.getPredecessor());
+					Node sucNode=model.search(dependency.getSuccessor());
 					GraphicNode preGNode=nodeCache.getElement(preNode);
 					GraphicNode sucGNode=nodeCache.getElement(sucNode);
 					if (preGNode!=null&&sucGNode!=null){

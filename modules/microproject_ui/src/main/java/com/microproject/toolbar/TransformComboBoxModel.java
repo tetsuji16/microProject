@@ -81,7 +81,7 @@ public class TransformComboBoxModel extends AbstractListModel implements ComboBo
 		if (max>=0) fireIntervalRemoved(this,0,max);
 		this.view=view;
 		factories=transformList.getFactories(view,stype);
-		selected=(CommonTransformFactory)viewMap.get(view);
+		selected=viewMap.get(view);
 		if (selected==null){
 			ViewTransformer transformer=view.getTransform();
 			switch (type) {

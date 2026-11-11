@@ -142,7 +142,7 @@ public class PredefinedPaint extends TexturePaint {
 		if (key == null) {
 			return null;
 		}
-		return(PredefinedPaint) getShapePaints().get(key);
+		return getShapePaints().get(key);
 	}
 
 

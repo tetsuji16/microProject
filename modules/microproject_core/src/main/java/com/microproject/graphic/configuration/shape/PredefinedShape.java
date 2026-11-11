@@ -214,7 +214,7 @@ public class PredefinedShape {
 		if (key == null) {
 			return null;
 		}
-		PredefinedShape found = (PredefinedShape) getPredefinedShapeMap().get(key);
+		PredefinedShape found = getPredefinedShapeMap().get(key);
 		return found;
 	}
 }

@@ -211,7 +211,7 @@ public class GraphModel implements Serializable, /*ScheduleEventListener,*/ Cach
 		listenerList.remove(GraphListener.class, l);
 	}
 	public GraphListener[] getGraphListeners() {
-		return (GraphListener[]) listenerList.getListeners(GraphListener.class);
+		return listenerList.getListeners(GraphListener.class);
 	}
 	 protected void fireUpdate(Object source,List nodes) {
 			Object[] listeners = listenerList.getListenerList();

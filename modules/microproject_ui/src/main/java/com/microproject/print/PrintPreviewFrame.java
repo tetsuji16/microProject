@@ -208,7 +208,7 @@ public class PrintPreviewFrame extends FlatLafFrame implements  ProjectMenuActio
 	}
 	public void addFormatPanel(){
 		if (pageSetup==null){
-			pageSetup=PageSetup.getInstance((GraphPageable)document);
+			pageSetup=PageSetup.getInstance(document);
 			pageSetupComponent=new JScrollPane(pageSetup.createContentPanel(true));
 			FlatUiSupport.styleDialogComponents(pageSetupComponent);
 			FlatUiSupport.applyViewportSurface(((JScrollPane) pageSetupComponent).getViewport());
@@ -268,7 +268,7 @@ public class PrintPreviewFrame extends FlatLafFrame implements  ProjectMenuActio
 		protected boolean needsDocument() {return true;} //otherwise allowed won't be checked
 		protected boolean allowed(boolean enable){
 			if (!(document instanceof GraphPageable)) return false;
-			GraphPageable gp=(GraphPageable)document;
+			GraphPageable gp=document;
 			return gp.getRenderer().getParams().isSupportLeftAndRightParts();
 		}
 	}
@@ -279,7 +279,7 @@ public class PrintPreviewFrame extends FlatLafFrame implements  ProjectMenuActio
 		protected boolean needsDocument() {return true;} //otherwise allowed won't be checked
 		protected boolean allowed(boolean enable){
 			if (!(document instanceof GraphPageable)) return false;
-			GraphPageable gp=(GraphPageable)document;
+			GraphPageable gp=document;
 			return gp.getRenderer().getParams().isSupportLeftAndRightParts();
 		}
 	}
