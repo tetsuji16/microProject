@@ -38,6 +38,15 @@ public interface RibbonCommandSource {
 	/** Creates a transient button for an overflow popup without registering it. */
 	AbstractButton createTransientButton(String commandId);
 
+	/**
+	 * Returns the keyboard shortcut that is actually bound to the command, or
+	 * {@code null} when the host has none. Screen tips are built from this value
+	 * so the displayed key can never drift from the registered binding.
+	 */
+	default javax.swing.KeyStroke getShortcut(String commandId) {
+		return null;
+	}
+
 	/** Returns the stable action id represented by a ribbon command id. */
 	String getActionId(String commandId);
 
