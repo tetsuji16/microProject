@@ -144,7 +144,7 @@ final class RibbonCommandCatalog {
 			"RibbonMoveTaskUp", "RibbonMoveTaskDown",
 			"RibbonExpand", "RibbonCollapse", "RibbonLink", "RibbonUnlink", "RibbonRespectLinks", "RibbonAssignResources",
 			"RibbonDelegateTasks", "RibbonTaskInformation", "RibbonTaskInspector", "RibbonNotes", "RibbonUpdateTasks", "RibbonMarkOnTrack", "RibbonDelete",
-			"RibbonCustomFields", "RibbonFind", "RibbonScrollToTask", "RibbonTaskModeManual", "RibbonTaskModeAutomatic",
+			"RibbonCustomFields", "RibbonFind", "RibbonScrollToTask", "RibbonScrollToToday", "RibbonTaskModeManual", "RibbonTaskModeAutomatic",
 			"RibbonFormatPainter",
 			"RibbonInactivateTask",
 			"RibbonInsertMilestone", "RibbonInsertSummary", "RibbonClear", "RibbonSelectAll", "RibbonTaskDetails",

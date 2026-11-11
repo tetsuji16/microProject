@@ -196,6 +196,59 @@ class MicrosoftShortcutsRootPaneTest {
 		});
 	}
 
+	/**
+	 * Issue #973: a ribbon screen tip advertises exactly the key the document
+	 * root pane dispatches for that command, and nothing when there is none.
+	 */
+	@Test
+	void ribbonScreenTipsShowTheRegisteredShortcutOfEveryCommandThatHasOne() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ShortcutHarness harness = new ShortcutHarness();
+			InputMap shortcuts = new InputMap();
+			harness.manager.applyMicrosoftShortcuts(shortcuts, harness.panel.getActionMap());
+			MenuManager menus = harness.manager.getMenuManager();
+			menus.setDocumentShortcuts(shortcuts);
+			JPanel ribbon = menus.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+
+			java.util.List<String> problems = new java.util.ArrayList<>();
+			java.util.Map<String, String> hinted = new java.util.TreeMap<>();
+			java.util.ArrayDeque<java.awt.Component> pending = new java.util.ArrayDeque<>();
+			pending.add(ribbon);
+			while (!pending.isEmpty()) {
+				java.awt.Component component = pending.poll();
+				if (component instanceof java.awt.Container container)
+					pending.addAll(java.util.Arrays.asList(container.getComponents()));
+				if (!(component instanceof javax.swing.AbstractButton button))
+					continue;
+				String commandId = button.getActionCommand();
+				String tooltip = button.getToolTipText();
+				if (commandId == null || !commandId.startsWith("Ribbon") || tooltip == null)
+					continue;
+				java.util.function.UnaryOperator<String> actionKey = id -> {
+					String resolved = menus.getActionStringFromId(id);
+					return resolved == null ? id : resolved;
+				};
+				KeyStroke key = com.microproject.menu.ShortcutHints.primary(shortcuts,
+					actionKey.apply(commandId), actionKey);
+				if (key == null) {
+					if (tooltip.matches(".*\\((Ctrl|Cmd|Alt|Shift)\\+[^)]*\\)$"))
+						problems.add(commandId + " advertises an unregistered key: " + tooltip);
+					continue;
+				}
+				String hint = "(" + com.microproject.menu.ShortcutHints.describe(key) + ")";
+				hinted.put(commandId, hint);
+				if (!tooltip.endsWith(" " + hint) || tooltip.indexOf('(') != tooltip.lastIndexOf(hint))
+					problems.add(commandId + " must end with exactly one " + hint + " but was: " + tooltip);
+			}
+			assertTrue(problems.isEmpty(), "ribbon screen tips must match the registered shortcuts: " + problems);
+			assertEquals("(Alt+Shift+Up)", hinted.get("RibbonMoveTaskUp"), "hinted commands: " + hinted);
+			assertEquals("(Ctrl+X)", hinted.get("RibbonCut"), "hinted commands: " + hinted);
+			assertEquals("(Ctrl+C)", hinted.get("RibbonCopy"), "hinted commands: " + hinted);
+			assertEquals("(Ctrl+V)", hinted.get("RibbonPaste"), "hinted commands: " + hinted);
+			assertTrue(hinted.size() >= 8, "the built ribbon must expose its shortcut commands: " + hinted);
+		});
+	}
+
 	@Test
 	void shortcutRegistrationDoesNotOverwriteAKeyWithAnotherAction() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
