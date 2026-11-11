@@ -35,7 +35,7 @@ public class MpxDependencyTypeConverter extends FieldTypeConverter {
 
 	@Override
 	public Object from(Object o) {
-		net.sf.mpxj.RelationType dt=(net.sf.mpxj.RelationType)o;
+		org.mpxj.RelationType dt=(org.mpxj.RelationType)o;
 		return Integer.valueOf(dt.getValue());
 	}
 

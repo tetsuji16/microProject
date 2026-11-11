@@ -21,11 +21,11 @@ import com.microproject.pm.task.Project;
 import com.microproject.server.data.MSPDISerializer;
 import com.microproject.undo.DataFactoryUndoController;
 
-import net.sf.mpxj.ProjectFile;
-import net.sf.mpxj.ProjectProperties;
-import net.sf.mpxj.ScheduleFrom;
-import net.sf.mpxj.mspdi.MSPDIReader;
-import net.sf.mpxj.mspdi.MSPDIWriter;
+import org.mpxj.ProjectFile;
+import org.mpxj.ProjectProperties;
+import org.mpxj.ScheduleFrom;
+import org.mpxj.mspdi.MSPDIReader;
+import org.mpxj.mspdi.MSPDIWriter;
 
 class MpxProjectConverterTest {
 	@Test
@@ -34,7 +34,7 @@ class MpxProjectConverterTest {
 		ProjectProperties properties = new ProjectFile().getProjectProperties();
 		Date finish = new Date(1_800_000_000_000L);
 		properties.setScheduleFrom(ScheduleFrom.FINISH);
-		properties.setFinishDate(finish);
+		properties.setFinishDate(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(finish));
 
 		new MpxProjectConverter().from(properties, project, state(project));
 
@@ -49,7 +49,7 @@ class MpxProjectConverterTest {
 		ProjectProperties properties = new ProjectFile().getProjectProperties();
 		Date start = new Date(1_700_000_000_000L);
 		properties.setScheduleFrom(ScheduleFrom.START);
-		properties.setStartDate(start);
+		properties.setStartDate(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(start));
 
 		new MpxProjectConverter().from(properties, project, state(project));
 

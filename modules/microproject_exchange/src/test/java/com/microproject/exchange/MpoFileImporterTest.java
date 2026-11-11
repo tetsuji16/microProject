@@ -3176,7 +3176,7 @@ class MpoFileImporterTest {
 		((com.fasterxml.jackson.databind.node.ObjectNode) calendarRecord.path("fixedCostCalendar")
 			.path("week").get(0)).remove("defined");
 		assertMalformedBaselineMetadataPreservesTarget(validationTarget, baselineMapper, invalidCalendarMetadata);
-		net.sf.mpxj.ProjectFile mspdi = new net.sf.mpxj.mspdi.MSPDIReader()
+		org.mpxj.ProjectFile mspdi = new org.mpxj.mspdi.MSPDIReader()
 			.read(new ByteArrayInputStream(savedEntries.get(MpoFileImporter.PROJECT_ENTRY)));
 		assertEquals(700.0d, Double.parseDouble(taskBaselineXmlField(
 			savedEntries.get(MpoFileImporter.PROJECT_ENTRY), "Mpo task", 0, "FixedCost")),
@@ -3299,9 +3299,9 @@ class MpoFileImporterTest {
 
 		byte[] archive = saveProjectBytes(project);
 		byte[] projectXml = readEntries(archive).get(MpoFileImporter.PROJECT_ENTRY);
-		net.sf.mpxj.ProjectFile mspdi = new net.sf.mpxj.mspdi.MSPDIReader()
+		org.mpxj.ProjectFile mspdi = new org.mpxj.mspdi.MSPDIReader()
 			.read(new ByteArrayInputStream(projectXml));
-		net.sf.mpxj.Task xmlTask = mspdi.getTasks().stream()
+		org.mpxj.Task xmlTask = mspdi.getTasks().stream()
 			.filter(candidate -> "Mpo task".equals(candidate.getName())).findFirst().orElseThrow();
 		for (int slot = 0; slot <= 10; slot++) {
 			assertEquals(slot == 0 ? 0.0d : slot * 1000.0d,
@@ -5444,8 +5444,8 @@ class MpoFileImporterTest {
 					com.microproject.datatype.Duration.getType(back), "baseline effective unit" + label);
 				assertEquals(field.getText(task, liveContext), field.getText(restored, restoredContext),
 					"formatted baseline duration" + label);
-				net.sf.mpxj.Duration liveExport = com.microproject.server.data.MPXConverter.toMPXDuration(live, defaults);
-				net.sf.mpxj.Duration backExport = com.microproject.server.data.MPXConverter.toMPXDuration(back, defaults);
+				org.mpxj.Duration liveExport = com.microproject.server.data.MPXConverter.toMPXDuration(live, defaults);
+				org.mpxj.Duration backExport = com.microproject.server.data.MPXConverter.toMPXDuration(back, defaults);
 				assertEquals(liveExport, backExport, "exported baseline duration" + label);
 			}
 		}
@@ -5818,7 +5818,7 @@ class MpoFileImporterTest {
 
 		byte[] bytes = saveMpo(original);
 		String projectXml = new String(readEntries(bytes).get(MpoFileImporter.PROJECT_ENTRY), StandardCharsets.UTF_8);
-		net.sf.mpxj.Resource mpxResource = new net.sf.mpxj.ProjectFile().addResource();
+		org.mpxj.Resource mpxResource = new org.mpxj.ProjectFile().addResource();
 		com.microproject.server.data.MPXConverter.toMPXResource((com.microproject.pm.resource.ResourceImpl) resource,
 			mpxResource);
 		assertEquals(com.microproject.server.data.MPXConverter.toMPXRate(resource.getStandardRate()),

@@ -15,10 +15,10 @@ import org.junit.jupiter.api.io.TempDir;
 
 import com.microproject.exchange.mpxj.ProjectWriterFactory;
 
-import net.sf.mpxj.ProjectFile;
-import net.sf.mpxj.Task;
-import net.sf.mpxj.mpx.MPXReader;
-import net.sf.mpxj.planner.PlannerReader;
+import org.mpxj.ProjectFile;
+import org.mpxj.Task;
+import org.mpxj.mpx.MPXReader;
+import org.mpxj.planner.PlannerReader;
 
 class RegisteredExternalWriterTest {
 	@TempDir Path tempDir;
@@ -53,17 +53,17 @@ class RegisteredExternalWriterTest {
 	private static ProjectFile literalProject() {
 		ProjectFile project = new ProjectFile();
 		java.util.Date start = java.util.Date.from(java.time.Instant.parse("2026-01-05T08:00:00Z"));
-		project.getProjectProperties().setStartDate(start);
-		project.getProjectProperties().setFinishDate(java.util.Date.from(
-			java.time.Instant.parse("2026-01-05T17:00:00Z")));
-		net.sf.mpxj.ProjectCalendar calendar = project.addDefaultBaseCalendar();
+		project.getProjectProperties().setStartDate(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(start));
+		project.getProjectProperties().setFinishDate(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(java.util.Date.from(
+			java.time.Instant.parse("2026-01-05T17:00:00Z"))));
+		org.mpxj.ProjectCalendar calendar = project.addDefaultBaseCalendar();
 		project.getProjectProperties().setDefaultCalendar(calendar);
 		Task task = project.addTask();
 		task.setName("Bounded task");
 		task.setUniqueID(1);
 		task.setPercentageComplete(40);
-		task.setStart(start);
-		task.setFinish(java.util.Date.from(java.time.Instant.parse("2026-01-05T17:00:00Z")));
+		task.setStart(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(start));
+		task.setFinish(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(java.util.Date.from(java.time.Instant.parse("2026-01-05T17:00:00Z"))));
 		return project;
 	}
 

@@ -30,8 +30,8 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.field.CustomFieldsImpl;
 
-import net.sf.mpxj.ProjectFile;
-import net.sf.mpxj.TaskField;
+import org.mpxj.ProjectFile;
+import org.mpxj.TaskField;
 
 class MpxCustomFlagExportTest {
 	@Test
@@ -40,7 +40,7 @@ class MpxCustomFlagExportTest {
 		CustomFieldsMapper mapper = new CustomFieldsMapper();
 		CustomFieldsMapper.Maps maps = mapper.new Maps(TaskField.class);
 		ProjectFile project = new ProjectFile();
-		net.sf.mpxj.Task task = project.addTask();
+		org.mpxj.Task task = project.addTask();
 
 		MPXConverter.toMpxCustomFields(fields, task, maps);
 		assertNull(task.get(TaskField.FLAG1));

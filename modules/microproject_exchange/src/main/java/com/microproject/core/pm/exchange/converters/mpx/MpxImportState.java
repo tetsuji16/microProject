@@ -28,10 +28,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import net.sf.mpxj.ProjectCalendar;
-import net.sf.mpxj.ProjectFile;
-import net.sf.mpxj.ResourceAssignment;
-import net.sf.mpxj.mspdi.schema.TimephasedDataType;
+import org.mpxj.ProjectCalendar;
+import org.mpxj.ProjectFile;
+import org.mpxj.ResourceAssignment;
+import org.mpxj.mspdi.schema.TimephasedDataType;
 
 import com.microproject.exchange.ImportedCalendarService;
 import com.microproject.pm.calendar.WorkCalendar;
@@ -48,8 +48,8 @@ public class MpxImportState {
 	protected ProjectCalendar mpxStandardBaseCalendar;
 	protected Map<String,ProjectCalendar> mpxBaseCalendarMap=new HashMap<String, ProjectCalendar>();
 	protected Map<String,WorkCalendar> baseCalendarMap=new HashMap<String, WorkCalendar>();
-	protected Map<net.sf.mpxj.Task,Task> taskMap=new HashMap<net.sf.mpxj.Task, Task>();
-	protected Map<net.sf.mpxj.Resource,Resource> resourceMap=new HashMap<net.sf.mpxj.Resource, Resource>();
+	protected Map<org.mpxj.Task,Task> taskMap=new HashMap<org.mpxj.Task, Task>();
+	protected Map<org.mpxj.Resource,Resource> resourceMap=new HashMap<org.mpxj.Resource, Resource>();
 	protected Map<ResourceAssignment,List<TimephasedDataType>> mpxTimephasedMap;
 	
 	protected WorkCalendar projectBaseCalendar;
@@ -217,17 +217,17 @@ public class MpxImportState {
 		return ImportedCalendarService.getInstance().findImportedCalendar(mpxCalendar);
 	}
 	
-	public void mapTask(net.sf.mpxj.Task mpxTask, Task task){
+	public void mapTask(org.mpxj.Task mpxTask, Task task){
 		taskMap.put(mpxTask,task);
 	}
-	public Task getTask(net.sf.mpxj.Task mpxTask){
+	public Task getTask(org.mpxj.Task mpxTask){
 		return taskMap.get(mpxTask);
 	}
 
-	public void mapResource(net.sf.mpxj.Resource mpxResource, Resource resource){
+	public void mapResource(org.mpxj.Resource mpxResource, Resource resource){
 		resourceMap.put(mpxResource,resource);
 	}
-	public Resource getResource(net.sf.mpxj.Resource mpxResource){
+	public Resource getResource(org.mpxj.Resource mpxResource){
 		return resourceMap.get(mpxResource);
 	}
 	public boolean isMspdi() {

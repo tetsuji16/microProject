@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 import com.microproject.core.pm.exchange.MspImporter;
 import com.microproject.pm.task.Project;
 
-import net.sf.mpxj.MPXJException;
+import org.mpxj.MPXJException;
 
 class MalformedExternalImporterTest {
 	private static final byte[] TRUNCATED_MPX = ("MPX,Microsoft Project for Windows,4.0,ANSI\r\n"

@@ -30,7 +30,7 @@ import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.calendar.WorkingCalendar;
 
-import net.sf.mpxj.ProjectCalendar;
+import org.mpxj.ProjectCalendar;
 
 /**
  * Facade for manipulating calendars via a dialog or web interface

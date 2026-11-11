@@ -29,13 +29,13 @@ import java.util.function.Supplier;
 
 import com.microproject.exchange.xlsx.MicroProjectXlsxWriter;
 
-import net.sf.mpxj.json.JsonWriter;
-import net.sf.mpxj.mpx.MPXWriter;
-import net.sf.mpxj.mspdi.MSPDIWriter;
-import net.sf.mpxj.planner.PlannerWriter;
-import net.sf.mpxj.primavera.PrimaveraPMFileWriter;
-import net.sf.mpxj.sdef.SDEFWriter;
-import net.sf.mpxj.writer.ProjectWriter;
+import org.mpxj.json.JsonWriter;
+import org.mpxj.mpx.MPXWriter;
+import org.mpxj.mspdi.MSPDIWriter;
+import org.mpxj.planner.PlannerWriter;
+import org.mpxj.primavera.PrimaveraPMFileWriter;
+import org.mpxj.sdef.SDEFWriter;
+import org.mpxj.writer.ProjectWriter;
 
 /** Selects the microProject-compatible writer for an output file extension. */
 public final class ProjectWriterFactory {

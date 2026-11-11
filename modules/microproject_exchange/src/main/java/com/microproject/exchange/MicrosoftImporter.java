@@ -68,7 +68,7 @@ import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 import com.microproject.util.Environment;
 
-import net.sf.mpxj.writer.ProjectWriter;
+import org.mpxj.writer.ProjectWriter;
 import com.microproject.exchange.mpxj.ProjectWriterFactory;
 import com.microproject.exchange.xlsx.MicroProjectXlsxWriter;
 import com.microproject.exchange.xlsx.MicroProjectXlsxReader;

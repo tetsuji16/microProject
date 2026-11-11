@@ -42,13 +42,13 @@ import java.util.Map;	import java.util.logging.Level;
 	import java.util.regex.Pattern;
 
 
-import net.sf.mpxj.MPXJException;
-import net.sf.mpxj.Duration;
-import net.sf.mpxj.RelationType;
-import net.sf.mpxj.TimeUnit;
-import net.sf.mpxj.ProjectFile;
-import net.sf.mpxj.reader.AbstractProjectReader;
-import net.sf.mpxj.mspdi.MSPDIReader;
+import org.mpxj.MPXJException;
+import org.mpxj.Duration;
+import org.mpxj.RelationType;
+import org.mpxj.TimeUnit;
+import org.mpxj.ProjectFile;
+import org.mpxj.reader.AbstractProjectReader;
+import org.mpxj.mspdi.MSPDIReader;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
@@ -292,15 +292,15 @@ public class MicroProjectXlsxReader extends AbstractProjectReader {
 	private ProjectFile readSummaryProject(XSSFWorkbook workbook) throws Exception {
 		ProjectFile project = new ProjectFile();
 		project.addDefaultBaseCalendar();
-		Map<Integer, net.sf.mpxj.Task> tasks = readTasks(project, workbook.getSheet(TASKS_SHEET));
-		Map<Integer, net.sf.mpxj.Resource> resources = readResources(project, workbook.getSheet(RESOURCES_SHEET));
+		Map<Integer, org.mpxj.Task> tasks = readTasks(project, workbook.getSheet(TASKS_SHEET));
+		Map<Integer, org.mpxj.Resource> resources = readResources(project, workbook.getSheet(RESOURCES_SHEET));
 		readAssignments(workbook.getSheet(ASSIGNMENTS_SHEET), tasks, resources);
 		readDependencies(workbook.getSheet(DEPENDENCIES_SHEET), tasks);
 		return project;
 	}
 
-	private Map<Integer, net.sf.mpxj.Task> readTasks(ProjectFile project, Sheet sheet) {
-		Map<Integer, net.sf.mpxj.Task> tasks = new LinkedHashMap<Integer, net.sf.mpxj.Task>();
+	private Map<Integer, org.mpxj.Task> readTasks(ProjectFile project, Sheet sheet) {
+		Map<Integer, org.mpxj.Task> tasks = new LinkedHashMap<Integer, org.mpxj.Task>();
 		Map<Integer, Integer> parentUniqueIds = new LinkedHashMap<Integer, Integer>();
 		if (sheet == null) {
 			return tasks;
@@ -310,7 +310,7 @@ public class MicroProjectXlsxReader extends AbstractProjectReader {
 			if (row == null || isBlank(row)) {
 				continue;
 			}
-			net.sf.mpxj.Task task = project.addTask();
+			org.mpxj.Task task = project.addTask();
 			Integer uid = integerCell(row, 0);
 			Integer id = integerCell(row, 1);
 			if (uid != null) {
@@ -327,10 +327,10 @@ public class MicroProjectXlsxReader extends AbstractProjectReader {
 			task.setName(stringCell(row, 3));
 			task.setNotes(stringCell(row, 4));
 			if (dateCell(row, 5) != null) {
-				task.setStart(dateCell(row, 5));
+				task.setStart(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(dateCell(row, 5)));
 			}
 			if (dateCell(row, 6) != null) {
-				task.setFinish(dateCell(row, 6));
+				task.setFinish(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(dateCell(row, 6)));
 			}
 			Double percent = doubleCell(row, 7);
 			if (percent != null) {
@@ -344,15 +344,15 @@ public class MicroProjectXlsxReader extends AbstractProjectReader {
 		validateParentUniqueIds(tasks, parentUniqueIds);
 		// Resolve parent references after the UID index is complete.
 		for (Map.Entry<Integer, Integer> entry : parentUniqueIds.entrySet()) {
-			net.sf.mpxj.Task task = tasks.get(entry.getKey());
-			net.sf.mpxj.Task parent = tasks.get(entry.getValue());
+			org.mpxj.Task task = tasks.get(entry.getKey());
+			org.mpxj.Task parent = tasks.get(entry.getValue());
 			parent.addChildTask(task);
 			project.getChildTasks().remove(task);
 		}
 		return tasks;
 	}
 
-	private void validateParentUniqueIds(Map<Integer, net.sf.mpxj.Task> tasks, Map<Integer, Integer> parentUniqueIds) {
+	private void validateParentUniqueIds(Map<Integer, org.mpxj.Task> tasks, Map<Integer, Integer> parentUniqueIds) {
 		for (Map.Entry<Integer, Integer> entry : parentUniqueIds.entrySet()) {
 			Integer taskUniqueId = entry.getKey();
 			Integer parentUniqueId = entry.getValue();
@@ -385,8 +385,8 @@ public class MicroProjectXlsxReader extends AbstractProjectReader {
 		}
 	}
 
-	private Map<Integer, net.sf.mpxj.Resource> readResources(ProjectFile project, Sheet sheet) {
-		Map<Integer, net.sf.mpxj.Resource> resources = new LinkedHashMap<Integer, net.sf.mpxj.Resource>();
+	private Map<Integer, org.mpxj.Resource> readResources(ProjectFile project, Sheet sheet) {
+		Map<Integer, org.mpxj.Resource> resources = new LinkedHashMap<Integer, org.mpxj.Resource>();
 		if (sheet == null) {
 			return resources;
 		}
@@ -395,7 +395,7 @@ public class MicroProjectXlsxReader extends AbstractProjectReader {
 			if (row == null || isBlank(row)) {
 				continue;
 			}
-			net.sf.mpxj.Resource resource = project.addResource();
+			org.mpxj.Resource resource = project.addResource();
 			Integer uid = integerCell(row, 0);
 			Integer id = integerCell(row, 1);
 			if (uid != null) {
@@ -411,13 +411,14 @@ public class MicroProjectXlsxReader extends AbstractProjectReader {
 			resource.setEmailAddress(stringCell(row, 5));
 			Double maxUnits = doubleCell(row, 6);
 			if (maxUnits != null) {
-				resource.setMaxUnits(maxUnits);
+				resource.getAvailability().add(new org.mpxj.Availability(
+					org.mpxj.common.LocalDateTimeHelper.START_DATE_NA, org.mpxj.AvailabilityTable.END_DATE_NA, maxUnits));
 			}
 		}
 		return resources;
 	}
 
-	private void readAssignments(Sheet sheet, Map<Integer, net.sf.mpxj.Task> tasks, Map<Integer, net.sf.mpxj.Resource> resources) {
+	private void readAssignments(Sheet sheet, Map<Integer, org.mpxj.Task> tasks, Map<Integer, org.mpxj.Resource> resources) {
 		if (sheet == null) {
 			return;
 		}
@@ -428,12 +429,12 @@ public class MicroProjectXlsxReader extends AbstractProjectReader {
 			}
 			Integer taskUid = integerCell(row, 0);
 			Integer resourceUid = integerCell(row, 1);
-			net.sf.mpxj.Task task = tasks.get(taskUid);
-			net.sf.mpxj.Resource resource = resources.get(resourceUid);
+			org.mpxj.Task task = tasks.get(taskUid);
+			org.mpxj.Resource resource = resources.get(resourceUid);
 			if (task == null || resource == null) {
 				continue;
 			}
-			net.sf.mpxj.ResourceAssignment assignment = task.addResourceAssignment(resource);
+			org.mpxj.ResourceAssignment assignment = task.addResourceAssignment(resource);
 			Double units = doubleCell(row, 2);
 			if (units != null) {
 				assignment.setUnits(units);
@@ -441,7 +442,7 @@ public class MicroProjectXlsxReader extends AbstractProjectReader {
 		}
 	}
 
-	private void readDependencies(Sheet sheet, Map<Integer, net.sf.mpxj.Task> tasks) {
+	private void readDependencies(Sheet sheet, Map<Integer, org.mpxj.Task> tasks) {
 		if (sheet == null) {
 			return;
 		}
@@ -452,15 +453,16 @@ public class MicroProjectXlsxReader extends AbstractProjectReader {
 			}
 			Integer successorUid = integerCell(row, 0);
 			Integer predecessorUid = integerCell(row, 1);
-			net.sf.mpxj.Task successor = tasks.get(successorUid);
-			net.sf.mpxj.Task predecessor = tasks.get(predecessorUid);
+			org.mpxj.Task successor = tasks.get(successorUid);
+			org.mpxj.Task predecessor = tasks.get(predecessorUid);
 			if (successor == null || predecessor == null) {
 				continue;
 			}
 			int relationType = integerCell(row, 2) == null ? RelationType.FINISH_START.getValue() : integerCell(row, 2).intValue();
 			Duration lag = durationCell(row, 3);
-			successor.addPredecessor(predecessor, RelationType.getInstance(relationType),
-					lag == null ? Duration.getInstance(0, TimeUnit.DAYS) : lag);
+			successor.addPredecessor(new org.mpxj.Relation.Builder().predecessorTask(predecessor)
+					.type(RelationType.getInstance(relationType))
+					.lag(lag == null ? Duration.getInstance(0, TimeUnit.DAYS) : lag));
 		}
 	}
 

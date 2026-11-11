@@ -16,7 +16,7 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
-import net.sf.mpxj.ScheduleFrom;
+import org.mpxj.ScheduleFrom;
 
 /** Reads declared MSPDI project boundary fields without inferring them from tasks. */
 public final class MspdiProjectBoundary {

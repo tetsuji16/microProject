@@ -38,14 +38,14 @@ import com.microproject.core.fields.FieldTypeConverter;
 public class MpxScheduleFromConverter extends FieldTypeConverter {
 	@Override
 	public Object from(Object o) {
-		net.sf.mpxj.ScheduleFrom s=(net.sf.mpxj.ScheduleFrom)o;
+		org.mpxj.ScheduleFrom s=(org.mpxj.ScheduleFrom)o;
 		return ScheduleFrom.getInstance(s.getValue());
 	}
 
 	@Override
 	public Object to(Object o) {
 		ScheduleFrom s=(ScheduleFrom)o;
-		return net.sf.mpxj.ScheduleFrom.getInstance(s.getId());
+		return org.mpxj.ScheduleFrom.getInstance(s.getId());
 	}
 
 }

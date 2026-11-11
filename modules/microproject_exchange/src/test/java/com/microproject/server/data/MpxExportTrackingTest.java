@@ -27,6 +27,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import com.microproject.core.pm.exchange.converters.mpx.MpxDates;
 import java.util.List;
 import java.util.Iterator;
 import java.util.concurrent.CountDownLatch;
@@ -61,9 +62,9 @@ import com.microproject.session.SaveOptions;
 import com.microproject.session.SessionFactory;
 import com.microproject.undo.DataFactoryUndoController;
 
-import net.sf.mpxj.ProjectFile;
-import net.sf.mpxj.ResourceAssignment;
-import net.sf.mpxj.TaskMode;
+import org.mpxj.ProjectFile;
+import org.mpxj.ResourceAssignment;
+import org.mpxj.TaskMode;
 
 class MpxExportTrackingTest {
 	@Test
@@ -103,32 +104,32 @@ class MpxExportTrackingTest {
 		source.getProjectProperties().setMinutesPerDay(Integer.valueOf(480));
 		java.util.Date currentStart = java.util.Date.from(java.time.Instant.parse("2026-10-12T08:00:00Z"));
 		java.util.Date currentFinish = java.util.Date.from(java.time.Instant.parse("2026-10-13T17:00:00Z"));
-		net.sf.mpxj.Task task = source.addTask();
+		org.mpxj.Task task = source.addTask();
 		task.setName("Baseline contract");
 		task.setUniqueID(1);
-		task.setStart(currentStart);
-		task.setFinish(currentFinish);
-		task.setDuration(net.sf.mpxj.Duration.getInstance(2, net.sf.mpxj.TimeUnit.DAYS));
+		task.setStart(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(currentStart));
+		task.setFinish(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(currentFinish));
+		task.setDuration(org.mpxj.Duration.getInstance(2, org.mpxj.TimeUnit.DAYS));
 		java.util.Date baselineZeroStart = mspdiDateAtModelTime("2026-10-05T08:00:00Z");
 		java.util.Date baselineZeroFinish = mspdiDateAtModelTime("2026-10-06T17:00:00Z");
 		java.util.Date baselineOneStart = mspdiDateAtModelTime("2026-10-07T08:00:00Z");
 		java.util.Date milestoneBaseline = mspdiDateAtModelTime("2026-10-08T08:00:00Z");
 		java.util.Date baselineTenStart = mspdiDateAtModelTime("2026-10-01T08:00:00Z");
 		java.util.Date baselineTenFinish = mspdiDateAtModelTime("2026-10-02T17:00:00Z");
-		task.setBaselineStart(baselineZeroStart);
-		task.setBaselineFinish(baselineZeroFinish);
-		task.setBaselineDuration(net.sf.mpxj.Duration.getInstance(2, net.sf.mpxj.TimeUnit.DAYS));
+		task.setBaselineStart(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(baselineZeroStart));
+		task.setBaselineFinish(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(baselineZeroFinish));
+		task.setBaselineDuration(org.mpxj.Duration.getInstance(2, org.mpxj.TimeUnit.DAYS));
 		task.setBaselineFixedCost(Double.valueOf(160.0D));
-		task.setFixedCostAccrual(net.sf.mpxj.AccrueType.PRORATED);
-		task.setBaselineStart(1, baselineOneStart); // partial baseline: finish is absent
-		task.setBaselineStart(2, milestoneBaseline);
-		task.setBaselineFinish(2, milestoneBaseline);
-		task.setBaselineDuration(2, net.sf.mpxj.Duration.getInstance(0, net.sf.mpxj.TimeUnit.DAYS));
-		task.setBaselineStart(10, baselineTenStart);
-		task.setBaselineFinish(10, baselineTenFinish);
-		task.setBaselineDuration(10, net.sf.mpxj.Duration.getInstance(2, net.sf.mpxj.TimeUnit.DAYS));
+		task.setFixedCostAccrual(org.mpxj.AccrueType.PRORATED);
+		task.setBaselineStart(1, com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(baselineOneStart)); // partial baseline: finish is absent
+		task.setBaselineStart(2, com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(milestoneBaseline));
+		task.setBaselineFinish(2, com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(milestoneBaseline));
+		task.setBaselineDuration(2, org.mpxj.Duration.getInstance(0, org.mpxj.TimeUnit.DAYS));
+		task.setBaselineStart(10, com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(baselineTenStart));
+		task.setBaselineFinish(10, com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(baselineTenFinish));
+		task.setBaselineDuration(10, org.mpxj.Duration.getInstance(2, org.mpxj.TimeUnit.DAYS));
 		ByteArrayOutputStream sourceXml = new ByteArrayOutputStream();
-		new net.sf.mpxj.mspdi.MSPDIWriter().write(source, sourceXml);
+		new org.mpxj.mspdi.MSPDIWriter().write(source, sourceXml);
 		String sourceMspdi = sourceXml.toString(java.nio.charset.StandardCharsets.UTF_8);
 		// MPXJ's writer omits Baseline.FixedCost, so include the published MSPDI field
 		// directly in this interoperability fixture instead of weakening the expected value.
@@ -175,23 +176,23 @@ class MpxExportTrackingTest {
 		MicrosoftImporter exporter = new MicrosoftImporter();
 		exporter.setFileName("baseline-round-trip.xml");
 		assertTrue(exporter.saveProject(imported, roundTripXml));
-		ProjectFile roundTrip = new net.sf.mpxj.mspdi.MSPDIReader()
+		ProjectFile roundTrip = new org.mpxj.mspdi.MSPDIReader()
 			.read(new ByteArrayInputStream(roundTripXml.toByteArray()));
-		net.sf.mpxj.Task roundTripTask = roundTrip.getTasks().stream()
+		org.mpxj.Task roundTripTask = roundTrip.getTasks().stream()
 			.filter(candidate -> "Baseline contract".equals(candidate.getName())).findFirst().orElseThrow();
-		assertEquals(baselineZeroStart, roundTripTask.getBaselineStart());
-		assertEquals(baselineZeroFinish, roundTripTask.getBaselineFinish());
+		assertEquals(baselineZeroStart, MpxDates.toDate(roundTripTask.getBaselineStart()));
+		assertEquals(baselineZeroFinish, MpxDates.toDate(roundTripTask.getBaselineFinish()));
 		assertEquals(2.0d, roundTripTask.getBaselineDuration().getDuration(), 0.00001d);
 		assertTrue(roundTripXml.toString(java.nio.charset.StandardCharsets.UTF_8).contains("<FixedCost>160</FixedCost>"),
 			"the canonical MSPDI writer must publish the baseline fixed-cost field");
-		assertEquals(net.sf.mpxj.AccrueType.PRORATED, roundTripTask.getFixedCostAccrual());
-		assertEquals(net.sf.mpxj.TimeUnit.DAYS, roundTripTask.getBaselineDuration().getUnits());
-		assertEquals(baselineOneStart, roundTripTask.getBaselineStart(1));
+		assertEquals(org.mpxj.AccrueType.PRORATED, roundTripTask.getFixedCostAccrual());
+		assertEquals(org.mpxj.TimeUnit.DAYS, roundTripTask.getBaselineDuration().getUnits());
+		assertEquals(baselineOneStart, MpxDates.toDate(roundTripTask.getBaselineStart(1)));
 		assertNull(roundTripTask.getBaselineFinish(1));
-		assertEquals(milestoneBaseline, roundTripTask.getBaselineStart(2));
-		assertEquals(milestoneBaseline, roundTripTask.getBaselineFinish(2));
-		assertEquals(baselineTenStart, roundTripTask.getBaselineStart(10));
-		assertEquals(baselineTenFinish, roundTripTask.getBaselineFinish(10));
+		assertEquals(milestoneBaseline, MpxDates.toDate(roundTripTask.getBaselineStart(2)));
+		assertEquals(milestoneBaseline, MpxDates.toDate(roundTripTask.getBaselineFinish(2)));
+		assertEquals(baselineTenStart, MpxDates.toDate(roundTripTask.getBaselineStart(10)));
+		assertEquals(baselineTenFinish, MpxDates.toDate(roundTripTask.getBaselineFinish(10)));
 		Project modelRoundTrip = new com.microproject.core.pm.exchange.MspImporter().importProject(
 			new ByteArrayInputStream(roundTripXml.toByteArray()), "xml", (progress, label) -> {});
 		assertEquals(1.6D, ((com.microproject.pm.task.TaskSnapshot)
@@ -250,22 +251,22 @@ class MpxExportTrackingTest {
 		MicrosoftImporter exporter = new MicrosoftImporter();
 		exporter.setFileName("assignment-baseline.xml");
 		assertTrue(exporter.saveProject(withBaselines, xml));
-		net.sf.mpxj.ProjectFile roundTrip = new net.sf.mpxj.mspdi.MSPDIReader()
+		org.mpxj.ProjectFile roundTrip = new org.mpxj.mspdi.MSPDIReader()
 			.read(new ByteArrayInputStream(xml.toByteArray()));
-		net.sf.mpxj.ResourceAssignment roundTripAssignment = roundTrip.getTasks().stream()
+		org.mpxj.ResourceAssignment roundTripAssignment = roundTrip.getTasks().stream()
 			.filter(candidate -> "Assignment baseline contract".equals(candidate.getName())).findFirst().orElseThrow()
 			.getResourceAssignments().get(0);
 		assertEquals(localWallDate("2026-10-05T08:00:00"),
-			roundTripAssignment.getBaselineStart());
+			MpxDates.toDate(roundTripAssignment.getBaselineStart()));
 		assertEquals(8.0d, roundTripAssignment.getBaselineWork()
-			.convertUnits(net.sf.mpxj.TimeUnit.HOURS, roundTrip.getProjectProperties()).getDuration(), 0.00001d);
+			.convertUnits(org.mpxj.TimeUnit.HOURS, roundTrip.getProjectProperties()).getDuration(), 0.00001d);
 		assertNull(roundTripAssignment.getBaselineStart(1));
 		assertEquals(localWallDate("2026-10-07T08:00:00"),
-			roundTripAssignment.getBaselineStart(10));
+			MpxDates.toDate(roundTripAssignment.getBaselineStart(10)));
 		assertEquals(localWallDate("2026-10-08T08:00:00"),
-			roundTripAssignment.getBaselineFinish(10));
+			MpxDates.toDate(roundTripAssignment.getBaselineFinish(10)));
 		assertEquals(8.0d, roundTripAssignment.getBaselineWork(10)
-			.convertUnits(net.sf.mpxj.TimeUnit.HOURS, roundTrip.getProjectProperties()).getDuration(), 0.00001d);
+			.convertUnits(org.mpxj.TimeUnit.HOURS, roundTrip.getProjectProperties()).getDuration(), 0.00001d);
 
 		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
 		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(withBaselines, mpo));
@@ -293,16 +294,16 @@ class MpxExportTrackingTest {
 		ByteArrayOutputStream xml = new ByteArrayOutputStream();
 		assertTrue(new MicrosoftImporter().saveProject(imported, xml));
 		assertAssignmentBaselineSchemaOrder(xml.toByteArray());
-		net.sf.mpxj.ResourceAssignment xmlAssignment = new net.sf.mpxj.mspdi.MSPDIReader()
+		org.mpxj.ResourceAssignment xmlAssignment = new org.mpxj.mspdi.MSPDIReader()
 			.read(new ByteArrayInputStream(xml.toByteArray())).getTasks().stream()
 			.filter(candidate -> "Assignment baseline contract".equals(candidate.getName())).findFirst().orElseThrow()
 			.getResourceAssignments().get(0);
-		assertEquals(localWallDate("2026-10-05T08:00:00"), xmlAssignment.getBaselineStart());
+		assertEquals(localWallDate("2026-10-05T08:00:00"), MpxDates.toDate(xmlAssignment.getBaselineStart()));
 		assertNull(xmlAssignment.getBaselineFinish());
 		assertEquals(localWallDate("2026-10-07T08:00:00"),
-			xmlAssignment.getBaselineStart(10));
+			MpxDates.toDate(xmlAssignment.getBaselineStart(10)));
 		assertEquals(localWallDate("2026-10-07T08:00:00"),
-			xmlAssignment.getBaselineFinish(10));
+			MpxDates.toDate(xmlAssignment.getBaselineFinish(10)));
 		assertEquals(0.0d, xmlAssignment.getBaselineWork(10).getDuration(), 0.00001d);
 		assertEquals(8.0d, xmlAssignment.getBaselineWork()
 			.getDuration(), 0.00001d);
@@ -400,48 +401,48 @@ class MpxExportTrackingTest {
 
 	private static Project importBaselineFixtureResult(boolean includeBaselines, boolean includeTaskBaseline,
 			boolean zeroSlotTenWork) throws Exception {
-		net.sf.mpxj.ProjectFile source = new net.sf.mpxj.ProjectFile();
+		org.mpxj.ProjectFile source = new org.mpxj.ProjectFile();
 		source.addDefaultBaseCalendar();
 		source.getProjectProperties().setMinutesPerDay(Integer.valueOf(480));
 		java.util.Date currentStart = localWallDate("2026-10-12T08:00:00");
 		java.util.Date currentFinish = localWallDate("2026-10-13T17:00:00");
-		net.sf.mpxj.Task task = source.addTask();
+		org.mpxj.Task task = source.addTask();
 		task.setName("Assignment baseline contract");
 		task.setUniqueID(1);
-		task.setStart(currentStart);
-		task.setFinish(currentFinish);
-		task.setDuration(net.sf.mpxj.Duration.getInstance(2, net.sf.mpxj.TimeUnit.DAYS));
+		task.setStart(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(currentStart));
+		task.setFinish(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(currentFinish));
+		task.setDuration(org.mpxj.Duration.getInstance(2, org.mpxj.TimeUnit.DAYS));
 		if (includeTaskBaseline) {
-			task.setBaselineStart(localWallDate("2026-10-05T08:00:00"));
-			task.setBaselineFinish(localWallDate("2026-10-06T08:00:00"));
+			task.setBaselineStart(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(localWallDate("2026-10-05T08:00:00")));
+			task.setBaselineFinish(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(localWallDate("2026-10-06T08:00:00")));
 		}
-		net.sf.mpxj.Resource resource = source.addResource();
+		org.mpxj.Resource resource = source.addResource();
 		resource.setName("Baseline worker");
 		resource.setUniqueID(1);
-		net.sf.mpxj.ResourceAssignment assignment = task.addResourceAssignment(resource);
+		org.mpxj.ResourceAssignment assignment = task.addResourceAssignment(resource);
 		assignment.setUnits(100d);
-		assignment.setStart(currentStart);
-		assignment.setFinish(currentFinish);
-		assignment.setWork(net.sf.mpxj.Duration.getInstance(16, net.sf.mpxj.TimeUnit.HOURS));
+		assignment.setStart(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(currentStart));
+		assignment.setFinish(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(currentFinish));
+		assignment.setWork(org.mpxj.Duration.getInstance(16, org.mpxj.TimeUnit.HOURS));
 		if (includeBaselines) {
-					assignment.setBaselineStart(localWallDate("2026-10-05T08:00:00"));
-			assignment.setBaselineWork(net.sf.mpxj.Duration.getInstance(8, net.sf.mpxj.TimeUnit.HOURS));
+					assignment.setBaselineStart(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(localWallDate("2026-10-05T08:00:00")));
+			assignment.setBaselineWork(org.mpxj.Duration.getInstance(8, org.mpxj.TimeUnit.HOURS));
 			java.util.Date baselineTenStart = localWallDate("2026-10-07T08:00:00");
 			java.util.Date baselineTenFinish = zeroSlotTenWork ? baselineTenStart
 				: localWallDate("2026-10-08T08:00:00");
 			if (includeTaskBaseline) {
-				task.setBaselineStart(10, baselineTenStart);
-				task.setBaselineFinish(10, baselineTenFinish);
-				task.setBaselineDuration(10, net.sf.mpxj.Duration.getInstance(zeroSlotTenWork ? 0 : 1,
-					net.sf.mpxj.TimeUnit.DAYS));
+				task.setBaselineStart(10, com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(baselineTenStart));
+				task.setBaselineFinish(10, com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(baselineTenFinish));
+				task.setBaselineDuration(10, org.mpxj.Duration.getInstance(zeroSlotTenWork ? 0 : 1,
+					org.mpxj.TimeUnit.DAYS));
 			}
-			assignment.setBaselineStart(10, baselineTenStart);
-			assignment.setBaselineFinish(10, baselineTenFinish);
-			assignment.setBaselineWork(10, net.sf.mpxj.Duration.getInstance(zeroSlotTenWork ? 0 : 8,
-				net.sf.mpxj.TimeUnit.HOURS));
+			assignment.setBaselineStart(10, com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(baselineTenStart));
+			assignment.setBaselineFinish(10, com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(baselineTenFinish));
+			assignment.setBaselineWork(10, org.mpxj.Duration.getInstance(zeroSlotTenWork ? 0 : 8,
+				org.mpxj.TimeUnit.HOURS));
 		}
 		ByteArrayOutputStream xml = new ByteArrayOutputStream();
-		new net.sf.mpxj.mspdi.MSPDIWriter().write(source, xml);
+		new org.mpxj.mspdi.MSPDIWriter().write(source, xml);
 		if (zeroSlotTenWork) {
 			String xmlText = xml.toString(java.nio.charset.StandardCharsets.UTF_8);
 			int assignments = xmlText.indexOf("<Assignments>");
@@ -470,11 +471,11 @@ class MpxExportTrackingTest {
 	@Test
 	void elapsedBaselineDurationUnitSurvivesMpxjModelConversion() {
 		long imported = com.microproject.core.pm.exchange.converters.mpx.MpxUtils.toProjectDuration(
-			net.sf.mpxj.Duration.getInstance(2, net.sf.mpxj.TimeUnit.ELAPSED_DAYS));
+			org.mpxj.Duration.getInstance(2, org.mpxj.TimeUnit.ELAPSED_DAYS));
 		assertBaselineDuration(imported, 2.0d, com.microproject.datatype.TimeUnit.ELAPSED_DAYS);
-		net.sf.mpxj.Duration exported = MPXConverter.toMPXDuration(imported);
+		org.mpxj.Duration exported = MPXConverter.toMPXDuration(imported);
 		assertEquals(2.0d, exported.getDuration(), 0.00001d);
-		assertEquals(net.sf.mpxj.TimeUnit.ELAPSED_DAYS, exported.getUnits());
+		assertEquals(org.mpxj.TimeUnit.ELAPSED_DAYS, exported.getUnits());
 	}
 
 	@Test
@@ -523,16 +524,16 @@ class MpxExportTrackingTest {
 		Path fixture = Path.of("modules", "microproject_exchange", "testdata", "Assignment Baseline Scalars.xml");
 		if (!Files.isRegularFile(fixture)) fixture = Path.of("testdata", "Assignment Baseline Scalars.xml");
 		String flatXml = withAssignmentProgress(Files.readString(fixture), 8L * 60L * 60L * 1000L, 0L, 0);
-		net.sf.mpxj.ProjectFile sourceFile = new net.sf.mpxj.mspdi.MSPDIReader()
+		org.mpxj.ProjectFile sourceFile = new org.mpxj.mspdi.MSPDIReader()
 			.read(new ByteArrayInputStream(flatXml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-		net.sf.mpxj.ResourceAssignment sourceAssignment = sourceFile.getTasks().stream()
+		org.mpxj.ResourceAssignment sourceAssignment = sourceFile.getTasks().stream()
 			.filter(candidate -> "Assignment baseline task".equals(candidate.getName())).findFirst().orElseThrow()
 			.getResourceAssignments().get(0);
-		assertEquals(0.0d, ((Number) sourceAssignment.get(net.sf.mpxj.AssignmentField.PERCENT_WORK_COMPLETE)).doubleValue(), 0.00001d);
+		assertEquals(0.0d, ((Number) sourceAssignment.get(org.mpxj.AssignmentField.PERCENT_WORK_COMPLETE)).doubleValue(), 0.00001d);
 		assertEquals(0.0d, sourceAssignment.getActualWork()
-			.convertUnits(net.sf.mpxj.TimeUnit.HOURS, sourceFile.getProjectProperties()).getDuration(), 0.00001d);
+			.convertUnits(org.mpxj.TimeUnit.HOURS, sourceFile.getProjectProperties()).getDuration(), 0.00001d);
 		assertEquals(8.0d, sourceAssignment.getRemainingWork()
-			.convertUnits(net.sf.mpxj.TimeUnit.HOURS, sourceFile.getProjectProperties()).getDuration(), 0.00001d);
+			.convertUnits(org.mpxj.TimeUnit.HOURS, sourceFile.getProjectProperties()).getDuration(), 0.00001d);
 		Project flat = importMspdi(flatXml);
 		NormalTask flatTask = taskNamed(flat, "Assignment baseline task");
 		Assignment flatAssignment = (Assignment) flatTask.getAssignments().iterator().next();
@@ -568,26 +569,26 @@ class MpxExportTrackingTest {
 			MicrosoftImporter exporter = new MicrosoftImporter();
 			exporter.setFileName("assignment-contour.xml");
 			assertTrue(exporter.saveProject(imported, roundTripXml));
-			net.sf.mpxj.ProjectFile xmlRoundTrip = new net.sf.mpxj.mspdi.MSPDIReader()
+			org.mpxj.ProjectFile xmlRoundTrip = new org.mpxj.mspdi.MSPDIReader()
 				.read(new ByteArrayInputStream(roundTripXml.toByteArray()));
-			net.sf.mpxj.ResourceAssignment xmlAssignment = xmlRoundTrip.getTasks().stream()
+			org.mpxj.ResourceAssignment xmlAssignment = xmlRoundTrip.getTasks().stream()
 				.filter(candidate -> "Assignment baseline task".equals(candidate.getName())).findFirst().orElseThrow()
 				.getResourceAssignments().get(0);
 			assertEquals(code, com.microproject.exchange.mpxj.MpxjApi.workContourId(xmlAssignment.getWorkContour()));
 			assertEquals(expectedWork / (60.0d * 60.0d * 1000.0d), xmlAssignment.getWork()
-				.convertUnits(net.sf.mpxj.TimeUnit.HOURS, xmlRoundTrip.getProjectProperties()).getDuration(), 0.00001d);
+				.convertUnits(org.mpxj.TimeUnit.HOURS, xmlRoundTrip.getProjectProperties()).getDuration(), 0.00001d);
 
 			ByteArrayOutputStream mpo = new ByteArrayOutputStream();
 			assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(imported, mpo));
 			byte[] mpoXmlBytes = nativeProjectXml(mpo.toByteArray());
 			String rawMpoXml = new String(mpoXmlBytes, java.nio.charset.StandardCharsets.UTF_8);
-			net.sf.mpxj.ProjectFile mpoProjectXml = new net.sf.mpxj.mspdi.MSPDIReader()
+			org.mpxj.ProjectFile mpoProjectXml = new org.mpxj.mspdi.MSPDIReader()
 				.read(new ByteArrayInputStream(mpoXmlBytes));
-			net.sf.mpxj.ResourceAssignment mpoAssignment = mpoProjectXml.getTasks().stream()
+			org.mpxj.ResourceAssignment mpoAssignment = mpoProjectXml.getTasks().stream()
 				.filter(candidate -> "Assignment baseline task".equals(candidate.getName())).findFirst().orElseThrow()
 				.getResourceAssignments().get(0);
 			assertEquals(expectedWork / (60.0d * 60.0d * 1000.0d), mpoAssignment.getWork()
-				.convertUnits(net.sf.mpxj.TimeUnit.HOURS, mpoProjectXml.getProjectProperties()).getDuration(), 0.00001d);
+				.convertUnits(org.mpxj.TimeUnit.HOURS, mpoProjectXml.getProjectProperties()).getDuration(), 0.00001d);
 			int rawTaskStart = rawMpoXml.indexOf("<Task>");
 			int rawTaskEnd = rawMpoXml.indexOf("</Task>", rawTaskStart) + "</Task>".length();
 			String rawTaskXml = rawMpoXml.substring(rawTaskStart, rawTaskEnd);
@@ -612,7 +613,7 @@ class MpxExportTrackingTest {
 			assertEquals(expectedWork, reopenedAssignment.getWork(null));
 		}
 		UnsupportedOperationException unsupportedCustomContour = assertThrows(UnsupportedOperationException.class,
-			() -> com.microproject.exchange.mpxj.MpxjApi.workContourId(net.sf.mpxj.WorkContour.CONTOURED));
+			() -> com.microproject.exchange.mpxj.MpxjApi.workContourId(org.mpxj.WorkContour.CONTOURED));
 		assertTrue(unsupportedCustomContour.getMessage().contains("timephased assignment import"));
 	}
 
@@ -631,15 +632,15 @@ class MpxExportTrackingTest {
 			long remainingWork = totalWork - actualWork;
 			String sourceXml = withAssignmentProgress(baseXml, totalWork, actualWork, percentWorkComplete);
 			sourceXml = withAssignmentContour(sourceXml, 1, totalWork);
-			net.sf.mpxj.ProjectFile parsed = new net.sf.mpxj.mspdi.MSPDIReader()
+			org.mpxj.ProjectFile parsed = new org.mpxj.mspdi.MSPDIReader()
 				.read(new ByteArrayInputStream(sourceXml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-			net.sf.mpxj.ResourceAssignment sourceAssignment = parsed.getTasks().stream()
+			org.mpxj.ResourceAssignment sourceAssignment = parsed.getTasks().stream()
 				.filter(candidate -> "Assignment baseline task".equals(candidate.getName())).findFirst().orElseThrow()
 				.getResourceAssignments().get(0);
 			assertEquals(actualWork / (60.0d * 60.0d * 1000.0d), sourceAssignment.getActualWork()
-				.convertUnits(net.sf.mpxj.TimeUnit.HOURS, parsed.getProjectProperties()).getDuration(), 0.00001d);
+				.convertUnits(org.mpxj.TimeUnit.HOURS, parsed.getProjectProperties()).getDuration(), 0.00001d);
 			assertEquals(remainingWork / (60.0d * 60.0d * 1000.0d), sourceAssignment.getRemainingWork()
-				.convertUnits(net.sf.mpxj.TimeUnit.HOURS, parsed.getProjectProperties()).getDuration(), 0.00001d);
+				.convertUnits(org.mpxj.TimeUnit.HOURS, parsed.getProjectProperties()).getDuration(), 0.00001d);
 			assertEquals(percentWorkComplete, sourceAssignment.getPercentageWorkComplete().intValue());
 
 			Project imported = importMspdi(sourceXml);
@@ -685,21 +686,24 @@ class MpxExportTrackingTest {
 		String xml = twoDayCustomContourXml("",
 			"<TimephasedData><Type>1</Type><UID>1</UID><Start>2026-10-12T08:00:00</Start><Finish>2026-10-12T17:00:00</Finish><Unit>2</Unit><Value>PT2H0M0S</Value></TimephasedData>"
 				+ "<TimephasedData><Type>1</Type><UID>2</UID><Start>2026-10-13T08:00:00</Start><Finish>2026-10-13T17:00:00</Finish><Unit>2</Unit><Value>PT6H0M0S</Value></TimephasedData>");
-		net.sf.mpxj.ProjectFile parsed = new net.sf.mpxj.mspdi.MSPDIReader()
+		org.mpxj.ProjectFile parsed = new org.mpxj.mspdi.MSPDIReader()
 			.read(new ByteArrayInputStream(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
 		ResourceAssignment assignment = parsed.getResourceAssignments().get(0);
-		assertEquals(8.0d, assignment.getWork().convertUnits(net.sf.mpxj.TimeUnit.HOURS,
+		assertEquals(8.0d, assignment.getWork().convertUnits(org.mpxj.TimeUnit.HOURS,
 			parsed.getProjectProperties()).getDuration(), 0.00001d);
-		var timephasedWork = assignment.getTimephasedWork();
+		var timephasedWork = assignment.getRawTimephasedRemainingRegularWork();
 		assertEquals(2, timephasedWork.size(), timephasedWork.toString());
 		double[] expectedHours = { 2.0d, 6.0d };
 		String[] expectedDays = { "2026-10-12", "2026-10-13" };
 		for (int index = 0; index < expectedHours.length; index++) {
 			var item = timephasedWork.get(index);
-			assertEquals(expectedHours[index], item.getTotalAmount().getDuration(), 0.00001d, timephasedWork.toString());
-			assertEquals(expectedHours[index], item.getAmountPerDay().getDuration(), 0.00001d, timephasedWork.toString());
-			assertEquals(modelWallTime(expectedDays[index] + "T08:00:00"), DateUTCConverter.toModelTime(item.getStart()));
-			assertEquals(modelWallTime(expectedDays[index] + "T17:00:00"), DateUTCConverter.toModelTime(item.getFinish()));
+			assertEquals(expectedHours[index], item.getTotalAmount()
+				.convertUnits(org.mpxj.TimeUnit.HOURS, parsed.getProjectProperties()).getDuration(), 0.00001d, timephasedWork.toString());
+			// MPXJ 16 reports the rate per hour; an eight-hour day gives the former per-day amount.
+			assertEquals(expectedHours[index], item.getAmountPerHour()
+				.convertUnits(org.mpxj.TimeUnit.HOURS, parsed.getProjectProperties()).getDuration() * 8.0d, 0.00001d, timephasedWork.toString());
+			assertEquals(modelWallTime(expectedDays[index] + "T08:00:00"), DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(item.getStart())));
+			assertEquals(modelWallTime(expectedDays[index] + "T17:00:00"), DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(item.getFinish())));
 		}
 		Project imported = importMspdi(xml);
 		Assignment modelAssignment = (Assignment) taskNamed(imported, "Assignment baseline task").getAssignments().iterator().next();
@@ -719,16 +723,16 @@ class MpxExportTrackingTest {
 		String savedXml = new String(contentXml, java.nio.charset.StandardCharsets.UTF_8);
 		assertEquals(4, savedXml.split("<TimephasedData>", -1).length - 1, savedXml);
 		assertEquals(4, savedXml.split("<Unit>2</Unit>", -1).length - 1, savedXml);
-		ProjectFile serialized = new net.sf.mpxj.mspdi.MSPDIReader().read(new ByteArrayInputStream(contentXml));
-		var serializedWork = serialized.getResourceAssignments().get(0).getTimephasedWork();
+		ProjectFile serialized = new org.mpxj.mspdi.MSPDIReader().read(new ByteArrayInputStream(contentXml));
+		var serializedWork = serialized.getResourceAssignments().get(0).getRawTimephasedRemainingRegularWork();
 		assertEquals(2, serializedWork.size(), serializedWork.toString());
 		for (int index = 0; index < expectedHours.length; index++) {
 			assertEquals(expectedHours[index], serializedWork.get(index).getTotalAmount().convertUnits(
-				net.sf.mpxj.TimeUnit.HOURS, serialized.getProjectProperties()).getDuration(), 0.00001d);
+				org.mpxj.TimeUnit.HOURS, serialized.getProjectProperties()).getDuration(), 0.00001d);
 			assertEquals(modelWallTime(expectedDays[index] + "T08:00:00"),
-				DateUTCConverter.toModelTime(serializedWork.get(index).getStart()));
+				DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(serializedWork.get(index).getStart())));
 			assertEquals(modelWallTime(expectedDays[index] + "T17:00:00"),
-				DateUTCConverter.toModelTime(serializedWork.get(index).getFinish()));
+				DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(serializedWork.get(index).getFinish())));
 		}
 		Project reopened = new com.microproject.exchange.MpoFileImporter()
 			.loadProject(new ByteArrayInputStream(mpo.toByteArray()));
@@ -899,7 +903,7 @@ class MpxExportTrackingTest {
 		String mppHeader = new String(Files.readAllBytes(sample), java.nio.charset.StandardCharsets.ISO_8859_1);
 		assertTrue(mppHeader.contains("Microsoft Project 9.0") && mppHeader.contains("MSProject.MPP9"),
 			"fixture identifies itself as Microsoft Project 9.0 MPP");
-		net.sf.mpxj.ProjectFile rawSource = new net.sf.mpxj.mpp.MPPReader().read(sample.toFile());
+		org.mpxj.ProjectFile rawSource = new org.mpxj.mpp.MPPReader().read(sample.toFile());
 		assertEquals(38, rawSource.getResourceAssignments().size(), "fixture source assignment inventory");
 		assertTrue(rawSource.getResourceAssignments().stream().noneMatch(assignment ->
 			com.microproject.exchange.mpxj.MpxjApi.hasCustomWorkContour(assignment)
@@ -950,25 +954,25 @@ class MpxExportTrackingTest {
 		if (!Files.isRegularFile(sample)) sample = Path.of("testdata", "New Product.mpp");
 		assertTrue(Files.isRegularFile(sample), sample.toString());
 
-		net.sf.mpxj.ProjectFile oracle = new net.sf.mpxj.mpp.MPPReader().read(sample.toFile());
+		org.mpxj.ProjectFile oracle = new org.mpxj.mpp.MPPReader().read(sample.toFile());
 		assertEquals(Integer.valueOf(480), oracle.getProjectProperties().getMinutesPerDay(),
 			"MPP9 project uses an eight-hour workday");
 		assertEquals(Integer.valueOf(2400), oracle.getProjectProperties().getMinutesPerWeek(),
 			"MPP9 project uses a forty-hour workweek");
-		net.sf.mpxj.Task rawPredecessor = oracle.getTaskByUniqueID(Integer.valueOf(24));
-		net.sf.mpxj.Task rawSuccessor = oracle.getTaskByUniqueID(Integer.valueOf(27));
+		org.mpxj.Task rawPredecessor = oracle.getTaskByUniqueID(Integer.valueOf(24));
+		org.mpxj.Task rawSuccessor = oracle.getTaskByUniqueID(Integer.valueOf(27));
 		assertNotNull(rawPredecessor);
 		assertNotNull(rawSuccessor);
-		assertEquals(modelWallTime("2001-03-12T08:00:00"), DateUTCConverter.toModelTime(rawPredecessor.getStart()));
-		assertEquals(modelWallTime("2001-04-13T17:00:00"), DateUTCConverter.toModelTime(rawPredecessor.getFinish()));
-		assertEquals(modelWallTime("2001-03-26T08:00:00"), DateUTCConverter.toModelTime(rawSuccessor.getStart()));
-		assertEquals(modelWallTime("2001-04-13T17:00:00"), DateUTCConverter.toModelTime(rawSuccessor.getFinish()));
-		net.sf.mpxj.Relation rawLink = rawSuccessor.getPredecessors().stream()
-			.filter(link -> link.getTargetTask().getUniqueID().intValue() == 24).findFirst()
+		assertEquals(modelWallTime("2001-03-12T08:00:00"), DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(rawPredecessor.getStart())));
+		assertEquals(modelWallTime("2001-04-13T17:00:00"), DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(rawPredecessor.getFinish())));
+		assertEquals(modelWallTime("2001-03-26T08:00:00"), DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(rawSuccessor.getStart())));
+		assertEquals(modelWallTime("2001-04-13T17:00:00"), DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(rawSuccessor.getFinish())));
+		org.mpxj.Relation rawLink = rawSuccessor.getPredecessors().stream()
+			.filter(link -> link.getPredecessorTask().getUniqueID().intValue() == 24).findFirst()
 			.orElseThrow(() -> new AssertionError("Missing MPXJ predecessor UID 24 for task UID 27"));
-		assertEquals(net.sf.mpxj.RelationType.FINISH_START, rawLink.getType());
+		assertEquals(org.mpxj.RelationType.FINISH_START, rawLink.getType());
 		assertEquals(-15.0d, rawLink.getLag().getDuration(), 0.00001d, "raw MPXJ lead duration");
-		assertEquals(net.sf.mpxj.TimeUnit.DAYS, rawLink.getLag().getUnits(), "raw MPXJ lead units");
+		assertEquals(org.mpxj.TimeUnit.DAYS, rawLink.getLag().getUnits(), "raw MPXJ lead units");
 
 		Project imported = importMppFixture(sample);
 		assertNegativeLeadProject(imported);
@@ -1026,11 +1030,11 @@ class MpxExportTrackingTest {
 		Path fixtureDirectory = Path.of("modules", "microproject_exchange", "testdata", "mpxj", "project2019");
 		if (!Files.isDirectory(fixtureDirectory))
 			fixtureDirectory = Path.of("testdata", "mpxj", "project2019");
-		net.sf.mpxj.ProjectFile rawLinks = new net.sf.mpxj.mpp.MPPReader()
+		org.mpxj.ProjectFile rawLinks = new org.mpxj.mpp.MPPReader()
 			.read(fixtureDirectory.resolve("task-links-project2019-mpp14.mpp").toFile());
-		net.sf.mpxj.Duration rawOneDayLag = rawLinks.getTaskByUniqueID(Integer.valueOf(4)).getPredecessors().get(0).getLag();
+		org.mpxj.Duration rawOneDayLag = rawLinks.getTaskByUniqueID(Integer.valueOf(4)).getPredecessors().get(0).getLag();
 		assertEquals(1.0d, rawOneDayLag.getDuration(), "MPX14 raw one-day link lag");
-		assertEquals(net.sf.mpxj.TimeUnit.DAYS, rawOneDayLag.getUnits(), "MPX14 raw one-day link lag unit");
+		assertEquals(org.mpxj.TimeUnit.DAYS, rawOneDayLag.getUnits(), "MPX14 raw one-day link lag unit");
 		assertEquals(Integer.valueOf(480), rawLinks.getProjectProperties().getMinutesPerDay(),
 			"independent MSPDI source declares an eight-hour workday");
 		String sourceMspdi = Files.readString(fixtureDirectory.resolve("task-links-project2019-mspdi.xml"));
@@ -1142,7 +1146,7 @@ class MpxExportTrackingTest {
 	private void assertMppParseFailure(byte[] data, String scenario) {
 		byte[] original = data.clone();
 		List<String> progress = new java.util.ArrayList<>();
-		net.sf.mpxj.MPXJException failure = assertThrows(net.sf.mpxj.MPXJException.class,
+		org.mpxj.MPXJException failure = assertThrows(org.mpxj.MPXJException.class,
 			() -> new com.microproject.core.pm.exchange.MspImporter().importProject(
 			new ByteArrayInputStream(data), "mpp", (value, label) -> progress.add(label)), scenario);
 		if (scenario.contains("MPP99")) {
@@ -1159,12 +1163,12 @@ class MpxExportTrackingTest {
 			fixtureDirectory = Path.of("testdata", "mpxj", "project2013");
 		Path mpp = fixtureDirectory.resolve("mpp14task-from2013.mpp");
 		assertTrue(Files.isRegularFile(mpp), mpp.toString());
-		net.sf.mpxj.ProjectFile mppOracle = new net.sf.mpxj.mpp.MPPReader().read(mpp.toFile());
-		net.sf.mpxj.Task rawTask = mppOracle.getTaskByUniqueID(Integer.valueOf(1));
+		org.mpxj.ProjectFile mppOracle = new org.mpxj.mpp.MPPReader().read(mpp.toFile());
+		org.mpxj.Task rawTask = mppOracle.getTaskByUniqueID(Integer.valueOf(1));
 		assertNotNull(rawTask);
-		assertEquals(net.sf.mpxj.ConstraintType.MUST_START_ON, rawTask.getConstraintType(),
+		assertEquals(org.mpxj.ConstraintType.MUST_START_ON, rawTask.getConstraintType(),
 			"MPXJ pinned MppTaskTest.testMpp14TaskFromProject2013 expects MUST_START_ON");
-		assertEquals("23/08/2006", new java.text.SimpleDateFormat("dd/MM/yyyy").format(rawTask.getConstraintDate()),
+		assertEquals("23/08/2006", new java.text.SimpleDateFormat("dd/MM/yyyy").format(MpxDates.toDate(rawTask.getConstraintDate())),
 			"MPXJ pinned MppTaskTest.testMpp14TaskFromProject2013 literal date oracle");
 
 		Project imported = importMppFixture(mpp);
@@ -1172,12 +1176,12 @@ class MpxExportTrackingTest {
 		assertProject2013TaskConstraint(roundTripMpo(imported), rawTask);
 	}
 
-	private void assertProject2013TaskConstraint(Project project, net.sf.mpxj.Task rawTask) {
+	private void assertProject2013TaskConstraint(Project project, org.mpxj.Task rawTask) {
 		Task task = project.getTaskList().stream()
 			.filter(candidate -> candidate.getUniqueId() == rawTask.getUniqueID().longValue()).findFirst()
 			.orElseThrow(() -> new AssertionError("Missing imported task UID " + rawTask.getUniqueID()));
 		assertEquals(ConstraintType.Kind.MSO, task.getConstraintTypeKind());
-		assertEquals(DateUTCConverter.toModelTime(rawTask.getConstraintDate()), task.getConstraintDate(),
+		assertEquals(DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(rawTask.getConstraintDate())), task.getConstraintDate(),
 			"MPP dates are converted to the model's local-time epoch representation");
 	}
 
@@ -1188,12 +1192,12 @@ class MpxExportTrackingTest {
 		String sourceXml = Files.readString(fixture)
 			.replace("<MinutesPerDay>480</MinutesPerDay>", "<MinutesPerDay>360</MinutesPerDay>")
 			.replace("<MinutesPerWeek>2400</MinutesPerWeek>", "<MinutesPerWeek>1800</MinutesPerWeek>");
-		net.sf.mpxj.ProjectFile source = new net.sf.mpxj.mspdi.MSPDIReader()
+		org.mpxj.ProjectFile source = new org.mpxj.mspdi.MSPDIReader()
 			.read(new ByteArrayInputStream(sourceXml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-		source.getProjectProperties().setDefaultDurationUnits(net.sf.mpxj.TimeUnit.HOURS);
-		source.getProjectProperties().setDefaultWorkUnits(net.sf.mpxj.TimeUnit.MINUTES);
+		source.getProjectProperties().setDefaultDurationUnits(org.mpxj.TimeUnit.HOURS);
+		source.getProjectProperties().setDefaultWorkUnits(org.mpxj.TimeUnit.MINUTES);
 		ByteArrayOutputStream configuredSource = new ByteArrayOutputStream();
-		new net.sf.mpxj.mspdi.MSPDIWriter().write(source, configuredSource);
+		new org.mpxj.mspdi.MSPDIWriter().write(source, configuredSource);
 		sourceXml = configuredSource.toString(java.nio.charset.StandardCharsets.UTF_8);
 		assertEquals(Integer.valueOf(360), source.getProjectProperties().getMinutesPerDay());
 		assertEquals(Integer.valueOf(1800), source.getProjectProperties().getMinutesPerWeek());
@@ -1687,7 +1691,7 @@ class MpxExportTrackingTest {
 		assertTrue(xml.contains("<Duration>PT0S</Duration><DurationFormat>7</DurationFormat><Work>PT0S</Work>"),
 			"fixture rewrite must produce a zero-duration milestone regardless of checkout line endings");
 		assertTrue(xml.contains("<PercentComplete>100</PercentComplete><PercentWorkComplete>0</PercentWorkComplete>"));
-		net.sf.mpxj.ProjectFile source = new net.sf.mpxj.mspdi.MSPDIReader()
+		org.mpxj.ProjectFile source = new org.mpxj.mspdi.MSPDIReader()
 			.read(new ByteArrayInputStream(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
 		assertEquals(100.0d, source.getTasks().get(0).getPercentageComplete().doubleValue(), 0.00001d);
 		assertEquals(0.0d, source.getTasks().get(0).getDuration().getDuration(), 0.00001d);
@@ -1702,9 +1706,9 @@ class MpxExportTrackingTest {
 		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
 		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(imported, mpo));
 		byte[] savedContent = nativeProjectXml(mpo.toByteArray());
-		net.sf.mpxj.ProjectFile savedSource = new net.sf.mpxj.mspdi.MSPDIReader()
+		org.mpxj.ProjectFile savedSource = new org.mpxj.mspdi.MSPDIReader()
 			.read(new ByteArrayInputStream(savedContent));
-		net.sf.mpxj.Resource unassigned = savedSource.getResources().stream()
+		org.mpxj.Resource unassigned = savedSource.getResources().stream()
 			.filter(resource -> resource.getID() != null && resource.getID().intValue() == 0)
 			.findFirst().orElseThrow();
 		assertEquals(com.microproject.pm.resource.EnterpriseResource.UNASSIGNED_ID,
@@ -1842,9 +1846,9 @@ class MpxExportTrackingTest {
 		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
 		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(project, mpo));
 		byte[] contentXml = nativeProjectXml(mpo.toByteArray());
-		net.sf.mpxj.ProjectFile snapshot = new net.sf.mpxj.mspdi.MSPDIReader()
+		org.mpxj.ProjectFile snapshot = new org.mpxj.mspdi.MSPDIReader()
 			.read(new ByteArrayInputStream(contentXml));
-		net.sf.mpxj.Task savedTask = snapshot.getTasks().stream()
+		org.mpxj.Task savedTask = snapshot.getTasks().stream()
 			.filter(candidate -> "Gantt progress persistence".equals(candidate.getName())).findFirst().orElseThrow();
 		Project reopened = new com.microproject.exchange.MpoFileImporter()
 			.loadProject(new ByteArrayInputStream(mpo.toByteArray()));
@@ -1917,15 +1921,22 @@ class MpxExportTrackingTest {
 		assertEquals(4, savedXml.split("<TimephasedData>", -1).length - 1, savedXml);
 		assertEquals(4, savedXml.split("<Unit>2</Unit>", -1).length - 1, savedXml);
 		assertEquals(2, savedXml.split("<Value>PT4H0M0S</Value>", -1).length - 1, savedXml);
-		ProjectFile serialized = new net.sf.mpxj.mspdi.MSPDIReader().read(new ByteArrayInputStream(contentXml));
-		var work = serialized.getResourceAssignments().get(0).getTimephasedWork();
-		assertEquals(1, work.size(), work.toString()); // MPXJ merges adjacent daily entries with equal rates.
-		assertEquals(8.0d, work.get(0).getTotalAmount().convertUnits(net.sf.mpxj.TimeUnit.HOURS,
-			serialized.getProjectProperties()).getDuration(), 0.00001d, work.toString());
-		assertEquals(4.0d, work.get(0).getAmountPerDay().convertUnits(net.sf.mpxj.TimeUnit.HOURS,
-			serialized.getProjectProperties()).getDuration(), 0.00001d, work.toString());
-		assertEquals(modelWallTime("2026-10-12T08:00:00"), DateUTCConverter.toModelTime(work.get(0).getStart()));
-		assertEquals(modelWallTime("2026-10-13T17:00:00"), DateUTCConverter.toModelTime(work.get(0).getFinish()));
+		ProjectFile serialized = new org.mpxj.mspdi.MSPDIReader().read(new ByteArrayInputStream(contentXml));
+		var work = serialized.getResourceAssignments().get(0).getRawTimephasedRemainingRegularWork();
+		// MPXJ 16 keeps the two daily entries separate instead of merging equal adjacent rates.
+		assertEquals(2, work.size(), work.toString());
+		assertEquals(8.0d, timephasedHours(work, serialized), 0.00001d, work.toString());
+		String[] days = { "2026-10-12", "2026-10-13" };
+		for (int index = 0; index < days.length; index++) {
+			var item = work.get(index);
+			assertEquals(4.0d, item.getTotalAmount().convertUnits(org.mpxj.TimeUnit.HOURS,
+				serialized.getProjectProperties()).getDuration(), 0.00001d, work.toString());
+			// The rate is per hour; an eight-hour day gives the former per-day amount.
+			assertEquals(4.0d, item.getAmountPerHour().convertUnits(org.mpxj.TimeUnit.HOURS,
+				serialized.getProjectProperties()).getDuration() * 8.0d, 0.00001d, work.toString());
+			assertEquals(modelWallTime(days[index] + "T08:00:00"), DateUTCConverter.toModelTime(MpxDates.toDate(item.getStart())));
+			assertEquals(modelWallTime(days[index] + "T17:00:00"), DateUTCConverter.toModelTime(MpxDates.toDate(item.getFinish())));
+		}
 	}
 
 	@Test
@@ -1963,12 +1974,12 @@ class MpxExportTrackingTest {
 			.getAssignments().iterator().next();
 		assertEquals(scheduledWork, restored.getWork(null), "MPO reload must conserve scheduled assignment work");
 
-		List<net.sf.mpxj.TimephasedWork> allocated = new java.util.ArrayList<>();
+		List<org.mpxj.TimephasedWork> allocated = new java.util.ArrayList<>();
 		MPXConverter.appendDailyTimephasedWork(allocated, start, end, requestedWork,
 			project.getEffectiveWorkCalendar());
 		assertEquals(2, allocated.size());
 		long[] dailyMillis = allocated.stream().mapToLong(work -> Math.round(work.getTotalAmount()
-			.convertUnits(net.sf.mpxj.TimeUnit.HOURS, null).getDuration() * 60L * 60L * 1000L)).toArray();
+			.convertUnits(org.mpxj.TimeUnit.HOURS, null).getDuration() * 60L * 60L * 1000L)).toArray();
 		assertArrayEquals(new long[] {14_400_001L, 14_400_000L}, dailyMillis);
 		assertEquals(requestedWork, java.util.Arrays.stream(dailyMillis).sum());
 	}
@@ -1976,18 +1987,18 @@ class MpxExportTrackingTest {
 	@Test
 	void exportsPositiveSpanZeroWorkPersonalContourAndReloadsIt() throws Exception {
 		String sourceXml = zeroWorkPersonalContourXml();
-		ProjectFile parsedSource = new net.sf.mpxj.mspdi.MSPDIReader().read(
+		ProjectFile parsedSource = new org.mpxj.mspdi.MSPDIReader().read(
 			new ByteArrayInputStream(sourceXml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-		net.sf.mpxj.Task sourceTask = parsedSource.getTasks().stream()
+		org.mpxj.Task sourceTask = parsedSource.getTasks().stream()
 			.filter(candidate -> "Zero-work personal contour".equals(candidate.getName())).findFirst().orElseThrow();
 		ResourceAssignment sourceAssignment = parsedSource.getResourceAssignments().get(0);
-		assertEquals(modelWallTime("2026-10-12T08:00:00"), DateUTCConverter.toModelTime(sourceTask.getStart()));
-		assertEquals(modelWallTime("2026-10-12T17:00:00"), DateUTCConverter.toModelTime(sourceTask.getFinish()));
-		assertEquals(8.0d, sourceTask.getDuration().convertUnits(net.sf.mpxj.TimeUnit.HOURS,
+		assertEquals(modelWallTime("2026-10-12T08:00:00"), DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(sourceTask.getStart())));
+		assertEquals(modelWallTime("2026-10-12T17:00:00"), DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(sourceTask.getFinish())));
+		assertEquals(8.0d, sourceTask.getDuration().convertUnits(org.mpxj.TimeUnit.HOURS,
 			parsedSource.getProjectProperties()).getDuration(), 0.00001d);
-		assertEquals(modelWallTime("2026-10-12T08:00:00"), DateUTCConverter.toModelTime(sourceAssignment.getStart()));
-		assertEquals(modelWallTime("2026-10-12T17:00:00"), DateUTCConverter.toModelTime(sourceAssignment.getFinish()));
-		assertEquals(0.0d, sourceAssignment.getWork().convertUnits(net.sf.mpxj.TimeUnit.HOURS,
+		assertEquals(modelWallTime("2026-10-12T08:00:00"), DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(sourceAssignment.getStart())));
+		assertEquals(modelWallTime("2026-10-12T17:00:00"), DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(sourceAssignment.getFinish())));
+		assertEquals(0.0d, sourceAssignment.getWork().convertUnits(org.mpxj.TimeUnit.HOURS,
 			parsedSource.getProjectProperties()).getDuration(), 0.00001d);
 		Project project = importMspdi(sourceXml);
 		NormalTask task = taskNamed(project, "Zero-work personal contour");
@@ -2007,12 +2018,12 @@ class MpxExportTrackingTest {
 		assertTrue(savedXml.contains("<Type>1</Type>"), "zero contour requires a remaining-work timephased row");
 		assertTrue(savedXml.contains("<Unit>2</Unit>"), savedXml);
 		assertTrue(savedXml.contains("<Value>PT0H0M0S</Value>"), savedXml);
-		ResourceAssignment xmlAssignment = new net.sf.mpxj.mspdi.MSPDIReader()
+		ResourceAssignment xmlAssignment = new org.mpxj.mspdi.MSPDIReader()
 			.read(new ByteArrayInputStream(xml.toByteArray())).getResourceAssignments().get(0);
-		assertEquals(modelWallTime("2026-10-12T08:00:00"), DateUTCConverter.toModelTime(xmlAssignment.getStart()));
-		assertEquals(modelWallTime("2026-10-12T17:00:00"), DateUTCConverter.toModelTime(xmlAssignment.getFinish()));
-		assertEquals(0.0d, xmlAssignment.getTimephasedWork().get(0).getTotalAmount()
-			.convertUnits(net.sf.mpxj.TimeUnit.HOURS, xmlAssignment.getParentFile().getProjectProperties())
+		assertEquals(modelWallTime("2026-10-12T08:00:00"), DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(xmlAssignment.getStart())));
+		assertEquals(modelWallTime("2026-10-12T17:00:00"), DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(xmlAssignment.getFinish())));
+		assertEquals(0.0d, xmlAssignment.getRawTimephasedRemainingRegularWork().get(0).getTotalAmount()
+			.convertUnits(org.mpxj.TimeUnit.HOURS, xmlAssignment.getParentFile().getProjectProperties())
 			.getDuration(), 0.00001d);
 
 		ByteArrayOutputStream mpo = new ByteArrayOutputStream();
@@ -2178,31 +2189,35 @@ class MpxExportTrackingTest {
 		String savedXml = new String(contentXml, java.nio.charset.StandardCharsets.UTF_8);
 		assertEquals(6, savedXml.split("<TimephasedData>", -1).length - 1, savedXml);
 		assertEquals(6, savedXml.split("<Unit>2</Unit>", -1).length - 1, savedXml);
-		ProjectFile serialized = new net.sf.mpxj.mspdi.MSPDIReader().read(new ByteArrayInputStream(contentXml));
+		ProjectFile serialized = new org.mpxj.mspdi.MSPDIReader().read(new ByteArrayInputStream(contentXml));
 		ResourceAssignment serializedAssignment = serialized.getResourceAssignments().get(0);
-		assertEquals(2.0d, timephasedHours(serializedAssignment.getTimephasedActualWork(), serialized), 0.00001d);
-		assertEquals(6.0d, timephasedHours(serializedAssignment.getTimephasedWork(), serialized), 0.00001d);
-		var actualRows = serializedAssignment.getTimephasedActualWork();
-		var remainingRows = serializedAssignment.getTimephasedWork();
+		assertEquals(2.0d, timephasedHours(serializedAssignment.getRawTimephasedActualRegularWork(), serialized), 0.00001d);
+		assertEquals(6.0d, timephasedHours(serializedAssignment.getRawTimephasedRemainingRegularWork(), serialized), 0.00001d);
+		var actualRows = serializedAssignment.getRawTimephasedActualRegularWork();
+		var remainingRows = serializedAssignment.getRawTimephasedRemainingRegularWork();
 		var actualWorkRows = actualRows.stream()
 			.filter(row -> timephasedHours(java.util.List.of(row), serialized) > 0.0d).toList();
 		var remainingWorkRows = remainingRows.stream()
 			.filter(row -> timephasedHours(java.util.List.of(row), serialized) > 0.0d).toList();
-		assertEquals(2, actualRows.size(), actualRows.toString());
+		// MPXJ 16 keeps zero-amount rows in the raw list; only the rows carrying work are significant.
+		assertEquals(3, actualRows.size(), actualRows.toString());
 		assertEquals(1, actualWorkRows.size(), actualRows.toString());
-		assertEquals(modelWallTime("2026-10-12T08:00:00"), DateUTCConverter.toModelTime(actualWorkRows.get(0).getStart()));
-		assertEquals(modelWallTime("2026-10-12T13:00:00"), DateUTCConverter.toModelTime(actualWorkRows.get(0).getFinish()));
-		assertEquals(2, remainingRows.size(), remainingRows.toString());
+		assertEquals(modelWallTime("2026-10-12T08:00:00"), DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(actualWorkRows.get(0).getStart())));
+		assertEquals(modelWallTime("2026-10-12T13:00:00"), DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(actualWorkRows.get(0).getFinish())));
+		assertEquals(3, remainingRows.size(), remainingRows.toString());
 		assertEquals(2, remainingWorkRows.size(), remainingRows.toString());
-		assertEquals(modelWallTime("2026-10-12T12:00:00"), DateUTCConverter.toModelTime(remainingWorkRows.get(0).getStart()),
+		// The saved XML still carries the source's 12:00 remaining start; MPXJ 16's reader moves it to the end of the
+		// preceding actual row (13:00) when building raw rows.
+		assertTrue(savedXml.replaceAll("\\s+", "").contains("<Type>1</Type><UID>1</UID><Start>2026-10-12T12:00:00</Start>"), savedXml);
+		assertEquals(modelWallTime("2026-10-12T13:00:00"), DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(remainingWorkRows.get(0).getStart())),
 			remainingRows.toString());
 		assertEquals(0L, assignment.getEffectiveWorkCalendar().compare(
-			DateUTCConverter.toModelTime(actualWorkRows.get(0).getFinish()),
-			DateUTCConverter.toModelTime(remainingWorkRows.get(0).getStart()), false),
+			DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(actualWorkRows.get(0).getFinish())),
+			DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(remainingWorkRows.get(0).getStart())), false),
 			"Actual and remaining rows only overlap across the nonworking lunch boundary");
-		assertEquals(modelWallTime("2026-10-12T17:00:00"), DateUTCConverter.toModelTime(remainingWorkRows.get(0).getFinish()));
-		assertEquals(modelWallTime("2026-10-13T08:00:00"), DateUTCConverter.toModelTime(remainingWorkRows.get(1).getStart()));
-		assertEquals(modelWallTime("2026-10-13T17:00:00"), DateUTCConverter.toModelTime(remainingWorkRows.get(1).getFinish()));
+		assertEquals(modelWallTime("2026-10-12T17:00:00"), DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(remainingWorkRows.get(0).getFinish())));
+		assertEquals(modelWallTime("2026-10-13T08:00:00"), DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(remainingWorkRows.get(1).getStart())));
+		assertEquals(modelWallTime("2026-10-13T17:00:00"), DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(remainingWorkRows.get(1).getFinish())));
 		Project reopened = new com.microproject.exchange.MpoFileImporter().loadProject(new ByteArrayInputStream(mpo.toByteArray()));
 		Assignment restored = (Assignment) taskNamed(reopened, "Assignment baseline task").getAssignments().iterator().next();
 		assertEquals(8L * 60L * 60L * 1000L, restored.getWork(null));
@@ -2228,9 +2243,9 @@ class MpxExportTrackingTest {
 		assertEquals(6L * 60L * 60L * 1000L, restored.getRemainingWork(), "Undo restores remaining timephased work");
 	}
 
-	private double timephasedHours(java.util.List<net.sf.mpxj.TimephasedWork> intervals, ProjectFile project) {
+	private double timephasedHours(java.util.List<org.mpxj.TimephasedWork> intervals, ProjectFile project) {
 		return intervals.stream().mapToDouble(interval -> interval.getTotalAmount()
-			.convertUnits(net.sf.mpxj.TimeUnit.HOURS, project.getProjectProperties()).getDuration()).sum();
+			.convertUnits(org.mpxj.TimeUnit.HOURS, project.getProjectProperties()).getDuration()).sum();
 	}
 
 	private String twoDayCustomContourXml(String progressFields, String timephasedRows) throws Exception {
@@ -2301,13 +2316,13 @@ class MpxExportTrackingTest {
 		ProjectFile source = new ProjectFile();
 		source.addDefaultBaseCalendar();
 		source.getProjectProperties().setMinutesPerDay(Integer.valueOf(480));
-		net.sf.mpxj.Task task = source.addTask();
+		org.mpxj.Task task = source.addTask();
 		task.setName("Elapsed baseline limitation");
 		task.setUniqueID(1);
 		task.setBaselineDuration(3,
-			net.sf.mpxj.Duration.getInstance(2, net.sf.mpxj.TimeUnit.ELAPSED_DAYS));
+			org.mpxj.Duration.getInstance(2, org.mpxj.TimeUnit.ELAPSED_DAYS));
 		ByteArrayOutputStream xml = new ByteArrayOutputStream();
-		new net.sf.mpxj.mspdi.MSPDIWriter().write(source, xml);
+		new org.mpxj.mspdi.MSPDIWriter().write(source, xml);
 
 		Project imported = new com.microproject.core.pm.exchange.MspImporter().importProject(
 			new ByteArrayInputStream(xml.toByteArray()), "xml", (progress, label) -> {});
@@ -2321,27 +2336,27 @@ class MpxExportTrackingTest {
 		source.addDefaultBaseCalendar();
 		java.util.Date start = localWallDate("2026-10-12T08:00:00");
 		java.util.Date finish = localWallDate("2026-10-16T10:00:00");
-		source.getProjectProperties().setStartDate(start);
-		net.sf.mpxj.Task task = source.addTask();
+		source.getProjectProperties().setStartDate(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(start));
+		org.mpxj.Task task = source.addTask();
 		task.setName("Standard assignment with actual work");
 		task.setUniqueID(1);
-		task.setStart(start);
-		task.setFinish(finish);
-		task.setDuration(net.sf.mpxj.Duration.getInstance(34, net.sf.mpxj.TimeUnit.HOURS));
-		task.setType(net.sf.mpxj.TaskType.FIXED_DURATION);
-		net.sf.mpxj.Resource resource = source.addResource();
+		task.setStart(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(start));
+		task.setFinish(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(finish));
+		task.setDuration(org.mpxj.Duration.getInstance(34, org.mpxj.TimeUnit.HOURS));
+		task.setType(org.mpxj.TaskType.FIXED_DURATION);
+		org.mpxj.Resource resource = source.addResource();
 		resource.setName("Worker");
 		resource.setUniqueID(1);
 		ResourceAssignment assignment = task.addResourceAssignment(resource);
 		assignment.setUnits(100d);
-		assignment.setStart(start);
-		assignment.setFinish(finish);
-		assignment.setWork(net.sf.mpxj.Duration.getInstance(34, net.sf.mpxj.TimeUnit.HOURS));
-		assignment.setActualWork(net.sf.mpxj.Duration.getInstance(32, net.sf.mpxj.TimeUnit.HOURS));
-		assignment.setRemainingWork(net.sf.mpxj.Duration.getInstance(2, net.sf.mpxj.TimeUnit.HOURS));
+		assignment.setStart(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(start));
+		assignment.setFinish(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(finish));
+		assignment.setWork(org.mpxj.Duration.getInstance(34, org.mpxj.TimeUnit.HOURS));
+		assignment.setActualWork(org.mpxj.Duration.getInstance(32, org.mpxj.TimeUnit.HOURS));
+		assignment.setRemainingWork(org.mpxj.Duration.getInstance(2, org.mpxj.TimeUnit.HOURS));
 		assignment.setPercentageWorkComplete(94);
 		ByteArrayOutputStream xml = new ByteArrayOutputStream();
-		new net.sf.mpxj.mspdi.MSPDIWriter().write(source, xml);
+		new org.mpxj.mspdi.MSPDIWriter().write(source, xml);
 
 		Project imported = new com.microproject.core.pm.exchange.MspImporter().importProject(
 			new ByteArrayInputStream(xml.toByteArray()), "xml", (progress, label) -> {});
@@ -2403,11 +2418,11 @@ class MpxExportTrackingTest {
 		MicrosoftImporter exporter = new MicrosoftImporter();
 		exporter.setFileName("identity.xml");
 		assertTrue(exporter.saveProject(project, output));
-		ProjectFile snapshot = new net.sf.mpxj.mspdi.MSPDIReader()
+		ProjectFile snapshot = new org.mpxj.mspdi.MSPDIReader()
 			.read(new ByteArrayInputStream(output.toByteArray()));
-		net.sf.mpxj.Task exportedChild = snapshot.getTasks().stream()
+		org.mpxj.Task exportedChild = snapshot.getTasks().stream()
 			.filter(task -> "Persisted child".equals(task.getName())).findFirst().orElseThrow();
-		net.sf.mpxj.Task exportedParent = snapshot.getTasks().stream()
+		org.mpxj.Task exportedParent = snapshot.getTasks().stream()
 			.filter(task -> "New parent".equals(task.getName())).findFirst().orElseThrow();
 		assertEquals(2, exportedChild.getUniqueID().intValue());
 		assertNotEquals(exportedChild.getUniqueID(), exportedParent.getUniqueID());
@@ -2448,7 +2463,7 @@ class MpxExportTrackingTest {
 		source.setPhysicalPercentComplete(0.30d);
 		source.setInactiveTask(true);
 
-		net.sf.mpxj.Task target = new ProjectFile().addTask();
+		org.mpxj.Task target = new ProjectFile().addTask();
 		MPXConverter.toMPXTask(source, target);
 
 		assertEquals(0.0d, target.getPercentageComplete().doubleValue(), 0.00001d);
@@ -2474,7 +2489,7 @@ class MpxExportTrackingTest {
 		com.microproject.options.CalendarOption globalCalendarOptions =
 			com.microproject.options.CalendarOption.getInstance();
 		ProjectFile file = new ProjectFile();
-		net.sf.mpxj.Task targetTask = file.addTask();
+		org.mpxj.Task targetTask = file.addTask();
 		ResourceAssignment target = targetTask.addResourceAssignment(file.addResource());
 
 		MPXConverter.toMPXAssignment(source, target);
@@ -2482,9 +2497,9 @@ class MpxExportTrackingTest {
 		assertEquals(50.0d, target.getPercentageWorkComplete().doubleValue(), 0.00001d);
 		assertNotNull(target.getActualStart());
 		assertEquals(120.0d, target.getLevelingDelay().getDuration(), 0.00001d);
-		assertEquals(net.sf.mpxj.TimeUnit.MINUTES, target.getLevelingDelay().getUnits());
+		assertEquals(org.mpxj.TimeUnit.MINUTES, target.getLevelingDelay().getUnits());
 		assertEquals(3.0d, target.getDelay().getDuration(), 0.00001d);
-		assertEquals(net.sf.mpxj.TimeUnit.HOURS, target.getDelay().getUnits());
+		assertEquals(org.mpxj.TimeUnit.HOURS, target.getDelay().getUnits());
 		assertSame(globalCalendarOptions, com.microproject.options.CalendarOption.getInstance());
 	}
 
@@ -2494,18 +2509,18 @@ class MpxExportTrackingTest {
 		long delay = 3L * 60L * 60L * 1000L;
 		source.setLevelingDelay(delay);
 
-		net.sf.mpxj.Task target = new ProjectFile().addTask();
+		org.mpxj.Task target = new ProjectFile().addTask();
 		MPXConverter.toMPXTask(source, target);
 		assertEquals(180.0d, target.getLevelingDelay().getDuration(), 0.00001d);
-		assertEquals(net.sf.mpxj.TimeUnit.MINUTES, target.getLevelingDelay().getUnits());
+		assertEquals(org.mpxj.TimeUnit.MINUTES, target.getLevelingDelay().getUnits());
 
 		ByteArrayOutputStream output = new ByteArrayOutputStream();
 		MicrosoftImporter exporter = new MicrosoftImporter();
 		exporter.setFileName("leveling-delay.xml");
 		assertTrue(exporter.saveProject(source.getProject(), output));
-		net.sf.mpxj.ProjectFile exported = new net.sf.mpxj.mspdi.MSPDIReader()
+		org.mpxj.ProjectFile exported = new org.mpxj.mspdi.MSPDIReader()
 				.read(new ByteArrayInputStream(output.toByteArray()));
-		net.sf.mpxj.Task exportedTask = exported.getTasks().stream()
+		org.mpxj.Task exportedTask = exported.getTasks().stream()
 				.filter(task -> task.getID() != null && task.getID().longValue() == source.getId())
 				.findFirst().orElseThrow();
 		assertEquals(180.0d, exportedTask.getLevelingDelay().getDuration(), 0.00001d);
@@ -2538,9 +2553,9 @@ class MpxExportTrackingTest {
 		MicrosoftImporter exporter = new MicrosoftImporter();
 		exporter.setFileName("tracking.xml");
 		assertTrue(exporter.saveProject(sourceProject, output));
-		net.sf.mpxj.ProjectFile exported = new net.sf.mpxj.mspdi.MSPDIReader()
+		org.mpxj.ProjectFile exported = new org.mpxj.mspdi.MSPDIReader()
 				.read(new ByteArrayInputStream(output.toByteArray()));
-		net.sf.mpxj.Task exportedTask = exported.getTasks().stream()
+		org.mpxj.Task exportedTask = exported.getTasks().stream()
 				.filter(task -> "Tracking task".equals(task.getName()))
 				.findFirst().orElseThrow();
 		assertEquals(0.0d, exportedTask.getPercentageComplete().doubleValue(), 0.00001d);
@@ -2587,15 +2602,16 @@ class MpxExportTrackingTest {
 		MicrosoftImporter exporter = new MicrosoftImporter();
 		exporter.setFileName("cross-project.xml");
 		assertTrue(exporter.saveProject(local, output));
-		net.sf.mpxj.ProjectFile exported = new net.sf.mpxj.mspdi.MSPDIReader()
+		org.mpxj.ProjectFile exported = new org.mpxj.mspdi.MSPDIReader()
 				.read(new ByteArrayInputStream(output.toByteArray()));
-		assertTrue(exported.getTasks().stream().anyMatch(net.sf.mpxj.Task::getExternalTask));
-		for (net.sf.mpxj.Task task : exported.getTasks()) {
+		assertTrue(exported.getTasks().stream().anyMatch(org.mpxj.Task::getExternalTask));
+		for (org.mpxj.Task task : exported.getTasks()) {
 			if (task.getExternalTask()) {
-				assertEquals(Long.toString(external.getUniqueId()), task.getExternalTaskProject());
+				// MPXJ 16 publishes the external project only through PredecessorLink CrossProjectName, which the reader maps to the subproject file.
+				assertEquals(Long.toString(external.getUniqueId()), task.getSubprojectFile());
 			}
 		}
-		net.sf.mpxj.Task exportedSuccessor = exported.getTasks().stream()
+		org.mpxj.Task exportedSuccessor = exported.getTasks().stream()
 				.filter(task -> "Local successor".equals(task.getName())).findFirst().orElseThrow();
 		assertEquals(1, exportedSuccessor.getPredecessors().size());
 
@@ -2633,21 +2649,21 @@ class MpxExportTrackingTest {
 		MicrosoftImporter exporter = new MicrosoftImporter();
 		exporter.setFileName("task-before-project-start.xml");
 		assertTrue(exporter.saveProject(project, output));
-		net.sf.mpxj.ProjectFile snapshot = new net.sf.mpxj.mspdi.MSPDIReader()
+		org.mpxj.ProjectFile snapshot = new org.mpxj.mspdi.MSPDIReader()
 			.read(new ByteArrayInputStream(output.toByteArray()));
-		net.sf.mpxj.Task snapshotTask = snapshot.getTasks().stream()
+		org.mpxj.Task snapshotTask = snapshot.getTasks().stream()
 			.filter(candidate -> "Earlier than project header".equals(candidate.getName())).findFirst().orElseThrow();
-		assertTrue(snapshotTask.getStart().before(snapshot.getProjectProperties().getStartDate()),
+		assertTrue(snapshotTask.getStart().isBefore(snapshot.getProjectProperties().getStartDate()),
 			"fixture must contain a task start before the project header start");
-		assertEquals(localWallDate("2026-10-02T08:00:00"), snapshotTask.getConstraintDate(),
+		assertEquals(localWallDate("2026-10-02T08:00:00"), MpxDates.toDate(snapshotTask.getConstraintDate()),
 			"MSPDI SNET constraint must preserve the model's local wall time");
-		assertEquals(localWallDate("2026-10-05T08:00:00"), snapshot.getProjectProperties().getStartDate(),
+		assertEquals(localWallDate("2026-10-05T08:00:00"), MpxDates.toDate(snapshot.getProjectProperties().getStartDate()),
 			"MSPDI project header must preserve the model's local wall time");
 
 		Project reloaded = new com.microproject.core.pm.exchange.MspImporter().importProject(
 			new ByteArrayInputStream(output.toByteArray()), "xml", (progress, label) -> {});
 		NormalTask reloadedTask = taskNamed(reloaded, "Earlier than project header");
-		long normalizedTaskStart = DateUTCConverter.toModelTime(snapshotTask.getStart());
+		long normalizedTaskStart = DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(snapshotTask.getStart()));
 		assertEquals(normalizedTaskStart, reloadedTask.getStart(),
 			"earlier scheduled task start must survive MSPDI reload");
 		assertEquals(normalizedTaskStart, reloadedTask.getConstraintDate(),
@@ -2672,12 +2688,11 @@ class MpxExportTrackingTest {
 		MicrosoftImporter exporter = new MicrosoftImporter();
 		exporter.setFileName("external-project-path.xml");
 		assertTrue(exporter.saveProject(local, output));
-		ProjectFile exported = new net.sf.mpxj.mspdi.MSPDIReader()
+		ProjectFile exported = new org.mpxj.mspdi.MSPDIReader()
 			.read(new ByteArrayInputStream(output.toByteArray()));
-		net.sf.mpxj.Task externalTask = exported.getTasks().stream()
-			.filter(net.sf.mpxj.Task::getExternalTask).findFirst().orElseThrow();
-		assertEquals("C:/plans/external-project.xml", externalTask.getExternalTaskProject());
-		assertEquals("C:/plans/external-project.xml", externalTask.getSubprojectFile());
+		org.mpxj.Task externalTask = exported.getTasks().stream()
+			.filter(org.mpxj.Task::getExternalTask).findFirst().orElseThrow();
+				assertEquals("C:/plans/external-project.xml", externalTask.getSubprojectFile());
 		Project reloaded = new com.microproject.core.pm.exchange.MspImporter().importProject(
 			new ByteArrayInputStream(output.toByteArray()), "xml", (progress, label) -> {});
 		Dependency reloadedLink = (Dependency) taskNamed(reloaded, "Local successor").getPredecessorList().iterator().next();

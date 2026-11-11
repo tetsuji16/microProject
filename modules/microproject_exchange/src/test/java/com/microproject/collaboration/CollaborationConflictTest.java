@@ -43,9 +43,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.io.TempDir;
-import net.sf.mpxj.ProjectFile;
-import net.sf.mpxj.Task;
-import net.sf.mpxj.writer.ProjectWriter;
+import org.mpxj.ProjectFile;
+import org.mpxj.Task;
+import org.mpxj.writer.ProjectWriter;
 import com.microproject.exchange.mpxj.ProjectWriterFactory;
 
 import com.microproject.exchange.LocalFileImporter;
@@ -698,17 +698,17 @@ class CollaborationConflictTest {
 		// (for example end + 1 day) would depend on the calendar day the suite runs.
 		java.util.Date monday = java.util.Date.from(java.time.LocalDateTime.of(2026, 10, 19, 8, 0)
 			.atZone(java.time.ZoneId.systemDefault()).toInstant());
-		project.getProjectProperties().setStartDate(monday);
+		project.getProjectProperties().setStartDate(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(monday));
 		Task first = project.addTask();
 		first.setName(firstTaskName);
 		first.setUniqueID(Integer.valueOf(1));
-		first.setStart(monday);
+		first.setStart(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(monday));
 		first.setNotes("Locked notes");
 
 		Task second = project.addTask();
 		second.setName(secondTaskName);
 		second.setUniqueID(Integer.valueOf(2));
-		second.setStart(monday);
+		second.setStart(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(monday));
 
 		ProjectWriter writer = ProjectWriterFactory.forFile(file.getAbsolutePath());
 		writer.write(project, file);

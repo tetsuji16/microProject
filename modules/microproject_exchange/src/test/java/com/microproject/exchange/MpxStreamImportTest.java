@@ -13,15 +13,15 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.core.pm.exchange.MspImporter;
 import com.microproject.pm.task.Project;
-import net.sf.mpxj.ProjectFile;
-import net.sf.mpxj.mpx.MPXWriter;
+import org.mpxj.ProjectFile;
+import org.mpxj.mpx.MPXWriter;
 
 class MpxStreamImportTest {
 	@Test
 	void importsMpxStreamThroughTheSupportedExtensionRoute() throws Exception {
 		ProjectFile mpx = new ProjectFile();
 		mpx.addDefaultBaseCalendar();
-		net.sf.mpxj.Task sourceTask = mpx.addTask();
+		org.mpxj.Task sourceTask = mpx.addTask();
 		sourceTask.setName("MPX route task");
 		sourceTask.setUniqueID(1);
 

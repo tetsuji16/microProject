@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *******************************************************************************/
-package com.microproject.core.pm.exchange.converters.mpx;	import net.sf.mpxj.Relation;
+package com.microproject.core.pm.exchange.converters.mpx;	import org.mpxj.Relation;
 
 	import com.microproject.association.InvalidAssociationException;
 	import com.microproject.core.pm.exchange.converters.mpx.type.MpxDependencyTypeConverter;
@@ -45,37 +45,37 @@ public class MpxDependencyConverter {
 	 * their percent encoding so
 	 * getLeadValue computes them against the predecessor duration (issue #163).
 	 */
-	static long toDependencyLag(net.sf.mpxj.Duration mpxLag) {
+	static long toDependencyLag(org.mpxj.Duration mpxLag) {
 		return toDependencyLag(mpxLag, null);
 	}
 
-	static long toDependencyLag(net.sf.mpxj.Duration mpxLag,
-			net.sf.mpxj.TimeUnitDefaultsContainer defaults) {
+	static long toDependencyLag(org.mpxj.Duration mpxLag,
+			org.mpxj.TimeUnitDefaultsContainer defaults) {
 		if (mpxLag == null) {
 			return 0L;
 		}
 		if (!Double.isFinite(mpxLag.getDuration())) {
 			throw new IllegalArgumentException("MPXJ dependency lag must be finite");
 		}
-		net.sf.mpxj.TimeUnit unit = mpxLag.getUnits();
-		if (unit == net.sf.mpxj.TimeUnit.PERCENT) {
+		org.mpxj.TimeUnit unit = mpxLag.getUnits();
+		if (unit == org.mpxj.TimeUnit.PERCENT) {
 			return com.microproject.datatype.Duration.getInstance(mpxLag.getDuration() / 100.0, com.microproject.datatype.TimeUnit.PERCENT);
 		}
-		if (unit == net.sf.mpxj.TimeUnit.ELAPSED_PERCENT) {
+		if (unit == org.mpxj.TimeUnit.ELAPSED_PERCENT) {
 			return com.microproject.datatype.Duration.getInstance(mpxLag.getDuration() / 100.0, com.microproject.datatype.TimeUnit.ELAPSED_PERCENT);
 		}
 		return defaults == null ? MpxUtils.toMillis(mpxLag) : MpxUtils.toMillis(mpxLag, defaults);
 	}
 
-	public Dependency from(net.sf.mpxj.Relation mpxRelation, MpxImportState state) {
-		Task predecessor = state.getTask(mpxRelation.getTargetTask());
-		Task successor = state.getTask(mpxRelation.getSourceTask());
+	public Dependency from(org.mpxj.Relation mpxRelation, MpxImportState state) {
+		Task predecessor = state.getTask(mpxRelation.getPredecessorTask());
+		Task successor = state.getTask(mpxRelation.getSuccessorTask());
 		if (predecessor == null || successor == null) {
 			return null;
 		}
 
-		net.sf.mpxj.ProjectFile source = state.getMpxProjectFile();
-		net.sf.mpxj.TimeUnitDefaultsContainer defaults = source == null ? null : source.getProjectProperties();
+		org.mpxj.ProjectFile source = state.getMpxProjectFile();
+		org.mpxj.TimeUnitDefaultsContainer defaults = source == null ? null : source.getProjectProperties();
 		long lag = toDependencyLag(mpxRelation.getLag(), defaults);
 
 		MpxDependencyTypeConverter dependencyTypeConverter = new MpxDependencyTypeConverter();

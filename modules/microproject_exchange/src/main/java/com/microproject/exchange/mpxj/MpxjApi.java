@@ -23,10 +23,10 @@
  *******************************************************************************/
 package com.microproject.exchange.mpxj;
 
-import net.sf.mpxj.TaskType;
-import net.sf.mpxj.AssignmentField;
-import net.sf.mpxj.ResourceAssignment;
-import net.sf.mpxj.WorkContour;
+import org.mpxj.TaskType;
+import org.mpxj.AssignmentField;
+import org.mpxj.ResourceAssignment;
+import org.mpxj.WorkContour;
 
 /**
  * Keeps MPXJ API version details out of the scheduling model.

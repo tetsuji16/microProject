@@ -31,8 +31,8 @@ import com.microproject.pm.task.Project;
 import com.microproject.server.data.MPXConverter;
 import com.microproject.undo.DataFactoryUndoController;
 
-import net.sf.mpxj.AvailabilityTable;
-import net.sf.mpxj.ProjectFile;
+import org.mpxj.AvailabilityTable;
+import org.mpxj.ProjectFile;
 
 class MpxResourceConverterTest {
 	@Test
@@ -75,9 +75,9 @@ class MpxResourceConverterTest {
 
 			ByteArrayOutputStream exported = new ByteArrayOutputStream();
 			assertTrue(new com.microproject.exchange.MicrosoftImporter().saveProject(reopened, exported));
-			ProjectFile parsed = new net.sf.mpxj.mspdi.MSPDIReader().read(
+			ProjectFile parsed = new org.mpxj.mspdi.MSPDIReader().read(
 				new ByteArrayInputStream(exported.toByteArray()));
-			net.sf.mpxj.Resource parsedResource = parsed.getResources().stream()
+			org.mpxj.Resource parsedResource = parsed.getResources().stream()
 				.filter(candidate -> "Availability resource".equals(candidate.getName())).findFirst().orElseThrow();
 			assertEquals(7, parsedResource.getAvailability().size(),
 				"writer emits the five source periods and explicit zero ranges for two source gaps");
@@ -144,17 +144,17 @@ class MpxResourceConverterTest {
 	void importsMaximumUnitsAsPercentAndPreservesAbsentValue() {
 		Project project = project();
 		Resource target = project.getResourcePool().newResourceInstance();
-		net.sf.mpxj.Resource source = new ProjectFile().addResource();
+		org.mpxj.Resource source = new ProjectFile().addResource();
 		MpxResourceConverter converter = new MpxResourceConverter();
 		MpxImportState state = state(project);
 
 		target.getAvailabilityTable().setMaximumUnits(0.75D);
-		source.setMaxUnits(null);
+		setMaxUnits(source, null);
 		converter.from(source, target, state);
 		assertEquals(0.75D, target.getMaximumUnits(), 0.000001D);
 
 		for (double[] value : new double[][] {{0.0D, 0.0D}, {50.0D, 0.5D}, {100.0D, 1.0D}, {150.0D, 1.5D}}) {
-			source.setMaxUnits(value[0]);
+			setMaxUnits(source, value[0]);
 			converter.from(source, target, state);
 			assertEquals(value[1], target.getMaximumUnits(), 0.000001D,
 				"MPXJ MaxUnits percent " + value[0]);
@@ -165,7 +165,7 @@ class MpxResourceConverterTest {
 	void rejectsInvalidMaximumUnits() {
 		Project project = project();
 		Resource target = project.getResourcePool().newResourceInstance();
-		net.sf.mpxj.Resource source = new ProjectFile().addResource();
+		org.mpxj.Resource source = new ProjectFile().addResource();
 		MpxResourceConverter converter = new MpxResourceConverter();
 		MpxImportState state = state(project);
 		target.setName("Existing target");
@@ -177,7 +177,7 @@ class MpxResourceConverterTest {
 		source.setUniqueID(22);
 
 		for (double value : new double[] {-1.0D, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY}) {
-			source.setMaxUnits(value);
+			setMaxUnits(source, value);
 			assertThrows(IllegalArgumentException.class, () -> converter.from(source, target, state));
 			assertEquals("Existing target", target.getName());
 			assertEquals(11L, target.getId());
@@ -199,15 +199,15 @@ class MpxResourceConverterTest {
 			Assignment assignment = (Assignment) task.getAssignments().iterator().next();
 			assignment.setTaskAndResource(task, resource);
 			AvailabilityTable periods = new AvailabilityTable();
-			periods.add(new net.sf.mpxj.Availability(net.sf.mpxj.common.DateHelper.START_DATE_NA,
+			periods.add(new org.mpxj.Availability(org.mpxj.common.LocalDateTimeHelper.START_DATE_NA,
 				date("2030-06-03T08:59:59Z"), Double.valueOf(100.0D)));
-			periods.add(new net.sf.mpxj.Availability(date("2030-06-03T09:00:00Z"),
+			periods.add(new org.mpxj.Availability(date("2030-06-03T09:00:00Z"),
 				date("2030-06-03T09:00:03Z"), Double.valueOf(50.0D)));
-			periods.add(new net.sf.mpxj.Availability(date("2030-06-03T09:00:04Z"),
+			periods.add(new org.mpxj.Availability(date("2030-06-03T09:00:04Z"),
 				date("2030-06-03T09:00:04Z"), Double.valueOf(0.0D)));
-			periods.add(new net.sf.mpxj.Availability(date("2030-06-03T09:00:08Z"),
+			periods.add(new org.mpxj.Availability(date("2030-06-03T09:00:08Z"),
 				date("2030-06-03T09:00:10Z"), Double.valueOf(25.0D)));
-			net.sf.mpxj.Resource source = new ProjectFile().addResource();
+			org.mpxj.Resource source = new ProjectFile().addResource();
 			source.setName("Availability contract");
 			source.getAvailability().addAll(periods);
 
@@ -250,15 +250,15 @@ class MpxResourceConverterTest {
 		target.setId(11L);
 		target.setUniqueId(12L);
 		target.getAvailabilityTable().setMaximumUnits(0.75D);
-		net.sf.mpxj.Resource source = new ProjectFile().addResource();
+		org.mpxj.Resource source = new ProjectFile().addResource();
 		source.setName("Do not apply");
 		source.setID(21);
 		source.setUniqueID(22);
 		AvailabilityTable invalid = new AvailabilityTable();
-		Date a = date("2030-06-03T09:00:00Z");
-		Date b = date("2030-06-03T09:00:05Z");
-		invalid.add(new net.sf.mpxj.Availability(a, b, Double.valueOf(50.0D)));
-		invalid.add(new net.sf.mpxj.Availability(date("2030-06-03T09:00:05Z"),
+		java.time.LocalDateTime a = date("2030-06-03T09:00:00Z");
+		java.time.LocalDateTime b = date("2030-06-03T09:00:05Z");
+		invalid.add(new org.mpxj.Availability(a, b, Double.valueOf(50.0D)));
+		invalid.add(new org.mpxj.Availability(date("2030-06-03T09:00:05Z"),
 			date("2030-06-03T09:00:08Z"), Double.valueOf(25.0D)));
 		source.getAvailability().addAll(invalid);
 		assertThrows(IllegalArgumentException.class,
@@ -270,7 +270,7 @@ class MpxResourceConverterTest {
 		assertEquals(1, target.getAvailabilityTable().getList().size());
 
 		AvailabilityTable missingUnits = new AvailabilityTable();
-		missingUnits.add(new net.sf.mpxj.Availability(a, b, null));
+		missingUnits.add(new org.mpxj.Availability(a, b, null));
 		source.getAvailability().clear();
 		source.getAvailability().addAll(missingUnits);
 		assertThrows(IllegalArgumentException.class,
@@ -279,10 +279,10 @@ class MpxResourceConverterTest {
 		assertEquals(0.75D, target.getMaximumUnits(), 0.000001D);
 
 		long domainEnd = com.microproject.util.DateTime.getMaxDate().getTime();
-		Date finiteEndAtSentinel = new Date(com.microproject.core.time.TimeUtil.removeTimeZoneOffset(domainEnd - 1_000L));
-		Date finiteStartAtSentinel = new Date(com.microproject.core.time.TimeUtil.removeTimeZoneOffset(domainEnd - 10_000L));
+		java.time.LocalDateTime finiteEndAtSentinel = com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(new Date(com.microproject.core.time.TimeUtil.removeTimeZoneOffset(domainEnd - 1_000L)));
+		java.time.LocalDateTime finiteStartAtSentinel = com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(new Date(com.microproject.core.time.TimeUtil.removeTimeZoneOffset(domainEnd - 10_000L)));
 		AvailabilityTable sentinelCollision = new AvailabilityTable();
-		sentinelCollision.add(new net.sf.mpxj.Availability(finiteStartAtSentinel, finiteEndAtSentinel,
+		sentinelCollision.add(new org.mpxj.Availability(finiteStartAtSentinel, finiteEndAtSentinel,
 			Double.valueOf(50.0D)));
 		source.getAvailability().clear();
 		source.getAvailability().addAll(sentinelCollision);
@@ -297,11 +297,11 @@ class MpxResourceConverterTest {
 		Project project = project();
 		Resource source = project.getResourcePool().createScriptedResource();
 		source.getAvailabilityTable().newValueObject(instant("2030-06-03T09:00:00Z") + 500L);
-		net.sf.mpxj.Resource target = new ProjectFile().addResource();
+		org.mpxj.Resource target = new ProjectFile().addResource();
 		target.setName("Preserve target");
-		target.getAvailability().add(new net.sf.mpxj.Availability(
-			net.sf.mpxj.common.DateHelper.START_DATE_NA,
-			net.sf.mpxj.common.DateHelper.END_DATE_NA, Double.valueOf(100.0D)));
+		target.getAvailability().add(new org.mpxj.Availability(
+			org.mpxj.common.LocalDateTimeHelper.START_DATE_NA,
+			org.mpxj.common.LocalDateTimeHelper.END_DATE_NA, Double.valueOf(100.0D)));
 
 		assertThrows(IllegalArgumentException.class,
 			() -> MPXConverter.toMPXResource((ResourceImpl) source, target));
@@ -331,8 +331,8 @@ class MpxResourceConverterTest {
 		assertEquals(units, value.getMaximumUnits(), message);
 	}
 
-	private static Date date(String value) {
-		return new Date(instant(value));
+	private static java.time.LocalDateTime date(String value) {
+		return com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(new Date(instant(value)));
 	}
 
 	private static long instant(String value) {
@@ -375,5 +375,14 @@ class MpxResourceConverterTest {
 		MpxImportState state = new MpxImportState();
 		state.setProjectBaseCalendar(project.getWorkCalendar());
 		return state;
+	}
+
+	private static void setMaxUnits(org.mpxj.Resource resource, Number units) {
+		// MPXJ 16 derives MaxUnits from the availability table.
+		resource.getAvailability().clear();
+		if (units != null) {
+			resource.getAvailability().add(new org.mpxj.Availability(
+				org.mpxj.common.LocalDateTimeHelper.START_DATE_NA, org.mpxj.AvailabilityTable.END_DATE_NA, units));
+		}
 	}
 }

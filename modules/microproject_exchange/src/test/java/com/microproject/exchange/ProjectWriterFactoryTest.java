@@ -25,11 +25,11 @@ class ProjectWriterFactoryTest {
 
 	@Test
 	void internalWritersAreRoutedButOnlySupportedDesktopSaveFormatsAreExposed() {
-		assertInstanceOf(net.sf.mpxj.mpx.MPXWriter.class, ProjectWriterFactory.forFile("plan.mpx"));
-		assertInstanceOf(net.sf.mpxj.planner.PlannerWriter.class, ProjectWriterFactory.forFile("plan.planner"));
-		assertInstanceOf(net.sf.mpxj.primavera.PrimaveraPMFileWriter.class, ProjectWriterFactory.forFile("plan.pmxml"));
-		assertInstanceOf(net.sf.mpxj.json.JsonWriter.class, ProjectWriterFactory.forFile("plan.json"));
-		assertInstanceOf(net.sf.mpxj.sdef.SDEFWriter.class, ProjectWriterFactory.forFile("plan.sdef"));
+		assertInstanceOf(org.mpxj.mpx.MPXWriter.class, ProjectWriterFactory.forFile("plan.mpx"));
+		assertInstanceOf(org.mpxj.planner.PlannerWriter.class, ProjectWriterFactory.forFile("plan.planner"));
+		assertInstanceOf(org.mpxj.primavera.PrimaveraPMFileWriter.class, ProjectWriterFactory.forFile("plan.pmxml"));
+		assertInstanceOf(org.mpxj.json.JsonWriter.class, ProjectWriterFactory.forFile("plan.json"));
+		assertInstanceOf(org.mpxj.sdef.SDEFWriter.class, ProjectWriterFactory.forFile("plan.sdef"));
 		assertTrue(ProjectWriterFactory.supportedFileExtensions().containsAll(
 			java.util.Set.of("MPX", "PLANNER", "PMXML", "JSON", "SDEF")));
 	}
