@@ -518,7 +518,7 @@ public final class AutoRecoveryStore {
 			TemporaryWorkspace.TempArtifact temporary = workspace.createArtifact("recovery-" + safeId(projectId), ".metadata.tmp",
 				java.util.Map.of("kind", "auto-recovery-metadata", "projectId", Long.toString(projectId)))) {
 			try (OutputStream output = Files.newOutputStream(temporary.path())) {
-				properties.store(output, "ProjectLibre AutoRecovery");
+				properties.store(output, "microProject AutoRecovery");
 			}
 			SafeFileReplace.replaceDurably(temporary.path(), metadata, true);
 		}
