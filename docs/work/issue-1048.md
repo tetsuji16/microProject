@@ -23,7 +23,7 @@ Blockers: none. One class per pull request, in the order of the issue table.
 | A3 | Saved MPO content is identical before and after the split (round-trip tests) | pass (slices 1-4) | `:microproject_exchange:test`, 405 tests, 0 failures |
 | A4 | The earlier-version MPO reading tests pass | pass (slices 1-4) | Same `:microproject_exchange:test` run |
 | A5 | Architecture and naming gates pass | pass (slices 1-4) | `verifyArchitectureBoundaries verifyNamingConventions` |
-| A6 | Pull request opened and its `build` (3 OS) and `GUI acceptance` checks observed | pending (external) | Not pushed by this work; the branch carries the four slice commits |
+| A6 | Pull request opened and its `build` (3 OS) and `GUI acceptance` checks observed | pending (external) | Branch pushed as `73a61806a`; the pull request and hosted checks remain external. Local Linux GUI acceptance evidence is recorded below. |
 
 ## Completed slices
 
@@ -79,4 +79,12 @@ pull request with `Closes #1048`, and observe `build` and `GUI acceptance` on it
   the same reconstruction of `MpoExternalMerge` differs by 0 lines.
 - Earlier slices were not re-verified; their commits (`db2d0c8c5`, `ccf2dcb6d`,
   `1ca4fba33`) keep their recorded evidence.
-- Physical GUI/manual: not applicable; no Swing or user-facing route changed.
+- Local GUI acceptance (Linux, userspace Xvfb 1920x1080 @96dpi + Openbox),
+  `:microproject_ui:guiTest -PguiTestSuite=smoke`: 12 tests, 9 passed, 2 failed, 1 skipped.
+  The two failures (`ChangeWorkingTimeDialogGuiAcceptanceTest` font-metric layout,
+  `TaskInformationRibbonGuiAcceptanceTest` ribbon-overflow pointer) reproduce identically at
+  the branch base `c1ecd75eb`, and `modules/microproject_ui` has no diff against that base, so
+  they are environment artifacts rather than regressions; the skip is
+  `The close request is sent through the Windows window manager.` Hosted `GUI acceptance`
+  (windows-latest) remains the evidence of record for A6, and headless runs are not GUI evidence
+  per `docs/build-and-run.md`. No Swing or user-facing route changed in this issue.
