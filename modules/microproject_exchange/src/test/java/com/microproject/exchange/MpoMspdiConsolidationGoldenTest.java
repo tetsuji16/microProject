@@ -45,7 +45,7 @@ class MpoMspdiConsolidationGoldenTest {
 		Map.entry("mpo:changes/task-identities.json",
 			"002110d1d9da8da95128c8ade4ab33f62ab5a02b247bbc4a8d229a820d9a4b88"),
 		Map.entry("mpo:content.xml",
-			"b10e651f23935ac056389fbd787931f5956b53c468a66f3cc29db696a9817f48"),
+			"be4315e8a2118c877aa49a394f5ff3ef1d5c430591eba8175c884e77a42616d6"),
 		Map.entry("mpo:meta.xml",
 			"9e1c3c32896f620ab0b937a329af41c59eb219d98f14c7641116e33d15601f08"),
 		Map.entry("mpo:microproject/assignment-leveling-splits.json",
@@ -69,7 +69,7 @@ class MpoMspdiConsolidationGoldenTest {
 		Map.entry("mpo:settings.xml",
 			"d4cafce40b45ca0550508c61ad15e3441d687d23779448cf83c8f50cc7fae8b4"),
 		Map.entry("mspdi",
-			"b10e651f23935ac056389fbd787931f5956b53c468a66f3cc29db696a9817f48")));
+			"be4315e8a2118c877aa49a394f5ff3ef1d5c430591eba8175c884e77a42616d6")));
 
 	@Test
 	void mpoAndMspdiBytesAreDeterministicAndMatchGolden() throws Exception {

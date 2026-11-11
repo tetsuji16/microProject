@@ -1923,13 +1923,20 @@ class MpxExportTrackingTest {
 		assertEquals(2, savedXml.split("<Value>PT4H0M0S</Value>", -1).length - 1, savedXml);
 		ProjectFile serialized = new org.mpxj.mspdi.MSPDIReader().read(new ByteArrayInputStream(contentXml));
 		var work = serialized.getResourceAssignments().get(0).getRawTimephasedRemainingRegularWork();
-		assertEquals(1, work.size(), work.toString()); // MPXJ merges adjacent daily entries with equal rates.
-		assertEquals(8.0d, work.get(0).getTotalAmount().convertUnits(org.mpxj.TimeUnit.HOURS,
-			serialized.getProjectProperties()).getDuration(), 0.00001d, work.toString());
-		assertEquals(4.0d, work.get(0).getAmountPerHour().convertUnits(org.mpxj.TimeUnit.HOURS,
-			serialized.getProjectProperties()).getDuration(), 0.00001d, work.toString());
-		assertEquals(modelWallTime("2026-10-12T08:00:00"), DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(work.get(0).getStart())));
-		assertEquals(modelWallTime("2026-10-13T17:00:00"), DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(work.get(0).getFinish())));
+		// MPXJ 16 keeps the two daily entries separate instead of merging equal adjacent rates.
+		assertEquals(2, work.size(), work.toString());
+		assertEquals(8.0d, timephasedHours(work, serialized), 0.00001d, work.toString());
+		String[] days = { "2026-10-12", "2026-10-13" };
+		for (int index = 0; index < days.length; index++) {
+			var item = work.get(index);
+			assertEquals(4.0d, item.getTotalAmount().convertUnits(org.mpxj.TimeUnit.HOURS,
+				serialized.getProjectProperties()).getDuration(), 0.00001d, work.toString());
+			// The rate is per hour; an eight-hour day gives the former per-day amount.
+			assertEquals(4.0d, item.getAmountPerHour().convertUnits(org.mpxj.TimeUnit.HOURS,
+				serialized.getProjectProperties()).getDuration() * 8.0d, 0.00001d, work.toString());
+			assertEquals(modelWallTime(days[index] + "T08:00:00"), DateUTCConverter.toModelTime(MpxDates.toDate(item.getStart())));
+			assertEquals(modelWallTime(days[index] + "T17:00:00"), DateUTCConverter.toModelTime(MpxDates.toDate(item.getFinish())));
+		}
 	}
 
 	@Test
@@ -2192,13 +2199,17 @@ class MpxExportTrackingTest {
 			.filter(row -> timephasedHours(java.util.List.of(row), serialized) > 0.0d).toList();
 		var remainingWorkRows = remainingRows.stream()
 			.filter(row -> timephasedHours(java.util.List.of(row), serialized) > 0.0d).toList();
-		assertEquals(2, actualRows.size(), actualRows.toString());
+		// MPXJ 16 keeps zero-amount rows in the raw list; only the rows carrying work are significant.
+		assertEquals(3, actualRows.size(), actualRows.toString());
 		assertEquals(1, actualWorkRows.size(), actualRows.toString());
 		assertEquals(modelWallTime("2026-10-12T08:00:00"), DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(actualWorkRows.get(0).getStart())));
 		assertEquals(modelWallTime("2026-10-12T13:00:00"), DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(actualWorkRows.get(0).getFinish())));
-		assertEquals(2, remainingRows.size(), remainingRows.toString());
+		assertEquals(3, remainingRows.size(), remainingRows.toString());
 		assertEquals(2, remainingWorkRows.size(), remainingRows.toString());
-		assertEquals(modelWallTime("2026-10-12T12:00:00"), DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(remainingWorkRows.get(0).getStart())),
+		// The saved XML still carries the source's 12:00 remaining start; MPXJ 16's reader moves it to the end of the
+		// preceding actual row (13:00) when building raw rows.
+		assertTrue(savedXml.replaceAll("\\s+", "").contains("<Type>1</Type><UID>1</UID><Start>2026-10-12T12:00:00</Start>"), savedXml);
+		assertEquals(modelWallTime("2026-10-12T13:00:00"), DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(remainingWorkRows.get(0).getStart())),
 			remainingRows.toString());
 		assertEquals(0L, assignment.getEffectiveWorkCalendar().compare(
 			DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(actualWorkRows.get(0).getFinish())),
@@ -2596,7 +2607,8 @@ class MpxExportTrackingTest {
 		assertTrue(exported.getTasks().stream().anyMatch(org.mpxj.Task::getExternalTask));
 		for (org.mpxj.Task task : exported.getTasks()) {
 			if (task.getExternalTask()) {
-				assertEquals(Long.toString(external.getUniqueId()), task.getProject());
+				// MPXJ 16 publishes the external project only through PredecessorLink CrossProjectName, which the reader maps to the subproject file.
+				assertEquals(Long.toString(external.getUniqueId()), task.getSubprojectFile());
 			}
 		}
 		org.mpxj.Task exportedSuccessor = exported.getTasks().stream()
@@ -2680,8 +2692,7 @@ class MpxExportTrackingTest {
 			.read(new ByteArrayInputStream(output.toByteArray()));
 		org.mpxj.Task externalTask = exported.getTasks().stream()
 			.filter(org.mpxj.Task::getExternalTask).findFirst().orElseThrow();
-		assertEquals("C:/plans/external-project.xml", externalTask.getProject());
-		assertEquals("C:/plans/external-project.xml", externalTask.getSubprojectFile());
+				assertEquals("C:/plans/external-project.xml", externalTask.getSubprojectFile());
 		Project reloaded = new com.microproject.core.pm.exchange.MspImporter().importProject(
 			new ByteArrayInputStream(output.toByteArray()), "xml", (progress, label) -> {});
 		Dependency reloadedLink = (Dependency) taskNamed(reloaded, "Local successor").getPredecessorList().iterator().next();
