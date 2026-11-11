@@ -175,7 +175,7 @@ public class PersonalContour extends AbstractContour {
 		PersonalContourBucket lastBucket = null;
 
 		for (int i = 0; i < after.size(); i++) {
-			PersonalContourBucket bucket = (PersonalContourBucket) after.get(i);
+			PersonalContourBucket bucket = after.get(i);
 			if (remainingDuration <= 0) {
 				break;
 			}
@@ -192,7 +192,7 @@ public class PersonalContour extends AbstractContour {
 
 		if (remainingDuration > 0) {
 			if (lastBucket == null) {
-				lastBucket = (PersonalContourBucket) newList.get(newList.size() - 1);
+				lastBucket = newList.get(newList.size() - 1);
 			} else {
 				newList.remove(newList.size() - 1);
 			}

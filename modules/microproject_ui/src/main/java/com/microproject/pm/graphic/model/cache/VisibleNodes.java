@@ -99,7 +99,7 @@ public class VisibleNodes extends VisibleElements<GraphicNode> {
 		listenerList.remove(CacheListener.class, l);
 	}
 	public CacheListener[] getNodeModelListeners() {
-		return (CacheListener[]) listenerList.getListeners(CacheListener.class);
+		return listenerList.getListeners(CacheListener.class);
 	}
 	 protected void fireGraphicNodesCompositeEvent(Object source, List<CacheEvent> nodeEvents, List<CacheEvent> edgeEvents) {
 			Object[] listeners = listenerList.getListenerList();

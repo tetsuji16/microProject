@@ -144,7 +144,7 @@ public class AssignmentEntryPane extends JScrollPane implements HierarchyListene
 				Field field = ((SpreadSheetModel)getModel()).getFieldInColumn(column+1);
 				if (field == AssignmentEntry.getRateField()) {
 					if (entry.getTimeUnitLabel() != null) {
-						boolean labor = ((AssignmentEntry)entry).getResource().isLabor();
+						boolean labor = (entry).getResource().isLabor();
 						editor = new RateEditor(entry.getTimeUnitLabel(),field.isMoney(),labor && field.isPercent(),labor);
 					}
 				}

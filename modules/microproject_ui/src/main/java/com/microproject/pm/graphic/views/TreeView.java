@@ -72,7 +72,7 @@ public class TreeView extends JScrollPane implements BaseView {
 	public void init(ReferenceNodeModelCache cache, NodeModel model,String viewName,Consumer<Object> transformerClosure){
 		tree=new Xbs(project,viewName);
 		this.viewName = viewName;
-		this.cache=NodeModelCacheFactory.getInstance().createAntiAssignmentFilteredCache((ReferenceNodeModelCache)cache,viewName,transformerClosure);
+		this.cache=NodeModelCacheFactory.getInstance().createAntiAssignmentFilteredCache(cache,viewName,transformerClosure);
 		tree.setCache(this.cache);
 		tree.setBarStyles((BarStyles) Dictionary.get(BarStyles.category, viewName));
 			

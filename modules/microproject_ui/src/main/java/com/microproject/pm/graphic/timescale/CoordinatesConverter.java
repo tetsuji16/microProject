@@ -320,7 +320,7 @@ public class CoordinatesConverter implements ScheduleEventListener, Serializable
 		listenerList.remove(TimeScaleListener.class, l);
 	}
 	public TimeScaleListener[] getTimeScaleListeners() {
-		return (TimeScaleListener[]) listenerList.getListeners(TimeScaleListener.class);
+		return listenerList.getListeners(TimeScaleListener.class);
 	}
 	protected void fireTimeScaleChanged(Object source,int type) {
 		Object[] listeners = listenerList.getListenerList();

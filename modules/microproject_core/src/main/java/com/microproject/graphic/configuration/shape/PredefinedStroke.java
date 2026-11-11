@@ -71,7 +71,7 @@ public class PredefinedStroke {
 		if ("SOLID".equals(key)) {
 			return SOLID;
 		}
-		Stroke found = (Stroke) getPredefinedStrokeMap().get(key);
+		Stroke found = getPredefinedStrokeMap().get(key);
 		return found;
 	}
 }	

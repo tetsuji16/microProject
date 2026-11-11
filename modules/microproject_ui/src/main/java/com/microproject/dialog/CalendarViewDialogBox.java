@@ -237,7 +237,7 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 		private List<Task> tasksOn(LocalDate day) {
 			List<Task> result = new ArrayList<>();
 			for (var iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
-				Task task = (Task) iterator.next();
+				Task task = iterator.next();
 				if (task.isSummary()) continue;
 				LocalDate start = Instant.ofEpochMilli(task.getStart()).atZone(zone).toLocalDate();
 				LocalDate end = Instant.ofEpochMilli(task.getEnd()).atZone(zone).toLocalDate();

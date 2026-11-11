@@ -141,12 +141,12 @@ public class DefaultNodeModel implements NodeModel {
 		boolean firstChild;
 		if (siblings.size()==1){
 			previous=null;
-			next=(Node)siblings.removeLast();
+			next=siblings.removeLast();
 			parent=null;
 			firstChild=true;
 		}else{
-			previous=(Node)siblings.removeFirst();  //no need to clone, list used only here, see CommonSpreadSheetModel
-			next=(Node)siblings.removeLast();
+			previous=siblings.removeFirst();  //no need to clone, list used only here, see CommonSpreadSheetModel
+			next=siblings.removeLast();
 			parent=(Node)next.getParent();
 			firstChild=(parent==previous);
 			if (firstChild) parent=previous;
@@ -867,7 +867,7 @@ public class DefaultNodeModel implements NodeModel {
 	public Node replaceImplAndSetFieldValue(Node node, LinkedList<Node> previous, Field field, Object eventSource, Object value,FieldContext context,int actionType) throws FieldParseException {
 		//the line following a subproject is connected to the main project
 		if (previous!=null&&previous.size()>0){
-			Node p=(Node)previous.getFirst();
+			Node p=previous.getFirst();
 			if (p!=null&&p.isInSubproject()&&node.getSubprojectLevel()<p.getSubprojectLevel()){
 				while (node.getSubprojectLevel()<p.getSubprojectLevel()) p=(Node)p.getParent();
 				LinkedList<Node> newPrevious=new LinkedList<>();

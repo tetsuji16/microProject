@@ -97,7 +97,7 @@ public class NodeListTransferable implements Transferable {
 						nodeListDataFlavor,
 						DataFlavor.stringFlavor,
 						DataFlavor.getTextPlainUnicodeFlavor()};
-			this.nodeList=new ArrayList<>((List<Node>)nodeModel.copy(nodeList,NodeModel.SILENT));
+			this.nodeList=new ArrayList<>(nodeModel.copy(nodeList,NodeModel.SILENT));
 			this.fields=fields;
 		}else{
 			flavors=new DataFlavor[]{
@@ -116,7 +116,7 @@ public class NodeListTransferable implements Transferable {
 	}
 
 	public DataFlavor[] getTransferDataFlavors() {
-		return (DataFlavor[])flavors.clone();
+		return flavors.clone();
 	}
 
 	public boolean isDataFlavorSupported(DataFlavor flavor) {

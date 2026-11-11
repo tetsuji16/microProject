@@ -140,11 +140,11 @@ public class ReportView extends JPanel implements BaseView, CacheListener {
 	private NodeModel updateCacheForView(String viewName) {
 		if (viewName.equals(DataSourceProvider.TASK_REPORT_VIEW)) {
 			if (taskCache == null)
-				taskCache = newFilteredCache((ReferenceNodeModelCache)documentFrame.getTaskNodeModelCache(),viewName);
+				taskCache = newFilteredCache(documentFrame.getTaskNodeModelCache(),viewName);
 			cache = taskCache;
 		} else if (viewName.equals(DataSourceProvider.RESOURCE_REPORT_VIEW)) {
 			if (resourceCache == null)
-				resourceCache = newFilteredCache((ReferenceNodeModelCache)documentFrame.getResourceNodeModelCache(),viewName);
+				resourceCache = newFilteredCache(documentFrame.getResourceNodeModelCache(),viewName);
 			cache = resourceCache;
 		} else if (viewName.equals(DataSourceProvider.PROJECT_REPORT_VIEW)) {
 			cache = null;
@@ -176,7 +176,7 @@ public class ReportView extends JPanel implements BaseView, CacheListener {
 				   
         SpreadSheetFieldArray fa = null;
         if (fieldArray != null) {
-        	fa =(SpreadSheetFieldArray) fieldArray.clone();
+        	fa =fieldArray.clone();
             fa.removeIf(Field::isGraphical); // get rid of fields that can't be shown
         }
 		int collectionType = reportDefinition.getCollectionType();

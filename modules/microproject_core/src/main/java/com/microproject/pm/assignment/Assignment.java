@@ -2107,11 +2107,11 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	}
 
 	public double fixedCost(long start, long end) {
-		return ((Task)getTask()).fixedCost(start,end);
+		return (getTask()).fixedCost(start,end);
 	}
 
 	public double actualFixedCost(long start, long end) {
-		return ((Task)getTask()).actualFixedCost(start,end);
+		return (getTask()).actualFixedCost(start,end);
 	}
 
 	public void setFixedCost(double fixedCost, FieldContext fieldContext) {
