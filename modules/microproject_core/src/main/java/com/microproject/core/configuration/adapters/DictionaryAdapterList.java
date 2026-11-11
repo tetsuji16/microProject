@@ -26,7 +26,7 @@ package com.microproject.core.configuration.adapters;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.xml.bind.annotation.XmlAnyElement;
+import jakarta.xml.bind.annotation.XmlAnyElement;
 
  
 public class DictionaryAdapterList<T> { 
