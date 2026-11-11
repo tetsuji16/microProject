@@ -3920,7 +3920,7 @@ class MpoFileImporterTest {
 			if (snapshot.getFixedCostCalendar() != null)
 				originalFixedCostCalendars.put(taskUid + ":" + slot, snapshot.getFixedCostCalendar());
 		}
-		java.lang.reflect.Method restore = MpoFileImporter.class.getDeclaredMethod("restoreBaselineProfiles",
+		java.lang.reflect.Method restore = MpoSidecarJson.class.getDeclaredMethod("restoreBaselineProfiles",
 			Project.class, byte[].class);
 		restore.setAccessible(true);
 		assertThrows(java.io.IOException.class, () -> {
