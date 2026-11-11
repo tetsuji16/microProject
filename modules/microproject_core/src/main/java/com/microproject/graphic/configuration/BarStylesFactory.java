@@ -37,7 +37,7 @@ public class BarStylesFactory extends AbstractObjectCreationFactory  {
 		String id = att.getValue("id");
 		String name = Messages.getString(id);
 		
-		BarStyles barStyles = (BarStyles) Dictionary.getInstance().get(BarStyles.category, name);
+		BarStyles barStyles = (BarStyles) Dictionary.get(BarStyles.category, name);
 		if (barStyles == null)
 			barStyles = new BarStyles();
 		return barStyles;

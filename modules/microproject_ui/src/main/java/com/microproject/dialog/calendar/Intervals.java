@@ -55,7 +55,7 @@ public class Intervals extends TreeSet<HasStartAndEnd> implements HasStartAndEnd
 		if (c!=null)
 			for (Object interval : c) {
 				DateSpan d=(DateSpan)interval;
-				if (super.add(new CalendarInterval(d.getStart(),d.getEnd())));
+				super.add(new CalendarInterval(d.getStart(),d.getEnd()));
 			}
 	}
 

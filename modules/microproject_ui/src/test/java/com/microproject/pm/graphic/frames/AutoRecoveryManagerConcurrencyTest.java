@@ -262,7 +262,7 @@ class AutoRecoveryManagerConcurrencyTest {
 		store.recordCompletedSnapshot(51, "Plan", null, java.time.Instant.now(), newer, series);
 		var candidate = queue.next();
 		assertEquals(newer, candidate.entry().snapshot());
-		try (var lease = candidate.lease()) {
+		try (var _ = candidate.lease()) {
 			var busy = new AutoRecoveryManager.OfferQueue(store);
 			org.junit.jupiter.api.Assertions.assertNull(busy.next());
 		}

@@ -320,7 +320,7 @@ public final class ResourceLevelingService {
 				Project.PendingEventBatch undoBatch = pendingBatches.stream()
 					.filter(batch -> batch != null && batch.undoGroup() != null).findFirst().orElse(null);
 				if (editSupport != null && undoBatch != null) {
-					try (EditSupport.Activation ignored = editSupport.activatePublication(undoBatch.undoGroup())) {
+					try (EditSupport.Activation _ = editSupport.activatePublication(undoBatch.undoGroup())) {
 						postUndoEdit(editSupport);
 					}
 				} else {

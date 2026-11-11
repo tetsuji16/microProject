@@ -28,7 +28,7 @@ public class FontUtil {
 	public static Font getFont(String fontName,int type){
 		Font font=Font.decode(Environment.getFont(type));
 		if (fontName==null) return font;
-		Font newFont=font.decode(fontName);
+		Font newFont=Font.decode(fontName);
 		if (newFont.getName().equals("_Default_"))
 			return font.deriveFont(newFont.getStyle(),newFont.getSize()+font.getSize()-12);
 		else return newFont; 

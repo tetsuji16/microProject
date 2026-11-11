@@ -1209,7 +1209,6 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		task.calculationStateCount = calculationStateCount;
 		task.markerStatus = markerStatus;
 		task.earnedValueMethod = earnedValueMethod;
-		task.startFieldInstance = startFieldInstance;
 
 		task.constraintType = constraintType;
 		task.deadline = deadline;

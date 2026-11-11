@@ -27,7 +27,7 @@ class GuiDesktopSessionCoordinatorTest {
 	@Test
 	void competingRobotSessionGetsAnExplicitEnvironmentContentionFailure() throws Exception {
 		Path lockFile = temporaryDirectory.resolve("shared-desktop.lock");
-		try (GuiDesktopSessionCoordinator.Lease owner = GuiDesktopSessionCoordinator.acquire(lockFile,
+		try (GuiDesktopSessionCoordinator.Lease _ = GuiDesktopSessionCoordinator.acquire(lockFile,
 				Duration.ofMillis(100))) {
 			String competingProcess = runProbe(lockFile, "100");
 			assertTrue(competingProcess.startsWith("CONTENDED"), competingProcess);

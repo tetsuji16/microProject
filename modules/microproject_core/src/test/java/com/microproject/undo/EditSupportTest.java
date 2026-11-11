@@ -228,7 +228,7 @@ class EditSupportTest {
 		EditSupport.Group firstGroup = first.group();
 		support.reserveCommit(firstGroup);
 		first.close();
-		try (EditSupport.Activation publication = support.activatePublication(firstGroup)) {
+		try (EditSupport.Activation _ = support.activatePublication(firstGroup)) {
 			EditSupport.Activation second = support.beginCommand();
 			support.postEdit(edit("second", changes));
 			EditSupport.Group secondGroup = second.group();
@@ -268,13 +268,13 @@ class EditSupportTest {
 		UndoController controller = new UndoController();
 		EditSupport support = controller.getEditSupport();
 		EditSupport.Activation replay = support.beginCommand();
-		try (EditSupport.RecordingScope recording = support.suppressRecording()) {
+		try (EditSupport.RecordingScope _ = support.suppressRecording()) {
 			support.postEdit(new AbstractUndoableEdit());
 		}
 		EditSupport.Group replayGroup = replay.group();
 		support.reserveCommit(replayGroup);
 		replay.close();
-		try (EditSupport.Activation publication = support.activatePublication(replayGroup)) {
+		try (EditSupport.Activation _ = support.activatePublication(replayGroup)) {
 			support.postEdit(new AbstractUndoableEdit());
 		}
 		support.completePublication(replayGroup);

@@ -67,7 +67,7 @@ public class UndoController extends UndoManager implements EditListener{
 		if (canUndo()) {
 			boolean previousBatchMode = Environment.isBatchMode();
 			Environment.setBatchMode(true);
-			try (EditSupport.RecordingScope recording = editSupport.suppressRecording()) {
+			try (EditSupport.RecordingScope _ = editSupport.suppressRecording()) {
 				super.undo();
 //				undoManager.undo();
 			} finally {
@@ -80,7 +80,7 @@ public class UndoController extends UndoManager implements EditListener{
 		if (canRedo()) {
 			boolean previousBatchMode = Environment.isBatchMode();
 			Environment.setBatchMode(true);
-			try (EditSupport.RecordingScope recording = editSupport.suppressRecording()) {
+			try (EditSupport.RecordingScope _ = editSupport.suppressRecording()) {
 //				undoManager.redo();
 				super.redo();
 			} finally {

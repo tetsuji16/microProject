@@ -698,7 +698,7 @@ class DependencyServiceTest {
 			CountDownLatch checked = new CountDownLatch(1);
 			AtomicBoolean acquired = new AtomicBoolean();
 			Thread reader = new Thread(() -> {
-				try (var ignored = middleProject.getMutationState().begin()) {
+				try (var _ = middleProject.getMutationState().begin()) {
 					acquired.set(true);
 				} finally {
 					checked.countDown();
