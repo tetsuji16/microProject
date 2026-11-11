@@ -158,7 +158,7 @@ public class SummaryVisitorFactory implements SummaryNames {
  * @param name
  * @return
  */	public static int getSummaryId(String name) {
-		Integer id = (Integer) ALL_SUMMARY_MAP.get(name);
+		Integer id = ALL_SUMMARY_MAP.get(name);
 		if (id == null)
 			return NONE;
 		return id.intValue();

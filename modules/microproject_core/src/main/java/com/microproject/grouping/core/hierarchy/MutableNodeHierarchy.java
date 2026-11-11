@@ -821,7 +821,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
         Node current=(node==null)?root:node;
         while (!isLeaf(current)){
             List<Node> children=getChildren(current);
-            current=(Node)children.get(children.size()-1);
+            current=children.get(children.size()-1);
         }
         return current;
     }
@@ -829,7 +829,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
         Node current=null;
         for (int l=0;!isLeaf(current)&&l<level;l++){
             List<Node> children=getChildren(current);
-            current=(Node)children.get(children.size()-1);
+            current=children.get(children.size()-1);
         }
         return current;
     }

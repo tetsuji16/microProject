@@ -134,7 +134,7 @@ public final class CriticalChainGraphScene {
 		Map<Long, String> result = LinkedHashMap.newLinkedHashMap(analysis.criticalTaskIds().size());
 		if (project == null) return result;
 		for (var iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
-			Task task = (Task) iterator.next();
+			Task task = iterator.next();
 			result.put(Long.valueOf(task.getUniqueId()), task.getName());
 		}
 		return result;

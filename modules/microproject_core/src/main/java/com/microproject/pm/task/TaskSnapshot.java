@@ -159,7 +159,7 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 		try {
 			newOne = (TaskSnapshot) super.clone();
 			newOne.currentSchedule = (TaskSchedule) currentSchedule.clone();
-			newOne.hasAssignments = (HasAssignments) ((HasAssignmentsImpl)hasAssignments)
+			newOne.hasAssignments = ((HasAssignmentsImpl)hasAssignments)
 				.cloneSnapshotWithSchedule(newOne.currentSchedule);
 			newOne.importedBaselineCost = importedBaselineCost;
 			if (fixedCostCalendar != null)
@@ -177,7 +177,7 @@ public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
 		try {
 			newOne = (TaskSnapshot) super.clone();
 			newOne.currentSchedule = (TaskSchedule) currentSchedule.cloneWithTask(task);
-			newOne.hasAssignments = (HasAssignments) ((HasAssignmentsImpl)hasAssignments)
+			newOne.hasAssignments = ((HasAssignmentsImpl)hasAssignments)
 				.deepCloneSnapshotWithTask(task);
 			newOne.importedBaselineCost = importedBaselineCost;
 			if (fixedCostCalendar != null)

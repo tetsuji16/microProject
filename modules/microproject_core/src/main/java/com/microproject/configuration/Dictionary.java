@@ -107,7 +107,7 @@ public class Dictionary implements ProvidesDigesterEvents {
 		HashMap<String, NamedItem> subMap = getInstance().mainMap.get(category);
 		if (subMap == null)
 			return null;
-		return (NamedItem) subMap.get(name);
+		return subMap.get(name);
 	}
 
 	public static Object[] getAll(Object category) {

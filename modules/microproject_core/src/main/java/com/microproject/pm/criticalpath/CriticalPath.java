@@ -316,7 +316,7 @@ public class CriticalPath implements SchedulingAlgorithm {
 
 		
 	private void fireScheduleChanged() {
-		((Project) project).fireScheduleChanged(this, ScheduleEvent.SCHEDULE);
+		(project).fireScheduleChanged(this, ScheduleEvent.SCHEDULE);
 	}
 
 	private boolean updating = false;

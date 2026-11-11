@@ -70,7 +70,7 @@ public class GanttSVGRenderer implements SVGRenderer,Cloneable{
 		SpreadSheetFieldArray fieldArray=null;
 		PrintSettings printSettings=project.getPrintSettings(SavableToWorkspace.PERSIST);
 		if (printSettings!=null) fieldArray=printSettings.getFieldArray();
-		init(project,NodeModelCacheFactory.getInstance().createFilteredCache((ReferenceNodeModelCache)refCache,"OfflineGantt",null),fieldArray,null,-1,true);
+		init(project,NodeModelCacheFactory.getInstance().createFilteredCache(refCache,"OfflineGantt",null),fieldArray,null,-1,true);
 	}
 	public void init(Project project, NodeModelCache cache,SpreadSheetFieldArray fieldArray,List<Integer> colWidth,int scale,boolean printGantt) {
 		this.project=project;

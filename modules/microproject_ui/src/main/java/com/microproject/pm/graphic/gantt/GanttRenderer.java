@@ -883,7 +883,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 				y1+=yOffset;
 
 				GeneralPath path=dependency.getPath();
-				((GanttLinkRouting)routing).routePath(path,x0,y0,x1,y1,y2,y1+to.getGanttShapeHeight()/2,y1-to.getGanttShapeHeight()/2,type);
+				(routing).routePath(path,x0,y0,x1,y1,y2,y1+to.getGanttShapeHeight()/2,y1-to.getGanttShapeHeight()/2,type);
 
 
 

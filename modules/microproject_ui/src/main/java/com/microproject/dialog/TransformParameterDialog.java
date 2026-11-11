@@ -128,7 +128,7 @@ public final class TransformParameterDialog extends AbstractDialog implements Co
 
 	@SuppressWarnings("unchecked")
 	private List<TransformParameter> parameters() {
-		return (List<TransformParameter>) transform.getParameters();
+		return transform.getParameters();
 	}
 
 }

@@ -253,7 +253,7 @@ public class IconManager {
 	}
 	
 	public static ImageIcon getIcon(String key) {
-		ImageIcon icon = (ImageIcon) icons.get(key);
+		ImageIcon icon = icons.get(key);
 		if (icon == null) {
 			String iconName = getIconName(key);
 			URL url = iconName == null ? null : getIconResource(iconName);

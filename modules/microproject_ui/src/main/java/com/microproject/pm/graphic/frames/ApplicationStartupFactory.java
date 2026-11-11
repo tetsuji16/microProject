@@ -47,7 +47,7 @@ public class ApplicationStartupFactory extends StartupFactory {
 		ensureSupportedOptions(opts);
 		dumpOpts();
 
-		String font=(String)getOpt("font");
+		String font=getOpt("font");
 		if (font==null){
 			String javaVendor=System.getProperty("java.vendor");
 			if (javaVendor.startsWith("IBM")){ //to avoid font bug on SLED with IBM jvm
@@ -74,7 +74,7 @@ public class ApplicationStartupFactory extends StartupFactory {
 			fileNames.add((String) o);
 		}
 
-		if (fileNames!=null) projectUrls=(String[])fileNames.toArray(new String[]{});
+		if (fileNames!=null) projectUrls=fileNames.toArray(new String[]{});
 
 	}
 
