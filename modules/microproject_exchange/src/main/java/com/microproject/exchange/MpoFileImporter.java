@@ -278,8 +278,8 @@ public class MpoFileImporter extends FileImporter {
 		// Freeze the validated read boundary before constructing the mutable model.
 		// The plan is deliberately built from immutable snapshot data so malformed
 		// archives fail before any Project state is changed.
-		MpoArchiveSnapshot snapshot = snapshotOf(manifestData, projectXml, extensions.entries);
-		validateMergePlan(planFor(snapshot, java.util.List.of(), java.util.List.of()));
+		MpoArchiveSnapshot snapshot = MpoExternalMerge.snapshotOf(manifestData, projectXml, extensions.entries);
+		MpoExternalMerge.validateMergePlan(MpoExternalMerge.planFor(snapshot, java.util.List.of(), java.util.List.of()));
 		java.util.Map<String, SubProj.LoadStatus> embeddedProjectFailures = MpoEmbeddedProjects.validateEmbeddedProjects(manifestData, extensions.entries);
 		if (legacyMicroprojectLevelingDelay) projectXml = MpoManifest.migrateLegacyLevelingDelays(projectXml);
 		if (legacyMicroprojectAssignmentBaselineCost)
@@ -453,7 +453,7 @@ public class MpoFileImporter extends FileImporter {
 		File temporary = createTemporaryFile(target);
 		boolean completed = false;
 		try (OutputStream out = new FileOutputStream(temporary)) {
-			writeCapture(output, out, operationState);
+			MpoExternalMerge.writeCapture(output, out, operationState);
 			completed = true;
 		} finally {
 			if (!completed) {
@@ -505,13 +505,13 @@ public class MpoFileImporter extends FileImporter {
 		// The baseline describes the live model, never the MSPDI copy, whose values
 		// can round differently and would then look like an edit on the next save.
 		if (appliesExternalOperations) plan.capture(project);
-		commitOperationState(project, plan);
+		MpoExternalMerge.commitOperationState(project, plan);
 		committed = true;
 	}
 
 	/** Compares the model with the journal baseline; cheap enough for the EDT. */
 	private static boolean hasUnjournaledChanges(Project project) throws IOException {
-		MpoOperationState probe = workingOperationStateFor(project);
+		MpoOperationState probe = MpoExternalMerge.workingOperationStateFor(project);
 		int before = probe.operations.size();
 		probe.appendChanges(project);
 		return probe.operations.size() != before;
@@ -559,7 +559,7 @@ public class MpoFileImporter extends FileImporter {
 		java.util.Map<Long, Long> taskIdentities = MpoSidecarJson.readTaskIdentities(captured.entries().get(TASK_IDENTITIES_ENTRY));
 		MpoOperationState reservation = ProjectMutationState.coordinated(() -> {
 			try {
-				MpoOperationState working = workingOperationStateFor(project);
+				MpoOperationState working = MpoExternalMerge.workingOperationStateFor(project);
 				working.appendChanges(project);
 				ensureOperationCount(working.operations);
 				return working;
@@ -571,7 +571,7 @@ public class MpoFileImporter extends FileImporter {
 		reservation.remapTaskIds(taskIdentities);
 		// Reserved on the live journal so a failed write or replacement retries with
 		// the same operation IDs, and a later edit becomes a separate operation.
-		commitOperationState(project, reservation);
+		MpoExternalMerge.commitOperationState(project, reservation);
 		return new MpoCapture(captured.serialized(), captured.entries(), captured.metadata(), captured.fingerprint(),
 				reservation.copy());
 	}
@@ -642,7 +642,7 @@ public class MpoFileImporter extends FileImporter {
 	@Override
 	public boolean saveProject(Project project, OutputStream out) throws Exception {
 		MpoCapture captured = captureLiveModel(project);
-		writeCapture(captured, out, captured.operationState());
+		MpoExternalMerge.writeCapture(captured, out, captured.operationState());
 		if (!captured.fingerprint().equals(fingerprintOf(project)))
 			throw new IOException("The project changed while it was being saved");
 		return true;
@@ -706,71 +706,13 @@ public class MpoFileImporter extends FileImporter {
 	}
 
 	/** Writes a detached capture; only linked files are read, and no model state. */
-	private static void writeCapture(MpoCapture capture, OutputStream out, MpoOperationState operationState) throws Exception {
-		ensureOperationCount(operationState.operations);
-		MpoDocumentMetadata metadata = capture.metadata();
-		byte[] projectXml = capture.serialized().xml();
-		java.util.List<EmbeddedProject> embeddedProjects = MpoEmbeddedProjects.readEmbeddedProjects(metadata.embeddedSources());
-		java.util.LinkedHashMap<String, byte[]> archiveEntries = new java.util.LinkedHashMap<>();
-		archiveEntries.put(MIMETYPE_ENTRY, MpoFormatIdentifiers.WRITE_AND_READ_MIME_TYPE.getBytes(StandardCharsets.US_ASCII));
-		archiveEntries.put(META_ENTRY, MpoManifest.metaXml().getBytes(StandardCharsets.UTF_8));
-		archiveEntries.put(PROJECT_ENTRY, projectXml);
-		for (EmbeddedProject embedded : embeddedProjects)
-			archiveEntries.put(embedded.entryName(), embedded.contents());
-		archiveEntries.putAll(capture.entries());
-		archiveEntries.put(OPERATIONS_ENTRY, operationState.json);
-		MpoArchiveSnapshot snapshot = snapshotForWrite(metadata, projectXml, archiveEntries, embeddedProjects);
-		java.util.List<MpoMergePlan.Operation> writeOperations = archiveEntries.keySet().stream()
-				.map(name -> new MpoMergePlan.Operation(name, MpoMergePlan.Action.KEEP)).toList();
-		validateMergePlan(planFor(snapshot, writeOperations, java.util.List.of()));
-		try (ZipOutputStream zip = new ZipOutputStream(out, StandardCharsets.UTF_8)) {
-			writeMimetypeEntry(zip);
-			writeEntry(zip, MANIFEST_ENTRY, MpoManifest.manifestFor(projectXml, metadata.documentId(), metadata.uniqueId(),
-					metadata.sharedResourcePoolFile(), embeddedProjects, archiveEntries,
-					metadata.sharedResourcePoolProjectId(), metadata.statusDate()).getBytes(StandardCharsets.UTF_8));
-			for (java.util.Map.Entry<String, byte[]> entry : archiveEntries.entrySet()) {
-				if (!MANIFEST_ENTRY.equals(entry.getKey()) && !MIMETYPE_ENTRY.equals(entry.getKey()))
-					writeEntry(zip, entry.getKey(), entry.getValue());
-			}
-		}
-	}
-
 	static void ensureOperationCount(java.util.Collection<OperationLog.Operation> operations) throws IOException {
 		if (operations != null && operations.size() > MAX_OPERATION_COUNT)
 			throw new IOException("MPOF operation log exceeds " + MAX_OPERATION_COUNT + " operations");
 	}
 
-	private static MpoArchiveSnapshot snapshotForWrite(MpoDocumentMetadata metadata, byte[] projectXml,
-			java.util.Map<String, byte[]> archiveEntries, java.util.List<EmbeddedProject> embeddedProjects) {
-		String documentId = metadata.documentId() == null ? "" : metadata.documentId();
-		java.util.List<String> embedded = embeddedProjects.stream().map(EmbeddedProject::sourcePath).toList();
-		return new MpoArchiveSnapshot(archiveEntries,
-				new MpoArchiveSnapshot.MspProjection(documentId, metadata.name(),
-						new String(projectXml, StandardCharsets.UTF_8)),
-				new MpoArchiveSnapshot.MpofMetadata(FORMAT_VERSION, documentId, embedded));
-	}
-
 	/** Creates a detached operation-state plan.  Callers commit it only after
 	 * their output transaction has completed successfully. */
-	private static MpoOperationState workingOperationStateFor(Project project) throws IOException {
-		MpoOperationState current = project.findTransientDocumentState(MpoOperationState.class);
-		if (current == null) {
-			MpoOperationState created = new MpoOperationState();
-			created.documentId = project.getDocumentId();
-			created.json = new OperationLog().writeJsonl(created.documentId, java.util.List.of());
-			created.capture(project);
-			return created;
-		}
-		return current.copy();
-	}
-
-	private static void commitOperationState(Project project, MpoOperationState plan) throws IOException {
-		MpoOperationState current = project.findTransientDocumentState(MpoOperationState.class);
-		if (current == null)
-			current = project.getOrCreateTransientDocumentState(MpoOperationState.class, MpoOperationState::new);
-		current.commitFrom(plan);
-	}
-
 	/** The candidate written to an existing file: the document as reopening the capture would show it. */
 	private Project copyOfCapture(MpoCapture captured) throws IOException {
 		Project copy = copyProjectForTransaction(project, captured.serialized().xml());
@@ -841,7 +783,7 @@ public class MpoFileImporter extends FileImporter {
 	}
 
 	private MpoMergePreparation prepareExternalMerge(File target, MpoCapture captured, MpoOperationState local) throws IOException {
-		ExternalMpo external = externalOperations(target);
+		ExternalMpo external = MpoExternalMerge.externalOperations(target);
 		// An explicit Save As over another document replaces it; there is nothing to merge.
 		if (replaceDifferentDocument && !(local.documentId.equals(external.document().documentId())
 				&& local.documentId.equals(external.manifestDocumentId()))) return null;
@@ -872,7 +814,7 @@ public class MpoFileImporter extends FileImporter {
 					.filter(operation -> !locallyAppliedOperationIds.contains(operation.id()))
 					.map(operation -> new MpoMergePlan.Operation(operation.id(), MpoMergePlan.Action.UPDATE))
 					.toList();
-			MpoMergePlan plan = planFor(external.snapshot(), plannedOperations, planConflicts);
+			MpoMergePlan plan = MpoExternalMerge.planFor(external.snapshot(), plannedOperations, planConflicts);
 			if (!conflicts.isEmpty()) {
 				java.util.List<OperationLog.Operation> conflictOperations = new java.util.ArrayList<>(merged.ready());
 				conflictOperations.addAll(merged.pending());
@@ -880,7 +822,7 @@ public class MpoFileImporter extends FileImporter {
 						external.extensions());
 				throw new MpoConflictRecoveryException(recoveryCopy, conflicts);
 			}
-			validateMergePlan(plan);
+			MpoExternalMerge.validateMergePlan(plan);
 			// The snapshot already contains every local operation.  Replaying that
 			// history is not idempotent for moves (the original parent may no longer
 			// exist), so apply only operations introduced by the external archive.
@@ -921,7 +863,7 @@ public class MpoFileImporter extends FileImporter {
 			boolean moved = false;
 			try {
 				try (OutputStream out = new FileOutputStream(temporary)) {
-					writeCapture(recoveryCapture, out, recoveryState);
+					MpoExternalMerge.writeCapture(recoveryCapture, out, recoveryState);
 				}
 				Path recovery = target.toPath().toAbsolutePath().resolveSibling(target.getName()
 					+ ".conflict-" + java.util.UUID.randomUUID() + ".mpo");
@@ -934,97 +876,6 @@ public class MpoFileImporter extends FileImporter {
 		} catch (Exception exception) {
 			if (exception instanceof IOException ioException) throw ioException;
 			throw new IOException("Could not create MPOF conflict recovery copy", exception);
-		}
-	}
-
-	private static ExternalMpo externalOperations(File target) throws IOException {
-		MpoArchiveBudgetValidator.Result budget = MpoArchiveBudgetValidator.validate(target.toPath(),
-			MpoArchiveBudgetValidator.DEFAULT_BUDGET);
-		if (!budget.valid())
-			throw new IOException("MPOF archive budget rejected: " + budget.reason());
-		byte[] mimetype = null; byte[] meta = null; byte[] settings = null; byte[] history = null;
-		byte[] layout = null; byte[] visibility = null; byte[] draftCcpm = null; byte[] operations = null; byte[] draftOperations = null;
-		byte[] manifest = null; byte[] projectXml = null; byte[] taskIdentities = null;
-		int[] totalBytes = new int[] { 0 }; int entryCount = 0; MpoExtensions extensions = new MpoExtensions();
-		try (InputStream in = new FileInputStream(target); ZipInputStream zip = new ZipInputStream(in, StandardCharsets.UTF_8)) {
-			ZipEntry entry;
-			while ((entry = zip.getNextEntry()) != null) {
-				MpoArchiveBudgetValidator.validateEntryName(entry.getName(), MpoArchiveBudgetValidator.DEFAULT_BUDGET);
-				if (++entryCount > MAX_ENTRIES) throw new IOException("mpo has too many entries");
-				if (!entry.isDirectory() && MIMETYPE_ENTRY.equals(entry.getName())) { if (mimetype != null) throw new IOException("Duplicate mpo entry: " + MIMETYPE_ENTRY); mimetype = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory() && META_ENTRY.equals(entry.getName())) { if (meta != null) throw new IOException("Duplicate mpo entry: " + META_ENTRY); meta = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory() && SETTINGS_ENTRY.equals(entry.getName())) { if (settings != null) throw new IOException("Duplicate mpo entry: " + SETTINGS_ENTRY); settings = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory() && CCPM_HISTORY_ENTRY.equals(entry.getName())) { if (history != null) throw new IOException("Duplicate mpo entry: " + CCPM_HISTORY_ENTRY); history = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory() && LAYOUT_ENTRY.equals(entry.getName())) { if (layout != null) throw new IOException("Duplicate mpo entry: " + LAYOUT_ENTRY); layout = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory() && VISIBILITY_ENTRY.equals(entry.getName())) { if (visibility != null) throw new IOException("Duplicate mpo entry: " + VISIBILITY_ENTRY); visibility = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory() && DRAFT_CCPM_ENTRY.equals(entry.getName())) { if (draftCcpm != null) throw new IOException("Duplicate draft mpo entry: " + DRAFT_CCPM_ENTRY); draftCcpm = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory() && OPERATIONS_ENTRY.equals(entry.getName())) { if (operations != null) throw new IOException("Duplicate mpo entry: " + OPERATIONS_ENTRY); operations = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory() && DRAFT_OPERATIONS_ENTRY.equals(entry.getName())) { if (draftOperations != null) throw new IOException("Duplicate draft mpo entry: " + DRAFT_OPERATIONS_ENTRY); draftOperations = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory() && MANIFEST_ENTRY.equals(entry.getName())) { if (manifest != null) throw new IOException("Duplicate manifest entry"); manifest = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory() && PROJECT_ENTRY.equals(entry.getName())) { if (projectXml != null) throw new IOException("Duplicate project snapshot entry"); projectXml = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory() && TASK_IDENTITIES_ENTRY.equals(entry.getName())) { if (taskIdentities != null) throw new IOException("Duplicate mpo entry: " + TASK_IDENTITIES_ENTRY); taskIdentities = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory()) { validateExtensionName(entry.getName()); if (extensions.entries.containsKey(entry.getName())) throw new IOException("Duplicate mpo extension: " + entry.getName()); extensions.entries.put(entry.getName(), readEntry(zip, totalBytes)); }
-				zip.closeEntry();
-			}
-		}
-		if (manifest == null || projectXml == null) throw new IOException("Cannot merge MPOF without its manifest and project snapshot");
-		if (mimetype != null && !MpoFormatIdentifiers.WRITE_AND_READ_MIME_TYPE.equals(new String(mimetype, StandardCharsets.UTF_8).trim()))
-			throw new IOException("Invalid MPOF mimetype entry");
-		ManifestData manifestData = MpoManifest.readManifest(manifest, projectXml);
-		if (meta != null) MpoManifest.validateMeta(meta);
-		MpoManifest.validateArchiveChecksums(manifestData, mimetype, meta, settings, history, layout, visibility, draftCcpm,
-				operations, draftOperations, taskIdentities, projectXml, extensions.entries);
-		if (settings != null && draftCcpm != null) throw new IOException("MPOF contains both current and draft CCPM settings");
-		if (history != null) validateCcpmHistory(history);
-		if (operations != null && draftOperations != null) throw new IOException("MPOF contains both current and draft operation logs");
-		if (operations == null) operations = draftOperations;
-		if (operations == null) throw new IOException("Cannot merge MPOF without an operation log");
-		OperationLog.DocumentLog document = readBoundedOperationLog(operations, draftOperations == operations);
-		String manifestDocumentId = manifestData.documentId();
-		Long manifestProjectId = manifestData.projectUniqueId();
-		return new ExternalMpo(document, extensions, manifestDocumentId, manifestProjectId, taskIdentities,
-				snapshotOf(manifestData, projectXml, extensions.entries));
-	}
-
-	private static MpoArchiveSnapshot snapshotOf(ManifestData manifest, byte[] projectXml,
-			java.util.Map<String, byte[]> extensions) {
-		java.util.LinkedHashMap<String, byte[]> entries = new java.util.LinkedHashMap<>();
-		entries.put(PROJECT_ENTRY, projectXml);
-		if (extensions != null) entries.putAll(extensions);
-		String documentId = manifest.documentId() == null ? "" : manifest.documentId();
-		java.util.List<String> embedded = manifest.embeddedProjects().stream()
-				.map(EmbeddedProjectReference::sourcePath).toList();
-		return new MpoArchiveSnapshot(entries,
-				new MpoArchiveSnapshot.MspProjection(documentId, "", new String(projectXml, StandardCharsets.UTF_8)),
-				new MpoArchiveSnapshot.MpofMetadata(FORMAT_VERSION, documentId, embedded));
-	}
-
-	private static MpoMergePlan planFor(MpoArchiveSnapshot snapshot,
-			java.util.List<MpoMergePlan.Operation> operations,
-			java.util.List<MpoMergePlan.Conflict> conflicts) {
-		return new MpoMergePlan(snapshot.mspProjection(), snapshot.metadata(), operations, conflicts);
-	}
-
-	private static void validateMergePlan(MpoMergePlan plan) throws IOException {
-		java.util.List<MpoValidationDiagnostic> diagnostics = new java.util.ArrayList<>();
-		if (!plan.mspProjection().scheduleXml().contains("<"))
-			diagnostics.add(new MpoValidationDiagnostic(MpoValidationDiagnostic.Severity.ERROR,
-				"MPO_PROJECT_XML", "MPOF project snapshot is empty", PROJECT_ENTRY));
-		for (MpoMergePlan.Operation operation : plan.operations()) {
-			try {
-				MpoArchiveBudgetValidator.validateEntryName(operation.entryName(), MpoArchiveBudgetValidator.DEFAULT_BUDGET);
-			} catch (IOException exception) {
-				diagnostics.add(new MpoValidationDiagnostic(MpoValidationDiagnostic.Severity.ERROR,
-						"MPO_ENTRY_NAME", exception.getMessage(), operation.entryName()));
-			}
-		}
-		for (MpoMergePlan.Conflict conflict : plan.conflicts())
-			diagnostics.add(new MpoValidationDiagnostic(MpoValidationDiagnostic.Severity.ERROR,
-				"MPO_CONFLICT", conflict.reason(), conflict.entryName()));
-		if (diagnostics.stream().anyMatch(diagnostic -> diagnostic.severity() == MpoValidationDiagnostic.Severity.ERROR)) {
-			MpoValidationDiagnostic diagnostic = diagnostics.stream()
-					.filter(value -> value.severity() == MpoValidationDiagnostic.Severity.ERROR).findFirst().orElseThrow();
-			throw new IOException("MPOF validation failed [" + diagnostic.code() + "]: " + diagnostic.message());
 		}
 	}
 
@@ -1238,7 +1089,7 @@ public class MpoFileImporter extends FileImporter {
 	}
 
 	/** ODF convention: the first ZIP entry is an uncompressed {@code mimetype}. */
-	private static void writeMimetypeEntry(ZipOutputStream zip) throws IOException {
+	static void writeMimetypeEntry(ZipOutputStream zip) throws IOException {
 		ZipEntry entry = new ZipEntry(MIMETYPE_ENTRY);
 		entry.setTime(0L);
 		zip.putNextEntry(entry);

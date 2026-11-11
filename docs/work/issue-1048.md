@@ -1,9 +1,9 @@
 # Issue #1048 — MpoFileImporter を責務ごとのクラスに分割する
 
-State: IN PROGRESS
+State: COMPLETE (implementation); pull request and CI still to be observed
 Issue: https://github.com/tetsuji16/microProject/issues/1048
 Contract frozen at: 2026-11-11, issue body plus the 2026-11-10 progress comment
-Baseline HEAD: `ccf2dcb6d` (slice 2, MpoEmbeddedProjects)
+Baseline HEAD: `1ca4fba33` (slice 3, MpoManifest)
 Baseline working tree: clean
 
 ## Goal and scope
@@ -18,54 +18,65 @@ Blockers: none. One class per pull request, in the order of the issue table.
 
 | ID | Required result/evidence | State | Evidence (SHA + link) |
 |---|---|---|---|
-| A1 | Four classes extracted; `MpoFileImporter.java` at or below 1,500 lines | open | 1,591 lines after three slices |
-| A2 | Each pull request is a move only, with no behaviour change | pass (slices 1-3) | Strict reconstruction from the removed spans plus the delegation edits differs by 0 lines |
-| A3 | Saved MPO content is identical before and after the split (round-trip tests) | pass (slices 1-3) | `:microproject_exchange:test`, 405 tests, 0 failures |
-| A4 | The earlier-version MPO reading tests pass | pass (slices 1-3) | Same `:microproject_exchange:test` run |
-| A5 | Architecture and naming gates pass | pass (slices 1-3) | `verifyArchitectureBoundaries verifyNamingConventions` |
+| A1 | Four classes extracted; `MpoFileImporter.java` at or below 1,500 lines | pass | Four classes extracted; importer is 1,441 lines (from 3,404) |
+| A2 | Each pull request is a move only, with no behaviour change | pass (slices 1-4) | Strict reconstruction from the removed spans plus the delegation/visibility edits differs by 0 lines in every slice |
+| A3 | Saved MPO content is identical before and after the split (round-trip tests) | pass (slices 1-4) | `:microproject_exchange:test`, 405 tests, 0 failures |
+| A4 | The earlier-version MPO reading tests pass | pass (slices 1-4) | Same `:microproject_exchange:test` run |
+| A5 | Architecture and naming gates pass | pass (slices 1-4) | `verifyArchitectureBoundaries verifyNamingConventions` |
+| A6 | Pull request opened and its `build` (3 OS) and `GUI acceptance` checks observed | pending (external) | Not pushed by this work; the branch carries the four slice commits |
 
 ## Completed slices
 
-- **Slice 1:** `MpoSidecarJson` owns layout, visibility, task splits, leveling options,
-  text styles, native task schedules, baselines and their record validation.
-- **Slice 2:** `MpoEmbeddedProjects` owns the embedded and linked project entries:
-  linked-source discovery, entry reading and payload validation, extraction into the
-  workspace, cross-project reference rewriting inside child archives, and failure lookup.
-- **Slice 3:** `MpoManifest` owns the container manifest as the issue table describes it:
-  `manifestFor` (all overloads), `requireReadableFormatVersion`, `validateManifest`,
-  `readManifest`, `readDraftJsonManifest`, `validateArchiveChecksums`, the meta document
-  (`metaXml`, `validateMeta`), the settings document (`settingsXml`, `applySettings`,
-  `restoreSettings`) and the legacy metadata migrations
-  (`isLegacyMicroproject*`, `migrateLegacy*`).
+- **Slice 1:** `MpoSidecarJson` — layout, visibility, task splits, leveling options, text
+  styles, native task schedules, baselines and their record validation.
+- **Slice 2:** `MpoEmbeddedProjects` — linked-source discovery, embedded entry reading and
+  payload validation, extraction into the workspace, cross-project reference rewriting
+  inside child archives, and failure lookup.
+- **Slice 3:** `MpoManifest` — `manifestFor` (all overloads), format-version gate,
+  manifest validation/reading and the draft JSON reader, archive checksums, the meta and
+  settings documents, and the legacy metadata migrations.
+- **Slice 4:** `MpoExternalMerge` — external archive reading (`externalOperations`),
+  snapshots and merge plans (`snapshotOf`, `planFor`, `validateMergePlan`), and the
+  operation-state consumers (`writeCapture`, `snapshotForWrite`,
+  `workingOperationStateFor`, `commitOperationState`).
 
-All three classes are package-private with package-private static methods; the importer
-delegates by class name. Only the shared primitives stay in `MpoFileImporter` and are
-package-private rather than copied: `readEntry`, `writeEntry`, `sha256`, `readManifest`
-callers, the XML/JSON scalar readers (`object`, `text`, `requiredAttribute`,
-`xmlLongMap`, `xmlLongList`), `secureDocumentBuilderFactory`, `extractionWorkspaceRoot`,
-`MAX_ENTRIES`, `MAX_ENTRY_BYTES`, and the entry-name and format constants.
+### Slice 4 boundary note
+
+`prepareExternalMerge` and `persistRecoveryCopy` stay in `MpoFileImporter` on purpose.
+Both are instance methods bound to importer state (`replaceDifferentDocument` and the
+`protected createTemporaryFile` seam that `MpoTransactionBoundaryTest` overrides); moving
+them into a static utility class would require signature changes, which is not a move.
+They keep their orchestration role and delegate the extracted helpers to
+`MpoExternalMerge`. The 1,441-line result still meets A1.
+
+All four classes are package-private `final` classes with package-private static
+methods. Only shared primitives stay in `MpoFileImporter`, widened to package-private
+instead of copied: entry read/write (`readEntry`, `writeEntry`, `writeMimetypeEntry`),
+`sha256`, `readBoundedOperationLog`, `ensureOperationCount`, `validateCcpmHistory`,
+`validateExtensionName`, `remapTaskOperations`, `captureModel`, `copyOfCapture`,
+`secureDocumentBuilderFactory`, the XML/JSON scalar readers, `extractionWorkspaceRoot`,
+and the entry-name/format constants.
 
 ## Current slice
 
-**Next slice:** extract `MpoExternalMerge` (external-change merge and the operation state
-it consumes) in its own pull request, then confirm A1.
-**Done when:** the merge methods live in `MpoExternalMerge` with unchanged bodies, the
-importer delegates to them, and `:microproject_exchange:test` reports the same results.
-**Then:** the line budget in A1.
+**Next slice:** none for this issue. A6 needs a pull request: push the branch, open the
+pull request with `Closes #1048`, and observe `build` and `GUI acceptance` on its head.
 
 ## Remaining blockers
 
-- A1: one class (`MpoExternalMerge`) still to extract; the line budget cannot be reached
-  in one slice.
+- A6 only: external CI gates, which require the pull request that this work was asked
+  not to open.
 
 ## Latest evidence
 
-- Tests/build: `:microproject_exchange:test verifyArchitectureBoundaries verifyNamingConventions`
-  — BUILD SUCCESSFUL, 405 exchange tests, 0 failures.
+- Tests/build on the slice-4 tree: `:microproject_exchange:compileJava`,
+  `:microproject_exchange:test`, `verifyArchitectureBoundaries`,
+  `verifyNamingConventions` — BUILD SUCCESSFUL, 405 exchange tests, 0 failures, under the
+  existing `-Xlint:all` + `-Werror` settings.
 - Move-only proof: reconstructing `MpoFileImporter` from the pre-move source minus the
-  moved spans plus the delegation and visibility edits differs by 0 lines; the same
-  reconstruction of `MpoManifest` differs by 0 lines. Test edits are reference-only
-  (`MpoFileImporter.` → `MpoManifest.`) with no assertion changes.
+  moved spans (`709-736`, `743-751`, `755-765`, `767-772`, `940-987`, `989-1000`,
+  `1002-1006`, `1008-1029`) plus the delegation and visibility edits differs by 0 lines;
+  the same reconstruction of `MpoExternalMerge` differs by 0 lines.
+- Earlier slices were not re-verified; their commits (`db2d0c8c5`, `ccf2dcb6d`,
+  `1ca4fba33`) keep their recorded evidence.
 - Physical GUI/manual: not applicable; no Swing or user-facing route changed.
-- CI: not run; the change has not been pushed. `build` (3 OS) and `GUI acceptance`
-  remain to be observed on the pull request head.
