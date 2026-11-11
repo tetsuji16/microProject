@@ -131,13 +131,13 @@ public class MpoFileImporter extends FileImporter {
 	 */
 	static final int SUPPORTED_FORMAT_MAJOR = MpoFormatVersion.CURRENT.major();
 	/** Marker added once MPOF snapshots use the MSPDI minute-based delay unit. */
-	private static final String LEVELING_DELAY_UNIT_ATTRIBUTE = "levelingDelayUnit";
-	private static final String LEVELING_DELAY_UNIT_MINUTES = "minutes";
-	private static final String ASSIGNMENT_BASELINE_COST_UNIT_ATTRIBUTE = "assignmentBaselineCostUnit";
-	private static final String ASSIGNMENT_BASELINE_COST_UNIT_HUNDREDTHS = "mspdi-hundredths";
-	private static final String LEVELING_DELAY_FORMAT_MINUTES = "3";
-	private static final Pattern LEVELING_DELAY = Pattern.compile("<LevelingDelay>(-?\\d+)</LevelingDelay>");
-	private static final Pattern LEVELING_DELAY_FORMAT = Pattern.compile("<LevelingDelayFormat>\\d+</LevelingDelayFormat>");
+	static final String LEVELING_DELAY_UNIT_ATTRIBUTE = "levelingDelayUnit";
+	static final String LEVELING_DELAY_UNIT_MINUTES = "minutes";
+	static final String ASSIGNMENT_BASELINE_COST_UNIT_ATTRIBUTE = "assignmentBaselineCostUnit";
+	static final String ASSIGNMENT_BASELINE_COST_UNIT_HUNDREDTHS = "mspdi-hundredths";
+	static final String LEVELING_DELAY_FORMAT_MINUTES = "3";
+	static final Pattern LEVELING_DELAY = Pattern.compile("<LevelingDelay>(-?\\d+)</LevelingDelay>");
+	static final Pattern LEVELING_DELAY_FORMAT = Pattern.compile("<LevelingDelayFormat>\\d+</LevelingDelayFormat>");
 	static final String OPERATIONS_ENTRY = "operations/log.jsonl";
 	/** Read-only aliases for MPOF drafts written before the XML/JSONL layout was settled. */
 	static final String DRAFT_CCPM_ENTRY = "ccpm.json";
@@ -256,12 +256,12 @@ public class MpoFileImporter extends FileImporter {
 		if (settings != null && draftCcpm != null) {
 			throw new IOException("MPOF contains both current and draft CCPM settings");
 		}
-		boolean legacyMicroprojectLevelingDelay = meta != null && isLegacyMicroprojectLevelingDelay(meta);
+		boolean legacyMicroprojectLevelingDelay = meta != null && MpoManifest.isLegacyMicroprojectLevelingDelay(meta);
 		boolean legacyMicroprojectAssignmentBaselineCost = meta != null
-			&& isLegacyMicroprojectAssignmentBaselineCost(meta);
-		if (meta != null) validateMeta(meta);
-		ManifestData manifestData = readManifest(manifest, projectXml);
-		validateArchiveChecksums(manifestData, mimetype, meta, settings, ccpmHistory, layout, visibility,
+			&& MpoManifest.isLegacyMicroprojectAssignmentBaselineCost(meta);
+		if (meta != null) MpoManifest.validateMeta(meta);
+		ManifestData manifestData = MpoManifest.readManifest(manifest, projectXml);
+		MpoManifest.validateArchiveChecksums(manifestData, mimetype, meta, settings, ccpmHistory, layout, visibility,
 				draftCcpm, operations, draftOperations, taskIdentities, projectXml, extensions.entries);
 		if (operations != null && draftOperations != null)
 			throw new IOException("MPOF contains both current and draft operation logs");
@@ -281,9 +281,9 @@ public class MpoFileImporter extends FileImporter {
 		MpoArchiveSnapshot snapshot = snapshotOf(manifestData, projectXml, extensions.entries);
 		validateMergePlan(planFor(snapshot, java.util.List.of(), java.util.List.of()));
 		java.util.Map<String, SubProj.LoadStatus> embeddedProjectFailures = MpoEmbeddedProjects.validateEmbeddedProjects(manifestData, extensions.entries);
-		if (legacyMicroprojectLevelingDelay) projectXml = migrateLegacyLevelingDelays(projectXml);
+		if (legacyMicroprojectLevelingDelay) projectXml = MpoManifest.migrateLegacyLevelingDelays(projectXml);
 		if (legacyMicroprojectAssignmentBaselineCost)
-			projectXml = migrateLegacyAssignmentBaselineCosts(projectXml);
+			projectXml = MpoManifest.migrateLegacyAssignmentBaselineCosts(projectXml);
 		MicrosoftImporter delegate = new MicrosoftImporter();
 		delegate.setFileName(PROJECT_ENTRY);
 		delegate.setProjectFactory(projectFactory);
@@ -304,7 +304,7 @@ public class MpoFileImporter extends FileImporter {
 		if (manifestData.sharedResourcePoolProjectId() != null && manifestData.sharedResourcePoolProjectId().longValue() != 0L)
 			project.setSharedResourcePoolProjectId(manifestData.sharedResourcePoolProjectId().longValue());
 		if (settings != null) {
-			restoreSettings(project, settings);
+			MpoManifest.restoreSettings(project, settings);
 		} else if (draftCcpm != null) {
 			restoreCcpm(project, new String(draftCcpm, StandardCharsets.UTF_8));
 		}
@@ -657,7 +657,7 @@ public class MpoFileImporter extends FileImporter {
 		byte[] projectXml = serialized.xml();
 		java.util.LinkedHashMap<String, byte[]> entries = new java.util.LinkedHashMap<>();
 		CriticalChainService.Settings ccpm = existingCcpm(project);
-		entries.put(SETTINGS_ENTRY, settingsXml(ccpm, ccpm == null ? null : new CriticalChainService().findBaseline(project)).getBytes(StandardCharsets.UTF_8));
+		entries.put(SETTINGS_ENTRY, MpoManifest.settingsXml(ccpm, ccpm == null ? null : new CriticalChainService().findBaseline(project)).getBytes(StandardCharsets.UTF_8));
 		byte[] layout = MpoSidecarJson.layoutJson(project);
 		if (layout != null) entries.put(LAYOUT_ENTRY, layout);
 		// Filled from the operation plan when written; the journal is not model content.
@@ -713,7 +713,7 @@ public class MpoFileImporter extends FileImporter {
 		java.util.List<EmbeddedProject> embeddedProjects = MpoEmbeddedProjects.readEmbeddedProjects(metadata.embeddedSources());
 		java.util.LinkedHashMap<String, byte[]> archiveEntries = new java.util.LinkedHashMap<>();
 		archiveEntries.put(MIMETYPE_ENTRY, MpoFormatIdentifiers.WRITE_AND_READ_MIME_TYPE.getBytes(StandardCharsets.US_ASCII));
-		archiveEntries.put(META_ENTRY, metaXml().getBytes(StandardCharsets.UTF_8));
+		archiveEntries.put(META_ENTRY, MpoManifest.metaXml().getBytes(StandardCharsets.UTF_8));
 		archiveEntries.put(PROJECT_ENTRY, projectXml);
 		for (EmbeddedProject embedded : embeddedProjects)
 			archiveEntries.put(embedded.entryName(), embedded.contents());
@@ -725,7 +725,7 @@ public class MpoFileImporter extends FileImporter {
 		validateMergePlan(planFor(snapshot, writeOperations, java.util.List.of()));
 		try (ZipOutputStream zip = new ZipOutputStream(out, StandardCharsets.UTF_8)) {
 			writeMimetypeEntry(zip);
-			writeEntry(zip, MANIFEST_ENTRY, manifestFor(projectXml, metadata.documentId(), metadata.uniqueId(),
+			writeEntry(zip, MANIFEST_ENTRY, MpoManifest.manifestFor(projectXml, metadata.documentId(), metadata.uniqueId(),
 					metadata.sharedResourcePoolFile(), embeddedProjects, archiveEntries,
 					metadata.sharedResourcePoolProjectId(), metadata.statusDate()).getBytes(StandardCharsets.UTF_8));
 			for (java.util.Map.Entry<String, byte[]> entry : archiveEntries.entrySet()) {
@@ -970,9 +970,9 @@ public class MpoFileImporter extends FileImporter {
 		if (manifest == null || projectXml == null) throw new IOException("Cannot merge MPOF without its manifest and project snapshot");
 		if (mimetype != null && !MpoFormatIdentifiers.WRITE_AND_READ_MIME_TYPE.equals(new String(mimetype, StandardCharsets.UTF_8).trim()))
 			throw new IOException("Invalid MPOF mimetype entry");
-		ManifestData manifestData = readManifest(manifest, projectXml);
-		if (meta != null) validateMeta(meta);
-		validateArchiveChecksums(manifestData, mimetype, meta, settings, history, layout, visibility, draftCcpm,
+		ManifestData manifestData = MpoManifest.readManifest(manifest, projectXml);
+		if (meta != null) MpoManifest.validateMeta(meta);
+		MpoManifest.validateArchiveChecksums(manifestData, mimetype, meta, settings, history, layout, visibility, draftCcpm,
 				operations, draftOperations, taskIdentities, projectXml, extensions.entries);
 		if (settings != null && draftCcpm != null) throw new IOException("MPOF contains both current and draft CCPM settings");
 		if (history != null) validateCcpmHistory(history);
@@ -1246,64 +1246,6 @@ public class MpoFileImporter extends FileImporter {
 		zip.closeEntry();
 	}
 
-	static String manifestFor(byte[] projectXml) {
-		return manifestFor(projectXml, null, null);
-	}
-
-	static String manifestFor(byte[] projectXml, String documentId, Long projectUniqueId) {
-		return manifestFor(projectXml, documentId, projectUniqueId, null, java.util.List.of());
-	}
-
-	private static String manifestFor(byte[] projectXml, String documentId, Long projectUniqueId,
-			String sharedResourcePoolPath, java.util.List<EmbeddedProject> embeddedProjects) {
-		return manifestFor(projectXml, documentId, projectUniqueId, sharedResourcePoolPath, embeddedProjects, null);
-	}
-
-	private static String manifestFor(byte[] projectXml, String documentId, Long projectUniqueId,
-			String sharedResourcePoolPath, java.util.List<EmbeddedProject> embeddedProjects,
-			java.util.Map<String, byte[]> archiveEntries) {
-		return manifestFor(projectXml, documentId, projectUniqueId, sharedResourcePoolPath, embeddedProjects,
-				archiveEntries, 0L);
-	}
-
-	private static String manifestFor(byte[] projectXml, String documentId, Long projectUniqueId,
-			String sharedResourcePoolPath, java.util.List<EmbeddedProject> embeddedProjects,
-			java.util.Map<String, byte[]> archiveEntries, long sharedResourcePoolProjectId) {
-		return manifestFor(projectXml, documentId, projectUniqueId, sharedResourcePoolPath, embeddedProjects,
-				archiveEntries, sharedResourcePoolProjectId, 0L);
-	}
-
-	private static String manifestFor(byte[] projectXml, String documentId, Long projectUniqueId,
-			String sharedResourcePoolPath, java.util.List<EmbeddedProject> embeddedProjects,
-			java.util.Map<String, byte[]> archiveEntries, long sharedResourcePoolProjectId, long statusDate) {
-		StringBuilder manifest = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<manifest format=\"mpof\" formatVersion=\"")
-			.append(FORMAT_VERSION).append("\" projectEntry=\"").append(PROJECT_ENTRY).append("\" projectSha256=\"").append(sha256(projectXml)).append("\"");
-		if (documentId != null) manifest.append(" documentId=\"").append(MarkupEscape.escape(documentId)).append("\"");
-		if (documentId != null && projectUniqueId != null) manifest.append(" projectUniqueId=\"").append(projectUniqueId.longValue()).append("\"");
-		if (sharedResourcePoolPath != null && !sharedResourcePoolPath.isBlank())
-			manifest.append(" sharedResourcePoolPath=\"").append(MarkupEscape.escape(sharedResourcePoolPath)).append("\"");
-		if (sharedResourcePoolProjectId != 0L)
-			manifest.append(" sharedResourcePoolProjectId=\"").append(sharedResourcePoolProjectId).append("\"");
-		if (statusDate > 0L)
-			manifest.append(" statusDate=\"").append(statusDate).append("\"");
-		boolean hasArchiveChecksums = archiveEntries != null && !archiveEntries.isEmpty();
-		if ((embeddedProjects == null || embeddedProjects.isEmpty()) && !hasArchiveChecksums) return manifest.append("/>\n").toString();
-		manifest.append(">\n");
-		if (embeddedProjects != null) for (EmbeddedProject embedded : embeddedProjects) {
-			manifest.append("  <embeddedProject entry=\"").append(MarkupEscape.escape(embedded.entryName())).append("\" sourcePath=\"")
-				.append(MarkupEscape.escape(embedded.sourcePath())).append("\" sha256=\"").append(sha256(embedded.contents())).append("\"");
-			if (embedded.referenceId() != null && !embedded.referenceId().isBlank())
-				manifest.append(" referenceId=\"").append(MarkupEscape.escape(embedded.referenceId())).append("\"");
-			manifest.append("/>\n");
-		}
-		if (archiveEntries != null) for (java.util.Map.Entry<String, byte[]> entry : archiveEntries.entrySet()) {
-			if (MANIFEST_ENTRY.equals(entry.getKey())) continue;
-			manifest.append("  <entry path=\"").append(MarkupEscape.escape(entry.getKey())).append("\" sha256=\"")
-				.append(sha256(entry.getValue())).append("\"/>\n");
-		}
-		return manifest.append("</manifest>\n").toString();
-	}
-
 	/**
 	 * Accepts any MPOF container whose major version equals {@link #SUPPORTED_FORMAT_MAJOR}.
 	 * Files written by an older or newer minor revision load unchanged and are rewritten at
@@ -1311,19 +1253,6 @@ public class MpoFileImporter extends FileImporter {
 	 * file to the current layout (issue #356). A different major version cannot be read
 	 * safely and is reported as such instead of as a generic invalid-manifest error.
 	 */
-	static void requireReadableFormatVersion(String value) throws IOException {
-		if (value == null || value.isBlank()) throw new IOException("MPOF manifest is missing formatVersion");
-		MpoFormatVersion version = MpoFormatVersion.parse(value);
-		if (!version.isReadableBy(MpoFormatVersion.CURRENT)) {
-			throw new IOException("Unsupported MPOF format version " + value + "; this build reads version "
-				+ SUPPORTED_FORMAT_MAJOR + ".x and writes " + FORMAT_VERSION);
-		}
-	}
-
-	static void validateManifest(String manifest, byte[] projectXml) throws IOException {
-		readManifest(manifest.getBytes(StandardCharsets.UTF_8), projectXml);
-	}
-
 	/** Linked files to embed, read from the model without touching the disk. */
 	/**
 	 * The master snapshot remains authoritative when one optional embedded child
@@ -1349,48 +1278,6 @@ public class MpoFileImporter extends FileImporter {
 			java.util.List<OperationLog.Operation> operations,
 			java.util.Set<String> alreadyAppliedOperationIds) throws IOException {
 		runOnEdt(() -> new MpoTaskOperationService().apply(project, operations, alreadyAppliedOperationIds));
-	}
-
-	static ManifestData readManifest(byte[] manifestBytes, byte[] projectXml) throws IOException {
-		String document = new String(manifestBytes, StandardCharsets.UTF_8).trim();
-		if (document.startsWith("{")) return readDraftJsonManifest(document, projectXml);
-		try {
-			javax.xml.parsers.DocumentBuilderFactory factory = secureDocumentBuilderFactory();
-			org.w3c.dom.Element root = factory.newDocumentBuilder().parse(new ByteArrayInputStream(manifestBytes)).getDocumentElement();
-			if (!"manifest".equals(root.getTagName()) || !FORMAT_ID.equals(root.getAttribute("format")) || !PROJECT_ENTRY.equals(root.getAttribute("projectEntry"))) throw new IOException("Unsupported or invalid MPOF manifest");
-			requireReadableFormatVersion(root.getAttribute("formatVersion"));
-			if (!sha256(projectXml).equals(requiredAttribute(root, "projectSha256"))) throw new IOException("content.xml checksum does not match its MPOF manifest");
-			String documentId = root.getAttribute("documentId");
-			Long projectUniqueId = root.hasAttribute("projectUniqueId") ? Long.valueOf(root.getAttribute("projectUniqueId")) : null;
-			Long statusDate = root.hasAttribute("statusDate") ? Long.valueOf(root.getAttribute("statusDate")) : null;
-			Project.validatePersistedStatusDate(statusDate == null ? 0L : statusDate.longValue());
-			Long sharedResourcePoolProjectId = root.hasAttribute("sharedResourcePoolProjectId")
-					? Long.valueOf(root.getAttribute("sharedResourcePoolProjectId")) : null;
-			java.util.List<EmbeddedProjectReference> embeddedProjects = new java.util.ArrayList<EmbeddedProjectReference>();
-			java.util.Map<String, String> checksums = new java.util.LinkedHashMap<>();
-			org.w3c.dom.NodeList children = root.getChildNodes();
-			for (int index = 0; index < children.getLength(); index++) {
-				if (!(children.item(index) instanceof org.w3c.dom.Element child))
-					continue;
-				if ("embeddedProject".equals(child.getTagName())) {
-					String entry = requiredAttribute(child, "entry");
-					MpoEmbeddedProjects.validateEmbeddedEntryName(entry);
-					String referenceId = child.hasAttribute("referenceId") ? child.getAttribute("referenceId") : null;
-					if (referenceId != null && !referenceId.isBlank()) java.util.UUID.fromString(referenceId);
-					embeddedProjects.add(new EmbeddedProjectReference(requiredAttribute(child, "sourcePath"), entry,
-						requiredAttribute(child, "sha256"), referenceId));
-				} else if ("entry".equals(child.getTagName())) {
-					String path = requiredAttribute(child, "path");
-					if (MANIFEST_ENTRY.equals(path) || checksums.put(path, requiredAttribute(child, "sha256")) != null)
-						throw new IOException("Duplicate MPOF checksum entry: " + path);
-				} else throw new IOException("Unsupported MPOF manifest entry: " + child.getTagName());
-			}
-			String sharedResourcePoolPath = root.getAttribute("sharedResourcePoolPath");
-			return new ManifestData(documentId.isBlank() ? null : documentId, projectUniqueId, statusDate,
-				sharedResourcePoolProjectId,
-				sharedResourcePoolPath.isBlank() ? null : sharedResourcePoolPath, embeddedProjects, checksums);
-		} catch (IOException exception) { throw exception; }
-		catch (Exception exception) { throw new IOException("Invalid MPOF manifest", exception); }
 	}
 
 	private static CriticalChainService.Settings existingCcpm(Project project) {
@@ -1447,7 +1334,7 @@ public class MpoFileImporter extends FileImporter {
 				? com.microproject.pm.resource.ResourceLevelingService.Sensitivity.valueOf(text(root, "sensitivity"))
 				: com.microproject.pm.resource.ResourceLevelingService.Sensitivity.DAY);
 			CriticalChainService service = new CriticalChainService();
-			applySettings(service.settings(project), settings);
+			MpoManifest.applySettings(service.settings(project), settings);
 			JsonNode baseline = root.get("baseline");
 			if (baseline != null) service.restoreBaseline(project, baseline(baseline));
 		} catch (RuntimeException e) {
@@ -1455,237 +1342,22 @@ public class MpoFileImporter extends FileImporter {
 		}
 	}
 
-	private static ManifestData readDraftJsonManifest(String manifest, byte[] projectXml) throws IOException {
-		JsonNode root = object(manifest, MANIFEST_ENTRY);
-		String format = root.path("format").isTextual() ? root.path("format").textValue() : null;
-		if (!FORMAT_ID.equals(format) || !PROJECT_ENTRY.equals(text(root, "projectEntry"))) throw new IOException("Unsupported or invalid draft MPOF manifest: format=" + format);
-		requireReadableFormatVersion(text(root, "formatVersion"));
-		if (!sha256(projectXml).equals(text(root, "projectSha256"))) throw new IOException("content.xml checksum does not match its draft MPOF manifest");
-		String documentId = root.path("documentId").isTextual() ? root.path("documentId").textValue() : null;
-		Long projectUniqueId = root.path("projectUniqueId").canConvertToLong() ? Long.valueOf(root.path("projectUniqueId").longValue()) : null;
-		return new ManifestData(documentId, projectUniqueId, null, null, null, java.util.List.of(), java.util.Map.of());
-	}
-
 	/** Validates checksums for the complete archive when written by a checksum-aware MPOF writer. */
-	static void validateArchiveChecksums(ManifestData manifest, byte[] mimetype, byte[] meta,
-			byte[] settings, byte[] history, byte[] layout, byte[] visibility, byte[] draftCcpm, byte[] operations,
-			byte[] draftOperations, byte[] taskIdentities, byte[] projectXml,
-			java.util.Map<String, byte[]> extensions) throws IOException {
-		if (manifest.checksums().isEmpty()) return; // Older MPOF versions only checksum content.xml and children.
-		java.util.Map<String, byte[]> actual = new java.util.LinkedHashMap<>();
-		if (mimetype != null) actual.put(MIMETYPE_ENTRY, mimetype);
-		if (meta != null) actual.put(META_ENTRY, meta);
-		if (settings != null) actual.put(SETTINGS_ENTRY, settings);
-		if (history != null) actual.put(CCPM_HISTORY_ENTRY, history);
-		if (layout != null) actual.put(LAYOUT_ENTRY, layout);
-		if (visibility != null) actual.put(VISIBILITY_ENTRY, visibility);
-		if (draftCcpm != null) actual.put(DRAFT_CCPM_ENTRY, draftCcpm);
-		if (operations != null) actual.put(OPERATIONS_ENTRY, operations);
-		if (draftOperations != null) actual.put(DRAFT_OPERATIONS_ENTRY, draftOperations);
-		if (taskIdentities != null) actual.put(TASK_IDENTITIES_ENTRY, taskIdentities);
-		actual.put(PROJECT_ENTRY, projectXml);
-		actual.putAll(extensions);
-		for (java.util.Map.Entry<String, String> checksum : manifest.checksums().entrySet()) {
-			// Embedded children are recoverable units: a bad child must be reported on
-			// its SubProj reference while the valid siblings and master remain open.
-			if (checksum.getKey().startsWith(EMBEDDED_PROJECT_PREFIX)) continue;
-			byte[] bytes = actual.get(checksum.getKey());
-			if (bytes == null)
-				throw new IOException("MPOF manifest checksum entry is missing from archive: " + checksum.getKey());
-			if (!sha256(bytes).equals(checksum.getValue()))
-				throw new IOException("MPOF entry checksum does not match: " + checksum.getKey());
-		}
-	}
-
-	private static String metaXml() {
-		String version = com.microproject.util.VersionUtils.getVersion();
-		return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<meta formatVersion=\"1.0\" generator=\"microProject\"" +
-			" " + LEVELING_DELAY_UNIT_ATTRIBUTE + "=\"" + LEVELING_DELAY_UNIT_MINUTES + "\"" +
-			" " + ASSIGNMENT_BASELINE_COST_UNIT_ATTRIBUTE + "=\"" + ASSIGNMENT_BASELINE_COST_UNIT_HUNDREDTHS + "\"" +
-			(version == null ? "" : " applicationVersion=\"" + MarkupEscape.escape(version) + "\"") + "/>\n";
-	}
-
-	private static boolean isLegacyMicroprojectAssignmentBaselineCost(byte[] xmlBytes) throws IOException {
-		try {
-			javax.xml.parsers.DocumentBuilderFactory factory = secureDocumentBuilderFactory();
-			org.w3c.dom.Element root = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xmlBytes)).getDocumentElement();
-			return "microProject".equals(root.getAttribute("generator"))
-				&& !ASSIGNMENT_BASELINE_COST_UNIT_HUNDREDTHS.equals(
-					root.getAttribute(ASSIGNMENT_BASELINE_COST_UNIT_ATTRIBUTE));
-		} catch (Exception exception) { throw new IOException("Invalid meta.xml", exception); }
-	}
-
-	static byte[] migrateLegacyAssignmentBaselineCosts(byte[] xmlBytes) throws IOException {
-		String xml = new String(xmlBytes, StandardCharsets.UTF_8);
-		Pattern assignment = Pattern.compile("(<Assignment(?:\\s[^>]*)?>)([\\s\\S]*?)(</Assignment>)");
-		Matcher matcher = assignment.matcher(xml);
-		StringBuffer migrated = new StringBuffer(xml.length());
-		while (matcher.find()) {
-			String assignmentBody = matcher.group(2);
-			Pattern row = Pattern.compile("(<TimephasedData(?:\\s[^>]*)?>[\\s\\S]*?<Type>)(\\d+)(</Type>[\\s\\S]*?<Value>)([^<]+)(</Value>[\\s\\S]*?</TimephasedData>)");
-			Matcher rows = row.matcher(assignmentBody);
-			StringBuffer migratedRows = new StringBuffer(assignmentBody.length());
-			while (rows.find()) {
-				int type;
-				try { type = Integer.parseInt(rows.group(2)); }
-				catch (NumberFormatException exception) { throw new IOException("Invalid legacy assignment baseline cost type", exception); }
-				boolean baselineCost = false;
-				for (int slot = 0; slot <= 10; slot++)
-					if (type == com.microproject.core.pm.exchange.converters.mpx.MpxImportState
-							.assignmentBaselineCostType(slot)) { baselineCost = true; break; }
-				if (!baselineCost) continue;
-				String value;
-				try {
-					value = new java.math.BigDecimal(rows.group(4)).multiply(java.math.BigDecimal.valueOf(100L))
-						.stripTrailingZeros().toPlainString();
-				} catch (NumberFormatException exception) {
-					throw new IOException("Invalid legacy assignment baseline cost value", exception);
-				}
-				rows.appendReplacement(migratedRows, Matcher.quoteReplacement(rows.group(1) + rows.group(2)
-					+ rows.group(3) + value + rows.group(5)));
-			}
-			rows.appendTail(migratedRows);
-			matcher.appendReplacement(migrated, Matcher.quoteReplacement(matcher.group(1)
-				+ migratedRows + matcher.group(3)));
-		}
-		matcher.appendTail(migrated);
-		return migrated.toString().getBytes(StandardCharsets.UTF_8);
-	}
-
 	/**
 	 * MPOF snapshots written before the unit marker stored the engine's raw
 	 * millisecond value in MSPDI's serialized delay field. Restrict conversion to these
 	 * microProject files: ordinary MSPDI imports remain standards-compliant.
 	 */
-	private static boolean isLegacyMicroprojectLevelingDelay(byte[] xmlBytes) throws IOException {
-		try {
-			javax.xml.parsers.DocumentBuilderFactory factory = secureDocumentBuilderFactory();
-			org.w3c.dom.Element root = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xmlBytes)).getDocumentElement();
-			return "microProject".equals(root.getAttribute("generator"))
-				&& !LEVELING_DELAY_UNIT_MINUTES.equals(root.getAttribute(LEVELING_DELAY_UNIT_ATTRIBUTE));
-		} catch (Exception exception) { throw new IOException("Invalid meta.xml", exception); }
-	}
-
-	private static byte[] migrateLegacyLevelingDelays(byte[] xmlBytes) throws IOException {
-		String xml = new String(xmlBytes, StandardCharsets.UTF_8);
-		Matcher matcher = LEVELING_DELAY.matcher(xml);
-		StringBuffer migrated = new StringBuffer(xml.length());
-		while (matcher.find()) {
-			try {
-				// MPXJ serializes a minute-format leveling delay in tenths of a
-				// minute. Normalize both the value and its format rather than relying
-				// on the stale format written by the legacy serializer.
-				long serializedMinutes = Long.parseLong(matcher.group(1)) / 6000L;
-				matcher.appendReplacement(migrated, Matcher.quoteReplacement("<LevelingDelay>" + serializedMinutes + "</LevelingDelay>"));
-			} catch (NumberFormatException exception) {
-				throw new IOException("Invalid legacy LevelingDelay", exception);
-			}
-		}
-		matcher.appendTail(migrated);
-		return LEVELING_DELAY_FORMAT.matcher(migrated).replaceAll("<LevelingDelayFormat>" + LEVELING_DELAY_FORMAT_MINUTES + "</LevelingDelayFormat>")
-			.getBytes(StandardCharsets.UTF_8);
-	}
-
 	static javax.xml.parsers.DocumentBuilderFactory secureDocumentBuilderFactory() throws javax.xml.parsers.ParserConfigurationException {
 		return MspdiProjectBoundary.secureDocumentBuilderFactory(false);
 	}
 
-	static void validateMeta(byte[] xmlBytes) throws IOException {
-		try {
-			javax.xml.parsers.DocumentBuilderFactory factory = secureDocumentBuilderFactory();
-			org.w3c.dom.Element root = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xmlBytes)).getDocumentElement();
-			if (!"meta".equals(root.getTagName()) || root.getAttribute("generator").isBlank()) throw new IOException("Invalid meta.xml");
-			requireReadableFormatVersion(root.getAttribute("formatVersion"));
-			String baselineCostUnit = root.getAttribute(ASSIGNMENT_BASELINE_COST_UNIT_ATTRIBUTE);
-			if (!baselineCostUnit.isEmpty()
-					&& !ASSIGNMENT_BASELINE_COST_UNIT_HUNDREDTHS.equals(baselineCostUnit))
-				throw new IOException("Unsupported MPO assignment baseline cost unit: " + baselineCostUnit);
-		} catch (IOException exception) { throw exception; }
-		catch (Exception exception) { throw new IOException("Invalid meta.xml", exception); }
-	}
-
-	private static String settingsXml(CriticalChainService.Settings settings, CriticalChainService.Baseline baseline) {
-		StringBuilder xml = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<settings schemaVersion=\"1\">");
-		if (settings != null) {
-			xml.append("<ccpm enabled=\"").append(settings.isEnabled()).append("\" bufferFraction=\"").append(settings.getBufferFraction())
-				.append("\" levelingOrder=\"").append(settings.getLevelingOrder()).append("\" onlyWithinAvailableSlack=\"").append(settings.isOnlyWithinAvailableSlack())
-				.append("\" allowTaskSplits=\"").append(settings.isAllowTaskSplits())
-				.append("\" levelAssignments=\"").append(settings.isLevelAssignments())
-				.append("\" includeProposedResources=\"").append(settings.isIncludeProposedResources())
-				.append("\" levelManuallyScheduledTasks=\"").append(settings.isLevelManuallyScheduledTasks())
-				.append("\" sensitivity=\"").append(settings.getSensitivity()).append("\">");
-			if (baseline != null) {
-				xml.append("<baseline projectFinishMillis=\"").append(baseline.projectFinishMillis()).append("\" projectBufferMillis=\"").append(baseline.projectBufferMillis())
-					.append("\" bufferFraction=\"").append(baseline.bufferFraction()).append("\" allResources=\"").append(baseline.allResources()).append("\"><criticalTaskIds>");
-				for (Long id : baseline.criticalTaskIds()) xml.append("<id>").append(id).append("</id>");
-				xml.append("</criticalTaskIds><feedingTaskStartMillis>");
-				for (java.util.Map.Entry<Long, Long> entry : baseline.feedingTaskStartMillis().entrySet()) xml.append("<value taskId=\"").append(entry.getKey()).append("\">").append(entry.getValue()).append("</value>");
-				xml.append("</feedingTaskStartMillis><feedingBufferMillis>");
-				for (java.util.Map.Entry<Long, Long> entry : baseline.feedingBufferMillis().entrySet()) xml.append("<value taskId=\"").append(entry.getKey()).append("\">").append(entry.getValue()).append("</value>");
-				xml.append("</feedingBufferMillis><resourceIds>");
-				for (Long id : baseline.resourceIds()) xml.append("<id>").append(id).append("</id>");
-				xml.append("</resourceIds></baseline>");
-			}
-			xml.append("</ccpm>");
-		}
-		return xml.append("</settings>\n").toString();
-	}
-
-	private static void applySettings(CriticalChainService.Settings target, CriticalChainService.Settings settings) {
-		target.setEnabled(settings.isEnabled());
-		target.setBufferFraction(settings.getBufferFraction());
-		target.setLevelingOrder(settings.getLevelingOrder());
-		target.setOnlyWithinAvailableSlack(settings.isOnlyWithinAvailableSlack());
-		target.setAllowTaskSplits(settings.isAllowTaskSplits());
-		target.setLevelAssignments(settings.isLevelAssignments());
-		target.setIncludeProposedResources(settings.isIncludeProposedResources());
-		target.setLevelManuallyScheduledTasks(settings.isLevelManuallyScheduledTasks());
-		target.setSensitivity(settings.getSensitivity());
-	}
-
-	private static void restoreSettings(Project project, byte[] xmlBytes) throws IOException {
-		try {
-			javax.xml.parsers.DocumentBuilderFactory factory = secureDocumentBuilderFactory();
-			org.w3c.dom.Element root = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xmlBytes)).getDocumentElement();
-			if (!"settings".equals(root.getTagName()) || !"1".equals(root.getAttribute("schemaVersion"))) throw new IOException("Unsupported settings.xml schemaVersion");
-			org.w3c.dom.NodeList nodes = root.getElementsByTagName("ccpm");
-			if (nodes.getLength() == 0) return;
-			org.w3c.dom.Element value = (org.w3c.dom.Element) nodes.item(0);
-			CriticalChainService.Settings settings = new CriticalChainService.Settings();
-			settings.setEnabled(Boolean.parseBoolean(requiredAttribute(value, "enabled")));
-			settings.setBufferFraction(Double.parseDouble(requiredAttribute(value, "bufferFraction")));
-			settings.setLevelingOrder(com.microproject.pm.resource.ResourceLevelingService.Order.valueOf(requiredAttribute(value, "levelingOrder")));
-			settings.setOnlyWithinAvailableSlack(Boolean.parseBoolean(requiredAttribute(value, "onlyWithinAvailableSlack")));
-			settings.setAllowTaskSplits(Boolean.parseBoolean(requiredAttribute(value, "allowTaskSplits")));
-			settings.setLevelAssignments(value.hasAttribute("levelAssignments")
-				? Boolean.parseBoolean(value.getAttribute("levelAssignments")) : true);
-			settings.setIncludeProposedResources(value.hasAttribute("includeProposedResources")
-				&& Boolean.parseBoolean(value.getAttribute("includeProposedResources")));
-			settings.setLevelManuallyScheduledTasks(value.hasAttribute("levelManuallyScheduledTasks")
-				&& Boolean.parseBoolean(value.getAttribute("levelManuallyScheduledTasks")));
-			settings.setSensitivity(value.hasAttribute("sensitivity")
-				? com.microproject.pm.resource.ResourceLevelingService.Sensitivity.valueOf(value.getAttribute("sensitivity"))
-				: com.microproject.pm.resource.ResourceLevelingService.Sensitivity.DAY);
-			CriticalChainService service = new CriticalChainService();
-			applySettings(service.settings(project), settings);
-			org.w3c.dom.NodeList baselines = value.getElementsByTagName("baseline");
-			if (baselines.getLength() > 0) {
-				org.w3c.dom.Element baseline = (org.w3c.dom.Element) baselines.item(0);
-				java.util.List<Long> critical = new java.util.ArrayList<>(); org.w3c.dom.NodeList ids = baseline.getElementsByTagName("id");
-				for (int i = 0; i < ids.getLength(); i++) critical.add(Long.valueOf(ids.item(i).getTextContent()));
-				java.util.List<Long> resources = xmlLongList(baseline, "resourceIds");
-				boolean allResources = !baseline.hasAttribute("allResources") || Boolean.parseBoolean(requiredAttribute(baseline, "allResources"));
-				service.restoreBaseline(project, new CriticalChainService.Baseline(Long.parseLong(requiredAttribute(baseline, "projectFinishMillis")), Long.parseLong(requiredAttribute(baseline, "projectBufferMillis")), Double.parseDouble(requiredAttribute(baseline, "bufferFraction")), critical, xmlLongMap(baseline, "feedingTaskStartMillis"), xmlLongMap(baseline, "feedingBufferMillis"), allResources, resources));
-			}
-		} catch (Exception exception) { throw new IOException("Invalid settings.xml", exception); }
-	}
-
-	private static java.util.Map<Long, Long> xmlLongMap(org.w3c.dom.Element parent, String name) {
+	static java.util.Map<Long, Long> xmlLongMap(org.w3c.dom.Element parent, String name) {
 		java.util.Map<Long, Long> result = new java.util.LinkedHashMap<>(); org.w3c.dom.NodeList values = ((org.w3c.dom.Element) parent.getElementsByTagName(name).item(0)).getElementsByTagName("value");
 		for (int i = 0; i < values.getLength(); i++) { org.w3c.dom.Element value = (org.w3c.dom.Element) values.item(i); result.put(Long.valueOf(value.getAttribute("taskId")), Long.valueOf(value.getTextContent())); }
 		return result;
 	}
-	private static java.util.List<Long> xmlLongList(org.w3c.dom.Element parent, String name) {
+	static java.util.List<Long> xmlLongList(org.w3c.dom.Element parent, String name) {
 		java.util.List<Long> result = new java.util.ArrayList<>(); org.w3c.dom.NodeList parents = parent.getElementsByTagName(name);
 		if (parents.getLength() == 0) return result;
 		org.w3c.dom.NodeList ids = ((org.w3c.dom.Element) parents.item(0)).getElementsByTagName("id");
@@ -1693,7 +1365,7 @@ public class MpoFileImporter extends FileImporter {
 		return result;
 	}
 
-	private static String requiredAttribute(org.w3c.dom.Element element, String name) throws IOException {
+	static String requiredAttribute(org.w3c.dom.Element element, String name) throws IOException {
 		String value = element.getAttribute(name); if (value == null || value.isBlank()) throw new IOException("Missing settings.xml attribute: " + name); return value;
 	}
 	private static byte[] ccpmHistoryJson(Project project) throws IOException {
@@ -1788,13 +1460,13 @@ public class MpoFileImporter extends FileImporter {
 		}
 	}
 
-	private static JsonNode object(String json, String name) throws IOException {
+	static JsonNode object(String json, String name) throws IOException {
 		JsonNode root = JSON.readTree(json);
 		if (root == null || !root.isObject()) throw new IOException(name + " must be a JSON object");
 		return root;
 	}
 
-	private static String text(JsonNode object, String field) throws IOException {
+	static String text(JsonNode object, String field) throws IOException {
 		JsonNode value = object.get(field);
 		if (value == null || !value.isTextual()) throw new IOException("Missing or invalid " + field);
 		return value.textValue();

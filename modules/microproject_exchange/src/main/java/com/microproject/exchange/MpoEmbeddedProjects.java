@@ -134,9 +134,9 @@ final class MpoEmbeddedProjects {
 			throw new IOException("Embedded MPOF is missing its manifest or project payload");
 		if (mimetype != null && !MpoFormatIdentifiers.WRITE_AND_READ_MIME_TYPE.equals(new String(mimetype, StandardCharsets.UTF_8).trim()))
 			throw new IOException("Embedded MPOF has an invalid mimetype");
-		ManifestData embeddedManifest = MpoFileImporter.readManifest(manifest, projectXml);
-		if (meta != null) MpoFileImporter.validateMeta(meta);
-		MpoFileImporter.validateArchiveChecksums(embeddedManifest, mimetype, meta, settings, history, layout, visibility, draftCcpm,
+		ManifestData embeddedManifest = MpoManifest.readManifest(manifest, projectXml);
+		if (meta != null) MpoManifest.validateMeta(meta);
+		MpoManifest.validateArchiveChecksums(embeddedManifest, mimetype, meta, settings, history, layout, visibility, draftCcpm,
 				operations, draftOperations, taskIdentities, projectXml, extensions.entries);
 		if (settings != null && draftCcpm != null) throw new IOException("Embedded MPOF has both current and draft CCPM settings");
 		if (operations != null && draftOperations != null) throw new IOException("Embedded MPOF has both current and draft operations");
@@ -248,7 +248,7 @@ final class MpoEmbeddedProjects {
 		byte[] manifestXml = entries.get(MpoFileImporter.MANIFEST_ENTRY);
 		if (projectXml == null || manifestXml == null)
 			throw new IOException("Embedded project is not an MPOF archive: " + extractedFile.getFileName());
-		ManifestData originalManifest = MpoFileImporter.readManifest(manifestXml, projectXml);
+		ManifestData originalManifest = MpoManifest.readManifest(manifestXml, projectXml);
 		byte[] rewrittenProject = rewriteEmbeddedXml(projectXml, extractedBySource);
 		byte[] rewrittenManifest = rewriteEmbeddedXml(manifestXml, extractedBySource);
 		if (java.util.Arrays.equals(projectXml, rewrittenProject) && java.util.Arrays.equals(manifestXml, rewrittenManifest))
