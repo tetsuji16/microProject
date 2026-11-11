@@ -168,6 +168,44 @@ class ResourceTableEditDirtyTest {
 		assertRowRemovalMarksDirty(false, sheet -> sheet.getCache().cutNodes(lastDataRow(sheet)));
 	}
 
+	private static List<Node> firstDataRow(SpreadSheet sheet) {
+		List<Node> rows = new ArrayList<>();
+		sheet.getCache().getModel().getHierarchy().getChildren(null).forEach(o -> {
+			if (!((Node) o).isVoid()) rows.add((Node) o);
+		});
+		return new ArrayList<>(rows.subList(0, 1));
+	}
+
+	/** Issue #997: the first interval is mandatory, so refusing its removal must keep rows, data and saved state. */
+	private static void assertFirstRowRefused(boolean availability, boolean cut) throws Exception {
+		Fixture f = fixture();
+		ValueObjectForIntervalTable table = availability ? f.resource().getAvailabilityTable()
+			: (ValueObjectForIntervalTable) f.resource().getCostRateTable(0);
+		onEdt(f, sheet -> {
+			int dataRows = table.getList().size();
+			List<Node> first = firstDataRow(sheet);
+			if (cut) sheet.getCache().cutNodes(first); else sheet.getCache().deleteNodes(first);
+			assertEquals(dataRows, table.getList().size(), "first interval must stay in the data");
+			long visible = sheet.getCache().getModel().getHierarchy().getChildren(null).stream()
+				.filter(o -> !((Node) o).isVoid()).count();
+			assertEquals(dataRows, visible, "first interval must stay in the table rows");
+		}, table, availability ? "availabilitySpreadsheet" : "costRates",
+			availability ? "Spreadsheet.availability" : "Spreadsheet.costRates");
+		assertFalse(f.project().needsSaving(), "a refused removal must not prompt to save");
+	}
+
+	@Test
+	void firstAvailabilityRowCannotBeDeletedOrCut() throws Exception {
+		assertFirstRowRefused(true, false);
+		assertFirstRowRefused(true, true);
+	}
+
+	@Test
+	void firstCostRateRowCannotBeDeletedOrCut() throws Exception {
+		assertFirstRowRefused(false, false);
+		assertFirstRowRefused(false, true);
+	}
+
 	/** The dialog refills a live sheet whenever another resource is selected; that is navigation, not an edit. */
 	@Test
 	void refillingSheetForAnotherResourceDoesNotMarkProject() throws Exception {
