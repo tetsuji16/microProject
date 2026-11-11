@@ -65,6 +65,7 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonCustomFields | ユーザー設定フィールドを開く | カスタムフィールド操作が可能 |
 | RibbonFind | タスクを検索 | 検索結果へ移動できる |
 | RibbonScrollToTask | 選択タスクへスクロール | 対象タスクが表示領域へ移動する |
+| RibbonScrollToToday | 今日へスクロール（製品独自） | ガントの時間軸で現在の日付が表示領域の中央に来る。選択とタスクの日付は変わらない |
 | RibbonHideSelectedTasks / RibbonShowAllTasks | タスクを非表示／全表示 | 対象行の表示状態が切り替わる |
 | RibbonPrivacyMask | プライバシー表示 | タスク名・リソース名・プロジェクト名を表示上だけ匿名化し、再実行で復元する |
 | RibbonPaste / RibbonCopy / RibbonCut | タスクをコピー・切り取り・貼り付け | 対象行だけが正しく複製／移動される |
