@@ -34,7 +34,7 @@ import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.resource.Resource;
 
-import net.sf.mpxj.ProjectCalendar;
+import org.mpxj.ProjectCalendar;
 
 /**
  * Converts an MPXJ Resource into a microproject Resource.
@@ -45,7 +45,7 @@ import net.sf.mpxj.ProjectCalendar;
 public class MpxResourceConverter {
 	private MpxCalendarConverter calendarConverter = new MpxCalendarConverter();
 
-	public void from(net.sf.mpxj.Resource mpxResource, Resource resource, MpxImportState state) {
+	public void from(org.mpxj.Resource mpxResource, Resource resource, MpxImportState state) {
 		DurationDefaults defaults = MpxProjectConverter.durationDefaults(state.getMpxProjectFile() == null ? null
 			: state.getMpxProjectFile().getProjectProperties());
 		// Parse and validate interval and scalar availability before changing any target fields.
@@ -67,15 +67,15 @@ public class MpxResourceConverter {
 			resource.setUniqueId(mpxResource.getUniqueID().longValue());
 		if (mpxResource.getAccrueAt() != null)
 			resource.setAccrueAt(mpxResource.getAccrueAt().getValue());
-		for (int tableIndex = 0; tableIndex < net.sf.mpxj.CostRateTable.MAX_TABLES; tableIndex++) {
+		for (int tableIndex = 0; tableIndex < org.mpxj.CostRateTable.MAX_TABLES; tableIndex++) {
 			// MPXJ and the domain both number tables A-E as 0-4.
-			net.sf.mpxj.CostRateTable sourceTable = mpxResource.getCostRateTable(tableIndex);
+			org.mpxj.CostRateTable sourceTable = mpxResource.getCostRateTable(tableIndex);
 			if (sourceTable == null || sourceTable.isEmpty()) continue;
 			com.microproject.pm.costing.CostRateTable targetTable = resource.getCostRateTable(tableIndex);
-			for (net.sf.mpxj.CostRateTableEntry sourceEntry : sourceTable) {
-				Date startDate = sourceEntry.getStartDate();
+			for (org.mpxj.CostRateTableEntry sourceEntry : sourceTable) {
+				Date startDate = MpxDates.toDate(sourceEntry.getStartDate());
 				CostRate targetEntry;
-				if (startDate == null || net.sf.mpxj.common.DateHelper.START_DATE_NA.equals(startDate)) {
+				if (startDate == null || org.mpxj.common.LocalDateTimeHelper.START_DATE_NA.equals(sourceEntry.getStartDate())) {
 					targetEntry = (CostRate) targetTable.getList().getFirst();
 				} else {
 					long start = startDate.getTime();
@@ -92,8 +92,8 @@ public class MpxResourceConverter {
 				targetEntry.setOvertimeRate(fromMpxRate(sourceEntry.getOvertimeRate(), defaults));
 				if (sourceEntry.getCostPerUse() != null)
 					targetEntry.setCostPerUse(sourceEntry.getCostPerUse().doubleValue());
-				Date endDate = sourceEntry.getEndDate();
-				if (endDate != null && !net.sf.mpxj.common.DateHelper.END_DATE_NA.equals(endDate)
+				Date endDate = MpxDates.toDate(sourceEntry.getEndDate());
+				if (endDate != null && !org.mpxj.common.LocalDateTimeHelper.END_DATE_NA.equals(sourceEntry.getEndDate())
 						&& !targetEntry.isFirst()) targetEntry.setEnd(endDate.getTime());
 			}
 		}
@@ -135,7 +135,7 @@ public class MpxResourceConverter {
 			com.microproject.server.data.CustomFieldsMapper.getInstance().resourceMaps, defaults);
 	}
 
-	private static Rate fromMpxRate(net.sf.mpxj.Rate rate, DurationDefaults defaults) {
+	private static Rate fromMpxRate(org.mpxj.Rate rate, DurationDefaults defaults) {
 		if (rate == null) return new Rate();
 		int unit = MpxUtils.toProjectTimeUnit(rate.getUnits());
 		return new Rate(rate.getAmount() / Duration.timeUnitFactor(unit, defaults), unit);

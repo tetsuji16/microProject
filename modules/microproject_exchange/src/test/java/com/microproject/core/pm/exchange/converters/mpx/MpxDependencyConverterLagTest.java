@@ -37,12 +37,12 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 
-import net.sf.mpxj.Duration;
-import net.sf.mpxj.ProjectFile;
-import net.sf.mpxj.Relation;
-import net.sf.mpxj.RelationType;
-import net.sf.mpxj.Task;
-import net.sf.mpxj.TimeUnit;
+import org.mpxj.Duration;
+import org.mpxj.ProjectFile;
+import org.mpxj.Relation;
+import org.mpxj.RelationType;
+import org.mpxj.Task;
+import org.mpxj.TimeUnit;
 
 /**
  * Issue #155: MpxDependencyConverter used to convert an MPXJ relation lag
@@ -62,8 +62,8 @@ public class MpxDependencyConverterLagTest {
 		Task mpxSucc = file.addTask();
 		MpxImportState state = buildState(project, file, mpxPred, mpxSucc);
 
-		Relation relation = new Relation(mpxSucc, mpxPred, RelationType.FINISH_START,
-				Duration.getInstance(2, TimeUnit.DAYS));
+		Relation relation = new Relation.Builder().successorTask(mpxSucc).predecessorTask(mpxPred).type(RelationType.FINISH_START)
+				.lag(Duration.getInstance(2, TimeUnit.DAYS)).build();
 		Dependency dependency = new MpxDependencyConverter().from(relation, state);
 
 		assertNotNull(dependency);
@@ -78,8 +78,8 @@ public class MpxDependencyConverterLagTest {
 		Task mpxSucc = file.addTask();
 		MpxImportState state = buildState(project, file, mpxPred, mpxSucc);
 
-		Relation relation = new Relation(mpxSucc, mpxPred, RelationType.FINISH_START,
-				Duration.getInstance(90, TimeUnit.MINUTES));
+		Relation relation = new Relation.Builder().successorTask(mpxSucc).predecessorTask(mpxPred).type(RelationType.FINISH_START)
+				.lag(Duration.getInstance(90, TimeUnit.MINUTES)).build();
 		Dependency dependency = new MpxDependencyConverter().from(relation, state);
 
 		assertNotNull(dependency);
@@ -94,8 +94,8 @@ public class MpxDependencyConverterLagTest {
 		Task mpxSucc = file.addTask();
 		MpxImportState state = buildState(project, file, mpxPred, mpxSucc);
 
-		Relation relation = new Relation(mpxSucc, mpxPred, RelationType.FINISH_START,
-				Duration.getInstance(-1, TimeUnit.HOURS));
+		Relation relation = new Relation.Builder().successorTask(mpxSucc).predecessorTask(mpxPred).type(RelationType.FINISH_START)
+				.lag(Duration.getInstance(-1, TimeUnit.HOURS)).build();
 		Dependency dependency = new MpxDependencyConverter().from(relation, state);
 
 		assertNotNull(dependency);
@@ -135,8 +135,8 @@ public class MpxDependencyConverterLagTest {
 		MpxImportState state = buildState(project, file, mpxPred, mpxSucc);
 
 		// elapsed units (value >= 7) used to throw ArrayIndexOutOfBoundsException
-		Relation relation = new Relation(mpxSucc, mpxPred, RelationType.FINISH_START,
-				Duration.getInstance(1, TimeUnit.ELAPSED_DAYS));
+		Relation relation = new Relation.Builder().successorTask(mpxSucc).predecessorTask(mpxPred).type(RelationType.FINISH_START)
+				.lag(Duration.getInstance(1, TimeUnit.ELAPSED_DAYS)).build();
 		Dependency dependency = new MpxDependencyConverter().from(relation, state);
 
 		assertNotNull(dependency);
@@ -155,8 +155,8 @@ public class MpxDependencyConverterLagTest {
 		MpxImportState state = buildState(project, file, mpxPred, mpxSucc);
 		MpxDependencyConverter converter = new MpxDependencyConverter();
 
-		Dependency workDay = converter.from(new Relation(mpxSucc, mpxPred, RelationType.FINISH_START,
-			Duration.getInstance(1, TimeUnit.DAYS)), state);
+		Dependency workDay = converter.from(new Relation.Builder().successorTask(mpxSucc).predecessorTask(mpxPred).type(RelationType.FINISH_START)
+			.lag(Duration.getInstance(1, TimeUnit.DAYS)).build(), state);
 		assertNotNull(workDay);
 		assertEquals(8L * 60L * 60L * 1000L, workDay.getLag());
 		assertFalse(com.microproject.datatype.Duration.isElapsed(workDay.getLag()));

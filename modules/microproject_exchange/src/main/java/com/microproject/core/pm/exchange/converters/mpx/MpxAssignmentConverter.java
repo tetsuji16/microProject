@@ -29,9 +29,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import net.sf.mpxj.Duration;
-import net.sf.mpxj.AssignmentField;
-import net.sf.mpxj.TimephasedWork;
+import org.mpxj.Duration;
+import org.mpxj.AssignmentField;
+import org.mpxj.TimephasedWork;
 import com.microproject.field.FieldContext;
 import com.microproject.core.time.TimeUtil;
 import com.microproject.exchange.mpxj.MpxjApi;
@@ -56,7 +56,7 @@ import com.microproject.pm.time.ImmutableInterval;
  */
 public class MpxAssignmentConverter {
 
-	public void from(net.sf.mpxj.ResourceAssignment mpxAssignment, Assignment assignment, MpxImportState state, Task task, int snapshotId) {
+	public void from(org.mpxj.ResourceAssignment mpxAssignment, Assignment assignment, MpxImportState state, Task task, int snapshotId) {
 		Resource resource = resolveResource(mpxAssignment, state);
 		if (resource == null) {
 			throw new IllegalStateException("Unable to resolve resource for assignment " + mpxAssignment.getResourceUniqueID());
@@ -144,12 +144,12 @@ public class MpxAssignmentConverter {
 	 * intervals MPXJ exposes. A custom contour without a complete, consistent
 	 * timephased representation is rejected instead of being flattened.
 	 */
-	private CustomWorkPlan customWorkPlan(net.sf.mpxj.ResourceAssignment source, long sourceWork,
+	private CustomWorkPlan customWorkPlan(org.mpxj.ResourceAssignment source, long sourceWork,
 			long sourceActualWork, long sourceRemainingWork, MpxImportState.RawMspdiAssignmentWork rawWork,
 			MpxImportState state) {
-		List<WorkInterval> actual = rawWork == null ? readIntervals(source.getTimephasedActualWork(), state)
+		List<WorkInterval> actual = rawWork == null ? readIntervals(source.getRawTimephasedActualRegularWork(), state)
 			: readRawIntervals(rawWork, 2);
-		List<WorkInterval> remaining = rawWork == null ? readIntervals(source.getTimephasedWork(), state)
+		List<WorkInterval> remaining = rawWork == null ? readIntervals(source.getRawTimephasedRemainingRegularWork(), state)
 			: readRawIntervals(rawWork, 1);
 		long actualTotal = sumWork(actual);
 		long remainingTotal = sumWork(remaining);
@@ -377,7 +377,7 @@ public class MpxAssignmentConverter {
 	 * Assignment bounds may include both offsets, and attaching the assignment can
 	 * copy default details, so call this after attachment and final recalculation.
 	 */
-	public void restoreScheduleDelays(net.sf.mpxj.ResourceAssignment mpxAssignment, Assignment assignment,
+	public void restoreScheduleDelays(org.mpxj.ResourceAssignment mpxAssignment, Assignment assignment,
 			MpxImportState state) {
 		// Assignment Start can already include both manual Delay and LevelingDelay.
 		// Keep the independently published MSPDI fields authoritative instead of
@@ -395,7 +395,7 @@ public class MpxAssignmentConverter {
 	}
 
 	/** Imports scalar MSPDI assignment baseline values, preserving absent fields. */
-	public void importBaselines(net.sf.mpxj.ResourceAssignment mpxAssignment, Assignment assignment,
+	public void importBaselines(org.mpxj.ResourceAssignment mpxAssignment, Assignment assignment,
 		MpxImportState state) {
 		Long assignmentUid = mpxAssignment.getUniqueID() == null ? null
 			: Long.valueOf(mpxAssignment.getUniqueID().longValue());
@@ -533,12 +533,16 @@ public class MpxAssignmentConverter {
 		};
 	}
 
-	private static Resource resolveResource(net.sf.mpxj.ResourceAssignment mpxAssignment, MpxImportState state) {
+	private static Resource resolveResource(org.mpxj.ResourceAssignment mpxAssignment, MpxImportState state) {
 		Integer resourceUniqueID = mpxAssignment.getResourceUniqueID();
 		if (resourceUniqueID == null || resourceUniqueID.intValue() == EnterpriseResource.UNASSIGNED_ID)
 			return ResourceImpl.getUnassignedInstance();
-		net.sf.mpxj.Resource mpxResource = mpxAssignment.getResource();
+		org.mpxj.Resource mpxResource = mpxAssignment.getResource();
 		return mpxResource != null ? state.getResource(mpxResource) : null;
+	}
+
+	private static long toLong(java.time.LocalDateTime d) {
+		return toLong(MpxDates.toDate(d));
 	}
 
 	private static long toLong(Date d) {
@@ -547,9 +551,9 @@ public class MpxAssignmentConverter {
 		return TimeUtil.addTimeZoneOffset(d.getTime());
 	}
 
-	private static long toLong(net.sf.mpxj.Duration d, MpxImportState state) {
+	private static long toLong(org.mpxj.Duration d, MpxImportState state) {
 		if (d == null) return 0L;
-		net.sf.mpxj.TimeUnitDefaultsContainer defaults = state.getMpxProjectFile() == null ? null
+		org.mpxj.TimeUnitDefaultsContainer defaults = state.getMpxProjectFile() == null ? null
 			: state.getMpxProjectFile().getProjectProperties();
 		return com.microproject.datatype.Duration.millis(MpxUtils.toMillis(d, defaults));
 	}

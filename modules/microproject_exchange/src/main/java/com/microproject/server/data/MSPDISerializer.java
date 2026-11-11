@@ -54,7 +54,7 @@ import com.microproject.exchange.ImportedCalendarService;
 import com.microproject.server.data.linker.Linker;
 import com.microproject.server.data.linker.ResourceLinker;
 import com.microproject.server.data.linker.TaskLinker;
-import net.sf.mpxj.mspdi.MSPDIWriter;
+import org.mpxj.mspdi.MSPDIWriter;
 import com.microproject.configuration.Settings;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.VoidNodeImpl;
@@ -76,12 +76,12 @@ import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 import com.microproject.temporary.TemporaryCleanupQueue;
 
-import net.sf.mpxj.ProjectCalendar;
-import net.sf.mpxj.ProjectFile;
-import net.sf.mpxj.ProjectProperties;
-import net.sf.mpxj.Relation;
-import net.sf.mpxj.RelationType;
-import net.sf.mpxj.ResourceAssignment;
+import org.mpxj.ProjectCalendar;
+import org.mpxj.ProjectFile;
+import org.mpxj.ProjectProperties;
+import org.mpxj.Relation;
+import org.mpxj.RelationType;
+import org.mpxj.ResourceAssignment;
 import static com.microproject.exchange.MspdiProjectBoundary.isNamedElement;
 
 /**
@@ -104,7 +104,7 @@ public class MSPDISerializer implements ProjectSerializer {
     		ProjectFile projectFile=(ProjectFile)transformedParent;
     		ResourceImpl resource=(ResourceImpl)child;
 //    		resource.setId(count++); // enumerate them
-    		net.sf.mpxj.Resource resourceData=projectFile.addResource();
+    		org.mpxj.Resource resourceData=projectFile.addResource();
 			MPXConverter.toMPXResource(project, resource, resourceData);
     		            
             transformationMap.put(resource,resourceData);
@@ -125,11 +125,11 @@ public class MSPDISerializer implements ProjectSerializer {
 			if (task.isInSubproject() && !project.isOpenedAsSubproject())
 				return null;
     		
-    		net.sf.mpxj.Task taskData=projectFile.addTask();
+    		org.mpxj.Task taskData=projectFile.addTask();
     		MPXConverter.toMPXTask(task,taskData);
 
     		@SuppressWarnings("unchecked")
-			Map<ResourceImpl, net.sf.mpxj.Resource> resourceMap=(Map<ResourceImpl, net.sf.mpxj.Resource>)args[0];
+			Map<ResourceImpl, org.mpxj.Resource> resourceMap=(Map<ResourceImpl, org.mpxj.Resource>)args[0];
             for (int s=0;s<Settings.numBaselines();s++){
                 TaskSnapshot snapshot=(TaskSnapshot)task.getSnapshot(Integer.valueOf(s));
                 if (snapshot==null) continue;
@@ -139,7 +139,7 @@ public class MSPDISerializer implements ProjectSerializer {
                         Assignment assignment = (Assignment) snapshotAssignment;
                         ResourceImpl r=(ResourceImpl)assignment.getResource();
                         if (s!=Snapshottable.CURRENT.intValue()) continue;
-                        net.sf.mpxj.Resource resourceData=(net.sf.mpxj.Resource)resourceMap.get(r);
+                        org.mpxj.Resource resourceData=(org.mpxj.Resource)resourceMap.get(r);
                         
                         ResourceAssignment assignmentData=taskData.addResourceAssignment(resourceData);
                         if (s==Snapshottable.CURRENT.intValue()){
@@ -164,8 +164,8 @@ public class MSPDISerializer implements ProjectSerializer {
 			if (outlineChild instanceof Task && ((Task) outlineChild).isInSubproject()
 					&& !project.isOpenedAsSubproject())
 				return false;
-    		net.sf.mpxj.Task taskData=(net.sf.mpxj.Task)getTransformationMap().get(outlineChild);
-    		net.sf.mpxj.Task parentData=(outlineParent==null)?null:((net.sf.mpxj.Task)getTransformationMap().get(outlineParent));
+    		org.mpxj.Task taskData=(org.mpxj.Task)getTransformationMap().get(outlineChild);
+    		org.mpxj.Task parentData=(outlineParent==null)?null:((org.mpxj.Task)getTransformationMap().get(outlineParent));
 			if (taskData == null || (outlineParent != null && parentData == null))
 				return false;
    			taskData.setOutlineLevel(Integer.valueOf(((parentData==null)?1:(parentData.getOutlineLevel().intValue()+1)))); // outline levels start at 1
@@ -181,7 +181,7 @@ public class MSPDISerializer implements ProjectSerializer {
     };
     
     @SuppressWarnings("unchecked")
-    protected Map<ResourceImpl, net.sf.mpxj.Resource> saveResources(Project project,ProjectFile projectFile) throws Exception{
+    protected Map<ResourceImpl, org.mpxj.Resource> saveResources(Project project,ProjectFile projectFile) throws Exception{
 
 		NodeModelUtil.enumerateNonAssignments(project.getResourcePool().getResourceOutline());
     	resourceLinker.setParent(project);
@@ -200,11 +200,11 @@ public class MSPDISerializer implements ProjectSerializer {
 		}
     	resourceLinker.addOutline(null);
 //    	resourceLinker.getTransformationMap().put(new Long(ResourceImpl.getUnassignedInstance().getUniqueId()),ResourceImpl.getUnassignedInstance());
-        return (Map<ResourceImpl, net.sf.mpxj.Resource>) resourceLinker.getTransformationMap();
+        return (Map<ResourceImpl, org.mpxj.Resource>) resourceLinker.getTransformationMap();
     }
 
     @SuppressWarnings("unchecked")
-    protected Map<net.sf.mpxj.Task, Task> saveTasks(Project project,ProjectFile projectFile,Map<ResourceImpl, net.sf.mpxj.Resource> resourceMap) throws Exception{
+    protected Map<org.mpxj.Task, Task> saveTasks(Project project,ProjectFile projectFile,Map<ResourceImpl, org.mpxj.Resource> resourceMap) throws Exception{
 		NodeModelUtil.enumerateNonAssignments(project.getTaskOutline()); // to fix bug, I moved this before tasks are saved. 16.2.06 hk
     	taskLinker.setParent(project);
     	taskLinker.setTransformedParent(projectFile);
@@ -218,7 +218,7 @@ public class MSPDISerializer implements ProjectSerializer {
 		return withDefaultCalendarOptions(() -> {
 
 		int taskCount = 0;
-		Map<Task, net.sf.mpxj.Task> externalTasks=new HashMap<Task, net.sf.mpxj.Task>();
+		Map<Task, org.mpxj.Task> externalTasks=new HashMap<Task, org.mpxj.Task>();
 		LinkedList<Object> voidTasksQueue=new LinkedList<>(); // we do not want to export nulls lines at end, so once all tasks done, stop
 		// An opened subproject shares the master's outline so it can appear in the
 		// consolidated Gantt.  Exporting the whole outline loses its own tasks
@@ -232,7 +232,7 @@ public class MSPDISerializer implements ProjectSerializer {
     		if (voidTasksQueue.size()>0 && !(obj instanceof VoidNodeImpl)){
     			//insert voids
     			for (Object voidTask:voidTasksQueue){
-            		net.sf.mpxj.Task taskData=projectFile.addTask();
+            		org.mpxj.Task taskData=projectFile.addTask();
             		MPXConverter.toMPXVoid((VoidNodeImpl)voidTask,taskData);
     			}
     			voidTasksQueue.clear();
@@ -250,21 +250,21 @@ public class MSPDISerializer implements ProjectSerializer {
 			if (task.isInSubproject() && !savingOpenedSubproject)
 				continue;
 //	            task.setUniqueId(task.getId()); // set unique id and id to the same thing on export. Ensures unique id is unique
-	            net.sf.mpxj.Task taskData=(net.sf.mpxj.Task)taskLinker.getTransformationMap().get(task);
+	            org.mpxj.Task taskData=(org.mpxj.Task)taskLinker.getTransformationMap().get(task);
 		        
 	            for (Association predecessorAssociation : task.getPredecessorList()) {
 	                Dependency dependency = (Dependency) predecessorAssociation;
 	            	Task pred=(Task)dependency.getPredecessor();
-	            	net.sf.mpxj.Task predData=(net.sf.mpxj.Task)taskLinker.getTransformationMap().get(pred);
+	            	org.mpxj.Task predData=(org.mpxj.Task)taskLinker.getTransformationMap().get(pred);
 				if (predData==null)
 					predData=externalTask(projectFile,externalTasks,pred);
-				Relation rel=taskData.addPredecessor(predData,RelationType.getInstance(dependency.getDependencyType()),MPXConverter.toMPXDependencyLag(dependency.getLag())); //claur
+				Relation rel=taskData.addPredecessor(new Relation.Builder().predecessorTask(predData).type(RelationType.getInstance(dependency.getDependencyType())).lag(MPXConverter.toMPXDependencyLag(dependency.getLag()))); //claur
 	            }
 	            taskCount++;
     		}
         }
     	
-			return (Map<net.sf.mpxj.Task, Task>) taskLinker.getTransformationMap();
+			return (Map<org.mpxj.Task, Task>) taskLinker.getTransformationMap();
 		});
     }
 
@@ -278,8 +278,8 @@ public class MSPDISerializer implements ProjectSerializer {
 		}
 	}
 
-	private net.sf.mpxj.Task externalTask(ProjectFile projectFile,Map<Task, net.sf.mpxj.Task> externalTasks,Task task) {
-		net.sf.mpxj.Task taskData=externalTasks.get(task);
+	private org.mpxj.Task externalTask(ProjectFile projectFile,Map<Task, org.mpxj.Task> externalTasks,Task task) {
+		org.mpxj.Task taskData=externalTasks.get(task);
 		if (taskData!=null)
 			return taskData;
 		taskData=projectFile.addTask();
@@ -289,7 +289,7 @@ public class MSPDISerializer implements ProjectSerializer {
 		taskData.setOutlineLevel(Integer.valueOf(1));
 		taskData.setExternalTask(true);
 		String externalProjectReference = task.getExternalProjectFile();
-		taskData.setExternalTaskProject(Long.toString(task.getProjectId()));
+		taskData.setProject(Long.toString(task.getProjectId()));
 		taskData.setSubprojectFile(externalProjectReference == null || externalProjectReference.isBlank()
 			? Long.toString(task.getProjectId()) : externalProjectReference);
 		taskData.setSubprojectTaskID(Integer.valueOf((int)task.getId()));
@@ -299,7 +299,7 @@ public class MSPDISerializer implements ProjectSerializer {
 
 	private Integer nextMpxTaskIdentifier(ProjectFile projectFile,boolean unique) {
 		int max=0;
-		for (net.sf.mpxj.Task task : projectFile.getTasks()) {
+		for (org.mpxj.Task task : projectFile.getTasks()) {
 			Integer value=unique ? task.getUniqueID() : task.getID();
 			if (value!=null)
 				max=Math.max(max,value.intValue());
@@ -346,7 +346,7 @@ public class MSPDISerializer implements ProjectSerializer {
 	        if (job!=null) job.setProgress(0.3f);
 	        
 	        //resources
-        Map<ResourceImpl, net.sf.mpxj.Resource> resourceMap=saveResources(project,projectFile);
+        Map<ResourceImpl, org.mpxj.Resource> resourceMap=saveResources(project,projectFile);
 	        if (job!=null) job.setProgress(0.5f);
 	        
 	        //tasks
@@ -484,8 +484,6 @@ public class MSPDISerializer implements ProjectSerializer {
 		ByteArrayOutputStream serialized = new ByteArrayOutputStream();
 		MSPDIWriter writer = new MSPDIWriter();
 		writer.setWriteTimephasedData(true);
-		if (exportedAssignments.values().stream().anyMatch(assignment -> assignment.getWorkContour().isPersonal()))
-			writer.setSplitTimephasedAsDays(false);
 		writer.write(data, serialized);
 		byte[] xml = normalizeMspdiAssignmentData(serialized.toByteArray());
 		out.write(xml);
@@ -523,8 +521,8 @@ public class MSPDISerializer implements ProjectSerializer {
 			if (exported.getValue().getWorkContour().isPersonal()) {
 				if (uid == null || !personalContourAssignments.add(uid.toString()))
 					throw new IOException("MPXJ did not assign a unique identity to a personal-contour assignment");
-				personalActualRows.put(uid.toString(), exactWorkRows(exported.getKey().getTimephasedActualWork()));
-				personalRemainingRows.put(uid.toString(), exactWorkRows(exported.getKey().getTimephasedWork()));
+				personalActualRows.put(uid.toString(), exactWorkRows(exported.getKey().getRawTimephasedActualRegularWork()));
+				personalRemainingRows.put(uid.toString(), exactWorkRows(exported.getKey().getRawTimephasedRemainingRegularWork()));
 			}
 			Map<Integer, List<ExactWorkRow>> assignmentBaselineRows = new java.util.TreeMap<>();
 			Map<Integer, List<ExactCostRow>> assignmentBaselineCostRows = new java.util.TreeMap<>();
@@ -673,7 +671,7 @@ public class MSPDISerializer implements ProjectSerializer {
 		Map<String, Map<Integer, Double>> result = new java.util.HashMap<>();
 		for (Map.Entry<?, ?> transformation : taskLinker.getTransformationMap().entrySet()) {
 			if (!(transformation.getKey() instanceof NormalTask task)
-					|| !(transformation.getValue() instanceof net.sf.mpxj.Task exported)) continue;
+					|| !(transformation.getValue() instanceof org.mpxj.Task exported)) continue;
 			if (exported == null || exported.getUniqueID() == null) continue;
 			Map<Integer, Double> costs = new java.util.TreeMap<>();
 			for (int slot = 0; slot <= 10; slot++) {
@@ -690,7 +688,7 @@ public class MSPDISerializer implements ProjectSerializer {
 		Map<String, Map<Integer, Double>> result = new java.util.HashMap<>();
 		for (Map.Entry<?, ?> transformation : taskLinker.getTransformationMap().entrySet()) {
 			if (!(transformation.getKey() instanceof NormalTask task)
-					|| !(transformation.getValue() instanceof net.sf.mpxj.Task exported)) continue;
+					|| !(transformation.getValue() instanceof org.mpxj.Task exported)) continue;
 			if (exported.getUniqueID() == null) continue;
 			Map<Integer, Double> costs = new java.util.TreeMap<>();
 			for (int slot = 0; slot <= 10; slot++) {
@@ -814,16 +812,16 @@ public class MSPDISerializer implements ProjectSerializer {
 		element.setTextContent(durationMillisToMspdi(millis));
 	}
 
-	private static List<ExactWorkRow> exactWorkRows(List<net.sf.mpxj.TimephasedWork> rows) throws IOException {
+	private static List<ExactWorkRow> exactWorkRows(List<org.mpxj.TimephasedWork> rows) throws IOException {
 		List<ExactWorkRow> result = new ArrayList<>();
-		for (net.sf.mpxj.TimephasedWork row : rows) {
-			net.sf.mpxj.Duration amount = row.getTotalAmount();
-			if (amount == null || amount.getUnits() != net.sf.mpxj.TimeUnit.HOURS
+		for (org.mpxj.TimephasedWork row : rows) {
+			org.mpxj.Duration amount = row.getTotalAmount();
+			if (amount == null || amount.getUnits() != org.mpxj.TimeUnit.HOURS
 					|| row.getStart() == null || row.getFinish() == null)
 				throw new IOException("MPXJ personal-contour work row has no exact hour amount");
 			result.add(new ExactWorkRow(
-				com.microproject.core.pm.exchange.converters.type.DateUTCConverter.toModelTime(row.getStart()),
-				com.microproject.core.pm.exchange.converters.type.DateUTCConverter.toModelTime(row.getFinish()),
+				com.microproject.core.pm.exchange.converters.type.DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(row.getStart())),
+				com.microproject.core.pm.exchange.converters.type.DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(row.getFinish())),
 				Math.round(amount.getDuration() * 60L * 60L * 1000L)));
 		}
 		return List.copyOf(result);

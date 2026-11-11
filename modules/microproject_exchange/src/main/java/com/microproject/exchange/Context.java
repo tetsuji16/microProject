@@ -23,7 +23,7 @@
  *******************************************************************************/
 package com.microproject.exchange;
 
-import net.sf.mpxj.ProjectCalendar;
+import org.mpxj.ProjectCalendar;
 
 
 public class Context {

@@ -33,14 +33,14 @@ import com.microproject.core.fields.FieldTypeConverter;
 public class MpxAccrueTypeConverter extends FieldTypeConverter {
 	@Override
 	public Object from(Object o) {
-		net.sf.mpxj.AccrueType a=(net.sf.mpxj.AccrueType)o;
+		org.mpxj.AccrueType a=(org.mpxj.AccrueType)o;
 		return Integer.valueOf(a.getValue());
 	}
 
 	@Override
 	public Object to(Object o) {
 		Integer a=(Integer)o;
-		return net.sf.mpxj.AccrueType.getInstance(a.intValue());
+		return org.mpxj.AccrueType.getInstance(a.intValue());
 	}
 
 }

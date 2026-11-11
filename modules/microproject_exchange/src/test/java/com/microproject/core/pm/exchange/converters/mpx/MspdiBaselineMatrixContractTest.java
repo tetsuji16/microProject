@@ -34,7 +34,7 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.TaskSnapshot;
 
-import net.sf.mpxj.ScheduleFrom;
+import org.mpxj.ScheduleFrom;
 
 /**
  * Independent fixed-value coverage for baseline fields and assignment timephased types.
@@ -93,14 +93,14 @@ class MspdiBaselineMatrixContractTest {
 	void futureDatedTimephasedBaselineDoesNotReplaceCurrentTaskOrAssignmentSchedule() throws Exception {
 		for (int[] offsets : List.of(FUTURE_OFFSETS, DAY_OFFSETS)) {
 			String xml = literalBaselineTableXml(offsets);
-			net.sf.mpxj.ProjectFile raw = new net.sf.mpxj.mspdi.MSPDIReader().read(
+			org.mpxj.ProjectFile raw = new org.mpxj.mspdi.MSPDIReader().read(
 				new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)));
-			net.sf.mpxj.Task rawTask = raw.getTasks().stream()
+			org.mpxj.Task rawTask = raw.getTasks().stream()
 				.filter(candidate -> "Assignment baseline task".equals(candidate.getName())).findFirst().orElseThrow();
-			net.sf.mpxj.ResourceAssignment rawAssignment = rawTask.getResourceAssignments().get(0);
-			assertEquals(localWallDate("2026-10-12T17:00:00"), rawTask.getFinish(), "MPXJ task current finish from literal direct child");
-			assertEquals(localWallDate("2026-10-12T08:00:00"), rawAssignment.getStart(), "MPXJ assignment current start");
-			assertEquals(localWallDate("2026-10-12T17:00:00"), rawAssignment.getFinish(), "MPXJ assignment current finish");
+			org.mpxj.ResourceAssignment rawAssignment = rawTask.getResourceAssignments().get(0);
+			assertEquals(localWallDate("2026-10-12T17:00:00"), com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(rawTask.getFinish()), "MPXJ task current finish from literal direct child");
+			assertEquals(localWallDate("2026-10-12T08:00:00"), com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(rawAssignment.getStart()), "MPXJ assignment current start");
+			assertEquals(localWallDate("2026-10-12T17:00:00"), com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(rawAssignment.getFinish()), "MPXJ assignment current finish");
 
 			TrackingMspImporter importer = new TrackingMspImporter();
 			Project imported = importer.importProject(new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)), "xml",

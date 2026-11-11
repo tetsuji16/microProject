@@ -28,8 +28,8 @@ import com.microproject.pm.calendar.WorkRange;
 import com.microproject.pm.calendar.WorkRangeException;
 import com.microproject.pm.calendar.WorkingHours;
 
-import net.sf.mpxj.DateRange;
-import net.sf.mpxj.ProjectCalendarHours;
+import org.mpxj.LocalTimeRange;
+import org.mpxj.ProjectCalendarHours;
 
 /**
  * Builds a microproject WorkingHours representation from MPXJ calendar hours.
@@ -52,11 +52,11 @@ public class MpxRangeConverter {
 		DateHoursMinsConverter converter = new DateHoursMinsConverter();
 		int targetIndex = 0;
 		for (int i = 0; i < mpxHours.size(); i++) {
-			DateRange range = mpxHours.get(i);
+			LocalTimeRange range = mpxHours.get(i);
 			if (range == null || range.getStart() == null || range.getEnd() == null)
 				continue;
-			long start = (Long) converter.from(range.getStart());
-			long end = (Long) converter.from(range.getEnd());
+			long start = (Long) converter.from(MpxDates.toDate(range.getStart()));
+			long end = (Long) converter.from(MpxDates.toDate(range.getEnd()));
 			try {
 				// A range crossing midnight belongs to two calendar dates. The
 				// current model cannot represent that relation in one weekday;

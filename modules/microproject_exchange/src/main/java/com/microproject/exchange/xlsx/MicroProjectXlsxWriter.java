@@ -50,15 +50,15 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.server.data.Serializer;
 
-import net.sf.mpxj.ProjectFile;
-import net.sf.mpxj.ProjectProperties;
-import net.sf.mpxj.Day;
-import net.sf.mpxj.Resource;
-import net.sf.mpxj.ResourceAssignment;
-import net.sf.mpxj.Task;
-import net.sf.mpxj.TimephasedWork;
-import net.sf.mpxj.mspdi.MSPDIWriter;
-import net.sf.mpxj.writer.ProjectWriter;
+import org.mpxj.ProjectFile;
+import org.mpxj.ProjectProperties;
+import java.time.DayOfWeek;
+import org.mpxj.Resource;
+import org.mpxj.ResourceAssignment;
+import org.mpxj.Task;
+import org.mpxj.TimephasedWork;
+import org.mpxj.mspdi.MSPDIWriter;
+import org.mpxj.writer.ProjectWriter;
 
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -72,7 +72,8 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 	private static final String CALENDARS_SHEET = "Calendars";
 	private static final String TIMEPHASED_SHEET = "Timephased";
 	private static final int PAYLOAD_CHUNK_SIZE = 30000;
-	private static final Day[] DAYS = Day.values();
+	private static final DayOfWeek[] DAYS = {DayOfWeek.SUNDAY, DayOfWeek.MONDAY, DayOfWeek.TUESDAY,
+		DayOfWeek.WEDNESDAY, DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY};
 
 	public void write(ProjectFile projectFile, String fileName) throws IOException {
 		write(projectFile, new File(fileName));
@@ -86,6 +87,27 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 
 	public void write(ProjectFile projectFile, OutputStream out) throws IOException {
 		writeWorkbookFromProjectFile(projectFile, out);
+	}
+
+	@Override
+	public void write(java.util.List<ProjectFile> projectFiles, String fileName) throws IOException {
+		write(projectFiles, new File(fileName));
+	}
+
+	@Override
+	public void write(java.util.List<ProjectFile> projectFiles, File file) throws IOException {
+		try (FileOutputStream out = new FileOutputStream(file)) {
+			write(projectFiles, out);
+		}
+	}
+
+	@Override
+	public void write(java.util.List<ProjectFile> projectFiles, OutputStream out) throws IOException {
+		// The XLSX format holds exactly one project.
+		if (projectFiles == null || projectFiles.size() != 1) {
+			throw new IOException("XLSX export supports exactly one project");
+		}
+		write(projectFiles.get(0), out);
 	}
 
 	public void writeMicroProjectProject(Project project, OutputStream out) throws IOException {
@@ -342,10 +364,10 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 			if (task == null || task.getNull()) {
 				continue;
 			}
-			for (net.sf.mpxj.Relation relation : task.getPredecessors()) {
+			for (org.mpxj.Relation relation : task.getPredecessors()) {
 				writeRow(sheet, rowIndex++,
 					valueOf(task.getUniqueID()),
-					valueOf(relation.getTargetTask().getUniqueID()),
+					valueOf(relation.getPredecessorTask().getUniqueID()),
 					valueOf(relation.getType().getValue()),
 					safe(relation.getLag()));
 			}
@@ -380,7 +402,7 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 		Sheet sheet = workbook.createSheet(CALENDARS_SHEET);
 		writeRow(sheet, 0, "UniqueID", "Name", "BaseCalendar", "WorkingSpec", "Exceptions");
 		int rowIndex = 1;
-		for (net.sf.mpxj.ProjectCalendar calendar : projectFile.getCalendars()) {
+		for (org.mpxj.ProjectCalendar calendar : projectFile.getCalendars()) {
 			writeRow(sheet, rowIndex++,
 				valueOf(calendar.getUniqueID()),
 				safe(calendar.getName()),
@@ -442,23 +464,23 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 			exceptions.toString());
 	}
 
-	private String describeCalendar(net.sf.mpxj.ProjectCalendar calendar) {
+	private String describeCalendar(org.mpxj.ProjectCalendar calendar) {
 		StringBuilder result = new StringBuilder();
-		for (Day day : DAYS) {
+		for (DayOfWeek day : DAYS) {
 			if (result.length() > 0) {
 				result.append('|');
 			}
 			result.append(day.name()).append('=');
-			net.sf.mpxj.DayType type = calendar.getCalendarDayType(day);
+			org.mpxj.DayType type = calendar.getCalendarDayType(day);
 			result.append(type == null ? "null" : type.toString());
-			net.sf.mpxj.ProjectCalendarHours hours = calendar.getHours(day);
+			org.mpxj.ProjectCalendarHours hours = calendar.getHours(day);
 			if (hours != null && hours.size() > 0) {
 				result.append(':');
 				for (int i = 0; i < hours.size(); i++) {
 					if (i > 0) {
 						result.append(',');
 					}
-					net.sf.mpxj.DateRange range = hours.get(i);
+					org.mpxj.LocalTimeRange range = hours.get(i);
 					result.append(range == null ? "" : range.toString());
 				}
 			}
@@ -475,7 +497,7 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 				continue;
 			}
 			for (ResourceAssignment assignment : task.getResourceAssignments()) {
-				List<TimephasedWork> work = assignment.getTimephasedWork();
+				List<TimephasedWork> work = assignment.getRawTimephasedRemainingRegularWork();
 				if (work == null) {
 					continue;
 				}

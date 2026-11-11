@@ -23,8 +23,8 @@
  *******************************************************************************/
 package com.microproject.core.pm.exchange.converters.mpx;
 
-import net.sf.mpxj.DateRange;
-import net.sf.mpxj.ProjectCalendarException;
+import org.mpxj.LocalTimeRange;
+import org.mpxj.ProjectCalendarException;
 
 import com.microproject.core.pm.exchange.converters.type.DateHoursMinsConverter;
 import com.microproject.pm.calendar.WorkDay;
@@ -41,8 +41,8 @@ public class MpxExceptionConverter {
 
 	public void from(ProjectCalendarException mpxException, WorkDay exception) {
 		// copy the exception's working hours, if any
-		java.util.Date from = mpxException.getFromDate();
-		java.util.Date to = mpxException.getToDate();
+		java.util.Date from = MpxDates.toDate(mpxException.getFromDate());
+		java.util.Date to = MpxDates.toDate(mpxException.getToDate());
 		if (from != null && to != null) {
 			DateHoursMinsConverter converter = new DateHoursMinsConverter();
 			WorkingHours workingHours = new WorkingHours();
@@ -51,11 +51,11 @@ public class MpxExceptionConverter {
 			// exception as one continuous range.
 			int targetIndex = 0;
 			for (int i = 0; i < mpxException.size() && targetIndex < 5; i++) {
-				DateRange range = mpxException.get(i);
+				LocalTimeRange range = mpxException.get(i);
 				if (range == null || range.getStart() == null || range.getEnd() == null)
 					continue;
-				long start = (Long) converter.from(range.getStart());
-				long end = (Long) converter.from(range.getEnd());
+				long start = (Long) converter.from(MpxDates.toDate(range.getStart()));
+				long end = (Long) converter.from(MpxDates.toDate(range.getEnd()));
 				try {
 					if (end > 0 && end < start)
 						continue; // one exception cannot express a cross-midnight day

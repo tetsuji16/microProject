@@ -34,14 +34,14 @@ public class MpxPriorityConverter extends FieldTypeConverter {
 
 	@Override
 	public Object from(Object o) {
-		net.sf.mpxj.Priority p=(net.sf.mpxj.Priority)o;
+		org.mpxj.Priority p=(org.mpxj.Priority)o;
 		return p.getValue();
 	}
 
 	@Override
 	public Object to(Object o) {
 		Integer i=(Integer)o;
-		return net.sf.mpxj.Priority.getInstance(i);
+		return org.mpxj.Priority.getInstance(i);
 	}
 
 }

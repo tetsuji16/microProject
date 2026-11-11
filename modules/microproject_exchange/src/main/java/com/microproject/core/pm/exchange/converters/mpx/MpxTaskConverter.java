@@ -35,8 +35,8 @@ import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Task;
 
-import net.sf.mpxj.Duration;
-import net.sf.mpxj.TaskMode;
+import org.mpxj.Duration;
+import org.mpxj.TaskMode;
 
 /**
  * Converts an MPXJ Task into a microproject Task.
@@ -48,7 +48,7 @@ import net.sf.mpxj.TaskMode;
 public class MpxTaskConverter {
 	private MpxCalendarConverter calendarConverter = new MpxCalendarConverter();
 
-	public void from(net.sf.mpxj.Task mpxTask, Task task, MpxImportState state) {
+	public void from(org.mpxj.Task mpxTask, Task task, MpxImportState state) {
 		DurationDefaults durationDefaults = task.getProject() == null
 			? MpxProjectConverter.durationDefaults(state.getMpxProjectFile() == null ? null
 				: state.getMpxProjectFile().getProjectProperties())
@@ -85,7 +85,7 @@ public class MpxTaskConverter {
 		if (mpxTask.getMilestone())
 			task.setMarkTaskAsMilestone(true);
 
-		task.setCreated(mpxTask.getCreateDate());
+		task.setCreated(MpxDates.toDate(mpxTask.getCreateDate()));
 		task.setDeadline(toLong(mpxTask.getDeadline()));
 		task.setLevelingDelay(toLong(mpxTask.getLevelingDelay()));
 		task.setRecurringTask(mpxTask.getRecurring());
@@ -149,6 +149,10 @@ public class MpxTaskConverter {
 		task.setInactiveTask(!mpxTask.getActive());
 		task.setManuallyScheduled(mpxTask.getTaskMode() == TaskMode.MANUALLY_SCHEDULED);
 
+	}
+
+	private static long toLong(java.time.LocalDateTime d) {
+		return toLong(MpxDates.toDate(d));
 	}
 
 	private static long toLong(Date d) {

@@ -6,8 +6,8 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.server.data.CustomFieldsMapper;
 
-import net.sf.mpxj.ResourceField;
-import net.sf.mpxj.TaskField;
+import org.mpxj.ResourceField;
+import org.mpxj.TaskField;
 
 class CustomFieldsMapperTest {
 	@Test
