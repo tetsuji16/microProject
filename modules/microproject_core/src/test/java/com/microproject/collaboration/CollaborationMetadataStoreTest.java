@@ -183,7 +183,7 @@ class CollaborationMetadataStoreTest {
 		Path lockPath = CollaborationMetadataStore.buildLockFile(store.getSidecarFile()).toPath();
 		long startedAt = System.nanoTime();
 		try (FileChannel channel = FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-			 FileLock ignored = channel.lock()) {
+			 FileLock _ = channel.lock()) {
 			java.util.concurrent.atomic.AtomicReference<Throwable> failure = new java.util.concurrent.atomic.AtomicReference<>();
 			EventQueue.invokeAndWait(() -> {
 				try {

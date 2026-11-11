@@ -112,7 +112,7 @@ class ProjectMutationStateTest {
 		Project project = Project.createProject(ResourcePool.createRourcePool("undo-lifecycle", undo), undo);
 		project.initialize(false, false);
 		undo.clear();
-		try (ProjectMutationState.Scope mutation = project.getMutationState().begin()) {
+		try (ProjectMutationState.Scope _ = project.getMutationState().begin()) {
 			project.beginEventBatch();
 			undo.getEditSupport().postEdit(new javax.swing.undo.AbstractUndoableEdit());
 			project.endEventBatch(false);
@@ -236,7 +236,7 @@ class ProjectMutationStateTest {
 	private static boolean captureFromAnotherThread(Project project, ExecutorService worker) {
 		try {
 			Future<Boolean> snapshot = worker.submit(() -> {
-				try (ProjectMutationState.Scope ignored = project.getMutationState().begin()) {
+				try (ProjectMutationState.Scope _ = project.getMutationState().begin()) {
 					return true;
 				}
 			});
@@ -249,7 +249,7 @@ class ProjectMutationStateTest {
 	private static boolean captureFromAnotherThread(ProjectMutationState state, ExecutorService worker) {
 		try {
 			return worker.submit(() -> {
-				try (ProjectMutationState.Scope ignored = state.begin()) {
+				try (ProjectMutationState.Scope _ = state.begin()) {
 					return true;
 				}
 			}).get(2, TimeUnit.SECONDS);
@@ -275,7 +275,7 @@ class ProjectMutationStateTest {
 	void revisionsAdvanceOnlyForCommittedChangedOutermostMutation() {
 		ProjectMutationState state = new ProjectMutationState();
 
-		try (ProjectMutationState.Scope ignored = state.begin()) {
+		try (ProjectMutationState.Scope _ = state.begin()) {
 			// An uncommitted mutation is rolled back.
 		}
 		assertEquals(0, state.revision());
@@ -339,7 +339,7 @@ class ProjectMutationStateTest {
 			assertTrue(mutationStarted.await(2, TimeUnit.SECONDS));
 			workers.submit(() -> {
 				captureStarted.countDown();
-				try (ProjectMutationState.Scope ignored = state.begin()) {
+				try (ProjectMutationState.Scope _ = state.begin()) {
 					captureEntered.countDown();
 				}
 			});

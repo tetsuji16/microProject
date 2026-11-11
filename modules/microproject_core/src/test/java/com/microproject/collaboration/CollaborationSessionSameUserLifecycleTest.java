@@ -1084,7 +1084,7 @@ class CollaborationSessionSameUserLifecycleTest {
 			}
 			assertTrue(session.tryAcquireTaskLock(task), "closing the first refresh lease releases the gate");
 			assertThrows(IllegalStateException.class, () -> {
-				try (CollaborationSession.ExternalProjectRefreshLease ignored = session.beginExternalProjectRefresh()) {
+				try (CollaborationSession.ExternalProjectRefreshLease _ = session.beginExternalProjectRefresh()) {
 					throw new IllegalStateException("injected merge failure");
 				}
 			});

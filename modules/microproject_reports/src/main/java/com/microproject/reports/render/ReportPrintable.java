@@ -162,7 +162,7 @@ public final class ReportPrintable implements Printable, Pageable {
 				drawWrapped(g, lines, from, to, (int)x + 3, y + 11, width - 6);
 				x += widths[local];
 			}
-			y += ReportLayout.tableRowHeight(model, segment, rowIndex);
+			y = (int) (y + ReportLayout.tableRowHeight(model, segment, rowIndex));
 		}
 		if (model.totalRow() && page.endRow() == model.rows().size()) {
 			y += 3;
