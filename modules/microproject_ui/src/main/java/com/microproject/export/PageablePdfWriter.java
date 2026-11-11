@@ -8,10 +8,10 @@ import java.awt.Graphics2D;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.function.DoubleConsumer;
-import com.lowagie.text.Document;
-import com.lowagie.text.Rectangle;
-import com.lowagie.text.pdf.PdfWriter;
-import com.lowagie.text.pdf.DefaultFontMapper;
+import org.openpdf.text.Document;
+import org.openpdf.text.Rectangle;
+import org.openpdf.text.pdf.PdfWriter;
+import org.openpdf.text.pdf.DefaultFontMapper;
 import com.microproject.reports.render.ReportFontProvider;
 import com.microproject.print.ExtendedPageFormat;
 import com.microproject.print.GraphPageable;
@@ -81,7 +81,7 @@ final class PageablePdfWriter {
 	private static DefaultFontMapper.BaseFontParameters fontParameters(byte[] fontBytes, boolean bold) {
 		DefaultFontMapper.BaseFontParameters parameters = new DefaultFontMapper.BaseFontParameters(
 			bold ? "NotoSansJP-Bold.otf" : "NotoSansJP-Regular.otf");
-		parameters.encoding = com.lowagie.text.pdf.BaseFont.IDENTITY_H;
+		parameters.encoding = org.openpdf.text.pdf.BaseFont.IDENTITY_H;
 		parameters.embedded = true;
 		parameters.cached = true;
 		parameters.ttfAfm = fontBytes;

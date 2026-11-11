@@ -21,8 +21,8 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import com.lowagie.text.pdf.PdfReader;
-import com.lowagie.text.pdf.parser.PdfTextExtractor;
+import org.openpdf.text.pdf.PdfReader;
+import org.openpdf.text.pdf.parser.PdfTextExtractor;
 import com.microproject.configuration.Configuration;
 import com.microproject.configuration.Dictionary;
 import com.microproject.configuration.ReportDefinition;
@@ -184,7 +184,7 @@ class ReportPdfLocaleMatrixTest {
 	private List<String> pdfPages(ReportPrintable printable, String stem) throws Exception {
 		File output = directory.resolve(stem + ".pdf").toFile();
 		new PageablePdfWriter().write(new GraphPageable(printable, false), output, ignored -> { });
-		try (PdfReader reader = new PdfReader(output.getAbsolutePath())) {
+		try (PdfReader reader = new PdfReader(java.nio.file.Files.readAllBytes(output.toPath()))) {
 			ArrayList<String> pages = new ArrayList<>();
 			for (int page = 1; page <= reader.getNumberOfPages(); page++)
 				pages.add(new PdfTextExtractor(reader).getTextFromPage(page));
