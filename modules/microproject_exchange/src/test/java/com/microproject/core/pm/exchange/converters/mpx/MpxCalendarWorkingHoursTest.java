@@ -14,13 +14,14 @@ import java.util.Locale;
 
 import org.junit.jupiter.api.Test;
 
-import net.sf.mpxj.DateRange;
-import net.sf.mpxj.Day;
-import net.sf.mpxj.ProjectCalendar;
-import net.sf.mpxj.ProjectCalendarHours;
-import net.sf.mpxj.ProjectFile;
-import net.sf.mpxj.RecurringData;
-import net.sf.mpxj.RecurrenceType;
+import org.mpxj.LocalDateRange;
+import org.mpxj.LocalTimeRange;
+import java.time.DayOfWeek;
+import org.mpxj.ProjectCalendar;
+import org.mpxj.ProjectCalendarHours;
+import org.mpxj.ProjectFile;
+import org.mpxj.RecurringData;
+import org.mpxj.RecurrenceType;
 
 import com.microproject.server.data.MPXConverter;
 import com.microproject.pm.calendar.CalendarService;
@@ -97,7 +98,7 @@ class MpxCalendarWorkingHoursTest {
 			  </Calendar></Calendars>
 			</Project>
 			""";
-		ProjectFile source = new net.sf.mpxj.mspdi.MSPDIReader()
+		ProjectFile source = new org.mpxj.mspdi.MSPDIReader()
 			.read(new java.io.ByteArrayInputStream(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
 		long expectedStart = DateTime.calendarInstance(2024, Calendar.JUNE, 4).getTimeInMillis();
 		long expectedEnd = DateTime.calendarInstance(2024, Calendar.JUNE, 6).getTimeInMillis();
@@ -112,7 +113,7 @@ class MpxCalendarWorkingHoursTest {
 		ProjectCalendar target = exported.addCalendar();
 		MPXConverter.toMpxCalendar(model, target);
 		java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
-		new net.sf.mpxj.mspdi.MSPDIWriter().write(exported, bytes);
+		new org.mpxj.mspdi.MSPDIWriter().write(exported, bytes);
 		String written = bytes.toString(java.nio.charset.StandardCharsets.UTF_8);
 		assertTrue(written.contains("<FromDate>2024-06-04T00:00:00"), written);
 		assertTrue(written.contains("<ToDate>2024-06-06T23:59:59"), written);
@@ -125,7 +126,7 @@ class MpxCalendarWorkingHoursTest {
 		mspCalendar.setName("Recurring exception calendar");
 		RecurringData recurrence = new RecurringData();
 		recurrence.setRecurrenceType(RecurrenceType.YEARLY);
-		recurrence.setStartDate(mspDate(day(2024, Calendar.JANUARY, 1)));
+		recurrence.setStartDate(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDate(mspDate(day(2024, Calendar.JANUARY, 1))));
 		recurrence.setOccurrences(3);
 		recurrence.setMonthNumber(Calendar.JANUARY + 1);
 		recurrence.setDayNumber(1);
@@ -160,8 +161,8 @@ class MpxCalendarWorkingHoursTest {
 	@Test
 	void importsEveryMspWorkingRangeWithoutCollapsingToTheDefaultDay() {
 		ProjectCalendarHours mspHours = new ProjectCalendarHours();
-		mspHours.add(new DateRange(localTime(7), localTime(11)));
-		mspHours.add(new DateRange(localTime(12), localTime(16)));
+		mspHours.add(new LocalTimeRange(localTime(7), localTime(11)));
+		mspHours.add(new LocalTimeRange(localTime(12), localTime(16)));
 
 		var hours = new MpxRangeConverter().from(mspHours);
 
@@ -178,7 +179,7 @@ class MpxCalendarWorkingHoursTest {
 		long end = day(2024, Calendar.JUNE, 6);
 		Date sourceStart = mspDate(start);
 		Date sourceEnd = mspDate(end);
-		var mspException = mspCalendar.addCalendarException(sourceStart, sourceEnd);
+		var mspException = mspCalendar.addCalendarException(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDate(sourceStart), com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDate(sourceEnd));
 		mspException.setName("Company shutdown");
 
 		WorkingCalendar imported = WorkingCalendar.getStandardBasedInstance();
@@ -188,9 +189,9 @@ class MpxCalendarWorkingHoursTest {
 			.filter(exception -> "Company shutdown".equals(exception.getDescription()))
 			.findFirst().orElseThrow();
 		assertEquals(start, DateTime.dayFloor(named.getStart()),
-			"raw MSP exception date=" + mspException.getFromDate().getTime() + ", imported=" + named.getStart());
+			"raw MSP exception date=" + com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(mspException.getFromDate()).getTime() + ", imported=" + named.getStart());
 		assertEquals(end, DateTime.dayFloor(named.getEnd()),
-			"raw MSP exception end=" + mspException.getToDate().getTime() + ", imported=" + named.getEnd());
+			"raw MSP exception end=" + com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(mspException.getToDate()).getTime() + ", imported=" + named.getEnd());
 		assertFalse(CalendarService.getInstance().getDay(imported, day(2024, Calendar.JUNE, 5)).isWorking());
 	}
 
@@ -223,10 +224,10 @@ class MpxCalendarWorkingHoursTest {
 		ProjectCalendar msp = file.addCalendar();
 		var mspWeek = msp.addWorkWeek();
 		mspWeek.setName("Summer schedule");
-		mspWeek.setDateRange(new DateRange(mspDate(start), mspDate(end)));
-		mspWeek.setWorkingDay(Day.getInstance(2), false); // Monday
-		ProjectCalendarHours tuesday = mspWeek.addCalendarHours(Day.getInstance(3));
-		tuesday.add(new DateRange(localTime(9), localTime(13)));
+		mspWeek.setDateRange(new LocalDateRange(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDate(mspDate(start)), com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDate(mspDate(end))));
+		mspWeek.setWorkingDay(DayOfWeek.MONDAY, false); // Monday
+		ProjectCalendarHours tuesday = mspWeek.addCalendarHours(DayOfWeek.TUESDAY);
+		tuesday.add(new LocalTimeRange(localTime(9), localTime(13)));
 
 		WorkingCalendar imported = WorkingCalendar.getStandardBasedInstance();
 		new MpxCalendarConverter().from(msp, imported, new MpxImportState());
@@ -238,8 +239,8 @@ class MpxCalendarWorkingHoursTest {
 		ProjectFile exportedFile = new ProjectFile();
 		ProjectCalendar exported = exportedFile.addCalendar();
 		MPXConverter.toMpxCalendar(imported, exported);
-		assertEquals(net.sf.mpxj.DayType.NON_WORKING,
-			exported.getWorkWeeks().getFirst().getCalendarDayType(Day.getInstance(2)));
+		assertEquals(org.mpxj.DayType.NON_WORKING,
+			exported.getWorkWeeks().getFirst().getCalendarDayType(DayOfWeek.MONDAY));
 		WorkingCalendar roundTripped = WorkingCalendar.getStandardBasedInstance();
 		new MpxCalendarConverter().from(exported, roundTripped, new MpxImportState());
 		assertFalse(roundTripped.getEffectiveWorkWeekPeriods().getFirst().getWeekDay(1).isWorking());
@@ -256,17 +257,17 @@ class MpxCalendarWorkingHoursTest {
 	void explicitNonWorkingDayOverridesRetainedHoursInWeeklyAndDatedCalendars() {
 		ProjectFile file = new ProjectFile();
 		ProjectCalendar msp = file.addCalendar();
-		Day monday = Day.getInstance(2);
+		DayOfWeek monday = DayOfWeek.MONDAY;
 		ProjectCalendarHours weeklyHours = msp.addCalendarHours(monday);
-		weeklyHours.add(new DateRange(localTime(9), localTime(17)));
+		weeklyHours.add(new LocalTimeRange(localTime(9), localTime(17)));
 		msp.setWorkingDay(monday, false);
 
 		long start = day(2024, Calendar.JUNE, 3);
 		var period = msp.addWorkWeek();
 		period.setName("Explicit non-working with hours");
-		period.setDateRange(new DateRange(mspDate(start), mspDate(start)));
+		period.setDateRange(new LocalDateRange(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDate(mspDate(start)), com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDate(mspDate(start))));
 		ProjectCalendarHours periodHours = period.addCalendarHours(monday);
-		periodHours.add(new DateRange(localTime(9), localTime(17)));
+		periodHours.add(new LocalTimeRange(localTime(9), localTime(17)));
 		period.setWorkingDay(monday, false);
 
 		WorkingCalendar imported = WorkingCalendar.getStandardBasedInstance();
@@ -278,11 +279,8 @@ class MpxCalendarWorkingHoursTest {
 			.getWorkingHours().getDuration());
 	}
 
-	private static Date localTime(int hour) {
-		java.util.GregorianCalendar calendar = new java.util.GregorianCalendar();
-		calendar.clear();
-		calendar.set(1970, java.util.Calendar.JANUARY, 1, hour, 0);
-		return calendar.getTime();
+	private static java.time.LocalTime localTime(int hour) {
+		return java.time.LocalTime.of(hour, 0);
 	}
 
 	private static long day(int year, int month, int dayOfMonth) {

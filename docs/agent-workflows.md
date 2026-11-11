@@ -173,6 +173,25 @@ Choose the narrowest command that exercises the change, then widen verification 
 - For import/export or collaboration changes, cover malformed or missing data, round trips, conflicts/concurrency where relevant, and preservation of existing user data.
 
 
+## Dependency verification
+
+`gradle/verification-metadata.xml` pins the SHA-256 of every downloaded
+artifact (plugins and libraries; POM and module metadata are not verified).
+A build fails when an artifact is missing from the file or its hash differs.
+
+When a dependency or plugin version changes, including Dependabot pull
+requests, regenerate the entries in the same change:
+
+```text
+.\gradlew.bat --write-verification-metadata sha256 build installDist guiTest --dry-run
+```
+
+This writes `gradle/verification-metadata.dryrun.xml`. Copy the new
+`.jar` components into `gradle/verification-metadata.xml`, remove the
+components of versions that are no longer used, and keep
+`<verify-metadata>false</verify-metadata>`. Compare each new hash with the
+value published by the upstream repository before committing it.
+
 ## Running the desktop app
 
 `build` does not guarantee that an existing runnable layout was refreshed. Before manual UI verification, regenerate `installDist`:

@@ -6,6 +6,7 @@ package com.microproject.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
@@ -60,6 +61,31 @@ class SafeFileReplaceTest {
 		assertFalse(SafeFileReplace.replace(ghost, target));
 		assertTrue(target.exists());
 		assertEquals("ORIGINAL", read(target));
+	}
+
+	@Test
+	void replaceDurablyKeepsTargetAndThrowsWhenFlushFails() throws Exception {
+		// A directory cannot be opened for writing, so the flush fails before any move.
+		File target = write(new File(dir, "kept.bin"), "ORIGINAL");
+		File notAFile = new File(dir, "temp_dir");
+		assertTrue(notAFile.mkdir());
+
+		assertThrows(java.io.IOException.class,
+			() -> SafeFileReplace.replaceDurably(notAFile.toPath(), target.toPath(), true));
+		assertEquals("ORIGINAL", read(target));
+		assertTrue(notAFile.exists(), "nothing may be moved when the flush fails");
+		assertFalse(SafeFileReplace.replace(notAFile, target));
+		assertEquals("ORIGINAL", read(target));
+	}
+
+	@Test
+	void replaceDurablyMovesFlushedTemp() throws Exception {
+		File target = write(new File(dir, "t.bin"), "ORIGINAL");
+		File temp = write(new File(dir, "t.tmp"), "NEW");
+
+		SafeFileReplace.replaceDurably(temp.toPath(), target.toPath(), true);
+		assertEquals("NEW", read(target));
+		assertFalse(temp.exists());
 	}
 
 	@Test

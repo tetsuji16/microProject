@@ -67,7 +67,7 @@ class MspdiDurationFormatContractTest {
 		exporter.setFileName("duration-format-contract.xml");
 		assertTrue(exporter.saveProject(reopened, xml));
 		String emitted = xml.toString(StandardCharsets.UTF_8);
-		net.sf.mpxj.ProjectFile emittedFile = new net.sf.mpxj.mspdi.MSPDIReader().read(
+		org.mpxj.ProjectFile emittedFile = new org.mpxj.mspdi.MSPDIReader().read(
 			new ByteArrayInputStream(xml.toByteArray()));
 		for (DurationCase contract : CASES) assertMpxjDuration(emittedFile, contract);
 		Project reimported = importMspdi(emitted);
@@ -125,19 +125,19 @@ class MspdiDurationFormatContractTest {
 			"baseline elapsed identity " + contract.name());
 	}
 
-	private static void assertMpxjDuration(net.sf.mpxj.ProjectFile file, DurationCase contract) {
-		net.sf.mpxj.Task task = file.getTasks().stream().filter(candidate -> contract.name().equals(candidate.getName()))
+	private static void assertMpxjDuration(org.mpxj.ProjectFile file, DurationCase contract) {
+		org.mpxj.Task task = file.getTasks().stream().filter(candidate -> contract.name().equals(candidate.getName()))
 			.findFirst().orElseThrow();
 		assertMpxjDuration(task.getDuration(), file, contract, "task");
 		assertMpxjDuration(task.getBaselineDuration(), file, contract, "baseline");
 	}
 
-	private static void assertMpxjDuration(net.sf.mpxj.Duration duration, net.sf.mpxj.ProjectFile file,
+	private static void assertMpxjDuration(org.mpxj.Duration duration, org.mpxj.ProjectFile file,
 		DurationCase contract, String context) {
 		assertTrue(duration.getUnits().isElapsed() == (contract.expectedUnit()
 			>= com.microproject.datatype.TimeUnit.ELAPSED_MINUTES), context + " elapsed identity " + contract.name());
-		net.sf.mpxj.TimeUnit minuteUnit = duration.getUnits().isElapsed()
-			? net.sf.mpxj.TimeUnit.ELAPSED_MINUTES : net.sf.mpxj.TimeUnit.MINUTES;
+		org.mpxj.TimeUnit minuteUnit = duration.getUnits().isElapsed()
+			? org.mpxj.TimeUnit.ELAPSED_MINUTES : org.mpxj.TimeUnit.MINUTES;
 		double actualMillis = duration.convertUnits(minuteUnit, file.getProjectProperties()).getDuration() * 60_000.0D;
 		assertEquals((double) contract.expectedClockMillis(), actualMillis, context + " ISO clock quantity " + contract.name());
 	}

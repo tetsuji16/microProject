@@ -909,9 +909,9 @@ class GanttBarDateDragGuiAcceptanceTest {
 		MpoFileImporter importer = new MpoFileImporter();
 		assertTrue(importer.saveProject(fixture.project, saved), "edited schedule must be serializable");
 		byte[] snapshotXml = projectXmlEntry(saved.toByteArray());
-		net.sf.mpxj.ProjectFile mspSnapshot = new net.sf.mpxj.mspdi.MSPDIReader()
+		org.mpxj.ProjectFile mspSnapshot = new org.mpxj.mspdi.MSPDIReader()
 			.read(new ByteArrayInputStream(snapshotXml));
-		net.sf.mpxj.Task mspTask = mspSnapshot.getTasks().stream()
+		org.mpxj.Task mspTask = mspSnapshot.getTasks().stream()
 			.filter(task -> "Drag predecessor".equals(task.getName())).findFirst().orElseThrow();
 		Project reopened = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
 		NormalTask reopenedTask = reopened.getTaskList().stream()
@@ -929,8 +929,8 @@ class GanttBarDateDragGuiAcceptanceTest {
 			.map(assignment -> "uid=" + assignment.getUniqueID() + " bounds=" + assignment.getStart() + ".."
 				+ assignment.getFinish() + " work=" + assignment.getWork() + " actual=" + assignment.getActualWork()
 				+ " remaining=" + assignment.getRemainingWork() + " units=" + assignment.getUnits()
-				+ " actualRows=" + assignment.getTimephasedActualWork() + " remainingRows="
-				+ assignment.getTimephasedWork()).toList();
+				+ " actualRows=" + assignment.getRawTimephasedActualRegularWork() + " remainingRows="
+				+ assignment.getRawTimephasedRemainingRegularWork()).toList();
 		assertTrue(Math.abs(savedProgressPixel - restoredProgressPixel) <= 1,
 			"progress must survive MPO reload within one rendered pixel: saved=" + updatedProgress
 				+ " restored=" + reopenedTask.getCompletedThrough() + " savedPixel=" + savedProgressPixel

@@ -73,7 +73,12 @@ plugins {
 group = "com.microproject"
 version = providers.gradleProperty("releaseVersion").getOrElse("0.1.0")
 val minimumJavaRelease = 25
-val activeToolchainVersion = maxOf(minimumJavaRelease, JavaVersion.current().majorVersion.toInt())
+// javac -Xlint categories that still report warnings; tracked in #1087.
+val lintDebtCategories = listOf(
+    "dangling-doc-comments", "deprecation", "rawtypes", "cast", "unchecked",
+    "this-escape", "classfile", "auxiliaryclass", "restricted"
+).joinToString(",") { "-$it" }
+val activeToolchainVersion =maxOf(minimumJavaRelease, JavaVersion.current().majorVersion.toInt())
 
 subprojects {
 	apply(plugin = "java-library")
@@ -111,6 +116,20 @@ subprojects {
     tasks.withType<JavaCompile>().configureEach {
         options.encoding = "UTF-8"
         options.release.set(minimumJavaRelease)
+        // Issue #1050: -Xlint is always on. Categories that still have warnings
+        // are excluded from the default build, which runs with -Werror so the
+        // clean categories cannot regress. Run with -PlintReport to see every
+        // category (no -Werror, and without javac's default 100-warning cap).
+        if (providers.gradleProperty("lintReport").isPresent) {
+            options.compilerArgs.addAll(listOf("-Xlint:all,-serial,-processing", "-Xmaxwarns", "100000"))
+        } else {
+            options.compilerArgs.add("-Xlint:all,-serial,-processing,$lintDebtCategories")
+            // Test sources are not gated yet: microproject_ui tests use sun.misc.Unsafe,
+            // whose "internal proprietary API" warning has no lint category to exclude.
+            if (name == "compileJava") {
+                options.compilerArgs.add("-Werror")
+            }
+        }
     }
 
     tasks.withType<ProcessResources>().configureEach {
@@ -280,10 +299,11 @@ tasks.register("verifyDependencyAllowlist") {
         // from quietly introducing an unrelated public/runtime dependency.
         val allowedGroups = setOf(
             "com.fasterxml.jackson.core", "com.fasterxml.jackson.dataformat",
-            "com.formdev", "com.jgoodies", "com.lowagie", "com.thoughtworks.xstream",
+            "com.formdev", "com.jgoodies", "com.thoughtworks.xstream",
             "commons-codec",
             "commons-io", "commons-logging", "commons-pool", "org.apache.commons",
-            "io.reactivex.rxjava3", "javax.activation", "javax.xml.bind",
+            "io.reactivex.rxjava3", "jakarta.xml.bind", "jakarta.activation",
+			"com.sun.istack",
 			"net.sf.mpxj",
             "org.apache.logging.log4j", "org.apache.pdfbox", "org.apache.poi",
             "org.codehaus.groovy", "org.glassfish.jaxb", "org.imgscalr", "org.jfree", "org.slf4j", "org.pushingpixels", "org.pushing-pixels",
@@ -580,8 +600,34 @@ tasks.register("verifyNamingConventions") {
     }
 }
 
+// Every Test task is disabled project-wide and re-enabled per module (see the subprojects block),
+// so a module that forgets to re-enable it would silently skip its tests (issue #1052).
+tasks.register("verifyTestTasksEnabled") {
+    group = "verification"
+    description = "Fails when a module has test sources but its matching Test task is disabled."
+
+    doLast {
+        val disabled = subprojects.flatMap { module ->
+            listOf("test", "guiTest").mapNotNull { sourceSetName ->
+                val sourceDirectory = module.projectDir.resolve("src/$sourceSetName/java")
+                val hasSources = sourceDirectory.isDirectory && sourceDirectory.walkTopDown().any { it.isFile && it.extension == "java" }
+                val testTask = module.tasks.findByName(sourceSetName)
+                when {
+                    !hasSources -> null
+                    testTask == null -> "${module.path}: has src/$sourceSetName/java but no '$sourceSetName' task"
+                    !testTask.enabled -> "${module.path}: '$sourceSetName' task is disabled although src/$sourceSetName/java has sources"
+                    else -> null
+                }
+            }
+        }
+        if (disabled.isNotEmpty()) {
+            throw GradleException("Test sources would not run:\n" + disabled.joinToString("\n") { "  $it" })
+        }
+    }
+}
+
 tasks.named("check") {
-    dependsOn("verifyArchitectureBoundaries", "verifyArchitectureBoundaryFixtures", "verifyNamingConventions")
+    dependsOn("verifyArchitectureBoundaries", "verifyArchitectureBoundaryFixtures", "verifyNamingConventions", "verifyTestTasksEnabled")
 }
 
 tasks.register<Delete>("cleanLegacyPackagingArtifacts") {

@@ -81,12 +81,13 @@ class ApplicationCloseGuiAcceptanceTest {
 	}
 
 	private static void awaitFile(Path file, Process application, Path log) throws Exception {
-		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(START_SECONDS);
-		while (!Files.exists(file)) {
-			if (!application.isAlive()) fail("the application stopped while opening\n" + logText(log));
-			if (System.nanoTime() >= deadline) fail("the project did not open\n" + logText(log));
-			Thread.sleep(200L);
+		try {
+			com.microproject.testsupport.TestAwait.awaitTrue(() -> Files.exists(file) || !application.isAlive(), java.time.Duration.ofSeconds(START_SECONDS),
+				"the project to open");
+		} catch (AssertionError timedOut) {
+			fail("the project did not open\n" + logText(log));
 		}
+		if (!Files.exists(file)) fail("the application stopped while opening\n" + logText(log));
 	}
 
 	/** The application writes its console in the platform's encoding. */

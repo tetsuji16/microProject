@@ -156,6 +156,84 @@ class UpdateCheckerTest {
 	}
 
 	@Test
+	void trustsOnlyHttpsReleaseHostsWithoutUserInfo() {
+		assertTrue(UpdateChecker.isTrustedDownloadUrl("https://github.com/tetsuji16/microProject/releases/download/v1/a.msi"));
+		assertTrue(UpdateChecker.isTrustedDownloadUrl("https://objects.githubusercontent.com/path/a.msi"));
+		assertTrue(UpdateChecker.isTrustedDownloadUrl("https://release-assets.githubusercontent.com/path/a.msi"));
+		assertFalse(UpdateChecker.isTrustedDownloadUrl("http://github.com/a.msi"));
+		assertFalse(UpdateChecker.isTrustedDownloadUrl("https://example.test/a.msi"));
+		assertFalse(UpdateChecker.isTrustedDownloadUrl("https://github.com.evil.test/a.msi"));
+		assertFalse(UpdateChecker.isTrustedDownloadUrl("https://user@github.com/a.msi"));
+		assertFalse(UpdateChecker.isTrustedDownloadUrl("https://github.com@evil.test/a.msi"));
+		assertFalse(UpdateChecker.isTrustedDownloadUrl("https://github.com:8443/a.msi"));
+		assertFalse(UpdateChecker.isTrustedDownloadUrl("file:///c:/a.msi"));
+		assertFalse(UpdateChecker.isTrustedDownloadUrl("not a url"));
+		assertFalse(UpdateChecker.isTrustedDownloadUrl(null));
+	}
+
+	@Test
+	void untrustedInstallerAddressIsNotDownloaded() throws Exception {
+		Path staging = temporaryDirectory.resolve("staging");
+		byte[] installer = "fake-msi".getBytes(StandardCharsets.UTF_8);
+		startBinaryResponse(200, installer);
+
+		assertThrows(IOException.class, () -> UpdateChecker.stageInstaller(
+				new UpdateChecker.MsiAsset(endpoint("/installer").toExternalForm(), sha256(installer)), "v0.0.24",
+				staging, UpdateChecker::isTrustedDownloadUrl));
+		try (var files = Files.list(staging)) {
+			assertEquals(0, files.count());
+		}
+	}
+
+	@Test
+	void redirectToUntrustedHostIsNotFollowed() throws Exception {
+		Path staging = temporaryDirectory.resolve("staging");
+		server = HttpServer.create(new InetSocketAddress(0), 0);
+		server.createContext("/installer", exchange -> {
+			exchange.getResponseHeaders().add("Location", "/blocked");
+			exchange.sendResponseHeaders(302, -1);
+			exchange.close();
+		});
+		server.createContext("/blocked", exchange -> {
+			byte[] body = "fake-msi".getBytes(StandardCharsets.UTF_8);
+			exchange.sendResponseHeaders(200, body.length);
+			try (var output = exchange.getResponseBody()) {
+				output.write(body);
+			}
+		});
+		server.start();
+
+		assertThrows(IOException.class, () -> UpdateChecker.stageInstaller(
+				new UpdateChecker.MsiAsset(endpoint("/installer").toExternalForm(), sha256("fake-msi".getBytes(StandardCharsets.UTF_8))),
+				"v0.0.24", staging, url -> !url.endsWith("/blocked")));
+	}
+
+	@Test
+	void trustedRedirectIsFollowed() throws Exception {
+		Path staging = temporaryDirectory.resolve("staging");
+		byte[] installer = "fake-msi".getBytes(StandardCharsets.UTF_8);
+		server = HttpServer.create(new InetSocketAddress(0), 0);
+		server.createContext("/installer", exchange -> {
+			exchange.getResponseHeaders().add("Location", "/final");
+			exchange.sendResponseHeaders(302, -1);
+			exchange.close();
+		});
+		server.createContext("/final", exchange -> {
+			exchange.sendResponseHeaders(200, installer.length);
+			try (var output = exchange.getResponseBody()) {
+				output.write(installer);
+			}
+		});
+		server.start();
+
+		Path staged = UpdateChecker.stageInstaller(
+				new UpdateChecker.MsiAsset(endpoint("/installer").toExternalForm(), sha256(installer)), "v0.0.24",
+				staging, url -> true);
+
+		assertTrue(Files.isRegularFile(staged));
+	}
+
+	@Test
 	void failedDownloadRemovesBothPartialAndPublishedArtifacts() throws Exception {
 		Path staging = temporaryDirectory.resolve("staging");
 		startBinaryResponse(200, "not-the-expected-installer".getBytes(StandardCharsets.UTF_8));
@@ -297,6 +375,7 @@ class UpdateCheckerTest {
 		server = HttpServer.create(new InetSocketAddress(0), 0);
 		server.createContext("/release", exchange -> {
 			try {
+				// Fixed sleep kept: simulates a slow server response.
 				if (delayMillis > 0) Thread.sleep(delayMillis);
 				byte[] response = body.getBytes(StandardCharsets.UTF_8);
 				exchange.sendResponseHeaders(status, response.length);

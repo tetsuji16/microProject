@@ -49,25 +49,25 @@ class MpxConverterTimeUnitTest {
 			TimeUnit.ELAPSED_YEARS,
 			TimeUnit.ELAPSED_PERCENT
 		};
-		net.sf.mpxj.TimeUnit[] mpxjUnits = {
-			net.sf.mpxj.TimeUnit.MINUTES,
-			net.sf.mpxj.TimeUnit.HOURS,
-			net.sf.mpxj.TimeUnit.DAYS,
-			net.sf.mpxj.TimeUnit.WEEKS,
-			net.sf.mpxj.TimeUnit.MONTHS,
-			net.sf.mpxj.TimeUnit.PERCENT,
-			net.sf.mpxj.TimeUnit.YEARS,
-			net.sf.mpxj.TimeUnit.ELAPSED_MINUTES,
-			net.sf.mpxj.TimeUnit.ELAPSED_HOURS,
-			net.sf.mpxj.TimeUnit.ELAPSED_DAYS,
-			net.sf.mpxj.TimeUnit.ELAPSED_WEEKS,
-			net.sf.mpxj.TimeUnit.ELAPSED_MONTHS,
-			net.sf.mpxj.TimeUnit.ELAPSED_YEARS,
-			net.sf.mpxj.TimeUnit.ELAPSED_PERCENT
+		org.mpxj.TimeUnit[] mpxjUnits = {
+			org.mpxj.TimeUnit.MINUTES,
+			org.mpxj.TimeUnit.HOURS,
+			org.mpxj.TimeUnit.DAYS,
+			org.mpxj.TimeUnit.WEEKS,
+			org.mpxj.TimeUnit.MONTHS,
+			org.mpxj.TimeUnit.PERCENT,
+			org.mpxj.TimeUnit.YEARS,
+			org.mpxj.TimeUnit.ELAPSED_MINUTES,
+			org.mpxj.TimeUnit.ELAPSED_HOURS,
+			org.mpxj.TimeUnit.ELAPSED_DAYS,
+			org.mpxj.TimeUnit.ELAPSED_WEEKS,
+			org.mpxj.TimeUnit.ELAPSED_MONTHS,
+			org.mpxj.TimeUnit.ELAPSED_YEARS,
+			org.mpxj.TimeUnit.ELAPSED_PERCENT
 		};
 
 		for (int i = 0; i < engineUnits.length; i++) {
-			net.sf.mpxj.Duration converted = MPXConverter.toMPXDuration(Duration.getInstance(1, engineUnits[i]));
+			org.mpxj.Duration converted = MPXConverter.toMPXDuration(Duration.getInstance(1, engineUnits[i]));
 			assertEquals(mpxjUnits[i], converted.getUnits(), "engine time unit " + engineUnits[i]);
 		}
 	}

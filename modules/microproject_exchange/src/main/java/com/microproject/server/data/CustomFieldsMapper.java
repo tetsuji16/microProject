@@ -28,9 +28,9 @@ import java.util.logging.Logger;
 
 import com.microproject.field.CustomFieldsImpl;
 
-import net.sf.mpxj.FieldType;
-import net.sf.mpxj.ResourceField;
-import net.sf.mpxj.TaskField;
+import org.mpxj.FieldType;
+import org.mpxj.ResourceField;
+import org.mpxj.TaskField;
 
 public class CustomFieldsMapper {
 	private static final Logger logger = Logger.getLogger(CustomFieldsMapper.class.getName());

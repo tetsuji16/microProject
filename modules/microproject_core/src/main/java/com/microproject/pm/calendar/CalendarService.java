@@ -52,14 +52,14 @@ import static com.microproject.util.IdentityCollections.containsIdentity;
  * Facade for manipulating calendars via a dialog or web interface
  */
 public class CalendarService {
-	private static CalendarService instance = null;
+	private static final class Holder {
+		static final CalendarService INSTANCE = new CalendarService();
+	}
 	ArrayList<WorkingCalendar> baseCalendars = new ArrayList<>();
 	ArrayList<WorkingCalendar> derivedCalendars = new ArrayList<>();
 
 	public static CalendarService getInstance() {
-		if (instance == null)
-			instance = new CalendarService();
-		return instance;
+		return Holder.INSTANCE;
 	}
 	/**
 	 * Gets the name of a calendar

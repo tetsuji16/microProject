@@ -55,16 +55,18 @@ class EdtWatchdogTest {
 				try { release.await(); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
 			});
 			assertTrue(entered.await(5, TimeUnit.SECONDS));
-			try (EdtWatchdog watchdog = EdtWatchdog.start(150)) {
+			try (EdtWatchdog _ = EdtWatchdog.start(150)) {
 				assertTrue(report.await(5, TimeUnit.SECONDS));
 				assertTrue(dump.get().contains("AWT-EventQueue #"));
 				assertTrue(dump.get().contains("Thread #" + namedThread.threadId()));
 				assertFalse(dump.get().contains("secret-C:"));
+				// Fixed sleep kept: blocks the EDT for a set time to exceed the watchdog threshold.
 				Thread.sleep(400);
 				assertEquals(1, reports.get());
 			}
 			release.countDown();
 			EventQueue.invokeAndWait(() -> { });
+			// Fixed sleep kept: elapsed time is what the watchdog threshold measures.
 			Thread.sleep(350);
 			assertEquals(1, reports.get());
 		} finally {
@@ -104,7 +106,7 @@ class EdtWatchdogTest {
 		CountDownLatch held = new CountDownLatch(1);
 		CountDownLatch release = new CountDownLatch(1);
 		Thread holder = new Thread(() -> {
-			try (ProjectMutationState.Scope scope = state.begin()) {
+			try (ProjectMutationState.Scope _ = state.begin()) {
 				held.countDown();
 				release.await();
 			} catch (InterruptedException e) {
@@ -118,8 +120,9 @@ class EdtWatchdogTest {
 				holder.start();
 				assertTrue(held.await(5, TimeUnit.SECONDS));
 			}
-			try (EdtWatchdog watchdog = EdtWatchdog.start(150)) {
+			try (EdtWatchdog _ = EdtWatchdog.start(150)) {
 				assertTrue(report.await(5, TimeUnit.SECONDS));
+				// Fixed sleep kept: blocks the EDT for a set time to exceed the watchdog threshold.
 				Thread.sleep(500);
 				assertEquals(1, reports.get());
 			}
@@ -148,8 +151,9 @@ class EdtWatchdogTest {
 			@Override public void close() { }
 		};
 		logger.addHandler(handler);
-		try (EdtWatchdog watchdog = EdtWatchdog.start(250)) {
+		try (EdtWatchdog _ = EdtWatchdog.start(250)) {
 			EventQueue.invokeAndWait(() -> { });
+			// Fixed sleep kept: elapsed time is what the watchdog threshold measures.
 			Thread.sleep(600);
 			assertEquals(0, reports.get());
 		} finally {

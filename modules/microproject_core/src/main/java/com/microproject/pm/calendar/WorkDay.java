@@ -157,32 +157,38 @@ public class WorkDay extends CalendarEvent implements Comparable, Cloneable,Seri
 		return "work day " + new Date(start) + " " + hashCode() + "\n" + workingHours.toString() + "\n";
 	}
 	
-	private static WorkDay defaultWorkDay = null;
-	
-	public static WorkDay getDefaultWorkDay() {
-		if (defaultWorkDay == null) {
-			defaultWorkDay = new WorkDay();
-			defaultWorkDay.setWorkingHours(WorkingHours.getDefault());
+	private static final class DefaultHolder {
+		static final WorkDay INSTANCE = create();
+		private static WorkDay create() {
+			WorkDay workDay = new WorkDay();
+			workDay.setWorkingHours(WorkingHours.getDefault());
+			return workDay;
 		}
-		return defaultWorkDay;
-	}
-	private static WorkDay nonStopWorkDay = null;
-	
-	public static WorkDay getNonStopWorkDay() {
-		if (nonStopWorkDay == null) {
-			nonStopWorkDay = new WorkDay();
-			nonStopWorkDay.setWorkingHours(WorkingHours.getNonStop());
-		}
-		return nonStopWorkDay;
 	}
 
-	private static WorkDay nonWorkingWorkDay = null;
-	
-	public static WorkDay getNonWorkingDay() {
-		if (nonWorkingWorkDay == null) {
-			nonWorkingWorkDay = new WorkDay();
+	public static WorkDay getDefaultWorkDay() {
+		return DefaultHolder.INSTANCE;
+	}
+
+	private static final class NonStopHolder {
+		static final WorkDay INSTANCE = create();
+		private static WorkDay create() {
+			WorkDay workDay = new WorkDay();
+			workDay.setWorkingHours(WorkingHours.getNonStop());
+			return workDay;
 		}
-		return nonWorkingWorkDay;
+	}
+
+	public static WorkDay getNonStopWorkDay() {
+		return NonStopHolder.INSTANCE;
+	}
+
+	private static final class NonWorkingHolder {
+		static final WorkDay INSTANCE = new WorkDay();
+	}
+
+	public static WorkDay getNonWorkingDay() {
+		return NonWorkingHolder.INSTANCE;
 	}
 	
 }

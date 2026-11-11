@@ -34,14 +34,14 @@ public class MpxEarnedValueMethodConverter extends FieldTypeConverter {
 
 	@Override
 	public Object from(Object o) {
-		net.sf.mpxj.EarnedValueMethod evm=(net.sf.mpxj.EarnedValueMethod)o;
+		org.mpxj.EarnedValueMethod evm=(org.mpxj.EarnedValueMethod)o;
 		return Integer.valueOf(evm.getValue());
 	}
 
 	@Override
 	public Object to(Object o) {
 		Integer evm=(Integer)o;
-		return net.sf.mpxj.EarnedValueMethod.getInstance(evm.intValue());
+		return org.mpxj.EarnedValueMethod.getInstance(evm.intValue());
 	}
 
 }

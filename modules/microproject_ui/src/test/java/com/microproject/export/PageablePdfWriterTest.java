@@ -17,16 +17,16 @@ import java.util.Locale;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import com.lowagie.text.pdf.PdfReader;
-import com.lowagie.text.pdf.PdfArray;
-import com.lowagie.text.pdf.DefaultFontMapper;
-import com.lowagie.text.pdf.PdfDictionary;
-import com.lowagie.text.pdf.PdfName;
-import com.lowagie.text.pdf.PRStream;
-import com.lowagie.text.Document;
-import com.lowagie.text.Rectangle;
-import com.lowagie.text.pdf.PdfWriter;
-import com.lowagie.text.pdf.parser.PdfTextExtractor;
+import org.openpdf.text.pdf.PdfReader;
+import org.openpdf.text.pdf.PdfArray;
+import org.openpdf.text.pdf.DefaultFontMapper;
+import org.openpdf.text.pdf.PdfDictionary;
+import org.openpdf.text.pdf.PdfName;
+import org.openpdf.text.pdf.PRStream;
+import org.openpdf.text.Document;
+import org.openpdf.text.Rectangle;
+import org.openpdf.text.pdf.PdfWriter;
+import org.openpdf.text.pdf.parser.PdfTextExtractor;
 import com.microproject.field.Field;
 import com.microproject.print.GraphPageable;
 import com.microproject.print.ExtendedPageFormat;
@@ -72,7 +72,7 @@ class PageablePdfWriterTest {
 					false, true, true, labels, sections);
 				File output = directory.resolve("project-details-" + locale.getLanguage() + ".pdf").toFile();
 				new PageablePdfWriter().write(new GraphPageable(new ReportPrintable(model), false), output, ignored -> { });
-				try (PdfReader reader = new PdfReader(output.getAbsolutePath())) {
+				try (PdfReader reader = new PdfReader(java.nio.file.Files.readAllBytes(output.toPath()))) {
 					String text = new PdfTextExtractor(reader).getTextFromPage(1);
 					for (Section section : sections) assertTrue(text.contains(section.title()), "Missing " + section.title() + " in " + text);
 					for (int i = 0; i < values.size(); i++)
@@ -136,7 +136,7 @@ class PageablePdfWriterTest {
 				Locale.setDefault(locale);
 				File output = directory.resolve("report-" + locale.getLanguage() + ".pdf").toFile();
 				new PageablePdfWriter().write(new GraphPageable(new ReportPrintable(model), false), output, ignored -> { });
-				try (PdfReader reader = new PdfReader(output.getAbsolutePath())) {
+				try (PdfReader reader = new PdfReader(java.nio.file.Files.readAllBytes(output.toPath()))) {
 					String text = new PdfTextExtractor(reader).getTextFromPage(1);
 					assertTrue(text.contains("日本語プロジェクト"), () -> "Expected embedded-font Japanese PDF text, got: " + text);
 					assertTrue(text.contains("選択可能なPDF文字列"), () -> "Expected selectable Japanese report data, got: " + text);
@@ -163,7 +163,7 @@ class PageablePdfWriterTest {
 		assertTrue(report.getNumberOfPages() > 1, "Long Notes must be split across physical pages");
 		File output = directory.resolve("long-notes.pdf").toFile();
 		new PageablePdfWriter().write(new GraphPageable(report, false), output, ignored -> { });
-		try (PdfReader reader = new PdfReader(output.getAbsolutePath())) {
+		try (PdfReader reader = new PdfReader(java.nio.file.Files.readAllBytes(output.toPath()))) {
 			assertTrue(reader.getNumberOfPages() > 1);
 			StringBuilder text = new StringBuilder();
 			for (int page = 1; page <= reader.getNumberOfPages(); page++)
@@ -190,8 +190,8 @@ class PageablePdfWriterTest {
 		File legacyOutput = directory.resolve("graph-legacy-baseline.pdf").toFile();
 		writeWithLegacyGraphPdfRoute(pageable, legacyOutput);
 		new PageablePdfWriter().write(pageable, output, ignored -> { });
-		try (PdfReader reader = new PdfReader(output.getAbsolutePath());
-				PdfReader legacyReader = new PdfReader(legacyOutput.getAbsolutePath())) {
+		try (PdfReader reader = new PdfReader(java.nio.file.Files.readAllBytes(output.toPath()));
+				PdfReader legacyReader = new PdfReader(java.nio.file.Files.readAllBytes(legacyOutput.toPath()))) {
 			assertTrue(reader.getNumberOfPages() > 0, "the shared graph path must still emit printable pages");
 			String text = new PdfTextExtractor(reader).getTextFromPage(1);
 			String legacyText = new PdfTextExtractor(legacyReader).getTextFromPage(1);

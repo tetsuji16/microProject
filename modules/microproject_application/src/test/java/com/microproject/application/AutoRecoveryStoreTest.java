@@ -308,7 +308,7 @@ class AutoRecoveryStoreTest {
 		first.recordCompletedSnapshot(77, "A", null, Instant.now(), a2, seriesA);
 		assertFalse(Files.exists(a1));
 		assertEquals(java.util.Set.of(a2, b1), first.listRecoverable().stream().map(AutoRecoveryStore.Entry::snapshot).collect(java.util.stream.Collectors.toSet()));
-		try (var lease = first.tryOffer(first.listRecoverable().stream().filter(entry -> entry.snapshot().equals(a2)).findFirst().orElseThrow())) {
+		try (var _ = first.tryOffer(first.listRecoverable().stream().filter(entry -> entry.snapshot().equals(a2)).findFirst().orElseThrow())) {
 			Path a3 = first.newSnapshotPath(77, true); Files.writeString(a3, "a3");
 			first.recordCompletedSnapshot(77, "A", null, Instant.now(), a3, seriesA);
 			assertTrue(Files.exists(a2));

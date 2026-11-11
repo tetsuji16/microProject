@@ -35,12 +35,12 @@ import com.microproject.transaction.MultipleTransactionManager;
 public class CalendarCatalog implements Document {
 	
 	
-	private static CalendarCatalog instance = null;
+	private static final class Holder {
+		static final CalendarCatalog INSTANCE = new CalendarCatalog();
+	}
 	
 	public static CalendarCatalog getInstance() {
-		if (instance == null)
-			instance = new CalendarCatalog();
-		return instance;
+		return Holder.INSTANCE;
 		
 	}
 	private CalendarCatalog() {

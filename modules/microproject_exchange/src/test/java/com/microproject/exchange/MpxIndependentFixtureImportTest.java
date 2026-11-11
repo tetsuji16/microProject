@@ -25,8 +25,8 @@ import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.Task;
-import net.sf.mpxj.RelationType;
-import net.sf.mpxj.TimeUnit;
+import org.mpxj.RelationType;
+import org.mpxj.TimeUnit;
 
 class MpxIndependentFixtureImportTest {
 	private static final String FIXTURE = "/mpxj-v11.5.4/task-links-project98.mpx";
@@ -34,7 +34,7 @@ class MpxIndependentFixtureImportTest {
 
 	@Test
 	void pinsProject98CalendarIdentityExpectationsFromMpxj() throws Exception {
-		net.sf.mpxj.ProjectFile source = new net.sf.mpxj.mpx.MPXReader().read(calendarFixture());
+		org.mpxj.ProjectFile source = new org.mpxj.mpx.MPXReader().read(calendarFixture());
 		assertEquals("Standard", source.getCalendars().getByUniqueID(1).getName());
 		assertEquals("Calendar1", source.getCalendars().getByUniqueID(2).getName());
 		assertEquals("Calendar2", source.getCalendars().getByUniqueID(3).getName());
@@ -56,7 +56,7 @@ class MpxIndependentFixtureImportTest {
 
 	@Test
 	void importsIndependentProject98MpxTaskLinksThroughMpoReload() throws Exception {
-		net.sf.mpxj.ProjectFile raw = new net.sf.mpxj.mpx.MPXReader().read(fixture());
+		org.mpxj.ProjectFile raw = new org.mpxj.mpx.MPXReader().read(fixture());
 		assertRawLink(raw, 1, 2, RelationType.FINISH_START, 0, TimeUnit.DAYS);
 		assertRawLink(raw, 3, 4, RelationType.FINISH_START, 1, TimeUnit.DAYS);
 		assertRawLink(raw, 5, 6, RelationType.FINISH_START, 2, TimeUnit.DAYS);
@@ -83,16 +83,16 @@ class MpxIndependentFixtureImportTest {
 		assertLink(reopened, 15, 16, DependencyType.Kind.FF, 16);
 	}
 
-	private static void assertRawLink(net.sf.mpxj.ProjectFile project, int predecessorId, int successorId,
+	private static void assertRawLink(org.mpxj.ProjectFile project, int predecessorId, int successorId,
 		RelationType type, double lag, TimeUnit units) {
-		net.sf.mpxj.Task predecessor = project.getTaskByID(predecessorId);
-		net.sf.mpxj.Task successor = project.getTaskByID(successorId);
+		org.mpxj.Task predecessor = project.getTaskByID(predecessorId);
+		org.mpxj.Task successor = project.getTaskByID(successorId);
 		assertEquals("Task 1", predecessor.getName());
 		assertEquals("Task 2", successor.getName());
 		assertEquals(1, successor.getPredecessors().size());
-		net.sf.mpxj.Relation relation = successor.getPredecessors().getFirst();
-		assertEquals(predecessor, relation.getTargetTask());
-		assertEquals(successor, relation.getSourceTask());
+		org.mpxj.Relation relation = successor.getPredecessors().getFirst();
+		assertEquals(predecessor, relation.getPredecessorTask());
+		assertEquals(successor, relation.getSuccessorTask());
 		assertEquals(type, relation.getType());
 		assertEquals(units, relation.getLag().getUnits());
 		assertEquals(lag, relation.getLag().getDuration());

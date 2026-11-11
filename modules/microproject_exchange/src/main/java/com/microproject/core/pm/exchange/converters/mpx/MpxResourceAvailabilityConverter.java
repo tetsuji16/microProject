@@ -35,8 +35,8 @@ import com.microproject.pm.availability.Availability;
 import com.microproject.pm.availability.AvailabilityTable;
 import com.microproject.util.DateTime;
 
-import net.sf.mpxj.Resource;
-import net.sf.mpxj.common.DateHelper;
+import org.mpxj.Resource;
+import org.mpxj.common.LocalDateTimeHelper;
 
 /** Maps the native interval availability table to MPXJ's inclusive period table. */
 public final class MpxResourceAvailabilityConverter {
@@ -57,7 +57,7 @@ public final class MpxResourceAvailabilityConverter {
 	/** Writes every domain row, including default and zero rows, as an MPXJ period. */
 	public static void to(AvailabilityTable source, Resource target) {
 		List<ValueObjectForInterval> sourceRows = source.getList();
-		List<net.sf.mpxj.Availability> converted = new ArrayList<>(sourceRows.size());
+		List<org.mpxj.Availability> converted = new ArrayList<>(sourceRows.size());
 		long previousStart = DOMAIN_START;
 		for (ValueObjectForInterval value : sourceRows) {
 			if (!(value instanceof Availability availability))
@@ -69,9 +69,9 @@ public final class MpxResourceAvailabilityConverter {
 			validateUnits(availability.getMaximumUnits());
 			double percentage = availability.getMaximumUnits() * 100.0D;
 			validateUnits(percentage);
-			Date mpxStart = start == DOMAIN_START ? DateHelper.START_DATE_NA : finiteDate(start, "start");
-			Date mpxEnd = end == DOMAIN_END ? DateHelper.END_DATE_NA : finiteDate(end - SECOND_MILLIS, "end");
-			converted.add(new net.sf.mpxj.Availability(mpxStart, mpxEnd, Double.valueOf(percentage)));
+			java.time.LocalDateTime mpxStart = start == DOMAIN_START ? LocalDateTimeHelper.START_DATE_NA : MpxDates.toLocalDateTime(finiteDate(start, "start"));
+			java.time.LocalDateTime mpxEnd = end == DOMAIN_END ? LocalDateTimeHelper.END_DATE_NA : MpxDates.toLocalDateTime(finiteDate(end - SECOND_MILLIS, "end"));
+			converted.add(new org.mpxj.Availability(mpxStart, mpxEnd, Double.valueOf(percentage)));
 			previousStart = end;
 		}
 		if (previousStart != DOMAIN_END)
@@ -84,7 +84,7 @@ public final class MpxResourceAvailabilityConverter {
 		List<Period> result = new ArrayList<>();
 		if (!source.getAvailability().isEmpty()) {
 			long previousEnd = DOMAIN_START;
-			for (net.sf.mpxj.Availability value : source.getAvailability()) {
+			for (org.mpxj.Availability value : source.getAvailability()) {
 				long start = sourceBoundary(value.getRange().getStart(), true);
 				long end = sourceBoundary(value.getRange().getEnd(), false);
 				if (start < previousEnd || end <= start)
@@ -102,8 +102,8 @@ public final class MpxResourceAvailabilityConverter {
 		}
 
 		Number maximumUnits = source.getMaxUnits();
-		Date availableFrom = source.getAvailableFrom();
-		Date availableTo = source.getAvailableTo();
+		java.time.LocalDateTime availableFrom = source.getAvailableFrom();
+		java.time.LocalDateTime availableTo = source.getAvailableTo();
 		if (maximumUnits == null && availableFrom == null && availableTo == null) return null;
 		if (maximumUnits == null)
 			throw new IllegalArgumentException("Resource availability bounds are missing MaxUnits");
@@ -157,14 +157,14 @@ public final class MpxResourceAvailabilityConverter {
 		}
 	}
 
-	private static long sourceBoundary(Date value, boolean start) {
+	private static long sourceBoundary(java.time.LocalDateTime value, boolean start) {
 		if (value == null) return start ? DOMAIN_START : DOMAIN_END;
-		if (start && DateHelper.END_DATE_NA.equals(value)
-				|| !start && DateHelper.START_DATE_NA.equals(value))
+		if (start && isEndSentinel(value)
+				|| !start && LocalDateTimeHelper.START_DATE_NA.equals(value))
 			throw new IllegalArgumentException("Resource availability uses a sentinel at the wrong boundary");
-		if (start && DateHelper.START_DATE_NA.equals(value)) return DOMAIN_START;
-		if (!start && DateHelper.END_DATE_NA.equals(value)) return DOMAIN_END;
-		long millis = DateUTCConverter.toModelTime(value);
+		if (start && LocalDateTimeHelper.START_DATE_NA.equals(value)) return DOMAIN_START;
+		if (!start && isEndSentinel(value)) return DOMAIN_END;
+		long millis = DateUTCConverter.toModelTime(MpxDates.toDate(value));
 		if (Math.floorMod(millis, SECOND_MILLIS) != 0L)
 			throw new IllegalArgumentException("Resource availability boundary is not second-aligned");
 		if (start) {
@@ -178,6 +178,12 @@ public final class MpxResourceAvailabilityConverter {
 		if (exclusiveEnd >= DOMAIN_END)
 			throw new IllegalArgumentException("Finite resource availability end collides with the unbounded sentinel");
 		return exclusiveEnd;
+	}
+
+	// MPXJ 16 reads availability tables with a different end sentinel than LocalDateTimeHelper.
+	private static boolean isEndSentinel(java.time.LocalDateTime value) {
+		return LocalDateTimeHelper.END_DATE_NA.equals(value)
+			|| org.mpxj.AvailabilityTable.END_DATE_NA.equals(value);
 	}
 
 	private static Date finiteDate(long millis, String boundary) {

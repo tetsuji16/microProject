@@ -27,8 +27,8 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.jupiter.api.Test;
 
-import net.sf.mpxj.Duration;
-import net.sf.mpxj.TimeUnit;
+import org.mpxj.Duration;
+import org.mpxj.TimeUnit;
 
 /**
  * Locks the MPXJ TimeUnit value mapping used by MpxTaskConverter / MpxAssignmentConverter

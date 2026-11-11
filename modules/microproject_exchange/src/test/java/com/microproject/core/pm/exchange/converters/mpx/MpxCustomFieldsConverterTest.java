@@ -26,9 +26,9 @@ import com.microproject.pm.task.Project;
 import com.microproject.server.data.CustomFieldsMapper;
 import com.microproject.undo.DataFactoryUndoController;
 
-import net.sf.mpxj.ProjectFile;
-import net.sf.mpxj.ResourceField;
-import net.sf.mpxj.TaskField;
+import org.mpxj.ProjectFile;
+import org.mpxj.ResourceField;
+import org.mpxj.TaskField;
 
 class MpxCustomFieldsConverterTest {
 	private static final long DATE = 1_716_840_000_000L;
@@ -41,17 +41,16 @@ class MpxCustomFieldsConverterTest {
 		Resource resource = project.getResourcePool().createScriptedResource();
 		resource.setName("Custom values");
 		ProjectFile mpx = new ProjectFile();
-		net.sf.mpxj.Task sourceTask = mpx.addTask();
-		net.sf.mpxj.Resource sourceResource = mpx.addResource();
-		setValues(sourceTask, TaskField.TEXT1, TaskField.NUMBER1, TaskField.DATE1, TaskField.DURATION1,
-			TaskField.FLAG1, TaskField.COST1, TaskField.START1, TaskField.FINISH1);
-		setValues(sourceResource, ResourceField.TEXT1, ResourceField.NUMBER1, ResourceField.DATE1,
-			ResourceField.DURATION1, ResourceField.FLAG1, ResourceField.COST1, ResourceField.START1,
-			ResourceField.FINISH1);
-
+		org.mpxj.Task sourceTask = mpx.addTask();
+		org.mpxj.Resource sourceResource = mpx.addResource();
 		TimeZone originalZone = TimeZone.getDefault();
 		TimeZone.setDefault(TimeZone.getTimeZone("GMT"));
 		try {
+			setValues(sourceTask, TaskField.TEXT1, TaskField.NUMBER1, TaskField.DATE1, TaskField.DURATION1,
+				TaskField.FLAG1, TaskField.COST1, TaskField.START1, TaskField.FINISH1);
+			setValues(sourceResource, ResourceField.TEXT1, ResourceField.NUMBER1, ResourceField.DATE1,
+				ResourceField.DURATION1, ResourceField.FLAG1, ResourceField.COST1, ResourceField.START1,
+				ResourceField.FINISH1);
 			DurationDefaults defaults = new DurationDefaults(480, 2400, 20);
 			MpxImportState state = new MpxImportState();
 			state.setProjectBaseCalendar(project.getWorkCalendar());
@@ -75,7 +74,7 @@ class MpxCustomFieldsConverterTest {
 	@Test
 	void absentCustomValuesDoNotClearExistingIndexedValues() {
 		ProjectFile source = new ProjectFile();
-		net.sf.mpxj.Task task = source.addTask();
+		org.mpxj.Task task = source.addTask();
 		Project target = project();
 		NormalTask existing = target.createScriptedTask();
 		existing.setCustomText(0, "keep");
@@ -95,7 +94,7 @@ class MpxCustomFieldsConverterTest {
 			+ "</ExtendedAttribute></Task>", "Invalid MSPDI NUMBER value");
 
 		ProjectFile source = new ProjectFile();
-		net.sf.mpxj.Task sourceTask = source.addTask();
+		org.mpxj.Task sourceTask = source.addTask();
 		Project target = project();
 		NormalTask task = target.createScriptedTask();
 		sourceTask.set(TaskField.COST1, Double.valueOf(Double.POSITIVE_INFINITY));
@@ -107,7 +106,7 @@ class MpxCustomFieldsConverterTest {
 			task.getCustomFields(), CustomFieldsMapper.getInstance().taskMaps, target.getDurationDefaults()));
 		sourceTask.set(TaskField.NUMBER1, null);
 		sourceTask.set(TaskField.DURATION1,
-			net.sf.mpxj.Duration.getInstance(Double.NaN, net.sf.mpxj.TimeUnit.HOURS));
+			org.mpxj.Duration.getInstance(Double.NaN, org.mpxj.TimeUnit.HOURS));
 		assertThrows(IllegalArgumentException.class, () -> MpxCustomFieldsConverter.from(sourceTask,
 			task.getCustomFields(), CustomFieldsMapper.getInstance().taskMaps, target.getDurationDefaults()));
 	}
@@ -120,9 +119,9 @@ class MpxCustomFieldsConverterTest {
 				"assignment-assignments-project2019-mspdi.xml");
 		String xml = Files.readString(fixture, StandardCharsets.UTF_8);
 		DurationDefaults defaults = new DurationDefaults(480, 2400, 20);
-		assertEquals(188743731, net.sf.mpxj.common.FieldTypeHelper.getFieldID(TaskField.TEXT1),
+		assertEquals(188743731, org.mpxj.common.FieldTypeHelper.getFieldID(TaskField.TEXT1),
 			"Microsoft MSPDI Task Text1 FieldID");
-		assertEquals(205520904, net.sf.mpxj.common.FieldTypeHelper.getFieldID(ResourceField.TEXT1),
+		assertEquals(205520904, org.mpxj.common.FieldTypeHelper.getFieldID(ResourceField.TEXT1),
 			"Microsoft MSPDI Resource Text1 FieldID");
 		MspdiField[] taskFields = {
 			new MspdiField(188743786, 0, "1250"), // Cost1
@@ -155,11 +154,11 @@ class MpxCustomFieldsConverterTest {
 		TimeZone originalZone = TimeZone.getDefault();
 		TimeZone.setDefault(TimeZone.getTimeZone("GMT"));
 		try {
-			net.sf.mpxj.ProjectFile parsedSource = new net.sf.mpxj.mspdi.MSPDIReader()
+			org.mpxj.ProjectFile parsedSource = new org.mpxj.mspdi.MSPDIReader()
 				.read(new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)));
-			net.sf.mpxj.Task parsedTask = parsedSource.getTasks().stream()
+			org.mpxj.Task parsedTask = parsedSource.getTasks().stream()
 				.filter(t -> "Task 1".equals(t.getName())).findFirst().orElseThrow();
-			net.sf.mpxj.Resource parsedResource = parsedSource.getResources().stream()
+			org.mpxj.Resource parsedResource = parsedSource.getResources().stream()
 				.filter(r -> "Resource 1".equals(r.getName())).findFirst().orElseThrow();
 			long[] taskDateValues = customFieldDates(parsedTask, TaskField.DATE1, TaskField.FINISH1, TaskField.START1);
 			long[] resourceDateValues = customFieldDates(parsedResource, ResourceField.DATE1,
@@ -269,10 +268,10 @@ class MpxCustomFieldsConverterTest {
 		return xml;
 	}
 
-	private static void assertFieldIds(MspdiField[] fields, net.sf.mpxj.FieldType... mpxFields) {
+	private static void assertFieldIds(MspdiField[] fields, org.mpxj.FieldType... mpxFields) {
 		assertEquals(fields.length, mpxFields.length);
 		for (int i = 0; i < fields.length; i++)
-			assertEquals(fields[i].id(), net.sf.mpxj.common.FieldTypeHelper.getFieldID(mpxFields[i]));
+			assertEquals(fields[i].id(), org.mpxj.common.FieldTypeHelper.getFieldID(mpxFields[i]));
 	}
 
 	private static void assertMspdiValues(CustomFields target, MspdiField[] fields,
@@ -281,8 +280,8 @@ class MpxCustomFieldsConverterTest {
 		// MPXJ's pinned MSPDI converter uses hundredths for currency values.
 		assertEquals(Double.parseDouble(fields[0].value()) / 100D, target.getCustomCost(0));
 		assertEquals(dateValues[0], target.getCustomDate(0));
-		assertEquals(MpxUtils.toProjectDuration(net.sf.mpxj.Duration.getInstance(
-			task ? 2.0 : 1.0, net.sf.mpxj.TimeUnit.DAYS), defaults), target.getCustomDuration(0));
+		assertEquals(MpxUtils.toProjectDuration(org.mpxj.Duration.getInstance(
+			task ? 2.0 : 1.0, org.mpxj.TimeUnit.DAYS), defaults), target.getCustomDuration(0));
 		assertEquals(dateValues[1], target.getCustomFinish(0));
 		assertEquals(true, target.getCustomFlag(0));
 		assertEquals(Double.parseDouble(fields[5].value()), target.getCustomNumber(0));
@@ -290,28 +289,28 @@ class MpxCustomFieldsConverterTest {
 		assertEquals(task ? "Task source value" : "Resource source value", target.getCustomText(0));
 	}
 
-	private static long[] customFieldDates(net.sf.mpxj.FieldContainer source,
-			net.sf.mpxj.FieldType date, net.sf.mpxj.FieldType finish, net.sf.mpxj.FieldType start) {
+	private static long[] customFieldDates(org.mpxj.FieldContainer source,
+			org.mpxj.FieldType date, org.mpxj.FieldType finish, org.mpxj.FieldType start) {
 		// Derive expectations from MPXJ's parsed literal MSPDI values so this test
 		// isolates our indexed-field mapping from MPXJ's host-zone parsing rules.
 		return java.util.stream.Stream.of(date, finish, start)
 			.mapToLong(field -> com.microproject.core.pm.exchange.converters.type.DateUTCConverter
-				.toModelTime((Date) source.get(field)))
+				.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate((java.time.LocalDateTime) source.get(field))))
 			.toArray();
 	}
 
-	private static void setValues(net.sf.mpxj.FieldContainer fields, net.sf.mpxj.FieldType text,
-			net.sf.mpxj.FieldType number, net.sf.mpxj.FieldType date, net.sf.mpxj.FieldType duration,
-			net.sf.mpxj.FieldType flag, net.sf.mpxj.FieldType cost, net.sf.mpxj.FieldType start,
-			net.sf.mpxj.FieldType finish) {
+	private static void setValues(org.mpxj.FieldContainer fields, org.mpxj.FieldType text,
+			org.mpxj.FieldType number, org.mpxj.FieldType date, org.mpxj.FieldType duration,
+			org.mpxj.FieldType flag, org.mpxj.FieldType cost, org.mpxj.FieldType start,
+			org.mpxj.FieldType finish) {
 		fields.set(text, "field text");
 		fields.set(number, Double.valueOf(12.5D));
-		fields.set(date, new Date(DATE));
-		fields.set(duration, net.sf.mpxj.Duration.getInstance(2.0, net.sf.mpxj.TimeUnit.DAYS));
+		fields.set(date, com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(new Date(DATE)));
+		fields.set(duration, org.mpxj.Duration.getInstance(2.0, org.mpxj.TimeUnit.DAYS));
 		fields.set(flag, Boolean.TRUE);
 		fields.set(cost, Double.valueOf(44.25D));
-		fields.set(start, new Date(DATE + 1000));
-		fields.set(finish, new Date(DATE + 2000));
+		fields.set(start, com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(new Date(DATE + 1000)));
+		fields.set(finish, com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(new Date(DATE + 2000)));
 	}
 
 	private static void assertAllValues(CustomFields fields, DurationDefaults defaults) {
@@ -319,8 +318,8 @@ class MpxCustomFieldsConverterTest {
 		assertEquals(12.5D, fields.getCustomNumber(0));
 		assertEquals(com.microproject.core.pm.exchange.converters.type.DateUTCConverter.toModelTime(new Date(DATE)),
 			fields.getCustomDate(0));
-		assertEquals(MpxUtils.toProjectDuration(net.sf.mpxj.Duration.getInstance(2.0,
-			net.sf.mpxj.TimeUnit.DAYS), defaults), fields.getCustomDuration(0));
+		assertEquals(MpxUtils.toProjectDuration(org.mpxj.Duration.getInstance(2.0,
+			org.mpxj.TimeUnit.DAYS), defaults), fields.getCustomDuration(0));
 		assertEquals(true, fields.getCustomFlag(0));
 		assertEquals(44.25D, fields.getCustomCost(0));
 		assertEquals(com.microproject.core.pm.exchange.converters.type.DateUTCConverter.toModelTime(new Date(DATE + 1000)),

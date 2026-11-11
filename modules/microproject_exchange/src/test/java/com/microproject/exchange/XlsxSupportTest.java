@@ -46,11 +46,11 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 
-import net.sf.mpxj.ProjectFile;
-import net.sf.mpxj.ProjectCalendar;
-import net.sf.mpxj.Task;
-import net.sf.mpxj.mspdi.MSPDIWriter;
-import net.sf.mpxj.writer.ProjectWriter;
+import org.mpxj.ProjectFile;
+import org.mpxj.ProjectCalendar;
+import org.mpxj.Task;
+import org.mpxj.mspdi.MSPDIWriter;
+import org.mpxj.writer.ProjectWriter;
 import com.microproject.exchange.mpxj.ProjectWriterFactory;
 import com.microproject.exchange.xlsx.MicroProjectXlsxReader;
 
@@ -290,10 +290,10 @@ public class XlsxSupportTest {
 				com.microproject.core.pm.exchange.converters.mpx.MpxUtils.toMillis(byName.get("Succ").getPredecessors().get(0).getLag()));
 		assertEquals(-1L * 60L * 60L * 1000L,
 				com.microproject.core.pm.exchange.converters.mpx.MpxUtils.toMillis(byName.get("OtherSucc").getPredecessors().get(0).getLag()));
-		net.sf.mpxj.Duration percentLag = byName.get("PercentSucc").getPredecessors().get(0).getLag();
-		assertEquals(net.sf.mpxj.TimeUnit.PERCENT, percentLag.getUnits());
+		org.mpxj.Duration percentLag = byName.get("PercentSucc").getPredecessors().get(0).getLag();
+		assertEquals(org.mpxj.TimeUnit.PERCENT, percentLag.getUnits());
 		assertEquals(50.0, percentLag.getDuration(), 0.0001);
-		net.sf.mpxj.Duration elapsedLag = byName.get("ElapsedSucc").getPredecessors().get(0).getLag();
+		org.mpxj.Duration elapsedLag = byName.get("ElapsedSucc").getPredecessors().get(0).getLag();
 		assertEquals(2L * 24L * 60L * 60L * 1000L, com.microproject.core.pm.exchange.converters.mpx.MpxUtils.toMillis(elapsedLag));
 	}
 
@@ -464,7 +464,7 @@ public class XlsxSupportTest {
 		try {
 			new MicroProjectXlsxReader().read(new ByteArrayInputStream(out.toByteArray()));
 			fail("Malformed ParentUniqueID references must be rejected");
-		} catch (net.sf.mpxj.MPXJException expected) {
+		} catch (org.mpxj.MPXJException expected) {
 			assertTrue(expected.getCause() instanceof IllegalArgumentException);
 			assertTrue(expected.getCause().getMessage().contains(expectedMessage));
 		}
@@ -557,7 +557,7 @@ public class XlsxSupportTest {
 		try {
 			MicroProjectXlsxReader.readMicroProjectProject(new ByteArrayInputStream(workbook));
 			fail("Corrupt canonical XLSX metadata or payload must not fall back to a legacy payload");
-		} catch (net.sf.mpxj.MPXJException expected) {
+		} catch (org.mpxj.MPXJException expected) {
 			// The canonical workbook metadata or payload is corrupt.
 		}
 	}
@@ -566,7 +566,7 @@ public class XlsxSupportTest {
 		try {
 			new MicroProjectXlsxReader().read(new ByteArrayInputStream(workbook));
 			fail("Corrupt canonical MSPDI payload must not fall back to a legacy payload");
-		} catch (net.sf.mpxj.MPXJException expected) {
+		} catch (org.mpxj.MPXJException expected) {
 			// The canonical MSPDI payload is corrupt.
 		}
 	}
@@ -767,7 +767,7 @@ public class XlsxSupportTest {
 		WorkingCalendar calendar = CalendarService.getInstance().getStandardBasedInstance();
 		calendar.setName("MSP custom project calendar");
 		source.setBaseCalendar(calendar);
-		net.sf.mpxj.ProjectFile exported = new MSPDISerializer().serializeProject(source);
+		org.mpxj.ProjectFile exported = new MSPDISerializer().serializeProject(source);
 		assertNotNull(exported.getProjectProperties().getDefaultCalendar());
 		assertEquals("MSP custom project calendar", exported.getProjectProperties().getDefaultCalendar().getName());
 		ByteArrayOutputStream output = new ByteArrayOutputStream();

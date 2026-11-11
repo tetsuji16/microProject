@@ -108,33 +108,32 @@ public class DateTime {
 		return cal.getTimeInMillis();
 	}
 	
-	private static Date zeroDateInstance = null; // flyweight for 0 date
-	public static Date getZeroDate() {
-		if (zeroDateInstance == null)
-			zeroDateInstance = new Date(0);
-		return zeroDateInstance;
-	}
-	public static Date NA_TIME= new Date(1); // 1 ms after time 0
-
-	private static Calendar maxCalendarInstance = null; // flyweight for maximum allowed date
-	public static Calendar getMaxCalendar() {
-		if (maxCalendarInstance == null)
-			maxCalendarInstance = calendarInstance(2050,Calendar.JANUARY,0);
-		return maxCalendarInstance;
-	}
-	private static Calendar zeroCalendarInstance = null; // flyweight for zeroimum allowed date
-	public static Calendar getZeroCalendar() {
-		if (zeroCalendarInstance == null) {
-			zeroCalendarInstance = DateTime.calendarInstance();
-			zeroCalendarInstance.setTimeInMillis(0);
+	private static final class Holder {
+		static final Date ZERO_DATE = new Date(0); // flyweight for 0 date
+		static final Calendar MAX_CALENDAR = calendarInstance(2050,Calendar.JANUARY,0); // never handed out directly
+		static final Calendar ZERO_CALENDAR = zeroCalendar(); // never handed out directly
+		static final Date MAX_DATE = MAX_CALENDAR.getTime(); // flyweight for maximum allowed date
+		private static Calendar zeroCalendar() {
+			Calendar cal = calendarInstance();
+			cal.setTimeInMillis(0);
+			return cal;
 		}
-		return zeroCalendarInstance;
 	}
-	private static Date maxDateInstance = null; // flyweight for maximum allowed date
+	public static Date getZeroDate() {
+		return Holder.ZERO_DATE;
+	}
+	public static final Date NA_TIME= new Date(1); // 1 ms after time 0
+
+	/** Returns a copy of the maximum allowed date; callers may modify it freely. */
+	public static Calendar getMaxCalendar() {
+		return (Calendar) Holder.MAX_CALENDAR.clone();
+	}
+	/** Returns a copy of the zero date calendar; callers may modify it freely. */
+	public static Calendar getZeroCalendar() {
+		return (Calendar) Holder.ZERO_CALENDAR.clone();
+	}
 	public static Date getMaxDate() {
-		if (maxDateInstance == null)
-			maxDateInstance = getMaxCalendar().getTime();
-		return maxDateInstance;
+		return Holder.MAX_DATE;
 	}
 	
 	public static Date max(Date date1, Date date2) {

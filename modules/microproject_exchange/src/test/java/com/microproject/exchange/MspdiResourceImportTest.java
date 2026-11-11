@@ -29,13 +29,13 @@ class MspdiResourceImportTest {
 		if (!java.nio.file.Files.isRegularFile(sample))
 			sample = java.nio.file.Path.of("testdata", "New Product.mpp");
 		assertTrue(java.nio.file.Files.isRegularFile(sample), sample.toString());
-		net.sf.mpxj.ProjectFile source = new net.sf.mpxj.mpp.MPPReader().read(sample.toFile());
+		org.mpxj.ProjectFile source = new org.mpxj.mpp.MPPReader().read(sample.toFile());
 		Project imported = new MspImporter().importProject(sample.toAbsolutePath().toString(),
 			(progress, label) -> {});
 		assertAssignmentsPointBackToResources(imported, "direct MPP import");
 		Project reopened = saveAndReload(imported);
 
-		for (net.sf.mpxj.Resource sourceResource : source.getResources()) {
+		for (org.mpxj.Resource sourceResource : source.getResources()) {
 			if (sourceResource.getID() == null || sourceResource.getID() == 0) continue;
 			Resource resource = reopened.getResourcePool().getResourceList().stream()
 				.filter(candidate -> candidate.getUniqueId() == sourceResource.getUniqueID().longValue())
@@ -59,19 +59,19 @@ class MspdiResourceImportTest {
 
 	@Test
 	void importsMspdiResourceOutlineAndBidirectionalAssignmentsThroughMpoReload() throws Exception {
-		net.sf.mpxj.ProjectFile source = new net.sf.mpxj.ProjectFile();
+		org.mpxj.ProjectFile source = new org.mpxj.ProjectFile();
 		source.addDefaultBaseCalendar();
-		net.sf.mpxj.Task sourceTask = source.addTask();
+		org.mpxj.Task sourceTask = source.addTask();
 		sourceTask.setName("Assigned task");
 		sourceTask.setUniqueID(1);
-		net.sf.mpxj.Resource first = addResource(source, 11, "Same name");
-		net.sf.mpxj.Resource second = addResource(source, 12, "Same name");
+		org.mpxj.Resource first = addResource(source, 11, "Same name");
+		org.mpxj.Resource second = addResource(source, 12, "Same name");
 		addResource(source, 13, "Unassigned resource");
 		sourceTask.addResourceAssignment(first).setUnits(0.5d);
 		sourceTask.addResourceAssignment(second).setUnits(1.0d);
 
 		ByteArrayOutputStream xml = new ByteArrayOutputStream();
-		new net.sf.mpxj.mspdi.MSPDIWriter().write(source, xml);
+		new org.mpxj.mspdi.MSPDIWriter().write(source, xml);
 		Project imported = new MspImporter().importProject(new ByteArrayInputStream(xml.toByteArray()), "xml",
 			(progress, label) -> {});
 		Project reopened = saveAndReload(imported);
@@ -101,8 +101,8 @@ class MspdiResourceImportTest {
 		assertEquals(12L, assignmentFor(task, "Same name", 1).getResource().getUniqueId());
 	}
 
-	private static net.sf.mpxj.Resource addResource(net.sf.mpxj.ProjectFile project, int uid, String name) {
-		net.sf.mpxj.Resource resource = project.addResource();
+	private static org.mpxj.Resource addResource(org.mpxj.ProjectFile project, int uid, String name) {
+		org.mpxj.Resource resource = project.addResource();
 		resource.setUniqueID(uid);
 		resource.setName(name);
 		return resource;

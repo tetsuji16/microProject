@@ -112,6 +112,7 @@ class ProjectCloseEndsCollaborationTest {
 		Thread holder = holdCollaborationLock(project, release);
 		Thread releaser = new Thread(() -> {
 			try {
+				// Fixed sleep kept: the lock must stay held for a real time span before it is released.
 				Thread.sleep(1000L);
 			} catch (InterruptedException interrupted) {
 				Thread.currentThread().interrupt();

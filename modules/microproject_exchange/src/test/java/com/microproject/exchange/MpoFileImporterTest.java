@@ -3176,7 +3176,7 @@ class MpoFileImporterTest {
 		((com.fasterxml.jackson.databind.node.ObjectNode) calendarRecord.path("fixedCostCalendar")
 			.path("week").get(0)).remove("defined");
 		assertMalformedBaselineMetadataPreservesTarget(validationTarget, baselineMapper, invalidCalendarMetadata);
-		net.sf.mpxj.ProjectFile mspdi = new net.sf.mpxj.mspdi.MSPDIReader()
+		org.mpxj.ProjectFile mspdi = new org.mpxj.mspdi.MSPDIReader()
 			.read(new ByteArrayInputStream(savedEntries.get(MpoFileImporter.PROJECT_ENTRY)));
 		assertEquals(700.0d, Double.parseDouble(taskBaselineXmlField(
 			savedEntries.get(MpoFileImporter.PROJECT_ENTRY), "Mpo task", 0, "FixedCost")),
@@ -3299,9 +3299,9 @@ class MpoFileImporterTest {
 
 		byte[] archive = saveProjectBytes(project);
 		byte[] projectXml = readEntries(archive).get(MpoFileImporter.PROJECT_ENTRY);
-		net.sf.mpxj.ProjectFile mspdi = new net.sf.mpxj.mspdi.MSPDIReader()
+		org.mpxj.ProjectFile mspdi = new org.mpxj.mspdi.MSPDIReader()
 			.read(new ByteArrayInputStream(projectXml));
-		net.sf.mpxj.Task xmlTask = mspdi.getTasks().stream()
+		org.mpxj.Task xmlTask = mspdi.getTasks().stream()
 			.filter(candidate -> "Mpo task".equals(candidate.getName())).findFirst().orElseThrow();
 		for (int slot = 0; slot <= 10; slot++) {
 			assertEquals(slot == 0 ? 0.0d : slot * 1000.0d,
@@ -4921,14 +4921,14 @@ class MpoFileImporterTest {
 	}
 
 	private static void awaitWorkerReady(Process worker, Path ready, Path log) throws Exception {
-		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(30);
-		while (!Files.exists(ready)) {
-			if (!worker.isAlive())
-				throw new AssertionError("MPO worker exited before loading its editor snapshot: " + readWorkerLog(log));
-			if (System.nanoTime() >= deadline)
-				throw new AssertionError("MPO worker did not load its editor snapshot in time: " + readWorkerLog(log));
-			Thread.sleep(20L);
+		try {
+			com.microproject.testsupport.TestAwait.awaitTrue(() -> Files.exists(ready) || !worker.isAlive(), java.time.Duration.ofSeconds(30),
+				"the MPO worker's editor snapshot");
+		} catch (AssertionError timedOut) {
+			throw new AssertionError("MPO worker did not load its editor snapshot in time: " + readWorkerLog(log));
 		}
+		if (!Files.exists(ready))
+			throw new AssertionError("MPO worker exited before loading its editor snapshot: " + readWorkerLog(log));
 	}
 
 	private static void assertWorkerSucceeded(Process worker, Path log) throws Exception {
@@ -4942,6 +4942,14 @@ class MpoFileImporterTest {
 			return;
 		worker.destroyForcibly();
 		worker.waitFor(5, java.util.concurrent.TimeUnit.SECONDS);
+	}
+
+	private static boolean workerLogContains(Path log, String marker) {
+		try {
+			return readWorkerLog(log).contains(marker);
+		} catch (IOException unreadable) {
+			return false;
+		}
 	}
 
 	private static String readWorkerLog(Path log) throws IOException {
@@ -5436,8 +5444,8 @@ class MpoFileImporterTest {
 					com.microproject.datatype.Duration.getType(back), "baseline effective unit" + label);
 				assertEquals(field.getText(task, liveContext), field.getText(restored, restoredContext),
 					"formatted baseline duration" + label);
-				net.sf.mpxj.Duration liveExport = com.microproject.server.data.MPXConverter.toMPXDuration(live, defaults);
-				net.sf.mpxj.Duration backExport = com.microproject.server.data.MPXConverter.toMPXDuration(back, defaults);
+				org.mpxj.Duration liveExport = com.microproject.server.data.MPXConverter.toMPXDuration(live, defaults);
+				org.mpxj.Duration backExport = com.microproject.server.data.MPXConverter.toMPXDuration(back, defaults);
 				assertEquals(liveExport, backExport, "exported baseline duration" + label);
 			}
 		}
@@ -5810,7 +5818,7 @@ class MpoFileImporterTest {
 
 		byte[] bytes = saveMpo(original);
 		String projectXml = new String(readEntries(bytes).get(MpoFileImporter.PROJECT_ENTRY), StandardCharsets.UTF_8);
-		net.sf.mpxj.Resource mpxResource = new net.sf.mpxj.ProjectFile().addResource();
+		org.mpxj.Resource mpxResource = new org.mpxj.ProjectFile().addResource();
 		com.microproject.server.data.MPXConverter.toMPXResource((com.microproject.pm.resource.ResourceImpl) resource,
 			mpxResource);
 		assertEquals(com.microproject.server.data.MPXConverter.toMPXRate(resource.getStandardRate()),
@@ -6387,15 +6395,15 @@ class MpoFileImporterTest {
 			worker = startMpoSaveWorker(shared, taskId, "name", "Saved after lock release", ready, release, log);
 			awaitWorkerReady(worker, ready, log);
 			Files.createFile(release);
-			long attemptDeadline = System.nanoTime()
-					+ java.util.concurrent.TimeUnit.SECONDS.toNanos(10);
-			while (!readWorkerLog(log).contains("MPO_SAVE_ATTEMPT=")) {
-				if (!worker.isAlive())
-					throw new AssertionError("MPO worker exited before attempting its save: " + readWorkerLog(log));
-				if (System.nanoTime() >= attemptDeadline)
-					throw new AssertionError("MPO worker did not attempt save in time: " + readWorkerLog(log));
-				Thread.sleep(20L);
+			Process savingWorker = worker;
+			try {
+				com.microproject.testsupport.TestAwait.awaitTrue(() -> workerLogContains(log, "MPO_SAVE_ATTEMPT=") || !savingWorker.isAlive(),
+					java.time.Duration.ofSeconds(10), "the MPO worker's save attempt");
+			} catch (AssertionError timedOut) {
+				throw new AssertionError("MPO worker did not attempt save in time: " + readWorkerLog(log));
 			}
+			if (!readWorkerLog(log).contains("MPO_SAVE_ATTEMPT="))
+				throw new AssertionError("MPO worker exited before attempting its save: " + readWorkerLog(log));
 			assertTrue(worker.isAlive(), "save must wait while another process owns the transaction lock");
 			org.junit.jupiter.api.Assertions.assertArrayEquals(originalArchive, Files.readAllBytes(shared.toPath()),
 					"the shared archive must remain unchanged while the lock is held");

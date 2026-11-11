@@ -50,7 +50,7 @@ class RetirableFileLockTest {
 	void waiterWhoseMarkerWasRetiredStartsOverOnALiveMarker(@TempDir Path directory) throws Exception {
 		Path marker = directory.resolve("project.mpo.lock");
 		boolean[] retiredOnce = { false };
-		try (RetirableFileLock waiter = RetirableFileLock.acquire(marker, channel -> {
+		try (RetirableFileLock _ = RetirableFileLock.acquire(marker, channel -> {
 			if (!retiredOnce[0]) {
 				retiredOnce[0] = true;
 				try (RetirableFileLock holder = RetirableFileLock.acquire(marker, FileChannel::lock)) {
@@ -68,7 +68,7 @@ class RetirableFileLockTest {
 	void markerRestoredWithItsRetiredMarkBecomesLiveAgain(@TempDir Path directory) throws Exception {
 		Path marker = directory.resolve("project.mpo.lock");
 		Files.writeString(marker, "R");
-		try (RetirableFileLock lock = RetirableFileLock.acquire(marker, FileChannel::lock)) {
+		try (RetirableFileLock _ = RetirableFileLock.acquire(marker, FileChannel::lock)) {
 			assertEquals(0L, Files.size(marker));
 		}
 	}
@@ -78,7 +78,7 @@ class RetirableFileLockTest {
 		Path marker = directory.resolve("project.mpo.lock");
 		assertFalse(RetirableFileLock.retireIfUnheld(marker), "there is nothing to remove");
 		Files.createFile(marker);
-		try (FileChannel channel = FileChannel.open(marker, StandardOpenOption.WRITE); FileLock held = channel.lock()) {
+		try (FileChannel channel = FileChannel.open(marker, StandardOpenOption.WRITE); FileLock _ = channel.lock()) {
 			assertFalse(RetirableFileLock.retireIfUnheld(marker));
 			assertTrue(Files.isRegularFile(marker));
 		}
@@ -101,6 +101,7 @@ class RetirableFileLockTest {
 			for (int round = 0; round < ROUNDS; round++) {
 				try (RetirableFileLock lock = RetirableFileLock.acquire(marker, FileChannel::lock)) {
 					int value = Integer.parseInt(Files.readString(counter));
+					// Fixed sleep kept: widens the critical section on purpose so a broken lock loses an update.
 					Thread.sleep(1L);
 					Files.writeString(counter, Integer.toString(value + 1));
 					lock.retire();

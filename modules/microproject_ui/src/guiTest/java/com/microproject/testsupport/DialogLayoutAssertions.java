@@ -309,6 +309,7 @@ public final class DialogLayoutAssertions {
 			else SwingUtilities.invokeAndWait(inspect);
 			contained = usable[0].contains(bounds[0]);
 			if (contained) break;
+			// Fixed sleep kept: each pass re-reads native window geometry on the EDT, which can throw checked exceptions.
 			Thread.sleep(25);
 		} while (System.nanoTime() < deadline);
 		assertTrue(contained,

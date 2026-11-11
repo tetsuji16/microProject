@@ -1,0 +1,22 @@
+* text=auto eol=crlf
+*.sh text eol=lf
+gradlew text eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.icns binary
+*.bmp binary
+*.svg text
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.pod binary
+*.mpp binary
+*.mpo binary
+*.jar binary
+*.gz binary
+*.zip binary
+*.pdf binary

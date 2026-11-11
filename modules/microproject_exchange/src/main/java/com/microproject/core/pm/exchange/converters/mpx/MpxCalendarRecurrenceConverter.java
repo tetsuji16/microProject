@@ -5,36 +5,36 @@
 package com.microproject.core.pm.exchange.converters.mpx;
 
 import java.util.BitSet;
-import java.util.Date;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 
 import com.microproject.pm.calendar.CalendarRecurrence;
 
-import net.sf.mpxj.Day;
-import net.sf.mpxj.RecurringData;
-import net.sf.mpxj.RecurrenceType;
+import org.mpxj.RecurringData;
+import org.mpxj.RecurrenceType;
 
 /** Converts MPXJ recurrence metadata without flattening it to finite dates. */
 	public final class MpxCalendarRecurrenceConverter {
 	public CalendarRecurrence from(RecurringData source) {
 		if (source == null || source.getStartDate() == null || source.getRecurrenceType() == null)
 			throw new IllegalArgumentException("MSP calendar recurrence is missing its start date or pattern");
-		long start = MpxCalendarDateConverter.toModelDay(source.getStartDate());
+		long start = MpxCalendarDateConverter.toModelDay(MpxDates.toDate(source.getStartDate()));
 		boolean byDate = source.getFinishDate() != null;
 		long finish = byDate
-			? MpxCalendarDateConverter.toModelDay(source.getFinishDate()) : 0L;
+			? MpxCalendarDateConverter.toModelDay(MpxDates.toDate(source.getFinishDate())) : 0L;
 		int count = source.getOccurrences() == null ? 1 : source.getOccurrences();
 		CalendarRecurrence.EndMode endMode = byDate
 			? CalendarRecurrence.EndMode.BY_DATE : CalendarRecurrence.EndMode.AFTER_OCCURRENCES;
 		int frequency = positive(source.getFrequency());
 		CalendarRecurrence result;
 		switch (source.getRecurrenceType()) {
-			case DAILY -> result = CalendarRecurrence.daily(start, frequency, source.isWorkingDaysOnly(), endMode, finish, count);
+			case DAILY -> result = CalendarRecurrence.daily(start, frequency, source.getWorkingDaysOnly(), endMode, finish, count);
 			case WEEKLY -> {
 				BitSet weekdays = new BitSet(8);
 				for (int day = 1; day <= 7; day++)
-					if (source.getWeeklyDay(Day.getInstance(day))) weekdays.set(toIsoWeekday(day));
+					if (source.getWeeklyDay(MpxDates.toDayOfWeek(day))) weekdays.set(toIsoWeekday(day));
 				result = CalendarRecurrence.weekly(start, frequency, weekdays, endMode, finish, count);
 			}
 			case MONTHLY -> result = CalendarRecurrence.monthly(start, frequency, source.getRelative(),
@@ -46,11 +46,11 @@ import net.sf.mpxj.RecurrenceType;
 			default -> throw new IllegalArgumentException("Unsupported MSP calendar recurrence pattern: "
 				+ source.getRecurrenceType());
 		}
-		Date[] mpxjDates = source.getDates();
+		LocalDate[] mpxjDates = source.getDates();
 		if (mpxjDates == null || mpxjDates.length == 0)
 			throw new IllegalArgumentException("MSP calendar recurrence has no occurrences");
 		List<Long> sourceDates = Arrays.stream(mpxjDates)
-			.mapToLong(date -> MpxCalendarDateConverter.toModelDay(date))
+			.mapToLong(date -> MpxCalendarDateConverter.toModelDay(MpxDates.toDate(date)))
 			.boxed().toList();
 		if (!result.occurrenceDates().equals(sourceDates))
 			throw new IllegalArgumentException("MSP calendar recurrence " + result.getPattern()
@@ -62,7 +62,7 @@ import net.sf.mpxj.RecurrenceType;
 	public RecurringData to(CalendarRecurrence source) {
 		source.validate();
 		RecurringData result = new RecurringData();
-		result.setStartDate(MpxCalendarDateConverter.toMpxDate(source.getStartDate()));
+		result.setStartDate(MpxDates.toLocalDate(MpxCalendarDateConverter.toMpxDate(source.getStartDate())));
 		result.setRecurrenceType(switch (source.getPattern()) {
 			case DAILY -> RecurrenceType.DAILY;
 			case WEEKLY -> RecurrenceType.WEEKLY;
@@ -72,7 +72,7 @@ import net.sf.mpxj.RecurrenceType;
 		result.setFrequency(source.getFrequency());
 		result.setUseEndDate(source.getEndMode() == CalendarRecurrence.EndMode.BY_DATE);
 		if (source.getEndMode() == CalendarRecurrence.EndMode.BY_DATE) {
-			result.setFinishDate(MpxCalendarDateConverter.toMpxDate(source.getFinishDate()));
+			result.setFinishDate(MpxDates.toLocalDate(MpxCalendarDateConverter.toMpxDate(source.getFinishDate())));
 		} else {
 			result.setOccurrences(source.getOccurrenceCount());
 		}
@@ -81,12 +81,12 @@ import net.sf.mpxj.RecurrenceType;
 			case WEEKLY -> {
 				BitSet weekdays = source.getWeekdays();
 				for (int iso = weekdays.nextSetBit(1); iso >= 1; iso = weekdays.nextSetBit(iso + 1))
-					result.setWeeklyDay(Day.getInstance(toMpxDay(iso)), true);
+					result.setWeeklyDay(MpxDates.toDayOfWeek(toMpxDay(iso)), true);
 			}
 			case MONTHLY -> {
 				result.setRelative(source.isRelative());
 				if (source.isRelative()) {
-					result.setDayOfWeek(Day.getInstance(toMpxDay(source.getWeekday())));
+					result.setDayOfWeek(MpxDates.toDayOfWeek(toMpxDay(source.getWeekday())));
 					result.setDayNumber(mpxOrdinal(source.getOrdinal()));
 				} else {
 					result.setDayNumber(source.getDayOfMonth());
@@ -96,7 +96,7 @@ import net.sf.mpxj.RecurrenceType;
 				result.setRelative(source.isRelative());
 				result.setMonthNumber(source.getMonth());
 				if (source.isRelative()) {
-					result.setDayOfWeek(Day.getInstance(toMpxDay(source.getWeekday())));
+					result.setDayOfWeek(MpxDates.toDayOfWeek(toMpxDay(source.getWeekday())));
 					result.setDayNumber(mpxOrdinal(source.getOrdinal()));
 				} else {
 					result.setDayNumber(source.getDayOfMonth());
@@ -116,8 +116,8 @@ import net.sf.mpxj.RecurrenceType;
 		return ordinal == 5 ? -1 : ordinal;
 	}
 
-	private static int isoWeekday(Day day) {
-		return day == null ? 1 : toIsoWeekday(day.getValue());
+	private static int isoWeekday(DayOfWeek day) {
+		return day == null ? 1 : toIsoWeekday(MpxDates.toMpxDay(day));
 	}
 
 	private static int toIsoWeekday(int mpxDay) {

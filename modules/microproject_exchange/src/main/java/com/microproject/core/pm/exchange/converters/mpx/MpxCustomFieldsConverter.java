@@ -32,8 +32,8 @@ import com.microproject.datatype.DurationDefaults;
 import com.microproject.field.CustomFields;
 import com.microproject.server.data.CustomFieldsMapper;
 
-import net.sf.mpxj.FieldContainer;
-import net.sf.mpxj.FieldType;
+import org.mpxj.FieldContainer;
+import org.mpxj.FieldType;
 
 import static com.microproject.exchange.MspdiProjectBoundary.childText;
 
@@ -86,7 +86,7 @@ public final class MpxCustomFieldsConverter {
 
 	private static void addFieldTypes(Map<Integer, ValueType> types, FieldType[] fields, ValueType type) {
 		for (FieldType field : fields)
-			if (field != null) types.put(Integer.valueOf(net.sf.mpxj.common.FieldTypeHelper.getFieldID(field)), type);
+			if (field != null) types.put(Integer.valueOf(org.mpxj.common.FieldTypeHelper.getFieldID(field)), type);
 	}
 
 	private static void validateElements(org.w3c.dom.Document document, String namespace, String elementName,
@@ -169,8 +169,10 @@ public final class MpxCustomFieldsConverter {
 
 	private static void copyDates(FieldContainer source, CustomFields target, FieldType[] fields, int kind) {
 		for (int i = 0; i < fields.length; i++) {
-			Date date = (Date) typedValue(source, fields[i], Date.class);
-			if (date != null) {
+			java.time.LocalDateTime sourceDate = (java.time.LocalDateTime) typedValue(source, fields[i],
+				java.time.LocalDateTime.class);
+			if (sourceDate != null) {
+				Date date = MpxDates.toDate(sourceDate);
 				long modelTime = com.microproject.core.pm.exchange.converters.type.DateUTCConverter.toModelTime(date);
 				switch (kind) {
 				case 0 -> target.setCustomDate(i, modelTime);
@@ -184,8 +186,8 @@ public final class MpxCustomFieldsConverter {
 	private static void copyDurations(FieldContainer source, CustomFields target, FieldType[] fields,
 			DurationDefaults defaults) {
 		for (int i = 0; i < fields.length; i++) {
-			net.sf.mpxj.Duration duration = (net.sf.mpxj.Duration) typedValue(source, fields[i],
-				net.sf.mpxj.Duration.class);
+			org.mpxj.Duration duration = (org.mpxj.Duration) typedValue(source, fields[i],
+				org.mpxj.Duration.class);
 			if (duration != null) {
 				if (!Double.isFinite(duration.getDuration()))
 					throw invalidSourceValue(fields[i], "finite duration", duration);

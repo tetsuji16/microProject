@@ -51,7 +51,7 @@ class SharedResourcePoolServiceTest {
 		ObjectEvent.Listener sharerListener = event -> {
 			try {
 				Future<Boolean> snapshot = snapshotWorker.submit(() -> {
-					try (var ignored = sharer.getMutationState().begin()) {
+					try (var _ = sharer.getMutationState().begin()) {
 						return true;
 					}
 				});
@@ -65,7 +65,7 @@ class SharedResourcePoolServiceTest {
 		ObjectEvent.Listener poolListener = event -> {
 			try {
 				Future<Boolean> snapshot = snapshotWorker.submit(() -> {
-					try (var ignored = sharer.getMutationState().begin()) {
+					try (var _ = sharer.getMutationState().begin()) {
 						return true;
 					}
 				});

@@ -183,7 +183,7 @@ class CollaborationMetadataStoreTest {
 		Path lockPath = CollaborationMetadataStore.buildLockFile(store.getSidecarFile()).toPath();
 		long startedAt = System.nanoTime();
 		try (FileChannel channel = FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-			 FileLock ignored = channel.lock()) {
+			 FileLock _ = channel.lock()) {
 			java.util.concurrent.atomic.AtomicReference<Throwable> failure = new java.util.concurrent.atomic.AtomicReference<>();
 			EventQueue.invokeAndWait(() -> {
 				try {
@@ -252,6 +252,7 @@ class CollaborationMetadataStoreTest {
 			FileInputStream scanner = new FileInputStream((holdSidecar ? sidecar : marker).toFile());
 			Thread finishes = new Thread(() -> {
 				try {
+					// Fixed sleep kept: the test needs the scanner handle to stay open for a real time span.
 					Thread.sleep(500L);
 					scanner.close();
 				} catch (InterruptedException | IOException stopped) {

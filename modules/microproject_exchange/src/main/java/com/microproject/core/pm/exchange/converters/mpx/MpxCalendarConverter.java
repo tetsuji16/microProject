@@ -33,11 +33,10 @@ import com.microproject.pm.calendar.WorkWeekPeriod;
 import com.microproject.pm.calendar.RecurringCalendarException;
 import com.microproject.util.DateTime;
 
-import net.sf.mpxj.Day;
-import net.sf.mpxj.ProjectCalendar;
-import net.sf.mpxj.ProjectCalendarException;
-import net.sf.mpxj.ProjectCalendarHours;
-import net.sf.mpxj.ProjectCalendarWeek;
+import org.mpxj.ProjectCalendar;
+import org.mpxj.ProjectCalendarException;
+import org.mpxj.ProjectCalendarHours;
+import org.mpxj.ProjectCalendarWeek;
 
 /**
  * Converts an MPXJ ProjectCalendar into a microproject WorkingCalendar.
@@ -77,11 +76,11 @@ public class MpxCalendarConverter {
 		// work weeks
 		MpxRangeConverter rangeConverter = new MpxRangeConverter();
 		for (int i = 0; i < 7; i++) {
-			Day mpxDayId = Day.getInstance(i + 1);
+			java.time.DayOfWeek mpxDayId = MpxDates.toDayOfWeek(i + 1);
 			ProjectCalendarHours mpxDay = mpxCalendar.getCalendarHours(mpxDayId);
-			net.sf.mpxj.DayType mpxDayType = mpxCalendar.getCalendarDayType(mpxDayId);
+			org.mpxj.DayType mpxDayType = mpxCalendar.getCalendarDayType(mpxDayId);
 			WorkDay day = declaredDay(mpxDayType, mpxDay, rangeConverter);
-			if (day == null && mpxDayType == net.sf.mpxj.DayType.WORKING
+			if (day == null && mpxDayType == org.mpxj.DayType.WORKING
 					&& mpxCalendar.isDerived() && baseCalendar != null) {
 				WorkDay inheritedDay = baseCalendar.getConcreteInstance().getWeekDay(i);
 				if (inheritedDay == null || !inheritedDay.isWorking()) {
@@ -96,17 +95,17 @@ public class MpxCalendarConverter {
 		for (ProjectCalendarWeek mpxWeek : mpxCalendar.getWorkWeeks()) {
 			if (mpxWeek.getDateRange() == null || mpxWeek.getDateRange().getStart() == null
 					|| mpxWeek.getDateRange().getEnd() == null) continue;
-			long start = MpxCalendarDateConverter.toModelDay(mpxWeek.getDateRange().getStart());
-			long end = MpxCalendarDateConverter.toModelDay(mpxWeek.getDateRange().getEnd());
+			long start = MpxCalendarDateConverter.toModelDay(MpxDates.toDate(mpxWeek.getDateRange().getStart()));
+			long end = MpxCalendarDateConverter.toModelDay(MpxDates.toDate(mpxWeek.getDateRange().getEnd()));
 			WorkWeek week = new WorkWeek();
 			for (int i = 0; i < 7; i++) {
-				Day dayId = Day.getInstance(i + 1);
+				java.time.DayOfWeek dayId = MpxDates.toDayOfWeek(i + 1);
 				ProjectCalendarHours hours = mpxWeek.getCalendarHours(dayId);
-				net.sf.mpxj.DayType dayType = mpxWeek.getCalendarDayType(dayId);
+				org.mpxj.DayType dayType = mpxWeek.getCalendarDayType(dayId);
 				WorkDay declared = declaredDay(dayType, hours, rangeConverter);
 				if (declared != null) {
 					week.setWeekDay(i, declared);
-				} else if (dayType == net.sf.mpxj.DayType.WORKING) {
+				} else if (dayType == org.mpxj.DayType.WORKING) {
 					week.setWeekDay(i, new WorkDay());
 				}
 			}
@@ -122,13 +121,13 @@ public class MpxCalendarConverter {
 			// MPXJ represents calendar dates using the host-local calendar day;
 			// map the date fields back to the model's UTC day keys explicitly.
 			long from = recurrence == null
-				? MpxCalendarDateConverter.toModelDay(mpxException.getFromDate())
+				? MpxCalendarDateConverter.toModelDay(MpxDates.toDate(mpxException.getFromDate()))
 				: recurrence.getStartDate();
 			// For recurring MPXJ exceptions getToDate() is the final recurrence
 			// occurrence, not the duration of one occurrence. Calendar exceptions
 			// selected from MSP's date grid are one-day events.
 			long to = recurrence != null || mpxException.getToDate() == null ? from
-				: MpxCalendarDateConverter.toModelDay(mpxException.getToDate());
+				: MpxCalendarDateConverter.toModelDay(MpxDates.toDate(mpxException.getToDate()));
 			WorkDay exception = new WorkDay(from, to, mpxException.getName());
 			exception.setWorkingHours(new WorkingHours());
 			exceptionConverter.from(mpxException, exception);
@@ -140,9 +139,9 @@ public class MpxCalendarConverter {
 		}
 	}
 
-	private WorkDay declaredDay(net.sf.mpxj.DayType dayType, ProjectCalendarHours hours,
+	private WorkDay declaredDay(org.mpxj.DayType dayType, ProjectCalendarHours hours,
 		MpxRangeConverter rangeConverter) {
-		if (dayType == net.sf.mpxj.DayType.NON_WORKING) return WorkDay.getNonWorkingDay();
+		if (dayType == org.mpxj.DayType.NON_WORKING) return WorkDay.getNonWorkingDay();
 		if (hours == null) return null;
 		WorkingHours workingHours = rangeConverter.from(hours);
 		if (workingHours.getDuration() <= 0) return WorkDay.getNonWorkingDay();

@@ -32,9 +32,9 @@ import com.microproject.datatype.TimeUnit;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.task.Project;
 
-import net.sf.mpxj.ProjectCalendar;
-import net.sf.mpxj.ProjectProperties;
-import net.sf.mpxj.ScheduleFrom;
+import org.mpxj.ProjectCalendar;
+import org.mpxj.ProjectProperties;
+import org.mpxj.ScheduleFrom;
 
 /**
  * Converts MPXJ ProjectProperties into a microproject Project header.
@@ -121,8 +121,16 @@ public class MpxProjectConverter {
 			durationUnit, workUnit);
 	}
 
+	private static java.time.LocalTime timeOfDay(java.time.LocalTime value) {
+		return value;
+	}
+
 	private static java.time.LocalTime timeOfDay(Date value) {
 		return value == null ? null : value.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalTime();
+	}
+
+	private static long toLong(java.time.LocalDateTime d) {
+		return toLong(MpxDates.toDate(d));
 	}
 
 	private static long toLong(Date d) {

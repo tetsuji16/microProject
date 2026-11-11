@@ -70,7 +70,7 @@ public final class ProjectLoadWorkflow {
 			Path path = Path.of(fileName);
 			if (!Files.exists(path))
 				return new NoSuchFileException(fileName);
-			try (ZipFile ignored = new ZipFile(path.toFile())) {
+			try (ZipFile _ = new ZipFile(path.toFile())) {
 				return null;
 			}
 		} catch (ZipException | FileNotFoundException exception) {

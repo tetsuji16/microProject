@@ -115,13 +115,14 @@ public final class GuiDesktopSessionCoordinator {
 			"-ExecutionPolicy", "Bypass", "-File", script.toString(), "-TargetPid", processId,
 			"-Watch", "-LogFile", eventLog.toString(), "-DiagnosticLogFile", diagnosticLog.toString()).redirectErrorStream(true)
 			.redirectOutput(processLog.toFile()).start();
-		long deadline = startupStarted + TimeUnit.SECONDS.toNanos(30);
-		while (System.nanoTime() < deadline && monitor.isAlive()) {
-			if (Files.exists(diagnosticLog)
-				&& Files.readString(diagnosticLog, StandardCharsets.UTF_8).contains("monitorStarted=")) {
-				return new ForegroundMonitor(monitor, eventLog, processLog);
-			}
-			Thread.sleep(50);
+		try {
+			TestAwait.awaitTrue(() -> !monitor.isAlive() || logContains(diagnosticLog, "monitorStarted="),
+				Duration.ofSeconds(30), "the desktop monitor to start");
+		} catch (AssertionError timedOut) {
+			// reported below with the process state
+		}
+		if (monitor.isAlive() && logContains(diagnosticLog, "monitorStarted=")) {
+			return new ForegroundMonitor(monitor, eventLog, processLog);
 		}
 		long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startupStarted);
 		String processState = monitor.isAlive() ? "still running" : "exited with code " + monitor.exitValue();
@@ -129,6 +130,14 @@ public final class GuiDesktopSessionCoordinator {
 		String failureOutput = Files.exists(processLog) ? Files.readString(processLog, StandardCharsets.UTF_8) : "no process output";
 		throw new IOException("GUI environment monitor did not report ready within " + elapsedMillis + " ms (process "
 			+ processState + "; log=" + processLog + "): " + failureOutput.trim());
+	}
+
+	static boolean logContains(Path log, String marker) {
+		try {
+			return Files.exists(log) && Files.readString(log, StandardCharsets.UTF_8).contains(marker);
+		} catch (IOException unreadable) {
+			return false;
+		}
 	}
 
 	static Lease acquire(Path lockFile, Duration maximumWait) throws IOException, InterruptedException {
@@ -147,6 +156,7 @@ public final class GuiDesktopSessionCoordinator {
 					throw new DesktopContendedException("GUI environment contended: another microProject Robot session "
 						+ "owns the desktop lock " + lockFile + ". Current owner: " + readOwner(lockFile));
 				}
+				// Fixed sleep kept: back-off between attempts to take the cross-process desktop lock.
 				Thread.sleep(Math.min(RETRY_MILLIS,
 					Math.max(1, TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime()))));
 			}

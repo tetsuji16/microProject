@@ -58,9 +58,11 @@ class AutoRecoveryLegacyProcessTest {
 	private void signal(String file) throws Exception { Files.writeString(directory.resolve(file), "go"); }
 	private void await(String file) throws Exception { waitFor(directory.resolve(file)); }
 	private static void waitFor(Path file) throws Exception {
-		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
-		while (!Files.exists(file) && System.nanoTime() < deadline) Thread.sleep(20);
-		if (!Files.exists(file)) throw new java.io.IOException("Timed out waiting for " + file);
+		try {
+			com.microproject.testsupport.TestAwait.awaitTrue(() -> Files.exists(file), java.time.Duration.ofSeconds(10), file.toString());
+		} catch (AssertionError timedOut) {
+			throw new java.io.IOException("Timed out waiting for " + file);
+		}
 	}
 	private void finish(Process process, String name) throws Exception {
 		assertTrue(process.waitFor(10, TimeUnit.SECONDS), "child timed out");

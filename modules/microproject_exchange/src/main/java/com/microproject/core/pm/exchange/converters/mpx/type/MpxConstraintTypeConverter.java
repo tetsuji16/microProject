@@ -35,7 +35,7 @@ public class MpxConstraintTypeConverter extends FieldTypeConverter {
 
 	@Override
 	public Object from(Object o) {
-		net.sf.mpxj.ConstraintType ct=(net.sf.mpxj.ConstraintType)o;
+		org.mpxj.ConstraintType ct=(org.mpxj.ConstraintType)o;
 		return Integer.valueOf(ct.getValue());
 	}
 

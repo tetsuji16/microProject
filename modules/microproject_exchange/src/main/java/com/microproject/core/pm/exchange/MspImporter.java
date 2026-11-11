@@ -36,17 +36,17 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import net.sf.mpxj.Duration;
-import net.sf.mpxj.ProjectCalendar;
-import net.sf.mpxj.ProjectFile;
-import net.sf.mpxj.Relation;
-import net.sf.mpxj.ResourceAssignment;
-import net.sf.mpxj.mpp.MPPReader;
-import net.sf.mpxj.mpx.MPXReader;
-import net.sf.mpxj.mspdi.schema.TimephasedDataType;
-import net.sf.mpxj.reader.AbstractProjectReader;
-import net.sf.mpxj.reader.UniversalProjectReader;
-import net.sf.mpxj.planner.PlannerReader;
+import org.mpxj.Duration;
+import org.mpxj.ProjectCalendar;
+import org.mpxj.ProjectFile;
+import org.mpxj.Relation;
+import org.mpxj.ResourceAssignment;
+import org.mpxj.mpp.MPPReader;
+import org.mpxj.mpx.MPXReader;
+import org.mpxj.mspdi.schema.TimephasedDataType;
+import org.mpxj.reader.AbstractProjectReader;
+import org.mpxj.reader.UniversalProjectReader;
+import org.mpxj.planner.PlannerReader;
 import com.microproject.exchange.xlsx.MicroProjectXlsxReader;
 
 import com.microproject.core.pm.exchange.converters.mpx.MpxAssignmentConverter;
@@ -97,7 +97,7 @@ public class MspImporter {
 	/** Native microProject XLSX payload, when present and valid. */
 	protected Project nativeProject;
 	protected long earliestTaskStart=-1L;
-	protected net.sf.mpxj.Task mpxRootTask=null;
+	protected org.mpxj.Task mpxRootTask=null;
 	private MspdiProjectBoundary.Declarations rawProjectBoundary = MspdiProjectBoundary.Declarations.NONE;
 	private final List<ImportedAssignmentScheduleDelays> importedAssignmentScheduleDelays = new ArrayList<>();
 
@@ -258,14 +258,14 @@ public class MspImporter {
 		}	
 	}
 
-	private static void validateMpxProjectHeader(byte[] data) throws net.sf.mpxj.MPXJException {
+	private static void validateMpxProjectHeader(byte[] data) throws org.mpxj.MPXJException {
 		String text = new String(data, StandardCharsets.ISO_8859_1);
 		for (String line : text.split("\\r?\\n")) {
 			if (line.startsWith("30,")) {
 				return;
 			}
 		}
-		throw new net.sf.mpxj.MPXJException("Invalid MPX file: missing Project Header record (30)");
+		throw new org.mpxj.MPXJException("Invalid MPX file: missing Project Header record (30)");
 	}
 
 	private void resetRawMspdiInputState() {
@@ -304,7 +304,7 @@ public class MspImporter {
 		}
 		if (isMspdiExtension(extension)) {
 			state.setMspdi(true);
-			return new net.sf.mpxj.mspdi.MSPDIReader();
+			return new org.mpxj.mspdi.MSPDIReader();
 		}
 		if (extension.equals("mpp"))
 			return new MPPReader();
@@ -558,7 +558,7 @@ public class MspImporter {
 			throw new IllegalArgumentException(fieldName + " must be numeric", exception);
 		}
 		if (!Double.isFinite(parsed)) throw new IllegalArgumentException(fieldName + " must be finite");
-		return net.sf.mpxj.mspdi.DatatypeConverter.parseCurrency(Double.valueOf(parsed)).doubleValue();
+		return org.mpxj.mspdi.DatatypeConverter.parseCurrency(Double.valueOf(parsed)).doubleValue();
 	}
 
 	private static double parseMspdiCost(String value) {
@@ -731,7 +731,7 @@ public class MspImporter {
 	protected void importResources(ResourcePool resourcePool) {
 		state.setResourcePool(resourcePool);
 		MpxResourceConverter converter=new MpxResourceConverter();
-		for (net.sf.mpxj.Resource mpxResource : mpxProjectFile.getResources()){
+		for (org.mpxj.Resource mpxResource : mpxProjectFile.getResources()){
 			if (shouldSkipResource(mpxResource)) {
 				logSkippedResource(mpxResource);
 				continue;
@@ -748,30 +748,30 @@ public class MspImporter {
 		}
 	}
 
-	private boolean shouldSkipResource(net.sf.mpxj.Resource mpxResource) {
+	private boolean shouldSkipResource(org.mpxj.Resource mpxResource) {
 		return mpxResource.getNull() || mpxResource.getID() == null;
 	}
 
-	private void logSkippedResource(net.sf.mpxj.Resource mpxResource) {
+	private void logSkippedResource(org.mpxj.Resource mpxResource) {
 		logger.log(Level.FINE, "Skipping resource with missing identity: {0}", mpxResource);
 	}
 	
 	protected void importTasks(Project project) {
-		for (net.sf.mpxj.Task mpxTask : mpxProjectFile.getChildTasks()){
+		for (org.mpxj.Task mpxTask : mpxProjectFile.getChildTasks()){
 			importTasks(project,mpxTask,null);
 		}
 		// MPXJ materializes a cross-project predecessor as an external task
 		// placeholder. These placeholders are present in getTasks() but need not
 		// be reachable from the normal task hierarchy, so import them explicitly
 		// before resolving predecessor links.
-		for (net.sf.mpxj.Task mpxTask : mpxProjectFile.getTasks()) {
+		for (org.mpxj.Task mpxTask : mpxProjectFile.getTasks()) {
 			if (mpxTask.getExternalTask() && state.getTask(mpxTask)==null && !shouldSkipTask(mpxTask))
 				importRegularTask(project,mpxTask,null);
 		}
 		restoreBlankRows(project);
 	}
 	
-	protected void importTasks(Project project,net.sf.mpxj.Task mpxTask, Task parentTask) {
+	protected void importTasks(Project project,org.mpxj.Task mpxTask, Task parentTask) {
 		if (mpxTask.getID()==null) {
 			logSkippedTask(mpxTask);
 			return;
@@ -786,7 +786,7 @@ public class MspImporter {
 			task = importRegularTask(project, mpxTask, parentTask);
 		}
 		
-		for (net.sf.mpxj.Task mpxChildTask : mpxTask.getChildTasks()){
+		for (org.mpxj.Task mpxChildTask : mpxTask.getChildTasks()){
 			importTasks(project,mpxChildTask,task);
 		}
 	}
@@ -798,7 +798,7 @@ public class MspImporter {
 	 */
 	private void restoreBlankRows(Project project) {
 		int pendingBlankRows = 0;
-		for (net.sf.mpxj.Task mpxTask : mpxProjectFile.getTasks()) {
+		for (org.mpxj.Task mpxTask : mpxProjectFile.getTasks()) {
 			if (mpxTask.getID() == null || mpxTask.getExternalTask()) continue;
 			if (mpxTask.getNull()) {
 				pendingBlankRows++;
@@ -815,24 +815,24 @@ public class MspImporter {
 		}
 	}
 
-	private boolean shouldSkipTask(net.sf.mpxj.Task mpxTask) {
+	private boolean shouldSkipTask(org.mpxj.Task mpxTask) {
 		return mpxTask.getNull() || mpxTask.getID()==null;
 	}
 
-	private void logSkippedTask(net.sf.mpxj.Task mpxTask) {
+	private void logSkippedTask(org.mpxj.Task mpxTask) {
 		logger.log(Level.FINE, "Skipping task with missing identity: {0}", mpxTask);
 	}
 
-	private boolean isRootTask(net.sf.mpxj.Task mpxTask) {
+	private boolean isRootTask(org.mpxj.Task mpxTask) {
 		return mpxTask.getOutlineNumber()!=null && mpxTask.getOutlineLevel() == 0;
 	}
 
-	private void registerRootTask(net.sf.mpxj.Task mpxTask) {
+	private void registerRootTask(org.mpxj.Task mpxTask) {
 		if (mpxRootTask==null)
 			mpxRootTask=mpxTask;
 	}
 
-	private Task importRegularTask(Project project, net.sf.mpxj.Task mpxTask, Task parentTask) {
+	private Task importRegularTask(Project project, org.mpxj.Task mpxTask, Task parentTask) {
 		Task task = createTask(project, mpxTask, parentTask);
 		if (mpxTask.getExternalTask()) {
 			task.setExternal(true);
@@ -840,7 +840,7 @@ public class MspImporter {
 			task.setExternalProjectFile(externalProjectFile(mpxTask));
 			project.addExternalTask(task);
 		}
-		updateEarliestTaskStart(task, mpxTask.getStart());
+		updateEarliestTaskStart(task, com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(mpxTask.getStart()));
 		state.mapTask(mpxTask, task);
 		importTaskSnapshots(mpxTask, task);
 		importAssignments(mpxTask, task);
@@ -853,8 +853,8 @@ public class MspImporter {
 		return task;
 	}
 
-	private long externalProjectId(net.sf.mpxj.Task mpxTask) {
-		String externalProject=mpxTask.getExternalTaskProject();
+	private long externalProjectId(org.mpxj.Task mpxTask) {
+		String externalProject=mpxTask.getProject();
 		if (externalProject==null)
 			externalProject=mpxTask.getSubprojectFile();
 		if (externalProject==null)
@@ -866,8 +866,8 @@ public class MspImporter {
 		}
 	}
 
-	private String externalProjectFile(net.sf.mpxj.Task mpxTask) {
-		String externalProject = mpxTask.getExternalTaskProject();
+	private String externalProjectFile(org.mpxj.Task mpxTask) {
+		String externalProject = mpxTask.getProject();
 		if (isFileReference(externalProject))
 			return externalProject;
 		String subprojectFile = mpxTask.getSubprojectFile();
@@ -885,12 +885,12 @@ public class MspImporter {
 		}
 	}
 
-	private Task createTask(Project project, net.sf.mpxj.Task mpxTask, Task parentTask) {
+	private Task createTask(Project project, org.mpxj.Task mpxTask, Task parentTask) {
 		MpxTaskConverter converter=new MpxTaskConverter();
 		Node parentNode = parentTask == null ? null : project.getTaskModel().search(parentTask);
 		Node node = project.createLocalTaskNode(parentNode, false);
 		Task task = (Task) node.getImpl();
-		if (mpxTask.getSubProject() != null) {
+		if (mpxTask.getSubprojectFile() != null && !mpxTask.getExternalTask()) {
 			project.getTasks().remove(task);
 			SubProj subproject = project.getSubprojectHandler().createSubProj(0L);
 			task = (Task) subproject;
@@ -921,7 +921,7 @@ public class MspImporter {
 			earliestTaskStart = taskStart;
 	}
 
-	private void importTaskSnapshots(net.sf.mpxj.Task mpxTask, Task task) {
+	private void importTaskSnapshots(org.mpxj.Task mpxTask, Task task) {
 		// Slot 11 is the current snapshot. MSPDI baseline 0..10 map directly to
 		// the microProject baseline indices 0..10; keep the live schedule intact.
 		for (int snapshotId = 0; snapshotId <= 10; snapshotId++) {
@@ -934,7 +934,7 @@ public class MspImporter {
 				: mpxTask.getBaselineCost(snapshotId);
 			// MSPDI defines FixedCostAccrual on Task, not inside each Baseline
 			// element. Apply the task-level rule when importing its baseline amount.
-			net.sf.mpxj.AccrueType fixedCostAccrual = mpxTask.getFixedCostAccrual();
+			org.mpxj.AccrueType fixedCostAccrual = mpxTask.getFixedCostAccrual();
 			MpxImportState.RawMspdiTaskBaseline rawBaseline = state.getRawMspdiTaskBaseline(
 				mpxTask.getUniqueID() == null ? null : Long.valueOf(mpxTask.getUniqueID().longValue()), snapshotId);
 			if (fixedCost == null && rawBaseline != null && rawBaseline.fixedCost() != null)
@@ -969,26 +969,26 @@ public class MspImporter {
 		}
 	}
 
-	private Date getTaskBaselineStart(net.sf.mpxj.Task mpxTask, int snapshotId) {
+	private Date getTaskBaselineStart(org.mpxj.Task mpxTask, int snapshotId) {
 		if (snapshotId==0)
-			return mpxTask.getBaselineStart();
-		return mpxTask.getBaselineStart(snapshotId);
+			return com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(mpxTask.getBaselineStart());
+		return com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(mpxTask.getBaselineStart(snapshotId));
 	}
 
-	private Date getTaskBaselineFinish(net.sf.mpxj.Task mpxTask, int snapshotId) {
+	private Date getTaskBaselineFinish(org.mpxj.Task mpxTask, int snapshotId) {
 		if (snapshotId==0)
-			return mpxTask.getBaselineFinish();
-		return mpxTask.getBaselineFinish(snapshotId);
+			return com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(mpxTask.getBaselineFinish());
+		return com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(mpxTask.getBaselineFinish(snapshotId));
 	}
 
-	private Duration getTaskBaselineDuration(net.sf.mpxj.Task mpxTask, int snapshotId) {
+	private Duration getTaskBaselineDuration(org.mpxj.Task mpxTask, int snapshotId) {
 		if (snapshotId==0)
 			return mpxTask.getBaselineDuration();
 		return mpxTask.getBaselineDuration(snapshotId);
 	}
 	
-	protected void importAssignments(net.sf.mpxj.Task mpxTask, Task task) {
-		for (net.sf.mpxj.ResourceAssignment mpxAssignment : mpxTask.getResourceAssignments()) {
+	protected void importAssignments(org.mpxj.Task mpxTask, Task task) {
+		for (org.mpxj.ResourceAssignment mpxAssignment : mpxTask.getResourceAssignments()) {
 			if (isUnassignedAssignment(mpxAssignment))
 				continue;
 			MpxAssignmentConverter converter = new MpxAssignmentConverter();
@@ -1004,24 +1004,24 @@ public class MspImporter {
 		}
 	}
 
-	private boolean isUnassignedAssignment(net.sf.mpxj.ResourceAssignment assignment) {
+	private boolean isUnassignedAssignment(org.mpxj.ResourceAssignment assignment) {
 		Integer resourceUniqueId = assignment.getResourceUniqueID();
 		return resourceUniqueId == null || resourceUniqueId.intValue() == EnterpriseResource.UNASSIGNED_ID;
 	}
 
-	private Date getAssignmentBaselineStart(net.sf.mpxj.ResourceAssignment mpxAssignment, int snapshotId) {
+	private Date getAssignmentBaselineStart(org.mpxj.ResourceAssignment mpxAssignment, int snapshotId) {
 		if (snapshotId==0)
-			return mpxAssignment.getBaselineStart();
-		return mpxAssignment.getBaselineStart(snapshotId);
+			return com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(mpxAssignment.getBaselineStart());
+		return com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(mpxAssignment.getBaselineStart(snapshotId));
 	}
 
-	private Date getAssignmentBaselineFinish(net.sf.mpxj.ResourceAssignment mpxAssignment, int snapshotId) {
+	private Date getAssignmentBaselineFinish(org.mpxj.ResourceAssignment mpxAssignment, int snapshotId) {
 		if (snapshotId==0)
-			return mpxAssignment.getBaselineFinish();
-		return mpxAssignment.getBaselineFinish(snapshotId);
+			return com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(mpxAssignment.getBaselineFinish());
+		return com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(mpxAssignment.getBaselineFinish(snapshotId));
 	}
 
-	private Duration getAssignmentBaselineWork(net.sf.mpxj.ResourceAssignment mpxAssignment, int snapshotId) {
+	private Duration getAssignmentBaselineWork(org.mpxj.ResourceAssignment mpxAssignment, int snapshotId) {
 		if (snapshotId==0)
 			return mpxAssignment.getBaselineWork();
 		return mpxAssignment.getBaselineWork(snapshotId);
@@ -1029,7 +1029,7 @@ public class MspImporter {
 	
 	protected void importDependencies(Project project) {
 		MpxDependencyConverter converter=new MpxDependencyConverter();
-		for (net.sf.mpxj.Task mpxTask : mpxProjectFile.getTasks()){
+		for (org.mpxj.Task mpxTask : mpxProjectFile.getTasks()){
 //			if (mpxTask.getNull() || mpxTask.getID()==null)
 //				continue;
 			if (mpxTask==mpxRootTask)

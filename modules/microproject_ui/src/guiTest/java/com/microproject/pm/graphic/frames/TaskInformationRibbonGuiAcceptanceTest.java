@@ -4421,12 +4421,13 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	private void awaitStatusDateRibbonMatchesModel() throws Exception {
-		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
-		while (System.nanoTime() < deadline) {
-			if (statusDateRibbonMatchesModel()) return;
-			Thread.sleep(25);
+		try {
+			com.microproject.testsupport.TestAwait.awaitTrue(this::statusDateRibbonMatchesModel, java.time.Duration.ofSeconds(5),
+				"the Status Date ribbon to match the model");
+			return;
+		} catch (AssertionError timedOut) {
+			// fall through to the diagnostic failure below
 		}
-		if (statusDateRibbonMatchesModel()) return;
 		throw new AssertionError("Status Date ribbon did not refresh to match the model after bounded polling: "
 			+ lastStatusDateViewDiagnostic);
 	}
@@ -6319,6 +6320,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 					break;
 				if (System.nanoTime() >= cursorDeadline)
 					break;
+				// Fixed sleep kept: the loop re-moves the Robot pointer every pass and cannot be a pure condition wait.
 				Thread.sleep(25);
 			} while (true);
 			assertTrue(observedDrag[0] > 0, "physical row-header drag must deliver MOUSE_DRAGGED; events="
@@ -8601,10 +8603,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 	private static void awaitLagUndoDiagnostic(String label, java.util.function.BooleanSupplier condition,
 		Project project, Dependency dependency, NormalTask successor) throws Exception {
-		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-		while (System.nanoTime() < deadline) {
-			if (condition.getAsBoolean()) return;
-			Thread.sleep(25);
+		try {
+			com.microproject.testsupport.TestAwait.awaitTrue(condition, java.time.Duration.ofSeconds(5), "lag Undo to restore " + label);
+		} catch (AssertionError timedOut) {
+			// the assertion below adds the final state
 		}
 		assertTrue(condition.getAsBoolean(), "lag Undo did not restore " + label + "; final state: "
 			+ lagUndoDiagnostic(project, dependency, successor));
@@ -9474,15 +9476,21 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 	private static Point moveToRowHeaderTarget(Robot robot, JTable rowHeader, int row, boolean beforeHalf,
 			String failureMessage) throws Exception {
-		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(8);
 		RowHeaderTarget[] target = new RowHeaderTarget[1];
-		while (System.nanoTime() < deadline) {
-			target[0] = rowHeaderTargetOnScreen(rowHeader, row, beforeHalf);
-			robot.mouseMove(target[0].screenPoint().x, target[0].screenPoint().y);
-			robot.waitForIdle();
-			if (rowHeaderHoverRow(rowHeader) == row)
-				return target[0].screenPoint();
-			Thread.sleep(25);
+		try {
+			com.microproject.testsupport.TestAwait.awaitTrue(() -> {
+				try {
+					target[0] = rowHeaderTargetOnScreen(rowHeader, row, beforeHalf);
+					robot.mouseMove(target[0].screenPoint().x, target[0].screenPoint().y);
+					robot.waitForIdle();
+					return rowHeaderHoverRow(rowHeader) == row;
+				} catch (Exception targetFailed) {
+					throw new AssertionError(targetFailed);
+				}
+			}, java.time.Duration.ofSeconds(8), "the pointer to hover the row header target");
+			return target[0].screenPoint();
+		} catch (AssertionError timedOut) {
+			// fall through to the diagnostic failure below
 		}
 		throw new AssertionError(failureMessage + "; target=" + target[0] + "; "
 			+ componentInputDiagnostics(rowHeader) + "; windows={" + visibleWindowInputDiagnostics() + "}");

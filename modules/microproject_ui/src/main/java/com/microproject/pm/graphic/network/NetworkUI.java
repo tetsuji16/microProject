@@ -110,6 +110,8 @@ public abstract class NetworkUI extends GraphUI{
 
 
 
+	// SEG_MOVETO deliberately continues into the distance test shared with SEG_LINETO and SEG_CLOSE.
+	@SuppressWarnings("fallthrough")
 	public boolean isOnBarEdge(GraphicNode node,double x,double y){
 		double delta=config.getNetworkCellSelectionSquare();
 		GeneralPath shape=((NetworkRenderer)graphRenderer).getShape(node);
