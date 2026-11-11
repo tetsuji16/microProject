@@ -548,6 +548,31 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 		//scrollRectToVisible(visible);
 	}
 
+	/**
+	 * Scrolls the timescale horizontally so that {@code date} is centred in the
+	 * visible chart area. The position is clamped to the scrollable range, so a
+	 * date before the first or after the last scrollable instant shows the
+	 * nearest edge instead.
+	 *
+	 * @return true when the chart is hosted in a viewport and was positioned
+	 */
+	public boolean scrollToDate(long date) {
+		var coord = getCoord();
+		if (coord == null || !(getParent() instanceof JViewport viewport)) {
+			return false;
+		}
+		var position = viewport.getViewPosition();
+		position.x = centredViewX(coord.toX(date), viewport.getExtentSize().width, getWidth());
+		viewport.setViewPosition(position);
+		return true;
+	}
+
+	static int centredViewX(double dateX, int extentWidth, int viewWidth) {
+		int max = Math.max(0, viewWidth - extentWidth);
+		long x = Math.round(dateX - extentWidth / 2.0);
+		return (int) Math.max(0, Math.min(max, x));
+	}
+
 	private static boolean isAlreadyVisible(Rectangle visible, double start, double end) {
 		return (start >= visible.x && start <= visible.x + visible.width)
 				|| (end >= visible.x && end <= visible.x + visible.width)

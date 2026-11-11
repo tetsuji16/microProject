@@ -62,6 +62,7 @@ Task,Editing,Select All,RibbonSelectAll,REQUIRED,S24
 Task,Editing,Fill,RibbonFill,REQUIRED,S24
 Task,Editing,Find,RibbonFind,REQUIRED,S24
 Task,Editing,Scroll to Task,RibbonScrollToTask,REQUIRED,S24
+Task,Editing,Scroll to Today,RibbonScrollToToday,EXTENSION,product-only timescale navigation to the current date (issue #1092); MSP reaches a date through Go To (F5)
 Task,Editing,Hide Selected,RibbonHideSelectedTasks,EXTENSION,product-only hide command (AGENTS.md product extension contract)
 Task,Editing,Show All,RibbonShowAllTasks,EXTENSION,product-only counterpart of Hide Selected
 Resource,Insert,Resource,RibbonInsertResource,REQUIRED,S16

@@ -735,7 +735,7 @@ public class MpoFileImporter extends FileImporter {
 		}
 	}
 
-	private static void ensureOperationCount(java.util.Collection<OperationLog.Operation> operations) throws IOException {
+	static void ensureOperationCount(java.util.Collection<OperationLog.Operation> operations) throws IOException {
 		if (operations != null && operations.size() > MAX_OPERATION_COUNT)
 			throw new IOException("MPOF operation log exceeds " + MAX_OPERATION_COUNT + " operations");
 	}
@@ -885,12 +885,6 @@ public class MpoFileImporter extends FileImporter {
 			throw new IOException("Unable to serialize mpo project snapshot", exception);
 		}
 	}
-
-	private record SerializedProjectXml(byte[] xml, java.util.Map<Assignment, Integer> assignmentUids) { }
-	private record MpoDocumentMetadata(String documentId, long uniqueId, String name, String sharedResourcePoolFile,
-			long sharedResourcePoolProjectId, long statusDate, java.util.Map<String, String> embeddedSources) { }
-	private record MpoCapture(SerializedProjectXml serialized, java.util.Map<String, byte[]> entries,
-			MpoDocumentMetadata metadata, String fingerprint, MpoOperationState operationState) { }
 
 	private static String taskIdentitiesFor(Project project, byte[] projectXml) throws IOException {
 		ObjectNode root = JSON.createObjectNode();
@@ -1994,7 +1988,7 @@ public class MpoFileImporter extends FileImporter {
 		return result;
 	}
 
-	private static java.util.List<OperationLog.Operation> remapTaskOperations(java.util.List<OperationLog.Operation> operations, java.util.Map<Long, Long> identities) {
+	static java.util.List<OperationLog.Operation> remapTaskOperations(java.util.List<OperationLog.Operation> operations, java.util.Map<Long, Long> identities) {
 		java.util.List<OperationLog.Operation> result = new java.util.ArrayList<>(operations.size());
 		for (OperationLog.Operation operation : operations) {
 			java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>(operation.payload());
@@ -2013,17 +2007,17 @@ public class MpoFileImporter extends FileImporter {
 	private MpoMergePreparation prepareExternalMerge(File target, MpoCapture captured, MpoOperationState local) throws IOException {
 		ExternalMpo external = externalOperations(target);
 		// An explicit Save As over another document replaces it; there is nothing to merge.
-		if (replaceDifferentDocument && !(local.documentId.equals(external.document.documentId())
-				&& local.documentId.equals(external.manifestDocumentId))) return null;
-		if (!local.documentId.equals(external.document.documentId())) throw new IOException("Cannot merge mpo files with different document IDs");
-		if (!local.documentId.equals(external.manifestDocumentId)) throw new IOException("Cannot merge mpo with mismatched manifest document ID");
+		if (replaceDifferentDocument && !(local.documentId.equals(external.document().documentId())
+				&& local.documentId.equals(external.manifestDocumentId()))) return null;
+		if (!local.documentId.equals(external.document().documentId())) throw new IOException("Cannot merge mpo files with different document IDs");
+		if (!local.documentId.equals(external.manifestDocumentId())) throw new IOException("Cannot merge mpo with mismatched manifest document ID");
 		// The numeric Project unique id is an in-memory/importer identifier and is
 		// intentionally not used as a collaboration identity: MSPDI reloads may
 		// allocate a different value for the same document.  The stable mpo
 		// documentId above is the authoritative identity at this boundary.
 		java.util.List<OperationLog.Operation> all = new java.util.ArrayList<OperationLog.Operation>(local.operations);
 		java.util.Set<String> locallyAppliedOperationIds = new java.util.LinkedHashSet<String>(local.appliedOperationIds);
-		all.addAll(external.taskIdentities == null ? external.document.operations() : remapTaskOperations(external.document.operations(), readTaskIdentities(external.taskIdentities)));
+		all.addAll(external.taskIdentities() == null ? external.document().operations() : remapTaskOperations(external.document().operations(), readTaskIdentities(external.taskIdentities())));
 		if (all.size() > MAX_OPERATION_COUNT)
 			throw new IOException("MPOF merged operation log exceeds " + MAX_OPERATION_COUNT + " operations");
 		try {
@@ -2038,7 +2032,7 @@ public class MpoFileImporter extends FileImporter {
 							"Concurrent " + conflict.kind() + " operations: " + conflict.operationIds()))
 					.toList();
 			java.util.List<MpoMergePlan.Operation> plannedOperations = merged.ready().stream()
-					.filter(operation -> external.document.appliedOperationIds().contains(operation.id()))
+					.filter(operation -> external.document().appliedOperationIds().contains(operation.id()))
 					.filter(operation -> !locallyAppliedOperationIds.contains(operation.id()))
 					.map(operation -> new MpoMergePlan.Operation(operation.id(), MpoMergePlan.Action.UPDATE))
 					.toList();
@@ -2047,7 +2041,7 @@ public class MpoFileImporter extends FileImporter {
 				java.util.List<OperationLog.Operation> conflictOperations = new java.util.ArrayList<>(merged.ready());
 				conflictOperations.addAll(merged.pending());
 				Path recoveryCopy = persistRecoveryCopy(target, captured, local, conflictOperations,
-						external.extensions);
+						external.extensions());
 				throw new MpoConflictRecoveryException(recoveryCopy, conflicts);
 			}
 			validateMergePlan(plan);
@@ -2057,14 +2051,14 @@ public class MpoFileImporter extends FileImporter {
 		// A causally dependent external operation still sees its local parent in
 			// the current snapshot.
 			java.util.Set<String> mergedAppliedIds = new java.util.LinkedHashSet<String>(locallyAppliedOperationIds);
-			mergedAppliedIds.addAll(external.document.appliedOperationIds());
+			mergedAppliedIds.addAll(external.document().appliedOperationIds());
 			java.util.List<OperationLog.Operation> replayOperations = merged.ready().stream()
 					.filter(operation -> mergedAppliedIds.contains(operation.id()))
 					.toList();
 			java.util.List<OperationLog.Operation> mergedOperations = new java.util.ArrayList<>(merged.ready());
 			mergedOperations.addAll(merged.pending());
 			return new MpoMergePreparation(replayOperations, mergedOperations, locallyAppliedOperationIds,
-					mergedAppliedIds, external.extensions, plan);
+					mergedAppliedIds, external.extensions(), plan);
 		} catch (IllegalArgumentException exception) {
 			throw new IOException("Cannot merge conflicting mpo operation logs", exception);
 		}
@@ -2154,29 +2148,6 @@ public class MpoFileImporter extends FileImporter {
 		Long manifestProjectId = manifestData.projectUniqueId();
 		return new ExternalMpo(document, extensions, manifestDocumentId, manifestProjectId, taskIdentities,
 				snapshotOf(manifestData, projectXml, extensions.entries));
-	}
-
-	private record EmbeddedProject(String sourcePath, String entryName, byte[] contents, String referenceId) { }
-	private record EmbeddedProjectReference(String sourcePath, String entryName, String sha256, String referenceId) { }
-	private record ManifestData(String documentId, Long projectUniqueId, Long statusDate, Long sharedResourcePoolProjectId, String sharedResourcePoolPath,
-			java.util.List<EmbeddedProjectReference> embeddedProjects, java.util.Map<String, String> checksums) { }
-	private record ExternalMpo(OperationLog.DocumentLog document, MpoExtensions extensions, String manifestDocumentId, Long manifestProjectId, byte[] taskIdentities, MpoArchiveSnapshot snapshot) { }
-	private record MpoMergePreparation(java.util.List<OperationLog.Operation> replayOperations,
-			java.util.List<OperationLog.Operation> mergedOperations, java.util.Set<String> alreadyAppliedOperationIds,
-			java.util.Set<String> appliedOperationIds,
-			MpoExtensions extensions, MpoMergePlan plan) {
-		private MpoMergePreparation {
-			replayOperations = java.util.List.copyOf(replayOperations);
-			mergedOperations = java.util.List.copyOf(mergedOperations);
-			alreadyAppliedOperationIds = java.util.Set.copyOf(alreadyAppliedOperationIds);
-			appliedOperationIds = java.util.Set.copyOf(appliedOperationIds);
-		}
-		private void applyExtensions(Project project) {
-			if (extensions == null || extensions.entries.isEmpty()) return;
-			MpoExtensions target = project.getOrCreateTransientDocumentState(MpoExtensions.class, MpoExtensions::new);
-			for (java.util.Map.Entry<String, byte[]> entry : extensions.entries.entrySet())
-				target.entries.putIfAbsent(entry.getKey(), entry.getValue().clone());
-		}
 	}
 
 	private static MpoArchiveSnapshot snapshotOf(ManifestData manifest, byte[] projectXml,
@@ -3416,159 +3387,6 @@ public class MpoFileImporter extends FileImporter {
 	private static final class NonClosingInputStream extends FilterInputStream {
 		private NonClosingInputStream(InputStream delegate) { super(delegate); }
 		@Override public void close() { /* caller owns the wrapped stream */ }
-	}
-
-	private static final class MpoExtensions {
-		private final java.util.SortedMap<String, byte[]> entries = new java.util.TreeMap<String, byte[]>();
-	}
-	private static final class MpoOperationState {
-		private byte[] json; private String documentId; private String actorId = java.util.UUID.randomUUID().toString();
-		private final java.util.List<OperationLog.Operation> operations = new java.util.ArrayList<OperationLog.Operation>();
-		private final java.util.Set<String> appliedOperationIds = new java.util.LinkedHashSet<String>();
-		// History present when the document was opened: this session's edits follow it, so it cannot conflict with them.
-		private final java.util.Set<String> loadedOperationIds = new java.util.LinkedHashSet<String>();
-		private final java.util.Map<Long, TaskSnapshot> snapshots = new java.util.LinkedHashMap<Long, TaskSnapshot>();
-		private final java.util.Map<Long, Long> parentSnapshots = new java.util.LinkedHashMap<Long, Long>();
-		private final java.util.Set<String> dependencySnapshots = new java.util.LinkedHashSet<String>();
-		private final java.util.Map<String, String> assignmentSnapshots = new java.util.LinkedHashMap<String, String>();
-		private void capture(Project project) {
-			snapshots.clear();
-			parentSnapshots.clear();
-			dependencySnapshots.clear();
-			assignmentSnapshots.clear();
-			for (java.util.Iterator<?> it = project.getTaskOutlineIterator(); it.hasNext();) {
-				Task task = (Task) it.next();
-				Long id = Long.valueOf(task.getUniqueId());
-				snapshots.put(id, signature(task));
-				parentSnapshots.put(id, parentId(task));
-				for (java.util.Iterator<?> links = task.getSuccessorList().iterator(); links.hasNext();) {
-					Dependency dependency = (Dependency) links.next();
-					dependencySnapshots.add(dependencyKey(dependency));
-				}
-				if (task instanceof NormalTask) {
-					for (java.util.Iterator<?> assignments = ((NormalTask) task).getAssignments().iterator(); assignments.hasNext();) {
-						Assignment assignment = (Assignment) assignments.next();
-						if (!assignment.isDefault())
-							assignmentSnapshots.put(assignmentKey(assignment), assignmentValue(assignment));
-					}
-				}
-			}
-		}
-		private void remapTaskIds(java.util.Map<Long, Long> identities) throws IOException {
-			java.util.List<OperationLog.Operation> normalized = remapTaskOperations(operations, identities);
-			ensureOperationCount(normalized);
-			operations.clear(); operations.addAll(normalized);
-			json = new OperationLog().writeJsonl(documentId, operations, appliedOperationIds);
-		}
-		private void appendChanges(Project project) throws IOException {
-			java.util.Set<String> existingOperationIds = operations.stream().map(OperationLog.Operation::id)
-					.collect(java.util.stream.Collectors.toSet());
-			boolean changed = false; long sequence = operations.stream().filter(value -> actorId.equals(value.actorId())).mapToLong(OperationLog.Operation::sequence).max().orElse(0L);
-			java.util.Set<Long> seen = new java.util.LinkedHashSet<Long>();
-			for (java.util.Iterator<?> it = project.getTaskOutlineIterator(); it.hasNext();) {
-				Task task = (Task) it.next();
-				Long id = Long.valueOf(task.getUniqueId());
-				seen.add(id);
-				TaskSnapshot current = signature(task);
-				TaskSnapshot previous = snapshots.get(id);
-				Long currentParentId = parentId(task);
-				if (previous == null) {
-					java.util.Map<String, Object> payload = new java.util.LinkedHashMap<String, Object>();
-					payload.put("legacyUniqueId", id);
-					payload.put("name", task.getName());
-					payload.put("notes", task.getNotes());
-					payload.put("percentComplete", Double.valueOf(task.getPercentComplete()));
-					if (currentParentId != null)
-						payload.put("parentLegacyUniqueId", currentParentId);
-					addTaskOperation("task.create", id.longValue(), payload, ++sequence);
-					changed = true;
-				} else {
-					if (!java.util.Objects.equals(currentParentId, parentSnapshots.get(id))) {
-						java.util.Map<String, Object> payload = new java.util.LinkedHashMap<String, Object>();
-						payload.put("legacyUniqueId", id);
-						if (currentParentId != null)
-							payload.put("parentLegacyUniqueId", currentParentId);
-						addTaskOperation("task.move", id.longValue(), payload, ++sequence);
-						changed = true;
-					}
-					java.util.Map<String, Object> payload = new java.util.LinkedHashMap<String, Object>();
-					payload.put("legacyUniqueId", id);
-					if (!java.util.Objects.equals(current.name(), previous.name()))
-						payload.put("name", current.name());
-					if (!java.util.Objects.equals(current.notes(), previous.notes()))
-						payload.put("notes", current.notes());
-					if (Double.compare(current.percentComplete(), previous.percentComplete()) != 0)
-						payload.put("percentComplete", Double.valueOf(current.percentComplete()));
-					if (payload.size() > 1) {
-						addTaskOperation("task.update", id.longValue(), payload, ++sequence);
-						changed = true;
-					}
-				}
-			}
-			for (Long id : snapshots.keySet()) if (!seen.contains(id)) { operations.add(new OperationLog.Operation(java.util.UUID.randomUUID().toString(), actorId, ++sequence, java.util.Set.of(), "task.delete", java.util.UUID.nameUUIDFromBytes((documentId + ":" + id).getBytes(StandardCharsets.UTF_8)).toString(), java.util.Map.of("legacyUniqueId", id))); changed = true; }
-			java.util.Set<String> dependencies = new java.util.LinkedHashSet<String>(); java.util.Map<String, String> assignments = new java.util.LinkedHashMap<String, String>();
-			for (java.util.Iterator<?> it = project.getTaskOutlineIterator(); it.hasNext();) { Task task = (Task) it.next(); for (java.util.Iterator<?> links = task.getSuccessorList().iterator(); links.hasNext();) dependencies.add(dependencyKey((Dependency) links.next())); if (task instanceof NormalTask) for (java.util.Iterator<?> values = ((NormalTask) task).getAssignments().iterator(); values.hasNext();) { Assignment assignment = (Assignment) values.next(); if (!assignment.isDefault()) assignments.put(assignmentKey(assignment), assignmentValue(assignment)); } }
-			for (String key : dependencies) if (!dependencySnapshots.contains(key)) { String[] parts = key.split(":", -1); java.util.Map<String,Object> payload = new java.util.LinkedHashMap<String,Object>(); payload.put("predecessorLegacyUniqueId", Long.valueOf(parts[0])); payload.put("successorLegacyUniqueId", Long.valueOf(parts[1])); payload.put("dependencyType", Integer.valueOf(parts[2])); payload.put("lag", Long.valueOf(parts[3])); addOperation("dependency.add", dependencyEntityKey(key), payload, ++sequence); changed = true; }
-			for (String key : dependencySnapshots) if (!dependencies.contains(key)) { String[] parts = key.split(":", -1); java.util.Map<String,Object> payload = new java.util.LinkedHashMap<String,Object>(); payload.put("predecessorLegacyUniqueId", Long.valueOf(parts[0])); payload.put("successorLegacyUniqueId", Long.valueOf(parts[1])); payload.put("dependencyType", Integer.valueOf(parts[2])); payload.put("lag", Long.valueOf(parts[3])); addOperation("dependency.delete", dependencyEntityKey(key), payload, ++sequence); changed = true; }
-			for (java.util.Map.Entry<String,String> entry : assignments.entrySet()) if (!assignmentSnapshots.containsKey(entry.getKey())) { String[] ids = entry.getKey().split(":", -1); String[] values = entry.getValue().split(":", -1); Assignment assignment = findAssignment(project, Long.parseLong(ids[0]), Long.parseLong(ids[1])); java.util.Map<String,Object> payload = new java.util.LinkedHashMap<String,Object>(); payload.put("taskLegacyUniqueId", Long.valueOf(ids[0])); payload.put("resourceUniqueId", Long.valueOf(ids[1])); payload.put("resourceName", assignment.getResource().getName()); payload.put("units", Double.valueOf(values[0])); payload.put("delay", Long.valueOf(values[1])); addOperation("assignment.add", entry.getKey(), payload, ++sequence); changed = true; }
-			for (String key : assignmentSnapshots.keySet()) if (!assignments.containsKey(key)) { String[] ids = key.split(":", -1); java.util.Map<String,Object> payload = new java.util.LinkedHashMap<String,Object>(); payload.put("taskLegacyUniqueId", Long.valueOf(ids[0])); payload.put("resourceUniqueId", Long.valueOf(ids[1])); addOperation("assignment.delete", key, payload, ++sequence); changed = true; }
-			if (changed) {
-				ensureOperationCount(operations);
-				for (OperationLog.Operation operation : operations)
-					if (!existingOperationIds.contains(operation.id())) appliedOperationIds.add(operation.id());
-				json = new OperationLog().writeJsonl(documentId, operations, appliedOperationIds);
-				capture(project);
-			}
-		}
-		private void addOperation(String kind, String key, java.util.Map<String,Object> payload, long sequence) { operations.add(new OperationLog.Operation(java.util.UUID.randomUUID().toString(), actorId, sequence, java.util.Set.of(), kind, java.util.UUID.nameUUIDFromBytes((documentId + ":" + kind + ":" + key).getBytes(StandardCharsets.UTF_8)).toString(), payload)); }
-		private MpoOperationState copy() {
-			MpoOperationState copy = new MpoOperationState();
-			copy.json = json == null ? null : json.clone();
-			copy.documentId = documentId;
-			copy.actorId = actorId;
-			copy.operations.addAll(operations);
-			copy.appliedOperationIds.addAll(appliedOperationIds);
-			copy.loadedOperationIds.addAll(loadedOperationIds);
-			copy.snapshots.putAll(snapshots);
-			copy.parentSnapshots.putAll(parentSnapshots);
-			copy.dependencySnapshots.addAll(dependencySnapshots);
-			copy.assignmentSnapshots.putAll(assignmentSnapshots);
-			return copy;
-		}
-		private void commitFrom(MpoOperationState source) {
-			json = source.json == null ? null : source.json.clone();
-			documentId = source.documentId;
-			actorId = source.actorId;
-			operations.clear(); operations.addAll(source.operations);
-			appliedOperationIds.clear(); appliedOperationIds.addAll(source.appliedOperationIds);
-			loadedOperationIds.clear(); loadedOperationIds.addAll(source.loadedOperationIds);
-			snapshots.clear(); snapshots.putAll(source.snapshots);
-			parentSnapshots.clear(); parentSnapshots.putAll(source.parentSnapshots);
-			dependencySnapshots.clear(); dependencySnapshots.addAll(source.dependencySnapshots);
-			assignmentSnapshots.clear(); assignmentSnapshots.putAll(source.assignmentSnapshots);
-		}
-		private static TaskSnapshot signature(Task task) {
-			return new TaskSnapshot(task.getName(), task.getNotes(), task.getPercentComplete());
-		}
-		private void addTaskOperation(String kind, long taskId, java.util.Map<String, Object> payload, long sequence) {
-			String entityId = java.util.UUID.nameUUIDFromBytes((documentId + ":" + taskId).getBytes(StandardCharsets.UTF_8)).toString();
-			operations.add(new OperationLog.Operation(java.util.UUID.randomUUID().toString(), actorId, sequence,
-					java.util.Set.of(), kind, entityId, payload));
-		}
-		private static Long parentId(com.microproject.pm.task.Task task) { return task.getWbsParentTask() == null ? null : Long.valueOf(task.getWbsParentTask().getUniqueId()); }
-		private static String dependencyKey(Dependency dependency) { return dependency.getPredecessorId() + ":" + dependency.getSuccessorId() + ":" + dependency.getDependencyType() + ":" + dependency.getLag(); }
-		// Lag is mutable relationship data, not part of the relationship identity.
-		// Keeping it out of entityId lets concurrent lag changes conflict instead of
-		// merging as two unrelated dependency records.
-		private static String dependencyEntityKey(String key) {
-			String[] parts = key.split(":", -1);
-			if (parts.length != 4) throw new IllegalArgumentException("Invalid dependency key");
-			return parts[0] + ":" + parts[1] + ":" + parts[2];
-		}
-		private static String assignmentKey(Assignment assignment) { return assignment.getTask().getUniqueId() + ":" + assignment.getResource().getUniqueId(); }
-		private static String assignmentValue(Assignment assignment) { return assignment.getUnits() + ":" + assignment.getDelay(); }
-		private static Assignment findAssignment(Project project, long taskId, long resourceId) { Task task = project.findByUniqueId(taskId); if (task instanceof NormalTask) for (java.util.Iterator<?> it = ((NormalTask) task).getAssignments().iterator(); it.hasNext();) { Assignment assignment = (Assignment) it.next(); if (!assignment.isDefault() && assignment.getResource().getUniqueId() == resourceId) return assignment; } throw new IllegalStateException("Assignment snapshot disappeared"); }
-		private record TaskSnapshot(String name, String notes, double percentComplete) { }
 	}
 
 	private static String sha256(byte[] data) {
