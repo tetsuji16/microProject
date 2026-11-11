@@ -48,6 +48,8 @@ import com.formdev.flatlaf.extras.FlatSVGIcon;
 import org.imgscalr.Scalr;
 
 import com.microproject.util.ClassLoaderUtils;
+import com.microproject.util.ColorLuminance;
+import com.microproject.util.FlatUiSupport;
 
 /**
  * 
@@ -261,6 +263,8 @@ public class IconManager {
 				return null;
 			Dimension logicalSize = getSvgLogicalSize(iconName, url);
 			icon = createScalableIcon(url, logicalSize.width, logicalSize.height);
+			if (icon instanceof FlatSVGIcon svgIcon && isTreeExpanderKey(key))
+				svgIcon.setColorFilter(new FlatSVGIcon.ColorFilter(IconManager::treeExpanderInk));
 			if (icon == null)
 				icon = createImageIcon(url);
 			if (icon == null || icon.getIconWidth() <= 0 || icon.getIconHeight() <= 0) {
@@ -271,6 +275,27 @@ public class IconManager {
 			icons.put(key, icon);
 		}
 		return icon;
+	}
+
+	private static boolean isTreeExpanderKey(String key) {
+		return "spreadsheet.collapsed.icon".equals(key) || "spreadsheet.expanded.icon".equals(key);
+	}
+
+	/**
+	 * The outline expanders are drawn in black. The mapping is evaluated on every
+	 * paint, so the cached icon follows theme changes: on a dark table the black
+	 * ink is replaced by the table foreground, otherwise it is left untouched.
+	 */
+	private static Color treeExpanderInk(Color source) {
+		return treeExpanderInk(source, FlatUiSupport.tableBackground(), FlatUiSupport.tableForeground());
+	}
+
+	static Color treeExpanderInk(Color source, Color tableBackground, Color tableForeground) {
+		if (source == null || tableForeground == null || (source.getRGB() & 0xFFFFFF) != 0
+				|| !ColorLuminance.isDark(tableBackground))
+			return source;
+		return new Color(tableForeground.getRed(), tableForeground.getGreen(), tableForeground.getBlue(),
+			source.getAlpha());
 	}
 
 	private static Dimension getSvgLogicalSize(String iconName, URL iconUrl) {
