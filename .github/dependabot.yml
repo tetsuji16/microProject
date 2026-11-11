@@ -21,11 +21,3 @@ updates:
         update-types:
           - "minor"
           - "patch"
-    ignore:
-      # Major upgrades that need source migration. Remove a line when its issue is done.
-      - dependency-name: "com.github.librepdf:openpdf" # issue 1071
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "org.glassfish.jaxb:jaxb-runtime" # issue 1072
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "net.sf.mpxj:mpxj" # issue 1073
-        update-types: ["version-update:semver-major"]

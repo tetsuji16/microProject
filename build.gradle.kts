@@ -300,7 +300,7 @@ tasks.register("verifyDependencyAllowlist") {
         // from quietly introducing an unrelated public/runtime dependency.
         val allowedGroups = setOf(
             "com.fasterxml.jackson.core", "com.fasterxml.jackson.dataformat",
-            "com.formdev", "com.jgoodies", "com.lowagie", "com.thoughtworks.xstream",
+            "com.formdev", "com.jgoodies", "com.thoughtworks.xstream",
             "commons-codec",
             "commons-io", "commons-logging", "commons-pool", "org.apache.commons",
             "io.reactivex.rxjava3", "jakarta.xml.bind", "jakarta.activation",
