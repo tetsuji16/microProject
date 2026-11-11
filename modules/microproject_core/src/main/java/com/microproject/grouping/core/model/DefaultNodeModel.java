@@ -523,6 +523,7 @@ public class DefaultNodeModel implements NodeModel {
 		beginUndoUpdate(actionType);
 		try {
 			List<Node> roots = collectRemovalRoots(nodes, filterAssignments);
+			refuseProtectedRemovals(roots);
 			RemovalSnapshot removalSnapshot = RemovalSnapshot.capture(roots);
 			if (!confirmRemove(roots))
 				return false;
@@ -909,6 +910,25 @@ public class DefaultNodeModel implements NodeModel {
 		if (undoController!=null&&isUndo(actionType)){
 			undoController.getEditSupport().endUpdate();
 		}
+	}
+
+	/** Drops nodes whose data factory refuses removal, and tells the user once. */
+	private void refuseProtectedRemovals(List<Node> roots) {
+		if (dataFactory == null)
+			return;
+		String refusal = null;
+		for (java.util.Iterator<Node> i = roots.iterator(); i.hasNext();) {
+			Node node = i.next();
+			if (node.isVoid() || node.getImpl() instanceof Assignment)
+				continue;
+			String reason = dataFactory.removalRefusal(node.getImpl());
+			if (reason != null) {
+				refusal = reason;
+				i.remove();
+			}
+		}
+		if (refusal != null)
+			com.microproject.util.Alert.error(refusal);
 	}
 
 	private List<Node> collectRemovalRoots(List<Node> nodes, boolean filterAssignments) {
