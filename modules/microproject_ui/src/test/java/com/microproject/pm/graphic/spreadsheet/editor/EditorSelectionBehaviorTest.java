@@ -226,14 +226,14 @@ class EditorSelectionBehaviorTest {
 
 			adapter.prepareEditorComponent(textField);
 			assertTrue(hasCompositionListener(textField));
-			assertEquals(Boolean.FALSE, textField.getClientProperty("projectlibre.input.composing"));
+			assertEquals(Boolean.FALSE, textField.getClientProperty(ImeTextInputSupport.COMPOSITION_PROPERTY));
 
 			fireInputMethodState(textField, "テ", 0);
-			assertEquals(Boolean.TRUE, textField.getClientProperty("projectlibre.input.composing"));
+			assertEquals(Boolean.TRUE, textField.getClientProperty(ImeTextInputSupport.COMPOSITION_PROPERTY));
 			assertFalse(adapter.stopCellEditing());
 
 			fireInputMethodState(textField, "テ", 1);
-			assertEquals(Boolean.FALSE, textField.getClientProperty("projectlibre.input.composing"));
+			assertEquals(Boolean.FALSE, textField.getClientProperty(ImeTextInputSupport.COMPOSITION_PROPERTY));
 			assertTrue(adapter.stopCellEditing());
 		});
 	}
@@ -246,13 +246,13 @@ class EditorSelectionBehaviorTest {
 
 			adapter.prepareEditorComponent(textField);
 			fireInputMethodState(textField, "テスト", 1);
-			assertEquals(Boolean.TRUE, textField.getClientProperty("projectlibre.input.composing"));
+			assertEquals(Boolean.TRUE, textField.getClientProperty(ImeTextInputSupport.COMPOSITION_PROPERTY));
 			assertFalse(adapter.stopCellEditing());
 
 			fireInputMethodState(textField, "テスト", 3);
-			assertEquals(Boolean.FALSE, textField.getClientProperty("projectlibre.input.composing"));
+			assertEquals(Boolean.FALSE, textField.getClientProperty(ImeTextInputSupport.COMPOSITION_PROPERTY));
 			assertTrue(adapter.stopCellEditing());
-			assertEquals(Boolean.FALSE, textField.getClientProperty("projectlibre.input.composing"));
+			assertEquals(Boolean.FALSE, textField.getClientProperty(ImeTextInputSupport.COMPOSITION_PROPERTY));
 		});
 	}
 

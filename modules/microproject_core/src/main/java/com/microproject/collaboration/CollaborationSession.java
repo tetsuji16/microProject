@@ -156,7 +156,7 @@ public class CollaborationSession {
 			Metadata initial = store.load();
 			captureWorkspaceBaseline(initial);
 			refreshKnownState(initial);
-			timer = new Timer("projectlibre-collaboration-" + clientInstanceId, true);
+			timer = new Timer("microproject-collaboration-" + clientInstanceId, true);
 			timer.scheduleAtFixedRate(new TimerTask() {
 				@Override
 				public void run() {
