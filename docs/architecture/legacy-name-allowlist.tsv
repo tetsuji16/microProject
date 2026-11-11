@@ -25,7 +25,6 @@ modules/microproject_core/src/main/resources/com/microproject/strings/client_hi.
 modules/microproject_core/src/main/resources/com/microproject/strings/client_th.properties	Text.notAvailableInOpenProj	Unused legacy locale key; localization inventory is tracked in #954.
 modules/microproject_core/src/main/resources/com/microproject/strings/client_vi.properties	Text.notAvailableInOpenProj	Unused legacy locale key; localization inventory is tracked in #954.
 modules/microproject_core/src/main/resources/com/microproject/strings/client_zh.properties	Text.notAvailableInOpenProj	Unused legacy locale key; localization inventory is tracked in #954.
-modules/microproject_core/src/main/resources/com/microproject/strings/client_zh2.properties	Text.notAvailableInOpenProj	Unused legacy locale key; localization inventory is tracked in #954.
 modules/microproject_core/src/main/resources/com/microproject/strings/client_zh_TW.properties	Text.notAvailableInOpenProj	Unused legacy locale key; localization inventory is tracked in #954.
 modules/microproject_exchange/src/main/java/com/microproject/exchange/LocalFileImporter.java	// POD stores a serialized ProjectLibre payload followed by embedded MSPDI XML.	Legacy format identifier or historical format description required for compatible import.
 modules/microproject_exchange/src/main/java/com/microproject/exchange/xlsx/XlsxFormatIdentifiers.java	static final String LEGACY_EMBEDDED_MSPDI_SHEET = "_ProjectLibre_MSPDI";	Legacy format identifier or historical format description required for compatible import.
