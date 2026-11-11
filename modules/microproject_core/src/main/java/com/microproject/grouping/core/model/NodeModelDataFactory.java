@@ -66,6 +66,17 @@ public interface NodeModelDataFactory {
  * @param cleanDependencies whether dependencies should be cleaned up
   */
 	void remove(Object toRemove, NodeModel nodeModel,boolean deep,boolean undo,boolean cleanDependencies);
+
+	/**
+	 * Tells whether a backing object must be kept in the table.  It is consulted
+	 * before a node is removed from the hierarchy, so that the rows and the backing
+	 * data cannot diverge when the factory would refuse the removal.
+	 * @param toRemove backing object about to be removed
+	 * @return a user-facing reason when the removal is refused, or {@code null} when allowed
+	 */
+	default String removalRefusal(Object toRemove) {
+		return null;
+	}
 	
 	
 	
