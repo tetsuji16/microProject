@@ -1,7 +1,15 @@
 dependencies {
     implementation(project(":microproject_contrib"))
     implementation(project(":microproject_core"))
-    implementation(libs.mpxj)
+    // MPXJ 11.5.4 still uses the javax.xml.bind namespace; keep a javax-compatible
+    // JAXB runtime for it and exclude the jakarta 2.x artifacts it would pull in.
+    implementation(libs.mpxj) {
+        exclude(group = "jakarta.xml.bind")
+        exclude(group = "org.glassfish.jaxb")
+    }
+    implementation(libs.bundles.jaxb.legacy) {
+        exclude(group = "jakarta.xml.bind")
+    }
     implementation(libs.bundles.jackson)
     implementation(libs.commons.lang3)
     implementation(libs.bundles.poi)

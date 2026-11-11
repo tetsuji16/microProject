@@ -15,7 +15,9 @@ radiance = "4.5.0"
 flamingo = "5.0"
 javax-activation = "1.2.0"
 javax-jaxb = "2.3.1"
-jaxb-runtime = "2.3.9"
+jakarta-jaxb-api = "4.0.5"
+jaxb-runtime = "4.0.9"
+jaxb-legacy-impl = "2.3.9"
 jackson = "2.22.4"
 jackson-annotations = "2.22"
 jfreechart = "1.5.6"
@@ -52,7 +54,9 @@ radiance-trident = { module = "org.pushing-pixels:radiance-trident", version.ref
 flamingo = { module = "org.pushingpixels:flamengo", version.ref = "flamingo" }
 javax-activation-api = { module = "javax.activation:javax.activation-api", version.ref = "javax-activation" }
 javax-jaxb-api = { module = "javax.xml.bind:jaxb-api", version.ref = "javax-jaxb" }
+jakarta-jaxb-api = { module = "jakarta.xml.bind:jakarta.xml.bind-api", version.ref = "jakarta-jaxb-api" }
 jaxb-runtime = { module = "org.glassfish.jaxb:jaxb-runtime", version.ref = "jaxb-runtime" }
+jaxb-legacy-impl = { module = "com.sun.xml.bind:jaxb-impl", version.ref = "jaxb-legacy-impl" }
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson-annotations" }
 jackson-core = { module = "com.fasterxml.jackson.core:jackson-core", version.ref = "jackson" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
@@ -81,4 +85,5 @@ commons-runtime = [
 jackson = ["jackson-annotations", "jackson-core", "jackson-databind"]
 logging = ["slf4j-api", "slf4j-simple"]
 poi = ["poi", "poi-ooxml"]
-jaxb = ["javax-activation-api", "javax-jaxb-api", "jaxb-runtime"]
+jaxb = ["jakarta-jaxb-api", "jaxb-runtime"]
+jaxb-legacy = ["javax-activation-api", "javax-jaxb-api", "jaxb-legacy-impl"]

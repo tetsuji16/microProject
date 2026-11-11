@@ -25,7 +25,7 @@ package com.microproject.core.configuration.adapters;
 
 import java.util.HashMap;
 import java.util.Map;
-import javax.xml.bind.annotation.adapters.XmlAdapter;
+import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 
  
 public class MapAdapter<K, V> extends XmlAdapter<MapAdapterList<K, V>, Map<K, V>> {
