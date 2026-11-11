@@ -197,6 +197,13 @@ public abstract class ValueObjectForIntervalTable implements NodeModelDataFactor
 	}
 
 
+	@Override
+	public String removalRefusal(Object toRemove) {
+		if (toRemove instanceof ValueObjectForInterval interval && interval.isFirst())
+			return Messages.getString("ValueObjectForIntervalTable.YouCannotRemoveTheFirst"); //$NON-NLS-1$
+		return null;
+	}
+
 	public void remove(Object toRemove, NodeModel nodeModel,boolean deep,boolean undo,boolean removeDependencies){
 		try {
 			remove((ValueObjectForInterval) toRemove);
