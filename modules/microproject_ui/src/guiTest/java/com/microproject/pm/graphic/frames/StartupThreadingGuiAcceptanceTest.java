@@ -19,6 +19,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
+import com.microproject.company.ApplicationUser;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.util.Environment;
 
@@ -28,24 +29,29 @@ import com.microproject.util.Environment;
  */
 class StartupThreadingGuiAcceptanceTest {
 	private MainRibbonFrame window;
+	private GraphicManager manager;
+	private ApplicationUser previousUser;
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
 	private boolean previousClientSide;
 
 	@AfterEach
 	void closeWindow() throws Exception {
+		if (manager != null) SwingUtilities.invokeAndWait(manager::cleanUp);
 		if (window != null) SwingUtilities.invokeAndWait(window::dispose);
 		Environment.setRibbonUI(previousRibbonUi);
 		Environment.setNewLook(previousNewLook);
 		Environment.setClientSide(previousClientSide);
+		Environment.setUser(previousUser);
 	}
 
 	@Test
 	void sessionStartedFromTheLauncherThreadBuildsItsWindowOnTheEventDispatchThread() throws Exception {
-		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		previousClientSide = Environment.isClientSide();
+		previousUser = Environment.getUser();
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required.");
 		Environment.setClientSide(true);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
@@ -78,7 +84,7 @@ class StartupThreadingGuiAcceptanceTest {
 			}
 		};
 
-		factory.instanceFromNewSession(window, false);
+		manager = factory.instanceFromNewSession(window, false);
 
 		GuiAcceptanceSupport.await(window::isShowing, "startup window did not become visible");
 		assertEquals(List.of("startup action", "post init view"), steps);
