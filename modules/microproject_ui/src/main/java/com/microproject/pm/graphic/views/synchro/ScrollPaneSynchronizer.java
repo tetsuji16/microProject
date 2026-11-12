@@ -27,8 +27,6 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.event.AdjustmentEvent;
-import java.awt.event.AdjustmentListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.util.Map;
@@ -82,39 +80,14 @@ public class ScrollPaneSynchronizer {
 
 	protected boolean defaultWheelScrollingEnabled2;
 
-	protected AdjustmentListener scrollPane1HorizontalAdjustmentListener = null;
-
-	protected AdjustmentListener scrollPane2HorizontalAdjustmentListener = null;
-	
 	protected boolean bottomBarActivated=true;
 	protected boolean bottomBarEnabled=false;
 
 	protected boolean active = false;
 	private boolean synchronizingViewport = false;
 
-	protected ZoomRestoreState scrollPane1ZoomRestoreState = null;
-
-	protected ZoomRestoreState scrollPane2ZoomRestoreState = null;
-
-	protected int programmaticHorizontalScrollCount = 0;
-
 	private static final int ZOOM_RANGE_MARGIN_DAYS = 30;
 
-	private static class ZoomRestoreState {
-		private Double keptLeftDate = null;
-
-		private double resolve(double currentLeftDate) {
-			return keptLeftDate == null ? currentLeftDate : keptLeftDate.doubleValue();
-		}
-
-		private void update(double leftDate) {
-			keptLeftDate = Double.valueOf(leftDate);
-		}
-
-		private void reset() {
-			keptLeftDate = null;
-		}
-	}
 	/**
 	 * @param scrollPane1
 	 * @param scrollPane2
@@ -204,14 +177,8 @@ public class ScrollPaneSynchronizer {
 			};
 			scrollPane1.getViewport().addChangeListener(scrollPane1Listener);
 			scrollPane2.getViewport().addChangeListener(scrollPane2Listener);
-			scrollPane1ZoomRestoreState = createZoomRestoreState(scrollPane1);
-			scrollPane2ZoomRestoreState = createZoomRestoreState(scrollPane2);
-			registerGanttSynchronizer(scrollPane1, scrollPane1ZoomRestoreState);
-			registerGanttSynchronizer(scrollPane2, scrollPane2ZoomRestoreState);
-			scrollPane1HorizontalAdjustmentListener = createHorizontalAdjustmentListener(scrollPane1ZoomRestoreState);
-			scrollPane2HorizontalAdjustmentListener = createHorizontalAdjustmentListener(scrollPane2ZoomRestoreState);
-			scrollPane1.getHorizontalScrollBar().addAdjustmentListener(scrollPane1HorizontalAdjustmentListener);
-			scrollPane2.getHorizontalScrollBar().addAdjustmentListener(scrollPane2HorizontalAdjustmentListener);
+			registerGanttSynchronizer(scrollPane1);
+			registerGanttSynchronizer(scrollPane2);
 
 			scrollPane1WheelListener = createWheelListener(scrollPane1);
 			scrollPane2WheelListener = createWheelListener(scrollPane2);
@@ -271,16 +238,6 @@ public class ScrollPaneSynchronizer {
 			}
 			unregisterGanttSynchronizer(scrollPane1);
 			unregisterGanttSynchronizer(scrollPane2);
-			scrollPane1ZoomRestoreState = null;
-			scrollPane2ZoomRestoreState = null;
-			if (scrollPane1HorizontalAdjustmentListener != null) {
-				scrollPane1.getHorizontalScrollBar().removeAdjustmentListener(scrollPane1HorizontalAdjustmentListener);
-				scrollPane1HorizontalAdjustmentListener = null;
-			}
-			if (scrollPane2HorizontalAdjustmentListener != null) {
-				scrollPane2.getHorizontalScrollBar().removeAdjustmentListener(scrollPane2HorizontalAdjustmentListener);
-				scrollPane2HorizontalAdjustmentListener = null;
-			}
 			if (scrollPane1WheelListener != null) {
 				scrollPane1.removeMouseWheelListener(scrollPane1WheelListener);
 			}
@@ -345,7 +302,6 @@ public class ScrollPaneSynchronizer {
 		viewPosition.x += scrollAmount;
 		clampViewPosition(viewport, viewPosition);
 		setViewportViewPosition(viewport, viewPosition);
-		updateKeptLeftDate(getZoomRestoreState(scrollPane), resolveViewportLeftEdgeDate(coord -> coord, viewPosition));
 	}
 
 	private double horizontalWheelRemainder;
@@ -533,11 +489,6 @@ public class ScrollPaneSynchronizer {
 		setViewportViewPosition(viewport, newViewPosition);
 	}
 
-	static double resolveViewportLeftEdgeDate(DoubleUnaryOperator xToTime, Point viewPosition) {
-		int leftEdgeX = viewPosition == null ? 0 : Math.max(0, viewPosition.x);
-		return xToTime.applyAsDouble(leftEdgeX);
-	}
-
 	static int restoreViewportX(DoubleUnaryOperator timeToX, double restoreDate) {
 		return (int) Math.round(timeToX.applyAsDouble(restoreDate));
 	}
@@ -549,17 +500,6 @@ public class ScrollPaneSynchronizer {
 		return Math.max(0, Math.min(targetScaleIndex, scaleCount - 1));
 	}
 
-	private ZoomRestoreState createZoomRestoreState(JScrollPane scrollPane) {
-		return isGanttScrollPane(scrollPane) ? new ZoomRestoreState() : null;
-	}
-
-	private void updateKeptLeftDate(ZoomRestoreState state, double leftDate) {
-		if (state == null) {
-			return;
-		}
-		state.update(leftDate);
-	}
-
 	private boolean isGanttScrollPane(JScrollPane scrollPane) {
 		if (scrollPane == null || scrollPane.getViewport() == null) {
 			return false;
@@ -567,18 +507,8 @@ public class ScrollPaneSynchronizer {
 		return scrollPane.getViewport().getView() instanceof Gantt;
 	}
 
-	private ZoomRestoreState getZoomRestoreState(JScrollPane scrollPane) {
-		if (scrollPane == scrollPane1) {
-			return scrollPane1ZoomRestoreState;
-		}
-		if (scrollPane == scrollPane2) {
-			return scrollPane2ZoomRestoreState;
-		}
-		return null;
-	}
-
-	private void registerGanttSynchronizer(JScrollPane scrollPane, ZoomRestoreState state) {
-		if (state == null || scrollPane == null || scrollPane.getViewport() == null) {
+	private void registerGanttSynchronizer(JScrollPane scrollPane) {
+		if (!isGanttScrollPane(scrollPane) || scrollPane.getViewport() == null) {
 			return;
 		}
 		Component view = scrollPane.getViewport().getView();
@@ -597,59 +527,8 @@ public class ScrollPaneSynchronizer {
 		}
 	}
 
-	private AdjustmentListener createHorizontalAdjustmentListener(final ZoomRestoreState state) {
-		return new AdjustmentListener() {
-			public void adjustmentValueChanged(AdjustmentEvent e) {
-				if (programmaticHorizontalScrollCount > 0) {
-					return;
-				}
-				JScrollPane owner = e.getAdjustable() == scrollPane1.getHorizontalScrollBar() ? scrollPane1 : scrollPane2;
-				JViewport viewport = owner == null ? null : owner.getViewport();
-				if (viewport == null) {
-					return;
-				}
-				if (e.getValueIsAdjusting() || e.getAdjustmentType() == AdjustmentEvent.TRACK || e.getAdjustmentType() == AdjustmentEvent.UNIT_INCREMENT
-						|| e.getAdjustmentType() == AdjustmentEvent.UNIT_DECREMENT || e.getAdjustmentType() == AdjustmentEvent.BLOCK_INCREMENT
-						|| e.getAdjustmentType() == AdjustmentEvent.BLOCK_DECREMENT) {
-					updateKeptLeftDate(state, resolveViewportLeftEdgeDate(coord -> coord, viewport.getViewPosition()));
-				}
-			}
-		};
-	}
-
 	private void setViewportViewPosition(JViewport viewport, Point viewPosition) {
-		programmaticHorizontalScrollCount++;
-		try {
-			viewport.setViewPosition(viewPosition);
-		} finally {
-			programmaticHorizontalScrollCount--;
-		}
-	}
-
-	private void invalidateZoomRestoreState(ZoomRestoreState state) {
-		if (state != null) {
-			state.reset();
-		}
-	}
-
-	private void invalidateAllZoomRestoreState() {
-		invalidateZoomRestoreState(scrollPane1ZoomRestoreState);
-		invalidateZoomRestoreState(scrollPane2ZoomRestoreState);
-	}
-
-	public static void invalidateZoomRestore(Component component) {
-		if (component == null) {
-			return;
-		}
-		Component current = component;
-		while (current != null) {
-			ScrollPaneSynchronizer synchronizer = (ScrollPaneSynchronizer) ganttSynchronizers.get(current);
-			if (synchronizer != null) {
-				synchronizer.invalidateAllZoomRestoreState();
-				return;
-			}
-			current = current.getParent();
-		}
+		viewport.setViewPosition(viewPosition);
 	}
 
 	private int getWheelSteps(MouseWheelEvent e) {

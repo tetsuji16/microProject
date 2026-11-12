@@ -28,6 +28,9 @@ import com.microproject.dialog.UsabilityStrings;
 import com.microproject.pm.ccpm.CriticalChainBufferHistory;
 import com.microproject.pm.ccpm.CriticalChainService;
 import com.microproject.pm.task.Project;
+import com.microproject.ui.theme.MicroProjectTheme;
+import com.microproject.ui.theme.ThemeManager;
+import com.microproject.util.ColorLuminance;
 import com.microproject.util.FlatUiSupport;
 
 /** Read-only CCPM fever chart relating project progress to buffer consumption. */
@@ -57,7 +60,8 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 		this.project = project;
 		CriticalChainBufferHistory saved = project == null ? null : project.findTransientDocumentState(CriticalChainBufferHistory.class);
 		if (saved != null) history.addAll(saved.points());
-		setBackground(Color.WHITE);
+		setBackground(backgroundColor());
+		ThemeManager.bindToComponent(this, () -> { setBackground(backgroundColor()); repaint(); });
 		setPreferredSize(new Dimension(620, 420));
 		getAccessibleContext().setAccessibleName(UsabilityStrings.text("ccpm.bufferChartAccessible"));
 		setToolTipText(UsabilityStrings.text("ccpm.bufferChartTooltip"));
@@ -149,7 +153,7 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 			// component's inherited font (which can differ across look and feels).
 			applyChartFont(g);
 			if (!enabled || analysis == null) {
-				g.setColor(Color.DARK_GRAY);
+				g.setColor(textColor());
 				g.drawString(UsabilityStrings.text("ccpm.bufferChartEmpty"), LEFT, TOP + 20);
 				return;
 			}
@@ -209,7 +213,7 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 	}
 
 	private void drawAxes(Graphics2D g, int width, int height) {
-		g.setColor(new Color(75, 75, 75));
+		g.setColor(isDark() ? MicroProjectTheme.tokens().labelForeground() : new Color(75, 75, 75));
 		g.setStroke(new BasicStroke(1f));
 		g.drawLine(LEFT, TOP, LEFT, TOP + height);
 		g.drawLine(LEFT, TOP + height, LEFT + width, TOP + height);
@@ -228,7 +232,7 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 	private void drawHistory(Graphics2D g, int width, int height) {
 		List<CriticalChainBufferHistory.Point> points = renderPoints(history);
 		if (points.isEmpty()) return;
-		g.setColor(new Color(34, 94, 168));
+		g.setColor(isDark() ? MicroProjectTheme.tokens().accentColor() : new Color(34, 94, 168));
 		g.setStroke(new BasicStroke(2f));
 		CriticalChainBufferHistory.Point previous = null;
 		for (CriticalChainBufferHistory.Point point : points) {
@@ -239,16 +243,16 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 		for (CriticalChainBufferHistory.Point point : points) {
 			int x = xFor(point.progressPercent(), width);
 			int y = yFor(point.consumptionPercent(), height);
-			g.setColor(new Color(20, 75, 145));
+			g.setColor(isDark() ? MicroProjectTheme.tokens().accentColor() : new Color(20, 75, 145));
 			g.fillOval(x - 5, y - 5, 10, 10);
 			if (point.observationId().equals(selectedObservationId)) {
 				g.setColor(new Color(210, 80, 30));
 				g.setStroke(new BasicStroke(2f));
 				g.drawOval(x - 8, y - 8, 16, 16);
 			}
-			g.setColor(Color.WHITE);
+			g.setColor(isDark() ? MicroProjectTheme.tokens().tableBackground() : Color.WHITE);
 			g.drawOval(x - 3, y - 3, 6, 6);
-			g.setColor(Color.DARK_GRAY);
+			g.setColor(textColor());
 			g.drawString(Math.round(point.progressPercent()) + "% / " + Math.round(point.consumptionPercent()) + "%", x + 8, y - 8);
 		}
 	}
@@ -263,7 +267,7 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 	private static void legend(Graphics2D g, Color color, String label, int x, int y) {
 		g.setColor(color);
 		g.fillRect(x, y - 10, 12, 12);
-		g.setColor(Color.DARK_GRAY);
+		g.setColor(textColor());
 		g.drawRect(x, y - 10, 12, 12);
 		g.drawString(label, x + 18, y);
 	}
@@ -329,4 +333,5 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 
 	static int observationCount(CriticalChainBufferChartPanel panel) { return panel.history.size(); }
 	static CriticalChainBufferHistory.Point currentPoint(Project project, CriticalChainService.Buffer buffer) { return pointFor(project, buffer); }
+private static boolean isDark() {		return ColorLuminance.isDark(MicroProjectTheme.tokens().appBackground());	}	private static Color backgroundColor() {		return isDark() ? MicroProjectTheme.tokens().tableBackground() : Color.WHITE;	}	private static Color textColor() {		return isDark() ? MicroProjectTheme.tokens().labelForeground() : Color.DARK_GRAY;	}
 }

@@ -56,7 +56,6 @@ import com.microproject.pm.graphic.spreadsheet.command.TaskCommandResult;
 import com.microproject.pm.graphic.spreadsheet.command.TaskScheduleEditIntent;
 import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
-import com.microproject.pm.graphic.views.synchro.ScrollPaneSynchronizer;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.pm.scheduling.IntervalConsumer;
 import com.microproject.pm.dependency.HasDependencies;
@@ -939,7 +938,6 @@ public class GanttInteractor extends GraphInteractor{
     	panStartViewPosition = viewport == null ? null : viewport.getViewPosition();
     	selection = false;
     	state = NOTHING_SELECTED;
-    	ScrollPaneSynchronizer.invalidateZoomRestore(getGraph());
     	getGraph().setCursor(new Cursor(Cursor.MOVE_CURSOR));
     }
 
@@ -1094,9 +1092,6 @@ public class GanttInteractor extends GraphInteractor{
     }
     protected boolean isDirectAction(){
     	return state==SPLIT||super.isDirectAction();
-    }
-    protected boolean isZoomRestoreInvalidatingDirectAction(){
-    	return state==SPLIT;
     }
     protected boolean isRepaintOnRelease(){
     	return state==BAR_MOVE||state==BAR_MOVE_END||state==BAR_MOVE_START||state==PROGRESS_BAR_MOVE||state==LINK_CREATION;

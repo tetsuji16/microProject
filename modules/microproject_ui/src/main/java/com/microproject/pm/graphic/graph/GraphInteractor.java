@@ -46,7 +46,6 @@ import com.microproject.dialog.DependencyDialog;
 import com.microproject.pm.graphic.IconManager;
 import com.microproject.pm.graphic.model.cache.GraphicDependency;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
-import com.microproject.pm.graphic.views.synchro.ScrollPaneSynchronizer;
 import com.microproject.graphic.configuration.GraphicConfiguration;
 import com.microproject.ui.input.PopupTriggerController;
 
@@ -276,15 +275,11 @@ public abstract class GraphInteractor implements MouseListener, MouseMotionListe
         if (isReadOnly()) return;
         if (SwingUtilities.isRightMouseButton(e) || selected==null) return;
         if (isMove()){
-            ScrollPaneSynchronizer.invalidateZoomRestore(getGraph());
             selection=false;
             x0=e.getX();
             y0=e.getY();
             drawBarShadow(x0,y0,true);
         }else if (isDirectAction()){
-            if (isZoomRestoreInvalidatingDirectAction()) {
-                ScrollPaneSynchronizer.invalidateZoomRestore(getGraph());
-            }
             executeAction(e.getX(),e.getY());
             state=NOTHING_SELECTED;
         }
@@ -467,9 +462,6 @@ public abstract class GraphInteractor implements MouseListener, MouseMotionListe
     }
     protected boolean isDirectAction(){
     	return state==LINK_SELECTION;
-    }
-    protected boolean isZoomRestoreInvalidatingDirectAction(){
-    	return false;
     }
     protected boolean isRepaintOnRelease(){
     	return state==BAR_MOVE||state==LINK_CREATION;

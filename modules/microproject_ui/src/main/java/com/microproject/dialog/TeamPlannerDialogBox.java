@@ -111,9 +111,7 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 		add(scrollPane, BorderLayout.CENTER);
 		add(footer, BorderLayout.SOUTH);
 		FlatUiSupport.styleDialogComponents(getContentPane());
-		setPreferredSize(new Dimension(1120, 680));
-		pack();
-		setLocationRelativeTo(getOwner());
+		DialogSizing.applyInitialSize(this, new Dimension(720, 460), new Dimension(1120, 680), getOwner());
 	}
 
 	/** Creates the Team Planner UI for embedding in a document view. */

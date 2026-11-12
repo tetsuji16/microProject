@@ -423,17 +423,6 @@ public class DocumentFrame extends NamedFrame implements
 		return true;
 	}
 
-//	void doEnterpriseResourcesDialog() {
-//		finishAnyOperations();
-//		EnterpriseResourcesDialog enterpriseResourceDialog = EnterpriseResourcesDialog
-//				.getInstance(getMainFrame());
-//		enterpriseResourceDialog.pack();
-//		enterpriseResourceDialog.setModal(false);
-//		enterpriseResourceDialog.setLocationRelativeTo(null);//to center on
-//															 // screen
-//		enterpriseResourceDialog.show();
-//	}
-
 
 	void doChangeWorkingTimeDialog(boolean restrict) {
 		finishAnyOperations();
@@ -486,7 +475,7 @@ public class DocumentFrame extends NamedFrame implements
 
 		UpdateTaskDialog dlg = UpdateTaskDialog.getInstance(getGraphicManager().getFrame(),
 				nodes);
-		dlg.setLocationRelativeTo(null);//to center on screen
+		dlg.setLocationRelativeTo(getGraphicManager().getFrame());
 		return dlg.doModal();
 
 	}
