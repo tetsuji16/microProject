@@ -723,6 +723,9 @@ public class DocumentFrame extends NamedFrame implements
 		if (sheet.isHeaderColumnSelectionActive())
 			return RibbonCommandResult.rejected(command.actionId(), "task-row-selection-required");
 		List<Node> selected = new ArrayList<>(sheet.getSelectedNodes());
+		// A milestone on blank rows fills the current blank row instead of being rejected.
+		if (!summary && !selected.isEmpty() && selected.stream().allMatch(Node::isVoid))
+			selected.clear();
 		if (summary && selected.isEmpty())
 			return RibbonCommandResult.rejected(command.actionId(), "no-selection");
 		if (!selected.isEmpty()) {
@@ -750,7 +753,7 @@ public class DocumentFrame extends NamedFrame implements
 		Node inserted;
 		try {
 			if (selected.isEmpty()) {
-				inserted = sheet.insertOneTaskRowAtCurrentRow();
+				inserted = sheet.insertOneTaskRowAtCurrentRowOrBlank();
 				if (inserted == null)
 					return RibbonCommandResult.rejected(command.actionId(), "insertion-not-allowed");
 			} else {
