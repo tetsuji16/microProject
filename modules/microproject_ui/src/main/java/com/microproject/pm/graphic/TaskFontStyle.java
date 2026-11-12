@@ -30,15 +30,38 @@ public final class TaskFontStyle {
 		boolean strikethrough = task.isFontStrikethrough() || task.isInactiveTask();
 		if ((family == null || family.isBlank()) && size == 0 && style == Font.PLAIN && !strikethrough)
 			return fallback;
+		FontKey key = new FontKey(fallback, family == null || family.isBlank() ? null : family, style, size, strikethrough);
+		synchronized (FONT_CACHE) {
+			Font cached = FONT_CACHE.get(key);
+			if (cached != null)
+				return cached;
+		}
 		Font resolved = fallback.deriveFont(style, (float)(size == 0 ? fallback.getSize() : size));
 		if (family != null && !family.isBlank())
 			resolved = new Font(family, style, size == 0 ? fallback.getSize() : size);
-		if (!strikethrough)
-			return resolved;
-		Map<TextAttribute, Object> attributes = new HashMap<>(resolved.getAttributes());
-		attributes.put(TextAttribute.STRIKETHROUGH, TextAttribute.STRIKETHROUGH_ON);
-		return resolved.deriveFont(attributes);
+		if (strikethrough) {
+			Map<TextAttribute, Object> attributes = new HashMap<>(resolved.getAttributes());
+			attributes.put(TextAttribute.STRIKETHROUGH, TextAttribute.STRIKETHROUGH_ON);
+			resolved = resolved.deriveFont(attributes);
+		}
+		synchronized (FONT_CACHE) {
+			FONT_CACHE.put(key, resolved);
+		}
+		return resolved;
 	}
+
+	private record FontKey(Font fallback, String family, int style, int size, boolean strikethrough) {
+	}
+
+	/** Small LRU of derived fonts so painting does not allocate a Font per cell/row. */
+	private static final Map<FontKey, Font> FONT_CACHE = new java.util.LinkedHashMap<>(16, 0.75f, true) {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		protected boolean removeEldestEntry(Map.Entry<FontKey, Font> eldest) {
+			return size() > 32;
+		}
+	};
 
 	public static Color resolveColor(Object object, Color fallback) {
 		if (!(object instanceof Task task))

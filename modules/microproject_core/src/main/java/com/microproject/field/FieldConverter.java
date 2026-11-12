@@ -301,7 +301,8 @@ public class FieldConverter  {
 				return date;
 			} else if (value instanceof Calendar calendar) {
 				return calendar.getTime();
-			} else if (value instanceof String dateText) {
+			} else if (value instanceof String rawDateText) {
+				String dateText = com.microproject.util.FullWidthInput.normalize(rawDateText);
 				try {
 					return EditOption.getInstance().getDateFormat().parse(dateText);
 				} catch (ParseException e) {

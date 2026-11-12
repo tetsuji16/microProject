@@ -41,9 +41,6 @@ public abstract class IndicatorsComponent {
 	protected Color bgColor;
 	protected void setLook(JComponent c,boolean isSelected, boolean hasFocus){
 		c.setOpaque(false);
-//		c.setBackground((isSelected)?Color.BLACK:Color.WHITE);
-//		Component parent=c.getParent();
-//		if (parent!=null) c.setBackground(parent.getBackground());
 	}
 	
 

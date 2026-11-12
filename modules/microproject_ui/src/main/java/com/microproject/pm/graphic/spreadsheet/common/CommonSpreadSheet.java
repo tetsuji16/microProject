@@ -1000,6 +1000,8 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		actionMap.put(COMMIT_AND_MOVE_DOWN_ACTION, new AbstractAction() {
 			private static final long serialVersionUID = 1L;
 			public void actionPerformed(ActionEvent e) {
+				if (ImeTextInputSupport.isCompositionActive(component))
+					return; // Enter confirms the IME composition, not the cell
 				CellEditor editor = getCellEditor();
 				if (editor == null)
 					return;

@@ -104,19 +104,24 @@ public class SpinEditor extends SimpleEditor {
 	}
 	
 	public static Object getValue(JSpinner spinner, Field field) {
-		JSpinner.NumberEditor editor = (NumberEditor) spinner.getEditor();
-		Object value = null;
 		try {
-			if (field.isPercent()) {
-				value = PercentFormat.getInstance().parseObject(editor.getTextField().getText());
-//	JSpinner screws up and sometimes adds a small fraction to the value.  Round it to get rid of it.  Example, 15% shows up with a miniscule .000000000000000002 at the end
-				value = Double.valueOf(MathUtils.roundToDecentPrecision(((Number) value).doubleValue()));
-			}
-			else
-				value = NumberFormat.getInstance(Locale.getDefault()).parseObject(editor.getTextField().getText());
+			return parseValue(spinner, field);
 		} catch (ParseException e) {
 			return null;
 		}
+	}
+
+	/** Parses the editor text of the spinner, reporting text that is not a valid number. */
+	public static Object parseValue(JSpinner spinner, Field field) throws ParseException {
+		JSpinner.NumberEditor editor = (NumberEditor) spinner.getEditor();
+		Object value = null;
+		if (field.isPercent()) {
+			value = PercentFormat.getInstance().parseObject(com.microproject.util.FullWidthInput.normalize(editor.getTextField().getText()));
+//	JSpinner screws up and sometimes adds a small fraction to the value.  Round it to get rid of it.  Example, 15% shows up with a miniscule .000000000000000002 at the end
+			value = Double.valueOf(MathUtils.roundToDecentPrecision(((Number) value).doubleValue()));
+		}
+		else
+			value = NumberFormat.getInstance(Locale.getDefault()).parseObject(com.microproject.util.FullWidthInput.normalize(editor.getTextField().getText()));
 		if (field.isRate())
 			value = new Rate(((Number)value).doubleValue());
 		return value;

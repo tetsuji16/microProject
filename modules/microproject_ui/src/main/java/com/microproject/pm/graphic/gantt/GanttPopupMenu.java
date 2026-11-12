@@ -38,6 +38,7 @@ import javax.swing.JMenuItem;
 import javax.swing.JRadioButtonMenuItem;
 
 
+import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.pm.graphic.graph.GraphInteractor;
 import com.microproject.pm.graphic.graph.GraphModel;
 import com.microproject.pm.graphic.gantt.Gantt;
@@ -242,7 +243,7 @@ public class GanttPopupMenu extends GraphPopupMenu{
 		public void paintIcon(Component component, Graphics graphics, int x, int y) {
 			graphics.setColor(color);
 			graphics.fillRect(x, y, getIconWidth(), getIconHeight());
-			graphics.setColor(Color.DARK_GRAY);
+			graphics.setColor(MicroProjectTheme.tokens().borderColor());
 			graphics.drawRect(x, y, getIconWidth() - 1, getIconHeight() - 1);
 		}
 	}

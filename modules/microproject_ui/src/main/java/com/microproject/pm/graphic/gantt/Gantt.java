@@ -73,6 +73,7 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	private static final long serialVersionUID = -1806070019043393474L;
 	private static final int AUTO_SCROLL_START_THRESHOLD = 150;
 	private static final int AUTO_SCROLL_LEFT_PADDING = 50;
+	private static final int SCROLL_RANGE_MARGIN_DAYS = 30;
 	private static final int BOTTOM_SCROLL_BUFFER_ROWS = 5;
 	/** Default display policy shared by standalone and task-table Gantt views. */
 	public static final boolean DEFAULT_GRID_LINES_VISIBLE = true;
@@ -183,15 +184,29 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 			return Collections.emptySet();
 		}
 		var projection = getCache().getVisibleNodes().getProjectionIndex();
+		Set<ProjectionRowKey> keys = highlightedRowKeys;
+		// The projection index and the key set are both immutable snapshots that are replaced
+		// (never mutated) on change, so identity comparison is a sufficient invalidation test.
+		if (highlightedRowsProjection == projection && highlightedRowsKeys == keys && highlightedRowsCache != null) {
+			return highlightedRowsCache;
+		}
 		Set<Integer> rows = new HashSet<>();
-		for (ProjectionRowKey key : highlightedRowKeys) {
+		for (ProjectionRowKey key : keys) {
 			int row = projection.rowForKey(key);
 			if (row >= 0) {
 				rows.add(row);
 			}
 		}
-		return Set.copyOf(rows);
+		Set<Integer> result = Set.copyOf(rows);
+		highlightedRowsProjection = projection;
+		highlightedRowsKeys = keys;
+		highlightedRowsCache = result;
+		return result;
 	}
+
+	private transient Object highlightedRowsProjection;
+	private transient Set<ProjectionRowKey> highlightedRowsKeys;
+	private transient Set<Integer> highlightedRowsCache;
 
 	public Set<ProjectionRowKey> getHighlightedRowKeys() {
 		return highlightedRowKeys;
@@ -526,6 +541,8 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 		if (interval == null || coord == null) {
 			return;
 		}
+		// A task outside the browsing range must be reachable: grow the range first.
+		coord.ensureRangeIncludes(interval.getStart(), SCROLL_RANGE_MARGIN_DAYS);
 		var start = coord.toX(interval.getStart());
 		var end = coord.toX(interval.getEnd());
 		var visible = getVisibleRect();
@@ -535,17 +552,22 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 		var parent = getParent();
 		if (parent instanceof JViewport viewport) {
 			var position = viewport.getViewPosition();
-			if (start < AUTO_SCROLL_START_THRESHOLD) {
-				position.x = 0;
-			} else {
-				position.x = (int) Math.ceil(start) - AUTO_SCROLL_LEFT_PADDING; // 3 days 1/3
-				if (position.x < 0) {
-					position.x = 0;
-				}
-			}
+			position.x = scrollToTaskViewX(start, viewport.getExtentSize().width,
+					Math.max(getWidth(), getDrawingWidth()));
 			viewport.setViewPosition(position);
 		}
 		//scrollRectToVisible(visible);
+	}
+
+	/**
+	 * Left edge for "Scroll to Task": the task start sits {@link #AUTO_SCROLL_LEFT_PADDING}
+	 * pixels from the left edge (flush at 0 for tasks near the beginning), clamped to the
+	 * scrollable range.
+	 */
+	static int scrollToTaskViewX(double startX, int extentWidth, int viewWidth) {
+		int max = Math.max(0, viewWidth - extentWidth);
+		int x = startX < AUTO_SCROLL_START_THRESHOLD ? 0 : (int) Math.ceil(startX) - AUTO_SCROLL_LEFT_PADDING;
+		return Math.max(0, Math.min(max, x));
 	}
 
 	/**

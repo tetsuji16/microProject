@@ -184,8 +184,10 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 	@Override
 	public ButtonPanel createButtonPanel() {
 		ButtonPanel buttonPanel = new ButtonPanel();
-		next = new JButton(Messages.getString("FindDialog.Find"),IconManager.getIcon("image.down"));
-		previous = new JButton(Messages.getString("FindDialog.Find"),IconManager.getIcon("image.up"));
+		next = new JButton(Messages.getString("FindDialog.FindNext"),IconManager.getIcon("image.down"));
+		previous = new JButton(Messages.getString("FindDialog.FindPrevious"),IconManager.getIcon("image.up"));
+		next.setToolTipText(Messages.getString("FindDialog.FindNext.tooltip"));
+		previous.setToolTipText(Messages.getString("FindDialog.FindPrevious.tooltip"));
 		FlatUiSupport.styleDialogButton(next, false);
 		FlatUiSupport.styleDialogButton(previous, false);
 		buttonPanel.add(next);

@@ -99,6 +99,7 @@ public class RateFormat extends Format implements TimeUnit {
 	}
 
 	public Object parseObject(String rateString, ParsePosition pos, DurationDefaults defaults) {
+		rateString = com.microproject.util.FullWidthInput.normalize(rateString);
 		if (rateString.isEmpty() || pos.getIndex() < 0 || pos.getIndex() >= rateString.length())
 			return null;
 		

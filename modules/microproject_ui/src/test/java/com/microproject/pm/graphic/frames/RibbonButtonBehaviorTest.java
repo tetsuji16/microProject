@@ -952,6 +952,35 @@ class RibbonButtonBehaviorTest {
 	}
 
 	@Test
+	void insertMilestoneOnABlankRowFillsThatRowInsteadOfRejecting() throws Exception {
+		Harness harness = newHarness();
+		harness.setTaskInformation(true, false);
+		Set<Task> existing = identitySnapshot(harness.project);
+		int tasksBefore = harness.project.getTaskList().size();
+		SwingUtilities.invokeAndWait(() -> {
+			harness.undoController.clear();
+			var sheet = harness.frame.getTopSpreadSheet();
+			int blankRow = -1;
+			for (int row = 0; row < sheet.getRowCount() && blankRow < 0; row++) {
+				Node node = sheet.getNodeAtRow(row);
+				if (node != null && node.isVoid())
+					blankRow = row;
+			}
+			assertTrue(blankRow >= 0, "the task sheet shows blank rows after the tasks");
+			sheet.setRowSelectionInterval(blankRow, blankRow);
+			Action action = harness.manager.getAction(MenuActionConstants.ACTION_INSERT_MILESTONE);
+			action.actionPerformed(new ActionEvent(harness.frame, ActionEvent.ACTION_PERFORMED,
+				MenuActionConstants.ACTION_INSERT_MILESTONE));
+			assertEquals(RibbonCommandResult.Status.CHANGED, statusOf(harness, MenuActionConstants.ACTION_INSERT_MILESTONE));
+			Task milestone = newTaskSince(harness.project, existing);
+			assertTrue(milestone.isMilestone());
+			assertEquals(tasksBefore + 1, harness.project.getTaskList().size());
+			harness.undoController.undo();
+			assertEquals(tasksBefore, harness.project.getTaskList().size(), "one Undo removes the milestone");
+		});
+	}
+
+	@Test
 	void insertSummaryAddsATaskAboveAndIndentsTheSelectionAsOneUndoEdit() throws Exception {
 		Harness harness = newHarness();
 		harness.setTaskInformation(true, false);

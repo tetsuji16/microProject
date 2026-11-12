@@ -111,6 +111,94 @@ public class UndoController extends UndoManager implements EditListener{
 		return modelMap.get(impl);
 	}
 
+	/**
+	 * Collects every edit posted while a dialog is open so that the dialog can be accepted as one undoable
+	 * action (OK) or discarded as a whole (Cancel).
+	 */
+	public final class Session implements EditListener {
+		private final List<UndoableEdit> recorded = new ArrayList<>();
+		private boolean open = true;
+
+		private Session() {
+		}
+
+		@Override
+		public synchronized void editPosted(UndoableEdit edit) {
+			if (open && isDialogEditScope()) recorded.add(edit);
+		}
+
+		public synchronized boolean hasEdits() {
+			return !recorded.isEmpty();
+		}
+
+		/** Keeps the edits and merges them into a single undo step. */
+		public void commit() {
+			List<UndoableEdit> mine = close();
+			if (mine.size() < 2) return;
+			synchronized (UndoController.this) {
+				int size = edits.size();
+				if (canRedo() || size < mine.size()) return;
+				List<UndoableEdit> tail = edits.subList(size - mine.size(), size);
+				for (int i = 0; i < mine.size(); i++)
+					if (tail.get(i) != mine.get(i)) return;
+				tail.clear();
+				final String name = mine.get(mine.size() - 1).getPresentationName();
+				// an ended UndoManager undoes and redoes its edits as one step
+				UndoManager compound = new UndoManager() {
+					@Override public String getPresentationName() { return name; }
+				};
+				compound.setLimit(-1);
+				for (UndoableEdit edit : mine) compound.addEdit(edit);
+				compound.end();
+				UndoController.super.addEdit(compound);
+			}
+		}
+
+		/** Undoes every edit of the session and leaves nothing to redo. */
+		public void rollback() {
+			List<UndoableEdit> mine = close();
+			int undone = 0;
+			for (int i = mine.size() - 1; i >= 0; i--) {
+				if (editToBeUndone() != mine.get(i) || !canUndo()) break;
+				UndoController.this.undo();
+				undone++;
+			}
+			synchronized (UndoController.this) {
+				// the undone session edits are no longer redoable
+				if (undone > 0 && canRedo())
+					trimEdits(edits.size() - undone, edits.size() - 1);
+			}
+		}
+
+		private synchronized List<UndoableEdit> close() {
+			open = false;
+			editSupport.removeEditListener(this);
+			return new ArrayList<>(recorded);
+		}
+	}
+
+	private static final ThreadLocal<int[]> DIALOG_EDIT_DEPTH = ThreadLocal.withInitial(() -> new int[1]);
+
+	/** Marks the current thread as applying an edit on behalf of an information dialog; pair with {@link #exitDialogEditScope()}. */
+	public static void enterDialogEditScope() {
+		DIALOG_EDIT_DEPTH.get()[0]++;
+	}
+
+	public static void exitDialogEditScope() {
+		int[] depth = DIALOG_EDIT_DEPTH.get();
+		if (depth[0] > 0) depth[0]--;
+	}
+
+	static boolean isDialogEditScope() {
+		return DIALOG_EDIT_DEPTH.get()[0] > 0;
+	}
+
+	public Session beginSession() {
+		Session session = new Session();
+		editSupport.addEditListener(session);
+		return session;
+	}
+
 	public void beginUpdate(){
 		if (editSupport!=null) 	editSupport.beginUpdate();
 	}

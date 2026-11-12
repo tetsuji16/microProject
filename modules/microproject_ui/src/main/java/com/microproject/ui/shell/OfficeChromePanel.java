@@ -84,10 +84,10 @@ final class OfficeChromePanel extends JPanel {
 	static final String WINDOW_BUTTONS_PLACEHOLDER_NAME = "officeChromeWindowButtonsPlaceholder";
 	static final String BRAND_ICON_NAME = "officeChromeBrandIcon";
 
-	private static final Color CHROME_BACKGROUND = FlatUiSupport.officeTitleBarBackground();
-	private static final Color BORDER_COLOR = FlatUiSupport.ribbonSurfaceBorderColor();
-	private static final Color TEXT_COLOR = FlatUiSupport.officeTitleBarForeground();
-	private static final Color ACCENT_COLOR = FlatUiSupport.accentColor();
+	private static Color chromeBackground() { return FlatUiSupport.officeTitleBarBackground(); }
+	private static Color borderColor() { return FlatUiSupport.ribbonSurfaceBorderColor(); }
+	private static Color textColor() { return FlatUiSupport.officeTitleBarForeground(); }
+	private static Color accentColor() { return FlatUiSupport.accentColor(); }
 	private static final Dimension ICON_BUTTON_SIZE = new Dimension(
 		FlatUiSupport.ribbonQuickAccessButtonSize(),
 		FlatUiSupport.ribbonQuickAccessButtonSize());
@@ -109,6 +109,7 @@ final class OfficeChromePanel extends JPanel {
 	private final OfficeChromeTitleBinding titleBinding;
 	private final RibbonController ribbonController;
 	private final JComponent header;
+	private final java.util.List<JLabel> themedLabels = new java.util.ArrayList<>();
 	private final JPanel quickAccessCommands;
 	private final JPanel ribbonOptionsRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 8, 0));
 	private AbstractButton autoHideOptionsButton;
@@ -143,7 +144,7 @@ final class OfficeChromePanel extends JPanel {
 		this.titleBinding = frame == null ? null : OfficeChromeTitleBinding.attach(frame, this::updateDocumentTitle);
 		setName(NAME);
 		setOpaque(true);
-		setBackground(CHROME_BACKGROUND);
+		setBackground(chromeBackground());
 		// The header is the only draggable caption surface.  Explicitly exclude
 		// the ribbon from FlatLaf's native caption hit testing so physical clicks
 		// reach Swing command buttons on the full-window-content shell.
@@ -159,6 +160,19 @@ final class OfficeChromePanel extends JPanel {
 			});
 			ribbonOptionsRow.setVisible(ribbonController.getRibbonDisplayMode() != RibbonDisplayMode.AUTO_HIDE);
 		}
+		com.microproject.ui.theme.ThemeManager.bindToComponent(this, this::refreshTheme);
+	}
+
+	/** Re-reads the theme-dependent colors and tinted icons after a live theme switch. */
+	void refreshTheme() {
+		setBackground(chromeBackground());
+		header.setBackground(chromeBackground());
+		header.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, FlatUiSupport.ribbonTopLineColor()));
+		for (JLabel label : themedLabels)
+			label.setForeground(textColor());
+		refreshQuickAccessCommands();
+		revalidate();
+		repaint();
 	}
 
 	JComponent getHeaderComponent() {
@@ -196,7 +210,7 @@ final class OfficeChromePanel extends JPanel {
 	private JComponent buildHeader() {
 		JPanel header = new JPanel(new BorderLayout());
 		header.setOpaque(true);
-		header.setBackground(CHROME_BACKGROUND);
+		header.setBackground(chromeBackground());
 		header.setPreferredSize(new Dimension(0, FlatUiSupport.ribbonChromeHeight()));
 		header.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, FlatUiSupport.ribbonTopLineColor()));
 		JComponent content = buildHeaderContent();
@@ -279,7 +293,7 @@ final class OfficeChromePanel extends JPanel {
 			constraints.gridx++;
 		}
 		constraints.insets = new Insets(0, 0, 0, 4);
-		cluster.add(createLabel(UsabilityStrings.text("chrome.autoSave"), TEXT_COLOR), constraints);
+		cluster.add(createLabel(UsabilityStrings.text("chrome.autoSave"), textColor()), constraints);
 		constraints.gridx++;
 		cluster.add(new OfficeSwitchButton(autoSaveControl), constraints);
 		constraints.gridx++;
@@ -306,7 +320,7 @@ final class OfficeChromePanel extends JPanel {
 	}
 
 	private JLabel createDocumentTitleLabel(String title) {
-		JLabel label = createLabel(OfficeChromeTitleBinding.compactDocumentTitle(title), TEXT_COLOR);
+		JLabel label = createLabel(OfficeChromeTitleBinding.compactDocumentTitle(title), textColor());
 		label.setName(DOCUMENT_TITLE_NAME);
 		label.setToolTipText(title);
 		label.setPreferredSize(new Dimension(220, 22));
@@ -431,7 +445,7 @@ final class OfficeChromePanel extends JPanel {
 		popup.setName(RIBBON_DISPLAY_OPTIONS_POPUP_NAME);
 		JLabel heading = new JLabel(UsabilityStrings.text("chrome.ribbonShow"));
 		heading.setFont(heading.getFont().deriveFont(Font.BOLD));
-		heading.setForeground(TEXT_COLOR);
+		heading.setForeground(textColor());
 		heading.setBorder(new EmptyBorder(5, 12, 5, 12));
 		popup.add(heading);
 		addRibbonDisplayItem(popup, ribbon, RibbonDisplayMode.AUTO_HIDE, "chrome.ribbonAutoHide");
@@ -610,6 +624,7 @@ final class OfficeChromePanel extends JPanel {
 	private JLabel createLabel(String text, Color color) {
 		JLabel label = new JLabel(text);
 		label.setForeground(color);
+		themedLabels.add(label);
 		label.setFont(FlatUiSupport.ribbonChromeLabelFont());
 		label.setBorder(new EmptyBorder(0, 0, 0, 0));
 		return label;
@@ -713,7 +728,7 @@ final class OfficeChromePanel extends JPanel {
 					inset + 0.5d, inset + 0.5d, getWidth() - 1d, getHeight() - 1d, arc, arc);
 				g2.setColor(FlatUiSupport.ribbonSurfaceColor());
 				g2.fill(outline);
-				g2.setColor(searchField.isFocusOwner() ? ACCENT_COLOR : BORDER_COLOR);
+				g2.setColor(searchField.isFocusOwner() ? accentColor() : borderColor());
 				g2.draw(outline);
 			} finally {
 				g2.dispose();
@@ -729,7 +744,7 @@ final class OfficeChromePanel extends JPanel {
 
 		@Override
 		protected void paintComponent(Graphics g) {
-			g.setColor(BORDER_COLOR);
+			g.setColor(borderColor());
 			int x = getWidth() / 2;
 			g.drawLine(x, 2, x, getHeight() - 2);
 		}
@@ -805,7 +820,7 @@ final class OfficeChromePanel extends JPanel {
 			Graphics2D g2 = (Graphics2D) g.create();
 			try {
 				FlatUiSupport.enableAntialiasing(g2);
-				Color track = isSelected() ? ACCENT_COLOR : FlatUiSupport.switchTrackBackground();
+				Color track = isSelected() ? accentColor() : FlatUiSupport.switchTrackBackground();
 				g2.setColor(track);
 				g2.fill(new RoundRectangle2D.Double(0, 0, getWidth() - 1, getHeight() - 1, 18, 18));
 				int knobDiameter = 14;

@@ -163,7 +163,7 @@ public final class CustomReportDialogBox extends FlatLafDialog implements Schedu
 		preview.setAutoCreateRowSorter(true); preview.setRowHeight(Math.max(22, preview.getRowHeight()));
 		preview.getAccessibleContext().setAccessibleName(t("report.accessible"));
 		refreshPresetNames(); generate();
-		setMinimumSize(new Dimension(950, 600)); setSize(1200, 760); setLocationRelativeTo(owner);
+		DialogSizing.applyInitialSize(this, new Dimension(950, 600), new Dimension(1200, 760), owner);
 		FlatUiSupport.styleDialogRoot(getRootPane());
 		FlatUiSupport.styleDialogComponents(getContentPane());
 	}

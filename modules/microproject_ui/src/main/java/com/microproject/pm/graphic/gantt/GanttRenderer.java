@@ -723,6 +723,8 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		protected int row;
 		FontMetrics fontMetrics;
 		Font annotationFont;
+		private transient Font cachedUiFont;
+		private transient Font cachedPlainFont;
 		Set<String> renderedAnnotationKeys;
 		boolean annotationRenderedForNode;
 
@@ -733,9 +735,17 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			int rowHeight=((GanttParams)graphInfo).getRowHeight();
 			config=((GanttParams)graphInfo).getConfiguration();
 			yrow=row*rowHeight;
-			annotationFont = resolveTaskAnnotationFont(getNodeImpl(node), FlatUiSupport.uiFont().deriveFont(Font.PLAIN));
+			Font uiFont = FlatUiSupport.uiFont();
+			if (uiFont != cachedUiFont || cachedPlainFont == null) {
+				cachedUiFont = uiFont;
+				cachedPlainFont = uiFont.deriveFont(Font.PLAIN);
+			}
+			annotationFont = resolveTaskAnnotationFont(getNodeImpl(node), cachedPlainFont);
 			fontMetrics = g2.getFontMetrics(annotationFont);
-			renderedAnnotationKeys = new HashSet<String>();
+			if (renderedAnnotationKeys == null)
+				renderedAnnotationKeys = new HashSet<String>();
+			else
+				renderedAnnotationKeys.clear();
 			annotationRenderedForNode = false;
 		}
 

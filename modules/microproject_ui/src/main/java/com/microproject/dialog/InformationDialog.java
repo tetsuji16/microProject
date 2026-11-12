@@ -126,7 +126,9 @@ public abstract class InformationDialog extends FieldDialog {
 		return builder.getPanel();
 	}
 	
-	protected boolean hasCloseButton() {
+	/** Information dialogs offer OK and Cancel; all edits are applied as one undoable action on OK. */
+	@Override
+	protected boolean usesEditSession() {
 		return true;
 	}
 	

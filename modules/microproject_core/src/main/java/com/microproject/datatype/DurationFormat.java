@@ -159,6 +159,7 @@ public class DurationFormat extends Format {
 
 	/** Parses using an explicit project's unit defaults; null preserves legacy preference behavior. */
 	public Object parseObject(String durationString, ParsePosition pos, DurationDefaults defaults) {
+		durationString = com.microproject.util.FullWidthInput.normalize(durationString);
 		if (durationString.isEmpty() || pos.getIndex() < 0 || pos.getIndex() >= durationString.length())
 			return null;
 		

@@ -97,7 +97,7 @@ public final class CustomFieldsDialogBox extends FlatLafDialog {
 		fieldChoice.addActionListener(event -> { loadLookup(); model.fireTableDataChanged(); });
 		restrictValues.addActionListener(event -> lookupValues.setEnabled(restrictValues.isSelected()));
 		loadLookup();
-		setMinimumSize(new Dimension(760, 480)); setSize(900, 620); setLocationRelativeTo(owner);
+		DialogSizing.applyInitialSize(this, new Dimension(760, 480), new Dimension(900, 620), owner);
 		FlatUiSupport.styleDialogRoot(getRootPane());
 		FlatUiSupport.styleDialogComponents(getContentPane());
 		FlatUiSupport.styleDialogButton(apply, true);

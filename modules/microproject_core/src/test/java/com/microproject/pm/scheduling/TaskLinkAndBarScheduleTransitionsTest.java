@@ -2208,13 +2208,15 @@ class TaskLinkAndBarScheduleTransitionsTest {
 		Fixture fixture = createFixture();
 		NormalTask task = createTask(fixture.project, "finish-date", 2);
 		long newEnd = task.getEffectiveWorkCalendar().add(task.getEnd(), 4L * day(), false);
-		long expectedStart = task.getEffectiveWorkCalendar().add(newEnd, -2L * day(), true);
+		long originalStart = task.getStart();
 
+		// Microsoft Project rule: with no preceding Duration edit, a Finish edit keeps Start and
+		// recalculates Duration. https://support.microsoft.com/en-us/project/change-a-task-duration
 		task.setEnd(newEnd, taskSheetContext());
 
-		assertEquals(expectedStart, task.getStart());
-		assertEquals(newEnd, task.getEnd());
-		assertEquals(2L * day(), task.getDuration());
+		assertEquals(originalStart, task.getStart());
+		assertEquals(0L, task.getEffectiveWorkCalendar().compare(newEnd, task.getEnd(), false));
+		assertEquals(6L * day(), task.getDuration());
 	}
 
 	private void verifyMilestoneBarMove() {

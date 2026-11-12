@@ -222,6 +222,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 			spreadSheet.setReadOnly(true);
 		}
 		applySpreadsheetGridStyle();
+		com.microproject.ui.theme.ThemeManager.bindToComponent(this, () -> { if (spreadSheet != null) applySpreadsheetGridStyle(); });
 		SwingUtilities.invokeLater(() -> {
 			if (spreadSheet != null)
 				((SpreadSheetColumnModel) spreadSheet.getColumnModel()).ensureMinimumReadableWidths();
@@ -349,14 +350,26 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		return project.getUndoController();
 	}
 	public void zoomIn() {
-		if (gantt == null || !ScrollPaneSynchronizer.zoomIn(gantt)) {
+		if (gantt == null || !ScrollPaneSynchronizer.zoomIn(gantt, selectedTaskStart())) {
 			coord.zoomIn();
 		}
 	}
 	public void zoomOut() {
-		if (gantt == null || !ScrollPaneSynchronizer.zoomOut(gantt)) {
+		if (gantt == null || !ScrollPaneSynchronizer.zoomOut(gantt, selectedTaskStart())) {
 			coord.zoomOut();
 		}
+	}
+	/**
+	 * Start date of the first selected task, used as the zoom anchor (Microsoft Project zooms
+	 * around the selection while it is visible); NaN when nothing usable is selected.
+	 */
+	private double selectedTaskStart() {
+		if (spreadSheet == null)
+			return Double.NaN;
+		List impls = spreadSheet.getSelectedNodesImpl();
+		if (impls == null || impls.isEmpty() || !(impls.get(0) instanceof HasStartAndEnd interval) || interval.getStart() <= 0L)
+			return Double.NaN;
+		return interval.getStart();
 	}
 	public boolean isProgressLineEnabled() {
 		return gantt != null && gantt.isProgressLineEnabled();
@@ -404,7 +417,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		if (coord == null)
 			return;
 		int boundedScale = ScrollPaneSynchronizer.clampTargetScaleIndex(scaleIndex, getScaleCount());
-		if (gantt != null && ScrollPaneSynchronizer.zoomToScale(gantt, boundedScale)) {
+		if (gantt != null && ScrollPaneSynchronizer.zoomToScale(gantt, boundedScale, selectedTaskStart())) {
 			return;
 		}
 		while (getScale() < boundedScale && canZoomOut()) {

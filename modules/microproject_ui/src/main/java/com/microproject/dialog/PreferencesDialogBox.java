@@ -7,7 +7,9 @@ package com.microproject.dialog;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.Frame;
-import java.awt.GridLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
@@ -73,12 +75,6 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		JComboBox<String> theme = new JComboBox<>(new String[] { lightTheme, darkTheme });
 		theme.setName("preferencesTheme");
 		theme.setSelectedItem(preferences.isDarkTheme() ? darkTheme : lightTheme);
-		JLabel themeRestartNotice = new JLabel(UsabilityStrings.text("preferences.themeRestartRequired"));
-		themeRestartNotice.setName("preferencesThemeRestartNotice");
-		Runnable updateThemeRestartNotice = () -> themeRestartNotice.setVisible(
-				preferences.isDarkTheme() != darkTheme.equals(theme.getSelectedItem()));
-		theme.addActionListener(event -> updateThemeRestartNotice.run());
-		updateThemeRestartNotice.run();
 		JTextField datePattern = new JTextField(preferences.getDatePattern(), 16);
 		datePattern.setName("preferencesDatePattern");
 		datePattern.setToolTipText(UsabilityStrings.text("preferences.datePatternHelp"));
@@ -104,7 +100,11 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 			: java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();
 		JComboBox<String> font = new JComboBox<>(fonts);
 		font.setSelectedItem(preferences.getFontFamily());
-		JSpinner size = new JSpinner(new SpinnerNumberModel(preferences.getFontSize(), 0, 32, 1));
+		JSpinner size = new JSpinner(new FontSizeModel(preferences.getFontSize()));
+		JSpinner.NumberEditor sizeEditor = new JSpinner.NumberEditor(size);
+		sizeEditor.getTextField().setFormatterFactory(new javax.swing.text.DefaultFormatterFactory(
+			new FontSizeFormatter(UsabilityStrings.text("preferences.fontSizeAutomatic"))));
+		size.setEditor(sizeEditor);
 		String resourceNames = UsabilityStrings.text("preferences.ganttBarTextResourceNames");
 		String taskName = UsabilityStrings.text("preferences.ganttBarTextTaskName");
 		JComboBox<String> ganttBarText = new JComboBox<>(new String[] { resourceNames, taskName });
@@ -120,50 +120,33 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		JComboBox<MilestoneShapeChoice> milestoneShape = new JComboBox<>(MilestoneShapeChoice.values());
 		milestoneShape.setName("preferencesMilestoneShape");
 		milestoneShape.setSelectedItem(MilestoneShapeChoice.forName(preferences.getDefaultMilestoneShape()));
-		JButton gridColor = new JButton(UsabilityStrings.text("preferences.gridColorAutomatic"));
-		Integer savedGridColor = preferences.getGridLineColor();
-		final Color[] selectedGridColor = { savedGridColor == null ? null : new Color(savedGridColor.intValue()) };
-		updateGridColorButton(gridColor, selectedGridColor[0]);
-		gridColor.addActionListener(event -> {
-			Color selected = JColorChooser.showDialog(this, UsabilityStrings.text("preferences.gridColor"), selectedGridColor[0]);
-			if (selected != null) { selectedGridColor[0] = selected; updateGridColorButton(gridColor, selected); }
-		});
-		JButton resetGridColor = new JButton(UsabilityStrings.text("preferences.reset"));
-		resetGridColor.addActionListener(event -> { selectedGridColor[0] = null; updateGridColorButton(gridColor, null); });
-		JButton defaultBarColor = new JButton(UsabilityStrings.text("preferences.ganttBarColorAutomatic"));
-		Integer savedBarColor = preferences.getDefaultGanttBarColor();
-		final Color[] selectedBarColor = { savedBarColor == null ? null : new Color(savedBarColor.intValue()) };
-		updateDefaultBarColorButton(defaultBarColor, selectedBarColor[0]);
-		defaultBarColor.addActionListener(event -> {
-			Color selected = JColorChooser.showDialog(this, UsabilityStrings.text("preferences.ganttBarColor"), selectedBarColor[0]);
-			if (selected != null) { selectedBarColor[0] = selected; updateDefaultBarColorButton(defaultBarColor, selected); }
-		});
-		JButton resetBarColor = new JButton(UsabilityStrings.text("preferences.reset"));
-		resetBarColor.addActionListener(event -> { selectedBarColor[0] = null; updateDefaultBarColorButton(defaultBarColor, null); });
-
-		JPanel form = new JPanel(new GridLayout(0, 2, 8, 8));
+		ColorChoice gridColor = new ColorChoice(this, UsabilityStrings.text("preferences.gridColor"),
+				UsabilityStrings.text("preferences.gridColorAutomatic"), preferences.getGridLineColor());
+		ColorChoice barColor = new ColorChoice(this, UsabilityStrings.text("preferences.ganttBarColor"),
+				UsabilityStrings.text("preferences.ganttBarColorAutomatic"), preferences.getDefaultGanttBarColor());
+		JPanel form = new JPanel(new GridBagLayout());
 		form.setBorder(BorderFactory.createEmptyBorder(12, 12, 4, 12));
-		form.add(new JLabel(UsabilityStrings.text("preferences.userName"))); form.add(userName);
-		form.add(new JLabel(UsabilityStrings.text("preferences.font"))); form.add(font);
-		form.add(new JLabel(UsabilityStrings.text("preferences.fontSize"))); form.add(size);
-		form.add(new JLabel(UsabilityStrings.text("preferences.ganttBarText"))); form.add(ganttBarText);
-		form.add(new JLabel(UsabilityStrings.text("preferences.ganttBarTextPosition"))); form.add(ganttBarTextPosition);
-		form.add(new JLabel(UsabilityStrings.text("preferences.milestoneShape"))); form.add(milestoneShape);
-		form.add(new JLabel(UsabilityStrings.text("preferences.ganttBarColor")));
-		JPanel barColorControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0)); barColorControls.add(defaultBarColor); barColorControls.add(resetBarColor); form.add(barColorControls);
-		form.add(new JLabel(UsabilityStrings.text("preferences.gridColor")));
-		JPanel gridColorControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0)); gridColorControls.add(gridColor); gridColorControls.add(resetGridColor); form.add(gridColorControls);
-		form.add(new JLabel()); form.add(rowLines);
-		form.add(new JLabel()); form.add(checkUpdates);
-		form.add(new JLabel(UsabilityStrings.text("preferences.theme"))); form.add(theme);
-		form.add(new JLabel()); form.add(themeRestartNotice);
-		form.add(new JLabel(UsabilityStrings.text("preferences.datePattern"))); form.add(datePattern);
-		form.add(new JLabel(UsabilityStrings.text("preferences.dateTimePattern"))); form.add(dateTimePattern);
-		form.add(new JLabel(UsabilityStrings.text("preferences.currencyCode"))); form.add(currencyCode);
-		form.add(new JLabel()); form.add(formatRestartNotice);
-		if (recoveryInterval != null) {
-			form.add(new JLabel(UsabilityStrings.text("preferences.autoSaveInterval"))); form.add(recoveryInterval);
-		}
+		addRow(form, UsabilityStrings.text("preferences.userName"), userName);
+		addRow(form, UsabilityStrings.text("preferences.font"), font);
+		addRow(form, UsabilityStrings.text("preferences.fontSize"), size);
+		addRow(form, UsabilityStrings.text("preferences.ganttBarText"), ganttBarText);
+		addRow(form, UsabilityStrings.text("preferences.ganttBarTextPosition"), ganttBarTextPosition);
+		addRow(form, UsabilityStrings.text("preferences.milestoneShape"), milestoneShape);
+		addRow(form, UsabilityStrings.text("preferences.ganttBarColor"), barColor.controls());
+		addRow(form, UsabilityStrings.text("preferences.gridColor"), gridColor.controls());
+		addRow(form, null, rowLines);
+		addRow(form, null, checkUpdates);
+		addRow(form, UsabilityStrings.text("preferences.theme"), theme);
+		addRow(form, UsabilityStrings.text("preferences.datePattern"), datePattern);
+		addRow(form, UsabilityStrings.text("preferences.dateTimePattern"), dateTimePattern);
+		addRow(form, UsabilityStrings.text("preferences.currencyCode"), currencyCode);
+		addRow(form, null, formatRestartNotice);
+		if (recoveryInterval != null)
+			addRow(form, UsabilityStrings.text("preferences.autoSaveInterval"), recoveryInterval);
+		// Absorb spare height so rows keep their natural size inside the scroll pane.
+		GridBagConstraints filler = new GridBagConstraints();
+		filler.gridx = 0; filler.gridy = GridBagConstraints.RELATIVE; filler.gridwidth = 2; filler.weighty = 1;
+		form.add(new JPanel(), filler);
 		LocaleDialog localeSettings = LocaleDialog.createPreferencesSection(owner);
 		JTabbedPane tabs = new JTabbedPane();
 		tabs.addTab(UsabilityStrings.text("preferences.general"), new JScrollPane(form));
@@ -194,9 +177,10 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 					: rightPosition.equals(ganttBarTextPosition.getSelectedItem())
 						? GlobalPreferences.GANTT_BAR_TEXT_POSITION_RIGHT : GlobalPreferences.GANTT_BAR_TEXT_POSITION_AUTO);
 			preferences.setDefaultMilestoneShape(((MilestoneShapeChoice)milestoneShape.getSelectedItem()).getShapeName());
-			preferences.setGridLineColor(selectedGridColor[0] == null ? null : Integer.valueOf(selectedGridColor[0].getRGB()));
-			preferences.setDefaultGanttBarColor(selectedBarColor[0] == null ? null : Integer.valueOf(selectedBarColor[0].getRGB()));
+			preferences.setGridLineColor(gridColor.rgb());
+			preferences.setDefaultGanttBarColor(barColor.rgb());
 			preferences.setCheckForUpdates(checkUpdates.isSelected());
+			boolean themeChanged = preferences.isDarkTheme() != darkTheme.equals(theme.getSelectedItem());
 			preferences.setDarkTheme(darkTheme.equals(theme.getSelectedItem()));
 			preferences.setDatePattern(datePattern.getText());
 			preferences.setDateTimePattern(dateTimePattern.getText());
@@ -204,6 +188,9 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 			if (recoveryInterval != null)
 				autoSaveControl.setIntervalMinutes(((Number) recoveryInterval.getValue()).intValue());
 			dispose();
+			// The theme applies live to every open window; no restart is needed.
+			if (themeChanged)
+				com.microproject.ui.theme.ThemeManager.applyTheme(preferences.isDarkTheme());
 		});
 		JButton cancel = new JButton(UsabilityStrings.text("preferences.cancel"));
 		getRootPane().setDefaultButton(apply); // Enter presses the primary command (Windows/Office dialog rule)
@@ -219,14 +206,110 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		setLocationRelativeTo(owner);
 	}
 
-	private static void updateGridColorButton(JButton button, Color color) {
-		button.setBackground(color);
-		button.setText(color == null ? UsabilityStrings.text("preferences.gridColorAutomatic") : String.format("#%06X", color.getRGB() & 0x00ffffff));
+	private static void addRow(JPanel form, String label, java.awt.Component field) {
+		GridBagConstraints labelConstraints = new GridBagConstraints();
+		labelConstraints.gridx = 0; labelConstraints.gridy = GridBagConstraints.RELATIVE;
+		labelConstraints.anchor = GridBagConstraints.WEST;
+		labelConstraints.insets = new Insets(4, 0, 4, 8);
+		form.add(label == null ? new JLabel() : new JLabel(label), labelConstraints);
+		GridBagConstraints fieldConstraints = new GridBagConstraints();
+		fieldConstraints.gridx = 1; fieldConstraints.gridy = GridBagConstraints.RELATIVE;
+		fieldConstraints.weightx = 1; fieldConstraints.fill = GridBagConstraints.HORIZONTAL;
+		fieldConstraints.anchor = GridBagConstraints.WEST;
+		fieldConstraints.insets = new Insets(4, 0, 4, 0);
+		form.add(field, fieldConstraints);
 	}
 
-	private static void updateDefaultBarColorButton(JButton button, Color color) {
-		button.setBackground(color);
-		button.setText(color == null ? UsabilityStrings.text("preferences.ganttBarColorAutomatic") : String.format("#%06X", color.getRGB() & 0x00ffffff));
+	/** A button showing the chosen colour (or an automatic label) together with a reset button. */
+	private static final class ColorChoice {
+		private final JButton choose;
+		private final JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+		private final String automaticText;
+		private Color selected;
+
+		ColorChoice(java.awt.Component parent, String chooserTitle, String automaticText, Integer saved) {
+			this.automaticText = automaticText;
+			selected = saved == null ? null : new Color(saved.intValue());
+			choose = new JButton(automaticText);
+			JButton reset = new JButton(UsabilityStrings.text("preferences.reset"));
+			refresh();
+			choose.addActionListener(event -> {
+				Color chosen = JColorChooser.showDialog(parent, chooserTitle, selected);
+				if (chosen != null) { selected = chosen; refresh(); }
+			});
+			reset.addActionListener(event -> { selected = null; refresh(); });
+			controls.add(choose);
+			controls.add(reset);
+		}
+
+		JPanel controls() { return controls; }
+
+		/** Returns the selected RGB value, or null when the automatic colour is kept. */
+		Integer rgb() { return selected == null ? null : Integer.valueOf(selected.getRGB()); }
+
+		private void refresh() {
+			choose.setBackground(selected);
+			choose.setText(selected == null ? automaticText : String.format("#%06X", selected.getRGB() & 0x00ffffff));
+		}
+	}
+
+	/** Font size 0 means automatic; sizes 1-7 are not usable and snap to {@link #MIN_FONT_SIZE}. */
+	static final class FontSizeModel extends SpinnerNumberModel {
+		private static final long serialVersionUID = 1L;
+		static final int MIN_FONT_SIZE = 8;
+
+		FontSizeModel(int value) {
+			super(snap(value), 0, 32, 1);
+		}
+
+		static int snap(int value) {
+			return value <= 0 ? 0 : Math.max(MIN_FONT_SIZE, Math.min(32, value));
+		}
+
+		@Override
+		public void setValue(Object value) {
+			super.setValue(value instanceof Number number ? Integer.valueOf(snap(number.intValue())) : value);
+		}
+
+		@Override
+		public Object getNextValue() {
+			int current = ((Number) getValue()).intValue();
+			return current >= 32 ? null : Integer.valueOf(current == 0 ? MIN_FONT_SIZE : current + 1);
+		}
+
+		@Override
+		public Object getPreviousValue() {
+			int current = ((Number) getValue()).intValue();
+			return current <= 0 ? null : Integer.valueOf(current <= MIN_FONT_SIZE ? 0 : current - 1);
+		}
+	}
+
+	/** Shows font size 0 as the localized "Auto" label. */
+	private static final class FontSizeFormatter extends javax.swing.JFormattedTextField.AbstractFormatter {
+		private static final long serialVersionUID = 1L;
+		private final String automaticText;
+
+		FontSizeFormatter(String automaticText) {
+			this.automaticText = automaticText;
+		}
+
+		@Override
+		public Object stringToValue(String text) throws java.text.ParseException {
+			String trimmed = text == null ? "" : text.trim();
+			if (trimmed.isEmpty() || trimmed.equalsIgnoreCase(automaticText))
+				return Integer.valueOf(0);
+			try {
+				return Integer.valueOf(FontSizeModel.snap(Integer.parseInt(trimmed)));
+			} catch (NumberFormatException ex) {
+				throw new java.text.ParseException(trimmed, 0);
+			}
+		}
+
+		@Override
+		public String valueToString(Object value) {
+			int size = value instanceof Number number ? number.intValue() : 0;
+			return size <= 0 ? automaticText : Integer.toString(size);
+		}
 	}
 
 	private static void watchFormatPatternChanges(Runnable refresh, JTextField... fields) {

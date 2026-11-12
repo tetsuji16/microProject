@@ -20,6 +20,7 @@ import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.graphic.graph.GraphZone;
+import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.graphic.model.cache.GraphicDependency;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.scheduling.ScheduleInterval;
@@ -50,6 +51,62 @@ class GanttInteractorDragTest {
 	void splitPointActionIsMeaningfulWithoutPointerMovement() {
 		assertTrue(GanttInteractor.hasMeaningfulAction(false, true, 120.0d, 120.0d));
 		assertFalse(GanttInteractor.hasMeaningfulAction(false, false, 120.0d, 120.0d));
+	}
+
+	@Test
+	void subThresholdPointerMovementIsAClickAndNeverAnEdit() {
+		int threshold = GanttInteractor.dragThresholdPixels();
+		assertTrue(threshold > 0);
+		assertFalse(GanttInteractor.hasMeaningfulAction(false, false, 120.0d, 120.0d + threshold - 1));
+		assertFalse(GanttInteractor.hasMeaningfulAction(false, false, 120.0d, 120.0d - (threshold - 1)));
+		assertTrue(GanttInteractor.hasMeaningfulAction(false, false, 120.0d, 120.0d + threshold));
+		assertTrue(GanttInteractor.hasMeaningfulAction(false, false, 120.0d, 120.0d - threshold));
+	}
+
+	@Test
+	void dragSnapsToTheMinorTimescaleUnitMeasuredFromTheOriginalDate() {
+		long day = 24L * 60 * 60 * 1000;
+		long hour = 60L * 60 * 1000;
+		long mondayEight = java.time.Instant.parse("2025-01-06T08:00:00Z").toEpochMilli();
+		// Day scale: whole days, time of day preserved.
+		assertEquals(mondayEight + day,
+				GanttInteractor.snapToMinorUnit(mondayEight, mondayEight + day + 10 * hour, java.util.Calendar.DAY_OF_MONTH, 1));
+		assertEquals(mondayEight + 2 * day,
+				GanttInteractor.snapToMinorUnit(mondayEight, mondayEight + day + 14 * hour, java.util.Calendar.DAY_OF_MONTH, 1));
+		assertEquals(mondayEight - day,
+				GanttInteractor.snapToMinorUnit(mondayEight, mondayEight - day - 3 * hour, java.util.Calendar.DAY_OF_MONTH, 1));
+		assertEquals(mondayEight, GanttInteractor.snapToMinorUnit(mondayEight, mondayEight + 5 * hour, java.util.Calendar.WEEK_OF_YEAR, 1));
+		// Hour and minute scales round to the unit.
+		assertEquals(mondayEight + 3 * hour,
+				GanttInteractor.snapToMinorUnit(mondayEight, mondayEight + 2 * hour + 40 * 60_000L, java.util.Calendar.HOUR_OF_DAY, 1));
+		assertEquals(mondayEight + 15 * 60_000L,
+				GanttInteractor.snapToMinorUnit(mondayEight, mondayEight + 8 * 60_000L, java.util.Calendar.MINUTE, 15));
+	}
+
+	@Test
+	void dragDeltaIsMeasuredInDatesSoAnOriginExtensionDuringAutoScrollDoesNotShiftIt() {
+		onEdt(() -> {
+			DataFactoryUndoController undoController = new DataFactoryUndoController();
+			Project project = Project.createProject(
+				ResourcePool.createRourcePool("drag-origin-test", undoController), undoController);
+			TestGantt gantt = new TestGantt(project);
+			try {
+				CoordinatesConverter coord = new CoordinatesConverter(project);
+				gantt.setCoord(coord);
+				GanttInteractor interactor = gantt.installTestUI(new GraphicDependency(null, null, null), new AtomicInteger()).testInteractor;
+				interactor.beginDragAt(500.0d);
+				double pressedDate = coord.toTime(500.0d);
+
+				coord.extendViewBefore(10); // auto-scroll reached the edge and the origin moved
+				assertTrue(coord.toX(pressedDate) > 500.0d, "setup: the origin must have moved");
+
+				// The mouse is now 120 px to the right of where the pressed date is displayed.
+				double mouseX = coord.toX(pressedDate) + 120.0d;
+				assertEquals((long) coord.toDuration(120.0d), interactor.dragDeltaMillis(mouseX), 1L);
+			} finally {
+				gantt.cleanUp();
+			}
+		});
 	}
 
 	@Test

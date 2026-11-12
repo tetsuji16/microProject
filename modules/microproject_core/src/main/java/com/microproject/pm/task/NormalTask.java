@@ -1866,6 +1866,22 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			}
 		} // do nothing for completed tasks
 	}
+	/**
+	 * Moves the task-level start and finish of a task that has real assignments, keeping its
+	 * duration. An assignment's start is the task schedule start plus its own delay, so the
+	 * assignments follow the task by themselves; shifting them as well (as the Gantt bar move
+	 * in {@link #moveInterval} does for an assignment-driven bar) would apply the move twice.
+	 */
+	void moveScheduleKeepingAssignmentDelays(Object eventSource, long start, long end) {
+		WorkCalendar cal = getEffectiveWorkCalendar();
+		setCurrentScheduleStart(start);
+		setCurrentScheduleFinish(end);
+		setRawDuration(Duration.setAsEstimated(cal.compare(end, start, false), estimated));
+		markAllDependentTasksAsNeedingRecalculation(true);
+		recalculate(eventSource);
+		assignParentActualDatesFromChildren();
+	}
+
 	public void moveInterval(Object eventSource, long start, long end, ScheduleInterval oldInterval, boolean isChild) {
 		WorkCalendar cal = getEffectiveWorkCalendar();
 		long requestedStart = start;

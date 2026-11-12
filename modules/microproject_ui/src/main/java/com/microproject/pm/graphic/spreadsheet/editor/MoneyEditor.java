@@ -61,11 +61,11 @@ public class MoneyEditor extends SimpleEditor {
 	 */
 	public Object getCellEditorValue() {
 		try { // try parsing as currency
-			return Money.getMoneyFormatInstance().parseObject(component.getText());
+			return Money.getMoneyFormatInstance().parseObject(com.microproject.util.FullWidthInput.normalize(component.getText()));
 		} catch (ParseException e) {
 		}
 		try { // try parsing as number
-			return NumberFormat.getNumberInstance().parseObject(component.getText());
+			return NumberFormat.getNumberInstance().parseObject(com.microproject.util.FullWidthInput.normalize(component.getText()));
 		} catch (ParseException e1) {
 		}
 		//neither parse was good

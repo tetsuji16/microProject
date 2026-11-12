@@ -16,6 +16,7 @@ import java.time.format.FormatStyle;
 import java.time.format.TextStyle;
 import java.time.temporal.ChronoField;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -106,7 +107,21 @@ public final class AlternativeCalendarDisplay {
 		return WINDOWS_CALENDAR == null ? IsoChronology.INSTANCE : WINDOWS_CALENDAR;
 	}
 
+	private record LocaleChronology(Locale locale, Chronology chronology) {
+	}
+
+	private static volatile LocaleChronology cachedLocaleChronology;
+
 	private static Chronology localeChronology(Locale locale) {
+		LocaleChronology cached = cachedLocaleChronology;
+		if (cached != null && Objects.equals(cached.locale(), locale))
+			return cached.chronology();
+		Chronology resolved = resolveLocaleChronology(locale);
+		cachedLocaleChronology = new LocaleChronology(locale, resolved);
+		return resolved;
+	}
+
+	private static Chronology resolveLocaleChronology(Locale locale) {
 		try {
 			Chronology selected = Chronology.ofLocale(locale);
 			if (!IsoChronology.INSTANCE.equals(selected))

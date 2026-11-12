@@ -114,6 +114,8 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
      */
     /*# com.microproject.pm.assignment.Assignment lnkAssignment; */
 	transient Project project;
+	/** Runtime-only: true when Duration was the field last entered through the task sheet; not persisted. */
+	transient boolean durationPinnedByScheduleEdit;
 	transient Project owningProject;
 	transient TaskSchedule currentSchedule = null;
 

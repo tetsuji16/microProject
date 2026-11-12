@@ -63,6 +63,7 @@ import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.scheduling.ConstraintType;
 import com.microproject.pm.scheduling.ScheduleInterval;
+import com.microproject.pm.scheduling.SchedulingType;
 import com.microproject.undo.DataFactoryUndoController;
 
 class NormalTaskDurationTest {
@@ -615,23 +616,165 @@ class NormalTaskDurationTest {
 		assertEquals(0, scheduleEvents.get());
 	}
 
+	// Document-derived compatibility rule (Microsoft Project, "Change a task duration"):
+	// editing Finish keeps Start and recalculates Duration unless the last two fields
+	// changed were Finish and Duration, in which case Duration is kept and Start moves.
+	// Assignments and Work then follow the task type exactly as for a Duration edit.
+	// https://support.microsoft.com/en-us/project/change-a-task-duration
 	@Test
-	void taskSheetFinishEditKeepsDurationAndMovesStart() {
+	void taskSheetFinishEditWithoutDurationEditExtendsDurationAndWork() {
 		Project project = createProject();
 		NormalTask task = createTask(project);
 		task.setDuration(2L * day());
-		FieldContext context = taskSheetContext();
+		Assignment assignment = assignResource(project, task);
+		project.recalculate();
+		long start = task.getStart();
+		double work = task.getWork();
+		assertTrue(work > 0.0d);
+		long newFinish = task.getEffectiveWorkCalendar().add(task.getEnd(), 2L * day(), false);
+		AtomicInteger objectEvents = new AtomicInteger();
+		project.addObjectListener(event -> objectEvents.incrementAndGet());
+		project.addScheduleListener(event -> objectEvents.incrementAndGet());
 
-		long newFinish = task.getEffectiveWorkCalendar().add(task.getEnd(), day(), false);
-		long expectedStart = task.getEffectiveWorkCalendar().add(newFinish, -(2L * day()), true);
-		long revision = project.getMutationState().revision();
+		task.setEnd(newFinish, taskSheetContext());
+
+		assertEquals(start, task.getStart());
+		assertEquals(4L * day(), task.getDuration());
+		assertEquals(2.0d * work, task.getWork(), 1.0d);
+		assertTrue(objectEvents.get() > 0, "the edit must notify listeners so the sheet refreshes Work");
+		assertTaskMatchesAssignment(task, assignment);
+		project.recalculate();
+		assertEquals(start, task.getStart());
+		assertEquals(4L * day(), task.getDuration());
+		assertEquals(2.0d * work, task.getWork(), 1.0d);
+		assertTaskMatchesAssignment(task, assignment);
+	}
+
+	@Test
+	void taskSheetFinishEditAfterDurationEditKeepsDurationAndMovesStart() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		task.setDuration(2L * day());
+		Assignment assignment = assignResource(project, task);
+		project.recalculate();
+		FieldContext context = taskSheetContext();
+		TaskSheetScheduleWorkflow.apply(task, TaskSheetScheduleWorkflow.DURATION_FIELD_ID, 4L * day());
+		double work = task.getWork();
+		long newFinish = task.getEffectiveWorkCalendar().add(task.getEnd(), 2L * day(), false);
 
 		task.setEnd(newFinish, context);
 
-		assertEquals(expectedStart, task.getStart());
-		assertEquals(newFinish, task.getEnd());
+		assertEquals(4L * day(), task.getDuration());
+		assertEquals(work, task.getWork(), 1.0d);
+		assertEquals(0L, task.getEffectiveWorkCalendar().compare(newFinish, task.getEnd(), false));
+		assertTrue(task.getStart() > project.getStart());
+		assertTaskMatchesAssignment(task, assignment);
+		project.recalculate();
+		assertEquals(4L * day(), task.getDuration());
+		assertEquals(work, task.getWork(), 1.0d);
+		assertTaskMatchesAssignment(task, assignment);
+	}
+
+	@Test
+	void taskSheetFinishEditOnFixedWorkTaskKeepsWorkAndChangesUnits() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		task.setSchedulingType(SchedulingType.Kind.FIXED_WORK);
+		task.setDuration(2L * day());
+		Assignment assignment = assignResource(project, task);
+		project.recalculate();
+		long start = task.getStart();
+		double work = task.getWork();
+		double units = assignment.getUnits();
+		long newFinish = task.getEffectiveWorkCalendar().add(task.getEnd(), 2L * day(), false);
+
+		task.setEnd(newFinish, taskSheetContext());
+
+		assertEquals(start, task.getStart());
+		assertEquals(4L * day(), task.getDuration());
+		assertEquals(work, task.getWork(), 1.0d);
+		assertTrue(assignment.getUnits() < units, "units must drop when the same work spans a longer duration");
+		project.recalculate();
+		assertEquals(4L * day(), task.getDuration());
+		assertEquals(work, task.getWork(), 1.0d);
+		assertTaskMatchesAssignment(task, assignment);
+	}
+
+	@Test
+	void taskSheetStartEditWithAssignmentKeepsDurationWorkAndConsistentDates() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		task.setDuration(2L * day());
+		Assignment assignment = assignResource(project, task);
+		project.recalculate();
+		double work = task.getWork();
+		long newStart = task.getEffectiveWorkCalendar().add(task.getStart(), day(), false);
+
+		task.setStart(newStart, taskSheetContext());
+
+		assertEquals(newStart, task.getStart());
 		assertEquals(2L * day(), task.getDuration());
-		assertEquals(revision + 1L, project.getMutationState().revision());
+		assertEquals(work, task.getWork(), 1.0d);
+		assertTaskMatchesAssignment(task, assignment);
+		project.recalculate();
+		assertEquals(newStart, task.getStart());
+		assertEquals(2L * day(), task.getDuration());
+		assertEquals(work, task.getWork(), 1.0d);
+		assertTaskMatchesAssignment(task, assignment);
+	}
+
+	@Test
+	void summaryWorkRollupFollowsChildFinishEdit() {
+		Project project = createProject();
+		NormalTask parent = createTask(project);
+		NormalTask child = createTask(project);
+		child.setDuration(2L * day());
+		assignResource(project, child);
+		attachChildren(parent, child);
+		project.recalculate();
+		double work = child.getWork();
+		assertTrue(work > 0.0d);
+		assertEquals(work, parent.getWork(), 1.0d);
+		long newFinish = child.getEffectiveWorkCalendar().add(child.getEnd(), 2L * day(), false);
+
+		child.setEnd(newFinish, taskSheetContext());
+		project.recalculate();
+
+		assertEquals(2.0d * work, child.getWork(), 1.0d);
+		assertEquals(2.0d * work, parent.getWork(), 1.0d);
+	}
+
+	@Test
+	void ganttRightEdgeResizeMatchesFinishEditDurationAndWork() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		task.setDuration(2L * day());
+		Assignment assignment = assignResource(project, task);
+		project.recalculate();
+		double work = task.getWork();
+		long start = task.getStart();
+		long oldEnd = task.getEnd();
+		long newEnd = task.getEffectiveWorkCalendar().add(oldEnd, 2L * day(), false);
+
+		com.microproject.pm.scheduling.ScheduleService.getInstance()
+			.setInterval(this, task, start, newEnd, new ScheduleInterval(start, oldEnd), null);
+		project.recalculate();
+
+		assertEquals(start, task.getStart());
+		assertEquals(4L * day(), task.getDuration());
+		assertEquals(2.0d * work, task.getWork(), 1.0d);
+		assertTaskMatchesAssignment(task, assignment);
+	}
+
+	private Assignment assignResource(Project project, NormalTask task) {
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		return AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
+	}
+
+	private void assertTaskMatchesAssignment(NormalTask task, Assignment assignment) {
+		assertEquals(task.getStart(), assignment.getStart(), "assignment start must equal task start");
+		assertEquals(0L, task.getEffectiveWorkCalendar().compare(task.getEnd(), assignment.getEnd(), false),
+			"assignment end must equal task end in working time");
 	}
 
 	@Test

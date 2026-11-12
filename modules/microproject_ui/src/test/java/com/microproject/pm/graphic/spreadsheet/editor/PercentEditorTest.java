@@ -22,6 +22,11 @@ class PercentEditorTest {
 			assertEquals(0.3d, ((Double) editor.getCellEditorValue()).doubleValue(), 0.00001d);
 			field.setText("100");
 			assertEquals(1.0d, ((Double) editor.getCellEditorValue()).doubleValue(), 0.00001d);
+			// Microsoft Project treats a bare number as percent: 1 means 1%, not 100%.
+			field.setText("1");
+			assertEquals(0.01d, ((Double) editor.getCellEditorValue()).doubleValue(), 0.00001d);
+			field.setText("0.5");
+			assertEquals(0.005d, ((Double) editor.getCellEditorValue()).doubleValue(), 0.00001d);
 		});
 	}
 }

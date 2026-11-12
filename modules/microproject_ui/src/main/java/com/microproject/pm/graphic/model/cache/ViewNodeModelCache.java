@@ -224,16 +224,15 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 
     public GraphicNode getParent(GraphicNode node) {
         GraphicNode parent=reference.getParent(node);
-        if (visibleNodes.getElements().contains(node)) return parent;
+        if (visibleNodes.getRow(node)>=0) return parent;
         else return null;
     }
 
     public List<Object> getChildren(GraphicNode node) {
         List<Object> children=reference.getChildren(node);
         if (children==null) return null;
-        List<?> elements=visibleNodes.getElements();
         for (Iterator<Object> i=children.iterator();i.hasNext();){
-            if (!elements.contains(i.next())) i.remove();
+            if (visibleNodes.getRow(i.next())<0) i.remove();
         }
         return children;
     }

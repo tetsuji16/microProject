@@ -1345,7 +1345,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertEquals(beforeUnrelatedStart, afterUnrelatedStart, "constraint edit must preserve disconnected task start");
 		assertEquals(beforeUnrelatedFinish, afterUnrelatedFinish, "constraint edit must preserve disconnected task finish");
 		assertTrue(project.getUndoController().canUndo(), "constraint type edit must register Undo");
-		closeWindowWithRobot(robot, dialog);
+		// OK accepts the dialog edits as one undoable action; closing the window would cancel them.
+		click(robot, findShowingButtonByText(dialog, Messages.getString("ButtonText.OK")));
 		GuiAcceptanceSupport.await(() -> !dialog.isVisible(), "Robot did not close Task Information before project Undo");
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
 		GuiAcceptanceSupport.await(() -> task.getConstraintType()
@@ -1561,7 +1562,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		DialogScreenshotArtifacts.capture(dialog, "issue-794-constraint-date-invalid-dismissed");
 		assertEquals(constraintDateUndoName, project.getUndoController().getUndoName(),
 			"canceling the rejected text must not add an edit; " + afterReset);
-		AbstractButton closeButton = findShowingButtonByText(dialog, Messages.getString("ButtonText.Close"));
+		AbstractButton closeButton = findShowingButtonByText(dialog, Messages.getString("ButtonText.OK"));
 		click(robot, closeButton);
 		String afterCloseClick = "focus=" + java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner()
 			+ ", deadline=" + task.getDeadline() + ", deadlineText=" + deadlineInput.getText()

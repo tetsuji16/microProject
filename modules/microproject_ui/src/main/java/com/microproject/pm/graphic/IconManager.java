@@ -59,6 +59,20 @@ public class IconManager {
 	protected static final HashMap<String, ImageIcon> icons = new HashMap<>(128);
 	private static final Map<RibbonIconKey, ImageIcon> ribbonIcons = new ConcurrentHashMap<>(64);
 	private record RibbonIconKey(String name, int width, int height) { }
+
+	/** Drops cached icons so theme-dependent rendering is rebuilt after a theme switch. */
+	public static void clearCaches() {
+		synchronized (icons) {
+			icons.clear();
+		}
+		ribbonIcons.clear();
+	}
+
+	public static int cachedIconCount() {
+		synchronized (icons) {
+			return icons.size() + ribbonIcons.size();
+		}
+	}
 	private final static String[] iconPackages = new String[] {
 			"com/microproject/pm/graphic/images/"
 			,"com/microproject/pm/graphic/images/big/"

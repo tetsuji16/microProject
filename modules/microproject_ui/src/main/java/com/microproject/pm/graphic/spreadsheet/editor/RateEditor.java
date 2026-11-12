@@ -84,11 +84,11 @@ public class RateEditor extends SimpleEditor {
 			return parsed != null && position.getIndex() == component.getText().length() ? parsed : null;
 		}
 		try { // try parsing as currency
-			return format.parseObject(component.getText());
+			return format.parseObject(com.microproject.util.FullWidthInput.normalize(component.getText()));
 		} catch (ParseException e) {
 		}
 		try { // try parsing as number
-			return NumberFormat.getNumberInstance().parseObject(component.getText());
+			return NumberFormat.getNumberInstance().parseObject(com.microproject.util.FullWidthInput.normalize(component.getText()));
 		} catch (ParseException e1) {
 		}
 		//neither parse was good

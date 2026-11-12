@@ -141,6 +141,98 @@ class GanttWheelZoomTest {
 	}
 
 	@Test
+	void ctrlWheelKeepsTheDateUnderTheCursorWhenScrolledAwayFromTheStart() {
+		onEdt(() -> {
+		Gantt gantt = newGantt();
+		try {
+			ZoomFixture fixture = scrolledFixture(gantt, 900);
+			int cursorX = fixture.viewX + 120; // content x under the mouse
+			double anchorDate = fixture.coord.toTime(cursorX);
+
+			dispatchCtrlWheel(fixture.pane, gantt, cursorX, -1);
+
+			assertDateAtViewportOffset(fixture, anchorDate, 120);
+		} finally {
+			gantt.cleanUp();
+		}
+		});
+	}
+
+	@Test
+	void ctrlWheelZoomBeforeTheEarliestTaskStaysOnTheViewedPeriodInsteadOfJumping() {
+		onEdt(() -> {
+		Gantt gantt = newGantt();
+		try {
+			ZoomFixture fixture = scrolledFixture(gantt, 150);
+			long earliestTask = gantt.getProject().getEarliestStartingTaskOrStart();
+			int cursorX = fixture.viewX + 80;
+			double anchorDate = fixture.coord.toTime(cursorX);
+			assertTrue(anchorDate < earliestTask, "setup must view the period before the earliest task");
+
+			dispatchCtrlWheel(fixture.pane, gantt, cursorX, -1);
+
+			// Zoom contract: the viewed date is never clamped to the earliest task start.
+			assertDateAtViewportOffset(fixture, anchorDate, 80);
+		} finally {
+			gantt.cleanUp();
+		}
+		});
+	}
+
+	@Test
+	void buttonZoomAnchorsOnAVisibleSelectedTaskStartOtherwiseOnTheViewportCenter() {
+		onEdt(() -> {
+		Gantt gantt = newGantt();
+		try {
+			ZoomFixture fixture = scrolledFixture(gantt, 900);
+			int extent = fixture.pane.getViewport().getExtentSize().width;
+			double visibleTaskStart = fixture.coord.toTime(fixture.viewX + 60);
+
+			assertTrue(ScrollPaneSynchronizer.zoomIn(gantt, visibleTaskStart));
+			assertDateAtViewportOffset(fixture, visibleTaskStart, 60);
+
+			ZoomFixture second = scrolledFixture(newGantt(), 900);
+			double centerDate = second.coord.toTime(second.viewX + extent / 2.0d);
+			double offscreenTaskStart = second.coord.toTime(second.viewX + extent + 400);
+			assertTrue(ScrollPaneSynchronizer.zoomIn(second.gantt, offscreenTaskStart));
+			assertDateAtViewportOffset(second, centerDate, extent / 2);
+			second.gantt.cleanUp();
+		} finally {
+			gantt.cleanUp();
+		}
+		});
+	}
+
+	private record ZoomFixture(Gantt gantt, CoordinatesConverter coord, JScrollPane pane, int viewX) { }
+
+	/** A wide chart (range extended both ways) scrolled to {@code x}, wired to a synchronizer. */
+	private static ZoomFixture scrolledFixture(Gantt gantt, int x) {
+		CoordinatesConverter coord = new CoordinatesConverter(gantt.getProject());
+		coord.extendViewBefore(400);
+		coord.extendViewAfter(400);
+		gantt.setCoord(coord);
+		JScrollPane chartPane = chartPaneForTest(gantt);
+		new Synchronizer().addSynchro(chartPane, new JScrollPane(new JPanel()), ScrollPaneSynchronizer.HORIZONTAL);
+		gantt.synchronizeViewportSize();
+		chartPane.getViewport().setViewPosition(new java.awt.Point(x, 0));
+		int viewX = chartPane.getViewport().getViewPosition().x;
+		assertTrue(viewX > 0 && Math.abs(viewX - x) <= 1,
+			"test setup must be scrollable to " + x + " (view width " + chartPane.getViewport().getViewSize().width + ")");
+		return new ZoomFixture(gantt, coord, chartPane, viewX);
+	}
+
+	private static void assertDateAtViewportOffset(ZoomFixture fixture, double date, int offset) {
+		int newViewX = fixture.pane.getViewport().getViewPosition().x;
+		int maxX = Math.max(0, fixture.pane.getViewport().getViewSize().width - fixture.pane.getViewport().getExtentSize().width);
+		long expectedLeft = Math.round(fixture.coord.toX(date)) - offset;
+		assertTrue(expectedLeft >= 0 && expectedLeft <= maxX,
+			"test setup must avoid clamping, expected left " + expectedLeft + " max " + maxX);
+		assertTrue(Math.abs(expectedLeft - newViewX) <= 1,
+			"the anchored date must stay at viewport offset " + offset + " (expected left "
+				+ expectedLeft + ", actual " + newViewX + ")");
+	}
+
+	@Test
 	void plainWheelDoesNotZoomTheTimescale() {
 		onEdt(() -> {
 		Gantt gantt = newGantt();

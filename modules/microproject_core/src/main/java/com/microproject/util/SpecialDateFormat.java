@@ -72,6 +72,7 @@ public class SpecialDateFormat extends SimpleDateFormat {
 		return defaultInstance.format(date,arg1,arg2);
 	}
 	public Date parse(String arg0, ParsePosition arg1) {
+		arg0 = FullWidthInput.normalize(arg0);
 		if (arg0.equals(NO_END))
 			return DateTime.getMaxDate();
 		else if (arg0.equals(NO_START))

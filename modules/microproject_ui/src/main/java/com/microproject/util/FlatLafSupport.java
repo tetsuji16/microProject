@@ -47,6 +47,7 @@ public final class FlatLafSupport {
 	private static boolean initialized;
 	private static volatile boolean nativeWindowDecorationsEnabled;
 	private static Font platformDefaultFont;
+	private static Font appliedUiFont;
 	private static final int MS_PROJECT_UI_FONT_SIZE = 12;
 	private static final String MS_PROJECT_FONT = "Segoe UI";
 	private static final String JAPANESE_FONT_SAMPLE = "日本語";
@@ -69,33 +70,47 @@ public final class FlatLafSupport {
 			JDialog.setDefaultLookAndFeelDecorated(useLookAndFeelDecorations);
 
 			UiServices.setFileChooserProvider(new SwingFileChooserProvider());
-			boolean darkTheme = new GlobalPreferences().isDarkTheme();
-			if (darkTheme)
-				FlatDarkLaf.setup();
-			else
-				FlatLightLaf.setup();
-			Environment.setNewLaf(isFlatLafLookAndFeel());
-
-			Font defaultFont = createDefaultFont();
-			if (defaultFont != null) {
-				platformDefaultFont = defaultFont;
-				applyUIFontDefaults(defaultFont);
-				applyEnvironmentFonts(defaultFont);
-			}
-			if (darkTheme)
-				MicroProjectTheme.installDark();
-			else
-				MicroProjectTheme.installLight();
-			// Office-style command descriptions should appear deliberately, not while
-			// the pointer merely crosses the ribbon.
-			UIManager.put("ToolTip.initialDelay", Integer.valueOf(500));
-			UIManager.put("ToolTip.dismissDelay", Integer.valueOf(12_000));
-			UIManager.put("Component.hideMnemonics", Boolean.FALSE);
+			setupLookAndFeel(new GlobalPreferences().isDarkTheme(), createDefaultFont());
 		} catch (Exception ex) {
 			logger.log(Level.WARNING, "Failed to initialize LaF", ex);
 		} finally {
 			initialized = true;
 		}
+	}
+
+	/** Installs the FlatLaf look and feel, font defaults and microProject tokens for one theme. */
+	private static void setupLookAndFeel(boolean darkTheme, Font defaultFont) {
+		if (darkTheme)
+			FlatDarkLaf.setup();
+		else
+			FlatLightLaf.setup();
+		Environment.setNewLaf(isFlatLafLookAndFeel());
+
+		if (defaultFont != null) {
+			platformDefaultFont = platformDefaultFont == null ? defaultFont : platformDefaultFont;
+			appliedUiFont = defaultFont;
+			applyUIFontDefaults(defaultFont);
+			applyEnvironmentFonts(defaultFont);
+		}
+		if (darkTheme)
+			MicroProjectTheme.installDark();
+		else
+			MicroProjectTheme.installLight();
+		UIManager.put("ToolTip.initialDelay", Integer.valueOf(500));
+		UIManager.put("ToolTip.dismissDelay", Integer.valueOf(12_000));
+		UIManager.put("Component.hideMnemonics", Boolean.FALSE);
+	}
+
+	/**
+	 * Re-runs the look-and-feel setup for the requested theme (keeping the
+	 * current UI font) without touching window decoration policy. Callers must
+	 * refresh component trees afterwards; see
+	 * {@link com.microproject.ui.theme.ThemeManager#applyTheme(boolean)}.
+	 */
+	public static synchronized void reapplyLookAndFeel(boolean darkTheme) {
+		Font font = appliedUiFont != null ? appliedUiFont : createDefaultFont();
+		setupLookAndFeel(darkTheme, font);
+		initialized = true;
 	}
 
 	public static synchronized void ensureInitialized() {
@@ -122,6 +137,7 @@ public final class FlatLafSupport {
 		if (size > 0) {
 			preferred = preferred.deriveFont((float) size);
 		}
+		appliedUiFont = preferred;
 		applyUIFontDefaults(preferred);
 		applyEnvironmentFonts(preferred);
 	}

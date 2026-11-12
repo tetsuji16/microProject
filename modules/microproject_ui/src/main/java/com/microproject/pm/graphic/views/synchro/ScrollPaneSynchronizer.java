@@ -27,8 +27,6 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.event.AdjustmentEvent;
-import java.awt.event.AdjustmentListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.util.Map;
@@ -47,8 +45,6 @@ import javax.swing.event.ChangeListener;
 
 import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
-import com.microproject.timescale.TimeScale;
-import com.microproject.util.DateTime;
 
 /**
  * 
@@ -84,37 +80,14 @@ public class ScrollPaneSynchronizer {
 
 	protected boolean defaultWheelScrollingEnabled2;
 
-	protected AdjustmentListener scrollPane1HorizontalAdjustmentListener = null;
-
-	protected AdjustmentListener scrollPane2HorizontalAdjustmentListener = null;
-	
 	protected boolean bottomBarActivated=true;
 	protected boolean bottomBarEnabled=false;
 
 	protected boolean active = false;
 	private boolean synchronizingViewport = false;
 
-	protected ZoomRestoreState scrollPane1ZoomRestoreState = null;
+	private static final int ZOOM_RANGE_MARGIN_DAYS = 30;
 
-	protected ZoomRestoreState scrollPane2ZoomRestoreState = null;
-
-	protected int programmaticHorizontalScrollCount = 0;
-
-	private static class ZoomRestoreState {
-		private Double keptLeftDate = null;
-
-		private double resolve(double currentLeftDate) {
-			return keptLeftDate == null ? currentLeftDate : keptLeftDate.doubleValue();
-		}
-
-		private void update(double leftDate) {
-			keptLeftDate = Double.valueOf(leftDate);
-		}
-
-		private void reset() {
-			keptLeftDate = null;
-		}
-	}
 	/**
 	 * @param scrollPane1
 	 * @param scrollPane2
@@ -204,14 +177,8 @@ public class ScrollPaneSynchronizer {
 			};
 			scrollPane1.getViewport().addChangeListener(scrollPane1Listener);
 			scrollPane2.getViewport().addChangeListener(scrollPane2Listener);
-			scrollPane1ZoomRestoreState = createZoomRestoreState(scrollPane1);
-			scrollPane2ZoomRestoreState = createZoomRestoreState(scrollPane2);
-			registerGanttSynchronizer(scrollPane1, scrollPane1ZoomRestoreState);
-			registerGanttSynchronizer(scrollPane2, scrollPane2ZoomRestoreState);
-			scrollPane1HorizontalAdjustmentListener = createHorizontalAdjustmentListener(scrollPane1ZoomRestoreState);
-			scrollPane2HorizontalAdjustmentListener = createHorizontalAdjustmentListener(scrollPane2ZoomRestoreState);
-			scrollPane1.getHorizontalScrollBar().addAdjustmentListener(scrollPane1HorizontalAdjustmentListener);
-			scrollPane2.getHorizontalScrollBar().addAdjustmentListener(scrollPane2HorizontalAdjustmentListener);
+			registerGanttSynchronizer(scrollPane1);
+			registerGanttSynchronizer(scrollPane2);
 
 			scrollPane1WheelListener = createWheelListener(scrollPane1);
 			scrollPane2WheelListener = createWheelListener(scrollPane2);
@@ -271,16 +238,6 @@ public class ScrollPaneSynchronizer {
 			}
 			unregisterGanttSynchronizer(scrollPane1);
 			unregisterGanttSynchronizer(scrollPane2);
-			scrollPane1ZoomRestoreState = null;
-			scrollPane2ZoomRestoreState = null;
-			if (scrollPane1HorizontalAdjustmentListener != null) {
-				scrollPane1.getHorizontalScrollBar().removeAdjustmentListener(scrollPane1HorizontalAdjustmentListener);
-				scrollPane1HorizontalAdjustmentListener = null;
-			}
-			if (scrollPane2HorizontalAdjustmentListener != null) {
-				scrollPane2.getHorizontalScrollBar().removeAdjustmentListener(scrollPane2HorizontalAdjustmentListener);
-				scrollPane2HorizontalAdjustmentListener = null;
-			}
 			if (scrollPane1WheelListener != null) {
 				scrollPane1.removeMouseWheelListener(scrollPane1WheelListener);
 			}
@@ -322,8 +279,8 @@ public class ScrollPaneSynchronizer {
 	}
 
 	private void scrollHorizontally(JScrollPane scrollPane, MouseWheelEvent e) {
-		int steps = getWheelSteps(e);
-		if (steps == 0) {
+		double rotation = e.getPreciseWheelRotation();
+		if (rotation == 0.0d) {
 			return;
 		}
 
@@ -331,20 +288,36 @@ public class ScrollPaneSynchronizer {
 		if (viewport == null) {
 			return;
 		}
-		int direction = steps > 0 ? 1 : -1;
-		int scrollAmount = Math.abs(steps) * getHorizontalScrollStep(scrollPane, direction);
+		int direction = rotation > 0.0d ? 1 : -1;
+		// Touchpads and high-resolution wheels report fractional rotations; keep the
+		// sub-pixel remainder so slow gestures still scroll instead of being rounded
+		// to a fixed +/-1 step.
+		double[] split = splitWheelPixels(horizontalWheelRemainder, rotation, getHorizontalScrollStep(scrollPane, direction));
+		horizontalWheelRemainder = split[1];
+		int scrollAmount = (int) split[0];
+		if (scrollAmount == 0) {
+			return;
+		}
 		Point viewPosition = viewport.getViewPosition();
-		viewPosition.x += steps > 0 ? scrollAmount : -scrollAmount;
+		viewPosition.x += scrollAmount;
 		clampViewPosition(viewport, viewPosition);
 		setViewportViewPosition(viewport, viewPosition);
-		updateKeptLeftDate(getZoomRestoreState(scrollPane), resolveViewportLeftEdgeDate(coord -> coord, viewPosition));
+	}
+
+	private double horizontalWheelRemainder;
+
+	/** Pure accumulation step: returns {wholePixels, remainder} for {@code rotation * step} pixels. */
+	static double[] splitWheelPixels(double remainder, double rotation, int step) {
+		double total = remainder + rotation * step;
+		double whole = total < 0 ? Math.ceil(total) : Math.floor(total);
+		return new double[] { whole, total - whole };
 	}
 
 	private boolean handleZoomWheel(JScrollPane scrollPane, MouseWheelEvent e) {
 		if (!e.isControlDown()) {
 			return false;
 		}
-		return performZoom(scrollPane, getWheelSteps(e), resolveWheelCursorX(scrollPane, e));
+		return performZoom(scrollPane, getWheelSteps(e), resolveWheelCursorX(scrollPane, e), Double.NaN);
 	}
 
 	/**
@@ -360,36 +333,71 @@ public class ScrollPaneSynchronizer {
 	}
 
 	public static boolean zoomIn(Component component) {
-		return performZoom(component, -1);
+		return performZoom(component, -1, Double.NaN);
 	}
 
 	public static boolean zoomOut(Component component) {
-		return performZoom(component, 1);
+		return performZoom(component, 1, Double.NaN);
+	}
+
+	/**
+	 * Zooms in around {@code preferredAnchorDate} (epoch millis) when that date is currently
+	 * visible; otherwise around the date at the viewport center.
+	 */
+	public static boolean zoomIn(Component component, double preferredAnchorDate) {
+		return performZoom(component, -1, preferredAnchorDate);
+	}
+
+	public static boolean zoomOut(Component component, double preferredAnchorDate) {
+		return performZoom(component, 1, preferredAnchorDate);
 	}
 
 	public static boolean zoomToScale(Component component, int targetScaleIndex) {
+		return zoomToScale(component, targetScaleIndex, Double.NaN);
+	}
+
+	public static boolean zoomToScale(Component component, int targetScaleIndex, double preferredAnchorDate) {
 		JScrollPane scrollPane = findScrollPane(component);
 		ScrollPaneSynchronizer synchronizer = findSynchronizer(component);
 		if (scrollPane == null || synchronizer == null) {
 			return false;
 		}
-		return synchronizer.zoomToScale(scrollPane, targetScaleIndex);
+		return synchronizer.zoomToScale(scrollPane, targetScaleIndex, preferredAnchorDate);
 	}
 
-	private static boolean performZoom(Component component, int steps) {
+	private static boolean performZoom(Component component, int steps, double preferredAnchorDate) {
 		JScrollPane scrollPane = findScrollPane(component);
 		ScrollPaneSynchronizer synchronizer = findSynchronizer(component);
 		if (scrollPane == null || synchronizer == null) {
 			return false;
 		}
-		return synchronizer.performZoom(scrollPane, steps);
+		return synchronizer.performZoom(scrollPane, steps, -1, preferredAnchorDate);
 	}
 
-	private boolean performZoom(JScrollPane scrollPane, int steps) {
-		return performZoom(scrollPane, steps, -1);
+	/** A date and the viewport-relative x offset at which it must stay across a zoom. */
+	private record ZoomAnchor(double date, int offset) { }
+
+	/**
+	 * A cursor (content x, or -1) wins; then a preferred date that is currently visible keeps
+	 * its viewport offset; otherwise the date at the viewport center is kept at the center.
+	 */
+	private ZoomAnchor resolveZoomAnchor(JViewport viewport, CoordinatesConverter coord, int cursorX,
+			double preferredAnchorDate) {
+		int viewX = viewport.getViewPosition().x;
+		int extent = viewport.getExtentSize().width;
+		if (cursorX >= 0) {
+			return new ZoomAnchor(coord.toTime(cursorX), cursorX - viewX);
+		}
+		if (!Double.isNaN(preferredAnchorDate)) {
+			double x = coord.toX(preferredAnchorDate);
+			if (x >= viewX && x <= (double) viewX + extent) {
+				return new ZoomAnchor(preferredAnchorDate, (int) Math.round(x) - viewX);
+			}
+		}
+		return new ZoomAnchor(coord.toTime(viewX + extent / 2.0d), extent / 2);
 	}
 
-	private boolean performZoom(JScrollPane scrollPane, int steps, int cursorX) {
+	private boolean performZoom(JScrollPane scrollPane, int steps, int cursorX, double preferredAnchorDate) {
 		if (steps == 0) {
 			return true;
 		}
@@ -408,16 +416,11 @@ public class ScrollPaneSynchronizer {
 			return true;
 		}
 
-		ZoomRestoreState zoomRestoreState = getZoomRestoreState(scrollPane);
-		double anchorDate = cursorX >= 0
-				? coord.toTime(cursorX)
-				: resolveViewportLeftEdgeDate(coord::toTime, viewport.getViewPosition());
-		double keptLeftDate = cursorX >= 0 ? anchorDate : resolveKeptLeftDate(zoomRestoreState, anchorDate);
-		performZoomStep(scrollPane, coord, zoomRestoreState, keptLeftDate, steps < 0, cursorX);
+		performZoomStep(scrollPane, coord, resolveZoomAnchor(viewport, coord, cursorX, preferredAnchorDate), steps < 0);
 		return true;
 	}
 
-	private boolean zoomToScale(JScrollPane scrollPane, int targetScaleIndex) {
+	private boolean zoomToScale(JScrollPane scrollPane, int targetScaleIndex, double preferredAnchorDate) {
 		JViewport viewport = scrollPane.getViewport();
 		if (viewport == null) {
 			return false;
@@ -438,11 +441,9 @@ public class ScrollPaneSynchronizer {
 			return true;
 		}
 
-		ZoomRestoreState zoomRestoreState = getZoomRestoreState(scrollPane);
-		double keptLeftDate = resolveKeptLeftDate(zoomRestoreState,
-				resolveViewportLeftEdgeDate(coord::toTime, viewport.getViewPosition()));
+		ZoomAnchor anchor = resolveZoomAnchor(viewport, coord, -1, preferredAnchorDate);
 		while (currentScaleIndex < boundedTargetScaleIndex) {
-			performZoomStep(scrollPane, coord, zoomRestoreState, keptLeftDate, false);
+			performZoomStep(scrollPane, coord, anchor, false);
 			int nextScaleIndex = coord.getTimescaleManager().getCurrentScaleIndex();
 			if (nextScaleIndex == currentScaleIndex) {
 				break;
@@ -450,7 +451,7 @@ public class ScrollPaneSynchronizer {
 			currentScaleIndex = nextScaleIndex;
 		}
 		while (currentScaleIndex > boundedTargetScaleIndex) {
-			performZoomStep(scrollPane, coord, zoomRestoreState, keptLeftDate, true);
+			performZoomStep(scrollPane, coord, anchor, true);
 			int nextScaleIndex = coord.getTimescaleManager().getCurrentScaleIndex();
 			if (nextScaleIndex == currentScaleIndex) {
 				break;
@@ -460,13 +461,7 @@ public class ScrollPaneSynchronizer {
 		return true;
 	}
 
-	private void performZoomStep(JScrollPane scrollPane, CoordinatesConverter coord, ZoomRestoreState zoomRestoreState,
-			double keptLeftDate, boolean zoomIn) {
-		performZoomStep(scrollPane, coord, zoomRestoreState, keptLeftDate, zoomIn, -1);
-	}
-
-	private void performZoomStep(JScrollPane scrollPane, CoordinatesConverter coord, ZoomRestoreState zoomRestoreState,
-			double keptLeftDate, boolean zoomIn, int cursorX) {
+	private void performZoomStep(JScrollPane scrollPane, CoordinatesConverter coord, ZoomAnchor anchor, boolean zoomIn) {
 		boolean zoomed = false;
 		if (zoomIn) {
 			if (coord.canZoomIn()) {
@@ -485,28 +480,17 @@ public class ScrollPaneSynchronizer {
 		if (viewport == null) {
 			return;
 		}
+		// The user may be looking at a period outside the schedule; grow the browsing range
+		// instead of snapping the view back to the project start.
+		coord.ensureRangeIncludes((long) anchor.date(), ZOOM_RANGE_MARGIN_DAYS);
 		Point newViewPosition = viewport.getViewPosition();
-		double minimumLeftDate = resolveMinimumLeftDate(coord.getTimescaleManager().getScale(),
-				coord.getProject().getEarliestStartingTaskOrStart(), keptLeftDate);
-		double restoreDate = chooseZoomLeftDate(keptLeftDate, minimumLeftDate);
-		int restoreX = restoreViewportX(coord::toX, restoreDate);
-		newViewPosition.x = cursorX >= 0 ? restoreX - cursorX : restoreX;
+		newViewPosition.x = restoreViewportX(coord::toX, anchor.date()) - anchor.offset();
 		clampViewPosition(viewport, newViewPosition);
 		setViewportViewPosition(viewport, newViewPosition);
-		updateKeptLeftDate(zoomRestoreState, resolveViewportLeftEdgeDate(coord::toTime, newViewPosition));
-	}
-
-	static double resolveViewportLeftEdgeDate(DoubleUnaryOperator xToTime, Point viewPosition) {
-		int leftEdgeX = viewPosition == null ? 0 : Math.max(0, viewPosition.x);
-		return xToTime.applyAsDouble(leftEdgeX);
 	}
 
 	static int restoreViewportX(DoubleUnaryOperator timeToX, double restoreDate) {
 		return (int) Math.round(timeToX.applyAsDouble(restoreDate));
-	}
-
-	static double chooseZoomLeftDate(double keptLeftDate, double minimumLeftDate) {
-		return Math.max(keptLeftDate, minimumLeftDate);
 	}
 
 	public static int clampTargetScaleIndex(int targetScaleIndex, int scaleCount) {
@@ -516,32 +500,6 @@ public class ScrollPaneSynchronizer {
 		return Math.max(0, Math.min(targetScaleIndex, scaleCount - 1));
 	}
 
-	static double resolveMinimumLeftDate(TimeScale scale, long earliestTaskDate, double fallbackDate) {
-		if (scale == null || earliestTaskDate <= 0L) {
-			return fallbackDate;
-		}
-		var calendar = DateTime.calendarInstance();
-		calendar.setTimeInMillis(earliestTaskDate);
-		scale.floor1(calendar);
-		calendar.add(scale.getCalendarField1(), -scale.getNumber1());
-		return calendar.getTimeInMillis();
-	}
-
-	private ZoomRestoreState createZoomRestoreState(JScrollPane scrollPane) {
-		return isGanttScrollPane(scrollPane) ? new ZoomRestoreState() : null;
-	}
-
-	private double resolveKeptLeftDate(ZoomRestoreState state, double currentLeftDate) {
-		return state == null ? currentLeftDate : state.resolve(currentLeftDate);
-	}
-
-	private void updateKeptLeftDate(ZoomRestoreState state, double leftDate) {
-		if (state == null) {
-			return;
-		}
-		state.update(leftDate);
-	}
-
 	private boolean isGanttScrollPane(JScrollPane scrollPane) {
 		if (scrollPane == null || scrollPane.getViewport() == null) {
 			return false;
@@ -549,18 +507,8 @@ public class ScrollPaneSynchronizer {
 		return scrollPane.getViewport().getView() instanceof Gantt;
 	}
 
-	private ZoomRestoreState getZoomRestoreState(JScrollPane scrollPane) {
-		if (scrollPane == scrollPane1) {
-			return scrollPane1ZoomRestoreState;
-		}
-		if (scrollPane == scrollPane2) {
-			return scrollPane2ZoomRestoreState;
-		}
-		return null;
-	}
-
-	private void registerGanttSynchronizer(JScrollPane scrollPane, ZoomRestoreState state) {
-		if (state == null || scrollPane == null || scrollPane.getViewport() == null) {
+	private void registerGanttSynchronizer(JScrollPane scrollPane) {
+		if (!isGanttScrollPane(scrollPane) || scrollPane.getViewport() == null) {
 			return;
 		}
 		Component view = scrollPane.getViewport().getView();
@@ -579,59 +527,8 @@ public class ScrollPaneSynchronizer {
 		}
 	}
 
-	private AdjustmentListener createHorizontalAdjustmentListener(final ZoomRestoreState state) {
-		return new AdjustmentListener() {
-			public void adjustmentValueChanged(AdjustmentEvent e) {
-				if (programmaticHorizontalScrollCount > 0) {
-					return;
-				}
-				JScrollPane owner = e.getAdjustable() == scrollPane1.getHorizontalScrollBar() ? scrollPane1 : scrollPane2;
-				JViewport viewport = owner == null ? null : owner.getViewport();
-				if (viewport == null) {
-					return;
-				}
-				if (e.getValueIsAdjusting() || e.getAdjustmentType() == AdjustmentEvent.TRACK || e.getAdjustmentType() == AdjustmentEvent.UNIT_INCREMENT
-						|| e.getAdjustmentType() == AdjustmentEvent.UNIT_DECREMENT || e.getAdjustmentType() == AdjustmentEvent.BLOCK_INCREMENT
-						|| e.getAdjustmentType() == AdjustmentEvent.BLOCK_DECREMENT) {
-					updateKeptLeftDate(state, resolveViewportLeftEdgeDate(coord -> coord, viewport.getViewPosition()));
-				}
-			}
-		};
-	}
-
 	private void setViewportViewPosition(JViewport viewport, Point viewPosition) {
-		programmaticHorizontalScrollCount++;
-		try {
-			viewport.setViewPosition(viewPosition);
-		} finally {
-			programmaticHorizontalScrollCount--;
-		}
-	}
-
-	private void invalidateZoomRestoreState(ZoomRestoreState state) {
-		if (state != null) {
-			state.reset();
-		}
-	}
-
-	private void invalidateAllZoomRestoreState() {
-		invalidateZoomRestoreState(scrollPane1ZoomRestoreState);
-		invalidateZoomRestoreState(scrollPane2ZoomRestoreState);
-	}
-
-	public static void invalidateZoomRestore(Component component) {
-		if (component == null) {
-			return;
-		}
-		Component current = component;
-		while (current != null) {
-			ScrollPaneSynchronizer synchronizer = (ScrollPaneSynchronizer) ganttSynchronizers.get(current);
-			if (synchronizer != null) {
-				synchronizer.invalidateAllZoomRestoreState();
-				return;
-			}
-			current = current.getParent();
-		}
+		viewport.setViewPosition(viewPosition);
 	}
 
 	private int getWheelSteps(MouseWheelEvent e) {

@@ -423,17 +423,6 @@ public class DocumentFrame extends NamedFrame implements
 		return true;
 	}
 
-//	void doEnterpriseResourcesDialog() {
-//		finishAnyOperations();
-//		EnterpriseResourcesDialog enterpriseResourceDialog = EnterpriseResourcesDialog
-//				.getInstance(getMainFrame());
-//		enterpriseResourceDialog.pack();
-//		enterpriseResourceDialog.setModal(false);
-//		enterpriseResourceDialog.setLocationRelativeTo(null);//to center on
-//															 // screen
-//		enterpriseResourceDialog.show();
-//	}
-
 
 	void doChangeWorkingTimeDialog(boolean restrict) {
 		finishAnyOperations();
@@ -486,7 +475,7 @@ public class DocumentFrame extends NamedFrame implements
 
 		UpdateTaskDialog dlg = UpdateTaskDialog.getInstance(getGraphicManager().getFrame(),
 				nodes);
-		dlg.setLocationRelativeTo(null);//to center on screen
+		dlg.setLocationRelativeTo(getGraphicManager().getFrame());
 		return dlg.doModal();
 
 	}
@@ -723,6 +712,9 @@ public class DocumentFrame extends NamedFrame implements
 		if (sheet.isHeaderColumnSelectionActive())
 			return RibbonCommandResult.rejected(command.actionId(), "task-row-selection-required");
 		List<Node> selected = new ArrayList<>(sheet.getSelectedNodes());
+		// A milestone on blank rows fills the current blank row instead of being rejected.
+		if (!summary && !selected.isEmpty() && selected.stream().allMatch(Node::isVoid))
+			selected.clear();
 		if (summary && selected.isEmpty())
 			return RibbonCommandResult.rejected(command.actionId(), "no-selection");
 		if (!selected.isEmpty()) {
@@ -750,7 +742,7 @@ public class DocumentFrame extends NamedFrame implements
 		Node inserted;
 		try {
 			if (selected.isEmpty()) {
-				inserted = sheet.insertOneTaskRowAtCurrentRow();
+				inserted = sheet.insertOneTaskRowAtCurrentRowOrBlank();
 				if (inserted == null)
 					return RibbonCommandResult.rejected(command.actionId(), "insertion-not-allowed");
 			} else {

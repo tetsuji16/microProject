@@ -30,7 +30,6 @@ import com.microproject.datatype.Duration;
 import com.microproject.field.FieldContext;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.scheduling.ConstraintType;
-import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.undo.ScheduleEdit;
 import com.microproject.util.DateTime;
 
@@ -181,8 +180,14 @@ public final class TaskSheetScheduleWorkflow {
 			normalTask.markAllDependentTasksAsNeedingRecalculation(true);
 			normalTask.assignParentActualDatesFromChildren();
 		} else {
-			normalTask.moveInterval(task, normalizedStart, normalizedEnd, new ScheduleInterval(task.getStart(), task.getEnd()), false);
+			// The constraint must be in place before the move: the move recalculates, and a
+			// recalculation under the old constraint would restore the old start.
+			updateStartConstraint(task, normalizedStart);
+			normalTask.moveScheduleKeepingAssignmentDelays(task, normalizedStart, normalizedEnd);
+			normalTask.durationPinnedByScheduleEdit = false;
+			return;
 		}
+		normalTask.durationPinnedByScheduleEdit = false;
 		updateStartConstraint(task, normalizedStart);
 	}
 
@@ -200,6 +205,22 @@ public final class TaskSheetScheduleWorkflow {
 
 		WorkCalendar calendar = task.getEffectiveWorkCalendar();
 		long normalizedFinish = DateTime.closestDate(finish);
+		// Document-derived compatibility rule (Microsoft Project, "Change a task duration"):
+		// when the last two fields edited were Finish and Duration, Duration is kept and Start
+		// moves; otherwise Start is kept and Duration is recalculated from Start to the new
+		// Finish, flowing through the Duration-edit path so assignments and Work follow the
+		// task type. https://support.microsoft.com/en-us/project/change-a-task-duration
+		if (!normalTask.durationPinnedByScheduleEdit && normalTask.getActualStart() == 0L) {
+			long currentStart = task.getStart();
+			long recalculatedDuration = normalizedFinish > currentStart
+					? calendar.compare(normalizedFinish, currentStart, false) : 0L;
+			if (recalculatedDuration > 0L) {
+				applyDurationMutation(normalTask, Duration.setAsEstimated(recalculatedDuration, normalTask.isEstimated()));
+				normalTask.durationPinnedByScheduleEdit = false;
+				updateFinishConstraint(task, normalizedFinish);
+				return;
+			}
+		}
 		long duration = Duration.millis(task.getDuration());
 		long normalizedStart = (duration == 0L) ? normalizedFinish : calculateStartFromFinish(calendar, normalizedFinish, duration);
 		if (!hasAssignedWork(normalTask)) {
@@ -208,7 +229,9 @@ public final class TaskSheetScheduleWorkflow {
 			normalTask.markAllDependentTasksAsNeedingRecalculation(true);
 			normalTask.assignParentActualDatesFromChildren();
 		} else {
-			normalTask.moveInterval(task, normalizedStart, normalizedFinish, new ScheduleInterval(task.getStart(), task.getEnd()), false);
+			updateFinishConstraint(task, normalizedFinish);
+			normalTask.moveScheduleKeepingAssignmentDelays(task, normalizedStart, normalizedFinish);
+			return;
 		}
 		updateFinishConstraint(task, normalizedFinish);
 	}
@@ -238,6 +261,7 @@ public final class TaskSheetScheduleWorkflow {
 			return;
 		}
 		task.setDuration(duration);
+		task.durationPinnedByScheduleEdit = true;
 		// A newly entered manual task has no real assignments.  Its raw duration
 		// is updated by setDuration(), but the manual schedule can subsequently
 		// retain its old zero-length interval.  Keep the task-table fields as one

@@ -77,6 +77,32 @@ class ScaledScrollPaneTest {
 	}
 
 	@Test
+	void originChangeAfterAScaleChangeRestoresTheLeftDateWithTheCurrentScale() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			var undoController = new DataFactoryUndoController();
+			var resourcePool = ResourcePool.createRourcePool("scaled-scroll-pane-scale-test", undoController);
+			var project = Project.createProject(resourcePool, undoController);
+			var coord = new CoordinatesConverter(project);
+			var pane = new ScaledScrollPane(new TestScaledComponent(coord), coord, null, 20);
+			pane.setSize(400, 300);
+			pane.doLayout();
+			JViewport viewport = pane.getViewport();
+			viewport.setViewSize(new Dimension(8_000, 300));
+			coord.zoomOut();
+			viewport.setViewPosition(new Point(300, 0));
+			double leftDateBefore = coord.toTime(300);
+
+			coord.extendViewBefore(20);
+
+			double leftDateAfter = coord.toTime(viewport.getViewPosition().x);
+			double onePixel = Math.abs(coord.toTime(301) - coord.toTime(300));
+			assertTrue(Math.abs(leftDateAfter - leftDateBefore) <= onePixel,
+				"the left-edge date must be restored through the current scale (before="
+						+ leftDateBefore + ", after=" + leftDateAfter + ")");
+		});
+	}
+
+	@Test
 	void optedInResizePreservesCenterDateAndVerticalPosition() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			var undoController = new DataFactoryUndoController();

@@ -30,7 +30,6 @@ import java.awt.Component;
 import java.awt.Point;
 import java.awt.event.MouseWheelListener;
 import java.lang.reflect.Field;
-import java.util.Calendar;
 import java.util.List;
 
 import javax.swing.JPanel;
@@ -39,8 +38,6 @@ import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.timescale.TimeScale;
-import com.microproject.util.DateTime;
 
 class ScrollPaneSynchronizerTest {
 	@Test
@@ -122,50 +119,8 @@ class ScrollPaneSynchronizerTest {
 		assertEquals(0, ((List<?>) field.get(synchronizer)).size());
 	}
 	@Test
-	void resolveViewportLeftEdgeDateUsesCurrentViewportOffset() {
-		double leftEdgeDate = ScrollPaneSynchronizer.resolveViewportLeftEdgeDate(x -> 1_000.0d + x * 2.0d, new Point(125, 0));
-
-		assertEquals(1_250.0d, leftEdgeDate, 0.00001d);
-	}
-
-	@Test
-	void resolveViewportLeftEdgeDateClampsNegativeViewportOffset() {
-		double leftEdgeDate = ScrollPaneSynchronizer.resolveViewportLeftEdgeDate(x -> 500.0d + x, new Point(-25, 0));
-
-		assertEquals(500.0d, leftEdgeDate, 0.00001d);
-	}
-
-	@Test
 	void restoreViewportXRoundsConvertedCoordinate() {
 		assertEquals(384, ScrollPaneSynchronizer.restoreViewportX(t -> t / 2.0d, 767.6d));
-	}
-
-	@Test
-	void chooseZoomLeftDatePrefersKeptDateWhenItIsLaterThanMinimum() {
-		assertEquals(2_000.0d, ScrollPaneSynchronizer.chooseZoomLeftDate(2_000.0d, 1_500.0d), 0.00001d);
-	}
-
-	@Test
-	void chooseZoomLeftDateUsesMinimumWhenKeptDateIsTooFarLeft() {
-		assertEquals(1_500.0d, ScrollPaneSynchronizer.chooseZoomLeftDate(1_200.0d, 1_500.0d), 0.00001d);
-	}
-
-	@Test
-	void resolveMinimumLeftDateUsesPreviousDayForDailyScale() {
-		TimeScale scale = scale(Calendar.DAY_OF_WEEK, 1);
-		long earliestTaskDate = date(2025, Calendar.JUNE, 21);
-
-		assertEquals(date(2025, Calendar.JUNE, 20),
-				(long) ScrollPaneSynchronizer.resolveMinimumLeftDate(scale, earliestTaskDate, -1.0d));
-	}
-
-	@Test
-	void resolveMinimumLeftDateUsesPreviousMonthBoundaryForMonthlyScale() {
-		TimeScale scale = scale(Calendar.MONTH, 1);
-		long earliestTaskDate = date(2025, Calendar.JUNE, 21);
-
-		assertEquals(date(2025, Calendar.MAY, 1),
-				(long) ScrollPaneSynchronizer.resolveMinimumLeftDate(scale, earliestTaskDate, -1.0d));
 	}
 
 	@Test
@@ -184,37 +139,17 @@ class ScrollPaneSynchronizerTest {
 	}
 
 	@Test
-	void chooseZoomLeftDateWithResolvedMinimumKeepsVisibleLeftDateWhenAllowed() {
-		TimeScale scale = scale(Calendar.DAY_OF_WEEK, 1);
-		long earliestTaskDate = date(2025, Calendar.JUNE, 21);
-		double keptLeftDate = date(2025, Calendar.JUNE, 25);
-		double minimumLeftDate = ScrollPaneSynchronizer.resolveMinimumLeftDate(scale, earliestTaskDate, keptLeftDate);
-
-		assertEquals(keptLeftDate, ScrollPaneSynchronizer.chooseZoomLeftDate(keptLeftDate, minimumLeftDate), 0.00001d);
-	}
-
-	@Test
-	void chooseZoomLeftDateWithResolvedMinimumClampsWhenVisibleLeftDateIsTooEarly() {
-		TimeScale scale = scale(Calendar.DAY_OF_WEEK, 1);
-		long earliestTaskDate = date(2025, Calendar.JUNE, 21);
-		double keptLeftDate = date(2025, Calendar.JUNE, 18);
-		double minimumLeftDate = ScrollPaneSynchronizer.resolveMinimumLeftDate(scale, earliestTaskDate, keptLeftDate);
-
-		assertEquals(minimumLeftDate, ScrollPaneSynchronizer.chooseZoomLeftDate(keptLeftDate, minimumLeftDate), 0.00001d);
-	}
-
-	private static TimeScale scale(int calendarField1, int number1) {
-		TimeScale scale = new TimeScale();
-		scale.setCalendarField1(calendarField1);
-		scale.setNumber1(number1);
-		scale.setNormalMinWidth(1);
-		return scale;
-	}
-
-	private static long date(int year, int month, int dayOfMonth) {
-		var calendar = DateTime.calendarInstance();
-		calendar.clear();
-		calendar.set(year, month, dayOfMonth, 0, 0, 0);
-		return calendar.getTimeInMillis();
+	void horizontalWheelAccumulatesPreciseRotationInsteadOfFixedSteps() {
+		// A full notch scrolls one unit step; fractional touchpad rotations keep their remainder.
+		assertEquals(40.0d, ScrollPaneSynchronizer.splitWheelPixels(0.0d, 1.0d, 40)[0], 0.0d);
+		double[] first = ScrollPaneSynchronizer.splitWheelPixels(0.0d, 0.3d, 10);
+		assertEquals(3.0d, first[0], 0.0d);
+		double[] slow = ScrollPaneSynchronizer.splitWheelPixels(0.0d, 0.04d, 10);
+		assertEquals(0.0d, slow[0], 0.0d);
+		double[] carried = ScrollPaneSynchronizer.splitWheelPixels(slow[1], 0.04d, 10);
+		assertEquals(0.0d, carried[0], 0.0d);
+		double[] reached = ScrollPaneSynchronizer.splitWheelPixels(carried[1] + 0.2d, 0.04d, 10);
+		assertEquals(1.0d, reached[0], 0.0d);
+		assertEquals(-25.0d, ScrollPaneSynchronizer.splitWheelPixels(0.0d, -2.5d, 10)[0], 0.0d);
 	}
 }

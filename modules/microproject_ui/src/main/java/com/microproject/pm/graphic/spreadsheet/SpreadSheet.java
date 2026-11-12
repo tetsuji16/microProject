@@ -496,6 +496,30 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		return inserted;
 	}
 
+	/**
+	 * Row for a single-task insert such as Insert Milestone. A blank current row is used in
+	 * place, as Microsoft Project fills the selected blank row; otherwise a row is inserted
+	 * above the current task. A project without tasks uses its first blank row.
+	 */
+	public Node insertOneTaskRowAtCurrentRowOrBlank() {
+		Node current = getCurrentRowNode();
+		if (current != null && current.isVoid()) {
+			finishCurrentOperations();
+			return current;
+		}
+		Node inserted = insertOneTaskRowAtCurrentRow();
+		if (inserted != null)
+			return inserted;
+		for (int row = 0; row < getRowCount(); row++) {
+			Node candidate = getNodeAtRow(row);
+			if (candidate != null && candidate.isVoid()) {
+				finishCurrentOperations();
+				return candidate;
+			}
+		}
+		return null;
+	}
+
 	/** Copies each selected column's first selected value into the remaining selected rows. */
 	public void fillDownSelection() {
 		finishCurrentOperations();
