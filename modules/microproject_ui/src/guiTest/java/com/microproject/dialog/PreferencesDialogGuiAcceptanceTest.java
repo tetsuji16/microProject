@@ -31,6 +31,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
+import com.microproject.document.ObjectEvent;
 import com.microproject.preference.GlobalPreferences;
 import com.microproject.preference.ConfigurationFile;
 import com.microproject.configuration.Settings;
@@ -266,6 +267,11 @@ class PreferencesDialogGuiAcceptanceTest {
 		String originalFontFamily = testPreferences.getFontFamily();
 		int originalFontSize = testPreferences.getFontSize();
 		java.util.concurrent.atomic.AtomicInteger refreshes = new java.util.concurrent.atomic.AtomicInteger();
+		AtomicInteger updates = new AtomicInteger();
+		ObjectEvent.Listener listener = event -> {
+			if (event.isUpdate())
+				updates.incrementAndGet();
+		};
 		javax.swing.JFrame[] frame = new javax.swing.JFrame[1];
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
@@ -287,6 +293,7 @@ class PreferencesDialogGuiAcceptanceTest {
 			});
 			robot.waitForIdle();
 			int baseline = refreshes.get();
+			testPreferences.addObjectListener(listener);
 
 			SwingUtilities.invokeLater(() -> PreferencesDialogBox.showDialog(null, testPreferences));
 			GuiAcceptanceSupport.await(() -> findDialog() != null, "Preferences dialog did not open");
@@ -295,6 +302,7 @@ class PreferencesDialogGuiAcceptanceTest {
 			robot.waitForIdle();
 			assertEquals(originalFontFamily, testPreferences.getFontFamily(),
 				"Apply without a font change must keep the stored font family");
+			assertEquals(0, updates.get(), "Apply without changes must not send preference update events");
 			assertEquals(baseline, refreshes.get(), "Apply without a font change must not rebuild open windows");
 
 			SwingUtilities.invokeLater(() -> PreferencesDialogBox.showDialog(null, testPreferences));
@@ -322,6 +330,7 @@ class PreferencesDialogGuiAcceptanceTest {
 			assertEquals(chosen[0], testPreferences.getFontFamily(), "Apply must store the selected font family");
 			assertEquals(baseline + 1, refreshes.get(), "A font change must rebuild open windows exactly once");
 		} finally {
+			testPreferences.removeObjectListener(listener);
 			SwingUtilities.invokeAndWait(() -> {
 				testPreferences.setFontFamily(originalFontFamily);
 				testPreferences.setFontSize(originalFontSize);
