@@ -194,6 +194,32 @@ class ResourceTableEditDirtyTest {
 		assertFalse(f.project().needsSaving(), "a refused removal must not prompt to save");
 	}
 
+	/** Issue #997: a cut that is refused must not put the row on the clipboard. */
+	@Test
+	void firstIntervalRowIsLeftOutOfACutSelection() throws Exception {
+		Fixture f = fixture();
+		ValueObjectForIntervalTable table = f.resource().getAvailabilityTable();
+		onEdt(f, sheet -> {
+			NodeModelDataFactory factory = sheet.getCache().getModel().getDataFactory();
+			List<Node> onlyFirst = firstDataRow(sheet);
+			assertNotNull(com.microproject.pm.graphic.spreadsheet.common.transfer.NodeListTransferHandler
+				.dropRowsThatCannotBeCut(onlyFirst, factory), "the refusal is reported");
+			assertTrue(onlyFirst.isEmpty(), "nothing is left to copy");
+
+			List<Node> last = lastDataRow(sheet);
+			List<Node> mixed = new ArrayList<>(firstDataRow(sheet));
+			mixed.addAll(last);
+			assertNotNull(com.microproject.pm.graphic.spreadsheet.common.transfer.NodeListTransferHandler
+				.dropRowsThatCannotBeCut(mixed, factory));
+			assertEquals(last, mixed, "only the removable row is cut");
+
+			List<Node> removable = lastDataRow(sheet);
+			assertNull(com.microproject.pm.graphic.spreadsheet.common.transfer.NodeListTransferHandler
+				.dropRowsThatCannotBeCut(removable, factory));
+			assertEquals(last, removable);
+		}, table, "availabilitySpreadsheet", "Spreadsheet.availability");
+	}
+
 	@Test
 	void firstAvailabilityRowCannotBeDeletedOrCut() throws Exception {
 		assertFirstRowRefused(true, false);
