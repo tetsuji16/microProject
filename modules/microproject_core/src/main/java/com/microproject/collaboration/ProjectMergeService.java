@@ -615,8 +615,8 @@ public class ProjectMergeService {
 
 	private List<ExternalTaskUpdate> stageExternalTaskUpdates(Project target, Project external, Set<Long> lockedTaskIds, ApplyResult result) {
 		List<ExternalTaskUpdate> updates = new ArrayList<>();
-		for (Iterator i = external.getTaskOutlineIterator(); i.hasNext();) {
-			Task externalTask = (Task) i.next();
+		for (Iterator<Task> i = external.getTaskOutlineIterator(); i.hasNext();) {
+			Task externalTask = i.next();
 			TaskState incoming = TaskState.capture(externalTask);
 			if (incoming == null) {
 				continue;
