@@ -41,6 +41,7 @@ public final class MenuRibbonCommandSource implements RibbonCommandSource {
 	private static final Logger logger = Logger.getLogger(MenuRibbonCommandSource.class.getName());
 	private final ExtToolBarFactory factory;
 	private final Map<String, CommandBinding> bindingsById = new LinkedHashMap<>();
+	private javax.swing.InputMap documentShortcuts;
 
 	public MenuRibbonCommandSource(ExtToolBarFactory factory) {
 		this.factory = java.util.Objects.requireNonNull(factory);
@@ -90,6 +91,21 @@ public final class MenuRibbonCommandSource implements RibbonCommandSource {
 		} catch (Exception exception) {
 			throw new IllegalStateException("Unable to create transient ribbon command " + commandId, exception);
 		}
+	}
+
+	/** Supplies the root-pane map that owns the document-wide shortcuts. */
+	public void setDocumentShortcuts(javax.swing.InputMap inputMap) {
+		documentShortcuts = inputMap;
+	}
+
+	@Override
+	public javax.swing.KeyStroke getShortcut(String commandId) {
+		return ShortcutHints.primary(documentShortcuts, actionKey(commandId), this::actionKey);
+	}
+
+	private String actionKey(String id) {
+		String actionId = factory.getActionStringFromId(id);
+		return actionId == null ? id : actionId;
 	}
 
 	@Override

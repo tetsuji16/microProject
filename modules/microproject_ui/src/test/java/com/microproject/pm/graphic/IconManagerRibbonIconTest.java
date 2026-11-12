@@ -289,6 +289,39 @@ class IconManagerRibbonIconTest {
 	}
 
 	@Test
+	void taskTreeExpandersUseTheTableForegroundOnDarkTablesOnly() {
+		Color black = Color.BLACK;
+		Color lightInk = new Color(0xE6, 0xE6, 0xE6);
+		Color darkTable = new Color(0x1E, 0x1E, 0x1E);
+
+		assertEquals(lightInk, IconManager.treeExpanderInk(black, darkTable, lightInk),
+			"black expander ink must follow the table foreground on a dark table (issue #1091)");
+		assertEquals(black, IconManager.treeExpanderInk(black, Color.WHITE, new Color(0x20, 0x20, 0x20)),
+			"light tables keep the original black ink");
+		assertEquals(Color.RED, IconManager.treeExpanderInk(Color.RED, darkTable, lightInk),
+			"only the black ink is remapped");
+		assertEquals(black, IconManager.treeExpanderInk(black, darkTable, null));
+		for (String key : List.of("spreadsheet.collapsed.icon", "spreadsheet.expanded.icon")) {
+			assertTrue(IconManager.getIcon(key) instanceof com.formdev.flatlaf.extras.FlatSVGIcon svg
+				&& svg.getColorFilter() != null, key + " must carry the theme-aware ink filter");
+		}
+		var darkCanvas = new BufferedImage(9, 9, BufferedImage.TYPE_INT_ARGB);
+		var filtered = new com.formdev.flatlaf.extras.FlatSVGIcon(IconManager.class.getResource("images/moins.svg"))
+			.derive(9, 9);
+		filtered.setColorFilter(new com.formdev.flatlaf.extras.FlatSVGIcon.ColorFilter(
+			color -> IconManager.treeExpanderInk(color, darkTable, lightInk)));
+		var graphics = darkCanvas.createGraphics();
+		try {
+			filtered.paintIcon(null, graphics, 0, 0);
+		} finally {
+			graphics.dispose();
+		}
+		assertEquals(lightInk.getRGB(), darkCanvas.getRGB(4, 4), "the collapse bar is painted in the light ink");
+		assertEquals(lightInk.getRGB(), darkCanvas.getRGB(0, 0), "the frame is painted in the light ink");
+		assertEquals(0, darkCanvas.getRGB(2, 2) >>> 24, "the interior stays transparent");
+	}
+
+	@Test
 	void modernTaskIndicatorVectorsKeepSourceMeaningAndRenderAtHiDpi() throws IOException {
 		List<VectorIconFixture> fixtures = List.of(
 			new VectorIconFixture("indicator.calendar", "indicator-calendar-modern.png", 0x4C7DDA, 0x13B86A),
