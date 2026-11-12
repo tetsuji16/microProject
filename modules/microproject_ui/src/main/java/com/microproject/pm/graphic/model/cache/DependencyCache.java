@@ -83,6 +83,7 @@ public class DependencyCache extends CellCache<GraphicDependency, VisibleDepende
 		
 //		long t0=System.currentTimeMillis();
 		boolean containsPredecessor,containsSuccessor,containsDependency;
+		java.util.IdentityHashMap<GraphicDependency, Boolean> pendingRemoval = null;
 		for (GraphicDependency dep : cache) {
 			containsPredecessor=visibleNodesSet.contains(dep.getPredecessor());
 			containsSuccessor=visibleNodesSet.contains(dep.getSuccessor());
@@ -95,11 +96,17 @@ public class DependencyCache extends CellCache<GraphicDependency, VisibleDepende
 				changed.remove(dep);
 			}else if ((!containsPredecessor||
 					!containsSuccessor)&&containsDependency){
-			    visibleDependencies.remove(dep);
+			    if (pendingRemoval == null) pendingRemoval = new java.util.IdentityHashMap<>();
+			    pendingRemoval.put(dep, Boolean.TRUE);
 			    visibleDependenciesSet.remove(dep);
 			    removed.add(dep);
 				changed.remove(dep);
 			}
+		}
+		// Batch removal keeps the order of the remaining dependencies without an O(n) remove per dependency.
+		if (pendingRemoval != null) {
+			final java.util.Map<GraphicDependency, Boolean> toRemove = pendingRemoval;
+			visibleDependencies.removeIf(toRemove::containsKey);
 		}
 //		long t1=System.currentTimeMillis();
 		Collection<GraphicDependency> cacheCol=getContainsCollection(cache);

@@ -820,12 +820,30 @@ public final class FlatUiSupport {
 		return border;
 	}
 
+	private record CachedLineBorder(Color color, Border border) {
+	}
+
+	private static volatile CachedLineBorder activeCellBorderCache;
+	private static volatile CachedLineBorder editingCellBorderCache;
+
 	public static Border spreadsheetActiveCellBorder() {
-		return BorderFactory.createLineBorder(spreadsheetActiveCellBorderColor(), 1);
+		Color color = spreadsheetActiveCellBorderColor();
+		CachedLineBorder cached = activeCellBorderCache;
+		if (cached != null && cached.color().equals(color))
+			return cached.border();
+		Border border = BorderFactory.createLineBorder(color, 1);
+		activeCellBorderCache = new CachedLineBorder(color, border);
+		return border;
 	}
 
 	public static Border spreadsheetEditingCellBorder() {
-		return BorderFactory.createLineBorder(spreadsheetActiveCellBorderColor(), 2);
+		Color color = spreadsheetActiveCellBorderColor();
+		CachedLineBorder cached = editingCellBorderCache;
+		if (cached != null && cached.color().equals(color))
+			return cached.border();
+		Border border = BorderFactory.createLineBorder(color, 2);
+		editingCellBorderCache = new CachedLineBorder(color, border);
+		return border;
 	}
 
 	public static Border tableCellBorder() {
@@ -836,8 +854,22 @@ public final class FlatUiSupport {
 	}
 
 	public static Border withRowGridOverlay(Border baseBorder, Color gridColor) {
-		return new RowGridOverlayBorder(baseBorder, gridColor == null ? tableGridColor() : gridColor);
+		Color resolved = gridColor == null ? tableGridColor() : gridColor;
+		synchronized (ROW_GRID_OVERLAY_CACHE) {
+			for (RowGridOverlayBorder cached : ROW_GRID_OVERLAY_CACHE) {
+				if (cached != null && cached.baseBorder == baseBorder && cached.gridColor.equals(resolved))
+					return cached;
+			}
+			RowGridOverlayBorder created = new RowGridOverlayBorder(baseBorder, resolved);
+			ROW_GRID_OVERLAY_CACHE[rowGridOverlayNext] = created;
+			rowGridOverlayNext = (rowGridOverlayNext + 1) % ROW_GRID_OVERLAY_CACHE.length;
+			return created;
+		}
 	}
+
+	/** Tiny identity(base)+color keyed cache; a theme switch changes the base or color and so misses. */
+	private static final RowGridOverlayBorder[] ROW_GRID_OVERLAY_CACHE = new RowGridOverlayBorder[6];
+	private static int rowGridOverlayNext;
 
 	private static final class RowGridOverlayBorder extends AbstractBorder {
 		private final Border baseBorder;

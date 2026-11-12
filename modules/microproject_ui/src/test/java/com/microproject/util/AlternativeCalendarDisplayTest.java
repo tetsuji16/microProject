@@ -73,6 +73,20 @@ class AlternativeCalendarDisplayTest {
 	}
 
 	@Test
+	void repeatedAndAlternatingLocalesReturnConsistentLabels() {
+		Locale japanese = Locale.forLanguageTag("ja-JP-u-ca-japanese");
+		LocalDate date = LocalDate.of(2019, 5, 1);
+		for (int round = 0; round < 3; round++) {
+			assertEquals("1", AlternativeCalendarDisplay.companionDay(date, japanese));
+			assertEquals("1", AlternativeCalendarDisplay.companionDay(date, japanese));
+			assertEquals("", AlternativeCalendarDisplay.companionDay(date, Locale.US));
+			assertEquals("", AlternativeCalendarDisplay.companionDay(date, Locale.US));
+			assertTrue(AlternativeCalendarDisplay.hasAlternateCalendar(japanese));
+			assertFalse(AlternativeCalendarDisplay.hasAlternateCalendar(Locale.US));
+		}
+	}
+
+	@Test
 	void unsupportedCalendarExtensionFallsBackToGregorianLabels() {
 		Locale locale = Locale.forLanguageTag("en-US-u-ca-notreal");
 

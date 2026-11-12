@@ -184,15 +184,29 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 			return Collections.emptySet();
 		}
 		var projection = getCache().getVisibleNodes().getProjectionIndex();
+		Set<ProjectionRowKey> keys = highlightedRowKeys;
+		// The projection index and the key set are both immutable snapshots that are replaced
+		// (never mutated) on change, so identity comparison is a sufficient invalidation test.
+		if (highlightedRowsProjection == projection && highlightedRowsKeys == keys && highlightedRowsCache != null) {
+			return highlightedRowsCache;
+		}
 		Set<Integer> rows = new HashSet<>();
-		for (ProjectionRowKey key : highlightedRowKeys) {
+		for (ProjectionRowKey key : keys) {
 			int row = projection.rowForKey(key);
 			if (row >= 0) {
 				rows.add(row);
 			}
 		}
-		return Set.copyOf(rows);
+		Set<Integer> result = Set.copyOf(rows);
+		highlightedRowsProjection = projection;
+		highlightedRowsKeys = keys;
+		highlightedRowsCache = result;
+		return result;
 	}
+
+	private transient Object highlightedRowsProjection;
+	private transient Set<ProjectionRowKey> highlightedRowsKeys;
+	private transient Set<Integer> highlightedRowsCache;
 
 	public Set<ProjectionRowKey> getHighlightedRowKeys() {
 		return highlightedRowKeys;
