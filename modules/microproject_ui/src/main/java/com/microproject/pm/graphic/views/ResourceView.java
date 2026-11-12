@@ -104,7 +104,7 @@ public class ResourceView extends JScrollPane implements BaseView {
 		HelpUtil.addDocHelp(this,"Resource_View");
 		this.model = model;
 		this.document =document;
-		this.cache=NodeModelCacheFactory.getInstance().createFilteredCache((ReferenceNodeModelCache)cache,getViewName(),null);
+		this.cache=NodeModelCacheFactory.getInstance().createFilteredCache(cache,getViewName(),null);
 		fieldContext = new FieldContext();
 		fieldContext.setLeftAssociation(false);
 		/*cellStyle=new CellStyle(){
@@ -197,7 +197,7 @@ public class ResourceView extends JScrollPane implements BaseView {
 		
 		com.microproject.graphic.configuration.SpreadSheetFieldArray fields = SpreadsheetViewSupport.getResourceFields();
 		if (((ResourcePool)document).isMaster()){
-			fields=(com.microproject.graphic.configuration.SpreadSheetFieldArray)fields.clone();
+			fields=fields.clone();
 			fields.removeField("Field.userRole"); //$NON-NLS-1$
 		}
 		spreadSheet.setCache(cache,fields,fields.getCellStyle(),fields.getActionList());

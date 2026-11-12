@@ -365,7 +365,7 @@ public class Colors {
 	}
 
 	public static Color findColor(String key) {
-		Color found = (Color) getColors().get(key);
+		Color found = getColors().get(key);
 		if (found == null) // if not a standard color, then assume that it needs to be parsed by color
 			found = Color.getColor(key);
 		return found;

@@ -106,6 +106,27 @@ class AutoRecoveryStoreTest {
 	}
 
 	@Test
+	void currentSnapshotsSurviveWhileOlderDirectoryIsResolvedFirst() throws Exception {
+		Path home = temporaryDirectory.resolve("both-home");
+		Path appData = temporaryDirectory.resolve("both-appData");
+		AutoRecoveryStore current = new AutoRecoveryStore(appData.resolve("microProject/recovery"));
+		Files.writeString(current.snapshotPath(1), "current project");
+		current.recordCompletedSnapshot(1, "Current plan", null, Instant.now());
+		AutoRecoveryStore older = new AutoRecoveryStore(appData.resolve("ProjectLibre/recovery"));
+		Files.writeString(older.snapshotPath(2), "older project");
+		older.recordCompletedSnapshot(2, "Old plan", null, Instant.now());
+
+		AutoRecoveryStore first = AutoRecoveryStore.forUserDirectories(home, appData);
+		assertEquals(older.snapshotPath(2), first.listRecoverable().getFirst().snapshot());
+		first.discardAll();
+
+		assertEquals("current project", Files.readString(current.snapshotPath(1)));
+		AutoRecoveryStore second = AutoRecoveryStore.forUserDirectories(home, appData);
+		assertEquals(1, second.listRecoverable().size());
+		assertEquals(current.snapshotPath(1), second.listRecoverable().getFirst().snapshot());
+	}
+
+	@Test
 	void offersLegacyRecoveryEvenWhenOriginalIsNewer() throws Exception {
 		AutoRecoveryStore store = new AutoRecoveryStore(temporaryDirectory.resolve("recovery"));
 		Path original = temporaryDirectory.resolve("plan.pod");
@@ -308,7 +329,7 @@ class AutoRecoveryStoreTest {
 		first.recordCompletedSnapshot(77, "A", null, Instant.now(), a2, seriesA);
 		assertFalse(Files.exists(a1));
 		assertEquals(java.util.Set.of(a2, b1), first.listRecoverable().stream().map(AutoRecoveryStore.Entry::snapshot).collect(java.util.stream.Collectors.toSet()));
-		try (var lease = first.tryOffer(first.listRecoverable().stream().filter(entry -> entry.snapshot().equals(a2)).findFirst().orElseThrow())) {
+		try (var _ = first.tryOffer(first.listRecoverable().stream().filter(entry -> entry.snapshot().equals(a2)).findFirst().orElseThrow())) {
 			Path a3 = first.newSnapshotPath(77, true); Files.writeString(a3, "a3");
 			first.recordCompletedSnapshot(77, "A", null, Instant.now(), a3, seriesA);
 			assertTrue(Files.exists(a2));

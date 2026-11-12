@@ -167,7 +167,7 @@ public class CriticalPath implements SchedulingAlgorithm {
 	 * @param startTask
 	 */
 	private void fastCalc(Task startTask) {
-		try (CalendarDefinition.AddCacheScope ignored = CalendarDefinition.beginAddCacheScope()) {
+		try (CalendarDefinition.AddCacheScope _ = CalendarDefinition.beginAddCacheScope()) {
 			fastCalcInAddCacheScope(startTask);
 		}
 	}
@@ -316,7 +316,7 @@ public class CriticalPath implements SchedulingAlgorithm {
 
 		
 	private void fireScheduleChanged() {
-		((Project) project).fireScheduleChanged(this, ScheduleEvent.SCHEDULE);
+		(project).fireScheduleChanged(this, ScheduleEvent.SCHEDULE);
 	}
 
 	private boolean updating = false;

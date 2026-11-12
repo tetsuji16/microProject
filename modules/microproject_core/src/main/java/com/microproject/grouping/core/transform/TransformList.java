@@ -109,7 +109,7 @@ public class TransformList implements NamedItem {
 	}
 	
 	public CommonTransformFactory getFactory(String id) {
-		return (CommonTransformFactory)factoryMap.get(id);
+		return factoryMap.get(id);
 	}
 	public List<CommonTransformFactory> getFactories() {
 		return factories;

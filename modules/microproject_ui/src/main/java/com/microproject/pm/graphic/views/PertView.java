@@ -64,7 +64,7 @@ public class PertView extends JScrollPane implements BaseView {
 	}
 	public void init(ReferenceNodeModelCache cache, NodeModel model){
 		pert=new PertChart(project,"Network");
-		this.cache=NodeModelCacheFactory.getInstance().createAntiAssignmentFilteredCache((ReferenceNodeModelCache)cache,getViewName(),null);
+		this.cache=NodeModelCacheFactory.getInstance().createAntiAssignmentFilteredCache(cache,getViewName(),null);
 		pert.setCache(this.cache);
 		pert.setBarStyles((BarStyles) Dictionary.get(BarStyles.category,"pert"));
 			

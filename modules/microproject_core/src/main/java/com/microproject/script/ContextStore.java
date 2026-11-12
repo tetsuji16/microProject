@@ -114,7 +114,7 @@ public class ContextStore  implements NamedItem {
 	public static ContextStore getInstance(){
 		if (instance==null){
 	    	long t=System.currentTimeMillis();
-	    	instance=(ContextStore)Dictionary.getInstance().get(category,"default");
+	    	instance=(ContextStore)Dictionary.get(category,"default");
 	    	logger.log(Level.INFO, "Configuration loaded in {0} ms", System.currentTimeMillis() - t);
 	    }
 	    return instance;

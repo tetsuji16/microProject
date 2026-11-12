@@ -152,7 +152,7 @@ class AutoRecoveryStoreProcessTest {
 		AutoRecoveryStore store = new AutoRecoveryStore(dir);
 		if (action.equals("hold")) {
 			try (FileChannel channel = FileChannel.open(dir.resolve(".recovery.lock"), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-				var lock = channel.lock()) {
+				var _ = channel.lock()) {
 				Files.writeString(dir.resolve(name + ".ready"), "ready");
 				new java.util.concurrent.CountDownLatch(1).await(1, TimeUnit.MINUTES); // hold the lock until the parent kills this process
 			}

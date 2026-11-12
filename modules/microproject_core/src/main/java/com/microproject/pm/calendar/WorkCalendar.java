@@ -28,10 +28,10 @@ import com.microproject.server.data.DataObject;
 import com.microproject.strings.Messages;
 
 public interface WorkCalendar extends Cloneable, NamedItem, DataObject {
-	static final long MILLIS_IN_DAY = (long) (1000L * 60 * 60 * 24);
-	static final long MILLIS_IN_WEEK = (long) (7L * MILLIS_IN_DAY);
-	static final long MILLIS_IN_MINUTE = (long) (1000L * 60);
-	static final long MILLIS_IN_HOUR = (long) (1000L * 60 * 60);
+	static final long MILLIS_IN_DAY = (1000L * 60 * 60 * 24);
+	static final long MILLIS_IN_WEEK = (7L * MILLIS_IN_DAY);
+	static final long MILLIS_IN_MINUTE = (1000L * 60);
+	static final long MILLIS_IN_HOUR = (1000L * 60 * 60);
 	static final String CALENDAR_CATEGORY="Calendar";
 	
 // Status values in modify working time dialog

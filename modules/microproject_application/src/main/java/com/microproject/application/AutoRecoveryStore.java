@@ -228,7 +228,7 @@ public final class AutoRecoveryStore {
 					try { lease = channel.tryLock(); }
 					catch (java.nio.channels.OverlappingFileLockException busy) { lease = null; }
 					if (lease == null) continue;
-					try (java.nio.channels.FileLock held = lease) {
+					try (java.nio.channels.FileLock _ = lease) {
 						Files.deleteIfExists(file);
 						Files.deleteIfExists(snapshot);
 					}
@@ -368,7 +368,7 @@ public final class AutoRecoveryStore {
 				try { lease = channel.tryLock(); }
 				catch (java.nio.channels.OverlappingFileLockException busy) { lease = null; }
 				if (lease == null) return null;
-				try (java.nio.channels.FileLock heldLease = lease) {
+				try (java.nio.channels.FileLock _ = lease) {
 					Path metadata = metadataPathForSnapshot(projectId, snapshot);
 					ReadResult current = read(metadata);
 					if (Files.exists(metadata) && (current.entry() == null || !current.entry().snapshot().equals(snapshot))) return null;
@@ -433,7 +433,7 @@ public final class AutoRecoveryStore {
 						try { acquired = channel.tryLock(); }
 						catch (java.nio.channels.OverlappingFileLockException busy) { acquired = null; }
 						if (acquired == null) continue;
-						try (java.nio.channels.FileLock held = acquired) { Files.deleteIfExists(snapshot); }
+						try (java.nio.channels.FileLock _ = acquired) { Files.deleteIfExists(snapshot); }
 					}
 					Files.deleteIfExists(leasePath(snapshot));
 				}
@@ -518,7 +518,7 @@ public final class AutoRecoveryStore {
 			TemporaryWorkspace.TempArtifact temporary = workspace.createArtifact("recovery-" + safeId(projectId), ".metadata.tmp",
 				java.util.Map.of("kind", "auto-recovery-metadata", "projectId", Long.toString(projectId)))) {
 			try (OutputStream output = Files.newOutputStream(temporary.path())) {
-				properties.store(output, "ProjectLibre AutoRecovery");
+				properties.store(output, "microProject AutoRecovery");
 			}
 			SafeFileReplace.replaceDurably(temporary.path(), metadata, true);
 		}

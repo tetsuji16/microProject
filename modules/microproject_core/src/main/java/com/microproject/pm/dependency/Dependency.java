@@ -200,14 +200,14 @@ public class Dependency implements Association, BelongsToDocument, DataObject {
 	}
 
 	public void doAddService(Object eventSource) {
-		DependencyService.getInstance().connect((Dependency)this,eventSource);
+		DependencyService.getInstance().connect(this,eventSource);
 	}
 
 	public void doRemoveService(Object eventSource) {
-		DependencyService.getInstance().remove((Dependency)this,eventSource,true);
+		DependencyService.getInstance().remove(this,eventSource,true);
 	}
 	public void doUpdateService(Object eventSource) {
-		DependencyService.getInstance().update((Dependency)this,eventSource);
+		DependencyService.getInstance().update(this,eventSource);
 	}
 
 	@Override

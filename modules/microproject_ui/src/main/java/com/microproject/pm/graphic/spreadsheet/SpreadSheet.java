@@ -1315,8 +1315,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		if (!isCanModifyColumns() || !(getFieldArray() instanceof SpreadSheetFieldArray fields)
 				|| fieldIndex < 1 || fieldIndex >= fields.size() || fields.isHeaderWrap(fieldIndex) == wrap)
 			return false;
-		SpreadSheetFieldArray before = (SpreadSheetFieldArray) getFieldArrayWithWidths(fields).clone();
-		SpreadSheetFieldArray after = ((SpreadSheetFieldArray) before.clone()).withHeaderWrap(fieldIndex, wrap);
+		SpreadSheetFieldArray before = getFieldArrayWithWidths(fields).clone();
+		SpreadSheetFieldArray after = (before.clone()).withHeaderWrap(fieldIndex, wrap);
 		applyColumnLayoutChange(before, after, fieldIndex - 1, Messages.getString("SpreadSheetColumnMenu.HeaderWrap"));
 		return true;
 	}
@@ -1727,7 +1727,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			return false;
 		}
 
-		SpreadSheetFieldArray before = (SpreadSheetFieldArray) getFieldArrayWithWidths(fields).clone();
+		SpreadSheetFieldArray before = getFieldArrayWithWidths(fields).clone();
 		SpreadSheetFieldArray after = fields.removeField(fieldIndex);
 		applyColumnLayoutChange(before, after, viewColumn, Messages.getString("SpreadSheetColumnMenu.HideColumn"));
 		return true;
@@ -1793,7 +1793,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			}
 		}
 		int insertionIndex = Math.max(1, Math.min(fieldIndex, fields.size()));
-		SpreadSheetFieldArray before = (SpreadSheetFieldArray) getFieldArrayWithWidths(fields).clone();
+		SpreadSheetFieldArray before = getFieldArrayWithWidths(fields).clone();
 		SpreadSheetFieldArray after = fields.insertField(insertionIndex, field);
 		applyColumnLayoutChange(before, after, insertionIndex - 1,
 				Messages.getString("SpreadSheetColumnMenu.InsertColumn"));
@@ -1808,8 +1808,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	public boolean applyColumnLayoutPreset(SpreadSheetFieldArray fields, String presentationName) {
 		if (!isCanModifyColumns() || fields == null || !(getFieldArray() instanceof SpreadSheetFieldArray current))
 			return false;
-		SpreadSheetFieldArray before = (SpreadSheetFieldArray) getFieldArrayWithWidths(current).clone();
-		SpreadSheetFieldArray after = (SpreadSheetFieldArray) fields.clone();
+		SpreadSheetFieldArray before = getFieldArrayWithWidths(current).clone();
+		SpreadSheetFieldArray after = fields.clone();
 		applyColumnLayoutChange(before, after, 0, presentationName);
 		return true;
 	}
@@ -1873,8 +1873,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			this.source = new WeakReference<>(source);
 			this.category = category;
 			this.project = new WeakReference<>(project);
-			this.before = (SpreadSheetFieldArray) before.clone();
-			this.after = (SpreadSheetFieldArray) after.clone();
+			this.before = before.clone();
+			this.after = after.clone();
 			this.selectedColumn = selectedColumn;
 			this.presentationName = presentationName;
 		}
@@ -1892,7 +1892,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		}
 
 		private void apply(SpreadSheetFieldArray fields, int preferredColumn) {
-			SpreadSheetFieldArray restoredFields = (SpreadSheetFieldArray) fields.clone();
+			SpreadSheetFieldArray restoredFields = fields.clone();
 			Project currentProject = project.get();
 			if (currentProject != null) {
 				currentProject.setFieldArray(restoredFields);

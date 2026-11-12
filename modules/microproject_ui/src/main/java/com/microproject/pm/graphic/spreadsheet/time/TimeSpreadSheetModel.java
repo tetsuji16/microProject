@@ -161,7 +161,7 @@ public class TimeSpreadSheetModel extends CommonSpreadSheetModel implements Time
 //		Node node=getNodeInRow(row/getRowMultiple());
 		Node node=getNodeInRow(row);
 		if (node.isVoid()) return null;
-		getFieldContext().setInterval((HasStartAndEnd)timeIntervals.get(col-1));
+		getFieldContext().setInterval(timeIntervals.get(col-1));
 
 		 return getFieldInRow(row).getValue(node, getCache().getWalkersModel(), fieldContext);
 	}
@@ -175,7 +175,7 @@ public class TimeSpreadSheetModel extends CommonSpreadSheetModel implements Time
 			Node rowNode = getNodeInRow(row);
 
 			if (rowNode.isVirtual()) return;
-			getFieldContext().setInterval((HasStartAndEnd)timeIntervals.get(col-1));
+			getFieldContext().setInterval(timeIntervals.get(col-1));
 
 			getCache().getModel().setFieldValue(getFieldInRow(row),rowNode, this, value, fieldContext,NodeModel.NORMAL);
 			fireTableCellUpdated(row, col);
@@ -226,7 +226,7 @@ public class TimeSpreadSheetModel extends CommonSpreadSheetModel implements Time
 		Node node=getNodeInRow(row);
 		if (node.isVoid()) return true;
 
-		getFieldContext().setInterval((HasStartAndEnd)timeIntervals.get(col-1));
+		getFieldContext().setInterval(timeIntervals.get(col-1));
 
 		return ! getFieldInRow(row).isReadOnly(node, getCache().getWalkersModel(),fieldContext);
 	}

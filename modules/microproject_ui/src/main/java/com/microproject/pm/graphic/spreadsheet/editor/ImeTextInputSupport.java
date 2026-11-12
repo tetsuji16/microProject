@@ -23,7 +23,7 @@ import com.microproject.pm.graphic.frames.DocumentFrame;
 
 /** Shared boundary between Swing commands and text-input methods. */
 public final class ImeTextInputSupport {
-	public static final String COMPOSITION_PROPERTY = "projectlibre.input.composing";
+	public static final String COMPOSITION_PROPERTY = "microproject.input.composing";
 	public static final String RECONVERT_ACTION_KEY = "spreadsheet.imeReconvert";
 	/**
 	 * {@code REQUESTED} means the request was passed on, not that text changed; on

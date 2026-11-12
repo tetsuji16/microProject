@@ -139,7 +139,7 @@ public class MSPDISerializer implements ProjectSerializer {
                         Assignment assignment = (Assignment) snapshotAssignment;
                         ResourceImpl r=(ResourceImpl)assignment.getResource();
                         if (s!=Snapshottable.CURRENT.intValue()) continue;
-                        org.mpxj.Resource resourceData=(org.mpxj.Resource)resourceMap.get(r);
+                        org.mpxj.Resource resourceData=resourceMap.get(r);
                         
                         ResourceAssignment assignmentData=taskData.addResourceAssignment(resourceData);
                         if (s==Snapshottable.CURRENT.intValue()){

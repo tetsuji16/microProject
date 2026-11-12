@@ -63,7 +63,7 @@ public class LafManagerImpl implements LafManager {
 	private static final int BUTTON_AXIS_HORIZONTAL = 0;
 	private static final int BUTTON_AXIS_VERTICAL = 1;
     public LafManagerImpl(GraphicManager graphicManager){
-    	this.graphicManager=graphicManager;
+    	LafManagerImpl.graphicManager=graphicManager;
     }
 
 	public void clean(){

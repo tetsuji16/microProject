@@ -73,11 +73,10 @@ plugins {
 group = "com.microproject"
 version = providers.gradleProperty("releaseVersion").getOrElse("0.1.0")
 val minimumJavaRelease = 25
-// javac -Xlint categories that still report warnings; tracked in follow-up issues (#1050).
+// javac -Xlint categories that still report warnings; tracked in #1087.
 val lintDebtCategories = listOf(
-    "dangling-doc-comments", "deprecation", "rawtypes", "cast", "static", "unchecked",
-    "this-escape", "try", "lossy-conversions", "classfile", "auxiliaryclass",
-    "empty", "fallthrough", "restricted"
+    "dangling-doc-comments", "deprecation", "rawtypes", "unchecked",
+    "this-escape", "classfile", "auxiliaryclass", "restricted"
 ).joinToString(",") { "-$it" }
 val activeToolchainVersion =maxOf(minimumJavaRelease, JavaVersion.current().majorVersion.toInt())
 

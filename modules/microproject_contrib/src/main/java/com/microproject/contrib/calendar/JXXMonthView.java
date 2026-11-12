@@ -1001,7 +1001,7 @@ public class JXXMonthView extends JComponent {
 		_dim.width = (_boxWidth + (2 * _boxPaddingX)) * DAYS_IN_WEEK;
 		if (_dim.width < longestMonthWidth) {
 			double diff = longestMonthWidth - _dim.width;
-			_boxWidth += Math.ceil(diff / (double) DAYS_IN_WEEK);
+			_boxWidth += (int) Math.ceil(diff / (double) DAYS_IN_WEEK);
 			_dim.width = (_boxWidth + (2 * _boxPaddingX)) * DAYS_IN_WEEK;
 		}
 

@@ -47,8 +47,8 @@ public class DependencyGraph{
 	}
 	
 	public void insertDependency(GraphicDependency dependency){
-	    GraphicNode preValue = (GraphicNode) dependency.getPredecessor();
-	    GraphicNode sucValue = (GraphicNode) dependency.getSuccessor();
+	    GraphicNode preValue = dependency.getPredecessor();
+	    GraphicNode sucValue = dependency.getSuccessor();
 	    Node pre = nodeMap.get(preValue);
 	    if (pre==null){
 	        pre=new Node(preValue);
@@ -64,8 +64,8 @@ public class DependencyGraph{
 	    suc.addPredecessor(pre);
 	}
 	public void removeDependency(GraphicDependency dependency){
-	    GraphicNode preValue = (GraphicNode) dependency.getPredecessor();
-	    GraphicNode sucValue = (GraphicNode) dependency.getSuccessor();
+	    GraphicNode preValue = dependency.getPredecessor();
+	    GraphicNode sucValue = dependency.getSuccessor();
 	    Node pre = nodeMap.get(preValue);
 	    Node suc = nodeMap.get(sucValue);
 	    if (pre==null||suc==null)return;

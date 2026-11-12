@@ -77,7 +77,7 @@ public class GanttPopupMenu extends GraphPopupMenu{
         public void actionPerformed(ActionEvent e) {
             filter.setShowAssignments(isSelected());
             filterOffline.setShowAssignments(isSelected());
-            ((GraphModel)interactor.getGraph().getModel()).getCache().update();
+            (interactor.getGraph().getModel()).getCache().update();
         }
     }
 
@@ -95,7 +95,7 @@ public class GanttPopupMenu extends GraphPopupMenu{
 			if (!(interactor.getGraph() instanceof Gantt))
 				return;
 			((Gantt)interactor.getGraph()).setProgressLineEnabled(isSelected());
-			((GraphModel)interactor.getGraph().getModel()).updateAll(true);
+			(interactor.getGraph().getModel()).updateAll(true);
 		}
     }
 
@@ -266,7 +266,7 @@ public class GanttPopupMenu extends GraphPopupMenu{
 		if (interactor.getGraph() instanceof Gantt) {
 			((Gantt) interactor.getGraph()).setAnnotationFieldId(fieldId);
 		}
-		((GraphModel)interactor.getGraph().getModel()).updateAll(true);
+		(interactor.getGraph().getModel()).updateAll(true);
 	}
 
 }

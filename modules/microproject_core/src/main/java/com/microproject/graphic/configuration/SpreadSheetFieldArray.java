@@ -77,7 +77,7 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 	}
 
 	public SpreadSheetFieldArray makeUserDefinedCopy() {
-		SpreadSheetFieldArray newOne = (SpreadSheetFieldArray) clone();
+		SpreadSheetFieldArray newOne = clone();
 		newOne.setId(null); // it's user defined
 		newOne.setName(Dictionary.generateUniqueName(this));
 		newOne.userCreated = true;

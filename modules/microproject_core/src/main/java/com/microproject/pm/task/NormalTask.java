@@ -1056,7 +1056,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		importedUnassignedWork = null;
 		work = Duration.millis(work);
 		if (hasLaborAssignment() && work < 60000) {
-			work *= Duration.timeUnitFactor(TimeUnit.HOURS);
+			work = (long) (work * Duration.timeUnitFactor(TimeUnit.HOURS));
 		}
 		long remainingWork = work - getActualWork(null);
 		getSchedulingRule().adjustRemainingWork(this, remainingWork, true);
@@ -2110,7 +2110,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		if (!taskSplitIntervals.isEmpty()) {
 			intervals.add(new ScheduleInterval(getStart(), getEnd()));
 		} else {
-			barClosureInstance.initialize(interval -> intervals.add((ScheduleInterval) interval), this);
+			barClosureInstance.initialize(interval -> intervals.add(interval), this);
 			forEachWorkingInterval(barClosureInstance, true, getEffectiveWorkCalendar());
 			if (getAssignments().isEmpty() || !hasRealAssignments() || barClosureInstance.getCount() == 0) {
 				intervals.clear();
