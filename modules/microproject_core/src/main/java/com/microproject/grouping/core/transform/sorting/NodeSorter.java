@@ -93,7 +93,7 @@ public List getList() {
 	}
 }
 
-	public void recycleList(List list) {
+	public void recycleList(List<?> list) {
 		try {
 			list.clear();
 			pool.returnObject(list);
