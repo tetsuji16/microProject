@@ -58,11 +58,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --yes fonts-noto-cjk
-      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
           distribution: temurin
           java-version: '25'
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
       - name: Derive package version
         id: version
         shell: bash
@@ -116,14 +116,14 @@ jobs:
           test -d "$root/microProject.app"
           (cd "$root" && ditto -c -k --sequesterRsrc --keepParent microProject.app "microProject-${{ steps.version.outputs.release_version }}-macos-aarch64.zip")
       - name: Upload OS package
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-${{ matrix.platform }}
           path: build/releases/v${{ steps.version.outputs.release_version }}/microProject-*-*.zip
           if-no-files-found: error
       - name: Upload failed Gradle test reports
         if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: failed-gradle-test-reports-${{ matrix.platform }}-${{ github.run_id }}
           if-no-files-found: warn
@@ -145,12 +145,12 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
           distribution: temurin
           java-version: '25'
 
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Install WiX
         shell: pwsh
@@ -264,7 +264,7 @@ jobs:
 
       - name: Upload GUI acceptance evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: gui-acceptance-evidence-${{ github.run_id }}
           if-no-files-found: warn
@@ -361,7 +361,7 @@ jobs:
 
       - name: Create GitHub release
         if: ${{ success() }}
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           tag_name: ${{ steps.version.outputs.release_tag }}
           name: microProject ${{ steps.version.outputs.release_tag }}
@@ -396,4 +396,4 @@ jobs:
 
       - name: Deploy Pages
         id: deployment
-        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
