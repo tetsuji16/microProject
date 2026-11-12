@@ -196,14 +196,21 @@ class ResourceAvailabilityRowDeleteGuiAcceptanceTest {
 	}
 
 	private static JOptionPane visibleError() {
-		for (Window window : Window.getWindows()) {
-			if (window.isShowing()) {
-				JOptionPane pane = find(window, JOptionPane.class,
-						p -> p.getMessageType() == JOptionPane.ERROR_MESSAGE);
-				if (pane != null) return pane;
-			}
+		JOptionPane[] found = new JOptionPane[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				for (Window window : Window.getWindows()) {
+					if (window.isShowing()) {
+						found[0] = find(window, JOptionPane.class,
+								p -> p.getMessageType() == JOptionPane.ERROR_MESSAGE);
+						if (found[0] != null) break;
+					}
+				}
+			});
+		} catch (Exception e) {
+			throw new IllegalStateException(e);
 		}
-		return null;
+		return found[0];
 	}
 
 	private static boolean popupVisible(SpreadSheet sheet) {
