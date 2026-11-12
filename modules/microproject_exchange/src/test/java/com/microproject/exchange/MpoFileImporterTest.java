@@ -2209,7 +2209,7 @@ class MpoFileImporterTest {
 			+ "<TimephasedData><Type>4</Type><Value>8</Value></TimephasedData>"
 			+ "<TimephasedData><Type>23</Type><Value>1.25</Value></TimephasedData>"
 			+ "</Assignment><Task><TimephasedData><Type>5</Type><Value>0.001</Value></TimephasedData></Task></Project>";
-		String migrated = new String(MpoFileImporter.migrateLegacyAssignmentBaselineCosts(
+		String migrated = new String(MpoManifest.migrateLegacyAssignmentBaselineCosts(
 			xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)), java.nio.charset.StandardCharsets.UTF_8);
 		assertTrue(migrated.contains("<Type>5</Type><Value>0.1</Value>"),
 			"Legacy slot-zero baseline currency rows gain MSPDI hundredths while preserving sub-cent value");
@@ -3773,7 +3773,7 @@ class MpoFileImporterTest {
 		byte[] malformedXml = "<Project>".getBytes(StandardCharsets.UTF_8);
 		malformed.put(MpoFileImporter.PROJECT_ENTRY, malformedXml);
 		malformed.put(MpoFileImporter.MANIFEST_ENTRY,
-				MpoFileImporter.manifestFor(malformedXml).getBytes(StandardCharsets.UTF_8));
+				MpoManifest.manifestFor(malformedXml).getBytes(StandardCharsets.UTF_8));
 		byte[] malformedArchive = zip(malformed).toByteArray();
 		String outerManifest = new String(entries.get(MpoFileImporter.MANIFEST_ENTRY), StandardCharsets.UTF_8);
 		outerManifest = outerManifest.replace(sha256(childFile), sha256(malformedArchive));
@@ -3920,7 +3920,7 @@ class MpoFileImporterTest {
 			if (snapshot.getFixedCostCalendar() != null)
 				originalFixedCostCalendars.put(taskUid + ":" + slot, snapshot.getFixedCostCalendar());
 		}
-		java.lang.reflect.Method restore = MpoFileImporter.class.getDeclaredMethod("restoreBaselineProfiles",
+		java.lang.reflect.Method restore = MpoSidecarJson.class.getDeclaredMethod("restoreBaselineProfiles",
 			Project.class, byte[].class);
 		restore.setAccessible(true);
 		assertThrows(java.io.IOException.class, () -> {
@@ -4027,14 +4027,14 @@ class MpoFileImporterTest {
 	@Test
 	void manifestValidatesTheExactProjectPayload() {
 		byte[] projectXml = "<Project/>".getBytes(StandardCharsets.UTF_8);
-		assertDoesNotThrow(() -> MpoFileImporter.validateManifest(MpoFileImporter.manifestFor(projectXml), projectXml));
+		assertDoesNotThrow(() -> MpoManifest.validateManifest(MpoManifest.manifestFor(projectXml), projectXml));
 	}
 
 	@Test
 	void manifestRejectsChangedProjectPayload() {
 		byte[] projectXml = "<Project/>".getBytes(StandardCharsets.UTF_8);
 		byte[] changedXml = "<Project><Name>changed</Name></Project>".getBytes(StandardCharsets.UTF_8);
-		assertThrows(IOException.class, () -> MpoFileImporter.validateManifest(MpoFileImporter.manifestFor(projectXml), changedXml));
+		assertThrows(IOException.class, () -> MpoManifest.validateManifest(MpoManifest.manifestFor(projectXml), changedXml));
 	}
 
 	@Test
@@ -4049,25 +4049,25 @@ class MpoFileImporterTest {
 	@Test
 	void manifestRejectsUnsupportedVersion() {
 		byte[] projectXml = "<Project/>".getBytes(StandardCharsets.UTF_8);
-		String unsupported = MpoFileImporter.manifestFor(projectXml).replace("formatVersion=\"1.0\"", "formatVersion=\"2.0\"");
-		assertThrows(IOException.class, () -> MpoFileImporter.validateManifest(unsupported, projectXml));
+		String unsupported = MpoManifest.manifestFor(projectXml).replace("formatVersion=\"1.0\"", "formatVersion=\"2.0\"");
+		assertThrows(IOException.class, () -> MpoManifest.validateManifest(unsupported, projectXml));
 	}
 
 	@Test
 	void manifestReportsAnUnsupportedMajorVersionExplicitly() {
 		byte[] projectXml = "<Project/>".getBytes(StandardCharsets.UTF_8);
-		String newerMajor = MpoFileImporter.manifestFor(projectXml).replace("formatVersion=\"1.0\"", "formatVersion=\"2.3\"");
-		IOException failure = assertThrows(IOException.class, () -> MpoFileImporter.validateManifest(newerMajor, projectXml));
+		String newerMajor = MpoManifest.manifestFor(projectXml).replace("formatVersion=\"1.0\"", "formatVersion=\"2.3\"");
+		IOException failure = assertThrows(IOException.class, () -> MpoManifest.validateManifest(newerMajor, projectXml));
 		org.junit.jupiter.api.Assertions.assertTrue(failure.getMessage().contains("Unsupported MPOF format version 2.3"), failure.getMessage());
 	}
 
 	@Test
 	void manifestRejectsMissingOrMalformedFormatVersion() {
 		byte[] projectXml = "<Project/>".getBytes(StandardCharsets.UTF_8);
-		String missing = MpoFileImporter.manifestFor(projectXml).replace(" formatVersion=\"1.0\"", "");
-		assertThrows(IOException.class, () -> MpoFileImporter.validateManifest(missing, projectXml));
-		String malformed = MpoFileImporter.manifestFor(projectXml).replace("formatVersion=\"1.0\"", "formatVersion=\"1\"");
-		assertThrows(IOException.class, () -> MpoFileImporter.validateManifest(malformed, projectXml));
+		String missing = MpoManifest.manifestFor(projectXml).replace(" formatVersion=\"1.0\"", "");
+		assertThrows(IOException.class, () -> MpoManifest.validateManifest(missing, projectXml));
+		String malformed = MpoManifest.manifestFor(projectXml).replace("formatVersion=\"1.0\"", "formatVersion=\"1\"");
+		assertThrows(IOException.class, () -> MpoManifest.validateManifest(malformed, projectXml));
 	}
 
 	/** Issue #356: an mpo written by a different minor revision of the same major still opens. */
@@ -4127,7 +4127,7 @@ class MpoFileImporterTest {
 		org.junit.jupiter.api.Assertions.assertTrue(currentXml.contains("<LevelingDelay>"), currentXml);
 		String legacyXml = currentXml.replaceFirst("<LevelingDelay>\\d+</LevelingDelay>", "<LevelingDelay>10800000</LevelingDelay>");
 		entries.put(MpoFileImporter.PROJECT_ENTRY, legacyXml.getBytes(StandardCharsets.UTF_8));
-		entries.put(MpoFileImporter.MANIFEST_ENTRY, MpoFileImporter.manifestFor(entries.get(MpoFileImporter.PROJECT_ENTRY)).getBytes(StandardCharsets.UTF_8));
+		entries.put(MpoFileImporter.MANIFEST_ENTRY, MpoManifest.manifestFor(entries.get(MpoFileImporter.PROJECT_ENTRY)).getBytes(StandardCharsets.UTF_8));
 		String legacyMeta = new String(entries.get(MpoFileImporter.META_ENTRY), StandardCharsets.UTF_8)
 				.replace(" levelingDelayUnit=\"minutes\"", "");
 		entries.put(MpoFileImporter.META_ENTRY, legacyMeta.getBytes(StandardCharsets.UTF_8));
@@ -4161,7 +4161,7 @@ class MpoFileImporterTest {
 		org.junit.jupiter.api.Assertions.assertTrue(currentXml.contains("<LevelingDelay>1200</LevelingDelay>"), currentXml);
 		String legacyXml = currentXml.replace("<LevelingDelay>1200</LevelingDelay>", "<LevelingDelay>7200000</LevelingDelay>");
 		entries.put(MpoFileImporter.PROJECT_ENTRY, legacyXml.getBytes(StandardCharsets.UTF_8));
-		entries.put(MpoFileImporter.MANIFEST_ENTRY, MpoFileImporter.manifestFor(entries.get(MpoFileImporter.PROJECT_ENTRY)).getBytes(StandardCharsets.UTF_8));
+		entries.put(MpoFileImporter.MANIFEST_ENTRY, MpoManifest.manifestFor(entries.get(MpoFileImporter.PROJECT_ENTRY)).getBytes(StandardCharsets.UTF_8));
 		String legacyMeta = new String(entries.get(MpoFileImporter.META_ENTRY), StandardCharsets.UTF_8)
 			.replace(" levelingDelayUnit=\"minutes\"", "");
 		entries.put(MpoFileImporter.META_ENTRY, legacyMeta.getBytes(StandardCharsets.UTF_8));
@@ -4179,8 +4179,8 @@ class MpoFileImporterTest {
 	@Test
 	void manifestRejectsDuplicateRequiredFields() {
 		byte[] projectXml = "<Project/>".getBytes(StandardCharsets.UTF_8);
-		String duplicate = MpoFileImporter.manifestFor(projectXml).replace("format=\"mpof\"", "format=\"mpof\" format=\"mpof\"");
-		assertThrows(IOException.class, () -> MpoFileImporter.validateManifest(duplicate, projectXml));
+		String duplicate = MpoManifest.manifestFor(projectXml).replace("format=\"mpof\"", "format=\"mpof\" format=\"mpof\"");
+		assertThrows(IOException.class, () -> MpoManifest.validateManifest(duplicate, projectXml));
 	}
 
 	@Test
