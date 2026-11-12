@@ -5,6 +5,7 @@
 package com.microproject.pm.task;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -16,7 +17,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.datatype.Duration;
 import com.microproject.field.FieldContext;
+import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.resource.ResourcePool;
@@ -36,6 +39,29 @@ class TaskSheetScheduleWorkflowTest {
 		assertNull(project.getUndoController());
 		assertEquals(newDuration, task.getDuration());
 		assertTrue(task.getEnd() > oldFinish);
+	}
+
+	@Test
+	void durationPinCoversOnlyTheNextFinishEdit() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long day = day();
+		TaskSheetScheduleWorkflow.applyDuration(task, 2L * day);
+		assertTrue(task.durationPinnedByScheduleEdit);
+		long pinnedDuration = task.getDuration();
+		WorkCalendar calendar = task.getEffectiveWorkCalendar();
+
+		TaskSheetScheduleWorkflow.applyFinish(task, calendar.add(task.getEnd(), day, false));
+
+		assertEquals(Duration.millis(pinnedDuration), Duration.millis(task.getDuration()));
+		assertFalse(task.durationPinnedByScheduleEdit);
+		long start = task.getStart();
+
+		TaskSheetScheduleWorkflow.applyFinish(task, calendar.add(task.getEnd(), day, false));
+
+		// the end of a working day and the start of the next are the same working instant
+		assertEquals(0L, calendar.compare(task.getStart(), start, false));
+		assertTrue(Duration.millis(task.getDuration()) > Duration.millis(pinnedDuration));
 	}
 
 	@Test
