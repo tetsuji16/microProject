@@ -76,8 +76,21 @@ public class AssignmentFormat extends AssociationFormat {
 	
 	private static Pattern pattern = Pattern.compile(typePatternString);
 	
+	private static final Pattern FULL_WIDTH_UNITS = Pattern.compile("^(.*?)[\\[\uFF3B]([^\\]\uFF3D]*)[\\]\uFF3D](\\s*)$", Pattern.DOTALL);
+
+	/**
+	 * Converts a units suffix typed with an IME (full-width brackets, digits or percent sign)
+	 * to its ASCII form.  The resource name before the suffix is kept exactly as typed.
+	 */
+	static String normalizeUnitsSyntax(String text) {
+		Matcher matcher = FULL_WIDTH_UNITS.matcher(text);
+		if (!matcher.matches())
+			return text;
+		return matcher.group(1) + "[" + com.microproject.util.FullWidthInput.normalize(matcher.group(2)) + "]" + matcher.group(3);
+	}
+
 	private Object doParse(String string, ParsePosition pos) throws ParseException {
-		Matcher matcher = pattern.matcher(string.substring(pos.getIndex()));
+		Matcher matcher = pattern.matcher(normalizeUnitsSyntax(string.substring(pos.getIndex())));
 		if (!matcher.matches())
 			throw new ParseException(getErrorMessage(string), pos.getIndex());
 		

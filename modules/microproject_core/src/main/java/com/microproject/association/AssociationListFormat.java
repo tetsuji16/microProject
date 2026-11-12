@@ -57,6 +57,8 @@ public class AssociationListFormat extends Format {
 		string = string.trim(); // trim the string for test if it is empty
 		string = string.replace(",", Settings.LIST_SEPARATOR); // allow commas too
 		string = string.replace(";", Settings.LIST_SEPARATOR); // allow semicolons too
+		// full-width delimiters typed with an IME separate entries too; entry text is kept as typed
+		string = string.replace("\uFF0C", Settings.LIST_SEPARATOR).replace("\uFF1B", Settings.LIST_SEPARATOR);
 		if (string.length() != 0) { // if list not empty
 		String[] elements = string.split(Settings.LIST_SEPARATOR, -1);
 			
