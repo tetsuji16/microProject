@@ -254,6 +254,84 @@ class PreferencesDialogGuiAcceptanceTest {
 		capture(robot, dialog, "preferences-dark-theme.png");
 	}
 
+	@Test
+	void applyRefreshesOpenWindowsOnlyWhenTheFontChangedAndThenOnlyOnce() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		testPreferences = new GlobalPreferences();
+		originalDarkTheme = testPreferences.isDarkTheme();
+		originalDatePattern = testPreferences.getDatePattern();
+		originalDateTimePattern = testPreferences.getDateTimePattern();
+		originalCurrencyCode = testPreferences.getCurrencyCode();
+		originalMilestoneShape = testPreferences.getDefaultMilestoneShape();
+		String originalFontFamily = testPreferences.getFontFamily();
+		int originalFontSize = testPreferences.getFontSize();
+		java.util.concurrent.atomic.AtomicInteger refreshes = new java.util.concurrent.atomic.AtomicInteger();
+		javax.swing.JFrame[] frame = new javax.swing.JFrame[1];
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		try {
+			// The first font enumeration of a JVM is slow; keep it out of the dialog-open deadline.
+			GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();
+			SwingUtilities.invokeAndWait(FlatLafSupport::initialize);
+			SwingUtilities.invokeAndWait(() -> {
+				frame[0] = new javax.swing.JFrame("Preferences refresh probe");
+				frame[0].setContentPane(new javax.swing.JPanel() {
+					private static final long serialVersionUID = 1L;
+					@Override public void updateUI() {
+						super.updateUI();
+						refreshes.incrementAndGet();
+					}
+				});
+				frame[0].setSize(240, 120);
+				frame[0].setVisible(true);
+			});
+			robot.waitForIdle();
+			int baseline = refreshes.get();
+
+			SwingUtilities.invokeLater(() -> PreferencesDialogBox.showDialog(null, testPreferences));
+			GuiAcceptanceSupport.await(() -> findDialog() != null, "Preferences dialog did not open");
+			click(robot, findButton(findDialog(), UsabilityStrings.text("preferences.apply")));
+			GuiAcceptanceSupport.await(() -> findDialog() == null, "Preferences dialog did not close after Apply");
+			robot.waitForIdle();
+			assertEquals(originalFontFamily, testPreferences.getFontFamily(),
+				"Apply without a font change must keep the stored font family");
+			assertEquals(baseline, refreshes.get(), "Apply without a font change must not rebuild open windows");
+
+			SwingUtilities.invokeLater(() -> PreferencesDialogBox.showDialog(null, testPreferences));
+			GuiAcceptanceSupport.await(() -> findDialog() != null, "Preferences dialog did not reopen");
+			PreferencesDialogBox dialog = findDialog();
+			@SuppressWarnings("unchecked")
+			JComboBox<String> font = findNamedComponent(dialog, JComboBox.class, "preferencesFontFamily");
+			assertTrue(font != null, "Preferences must expose the font family selector");
+			String[] chosen = new String[1];
+			SwingUtilities.invokeAndWait(() -> {
+				assertEquals(UsabilityStrings.text("preferences.fontAutomatic"), font.getItemAt(0),
+					"The font list must start with the system default entry");
+				for (int index = 1; index < font.getItemCount(); index++) {
+					if (!font.getItemAt(index).equals(originalFontFamily)) {
+						chosen[0] = font.getItemAt(index);
+						font.setSelectedIndex(index);
+						return;
+					}
+				}
+			});
+			Assumptions.assumeTrue(chosen[0] != null, "An installed font family is required");
+			click(robot, findButton(dialog, UsabilityStrings.text("preferences.apply")));
+			GuiAcceptanceSupport.await(() -> findDialog() == null, "Preferences dialog did not close after the font change");
+			robot.waitForIdle();
+			assertEquals(chosen[0], testPreferences.getFontFamily(), "Apply must store the selected font family");
+			assertEquals(baseline + 1, refreshes.get(), "A font change must rebuild open windows exactly once");
+		} finally {
+			SwingUtilities.invokeAndWait(() -> {
+				testPreferences.setFontFamily(originalFontFamily);
+				testPreferences.setFontSize(originalFontSize);
+				FlatLafSupport.applyUserFontPreference(originalFontFamily, originalFontSize);
+				if (frame[0] != null)
+					frame[0].dispose();
+			});
+		}
+	}
+
 	private static PreferencesDialogBox findDialog() {
 		for (Window window : Window.getWindows())
 			if (window instanceof PreferencesDialogBox dialog && dialog.isVisible())

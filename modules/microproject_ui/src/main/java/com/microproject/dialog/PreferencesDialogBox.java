@@ -32,6 +32,7 @@ import javax.swing.SpinnerNumberModel;
 import com.microproject.preference.GlobalPreferences;
 import com.microproject.pm.graphic.gantt.MilestoneShapeChoice;
 import com.microproject.ui.shell.AutoSaveControl;
+import com.microproject.util.FlatLafSupport;
 import com.microproject.util.FlatUiSupport;
 import com.microproject.util.FlatLafDialog;
 import com.microproject.ui.util.PopupDialogSupport;
@@ -98,8 +99,10 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		String[] fonts = java.awt.GraphicsEnvironment.isHeadless()
 			? new String[] { "" }
 			: java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();
-		JComboBox<String> font = new JComboBox<>(fonts);
-		font.setSelectedItem(preferences.getFontFamily());
+		String systemFont = UsabilityStrings.text("preferences.fontAutomatic");
+		JComboBox<String> font = new JComboBox<>(fontChoices(fonts, preferences.getFontFamily(), systemFont));
+		font.setName("preferencesFontFamily");
+		font.setSelectedItem(fontChoiceOf(preferences.getFontFamily(), systemFont));
 		JSpinner size = new JSpinner(new FontSizeModel(preferences.getFontSize()));
 		JSpinner.NumberEditor sizeEditor = new JSpinner.NumberEditor(size);
 		sizeEditor.getTextField().setFormatterFactory(new javax.swing.text.DefaultFormatterFactory(
@@ -167,9 +170,12 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 			applied = true;
 			preferences.setUserName(userName.getText());
 			preferences.setShowRowLines(rowLines.isSelected());
-			Object selectedFont = font.getSelectedItem();
-			preferences.setFontFamily(selectedFont == null ? "" : selectedFont.toString());
+			String previousFontFamily = preferences.getFontFamily();
+			int previousFontSize = preferences.getFontSize();
+			preferences.setFontFamily(fontFamilyOf(font.getSelectedItem(), systemFont));
 			preferences.setFontSize(((Number) size.getValue()).intValue());
+			boolean fontChanged = !preferences.getFontFamily().equals(previousFontFamily)
+					|| preferences.getFontSize() != previousFontSize;
 			preferences.setDefaultGanttBarText(taskName.equals(ganttBarText.getSelectedItem())
 					? GlobalPreferences.GANTT_BAR_TEXT_TASK_NAME : GlobalPreferences.GANTT_BAR_TEXT_RESOURCE_NAMES);
 			preferences.setDefaultGanttBarTextPosition(leftPosition.equals(ganttBarTextPosition.getSelectedItem())
@@ -188,6 +194,13 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 			if (recoveryInterval != null)
 				autoSaveControl.setIntervalMinutes(((Number) recoveryInterval.getValue()).intValue());
 			dispose();
+			// Typography is applied once, after the modal dialog is gone, and only
+			// when it changed. A theme switch below refreshes every window itself.
+			if (fontChanged) {
+				FlatLafSupport.applyUserFontPreference(preferences.getFontFamily(), preferences.getFontSize());
+				if (!themeChanged)
+					FlatUiSupport.updateAllWindowTrees();
+			}
 			// The theme applies live to every open window; no restart is needed.
 			if (themeChanged)
 				com.microproject.ui.theme.ThemeManager.applyTheme(preferences.isDarkTheme());
@@ -251,6 +264,37 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 			choose.setBackground(selected);
 			choose.setText(selected == null ? automaticText : String.format("#%06X", selected.getRGB() & 0x00ffffff));
 		}
+	}
+
+	/**
+	 * Font list shown to the user: the system-default entry first, then the
+	 * installed families, then a stored family that is no longer installed so
+	 * that opening and applying the dialog never replaces it silently.
+	 */
+	static String[] fontChoices(String[] families, String storedFamily, String systemDefaultLabel) {
+		java.util.LinkedHashSet<String> choices = new java.util.LinkedHashSet<>();
+		choices.add(systemDefaultLabel);
+		if (families != null) {
+			for (String family : families) {
+				if (family != null && !family.isBlank())
+					choices.add(family);
+			}
+		}
+		if (storedFamily != null && !storedFamily.isBlank())
+			choices.add(storedFamily.trim());
+		return choices.toArray(new String[0]);
+	}
+
+	/** Combo entry that represents a stored family; empty means system default. */
+	static String fontChoiceOf(String storedFamily, String systemDefaultLabel) {
+		return storedFamily == null || storedFamily.isBlank() ? systemDefaultLabel : storedFamily.trim();
+	}
+
+	/** Stored family for a combo entry; the system-default entry is stored as empty. */
+	static String fontFamilyOf(Object selected, String systemDefaultLabel) {
+		if (selected == null || systemDefaultLabel.equals(selected.toString()))
+			return "";
+		return selected.toString().trim();
 	}
 
 	/** Font size 0 means automatic; sizes 1-7 are not usable and snap to {@link #MIN_FONT_SIZE}. */
