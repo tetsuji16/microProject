@@ -33,6 +33,7 @@ import javax.swing.InputVerifier;
 import javax.swing.JComponent;
 import javax.swing.SwingUtilities;
 import com.microproject.undo.EditSupport;
+import com.microproject.undo.UndoController;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -66,6 +67,9 @@ public abstract class FieldDialog extends AbstractDialog  implements ObjectEvent
 	private boolean multipleObjects;
 	private Class objectClass;
 	private EditSupport undoableEditSupport;
+	private UndoController.Session editSession;
+	private UndoController sessionController;
+	private boolean accepting;
 	protected FieldDialog(Frame owner, String title, boolean modal, boolean multipleObjects/*,EditSupport undoableEditSupport*/) {
 		super(owner,title,modal);
 		this.multipleObjects = multipleObjects;
@@ -105,7 +109,64 @@ public abstract class FieldDialog extends AbstractDialog  implements ObjectEvent
 		return null;
 	}
 
+	/**
+	 * Dialogs with OK/Cancel semantics return true: every edit made while the dialog is open is collected, OK keeps
+	 * them as one undoable action and Cancel (or closing the window) discards them.
+	 */
+	protected boolean usesEditSession() {
+		return false;
+	}
+
+	private UndoController findUndoController() {
+		Object target = object != null ? object : getFirstObject();
+		Document document = null;
+		if (target instanceof Project project)
+			document = project;
+		else if (target instanceof BelongsToDocument belongsToDocument)
+			document = belongsToDocument.getDocument();
+		return document instanceof Project project ? project.getUndoController() : null;
+	}
+
+	private void beginEditSession() {
+		if (editSession != null || !usesEditSession())
+			return;
+		sessionController = findUndoController();
+		if (sessionController != null)
+			editSession = sessionController.beginSession();
+	}
+
+	/** Ends the edit session: the edits are merged into one undo step, or undone when not accepted. */
+	protected void endEditSession(boolean accept) {
+		UndoController.Session session = editSession;
+		editSession = null;
+		sessionController = null;
+		if (session == null)
+			return;
+		try {
+			if (accept)
+				session.commit();
+			else
+				session.rollback();
+		} catch (RuntimeException failure) {
+			logger.log(java.util.logging.Level.WARNING, "Could not finish the dialog edit session", failure);
+		}
+	}
+
+	protected boolean hasEditSession() {
+		return editSession != null;
+	}
+
+	@Override
+	public void setVisible(boolean visible) {
+		if (visible)
+			beginEditSession();
+		else
+			endEditSession(accepting);
+		super.setVisible(visible);
+	}
+
 	protected void onCancel() {
+		endEditSession(false);
 		updateAll();
 		super.onCancel();
 	}
@@ -170,6 +231,11 @@ public abstract class FieldDialog extends AbstractDialog  implements ObjectEvent
 	public void setObject(Object object) {
 		if (object == this.object)
 			return;
+		boolean followingSelection = editSession != null;
+		if (followingSelection) {
+			commitPendingEdit(); // the edits of the previous object are accepted when the dialog moves on
+			endEditSession(true);
+		}
 		if (this.object instanceof BelongsToDocument belongsToDocument) {
 			Document document = belongsToDocument.getDocument();
 			document.removeObjectListener(this);
@@ -183,6 +249,8 @@ public abstract class FieldDialog extends AbstractDialog  implements ObjectEvent
 			if (document instanceof Project project)
 				project.addScheduleListener(this);
 		}
+		if (followingSelection && object != null && isVisible())
+			beginEditSession();
 	}
 
 	protected void desactivateListeners() {
@@ -209,16 +277,39 @@ public abstract class FieldDialog extends AbstractDialog  implements ObjectEvent
 		this.dirtyComponent = dirtyComponent;
 	}
 
+	/**
+	 * Verifies edits which have not been applied yet: the component which still holds invalid text and the component
+	 * which has the focus, whose text is only verified when it loses the focus.
+	 * @return false if a pending edit was rejected
+	 */
+	protected boolean commitPendingEdit() {
+		List<JComponent> pending = new ArrayList<>(2);
+		if (dirtyComponent != null)
+			pending.add(dirtyComponent);
+		java.awt.Component focusOwner = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+		if (focusOwner instanceof JComponent focused && focused != dirtyComponent
+				&& SwingUtilities.isDescendingFrom(focused, this))
+			pending.add(focused);
+		for (JComponent component : pending) {
+			InputVerifier verifier = component.getInputVerifier();
+			if (verifier != null && !verifier.shouldYieldFocus(component))
+				return false;
+		}
+		return true;
+	}
+
 /**
  * On pressing enter key, check any unvalidated component
  */	
 	public void onOk() {
-		if (dirtyComponent != null) {
-			InputVerifier verifier = dirtyComponent.getInputVerifier();
-			if (!verifier.shouldYieldFocus(dirtyComponent))
-				return;
+		if (!commitPendingEdit())
+			return;
+		accepting = true;
+		try {
+			super.onOk();
+		} finally {
+			accepting = false;
 		}
-		super.onOk();
 	}
 
 protected JComponent createFieldsPanel(FieldComponentMap map, Collection<Field> fields) {

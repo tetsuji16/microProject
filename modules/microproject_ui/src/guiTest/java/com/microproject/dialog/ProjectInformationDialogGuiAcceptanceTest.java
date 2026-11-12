@@ -120,8 +120,9 @@ class ProjectInformationDialogGuiAcceptanceTest {
 		}
 		SwingUtilities.invokeAndWait(() -> tabs.setSelectedIndex(0));
 		DialogScreenshotArtifacts.capture(dialog, "issue-460-project-information");
-		assertTrue(findButton(dialog, "Close") != null || findButton(dialog, "閉じる") != null,
-			"Project information must expose a visible close button");
+		assertTrue(findButton(dialog, "OK") != null
+				&& (findButton(dialog, "Cancel") != null || findButton(dialog, "取り消し") != null),
+			"Project information must expose visible OK and Cancel buttons");
 		AbstractButton move = findButton(dialog, "Move Project...");
 		if (move == null) move = findButton(dialog, "プロジェクトの移動...");
 		assertTrue(move != null, "Project information must expose the MSP Move Project route");
