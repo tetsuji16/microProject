@@ -1986,6 +1986,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_ZOOM_OUT, new ZoomOutAction());
 		actionsMap.addHandler(ACTION_ZOOM_SELECTED_TASKS, new ZoomSelectedTasksAction());
 		actionsMap.addHandler(ACTION_SCROLL_TO_TASK, new ScrollToTaskAction());
+		actionsMap.addHandler(ACTION_SCROLL_TO_TODAY, new ScrollToTodayAction());
 		actionsMap.addHandler(ACTION_TOGGLE_PROGRESS_LINE, new ToggleProgressLineAction());
 		actionsMap.addHandler(ACTION_LABEL_RESOURCE_NAMES, new LabelResourceNamesAction());
 		actionsMap.addHandler(ACTION_LABEL_TASK_NAME, new LabelTaskNameAction());
@@ -3065,6 +3066,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 					ganttView.zoomToSelectedTasks();
 			}
 			setZoomButtons();
+		}
+	}
+	public class ScrollToTodayAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive() && getCurrentFrame().getActiveTopView() instanceof GanttView ganttView)
+				ganttView.scrollToToday();
 		}
 	}
 	public class ScrollToTaskAction extends MenuActionsMap.DocumentMenuAction {
@@ -4590,6 +4599,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				? usageView.canZoomToSelectedTasks()
 				: activeView instanceof GanttView ganttView && ganttView.canZoomToSelectedTasks();
 		getMenuManager().setActionEnabled(ACTION_ZOOM_SELECTED_TASKS, canZoomSelection);
+		getMenuManager().setActionEnabled(ACTION_SCROLL_TO_TODAY, activeView instanceof GanttView);
 
 	}
 
