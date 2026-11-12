@@ -549,19 +549,17 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 	 * re-registering their model objects. The requested position is the final child
 	 * index after the moving branches have been detached.
 	 */
-	public boolean relocate(Node parent,List nodes,int position,int actionType){
+	public boolean relocate(Node parent,List<?> nodes,int position,int actionType){
 		return ProjectMutationState.coordinated(() -> relocateCoordinated(parent, nodes, position, actionType));
 	}
 
-	private boolean relocateCoordinated(Node parent,List nodes,int position,int actionType){
+	private boolean relocateCoordinated(Node parent,List<?> nodes,int position,int actionType){
 		if (nodes==null||nodes.isEmpty()) return false;
 		Node destination=(parent==null)?root:parent;
 		ArrayList<Node> branches=new ArrayList<Node>(nodes.size());
 		Map<Object, Object[]> previousParentChildren = new java.util.IdentityHashMap<>();
-		for (Iterator i=nodes.iterator();i.hasNext();){
-			Object value=i.next();
-			if (!(value instanceof Node)) return false;
-			Node node=(Node)value;
+		for (Object value:nodes){
+			if (!(value instanceof Node node)) return false;
 			if (node==root||node.getParent()==null) return false;
 			branches.add(node);
 			Node previousParent = getParent(node);
