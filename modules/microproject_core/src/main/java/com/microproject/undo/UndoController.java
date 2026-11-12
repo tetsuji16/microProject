@@ -143,9 +143,11 @@ public class UndoController extends UndoManager implements EditListener{
 					if (tail.get(i) != mine.get(i)) return;
 				tail.clear();
 				final String name = mine.get(mine.size() - 1).getPresentationName();
-				javax.swing.undo.CompoundEdit compound = new javax.swing.undo.CompoundEdit() {
+				// an ended UndoManager undoes and redoes its edits as one step
+				UndoManager compound = new UndoManager() {
 					@Override public String getPresentationName() { return name; }
 				};
+				compound.setLimit(-1);
 				for (UndoableEdit edit : mine) compound.addEdit(edit);
 				compound.end();
 				UndoController.super.addEdit(compound);
