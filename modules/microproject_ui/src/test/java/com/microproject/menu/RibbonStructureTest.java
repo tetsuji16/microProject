@@ -119,8 +119,10 @@ class RibbonStructureTest {
 			ribbonButtonIds("TaskOutlineRibbonBand"));
 		assertEquals("MoveTaskUpAction",menuInternalBundle().getString("RibbonMoveTaskUp.action"));
 		assertEquals("MoveTaskDownAction",menuInternalBundle().getString("RibbonMoveTaskDown.action"));
-		assertTrue(menuBundle(Locale.ROOT).getString("RibbonMoveTaskUp.tooltip").contains("Alt+Shift+Up"));
-		assertTrue(menuBundle(Locale.ROOT).getString("RibbonMoveTaskDown.tooltip").contains("Alt+Shift+Down"));
+		assertFalse(menuBundle(Locale.ROOT).getString("RibbonMoveTaskUp.tooltip").contains("Alt+Shift+Up"),
+			"the screen tip key comes from the registered binding (#973), not the bundle");
+		assertFalse(menuBundle(Locale.ROOT).getString("RibbonMoveTaskDown.tooltip").contains("Alt+Shift+Down"),
+			"the screen tip key comes from the registered binding (#973), not the bundle");
 		assertEquals(List.of("RibbonAssignResources", "RibbonDelegateTasks"),
 			ribbonButtonIds("TaskDependenciesRibbonBand"));
 		assertEquals(List.of("RibbonMarkOnTrack", "RibbonUpdateTasks", "RibbonLink", "RibbonUnlink", "RibbonRespectLinks",

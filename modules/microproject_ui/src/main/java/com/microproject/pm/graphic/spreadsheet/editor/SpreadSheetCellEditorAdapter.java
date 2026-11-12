@@ -50,7 +50,7 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 	/** The single previous-table record for every spreadsheet editor; weak so a closed document's table is not retained. */
 	private static WeakReference<JTable> lastTableRef = new WeakReference<>(null);
 	private static final String COMPOSITION_PROPERTY = ImeTextInputSupport.COMPOSITION_PROPERTY;
-	private static final String COMPOSITION_LISTENER_INSTALLED_PROPERTY = "projectlibre.compositionListenerInstalled";
+	private static final String COMPOSITION_LISTENER_INSTALLED_PROPERTY = "microproject.compositionListenerInstalled";
 	private static final String NAME_UNDO_ACTION = "spreadsheet.nameColumnUndo";
 	private static final String NAME_REDO_ACTION = "spreadsheet.nameColumnRedo";
 	protected TableCellEditor editor;

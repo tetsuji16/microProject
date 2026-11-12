@@ -1915,7 +1915,7 @@ class RibbonButtonBehaviorTest {
 			"RibbonDetails",
 			"RibbonResourceUsage",
 			"RibbonNoTextNoSubWindow");
-		add(map, Strategy.VIEW_ONLY, "RibbonZoomSelectedTasks");
+		add(map, Strategy.VIEW_ONLY, "RibbonZoomSelectedTasks", "RibbonScrollToToday");
 		add(map, Strategy.ROUTE_CHOOSER,
 			"RibbonChooseFilter",
 			"RibbonChooseSort",

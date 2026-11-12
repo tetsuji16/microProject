@@ -596,6 +596,11 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		}
 	}
 
+	/** Centres the current system date in the chart; selection and model data are untouched. */
+	public boolean scrollToToday() {
+		return gantt != null && gantt.scrollToDate(System.currentTimeMillis());
+	}
+
 	public boolean canScrollToTask() {
 		return true;
 	}

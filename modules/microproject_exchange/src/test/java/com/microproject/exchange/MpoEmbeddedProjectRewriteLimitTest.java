@@ -31,7 +31,7 @@ class MpoEmbeddedProjectRewriteLimitTest {
 		}
 
 		IOException failure = assertThrows(IOException.class,
-			() -> MpoFileImporter.rewriteExtractedProjectReferences(archive, Map.of()));
+			() -> MpoEmbeddedProjects.rewriteExtractedProjectReferences(archive, Map.of()));
 
 		assertTrue(failure.getMessage().contains("exceeds"), failure.getMessage());
 	}
@@ -47,7 +47,7 @@ class MpoEmbeddedProjectRewriteLimitTest {
 		}
 
 		IOException failure = assertThrows(IOException.class,
-			() -> MpoFileImporter.rewriteExtractedProjectReferences(archive, Map.of()));
+			() -> MpoEmbeddedProjects.rewriteExtractedProjectReferences(archive, Map.of()));
 
 		assertTrue(failure.getMessage().contains("entries"), failure.getMessage());
 	}
