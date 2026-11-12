@@ -84,6 +84,7 @@ public class MenuManager {
 	/*static*/ ExtMenuFactory menuFactory;
 	ExtToolBarFactory toolBarFactory;
 	SwingRibbonFactory ribbonFactory;
+	private MenuRibbonCommandSource ribbonCommandSource;
 
 	private final Collection<TabbedNavigation> tabbedNavigations = new LinkedList<>();
 
@@ -95,7 +96,8 @@ public class MenuManager {
 	menuFactory = new ExtMenuFactory(rootActionMap,bundles);
 	toolBarFactory = new ExtToolBarFactory(rootActionMap,bundles);
 	if (Environment.isRibbonUI()) {
-		ribbonFactory = new SwingRibbonFactory(new MenuRibbonCommandSource(toolBarFactory), bundles);
+		ribbonCommandSource = new MenuRibbonCommandSource(toolBarFactory);
+		ribbonFactory = new SwingRibbonFactory(ribbonCommandSource, bundles);
 	}
 	}
 
@@ -105,6 +107,8 @@ public class MenuManager {
 
 	public void setDocumentShortcuts(InputMap inputMap) {
 		menuFactory.setDocumentShortcuts(inputMap);
+		if (ribbonCommandSource != null)
+			ribbonCommandSource.setDocumentShortcuts(inputMap);
 	}
 
 	public JMenuBar getMenu(String name) {
