@@ -60,7 +60,9 @@ public class Main {
 //			}
 //		}
 		ApplicationStartupFactory startupFactory=new ApplicationStartupFactory(opts);
-		Frame frame = MainFrameFactory.creareMainFrame(Messages.getContextString("Text.ApplicationTitle"), null);
+		// Swing components are created on the event dispatch thread, including the first window
+		Frame frame = com.microproject.ui.util.SwingUiDispatcher.callAndWait(
+			() -> MainFrameFactory.creareMainFrame(Messages.getContextString("Text.ApplicationTitle"), null));
 		boolean doWelcome = true; // to do see if project param exists in args
 		startupFactory.instanceFromNewSession(frame,doWelcome);
 	}

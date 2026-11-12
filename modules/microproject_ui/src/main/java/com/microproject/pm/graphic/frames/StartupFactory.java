@@ -24,7 +24,6 @@
 package com.microproject.pm.graphic.frames;
 
 import java.awt.Container;
-import java.awt.HeadlessException;
 import java.awt.Window;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -115,32 +114,31 @@ public abstract class StartupFactory {
 	}
 
 
+	/**
+	 * Starts a new desktop session in {@code container}.
+	 *
+	 * <p>The launcher calls this from the main thread.  Swing components, look-and-feel
+	 * refreshes and the documents opened at startup must be created on the event dispatch
+	 * thread, exactly as they are when a file is opened later from the running application;
+	 * otherwise the first window is built while another thread is laying it out and can come
+	 * up with a view that ignores input until the file is opened again.  Only the
+	 * configuration load stays on its own thread.
+	 */
 	public GraphicManager instanceFromNewSession(Container container,  final boolean doWelcome) {
-		long t=System.currentTimeMillis();
 		Environment.setClientSide(true);
 
-		// System.setSecurityManager(null); // DISABLED for Java 17+ compatibility
-		Thread loadConfigThread = new Thread(() -> {
-			long configLoadStartTime = System.currentTimeMillis();
-			doLoadConfig();
-		}, "loadConfig");
+		Thread loadConfigThread = new Thread(this::doLoadConfig, "loadConfig");
 		loadConfigThread.start();
 
-		GraphicManager graphicManager = null;
-		//String projectUrl[]=null;
-		try {
+		final GraphicManager gm = SwingUiDispatcher.callAndWait(() -> {
 			GraphicManager newGraphicManager = new GraphicManager(container);
 			newGraphicManager.setRestartAction(() -> restart(newGraphicManager));
-			graphicManager = newGraphicManager;
-		} catch (HeadlessException e) {
-			logger.log(Level.SEVERE, "Failed to create GraphicManager", e);
-		}
-		Environment.setUser(new com.microproject.company.DefaultUser());
-		graphicManager.setConnected(true);
-		//if (Environment.isNewLook())
-			graphicManager.initLookAndFeel();
-
-		SessionFactory.getInstance().setJobQueue(graphicManager.getJobQueue());
+			Environment.setUser(new com.microproject.company.DefaultUser());
+			newGraphicManager.setConnected(true);
+			newGraphicManager.initLookAndFeel();
+			SessionFactory.getInstance().setJobQueue(newGraphicManager.getJobQueue());
+			return newGraphicManager;
+		});
 
 		try {
 			loadConfigThread.join();
@@ -149,31 +147,19 @@ public abstract class StartupFactory {
 			logger.log(Level.WARNING, "Interrupted while waiting for config load", e1);
 		}
 
-		t=System.currentTimeMillis();
-
-		final GraphicManager gm = graphicManager;
-		graphicManager.beginInitialization();
-		try{
-
-			graphicManager.initView();
-			doStartupAction(gm,(projectUrls==null&&gm.getLastFileName()!=null)?new String[]{gm.getLastFileName()}:projectUrls,doWelcome);
-
-			doPostInitView(gm.getContainer());
-			UpdateChecker.checkInBackground(gm.getPreferences());
-			
-			
-			
-//			final Container cc=container;
-//			SwingUtilities.invokeLater(new Runnable() {
-//
-//			    @Override
-//			    public void run() {
-//					//cc.setVisible(true);
-		}finally{
-			graphicManager.finishInitialization();
-			activateStartupWindow(gm.getContainer());
-		}
-        return graphicManager;
+		SwingUiDispatcher.runAndWait(() -> {
+			gm.beginInitialization();
+			try {
+				gm.initView();
+				doStartupAction(gm,(projectUrls==null&&gm.getLastFileName()!=null)?new String[]{gm.getLastFileName()}:projectUrls,doWelcome);
+				doPostInitView(gm.getContainer());
+				UpdateChecker.checkInBackground(gm.getPreferences());
+			} finally {
+				gm.finishInitialization();
+				activateStartupWindow(gm.getContainer());
+			}
+		});
+		return gm;
 	}
 
 	/**
