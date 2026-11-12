@@ -177,8 +177,9 @@ class PreferencesDialogGuiAcceptanceTest {
 		assertTrue(hasComboItem(dialog, UsabilityStrings.text("preferences.themeLight")));
 		assertTrue(hasComboItem(dialog, UsabilityStrings.text("preferences.themeDark")));
 		JComboBox<?> theme = findNamedComponent(dialog, JComboBox.class, "preferencesTheme");
-		JLabel themeRestartNotice = findNamedComponent(dialog, JLabel.class, "preferencesThemeRestartNotice");
-		assertTrue(theme != null && themeRestartNotice != null, "Theme choice must expose its restart notice");
+		assertTrue(theme != null, "Preferences must expose the theme choice");
+		assertTrue(findNamedComponent(dialog, JLabel.class, "preferencesThemeRestartNotice") == null,
+			"Theme changes apply live and must not announce a restart");
 		JTextField datePattern = findNamedComponent(dialog, JTextField.class, "preferencesDatePattern");
 		JTextField dateTimePattern = findNamedComponent(dialog, JTextField.class, "preferencesDateTimePattern");
 		JTextField currencyCode = findNamedComponent(dialog, JTextField.class, "preferencesCurrencyCode");
@@ -207,8 +208,6 @@ class PreferencesDialogGuiAcceptanceTest {
 		robot.keyPress(KeyEvent.VK_ENTER); robot.keyRelease(KeyEvent.VK_ENTER);
 		GuiAcceptanceSupport.await(() -> UsabilityStrings.text("preferences.themeDark").equals(selectedItem(theme)),
 			"Robot did not select the dark theme");
-		GuiAcceptanceSupport.await(themeRestartNotice::isVisible,
-			"Changing theme must tell users to restart the application");
 		click(robot, milestoneShape);
 		robot.keyPress(KeyEvent.VK_END); robot.keyRelease(KeyEvent.VK_END);
 		robot.keyPress(KeyEvent.VK_ENTER); robot.keyRelease(KeyEvent.VK_ENTER);
@@ -216,6 +215,9 @@ class PreferencesDialogGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> !dialog.isVisible(), "Preferences dialog did not close after Apply");
 		assertEquals(12, appliedInterval.get(), "Apply must persist the entered recovery interval");
 		assertTrue(testPreferences.isDarkTheme(), "Apply must persist the selected dark theme");
+		GuiAcceptanceSupport.await(com.microproject.util.FlatUiSupport::isDarkTheme,
+			"Apply must switch the running application to the dark theme without a restart");
+		com.microproject.ui.theme.ThemeManager.applyTheme(false);
 		assertEquals("dd.MM.yyyy", testPreferences.getDatePattern(), "Apply must persist the date-only format");
 		assertEquals("dd.MM.yyyy HH:mm", testPreferences.getDateTimePattern(), "Apply must persist the date-time format");
 		assertEquals("EUR", testPreferences.getCurrencyCode(), "Apply must persist the currency override");

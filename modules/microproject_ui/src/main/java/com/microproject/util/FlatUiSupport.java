@@ -1006,6 +1006,29 @@ public final class FlatUiSupport {
 			updateOwnedWindowTrees(owner);
 	}
 
+	/**
+	 * Refreshes every open window (visible or not) after a look-and-feel change,
+	 * preserving window-level key bindings that the UI reset would drop.
+	 */
+	public static void updateAllWindowTrees() {
+		for (Window window : Window.getWindows()) {
+			if (window.getOwner() != null)
+				continue; // owned windows are refreshed through their owner
+			JRootPane root = window instanceof JDialog dialog ? dialog.getRootPane()
+				: window instanceof javax.swing.JFrame frame ? frame.getRootPane() : null;
+			List<RootPaneActionBinding> rootPaneBindings = captureRootPaneActionBindings(root);
+			SwingUtilities.updateComponentTreeUI(window);
+			if (window instanceof JDialog dialog) {
+				restoreRootPaneActionBindings(dialog.getRootPane(), rootPaneBindings);
+				styleDialogRoot(dialog.getRootPane());
+				styleDialogComponents(dialog.getContentPane());
+			} else if (window instanceof javax.swing.JFrame frame) {
+				restoreRootPaneActionBindings(frame.getRootPane(), rootPaneBindings);
+			}
+			updateOwnedWindowTrees(window);
+		}
+	}
+
 	private static void updateOwnedWindowTrees(Window owner) {
 		for (Window child : owner.getOwnedWindows()) {
 			JRootPane root = child instanceof JDialog dialog ? dialog.getRootPane() : null;

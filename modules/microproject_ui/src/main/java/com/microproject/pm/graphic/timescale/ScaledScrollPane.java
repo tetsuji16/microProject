@@ -58,7 +58,18 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 	private double lastViewportCenterTime = Double.NaN;
 	private boolean preserveCenterDateOnResize;
 	private boolean restoringViewportCenter;
-	/** The coordinate origin used by the last viewport layout. */
+	/**
+	 * Date (epoch millis) at the left edge of the viewport as last confirmed by a
+	 * viewport change. Stored as a date, not a pixel, so it survives origin or scale
+	 * changes of the converter.
+	 */
+	private double lastLeftEdgeDate = Double.NaN;
+	private boolean restoringLeftEdge;
+	/**
+	 * Origin the viewport pixel positions were last confirmed against. While the
+	 * converter's origin differs (an origin change not yet processed here) a pixel
+	 * position cannot be turned into a trustworthy date.
+	 */
 	private long lastOrigin;
 	private boolean extendingHorizontalRange;
 	private static final int EDGE_TRIGGER_PIXELS = 24;
@@ -78,6 +89,7 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 		main.setCoord(coord);
 		lastOrigin = coord.getOrigin();
 		createLayout();
+		lastLeftEdgeDate = coord.toTime(0);
 		coord.addTimeScaleListener(this);
 		this.getVerticalScrollBar().setUnitIncrement(verticalIncrement);
 		// Match Microsoft Project's time-axis scrollbar: expose explicit
@@ -157,6 +169,8 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 						position = viewport.getViewPosition();
 					}
 			    }
+			    if (!restoringLeftEdge && coord.getOrigin() == lastOrigin)
+					lastLeftEdgeDate = coord.toTime(Math.max(0, position.x));
 			    if (!position.equals(lastViewportPosition)) {
 					lastViewportPosition = new Point(position);
 					((JComponent)main).repaint();
@@ -188,7 +202,7 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 	
 	public void timeScaleChanged(TimeScaleEvent e) {
 		if (e != null && (e.getType() & TimeScaleEvent.ORIGIN_AND_END_CHANGE) != 0) {
-			restoreViewportLeftDate(lastOrigin);
+			restoreViewportLeftDate();
 		}
 		lastOrigin = coord.getOrigin();
 		rememberViewportCenterDate();
@@ -210,15 +224,22 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 		lastViewportCenterTime = coord.toTime(position.x + getViewport().getExtentSize().width / 2.0d);
 	}
 
-	/** Restore the visible time range after the coordinate origin has moved. */
-	private void restoreViewportLeftDate(long previousOrigin) {
-		if (coord == null) return;
+	/**
+	 * Restore the visible time range after the coordinate origin has moved: the
+	 * last confirmed left-edge date is mapped through the current converter.
+	 */
+	private void restoreViewportLeftDate() {
+		if (coord == null || Double.isNaN(lastLeftEdgeDate)) return;
 		JViewport viewport = getViewport();
 		if (viewport == null) return;
 		Point position = viewport.getViewPosition();
-		double leftDate = previousOrigin + coord.getTimescaleManager().getScale().toTime(position.x);
-		position.x = Math.max(0, (int) Math.round(coord.toX(leftDate)));
-		viewport.setViewPosition(position);
+		position.x = Math.max(0, (int) Math.round(coord.toX(lastLeftEdgeDate)));
+		restoringLeftEdge = true;
+		try {
+			viewport.setViewPosition(position);
+		} finally {
+			restoringLeftEdge = false;
+		}
 	}
 
 	private void updateHorizontalScrollIncrement() {
@@ -316,8 +337,9 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 			getViewport().setViewPosition(ws.viewPosition);
 		}
 		// Workspace restoration may restore the coordinate converter without
-		// emitting a time-scale event, so reset the comparison origin explicitly.
+		// emitting a time-scale event, so re-read the left-edge date explicitly.
 		lastOrigin = coord.getOrigin();
+		lastLeftEdgeDate = coord.toTime(Math.max(0, getViewport().getViewPosition().x));
 		rememberViewportCenterDate();
 	}
 	public WorkspaceSetting createWorkspace(int context) {

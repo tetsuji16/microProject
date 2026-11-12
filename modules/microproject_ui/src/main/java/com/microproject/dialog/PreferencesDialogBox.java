@@ -73,12 +73,6 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		JComboBox<String> theme = new JComboBox<>(new String[] { lightTheme, darkTheme });
 		theme.setName("preferencesTheme");
 		theme.setSelectedItem(preferences.isDarkTheme() ? darkTheme : lightTheme);
-		JLabel themeRestartNotice = new JLabel(UsabilityStrings.text("preferences.themeRestartRequired"));
-		themeRestartNotice.setName("preferencesThemeRestartNotice");
-		Runnable updateThemeRestartNotice = () -> themeRestartNotice.setVisible(
-				preferences.isDarkTheme() != darkTheme.equals(theme.getSelectedItem()));
-		theme.addActionListener(event -> updateThemeRestartNotice.run());
-		updateThemeRestartNotice.run();
 		JTextField datePattern = new JTextField(preferences.getDatePattern(), 16);
 		datePattern.setName("preferencesDatePattern");
 		datePattern.setToolTipText(UsabilityStrings.text("preferences.datePatternHelp"));
@@ -156,7 +150,6 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		form.add(new JLabel()); form.add(rowLines);
 		form.add(new JLabel()); form.add(checkUpdates);
 		form.add(new JLabel(UsabilityStrings.text("preferences.theme"))); form.add(theme);
-		form.add(new JLabel()); form.add(themeRestartNotice);
 		form.add(new JLabel(UsabilityStrings.text("preferences.datePattern"))); form.add(datePattern);
 		form.add(new JLabel(UsabilityStrings.text("preferences.dateTimePattern"))); form.add(dateTimePattern);
 		form.add(new JLabel(UsabilityStrings.text("preferences.currencyCode"))); form.add(currencyCode);
@@ -197,6 +190,7 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 			preferences.setGridLineColor(selectedGridColor[0] == null ? null : Integer.valueOf(selectedGridColor[0].getRGB()));
 			preferences.setDefaultGanttBarColor(selectedBarColor[0] == null ? null : Integer.valueOf(selectedBarColor[0].getRGB()));
 			preferences.setCheckForUpdates(checkUpdates.isSelected());
+			boolean themeChanged = preferences.isDarkTheme() != darkTheme.equals(theme.getSelectedItem());
 			preferences.setDarkTheme(darkTheme.equals(theme.getSelectedItem()));
 			preferences.setDatePattern(datePattern.getText());
 			preferences.setDateTimePattern(dateTimePattern.getText());
@@ -204,6 +198,9 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 			if (recoveryInterval != null)
 				autoSaveControl.setIntervalMinutes(((Number) recoveryInterval.getValue()).intValue());
 			dispose();
+			// The theme applies live to every open window; no restart is needed.
+			if (themeChanged)
+				com.microproject.ui.theme.ThemeManager.applyTheme(preferences.isDarkTheme());
 		});
 		JButton cancel = new JButton(UsabilityStrings.text("preferences.cancel"));
 		getRootPane().setDefaultButton(apply); // Enter presses the primary command (Windows/Office dialog rule)

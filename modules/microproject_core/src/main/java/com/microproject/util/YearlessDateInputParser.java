@@ -48,7 +48,7 @@ public final class YearlessDateInputParser {
 		if (text == null) {
 			return null;
 		}
-		String trimmed = text.trim();
+		String trimmed = FullWidthInput.normalize(text).trim();
 		if (trimmed.isEmpty()) {
 			return null;
 		}

@@ -50,6 +50,7 @@ public class PercentFormat extends Format {
 		return percentFormatterInstance;
 	}
 	public Object parseObject(String arg0, ParsePosition arg1) {
+		arg0 = com.microproject.util.FullWidthInput.normalize(arg0);
 		Number result = percentFormat().parse(arg0,arg1);
 		if (result == null) {
 			result = numberFormat().parse(arg0,arg1);

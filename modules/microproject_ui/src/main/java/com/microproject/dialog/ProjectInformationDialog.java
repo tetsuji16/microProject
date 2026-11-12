@@ -233,6 +233,8 @@ public class ProjectInformationDialog extends InformationDialog {
 	
 
 	public void documentSelected(DocumentSelectedEvent evt) {
+		if (!isVisible())
+			return;
 		setObject(evt.getCurrent().getProject());
 		updateAll();
 	}
@@ -269,9 +271,6 @@ public class ProjectInformationDialog extends InformationDialog {
 	public void onOk() {
 		if (!bind(false))
 			return;
-		Project project = (Project) getObject();
-		if (project != null && !project.isStatusDateSet())
-			project.setStatusDate(System.currentTimeMillis());
 		setDialogResult(javax.swing.JOptionPane.OK_OPTION);
 		setVisible(false);
 	}

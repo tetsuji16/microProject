@@ -47,7 +47,7 @@ public class PercentEditor extends SimpleEditor {
 		String text = component.getText();
 		if (text == null)
 			return null;
-		text = text.trim();
+		text = com.microproject.util.FullWidthInput.normalize(text).trim();
 		if (text.length() == 0)
 			return null;
 		try {
@@ -57,7 +57,7 @@ public class PercentEditor extends SimpleEditor {
 			} else {
 				parsed = NumberFormat.getNumberInstance().parse(text);
 				double value = parsed.doubleValue();
-				parsed = Double.valueOf(Math.abs(value) <= 1.0D ? value : value / 100.0D);
+				parsed = Double.valueOf(value / 100.0D);
 			}
 			double value = parsed.doubleValue();
 			if (value < 0.0D)

@@ -25,6 +25,7 @@ package com.microproject.pm.graphic.gantt;
 
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.GraphicsEnvironment;
 import java.awt.Point;
 import java.awt.Shape;
 import java.awt.geom.Rectangle2D;
@@ -33,8 +34,13 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 
+import javax.swing.JToolTip;
 import javax.swing.JViewport;
+import javax.swing.Popup;
+import javax.swing.PopupFactory;
 import javax.swing.SwingUtilities;
+import com.microproject.strings.Messages;
+import com.microproject.timescale.TimeScale;
 import com.microproject.undo.EditSupport;
 
 import com.microproject.pm.graphic.graph.GraphInteractor;
@@ -119,6 +125,16 @@ public class GanttInteractor extends GraphInteractor{
 	protected ScheduleInterval selectedInterval;
 	protected int selectedIntervalNumber;
 	protected double t;
+	/** Fallback when the platform reports no drag threshold. */
+	private static final int DEFAULT_DRAG_THRESHOLD_PX = 4;
+	/**
+	 * Date under the pointer when a bar drag started. Pixel positions are not stable
+	 * during a drag (auto-scroll can move the converter origin), so every delta is
+	 * measured in dates.
+	 */
+	private double dragStartTime = Double.NaN;
+	private Popup dragFeedbackPopup;
+	private String dragFeedbackText;
 	private boolean panning;
 	private Point panStartScreenPoint;
 	private Point panStartViewPosition;
@@ -273,7 +289,9 @@ public class GanttInteractor extends GraphInteractor{
 			openTaskInformationAt(e.getX(), e.getY());
 			return;
 		}
+     dragStartTime = Double.NaN;
      super.mousePressed(e);
+     dragStartTime = isMove() && getCoord() != null ? getCoord().toTime(x0) : Double.NaN;
      notifyMode();
     }
 
@@ -298,6 +316,7 @@ public class GanttInteractor extends GraphInteractor{
     		return;
     	}
      super.mouseDragged(e);
+     updateDragFeedback(e);
     }
 
     public void mouseReleased(MouseEvent e) {
@@ -328,9 +347,17 @@ public class GanttInteractor extends GraphInteractor{
     		return;
     	}
     	getGraph().requestFocusInWindow();
+    	hideDragFeedback();
     	super.mouseReleased(e);
+    	dragStartTime = Double.NaN;
     	notifyMode("StatusBar.Ready");
     }
+
+	@Override
+	public void dispose() {
+		hideDragFeedback();
+		super.dispose();
+	}
 
     public void mouseClicked(MouseEvent e) {
 		// Double-click handling is deliberately in mousePressed(); see above.
@@ -347,8 +374,9 @@ public class GanttInteractor extends GraphInteractor{
 		if (!(selected instanceof GraphicNode node)) {
 			return null;
 		}
-		return new GanttSelectionGeometrySupport(node, getCoord(), (GanttUI)ui, config, x0, x, state, selectedIntervalNumber, selectedInterval)
-				.createBarShadowBounds();
+		double startX = dragStartX();
+		return new GanttSelectionGeometrySupport(node, getCoord(), (GanttUI)ui, config, startX, snappedShadowX(startX, x), state,
+				selectedIntervalNumber, selectedInterval).createBarShadowBounds();
     }
 	protected Rectangle2D getLinkSelectionShadowBounds(GraphicNode node){
 		return new GanttSelectionGeometrySupport(node, getCoord(), (GanttUI)ui, config, x0, x0, state, selectedIntervalNumber, selectedInterval)
@@ -406,7 +434,7 @@ public class GanttInteractor extends GraphInteractor{
 		if (state == SPLIT)
 			LOGGER.info(() -> "Gantt split point dispatched: selected=" + selected + " x=" + x + " x0=" + x0
 				+ " interval=" + selectedInterval);
-		if (selected==null || !hasMeaningfulAction(state == LINK_CREATION, state == SPLIT, x0, x)) return false;
+		if (selected==null || !hasMeaningfulAction(state == LINK_CREATION, state == SPLIT, dragStartX(), x)) return false;
     	if (state==BAR_MOVE||state==BAR_MOVE_START||state==BAR_MOVE_END||state==PROGRESS_BAR_MOVE||state==SPLIT){
     		if (!(selected instanceof GraphicNode)) return false;
     		sourceNode=(GraphicNode)selected;
@@ -452,20 +480,12 @@ public class GanttInteractor extends GraphInteractor{
 		switch (state) {
 		case BAR_MOVE:
 			operation = TaskScheduleEditIntent.Operation.MOVE;
-			requestedStart += (long)getCoord().toDuration(x - x0);
-			requestedEnd += (long)getCoord().toDuration(x - x0);
 			break;
 		case BAR_MOVE_START:
 			operation = TaskScheduleEditIntent.Operation.RESIZE_START;
-			requestedStart += (long)getCoord().toDuration(x - x0);
 			break;
 		case BAR_MOVE_END:
 			operation = TaskScheduleEditIntent.Operation.RESIZE_END;
-			// The rendered first interval can be normalized to working time and
-			// differ from the task's persisted start. A finish-only resize must
-			// anchor to the schedule start or it silently shifts the task start.
-			requestedStart = schedule.getStart();
-			requestedEnd += (long)getCoord().toDuration(x - x0);
 			break;
 		case PROGRESS_BAR_MOVE:
 			operation = TaskScheduleEditIntent.Operation.PROGRESS;
@@ -477,6 +497,15 @@ public class GanttInteractor extends GraphInteractor{
 			break;
 		default:
 			return null;
+		}
+		if (operation == TaskScheduleEditIntent.Operation.MOVE || operation == TaskScheduleEditIntent.Operation.RESIZE_START
+				|| operation == TaskScheduleEditIntent.Operation.RESIZE_END) {
+			// The rendered first interval can be normalized to working time and
+			// differ from the task's persisted start. A finish-only resize anchors
+			// to the schedule start or it silently shifts the task start.
+			long[] requested = requestedInterval(x, schedule.getStart());
+			requestedStart = requested[0];
+			requestedEnd = requested[1];
 		}
 		TaskScheduleEditIntent intent = new TaskScheduleEditIntent(taskRow, projection.topologyRevision(), operation,
 			schedule.getStart(), schedule.getEnd(), schedule.getCompletedThrough(), selectedInterval.getStart(),
@@ -513,6 +542,155 @@ public class GanttInteractor extends GraphInteractor{
 		return graphicManager == null ? outcome : graphicManager.recordUserCommandOutcome(outcome);
 	}
 
+	/** Pixels the pointer must travel before a press becomes a drag edit (platform threshold). */
+	static int dragThresholdPixels() {
+		try {
+			int threshold = java.awt.dnd.DragSource.getDragThreshold();
+			return threshold > 0 ? threshold : DEFAULT_DRAG_THRESHOLD_PX;
+		} catch (RuntimeException | LinkageError unavailable) {
+			return DEFAULT_DRAG_THRESHOLD_PX;
+		}
+	}
+
+	/**
+	 * Rounds {@code requested} to the minor timescale unit, measured from
+	 * {@code original}: sub-day units (hours, minutes) round the delta to the nearest
+	 * whole unit; day-or-longer units round it to the nearest whole calendar day. Working
+	 * on the delta keeps the time of day of the bar, as Microsoft Project does when a bar
+	 * is moved in whole days. Deterministic and independent of the screen.
+	 */
+	static long snapToMinorUnit(long original, long requested, int calendarField, int number) {
+		int count = Math.max(1, number);
+		long unitMillis;
+		switch (calendarField) {
+		case java.util.Calendar.HOUR:
+		case java.util.Calendar.HOUR_OF_DAY:
+			unitMillis = 3_600_000L * count;
+			break;
+		case java.util.Calendar.MINUTE:
+			unitMillis = 60_000L * count;
+			break;
+		case java.util.Calendar.SECOND:
+			unitMillis = 1_000L * count;
+			break;
+		case java.util.Calendar.MILLISECOND:
+			unitMillis = count;
+			break;
+		default:
+			long days = Math.round((requested - original) / 86_400_000d);
+			var calendar = DateTime.calendarInstance();
+			calendar.setTimeInMillis(original);
+			calendar.add(java.util.Calendar.DAY_OF_MONTH, (int) days);
+			return calendar.getTimeInMillis();
+		}
+		return original + Math.round((requested - original) / (double) unitMillis) * unitMillis;
+	}
+
+	private static long snapToScale(long original, long requested, TimeScale scale) {
+		return scale == null ? requested
+				: snapToMinorUnit(original, requested, scale.getCalendarField1(), scale.getNumber1());
+	}
+
+	/** Start x of the current drag in today's coordinates (the origin may have moved since the press). */
+	private double dragStartX() {
+		return Double.isNaN(dragStartTime) || getCoord() == null ? x0 : getCoord().toX(dragStartTime);
+	}
+
+	/** Starts a bar drag at pixel {@code x}, remembering the date under it. */
+	void beginDragAt(double x) {
+		x0 = x;
+		dragStartTime = getCoord().toTime(x);
+	}
+
+	/** Date delta (ms) the pointer at {@code x} indicates since the drag started, before snapping. */
+	long dragDeltaMillis(double x) {
+		return rawDragDelta(x);
+	}
+
+	private long rawDragDelta(double x) {
+		if (Double.isNaN(dragStartTime))
+			return (long) getCoord().toDuration(x - x0);
+		return (long) (getCoord().toTime(x) - dragStartTime);
+	}
+
+	/** Snapped {start, end} a move/resize drag to {@code x} would request. */
+	private long[] requestedInterval(double x, long scheduleStart) {
+		TimeScale scale = getCoord().getTimescaleManager().getScale();
+		long start = selectedInterval.getStart();
+		long end = selectedInterval.getEnd();
+		long raw = rawDragDelta(x);
+		switch (state) {
+		case BAR_MOVE:
+			long movedStart = snapToScale(start, start + raw, scale);
+			return new long[] { movedStart, end + (movedStart - start) };
+		case BAR_MOVE_START:
+			return new long[] { snapToScale(start, start + raw, scale), end };
+		case BAR_MOVE_END:
+			return new long[] { scheduleStart, snapToScale(end, end + raw, scale) };
+		default:
+			return new long[] { start, end };
+		}
+	}
+
+	private boolean isBarEditState() {
+		return state == BAR_MOVE || state == BAR_MOVE_START || state == BAR_MOVE_END;
+	}
+
+	/** Pointer x equivalent to the snapped drag, so the shadow shows where the bar will land. */
+	private double snappedShadowX(double startX, double x) {
+		if (!isBarEditState() || selectedInterval == null || getCoord() == null || !(sourceOrSelected() instanceof Schedule schedule))
+			return x;
+		long[] requested = requestedInterval(x, schedule.getStart());
+		long delta = state == BAR_MOVE_END ? requested[1] - selectedInterval.getEnd()
+				: requested[0] - selectedInterval.getStart();
+		return startX + getCoord().toW(delta);
+	}
+
+	private Object sourceOrSelected() {
+		return selected instanceof GraphicNode node ? node.getNode().getImpl() : null;
+	}
+
+	private void updateDragFeedback(MouseEvent e) {
+		if (!isBarEditState() || selectedInterval == null || Double.isNaN(dragStartTime) || getCoord() == null
+				|| !(sourceOrSelected() instanceof Schedule schedule)
+				|| Math.abs(e.getX() - dragStartX()) < dragThresholdPixels()) {
+			return;
+		}
+		long[] requested = requestedInterval(e.getX(), schedule.getStart());
+		String text = formatDragFeedback(requested[0], requested[1]);
+		if (text.equals(dragFeedbackText))
+			return;
+		hideDragFeedback();
+		dragFeedbackText = text;
+		if (GraphicsEnvironment.isHeadless() || !getGraph().isShowing())
+			return;
+		try {
+			JToolTip tip = getGraph().createToolTip();
+			tip.setTipText(text);
+			Point screen = new Point(e.getX() + 16, e.getY() + 24);
+			SwingUtilities.convertPointToScreen(screen, getGraph());
+			dragFeedbackPopup = PopupFactory.getSharedInstance().getPopup(getGraph(), tip, screen.x, screen.y);
+			dragFeedbackPopup.show();
+		} catch (RuntimeException unavailable) {
+			dragFeedbackPopup = null;
+		}
+	}
+
+	private void hideDragFeedback() {
+		if (dragFeedbackPopup != null) {
+			dragFeedbackPopup.hide();
+			dragFeedbackPopup = null;
+		}
+		dragFeedbackText = null;
+	}
+
+	/** "Start: ... Finish: ..." text shown while moving or resizing a bar. */
+	static String formatDragFeedback(long start, long end) {
+		java.text.DateFormat format = DateTime.utcDateFormatInstance();
+		return Messages.getString("Field.start") + ": " + format.format(new java.util.Date(start)) + "   "
+				+ Messages.getString("Field.finish") + ": " + format.format(new java.util.Date(end));
+	}
+
 	static boolean hasMeaningfulDrag(boolean linkCreation, double startX, double endX) {
 		// Link creation can be a vertical drag between bars on the same date.
 		return hasMeaningfulAction(linkCreation, false, startX, endX);
@@ -521,7 +699,8 @@ public class GanttInteractor extends GraphInteractor{
 	static boolean hasMeaningfulAction(boolean linkCreation, boolean directPointAction, double startX, double endX) {
 		// Split mode is executed at the clicked date, not dragged from the previous
 		// pointer position.  Its action must not depend on a stale x0 from a prior drag.
-		return linkCreation || directPointAction || endX != startX;
+		// A press that barely moves is a click (selection only), never a date edit.
+		return linkCreation || directPointAction || Math.abs(endX - startX) >= dragThresholdPixels();
 	}
 
 	private boolean createDependencyLink() {

@@ -52,7 +52,7 @@ public class GanttParamsImpl implements GanttParams, Serializable,Cloneable {
 	protected boolean rightPartVisible=true,leftPartVisible=true;
 	protected int rowHeight;
 	protected boolean gridLinesVisible = Gantt.DEFAULT_GRID_LINES_VISIBLE;
-	protected Color gridLineColor = FlatUiSupport.tableGridColor();
+	protected Color gridLineColor; // null = follow the current theme
 	protected boolean timescaleMajorLineVisible;
 	protected boolean timescaleMinorLineVisible;
 	protected boolean nonWorkingBoundaryVisible;
@@ -177,11 +177,11 @@ public class GanttParamsImpl implements GanttParams, Serializable,Cloneable {
 	}
 
 	public Color getGridLineColor() {
-		return gridLineColor;
+		return gridLineColor == null ? FlatUiSupport.tableGridColor() : gridLineColor;
 	}
 
 	public void setGridLineColor(Color color) {
-		this.gridLineColor = color == null ? FlatUiSupport.tableGridColor() : color;
+		this.gridLineColor = color;
 	}
 	public int getCurrentDateLineStyle() { return currentDateLineStyle; }
 	public void setCurrentDateLineStyle(int style) { currentDateLineStyle = style; }

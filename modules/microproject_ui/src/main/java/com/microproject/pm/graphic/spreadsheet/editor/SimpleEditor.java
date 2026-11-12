@@ -128,7 +128,7 @@ public class SimpleEditor extends DefaultCellEditor   {
 	public Object getCellEditorValue() {
 		if (useFormat == null)
 			try {
-				return FieldConverter.convert(component.getText(),clazz,null);
+				return FieldConverter.convert(com.microproject.util.FullWidthInput.normalize(component.getText()),clazz,null);
 			} catch (FieldParseException e1) {
 				return null;
 			}
@@ -137,7 +137,7 @@ public class SimpleEditor extends DefaultCellEditor   {
 				DurationDefaults defaults = durationDefaults();
 				if (useFormat instanceof DurationFormat durationFormat && defaults != null)
 					return durationFormat.parseObject(component.getText(), new java.text.ParsePosition(0), defaults);
-				return useFormat.parseObject(component.getText());
+				return useFormat.parseObject(com.microproject.util.FullWidthInput.normalize(component.getText()));
 			} catch (ParseException e) {
 				return null;
 			}

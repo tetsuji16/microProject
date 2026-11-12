@@ -181,6 +181,33 @@ public class CoordinatesConverter implements ScheduleEventListener, Serializable
 		adaptEnd(calendar, true);
 	}
 	
+	/**
+	 * Grows the browsing range so that {@code date} lies inside it (with a
+	 * margin of {@code marginDays}). The schedule is untouched; a date that is
+	 * already inside the range leaves the origin and end unchanged.
+	 *
+	 * @return true when the range changed
+	 */
+	public boolean ensureRangeIncludes(long date, int marginDays) {
+		if (origin == 0 || end == 0 || date <= 0L) return false;
+		boolean changed = false;
+		if (date < origin) {
+			Calendar calendar = DateTime.calendarInstance();
+			calendar.setTimeInMillis(date);
+			calendar.add(Calendar.DAY_OF_MONTH, -Math.max(0, marginDays));
+			adaptOrigin(calendar, true);
+			changed = true;
+		}
+		if (date > end) {
+			Calendar calendar = DateTime.calendarInstance();
+			calendar.setTimeInMillis(date);
+			calendar.add(Calendar.DAY_OF_MONTH, Math.max(0, marginDays));
+			adaptEnd(calendar, true);
+			changed = true;
+		}
+		return changed;
+	}
+
     protected void updateLargeInterval(boolean event){
 		// Establish a range once, then only grow it when the schedule moves
 		// outside the user's current browsing range. Replacing both endpoints

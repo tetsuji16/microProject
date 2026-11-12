@@ -49,4 +49,12 @@ class GanttScrollToDateTest {
 	void staysAtZeroWhenTheChartIsNarrowerThanTheViewport() {
 		assertEquals(0, Gantt.centredViewX(300, 800, 500));
 	}
+
+	@Test
+	void scrollToTaskPutsTheStartAtTheLeftEdgeWithTheFixedMarginAndClampsToTheScrollableRange() {
+		assertEquals(950, Gantt.scrollToTaskViewX(1000, 800, 10000));
+		assertEquals(0, Gantt.scrollToTaskViewX(100, 800, 10000), "a task near the beginning sits flush left");
+		assertEquals(9200, Gantt.scrollToTaskViewX(9990, 800, 10000), "never scroll past the last scrollable position");
+		assertEquals(0, Gantt.scrollToTaskViewX(900, 800, 500), "a chart narrower than the viewport stays at 0");
+	}
 }

@@ -108,12 +108,12 @@ public class SpinEditor extends SimpleEditor {
 		Object value = null;
 		try {
 			if (field.isPercent()) {
-				value = PercentFormat.getInstance().parseObject(editor.getTextField().getText());
+				value = PercentFormat.getInstance().parseObject(com.microproject.util.FullWidthInput.normalize(editor.getTextField().getText()));
 //	JSpinner screws up and sometimes adds a small fraction to the value.  Round it to get rid of it.  Example, 15% shows up with a miniscule .000000000000000002 at the end
 				value = Double.valueOf(MathUtils.roundToDecentPrecision(((Number) value).doubleValue()));
 			}
 			else
-				value = NumberFormat.getInstance(Locale.getDefault()).parseObject(editor.getTextField().getText());
+				value = NumberFormat.getInstance(Locale.getDefault()).parseObject(com.microproject.util.FullWidthInput.normalize(editor.getTextField().getText()));
 		} catch (ParseException e) {
 			return null;
 		}
