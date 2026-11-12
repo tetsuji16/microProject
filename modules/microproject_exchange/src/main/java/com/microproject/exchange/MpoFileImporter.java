@@ -98,7 +98,7 @@ public class MpoFileImporter extends FileImporter {
 	private static final Pattern SERIALIZER_CLOCK = Pattern.compile("<CurrentDate>[^<]*</CurrentDate>");
 	private boolean replaceDifferentDocument;
 	private volatile boolean committed;
-	private static volatile Path extractionWorkspaceRoot;
+	static volatile Path extractionWorkspaceRoot;
 	static final String MIMETYPE_ENTRY = "mimetype";
 	static final String MANIFEST_ENTRY = "META-INF/manifest.xml";
 	static final String PROJECT_ENTRY = "content.xml";
@@ -131,23 +131,23 @@ public class MpoFileImporter extends FileImporter {
 	 */
 	static final int SUPPORTED_FORMAT_MAJOR = MpoFormatVersion.CURRENT.major();
 	/** Marker added once MPOF snapshots use the MSPDI minute-based delay unit. */
-	private static final String LEVELING_DELAY_UNIT_ATTRIBUTE = "levelingDelayUnit";
-	private static final String LEVELING_DELAY_UNIT_MINUTES = "minutes";
-	private static final String ASSIGNMENT_BASELINE_COST_UNIT_ATTRIBUTE = "assignmentBaselineCostUnit";
-	private static final String ASSIGNMENT_BASELINE_COST_UNIT_HUNDREDTHS = "mspdi-hundredths";
-	private static final String LEVELING_DELAY_FORMAT_MINUTES = "3";
-	private static final Pattern LEVELING_DELAY = Pattern.compile("<LevelingDelay>(-?\\d+)</LevelingDelay>");
-	private static final Pattern LEVELING_DELAY_FORMAT = Pattern.compile("<LevelingDelayFormat>\\d+</LevelingDelayFormat>");
+	static final String LEVELING_DELAY_UNIT_ATTRIBUTE = "levelingDelayUnit";
+	static final String LEVELING_DELAY_UNIT_MINUTES = "minutes";
+	static final String ASSIGNMENT_BASELINE_COST_UNIT_ATTRIBUTE = "assignmentBaselineCostUnit";
+	static final String ASSIGNMENT_BASELINE_COST_UNIT_HUNDREDTHS = "mspdi-hundredths";
+	static final String LEVELING_DELAY_FORMAT_MINUTES = "3";
+	static final Pattern LEVELING_DELAY = Pattern.compile("<LevelingDelay>(-?\\d+)</LevelingDelay>");
+	static final Pattern LEVELING_DELAY_FORMAT = Pattern.compile("<LevelingDelayFormat>\\d+</LevelingDelayFormat>");
 	static final String OPERATIONS_ENTRY = "operations/log.jsonl";
 	/** Read-only aliases for MPOF drafts written before the XML/JSONL layout was settled. */
-	private static final String DRAFT_CCPM_ENTRY = "ccpm.json";
-	private static final String DRAFT_OPERATIONS_ENTRY = "changes/operations.json";
+	static final String DRAFT_CCPM_ENTRY = "ccpm.json";
+	static final String DRAFT_OPERATIONS_ENTRY = "changes/operations.json";
 	static final String TASK_IDENTITIES_ENTRY = "changes/task-identities.json";
 	/** Raw linked project files carried by a portable master-project archive. */
 	static final String EMBEDDED_PROJECT_PREFIX = "projects/";
-	private static final int MAX_ENTRY_BYTES = 64 * 1024 * 1024;
+	static final int MAX_ENTRY_BYTES = 64 * 1024 * 1024;
 	private static final int MAX_TOTAL_BYTES = 128 * 1024 * 1024;
-	private static final int MAX_ENTRIES = 128;
+	static final int MAX_ENTRIES = 128;
 	/** Semantic limits are independent of the compressed/archive byte budget. */
 	static final int MAX_OPERATION_COUNT = 100_000;
 	static final int MAX_OPERATION_PARENTS = 256;
@@ -158,7 +158,7 @@ public class MpoFileImporter extends FileImporter {
 	static final int MAX_JSON_NESTING = 32;
 	static final int MAX_CCPM_HISTORY_ENTRIES = 100_000;
 	static final int MAX_CCPM_HISTORY_LINE_CHARS = 64 * 1024;
-	private static final ObjectMapper JSON = new ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
+	static final ObjectMapper JSON = new ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
 		.enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
 	/**
@@ -256,12 +256,12 @@ public class MpoFileImporter extends FileImporter {
 		if (settings != null && draftCcpm != null) {
 			throw new IOException("MPOF contains both current and draft CCPM settings");
 		}
-		boolean legacyMicroprojectLevelingDelay = meta != null && isLegacyMicroprojectLevelingDelay(meta);
+		boolean legacyMicroprojectLevelingDelay = meta != null && MpoManifest.isLegacyMicroprojectLevelingDelay(meta);
 		boolean legacyMicroprojectAssignmentBaselineCost = meta != null
-			&& isLegacyMicroprojectAssignmentBaselineCost(meta);
-		if (meta != null) validateMeta(meta);
-		ManifestData manifestData = readManifest(manifest, projectXml);
-		validateArchiveChecksums(manifestData, mimetype, meta, settings, ccpmHistory, layout, visibility,
+			&& MpoManifest.isLegacyMicroprojectAssignmentBaselineCost(meta);
+		if (meta != null) MpoManifest.validateMeta(meta);
+		ManifestData manifestData = MpoManifest.readManifest(manifest, projectXml);
+		MpoManifest.validateArchiveChecksums(manifestData, mimetype, meta, settings, ccpmHistory, layout, visibility,
 				draftCcpm, operations, draftOperations, taskIdentities, projectXml, extensions.entries);
 		if (operations != null && draftOperations != null)
 			throw new IOException("MPOF contains both current and draft operation logs");
@@ -273,17 +273,17 @@ public class MpoFileImporter extends FileImporter {
 		if (operationLog != null && manifestData.documentId() != null
 				&& !manifestData.documentId().equals(operationLog.documentId()))
 			throw new IOException("MPOF operation log document identity does not match its manifest");
-		java.util.Map<Long, Long> taskIdentityMap = taskIdentities == null ? null : readTaskIdentities(taskIdentities);
+		java.util.Map<Long, Long> taskIdentityMap = taskIdentities == null ? null : MpoSidecarJson.readTaskIdentities(taskIdentities);
 		if (ccpmHistory != null) validateCcpmHistory(ccpmHistory);
 		// Freeze the validated read boundary before constructing the mutable model.
 		// The plan is deliberately built from immutable snapshot data so malformed
 		// archives fail before any Project state is changed.
-		MpoArchiveSnapshot snapshot = snapshotOf(manifestData, projectXml, extensions.entries);
-		validateMergePlan(planFor(snapshot, java.util.List.of(), java.util.List.of()));
-		java.util.Map<String, SubProj.LoadStatus> embeddedProjectFailures = validateEmbeddedProjects(manifestData, extensions.entries);
-		if (legacyMicroprojectLevelingDelay) projectXml = migrateLegacyLevelingDelays(projectXml);
+		MpoArchiveSnapshot snapshot = MpoExternalMerge.snapshotOf(manifestData, projectXml, extensions.entries);
+		MpoExternalMerge.validateMergePlan(MpoExternalMerge.planFor(snapshot, java.util.List.of(), java.util.List.of()));
+		java.util.Map<String, SubProj.LoadStatus> embeddedProjectFailures = MpoEmbeddedProjects.validateEmbeddedProjects(manifestData, extensions.entries);
+		if (legacyMicroprojectLevelingDelay) projectXml = MpoManifest.migrateLegacyLevelingDelays(projectXml);
 		if (legacyMicroprojectAssignmentBaselineCost)
-			projectXml = migrateLegacyAssignmentBaselineCosts(projectXml);
+			projectXml = MpoManifest.migrateLegacyAssignmentBaselineCosts(projectXml);
 		MicrosoftImporter delegate = new MicrosoftImporter();
 		delegate.setFileName(PROJECT_ENTRY);
 		delegate.setProjectFactory(projectFactory);
@@ -304,13 +304,13 @@ public class MpoFileImporter extends FileImporter {
 		if (manifestData.sharedResourcePoolProjectId() != null && manifestData.sharedResourcePoolProjectId().longValue() != 0L)
 			project.setSharedResourcePoolProjectId(manifestData.sharedResourcePoolProjectId().longValue());
 		if (settings != null) {
-			restoreSettings(project, settings);
+			MpoManifest.restoreSettings(project, settings);
 		} else if (draftCcpm != null) {
 			restoreCcpm(project, new String(draftCcpm, StandardCharsets.UTF_8));
 		}
 		if (ccpmHistory != null) restoreCcpmHistory(project, ccpmHistory);
-		if (layout != null) restoreLayout(project, layout);
-		if (visibility != null) restoreVisibility(project, visibility);
+		if (layout != null) MpoSidecarJson.restoreLayout(project, layout);
+		if (visibility != null) MpoSidecarJson.restoreVisibility(project, visibility);
 		if (operationLog != null) {
 			if (manifestData.documentId() == null) project.setDocumentId(operationLog.documentId());
 			java.util.List<OperationLog.Operation> normalized = taskIdentities == null ? operationLog.operations()
@@ -328,7 +328,7 @@ public class MpoFileImporter extends FileImporter {
 			state.capture(project);
 		}
 		if (!extensions.entries.isEmpty()) project.getOrCreateTransientDocumentState(MpoExtensions.class, MpoExtensions::new).entries.putAll(extensions.entries);
-		restoreEmbeddedProjectReferences(project, manifestData, extensions.entries, embeddedProjectFailures);
+		MpoEmbeddedProjects.restoreEmbeddedProjectReferences(project, manifestData, extensions.entries, embeddedProjectFailures);
 		restoreTaskExtensions(project, extensions.entries);
 		return project;
 	}
@@ -336,19 +336,19 @@ public class MpoFileImporter extends FileImporter {
 	/** Applies the task data MSPDI cannot hold; opening a file and copying a model must agree on it. */
 	private static void restoreTaskExtensions(Project project, java.util.Map<String, byte[]> entries) throws IOException {
 		if (entries.containsKey(TASK_SPLITS_ENTRY))
-			restoreTaskSplits(project, entries.get(TASK_SPLITS_ENTRY));
+			MpoSidecarJson.restoreTaskSplits(project, entries.get(TASK_SPLITS_ENTRY));
 		if (entries.containsKey(TASK_LEVELING_OPTIONS_ENTRY))
-			restoreTaskLevelingOptions(project, entries.get(TASK_LEVELING_OPTIONS_ENTRY));
+			MpoSidecarJson.restoreTaskLevelingOptions(project, entries.get(TASK_LEVELING_OPTIONS_ENTRY));
 		else
-			resetLegacyTaskLevelingDefaults(project);
+			MpoSidecarJson.resetLegacyTaskLevelingDefaults(project);
 		if (entries.containsKey(TASK_TEXT_STYLES_ENTRY))
-			restoreTaskTextStyles(project, entries.get(TASK_TEXT_STYLES_ENTRY));
+			MpoSidecarJson.restoreTaskTextStyles(project, entries.get(TASK_TEXT_STYLES_ENTRY));
 		if (entries.containsKey(TASK_SCHEDULES_ENTRY))
-			restoreTaskSchedules(project, entries.get(TASK_SCHEDULES_ENTRY));
+			MpoSidecarJson.restoreTaskSchedules(project, entries.get(TASK_SCHEDULES_ENTRY));
 		if (entries.containsKey(BASELINE_PROFILES_ENTRY))
-			restoreBaselineProfiles(project, entries.get(BASELINE_PROFILES_ENTRY));
+			MpoSidecarJson.restoreBaselineProfiles(project, entries.get(BASELINE_PROFILES_ENTRY));
 		if (entries.containsKey(ASSIGNMENT_LEVELING_SPLITS_ENTRY))
-			restoreAssignmentLevelingSplits(project, entries.get(ASSIGNMENT_LEVELING_SPLITS_ENTRY));
+			MpoSidecarJson.restoreAssignmentLevelingSplits(project, entries.get(ASSIGNMENT_LEVELING_SPLITS_ENTRY));
 	}
 
 	@Override
@@ -447,13 +447,13 @@ public class MpoFileImporter extends FileImporter {
 					operationState.appliedOperationIds);
 			// Merging may apply operations from a concurrent editor.  Serialize only
 			// after that merge so content.xml and the journal describe the same state.
-			output = captureModel(outputProject, serializeProject(outputProject));
-			operationState.remapTaskIds(readTaskIdentities(output.entries().get(TASK_IDENTITIES_ENTRY)));
+			output = captureModel(outputProject, MpoSidecarJson.serializeProject(outputProject));
+			operationState.remapTaskIds(MpoSidecarJson.readTaskIdentities(output.entries().get(TASK_IDENTITIES_ENTRY)));
 		}
 		File temporary = createTemporaryFile(target);
 		boolean completed = false;
 		try (OutputStream out = new FileOutputStream(temporary)) {
-			writeCapture(output, out, operationState);
+			MpoExternalMerge.writeCapture(output, out, operationState);
 			completed = true;
 		} finally {
 			if (!completed) {
@@ -505,13 +505,13 @@ public class MpoFileImporter extends FileImporter {
 		// The baseline describes the live model, never the MSPDI copy, whose values
 		// can round differently and would then look like an edit on the next save.
 		if (appliesExternalOperations) plan.capture(project);
-		commitOperationState(project, plan);
+		MpoExternalMerge.commitOperationState(project, plan);
 		committed = true;
 	}
 
 	/** Compares the model with the journal baseline; cheap enough for the EDT. */
 	private static boolean hasUnjournaledChanges(Project project) throws IOException {
-		MpoOperationState probe = workingOperationStateFor(project);
+		MpoOperationState probe = MpoExternalMerge.workingOperationStateFor(project);
 		int before = probe.operations.size();
 		probe.appendChanges(project);
 		return probe.operations.size() != before;
@@ -555,11 +555,11 @@ public class MpoFileImporter extends FileImporter {
 
 	/** @return the capture, or {@code null} when the model changed while it was read */
 	private static MpoCapture captureOnce(Project project) throws IOException {
-		MpoCapture captured = captureModel(project, serializeProject(project));
-		java.util.Map<Long, Long> taskIdentities = readTaskIdentities(captured.entries().get(TASK_IDENTITIES_ENTRY));
+		MpoCapture captured = captureModel(project, MpoSidecarJson.serializeProject(project));
+		java.util.Map<Long, Long> taskIdentities = MpoSidecarJson.readTaskIdentities(captured.entries().get(TASK_IDENTITIES_ENTRY));
 		MpoOperationState reservation = ProjectMutationState.coordinated(() -> {
 			try {
-				MpoOperationState working = workingOperationStateFor(project);
+				MpoOperationState working = MpoExternalMerge.workingOperationStateFor(project);
 				working.appendChanges(project);
 				ensureOperationCount(working.operations);
 				return working;
@@ -571,7 +571,7 @@ public class MpoFileImporter extends FileImporter {
 		reservation.remapTaskIds(taskIdentities);
 		// Reserved on the live journal so a failed write or replacement retries with
 		// the same operation IDs, and a later edit becomes a separate operation.
-		commitOperationState(project, reservation);
+		MpoExternalMerge.commitOperationState(project, reservation);
 		return new MpoCapture(captured.serialized(), captured.entries(), captured.metadata(), captured.fingerprint(),
 				reservation.copy());
 	}
@@ -622,7 +622,7 @@ public class MpoFileImporter extends FileImporter {
 
 	protected void verifyMergeApplicability(Project source, java.util.List<OperationLog.Operation> operations,
 			java.util.Set<String> alreadyAppliedOperationIds) throws IOException {
-		Project preflight = copyProjectForTransaction(source, serializeProjectXml(source));
+		Project preflight = copyProjectForTransaction(source, MpoSidecarJson.serializeProjectXml(source));
 		// Preflight is an internal validation pass.  Keep it independent from
 		// the overridable commit-stage seam so an injected commit failure cannot
 		// accidentally make the archive replacement happen later than intended.
@@ -642,14 +642,14 @@ public class MpoFileImporter extends FileImporter {
 	@Override
 	public boolean saveProject(Project project, OutputStream out) throws Exception {
 		MpoCapture captured = captureLiveModel(project);
-		writeCapture(captured, out, captured.operationState());
+		MpoExternalMerge.writeCapture(captured, out, captured.operationState());
 		if (!captured.fingerprint().equals(fingerprintOf(project)))
 			throw new IOException("The project changed while it was being saved");
 		return true;
 	}
 
 	private static String fingerprintOf(Project project) throws IOException {
-		return captureModel(project, serializeProject(project)).fingerprint();
+		return captureModel(project, MpoSidecarJson.serializeProject(project)).fingerprint();
 	}
 
 	/** Reads everything an archive takes from the model, into detached bytes. */
@@ -657,21 +657,21 @@ public class MpoFileImporter extends FileImporter {
 		byte[] projectXml = serialized.xml();
 		java.util.LinkedHashMap<String, byte[]> entries = new java.util.LinkedHashMap<>();
 		CriticalChainService.Settings ccpm = existingCcpm(project);
-		entries.put(SETTINGS_ENTRY, settingsXml(ccpm, ccpm == null ? null : new CriticalChainService().findBaseline(project)).getBytes(StandardCharsets.UTF_8));
-		byte[] layout = layoutJson(project);
+		entries.put(SETTINGS_ENTRY, MpoManifest.settingsXml(ccpm, ccpm == null ? null : new CriticalChainService().findBaseline(project)).getBytes(StandardCharsets.UTF_8));
+		byte[] layout = MpoSidecarJson.layoutJson(project);
 		if (layout != null) entries.put(LAYOUT_ENTRY, layout);
 		// Filled from the operation plan when written; the journal is not model content.
 		entries.put(OPERATIONS_ENTRY, new byte[0]);
-		String taskIdentities = taskIdentitiesFor(project, projectXml);
+		String taskIdentities = MpoSidecarJson.taskIdentitiesFor(project, projectXml);
 		entries.put(TASK_IDENTITIES_ENTRY, taskIdentities.getBytes(StandardCharsets.UTF_8));
-		entries.put(VISIBILITY_ENTRY, visibilityJson(project, taskIdentities));
-		entries.put(TASK_SPLITS_ENTRY, taskSplitsJson(project, taskIdentities));
-		entries.put(TASK_LEVELING_OPTIONS_ENTRY, taskLevelingOptionsJson(project, taskIdentities));
-		entries.put(TASK_TEXT_STYLES_ENTRY, taskTextStylesJson(project, taskIdentities));
-		entries.put(TASK_SCHEDULES_ENTRY, taskSchedulesJson(project, taskIdentities));
-		entries.put(BASELINE_PROFILES_ENTRY, baselineProfilesJson(project, taskIdentities,
-			resourceIdentitiesForMpo(project)));
-		entries.put(ASSIGNMENT_LEVELING_SPLITS_ENTRY, assignmentLevelingSplitsJson(project, serialized.assignmentUids()));
+		entries.put(VISIBILITY_ENTRY, MpoSidecarJson.visibilityJson(project, taskIdentities));
+		entries.put(TASK_SPLITS_ENTRY, MpoSidecarJson.taskSplitsJson(project, taskIdentities));
+		entries.put(TASK_LEVELING_OPTIONS_ENTRY, MpoSidecarJson.taskLevelingOptionsJson(project, taskIdentities));
+		entries.put(TASK_TEXT_STYLES_ENTRY, MpoSidecarJson.taskTextStylesJson(project, taskIdentities));
+		entries.put(TASK_SCHEDULES_ENTRY, MpoSidecarJson.taskSchedulesJson(project, taskIdentities));
+		entries.put(BASELINE_PROFILES_ENTRY, MpoSidecarJson.baselineProfilesJson(project, taskIdentities,
+			MpoSidecarJson.resourceIdentitiesForMpo(project)));
+		entries.put(ASSIGNMENT_LEVELING_SPLITS_ENTRY, MpoSidecarJson.assignmentLevelingSplitsJson(project, serialized.assignmentUids()));
 		entries.put(CCPM_HISTORY_ENTRY, ccpmHistoryJson(project));
 		MpoExtensions extensions = project.findTransientDocumentState(MpoExtensions.class);
 		if (extensions != null) for (java.util.Map.Entry<String, byte[]> extension : extensions.entries.entrySet()) {
@@ -681,7 +681,7 @@ public class MpoFileImporter extends FileImporter {
 		MpoDocumentMetadata metadata = new MpoDocumentMetadata(project.getDocumentId(), project.getUniqueId(),
 				String.valueOf(project.getName()), project.getSharedResourcePoolFile(),
 				project.getSharedResourcePoolProjectId(), project.isStatusDateSet() ? project.getStatusDate() : 0L,
-				embeddedSourcesFor(project));
+				MpoEmbeddedProjects.embeddedSourcesFor(project));
 		return new MpoCapture(serialized, entries, metadata, fingerprint(projectXml, entries, metadata), null);
 	}
 
@@ -706,75 +706,17 @@ public class MpoFileImporter extends FileImporter {
 	}
 
 	/** Writes a detached capture; only linked files are read, and no model state. */
-	private static void writeCapture(MpoCapture capture, OutputStream out, MpoOperationState operationState) throws Exception {
-		ensureOperationCount(operationState.operations);
-		MpoDocumentMetadata metadata = capture.metadata();
-		byte[] projectXml = capture.serialized().xml();
-		java.util.List<EmbeddedProject> embeddedProjects = readEmbeddedProjects(metadata.embeddedSources());
-		java.util.LinkedHashMap<String, byte[]> archiveEntries = new java.util.LinkedHashMap<>();
-		archiveEntries.put(MIMETYPE_ENTRY, MpoFormatIdentifiers.WRITE_AND_READ_MIME_TYPE.getBytes(StandardCharsets.US_ASCII));
-		archiveEntries.put(META_ENTRY, metaXml().getBytes(StandardCharsets.UTF_8));
-		archiveEntries.put(PROJECT_ENTRY, projectXml);
-		for (EmbeddedProject embedded : embeddedProjects)
-			archiveEntries.put(embedded.entryName(), embedded.contents());
-		archiveEntries.putAll(capture.entries());
-		archiveEntries.put(OPERATIONS_ENTRY, operationState.json);
-		MpoArchiveSnapshot snapshot = snapshotForWrite(metadata, projectXml, archiveEntries, embeddedProjects);
-		java.util.List<MpoMergePlan.Operation> writeOperations = archiveEntries.keySet().stream()
-				.map(name -> new MpoMergePlan.Operation(name, MpoMergePlan.Action.KEEP)).toList();
-		validateMergePlan(planFor(snapshot, writeOperations, java.util.List.of()));
-		try (ZipOutputStream zip = new ZipOutputStream(out, StandardCharsets.UTF_8)) {
-			writeMimetypeEntry(zip);
-			writeEntry(zip, MANIFEST_ENTRY, manifestFor(projectXml, metadata.documentId(), metadata.uniqueId(),
-					metadata.sharedResourcePoolFile(), embeddedProjects, archiveEntries,
-					metadata.sharedResourcePoolProjectId(), metadata.statusDate()).getBytes(StandardCharsets.UTF_8));
-			for (java.util.Map.Entry<String, byte[]> entry : archiveEntries.entrySet()) {
-				if (!MANIFEST_ENTRY.equals(entry.getKey()) && !MIMETYPE_ENTRY.equals(entry.getKey()))
-					writeEntry(zip, entry.getKey(), entry.getValue());
-			}
-		}
-	}
-
 	static void ensureOperationCount(java.util.Collection<OperationLog.Operation> operations) throws IOException {
 		if (operations != null && operations.size() > MAX_OPERATION_COUNT)
 			throw new IOException("MPOF operation log exceeds " + MAX_OPERATION_COUNT + " operations");
 	}
 
-	private static MpoArchiveSnapshot snapshotForWrite(MpoDocumentMetadata metadata, byte[] projectXml,
-			java.util.Map<String, byte[]> archiveEntries, java.util.List<EmbeddedProject> embeddedProjects) {
-		String documentId = metadata.documentId() == null ? "" : metadata.documentId();
-		java.util.List<String> embedded = embeddedProjects.stream().map(EmbeddedProject::sourcePath).toList();
-		return new MpoArchiveSnapshot(archiveEntries,
-				new MpoArchiveSnapshot.MspProjection(documentId, metadata.name(),
-						new String(projectXml, StandardCharsets.UTF_8)),
-				new MpoArchiveSnapshot.MpofMetadata(FORMAT_VERSION, documentId, embedded));
-	}
-
 	/** Creates a detached operation-state plan.  Callers commit it only after
 	 * their output transaction has completed successfully. */
-	private static MpoOperationState workingOperationStateFor(Project project) throws IOException {
-		MpoOperationState current = project.findTransientDocumentState(MpoOperationState.class);
-		if (current == null) {
-			MpoOperationState created = new MpoOperationState();
-			created.documentId = project.getDocumentId();
-			created.json = new OperationLog().writeJsonl(created.documentId, java.util.List.of());
-			created.capture(project);
-			return created;
-		}
-		return current.copy();
-	}
-
-	private static void commitOperationState(Project project, MpoOperationState plan) throws IOException {
-		MpoOperationState current = project.findTransientDocumentState(MpoOperationState.class);
-		if (current == null)
-			current = project.getOrCreateTransientDocumentState(MpoOperationState.class, MpoOperationState::new);
-		current.commitFrom(plan);
-	}
-
 	/** The candidate written to an existing file: the document as reopening the capture would show it. */
 	private Project copyOfCapture(MpoCapture captured) throws IOException {
 		Project copy = copyProjectForTransaction(project, captured.serialized().xml());
-		restoreVisibility(copy, captured.entries().get(VISIBILITY_ENTRY));
+		MpoSidecarJson.restoreVisibility(copy, captured.entries().get(VISIBILITY_ENTRY));
 		restoreTaskExtensions(copy, captured.entries());
 		return copy;
 	}
@@ -824,1170 +766,6 @@ public class MpoFileImporter extends FileImporter {
 		}
 	}
 
-	private static byte[] layoutJson(Project project) throws IOException {
-		SpreadSheetFieldArray fields = project.getFieldArray();
-		if (fields == null || fields.isEmpty()) return null;
-		ObjectNode root = JSON.createObjectNode();
-		var serializedFields = root.putArray("fields");
-		for (int index = 0; index < fields.size(); index++) {
-			Field field = fields.get(index);
-			ObjectNode serialized = serializedFields.addObject();
-			serialized.put("id", TimeDistributedHelper.getIdForObject(field));
-			serialized.put("width", fields.getWidth(index));
-			serialized.put("manual", fields.isManualWidth(index));
-			// Optional key, written only when wrapping is switched off so default layouts stay byte-identical.
-			if (!fields.isHeaderWrap(index)) serialized.put("wrapHeader", false);
-		}
-		return JSON.writeValueAsBytes(root);
-	}
-
-	private static void restoreLayout(Project project, byte[] bytes) throws IOException {
-		JsonNode entries = JSON.readTree(bytes).path("fields");
-		if (!entries.isArray() || entries.size() == 0 || entries.size() > 512) {
-			throw new IOException("Invalid MPO layout field list");
-		}
-		SpreadSheetFieldArray fields = new SpreadSheetFieldArray();
-		var widths = new java.util.ArrayList<Integer>();
-		var manualWidths = new java.util.ArrayList<Boolean>();
-		var headerWraps = new java.util.ArrayList<Boolean>();
-		for (JsonNode entry : entries) {
-			String id = entry.path("id").asText(null);
-			if (id == null || id.isBlank()) throw new IOException("Invalid MPO layout field id");
-			Object field = TimeDistributedHelper.getObjectFromId(id);
-			if (!(field instanceof Field)) throw new IOException("Unknown MPO layout field: " + id);
-			int width = entry.path("width").asInt(-1);
-			if (width < -1 || width > 100000) throw new IOException("Invalid MPO layout width");
-			fields.add((Field) field);
-			widths.add(width);
-			manualWidths.add(entry.path("manual").asBoolean(false));
-			headerWraps.add(entry.path("wrapHeader").asBoolean(true));
-		}
-		fields.setWidths(widths);
-		fields.setManualWidths(manualWidths);
-		fields.setHeaderWraps(headerWraps);
-		fields.setCategory(com.microproject.graphic.configuration.SpreadSheetCategories.taskSpreadsheetCategory);
-		fields.setName(project.getName());
-		project.setFieldArray(fields);
-	}
-
-	private static byte[] serializeProjectXml(Project project) throws IOException {
-		return serializeProject(project).xml();
-	}
-
-	private static SerializedProjectXml serializeProject(Project project) throws IOException {
-		ByteArrayOutputStream xml = new ByteArrayOutputStream();
-		com.microproject.server.data.MSPDISerializer serializer = new com.microproject.server.data.MSPDISerializer();
-		try {
-			serializer.saveProjectOrThrow(project, xml);
-			return new SerializedProjectXml(xml.toByteArray(), serializer.exportedAssignmentUniqueIds());
-		} catch (Exception exception) {
-			if (exception instanceof IOException io) throw io;
-			throw new IOException("Unable to serialize mpo project snapshot", exception);
-		}
-	}
-
-	private static String taskIdentitiesFor(Project project, byte[] projectXml) throws IOException {
-		ObjectNode root = JSON.createObjectNode();
-		try {
-			javax.xml.parsers.DocumentBuilderFactory factory = secureDocumentBuilderFactory();
-			org.w3c.dom.Document document = factory.newDocumentBuilder().parse(new ByteArrayInputStream(projectXml));
-			org.w3c.dom.NodeList xmlTasks = document.getElementsByTagName("Task");
-			java.util.Iterator<?> modelTasks = project.getTaskOutlineIterator();
-			for (int i = 0; i < xmlTasks.getLength() && modelTasks.hasNext(); i++) {
-				org.w3c.dom.Element xmlTask = (org.w3c.dom.Element) xmlTasks.item(i);
-				String nullValue = childText(xmlTask, "IsNull");
-				if (nullValue == null) nullValue = childText(xmlTask, "Null");
-				if ("1".equals(nullValue == null ? null : nullValue.trim())) continue;
-				String uid = childText(xmlTask, "UID");
-				if (uid != null) {
-					Task task = (Task) modelTasks.next();
-					root.put(String.valueOf(task.getUniqueId()), Long.parseLong(uid));
-				}
-			}
-			return JSON.writeValueAsString(root);
-		} catch (Exception exception) {
-			throw new IOException("Unable to build mpo task identity map", exception);
-		}
-	}
-
-	/** Direct-child lookup; searching the subtree of every task is quadratic in practice. */
-	private static String childText(org.w3c.dom.Element parent, String name) {
-		for (org.w3c.dom.Node child = parent.getFirstChild(); child != null; child = child.getNextSibling())
-			if (name.equals(child.getNodeName())) return child.getTextContent();
-		return null;
-	}
-
-	/** One pass over the outline, for callers that would otherwise search it per task. */
-	private static java.util.Map<Long, Task> tasksByUniqueId(Project project) {
-		java.util.Map<Long, Task> tasks = new java.util.HashMap<>();
-		for (java.util.Iterator<Task> iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
-			Task task = iterator.next();
-			tasks.putIfAbsent(Long.valueOf(task.getUniqueId()), task);
-		}
-		return tasks;
-	}
-
-	private static byte[] visibilityJson(Project project, String taskIdentities) throws IOException {
-		try {
-			JsonNode identities = JSON.readTree(taskIdentities);
-			if (!identities.isObject()) throw new IOException("Invalid mpo task identity map");
-			ObjectNode root = JSON.createObjectNode();
-			root.put("version", 1);
-			com.fasterxml.jackson.databind.node.ArrayNode hidden = root.putArray("hiddenTaskUniqueIds");
-			java.util.Map<Long, Task> tasks = tasksByUniqueId(project);
-			java.util.Iterator<java.util.Map.Entry<String, JsonNode>> fields = identities.fields();
-			while (fields.hasNext()) {
-				java.util.Map.Entry<String, JsonNode> entry = fields.next();
-				long sourceId = Long.parseLong(entry.getKey());
-				Task task = tasks.get(Long.valueOf(sourceId));
-				if (task != null && task.isHiddenTask())
-					hidden.add(entry.getValue().longValue());
-			}
-			return JSON.writeValueAsBytes(root);
-		} catch (NumberFormatException exception) {
-			throw new IOException("Invalid mpo task identity", exception);
-		}
-	}
-
-	private static byte[] taskSplitsJson(Project project, String taskIdentities) throws IOException {
-		try {
-			JsonNode identities = JSON.readTree(taskIdentities);
-			ObjectNode root = JSON.createObjectNode();
-			root.put("version", 1);
-			com.fasterxml.jackson.databind.node.ArrayNode tasks = root.putArray("tasks");
-			for (java.util.Iterator<?> it = project.getTaskOutlineIterator(); it.hasNext();) {
-				Task task = (Task) it.next();
-				NormalTask normalTask = task instanceof NormalTask normal ? normal : null;
-				Task.LevelingManualDateState manualDates = task.getLevelingManualDateState();
-				if ((normalTask == null || normalTask.getTaskSplitIntervals().isEmpty()) && manualDates == null) continue;
-				JsonNode serializedUid = identities.path(String.valueOf(task.getUniqueId()));
-				if (!serializedUid.canConvertToLong()) throw new IOException("Missing serialized task identity for task split");
-				ObjectNode taskNode = tasks.addObject();
-				taskNode.put("taskUid", serializedUid.longValue());
-				com.fasterxml.jackson.databind.node.ArrayNode intervals = taskNode.putArray("intervals");
-				for (TaskSplitInterval interval : normalTask == null ? java.util.List.<TaskSplitInterval>of() : normalTask.getTaskSplitIntervals()) {
-					ObjectNode intervalNode = intervals.addObject();
-					intervalNode.put("startOffset", interval.startOffset());
-					intervalNode.put("endOffset", interval.endOffset());
-				}
-				writeTaskSplitIntervals(taskNode.putArray("manualIntervals"), normalTask == null ? java.util.List.of() : normalTask.getManualTaskSplitIntervals());
-				writeTaskSplitIntervals(taskNode.putArray("levelingIntervals"), normalTask == null ? java.util.List.of() : normalTask.getLevelingTaskSplitIntervals());
-				if (manualDates != null) {
-					ObjectNode dates = taskNode.putObject("manualLevelingDates");
-					dates.put("originalStart", manualDates.originalStart());
-					dates.put("originalFinish", manualDates.originalFinish());
-					dates.put("generatedStart", manualDates.generatedStart());
-					dates.put("generatedFinish", manualDates.generatedFinish());
-				}
-			}
-			return JSON.writeValueAsBytes(root);
-		} catch (IOException exception) {
-			throw exception;
-		} catch (Exception exception) {
-			throw new IOException("Unable to serialize mpo task splits", exception);
-		}
-	}
-
-	private static byte[] taskLevelingOptionsJson(Project project, String taskIdentities) throws IOException {
-		return perTaskOptionsJson(project, taskIdentities, "leveling options", "leveling options",
-			// The current core model cannot encode MSPDI recurrence. Preserve an
-			// imported recurring task's effective No/Yes values even when they equal
-			// that source task's recurrence-sensitive defaults.
-			task -> !task.isRecurringTask() && task.isLevelingCanSplit() && task.isLevelAssignments(),
-			(task, node) -> {
-				node.put("levelingCanSplit", task.isLevelingCanSplit());
-				node.put("levelAssignments", task.isLevelAssignments());
-			});
-	}
-
-	private static void restoreTaskLevelingOptions(Project project, byte[] bytes) throws IOException {
-		restorePerTaskOptions(project, bytes, "Invalid mpo task leveling options",
-			"MPO contains too many task leveling options", "Duplicate MPO task leveling option identity",
-			"MPO task leveling options reference an unknown task", node -> {
-				JsonNode canSplit = node.get("levelingCanSplit");
-				JsonNode levelAssignments = node.get("levelAssignments");
-				if (canSplit == null || !canSplit.isBoolean() || levelAssignments == null || !levelAssignments.isBoolean())
-					throw new IOException("Invalid MPO task leveling option values");
-				return task -> {
-					task.setLevelingCanSplit(canSplit.booleanValue());
-					task.setLevelAssignments(levelAssignments.booleanValue());
-				};
-			});
-	}
-
-	private static byte[] taskTextStylesJson(Project project, String taskIdentities) throws IOException {
-		return perTaskOptionsJson(project, taskIdentities, "text style", "text styles",
-			task -> task.getFontFamily() == null && task.getFontSize() == 0 && task.getFontColor() == null
-				&& !task.isFontBold() && !task.isFontItalic() && !task.isFontStrikethrough(),
-			(task, node) -> {
-				if (task.getFontFamily() != null) node.put("fontFamily", task.getFontFamily());
-				node.put("fontSize", task.getFontSize());
-				if (task.getFontColor() != null) node.put("fontColor", task.getFontColor().intValue());
-				node.put("bold", task.isFontBold());
-				node.put("italic", task.isFontItalic());
-				node.put("strikethrough", task.isFontStrikethrough());
-			});
-	}
-
-	private static void restoreTaskTextStyles(Project project, byte[] bytes) throws IOException {
-		restorePerTaskOptions(project, bytes, "Invalid mpo task text styles", "MPO contains too many task text styles",
-			"Duplicate MPO task text style identity", "MPO task text styles reference an unknown task", node -> {
-				JsonNode family = node.get("fontFamily");
-				JsonNode size = node.get("fontSize");
-				JsonNode color = node.get("fontColor");
-				JsonNode bold = node.get("bold");
-				JsonNode italic = node.get("italic");
-				JsonNode strikethrough = node.get("strikethrough");
-				// Task.setFontSize accepts 0 (inherit) through 72 points; a larger stored value
-				// is corrupted data, not a size to clamp silently.
-				if ((family != null && !family.isTextual()) || size == null || !size.isIntegralNumber()
-						|| !size.canConvertToInt() || size.intValue() < 0 || size.intValue() > 72
-						|| (color != null && (!color.isIntegralNumber() || !color.canConvertToInt()
-							|| color.intValue() < 0 || color.intValue() > 0xFFFFFF))
-						|| bold == null || !bold.isBoolean() || italic == null || !italic.isBoolean()
-						|| strikethrough == null || !strikethrough.isBoolean())
-					throw new IOException("Invalid MPO task text style values");
-				return task -> {
-					task.setFontFamily(family == null ? null : family.textValue());
-					task.setFontSize(size.intValue());
-					task.setFontColor(color == null ? null : Integer.valueOf(color.intValue()));
-					task.setFontBold(bold.booleanValue());
-					task.setFontItalic(italic.booleanValue());
-					task.setFontStrikethrough(strikethrough.booleanValue());
-				};
-			});
-	}
-
-	/** Validates one per-task record and returns the mutation to apply once its task is found. */
-	@FunctionalInterface
-	private interface TaskOptionReader {
-		java.util.function.Consumer<Task> read(JsonNode node) throws IOException;
-	}
-
-	/**
-	 * Shared frame of the per-task option entries: version 1 plus a "tasks" array of {taskUid, fields},
-	 * listing only tasks whose options are not the defaults ({@code isDefault}).
-	 */
-	private static byte[] perTaskOptionsJson(Project project, String taskIdentities, String identityLabel,
-		String serializeLabel, java.util.function.Predicate<Task> isDefault,
-		java.util.function.BiConsumer<Task, ObjectNode> fields) throws IOException {
-		try {
-			JsonNode identities = JSON.readTree(taskIdentities);
-			ObjectNode root = JSON.createObjectNode();
-			root.put("version", 1);
-			var tasks = root.putArray("tasks");
-			for (java.util.Iterator<?> iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
-				Task task = (Task) iterator.next();
-				if (isDefault.test(task)) continue;
-				JsonNode serializedUid = identities.path(String.valueOf(task.getUniqueId()));
-				if (!serializedUid.canConvertToLong())
-					throw new IOException("Missing serialized task identity for " + identityLabel);
-				ObjectNode node = tasks.addObject();
-				node.put("taskUid", serializedUid.longValue());
-				fields.accept(task, node);
-			}
-			return JSON.writeValueAsBytes(root);
-		} catch (IOException exception) {
-			throw exception;
-		} catch (Exception exception) {
-			throw new IOException("Unable to serialize mpo task " + serializeLabel, exception);
-		}
-	}
-
-	private static void restorePerTaskOptions(Project project, byte[] bytes, String invalidMessage,
-		String tooManyMessage, String duplicateMessage, String unknownTaskMessage, TaskOptionReader reader)
-		throws IOException {
-		JsonNode root = JSON.readTree(bytes);
-		JsonNode tasks = root.path("tasks");
-		if (requiredInt(root, "version") != 1 || !tasks.isArray()) throw new IOException(invalidMessage);
-		java.util.HashSet<Long> seen = new java.util.HashSet<>();
-		int count = 0;
-		for (JsonNode node : tasks) {
-			if (++count > MAX_OPERATION_COUNT) throw new IOException(tooManyMessage);
-			long serializedId = integralLong(node.path("taskUid"), "taskUid");
-			if (!seen.add(Long.valueOf(serializedId))) throw new IOException(duplicateMessage);
-			java.util.function.Consumer<Task> apply = reader.read(node);
-			Task task = project.findByUniqueId(serializedId);
-			if (task == null) throw new IOException(unknownTaskMessage);
-			apply.accept(task);
-		}
-	}
-
-	/** Older MPO snapshots predate these task flags; use the documented Yes defaults. */
-	private static void resetLegacyTaskLevelingDefaults(Project project) {
-		for (java.util.Iterator<?> iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
-			Task task = (Task) iterator.next();
-			task.setLevelingCanSplit(!task.isRecurringTask());
-			task.setLevelAssignments(true);
-		}
-	}
-
-	private static void restoreTaskSplits(Project project, byte[] bytes) throws IOException {
-		JsonNode root = JSON.readTree(bytes);
-		JsonNode tasks = root.path("tasks");
-		if (requiredInt(root, "version") != 1 || !tasks.isArray()) throw new IOException("Invalid mpo task split data");
-		int intervalCount = 0;
-		for (JsonNode taskNode : tasks) {
-			JsonNode uidNode = taskNode.path("taskUid");
-			JsonNode intervalsNode = taskNode.path("intervals");
-			long serializedId = integralLong(uidNode, "taskUid");
-			if (!intervalsNode.isArray()) throw new IOException("Invalid mpo task split record");
-			Task task = project.findByUniqueId(serializedId);
-			if (task == null) throw new IOException("MPO task split references an unknown task");
-			NormalTask normalTask = task instanceof NormalTask normal ? normal : null;
-			if (normalTask == null && !intervalsNode.isEmpty()) throw new IOException("MPO task split references a non-normal task");
-			java.util.ArrayList<TaskSplitInterval> intervals = new java.util.ArrayList<>();
-			long previousEnd = Long.MIN_VALUE;
-			for (JsonNode intervalNode : intervalsNode) {
-				if (++intervalCount > MAX_OPERATION_COUNT) throw new IOException("MPO contains too many task split intervals");
-				JsonNode startNode = intervalNode.path("startOffset");
-				JsonNode endNode = intervalNode.path("endOffset");
-				TaskSplitInterval interval;
-				try {
-					interval = new TaskSplitInterval(integralLong(startNode, "startOffset"),
-						integralLong(endNode, "endOffset"));
-				} catch (IllegalArgumentException exception) {
-					throw new IOException("Invalid mpo task split interval", exception);
-				} catch (ArithmeticException exception) {
-					throw new IOException("Invalid mpo task split interval", exception);
-				}
-				if (interval.startOffset() < previousEnd) throw new IOException("MPO task split intervals overlap or are unsorted");
-				previousEnd = interval.endOffset();
-				intervals.add(interval);
-			}
-			java.util.ArrayList<TaskSplitInterval> manualIntervals = new java.util.ArrayList<>();
-			java.util.ArrayList<TaskSplitInterval> levelingIntervals = new java.util.ArrayList<>();
-			JsonNode manualNodes = taskNode.get("manualIntervals");
-			JsonNode levelingNodes = taskNode.get("levelingIntervals");
-			if (normalTask == null) {
-				if ((manualNodes != null && !manualNodes.isArray()) || (levelingNodes != null && !levelingNodes.isArray()))
-					throw new IOException("Invalid MPO task split provenance");
-			} else if (manualNodes == null && levelingNodes == null) {
-				manualIntervals.addAll(intervals);
-			} else {
-				readTaskSplitIntervals(manualNodes, manualIntervals, "manualIntervals");
-				readTaskSplitIntervals(levelingNodes, levelingIntervals, "levelingIntervals");
-				if (!NormalTask.unionTaskSplitIntervals(manualIntervals, levelingIntervals).equals(intervals))
-					throw new IOException("MPO task split provenance does not match task split intervals");
-			}
-			if (normalTask != null) normalTask.restoreTaskSplitProvenance(manualIntervals, levelingIntervals);
-			JsonNode dates = taskNode.get("manualLevelingDates");
-			if (dates != null) {
-				long originalStart = integralLong(dates.path("originalStart"), "originalStart");
-				long originalFinish = integralLong(dates.path("originalFinish"), "originalFinish");
-				long generatedStart = integralLong(dates.path("generatedStart"), "generatedStart");
-				long generatedFinish = integralLong(dates.path("generatedFinish"), "generatedFinish");
-				if (originalStart <= 0L || originalFinish < originalStart || generatedStart <= 0L || generatedFinish < generatedStart)
-					throw new IOException("Invalid MPO manual leveling date provenance");
-				task.setLevelingManualDateState(new Task.LevelingManualDateState(originalStart, originalFinish,
-					generatedStart, generatedFinish));
-			}
-		}
-	}
-
-	private static void writeTaskSplitIntervals(com.fasterxml.jackson.databind.node.ArrayNode nodes,
-		java.util.List<TaskSplitInterval> intervals) {
-		for (TaskSplitInterval interval : intervals) {
-			ObjectNode intervalNode = nodes.addObject();
-			intervalNode.put("startOffset", interval.startOffset());
-			intervalNode.put("endOffset", interval.endOffset());
-		}
-	}
-
-	private static void readTaskSplitIntervals(JsonNode nodes, java.util.List<TaskSplitInterval> target,
-		String fieldName) throws IOException {
-		if (nodes == null || !nodes.isArray()) throw new IOException("Invalid MPO " + fieldName);
-		long previousEnd = Long.MIN_VALUE;
-		for (JsonNode node : nodes) {
-			TaskSplitInterval interval;
-			try {
-				interval = new TaskSplitInterval(integralLong(node.path("startOffset"), "startOffset"),
-					integralLong(node.path("endOffset"), "endOffset"));
-			} catch (IllegalArgumentException | ArithmeticException exception) {
-				throw new IOException("Invalid MPO " + fieldName, exception);
-			}
-			if (interval.startOffset() < previousEnd) throw new IOException("MPO " + fieldName + " overlap or unsorted");
-			previousEnd = interval.endOffset();
-			target.add(interval);
-		}
-	}
-
-	private static byte[] assignmentLevelingSplitsJson(Project project,
-		java.util.Map<Assignment, Integer> serializedAssignmentUids) throws IOException {
-		try {
-			ObjectNode root = JSON.createObjectNode();
-			root.put("version", 2);
-			var assignments = root.putArray("assignments");
-			for (java.util.Iterator<?> tasks = project.getTaskOutlineIterator(); tasks.hasNext();) {
-				Task task = (Task) tasks.next();
-				if (!(task instanceof NormalTask normalTask)) continue;
-				for (Object value : normalTask.getAssignments()) {
-					Assignment assignment = (Assignment) value;
-					AssignmentLevelingSplitState state = assignment.getLevelingSplitState();
-					if (state == null) continue;
-					Integer uid = serializedAssignmentUids.get(assignment);
-					if (uid == null) throw new IOException("Missing canonical MSPDI assignment identity for leveling split");
-					ObjectNode node = assignments.addObject();
-					node.put("assignmentUid", uid.intValue());
-					node.put("beforeDuration", state.beforeDuration());
-					node.put("generatedDuration", state.generatedDuration());
-					node.put("sourceContourMatchesGenerated",
-						state.matchesGenerated(assignment.getWorkContour(), assignment.getDurationMillis()));
-					writeContour(node.putObject("beforeContour"), state.beforeContourSnapshot());
-					writeContour(node.putObject("generatedContour"), state.generatedContourSnapshot());
-					writeTaskSplitIntervals(node.putArray("generatedGaps"), state.generatedGaps());
-				}
-			}
-			return JSON.writeValueAsBytes(root);
-		} catch (IOException exception) {
-			throw exception;
-		} catch (Exception exception) {
-			throw new IOException("Unable to serialize mpo assignment leveling splits", exception);
-		}
-	}
-
-	private static void restoreAssignmentLevelingSplits(Project project, byte[] bytes) throws IOException {
-		JsonNode root = JSON.readTree(bytes);
-		JsonNode assignments = root.path("assignments");
-		int version = requiredInt(root, "version");
-		if ((version != 1 && version != 2) || !assignments.isArray() || assignments.size() > MAX_OPERATION_COUNT)
-			throw new IOException("Invalid mpo assignment leveling split data");
-		java.util.ArrayList<AssignmentSplitReplacement> replacements = new java.util.ArrayList<>();
-		java.util.HashSet<Long> seen = new java.util.HashSet<>();
-		int gapCount = 0;
-		for (JsonNode node : assignments) {
-			long uid = integralLong(node.path("assignmentUid"), "assignmentUid");
-			long beforeDuration = integralLong(node.path("beforeDuration"), "beforeDuration");
-			long generatedDuration = integralLong(node.path("generatedDuration"), "generatedDuration");
-			if (uid <= 0L || beforeDuration < 0L || generatedDuration < 0L || !seen.add(Long.valueOf(uid)))
-				throw new IOException("Invalid or duplicate MPO assignment leveling identity");
-			Assignment assignment = findAssignmentByUniqueId(project, uid);
-			if (assignment == null) throw new IOException("MPO assignment leveling split references an unknown assignment uid=" + uid);
-			BaselineAssignmentProfile.Contour before = readContour(node.path("beforeContour"));
-			BaselineAssignmentProfile.Contour generated = readContour(node.path("generatedContour"));
-			JsonNode gaps = node.path("generatedGaps");
-			if (!gaps.isArray() || gaps.isEmpty()) throw new IOException("MPO assignment leveling split has no generated gaps");
-			java.util.ArrayList<TaskSplitInterval> intervals = new java.util.ArrayList<>();
-			readTaskSplitIntervals(gaps, intervals, "generatedGaps");
-			gapCount += intervals.size();
-			if (gapCount > MAX_OPERATION_COUNT) throw new IOException("MPO contains too many assignment leveling gaps");
-			try {
-				var beforeContour = BaselineAssignmentProfile.restoreContour(before);
-				var generatedContour = BaselineAssignmentProfile.restoreContour(generated);
-				AssignmentLevelingSplitState state = new AssignmentLevelingSplitState(
-					beforeContour, beforeDuration, generatedContour, generatedDuration, intervals);
-				boolean sourceContourMatchesGenerated = version >= 2
-					&& node.path("sourceContourMatchesGenerated").isBoolean()
-					&& node.path("sourceContourMatchesGenerated").booleanValue();
-				if (sourceContourMatchesGenerated
-					&& !state.matchesGenerated(assignment.getWorkContour(), assignment.getDurationMillis())
-					&& assignment.importedProfilesMatchWorkTotal(generatedContour, generatedDuration)) {
-					state = new AssignmentLevelingSplitState(beforeContour, beforeDuration,
-						assignment.getWorkContour(), assignment.getDurationMillis(), intervals);
-				}
-				replacements.add(new AssignmentSplitReplacement(assignment, state));
-			} catch (RuntimeException exception) {
-				throw new IOException("Invalid MPO assignment leveling split for uid=" + uid, exception);
-			}
-		}
-		for (AssignmentSplitReplacement replacement : replacements)
-			replacement.assignment().restoreLevelingSplitState(replacement.state());
-	}
-
-	private static Assignment findAssignmentByUniqueId(Project project, long uniqueId) {
-		for (java.util.Iterator<?> tasks = project.getTaskOutlineIterator(); tasks.hasNext();) {
-			Task task = (Task) tasks.next();
-			if (!(task instanceof NormalTask normalTask)) continue;
-			for (Object value : normalTask.getAssignments()) {
-				Assignment assignment = (Assignment) value;
-				if (assignment.getUniqueId() == uniqueId) return assignment;
-			}
-		}
-		return null;
-	}
-
-	private record AssignmentSplitReplacement(Assignment assignment, AssignmentLevelingSplitState state) { }
-
-	private static byte[] baselineProfilesJson(Project project, String taskIdentities,
-		java.util.Map<Long, Long> resourceIdentities) throws IOException {
-		try {
-			JsonNode taskUidMap = JSON.readTree(taskIdentities);
-			ObjectNode root = JSON.createObjectNode();
-			root.put("version", 1);
-			var tasks = root.putArray("tasks");
-			for (java.util.Iterator<?> iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
-				Task task = (Task) iterator.next();
-				JsonNode serializedTaskUid = taskUidMap.path(String.valueOf(task.getUniqueId()));
-				if (!serializedTaskUid.canConvertToLong()) continue;
-				for (int slot = 0; slot < Snapshottable.CURRENT.intValue(); slot++) {
-					if (!(task.getSnapshot(Integer.valueOf(slot)) instanceof TaskSnapshot snapshot)) continue;
-					ObjectNode taskNode = tasks.addObject();
-					taskNode.put("taskUid", serializedTaskUid.longValue());
-					taskNode.put("slot", slot);
-					taskNode.put("fixedCostAccrual", snapshot.getFixedCostAccrual());
-					com.microproject.pm.calendar.WorkCalendar fixedCostCalendar = snapshot.getFixedCostCalendar();
-					if (fixedCostCalendar == null) fixedCostCalendar = task.getEffectiveWorkCalendar();
-					writeCalendar(taskNode.putObject("fixedCostCalendar"), fixedCostCalendar);
-					var profiles = taskNode.putArray("profiles");
-					for (BaselineAssignmentProfile profile : snapshot.captureBaselineProfiles(task, slot))
-						writeBaselineProfile(profiles.addObject(), profile, resourceIdentities);
-					var fixedCostProfiles = taskNode.putArray("rolledUpFixedCosts");
-					for (TaskSnapshot.FixedCostProfile profile : snapshot.getRolledUpFixedCostProfiles())
-						writeFixedCostProfile(fixedCostProfiles.addObject(), profile);
-				}
-			}
-			return JSON.writeValueAsBytes(root);
-		} catch (IOException exception) {
-			throw exception;
-		} catch (Exception exception) {
-			throw new IOException("Unable to serialize mpo baseline profiles", exception);
-		}
-	}
-
-	private static void writeBaselineProfile(ObjectNode node, BaselineAssignmentProfile profile,
-		java.util.Map<Long, Long> resourceIdentities) throws IOException {
-		Long resourceUid = resourceIdentities.get(Long.valueOf(profile.resourceUniqueId()));
-		if (resourceUid == null) throw new IOException("Missing serialized resource identity for baseline profile");
-		node.put("profileUid", profile.profileId());
-		node.put("resourceUid", resourceUid.longValue());
-		node.put("start", profile.start());
-		node.put("finish", profile.finish());
-		node.put("duration", profile.duration());
-		node.put("units", profile.units());
-		node.put("rate", profile.rate());
-		node.put("rateUnit", profile.rateUnit());
-		node.put("requestDemandType", profile.requestDemandType());
-		node.put("costRateIndex", profile.costRateIndex());
-		node.put("delay", profile.delay());
-		node.put("levelingDelay", profile.levelingDelay());
-		node.put("overtimeWork", profile.overtimeWork());
-		writeContour(node.putObject("workContour"), profile.workContour());
-		writeContour(node.putObject("costContour"), profile.costContour());
-		writeCalendar(node.putObject("calendar"), profile.calendarCopy());
-	}
-
-	private static void writeFixedCostProfile(ObjectNode node, TaskSnapshot.FixedCostProfile profile) {
-		node.put("cost", profile.fixedCost());
-		node.put("accrual", profile.accrualCode());
-		node.put("start", profile.start());
-		node.put("finish", profile.finish());
-		node.put("rawDuration", profile.rawDuration());
-		writeCalendar(node.putObject("calendar"), profile.calendarCopy());
-	}
-
-	private static void writeContour(ObjectNode node, Contour contour) {
-		node.put("type", contour.type());
-		var buckets = node.putArray("buckets");
-		for (Bucket bucket : contour.buckets()) {
-			ObjectNode item = buckets.addObject();
-			item.put("duration", bucket.duration());
-			item.put("units", bucket.units());
-		}
-	}
-
-	private static void writeCalendar(ObjectNode node, com.microproject.pm.calendar.WorkCalendar calendar) {
-		CalendarDefinition definition = calendar.getConcreteInstance();
-		node.put("name", calendar.getName());
-		writeCalendarBody(node, definition::getWeekDay, definition.getExceptionDays(),
-			definition.getWorkWeekPeriods(), definition.getRecurringExceptions());
-	}
-
-	/**
-	 * Shared week / exceptions / workWeeks / recurringExceptions block of both calendar schemas. The
-	 * callers differ on purpose in what they pass: project and resource calendars write their
-	 * concrete (inheritance-resolved) definition, schedule calendars write only their own differences.
-	 */
-	private static void writeCalendarBody(ObjectNode node, java.util.function.IntFunction<WorkDay> weekDay,
-		WorkDay[] exceptionDays, java.util.List<WorkWeekPeriod> workWeekPeriods,
-		java.util.List<RecurringCalendarException> recurringExceptions) {
-		var week = node.putArray("week");
-		for (int day = 0; day < WorkWeek.DAYS_IN_WEEK; day++)
-			writeCalendarDay(week.addObject(), weekDay.apply(day));
-		var exceptions = node.putArray("exceptions");
-		for (WorkDay day : exceptionDays) writeCalendarDay(exceptions.addObject(), day);
-		var periods = node.putArray("workWeeks");
-		for (WorkWeekPeriod period : workWeekPeriods) {
-			ObjectNode item = periods.addObject();
-			item.put("name", period.getName());
-			item.put("start", period.getStart());
-			item.put("end", period.getEnd());
-			var days = item.putArray("week");
-			for (int day = 0; day < WorkWeek.DAYS_IN_WEEK; day++)
-				writeCalendarDay(days.addObject(), period.getWeekDay(day));
-		}
-		var recurring = node.putArray("recurringExceptions");
-		for (RecurringCalendarException exception : recurringExceptions) {
-			ObjectNode item = recurring.addObject();
-			writeCalendarDay(item.putObject("template"), exception.getTemplate());
-			writeRecurrence(item.putObject("recurrence"), exception.getRecurrence());
-		}
-	}
-
-	private static void writeCalendarDay(ObjectNode node, WorkDay day) {
-		if (day == null) {
-			node.put("defined", false);
-			return;
-		}
-		node.put("defined", true);
-		node.put("start", day.getStart());
-		node.put("end", day.getEnd());
-		node.put("description", day.getDescription() == null ? "" : day.getDescription());
-		var ranges = node.putArray("ranges");
-		java.util.List<WorkRange> intervals = day.getWorkingHours().getIntervals();
-		for (int index = 0; index < intervals.size(); index++) {
-			WorkRange range = intervals.get(index);
-			if (range == null) continue;
-			ObjectNode item = ranges.addObject();
-			item.put("index", index);
-			item.put("start", range.getStart());
-			item.put("end", range.getEnd());
-			item.put("overtime", range.isOvertime());
-		}
-	}
-
-	private static void writeRecurrence(ObjectNode node, CalendarRecurrence recurrence) {
-		node.put("pattern", recurrence.getPattern().name());
-		node.put("endMode", recurrence.getEndMode().name());
-		node.put("start", recurrence.getStartDate());
-		node.put("finish", recurrence.getFinishDate());
-		node.put("count", recurrence.getOccurrenceCount());
-		node.put("frequency", recurrence.getFrequency());
-		node.put("workingDaysOnly", recurrence.isWorkingDaysOnly());
-		node.put("relative", recurrence.isRelative());
-		node.put("ordinal", recurrence.getOrdinal());
-		node.put("weekday", recurrence.getWeekday());
-		node.put("month", recurrence.getMonth());
-		node.put("dayOfMonth", recurrence.getDayOfMonth());
-		var weekdays = node.putArray("weekdays");
-		java.util.BitSet selected = recurrence.getWeekdays();
-		for (int day = selected.nextSetBit(0); day >= 0; day = selected.nextSetBit(day + 1)) weekdays.add(day);
-	}
-
-	private static java.util.Map<Long, Long> resourceIdentitiesForMpo(Project project) throws IOException {
-		return com.microproject.server.data.MPXConverter.exportedResourceIdentities(project);
-	}
-
-	private static void restoreBaselineProfiles(Project project, byte[] bytes) throws IOException {
-		JsonNode root = JSON.readTree(bytes);
-		JsonNode tasks = root.path("tasks");
-		int version = requiredInt(root, "version");
-		if (version != 1 || !tasks.isArray() || tasks.size() > MAX_OPERATION_COUNT)
-			throw new IOException("Invalid mpo baseline profile data");
-		java.util.ArrayList<BaselineProfilesReplacement> replacements = new java.util.ArrayList<>();
-		java.util.HashSet<String> seenSlots = new java.util.HashSet<>();
-		int profileCount = 0;
-		for (JsonNode taskNode : tasks) {
-			JsonNode taskUidNode = taskNode.path("taskUid");
-			JsonNode slotNode = taskNode.path("slot");
-			JsonNode profilesNode = taskNode.path("profiles");
-			if (!profilesNode.isArray() || profilesNode.size() > MAX_OPERATION_COUNT)
-				throw new IOException("Invalid mpo baseline task slot");
-			long taskUid = integralLong(taskUidNode, "taskUid");
-			int slot = integralInt(slotNode, "slot");
-			int accrualCode = requiredInt(taskNode, "fixedCostAccrual");
-			try {
-				com.microproject.pm.costing.Accrual.Kind.fromCode(accrualCode);
-			} catch (IllegalArgumentException exception) {
-				throw new IOException("Invalid mpo baseline fixed-cost accrual", exception);
-			}
-			Integer fixedCostAccrual = Integer.valueOf(accrualCode);
-			com.microproject.pm.calendar.WorkCalendar fixedCostCalendar = taskNode.has("fixedCostCalendar")
-				? readCalendar(taskNode.path("fixedCostCalendar")) : null;
-			java.util.List<TaskSnapshot.FixedCostProfile> rolledUpFixedCosts = taskNode.has("rolledUpFixedCosts")
-				? readFixedCostProfiles(taskNode.path("rolledUpFixedCosts")) : null;
-			if (taskUid <= 0L || slot < 0 || slot >= Snapshottable.CURRENT.intValue())
-				throw new IOException("MPO baseline profile references an invalid task or slot");
-			String slotKey = taskUid + ":" + slot;
-			if (!seenSlots.add(slotKey)) throw new IOException("Duplicate mpo baseline profile task slot");
-			Task task = project.findByUniqueId(taskUid);
-			if (!(task instanceof NormalTask normalTask)
-					|| !(normalTask.getSnapshot(Integer.valueOf(slot)) instanceof TaskSnapshot snapshot))
-				throw new IOException("MPO baseline profile references a missing task snapshot uid=" + taskUid
-					+ " slot=" + slot);
-			java.util.ArrayList<Assignment> assignments = new java.util.ArrayList<>();
-			java.util.HashSet<Long> profileIds = new java.util.HashSet<>();
-			for (JsonNode profileNode : profilesNode) {
-				if (++profileCount > MAX_OPERATION_COUNT) throw new IOException("MPO contains too many baseline profiles");
-				BaselineAssignmentProfile profile = readBaselineProfile(profileNode);
-				if (!profileIds.add(Long.valueOf(profile.profileId())))
-					throw new IOException("Duplicate profile identity in mpo baseline slot");
-				Resource resource = project.getResourcePool().findById(profile.resourceUniqueId());
-				if (resource == null) throw new IOException("MPO baseline profile references an unknown resource uid="
-					+ profile.resourceUniqueId());
-				try {
-					assignments.add(profile.restore(normalTask, resource));
-				} catch (RuntimeException exception) {
-					throw new IOException("Invalid mpo baseline profile for task uid=" + taskUid + " slot=" + slot,
-						exception);
-				}
-			}
-			if (fixedCostCalendar == null) fixedCostCalendar = normalTask.getEffectiveWorkCalendar();
-			fixedCostCalendar = TaskSnapshot.copyCalendarForSnapshot(fixedCostCalendar);
-			replacements.add(new BaselineProfilesReplacement(normalTask, slot, snapshot, assignments,
-				fixedCostAccrual, fixedCostCalendar, rolledUpFixedCosts));
-		}
-		for (BaselineProfilesReplacement replacement : replacements)
-			replacement.snapshot().replaceBaselineRollupAssignments(replacement.task(), replacement.slot(),
-				replacement.assignments());
-		for (BaselineProfilesReplacement replacement : replacements)
-			if (replacement.fixedCostAccrual() != null)
-				replacement.snapshot().setFixedCostAccrual(replacement.fixedCostAccrual().intValue());
-		for (BaselineProfilesReplacement replacement : replacements)
-			replacement.snapshot().setPreparedFixedCostCalendar(replacement.fixedCostCalendar());
-		for (BaselineProfilesReplacement replacement : replacements)
-			if (replacement.rolledUpFixedCosts() != null)
-				replacement.snapshot().setPreparedRolledUpFixedCostProfiles(replacement.rolledUpFixedCosts());
-	}
-
-	private static java.util.List<TaskSnapshot.FixedCostProfile> readFixedCostProfiles(JsonNode node) throws IOException {
-		if (!node.isArray() || node.size() > MAX_OPERATION_COUNT)
-			throw new IOException("Invalid mpo rolled-up fixed-cost profiles");
-		java.util.ArrayList<TaskSnapshot.FixedCostProfile> profiles = new java.util.ArrayList<>(node.size());
-		for (JsonNode profile : node) {
-			JsonNode cost = profile.path("cost");
-			if (!cost.isNumber() || !Double.isFinite(cost.doubleValue()))
-				throw new IOException("Invalid mpo rolled-up fixed cost");
-			int accrual = requiredInt(profile, "accrual");
-			long start = integralLong(profile.path("start"), "start");
-			long finish = integralLong(profile.path("finish"), "finish");
-			long rawDuration = integralLong(profile.path("rawDuration"), "rawDuration");
-			com.microproject.pm.calendar.WorkCalendar calendar = readCalendar(profile.path("calendar"));
-			try {
-				profiles.add(new TaskSnapshot.FixedCostProfile(cost.doubleValue(), accrual, start, finish,
-					rawDuration, calendar));
-			} catch (RuntimeException exception) {
-				throw new IOException("Invalid mpo rolled-up fixed-cost profile", exception);
-			}
-		}
-		return java.util.List.copyOf(profiles);
-	}
-
-	private static BaselineAssignmentProfile readBaselineProfile(JsonNode node) throws IOException {
-		try {
-			return new BaselineAssignmentProfile(requiredNonZeroLong(node, "profileUid"),
-				requiredPositiveLong(node, "resourceUid"), requiredLong(node, "start"), requiredLong(node, "finish"),
-				requiredLong(node, "duration"), requiredFiniteDouble(node, "units"),
-				requiredFiniteDouble(node, "rate"), requiredInt(node, "rateUnit"), requiredInt(node, "requestDemandType"),
-				requiredInt(node, "costRateIndex"), requiredLong(node, "delay"), requiredLong(node, "levelingDelay"),
-				requiredLong(node, "overtimeWork"), readContour(node.path("workContour")),
-				readContour(node.path("costContour")), readCalendar(node.path("calendar")));
-		} catch (RuntimeException exception) {
-			throw new IOException("Invalid mpo baseline assignment profile", exception);
-		}
-	}
-
-	private static Contour readContour(JsonNode node) throws IOException {
-		JsonNode bucketsNode = node.path("buckets");
-		if (!bucketsNode.isArray() || bucketsNode.size() > MAX_OPERATION_COUNT)
-			throw new IOException("Invalid mpo baseline contour");
-		int type = integralInt(node.path("type"), "type");
-		java.util.ArrayList<Bucket> buckets = new java.util.ArrayList<>();
-		for (JsonNode bucket : bucketsNode) {
-			if (!bucket.path("units").isNumber() || !Double.isFinite(bucket.path("units").doubleValue()))
-				throw new IOException("Invalid mpo baseline contour bucket");
-			buckets.add(new Bucket(integralLong(bucket.path("duration"), "duration"), bucket.path("units").doubleValue()));
-		}
-		return new Contour(type, buckets);
-	}
-
-	private static WorkingCalendar readCalendar(JsonNode node) throws IOException {
-		return readCalendarDefinition(node, "baseline").copyForBaselineSnapshot();
-	}
-
-	private static WorkingCalendar readCalendarDefinition(JsonNode node, String context) throws IOException {
-		JsonNode weekNode = node.path("week");
-		JsonNode exceptionsNode = node.path("exceptions");
-		JsonNode periodsNode = node.path("workWeeks");
-		JsonNode recurringNode = node.path("recurringExceptions");
-		if (!node.path("name").isTextual() || !weekNode.isArray()
-				|| weekNode.size() != WorkWeek.DAYS_IN_WEEK || !exceptionsNode.isArray()
-				|| exceptionsNode.size() > MAX_OPERATION_COUNT || !periodsNode.isArray()
-				|| periodsNode.size() > MAX_OPERATION_COUNT || !recurringNode.isArray()
-				|| recurringNode.size() > MAX_OPERATION_COUNT)
-			throw new IOException("Invalid mpo " + context + " calendar");
-		WorkingCalendar calendar = WorkingCalendar.getInstance();
-		calendar.setName(node.path("name").textValue());
-		for (int day = 0; day < WorkWeek.DAYS_IN_WEEK; day++)
-			calendar.setWeekDay(day, readCalendarDay(weekNode.get(day)));
-		for (JsonNode exception : exceptionsNode) calendar.addOrReplaceException(readCalendarDay(exception));
-		for (JsonNode periodNode : periodsNode) {
-			JsonNode periodWeek = periodNode.path("week");
-			if (!periodNode.path("name").isTextual() || !periodWeek.isArray()
-					|| periodWeek.size() != WorkWeek.DAYS_IN_WEEK)
-				throw new IOException("Invalid mpo " + context + " work-week period");
-			long periodStart = integralLong(periodNode.path("start"), "start");
-			long periodEnd = integralLong(periodNode.path("end"), "end");
-			WorkWeek week = new WorkWeek();
-			for (int day = 0; day < WorkWeek.DAYS_IN_WEEK; day++) week.setWeekDay(day, readCalendarDay(periodWeek.get(day)));
-			calendar.addOrReplaceWorkWeekPeriod(new WorkWeekPeriod(periodNode.path("name").textValue(),
-				periodStart, periodEnd, week));
-		}
-		for (JsonNode recurring : recurringNode) {
-			WorkDay template = readCalendarDay(recurring.path("template"));
-			CalendarRecurrence rule = readRecurrence(recurring.path("recurrence"));
-			calendar.addOrReplaceRecurringException(new RecurringCalendarException(template, rule));
-		}
-		return calendar;
-	}
-
-	private static WorkDay readCalendarDay(JsonNode node) throws IOException {
-		if (!node.path("defined").isBoolean()) throw new IOException("Invalid mpo calendar day defined flag");
-		if (!node.path("defined").booleanValue()) return null;
-		if (!node.path("description").isTextual() || !node.path("ranges").isArray()
-				|| node.path("ranges").size() > new WorkingHours().getIntervals().size())
-			throw new IOException("Invalid mpo calendar day");
-		WorkDay day = new WorkDay(integralLong(node.path("start"), "start"), integralLong(node.path("end"), "end"),
-			node.path("description").textValue());
-		WorkingHours hours = new WorkingHours();
-		java.util.HashSet<Integer> indexes = new java.util.HashSet<>();
-		for (JsonNode range : node.path("ranges")) {
-			if (!range.path("overtime").isBoolean())
-				throw new IOException("Invalid mpo calendar work range");
-			int index = integralInt(range.path("index"), "index");
-			if (index < 0 || index >= hours.getIntervals().size() || !indexes.add(Integer.valueOf(index)))
-				throw new IOException("Duplicate or out-of-range mpo calendar work range");
-			try {
-				hours.setInterval(index, integralLong(range.path("start"), "start"),
-					integralLong(range.path("end"), "end"));
-			} catch (Exception exception) {
-				throw new IOException("Invalid mpo calendar work range", exception);
-			}
-			WorkRange restored = hours.getInterval(index);
-			if (restored != null) restored.setOvertime(range.path("overtime").booleanValue());
-		}
-		day.setWorkingHours(hours);
-		return day;
-	}
-
-	private static CalendarRecurrence readRecurrence(JsonNode node) throws IOException {
-		try {
-			CalendarRecurrence.Pattern pattern = CalendarRecurrence.Pattern.valueOf(requiredText(node, "pattern"));
-			CalendarRecurrence.EndMode endMode = CalendarRecurrence.EndMode.valueOf(requiredText(node, "endMode"));
-			long start = requiredLong(node, "start");
-			long finish = requiredLong(node, "finish");
-			int count = requiredInt(node, "count");
-			int frequency = requiredInt(node, "frequency");
-			boolean relative = requiredBoolean(node, "relative");
-			int dayOfMonth = requiredInt(node, "dayOfMonth");
-			int ordinal = requiredInt(node, "ordinal");
-			int weekday = requiredInt(node, "weekday");
-			int month = requiredInt(node, "month");
-			return switch (pattern) {
-				case DAILY -> CalendarRecurrence.daily(start, frequency, requiredBoolean(node, "workingDaysOnly"),
-					endMode, finish, count);
-				case WEEKLY -> {
-					java.util.BitSet weekdays = new java.util.BitSet(8);
-					JsonNode weekdayNodes = node.path("weekdays");
-					if (!weekdayNodes.isArray()) throw new IOException("Invalid mpo weekly recurrence weekdays");
-					for (JsonNode item : weekdayNodes) {
-						int weekdayCode = integralInt(item, "weekday");
-						if (weekdayCode < 1 || weekdayCode > 7)
-							throw new IOException("Invalid mpo weekly recurrence weekday");
-						weekdays.set(weekdayCode);
-					}
-					yield CalendarRecurrence.weekly(start, frequency, weekdays, endMode, finish, count);
-				}
-				case MONTHLY -> CalendarRecurrence.monthly(start, frequency, relative, dayOfMonth, ordinal,
-					weekday, endMode, finish, count);
-				case YEARLY -> CalendarRecurrence.yearly(start, frequency, relative, month, dayOfMonth,
-					ordinal, weekday, endMode, finish, count);
-			};
-		} catch (IOException exception) {
-			throw exception;
-		} catch (RuntimeException exception) {
-			throw new IOException("Invalid mpo baseline calendar recurrence", exception);
-		}
-	}
-
-	private static long requiredPositiveLong(JsonNode node, String name) throws IOException {
-		long value = requiredLong(node, name);
-		if (value <= 0L) throw new IOException("Invalid positive MPO baseline value: " + name);
-		return value;
-	}
-
-	private static long requiredNonZeroLong(JsonNode node, String name) throws IOException {
-		long value = requiredLong(node, name);
-		if (value == 0L) throw new IOException("Invalid nonzero MPO baseline value: " + name);
-		return value;
-	}
-
-	private static long requiredLong(JsonNode node, String name) throws IOException {
-		return integralLong(node.path(name), name);
-	}
-
-	private static int requiredInt(JsonNode node, String name) throws IOException {
-		return integralInt(node.path(name), name);
-	}
-
-	private static long integralLong(JsonNode value, String name) throws IOException {
-		if (value == null || !value.isIntegralNumber() || !value.canConvertToLong())
-			throw new IOException("Invalid MPO integer value: " + name);
-		return value.longValue();
-	}
-
-	private static int integralInt(JsonNode value, String name) throws IOException {
-		long integral = integralLong(value, name);
-		if (integral < Integer.MIN_VALUE || integral > Integer.MAX_VALUE)
-			throw new IOException("Out-of-range MPO integer value: " + name);
-		return (int) integral;
-	}
-
-	private static double requiredFiniteDouble(JsonNode node, String name) throws IOException {
-		JsonNode value = node.path(name);
-		if (!value.isNumber() || !Double.isFinite(value.doubleValue()))
-			throw new IOException("Invalid MPO baseline value: " + name);
-		return value.doubleValue();
-	}
-
-	private static String requiredText(JsonNode node, String name) throws IOException {
-		JsonNode value = node.path(name);
-		if (!value.isTextual()) throw new IOException("Invalid MPO baseline value: " + name);
-		return value.textValue();
-	}
-
-	private static boolean requiredBoolean(JsonNode node, String name) throws IOException {
-		JsonNode value = node.path(name);
-		if (!value.isBoolean()) throw new IOException("Invalid MPO baseline value: " + name);
-		return value.booleanValue();
-	}
-
-	private record BaselineProfilesReplacement(NormalTask task, int slot, TaskSnapshot snapshot,
-		java.util.List<Assignment> assignments, Integer fixedCostAccrual,
-		com.microproject.pm.calendar.WorkCalendar fixedCostCalendar,
-		java.util.List<TaskSnapshot.FixedCostProfile> rolledUpFixedCosts) { }
-
-	private static byte[] taskSchedulesJson(Project project, String taskIdentities) throws IOException {
-		try {
-			JsonNode identities = JSON.readTree(taskIdentities);
-			ObjectNode root = JSON.createObjectNode();
-			root.put("version", 1);
-			root.set("projectCalendar", scheduleCalendarJson(
-				(WorkingCalendar) project.getWorkCalendar(), null));
-			com.fasterxml.jackson.databind.node.ArrayNode tasks = root.putArray("tasks");
-			java.util.Set<Long> seenSerializedIds = new java.util.HashSet<>();
-			java.util.Map<Long, Task> modelTasks = tasksByUniqueId(project);
-			java.util.Iterator<java.util.Map.Entry<String, JsonNode>> identityIterator = identities.fields();
-			while (identityIterator.hasNext()) {
-				java.util.Map.Entry<String, JsonNode> identity = identityIterator.next();
-				long sourceId = Long.parseLong(identity.getKey());
-				JsonNode serializedUid = identity.getValue();
-				if (!serializedUid.canConvertToLong()) throw new IOException("Invalid serialized task identity for schedule snapshot");
-				if (!seenSerializedIds.add(serializedUid.longValue())) continue;
-				if (!(modelTasks.get(Long.valueOf(sourceId)) instanceof NormalTask normalTask)) continue;
-				ObjectNode taskNode = tasks.addObject();
-				taskNode.put("taskUid", serializedUid.longValue());
-				taskNode.put("constraintType", normalTask.getConstraintType());
-				taskNode.put("constraintDate", normalTask.getConstraintDate());
-				taskNode.put("start", normalTask.getStart());
-				taskNode.put("finish", normalTask.getEnd());
-				taskNode.put("actualStart", normalTask.getActualStart());
-				if (normalTask.getWorkCalendar() != null)
-					taskNode.set("calendar", scheduleCalendarJson((WorkingCalendar) normalTask.getWorkCalendar(),
-						project.getWorkCalendar()));
-				if (!normalTask.isWbsParent())
-					taskNode.put("percentComplete", normalTask.getPercentComplete());
-				if (normalTask.isNormal() && !normalTask.hasRealAssignments())
-					taskNode.put("unassignedWork", normalTask.getWork(null));
-			}
-			return JSON.writeValueAsBytes(root);
-		} catch (IOException exception) {
-			throw exception;
-		} catch (Exception exception) {
-			throw new IOException("Unable to serialize mpo task schedules", exception);
-		}
-	}
-
-	private static ObjectNode scheduleCalendarJson(WorkingCalendar calendar,
-		com.microproject.pm.calendar.WorkCalendar projectCalendar) {
-		ObjectNode node = JSON.createObjectNode();
-		node.put("name", calendar.getName());
-		node.put("uniqueId", calendar.getUniqueId());
-		if (calendar.getBaseCalendar() == projectCalendar && projectCalendar != null)
-			node.put("baseProjectCalendar", true);
-		else if (calendar.getBaseCalendar() != null)
-			node.set("baseCalendar", scheduleCalendarJson((WorkingCalendar) calendar.getBaseCalendar(), projectCalendar));
-		writeCalendarBody(node, calendar::getWeekDay, calendar.getExceptionDays(), calendar.getWorkWeekPeriods(),
-			calendar.getRecurringExceptions());
-		return node;
-	}
-
-	private static WorkingCalendar readScheduleCalendar(JsonNode node,
-		ScheduleCalendarReadState state, int depth) throws IOException {
-		if (depth > 64) throw new IOException("MPO calendar inheritance exceeds maximum depth");
-		JsonNode uniqueIdNode = node.get("uniqueId");
-		Long uniqueId = null;
-		if (uniqueIdNode != null) uniqueId = Long.valueOf(integralLong(uniqueIdNode, "uniqueId"));
-		if (uniqueId != null && state.byId.containsKey(uniqueId)) {
-			if (!state.definitions.get(uniqueId).equals(node))
-				throw new IOException("Conflicting MPO schedule calendar definitions for uniqueId=" + uniqueId);
-			return state.byId.get(uniqueId);
-		}
-		com.microproject.pm.calendar.WorkCalendar base = null;
-		boolean hasProjectBase = node.has("baseProjectCalendar");
-		boolean hasNestedBase = node.has("baseCalendar");
-		if (hasProjectBase && hasNestedBase)
-			throw new IOException("MPO schedule calendar declares multiple base calendars");
-		if (hasProjectBase) {
-			JsonNode projectBaseNode = node.get("baseProjectCalendar");
-			if (!projectBaseNode.isBoolean() || !projectBaseNode.booleanValue() || state.projectCalendar == null)
-				throw new IOException("Invalid mpo schedule calendar project base");
-			base = state.projectCalendar;
-		}
-		WorkingCalendar calendar = readCalendarDefinition(node, "schedule");
-		if (uniqueId != null) {
-			calendar.setUniqueId(uniqueId.longValue());
-			state.byId.put(uniqueId, calendar);
-			state.definitions.put(uniqueId, node.deepCopy());
-		}
-		if (hasNestedBase) base = readScheduleCalendar(node.path("baseCalendar"), state, depth + 1);
-		state.pendingBases.add(new PendingCalendarBase(calendar, base));
-		return calendar;
-	}
-
-	private static void restoreTaskSchedules(Project project, byte[] bytes) throws IOException {
-		JsonNode root = JSON.readTree(bytes);
-		JsonNode tasks = root.path("tasks");
-		if (requiredInt(root, "version") != 1 || !tasks.isArray())
-			throw new IOException("Invalid mpo task schedule data");
-		ScheduleCalendarReadState calendarState = new ScheduleCalendarReadState();
-		WorkingCalendar projectCalendar = root.has("projectCalendar")
-			? readScheduleCalendar(root.path("projectCalendar"), calendarState, 0) : null;
-		calendarState.projectCalendar = projectCalendar;
-		java.util.Set<Long> seen = new java.util.HashSet<>();
-		java.util.ArrayList<TaskScheduleSnapshot> snapshots = new java.util.ArrayList<>();
-		for (JsonNode taskNode : tasks) {
-			if (snapshots.size() >= MAX_OPERATION_COUNT) throw new IOException("MPO contains too many task schedule records");
-			JsonNode uidNode = taskNode.path("taskUid");
-			JsonNode constraintTypeNode = taskNode.path("constraintType");
-			JsonNode constraintDateNode = taskNode.path("constraintDate");
-			JsonNode startNode = taskNode.path("start");
-			JsonNode finishNode = taskNode.path("finish");
-			JsonNode actualStartNode = taskNode.path("actualStart");
-			long serializedId = integralLong(uidNode, "taskUid");
-			int constraintType = integralInt(constraintTypeNode, "constraintType");
-			long constraintDate = integralLong(constraintDateNode, "constraintDate");
-			long start = integralLong(startNode, "start");
-			long finish = integralLong(finishNode, "finish");
-			long actualStart = integralLong(actualStartNode, "actualStart");
-			Double percentComplete = null;
-			if (taskNode.has("percentComplete")) {
-				JsonNode percentNode = taskNode.get("percentComplete");
-				if (percentNode == null || !percentNode.isNumber())
-					throw new IOException("Invalid mpo task schedule percent complete");
-				double value = percentNode.doubleValue();
-				if (!Double.isFinite(value) || value < 0D || value > 1D)
-					throw new IOException("Invalid mpo task schedule percent complete");
-				percentComplete = Double.valueOf(value);
-			}
-			Long unassignedWork = null;
-			if (taskNode.has("unassignedWork")) {
-				JsonNode workNode = taskNode.get("unassignedWork");
-				if (workNode == null || !workNode.isIntegralNumber() || !workNode.canConvertToLong()
-						|| workNode.longValue() < 0L)
-					throw new IOException("Invalid mpo task schedule unassigned work");
-				unassignedWork = Long.valueOf(workNode.longValue());
-			}
-			if (!seen.add(serializedId)) throw new IOException("Duplicate task schedule record in MPO");
-			Task task = project.findByUniqueId(serializedId);
-			if (!(task instanceof NormalTask normalTask))
-				throw new IOException("MPO task schedule references an unknown task uid=" + serializedId
-					+ " found=" + (task == null ? "null" : task.getClass().getName()));
-			if (com.microproject.pm.scheduling.ConstraintType.Kind.fromCodeOrNull(constraintType) == null)
-				throw new IOException("Invalid mpo task schedule constraint type");
-			if (finish < start) throw new IOException("Invalid mpo task schedule boundaries");
-			if (percentComplete != null && normalTask.isWbsParent())
-				throw new IOException("MPO task schedule percent complete is only valid for leaf tasks");
-			if (unassignedWork != null && (!normalTask.isNormal() || normalTask.hasRealAssignments()))
-				throw new IOException("MPO task schedule unassigned work is only valid for unassigned leaf tasks");
-			WorkingCalendar taskCalendar = taskNode.has("calendar")
-				? readScheduleCalendar(taskNode.path("calendar"), calendarState, 0) : null;
-			snapshots.add(new TaskScheduleSnapshot(normalTask, constraintType, constraintDate, start, finish, actualStart,
-				percentComplete, unassignedWork, taskCalendar, taskNode.has("calendar") || projectCalendar != null));
-		}
-		validateCalendarBaseGraph(calendarState.pendingBases);
-		for (PendingCalendarBase pending : calendarState.pendingBases) {
-			if (pending.base() != null) {
-				try {
-					pending.calendar().setBaseCalendar(pending.base());
-				} catch (com.microproject.configuration.CircularDependencyException exception) {
-					throw new IOException("Invalid MPO schedule calendar inheritance", exception);
-				}
-			}
-		}
-		if (projectCalendar != null) project.setWorkCalendar(projectCalendar);
-		for (TaskScheduleSnapshot snapshot : snapshots) {
-			if (snapshot.hasCalendar()) snapshot.task().setWorkCalendar(snapshot.calendar());
-			snapshot.task().restoreMpoScheduleSnapshot(snapshot.constraintType(), snapshot.constraintDate(),
-				snapshot.start(), snapshot.finish(), snapshot.actualStart());
-			if (snapshot.percentComplete() != null)
-				snapshot.task().setImportedPercentComplete(snapshot.percentComplete().doubleValue());
-			if (snapshot.unassignedWork() != null) {
-				try {
-					snapshot.task().restoreMpoUnassignedWork(snapshot.unassignedWork().longValue());
-				} catch (IllegalArgumentException exception) {
-					throw new IOException("Invalid mpo task schedule unassigned work target", exception);
-				}
-			}
-		}
-	}
-
-	private static void validateCalendarBaseGraph(java.util.List<PendingCalendarBase> pendingBases) throws IOException {
-		java.util.IdentityHashMap<WorkingCalendar, WorkingCalendar> bases = new java.util.IdentityHashMap<>();
-		for (PendingCalendarBase pending : pendingBases) bases.put(pending.calendar(), (WorkingCalendar) pending.base());
-		java.util.Set<WorkingCalendar> complete = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
-		for (WorkingCalendar start : bases.keySet()) {
-			java.util.Set<WorkingCalendar> path = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
-			WorkingCalendar current = start;
-			while (current != null && !complete.contains(current)) {
-				if (!path.add(current)) throw new IOException("Circular MPO schedule calendar inheritance");
-				current = bases.get(current);
-			}
-			complete.addAll(path);
-		}
-	}
-
-	private static final class ScheduleCalendarReadState {
-		private WorkingCalendar projectCalendar;
-		private final java.util.Map<Long, WorkingCalendar> byId = new java.util.HashMap<>();
-		private final java.util.Map<Long, JsonNode> definitions = new java.util.HashMap<>();
-		private final java.util.List<PendingCalendarBase> pendingBases = new java.util.ArrayList<>();
-	}
-
-	private record PendingCalendarBase(WorkingCalendar calendar,
-		com.microproject.pm.calendar.WorkCalendar base) { }
-
-	private record TaskScheduleSnapshot(NormalTask task, int constraintType, long constraintDate, long start,
-		long finish, long actualStart, Double percentComplete, Long unassignedWork,
-		WorkingCalendar calendar, boolean hasCalendar) { }
-
-	private static void restoreVisibility(Project project, byte[] bytes) throws IOException {
-		JsonNode root = JSON.readTree(bytes);
-		JsonNode hidden = root.path("hiddenTaskUniqueIds");
-		if (requiredInt(root, "version") != 1 || !hidden.isArray())
-			throw new IOException("Invalid mpo visibility state");
-		for (JsonNode entry : hidden) {
-			long serializedId = integralLong(entry, "taskUid");
-			Task task = project.findByUniqueId(serializedId);
-			if (task != null) task.setHiddenTask(true);
-		}
-	}
-
-	private static java.util.Map<Long, Long> readTaskIdentities(byte[] json) throws IOException {
-		JsonNode root = JSON.readTree(json);
-		if (!root.isObject()) throw new IOException("Invalid mpo task identity map");
-		java.util.Map<Long, Long> result = new java.util.LinkedHashMap<>();
-		java.util.Iterator<java.util.Map.Entry<String, JsonNode>> fields = root.fields();
-		while (fields.hasNext()) {
-			java.util.Map.Entry<String, JsonNode> entry = fields.next();
-			try {
-				result.put(Long.valueOf(entry.getKey()), Long.valueOf(integralLong(entry.getValue(), "taskUid")));
-			} catch (NumberFormatException exception) {
-				throw new IOException("Invalid mpo task identity", exception);
-			}
-		}
-		return result;
-	}
-
 	static java.util.List<OperationLog.Operation> remapTaskOperations(java.util.List<OperationLog.Operation> operations, java.util.Map<Long, Long> identities) {
 		java.util.List<OperationLog.Operation> result = new java.util.ArrayList<>(operations.size());
 		for (OperationLog.Operation operation : operations) {
@@ -2005,7 +783,7 @@ public class MpoFileImporter extends FileImporter {
 	}
 
 	private MpoMergePreparation prepareExternalMerge(File target, MpoCapture captured, MpoOperationState local) throws IOException {
-		ExternalMpo external = externalOperations(target);
+		ExternalMpo external = MpoExternalMerge.externalOperations(target);
 		// An explicit Save As over another document replaces it; there is nothing to merge.
 		if (replaceDifferentDocument && !(local.documentId.equals(external.document().documentId())
 				&& local.documentId.equals(external.manifestDocumentId()))) return null;
@@ -2017,7 +795,7 @@ public class MpoFileImporter extends FileImporter {
 		// documentId above is the authoritative identity at this boundary.
 		java.util.List<OperationLog.Operation> all = new java.util.ArrayList<OperationLog.Operation>(local.operations);
 		java.util.Set<String> locallyAppliedOperationIds = new java.util.LinkedHashSet<String>(local.appliedOperationIds);
-		all.addAll(external.taskIdentities() == null ? external.document().operations() : remapTaskOperations(external.document().operations(), readTaskIdentities(external.taskIdentities())));
+		all.addAll(external.taskIdentities() == null ? external.document().operations() : remapTaskOperations(external.document().operations(), MpoSidecarJson.readTaskIdentities(external.taskIdentities())));
 		if (all.size() > MAX_OPERATION_COUNT)
 			throw new IOException("MPOF merged operation log exceeds " + MAX_OPERATION_COUNT + " operations");
 		try {
@@ -2036,7 +814,7 @@ public class MpoFileImporter extends FileImporter {
 					.filter(operation -> !locallyAppliedOperationIds.contains(operation.id()))
 					.map(operation -> new MpoMergePlan.Operation(operation.id(), MpoMergePlan.Action.UPDATE))
 					.toList();
-			MpoMergePlan plan = planFor(external.snapshot(), plannedOperations, planConflicts);
+			MpoMergePlan plan = MpoExternalMerge.planFor(external.snapshot(), plannedOperations, planConflicts);
 			if (!conflicts.isEmpty()) {
 				java.util.List<OperationLog.Operation> conflictOperations = new java.util.ArrayList<>(merged.ready());
 				conflictOperations.addAll(merged.pending());
@@ -2044,7 +822,7 @@ public class MpoFileImporter extends FileImporter {
 						external.extensions());
 				throw new MpoConflictRecoveryException(recoveryCopy, conflicts);
 			}
-			validateMergePlan(plan);
+			MpoExternalMerge.validateMergePlan(plan);
 			// The snapshot already contains every local operation.  Replaying that
 			// history is not idempotent for moves (the original parent may no longer
 			// exist), so apply only operations introduced by the external archive.
@@ -2079,13 +857,13 @@ public class MpoFileImporter extends FileImporter {
 		try {
 			recoveryState.json = new OperationLog().writeJsonl(recoveryState.documentId,
 				recoveryState.operations, recoveryState.appliedOperationIds);
-			MpoCapture recoveryCapture = captureModel(recoveryProject, serializeProject(recoveryProject));
-			recoveryState.remapTaskIds(readTaskIdentities(recoveryCapture.entries().get(TASK_IDENTITIES_ENTRY)));
+			MpoCapture recoveryCapture = captureModel(recoveryProject, MpoSidecarJson.serializeProject(recoveryProject));
+			recoveryState.remapTaskIds(MpoSidecarJson.readTaskIdentities(recoveryCapture.entries().get(TASK_IDENTITIES_ENTRY)));
 			File temporary = createTemporaryFile(target);
 			boolean moved = false;
 			try {
 				try (OutputStream out = new FileOutputStream(temporary)) {
-					writeCapture(recoveryCapture, out, recoveryState);
+					MpoExternalMerge.writeCapture(recoveryCapture, out, recoveryState);
 				}
 				Path recovery = target.toPath().toAbsolutePath().resolveSibling(target.getName()
 					+ ".conflict-" + java.util.UUID.randomUUID() + ".mpo");
@@ -2098,97 +876,6 @@ public class MpoFileImporter extends FileImporter {
 		} catch (Exception exception) {
 			if (exception instanceof IOException ioException) throw ioException;
 			throw new IOException("Could not create MPOF conflict recovery copy", exception);
-		}
-	}
-
-	private static ExternalMpo externalOperations(File target) throws IOException {
-		MpoArchiveBudgetValidator.Result budget = MpoArchiveBudgetValidator.validate(target.toPath(),
-			MpoArchiveBudgetValidator.DEFAULT_BUDGET);
-		if (!budget.valid())
-			throw new IOException("MPOF archive budget rejected: " + budget.reason());
-		byte[] mimetype = null; byte[] meta = null; byte[] settings = null; byte[] history = null;
-		byte[] layout = null; byte[] visibility = null; byte[] draftCcpm = null; byte[] operations = null; byte[] draftOperations = null;
-		byte[] manifest = null; byte[] projectXml = null; byte[] taskIdentities = null;
-		int[] totalBytes = new int[] { 0 }; int entryCount = 0; MpoExtensions extensions = new MpoExtensions();
-		try (InputStream in = new FileInputStream(target); ZipInputStream zip = new ZipInputStream(in, StandardCharsets.UTF_8)) {
-			ZipEntry entry;
-			while ((entry = zip.getNextEntry()) != null) {
-				MpoArchiveBudgetValidator.validateEntryName(entry.getName(), MpoArchiveBudgetValidator.DEFAULT_BUDGET);
-				if (++entryCount > MAX_ENTRIES) throw new IOException("mpo has too many entries");
-				if (!entry.isDirectory() && MIMETYPE_ENTRY.equals(entry.getName())) { if (mimetype != null) throw new IOException("Duplicate mpo entry: " + MIMETYPE_ENTRY); mimetype = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory() && META_ENTRY.equals(entry.getName())) { if (meta != null) throw new IOException("Duplicate mpo entry: " + META_ENTRY); meta = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory() && SETTINGS_ENTRY.equals(entry.getName())) { if (settings != null) throw new IOException("Duplicate mpo entry: " + SETTINGS_ENTRY); settings = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory() && CCPM_HISTORY_ENTRY.equals(entry.getName())) { if (history != null) throw new IOException("Duplicate mpo entry: " + CCPM_HISTORY_ENTRY); history = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory() && LAYOUT_ENTRY.equals(entry.getName())) { if (layout != null) throw new IOException("Duplicate mpo entry: " + LAYOUT_ENTRY); layout = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory() && VISIBILITY_ENTRY.equals(entry.getName())) { if (visibility != null) throw new IOException("Duplicate mpo entry: " + VISIBILITY_ENTRY); visibility = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory() && DRAFT_CCPM_ENTRY.equals(entry.getName())) { if (draftCcpm != null) throw new IOException("Duplicate draft mpo entry: " + DRAFT_CCPM_ENTRY); draftCcpm = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory() && OPERATIONS_ENTRY.equals(entry.getName())) { if (operations != null) throw new IOException("Duplicate mpo entry: " + OPERATIONS_ENTRY); operations = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory() && DRAFT_OPERATIONS_ENTRY.equals(entry.getName())) { if (draftOperations != null) throw new IOException("Duplicate draft mpo entry: " + DRAFT_OPERATIONS_ENTRY); draftOperations = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory() && MANIFEST_ENTRY.equals(entry.getName())) { if (manifest != null) throw new IOException("Duplicate manifest entry"); manifest = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory() && PROJECT_ENTRY.equals(entry.getName())) { if (projectXml != null) throw new IOException("Duplicate project snapshot entry"); projectXml = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory() && TASK_IDENTITIES_ENTRY.equals(entry.getName())) { if (taskIdentities != null) throw new IOException("Duplicate mpo entry: " + TASK_IDENTITIES_ENTRY); taskIdentities = readEntry(zip, totalBytes); }
-				else if (!entry.isDirectory()) { validateExtensionName(entry.getName()); if (extensions.entries.containsKey(entry.getName())) throw new IOException("Duplicate mpo extension: " + entry.getName()); extensions.entries.put(entry.getName(), readEntry(zip, totalBytes)); }
-				zip.closeEntry();
-			}
-		}
-		if (manifest == null || projectXml == null) throw new IOException("Cannot merge MPOF without its manifest and project snapshot");
-		if (mimetype != null && !MpoFormatIdentifiers.WRITE_AND_READ_MIME_TYPE.equals(new String(mimetype, StandardCharsets.UTF_8).trim()))
-			throw new IOException("Invalid MPOF mimetype entry");
-		ManifestData manifestData = readManifest(manifest, projectXml);
-		if (meta != null) validateMeta(meta);
-		validateArchiveChecksums(manifestData, mimetype, meta, settings, history, layout, visibility, draftCcpm,
-				operations, draftOperations, taskIdentities, projectXml, extensions.entries);
-		if (settings != null && draftCcpm != null) throw new IOException("MPOF contains both current and draft CCPM settings");
-		if (history != null) validateCcpmHistory(history);
-		if (operations != null && draftOperations != null) throw new IOException("MPOF contains both current and draft operation logs");
-		if (operations == null) operations = draftOperations;
-		if (operations == null) throw new IOException("Cannot merge MPOF without an operation log");
-		OperationLog.DocumentLog document = readBoundedOperationLog(operations, draftOperations == operations);
-		String manifestDocumentId = manifestData.documentId();
-		Long manifestProjectId = manifestData.projectUniqueId();
-		return new ExternalMpo(document, extensions, manifestDocumentId, manifestProjectId, taskIdentities,
-				snapshotOf(manifestData, projectXml, extensions.entries));
-	}
-
-	private static MpoArchiveSnapshot snapshotOf(ManifestData manifest, byte[] projectXml,
-			java.util.Map<String, byte[]> extensions) {
-		java.util.LinkedHashMap<String, byte[]> entries = new java.util.LinkedHashMap<>();
-		entries.put(PROJECT_ENTRY, projectXml);
-		if (extensions != null) entries.putAll(extensions);
-		String documentId = manifest.documentId() == null ? "" : manifest.documentId();
-		java.util.List<String> embedded = manifest.embeddedProjects().stream()
-				.map(EmbeddedProjectReference::sourcePath).toList();
-		return new MpoArchiveSnapshot(entries,
-				new MpoArchiveSnapshot.MspProjection(documentId, "", new String(projectXml, StandardCharsets.UTF_8)),
-				new MpoArchiveSnapshot.MpofMetadata(FORMAT_VERSION, documentId, embedded));
-	}
-
-	private static MpoMergePlan planFor(MpoArchiveSnapshot snapshot,
-			java.util.List<MpoMergePlan.Operation> operations,
-			java.util.List<MpoMergePlan.Conflict> conflicts) {
-		return new MpoMergePlan(snapshot.mspProjection(), snapshot.metadata(), operations, conflicts);
-	}
-
-	private static void validateMergePlan(MpoMergePlan plan) throws IOException {
-		java.util.List<MpoValidationDiagnostic> diagnostics = new java.util.ArrayList<>();
-		if (!plan.mspProjection().scheduleXml().contains("<"))
-			diagnostics.add(new MpoValidationDiagnostic(MpoValidationDiagnostic.Severity.ERROR,
-				"MPO_PROJECT_XML", "MPOF project snapshot is empty", PROJECT_ENTRY));
-		for (MpoMergePlan.Operation operation : plan.operations()) {
-			try {
-				MpoArchiveBudgetValidator.validateEntryName(operation.entryName(), MpoArchiveBudgetValidator.DEFAULT_BUDGET);
-			} catch (IOException exception) {
-				diagnostics.add(new MpoValidationDiagnostic(MpoValidationDiagnostic.Severity.ERROR,
-						"MPO_ENTRY_NAME", exception.getMessage(), operation.entryName()));
-			}
-		}
-		for (MpoMergePlan.Conflict conflict : plan.conflicts())
-			diagnostics.add(new MpoValidationDiagnostic(MpoValidationDiagnostic.Severity.ERROR,
-				"MPO_CONFLICT", conflict.reason(), conflict.entryName()));
-		if (diagnostics.stream().anyMatch(diagnostic -> diagnostic.severity() == MpoValidationDiagnostic.Severity.ERROR)) {
-			MpoValidationDiagnostic diagnostic = diagnostics.stream()
-					.filter(value -> value.severity() == MpoValidationDiagnostic.Severity.ERROR).findFirst().orElseThrow();
-			throw new IOException("MPOF validation failed [" + diagnostic.code() + "]: " + diagnostic.message());
 		}
 	}
 
@@ -2221,7 +908,7 @@ public class MpoFileImporter extends FileImporter {
 	}
 
 	/** Reads an operation log and enforces archive-specific semantic limits. */
-	private static OperationLog.DocumentLog readBoundedOperationLog(byte[] bytes, boolean draft)
+	static OperationLog.DocumentLog readBoundedOperationLog(byte[] bytes, boolean draft)
 			throws IOException {
 		Objects.requireNonNull(bytes, "operation log");
 		if (!draft) validateJsonlOperationShape(bytes);
@@ -2329,7 +1016,7 @@ public class MpoFileImporter extends FileImporter {
 			throw new IOException("MPOF " + description + " is too long");
 	}
 
-	private static void validateCcpmHistory(byte[] bytes) throws IOException {
+	static void validateCcpmHistory(byte[] bytes) throws IOException {
 		int count = 0;
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(
 				new ByteArrayInputStream(bytes), StandardCharsets.UTF_8))) {
@@ -2376,7 +1063,7 @@ public class MpoFileImporter extends FileImporter {
 		}
 	}
 
-	private static byte[] readEntry(InputStream in, int[] totalBytes) throws IOException {
+	static byte[] readEntry(InputStream in, int[] totalBytes) throws IOException {
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		byte[] buffer = new byte[8192];
 		int total = 0;
@@ -2393,7 +1080,7 @@ public class MpoFileImporter extends FileImporter {
 		return out.toByteArray();
 	}
 
-	private static void writeEntry(ZipOutputStream zip, String name, byte[] data) throws IOException {
+	static void writeEntry(ZipOutputStream zip, String name, byte[] data) throws IOException {
 		ZipEntry entry = new ZipEntry(name);
 		entry.setTime(0L);
 		zip.putNextEntry(entry);
@@ -2402,70 +1089,12 @@ public class MpoFileImporter extends FileImporter {
 	}
 
 	/** ODF convention: the first ZIP entry is an uncompressed {@code mimetype}. */
-	private static void writeMimetypeEntry(ZipOutputStream zip) throws IOException {
+	static void writeMimetypeEntry(ZipOutputStream zip) throws IOException {
 		ZipEntry entry = new ZipEntry(MIMETYPE_ENTRY);
 		entry.setTime(0L);
 		zip.putNextEntry(entry);
 		zip.write(MpoFormatIdentifiers.WRITE_AND_READ_MIME_TYPE.getBytes(StandardCharsets.US_ASCII));
 		zip.closeEntry();
-	}
-
-	static String manifestFor(byte[] projectXml) {
-		return manifestFor(projectXml, null, null);
-	}
-
-	static String manifestFor(byte[] projectXml, String documentId, Long projectUniqueId) {
-		return manifestFor(projectXml, documentId, projectUniqueId, null, java.util.List.of());
-	}
-
-	private static String manifestFor(byte[] projectXml, String documentId, Long projectUniqueId,
-			String sharedResourcePoolPath, java.util.List<EmbeddedProject> embeddedProjects) {
-		return manifestFor(projectXml, documentId, projectUniqueId, sharedResourcePoolPath, embeddedProjects, null);
-	}
-
-	private static String manifestFor(byte[] projectXml, String documentId, Long projectUniqueId,
-			String sharedResourcePoolPath, java.util.List<EmbeddedProject> embeddedProjects,
-			java.util.Map<String, byte[]> archiveEntries) {
-		return manifestFor(projectXml, documentId, projectUniqueId, sharedResourcePoolPath, embeddedProjects,
-				archiveEntries, 0L);
-	}
-
-	private static String manifestFor(byte[] projectXml, String documentId, Long projectUniqueId,
-			String sharedResourcePoolPath, java.util.List<EmbeddedProject> embeddedProjects,
-			java.util.Map<String, byte[]> archiveEntries, long sharedResourcePoolProjectId) {
-		return manifestFor(projectXml, documentId, projectUniqueId, sharedResourcePoolPath, embeddedProjects,
-				archiveEntries, sharedResourcePoolProjectId, 0L);
-	}
-
-	private static String manifestFor(byte[] projectXml, String documentId, Long projectUniqueId,
-			String sharedResourcePoolPath, java.util.List<EmbeddedProject> embeddedProjects,
-			java.util.Map<String, byte[]> archiveEntries, long sharedResourcePoolProjectId, long statusDate) {
-		StringBuilder manifest = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<manifest format=\"mpof\" formatVersion=\"")
-			.append(FORMAT_VERSION).append("\" projectEntry=\"").append(PROJECT_ENTRY).append("\" projectSha256=\"").append(sha256(projectXml)).append("\"");
-		if (documentId != null) manifest.append(" documentId=\"").append(MarkupEscape.escape(documentId)).append("\"");
-		if (documentId != null && projectUniqueId != null) manifest.append(" projectUniqueId=\"").append(projectUniqueId.longValue()).append("\"");
-		if (sharedResourcePoolPath != null && !sharedResourcePoolPath.isBlank())
-			manifest.append(" sharedResourcePoolPath=\"").append(MarkupEscape.escape(sharedResourcePoolPath)).append("\"");
-		if (sharedResourcePoolProjectId != 0L)
-			manifest.append(" sharedResourcePoolProjectId=\"").append(sharedResourcePoolProjectId).append("\"");
-		if (statusDate > 0L)
-			manifest.append(" statusDate=\"").append(statusDate).append("\"");
-		boolean hasArchiveChecksums = archiveEntries != null && !archiveEntries.isEmpty();
-		if ((embeddedProjects == null || embeddedProjects.isEmpty()) && !hasArchiveChecksums) return manifest.append("/>\n").toString();
-		manifest.append(">\n");
-		if (embeddedProjects != null) for (EmbeddedProject embedded : embeddedProjects) {
-			manifest.append("  <embeddedProject entry=\"").append(MarkupEscape.escape(embedded.entryName())).append("\" sourcePath=\"")
-				.append(MarkupEscape.escape(embedded.sourcePath())).append("\" sha256=\"").append(sha256(embedded.contents())).append("\"");
-			if (embedded.referenceId() != null && !embedded.referenceId().isBlank())
-				manifest.append(" referenceId=\"").append(MarkupEscape.escape(embedded.referenceId())).append("\"");
-			manifest.append("/>\n");
-		}
-		if (archiveEntries != null) for (java.util.Map.Entry<String, byte[]> entry : archiveEntries.entrySet()) {
-			if (MANIFEST_ENTRY.equals(entry.getKey())) continue;
-			manifest.append("  <entry path=\"").append(MarkupEscape.escape(entry.getKey())).append("\" sha256=\"")
-				.append(sha256(entry.getValue())).append("\"/>\n");
-		}
-		return manifest.append("</manifest>\n").toString();
 	}
 
 	/**
@@ -2475,143 +1104,13 @@ public class MpoFileImporter extends FileImporter {
 	 * file to the current layout (issue #356). A different major version cannot be read
 	 * safely and is reported as such instead of as a generic invalid-manifest error.
 	 */
-	static void requireReadableFormatVersion(String value) throws IOException {
-		if (value == null || value.isBlank()) throw new IOException("MPOF manifest is missing formatVersion");
-		MpoFormatVersion version = MpoFormatVersion.parse(value);
-		if (!version.isReadableBy(MpoFormatVersion.CURRENT)) {
-			throw new IOException("Unsupported MPOF format version " + value + "; this build reads version "
-				+ SUPPORTED_FORMAT_MAJOR + ".x and writes " + FORMAT_VERSION);
-		}
-	}
-
-	static void validateManifest(String manifest, byte[] projectXml) throws IOException {
-		readManifest(manifest.getBytes(StandardCharsets.UTF_8), projectXml);
-	}
-
 	/** Linked files to embed, read from the model without touching the disk. */
-	private static java.util.Map<String, String> embeddedSourcesFor(Project master) {
-		if (master == null)
-			return java.util.Map.of();
-		java.util.Map<String, String> sourcePaths = new java.util.LinkedHashMap<String, String>();
-		if (master.getSharedResourcePoolFile() != null && !master.getSharedResourcePoolFile().isBlank())
-			sourcePaths.put(master.getSharedResourcePoolFile(), null);
-		if (master.isMaster()) for (java.util.Iterator<?> tasks = master.getTaskOutlineIterator(); tasks.hasNext();) {
-			Object value = tasks.next();
-			if (value instanceof SubProj reference) {
-				if (reference.getSubprojectFile() != null && !reference.getSubprojectFile().isBlank())
-					sourcePaths.putIfAbsent(reference.getSubprojectFile(), reference.getReferenceId());
-				Project child = reference.getSubproject();
-				if (child != null && child.getSharedResourcePoolFile() != null && !child.getSharedResourcePoolFile().isBlank())
-					sourcePaths.putIfAbsent(child.getSharedResourcePoolFile(), null);
-			}
-		}
-		return sourcePaths;
-	}
-
-	private static java.util.List<EmbeddedProject> readEmbeddedProjects(java.util.Map<String, String> sourcePaths) throws IOException {
-		java.util.List<EmbeddedProject> embedded = new java.util.ArrayList<EmbeddedProject>();
-		int index = 0;
-		java.util.Set<String> seen = new java.util.LinkedHashSet<String>();
-		for (java.util.Map.Entry<String, String> sourceEntry : sourcePaths.entrySet()) {
-			String sourcePath = sourceEntry.getKey();
-			File source = new File(sourcePath).getCanonicalFile();
-			if (!source.isFile())
-				throw new IOException("Cannot embed linked project or resource pool because its file is unavailable: " + sourcePath);
-			if (!seen.add(source.getPath()))
-				continue;
-			byte[] contents = Files.readAllBytes(source.toPath());
-			if (contents.length > MAX_ENTRY_BYTES)
-				throw new IOException("Linked subproject exceeds MPOF entry limit: " + sourcePath);
-			String name = source.getName().replaceAll("[^A-Za-z0-9._-]", "_");
-			if (name.isBlank()) name = "project.mpo";
-			embedded.add(new EmbeddedProject(source.getPath(), EMBEDDED_PROJECT_PREFIX + (++index) + "-" + name, contents,
-					sourceEntry.getValue()));
-		}
-		return embedded;
-	}
-
 	/**
 	 * The master snapshot remains authoritative when one optional embedded child
 	 * is damaged.  Structural manifest defects still fail the archive, while
 	 * absent or tampered child payloads are reported on their corresponding
 	 * master reference so every other project can be opened and repaired.
 	 */
-	private static java.util.Map<String, SubProj.LoadStatus> validateEmbeddedProjects(ManifestData manifest,
-			java.util.Map<String, byte[]> entries) throws IOException {
-		if (manifest.embeddedProjects().size() > MAX_ENTRIES)
-			throw new IOException("MPOF manifest has too many embedded projects");
-		java.util.Set<String> seen = new java.util.HashSet<String>();
-		java.util.Map<String, SubProj.LoadStatus> failures = new java.util.LinkedHashMap<String, SubProj.LoadStatus>();
-		for (EmbeddedProjectReference reference : manifest.embeddedProjects()) {
-			if (!seen.add(reference.entryName()))
-				throw new IOException("MPOF manifest has a duplicate embedded project entry: " + reference.entryName());
-			byte[] contents = entries.get(reference.entryName());
-			if (contents == null)
-				failures.put(reference.sourcePath(), SubProj.LoadStatus.MISSING);
-			else if (!sha256(contents).equals(reference.sha256()))
-				failures.put(reference.sourcePath(), SubProj.LoadStatus.INVALID);
-			else {
-				try {
-					validateEmbeddedProjectPayload(contents);
-				} catch (IOException invalidPayload) {
-					failures.put(reference.sourcePath(), SubProj.LoadStatus.INVALID);
-				}
-			}
-		}
-		return failures;
-	}
-
-	private static void validateEmbeddedProjectPayload(byte[] contents) throws IOException {
-		MpoArchiveBudgetValidator.Result budget = MpoArchiveBudgetValidator.validate(contents,
-			MpoArchiveBudgetValidator.DEFAULT_BUDGET);
-		if (!budget.valid())
-			throw new IOException("Embedded MPOF archive budget rejected: " + budget.reason());
-		byte[] mimetype = null; byte[] manifest = null; byte[] projectXml = null; byte[] meta = null;
-		byte[] settings = null; byte[] history = null; byte[] layout = null; byte[] visibility = null; byte[] draftCcpm = null;
-		byte[] operations = null; byte[] draftOperations = null; byte[] taskIdentities = null;
-		MpoExtensions extensions = new MpoExtensions();
-		try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(contents), StandardCharsets.UTF_8)) {
-			ZipEntry entry;
-			int count = 0; int[] totalBytes = new int[] { 0 };
-			while ((entry = zip.getNextEntry()) != null) {
-				MpoArchiveBudgetValidator.validateEntryName(entry.getName(), MpoArchiveBudgetValidator.DEFAULT_BUDGET);
-				if (++count > MAX_ENTRIES) throw new IOException("Embedded MPOF has too many entries");
-				if (entry.isDirectory()) continue;
-				if (MIMETYPE_ENTRY.equals(entry.getName())) { if (mimetype != null) throw new IOException("Embedded MPOF has duplicate mimetype"); mimetype = readEntry(zip, totalBytes); }
-				else if (MANIFEST_ENTRY.equals(entry.getName())) { if (manifest != null) throw new IOException("Embedded MPOF has duplicate manifest"); manifest = readEntry(zip, totalBytes); }
-				else if (PROJECT_ENTRY.equals(entry.getName())) { if (projectXml != null) throw new IOException("Embedded MPOF has duplicate project payload"); projectXml = readEntry(zip, totalBytes); }
-				else if (META_ENTRY.equals(entry.getName())) { if (meta != null) throw new IOException("Embedded MPOF has duplicate meta"); meta = readEntry(zip, totalBytes); }
-				else if (SETTINGS_ENTRY.equals(entry.getName())) { if (settings != null) throw new IOException("Embedded MPOF has duplicate settings"); settings = readEntry(zip, totalBytes); }
-				else if (CCPM_HISTORY_ENTRY.equals(entry.getName())) { if (history != null) throw new IOException("Embedded MPOF has duplicate CCPM history"); history = readEntry(zip, totalBytes); }
-				else if (LAYOUT_ENTRY.equals(entry.getName())) { if (layout != null) throw new IOException("Embedded MPOF has duplicate layout"); layout = readEntry(zip, totalBytes); }
-				else if (VISIBILITY_ENTRY.equals(entry.getName())) { if (visibility != null) throw new IOException("Embedded MPOF has duplicate visibility"); visibility = readEntry(zip, totalBytes); }
-				else if (DRAFT_CCPM_ENTRY.equals(entry.getName())) { if (draftCcpm != null) throw new IOException("Embedded MPOF has duplicate draft CCPM settings"); draftCcpm = readEntry(zip, totalBytes); }
-				else if (OPERATIONS_ENTRY.equals(entry.getName())) { if (operations != null) throw new IOException("Embedded MPOF has duplicate operations"); operations = readEntry(zip, totalBytes); }
-				else if (DRAFT_OPERATIONS_ENTRY.equals(entry.getName())) { if (draftOperations != null) throw new IOException("Embedded MPOF has duplicate draft operations"); draftOperations = readEntry(zip, totalBytes); }
-				else if (TASK_IDENTITIES_ENTRY.equals(entry.getName())) { if (taskIdentities != null) throw new IOException("Embedded MPOF has duplicate task identities"); taskIdentities = readEntry(zip, totalBytes); }
-				else { validateExtensionName(entry.getName()); if (extensions.entries.put(entry.getName(), readEntry(zip, totalBytes)) != null) throw new IOException("Embedded MPOF has duplicate extension: " + entry.getName()); }
-			}
-		}
-		if (manifest == null || projectXml == null)
-			throw new IOException("Embedded MPOF is missing its manifest or project payload");
-		if (mimetype != null && !MpoFormatIdentifiers.WRITE_AND_READ_MIME_TYPE.equals(new String(mimetype, StandardCharsets.UTF_8).trim()))
-			throw new IOException("Embedded MPOF has an invalid mimetype");
-		ManifestData embeddedManifest = readManifest(manifest, projectXml);
-		if (meta != null) validateMeta(meta);
-		validateArchiveChecksums(embeddedManifest, mimetype, meta, settings, history, layout, visibility, draftCcpm,
-				operations, draftOperations, taskIdentities, projectXml, extensions.entries);
-		if (settings != null && draftCcpm != null) throw new IOException("Embedded MPOF has both current and draft CCPM settings");
-		if (operations != null && draftOperations != null) throw new IOException("Embedded MPOF has both current and draft operations");
-		if (history != null) validateCcpmHistory(history);
-		if (operations != null) readBoundedOperationLog(operations, false);
-		else if (draftOperations != null) readBoundedOperationLog(draftOperations, true);
-		try {
-			secureDocumentBuilderFactory().newDocumentBuilder().parse(new ByteArrayInputStream(projectXml));
-		} catch (Exception invalidXml) {
-			throw new IOException("Embedded MPOF project payload is not valid XML", invalidXml);
-		}
-	}
-
 	/** Operation replay mutates tasks and can repaint an open spreadsheet, so it must use the EDT. */
 	/**
 	 * Applies the already validated domain phase of an MPOF transaction.  This
@@ -2630,253 +1129,6 @@ public class MpoFileImporter extends FileImporter {
 			java.util.List<OperationLog.Operation> operations,
 			java.util.Set<String> alreadyAppliedOperationIds) throws IOException {
 		runOnEdt(() -> new MpoTaskOperationService().apply(project, operations, alreadyAppliedOperationIds));
-	}
-
-	private static void restoreEmbeddedProjectReferences(Project master, ManifestData manifest,
-			java.util.Map<String, byte[]> entries, java.util.Map<String, SubProj.LoadStatus> failures) throws IOException {
-		if (manifest.embeddedProjects().isEmpty())
-			return;
-		MpoExtractionSession session = MpoExtractionSession.open(extractionWorkspaceRoot == null
-				? MpoExtractionSession.defaultWorkspaceRoot() : extractionWorkspaceRoot);
-		try {
-		java.util.Map<String, String> extractedBySource = new java.util.LinkedHashMap<String, String>();
-		for (EmbeddedProjectReference reference : manifest.embeddedProjects()) {
-			if (failures.containsKey(reference.sourcePath()))
-				continue;
-			byte[] contents = entries.remove(reference.entryName());
-			if (contents == null)
-				throw new IOException("Missing embedded MPOF entry: " + reference.entryName());
-			Path target = session.extract(reference.entryName(), contents);
-			extractedBySource.put(reference.sourcePath(), target.toString());
-		}
-		// Embedded projects can themselves contain cross-project task placeholders
-		// or shared-pool references.  Rewrite those references to the extracted
-		// archive members before a child is opened, otherwise moving a complete
-		// MPO bundle still leaves its internal links pointing at the old machine.
-		java.util.Map<String, Long> embeddedProjectIdsBySource = new java.util.LinkedHashMap<String, Long>();
-		java.util.Map<String, String> embeddedReferenceIdsBySource = new java.util.LinkedHashMap<String, String>();
-		for (EmbeddedProjectReference embedded : manifest.embeddedProjects())
-			if (embedded.referenceId() != null && !embedded.referenceId().isBlank())
-				embeddedReferenceIdsBySource.put(embedded.sourcePath(), embedded.referenceId());
-		for (java.util.Map.Entry<String, String> extracted : extractedBySource.entrySet())
-			embeddedProjectIdsBySource.put(extracted.getKey(),
-					rewriteExtractedProjectReferences(Path.of(extracted.getValue()), extractedBySource));
-		// The master snapshot also contains external-task placeholders.  Those
-		// references do not belong to an embedded child archive, so rewrite them
-		// on the already-loaded master model as well.
-		for (java.util.Iterator<?> tasks = master.getTaskOutlineIterator(); tasks.hasNext();) {
-			Object value = tasks.next();
-			if (!(value instanceof Task task) || task.getExternalProjectFile() == null)
-				continue;
-			for (java.util.Map.Entry<String, String> extracted : extractedBySource.entrySet())
-				if (sameCanonicalPath(task.getExternalProjectFile(), extracted.getKey())) {
-					task.setExternalProjectFile(extracted.getValue());
-					break;
-				}
-		}
-		for (java.util.Iterator<?> tasks = master.getTaskOutlineIterator(); tasks.hasNext();) {
-			Object value = tasks.next();
-			if (!(value instanceof DefaultSubProj reference))
-				continue;
-			SubProj.LoadStatus failure = embeddedFailureFor(reference.getSubprojectFile(), failures);
-			if (failure != null) {
-				reference.setLoadStatus(failure);
-				continue;
-			}
-			for (java.util.Map.Entry<String, String> extracted : extractedBySource.entrySet()) {
-				if (sameCanonicalPath(reference.getSubprojectFile(), extracted.getKey())) {
-					reference.setSubprojectFile(extracted.getValue());
-					String referenceId = embeddedReferenceIdsBySource.get(extracted.getKey());
-					if (referenceId != null) reference.setReferenceId(referenceId);
-					Long subprojectId = embeddedProjectIdsBySource.get(extracted.getKey());
-					if (subprojectId != null && subprojectId.longValue() > 0L)
-						reference.setSubprojectUniqueId(subprojectId.longValue());
-					break;
-				}
-			}
-		}
-		for (java.util.Map.Entry<String, String> extracted : extractedBySource.entrySet()) {
-			if (sameCanonicalPath(manifest.sharedResourcePoolPath(), extracted.getKey())) {
-				master.setSharedResourcePoolFile(extracted.getValue());
-				break;
-			}
-		}
-		if (extractedBySource.isEmpty()) {
-			session.close();
-		} else {
-			MpoExtractionOwnershipRegistry.attach(master, session);
-			session = null;
-		}
-		} finally {
-			if (session != null)
-				session.close();
-		}
-	}
-
-	static long rewriteExtractedProjectReferences(Path extractedFile,
-			java.util.Map<String, String> extractedBySource) throws IOException {
-		java.util.Map<String, byte[]> entries = new java.util.LinkedHashMap<String, byte[]>();
-		int[] totalBytes = new int[1];
-		int entryCount = 0;
-		try (ZipInputStream zip = new ZipInputStream(Files.newInputStream(extractedFile), StandardCharsets.UTF_8)) {
-			ZipEntry entry;
-			while ((entry = zip.getNextEntry()) != null) {
-				if (++entryCount > MpoArchiveBudgetValidator.DEFAULT_BUDGET.maxEntries())
-					throw new IOException("Embedded project exceeds " + MpoArchiveBudgetValidator.DEFAULT_BUDGET.maxEntries() + " entries");
-				MpoArchiveBudgetValidator.validateEntryName(entry.getName(), MpoArchiveBudgetValidator.DEFAULT_BUDGET);
-				if (entry.isDirectory()) continue;
-				entries.put(entry.getName(), readEntry(zip, totalBytes));
-			}
-		}
-		byte[] projectXml = entries.get(PROJECT_ENTRY);
-		byte[] manifestXml = entries.get(MANIFEST_ENTRY);
-		if (projectXml == null || manifestXml == null)
-			throw new IOException("Embedded project is not an MPOF archive: " + extractedFile.getFileName());
-		ManifestData originalManifest = readManifest(manifestXml, projectXml);
-		byte[] rewrittenProject = rewriteEmbeddedXml(projectXml, extractedBySource);
-		byte[] rewrittenManifest = rewriteEmbeddedXml(manifestXml, extractedBySource);
-		if (java.util.Arrays.equals(projectXml, rewrittenProject) && java.util.Arrays.equals(manifestXml, rewrittenManifest))
-			return originalManifest.projectUniqueId() == null ? 0L : originalManifest.projectUniqueId().longValue();
-		String manifestText = new String(rewrittenManifest, StandardCharsets.UTF_8);
-		// A master archive owns the canonical extracted copy of every linked
-		// project.  Do not leave nested embedded copies inside a child archive:
-		// reopening that child would extract a second copy and its links would no
-		// longer point at the master's shared project instance.
-		for (EmbeddedProjectReference nested : originalManifest.embeddedProjects()) {
-			entries.remove(nested.entryName());
-			String escapedEntry = java.util.regex.Pattern.quote(MarkupEscape.escape(nested.entryName()));
-			manifestText = manifestText.replaceAll("(?m)^\\s*<embeddedProject\\b[^>]*entry=\\\""
-					+ escapedEntry + "\\\"[^>]*/>\\s*\\r?\\n?", "");
-			manifestText = manifestText.replaceAll("(?m)^\\s*<entry\\s+path=\\\"" + escapedEntry
-					+ "\\\"[^>]*/>\\s*\\r?\\n?", "");
-		}
-		manifestText = manifestText.replaceFirst("projectSha256=\\\"[^\\\"]*\\\"",
-				"projectSha256=\\\"" + sha256(rewrittenProject) + "\\\"");
-		// New MPOF manifests also checksum every payload entry.  Keep the
-		// content.xml checksum in sync after portable path rewriting.
-		manifestText = manifestText.replaceFirst("(path=\\\"" + java.util.regex.Pattern.quote(PROJECT_ENTRY)
-				+ "\\\" sha256=\\\")[^\\\"]*(\\\")",
-				"$1" + sha256(rewrittenProject) + "$2");
-		entries.put(PROJECT_ENTRY, rewrittenProject);
-		entries.put(MANIFEST_ENTRY, manifestText.getBytes(StandardCharsets.UTF_8));
-		Path temporary = Files.createTempFile(extractedFile.getParent(), extractedFile.getFileName().toString(), ".tmp");
-		boolean moved = false;
-		try {
-			try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(temporary, StandardOpenOption.TRUNCATE_EXISTING), StandardCharsets.UTF_8)) {
-				for (java.util.Map.Entry<String, byte[]> entry : entries.entrySet())
-					writeEntry(zip, entry.getKey(), entry.getValue());
-			}
-			SafeFileReplace.replaceDurably(temporary, extractedFile, true);
-			moved = true;
-		} finally {
-			if (!moved) TemporaryCleanupQueue.deleteOrEnqueue(temporary);
-		}
-		return originalManifest.projectUniqueId() == null ? 0L : originalManifest.projectUniqueId().longValue();
-	}
-
-	private static byte[] rewriteEmbeddedXml(byte[] xml, java.util.Map<String, String> extractedBySource) {
-		String rewritten = new String(xml, StandardCharsets.UTF_8);
-		for (java.util.Map.Entry<String, String> entry : extractedBySource.entrySet()) {
-			String source = entry.getKey();
-			String target = MarkupEscape.escape(entry.getValue());
-			// XML produced by different Windows/JDK combinations can use either
-			// slash direction and may normalize drive/path casing differently.
-			// Match the complete escaped path case-insensitively while accepting
-			// both separator forms, so portable extraction never leaves a link
-			// pointing back to the original machine.
-			java.util.Set<String> pathVariants = new java.util.LinkedHashSet<String>();
-			pathVariants.add(source);
-			pathVariants.add(source.replace('\\', '/'));
-			pathVariants.add(source.replace('/', '\\'));
-			pathVariants.add(source.replace("\\", "&#92;"));
-			pathVariants.add(source.replace("\\", "&#x5c;"));
-			pathVariants.add(source.replace(":", "%3A").replace("\\", "%5C"));
-			pathVariants.add(source.replace(":", "%3a").replace("\\", "%5c"));
-			try {
-				String uri = new File(source).toURI().toString();
-				pathVariants.add(uri);
-				if (uri.startsWith("file:/")) {
-					pathVariants.add("file:///" + uri.substring("file:/".length()));
-					pathVariants.add("file://" + uri.substring("file:/".length()));
-				}
-			} catch (RuntimeException ignored) {
-				// Keep the raw forms above when a malformed legacy path is encountered.
-			}
-			for (String path : pathVariants) {
-				String escaped = MarkupEscape.escape(path);
-				rewritten = java.util.regex.Pattern.compile(java.util.regex.Pattern.quote(escaped),
-						java.util.regex.Pattern.CASE_INSENSITIVE)
-					.matcher(rewritten)
-					.replaceAll(java.util.regex.Matcher.quoteReplacement(target));
-			}
-		}
-		return rewritten.getBytes(StandardCharsets.UTF_8);
-	}
-
-	private static SubProj.LoadStatus embeddedFailureFor(String sourcePath,
-			java.util.Map<String, SubProj.LoadStatus> failures) {
-		for (java.util.Map.Entry<String, SubProj.LoadStatus> entry : failures.entrySet())
-			if (sameCanonicalPath(sourcePath, entry.getKey()))
-				return entry.getValue();
-		return null;
-	}
-
-	private static boolean sameCanonicalPath(String first, String second) {
-		if (first == null || second == null)
-			return false;
-		try {
-			return new File(first).getCanonicalFile().equals(new File(second).getCanonicalFile());
-		} catch (IOException exception) {
-			return new File(first).getAbsoluteFile().equals(new File(second).getAbsoluteFile());
-		}
-	}
-
-	private static void validateEmbeddedEntryName(String name) throws IOException {
-		validateExtensionName(name);
-		if (!name.startsWith(EMBEDDED_PROJECT_PREFIX) || name.length() <= EMBEDDED_PROJECT_PREFIX.length())
-			throw new IOException("Invalid MPOF embedded project entry");
-	}
-
-	private static ManifestData readManifest(byte[] manifestBytes, byte[] projectXml) throws IOException {
-		String document = new String(manifestBytes, StandardCharsets.UTF_8).trim();
-		if (document.startsWith("{")) return readDraftJsonManifest(document, projectXml);
-		try {
-			javax.xml.parsers.DocumentBuilderFactory factory = secureDocumentBuilderFactory();
-			org.w3c.dom.Element root = factory.newDocumentBuilder().parse(new ByteArrayInputStream(manifestBytes)).getDocumentElement();
-			if (!"manifest".equals(root.getTagName()) || !FORMAT_ID.equals(root.getAttribute("format")) || !PROJECT_ENTRY.equals(root.getAttribute("projectEntry"))) throw new IOException("Unsupported or invalid MPOF manifest");
-			requireReadableFormatVersion(root.getAttribute("formatVersion"));
-			if (!sha256(projectXml).equals(requiredAttribute(root, "projectSha256"))) throw new IOException("content.xml checksum does not match its MPOF manifest");
-			String documentId = root.getAttribute("documentId");
-			Long projectUniqueId = root.hasAttribute("projectUniqueId") ? Long.valueOf(root.getAttribute("projectUniqueId")) : null;
-			Long statusDate = root.hasAttribute("statusDate") ? Long.valueOf(root.getAttribute("statusDate")) : null;
-			Project.validatePersistedStatusDate(statusDate == null ? 0L : statusDate.longValue());
-			Long sharedResourcePoolProjectId = root.hasAttribute("sharedResourcePoolProjectId")
-					? Long.valueOf(root.getAttribute("sharedResourcePoolProjectId")) : null;
-			java.util.List<EmbeddedProjectReference> embeddedProjects = new java.util.ArrayList<EmbeddedProjectReference>();
-			java.util.Map<String, String> checksums = new java.util.LinkedHashMap<>();
-			org.w3c.dom.NodeList children = root.getChildNodes();
-			for (int index = 0; index < children.getLength(); index++) {
-				if (!(children.item(index) instanceof org.w3c.dom.Element child))
-					continue;
-				if ("embeddedProject".equals(child.getTagName())) {
-					String entry = requiredAttribute(child, "entry");
-					validateEmbeddedEntryName(entry);
-					String referenceId = child.hasAttribute("referenceId") ? child.getAttribute("referenceId") : null;
-					if (referenceId != null && !referenceId.isBlank()) java.util.UUID.fromString(referenceId);
-					embeddedProjects.add(new EmbeddedProjectReference(requiredAttribute(child, "sourcePath"), entry,
-						requiredAttribute(child, "sha256"), referenceId));
-				} else if ("entry".equals(child.getTagName())) {
-					String path = requiredAttribute(child, "path");
-					if (MANIFEST_ENTRY.equals(path) || checksums.put(path, requiredAttribute(child, "sha256")) != null)
-						throw new IOException("Duplicate MPOF checksum entry: " + path);
-				} else throw new IOException("Unsupported MPOF manifest entry: " + child.getTagName());
-			}
-			String sharedResourcePoolPath = root.getAttribute("sharedResourcePoolPath");
-			return new ManifestData(documentId.isBlank() ? null : documentId, projectUniqueId, statusDate,
-				sharedResourcePoolProjectId,
-				sharedResourcePoolPath.isBlank() ? null : sharedResourcePoolPath, embeddedProjects, checksums);
-		} catch (IOException exception) { throw exception; }
-		catch (Exception exception) { throw new IOException("Invalid MPOF manifest", exception); }
 	}
 
 	private static CriticalChainService.Settings existingCcpm(Project project) {
@@ -2933,7 +1185,7 @@ public class MpoFileImporter extends FileImporter {
 				? com.microproject.pm.resource.ResourceLevelingService.Sensitivity.valueOf(text(root, "sensitivity"))
 				: com.microproject.pm.resource.ResourceLevelingService.Sensitivity.DAY);
 			CriticalChainService service = new CriticalChainService();
-			applySettings(service.settings(project), settings);
+			MpoManifest.applySettings(service.settings(project), settings);
 			JsonNode baseline = root.get("baseline");
 			if (baseline != null) service.restoreBaseline(project, baseline(baseline));
 		} catch (RuntimeException e) {
@@ -2941,237 +1193,22 @@ public class MpoFileImporter extends FileImporter {
 		}
 	}
 
-	private static ManifestData readDraftJsonManifest(String manifest, byte[] projectXml) throws IOException {
-		JsonNode root = object(manifest, MANIFEST_ENTRY);
-		String format = root.path("format").isTextual() ? root.path("format").textValue() : null;
-		if (!FORMAT_ID.equals(format) || !PROJECT_ENTRY.equals(text(root, "projectEntry"))) throw new IOException("Unsupported or invalid draft MPOF manifest: format=" + format);
-		requireReadableFormatVersion(text(root, "formatVersion"));
-		if (!sha256(projectXml).equals(text(root, "projectSha256"))) throw new IOException("content.xml checksum does not match its draft MPOF manifest");
-		String documentId = root.path("documentId").isTextual() ? root.path("documentId").textValue() : null;
-		Long projectUniqueId = root.path("projectUniqueId").canConvertToLong() ? Long.valueOf(root.path("projectUniqueId").longValue()) : null;
-		return new ManifestData(documentId, projectUniqueId, null, null, null, java.util.List.of(), java.util.Map.of());
-	}
-
 	/** Validates checksums for the complete archive when written by a checksum-aware MPOF writer. */
-	private static void validateArchiveChecksums(ManifestData manifest, byte[] mimetype, byte[] meta,
-			byte[] settings, byte[] history, byte[] layout, byte[] visibility, byte[] draftCcpm, byte[] operations,
-			byte[] draftOperations, byte[] taskIdentities, byte[] projectXml,
-			java.util.Map<String, byte[]> extensions) throws IOException {
-		if (manifest.checksums().isEmpty()) return; // Older MPOF versions only checksum content.xml and children.
-		java.util.Map<String, byte[]> actual = new java.util.LinkedHashMap<>();
-		if (mimetype != null) actual.put(MIMETYPE_ENTRY, mimetype);
-		if (meta != null) actual.put(META_ENTRY, meta);
-		if (settings != null) actual.put(SETTINGS_ENTRY, settings);
-		if (history != null) actual.put(CCPM_HISTORY_ENTRY, history);
-		if (layout != null) actual.put(LAYOUT_ENTRY, layout);
-		if (visibility != null) actual.put(VISIBILITY_ENTRY, visibility);
-		if (draftCcpm != null) actual.put(DRAFT_CCPM_ENTRY, draftCcpm);
-		if (operations != null) actual.put(OPERATIONS_ENTRY, operations);
-		if (draftOperations != null) actual.put(DRAFT_OPERATIONS_ENTRY, draftOperations);
-		if (taskIdentities != null) actual.put(TASK_IDENTITIES_ENTRY, taskIdentities);
-		actual.put(PROJECT_ENTRY, projectXml);
-		actual.putAll(extensions);
-		for (java.util.Map.Entry<String, String> checksum : manifest.checksums().entrySet()) {
-			// Embedded children are recoverable units: a bad child must be reported on
-			// its SubProj reference while the valid siblings and master remain open.
-			if (checksum.getKey().startsWith(EMBEDDED_PROJECT_PREFIX)) continue;
-			byte[] bytes = actual.get(checksum.getKey());
-			if (bytes == null)
-				throw new IOException("MPOF manifest checksum entry is missing from archive: " + checksum.getKey());
-			if (!sha256(bytes).equals(checksum.getValue()))
-				throw new IOException("MPOF entry checksum does not match: " + checksum.getKey());
-		}
-	}
-
-	private static String metaXml() {
-		String version = com.microproject.util.VersionUtils.getVersion();
-		return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<meta formatVersion=\"1.0\" generator=\"microProject\"" +
-			" " + LEVELING_DELAY_UNIT_ATTRIBUTE + "=\"" + LEVELING_DELAY_UNIT_MINUTES + "\"" +
-			" " + ASSIGNMENT_BASELINE_COST_UNIT_ATTRIBUTE + "=\"" + ASSIGNMENT_BASELINE_COST_UNIT_HUNDREDTHS + "\"" +
-			(version == null ? "" : " applicationVersion=\"" + MarkupEscape.escape(version) + "\"") + "/>\n";
-	}
-
-	private static boolean isLegacyMicroprojectAssignmentBaselineCost(byte[] xmlBytes) throws IOException {
-		try {
-			javax.xml.parsers.DocumentBuilderFactory factory = secureDocumentBuilderFactory();
-			org.w3c.dom.Element root = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xmlBytes)).getDocumentElement();
-			return "microProject".equals(root.getAttribute("generator"))
-				&& !ASSIGNMENT_BASELINE_COST_UNIT_HUNDREDTHS.equals(
-					root.getAttribute(ASSIGNMENT_BASELINE_COST_UNIT_ATTRIBUTE));
-		} catch (Exception exception) { throw new IOException("Invalid meta.xml", exception); }
-	}
-
-	static byte[] migrateLegacyAssignmentBaselineCosts(byte[] xmlBytes) throws IOException {
-		String xml = new String(xmlBytes, StandardCharsets.UTF_8);
-		Pattern assignment = Pattern.compile("(<Assignment(?:\\s[^>]*)?>)([\\s\\S]*?)(</Assignment>)");
-		Matcher matcher = assignment.matcher(xml);
-		StringBuffer migrated = new StringBuffer(xml.length());
-		while (matcher.find()) {
-			String assignmentBody = matcher.group(2);
-			Pattern row = Pattern.compile("(<TimephasedData(?:\\s[^>]*)?>[\\s\\S]*?<Type>)(\\d+)(</Type>[\\s\\S]*?<Value>)([^<]+)(</Value>[\\s\\S]*?</TimephasedData>)");
-			Matcher rows = row.matcher(assignmentBody);
-			StringBuffer migratedRows = new StringBuffer(assignmentBody.length());
-			while (rows.find()) {
-				int type;
-				try { type = Integer.parseInt(rows.group(2)); }
-				catch (NumberFormatException exception) { throw new IOException("Invalid legacy assignment baseline cost type", exception); }
-				boolean baselineCost = false;
-				for (int slot = 0; slot <= 10; slot++)
-					if (type == com.microproject.core.pm.exchange.converters.mpx.MpxImportState
-							.assignmentBaselineCostType(slot)) { baselineCost = true; break; }
-				if (!baselineCost) continue;
-				String value;
-				try {
-					value = new java.math.BigDecimal(rows.group(4)).multiply(java.math.BigDecimal.valueOf(100L))
-						.stripTrailingZeros().toPlainString();
-				} catch (NumberFormatException exception) {
-					throw new IOException("Invalid legacy assignment baseline cost value", exception);
-				}
-				rows.appendReplacement(migratedRows, Matcher.quoteReplacement(rows.group(1) + rows.group(2)
-					+ rows.group(3) + value + rows.group(5)));
-			}
-			rows.appendTail(migratedRows);
-			matcher.appendReplacement(migrated, Matcher.quoteReplacement(matcher.group(1)
-				+ migratedRows + matcher.group(3)));
-		}
-		matcher.appendTail(migrated);
-		return migrated.toString().getBytes(StandardCharsets.UTF_8);
-	}
-
 	/**
 	 * MPOF snapshots written before the unit marker stored the engine's raw
 	 * millisecond value in MSPDI's serialized delay field. Restrict conversion to these
 	 * microProject files: ordinary MSPDI imports remain standards-compliant.
 	 */
-	private static boolean isLegacyMicroprojectLevelingDelay(byte[] xmlBytes) throws IOException {
-		try {
-			javax.xml.parsers.DocumentBuilderFactory factory = secureDocumentBuilderFactory();
-			org.w3c.dom.Element root = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xmlBytes)).getDocumentElement();
-			return "microProject".equals(root.getAttribute("generator"))
-				&& !LEVELING_DELAY_UNIT_MINUTES.equals(root.getAttribute(LEVELING_DELAY_UNIT_ATTRIBUTE));
-		} catch (Exception exception) { throw new IOException("Invalid meta.xml", exception); }
-	}
-
-	private static byte[] migrateLegacyLevelingDelays(byte[] xmlBytes) throws IOException {
-		String xml = new String(xmlBytes, StandardCharsets.UTF_8);
-		Matcher matcher = LEVELING_DELAY.matcher(xml);
-		StringBuffer migrated = new StringBuffer(xml.length());
-		while (matcher.find()) {
-			try {
-				// MPXJ serializes a minute-format leveling delay in tenths of a
-				// minute. Normalize both the value and its format rather than relying
-				// on the stale format written by the legacy serializer.
-				long serializedMinutes = Long.parseLong(matcher.group(1)) / 6000L;
-				matcher.appendReplacement(migrated, Matcher.quoteReplacement("<LevelingDelay>" + serializedMinutes + "</LevelingDelay>"));
-			} catch (NumberFormatException exception) {
-				throw new IOException("Invalid legacy LevelingDelay", exception);
-			}
-		}
-		matcher.appendTail(migrated);
-		return LEVELING_DELAY_FORMAT.matcher(migrated).replaceAll("<LevelingDelayFormat>" + LEVELING_DELAY_FORMAT_MINUTES + "</LevelingDelayFormat>")
-			.getBytes(StandardCharsets.UTF_8);
-	}
-
-	private static javax.xml.parsers.DocumentBuilderFactory secureDocumentBuilderFactory() throws javax.xml.parsers.ParserConfigurationException {
+	static javax.xml.parsers.DocumentBuilderFactory secureDocumentBuilderFactory() throws javax.xml.parsers.ParserConfigurationException {
 		return MspdiProjectBoundary.secureDocumentBuilderFactory(false);
 	}
 
-	private static void validateMeta(byte[] xmlBytes) throws IOException {
-		try {
-			javax.xml.parsers.DocumentBuilderFactory factory = secureDocumentBuilderFactory();
-			org.w3c.dom.Element root = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xmlBytes)).getDocumentElement();
-			if (!"meta".equals(root.getTagName()) || root.getAttribute("generator").isBlank()) throw new IOException("Invalid meta.xml");
-			requireReadableFormatVersion(root.getAttribute("formatVersion"));
-			String baselineCostUnit = root.getAttribute(ASSIGNMENT_BASELINE_COST_UNIT_ATTRIBUTE);
-			if (!baselineCostUnit.isEmpty()
-					&& !ASSIGNMENT_BASELINE_COST_UNIT_HUNDREDTHS.equals(baselineCostUnit))
-				throw new IOException("Unsupported MPO assignment baseline cost unit: " + baselineCostUnit);
-		} catch (IOException exception) { throw exception; }
-		catch (Exception exception) { throw new IOException("Invalid meta.xml", exception); }
-	}
-
-	private static String settingsXml(CriticalChainService.Settings settings, CriticalChainService.Baseline baseline) {
-		StringBuilder xml = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<settings schemaVersion=\"1\">");
-		if (settings != null) {
-			xml.append("<ccpm enabled=\"").append(settings.isEnabled()).append("\" bufferFraction=\"").append(settings.getBufferFraction())
-				.append("\" levelingOrder=\"").append(settings.getLevelingOrder()).append("\" onlyWithinAvailableSlack=\"").append(settings.isOnlyWithinAvailableSlack())
-				.append("\" allowTaskSplits=\"").append(settings.isAllowTaskSplits())
-				.append("\" levelAssignments=\"").append(settings.isLevelAssignments())
-				.append("\" includeProposedResources=\"").append(settings.isIncludeProposedResources())
-				.append("\" levelManuallyScheduledTasks=\"").append(settings.isLevelManuallyScheduledTasks())
-				.append("\" sensitivity=\"").append(settings.getSensitivity()).append("\">");
-			if (baseline != null) {
-				xml.append("<baseline projectFinishMillis=\"").append(baseline.projectFinishMillis()).append("\" projectBufferMillis=\"").append(baseline.projectBufferMillis())
-					.append("\" bufferFraction=\"").append(baseline.bufferFraction()).append("\" allResources=\"").append(baseline.allResources()).append("\"><criticalTaskIds>");
-				for (Long id : baseline.criticalTaskIds()) xml.append("<id>").append(id).append("</id>");
-				xml.append("</criticalTaskIds><feedingTaskStartMillis>");
-				for (java.util.Map.Entry<Long, Long> entry : baseline.feedingTaskStartMillis().entrySet()) xml.append("<value taskId=\"").append(entry.getKey()).append("\">").append(entry.getValue()).append("</value>");
-				xml.append("</feedingTaskStartMillis><feedingBufferMillis>");
-				for (java.util.Map.Entry<Long, Long> entry : baseline.feedingBufferMillis().entrySet()) xml.append("<value taskId=\"").append(entry.getKey()).append("\">").append(entry.getValue()).append("</value>");
-				xml.append("</feedingBufferMillis><resourceIds>");
-				for (Long id : baseline.resourceIds()) xml.append("<id>").append(id).append("</id>");
-				xml.append("</resourceIds></baseline>");
-			}
-			xml.append("</ccpm>");
-		}
-		return xml.append("</settings>\n").toString();
-	}
-
-	private static void applySettings(CriticalChainService.Settings target, CriticalChainService.Settings settings) {
-		target.setEnabled(settings.isEnabled());
-		target.setBufferFraction(settings.getBufferFraction());
-		target.setLevelingOrder(settings.getLevelingOrder());
-		target.setOnlyWithinAvailableSlack(settings.isOnlyWithinAvailableSlack());
-		target.setAllowTaskSplits(settings.isAllowTaskSplits());
-		target.setLevelAssignments(settings.isLevelAssignments());
-		target.setIncludeProposedResources(settings.isIncludeProposedResources());
-		target.setLevelManuallyScheduledTasks(settings.isLevelManuallyScheduledTasks());
-		target.setSensitivity(settings.getSensitivity());
-	}
-
-	private static void restoreSettings(Project project, byte[] xmlBytes) throws IOException {
-		try {
-			javax.xml.parsers.DocumentBuilderFactory factory = secureDocumentBuilderFactory();
-			org.w3c.dom.Element root = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xmlBytes)).getDocumentElement();
-			if (!"settings".equals(root.getTagName()) || !"1".equals(root.getAttribute("schemaVersion"))) throw new IOException("Unsupported settings.xml schemaVersion");
-			org.w3c.dom.NodeList nodes = root.getElementsByTagName("ccpm");
-			if (nodes.getLength() == 0) return;
-			org.w3c.dom.Element value = (org.w3c.dom.Element) nodes.item(0);
-			CriticalChainService.Settings settings = new CriticalChainService.Settings();
-			settings.setEnabled(Boolean.parseBoolean(requiredAttribute(value, "enabled")));
-			settings.setBufferFraction(Double.parseDouble(requiredAttribute(value, "bufferFraction")));
-			settings.setLevelingOrder(com.microproject.pm.resource.ResourceLevelingService.Order.valueOf(requiredAttribute(value, "levelingOrder")));
-			settings.setOnlyWithinAvailableSlack(Boolean.parseBoolean(requiredAttribute(value, "onlyWithinAvailableSlack")));
-			settings.setAllowTaskSplits(Boolean.parseBoolean(requiredAttribute(value, "allowTaskSplits")));
-			settings.setLevelAssignments(value.hasAttribute("levelAssignments")
-				? Boolean.parseBoolean(value.getAttribute("levelAssignments")) : true);
-			settings.setIncludeProposedResources(value.hasAttribute("includeProposedResources")
-				&& Boolean.parseBoolean(value.getAttribute("includeProposedResources")));
-			settings.setLevelManuallyScheduledTasks(value.hasAttribute("levelManuallyScheduledTasks")
-				&& Boolean.parseBoolean(value.getAttribute("levelManuallyScheduledTasks")));
-			settings.setSensitivity(value.hasAttribute("sensitivity")
-				? com.microproject.pm.resource.ResourceLevelingService.Sensitivity.valueOf(value.getAttribute("sensitivity"))
-				: com.microproject.pm.resource.ResourceLevelingService.Sensitivity.DAY);
-			CriticalChainService service = new CriticalChainService();
-			applySettings(service.settings(project), settings);
-			org.w3c.dom.NodeList baselines = value.getElementsByTagName("baseline");
-			if (baselines.getLength() > 0) {
-				org.w3c.dom.Element baseline = (org.w3c.dom.Element) baselines.item(0);
-				java.util.List<Long> critical = new java.util.ArrayList<>(); org.w3c.dom.NodeList ids = baseline.getElementsByTagName("id");
-				for (int i = 0; i < ids.getLength(); i++) critical.add(Long.valueOf(ids.item(i).getTextContent()));
-				java.util.List<Long> resources = xmlLongList(baseline, "resourceIds");
-				boolean allResources = !baseline.hasAttribute("allResources") || Boolean.parseBoolean(requiredAttribute(baseline, "allResources"));
-				service.restoreBaseline(project, new CriticalChainService.Baseline(Long.parseLong(requiredAttribute(baseline, "projectFinishMillis")), Long.parseLong(requiredAttribute(baseline, "projectBufferMillis")), Double.parseDouble(requiredAttribute(baseline, "bufferFraction")), critical, xmlLongMap(baseline, "feedingTaskStartMillis"), xmlLongMap(baseline, "feedingBufferMillis"), allResources, resources));
-			}
-		} catch (Exception exception) { throw new IOException("Invalid settings.xml", exception); }
-	}
-
-	private static java.util.Map<Long, Long> xmlLongMap(org.w3c.dom.Element parent, String name) {
+	static java.util.Map<Long, Long> xmlLongMap(org.w3c.dom.Element parent, String name) {
 		java.util.Map<Long, Long> result = new java.util.LinkedHashMap<>(); org.w3c.dom.NodeList values = ((org.w3c.dom.Element) parent.getElementsByTagName(name).item(0)).getElementsByTagName("value");
 		for (int i = 0; i < values.getLength(); i++) { org.w3c.dom.Element value = (org.w3c.dom.Element) values.item(i); result.put(Long.valueOf(value.getAttribute("taskId")), Long.valueOf(value.getTextContent())); }
 		return result;
 	}
-	private static java.util.List<Long> xmlLongList(org.w3c.dom.Element parent, String name) {
+	static java.util.List<Long> xmlLongList(org.w3c.dom.Element parent, String name) {
 		java.util.List<Long> result = new java.util.ArrayList<>(); org.w3c.dom.NodeList parents = parent.getElementsByTagName(name);
 		if (parents.getLength() == 0) return result;
 		org.w3c.dom.NodeList ids = ((org.w3c.dom.Element) parents.item(0)).getElementsByTagName("id");
@@ -3179,7 +1216,7 @@ public class MpoFileImporter extends FileImporter {
 		return result;
 	}
 
-	private static String requiredAttribute(org.w3c.dom.Element element, String name) throws IOException {
+	static String requiredAttribute(org.w3c.dom.Element element, String name) throws IOException {
 		String value = element.getAttribute(name); if (value == null || value.isBlank()) throw new IOException("Missing settings.xml attribute: " + name); return value;
 	}
 	private static byte[] ccpmHistoryJson(Project project) throws IOException {
@@ -3274,13 +1311,13 @@ public class MpoFileImporter extends FileImporter {
 		}
 	}
 
-	private static JsonNode object(String json, String name) throws IOException {
+	static JsonNode object(String json, String name) throws IOException {
 		JsonNode root = JSON.readTree(json);
 		if (root == null || !root.isObject()) throw new IOException(name + " must be a JSON object");
 		return root;
 	}
 
-	private static String text(JsonNode object, String field) throws IOException {
+	static String text(JsonNode object, String field) throws IOException {
 		JsonNode value = object.get(field);
 		if (value == null || !value.isTextual()) throw new IOException("Missing or invalid " + field);
 		return value.textValue();
@@ -3298,7 +1335,7 @@ public class MpoFileImporter extends FileImporter {
 		return value.doubleValue();
 	}
 
-	private static void validateExtensionName(String name) throws IOException {
+	static void validateExtensionName(String name) throws IOException {
 		if (name == null || name.isEmpty() || name.startsWith("/") || name.indexOf('\\') >= 0 || name.contains(".."))
 			throw new IOException("Unsafe mpo extension name");
 	}
@@ -3389,7 +1426,7 @@ public class MpoFileImporter extends FileImporter {
 		@Override public void close() { /* caller owns the wrapped stream */ }
 	}
 
-	private static String sha256(byte[] data) {
+	static String sha256(byte[] data) {
 		try {
 			byte[] digest = MessageDigest.getInstance("SHA-256").digest(data);
 			StringBuilder text = new StringBuilder(digest.length * 2);
