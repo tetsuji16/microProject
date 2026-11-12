@@ -120,7 +120,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	}
 	public void init(ReferenceNodeModelCache cache, NodeModel model,CoordinatesConverter coord){
 		this.coord = coord;
-		this.cache = NodeModelCacheFactory.getInstance().createFilteredCache((ReferenceNodeModelCache) cache, getViewName(), null);
+		this.cache = NodeModelCacheFactory.getInstance().createFilteredCache(cache, getViewName(), null);
 
 		fieldContext = new FieldContext();
 		fieldContext.setDurationDefaultsResolver(project::getDurationDefaults);
@@ -594,6 +594,11 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		public void setDividerLocation(int dividerLocation) {
 			this.dividerLocation = dividerLocation;
 		}
+	}
+
+	/** Centres the current system date in the chart; selection and model data are untouched. */
+	public boolean scrollToToday() {
+		return gantt != null && gantt.scrollToDate(System.currentTimeMillis());
 	}
 
 	public boolean canScrollToTask() {

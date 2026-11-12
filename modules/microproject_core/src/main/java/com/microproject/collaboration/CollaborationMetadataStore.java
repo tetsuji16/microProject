@@ -739,19 +739,19 @@ public class CollaborationMetadataStore {
 			map.put("projectFileName", projectFileName);
 			map.put("projectFileLastModified", Long.valueOf(projectFileLastModified));
 			map.put("projectFileLength", Long.valueOf(projectFileLength));
-			Map<String, Object> usersMap = new LinkedHashMap<String, Object>();
+			Map<String, Object> usersMap = LinkedHashMap.newLinkedHashMap(users.size());
 			for (Map.Entry<String, UserRecord> entry : users.entrySet()) {
 				usersMap.put(entry.getKey(), entry.getValue().toMap());
 			}
 			map.put("users", usersMap);
-			Map<String, Object> locksMap = new LinkedHashMap<String, Object>();
+			Map<String, Object> locksMap = LinkedHashMap.newLinkedHashMap(locks.size());
 			for (Map.Entry<String, LockRecord> entry : locks.entrySet()) {
 				locksMap.put(entry.getKey(), entry.getValue().toMap());
 			}
 			map.put("locks", locksMap);
-			Map<String, Object> workspaceMap = new LinkedHashMap<String, Object>();
+			Map<String, Object> workspaceMap = LinkedHashMap.newLinkedHashMap(perUserWorkspace.size());
 			for (Map.Entry<String, UserWorkspaceState> entry : perUserWorkspace.entrySet()) {
-				Map<String, Object> stateMap = new LinkedHashMap<String, Object>();
+				Map<String, Object> stateMap = LinkedHashMap.newLinkedHashMap(4);
 				UserWorkspaceState state = entry.getValue();
 				stateMap.put("userKey", state.getUserKey());
 				stateMap.put("displayName", state.getDisplayName());
@@ -848,7 +848,7 @@ public class CollaborationMetadataStore {
 		}
 
 		public Map<String, Object> toMap() {
-			Map<String, Object> map = new LinkedHashMap<String, Object>();
+			Map<String, Object> map = LinkedHashMap.newLinkedHashMap(4);
 			map.put("userKey", userKey);
 			map.put("displayName", displayName);
 			map.put("clientInstanceId", clientInstanceId);
@@ -915,7 +915,7 @@ public class CollaborationMetadataStore {
 		}
 
 		public Map<String, Object> toMap() {
-			Map<String, Object> map = new LinkedHashMap<String, Object>();
+			Map<String, Object> map = LinkedHashMap.newLinkedHashMap(7);
 			map.put("taskId", Long.valueOf(taskId));
 			map.put("ownerKey", ownerKey);
 			map.put("userKey", userKey);

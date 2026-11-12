@@ -746,7 +746,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			return;
 		}
 		if (editorComp instanceof Component) {
-			((Component)editorComp).requestFocusInWindow();
+			(editorComp).requestFocusInWindow();
 		}
 	}
 
@@ -1188,7 +1188,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	    selectionNodeListenerList.remove(SelectionNodeListener.class, l);
 	}
 	public SelectionNodeListener[] getSelectionNodeListeners() {
-		return (SelectionNodeListener[]) selectionNodeListenerList.getListeners(SelectionNodeListener.class);
+		return selectionNodeListenerList.getListeners(SelectionNodeListener.class);
 	}
 	public void fireContentsChanged(Object source, List<? extends Node> nodes, Node currentNode) {
 		Object[] listeners = selectionNodeListenerList.getListenerList();

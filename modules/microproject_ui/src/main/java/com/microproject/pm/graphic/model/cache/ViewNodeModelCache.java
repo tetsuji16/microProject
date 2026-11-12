@@ -192,7 +192,7 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 	public List<Object> getNodesAt(int[] i) {
 	    ArrayList<Object> list = new ArrayList<>(i.length);
 	    for (int j=0;j<i.length;j++){
-	        Object base=((GraphicNode)getElementAt(i[j])).getNode();
+	        Object base=(getElementAt(i[j])).getNode();
 	        if (base!=null) list.add(base);
 	    }
 	    return list;
@@ -518,7 +518,7 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 
 	private int getLastNormalRow(){
         for (int i=visibleNodes.getSize()-1;i>=0;i--){
-        	GraphicNode current=(GraphicNode)visibleNodes.getElementAt(i);
+        	GraphicNode current=visibleNodes.getElementAt(i);
 	        if (!current.isVoid())
 	            return i;
 	    }

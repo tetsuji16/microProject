@@ -70,7 +70,7 @@ public class SpreadSheetCorner extends GradientCorner implements ListSelectionLi
 
 				if  (SwingUtilities.isRightMouseButton(e)) {
 					if (spreadSheet instanceof CommonSpreadSheet && spreadSheet.getSpreadSheetCategory() != null){
-						CommonSpreadSheet sp=(CommonSpreadSheet)spreadSheet;
+						CommonSpreadSheet sp=spreadSheet;
 						if (sp.isCanSelectFieldArray()) {
 							//need to build menu each time because it can change
 							if (spreadSheet instanceof TimeSpreadSheet){

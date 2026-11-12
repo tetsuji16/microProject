@@ -663,7 +663,7 @@ public final class TaskSchedule implements Cloneable {
 				begin = actualStart;
 		}
 		setBegin(begin); 		
-		long end = ((Task)task).calcOffsetFrom(begin,remainingBegin,true, true, true);
+		long end = (task).calcOffsetFrom(begin,remainingBegin,true, true, true);
 		setEnd(end);
 		
 	}

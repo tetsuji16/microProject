@@ -2478,7 +2478,7 @@ public class DocumentFrame extends NamedFrame implements
 		return addNodeForImpl(impl,NodeModel.NORMAL);
 	}
 	public Node addNodeForImpl(Object impl,int eventType) {
-		SpreadSheet spreadSheet = (SpreadSheet) getTopSpreadSheet();
+		SpreadSheet spreadSheet = getTopSpreadSheet();
 		if (impl == null) {
 			spreadSheet.executeAction(MenuActionConstants.ACTION_NEW);
 			return null;

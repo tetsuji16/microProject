@@ -175,7 +175,7 @@ public class PersonalContour extends AbstractContour {
 		PersonalContourBucket lastBucket = null;
 
 		for (int i = 0; i < after.size(); i++) {
-			PersonalContourBucket bucket = (PersonalContourBucket) after.get(i);
+			PersonalContourBucket bucket = after.get(i);
 			if (remainingDuration <= 0) {
 				break;
 			}
@@ -192,7 +192,7 @@ public class PersonalContour extends AbstractContour {
 
 		if (remainingDuration > 0) {
 			if (lastBucket == null) {
-				lastBucket = (PersonalContourBucket) newList.get(newList.size() - 1);
+				lastBucket = newList.get(newList.size() - 1);
 			} else {
 				newList.remove(newList.size() - 1);
 			}
@@ -202,11 +202,6 @@ public class PersonalContour extends AbstractContour {
 
 		return getInstance(newList).makePacked();
 	}
-
-//	private AbstractContour makeFlatIfPossible() {
-//		if (contourBuckets.length == 1)
-//			contourBuckets[0].units
-//	}
 
 	/**
 	 * Gets all buckets before a duration, cutting a bucket in half if needed.  Will return empty list if at start
@@ -334,39 +329,6 @@ public class PersonalContour extends AbstractContour {
 		return getInstance(newList).makePacked();
 	}	
 	
-// 	public PersonalContour setContiguousDuration(long startOfRegion, long duration) {
-// 		
-// 		//not yet implemented
-//		ArrayList newList = new Vector();
-//		boolean inserted = false;
-//		PersonalContourBucket bucket = null;
-//		long cursorDuration = 0;
-//		long regionDuration = 0;
-//		for (int i=0; i < contourBuckets.length; i++) {
-//			bucket = (PersonalContourBucket)contourBuckets[i];
-//			cursorDuration += bucket.getDuration();
-//			if (inserted || cursorDuration < startOfRegion) { // if already treated or before start, just use existing one
-//				newList.add(bucket);
-//			} else { // start of region
-//				regionDuration += bucket.getDuration();
-//				if (regionDuration < duration)
-//					newList.add(bucket);
-//				
-//				
-//				
-//				long d = cursorDuration - startOfRegion;
-//				if (d > 0)
-//					newList.add(PersonalContourBucket.getInstance(d,bucket.getUnits()));
-//				// at region now
-//				//newList.add(newBucket); // do this bucket after
-//				newList.add(PersonalContourBucket.getInstance(bucket.getDuration()-d,bucket.getUnits()));				
-//				inserted = true;
-//			}
-//		}
-//		return getInstance(newList).makePacked();
-// 		
-// 	}
- 
 /**
  * Extend a bucket by a duration
  * @param atDuration - point on bucket to extend
@@ -516,14 +478,6 @@ public class PersonalContour extends AbstractContour {
 	 * The multiplier is newRate / oldRate
 	 * @param multiplier: The new value to set to.
 	 */	
-//	public AbstractContour adjustUnitsOld(double multiplier, long actualDuration) {
-//		PersonalContour newContour = constructUsingSizeOf(this);		
-//		for (int i=0; i < contourBuckets.length; i++) {
-//			newContour.contourBuckets[i] = ((PersonalContourBucket)contourBuckets[i]).adjustUnits(multiplier);
-//		}
-//		newContour.maxUnits = newContour.calcMaxUnits();
-//		return newContour;		
-//	}
 
 	public AbstractContour adjustUnits(double multiplier, long startingFrom) {
 		ArrayList<PersonalContourBucket> newList = new ArrayList<>(contourBuckets.length + 1);
@@ -577,40 +531,6 @@ public class PersonalContour extends AbstractContour {
 		maxUnits = calcMaxUnits();
 	}
 
-
-//	public AbstractContour setValue(long assignmentStart, long setStart, long setEnd, long setDuration, double value) {
-//		LinkedList newList = new LinkedList();
-//		
-//		PersonalContourBucket bucket = null;
-//		long start = assignmentStart;
-//		long end;
-//		for (int i=0; i < contourBuckets.length; i++) {
-//			bucket = (PersonalContourBucket)contourBuckets[i];
-//
-//			if (setStart <= start) {
-//				newList.add(new PersonalContourBucket(setDuration, value));
-//				setStart = Long.MAX_VALUE;
-//				end = setEnd;
-//			}
-//			if (start + bucket.getDuration())
-//			
-//				end = start + bucket.getDuration();
-//				
-//			}
-//			
-//			newContour.contourBuckets[i] = bucket;
-//			newDuration -= bucket.getDuration();
-//			if (newDuration <= 0) {
-//				newContour.contourBuckets[i] = bucket.adjustDuration(newDuration);// adding a negative value
-//				if (i < contourBuckets.length -1 ) // if shortening number of buckets
-//					System.arraycopy(newContour.contourBuckets,0,newContour.contourBuckets,0,i+1); // replace old with new and truncate to correct length
-//				return newContour;
-//			}
-//		}
-//		// extend last bucket to account for duration
-//		newContour.contourBuckets[contourBuckets.length] = bucket.adjustDuration(newDuration);
-//		return newContour;
-//	}
 
 	/**
 	 * Remove any starting empty buckets from the contour and return the duration of those buckets

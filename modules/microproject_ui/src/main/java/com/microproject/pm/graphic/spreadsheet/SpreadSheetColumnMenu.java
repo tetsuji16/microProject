@@ -110,7 +110,7 @@ public class SpreadSheetColumnMenu extends JPopupMenu {
 			}
 		});
 
-		final Field f = (Field) fields.get(col);
+		final Field f = fields.get(col);
 		final Frame owner = ownerFrame(sp);
 		
 		rename.addActionListener(new ActionListener() {

@@ -41,7 +41,7 @@ public class FieldArrayUtil {
 
 
 	public static SpreadSheetFieldArray removeNonWebFields(SpreadSheetFieldArray in) {
-		SpreadSheetFieldArray out= (SpreadSheetFieldArray)in.clone();
+		SpreadSheetFieldArray out= in.clone();
 		Iterator<Field> i = out.iterator();
 		while (i.hasNext()) {
 			Field f = i.next();

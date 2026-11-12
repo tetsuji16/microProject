@@ -60,7 +60,7 @@ public abstract class GraphPopupMenu extends JPopupMenu{
 		}
 		public void actionPerformed(ActionEvent arg0) {
 			style.setActive(isSelected());
-			((GraphModel)interactor.getGraph().getModel()).updateAll(true);
+			(interactor.getGraph().getModel()).updateAll(true);
 		}
 	}
 

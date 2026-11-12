@@ -185,7 +185,7 @@ public class ChartView extends SplittedView implements SelectionNodeListener, Ba
 	NodeModelCache cache = null;
 	public NodeModelCache getCache() {
 		if (cache == null)
-			cache = NodeModelCacheFactory.getInstance().createFilteredCache((ReferenceNodeModelCache)documentFrame.getResourceNodeModelCache(),chartInfo.getMode().getViewAction(),transformerClosure);
+			cache = NodeModelCacheFactory.getInstance().createFilteredCache(documentFrame.getResourceNodeModelCache(),chartInfo.getMode().getViewAction(),transformerClosure);
 		return cache;
 	}
 

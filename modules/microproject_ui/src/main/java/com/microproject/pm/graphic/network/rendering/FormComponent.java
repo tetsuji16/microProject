@@ -88,7 +88,7 @@ public class FormComponent extends JPanel{
 		setBackground(FlatUiSupport.panelBackground());
 		BarFormat format;
 		if (selectedFormats==null||selectedFormats.size()==0) format=null;
-		else format=(BarFormat)selectedFormats.get(0);
+		else format=selectedFormats.get(0);
 		init(format);
 		setOpaque(false);
 	}
@@ -224,7 +224,7 @@ public class FormComponent extends JPanel{
 	
 	
 	public Component getComponent(String fieldId){
-		return (Component)fieldComponents.get(fieldId);
+		return fieldComponents.get(fieldId);
 	}
 	
 	

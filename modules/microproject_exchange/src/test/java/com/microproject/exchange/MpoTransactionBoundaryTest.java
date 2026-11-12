@@ -491,7 +491,7 @@ class MpoTransactionBoundaryTest {
 
 	@SuppressWarnings({"rawtypes", "unchecked"})
 	private static Object operationState(Project project) throws Exception {
-		Class<?> stateType = Class.forName("com.microproject.exchange.MpoFileImporter$MpoOperationState");
+		Class<?> stateType = Class.forName("com.microproject.exchange.MpoOperationState");
 		return project.findTransientDocumentState((Class) stateType);
 	}
 

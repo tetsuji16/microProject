@@ -163,7 +163,7 @@ public class Job extends Thread {
 			progress = progressStart+relativeProgress;
 			if (showProgess&&progressMonitor!=null){
 				UiDispatch.invokeLater(() -> {
-					progressMonitor.setProgress((int)Math.round(getProgress()*JobQueue.MAX_PROGRESS));
+					progressMonitor.setProgress(Math.round(getProgress()*JobQueue.MAX_PROGRESS));
 					progressMonitor.setNote(note);
 				});
 			}
