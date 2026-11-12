@@ -128,7 +128,9 @@ public class SimpleEditor extends DefaultCellEditor   {
 	public Object getCellEditorValue() {
 		if (useFormat == null)
 			try {
-				return FieldConverter.convert(com.microproject.util.FullWidthInput.normalize(component.getText()),clazz,null);
+				// plain text keeps full-width characters; only parsed values are normalized
+				String text = component.getText();
+				return FieldConverter.convert(clazz == String.class ? text : com.microproject.util.FullWidthInput.normalize(text),clazz,null);
 			} catch (FieldParseException e1) {
 				return null;
 			}

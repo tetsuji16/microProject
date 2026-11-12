@@ -215,12 +215,19 @@ public final class TaskSheetScheduleWorkflow {
 			long recalculatedDuration = normalizedFinish > currentStart
 					? calendar.compare(normalizedFinish, currentStart, false) : 0L;
 			if (recalculatedDuration > 0L) {
+				// a finish constraint left by an earlier Finish edit would anchor the
+				// Duration change at the old Finish and move Start; it is replaced below
+				ConstraintType.Kind kind = task.getConstraintTypeKind();
+				if (kind == ConstraintType.Kind.FNET || kind == ConstraintType.Kind.FNLT)
+					task.setConstraintDate(0L);
 				applyDurationMutation(normalTask, Duration.setAsEstimated(recalculatedDuration, normalTask.isEstimated()));
 				normalTask.durationPinnedByScheduleEdit = false;
 				updateFinishConstraint(task, normalizedFinish);
 				return;
 			}
 		}
+		// the pin covers one Finish edit: a following Finish edit recalculates Duration again
+		normalTask.durationPinnedByScheduleEdit = false;
 		long duration = Duration.millis(task.getDuration());
 		long normalizedStart = (duration == 0L) ? normalizedFinish : calculateStartFromFinish(calendar, normalizedFinish, duration);
 		if (!hasAssignedWork(normalTask)) {
