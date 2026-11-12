@@ -1561,7 +1561,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		DialogScreenshotArtifacts.capture(dialog, "issue-794-constraint-date-invalid-dismissed");
 		assertEquals(constraintDateUndoName, project.getUndoController().getUndoName(),
 			"canceling the rejected text must not add an edit; " + afterReset);
-		AbstractButton closeButton = findShowingButtonByText(dialog, Messages.getString("ButtonText.Close"));
+		AbstractButton closeButton = findShowingButtonByText(dialog, Messages.getString("ButtonText.OK"));
 		click(robot, closeButton);
 		String afterCloseClick = "focus=" + java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner()
 			+ ", deadline=" + task.getDeadline() + ", deadlineText=" + deadlineInput.getText()

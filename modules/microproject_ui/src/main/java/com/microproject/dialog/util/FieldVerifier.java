@@ -54,6 +54,7 @@ import com.microproject.pm.task.Task;
 import com.microproject.util.Alert;
 import com.microproject.util.DateFieldSupport;
 import com.microproject.util.FlatUiSupport;
+import com.microproject.util.FullWidthInput;
 
 /**
  *
@@ -102,6 +103,15 @@ public class FieldVerifier extends InputVerifier {
 
 	
 	public boolean verify(JComponent component) {
+		com.microproject.undo.UndoController.enterDialogEditScope(); // only edits made here belong to a dialog session
+		try {
+			return verifyInScope(component);
+		} finally {
+			com.microproject.undo.UndoController.exitDialogEditScope();
+		}
+	}
+
+	private boolean verifyInScope(JComponent component) {
 		if (updating) {
 			return true;
 		}
@@ -117,7 +127,10 @@ public class FieldVerifier extends InputVerifier {
 		component.setForeground(FlatUiSupport.infoForeground());
 		c.setForeground(FlatUiSupport.infoForeground());
 		
+		context = editContext();
 		Object newValue = ComponentFactory.getValueFromComponent(component, field);
+		if (component instanceof JSpinner spinner && !rejectInvalidSpinnerText(spinner, c, parentFieldDialog))
+			return false;
 		if (field.isDate() && c instanceof JTextField textField && textField.getText().isBlank()
 				&& field.getValue(objectRef, context) == null)
 			return true;
@@ -135,7 +148,7 @@ public class FieldVerifier extends InputVerifier {
 							newValue = null;
 						}
 					} else {
-						newValue = field.getFormat().parseObject(text);
+						newValue = field.getFormat().parseObject(FullWidthInput.normalize(text));
 					}
 				} catch (ParseException e1) {
 					exception = new FieldParseException(field.syntaxErrorForField());
@@ -186,6 +199,11 @@ public class FieldVerifier extends InputVerifier {
 					}
 					if (newValue == null || newValue.toString().trim().equals("")) // empty text on date is a null date
 						newValue = com.microproject.util.DateTime.getZeroDate();
+					if (isDayPrecisionRepeat(newValue)) {
+						setValue(value);
+						return true;
+					}
+					newValue = withDefaultWorkingTime(newValue);
 				}
 				if ("Field.constraintDate".equals(field.getId()) && newValue instanceof java.util.Date date
 						&& objectRef.getObject() instanceof Task task
@@ -199,13 +217,16 @@ public class FieldVerifier extends InputVerifier {
 						&& objectRef.getObject() instanceof Task task ? task : null;
 					int oldConstraintType = constraintDateTask == null ? 0 : constraintDateTask.getConstraintType();
 					long oldConstraintDate = constraintDateTask == null ? 0L : constraintDateTask.getConstraintDate();
+					ScheduleUndo scheduleUndo = ScheduleUndo.begin(field, objectRef, context);
 					if (field.isMoney())
 						field.setText(objectRef,""+newValue,context);
 					else		
 						field.setValue(objectRef,source,newValue,context);
 					EditSupport undoableEditSupport=objectRef.getDataFactory().getUndoController().getEditSupport();
 					if (undoableEditSupport!=null){
-						if (constraintDateTask != null) {
+						if (scheduleUndo != null) {
+							scheduleUndo.post(this);
+						} else if (constraintDateTask != null) {
 							undoableEditSupport.postEdit(new TaskConstraintEdit(constraintDateTask, oldConstraintType,
 								oldConstraintDate, constraintDateTask.getConstraintType(),
 								constraintDateTask.getConstraintDate(), this));
@@ -230,6 +251,111 @@ public class FieldVerifier extends InputVerifier {
 		}
 		setValue(newValue); // set to new value for next time
 		return true;
+	}
+
+	/**
+	 * Task scheduling fields edited in a dialog follow the same rules as the task sheet, so they are applied with a
+	 * task-sheet context.  The context is created per edit and never shared.
+	 */
+	private FieldContext editContext() {
+		if (objectRef != null && objectRef.getObject() instanceof Task && ScheduleUndo.usesTaskSheetRules(field)) {
+			FieldContext taskSheetContext = new FieldContext();
+			taskSheetContext.setTaskSheetUpdate(true);
+			return taskSheetContext;
+		}
+		return null;
+	}
+
+	/** Spinner text which is not a number is a field parse error; it must never be applied as null. */
+	private boolean rejectInvalidSpinnerText(JSpinner spinner, JComponent c, FieldDialog parentFieldDialog) {
+		String text = getSpinnerText(spinner);
+		if (text == null || text.isBlank())
+			return true;
+		try {
+			com.microproject.pm.graphic.spreadsheet.editor.SpinEditor.parseValue(spinner, field);
+			return true;
+		} catch (ParseException | RuntimeException e) {
+			exception = new FieldParseException(field.syntaxErrorForField());
+			spinner.setForeground(FlatUiSupport.errorForeground());
+			c.setForeground(FlatUiSupport.errorForeground());
+			if (parentFieldDialog != null)
+				parentFieldDialog.setDirtyComponent(c);
+			return false;
+		}
+	}
+
+	private static String getSpinnerText(JSpinner spinner) {
+		return spinner.getEditor() instanceof JSpinner.DefaultEditor editor ? editor.getTextField().getText() : null;
+	}
+
+	private boolean isWorkingTimeField(Object newValue) {
+		return newValue instanceof java.util.Date && field.isDate() && (field.isStartValue() || field.isEndValue())
+				&& !(objectRef != null && objectRef.getObject() instanceof com.microproject.pm.task.Project);
+	}
+
+	private static boolean isMidnight(java.util.Date date) {
+		return date.getTime() == com.microproject.util.DateTime.dayFloor(date.getTime());
+	}
+
+	/** A day-precision control re-reporting the day of the stored date/time is not an edit. */
+	private boolean isDayPrecisionRepeat(Object newValue) {
+		return isWorkingTimeField(newValue) && value instanceof java.util.Date stored
+				&& isMidnight((java.util.Date) newValue)
+				&& com.microproject.util.DateTime.dayFloor(stored.getTime()) == ((java.util.Date) newValue).getTime();
+	}
+
+	/** A date picked with day precision takes the default start/finish time of the working day. */
+	private Object withDefaultWorkingTime(Object newValue) {
+		if (!isWorkingTimeField(newValue) || !isMidnight((java.util.Date) newValue))
+			return newValue;
+		long time = ((java.util.Date) newValue).getTime();
+		com.microproject.options.CalendarOption options = com.microproject.options.CalendarOption.getInstance();
+		return new java.util.Date(field.isEndValue() ? options.makeValidEnd(time, false) : options.makeValidStart(time, false));
+	}
+
+	/** Undo bookkeeping for task-sheet schedule edits; Duration posts its own edit, so nothing is added for it. */
+	private static final class ScheduleUndo {
+		private final com.microproject.pm.task.Project project;
+		private final com.microproject.pm.task.ProjectTaskSnapshot before;
+		private final java.util.Map<Task, Integer> calculationStates;
+
+		private ScheduleUndo(com.microproject.pm.task.Project project, com.microproject.pm.task.ProjectTaskSnapshot before,
+				java.util.Map<Task, Integer> calculationStates) {
+			this.project = project;
+			this.before = before;
+			this.calculationStates = calculationStates;
+		}
+
+		static boolean usesTaskSheetRules(Field field) {
+			String id = field.getId();
+			return com.microproject.pm.task.TaskSheetScheduleWorkflow.isScheduleField(id)
+					|| com.microproject.pm.task.TaskSheetScheduleWorkflow.PERCENT_COMPLETE_FIELD_ID.equals(id);
+		}
+
+		static ScheduleUndo begin(Field field, ObjectRef objectRef, FieldContext context) {
+			if (!FieldContext.isTaskSheetUpdate(context) || objectRef.getCollection() != null
+					|| !(objectRef.getObject() instanceof NormalTask task) || task.getProject() == null)
+				return null;
+			com.microproject.pm.task.Project project = task.getProject();
+			if (com.microproject.pm.task.TaskSheetScheduleWorkflow.DURATION_FIELD_ID.equals(field.getId()))
+				return new ScheduleUndo(project, null, null); // the Duration workflow posts its own edit
+			return new ScheduleUndo(project, com.microproject.pm.task.ProjectTaskSnapshot.capture(project),
+					states(project));
+		}
+
+		private static java.util.Map<Task, Integer> states(com.microproject.pm.task.Project project) {
+			java.util.Map<Task, Integer> states = new java.util.IdentityHashMap<>();
+			for (Task task : project.getTaskList())
+				states.put(task, task.getCalculationStateCount());
+			return states;
+		}
+
+		void post(Object source) {
+			if (before == null)
+				return;
+			com.microproject.undo.ScheduleEdit.postProjectSnapshotEdit(project, before, calculationStates,
+					states(project), source);
+		}
 	}
 
 	private List<FieldState> captureFieldStates() {
