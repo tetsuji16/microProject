@@ -1515,11 +1515,11 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			if ("RibbonChooseSort".equals(buttonId)) installSortOrderMenu(button);
 		}
 		String tooltip = getStringOrNull(buttonId + ".tooltip");
-		String accelerator = getStringOrNull(buttonId + ".accelerator");
 		if (tooltip != null) {
-			button.setToolTipText(accelerator == null || accelerator.isBlank()
-				? tooltip
-				: tooltip + " (" + accelerator.trim() + ")");
+			// The key shown is the one registered for the command, never a separately
+			// maintained string, so the screen tip cannot disagree with the binding.
+			button.setToolTipText(com.microproject.menu.ShortcutHints.withShortcut(tooltip,
+				commandSource.getShortcut(buttonId)));
 		}
 		button.setAlignmentY(Component.TOP_ALIGNMENT);
 		button.putClientProperty("JComponent.titleBarCaption", Boolean.FALSE);
