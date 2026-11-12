@@ -147,6 +147,13 @@ public class NodeListTransferHandler extends TransferHandler {
 				columns = new int[] { activeColumn };
 			}
 		}
+		if (action==TransferHandler.MOVE && nodeSelection) {
+			String refusal = dropRowsThatCannotBeCut(nodes, spreadSheet.getCache().getModel().getDataFactory());
+			if (refusal != null) {
+				Alert.error(refusal);
+				if (nodes.isEmpty()) return null;
+			}
+		}
 		NodeListTransferable transferable = new NodeListTransferable(nodes,fields,spreadSheet,
 			rows,columns,nodeSelection);
 		pendingCutNodes=null;
@@ -174,6 +181,28 @@ public class NodeListTransferHandler extends TransferHandler {
 			pendingCellCut=true;
 		}
 		return transferable;
+	}
+
+	/**
+	 * A cut copies a row and then removes it. A row its table refuses to remove
+	 * (the first interval of an availability or cost-rate table) stays, so it is
+	 * not copied either: a refused cut leaves the clipboard as it was (#997).
+	 *
+	 * @return the refusal message of a dropped row, or null when every row can be cut
+	 */
+	public static String dropRowsThatCannotBeCut(List<Node> nodes, NodeModelDataFactory factory) {
+		if (factory == null) return null;
+		String refusal = null;
+		for (Iterator<Node> i = nodes.iterator(); i.hasNext();) {
+			Node node = i.next();
+			if (node.isVoid()) continue;
+			String reason = factory.removalRefusal(node.getImpl());
+			if (reason != null) {
+				refusal = reason;
+				i.remove();
+			}
+		}
+		return refusal;
 	}
 
 	private boolean isSingleActiveCellWithinWholeRowSelection(SpreadSheet spreadSheet, int[] rows, int[] columns) {
