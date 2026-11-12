@@ -147,8 +147,6 @@ public class DefaultFrameManager implements FrameManager {
 			projectComboBox.setPreferredSize(new Dimension(140,28));
 			projectComboBox.setRenderer(new ProjectWindowRenderer());
 			projectComboPanel.setVisible(false);
-//			projectComboBox.setBorder(BorderFactory.createMatteBorder(4, 4, 4, 4,Color.WHITE));
-//			projectComboBox.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
 
 			projectComboBox.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {

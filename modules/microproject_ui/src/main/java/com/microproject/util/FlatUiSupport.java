@@ -1163,7 +1163,7 @@ public final class FlatUiSupport {
 		button.setMargin(new Insets(4, 12, 4, 12));
 		if (primary) {
 			button.setOpaque(true);
-			button.setForeground(Color.WHITE);
+			button.setForeground(ColorLuminance.isDark(accentColor()) ? Color.WHITE : Color.BLACK);
 			button.setBackground(accentColor());
 			button.setBorder(BorderFactory.createCompoundBorder(
 				BorderFactory.createLineBorder(accentColor().darker()),

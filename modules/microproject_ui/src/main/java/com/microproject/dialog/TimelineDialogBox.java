@@ -98,9 +98,7 @@ public final class TimelineDialogBox extends FlatLafDialog {
 		close.addActionListener(event -> dispose());
 		buttons.add(selectMilestones); buttons.add(clear); buttons.add(close);
 		add(buttons, BorderLayout.SOUTH);
-		setMinimumSize(new Dimension(900, 480));
-		setSize(1100, 620);
-		setLocationRelativeTo(owner);
+		DialogSizing.applyInitialSize(this, new Dimension(900, 480), new Dimension(1100, 620), owner);
 		FlatUiSupport.styleDialogRoot(getRootPane());
 		FlatUiSupport.styleDialogComponents(getContentPane());
 	}

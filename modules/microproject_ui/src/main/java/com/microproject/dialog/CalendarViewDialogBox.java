@@ -97,9 +97,7 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 		JLabel hint = new JLabel(UsabilityStrings.text("calendar.hint"));
 		add(hint, BorderLayout.SOUTH);
 		setMonth(month);
-		setMinimumSize(new Dimension(900, 600));
-		setSize(1100, 760);
-		setLocationRelativeTo(owner);
+		DialogSizing.applyInitialSize(this, new Dimension(900, 600), new Dimension(1100, 760), owner);
 		FlatUiSupport.styleDialogRoot(getRootPane());
 		FlatUiSupport.styleDialogComponents(getContentPane());
 	}
