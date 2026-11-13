@@ -112,6 +112,7 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 
 	public void onOk() {
 		bind(false);
+		context.setForward(direction == null || direction.getSelectedIndex() == 0);
 		if (!searchable.findNext(context))
 			Alert.warn(Messages.getString("FindDialog.NoMatches"));
 	}
@@ -202,7 +203,6 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 		updateFindButtonState();
 		next.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				context.setForward(direction == null || direction.getSelectedIndex() == 0);
 				onOk();
 			}});
 		close.addActionListener(new ActionListener() {

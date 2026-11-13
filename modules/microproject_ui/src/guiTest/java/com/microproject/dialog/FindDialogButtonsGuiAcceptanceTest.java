@@ -7,7 +7,6 @@ package com.microproject.dialog;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.GraphicsEnvironment;
 import java.awt.Robot;
@@ -52,10 +51,10 @@ class FindDialogButtonsGuiAcceptanceTest {
 	void findNextAndDirectionComboUseCurrentDesignAndNavigate() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Find button acceptance coverage.");
 		Field nameField = Configuration.getFieldFromId("Field.name");
-		boolean[] lastDirection = { true };
+		java.util.ArrayList<Boolean> directions = new java.util.ArrayList<>();
 		Searchable searchable = new Searchable() {
 			@Override public boolean findNext(SearchContext context) {
-				lastDirection[0] = context.isForward();
+				directions.add(context.isForward());
 				return true;
 			}
 			@Override public SearchContext createSearchContext() { return new SearchContext() { }; }
@@ -94,10 +93,24 @@ class FindDialogButtonsGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> dialog.next.isEnabled(),
 			"Find Next must enable for a non-empty query");
 		click(robot, dialog.next);
-		assertTrue(lastDirection[0], "Find Next with Down must search forward");
+		SwingUtilities.invokeAndWait(() -> assertEquals(List.of(true), directions,
+			"Find Next with Down must search forward"));
 		SwingUtilities.invokeAndWait(() -> dialog.direction.setSelectedIndex(1));
 		click(robot, dialog.next);
-		assertTrue(!lastDirection[0], "Find Next with Up must search backward");
+		SwingUtilities.invokeAndWait(() -> assertEquals(List.of(true, false), directions,
+			"Find Next with Up must search backward"));
+		for (int direction : new int[] { 0, 1 }) {
+			SwingUtilities.invokeAndWait(() -> dialog.direction.setSelectedIndex(direction));
+			click(robot, dialog.search);
+			GuiAcceptanceSupport.await(() -> dialog.search.isFocusOwner(),
+				"Search field must own focus before Enter");
+			robot.keyPress(KeyEvent.VK_ENTER);
+			robot.keyRelease(KeyEvent.VK_ENTER);
+			robot.waitForIdle();
+			SwingUtilities.invokeAndWait(() -> assertEquals(
+				direction == 0 ? List.of(true, false, true) : List.of(true, false, true, false),
+				directions, "Enter must search once using the current direction"));
+		}
 	}
 
 	private static void click(Robot robot, java.awt.Component component) throws Exception {
