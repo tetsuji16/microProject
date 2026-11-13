@@ -45,9 +45,6 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 	private static final double GREEN_SLOPE = 0.50D;
 	private static final double AMBER_INTERCEPT = 35D;
 	private static final double AMBER_SLOPE = 0.55D;
-	private static final Color GREEN = new Color(218, 239, 211);
-	private static final Color AMBER = new Color(255, 242, 170);
-	private static final Color RED = new Color(240, 180, 185);
 	enum Zone { GREEN, AMBER, RED }
 	private final Project project;
 	private final List<CriticalChainBufferHistory.Point> history = new ArrayList<>();
@@ -173,9 +170,9 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 	}
 
 	private void drawZones(Graphics2D g, int width, int height) {
-		fillZone(g, GREEN, width, height, GREEN_INTERCEPT, GREEN_SLOPE);
-		fillBand(g, AMBER, width, height, GREEN_INTERCEPT, GREEN_SLOPE, AMBER_INTERCEPT, AMBER_SLOPE);
-		fillAbove(g, RED, width, height, AMBER_INTERCEPT, AMBER_SLOPE);
+		fillZone(g, zoneColor(Zone.GREEN), width, height, GREEN_INTERCEPT, GREEN_SLOPE);
+		fillBand(g, zoneColor(Zone.AMBER), width, height, GREEN_INTERCEPT, GREEN_SLOPE, AMBER_INTERCEPT, AMBER_SLOPE);
+		fillAbove(g, zoneColor(Zone.RED), width, height, AMBER_INTERCEPT, AMBER_SLOPE);
 	}
 
 	private void fillZone(Graphics2D g, Color color, int width, int height, double intercept, double slope) {
@@ -259,9 +256,9 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 
 	private void drawLegend(Graphics2D g, int width) {
 		int x = LEFT + width - 196;
-		legend(g, GREEN, UsabilityStrings.text("ccpm.bufferChartGreen"), x, TOP + 16);
-		legend(g, AMBER, UsabilityStrings.text("ccpm.bufferChartAmber"), x, TOP + 34);
-		legend(g, RED, UsabilityStrings.text("ccpm.bufferChartRed"), x, TOP + 52);
+		legend(g, zoneColor(Zone.GREEN), UsabilityStrings.text("ccpm.bufferChartGreen"), x, TOP + 16);
+		legend(g, zoneColor(Zone.AMBER), UsabilityStrings.text("ccpm.bufferChartAmber"), x, TOP + 34);
+		legend(g, zoneColor(Zone.RED), UsabilityStrings.text("ccpm.bufferChartRed"), x, TOP + 52);
 	}
 
 	private static void legend(Graphics2D g, Color color, String label, int x, int y) {
@@ -333,5 +330,25 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 
 	static int observationCount(CriticalChainBufferChartPanel panel) { return panel.history.size(); }
 	static CriticalChainBufferHistory.Point currentPoint(Project project, CriticalChainService.Buffer buffer) { return pointFor(project, buffer); }
-private static boolean isDark() {		return ColorLuminance.isDark(MicroProjectTheme.tokens().appBackground());	}	private static Color backgroundColor() {		return isDark() ? MicroProjectTheme.tokens().tableBackground() : Color.WHITE;	}	private static Color textColor() {		return isDark() ? MicroProjectTheme.tokens().labelForeground() : Color.DARK_GRAY;	}
+	private static boolean isDark() {
+		return ColorLuminance.isDark(MicroProjectTheme.tokens().appBackground());
+	}
+
+	private static Color backgroundColor() {
+		return isDark() ? MicroProjectTheme.tokens().tableBackground() : Color.WHITE;
+	}
+
+	static Color textColor() {
+		return isDark() ? MicroProjectTheme.tokens().labelForeground() : Color.DARK_GRAY;
+	}
+
+	/** Zone fill for the current theme; read at every paint so a theme switch needs no rebuild. */
+	static Color zoneColor(Zone zone) {
+		boolean dark = isDark();
+		return switch (zone) {
+			case GREEN -> dark ? new Color(40, 84, 52) : new Color(218, 239, 211);
+			case AMBER -> dark ? new Color(104, 84, 18) : new Color(255, 242, 170);
+			case RED -> dark ? new Color(112, 44, 52) : new Color(240, 180, 185);
+		};
+	}
 }
