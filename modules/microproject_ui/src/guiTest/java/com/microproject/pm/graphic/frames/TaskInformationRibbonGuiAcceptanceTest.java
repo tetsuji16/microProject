@@ -7585,6 +7585,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"the fixture must hide exactly the predecessor row before testing filtered navigation");
 		GuiAcceptanceSupport.await(() -> sheet.taskNodeToViewRow(DocumentFrame.findTaskNode(project, predecessor)) < 0,
 			"the hidden predecessor must be absent from visible view coordinates");
+		// Reselecting the same cell after filtering is a separate single click.
+		// Windows can otherwise combine it with the preceding selection click
+		// and open Task Information, blocking the Inspector link below.
+		GuiAcceptanceSupport.awaitMultiClickIntervalElapsed(robot);
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, successor), nameColumn(sheet));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(successor)
 				&& sheet.getSelectedRow() == rowForTask(sheet, successor),
