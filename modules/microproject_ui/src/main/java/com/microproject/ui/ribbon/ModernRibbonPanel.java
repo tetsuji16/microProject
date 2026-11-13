@@ -240,6 +240,10 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		List<Component> views = new ArrayList<>(backstageDetailPages.values());
 		if (backstageView != null) views.add(backstageView);
 		unregisterButtons(views);
+		// Navigation entries with an immediate command are also registered as command controls.
+		List<AbstractButton> controls = new ArrayList<>();
+		for (Component view : views) collectButtons(view, controls);
+		commandSource.unregisterCommandControls(controls);
 		backstageDetailPages.clear();
 		backstageView = null;
 	}

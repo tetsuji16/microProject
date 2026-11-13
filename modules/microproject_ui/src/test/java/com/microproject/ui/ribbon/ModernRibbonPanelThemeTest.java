@@ -113,7 +113,9 @@ class ModernRibbonPanelThemeTest {
 	void backstageCommandButtonsUseTheThemeSurfaceAndAreRebuiltOnThemeChange() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			MicroProjectTheme.installLight();
-			JPanel host = createRibbonHost();
+			ExtToolBarFactory registry = new ExtToolBarFactory(MenuActionMapSupport.noopActionMap(),
+				MenuDefinitionSupport.ribbonBundles(Locale.ROOT));
+			JPanel host = createRibbonHost(registry);
 			ModernRibbonPanel ribbon = ribbon(host);
 			List<JComponent> shown = new ArrayList<>();
 			ribbon.setBackstageHost(new RibbonBackstageHost() {
@@ -141,6 +143,17 @@ class ModernRibbonPanelThemeTest {
 				.filter(button -> button.getName() != null && button.getName().startsWith("officeBackstageCommand-"))
 				.toList();
 			assertFalse(commands.isEmpty(), "the first Backstage page has command buttons");
+			List<AbstractButton> immediateNavigation = UiComponentWalker.flatten(darkView).stream()
+				.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+				.filter(button -> button.getName() != null && button.getName().startsWith("officeBackstageNav-")
+					&& button.getActionCommand() != null
+					&& !registry.getRibbonControlsFromId(button.getActionCommand()).isEmpty())
+				.toList();
+			assertFalse(immediateNavigation.isEmpty(), "the Backstage has navigation entries that run a command");
+			for (AbstractButton navigation : immediateNavigation) {
+				assertEquals(List.of(navigation), registry.getRibbonControlsFromId(navigation.getActionCommand()),
+					"the discarded Backstage must not stay registered: " + navigation.getName());
+			}
 			String surface = String.format("#%06x", FlatUiSupport.ribbonSurfaceColor().getRGB() & 0xFFFFFF);
 			for (AbstractButton command : commands) {
 				String style = String.valueOf(command.getClientProperty(FlatClientProperties.STYLE));
@@ -189,8 +202,11 @@ class ModernRibbonPanelThemeTest {
 	}
 
 	private static JPanel createRibbonHost() {
-		ExtToolBarFactory buttons = new ExtToolBarFactory(MenuActionMapSupport.noopActionMap(),
-			MenuDefinitionSupport.ribbonBundles(Locale.ROOT));
+		return createRibbonHost(new ExtToolBarFactory(MenuActionMapSupport.noopActionMap(),
+			MenuDefinitionSupport.ribbonBundles(Locale.ROOT)));
+	}
+
+	private static JPanel createRibbonHost(ExtToolBarFactory buttons) {
 		SwingRibbonFactory factory = new SwingRibbonFactory(new MenuRibbonCommandSource(buttons),
 			MenuDefinitionSupport.ribbonBundles(Locale.ROOT));
 		return factory.createPanel(MenuManager.STANDARD_RIBBON, () -> { });
