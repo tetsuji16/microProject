@@ -39,6 +39,17 @@ class AssociationListFormatTest {
 	}
 
 	@Test
+	void fullWidthDelimitersSeparateEntriesAndKeepEntryText() {
+		AssociationList parsed = assertInstanceOf(AssociationList.class,
+			format.parseObject("\uFF21lpha\uFF0CBeta\uFF1BGamma", new ParsePosition(0)));
+
+		assertEquals(3, parsed.list.size());
+		assertEquals("\uFF21lpha", parsed.list.get(0).getLeft());
+		assertEquals("Beta", parsed.list.get(1).getLeft());
+		assertEquals("Gamma", parsed.list.get(2).getLeft());
+	}
+
+	@Test
 	void reportsParseFailureWithoutAdvancingPosition() {
 		String input = "prefix" + Settings.LIST_SEPARATOR + "Alpha" + Settings.LIST_SEPARATOR + "bad";
 		int start = "prefix".length() + Settings.LIST_SEPARATOR.length();

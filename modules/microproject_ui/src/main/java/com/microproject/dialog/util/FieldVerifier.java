@@ -309,6 +309,8 @@ public class FieldVerifier extends InputVerifier {
 		if (!isWorkingTimeField(newValue) || !isMidnight((java.util.Date) newValue))
 			return newValue;
 		long time = ((java.util.Date) newValue).getTime();
+		if (time == com.microproject.util.DateTime.getZeroDate().getTime())
+			return newValue; // a cleared date stays the zero-date sentinel
 		com.microproject.options.CalendarOption options = com.microproject.options.CalendarOption.getInstance();
 		return new java.util.Date(field.isEndValue() ? options.makeValidEnd(time, false) : options.makeValidStart(time, false));
 	}
