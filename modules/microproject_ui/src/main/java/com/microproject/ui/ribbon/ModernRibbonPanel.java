@@ -207,6 +207,61 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		setPreferredSize(new Dimension(0, theme.tabHeight() + theme.surfaceHeight() + 1));
 	}
 
+	/**
+	 * Re-reads the theme colours when the look and feel changes.  The colours set at
+	 * build time are plain values, so nothing else would replace them.
+	 */
+	@Override
+	public void updateUI() {
+		super.updateUI();
+		// JPanel's constructor calls updateUI() before this class has set its fields.
+		if (theme != null) applyThemeColors();
+	}
+
+	private void applyThemeColors() {
+		setBackground(theme.chromeBackground());
+		cards.setBackground(theme.chromeBackground());
+		setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, theme.topLineColor()));
+		if (tabRow == null) return;
+		tabRow.setBackground(theme.chromeBackground());
+		for (JToggleButton button : tabButtons.values()) {
+			updateTabButtonAppearance(button, button.isSelected());
+		}
+		// Bands, buttons and Backstage pages capture colours when they are created.
+		discardBackstageView();
+		rebuildTabBodies();
+		if (backstageOpen && backstageHost != null) {
+			backstageHost.show(backstageView(), this::closeBackstage);
+		}
+		applyDisplayMode();
+	}
+
+	private void discardBackstageView() {
+		List<Component> views = new ArrayList<>(backstageDetailPages.values());
+		if (backstageView != null) views.add(backstageView);
+		unregisterButtons(views);
+		// Navigation entries with an immediate command are also registered as command controls.
+		List<AbstractButton> controls = new ArrayList<>();
+		for (Component view : views) collectButtons(view, controls);
+		commandSource.unregisterCommandControls(controls);
+		backstageDetailPages.clear();
+		backstageView = null;
+	}
+
+	private void rebuildTabBodies() {
+		boolean wasRebuilding = rebuildingDensity;
+		rebuildingDensity = true;
+		try {
+			unregisterButtons(new ArrayList<>(tabBodies.values()));
+			tabBodies.clear();
+			tabBodyBuildWidths.clear();
+			bandHeights.clear();
+			if (activeTabId != null) showTab(activeTabId);
+		} finally {
+			rebuildingDensity = wasRebuilding;
+		}
+	}
+
 	void build() {
 		// The ribbon owns only the tab strip and command bands.  Window chrome and
 		// document/workspace navigation are deliberately outside this component.
@@ -520,7 +575,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			button.setMinimumSize(new Dimension(220, 132));
 			button.putClientProperty(FlatClientProperties.STYLE,
 				"arc: 8; borderWidth: 1; borderColor: " + colorHex(theme.surfaceBorderColor())
-					+ "; background: #ffffff; hoverBackground: " + colorHex(theme.chromeBackground()));
+					+ "; background: " + colorHex(theme.surfaceColor()) + "; hoverBackground: " + colorHex(theme.chromeBackground()));
 			button.addActionListener(event -> SwingUtilities.invokeLater(this::closeBackstage));
 			commands.add(button, constraints);
 			constraints.gridx++;
@@ -986,17 +1041,8 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			}
 			return;
 		}
-		rebuildingDensity = true;
-		try {
-			unregisterButtons(new ArrayList<>(tabBodies.values()));
-			density = nextDensity;
-			tabBodies.clear();
-			tabBodyBuildWidths.clear();
-			bandHeights.clear();
-			showTab(activeTabId);
-		} finally {
-			rebuildingDensity = false;
-		}
+		density = nextDensity;
+		rebuildTabBodies();
 	}
 
 	private void unregisterButtons(Iterable<? extends Component> bodies) {

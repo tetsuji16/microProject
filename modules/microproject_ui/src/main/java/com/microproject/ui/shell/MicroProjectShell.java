@@ -127,7 +127,7 @@ public final class MicroProjectShell {
 		toolBar.add(new Box.Filler(new Dimension(0, 0), new Dimension(0, 0), new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE)));
 		toolBar.add(((DefaultFrameManager) frameManager).getProjectComboPanel());
 		toolBar.add(Box.createRigidArea(new Dimension(20, 20)));
-		toolBar.setBackground(FlatUiSupport.panelBackground());
+		FlatUiSupport.followThemeBackground(toolBar, FlatUiSupport::panelBackground);
 		toolBar.setFloatable(false);
 		toolBar.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
