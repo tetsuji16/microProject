@@ -38,6 +38,7 @@ import java.awt.Point;
 import java.awt.Toolkit;
 import java.awt.event.AWTEventListener;
 import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
@@ -375,6 +376,22 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		}
 	}
 
+	/**
+	 * Runs a Backstage command only after the overlay has closed. A command that
+	 * opens a modal dialog would otherwise start its event loop while Backstage
+	 * is still attached, and the deferred close would run inside that loop.
+	 */
+	private void closeBackstageBeforeCommand(AbstractButton button) {
+		ActionListener[] commandListeners = button.getActionListeners();
+		for (ActionListener listener : commandListeners) button.removeActionListener(listener);
+		button.addActionListener(event -> {
+			closeBackstage();
+			SwingUtilities.invokeLater(() -> {
+				for (ActionListener listener : commandListeners) listener.actionPerformed(event);
+			});
+		});
+	}
+
 	private JComponent backstageView() {
 		if (backstageView != null) return backstageView;
 		backstageView = new JPanel(new BorderLayout());
@@ -422,6 +439,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 				commandSource.registerCommandControl(page.immediateCommand(), nav);
 				nav.setText(localized(page.labelKey()));
 				nav.setName("officeBackstageNav-" + page.id());
+				closeBackstageBeforeCommand(nav);
 			}
 			nav.getModel().addChangeListener(event -> {
 				nav.setBackground(nav.isSelected() ? theme.surfaceColor() : navigation.getBackground());
@@ -434,11 +452,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			group.add(nav);
 			navigation.add(nav);
 			nav.addActionListener(event -> {
-				if (page.immediateCommand() != null) {
-					SwingUtilities.invokeLater(this::closeBackstage);
-					return;
-				}
-				showBackstagePage(details, page);
+				if (page.immediateCommand() == null) showBackstagePage(details, page);
 			});
 			if (page == pages.get(0)) nav.doClick(0);
 		}
@@ -521,7 +535,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			button.putClientProperty(FlatClientProperties.STYLE,
 				"arc: 8; borderWidth: 1; borderColor: " + colorHex(theme.surfaceBorderColor())
 					+ "; background: #ffffff; hoverBackground: " + colorHex(theme.chromeBackground()));
-			button.addActionListener(event -> SwingUtilities.invokeLater(this::closeBackstage));
+			closeBackstageBeforeCommand(button);
 			commands.add(button, constraints);
 			constraints.gridx++;
 			if (constraints.gridx == 2) {
