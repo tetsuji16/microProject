@@ -186,7 +186,10 @@ public class TimeSpreadSheet extends CommonSpreadSheet implements ScaledComponen
 	public Component prepareRenderer(TableCellRenderer renderer, int row,
 			int column) {
 		Component component =  super.prepareRenderer(renderer, row, column);
-		applyReadOnlyBackground(component, getModel().isCellEditable(row, column+1), isCellSelected(row, column));
+		// The table converts the view column to its model column; this grid maps
+		// view column 0 to model column 1 because column 0 is the row header.
+		// Ask the table rather than repeating that offset here.
+		applyReadOnlyBackground(component, isCellEditable(row, column), isCellSelected(row, column));
 		return component;
 	}
 
