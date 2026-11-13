@@ -37,6 +37,7 @@ import java.awt.Window;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 import javax.swing.Action;
 import javax.swing.ActionMap;
@@ -1035,6 +1036,21 @@ public final class FlatUiSupport {
 			inputMap.put(binding.keyStroke(), binding.actionKey());
 			actionMap.put(binding.actionKey(), binding.action());
 		}
+	}
+
+	/**
+	 * Sets a background that is read again from the theme whenever the component's
+	 * UI is updated, so a theme change does not leave the earlier colour behind.
+	 */
+	public static void followThemeBackground(JComponent component, Supplier<Color> background) {
+		Objects.requireNonNull(background);
+		Runnable apply = () -> {
+			Color color = background.get();
+			// A UIResource colour would be replaced by the look-and-feel default.
+			component.setBackground(color == null ? null : new Color(color.getRGB(), true));
+		};
+		apply.run();
+		component.addPropertyChangeListener("UI", event -> apply.run());
 	}
 
 	/** Refreshes a Swing tree and its owned dialogs after a look-and-feel change. */
