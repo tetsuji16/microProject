@@ -23,6 +23,7 @@
  */
 package com.microproject.dialog;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
@@ -65,5 +66,26 @@ class DialogSizingTest {
 		model.setValue(32);
 		assertNull(model.getNextValue());
 		assertEquals(8, new PreferencesDialogBox.FontSizeModel(3).getNumber().intValue());
+	}
+
+	@Test
+	void fontChoicesKeepSystemDefaultAndAStoredFamilyThatIsNotInstalled() {
+		String[] installed = { "", "Alpha", "Beta" };
+
+		assertArrayEquals(new String[] { "Default", "Alpha", "Beta" },
+			PreferencesDialogBox.fontChoices(installed, "", "Default"));
+		assertArrayEquals(new String[] { "Default", "Alpha", "Beta", "Gone" },
+			PreferencesDialogBox.fontChoices(installed, "Gone", "Default"));
+		assertArrayEquals(new String[] { "Default", "Alpha", "Beta" },
+			PreferencesDialogBox.fontChoices(installed, "Beta", "Default"));
+	}
+
+	@Test
+	void fontChoiceRoundTripsWithoutChangingTheStoredFamily() {
+		for (String stored : new String[] { "", "Alpha", "Gone" }) {
+			String choice = PreferencesDialogBox.fontChoiceOf(stored, "Default");
+			assertEquals(stored, PreferencesDialogBox.fontFamilyOf(choice, "Default"));
+		}
+		assertEquals("", PreferencesDialogBox.fontFamilyOf(null, "Default"));
 	}
 }

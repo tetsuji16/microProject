@@ -2544,7 +2544,6 @@ public class DocumentFrame extends NamedFrame implements
 
 		}
 		else if (objectEvent.getObject() instanceof GlobalPreferences && objectEvent.isUpdate()) {
-			getGraphicManager().applyPreferenceFont(getGraphicManager().getPreferences());
 			//if (objectEvent.getField() == Configuration.getFieldFromId("Field.showProjectResourcesOnly")) {
 				for (ResourceInTeamFilter filter : resourcesInTeamFilters) {
 					filter.setFilterTeam(getGraphicManager().getPreferences().isShowProjectResourcesOnly());
