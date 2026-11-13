@@ -342,6 +342,15 @@ public final class FlatUiSupport {
 		return color(THEME_KEY_PREFIX + "spreadsheetReadOnlyForeground", FlatUiTheme.spreadsheetReadOnlyForeground());
 	}
 
+	/**
+	 * Background of a spreadsheet cell that cannot be edited.  It follows the
+	 * active theme so that the cell text stays readable in light and dark themes.
+	 */
+	public static Color spreadsheetReadOnlyBackground() {
+		return color(THEME_KEY_PREFIX + "spreadsheetReadOnlyBackground",
+			blend(spreadsheetBodyBackground(), spreadsheetHeaderBackground(), 0.5f));
+	}
+
 	public static Color spreadsheetHeaderBackground() {
 		return color(THEME_KEY_PREFIX + "spreadsheetHeaderBackground", FlatUiTheme.spreadsheetHeaderBackground());
 	}

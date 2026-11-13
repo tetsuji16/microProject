@@ -43,9 +43,9 @@ import com.microproject.field.Field;
 import com.microproject.graphic.configuration.ActionList;
 import com.microproject.graphic.configuration.CellStyle;
 import com.microproject.graphic.configuration.GraphicConfiguration;
-import com.microproject.graphic.configuration.shape.Colors;
 import com.microproject.pm.task.Project;
 import com.microproject.timescale.TimeScaleListener;
+import com.microproject.util.FlatUiSupport;
 
 /**
  *
@@ -183,12 +183,20 @@ public class TimeSpreadSheet extends CommonSpreadSheet implements ScaledComponen
      }	
      
      
- 	public Component prepareRenderer(TableCellRenderer renderer, int row,
+	public Component prepareRenderer(TableCellRenderer renderer, int row,
 			int column) {
 		Component component =  super.prepareRenderer(renderer, row, column);
-		if (!getModel().isCellEditable(row, column+1))
-			component.setBackground(Colors.LIGHT_GRAY);						
+		applyReadOnlyBackground(component, getModel().isCellEditable(row, column+1), isCellSelected(row, column));
 		return component;
+	}
+
+	/**
+	 * Marks a cell that cannot be edited with the theme's read-only background.
+	 * A selected cell keeps the selection colours set by the renderer.
+	 */
+	static void applyReadOnlyBackground(Component component, boolean editable, boolean selected) {
+		if (!editable && !selected)
+			component.setBackground(FlatUiSupport.spreadsheetReadOnlyBackground());
 	}
 	          
      
