@@ -38,6 +38,7 @@ import java.awt.Point;
 import java.awt.Toolkit;
 import java.awt.event.AWTEventListener;
 import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
@@ -205,6 +206,61 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		this.cards.setBackground(theme.chromeBackground());
 		setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, theme.topLineColor()));
 		setPreferredSize(new Dimension(0, theme.tabHeight() + theme.surfaceHeight() + 1));
+	}
+
+	/**
+	 * Re-reads the theme colours when the look and feel changes.  The colours set at
+	 * build time are plain values, so nothing else would replace them.
+	 */
+	@Override
+	public void updateUI() {
+		super.updateUI();
+		// JPanel's constructor calls updateUI() before this class has set its fields.
+		if (theme != null) applyThemeColors();
+	}
+
+	private void applyThemeColors() {
+		setBackground(theme.chromeBackground());
+		cards.setBackground(theme.chromeBackground());
+		setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, theme.topLineColor()));
+		if (tabRow == null) return;
+		tabRow.setBackground(theme.chromeBackground());
+		for (JToggleButton button : tabButtons.values()) {
+			updateTabButtonAppearance(button, button.isSelected());
+		}
+		// Bands, buttons and Backstage pages capture colours when they are created.
+		discardBackstageView();
+		rebuildTabBodies();
+		if (backstageOpen && backstageHost != null) {
+			backstageHost.show(backstageView(), this::closeBackstage);
+		}
+		applyDisplayMode();
+	}
+
+	private void discardBackstageView() {
+		List<Component> views = new ArrayList<>(backstageDetailPages.values());
+		if (backstageView != null) views.add(backstageView);
+		unregisterButtons(views);
+		// Navigation entries with an immediate command are also registered as command controls.
+		List<AbstractButton> controls = new ArrayList<>();
+		for (Component view : views) collectButtons(view, controls);
+		commandSource.unregisterCommandControls(controls);
+		backstageDetailPages.clear();
+		backstageView = null;
+	}
+
+	private void rebuildTabBodies() {
+		boolean wasRebuilding = rebuildingDensity;
+		rebuildingDensity = true;
+		try {
+			unregisterButtons(new ArrayList<>(tabBodies.values()));
+			tabBodies.clear();
+			tabBodyBuildWidths.clear();
+			bandHeights.clear();
+			if (activeTabId != null) showTab(activeTabId);
+		} finally {
+			rebuildingDensity = wasRebuilding;
+		}
 	}
 
 	void build() {
@@ -375,6 +431,30 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		}
 	}
 
+	/**
+	 * Runs a Backstage command only after the overlay has closed. A command that
+	 * opens a modal dialog would otherwise start its event loop while Backstage
+	 * is still attached, and the deferred close would run inside that loop.
+	 */
+	private void closeBackstageBeforeCommand(AbstractButton button) {
+		ActionListener[] commandListeners = button.getActionListeners();
+		// Removing the bound Action also clears AbstractButton's Action binding.
+		// Leave it registered so enabled/name/icon updates keep reaching the control.
+		ActionListener boundAction = button.getAction();
+		for (ActionListener listener : commandListeners) {
+			if (listener != boundAction) button.removeActionListener(listener);
+		}
+		// Swing dispatches newest listeners first: close before the retained Action runs.
+		button.addActionListener(event -> {
+			closeBackstage();
+			SwingUtilities.invokeLater(() -> {
+				for (ActionListener listener : commandListeners) {
+					if (listener != boundAction) listener.actionPerformed(event);
+				}
+			});
+		});
+	}
+
 	private JComponent backstageView() {
 		if (backstageView != null) return backstageView;
 		backstageView = new JPanel(new BorderLayout());
@@ -422,6 +502,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 				commandSource.registerCommandControl(page.immediateCommand(), nav);
 				nav.setText(localized(page.labelKey()));
 				nav.setName("officeBackstageNav-" + page.id());
+				closeBackstageBeforeCommand(nav);
 			}
 			nav.getModel().addChangeListener(event -> {
 				nav.setBackground(nav.isSelected() ? theme.surfaceColor() : navigation.getBackground());
@@ -434,11 +515,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			group.add(nav);
 			navigation.add(nav);
 			nav.addActionListener(event -> {
-				if (page.immediateCommand() != null) {
-					SwingUtilities.invokeLater(this::closeBackstage);
-					return;
-				}
-				showBackstagePage(details, page);
+				if (page.immediateCommand() == null) showBackstagePage(details, page);
 			});
 			if (page == pages.get(0)) nav.doClick(0);
 		}
@@ -520,8 +597,8 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			button.setMinimumSize(new Dimension(220, 132));
 			button.putClientProperty(FlatClientProperties.STYLE,
 				"arc: 8; borderWidth: 1; borderColor: " + colorHex(theme.surfaceBorderColor())
-					+ "; background: #ffffff; hoverBackground: " + colorHex(theme.chromeBackground()));
-			button.addActionListener(event -> SwingUtilities.invokeLater(this::closeBackstage));
+					+ "; background: " + colorHex(theme.surfaceColor()) + "; hoverBackground: " + colorHex(theme.chromeBackground()));
+			closeBackstageBeforeCommand(button);
 			commands.add(button, constraints);
 			constraints.gridx++;
 			if (constraints.gridx == 2) {
@@ -986,17 +1063,8 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			}
 			return;
 		}
-		rebuildingDensity = true;
-		try {
-			unregisterButtons(new ArrayList<>(tabBodies.values()));
-			density = nextDensity;
-			tabBodies.clear();
-			tabBodyBuildWidths.clear();
-			bandHeights.clear();
-			showTab(activeTabId);
-		} finally {
-			rebuildingDensity = false;
-		}
+		density = nextDensity;
+		rebuildTabBodies();
 	}
 
 	private void unregisterButtons(Iterable<? extends Component> bodies) {

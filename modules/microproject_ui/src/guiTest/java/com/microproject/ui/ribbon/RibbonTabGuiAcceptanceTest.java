@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.accessibility.AccessibleState;
 import javax.imageio.ImageIO;
@@ -42,6 +43,7 @@ import javax.swing.Action;
 import javax.swing.JFrame;
 import javax.swing.JComponent;
 import javax.swing.JButton;
+import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JScrollPane;
 import javax.swing.MenuElement;
@@ -613,6 +615,48 @@ class RibbonTabGuiAcceptanceTest {
 		AbstractButton restoredTask = findButton(host, taskTitle);
 		assertTrue(restoredTask.isSelected(), "Closing Backstage did not restore the previously selected ribbon tab");
 		captureVisibleRibbon(robot, "ribbon-file-backstage.png");
+	}
+
+	@Test
+	void backstageClosesBeforeTheOptionsCommandOpensItsModalDialog() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI coverage.");
+		ModalCommandActionMap actions = new ModalCommandActionMap();
+		MenuManager manager = MenuManager.getInstance(actions);
+		actions.modalActionId = manager.getToolBarFactory().getActionStringFromId("RibbonBackstageOptions");
+		MainRibbonFrame mainFrame = new MainRibbonFrame("Backstage modal ordering", null);
+		frame = mainFrame;
+		MicroProjectShell.installRibbonShell(mainFrame, manager, null);
+		JPanel host = mainFrame.getRibbonPanel();
+		SwingUtilities.invokeAndWait(() -> {
+			frame.setSize(1100, 700);
+			frame.setLocation(0, 0);
+			frame.setVisible(true);
+		});
+		String taskTitle = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString("TaskRibbonTask.title");
+		String fileTitle = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString("FileRibbonTask.title");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		click(robot, findButton(host, taskTitle));
+		click(robot, findButton(host, fileTitle));
+		GuiAcceptanceSupport.await(() -> namedComponent(frame.getRootPane(), "officeBackstageOverlay") != null,
+			"File tab did not open Backstage");
+		clickCommand(robot, (AbstractButton)namedComponent(frame.getRootPane(), "officeBackstageNav-options"));
+		AbstractButton options = (AbstractButton)namedComponent(frame.getRootPane(), "officeBackstageCommand-RibbonBackstageOptions");
+		assertTrue(options != null, "Options destination omitted the General Options action");
+		int before = actions.count(actions.modalActionId);
+		clickCommand(robot, options);
+		GuiAcceptanceSupport.await(() -> actions.modalOpened.get(),
+			"The Options command did not open its modal dialog");
+		assertEquals(Boolean.FALSE, actions.overlayPresentWhenModalOpened.get(),
+			"Backstage must already be closed when the command's modal dialog becomes visible");
+		assertEquals(before + 1, actions.count(actions.modalActionId),
+			"The Options command must run exactly once");
+		GuiAcceptanceSupport.await(() -> namedComponent(frame.getRootPane(), "officeBackstageOverlay") == null,
+			"Backstage remained open after invoking a command");
+		AbstractButton restoredTask = findButton(host, taskTitle);
+		assertTrue(restoredTask.isSelected(), "Closing Backstage did not restore the previously selected ribbon tab");
+		GuiAcceptanceSupport.await(restoredTask::isFocusOwner,
+			"Focus did not return to the previously active ribbon tab after the modal command");
 	}
 
 	private static Component namedComponent(Component root, String name) {
@@ -1284,6 +1328,56 @@ class RibbonTabGuiAcceptanceTest {
 		assertTrue(screenshot.getWidth() == bounds[0].width && screenshot.getHeight() == bounds[0].height
 			&& screenshot.getWidth() >= screenAwareMinimumWidth && screenshot.getHeight() > 120,
 			"captured ribbon is unexpectedly small: " + screenshot.getWidth() + "x" + screenshot.getHeight());
+	}
+
+	/** Records whether the Backstage overlay is still attached when a modal command dialog opens. */
+	private final class ModalCommandActionMap implements ProjectMenuActionMap {
+		private final RecordingActionMap delegate = new RecordingActionMap();
+		private String modalActionId;
+		private final java.util.concurrent.atomic.AtomicBoolean modalOpened = new java.util.concurrent.atomic.AtomicBoolean();
+		private final AtomicReference<Boolean> overlayPresentWhenModalOpened = new AtomicReference<>();
+
+		@Override
+		public Action getAction(String key) {
+			Action recorded = delegate.getAction(key);
+			if (!key.equals(modalActionId)) return recorded;
+			return new AbstractAction(key) {
+				@Override
+				public void actionPerformed(java.awt.event.ActionEvent event) {
+					recorded.actionPerformed(event);
+					JDialog dialog = new JDialog(frame, "Preferences probe", true);
+					dialog.setName("backstageModalCommandProbe");
+					dialog.addWindowListener(new java.awt.event.WindowAdapter() {
+						@Override public void windowOpened(java.awt.event.WindowEvent event) {
+							modalOpened.set(true);
+							dialog.dispose();
+						}
+					});
+					// Safety net so a missed windowOpened cannot leave the suite in a modal loop.
+					javax.swing.Timer guard = new javax.swing.Timer(10000, e -> dialog.dispose());
+					guard.setRepeats(false);
+					guard.start();
+					dialog.setSize(320, 200);
+					dialog.setLocationRelativeTo(frame);
+					overlayPresentWhenModalOpened.set(
+						namedComponent(frame.getRootPane(), "officeBackstageOverlay") != null);
+					try {
+						dialog.setVisible(true);
+					} finally {
+						guard.stop();
+					}
+				}
+			};
+		}
+
+		@Override
+		public String getStringFromAction(Action action) {
+			return delegate.getStringFromAction(action);
+		}
+
+		int count(String actionId) {
+			return delegate.count(actionId);
+		}
 	}
 
 	private static final class RecordingActionMap implements ProjectMenuActionMap {
