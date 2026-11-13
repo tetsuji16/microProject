@@ -114,7 +114,7 @@ public class MenuManager {
 	public JMenuBar getMenu(String name) {
 		JMenuBar menuBar = menuFactory.createJMenuBar(name);
 		menuBar.setOpaque(true);
-		menuBar.setBackground(FlatUiSupport.ribbonChromeBackground());
+		FlatUiSupport.followThemeBackground(menuBar, FlatUiSupport::ribbonChromeBackground);
 		return menuBar;
 	}
 

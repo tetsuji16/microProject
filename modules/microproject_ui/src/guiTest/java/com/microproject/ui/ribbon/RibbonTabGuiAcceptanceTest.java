@@ -645,7 +645,7 @@ class RibbonTabGuiAcceptanceTest {
 		assertTrue(options != null, "Options destination omitted the General Options action");
 		int before = actions.count(actions.modalActionId);
 		clickCommand(robot, options);
-		GuiAcceptanceSupport.await(() -> actions.overlayPresentWhenModalOpened.get() != null,
+		GuiAcceptanceSupport.await(() -> actions.modalOpened.get(),
 			"The Options command did not open its modal dialog");
 		assertEquals(Boolean.FALSE, actions.overlayPresentWhenModalOpened.get(),
 			"Backstage must already be closed when the command's modal dialog becomes visible");
@@ -1334,6 +1334,7 @@ class RibbonTabGuiAcceptanceTest {
 	private final class ModalCommandActionMap implements ProjectMenuActionMap {
 		private final RecordingActionMap delegate = new RecordingActionMap();
 		private String modalActionId;
+		private final java.util.concurrent.atomic.AtomicBoolean modalOpened = new java.util.concurrent.atomic.AtomicBoolean();
 		private final AtomicReference<Boolean> overlayPresentWhenModalOpened = new AtomicReference<>();
 
 		@Override
@@ -1348,8 +1349,7 @@ class RibbonTabGuiAcceptanceTest {
 					dialog.setName("backstageModalCommandProbe");
 					dialog.addWindowListener(new java.awt.event.WindowAdapter() {
 						@Override public void windowOpened(java.awt.event.WindowEvent event) {
-							overlayPresentWhenModalOpened.set(
-								namedComponent(frame.getRootPane(), "officeBackstageOverlay") != null);
+							modalOpened.set(true);
 							dialog.dispose();
 						}
 					});
@@ -1359,7 +1359,13 @@ class RibbonTabGuiAcceptanceTest {
 					guard.start();
 					dialog.setSize(320, 200);
 					dialog.setLocationRelativeTo(frame);
-					dialog.setVisible(true);
+					overlayPresentWhenModalOpened.set(
+						namedComponent(frame.getRootPane(), "officeBackstageOverlay") != null);
+					try {
+						dialog.setVisible(true);
+					} finally {
+						guard.stop();
+					}
 				}
 			};
 		}

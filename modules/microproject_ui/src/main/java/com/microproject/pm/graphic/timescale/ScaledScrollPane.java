@@ -32,6 +32,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JViewport;
 import javax.swing.ScrollPaneConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
@@ -65,6 +66,12 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 	 */
 	private double lastLeftEdgeDate = Double.NaN;
 	private boolean restoringLeftEdge;
+	/**
+	 * Set while a left-edge restore could not reach its position because the view
+	 * was still as narrow as before the range change. The scaled component widens
+	 * the view in the same time-scale notification; the restore is repeated then.
+	 */
+	private boolean pendingLeftEdgeRestore;
 	/**
 	 * Origin the viewport pixel positions were last confirmed against. While the
 	 * converter's origin differs (an origin change not yet processed here) a pixel
@@ -151,6 +158,8 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 			    updateTimeScaleComponentSize();
 			    JViewport viewport = getViewport();
 			    Dimension extent = viewport.getExtentSize();
+			    if (pendingLeftEdgeRestore && !restoringLeftEdge)
+					restoreViewportLeftDate();
 			    Point position = viewport.getViewPosition();
 			    if (preserveCenterDateOnResize && !restoringViewportCenter
 						&& lastViewportExtent.width > 0 && extent.width > 0
@@ -169,7 +178,7 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 						position = viewport.getViewPosition();
 					}
 			    }
-			    if (!restoringLeftEdge && coord.getOrigin() == lastOrigin)
+			    if (!restoringLeftEdge && !pendingLeftEdgeRestore && coord.getOrigin() == lastOrigin)
 					lastLeftEdgeDate = coord.toTime(Math.max(0, position.x));
 			    if (!position.equals(lastViewportPosition)) {
 					lastViewportPosition = new Point(position);
@@ -233,13 +242,22 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 		JViewport viewport = getViewport();
 		if (viewport == null) return;
 		Point position = viewport.getViewPosition();
-		position.x = Math.max(0, (int) Math.round(coord.toX(lastLeftEdgeDate)));
+		int targetX = Math.max(0, (int) Math.round(coord.toX(lastLeftEdgeDate)));
+		position.x = targetX;
 		restoringLeftEdge = true;
 		try {
 			viewport.setViewPosition(position);
 		} finally {
 			restoringLeftEdge = false;
 		}
+		// The scroll pane clamps the position to the current view width. This
+		// listener can run before the scaled component has grown the view for the
+		// new range, so a clamped position is not final: keep the date and repeat
+		// the restore when the view size changes within this notification.
+		boolean clamped = viewport.getViewPosition().x != targetX;
+		if (clamped && !pendingLeftEdgeRestore)
+			SwingUtilities.invokeLater(() -> pendingLeftEdgeRestore = false);
+		pendingLeftEdgeRestore = clamped;
 	}
 
 	private void updateHorizontalScrollIncrement() {
