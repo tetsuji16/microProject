@@ -2733,7 +2733,9 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			dividerBefore[0] = splitPane.getDividerLocation();
 		});
 		long day = CalendarOption.getInstance().getMillisPerDay();
-		for (int days : new int[] { 10, 40, 90, 150, 5 }) {
+		int[] durations = { 10, 40, 90, 150, 5 };
+		for (int edit = 0; edit < 20; edit++) {
+			int days = durations[edit % durations.length];
 			editCellPhysically(robot, fixture.sheet, fixture.sheet.getCache().getRowAt(node), durationColumn,
 				String.valueOf(days));
 			GuiAcceptanceSupport.await(() -> task.getRawDuration() == days * day,
