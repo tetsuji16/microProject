@@ -6,6 +6,7 @@ package com.microproject.dialog;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.GraphicsEnvironment;
@@ -48,7 +49,7 @@ class FindDialogButtonsGuiAcceptanceTest {
 	}
 
 	@Test
-	void directionButtonsRemainReadableAndNavigateInOppositeDirections() throws Exception {
+	void findNextAndDirectionComboUseCurrentDesignAndNavigate() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Find button acceptance coverage.");
 		Field nameField = Configuration.getFieldFromId("Field.name");
 		boolean[] lastDirection = { true };
@@ -77,15 +78,10 @@ class FindDialogButtonsGuiAcceptanceTest {
 		});
 		GuiAcceptanceSupport.await(() -> dialog.isShowing(), "Find dialog did not open");
 
-		assertNotNull(dialog.next.getIcon(), "Find Next must retain its down-direction icon");
-		assertNotNull(dialog.previous.getIcon(), "Find Previous must retain its up-direction icon");
-		assertTrue(dialog.next.getIcon().getIconWidth() > 0 && dialog.next.getIcon().getIconHeight() > 0,
-			"Find Next icon must have drawable dimensions");
-		assertEquals(dialog.next.getIcon().getIconWidth(), dialog.previous.getIcon().getIconWidth(),
-			"direction icons must use a consistent size");
-		assertEquals(dialog.next.getPreferredSize().height, dialog.previous.getPreferredSize().height,
-			"direction buttons must share one preferred height");
-		assertEquals(dialog.next.getFont(), dialog.previous.getFont(), "direction buttons must share the dialog font");
+		assertNull(dialog.next.getIcon(), "Find Next must not use a legacy GIF icon");
+		assertNotNull(dialog.direction, "Search direction combo must exist");
+		assertEquals(0, dialog.direction.getSelectedIndex(), "Default direction must be Down");
+		assertEquals(dialog.next, dialog.getRootPane().getDefaultButton(), "Find Next must be the default button");
 		DialogLayoutAssertions.assertWithinUsableScreen(dialog, "Find dialog (#724)");
 		DialogLayoutAssertions.assertResizeWithinUsableScreen(dialog, 80, 30,
 			"Find dialog (#724)");
@@ -95,12 +91,13 @@ class FindDialogButtonsGuiAcceptanceTest {
 		click(robot, dialog.search);
 		robot.keyPress(KeyEvent.VK_X);
 		robot.keyRelease(KeyEvent.VK_X);
-		GuiAcceptanceSupport.await(() -> dialog.next.isEnabled() && dialog.previous.isEnabled(),
-			"Find buttons must enable for a non-empty query");
+		GuiAcceptanceSupport.await(() -> dialog.next.isEnabled(),
+			"Find Next must enable for a non-empty query");
 		click(robot, dialog.next);
-		assertTrue(lastDirection[0], "Find Next physical route must search forward");
-		click(robot, dialog.previous);
-		assertTrue(!lastDirection[0], "Find Previous physical route must search backward");
+		assertTrue(lastDirection[0], "Find Next with Down must search forward");
+		SwingUtilities.invokeAndWait(() -> dialog.direction.setSelectedIndex(1));
+		click(robot, dialog.next);
+		assertTrue(!lastDirection[0], "Find Next with Up must search backward");
 	}
 
 	private static void click(Robot robot, java.awt.Component component) throws Exception {

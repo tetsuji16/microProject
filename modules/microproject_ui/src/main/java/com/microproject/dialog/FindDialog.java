@@ -50,7 +50,6 @@ import javax.swing.event.DocumentListener;
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
-import com.microproject.pm.graphic.IconManager;
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.DocumentSelectedEvent;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
@@ -76,7 +75,7 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 	DocumentFrame documentFrame;
 	SearchContext context;
 	JButton next;
-	JButton previous;
+	JComboBox<String> direction;
 	public static FindDialog getInstance(DocumentFrame owner,Searchable searchable, Field current) {
 		return new FindDialog(owner,searchable,current);
 	}
@@ -114,7 +113,7 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 	public void onOk() {
 		bind(false);
 		if (!searchable.findNext(context))
-			Alert.warn("No more matches");
+			Alert.warn(Messages.getString("FindDialog.NoMatches"));
 	}
 
 	protected boolean bind(boolean get) {
@@ -148,7 +147,7 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 		// Separating the component initialization and configuration
 		// from the layout code makes both parts easier to read.
 		FormLayout layout = new FormLayout("default, 3dlu, default, 3dlu, default", // cols //$NON-NLS-1$
-				FlatUiSupport.preferredFormRows(5)); // rows //$NON-NLS-1$
+				FlatUiSupport.preferredFormRows(7)); // rows //$NON-NLS-1$
 
 
 
@@ -163,6 +162,13 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 		builder.append(Messages.getString("FindDialog.Find"),search); //$NON-NLS-1$
 		builder.nextLine(2);
 		builder.append(Messages.getString("Text.Field"),combo); //$NON-NLS-1$
+		builder.nextLine(2);
+		if (direction == null) {
+			direction = new JComboBox<>(new String[] {
+				Messages.getString("FindDialog.Down"), Messages.getString("FindDialog.Up") }); //$NON-NLS-1$
+			direction.setName("findDialogDirection");
+		}
+		builder.append(Messages.getString("FindDialog.Search"),direction); //$NON-NLS-1$
 		builder.nextLine(2);
 		builder.append(caseSensitive); //$NON-NLS-1$
 		return builder.getPanel();
@@ -184,24 +190,24 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 	@Override
 	public ButtonPanel createButtonPanel() {
 		ButtonPanel buttonPanel = new ButtonPanel();
-		next = new JButton(Messages.getString("FindDialog.FindNext"),IconManager.getIcon("image.down"));
-		previous = new JButton(Messages.getString("FindDialog.FindPrevious"),IconManager.getIcon("image.up"));
+		next = new JButton(Messages.getString("FindDialog.FindNext"));
+		next.setName("findDialogFindNext");
 		next.setToolTipText(Messages.getString("FindDialog.FindNext.tooltip"));
-		previous.setToolTipText(Messages.getString("FindDialog.FindPrevious.tooltip"));
-		FlatUiSupport.styleDialogButton(next, false);
-		FlatUiSupport.styleDialogButton(previous, false);
+		FlatUiSupport.styleDialogButton(next, true);
+		JButton close = new JButton(Messages.getString("ButtonText.Close"));
+		close.setName("findDialogClose");
+		FlatUiSupport.styleDialogButton(close, false);
 		buttonPanel.add(next);
-		buttonPanel.add(previous);
+		buttonPanel.add(close);
 		updateFindButtonState();
 		next.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				context.setForward(true);
+				context.setForward(direction == null || direction.getSelectedIndex() == 0);
 				onOk();
 			}});
-		previous.addActionListener(new ActionListener() {
+		close.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				context.setForward(false);
-				onOk();
+				onCancel();
 			}});
 		search.getDocument().addDocumentListener(new DocumentListener() {
 			@Override public void insertUpdate(DocumentEvent event) { updateFindButtonState(); }
@@ -214,11 +220,16 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 	private void updateFindButtonState() {
 		if (next == null)
 			return;
-		boolean empty = search.getText().length() == 0;
-		next.setEnabled(!empty);
-		previous.setEnabled(!empty);
+		next.setEnabled(search.getText().length() != 0);
 
 	}
+	@Override
+	public void pack() {
+		super.pack();
+		if (next != null)
+			getRootPane().setDefaultButton(next);
+	}
+
 	@Override
 	protected boolean hasOkAndCancelButtons() {
 		return false;
