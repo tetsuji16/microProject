@@ -2700,6 +2700,57 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			"the committed duration must change only the planned bar width, not the viewport");
 	}
 
+	/** Issue #1126: repeated task-table edits must not pan a narrow, scrollable production chart. */
+	@Test
+	void repeatedPhysicalDurationEditsKeepTheGanttLeftEdgeDate() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(1);
+		showFixture(fixture, false, true);
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(35);
+		GraphicNode node = (GraphicNode) fixture.gantt.getModel().getCache().getElementAt(0);
+		NormalTask task = (NormalTask) node.getNode().getImpl();
+		int durationColumn = findColumn(fixture.sheet, "Field.duration");
+		JSplitPane splitPane = (JSplitPane) SwingUtilities.getAncestorOfClass(JSplitPane.class, fixture.gantt);
+		SwingUtilities.invokeAndWait(() -> {
+			frame.toFront();
+			frame.requestFocus();
+			// A chart narrower than its date range is the case that used to drift.
+			splitPane.setDividerLocation(splitPane.getWidth() - 360);
+			frame.validate();
+			fixture.gantt.updateSize();
+		});
+		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.gantt.isShowing(),
+			"task table and Gantt must be visible before duration input");
+		JViewport viewport = ganttTimescalePane.getViewport();
+		CoordinatesConverter coord = fixture.gantt.getCoord();
+		double[] leftDateBefore = new double[1];
+		int[] dividerBefore = new int[1];
+		SwingUtilities.invokeAndWait(() -> {
+			assertTrue(viewport.getViewSize().width > viewport.getExtentSize().width,
+				"the chart must be scrollable for this case");
+			leftDateBefore[0] = coord.toTime(viewport.getViewPosition().x);
+			dividerBefore[0] = splitPane.getDividerLocation();
+		});
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		for (int days : new int[] { 10, 40, 90, 150, 5 }) {
+			editCellPhysically(robot, fixture.sheet, fixture.sheet.getCache().getRowAt(node), durationColumn,
+				String.valueOf(days));
+			GuiAcceptanceSupport.await(() -> task.getRawDuration() == days * day,
+				"duration edit did not reach the task model: " + days);
+			SwingUtilities.invokeAndWait(() -> {
+				fixture.gantt.updateSize();
+				double onePixel = Math.abs(coord.toTime(1) - coord.toTime(0));
+				double leftDate = coord.toTime(viewport.getViewPosition().x);
+				assertTrue(Math.abs(leftDate - leftDateBefore[0]) <= onePixel,
+					"a duration edit to " + days + " days must not pan the Gantt chart (x="
+						+ viewport.getViewPosition().x + ")");
+				assertEquals(dividerBefore[0], splitPane.getDividerLocation(),
+					"a duration edit must not move the table/chart divider");
+			});
+		}
+	}
+
 	@Test
 	void physicalTaskTableDateEditRepositionsBarWithoutPanningGanttViewport() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
