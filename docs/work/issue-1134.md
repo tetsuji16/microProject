@@ -35,7 +35,7 @@ The event type is the combination of what changed: `SCALE_CHANGE`, and `ORIGIN_A
   (`IconManagerRibbonIconTest.taskTreeExpandersPreserveTheirNinePixelRasterShapeAndScaleAsVectors`,
   `MicrosoftProjectGanttPaletteTest.mapsSummaryAndBaselineFormatsToTheirMicrosoftProjectColors`).
   These are the order-dependent local failures recorded in `docs/work/issue-1126.md`; they pass alone.
-- `python scripts/test_source_inventory.py --check --output build/audit/test-source-inventory.json`: see the pull request.
+- `python scripts/test_source_inventory.py --check --output build/audit/test-source-inventory.json`: pass.
 
 ## Limits
 
