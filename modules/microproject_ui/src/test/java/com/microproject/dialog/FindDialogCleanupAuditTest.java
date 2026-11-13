@@ -41,8 +41,8 @@ class FindDialogCleanupAuditTest {
 		assertTrue(source.contains("public void dispose()"));
 		assertTrue(source.contains("DocumentSelectedEvent.removeListener(this);"));
 		assertTrue(source.contains("documentFrame.getProject().removeObjectListener(this);"));
-		assertTrue(source.contains("FlatUiSupport.styleDialogButton(next, false);"));
-		assertTrue(source.contains("FlatUiSupport.styleDialogButton(previous, false);"));
+		assertTrue(source.contains("FlatUiSupport.styleDialogButton(next, true);"));
+		assertTrue(source.contains("FlatUiSupport.styleDialogButton(close, false);"));
 		assertFalse(source.contains("private static FindDialog instance = null;"));
 		assertFalse(source.contains("TODO set minimum size"));
 		assertFalse(source.contains("TODO Auto-generated method stub"));
