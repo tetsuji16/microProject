@@ -38,9 +38,12 @@ import javax.swing.table.TableColumn;
 import javax.swing.tree.AbstractLayoutCache;
 import javax.swing.tree.VariableHeightLayoutCache;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.ui.theme.MicroProjectTheme;
+import com.microproject.ui.theme.MicroProjectThemeTokens;
 import com.microproject.util.ColorLuminance;
 import com.microproject.util.FlatUiSupport;
 
@@ -49,6 +52,22 @@ class TimeSpreadSheetReadOnlyCellTest {
 	private static final double MINIMUM_TEXT_CONTRAST = 4.5;
 	/** The fixed fill this fix removed; it must not return. */
 	private static final Color LEGACY_FIXED_READ_ONLY_BACKGROUND = new Color(0xD3D3D3);
+
+	private boolean originalDark;
+
+	@BeforeEach
+	void captureTheme() {
+		originalDark = !MicroProjectTheme.tokens().appBackground()
+			.equals(MicroProjectThemeTokens.light().appBackground());
+	}
+
+	@AfterEach
+	void restoreTheme() {
+		if (originalDark)
+			MicroProjectTheme.installDark();
+		else
+			MicroProjectTheme.installLight();
+	}
 
 	@Test
 	void readOnlyCellStaysReadableInTheLightTheme() {
@@ -61,29 +80,21 @@ class TimeSpreadSheetReadOnlyCellTest {
 
 	@Test
 	void readOnlyCellStaysReadableInTheDarkTheme() {
-		try {
-			MicroProjectTheme.installDark();
+		MicroProjectTheme.installDark();
 
-			assertReadOnlyCellIsReadable();
-			assertTrue(ColorLuminance.isDark(FlatUiSupport.spreadsheetReadOnlyBackground()),
-				"the dark theme must not paint a light read-only cell");
-		} finally {
-			MicroProjectTheme.installLight();
-		}
+		assertReadOnlyCellIsReadable();
+		assertTrue(ColorLuminance.isDark(FlatUiSupport.spreadsheetReadOnlyBackground()),
+			"the dark theme must not paint a light read-only cell");
 	}
 
 	@Test
 	void readOnlyBackgroundFollowsTheTheme() {
 		MicroProjectTheme.installLight();
 		Color light = FlatUiSupport.spreadsheetReadOnlyBackground();
-		try {
-			MicroProjectTheme.installDark();
+		MicroProjectTheme.installDark();
 
-			assertNotEquals(light, FlatUiSupport.spreadsheetReadOnlyBackground(),
-				"a read-only cell must not keep the previous theme's background");
-		} finally {
-			MicroProjectTheme.installLight();
-		}
+		assertNotEquals(light, FlatUiSupport.spreadsheetReadOnlyBackground(),
+			"a read-only cell must not keep the previous theme's background");
 	}
 
 	@Test
