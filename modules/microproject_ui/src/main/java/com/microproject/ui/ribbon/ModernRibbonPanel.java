@@ -25,6 +25,7 @@ package com.microproject.ui.ribbon;
 
 import java.awt.BorderLayout;
 import java.awt.AWTEvent;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
@@ -92,6 +93,9 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	public static final String DISPLAY_MODE_POPUP_NAME = "microproject.ribbon.displayModePopup";
 	static final String RIBBON_SURFACE_COMPONENT_NAME = "microProjectRibbonSurface";
 	static final String RIBBON_BAND_COMPONENT_NAME = "microProjectRibbonBand";
+	/** Name prefix of the group dialog launcher button; the group id follows. */
+	static final String DIALOG_LAUNCHER_NAME_PREFIX = "microproject.ribbon.dialogLauncher.";
+	private static final int DIALOG_LAUNCHER_SIZE = 16;
 	public static final String COLLAPSED_POPUP_PROPERTY = "MicroProject.ribbonCollapsedPopup";
 	public static final String TAB_OVERFLOW_POPUP_PROPERTY = "MicroProject.ribbonTabOverflowPopup";
 	public static final String COLLAPSED_TAB_LAUNCHER_PROPERTY = "MicroProject.ribbonCollapsedTabLauncher";
@@ -1340,8 +1344,87 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		title.setForeground(theme.bandTitleForeground());
 		title.setFont(theme.bandTitleFont());
 		title.setBorder(BorderFactory.createEmptyBorder(1, 0, 0, 0));
-		panel.bind(content, title, computeBandWidth(content, title));
+		JComponent titleRow = createBandTitleRow(band, title);
+		panel.bind(content, titleRow, computeBandWidth(content, titleRow));
 		return panel;
+	}
+
+	/**
+	 * The caption of a group. A group that declares a dialog launcher gets the small
+	 * launcher button at the right end of the caption row, as in Office; the caption
+	 * stays centered because the left end reserves the same width.
+	 */
+	private JComponent createBandTitleRow(SwingRibbonModel.RibbonBand band, JLabel title) {
+		if (band.getDialogLauncherId() == null) {
+			return title;
+		}
+		JButton launcher = createDialogLauncher(band);
+		JPanel row = new JPanel(new BorderLayout());
+		row.setOpaque(false);
+		row.add(Box.createRigidArea(launcher.getPreferredSize()), BorderLayout.WEST);
+		row.add(title, BorderLayout.CENTER);
+		row.add(launcher, BorderLayout.EAST);
+		return row;
+	}
+
+	private JButton createDialogLauncher(SwingRibbonModel.RibbonBand band) {
+		String commandId = band.getDialogLauncherId();
+		JButton launcher = new JButton(commandSource.createAction(commandId));
+		launcher.setHideActionText(true);
+		launcher.setText(null);
+		launcher.setIcon(new DialogLauncherIcon());
+		launcher.setName(DIALOG_LAUNCHER_NAME_PREFIX + band.getId());
+		String label = getStringOrNull(commandId + ".text");
+		launcher.setToolTipText(label == null ? commandId : label);
+		launcher.getAccessibleContext().setAccessibleName(label == null ? commandId : label);
+		launcher.setActionCommand(commandId);
+		launcher.setBorderPainted(false);
+		launcher.setContentAreaFilled(false);
+		launcher.setFocusPainted(false);
+		launcher.setFocusable(false);
+		launcher.setMargin(new Insets(0, 0, 0, 0));
+		launcher.putClientProperty("JComponent.titleBarCaption", Boolean.FALSE);
+		Dimension size = new Dimension(DIALOG_LAUNCHER_SIZE, DIALOG_LAUNCHER_SIZE);
+		launcher.setPreferredSize(size);
+		launcher.setMinimumSize(size);
+		launcher.setMaximumSize(size);
+		return launcher;
+	}
+
+	/** The diagonal arrow of the group dialog launcher, drawn in the caption color of the theme. */
+	private final class DialogLauncherIcon implements javax.swing.Icon {
+		@Override
+		public int getIconWidth() {
+			return DIALOG_LAUNCHER_SIZE;
+		}
+
+		@Override
+		public int getIconHeight() {
+			return DIALOG_LAUNCHER_SIZE;
+		}
+
+		@Override
+		public void paintIcon(Component component, Graphics graphics, int x, int y) {
+			Graphics2D g2 = (Graphics2D) graphics.create();
+			try {
+				g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+				Color color = theme.bandTitleForeground();
+				boolean enabled = component == null || component.isEnabled();
+				g2.setColor(enabled ? color : new Color(color.getRed(), color.getGreen(), color.getBlue(), 90));
+				int left = x + 4;
+				int top = y + 4;
+				int right = x + DIALOG_LAUNCHER_SIZE - 5;
+				int bottom = y + DIALOG_LAUNCHER_SIZE - 5;
+				// Corner bracket of the group frame, then the arrow pointing to its lower right.
+				g2.drawLine(left, top, right - 2, top);
+				g2.drawLine(left, top, left, bottom - 2);
+				g2.drawLine(left + 2, top + 2, right, bottom);
+				g2.drawLine(right, bottom - 3, right, bottom);
+				g2.drawLine(right - 3, bottom, right, bottom);
+			} finally {
+				g2.dispose();
+			}
+		}
 	}
 
 	private RibbonBandPanel buildCustomBand(RibbonBandPanel panel, SwingRibbonModel.RibbonBand band) {
@@ -1424,7 +1507,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		return panel;
 	}
 
-	private int computeBandWidth(JComponent content, JLabel title) {
+	private int computeBandWidth(JComponent content, JComponent title) {
 		int contentWidth = content.getPreferredSize().width;
 		int titleWidth = title.getPreferredSize().width;
 		return Math.max(BAND_MIN_WIDTH, Math.max(
@@ -1754,7 +1837,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 
 	private final class RibbonBandPanel extends JPanel {
 		private JComponent content;
-		private JLabel title;
+		private JComponent title;
 		private int targetWidth;
 		private int contentPreferredHeight;
 		private boolean showSeparator;
@@ -1783,7 +1866,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			this.showSeparator = showSeparator;
 		}
 
-		private void bind(JComponent content, JLabel title, int targetWidth) {
+		private void bind(JComponent content, JComponent title, int targetWidth) {
 			this.content = content;
 			this.title = title;
 			this.targetWidth = targetWidth;

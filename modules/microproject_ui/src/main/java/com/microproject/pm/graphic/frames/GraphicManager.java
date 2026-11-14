@@ -1978,6 +1978,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_GROUP, groupTransform);
 		actionsMap.addHandler(ACTION_CHOOSE_GROUP, groupTransform);
 		actionsMap.addHandler(ACTION_CALENDAR_OPTIONS, new CalendarOptionsAction());
+		actionsMap.addHandler(ACTION_CALENDAR_VIEW_SETTINGS, new CalendarViewSettingsAction());
 		actionsMap.addHandler("GeneralOptions", new GeneralOptionsAction());
 		actionsMap.addHandler(ACTION_SAVE_BASELINE, new SaveBaselineAction());
 		actionsMap.addHandler(ACTION_CLEAR_BASELINE, new ClearBaselineAction());
@@ -2239,6 +2240,16 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			if (!beforeCalendarOptionsRoute()) return;
 			doCalendarOptionsDialog();
+		}
+	}
+
+	/** Opens the calendar view settings dialog; the Task Views group dialog launcher runs it. */
+	public class CalendarViewSettingsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive())
+				getCurrentFrame().doCalendarViewDialog();
 		}
 	}
 

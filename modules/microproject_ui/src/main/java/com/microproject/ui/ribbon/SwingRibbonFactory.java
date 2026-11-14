@@ -214,7 +214,16 @@ public final class SwingRibbonFactory {
 		}
 		SwingRibbonModel.RibbonBand band = new SwingRibbonModel.RibbonBand(bandId, resolveString(bandId + ".title"), buttons);
 		String dialogLauncher = resolveStringOrNull(bandId + ".dialogLauncher");
-		return dialogLauncher == null || dialogLauncher.isBlank() ? band : band.withDialogLauncher(dialogLauncher.trim());
+		if (dialogLauncher == null || dialogLauncher.isBlank()) {
+			return band;
+		}
+		String launcherId = dialogLauncher.trim();
+		try {
+			commandSource.createAction(launcherId);
+		} catch (RuntimeException ex) {
+			throw new IllegalStateException(bandId + ".dialogLauncher " + launcherId + " is not a command with an Action", ex);
+		}
+		return band.withDialogLauncher(launcherId);
 	}
 
 	/**
