@@ -24,6 +24,7 @@
 package com.microproject.ui.ribbon;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.AWTEvent;
 import java.awt.Component;
 import java.awt.Container;
@@ -35,11 +36,15 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Point;
+import java.awt.RenderingHints;
 import java.awt.Toolkit;
 import java.awt.event.AWTEventListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -59,6 +64,7 @@ import javax.swing.ActionMap;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.ButtonGroup;
+import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -83,6 +89,9 @@ import com.microproject.ribbon.SwingRibbonModel;
 import com.microproject.ribbon.RibbonTheme;
 import com.microproject.dialog.UsabilityStrings;
 import com.microproject.ui.input.PopupTriggerController;
+import com.microproject.ui.theme.MicroProjectTheme;
+import com.microproject.ui.theme.MicroProjectThemeTokens;
+import com.microproject.util.ColorLuminance;
 
 public final class ModernRibbonPanel extends JPanel implements RibbonController {
 	/** @deprecated Use {@link RibbonController#CONTEXTUAL_TABS_PROPERTY}. */
@@ -174,6 +183,10 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	private java.beans.PropertyChangeListener autoHideFocusListener;
 	private boolean autoHideDismissalRegistered;
 	private RibbonBackstageHost backstageHost;
+	/** The destination kept at the bottom of the Backstage navigation, as in Microsoft Project. */
+	private static final String BACKSTAGE_PINNED_PAGE = "options";
+	/** A separator follows this destination (New and Open form the first group). */
+	private static final String BACKSTAGE_SEPARATOR_AFTER_PAGE = "open";
 	private JComponent backstageView;
 	private final Map<String, JComponent> backstageDetailPages = new LinkedHashMap<>();
 	private String tabBeforeBackstage;
@@ -461,23 +474,51 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		backstageView.setName("officeBackstageView");
 		backstageView.setOpaque(true);
 		backstageView.setBackground(theme.surfaceColor());
-		JPanel navigation = new JPanel();
+		MicroProjectThemeTokens tokens = MicroProjectTheme.tokens();
+		Color navigationBackground = tokens.backstageNavigationBackground();
+		Color navigationForeground = tokens.backstageNavigationForeground();
+		JPanel navigation = new JPanel(new BorderLayout());
 		navigation.setName("officeBackstageNavigation");
-		navigation.setLayout(new javax.swing.BoxLayout(navigation, javax.swing.BoxLayout.Y_AXIS));
-		navigation.setBorder(BorderFactory.createEmptyBorder(18, 12, 18, 12));
 		navigation.setOpaque(true);
-		navigation.setBackground(theme.chromeBackground());
+		navigation.setBackground(navigationBackground);
 		navigation.setPreferredSize(new Dimension(220, 0));
-		JButton back = new JButton("‹  " + localized("FileRibbonTask.title"));
+		String backLabel = localized("FileBackstage.back");
+		JButton back = new JButton(new BackstageBackIcon(navigationForeground, tokens.backstageNavigationHoverBackground()));
 		back.setName("officeBackstageBack");
+		back.getAccessibleContext().setAccessibleName(backLabel);
+		back.setToolTipText(backLabel);
 		back.setHorizontalAlignment(SwingConstants.LEFT);
 		back.setFocusable(true);
-		back.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
-		back.setBackground(navigation.getBackground());
-		back.setFont(theme.tabFont());
+		back.setContentAreaFilled(false);
+		back.setOpaque(false);
+		back.setRolloverEnabled(true);
+		back.setBorder(BorderFactory.createEmptyBorder(4, 12, 4, 12));
 		back.addActionListener(event -> closeBackstage());
-		navigation.add(back);
-		navigation.add(Box.createVerticalStrut(14));
+		JPanel header = new JPanel(new BorderLayout());
+		header.setOpaque(false);
+		header.setBorder(BorderFactory.createEmptyBorder(14, 0, 10, 0));
+		header.add(back, BorderLayout.WEST);
+		navigation.add(header, BorderLayout.NORTH);
+		JPanel destinations = new JPanel();
+		destinations.setName("officeBackstageDestinations");
+		destinations.setLayout(new javax.swing.BoxLayout(destinations, javax.swing.BoxLayout.Y_AXIS));
+		destinations.setOpaque(true);
+		destinations.setBackground(navigationBackground);
+		// Only the destinations scroll when the window is short; Back and Options stay in view.
+		JScrollPane destinationScroll = new JScrollPane(destinations,
+			JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+		destinationScroll.setName("officeBackstageDestinationScroll");
+		destinationScroll.setBorder(BorderFactory.createEmptyBorder());
+		destinationScroll.setOpaque(false);
+		destinationScroll.getViewport().setBackground(navigationBackground);
+		destinationScroll.getVerticalScrollBar().setUnitIncrement(16);
+		navigation.add(destinationScroll, BorderLayout.CENTER);
+		JPanel pinned = new JPanel();
+		pinned.setName("officeBackstagePinned");
+		pinned.setLayout(new javax.swing.BoxLayout(pinned, javax.swing.BoxLayout.Y_AXIS));
+		pinned.setOpaque(false);
+		pinned.setBorder(BorderFactory.createEmptyBorder(0, 0, 12, 0));
+		navigation.add(pinned, BorderLayout.SOUTH);
 		java.util.List<BackstagePage> pages = backstagePages();
 		ButtonGroup group = new ButtonGroup();
 		JPanel details = new JPanel(new BorderLayout(0, 18));
@@ -485,17 +526,15 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		details.setOpaque(false);
 		details.setBorder(BorderFactory.createEmptyBorder(30, 42, 30, 42));
 		backstageView.putClientProperty("microproject.backstage.initialFocus", back);
+		List<AbstractButton> focusOrder = new ArrayList<>();
+		focusOrder.add(back);
+		String disabledText = String.format("#%06x",
+			ColorLuminance.mix(navigationForeground, navigationBackground, 0.45f).getRGB() & 0xFFFFFF);
 		for (BackstagePage page : pages) {
-			JToggleButton nav = new JToggleButton(localized(page.labelKey()));
+			boolean pinnedPage = BACKSTAGE_PINNED_PAGE.equals(page.id());
+			BackstageNavigationButton nav = new BackstageNavigationButton(localized(page.labelKey()), tokens);
 			nav.setName("officeBackstageNav-" + page.id());
-			nav.setHorizontalAlignment(SwingConstants.LEFT);
-			nav.setFocusable(true);
-			nav.setBorder(BorderFactory.createEmptyBorder(9, 12, 9, 12));
-			nav.setBackground(navigation.getBackground());
-			nav.setOpaque(true);
-			nav.setContentAreaFilled(false);
-			nav.setForeground(theme.tabUnselectedForeground());
-			nav.setFont(theme.buttonFont());
+			nav.putClientProperty(FlatClientProperties.STYLE, "disabledText: " + disabledText);
 			if (page.immediateCommand() != null) {
 				nav.setAction(commandSource.createAction(page.immediateCommand()));
 				nav.setActionCommand(page.immediateCommand());
@@ -504,24 +543,162 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 				nav.setName("officeBackstageNav-" + page.id());
 				closeBackstageBeforeCommand(nav);
 			}
-			nav.getModel().addChangeListener(event -> {
-				nav.setBackground(nav.isSelected() ? theme.surfaceColor() : navigation.getBackground());
-				nav.setContentAreaFilled(nav.isSelected());
-				nav.setBorder(BorderFactory.createCompoundBorder(
-					BorderFactory.createMatteBorder(0, nav.isSelected() ? 4 : 0, 0, 0,
-						com.microproject.util.FlatUiSupport.accentColor()),
-					BorderFactory.createEmptyBorder(9, nav.isSelected() ? 8 : 12, 9, 12)));
-			});
 			group.add(nav);
-			navigation.add(nav);
+			focusOrder.add(nav);
+			if (pinnedPage) {
+				pinned.add(backstageNavigationSeparator(navigationForeground));
+				pinned.add(nav);
+			} else {
+				destinations.add(nav);
+				if (BACKSTAGE_SEPARATOR_AFTER_PAGE.equals(page.id()))
+					destinations.add(backstageNavigationSeparator(navigationForeground));
+			}
 			nav.addActionListener(event -> {
 				if (page.immediateCommand() == null) showBackstagePage(details, page);
 			});
 			if (page == pages.get(0)) nav.doClick(0);
 		}
+		destinations.add(Box.createVerticalGlue());
+		installBackstageNavigationKeys(focusOrder);
 		backstageView.add(navigation, BorderLayout.WEST);
 		backstageView.add(details, BorderLayout.CENTER);
 		return backstageView;
+	}
+
+	private static JComponent backstageNavigationSeparator(Color foreground) {
+		JPanel line = new JPanel();
+		line.setOpaque(true);
+		line.setBackground(ColorLuminance.mix(foreground, MicroProjectTheme.tokens().backstageNavigationBackground(), 0.65f));
+		JPanel holder = new JPanel(new BorderLayout());
+		holder.setOpaque(false);
+		holder.setBorder(BorderFactory.createEmptyBorder(6, 16, 6, 16));
+		holder.setPreferredSize(new Dimension(1, 13));
+		holder.setMaximumSize(new Dimension(Integer.MAX_VALUE, 13));
+		holder.setAlignmentX(Component.LEFT_ALIGNMENT);
+		holder.add(line, BorderLayout.CENTER);
+		return holder;
+	}
+
+	/** Up/Down move between the Back button and the destinations; Enter activates the focused one. */
+	private static void installBackstageNavigationKeys(List<AbstractButton> order) {
+		for (int index = 0; index < order.size(); index++) {
+			AbstractButton button = order.get(index);
+			int position = index;
+			bindBackstageKey(button, KeyEvent.VK_UP, "backstagePrevious", () -> focusBackstageEntry(order, position, -1));
+			bindBackstageKey(button, KeyEvent.VK_DOWN, "backstageNext", () -> focusBackstageEntry(order, position, 1));
+			bindBackstageKey(button, KeyEvent.VK_ENTER, "backstageActivate", () -> button.doClick(0));
+			button.addFocusListener(new FocusAdapter() {
+				@Override public void focusGained(FocusEvent event) {
+					button.scrollRectToVisible(new java.awt.Rectangle(0, 0, button.getWidth(), button.getHeight()));
+					button.repaint();
+				}
+
+				@Override public void focusLost(FocusEvent event) {
+					button.repaint();
+				}
+			});
+		}
+	}
+
+	private static void bindBackstageKey(AbstractButton button, int keyCode, String name, Runnable action) {
+		button.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(keyCode, 0), name);
+		button.getActionMap().put(name, new AbstractAction() {
+			@Override public void actionPerformed(ActionEvent event) { action.run(); }
+		});
+	}
+
+	private static void focusBackstageEntry(List<AbstractButton> order, int from, int step) {
+		for (int index = from + step; index >= 0 && index < order.size(); index += step) {
+			AbstractButton candidate = order.get(index);
+			if (candidate.isEnabled() && candidate.isFocusable()) {
+				candidate.requestFocusInWindow();
+				return;
+			}
+		}
+	}
+
+	/** A Backstage destination: accent-coloured, lighter under the pointer, marked when selected. */
+	private static final class BackstageNavigationButton extends JToggleButton {
+		private final MicroProjectThemeTokens tokens;
+
+		BackstageNavigationButton(String text, MicroProjectThemeTokens tokens) {
+			super(text);
+			this.tokens = tokens;
+			setHorizontalAlignment(SwingConstants.LEFT);
+			setAlignmentX(Component.LEFT_ALIGNMENT);
+			setFocusable(true);
+			setRolloverEnabled(true);
+			setContentAreaFilled(false);
+			setOpaque(false);
+			setBorder(BorderFactory.createEmptyBorder(9, 20, 9, 12));
+			setForeground(tokens.backstageNavigationForeground());
+			setBackground(tokens.backstageNavigationBackground());
+			getModel().addChangeListener(event -> {
+				setBackground(stateBackground());
+				repaint();
+			});
+		}
+
+		private Color stateBackground() {
+			if (isSelected()) return tokens.backstageNavigationSelectedBackground();
+			if (isEnabled() && (getModel().isRollover() || getModel().isArmed()))
+				return tokens.backstageNavigationHoverBackground();
+			return tokens.backstageNavigationBackground();
+		}
+
+		@Override
+		public Dimension getMaximumSize() {
+			return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
+		}
+
+		@Override
+		protected void paintComponent(Graphics graphics) {
+			graphics.setColor(getBackground());
+			graphics.fillRect(0, 0, getWidth(), getHeight());
+			graphics.setColor(tokens.backstageNavigationForeground());
+			if (isSelected()) graphics.fillRect(0, 4, 4, Math.max(0, getHeight() - 8));
+			if (isFocusOwner()) graphics.drawRect(6, 2, getWidth() - 10, getHeight() - 5);
+			super.paintComponent(graphics);
+		}
+	}
+
+	/** The Backstage "Back" control: a left arrow inside a circle. */
+	private static final class BackstageBackIcon implements Icon {
+		private static final int SIZE = 32;
+		private final Color foreground;
+		private final Color hover;
+
+		BackstageBackIcon(Color foreground, Color hover) {
+			this.foreground = foreground;
+			this.hover = hover;
+		}
+
+		@Override public int getIconWidth() { return SIZE; }
+		@Override public int getIconHeight() { return SIZE; }
+
+		@Override
+		public void paintIcon(Component component, Graphics graphics, int x, int y) {
+			Graphics2D g = (Graphics2D) graphics.create();
+			try {
+				g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+				g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+				boolean active = component instanceof AbstractButton button
+					&& (button.getModel().isRollover() || button.isFocusOwner());
+				if (active) {
+					g.setColor(hover);
+					g.fillOval(x + 1, y + 1, SIZE - 2, SIZE - 2);
+				}
+				g.setColor(foreground);
+				g.setStroke(new java.awt.BasicStroke(1.6f, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND));
+				g.drawOval(x + 1, y + 1, SIZE - 3, SIZE - 3);
+				int centerY = y + SIZE / 2;
+				g.drawLine(x + 10, centerY, x + 22, centerY);
+				g.drawLine(x + 10, centerY, x + 15, centerY - 5);
+				g.drawLine(x + 10, centerY, x + 15, centerY + 5);
+			} finally {
+				g.dispose();
+			}
+		}
 	}
 
 	private java.util.List<BackstagePage> backstagePages() {

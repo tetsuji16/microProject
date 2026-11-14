@@ -81,7 +81,7 @@ class RibbonStructureTest {
 			ribbonButtonIds("FileRibbonBand"));
 		assertEquals("RecentProjectsAction",
 			menuInternalBundle().getString("RibbonRecentProjects.action"));
-		assertEquals(List.of("new", "open", "info", "save", "saveAs", "print", "export", "options", "close"),
+		assertEquals(List.of("new", "open", "info", "save", "saveAs", "print", "export", "close", "options"),
 			List.of(menuInternalBundle().getString("FileBackstagePages").split("\\s+")));
 		assertEquals("open", menuInternalBundle().getString("RibbonOpenProject.backstagePage"));
 		assertEquals("info", menuInternalBundle().getString("RibbonBackstageProjectInformation.backstagePage"));
