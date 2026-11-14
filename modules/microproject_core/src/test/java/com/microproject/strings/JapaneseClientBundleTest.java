@@ -27,19 +27,38 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
+import java.util.Properties;
 import java.util.ResourceBundle;
 
 import org.junit.jupiter.api.Test;
 
 class JapaneseClientBundleTest {
-	@Test
-	void japaneseBundleContainsEveryBaseMessageKey() {
-		ResourceBundle base = ResourceBundle.getBundle("com.microproject.strings.client", Locale.ROOT);
-		ResourceBundle japanese = ResourceBundle.getBundle("com.microproject.strings.client", Locale.JAPANESE);
+	private static Properties load(String resource) throws IOException {
+		Properties properties = new Properties();
+		try (InputStream in = JapaneseClientBundleTest.class.getResourceAsStream(resource);
+				Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
+			properties.load(reader);
+		}
+		return properties;
+	}
 
-		for (String key : base.keySet())
-			assertTrue(japanese.containsKey(key), "Japanese client bundle is missing " + key);
+	@Test
+	void japaneseBundleContainsEveryBaseMessageKey() throws IOException {
+		Properties base = load("/com/microproject/strings/client.properties");
+		Properties japanese = load("/com/microproject/strings/client_ja.properties");
+		List<String> missing = new ArrayList<>();
+		for (String key : base.stringPropertyNames())
+			if (!japanese.containsKey(key))
+				missing.add(key);
+		assertTrue(missing.isEmpty(), "client_ja.properties is missing " + missing);
 	}
 
 	@Test
