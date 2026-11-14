@@ -78,8 +78,6 @@ class MspRibbonControlKindDiffTest {
 		Map.entry("RibbonTaskUsageDetail", RibbonControlKind.TOGGLE_BUTTON),
 		Map.entry("RibbonResourceUsageDetail", RibbonControlKind.TOGGLE_BUTTON),
 		Map.entry("RibbonCalendarView", RibbonControlKind.BUTTON),
-		Map.entry("RibbonTimeline", RibbonControlKind.BUTTON),
-		Map.entry("RibbonDetails", RibbonControlKind.TOGGLE_BUTTON),
 		Map.entry("RibbonTopBarUndo", RibbonControlKind.BUTTON),
 		Map.entry("RibbonTopBarRedo", RibbonControlKind.BUTTON));
 

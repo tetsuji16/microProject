@@ -5432,7 +5432,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent event) {
 			setMeAsLastGraphicManager();
-			if (isDocumentActive()) getCurrentFrame().doTimelineDialog();
+			if (isDocumentActive()) getCurrentFrame().toggleTimelineView();
 		}
 	}
 	public class CalendarViewAction extends MenuActionsMap.DocumentMenuAction {

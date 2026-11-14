@@ -531,8 +531,24 @@ public class DocumentFrame extends NamedFrame implements
 		new RecurringTaskCoordinator().openDialogAndInsert(this);
 	}
 
-	void doTimelineDialog() {
+	/** Top view shown before the timeline, so hiding the timeline returns to it. */
+	private String topViewBeforeTimeline;
+
+	/**
+	 * Timeline check box: shows the timeline pane, or hides it by returning to the view that
+	 * was shown before it. The pressed state follows the active top view (activateTopView /
+	 * deactivateTopView), never the button's own toggling.
+	 */
+	void toggleTimelineView() {
 		finishAnyOperations();
+		if (activeTopView != null && activeTopView == timelineView) {
+			String restore = topViewBeforeTimeline == null || ACTION_TIMELINE.equals(topViewBeforeTimeline)
+				? ACTION_GANTT : topViewBeforeTimeline;
+			activateView(restore);
+			return;
+		}
+		if (lastTopButton != null && !ACTION_TIMELINE.equals(lastTopButton))
+			topViewBeforeTimeline = lastTopButton;
 		activateTopView(getTimelineView(), ACTION_TIMELINE);
 	}
 

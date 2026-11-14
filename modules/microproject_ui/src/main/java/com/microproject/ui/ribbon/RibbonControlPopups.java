@@ -98,8 +98,8 @@ final class RibbonControlPopups {
 	 */
 	static boolean isNativelyRendered(RibbonControlKind kind) {
 		return switch (kind) {
-			case BUTTON, TOGGLE_BUTTON, SPLIT_BUTTON, MENU, DROP_DOWN -> true;
-			case GALLERY, COMBO_BOX, CHECK_BOX, EDIT_BOX, DIALOG_LAUNCHER -> false;
+			case BUTTON, TOGGLE_BUTTON, SPLIT_BUTTON, MENU, DROP_DOWN, CHECK_BOX -> true;
+			case GALLERY, COMBO_BOX, EDIT_BOX, DIALOG_LAUNCHER -> false;
 		};
 	}
 
