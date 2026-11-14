@@ -76,44 +76,18 @@ RibbonMarkOnTrack.keytip=U
 
 `MspRibbonControlKindDiffTest` はモデルの種別と CSV を比べます。未対応の差分は同テストの `KNOWN_GAPS` に「現在の種別」と共に列挙します。対応を実装すると、エントリを削除するまでテストが失敗するので、一覧は減る方向にしか動きません。回帰を通すためにエントリを足してはいけません。
 
-## 現時点の種別差分（30 件）
+## 現時点の種別差分（1 件）
 
 | コマンド | 現在 | Microsoft Project | ポップアップの内容 |
 |---|---|---|---|
-| `RibbonPaste` | BUTTON | SPLIT_BUTTON | 貼り付け / 形式を選択して貼り付け |
-| `RibbonCopy` | BUTTON | SPLIT_BUTTON | コピー / 図のコピー |
-| `RibbonInsert` | BUTTON | SPLIT_BUTTON | タスク / 定期タスク / 空白行 / Outlook タスクのインポート |
-| `RibbonMarkOnTrack` | BUTTON | SPLIT_BUTTON | 達成済みにする / タスクの更新 |
-| `RibbonFind` | BUTTON | SPLIT_BUTTON | 検索 / 置換 / ジャンプ |
-| `RibbonCalendarView` | BUTTON | SPLIT_BUTTON | ビュー切替 + ビュー一覧 |
-| `RibbonTopBarUndo` | BUTTON | SPLIT_BUTTON | 元に戻す + 履歴一覧 |
-| `RibbonTopBarRedo` | BUTTON | SPLIT_BUTTON | やり直し + 履歴一覧 |
-| `RibbonGantt` | TOGGLE_BUTTON | SPLIT_BUTTON | ビュー切替 + タスク ビュー一覧 |
-| `RibbonNetwork` | TOGGLE_BUTTON | SPLIT_BUTTON | ビュー切替 + ビュー一覧 |
-| `RibbonResources` | TOGGLE_BUTTON | SPLIT_BUTTON | ビュー切替 + リソース ビュー一覧 |
-| `RibbonTaskUsageDetail` | TOGGLE_BUTTON | SPLIT_BUTTON | ビュー切替 + ビュー一覧 |
-| `RibbonResourceUsageDetail` | TOGGLE_BUTTON | SPLIT_BUTTON | ビュー切替 + ビュー一覧 |
-| `RibbonClear` | BUTTON | MENU | 書式 / ハイパーリンク / メモ / すべて / 行全体のクリア |
-| `RibbonInsertResource` | BUTTON | MENU | 時間単価型 / 数量単価型 / コスト型リソース |
-| `RibbonGridlines` | BUTTON | MENU | 目盛線 / 進捗線 |
-| `RibbonSaveBaseline` | SPLIT_BUTTON | MENU | 基準計画の設定 / クリア |
-| `RibbonChooseSort` | SPLIT_BUTTON | MENU | 開始日順 / 終了日順 / 優先度順 / コスト順 / ID 順 / 並べ替え |
-| `RibbonChooseFilter` | SPLIT_BUTTON | DROP_DOWN | フィルター一覧（現在値を表示） |
-| `RibbonChooseGroup` | SPLIT_BUTTON | DROP_DOWN | グループ一覧（現在値を表示） |
-| `RibbonTimeline` | BUTTON | CHECK_BOX | 分割ビューの「タイムライン」チェック |
-| `RibbonDetails` | TOGGLE_BUTTON | CHECK_BOX | 分割ビューの「詳細」チェック |
-| `RibbonTaskModeManual` | BUTTON | TOGGLE_BUTTON | 選択タスクが手動スケジュールなら押下 |
-| `RibbonTaskModeAutomatic` | BUTTON | TOGGLE_BUTTON | 選択タスクが自動スケジュールなら押下 |
-| `RibbonInactivateTask` | BUTTON | TOGGLE_BUTTON | 選択タスクが非アクティブなら押下 |
-| `RibbonPercentComplete0` / `25` / `50` / `75` / `100` | BUTTON | TOGGLE_BUTTON | 選択タスクの達成率と一致すれば押下 |
+| `RibbonChooseSort` | SPLIT_BUTTON | MENU | 開始日順 / 終了日順 / 優先度順 / コスト順 / ID 順 / 並べ替え。「並べ替え」ダイアログのコマンドが未実装 |
 
-種別とは別に、次の挙動も未対応です。
+種別は契約どおりでも、次の点は未対応です。
 
-- 大きい `SPLIT_BUTTON` の矢印位置（Office は下半分、現在は右端）
-- KeyTip の表示とキーボード操作
-- グループのダイアログ起動ツールの表示
-- `GALLERY` / `DROP_DOWN` / `COMBO_BOX` / `CHECK_BOX` / `EDIT_BOX` の専用描画
-- screentip / supertip
+- KeyTip が未設定のコントロールがある（Help タブと文脈 Format タブのアクセス キー、Task / View タブの多くのコントロール）
+- 本番の `menuInternal.properties` には `GALLERY` / `COMBO_BOX` / `EDIT_BOX` を使うコマンドがまだ無い（描画とモデルは対応済み）
+- 「その他のフィルター / グループ」、形式を選択して貼り付け、図のコピー、空白行の挿入、置換、ジャンプはメニュー項目に無い（`.text` を持つコマンドが無い）
+- グループのダイアログ起動ツールは 3 グループだけ（タスクの表示 → カレンダー ビューの設定、タスクの追跡 → タスク情報、リソースのプロパティ → リソース情報）
 
 ## クリック時の挙動（`RibbonActivation`）
 
@@ -147,35 +121,26 @@ RibbonMarkOnTrack.keytip=U
 ### 押下表示の仕組み
 
 - 押下状態が残る値：アプリケーション側が `MenuManager.setActionSelected(actionId, boolean)` を呼び、`Action.SELECTED_KEY` 経由でボタンの選択表示に反映します。呼び出し元は `DocumentFrame`（上ビュー、下ペイン、書式のコピー）と `GraphicManager`（進捗線、ラベル、クリティカル チェーン、チーム フィルター）です。
-- `POPUP`：`RibbonControlPopups` が、ポップアップ表示中だけボタンの client property `MicroProject.ribbon.popupOpen` を `TRUE` にします。押下色の描画は未対応です（下記）。
+- `POPUP`：`RibbonControlPopups` が、ポップアップ表示中だけボタンの client property `MicroProject.ribbon.popupOpen` を `TRUE` にし、その間は押下色で描画します。
 - 各ボタンは client property `MicroProject.ribbon.activation` に自分の値を持ちます。
 
 ### 契約と差分テスト
 
 CSV の `mspActivation` 列が Microsoft Project での挙動です。`MspRibbonActivationDiffTest` がモデルと比べ、差分は `KNOWN_ACTIVATION_GAPS` に「現在の挙動」と共に列挙します（`KNOWN_GAPS` と同じく減る方向のみ）。同テストは、契約の種別と挙動の組み合わせが成り立つことも検査します。
 
-### 現時点の挙動差分（17 件）
+### 現時点の挙動差分（1 件）
 
 資料から導いた判断（document-derived compatibility decision）で、行単位の照合待ち（`PENDING_VERIFY`）です。
 
 | コマンド | 現在 | Microsoft Project | 補足 |
 |---|---|---|---|
-| `RibbonTaskModeManual` / `RibbonTaskModeAutomatic` | COMMAND | TOGGLE_STATE | 選択タスクのスケジュール モードに合わせて押下表示 |
-| `RibbonInactivateTask` | COMMAND | TOGGLE_STATE | 選択タスクが非アクティブなら押下表示 |
-| `RibbonPercentComplete0` / `25` / `50` / `75` / `100` | COMMAND | TOGGLE_STATE | 選択タスクの達成率と一致するボタンが押下表示 |
-| `RibbonClear` / `RibbonInsertResource` | COMMAND | POPUP | クリックでメニューを開く。本体のコマンドは無い |
-| `RibbonSaveBaseline` / `RibbonGridlines` / `RibbonChooseSort` | DIALOG | POPUP | クリックでメニューを開く。ダイアログはメニュー項目から開く |
-| `RibbonChooseFilter` / `RibbonChooseGroup` | DIALOG | POPUP | 現在値を表示するドロップダウン |
-| `RibbonTimeline` | DIALOG | TOGGLE_STATE | タイムラインの表示 / 非表示のチェック。現在は設定ダイアログを開く |
-| `RibbonCalendarView` | DIALOG | EXCLUSIVE_VIEW | カレンダー ビューへ切り替える。現在はダイアログを開く |
+| `RibbonChooseSort` | DIALOG | POPUP | クリックでメニューを開く。ダイアログはメニュー項目から開く |
 
-契約と一致していても、次の点は未対応または不整合です。
+契約と一致していても、次の点は未確認または未対応です。
 
-- ポップアップ表示中の押下表示（`popupOpen` を描画に使っていない）
-- `DIALOG` のコマンドが実際にダイアログを開くこと、`EXCLUSIVE_VIEW` が再クリックで解除されないことの GUI 受け入れテスト
-- 製品独自の `RibbonPrivacyMask` と `RibbonTaskInspector` は状態を切り替えるのに押下表示が無い
-- `RibbonGridlines` は `type=ITEM` なのに `setActionSelected` が呼ばれている
-- client property `MicroProject.ribbonToggle` は参照元が無い
+- `DIALOG` / `EXCLUSIVE_VIEW` / `MODE` の GUI 受け入れテスト（`RibbonDialogCommandGuiAcceptanceTest`、`RibbonViewStateGuiAcceptanceTest`）は CI のデスクトップで実行する
+- 製品独自の `RibbonTaskInspector` は状態を切り替えるのに押下表示が無い
+- チェック ボックスは押下時の背景を JToggleButton と共有しており、Office の見た目と少し異なる
 
 ## 検証コマンド
 
