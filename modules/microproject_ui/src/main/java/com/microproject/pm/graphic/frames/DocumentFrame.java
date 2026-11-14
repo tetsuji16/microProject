@@ -609,6 +609,7 @@ public class DocumentFrame extends NamedFrame implements
 		if (lastTaskCommandResult == null)
 			lastTaskCommandResult = RibbonCommandResult.dispatched(command.actionId());
 		lastTaskCommandResult = lastTaskCommandResult.withActiveView(getTopViewId());
+		syncTaskStateToggles();
 		return lastTaskCommandResult;
 	}
 
@@ -843,6 +844,22 @@ public class DocumentFrame extends NamedFrame implements
 		List<Long> affectedTaskIds = targets.tasks().stream().map(Task::getUniqueId).toList();
 		return (result.changedCount() > 0 ? RibbonCommandResult.changed(command.actionId(), affectedTaskIds)
 				: RibbonCommandResult.noChange(command.actionId(), affectedTaskIds)).withActiveView("task");
+	}
+
+	/**
+	 * Pressed state of the selected-task toggles (Manually Schedule, Auto Schedule, Inactivate)
+	 * comes from the model of the selected tasks, never from the button's own toggling: a
+	 * toggle is pressed only when every selected task is in that state, so mixed selections
+	 * and empty selections are not pressed.
+	 */
+	void syncTaskStateToggles() {
+		if (menuManager == null)
+			return;
+		List<Task> selected = activeTopView == null ? List.of() : taskImpls(resolveTaskSelection(false, true).nodes());
+		boolean any = !selected.isEmpty();
+		menuManager.setActionSelected(ACTION_TASK_MODE_MANUAL, any && selected.stream().allMatch(Task::isManuallyScheduled));
+		menuManager.setActionSelected(ACTION_TASK_MODE_AUTOMATIC, any && selected.stream().noneMatch(Task::isManuallyScheduled));
+		menuManager.setActionSelected(ACTION_INACTIVATE_TASK, any && selected.stream().allMatch(Task::isInactiveTask));
 	}
 
 	private RibbonCommandResult applyTaskMode(CommandId command, com.microproject.pm.task.TaskModeService.Mode mode) {
@@ -2178,6 +2195,7 @@ public class DocumentFrame extends NamedFrame implements
 	public void selectionChanged(SelectionNodeEvent e) {
 		applyFormatPainterToSelection(e);
 		lastSelectionEvent=e;
+		syncTaskStateToggles();
 		statusBar.setSelectedCount(e.getNodes() == null ? 0 : e.getNodes().size());
 		Component bottom = mainView.getBottomComponent();
 		if (bottom != null && bottom instanceof SelectionNodeListener)
@@ -2463,6 +2481,7 @@ public class DocumentFrame extends NamedFrame implements
 		menuManager.setActionEnabled(ACTION_UNDO,canUndo);
 		menuManager.setActionEnabled(ACTION_REDO,canRedo);
 		getGraphicManager().refreshStatusDateControl();
+		syncTaskStateToggles();
 
 	}
 

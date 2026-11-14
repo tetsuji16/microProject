@@ -73,9 +73,6 @@ class MspRibbonActivationDiffTest {
 	 * regression pass.
 	 */
 	private static final Map<String, RibbonActivation> KNOWN_ACTIVATION_GAPS = Map.ofEntries(
-		Map.entry("RibbonTaskModeManual", RibbonActivation.COMMAND),
-		Map.entry("RibbonTaskModeAutomatic", RibbonActivation.COMMAND),
-		Map.entry("RibbonInactivateTask", RibbonActivation.COMMAND),
 		Map.entry("RibbonPercentComplete0", RibbonActivation.COMMAND),
 		Map.entry("RibbonPercentComplete25", RibbonActivation.COMMAND),
 		Map.entry("RibbonPercentComplete50", RibbonActivation.COMMAND),
