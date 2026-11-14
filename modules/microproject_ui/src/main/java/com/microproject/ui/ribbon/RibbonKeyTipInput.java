@@ -11,7 +11,8 @@ import java.util.Objects;
 /**
  * Turns key events into the Alt key sequence: Alt pressed and released on its own starts
  * it, then letters and digits pick KeyTips and Escape steps back. Alt combined with another
- * key (a shortcut) never starts it.
+ * key (a shortcut) never starts it. A Ctrl or Meta shortcut pressed while the sequence is
+ * shown ends the sequence and still reaches the component, as in Office.
  */
 final class RibbonKeyTipInput {
 	private final RibbonKeyTipSession session;
@@ -24,8 +25,25 @@ final class RibbonKeyTipInput {
 
 	/** Returns true when the event was used by the sequence and must not reach the component. */
 	boolean dispatch(int eventId, int keyCode) {
+		return dispatch(eventId, keyCode, 0);
+	}
+
+	/**
+	 * Returns true when the event was used by the sequence and must not reach the component.
+	 * {@code modifiersEx} is {@link KeyEvent#getModifiersEx()}.
+	 */
+	boolean dispatch(int eventId, int keyCode, int modifiersEx) {
+		boolean shortcut = keyCode == KeyEvent.VK_CONTROL || keyCode == KeyEvent.VK_META
+			|| (modifiersEx & (KeyEvent.CTRL_DOWN_MASK | KeyEvent.META_DOWN_MASK)) != 0;
 		switch (eventId) {
 			case KeyEvent.KEY_PRESSED -> {
+				if (shortcut) {
+					altAlone = false;
+					if (session.isActive()) {
+						session.cancel();
+					}
+					return false;
+				}
 				if (keyCode == KeyEvent.VK_ALT) {
 					if (!altDown) {
 						altDown = true;
@@ -33,7 +51,7 @@ final class RibbonKeyTipInput {
 					}
 					return false;
 				}
-				if (keyCode == KeyEvent.VK_SHIFT || keyCode == KeyEvent.VK_CONTROL || keyCode == KeyEvent.VK_META) {
+				if (keyCode == KeyEvent.VK_SHIFT) {
 					return false;
 				}
 				altAlone = false;
@@ -51,7 +69,7 @@ final class RibbonKeyTipInput {
 				return true;
 			}
 			case KeyEvent.KEY_TYPED -> {
-				return session.isActive();
+				return !shortcut && session.isActive();
 			}
 			case KeyEvent.KEY_RELEASED -> {
 				if (keyCode == KeyEvent.VK_ALT) {
@@ -64,7 +82,7 @@ final class RibbonKeyTipInput {
 					}
 					return false;
 				}
-				return session.isActive();
+				return !shortcut && session.isActive();
 			}
 			default -> {
 				return false;

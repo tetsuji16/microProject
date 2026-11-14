@@ -816,7 +816,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		if (window == null || !(event.getSource() instanceof Component source)) return false;
 		Window sourceWindow = source instanceof Window own ? own : SwingUtilities.getWindowAncestor(source);
 		if (sourceWindow != window) return false;
-		if (keyTipInput.dispatch(event.getID(), event.getKeyCode())) {
+		if (keyTipInput.dispatch(event.getID(), event.getKeyCode(), event.getModifiersEx())) {
 			event.consume();
 			return true;
 		}

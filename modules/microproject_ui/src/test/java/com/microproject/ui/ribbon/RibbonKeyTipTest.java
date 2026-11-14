@@ -135,6 +135,34 @@ class RibbonKeyTipTest {
 	}
 
 	@Test
+	void ctrlShortcutAfterALoneAltCancelsTheSequenceAndReachesTheComponent() {
+		List<String> runs = new ArrayList<>();
+		RibbonKeyTipSession session = session(runs);
+		RibbonKeyTipInput input = new RibbonKeyTipInput(session);
+		input.dispatch(KeyEvent.KEY_PRESSED, KeyEvent.VK_ALT);
+		input.dispatch(KeyEvent.KEY_RELEASED, KeyEvent.VK_ALT);
+		assertTrue(session.isActive());
+		int ctrl = KeyEvent.CTRL_DOWN_MASK;
+		assertFalse(input.dispatch(KeyEvent.KEY_PRESSED, KeyEvent.VK_CONTROL, ctrl));
+		assertFalse(session.isActive());
+		assertFalse(input.dispatch(KeyEvent.KEY_PRESSED, KeyEvent.VK_Y, ctrl));
+		assertFalse(input.dispatch(KeyEvent.KEY_TYPED, KeyEvent.VK_UNDEFINED, ctrl));
+		assertFalse(input.dispatch(KeyEvent.KEY_RELEASED, KeyEvent.VK_Y, ctrl));
+		assertTrue(runs.isEmpty());
+	}
+
+	@Test
+	void ctrlLetterWhileTheSequenceIsShownIsNotTakenAsAKeyTip() {
+		List<String> runs = new ArrayList<>();
+		RibbonKeyTipSession session = session(runs);
+		RibbonKeyTipInput input = new RibbonKeyTipInput(session);
+		session.toggle();
+		assertFalse(input.dispatch(KeyEvent.KEY_PRESSED, KeyEvent.VK_H, KeyEvent.CTRL_DOWN_MASK));
+		assertFalse(session.isActive());
+		assertTrue(runs.isEmpty());
+	}
+
+	@Test
 	void altThenTabLetterThenControlLetterClicksTheRibbonControl() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			JPanel host = ribbonHost();
