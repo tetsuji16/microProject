@@ -162,6 +162,7 @@ public interface MenuActionConstants {
 	public static final String ACTION_CLEAR_BASELINE          = "ClearBaseline";
 	public static final String ACTION_LOCALE		          = "LocaleAction";
 	public static final String ACTION_CALENDAR_OPTIONS        = "CalendarOptions";
+	public static final String ACTION_CALENDAR_VIEW_SETTINGS  = "CalendarViewSettings";
 
 
 	public static final String ACTION_SORT                    = "Sort";

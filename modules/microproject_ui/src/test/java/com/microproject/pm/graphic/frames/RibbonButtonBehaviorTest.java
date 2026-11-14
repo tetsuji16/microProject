@@ -1453,7 +1453,16 @@ class RibbonButtonBehaviorTest {
 			.orElseThrow(() -> new AssertionError("RibbonSaveBaseline button was not created"));
 
 		assertTrue(button.isEnabled(), "Baseline save must be enabled for a writable project");
-		SwingUtilities.invokeAndWait(button::doClick);
+		// The button is a menu: its "Save Baseline" item runs the command.
+		javax.swing.JPopupMenu popup = (javax.swing.JPopupMenu) button.getClientProperty("MicroProject.ribbon.controlMenu");
+		assertNotNull(popup, "RibbonSaveBaseline must own a popup menu");
+		javax.swing.JMenuItem item = java.util.Arrays.stream(popup.getComponents())
+			.filter(javax.swing.JMenuItem.class::isInstance)
+			.map(javax.swing.JMenuItem.class::cast)
+			.filter(candidate -> "RibbonSaveBaseline".equals(candidate.getActionCommand()))
+			.findFirst()
+			.orElseThrow(() -> new AssertionError("The baseline menu has no Save Baseline item"));
+		SwingUtilities.invokeAndWait(item::doClick);
 
 		assertEquals(1, harness.frame.baselineDialogCallCount(true));
 		assertNotNull(harness.task.getSnapshot(Snapshottable.BASELINE),

@@ -66,6 +66,7 @@ import com.microproject.util.FlatLafSupport;
 import com.microproject.ui.ribbon.RibbonController;
 import com.microproject.ui.ribbon.RibbonDisplayMode;
 import com.microproject.ui.ribbon.RibbonDisplayPreferences;
+import com.microproject.ui.ribbon.SwingRibbonFactory;
 
 final class OfficeChromePanel extends JPanel {
 	static final String NAME = "officeChromePanel";
@@ -530,7 +531,12 @@ final class OfficeChromePanel extends JPanel {
 		java.util.List<String> visibleCommands = RibbonDisplayPreferences.loadQuickAccessCommands().stream()
 			.filter(id -> menuManager != null && menuManager.getActionFromId(id) != null).toList();
 		if (!visibleCommands.isEmpty()) quickAccessCommands.add(new VerticalDivider());
-		for (String id : visibleCommands) quickAccessCommands.add(createActionButton(id));
+		for (String id : visibleCommands) {
+			quickAccessCommands.add(createActionButton(id));
+			javax.swing.JPopupMenu popup = menuManager == null || menuManager.getRibbonFactory() == null ? null
+				: menuManager.getRibbonFactory().getControlPopup(id);
+			if (popup != null) quickAccessCommands.add(createPopupArrowButton(id, popup));
+		}
 		quickAccessCommands.setVisible(RibbonDisplayPreferences.loadQuickAccessVisible());
 		quickAccessCommands.revalidate();
 		quickAccessCommands.repaint();
@@ -628,6 +634,22 @@ final class OfficeChromePanel extends JPanel {
 		label.setFont(FlatUiSupport.ribbonChromeLabelFont());
 		label.setBorder(new EmptyBorder(0, 0, 0, 0));
 		return label;
+	}
+
+	/** The arrow half of a split button in the quick access bar: opens the popup of the command. */
+	private AbstractButton createPopupArrowButton(String actionId, javax.swing.JPopupMenu popup) {
+		java.awt.Dimension size = new java.awt.Dimension(12, ICON_BUTTON_SIZE.height);
+		OfficeIconButton arrow = new OfficeIconButton(GlyphIcon.dropArrow(), "microproject.ribbon.controlMenuButton." + actionId, false);
+		arrow.setPreferredSize(size);
+		arrow.setMinimumSize(size);
+		arrow.setMaximumSize(size);
+		arrow.setToolTipText(resolveTooltip(actionId));
+		arrow.addActionListener(event -> {
+			Action command = menuManager.getActionFromId(actionId);
+			if (command != null && !command.isEnabled()) return;
+			if (SwingRibbonFactory.prepareControlPopup(popup)) popup.show(arrow, 0, arrow.getHeight());
+		});
+		return arrow;
 	}
 
 	private AbstractButton createActionButton(String actionId) {
@@ -841,7 +863,8 @@ final class OfficeChromePanel extends JPanel {
 			COMMENT,
 			SHARE,
 			PROFILE,
-			RIBBON_DISPLAY_OPTIONS
+			RIBBON_DISPLAY_OPTIONS,
+			DROP_ARROW
 		}
 
 		private final Kind kind;
@@ -873,6 +896,10 @@ final class OfficeChromePanel extends JPanel {
 			return new GlyphIcon(Kind.RIBBON_DISPLAY_OPTIONS, 16);
 		}
 
+		static Icon dropArrow() {
+			return new GlyphIcon(Kind.DROP_ARROW, 8);
+		}
+
 		static Icon fallback(String hint) {
 			Icon icon = IconManager.getIcon("question");
 			if (icon != null) {
@@ -902,6 +929,14 @@ final class OfficeChromePanel extends JPanel {
 					case SHARE -> paintShare(g2, x, y);
 					case PROFILE -> paintProfile(g2, x, y);
 					case RIBBON_DISPLAY_OPTIONS -> paintRibbonDisplayOptions(g2, x, y);
+					case DROP_ARROW -> {
+						Path2D arrow = new Path2D.Double();
+						arrow.moveTo(x + 1, y + 2.5);
+						arrow.lineTo(x + 7, y + 2.5);
+						arrow.lineTo(x + 4, y + 5.5);
+						arrow.closePath();
+						g2.fill(arrow);
+					}
 				}
 			} finally {
 				g2.dispose();

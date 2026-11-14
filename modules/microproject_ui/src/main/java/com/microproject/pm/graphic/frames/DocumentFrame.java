@@ -176,6 +176,7 @@ public class DocumentFrame extends NamedFrame implements
 	protected UsageDetailView taskUsageView;
 	protected UsageDetailView resourceUsageView;
 	protected DockableProjectToolView timelineView;
+	protected DockableProjectToolView calendarView;
 	protected DockableProjectToolView teamPlannerView;
 	protected ReportView reportView;
 	// Column selection belongs to this document frame.  Keeping it static leaks
@@ -531,8 +532,24 @@ public class DocumentFrame extends NamedFrame implements
 		new RecurringTaskCoordinator().openDialogAndInsert(this);
 	}
 
-	void doTimelineDialog() {
+	/** Top view shown before the timeline, so hiding the timeline returns to it. */
+	private String topViewBeforeTimeline;
+
+	/**
+	 * Timeline check box: shows the timeline pane, or hides it by returning to the view that
+	 * was shown before it. The pressed state follows the active top view (activateTopView /
+	 * deactivateTopView), never the button's own toggling.
+	 */
+	void toggleTimelineView() {
 		finishAnyOperations();
+		if (activeTopView != null && activeTopView == timelineView) {
+			String restore = topViewBeforeTimeline == null || ACTION_TIMELINE.equals(topViewBeforeTimeline)
+				? ACTION_GANTT : topViewBeforeTimeline;
+			activateView(restore);
+			return;
+		}
+		if (lastTopButton != null && !ACTION_TIMELINE.equals(lastTopButton))
+			topViewBeforeTimeline = lastTopButton;
 		activateTopView(getTimelineView(), ACTION_TIMELINE);
 	}
 
@@ -609,6 +626,7 @@ public class DocumentFrame extends NamedFrame implements
 		if (lastTaskCommandResult == null)
 			lastTaskCommandResult = RibbonCommandResult.dispatched(command.actionId());
 		lastTaskCommandResult = lastTaskCommandResult.withActiveView(getTopViewId());
+		syncTaskStateToggles();
 		return lastTaskCommandResult;
 	}
 
@@ -843,6 +861,39 @@ public class DocumentFrame extends NamedFrame implements
 		List<Long> affectedTaskIds = targets.tasks().stream().map(Task::getUniqueId).toList();
 		return (result.changedCount() > 0 ? RibbonCommandResult.changed(command.actionId(), affectedTaskIds)
 				: RibbonCommandResult.noChange(command.actionId(), affectedTaskIds)).withActiveView("task");
+	}
+
+	private static final String[] PERCENT_COMPLETE_ACTIONS = { ACTION_PERCENT_COMPLETE_0, ACTION_PERCENT_COMPLETE_25,
+		ACTION_PERCENT_COMPLETE_50, ACTION_PERCENT_COMPLETE_75, ACTION_PERCENT_COMPLETE_100 };
+	private static final double[] PERCENT_COMPLETE_VALUES = { 0D, 0.25D, 0.5D, 0.75D, 1D };
+
+	/**
+	 * Pressed state of the selected-task toggles (Manually Schedule, Auto Schedule, Inactivate)
+	 * comes from the model of the selected tasks, never from the button's own toggling: a
+	 * toggle is pressed only when every selected task is in that state, so mixed selections
+	 * and empty selections are not pressed.
+	 */
+	void syncTaskStateToggles() {
+		if (menuManager == null)
+			return;
+		List<Task> selected = activeTopView == null ? List.of() : taskImpls(resolveTaskSelection(false, true).nodes());
+		boolean any = !selected.isEmpty();
+		menuManager.setActionSelected(ACTION_TASK_MODE_MANUAL, any && selected.stream().allMatch(Task::isManuallyScheduled));
+		menuManager.setActionSelected(ACTION_TASK_MODE_AUTOMATIC, any && selected.stream().noneMatch(Task::isManuallyScheduled));
+		menuManager.setActionSelected(ACTION_INACTIVATE_TASK, any && selected.stream().allMatch(Task::isInactiveTask));
+		// Percent complete: pressed only when every selected task has exactly that value.
+		Double common = null;
+		if (any) {
+			common = selected.get(0).getPercentComplete();
+			for (Task task : selected)
+				if (Math.abs(task.getPercentComplete() - common) > 1e-6) {
+					common = null;
+					break;
+				}
+		}
+		for (int i = 0; i < PERCENT_COMPLETE_ACTIONS.length; i++)
+			menuManager.setActionSelected(PERCENT_COMPLETE_ACTIONS[i],
+				common != null && Math.abs(common - PERCENT_COMPLETE_VALUES[i]) < 1e-6);
 	}
 
 	private RibbonCommandResult applyTaskMode(CommandId command, com.microproject.pm.task.TaskModeService.Mode mode) {
@@ -1871,6 +1922,15 @@ public class DocumentFrame extends NamedFrame implements
 		return timelineView;
 	}
 
+	public DockableProjectToolView getCalendarView() {
+		if (calendarView == null) {
+			calendarView = new DockableProjectToolView(project, ACTION_CALENDAR_VIEW,
+				CalendarViewDialogBox.createEmbeddedPanel(getGraphicManager().getFrame(), project));
+			restoreWorkspaceFor(calendarView);
+		}
+		return calendarView;
+	}
+
 	public DockableProjectToolView getTeamPlannerView() {
 		if (teamPlannerView == null) {
 			teamPlannerView = new DockableProjectToolView(project, ACTION_DELEGATE_TASKS,
@@ -1944,6 +2004,8 @@ public class DocumentFrame extends NamedFrame implements
 			topView = getProjectView();
 		else if (viewName.equals(ACTION_TIMELINE))
 			topView = getTimelineView();
+		else if (viewName.equals(ACTION_CALENDAR_VIEW))
+			topView = getCalendarView();
 		else if (viewName.equals(ACTION_DELEGATE_TASKS))
 			topView = getTeamPlannerView();
 		else if (viewName.equals(ACTION_HISTOGRAM))
@@ -2178,6 +2240,7 @@ public class DocumentFrame extends NamedFrame implements
 	public void selectionChanged(SelectionNodeEvent e) {
 		applyFormatPainterToSelection(e);
 		lastSelectionEvent=e;
+		syncTaskStateToggles();
 		statusBar.setSelectedCount(e.getNodes() == null ? 0 : e.getNodes().size());
 		Component bottom = mainView.getBottomComponent();
 		if (bottom != null && bottom instanceof SelectionNodeListener)
@@ -2434,7 +2497,16 @@ public class DocumentFrame extends NamedFrame implements
 		if (lastTopButton != null)
 			menuManager.setActionSelected(lastTopButton,enable);
 		setBottomActionSelected(enable ? lastBottomButton : null);
+		if (enable)
+			syncPrivacyMaskToggle();
 
+	}
+
+	/** Privacy Mask is pressed while this document's presentation is masked; the state is the document's, not the button's. */
+	void syncPrivacyMaskToggle() {
+		if (menuManager != null)
+			menuManager.setActionSelected(ACTION_TOGGLE_PRIVACY_MASK,
+				com.microproject.ui.privacy.PrivacyDisplayMode.isMasked(project));
 	}
 	public void refreshUndoButtons() {
 		UndoController undoController = null;
@@ -2463,6 +2535,7 @@ public class DocumentFrame extends NamedFrame implements
 		menuManager.setActionEnabled(ACTION_UNDO,canUndo);
 		menuManager.setActionEnabled(ACTION_REDO,canRedo);
 		getGraphicManager().refreshStatusDateControl();
+		syncTaskStateToggles();
 
 	}
 
@@ -2671,6 +2744,7 @@ public class DocumentFrame extends NamedFrame implements
 		taskUsageView = null;
 		resourceUsageView = null;
 		timelineView = null;
+		calendarView = null;
 		teamPlannerView = null;
 		reportView = null;
 		activeTopView = null;
@@ -2694,6 +2768,7 @@ public class DocumentFrame extends NamedFrame implements
 			resourceUsageView,
 			reportView,
 			timelineView,
+			calendarView,
 			teamPlannerView
 		};
 		ArrayUtils.forAllDo(views,c);
@@ -2770,6 +2845,7 @@ public class DocumentFrame extends NamedFrame implements
 		ws.saveViewWorkspace(ACTION_RESOURCE_USAGE,resourceUsageView);
 		ws.saveViewWorkspace(ACTION_REPORT,reportView);
 		ws.saveViewWorkspace(ACTION_TIMELINE,timelineView);
+		ws.saveViewWorkspace(ACTION_CALENDAR_VIEW,calendarView);
 		ws.saveViewWorkspace(ACTION_DELEGATE_TASKS,teamPlannerView);
 		return ws;
 	}

@@ -2566,10 +2566,24 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(viewTab::isSelected, "Robot click did not select the View ribbon tab");
 		AbstractButton calendarButton = findShowingButtonByCommand("RibbonCalendarView");
 		click(robot, calendarButton);
+		// The Calendar command switches the top view; it no longer opens the settings dialog.
+		GuiAcceptanceSupport.await(() -> com.microproject.menu.MenuActionConstants.ACTION_CALENDAR_VIEW
+			.equals(manager.getCurrentFrame().getTopViewId()), "Calendar command did not switch the top view to Calendar");
+		GuiAcceptanceSupport.await(calendarButton::isSelected, "Calendar command button must stay pressed for the active view");
+		click(robot, calendarButton);
+		SwingUtilities.invokeAndWait(() -> { });
+		assertTrue(calendarButton.isSelected(), "clicking the active Calendar view again must not unpress it");
+		assertEquals(com.microproject.menu.MenuActionConstants.ACTION_CALENDAR_VIEW, manager.getCurrentFrame().getTopViewId(),
+			"clicking the active Calendar view again must keep the Calendar view");
+		assertTrue(manager.getCurrentFrame().getCalendarViewDialog() == null
+			|| !manager.getCurrentFrame().getCalendarViewDialog().isShowing(),
+			"the Calendar view command must not open the calendar settings dialog");
+		// The settings dialog is opened through the Task Views group dialog launcher.
+		click(robot, findShowingButtonByCommand("RibbonCalendarViewSettings"));
 
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getCalendarViewDialog() != null
 			&& manager.getCurrentFrame().getCalendarViewDialog().isShowing(),
-			"Calendar command did not show CalendarViewDialogBox");
+			"Calendar View Settings launcher did not show CalendarViewDialogBox");
 		CalendarViewDialogBox dialog = manager.getCurrentFrame().getCalendarViewDialog();
 		java.awt.Rectangle usableBounds = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
 		java.awt.Rectangle dialogBounds = new java.awt.Rectangle(dialog.getLocationOnScreen(), dialog.getSize());
@@ -2997,8 +3011,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ViewRibbonTask.title"));
 		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab for Calendar");
-		AbstractButton calendarView = findShowingButtonByCommand("RibbonCalendarView");
-		click(robot, calendarView);
+		click(robot, findShowingButtonByCommand("RibbonCalendarViewSettings"));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getCalendarViewDialog() != null
 			&& manager.getCurrentFrame().getCalendarViewDialog().isShowing(), "calendar link dialog did not open");
 		CalendarViewDialogBox calendar = manager.getCurrentFrame().getCalendarViewDialog();
@@ -3038,7 +3051,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
 		GuiAcceptanceSupport.await(() -> predecessor.getSuccessorList().contains(link)
 			&& successor.getPredecessorList().contains(link), "Ctrl+Z did not restore the calendar dependency endpoints");
-		click(robot, findShowingButtonByCommand("RibbonCalendarView"));
+		click(robot, findShowingButtonByCommand("RibbonCalendarViewSettings"));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getCalendarViewDialog() != null
 			&& manager.getCurrentFrame().getCalendarViewDialog().isShowing(), "Calendar did not reopen after physical Undo");
 		CalendarViewDialogBox restoredCalendar = manager.getCurrentFrame().getCalendarViewDialog();
@@ -3052,7 +3065,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
 		GuiAcceptanceSupport.await(() -> !predecessor.getSuccessorList().contains(link)
 			&& !successor.getPredecessorList().contains(link), "Ctrl+Y did not remove the calendar dependency again");
-		click(robot, findShowingButtonByCommand("RibbonCalendarView"));
+		click(robot, findShowingButtonByCommand("RibbonCalendarViewSettings"));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getCalendarViewDialog() != null
 			&& manager.getCurrentFrame().getCalendarViewDialog().isShowing(), "Calendar did not reopen after physical Redo");
 		CalendarViewDialogBox redoneCalendar = manager.getCurrentFrame().getCalendarViewDialog();
