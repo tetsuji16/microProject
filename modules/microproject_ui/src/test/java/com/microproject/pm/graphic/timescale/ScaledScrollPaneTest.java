@@ -185,6 +185,48 @@ class ScaledScrollPaneTest {
 		});
 	}
 
+	/**
+	 * Opening a file restores the saved time range into a converter whose views
+	 * already exist. They must follow it, and a later origin change must keep the
+	 * date the user scrolled to afterwards.
+	 */
+	@Test
+	void workspaceRestoreOfTheTimeRangeUpdatesExistingViews() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			var undoController = new DataFactoryUndoController();
+			var resourcePool = ResourcePool.createRourcePool("scaled-scroll-pane-workspace-test", undoController);
+			var project = Project.createProject(resourcePool, undoController);
+			var coord = new CoordinatesConverter(project);
+			var component = new SelfSizingScaledComponent();
+			var pane = new ScaledScrollPane(component, coord, null, 20);
+			pane.setSize(400, 300);
+			component.matchRange();
+			pane.validate();
+			JViewport viewport = pane.getViewport();
+			double onePixel = Math.abs(coord.toTime(1) - coord.toTime(0));
+
+			var saved = (CoordinatesConverter.Workspace) coord.createWorkspace(0);
+			saved.setOrigin(coord.getOrigin() - 200L * 86_400_000L);
+			saved.setEnd(coord.getEnd() + 200L * 86_400_000L);
+			double leftDateBefore = coord.toTime(viewport.getViewPosition().x);
+			coord.restoreWorkspace(saved, 0);
+			pane.validate();
+
+			assertEquals((int) Math.ceil(coord.getWidth()), viewport.getViewSize().width,
+				"the chart must be resized to the restored range");
+			assertTrue(Math.abs(coord.toTime(viewport.getViewPosition().x) - leftDateBefore) <= onePixel,
+				"restoring the range must not pan the chart");
+
+			int scrolledX = viewport.getViewPosition().x + 150;
+			viewport.setViewPosition(new Point(scrolledX, 0));
+			double scrolledDate = coord.toTime(scrolledX);
+			coord.extendViewBefore(30);
+			pane.validate();
+			assertTrue(Math.abs(coord.toTime(viewport.getViewPosition().x) - scrolledDate) <= onePixel,
+				"a scroll made after the restore must survive the next origin change");
+		});
+	}
+
 	private static void assertOriginChangeKeepsLeftDateAnchored(int initialX) {
 		var undoController = new DataFactoryUndoController();
 		var resourcePool = ResourcePool.createRourcePool("scaled-scroll-pane-test", undoController);
