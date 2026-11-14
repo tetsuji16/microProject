@@ -56,6 +56,10 @@ public final class MicroProjectThemeTokens {
 	private final Color accentColor;
 	private final Color errorColor;
 	private final Color tableGridColor;
+	private final Color backstageNavigationBackground;
+	private final Color backstageNavigationForeground;
+	private final Color backstageNavigationHoverBackground;
+	private final Color backstageNavigationSelectedBackground;
 	private final int compactSpacing;
 	private final int contentSpacing;
 	private final int sectionSpacing;
@@ -111,6 +115,10 @@ public final class MicroProjectThemeTokens {
 		Color accentColor,
 		Color errorColor,
 		Color tableGridColor,
+		Color backstageNavigationBackground,
+		Color backstageNavigationForeground,
+		Color backstageNavigationHoverBackground,
+		Color backstageNavigationSelectedBackground,
 		int compactSpacing,
 		int contentSpacing,
 		int sectionSpacing,
@@ -164,6 +172,10 @@ public final class MicroProjectThemeTokens {
 		this.accentColor = accentColor;
 		this.errorColor = errorColor;
 		this.tableGridColor = tableGridColor;
+		this.backstageNavigationBackground = backstageNavigationBackground;
+		this.backstageNavigationForeground = backstageNavigationForeground;
+		this.backstageNavigationHoverBackground = backstageNavigationHoverBackground;
+		this.backstageNavigationSelectedBackground = backstageNavigationSelectedBackground;
 		this.compactSpacing = compactSpacing;
 		this.contentSpacing = contentSpacing;
 		this.sectionSpacing = sectionSpacing;
@@ -221,6 +233,10 @@ public final class MicroProjectThemeTokens {
 			new Color(0x217346),
 			new Color(0xD13438),
 			new Color(0xD9D9D9),
+			new Color(0x0F773D),
+			Color.WHITE,
+			new Color(0x1E8449),
+			new Color(0x0B5C2E),
 			6,
 			10,
 			14,
@@ -277,7 +293,11 @@ public final class MicroProjectThemeTokens {
 			new Color(0x383C42),
 			new Color(0x54A878),
 			new Color(0xFF7777),
-			new Color(0x3B4047));
+			new Color(0x3B4047),
+			new Color(0x1F5C3A),
+			Color.WHITE,
+			new Color(0x2A6E48),
+			new Color(0x174A2E));
 	}
 
 	private MicroProjectThemeTokens withColors(Color... colors) {
@@ -285,12 +305,33 @@ public final class MicroProjectThemeTokens {
 			colors[0], colors[1], colors[2], colors[3], colors[4], colors[5], colors[6], colors[7], colors[8],
 			colors[9], colors[10], colors[11], colors[12], colors[13], colors[14], colors[15], colors[16], colors[17],
 			colors[18], colors[19], colors[20], colors[21], colors[22], colors[23], colors[24], colors[25], colors[26],
+			colors[27], colors[28], colors[29], colors[30],
 			compactSpacing, contentSpacing, sectionSpacing, dialogButtonHeight, dialogCornerRadius, ribbonChromeHeight,
 			ribbonChromeVerticalInset, ribbonHorizontalInset, ribbonTabHeight, ribbonTabHorizontalPadding,
 			ribbonTabVerticalPadding, ribbonSurfaceHeight, ribbonBandVerticalInset, ribbonButtonVerticalInset,
 			ribbonSearchHeight, ribbonSearchPreferredWidth, ribbonSearchMaxWidth, ribbonCornerRadius, ribbonButtonArc,
 			ribbonQuickAccessButtonSize, ribbonLargeButtonHeight, ribbonLargeButtonMinWidth, ribbonInlineButtonHeight,
 			ribbonInlineButtonMediumMinWidth, ribbonInlineButtonSmallMinWidth, ribbonBandTitleHeight);
+	}
+
+	/** Background of the File/Backstage navigation pane (the application accent). */
+	public Color backstageNavigationBackground() {
+		return backstageNavigationBackground;
+	}
+
+	/** Text and icon colour on the Backstage navigation pane. */
+	public Color backstageNavigationForeground() {
+		return backstageNavigationForeground;
+	}
+
+	/** Background of a Backstage navigation entry under the pointer. */
+	public Color backstageNavigationHoverBackground() {
+		return backstageNavigationHoverBackground;
+	}
+
+	/** Background of the selected Backstage navigation entry. */
+	public Color backstageNavigationSelectedBackground() {
+		return backstageNavigationSelectedBackground;
 	}
 
 	public Color appBackground() {

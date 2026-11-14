@@ -575,7 +575,39 @@ class RibbonTabGuiAcceptanceTest {
 			AbstractButton newProject = (AbstractButton)namedComponent(backstage, "officeBackstageCommand-RibbonNewProject");
 			assertTrue(newProject != null && newProject.isShowing(), "New must be available in Backstage details");
 			assertTrue(newProject.isEnabled(), "New must be enabled on the File ribbon without a document");
+			// Issue #1115: Back on top, the Microsoft Project destination order, Options pinned to the bottom.
+			JComponent navigation = (JComponent)namedComponent(backstage, "officeBackstageNavigation");
+			assertEquals(com.microproject.ui.theme.MicroProjectTheme.tokens().backstageNavigationBackground(),
+				navigation.getBackground(), "Backstage navigation must use the theme's accent navigation colour");
+			int previousY = namedComponent(backstage, "officeBackstageBack").getLocationOnScreen().y;
+			for (String page : new String[] { "new", "open", "info", "save", "saveAs", "print", "export", "close", "options" }) {
+				Component destination = namedComponent(backstage, "officeBackstageNav-" + page);
+				assertTrue(destination != null && destination.isShowing(), "Backstage destination is not visible: " + page);
+				int y = destination.getLocationOnScreen().y;
+				assertTrue(y > previousY, "Backstage destination is out of order: " + page);
+				previousY = y;
+			}
+			Component options = namedComponent(backstage, "officeBackstageNav-options");
+			int navigationBottom = navigation.getLocationOnScreen().y + navigation.getHeight();
+			assertTrue(navigationBottom - (options.getLocationOnScreen().y + options.getHeight()) <= 16,
+				"Options must be pinned to the bottom of the Backstage navigation");
+			namedComponent(backstage, "officeBackstageNav-new").requestFocusInWindow();
 		});
+		GuiAcceptanceSupport.await(() -> namedComponent(frame.getRootPane(), "officeBackstageNav-new").isFocusOwner(),
+			"Backstage New destination did not take focus");
+		robot.keyPress(KeyEvent.VK_DOWN);
+		robot.keyRelease(KeyEvent.VK_DOWN);
+		GuiAcceptanceSupport.await(() -> namedComponent(frame.getRootPane(), "officeBackstageNav-open").isFocusOwner(),
+			"Down did not move focus to the next Backstage destination");
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(
+			() -> namedComponent(frame.getRootPane(), "officeBackstageCommand-RibbonOpenProject") != null,
+			"Enter did not open the focused Backstage destination");
+		robot.keyPress(KeyEvent.VK_UP);
+		robot.keyRelease(KeyEvent.VK_UP);
+		GuiAcceptanceSupport.await(() -> namedComponent(frame.getRootPane(), "officeBackstageNav-new").isFocusOwner(),
+			"Up did not move focus to the previous Backstage destination");
 		captureVisibleRibbon(robot, "ribbon-file-backstage-open.png");
 		robot.keyPress(KeyEvent.VK_ESCAPE);
 		robot.keyRelease(KeyEvent.VK_ESCAPE);
