@@ -143,6 +143,21 @@ class RibbonControlContractTest {
 	}
 
 	@Test
+	void clearInsertResourceAndGridlinesAreMenusKeepingTheirCommands() {
+		SwingRibbonModel model = model(Map.of());
+		Map<String, List<String>> expected = Map.of(
+			"RibbonClear", List.of("RibbonClear"),
+			"RibbonInsertResource", List.of("RibbonInsertResource"),
+			"RibbonGridlines", List.of("RibbonGridlines", "RibbonToggleProgressLine"));
+		expected.forEach((id, items) -> {
+			SwingRibbonModel.RibbonButton button = button(model, id);
+			assertEquals(RibbonControlKind.MENU, button.getControlKind(), id);
+			assertEquals(RibbonActivation.POPUP, button.getActivation(), id);
+			assertEquals(items, button.getItemIds(), id);
+		});
+	}
+
+	@Test
 	void menuOnlyOpensItsPopup() {
 		AtomicInteger invoked = new AtomicInteger();
 		JButton button = countingButton(invoked);

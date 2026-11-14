@@ -28,7 +28,9 @@ import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.util.function.UnaryOperator;
 
+import javax.swing.AbstractAction;
 import javax.swing.AbstractButton;
+import javax.swing.Action;
 import javax.swing.JButton;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
@@ -165,14 +167,52 @@ final class RibbonControlPopups {
 
 	/** Menu-like controls: the button keeps its caption and icon but only opens the popup. */
 	private static void openPopupOnClick(AbstractButton button, JPopupMenu popup) {
+		Action command = button.getAction();
 		for (ActionListener listener : button.getActionListeners()) {
 			button.removeActionListener(listener);
 		}
-		button.addActionListener(event -> {
+		ActionListener opener = event -> {
 			if (button.isShowing() && button.isEnabled()) {
 				popup.show(button, 0, button.getHeight());
 			}
+		};
+		if (command == null) {
+			button.addActionListener(opener);
+			return;
+		}
+		// Removing the command from the button would also drop its enabled and
+		// selected state, so the button keeps an Action that mirrors the command
+		// and only opens the popup.
+		AbstractAction mirror = new AbstractAction() {
+			@Override
+			public void actionPerformed(java.awt.event.ActionEvent event) {
+				opener.actionPerformed(event);
+			}
+		};
+		for (String key : new String[] { Action.NAME, Action.SMALL_ICON, Action.LARGE_ICON_KEY, Action.SHORT_DESCRIPTION,
+			Action.LONG_DESCRIPTION, Action.SELECTED_KEY }) {
+			mirror.putValue(key, command.getValue(key));
+		}
+		mirror.setEnabled(command.isEnabled());
+		command.addPropertyChangeListener(change -> {
+			String name = change.getPropertyName();
+			if ("enabled".equals(name)) {
+				mirror.setEnabled(command.isEnabled());
+			} else if (name != null) {
+				mirror.putValue(name, command.getValue(name));
+			}
 		});
+		String text = button.getText();
+		javax.swing.Icon icon = button.getIcon();
+		String tooltip = button.getToolTipText();
+		String actionCommand = button.getActionCommand();
+		int mnemonic = button.getMnemonic();
+		button.setAction(mirror);
+		button.setText(text);
+		button.setIcon(icon);
+		button.setToolTipText(tooltip);
+		button.setActionCommand(actionCommand);
+		button.setMnemonic(mnemonic);
 	}
 
 	/** Split buttons: a transparent child over the arrow strip opens the popup. */

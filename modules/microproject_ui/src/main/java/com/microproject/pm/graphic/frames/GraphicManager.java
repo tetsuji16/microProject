@@ -4626,18 +4626,15 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		boolean progressSelected = false;
 		boolean resourceLabelSelected = false;
 		boolean taskLabelSelected = false;
-		boolean gridlinesSelected = false;
 		if (ganttActive) {
 			GanttView ganttView = getCurrentFrame().getGanttView();
 			progressSelected = ganttView.isProgressLineEnabled();
 			resourceLabelSelected = ganttView.isResourceNameAnnotationSelected();
 			taskLabelSelected = ganttView.isTaskNameAnnotationSelected();
-			gridlinesSelected = ganttView.isSpreadsheetGridVisible();
 		}
 		getMenuManager().setActionSelected(ACTION_TOGGLE_PROGRESS_LINE, progressSelected);
 		getMenuManager().setActionSelected(ACTION_LABEL_RESOURCE_NAMES, resourceLabelSelected);
 		getMenuManager().setActionSelected(ACTION_LABEL_TASK_NAME, taskLabelSelected);
-		getMenuManager().setActionSelected(ACTION_GRIDLINES, gridlinesSelected);
 	}
 	/**
 	 * React to selection changed events and forward them on to any bottom window
