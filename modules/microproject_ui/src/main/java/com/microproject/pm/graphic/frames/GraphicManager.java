@@ -98,6 +98,7 @@ import javax.swing.undo.CannotUndoException;
 import com.microproject.menu.resource.MissingListenerException;
 import com.microproject.ui.shell.MicroProjectShell;
 import com.microproject.ui.ribbon.RibbonController;
+import com.microproject.ui.ribbon.RibbonDropDownSource;
 import com.microproject.configuration.Configuration;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.configuration.Settings;
@@ -1875,6 +1876,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (menuManager == null)
 			menuManager = MenuManager.getInstance(this);
 		actionsMap = new MenuActionsMap(menuManager);
+		menuManager.setRibbonDropDownSource(new TransformDropDownSource());
 		actionsMap.addHandler(ACTION_NEW_PROJECT, new NewProjectAction());
 		actionsMap.addHandler(ACTION_NEW_MASTER_PROJECT, new NewMasterProjectAction());
 		actionsMap.addHandler(ACTION_OPEN_PROJECT, new OpenProjectAction());
@@ -3331,6 +3333,65 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	        	return;
 	        }
 	        showTransformChooser(type, this, actionId, taskSortSelection);
+	        refreshTransformDropDowns();
+		}
+	}
+
+	private static final String RIBBON_FILTER_ID = "RibbonChooseFilter";
+	private static final String RIBBON_GROUP_ID = "RibbonChooseGroup";
+
+	/** Re-reads the filter and group labels of the ribbon from the active view. */
+	private void refreshTransformDropDowns() {
+		getMenuManager().refreshRibbonDropDown(RIBBON_FILTER_ID);
+		getMenuManager().refreshRibbonDropDown(RIBBON_GROUP_ID);
+	}
+
+	/** Values and choices of the ribbon Filter and Group drop-downs: the transforms of the active top view. */
+	private final class TransformDropDownSource implements RibbonDropDownSource {
+		private TransformComboBoxModel model(String commandId) {
+			int type = RIBBON_FILTER_ID.equals(commandId) ? TransformComboBoxModel.FILTER
+					: RIBBON_GROUP_ID.equals(commandId) ? TransformComboBoxModel.GROUPER : 0;
+			DocumentFrame frame = getCurrentFrame();
+			if (type == 0 || frame == null)
+				return null;
+			com.microproject.grouping.core.transform.ViewConfiguration view =
+				com.microproject.grouping.core.transform.ViewConfiguration.getView(frame.getTopViewId());
+			if (view == null || view.getTransform() == null)
+				return null;
+			TransformComboBoxModel model = new TransformComboBoxModel(type);
+			model.setView(view);
+			return model;
+		}
+
+		@Override
+		public String currentValue(String commandId) {
+			TransformComboBoxModel model = model(commandId);
+			return model == null || model.getSelectedItem() == null ? null : model.getSelectedItem().toString();
+		}
+
+		@Override
+		public List<String> choices(String commandId) {
+			TransformComboBoxModel model = model(commandId);
+			List<String> names = new ArrayList<>();
+			for (int index = 0; model != null && index < model.getSize(); index++)
+				names.add(model.getElementAt(index).toString());
+			return names;
+		}
+
+		@Override
+		public void select(String commandId, int index) {
+			TransformComboBoxModel model = model(commandId);
+			if (model == null || index < 0 || index >= model.getSize())
+				return;
+			setMeAsLastGraphicManager();
+			CommonSpreadSheet spreadSheet = getCurrentFrame().getTopSpreadSheet();
+			if (spreadSheet != null) {
+				if (spreadSheet.isEditing())
+					spreadSheet.getCellEditor().stopCellEditing();
+				spreadSheet.clearSelection();
+			}
+			model.changeTransform(model.getElementAt(index));
+			refreshTransformDropDowns();
 		}
 	}
 
@@ -4562,6 +4623,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_CHOOSE_FILTER, hasDocument);
 		getMenuManager().setActionEnabled(ACTION_CHOOSE_SORT, hasDocument);
 		getMenuManager().setActionEnabled(ACTION_CHOOSE_GROUP, hasDocument);
+		refreshTransformDropDowns();
 
 		if (getCurrentFrame() != null) {
 			getCurrentFrame().refreshUndoButtons();

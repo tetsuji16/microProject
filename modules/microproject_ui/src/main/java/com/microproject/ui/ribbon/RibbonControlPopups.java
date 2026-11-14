@@ -26,6 +26,9 @@ package com.microproject.ui.ribbon;
 import java.awt.event.ActionListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
 import javax.swing.AbstractAction;
@@ -34,6 +37,7 @@ import javax.swing.Action;
 import javax.swing.JButton;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import javax.swing.JRadioButtonMenuItem;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
 
@@ -69,10 +73,19 @@ final class RibbonControlPopups {
 	 * for exactly that time.
 	 */
 	static final String POPUP_OPEN_PROPERTY = "MicroProject.ribbon.popupOpen";
+	/**
+	 * Client property holding the {@link Runnable} that re-reads the current value
+	 * of a drop-down and shows it as the control's label.
+	 */
+	static final String REFRESH_PROPERTY = "MicroProject.ribbon.dropDownRefresh";
+	/** Client property holding the current value shown by a drop-down, or absent when there is none. */
+	static final String DROP_DOWN_VALUE_PROPERTY = "MicroProject.ribbon.dropDownValue";
 	static final String POPUP_NAME_PREFIX = "microproject.ribbon.controlMenu.";
 	static final String ARROW_BUTTON_NAME_PREFIX = "microproject.ribbon.controlMenuButton.";
 	private static final String SPLIT_PROPERTY = "MicroProject.ribbonSplit";
 	private static final String ITEM_SEPARATOR = "-";
+	private static final String CHOICE_PROPERTY = "MicroProject.ribbon.dropDownChoice";
+	private static final int MAX_LABEL_LENGTH = 16;
 
 	private RibbonControlPopups() {
 	}
@@ -84,8 +97,8 @@ final class RibbonControlPopups {
 	 */
 	static boolean isNativelyRendered(RibbonControlKind kind) {
 		return switch (kind) {
-			case BUTTON, TOGGLE_BUTTON, SPLIT_BUTTON, MENU -> true;
-			case GALLERY, DROP_DOWN, COMBO_BOX, CHECK_BOX, EDIT_BOX, DIALOG_LAUNCHER -> false;
+			case BUTTON, TOGGLE_BUTTON, SPLIT_BUTTON, MENU, DROP_DOWN -> true;
+			case GALLERY, COMBO_BOX, CHECK_BOX, EDIT_BOX, DIALOG_LAUNCHER -> false;
 		};
 	}
 
@@ -97,18 +110,33 @@ final class RibbonControlPopups {
 	 */
 	static void install(AbstractButton button, SwingRibbonModel.RibbonButton specification,
 		RibbonCommandSource commandSource, UnaryOperator<String> text) {
+		install(button, specification, commandSource, text, () -> null);
+	}
+
+	/**
+	 * @param dropDownSource supplies the values of {@code DROP_DOWN} controls; it is
+	 *        asked each time the value or the popup is needed, so it may be set after
+	 *        the ribbon was built
+	 */
+	static void install(AbstractButton button, SwingRibbonModel.RibbonButton specification,
+		RibbonCommandSource commandSource, UnaryOperator<String> text,
+		Supplier<RibbonDropDownSource> dropDownSource) {
 		RibbonControlKind kind = specification.getControlKind();
 		button.putClientProperty(CONTROL_KIND_PROPERTY, kind);
 		button.putClientProperty(ACTIVATION_PROPERTY, specification.getActivation());
 		if (specification.getKeyTip() != null) {
 			button.putClientProperty(KEY_TIP_PROPERTY, specification.getKeyTip());
 		}
-		if (!kind.hasPopup() || specification.getItemIds().isEmpty()) {
+		boolean dropDown = kind == RibbonControlKind.DROP_DOWN;
+		if (!kind.hasPopup() || (specification.getItemIds().isEmpty() && !dropDown)) {
 			return;
 		}
 		JPopupMenu popup = createPopup(specification, commandSource, text);
 		button.putClientProperty(POPUP_PROPERTY, popup);
 		trackPopupOpen(button, popup);
+		if (dropDown) {
+			installDropDown(button, specification.getId(), popup, dropDownSource);
+		}
 		button.putClientProperty(SPLIT_PROPERTY, Boolean.TRUE);
 		if (kind.invokesOnClick()) {
 			installArrowHitArea(button, specification.getId(), popup);
@@ -140,6 +168,77 @@ final class RibbonControlPopups {
 		return popup;
 	}
 
+	/**
+	 * Drop-downs show the value in effect as their label and list the choices of the
+	 * {@link RibbonDropDownSource} above the fixed items of the popup. The choices
+	 * are read each time the popup opens, so they follow the active document and view.
+	 */
+	private static void installDropDown(AbstractButton button, String commandId, JPopupMenu popup,
+		Supplier<RibbonDropDownSource> sourceSupplier) {
+		String caption = button.getText();
+		Runnable refresh = () -> {
+			RibbonDropDownSource source = sourceSupplier.get();
+			String value = source == null ? null : source.currentValue(commandId);
+			boolean present = value != null && !value.isBlank();
+			button.setText(present ? abbreviate(value) : caption);
+			button.putClientProperty(DROP_DOWN_VALUE_PROPERTY, present ? value : null);
+			if (present) {
+				button.getAccessibleContext().setAccessibleDescription(value);
+			}
+		};
+		button.putClientProperty(REFRESH_PROPERTY, refresh);
+		popup.addPopupMenuListener(new PopupMenuListener() {
+			@Override
+			public void popupMenuWillBecomeVisible(PopupMenuEvent event) {
+				rebuildChoices(popup, commandId, sourceSupplier.get(), refresh);
+			}
+
+			@Override
+			public void popupMenuWillBecomeInvisible(PopupMenuEvent event) {
+			}
+
+			@Override
+			public void popupMenuCanceled(PopupMenuEvent event) {
+			}
+		});
+		refresh.run();
+	}
+
+	private static void rebuildChoices(JPopupMenu popup, String commandId, RibbonDropDownSource source, Runnable refresh) {
+		for (java.awt.Component component : popup.getComponents()) {
+			if (component instanceof javax.swing.JComponent swing && swing.getClientProperty(CHOICE_PROPERTY) != null) {
+				popup.remove(component);
+			}
+		}
+		List<String> choices = source == null ? List.of() : new ArrayList<>(source.choices(commandId));
+		if (choices.isEmpty()) {
+			return;
+		}
+		String current = source.currentValue(commandId);
+		int position = 0;
+		for (int index = 0; index < choices.size(); index++) {
+			int choice = index;
+			String name = choices.get(index);
+			JRadioButtonMenuItem item = new JRadioButtonMenuItem(name, name.equals(current));
+			item.putClientProperty(CHOICE_PROPERTY, Boolean.TRUE);
+			item.setName(popup.getName() + ".choice." + index);
+			item.addActionListener(event -> {
+				source.select(commandId, choice);
+				refresh.run();
+			});
+			popup.insert(item, position++);
+		}
+		if (popup.getComponentCount() > position) {
+			javax.swing.JPopupMenu.Separator separator = new javax.swing.JPopupMenu.Separator();
+			separator.putClientProperty(CHOICE_PROPERTY, Boolean.TRUE);
+			popup.insert(separator, position);
+		}
+	}
+
+	private static String abbreviate(String value) {
+		return value.length() <= MAX_LABEL_LENGTH ? value : value.substring(0, MAX_LABEL_LENGTH - 1) + "…";
+	}
+
 	/** Publishes {@link #POPUP_OPEN_PROPERTY} for as long as the popup is showing. */
 	private static void trackPopupOpen(AbstractButton button, JPopupMenu popup) {
 		popup.addPopupMenuListener(new PopupMenuListener() {
@@ -168,9 +267,20 @@ final class RibbonControlPopups {
 	/** Menu-like controls: the button keeps its caption and icon but only opens the popup. */
 	private static void openPopupOnClick(AbstractButton button, JPopupMenu popup) {
 		Action command = button.getAction();
+		// Removing the Action listener detaches the Action and clears these properties.
+		String text = button.getText();
+		javax.swing.Icon icon = button.getIcon();
+		String tooltip = button.getToolTipText();
+		String actionCommand = button.getActionCommand();
+		int mnemonic = button.getMnemonic();
 		for (ActionListener listener : button.getActionListeners()) {
 			button.removeActionListener(listener);
 		}
+		button.setText(text);
+		button.setIcon(icon);
+		button.setToolTipText(tooltip);
+		button.setActionCommand(actionCommand);
+		button.setMnemonic(mnemonic);
 		ActionListener opener = event -> {
 			if (button.isShowing() && button.isEnabled()) {
 				popup.show(button, 0, button.getHeight());
@@ -202,11 +312,6 @@ final class RibbonControlPopups {
 				mirror.putValue(name, command.getValue(name));
 			}
 		});
-		String text = button.getText();
-		javax.swing.Icon icon = button.getIcon();
-		String tooltip = button.getToolTipText();
-		String actionCommand = button.getActionCommand();
-		int mnemonic = button.getMnemonic();
 		button.setAction(mirror);
 		button.setText(text);
 		button.setIcon(icon);

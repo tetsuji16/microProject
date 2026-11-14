@@ -51,6 +51,7 @@ import java.util.MissingResourceException;
 import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 import java.util.function.Consumer;
 
 import javax.swing.AbstractButton;
@@ -187,6 +188,8 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	private BiConsumer<JPopupMenu, MouseEvent> displayModePopupPresenter =
 		(popup, event) -> popup.show(event.getComponent(), event.getX(), event.getY());
 
+	private Supplier<RibbonDropDownSource> dropDownSource = () -> null;
+
 	ModernRibbonPanel(SwingRibbonModel model, RibbonCommandSource commandSource, ResourceBundle[] bundles, Runnable helpAction) {
 		super(new BorderLayout());
 		this.model = Objects.requireNonNull(model);
@@ -206,6 +209,11 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		this.cards.setBackground(theme.chromeBackground());
 		setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, theme.topLineColor()));
 		setPreferredSize(new Dimension(0, theme.tabHeight() + theme.surfaceHeight() + 1));
+	}
+
+	/** Sets where drop-down controls read their value and choices; may be called after {@link #build()}. */
+	void setDropDownSource(Supplier<RibbonDropDownSource> source) {
+		this.dropDownSource = Objects.requireNonNull(source);
 	}
 
 	/**
@@ -1582,7 +1590,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			button.putClientProperty("MicroProject.ribbonSplit", Boolean.TRUE);
 			if ("RibbonChooseSort".equals(buttonId)) installSortOrderMenu(button);
 		}
-		RibbonControlPopups.install(button, specification, commandSource, this::getStringOrNull);
+		RibbonControlPopups.install(button, specification, commandSource, this::getStringOrNull, () -> dropDownSource.get());
 		String tooltip = getStringOrNull(buttonId + ".tooltip");
 		if (tooltip != null) {
 			// The key shown is the one registered for the command, never a separately

@@ -72,8 +72,6 @@ class MspRibbonControlKindDiffTest {
 	 */
 	private static final Map<String, RibbonControlKind> KNOWN_GAPS = Map.ofEntries(
 		Map.entry("RibbonChooseSort", RibbonControlKind.SPLIT_BUTTON),
-		Map.entry("RibbonChooseFilter", RibbonControlKind.SPLIT_BUTTON),
-		Map.entry("RibbonChooseGroup", RibbonControlKind.SPLIT_BUTTON),
 		Map.entry("RibbonGantt", RibbonControlKind.TOGGLE_BUTTON),
 		Map.entry("RibbonNetwork", RibbonControlKind.TOGGLE_BUTTON),
 		Map.entry("RibbonResources", RibbonControlKind.TOGGLE_BUTTON),

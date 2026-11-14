@@ -44,6 +44,7 @@ import com.microproject.ribbon.SwingRibbonModel.CustomBandProvider;
 public final class SwingRibbonFactory {
 	private final RibbonCommandSource commandSource;
 	private final ResourceBundle[] bundles;
+	private volatile RibbonDropDownSource dropDownSource;
 	private final RibbonIconRegistry iconRegistry;
 
 	public SwingRibbonFactory(RibbonCommandSource commandSource, ResourceBundle... bundles) {
@@ -80,6 +81,7 @@ public final class SwingRibbonFactory {
 	public JPanel createPanel(SwingRibbonModel model, Runnable helpAction) {
 		Objects.requireNonNull(model);
 		ModernRibbonPanel panel = new ModernRibbonPanel(model, commandSource, bundles, helpAction);
+		panel.setDropDownSource(() -> dropDownSource);
 		panel.build();
 		JPanel host = new JPanel(new BorderLayout());
 		host.setOpaque(true);
@@ -87,6 +89,27 @@ public final class SwingRibbonFactory {
 		host.add(panel, BorderLayout.CENTER);
 		host.putClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY, panel);
 		return host;
+	}
+
+	/** Sets where the drop-down controls of every ribbon built by this factory read their values. */
+	public void setDropDownSource(RibbonDropDownSource source) {
+		this.dropDownSource = source;
+	}
+
+	/** Re-reads the label of the drop-downs of {@code id} on the event dispatch thread. */
+	public void refreshDropDowns(String id) {
+		Runnable refresh = () -> {
+			for (javax.swing.AbstractButton button : commandSource.getButtons(id)) {
+				if (button.getClientProperty(RibbonControlPopups.REFRESH_PROPERTY) instanceof Runnable action) {
+					action.run();
+				}
+			}
+		};
+		if (javax.swing.SwingUtilities.isEventDispatchThread()) {
+			refresh.run();
+		} else {
+			javax.swing.SwingUtilities.invokeLater(refresh);
+		}
 	}
 
 	public String getActionStringFromId(String id) {

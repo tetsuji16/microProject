@@ -43,6 +43,7 @@ import javax.swing.AbstractAction;
 import javax.swing.JButton;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import javax.swing.JRadioButtonMenuItem;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
 
@@ -166,6 +167,88 @@ class RibbonControlContractTest {
 	}
 
 	@Test
+	void filterAndGroupAreDropDownsWhoseFixedItemOpensTheirDialog() {
+		SwingRibbonModel model = model(Map.of());
+		for (String id : List.of("RibbonChooseFilter", "RibbonChooseGroup")) {
+			SwingRibbonModel.RibbonButton button = button(model, id);
+			assertEquals(RibbonControlKind.DROP_DOWN, button.getControlKind(), id);
+			assertEquals(RibbonActivation.POPUP, button.getActivation(), id);
+			assertEquals(List.of(id), button.getItemIds(), id);
+		}
+	}
+
+	@Test
+	void dropDownShowsTheCurrentValueListsTheChoicesAndAppliesTheSelection() {
+		AtomicInteger invoked = new AtomicInteger();
+		JButton button = countingButton(invoked);
+		button.setText("Filter");
+		FakeDropDownSource source = new FakeDropDownSource();
+		RibbonControlPopups.install(button, specification(RibbonControlKind.DROP_DOWN), commandSource(), key -> null,
+			() -> source);
+
+		assertEquals("All Tasks", button.getText());
+		assertEquals("All Tasks", button.getClientProperty(RibbonControlPopups.DROP_DOWN_VALUE_PROPERTY));
+		button.doClick(0);
+		assertEquals(0, invoked.get(), "a drop-down opens its popup and has no command of its own");
+
+		JPopupMenu popup = assertInstanceOf(JPopupMenu.class, button.getClientProperty(RibbonControlPopups.POPUP_PROPERTY));
+		PopupMenuEvent event = new PopupMenuEvent(popup);
+		for (PopupMenuListener listener : popup.getPopupMenuListeners()) {
+			listener.popupMenuWillBecomeVisible(event);
+		}
+		// Choices first, then a separator, then the fixed items declared in the resources.
+		assertEquals(6, popup.getComponentCount());
+		JRadioButtonMenuItem first = assertInstanceOf(JRadioButtonMenuItem.class, popup.getComponent(0));
+		JRadioButtonMenuItem second = assertInstanceOf(JRadioButtonMenuItem.class, popup.getComponent(1));
+		assertEquals("All Tasks", first.getText());
+		assertTrue(first.isSelected());
+		assertEquals("Critical", second.getText());
+		assertFalse(second.isSelected());
+		assertInstanceOf(JPopupMenu.Separator.class, popup.getComponent(2));
+		assertEquals("RibbonCopy", assertInstanceOf(JMenuItem.class, popup.getComponent(3)).getActionCommand());
+
+		second.doClick(0);
+		assertEquals(List.of("RibbonPaste:1"), source.selections);
+		assertEquals("Critical", button.getText(), "the label follows the applied choice");
+
+		// Reopening replaces the choices instead of accumulating them.
+		for (PopupMenuListener listener : popup.getPopupMenuListeners()) {
+			listener.popupMenuWillBecomeVisible(event);
+		}
+		assertEquals(6, popup.getComponentCount());
+		assertTrue(assertInstanceOf(JRadioButtonMenuItem.class, popup.getComponent(1)).isSelected());
+
+		// A value changed elsewhere (view switch, filter dialog) is picked up by the refresh hook.
+		source.current = "Late Tasks";
+		((Runnable) button.getClientProperty(RibbonControlPopups.REFRESH_PROPERTY)).run();
+		assertEquals("Late Tasks", button.getText());
+		source.current = null;
+		((Runnable) button.getClientProperty(RibbonControlPopups.REFRESH_PROPERTY)).run();
+		assertEquals("Filter", button.getText(), "without a value the label falls back to the caption");
+	}
+
+	private static final class FakeDropDownSource implements RibbonDropDownSource {
+		String current = "All Tasks";
+		final List<String> selections = new java.util.ArrayList<>();
+
+		@Override
+		public String currentValue(String commandId) {
+			return current;
+		}
+
+		@Override
+		public List<String> choices(String commandId) {
+			return List.of("All Tasks", "Critical");
+		}
+
+		@Override
+		public void select(String commandId, int index) {
+			selections.add(commandId + ":" + index);
+			current = choices(commandId).get(index);
+		}
+	}
+
+	@Test
 	void menuOnlyOpensItsPopup() {
 		AtomicInteger invoked = new AtomicInteger();
 		JButton button = countingButton(invoked);
@@ -173,6 +256,7 @@ class RibbonControlContractTest {
 
 		button.doClick(0);
 		assertEquals(0, invoked.get(), "a menu control has no command of its own");
+		assertEquals("Paste", button.getText(), "a menu keeps its caption");
 		assertNotNull(button.getClientProperty(RibbonControlPopups.POPUP_PROPERTY));
 		assertNull(button.getClientProperty(RibbonControlPopups.ARROW_BUTTON_PROPERTY));
 		assertEquals(RibbonControlKind.MENU, button.getClientProperty(RibbonControlPopups.CONTROL_KIND_PROPERTY));
@@ -250,10 +334,11 @@ class RibbonControlContractTest {
 	}
 
 	@Test
-	void onlyButtonToggleSplitAndMenuHaveADedicatedRendererSoFar() {
+	void onlyButtonToggleSplitMenuAndDropDownHaveADedicatedRendererSoFar() {
 		for (RibbonControlKind kind : RibbonControlKind.values()) {
 			boolean expected = kind == RibbonControlKind.BUTTON || kind == RibbonControlKind.TOGGLE_BUTTON
-				|| kind == RibbonControlKind.SPLIT_BUTTON || kind == RibbonControlKind.MENU;
+				|| kind == RibbonControlKind.SPLIT_BUTTON || kind == RibbonControlKind.MENU
+				|| kind == RibbonControlKind.DROP_DOWN;
 			assertEquals(expected, RibbonControlPopups.isNativelyRendered(kind), kind.name());
 		}
 		assertFalse(RibbonControlPopups.isNativelyRendered(RibbonControlKind.GALLERY));
