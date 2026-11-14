@@ -80,11 +80,6 @@ class MspRibbonControlKindDiffTest {
 		Map.entry("RibbonCalendarView", RibbonControlKind.BUTTON),
 		Map.entry("RibbonTimeline", RibbonControlKind.BUTTON),
 		Map.entry("RibbonDetails", RibbonControlKind.TOGGLE_BUTTON),
-		Map.entry("RibbonPercentComplete0", RibbonControlKind.BUTTON),
-		Map.entry("RibbonPercentComplete25", RibbonControlKind.BUTTON),
-		Map.entry("RibbonPercentComplete50", RibbonControlKind.BUTTON),
-		Map.entry("RibbonPercentComplete75", RibbonControlKind.BUTTON),
-		Map.entry("RibbonPercentComplete100", RibbonControlKind.BUTTON),
 		Map.entry("RibbonTopBarUndo", RibbonControlKind.BUTTON),
 		Map.entry("RibbonTopBarRedo", RibbonControlKind.BUTTON));
 

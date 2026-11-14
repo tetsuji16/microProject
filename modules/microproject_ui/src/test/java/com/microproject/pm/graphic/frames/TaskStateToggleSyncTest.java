@@ -67,4 +67,34 @@ class TaskStateToggleSyncTest {
 			assertEquals(true, pressed(fx, "InactivateTask"));
 		}
 	}
+
+	private static String pressedPercent(HeadlessDocumentFixture fx) {
+		StringBuilder pressedIds = new StringBuilder();
+		for (int percent : new int[] { 0, 25, 50, 75, 100 })
+			if (pressed(fx, "PercentComplete" + percent))
+				pressedIds.append(percent).append(',');
+		return pressedIds.toString();
+	}
+
+	@Test
+	void percentCompleteTogglesPressOnlyTheMatchingValue() throws Exception {
+		try (HeadlessDocumentFixture fx = new HeadlessDocumentFixture("First", "Second")) {
+			fx.select(fx.task(0));
+			fx.run(CommandId.PERCENT_COMPLETE_50);
+			assertEquals("50,", pressedPercent(fx));
+			fx.run(CommandId.PERCENT_COMPLETE_50);
+			assertEquals("50,", pressedPercent(fx));
+			fx.run(CommandId.PERCENT_COMPLETE_100);
+			assertEquals("100,", pressedPercent(fx));
+			fx.run(CommandId.PERCENT_COMPLETE_0);
+			assertEquals("0,", pressedPercent(fx));
+			fx.task(0).setPercentComplete(0.3D);
+			fx.frame.syncTaskStateToggles();
+			assertEquals("", pressedPercent(fx));
+			fx.task(0).setPercentComplete(0.5D);
+			fx.select(fx.task(0), fx.task(1));
+			fx.frame.syncTaskStateToggles();
+			assertEquals("", pressedPercent(fx));
+		}
+	}
 }

@@ -846,6 +846,10 @@ public class DocumentFrame extends NamedFrame implements
 				: RibbonCommandResult.noChange(command.actionId(), affectedTaskIds)).withActiveView("task");
 	}
 
+	private static final String[] PERCENT_COMPLETE_ACTIONS = { ACTION_PERCENT_COMPLETE_0, ACTION_PERCENT_COMPLETE_25,
+		ACTION_PERCENT_COMPLETE_50, ACTION_PERCENT_COMPLETE_75, ACTION_PERCENT_COMPLETE_100 };
+	private static final double[] PERCENT_COMPLETE_VALUES = { 0D, 0.25D, 0.5D, 0.75D, 1D };
+
 	/**
 	 * Pressed state of the selected-task toggles (Manually Schedule, Auto Schedule, Inactivate)
 	 * comes from the model of the selected tasks, never from the button's own toggling: a
@@ -860,6 +864,19 @@ public class DocumentFrame extends NamedFrame implements
 		menuManager.setActionSelected(ACTION_TASK_MODE_MANUAL, any && selected.stream().allMatch(Task::isManuallyScheduled));
 		menuManager.setActionSelected(ACTION_TASK_MODE_AUTOMATIC, any && selected.stream().noneMatch(Task::isManuallyScheduled));
 		menuManager.setActionSelected(ACTION_INACTIVATE_TASK, any && selected.stream().allMatch(Task::isInactiveTask));
+		// Percent complete: pressed only when every selected task has exactly that value.
+		Double common = null;
+		if (any) {
+			common = selected.get(0).getPercentComplete();
+			for (Task task : selected)
+				if (Math.abs(task.getPercentComplete() - common) > 1e-6) {
+					common = null;
+					break;
+				}
+		}
+		for (int i = 0; i < PERCENT_COMPLETE_ACTIONS.length; i++)
+			menuManager.setActionSelected(PERCENT_COMPLETE_ACTIONS[i],
+				common != null && Math.abs(common - PERCENT_COMPLETE_VALUES[i]) < 1e-6);
 	}
 
 	private RibbonCommandResult applyTaskMode(CommandId command, com.microproject.pm.task.TaskModeService.Mode mode) {
