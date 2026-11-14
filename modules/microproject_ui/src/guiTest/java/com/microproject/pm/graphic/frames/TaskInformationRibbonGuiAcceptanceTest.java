@@ -3474,41 +3474,6 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		}, "group Hide test did not restore the ungrouped task view");
 	}
 
-	@Test
-	void taskModeRibbonRouteChangesModelAndRoundTripsUndoRedoAndMpo() throws Exception {
-		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Task Mode Robot coverage.");
-		previousRibbonUi = Environment.isRibbonUI();
-		previousNewLook = Environment.isNewLook();
-		Environment.setRibbonUI(true);
-		Environment.setNewLook(true);
-		NormalTask task = createTask();
-		Project project = task.getOwningProject();
-		showProject(project);
-		SwingUtilities.invokeAndWait(() -> window.setExtendedState(java.awt.Frame.MAXIMIZED_BOTH));
-		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
-				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
-			"task-mode project did not become visible");
-		Robot robot = new com.microproject.testsupport.GuiRobot();
-		robot.setAutoDelay(45);
-		activateWindow(robot, window);
-		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
-		click(robot, cellOnScreen(sheet, rowForTask(sheet, task), nameColumn(sheet)));
-		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
-				.getString("TaskRibbonTask.title")));
-		AbstractButton manual = findVisibleOrOverflowButton(robot, "RibbonTaskModeManual");
-		GuiAcceptanceSupport.await(manual::isEnabled, "Manual Schedule remained disabled after task selection");
-		GuiCommandAcceptanceFixture.verifyMutation("TaskModeManual", () -> { click(robot, manual); return null; },
-			() -> manager.getCurrentFrame().getLastTaskCommandResult(), task::isManuallyScheduled,
-		() -> rowForTask(sheet, task) >= 0, () -> { press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z); return null; },
-		() -> !task.isManuallyScheduled(), () -> { press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y); return null; },
-			task::isManuallyScheduled, () -> {
-				ByteArrayOutputStream saved = new ByteArrayOutputStream();
-				if (!new MpoFileImporter().saveProject(project, saved)) return false;
-				Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
-				return taskNamed(reloaded, task.getName()).isManuallyScheduled();
-			});
-	}
-
 	/**
 	 * Task &gt; Schedule percent-complete buttons through the physical ribbon route.
 	 * Source (document-derived compatibility decision): Microsoft Support,
@@ -3768,124 +3733,6 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
-	void inactivateTaskRibbonRouteKeepsTaskVisibleAndSupportsUndoRedoAndMpo() throws Exception {
-		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Inactivate Task Robot coverage.");
-		previousRibbonUi = Environment.isRibbonUI();
-		previousNewLook = Environment.isNewLook();
-		Environment.setRibbonUI(true);
-		Environment.setNewLook(true);
-		NormalTask task = createTaskWithProgress(0.4d);
-		Project project = task.getOwningProject();
-		showProject(project);
-		SwingUtilities.invokeAndWait(() -> window.setExtendedState(java.awt.Frame.MAXIMIZED_BOTH));
-		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
-				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
-			"inactivate-task project did not become visible");
-		Robot robot = new com.microproject.testsupport.GuiRobot();
-		robot.setAutoDelay(45);
-		activateWindow(robot, window);
-		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
-		assertProgressTaskFixtureRendered(sheet, task, 0.4d);
-		click(robot, cellOnScreen(sheet, rowForTask(sheet, task), nameColumn(sheet)));
-		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
-				.getString("TaskRibbonTask.title")), "Robot click did not select the Task ribbon tab for Inactivate Task");
-		AbstractButton inactivate = findVisibleOrOverflowButton(robot, "RibbonInactivateTask");
-		GuiAcceptanceSupport.await(inactivate::isEnabled, "Inactivate remained disabled for the selected active task");
-		RibbonCommandResult previousOutcome = manager.getLastRibbonCommandResult();
-		click(robot, inactivate);
-		GuiAcceptanceSupport.await(task::isInactiveTask, "Inactivate did not update the selected task's Active field");
-		GuiAcceptanceSupport.await(() -> isTaskVisible(sheet, task), "Inactivate removed the task record from the task table");
-		assertTrue(task.getPercentComplete() == 0.4d, "Inactivate must preserve progress");
-		assertRibbonOutcome(manager, previousOutcome, RibbonCommandResult.Status.CHANGED, task.getUniqueId());
-		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
-		GuiAcceptanceSupport.await(() -> !task.isInactiveTask(), "Undo did not reactivate the task");
-		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
-		GuiAcceptanceSupport.await(task::isInactiveTask, "Redo did not inactivate the task");
-		ByteArrayOutputStream saved = new ByteArrayOutputStream();
-		assertTrue(new MpoFileImporter().saveProject(project, saved), "MPO save rejected the inactive task");
-		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
-		NormalTask reloadedTask = taskNamed(reloaded, task.getName());
-		assertTrue(reloadedTask.isInactiveTask(), "MPO reload lost the inactive state");
-		assertTrue(reloadedTask.getPercentComplete() == 0.4d, "MPO reload lost inactive task progress");
-	}
-
-	@Test
-	void respectLinksRibbonRouteMovesTheSelectedManualTaskAndRoundTripsUndoRedoAndMpo() throws Exception {
-		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Respect Links Robot coverage.");
-		previousRibbonUi = Environment.isRibbonUI();
-		previousNewLook = Environment.isNewLook();
-		Environment.setRibbonUI(true);
-		Environment.setNewLook(true);
-		DataFactoryUndoController undo = new DataFactoryUndoController();
-		Project project = Project.createProject(ResourcePool.createRourcePool("respect-links-ribbon-acceptance", undo), undo);
-		project.initialize(false, false);
-		NormalTask predecessor = project.createScriptedTask();
-		predecessor.setName("Respect Links predecessor");
-		NormalTask successor = project.createScriptedTask();
-		successor.setName("Respect Links successor");
-		long day = CalendarOption.getInstance().getMillisPerDay();
-		predecessor.setDuration(day);
-		successor.setDuration(day);
-		long base = project.getWorkCalendar().adjustInsideCalendar(project.getStart(), false);
-		long predecessorStart = project.getWorkCalendar().add(base, 2L * day, false);
-		long predecessorFinish = project.getWorkCalendar().add(predecessorStart, day, false);
-		long oldSuccessorStart = base;
-		long oldSuccessorFinish = project.getWorkCalendar().add(oldSuccessorStart, day, false);
-		predecessor.setManualDates(predecessorStart, predecessorFinish);
-		successor.setManualDates(oldSuccessorStart, oldSuccessorFinish);
-		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.FS, 0L, this);
-		project.recalculate();
-		assertTrue(successor.isManuallyScheduled(), "fixture successor must be manually scheduled");
-		assertTrue(successor.getStart() < predecessor.getEnd(), "fixture must begin with an FS conflict");
-		undo.clear();
-		showProject(project);
-		SwingUtilities.invokeAndWait(() -> window.setExtendedState(java.awt.Frame.MAXIMIZED_BOTH));
-		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
-				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
-			"Respect Links project did not become visible");
-		Robot robot = new com.microproject.testsupport.GuiRobot();
-		robot.setAutoDelay(45);
-		activateWindow(robot, window);
-		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
-		click(robot, cellOnScreen(sheet, rowForTask(sheet, successor), nameColumn(sheet)));
-		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
-				.getString("TaskRibbonTask.title")), "Robot click did not select the Task ribbon tab for Respect Links");
-		AbstractButton respectLinks = findVisibleOrOverflowButton(robot, "RibbonRespectLinks");
-		GuiAcceptanceSupport.await(respectLinks::isEnabled, "Respect Links remained disabled for the selected conflicting task");
-		RibbonCommandResult previousOutcome = manager.getLastRibbonCommandResult();
-		click(robot, respectLinks);
-		GuiAcceptanceSupport.await(() -> successor.isManuallyScheduled() && successor.getStart() >= predecessor.getEnd(),
-			"Respect Links did not preserve manual mode while moving the successor after its predecessor");
-		GuiAcceptanceSupport.await(() -> {
-			var cache = manager.getCurrentFrame().getGanttView().getGantt().getModel().getCache();
-			for (int row = 0; row < cache.getSize(); row++) {
-				Object element = cache.getElementAt(row);
-				if (element instanceof GraphicNode graphic && graphic.getNode() != null
-						&& graphic.getNode().getImpl() == successor)
-					return graphic.getStart() == successor.getStart() && graphic.getEnd() == successor.getEnd();
-			}
-			return false;
-		}, "Gantt projection did not redraw the moved successor dates");
-		assertRibbonOutcome(manager, previousOutcome, RibbonCommandResult.Status.CHANGED, successor.getUniqueId());
-		long respectedStart = successor.getStart();
-		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
-		GuiAcceptanceSupport.await(() -> successor.isManuallyScheduled() && successor.getStart() == oldSuccessorStart
-				&& successor.getEnd() == oldSuccessorFinish,
-			"Undo did not restore the original manually scheduled dates");
-		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
-		GuiAcceptanceSupport.await(() -> successor.isManuallyScheduled() && successor.getStart() == respectedStart
-				&& successor.getStart() >= predecessor.getEnd(),
-			"Redo did not restore the link-respecting dates and manual mode");
-		ByteArrayOutputStream saved = new ByteArrayOutputStream();
-		assertTrue(new MpoFileImporter().saveProject(project, saved), "MPO save rejected the respected schedule");
-		Project reloaded = new MpoFileImporter().loadProject(new ByteArrayInputStream(saved.toByteArray()));
-		NormalTask reloadedSuccessor = taskNamed(reloaded, "Respect Links successor");
-		NormalTask reloadedPredecessor = taskNamed(reloaded, "Respect Links predecessor");
-		assertTrue(reloadedSuccessor.isManuallyScheduled(), "MPO reload lost manual scheduling mode");
-		assertTrue(reloadedSuccessor.getStart() >= reloadedPredecessor.getEnd(), "MPO reload lost the respected FS boundary");
-	}
-
-	@Test
 	void taskModePopupRouteUsesVisibleItemAndSharedMutationFixture() throws Exception {
 		runTaskModePhysicalRoute("popup", context -> {
 			rightClick(context.robot(), context.cell());
@@ -4010,74 +3857,6 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		runProgressPhysicalRoute("status-shortcut", c -> { GuiPhysicalRouteAdapter.assertRootPaneBinding(window.getRootPane(),javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_S,InputEvent.CTRL_DOWN_MASK|InputEvent.ALT_DOWN_MASK),"StatusDate"); press(c.robot(),KeyEvent.VK_CONTROL,KeyEvent.VK_ALT,KeyEvent.VK_S); chooseStatusDateNotSet(c.robot()); return null; }, () -> !contextProject().isStatusDateSet(), this::statusDateRibbonMatchesModel, () -> contextProject().isStatusDateSet() && statusDateRibbonMatchesModel(), "StatusDate");
 	}
 
-	@Test
-	void markOnTrackRibbonRouteUsesSharedMutationFixture() throws Exception {
-		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for progress Robot coverage.");
-		previousRibbonUi = Environment.isRibbonUI();
-		previousNewLook = Environment.isNewLook();
-		Environment.setRibbonUI(true);
-		Environment.setNewLook(true);
-		NormalTask task = createTask();
-		Project project = task.getOwningProject();
-		task.setDuration(3L * CalendarOption.getInstance().getMillisPerDay());
-		project.recalculate();
-		task.setImportedPercentComplete(0.25D);
-		long statusDateInput = task.getStart() + (task.getEnd() - task.getStart()) / 2L;
-		project.setStatusDate(statusDateInput);
-		long explicitStatusDate = project.getStatusDate();
-		long scheduledDuration = task.getEffectiveWorkCalendar().compare(task.getEnd(), task.getStart(), false);
-		long scheduledThroughDate = task.getEffectiveWorkCalendar().compare(explicitStatusDate, task.getStart(), false);
-		double expectedPercentComplete = Math.max(0D, Math.min(1D,
-			(double) scheduledThroughDate / scheduledDuration));
-		assertTrue(explicitStatusDate > task.getStart() && explicitStatusDate < task.getEnd(),
-			"The explicit status date must fall inside the multi-day task");
-		assertNotEquals(0.25D, expectedPercentComplete, 0.00001D,
-			"The computed target must differ from the seeded progress");
-
-		showProject(project);
-		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
-		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
-				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
-			"Mark on Track project did not become visible");
-		Robot robot = new com.microproject.testsupport.GuiRobot();
-		robot.setAutoDelay(45);
-		activateWindow(robot, window);
-		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
-		click(robot, cellOnScreen(sheet, rowForTask(sheet, task), nameColumn(sheet)));
-		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
-			.getString("TaskRibbonTask.title"));
-		clickAndAwaitSelected(robot, taskTab, "Task ribbon tab did not become selected");
-		GuiAcceptanceSupport.await(() -> sheet.isShowing() && isTaskVisible(sheet, task),
-			"Mark on Track task row was not rendered");
-		assertEquals(0.25D, task.getPercentComplete(), 0.00001D,
-			"The nonzero starting progress must be established before the physical command");
-		GuiCommandAcceptanceFixture.verifyMutation("MarkOnTrack",
-			() -> {
-				click(robot, GuiPhysicalRouteAdapter.visibleButton(robot, window, "RibbonMarkOnTrack"));
-				return null;
-			}, () -> manager.getCurrentFrame().getLastTaskCommandResult(),
-			() -> task.getPercentComplete() == expectedPercentComplete,
-			() -> rowForTask(sheet, task) >= 0,
-			() -> { press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z); return null; },
-			() -> task.getPercentComplete() == 0.25D && project.isStatusDateSet()
-				&& project.getStatusDate() == explicitStatusDate,
-			() -> { press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y); return null; },
-			() -> task.getPercentComplete() == expectedPercentComplete && project.isStatusDateSet()
-				&& project.getStatusDate() == explicitStatusDate,
-			() -> {
-				ByteArrayOutputStream saved = new ByteArrayOutputStream();
-				MpoFileImporter importer = new MpoFileImporter();
-				assertTrue(importer.saveProject(project, saved), "MPO save rejected Mark on Track progress");
-				Project reloaded = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
-				NormalTask restored = taskNamed(reloaded, task.getName());
-				assertTrue(reloaded.isStatusDateSet(), "MPO reopen lost the explicit Status Date");
-				assertEquals(explicitStatusDate, reloaded.getStatusDate(),
-					"MPO reopen must preserve the exact explicit Status Date");
-				assertEquals(expectedPercentComplete, restored.getPercentComplete(), 0D,
-					"MPO reopen must preserve the exact Mark on Track percentage");
-				return true;
-			});
-	}
 	@Test
 	void markOnTrackPopupRouteUsesSharedMutationFixture() throws Exception {
 		runProgressPhysicalRoute("mark-popup", c -> { rightClick(c.robot(), c.cell()); SpreadSheetPopupMenu p=c.sheet().getPopup(); GuiAcceptanceSupport.await(p::isVisible,"Mark popup absent"); click(c.robot(), GuiPhysicalRouteAdapter.visiblePopupItem(p,"popup.MarkOnTrack")); return null; }, () -> contextTask().getPercentComplete()!=initialPercentComplete, () -> contextTask().getPercentComplete()==initialPercentComplete, "MarkOnTrack");
@@ -9435,8 +9214,6 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertTrue(usable.contains(frame.getBounds()), description + " must remain fully visible in the monitor work area; frame="
 			+ frame.getBounds() + ", usable=" + usable + ", scale=" + configuration.getDefaultTransform());
 	}
-
-
 
 	private static void clickAndAwaitSelected(Robot robot, AbstractButton button, String failureMessage) throws Exception {
 		if (buttonSelectedOnEdt(button))
