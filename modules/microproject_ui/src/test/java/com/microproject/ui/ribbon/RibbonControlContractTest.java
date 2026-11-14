@@ -67,7 +67,7 @@ class RibbonControlContractTest {
 		assertEquals(RibbonControlKind.TOGGLE_BUTTON, button(model, "RibbonFormatPainter").getControlKind());
 		assertEquals(RibbonControlKind.SPLIT_BUTTON, button(model, "RibbonChooseSort").getControlKind());
 		assertTrue(button(model, "RibbonCut").getItemIds().isEmpty());
-		assertNull(button(model, "RibbonCut").getKeyTip());
+		assertNull(button(model, "RibbonDelete").getKeyTip());
 	}
 
 	@Test

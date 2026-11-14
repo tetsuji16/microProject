@@ -37,10 +37,14 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Toolkit;
+import java.awt.KeyboardFocusManager;
+import java.awt.KeyEventDispatcher;
+import java.awt.Window;
 import java.awt.event.AWTEventListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -67,6 +71,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import javax.swing.JLayeredPane;
 import javax.swing.JRootPane;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JScrollPane;
@@ -193,6 +198,13 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		(popup, event) -> popup.show(event.getComponent(), event.getX(), event.getY());
 
 	private Supplier<RibbonDropDownSource> dropDownSource = () -> null;
+	private final RibbonKeyTipSession keyTipSession = new RibbonKeyTipSession(this::tabKeyTips, this::controlKeyTips,
+		this::keyTipsChanged);
+	private final RibbonKeyTipInput keyTipInput = new RibbonKeyTipInput(keyTipSession);
+	private final RibbonKeyTipOverlay keyTipOverlay = new RibbonKeyTipOverlay(keyTipSession::visibleTargets);
+	private final KeyEventDispatcher keyTipDispatcher = this::dispatchKeyTipEvent;
+	private final AWTEventListener keyTipMouseListener = this::cancelKeyTipsOnMouse;
+	private final java.beans.PropertyChangeListener keyTipWindowListener = event -> keyTipSession.cancel();
 
 	ModernRibbonPanel(SwingRibbonModel model, RibbonCommandSource commandSource, ResourceBundle[] bundles, Runnable helpAction) {
 		super(new BorderLayout());
@@ -400,6 +412,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	public void addNotify() {
 		super.addNotify();
 		installTabAccessKeys();
+		installKeyTips();
 		applyDisplayMode();
 		if (autoHideRevealed) startAutoHideDismissal();
 		updateResponsiveMode();
@@ -409,6 +422,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	public void removeNotify() {
 		stopAutoHideReveal();
 		applyDisplayMode();
+		uninstallKeyTips();
 		uninstallTabAccessKeys();
 		super.removeNotify();
 	}
@@ -768,6 +782,105 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			ownsAutoHideRevealShortcut = false;
 		}
 		shortcutRoot = null;
+	}
+
+	/** The Alt key sequence of this ribbon; exposed so tests can drive it without a window. */
+	RibbonKeyTipSession keyTipSession() {
+		return keyTipSession;
+	}
+
+	RibbonKeyTipInput keyTipInput() {
+		return keyTipInput;
+	}
+
+	private void installKeyTips() {
+		KeyboardFocusManager manager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+		manager.removeKeyEventDispatcher(keyTipDispatcher);
+		manager.addKeyEventDispatcher(keyTipDispatcher);
+		manager.removePropertyChangeListener("activeWindow", keyTipWindowListener);
+		manager.addPropertyChangeListener("activeWindow", keyTipWindowListener);
+		Toolkit.getDefaultToolkit().removeAWTEventListener(keyTipMouseListener);
+		Toolkit.getDefaultToolkit().addAWTEventListener(keyTipMouseListener, AWTEvent.MOUSE_EVENT_MASK);
+	}
+
+	private void uninstallKeyTips() {
+		keyTipSession.cancel();
+		KeyboardFocusManager manager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+		manager.removeKeyEventDispatcher(keyTipDispatcher);
+		manager.removePropertyChangeListener("activeWindow", keyTipWindowListener);
+		Toolkit.getDefaultToolkit().removeAWTEventListener(keyTipMouseListener);
+	}
+
+	private boolean dispatchKeyTipEvent(KeyEvent event) {
+		Window window = SwingUtilities.getWindowAncestor(this);
+		if (window == null || !(event.getSource() instanceof Component source)) return false;
+		Window sourceWindow = source instanceof Window own ? own : SwingUtilities.getWindowAncestor(source);
+		if (sourceWindow != window) return false;
+		if (keyTipInput.dispatch(event.getID(), event.getKeyCode())) {
+			event.consume();
+			return true;
+		}
+		return false;
+	}
+
+	private void cancelKeyTipsOnMouse(AWTEvent event) {
+		if (event.getID() == MouseEvent.MOUSE_PRESSED && keyTipSession.isActive()) {
+			keyTipSession.cancel();
+		}
+	}
+
+	/** The tab KeyTips are the tab access keys of the visible tabs. */
+	private Map<String, RibbonKeyTipSession.Target> tabKeyTips() {
+		Map<String, RibbonKeyTipSession.Target> tips = new LinkedHashMap<>();
+		for (SwingRibbonModel.RibbonTab tab : model.getTabs()) {
+			String accessKey = tab.getAccessKey();
+			JToggleButton button = tabButtons.get(tab.getId());
+			if (accessKey == null || accessKey.isBlank() || button == null || !isTabVisible(tab.getId())) continue;
+			tips.putIfAbsent(accessKey.trim(), new RibbonKeyTipSession.Target(tab.getId(), button, () -> showTab(tab.getId())));
+		}
+		return tips;
+	}
+
+	/** The KeyTips of the controls the selected tab shows: the ones that are visible and enabled. */
+	private Map<String, RibbonKeyTipSession.Target> controlKeyTips(String tabId) {
+		Map<String, RibbonKeyTipSession.Target> tips = new LinkedHashMap<>();
+		JPanel body = tabBodies.get(tabId);
+		if (body == null || !tabId.equals(activeTabId)) return tips;
+		List<AbstractButton> buttons = new ArrayList<>();
+		collectButtons(body, buttons);
+		for (AbstractButton button : buttons) {
+			if (!(button.getClientProperty(RibbonControlPopups.KEY_TIP_PROPERTY) instanceof String tip)
+				|| !button.isEnabled() || !isVisibleWithin(button, body)) continue;
+			tips.putIfAbsent(tip, new RibbonKeyTipSession.Target(button.getName() == null ? tip : button.getName(),
+				button, () -> button.doClick(0)));
+		}
+		return tips;
+	}
+
+	private static boolean isVisibleWithin(Component component, Component root) {
+		for (Component current = component; current != null; current = current.getParent()) {
+			if (!current.isVisible()) return false;
+			if (current == root) return true;
+		}
+		return false;
+	}
+
+	private void keyTipsChanged() {
+		JRootPane root = SwingUtilities.getRootPane(this);
+		if (root == null) return;
+		JLayeredPane layers = root.getLayeredPane();
+		if (!keyTipSession.isActive()) {
+			if (keyTipOverlay.getParent() != null) {
+				layers.remove(keyTipOverlay);
+				layers.repaint();
+			}
+			return;
+		}
+		if (keyTipOverlay.getParent() != layers) {
+			layers.add(keyTipOverlay, JLayeredPane.POPUP_LAYER);
+		}
+		keyTipOverlay.setBounds(0, 0, layers.getWidth(), layers.getHeight());
+		keyTipOverlay.repaint();
 	}
 
 	private static String accessActionId(String tabId) { return "microproject.ribbon.select." + tabId; }

@@ -162,8 +162,31 @@ public final class SwingRibbonFactory {
 		for (String bandId : bandIds) {
 			bands.add(createBand(bandId, customBandsGenerator));
 		}
+		rejectDuplicateKeyTips(tabId, bands);
 		return new SwingRibbonModel.RibbonTab(tabId, resolveString(tabId + ".title"), bands,
 			Boolean.parseBoolean(resolveStringOrNull(tabId + ".contextual")), resolveStringOrNull(tabId + ".accessKey"));
+	}
+
+	/** A KeyTip names one control of a tab; two controls of the same tab must not share it or be a prefix of each other. */
+	private static void rejectDuplicateKeyTips(String tabId, List<SwingRibbonModel.RibbonBand> bands) {
+		java.util.Map<String, String> owners = new java.util.HashMap<>();
+		for (SwingRibbonModel.RibbonBand band : bands) {
+			for (SwingRibbonModel.RibbonButton button : band.getButtons()) {
+				String keyTip = button.getKeyTip();
+				if (keyTip == null) {
+					continue;
+				}
+				String tip = keyTip.toUpperCase(java.util.Locale.ROOT);
+				for (java.util.Map.Entry<String, String> owner : owners.entrySet()) {
+					boolean clash = owner.getKey().startsWith(tip) || tip.startsWith(owner.getKey());
+					if (clash && !owner.getValue().equals(button.getId())) {
+						throw new IllegalStateException("Duplicate KeyTip " + keyTip + " in tab " + tabId + ": "
+							+ owner.getValue() + " and " + button.getId());
+					}
+				}
+				owners.put(tip, button.getId());
+			}
+		}
 	}
 
 	private SwingRibbonModel.RibbonBand createBand(String bandId, CustomRibbonBandGenerator customBandsGenerator) {
