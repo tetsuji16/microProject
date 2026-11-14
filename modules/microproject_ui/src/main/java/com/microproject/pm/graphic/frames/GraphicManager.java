@@ -1950,7 +1950,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_TOGGLE_CRITICAL_CHAIN, new ToggleCriticalChainAction());
 		actionsMap.addHandler(ACTION_DELEGATE_TASKS, new DelegateTasksAction());
 		actionsMap.addHandler(ACTION_TIMELINE, new TimelineAction());
-		actionsMap.addHandler(ACTION_CALENDAR_VIEW, new CalendarViewAction());
+		actionsMap.addHandler(ACTION_CALENDAR_VIEW, new ViewAction(ACTION_CALENDAR_VIEW));
 		actionsMap.addHandler(ACTION_CUSTOM_REPORT, new CustomReportAction());
 		actionsMap.addHandler(ACTION_UPDATE_TASKS, new UpdateTasksAction());
 		actionsMap.addHandler(ACTION_UPDATE_PROJECT, new UpdateProjectAction());
@@ -5434,13 +5434,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		public void actionPerformed(ActionEvent event) {
 			setMeAsLastGraphicManager();
 			if (isDocumentActive()) getCurrentFrame().toggleTimelineView();
-		}
-	}
-	public class CalendarViewAction extends MenuActionsMap.DocumentMenuAction {
-		private static final long serialVersionUID = 1L;
-		public void actionPerformed(ActionEvent event) {
-			setMeAsLastGraphicManager();
-			if (isDocumentActive()) getCurrentFrame().doCalendarViewDialog();
 		}
 	}
 	public class CustomReportAction extends MenuActionsMap.DocumentMenuAction {

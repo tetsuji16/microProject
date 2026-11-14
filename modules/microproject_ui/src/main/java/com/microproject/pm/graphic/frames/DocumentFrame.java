@@ -176,6 +176,7 @@ public class DocumentFrame extends NamedFrame implements
 	protected UsageDetailView taskUsageView;
 	protected UsageDetailView resourceUsageView;
 	protected DockableProjectToolView timelineView;
+	protected DockableProjectToolView calendarView;
 	protected DockableProjectToolView teamPlannerView;
 	protected ReportView reportView;
 	// Column selection belongs to this document frame.  Keeping it static leaks
@@ -1921,6 +1922,15 @@ public class DocumentFrame extends NamedFrame implements
 		return timelineView;
 	}
 
+	public DockableProjectToolView getCalendarView() {
+		if (calendarView == null) {
+			calendarView = new DockableProjectToolView(project, ACTION_CALENDAR_VIEW,
+				CalendarViewDialogBox.createEmbeddedPanel(getGraphicManager().getFrame(), project));
+			restoreWorkspaceFor(calendarView);
+		}
+		return calendarView;
+	}
+
 	public DockableProjectToolView getTeamPlannerView() {
 		if (teamPlannerView == null) {
 			teamPlannerView = new DockableProjectToolView(project, ACTION_DELEGATE_TASKS,
@@ -1994,6 +2004,8 @@ public class DocumentFrame extends NamedFrame implements
 			topView = getProjectView();
 		else if (viewName.equals(ACTION_TIMELINE))
 			topView = getTimelineView();
+		else if (viewName.equals(ACTION_CALENDAR_VIEW))
+			topView = getCalendarView();
 		else if (viewName.equals(ACTION_DELEGATE_TASKS))
 			topView = getTeamPlannerView();
 		else if (viewName.equals(ACTION_HISTOGRAM))
@@ -2732,6 +2744,7 @@ public class DocumentFrame extends NamedFrame implements
 		taskUsageView = null;
 		resourceUsageView = null;
 		timelineView = null;
+		calendarView = null;
 		teamPlannerView = null;
 		reportView = null;
 		activeTopView = null;
@@ -2755,6 +2768,7 @@ public class DocumentFrame extends NamedFrame implements
 			resourceUsageView,
 			reportView,
 			timelineView,
+			calendarView,
 			teamPlannerView
 		};
 		ArrayUtils.forAllDo(views,c);
@@ -2831,6 +2845,7 @@ public class DocumentFrame extends NamedFrame implements
 		ws.saveViewWorkspace(ACTION_RESOURCE_USAGE,resourceUsageView);
 		ws.saveViewWorkspace(ACTION_REPORT,reportView);
 		ws.saveViewWorkspace(ACTION_TIMELINE,timelineView);
+		ws.saveViewWorkspace(ACTION_CALENDAR_VIEW,calendarView);
 		ws.saveViewWorkspace(ACTION_DELEGATE_TASKS,teamPlannerView);
 		return ws;
 	}

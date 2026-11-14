@@ -73,8 +73,7 @@ class MspRibbonActivationDiffTest {
 	 * regression pass.
 	 */
 	private static final Map<String, RibbonActivation> KNOWN_ACTIVATION_GAPS = Map.ofEntries(
-		Map.entry("RibbonChooseSort", RibbonActivation.DIALOG),
-		Map.entry("RibbonCalendarView", RibbonActivation.DIALOG));
+		Map.entry("RibbonChooseSort", RibbonActivation.DIALOG));
 
 	private record SpecRow(String ribbonId, RibbonControlKind mspKind, RibbonActivation mspActivation, String evidence) {
 	}

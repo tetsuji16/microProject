@@ -39,6 +39,30 @@ class ViewPaneToggleSyncTest {
 	}
 
 	@Test
+	void calendarViewIsAnExclusiveTopViewLikeGantt() throws Exception {
+		try (HeadlessDocumentFixture fx = new HeadlessDocumentFixture("First")) {
+			// The real calendar panel needs a window owner, which a headless run cannot create.
+			HeadlessDocumentFixture.onEdt(() -> fx.frame.calendarView = new com.microproject.pm.graphic.views.DockableProjectToolView(
+				fx.project, MenuActionConstants.ACTION_CALENDAR_VIEW, new javax.swing.JPanel()));
+			assertEquals(true, pressed(fx, MenuActionConstants.ACTION_GANTT));
+			assertEquals(false, pressed(fx, MenuActionConstants.ACTION_CALENDAR_VIEW));
+
+			HeadlessDocumentFixture.onEdt(() -> fx.frame.activateView(MenuActionConstants.ACTION_CALENDAR_VIEW));
+			assertEquals(true, pressed(fx, MenuActionConstants.ACTION_CALENDAR_VIEW));
+			assertEquals(false, pressed(fx, MenuActionConstants.ACTION_GANTT));
+			assertEquals(MenuActionConstants.ACTION_CALENDAR_VIEW, fx.frame.getTopViewId());
+
+			// Selecting the view that is already shown keeps it shown.
+			HeadlessDocumentFixture.onEdt(() -> fx.frame.activateView(MenuActionConstants.ACTION_CALENDAR_VIEW));
+			assertEquals(true, pressed(fx, MenuActionConstants.ACTION_CALENDAR_VIEW));
+
+			HeadlessDocumentFixture.onEdt(() -> fx.frame.activateView(MenuActionConstants.ACTION_GANTT));
+			assertEquals(false, pressed(fx, MenuActionConstants.ACTION_CALENDAR_VIEW));
+			assertEquals(true, pressed(fx, MenuActionConstants.ACTION_GANTT));
+		}
+	}
+
+	@Test
 	void detailsCheckBoxFollowsTheBottomPane() throws Exception {
 		try (HeadlessDocumentFixture fx = new HeadlessDocumentFixture("First")) {
 			assertEquals(false, pressed(fx, MenuActionConstants.ACTION_DETAILS));

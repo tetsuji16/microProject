@@ -249,6 +249,46 @@ class RibbonControlContractTest {
 	}
 
 	@Test
+	void viewSwitchButtonsAreToggleSplitButtonsListingTheirFamilyOfViews() {
+		SwingRibbonModel model = model(Map.of());
+		List<String> taskViews = List.of("RibbonGantt", "RibbonTrackingGantt", "RibbonCalendarView", "RibbonNetwork",
+			"RibbonWBS", "RibbonTaskUsageDetail");
+		List<String> resourceViews = List.of("RibbonResources", "RibbonRBS", "RibbonResourceUsageDetail");
+		Map<String, List<String>> expected = Map.of(
+			"RibbonGantt", taskViews, "RibbonNetwork", taskViews, "RibbonCalendarView", taskViews,
+			"RibbonTaskUsageDetail", taskViews, "RibbonResources", resourceViews,
+			"RibbonResourceUsageDetail", resourceViews);
+		expected.forEach((id, items) -> {
+			SwingRibbonModel.RibbonButton button = button(model, id);
+			assertEquals(RibbonControlKind.SPLIT_BUTTON, button.getControlKind(), id);
+			assertTrue(button.isToggle(), id);
+			assertEquals(RibbonActivation.EXCLUSIVE_VIEW, button.getActivation(), id);
+			assertEquals(items, button.getItemIds(), id);
+		});
+	}
+
+	@Test
+	void splitToggleKeepsItsPressedStateWhenTheArrowIsUsed() {
+		AtomicInteger invoked = new AtomicInteger();
+		javax.swing.JToggleButton button = new javax.swing.JToggleButton(new AbstractAction("Gantt") {
+			@Override
+			public void actionPerformed(ActionEvent event) {
+				invoked.incrementAndGet();
+			}
+		});
+		RibbonControlPopups.install(button, specification(RibbonControlKind.SPLIT_BUTTON), commandSource(), key -> null);
+		JButton arrow = assertInstanceOf(JButton.class, button.getClientProperty(RibbonControlPopups.ARROW_BUTTON_PROPERTY));
+
+		arrow.doClick(0);
+		assertFalse(button.isSelected());
+		assertEquals(0, invoked.get());
+
+		// The body keeps the toggle behavior; the application then resets the state from the model.
+		button.doClick(0);
+		assertEquals(1, invoked.get());
+	}
+
+	@Test
 	void menuOnlyOpensItsPopup() {
 		AtomicInteger invoked = new AtomicInteger();
 		JButton button = countingButton(invoked);
