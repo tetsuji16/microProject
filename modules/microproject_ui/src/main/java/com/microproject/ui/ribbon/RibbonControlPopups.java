@@ -81,6 +81,16 @@ final class RibbonControlPopups {
 	static final String REFRESH_PROPERTY = "MicroProject.ribbon.dropDownRefresh";
 	/** Client property holding the current value shown by a drop-down, or absent when there is none. */
 	static final String DROP_DOWN_VALUE_PROPERTY = "MicroProject.ribbon.dropDownValue";
+	/**
+	 * Client property of the popup holding the {@link Runnable} that re-reads its
+	 * dynamic entries (see {@link #DYNAMIC_ENTRY_COMMANDS}); absent for fixed popups.
+	 */
+	static final String ENTRIES_REFRESH_PROPERTY = "MicroProject.ribbon.popupEntriesRefresh";
+	/**
+	 * Commands whose popup lists entries produced just before it opens, by
+	 * {@link RibbonDropDownSource#popupEntries}, instead of fixed {@code <id>.items}.
+	 */
+	static final java.util.Set<String> DYNAMIC_ENTRY_COMMANDS = java.util.Set.of("RibbonTopBarUndo", "RibbonTopBarRedo");
 	static final String POPUP_NAME_PREFIX = "microproject.ribbon.controlMenu.";
 	static final String ARROW_BUTTON_NAME_PREFIX = "microproject.ribbon.controlMenuButton.";
 	private static final String SPLIT_PROPERTY = "MicroProject.ribbonSplit";
@@ -129,7 +139,8 @@ final class RibbonControlPopups {
 			button.putClientProperty(KEY_TIP_PROPERTY, specification.getKeyTip());
 		}
 		boolean dropDown = kind == RibbonControlKind.DROP_DOWN;
-		if (!kind.hasPopup() || (specification.getItemIds().isEmpty() && !dropDown)) {
+		boolean dynamic = DYNAMIC_ENTRY_COMMANDS.contains(specification.getId());
+		if (!kind.hasPopup() || (specification.getItemIds().isEmpty() && !dropDown && !dynamic)) {
 			return;
 		}
 		JPopupMenu popup = createPopup(specification, commandSource, text);
@@ -137,6 +148,9 @@ final class RibbonControlPopups {
 		trackPopupOpen(button, popup);
 		if (dropDown) {
 			installDropDown(button, specification.getId(), popup, dropDownSource);
+		}
+		if (dynamic) {
+			installDynamicEntries(popup, specification.getId(), dropDownSource);
 		}
 		button.putClientProperty(SPLIT_PROPERTY, Boolean.TRUE);
 		if (kind.invokesOnClick()) {
@@ -203,6 +217,54 @@ final class RibbonControlPopups {
 			}
 		});
 		refresh.run();
+	}
+
+	/**
+	 * Lists the {@link RibbonDropDownSource#popupEntries entries} of the source in the
+	 * popup each time it is about to open, so they follow the active document.
+	 */
+	private static void installDynamicEntries(JPopupMenu popup, String commandId,
+		Supplier<RibbonDropDownSource> sourceSupplier) {
+		Runnable refresh = () -> rebuildEntries(popup, commandId, sourceSupplier.get());
+		popup.putClientProperty(ENTRIES_REFRESH_PROPERTY, refresh);
+		popup.addPopupMenuListener(new PopupMenuListener() {
+			@Override
+			public void popupMenuWillBecomeVisible(PopupMenuEvent event) {
+				refresh.run();
+			}
+
+			@Override
+			public void popupMenuWillBecomeInvisible(PopupMenuEvent event) {
+			}
+
+			@Override
+			public void popupMenuCanceled(PopupMenuEvent event) {
+			}
+		});
+	}
+
+	private static void rebuildEntries(JPopupMenu popup, String commandId, RibbonDropDownSource source) {
+		popup.removeAll();
+		List<String> entries = source == null ? List.of() : new ArrayList<>(source.popupEntries(commandId));
+		for (int index = 0; index < entries.size(); index++) {
+			int entry = index;
+			JMenuItem item = new JMenuItem(entries.get(index));
+			item.setName(popup.getName() + ".entry." + index);
+			item.addActionListener(event -> source.selectPopupEntry(commandId, entry));
+			popup.add(item);
+		}
+	}
+
+	/**
+	 * Re-reads the dynamic entries of {@code popup} and reports whether it has anything
+	 * to show. Popups without dynamic entries always do.
+	 */
+	static boolean prepareForShow(JPopupMenu popup) {
+		if (popup.getClientProperty(ENTRIES_REFRESH_PROPERTY) instanceof Runnable refresh) {
+			refresh.run();
+			return popup.getComponentCount() > 0;
+		}
+		return true;
 	}
 
 	private static void rebuildChoices(JPopupMenu popup, String commandId, RibbonDropDownSource source, Runnable refresh) {
@@ -333,7 +395,7 @@ final class RibbonControlPopups {
 		arrow.setEnabled(button.isEnabled());
 		arrow.getAccessibleContext().setAccessibleName(button.getText() == null ? commandId : button.getText());
 		arrow.addActionListener(event -> {
-			if (arrow.isShowing() && button.isEnabled()) {
+			if (arrow.isShowing() && button.isEnabled() && prepareForShow(popup)) {
 				popup.show(button, 0, button.getHeight());
 			}
 		});

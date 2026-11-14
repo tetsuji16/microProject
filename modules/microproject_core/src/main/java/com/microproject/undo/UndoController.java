@@ -219,6 +219,31 @@ public class UndoController extends UndoManager implements EditListener{
 		}
 	}
 
+	/**
+	 * Names of the steps {@link #undo()} would undo, the next one first, at most
+	 * {@code max}. Insignificant edits are part of the step they belong to and are not listed.
+	 */
+	public synchronized List<String> getUndoNames(int max) {
+		List<String> names = new ArrayList<>();
+		for (int i = edits.size() - 1; i >= 0 && names.size() < max; i--) {
+			UndoableEdit edit = edits.get(i);
+			if (edit.canUndo() && edit.isSignificant()) names.add(edit.getPresentationName());
+		}
+		return names;
+	}
+
+	/**
+	 * Names of the steps {@link #redo()} would redo, the next one first, at most {@code max}.
+	 */
+	public synchronized List<String> getRedoNames(int max) {
+		List<String> names = new ArrayList<>();
+		for (int i = 0; i < edits.size() && names.size() < max; i++) {
+			UndoableEdit edit = edits.get(i);
+			if (!edit.canUndo() && edit.canRedo() && edit.isSignificant()) names.add(edit.getPresentationName());
+		}
+		return names;
+	}
+
     public String getRedoName() {
     	UndoableEdit edit=editToBeRedone();
     	if (edit!=null) return edit.getPresentationName();

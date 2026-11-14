@@ -814,10 +814,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	}
 
 	private void registerQuickAccessActions() {
-		for (String buttonId : model.getTaskBarButtons()) {
-			SwingRibbonModel.RibbonButton specification = new SwingRibbonModel.RibbonButton(
-				buttonId,
-				SwingRibbonModel.ButtonPriority.LOW);
+		for (SwingRibbonModel.RibbonButton specification : model.getTaskBarControls()) {
 			// Keep the registered proxy styled like a ribbon command so shared
 			// action-state tests and enablement propagation see the same contract.
 			buttonStyler.styleActionButton(createButton(specification, true), "small");

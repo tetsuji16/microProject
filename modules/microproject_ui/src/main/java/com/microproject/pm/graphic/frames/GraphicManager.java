@@ -3347,8 +3347,41 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().refreshRibbonDropDown(RIBBON_GROUP_ID);
 	}
 
-	/** Values and choices of the ribbon Filter and Group drop-downs: the transforms of the active top view. */
+	private static final String RIBBON_UNDO_ID = "RibbonTopBarUndo";
+	private static final String RIBBON_REDO_ID = "RibbonTopBarRedo";
+	private static final int HISTORY_LIST_SIZE = 20;
+
+	/** Values and choices of the ribbon Filter and Group drop-downs (the transforms of the active top view) and the undo/redo history lists. */
 	private final class TransformDropDownSource implements RibbonDropDownSource {
+		@Override
+		public List<String> popupEntries(String commandId) {
+			boolean undo = RIBBON_UNDO_ID.equals(commandId);
+			if (!undo && !RIBBON_REDO_ID.equals(commandId))
+				return List.of();
+			DocumentFrame frame = getCurrentFrame();
+			UndoController controller = frame == null || !isDocumentActive() ? null : frame.getUndoController();
+			if (controller == null)
+				return List.of();
+			List<String> names = undo ? controller.getUndoNames(HISTORY_LIST_SIZE) : controller.getRedoNames(HISTORY_LIST_SIZE);
+			List<String> entries = new ArrayList<>(names.size());
+			for (int index = 0; index < names.size(); index++) {
+				String name = names.get(index);
+				entries.add(name == null || name.isBlank() ? "#" + (index + 1) : name);
+			}
+			return entries;
+		}
+
+		/** Choosing entry {@code n} undoes or redoes the steps up to and including it. */
+		@Override
+		public void selectPopupEntry(String commandId, int index) {
+			boolean undo = RIBBON_UNDO_ID.equals(commandId);
+			if (index < 0 || (!undo && !RIBBON_REDO_ID.equals(commandId)))
+				return;
+			setMeAsLastGraphicManager();
+			for (int step = 0; step <= index; step++)
+				doUndoRedo(undo);
+		}
+
 		private TransformComboBoxModel model(String commandId) {
 			int type = RIBBON_FILTER_ID.equals(commandId) ? TransformComboBoxModel.FILTER
 					: RIBBON_GROUP_ID.equals(commandId) ? TransformComboBoxModel.GROUPER : 0;

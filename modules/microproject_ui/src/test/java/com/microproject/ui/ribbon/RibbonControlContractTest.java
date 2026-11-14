@@ -384,6 +384,63 @@ class RibbonControlContractTest {
 		assertFalse(RibbonControlPopups.isNativelyRendered(RibbonControlKind.GALLERY));
 	}
 
+	@Test
+	void undoAndRedoAreQuickAccessSplitButtons() {
+		SwingRibbonModel model = model(Map.of());
+		for (String id : List.of("RibbonTopBarUndo", "RibbonTopBarRedo")) {
+			SwingRibbonModel.RibbonButton control = model.getTaskBarControls().stream()
+				.filter(candidate -> candidate.getId().equals(id)).findFirst().orElseThrow();
+			assertEquals(RibbonControlKind.SPLIT_BUTTON, control.getControlKind(), id);
+		}
+		assertEquals(List.of("RibbonTopBarSaveProject", "RibbonTopBarUndo", "RibbonTopBarRedo"), model.getTaskBarButtons());
+		assertEquals(RibbonControlKind.BUTTON, model.getTaskBarControls().get(0).getControlKind());
+	}
+
+	@Test
+	void historySplitButtonListsDynamicEntriesAndRunsTheChosenOne() {
+		java.util.ArrayList<String> chosen = new java.util.ArrayList<>();
+		java.util.ArrayList<String> history = new java.util.ArrayList<>(List.of("Edit C", "Edit B", "Edit A"));
+		RibbonDropDownSource source = new RibbonDropDownSource() {
+			@Override
+			public String currentValue(String commandId) {
+				return null;
+			}
+
+			@Override
+			public List<String> choices(String commandId) {
+				return List.of();
+			}
+
+			@Override
+			public void select(String commandId, int index) {
+			}
+
+			@Override
+			public List<String> popupEntries(String commandId) {
+				return List.copyOf(history);
+			}
+
+			@Override
+			public void selectPopupEntry(String commandId, int index) {
+				chosen.add(commandId + ":" + index);
+			}
+		};
+		JButton button = countingButton(new AtomicInteger());
+		SwingRibbonModel.RibbonButton undo = new SwingRibbonModel.RibbonButton("RibbonTopBarUndo",
+			SwingRibbonModel.ButtonPriority.LOW).withControl(RibbonControlKind.SPLIT_BUTTON, List.of(), null);
+		RibbonControlPopups.install(button, undo, commandSource(), key -> null, () -> source);
+
+		JPopupMenu popup = assertInstanceOf(JPopupMenu.class, button.getClientProperty(RibbonControlPopups.POPUP_PROPERTY));
+		assertTrue(RibbonControlPopups.prepareForShow(popup));
+		assertEquals(3, popup.getComponentCount());
+		assertEquals("Edit B", assertInstanceOf(JMenuItem.class, popup.getComponent(1)).getText());
+		((JMenuItem) popup.getComponent(1)).doClick(0);
+		assertEquals(List.of("RibbonTopBarUndo:1"), chosen);
+
+		history.clear();
+		assertFalse(RibbonControlPopups.prepareForShow(popup));
+	}
+
 	private static SwingRibbonModel.RibbonButton specification(RibbonControlKind kind) {
 		return new SwingRibbonModel.RibbonButton("RibbonPaste", SwingRibbonModel.ButtonPriority.MEDIUM)
 			.withControl(kind, List.of("RibbonCopy", "-", "RibbonCut"), "V");

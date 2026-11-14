@@ -65,7 +65,12 @@ public final class SwingRibbonFactory {
 			tabs.add(createTab(tabId, customBandsGenerator));
 		}
 		List<String> taskBarButtons = resolveList(ribbonId + ".TaskBar");
-		SwingRibbonModel model = new SwingRibbonModel(ribbonId, tabs, taskBarButtons);
+		List<SwingRibbonModel.RibbonButton> taskBarControls = new ArrayList<>(taskBarButtons.size());
+		for (String buttonId : taskBarButtons) {
+			taskBarControls.add(applyActivation(applyControlContract(
+				new SwingRibbonModel.RibbonButton(buttonId, SwingRibbonModel.ButtonPriority.LOW))));
+		}
+		SwingRibbonModel model = new SwingRibbonModel(ribbonId, tabs, taskBarButtons).withTaskBarControls(taskBarControls);
 		RibbonCommandCatalog.validate(model, bundles);
 		return model;
 	}
@@ -110,6 +115,25 @@ public final class SwingRibbonFactory {
 		} else {
 			javax.swing.SwingUtilities.invokeLater(refresh);
 		}
+	}
+
+	/**
+	 * The popup of the split button or menu registered for {@code id}, or {@code null}
+	 * when the command has none. For the quick access bar, whose buttons are drawn by
+	 * the window chrome.
+	 */
+	public javax.swing.JPopupMenu getControlPopup(String id) {
+		for (JComponent control : commandSource.getCommandControls(id)) {
+			if (control.getClientProperty(RibbonControlPopups.POPUP_PROPERTY) instanceof javax.swing.JPopupMenu popup) {
+				return popup;
+			}
+		}
+		return null;
+	}
+
+	/** Re-reads the dynamic entries of {@code popup}; false when it then has nothing to show. */
+	public static boolean prepareControlPopup(javax.swing.JPopupMenu popup) {
+		return RibbonControlPopups.prepareForShow(popup);
 	}
 
 	public String getActionStringFromId(String id) {

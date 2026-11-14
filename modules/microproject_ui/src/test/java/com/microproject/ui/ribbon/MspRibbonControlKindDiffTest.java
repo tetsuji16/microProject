@@ -71,9 +71,7 @@ class MspRibbonControlKindDiffTest {
 	 * implements the documented kind; never add one to make a regression pass.
 	 */
 	private static final Map<String, RibbonControlKind> KNOWN_GAPS = Map.ofEntries(
-		Map.entry("RibbonChooseSort", RibbonControlKind.SPLIT_BUTTON),
-		Map.entry("RibbonTopBarUndo", RibbonControlKind.BUTTON),
-		Map.entry("RibbonTopBarRedo", RibbonControlKind.BUTTON));
+		Map.entry("RibbonChooseSort", RibbonControlKind.SPLIT_BUTTON));
 
 	private record SpecRow(String ribbonId, RibbonControlKind mspKind, String evidence) {
 	}
@@ -99,9 +97,9 @@ class MspRibbonControlKindDiffTest {
 				}
 			}
 		}
-		// The quick access bar is modelled as plain command ids, so its entries are buttons.
-		for (String id : model.getTaskBarButtons()) {
-			implemented.putIfAbsent(id, RibbonControlKind.BUTTON);
+		for (SwingRibbonModel.RibbonButton button : model.getTaskBarControls()) {
+			buttons.putIfAbsent(button.getId(), button);
+			implemented.putIfAbsent(button.getId(), button.getControlKind());
 		}
 	}
 
@@ -150,7 +148,8 @@ class MspRibbonControlKindDiffTest {
 		List<String> empty = new ArrayList<>();
 		for (SpecRow row : spec.values()) {
 			SwingRibbonModel.RibbonButton button = buttons.get(row.ribbonId());
-			if (button == null || KNOWN_GAPS.containsKey(row.ribbonId())) {
+			if (button == null || KNOWN_GAPS.containsKey(row.ribbonId())
+				|| RibbonControlPopups.DYNAMIC_ENTRY_COMMANDS.contains(row.ribbonId())) {
 				continue;
 			}
 			if (button.getControlKind().hasPopup() && button.getItemIds().isEmpty()) {

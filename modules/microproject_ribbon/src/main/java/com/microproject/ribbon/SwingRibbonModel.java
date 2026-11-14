@@ -350,11 +350,22 @@ public final class SwingRibbonModel {
 	private final String id;
 	private final List<RibbonTab> tabs;
 	private final List<String> taskBarButtons;
+	private final List<RibbonButton> taskBarControls;
 
 	public SwingRibbonModel(String id, List<RibbonTab> tabs, List<String> taskBarButtons) {
+		this(id, tabs, taskBarButtons.stream().map(buttonId -> new RibbonButton(buttonId, ButtonPriority.LOW)).toList(), null);
+	}
+
+	private SwingRibbonModel(String id, List<RibbonTab> tabs, List<RibbonButton> taskBarControls, Void marker) {
 		this.id = Objects.requireNonNull(id);
 		this.tabs = List.copyOf(tabs);
-		this.taskBarButtons = List.copyOf(taskBarButtons);
+		this.taskBarControls = List.copyOf(taskBarControls);
+		this.taskBarButtons = this.taskBarControls.stream().map(RibbonButton::getId).toList();
+	}
+
+	/** @param controls the quick access commands with their control contract, in display order */
+	public SwingRibbonModel withTaskBarControls(List<RibbonButton> controls) {
+		return new SwingRibbonModel(id, tabs, controls, null);
 	}
 
 	public String getId() {
@@ -367,5 +378,10 @@ public final class SwingRibbonModel {
 
 	public List<String> getTaskBarButtons() {
 		return Collections.unmodifiableList(taskBarButtons);
+	}
+
+	/** The quick access commands as controls, carrying the kind, popup items and key tip of each. */
+	public List<RibbonButton> getTaskBarControls() {
+		return Collections.unmodifiableList(taskBarControls);
 	}
 }

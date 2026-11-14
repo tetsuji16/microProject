@@ -42,4 +42,17 @@ public interface RibbonDropDownSource {
 
 	/** Applies the choice at {@code index} of the list last returned by {@link #choices}. */
 	void select(String commandId, int index);
+
+	/**
+	 * Display names of the entries a split button lists in its popup when it opens,
+	 * for example the undo history. The first entry is the one the button's own
+	 * command would act on. Empty when there is nothing to list.
+	 */
+	default List<String> popupEntries(String commandId) {
+		return List.of();
+	}
+
+	/** Runs the entry at {@code index} of the list last returned by {@link #popupEntries}. */
+	default void selectPopupEntry(String commandId, int index) {
+	}
 }
