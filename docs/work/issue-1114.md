@@ -21,6 +21,7 @@ Two files still had fixed colours.
 | A1 | Zone fills are read from the current theme at every paint | Pass: `CriticalChainBufferChartPanelThemeTest.zoneColoursFollowTheThemeAndKeepTheLabelsReadable` (light, dark, light again). |
 | A2 | Labels drawn on a zone keep a contrast of at least 4.5:1 in both themes | Pass: the same test. |
 | A3 | Light theme zone colours are unchanged | Pass: the light values are the previous constants. |
+| A4 | The outline of the selected observation keeps at least 3:1 against every zone in both themes (review finding) | Pass: `selectedObservationOutlineStandsOutFromEveryZoneInBothThemes`. The previous fixed orange gave about 1.7:1 on the dark amber zone and about 2.4:1 on the light red zone, so both themes now use their own outline colour. |
 
 ## Verification
 

@@ -66,6 +66,24 @@ class CriticalChainBufferChartPanelThemeTest {
 		});
 	}
 
+	@Test
+	void selectedObservationOutlineStandsOutFromEveryZoneInBothThemes() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			for (boolean dark : new boolean[] { false, true }) {
+				if (dark)
+					MicroProjectTheme.installDark();
+				else
+					MicroProjectTheme.installLight();
+				double outline = ColorLuminance.relativeLuminance(CriticalChainBufferChartPanel.selectionColor());
+				for (Zone zone : Zone.values()) {
+					double fill = ColorLuminance.relativeLuminance(CriticalChainBufferChartPanel.zoneColor(zone));
+					double contrast = (Math.max(outline, fill) + 0.05) / (Math.min(outline, fill) + 0.05);
+					assertTrue(contrast >= 3.0, (dark ? "dark " : "light ") + zone + " outline contrast " + contrast);
+				}
+			}
+		});
+	}
+
 	private static Color[] zoneColours() {
 		Color[] colours = new Color[Zone.values().length];
 		for (Zone zone : Zone.values())

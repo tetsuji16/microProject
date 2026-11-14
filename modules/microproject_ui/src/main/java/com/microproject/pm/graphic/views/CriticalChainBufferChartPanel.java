@@ -243,7 +243,7 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 			g.setColor(isDark() ? MicroProjectTheme.tokens().accentColor() : new Color(20, 75, 145));
 			g.fillOval(x - 5, y - 5, 10, 10);
 			if (point.observationId().equals(selectedObservationId)) {
-				g.setColor(new Color(210, 80, 30));
+				g.setColor(selectionColor());
 				g.setStroke(new BasicStroke(2f));
 				g.drawOval(x - 8, y - 8, 16, 16);
 			}
@@ -340,6 +340,11 @@ public final class CriticalChainBufferChartPanel extends JPanel {
 
 	static Color textColor() {
 		return isDark() ? MicroProjectTheme.tokens().labelForeground() : Color.DARK_GRAY;
+	}
+
+	/** Outline of the selected observation; it must stand out from every zone fill of the current theme. */
+	static Color selectionColor() {
+		return isDark() ? new Color(255, 170, 90) : new Color(160, 50, 10);
 	}
 
 	/** Zone fill for the current theme; read at every paint so a theme switch needs no rebuild. */
