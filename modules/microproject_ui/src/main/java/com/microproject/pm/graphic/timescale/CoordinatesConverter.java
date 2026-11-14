@@ -366,9 +366,23 @@ public class CoordinatesConverter implements ScheduleEventListener, Serializable
        }
 	public void restoreWorkspace(WorkspaceSetting w, int context) {
 		Workspace ws = (Workspace) w;
+		int previousScaleIndex = timescaleManager.getCurrentScaleIndex();
+		long previousOrigin = origin;
+		long previousEnd = end;
 		timescaleManager.setCurrentScaleIndex(ws.currentScaleIndex);
 		origin = ws.origin;
 		end = ws.end;
+		// Views that already exist (a file opened into a visible frame) size and
+		// position themselves from time-scale notifications only.
+		int changeType = 0;
+		if (timescaleManager.getCurrentScaleIndex() != previousScaleIndex)
+			changeType |= TimeScaleEvent.SCALE_CHANGE;
+		if (origin != previousOrigin)
+			changeType |= TimeScaleEvent.ORIGIN_AND_END_CHANGE;
+		else if (end != previousEnd)
+			changeType |= TimeScaleEvent.END_ONLY_CHANGE;
+		if (changeType != 0)
+			fireTimeScaleChanged(this, changeType);
 	}
 	
 	public WorkspaceSetting createWorkspace(int context) {
