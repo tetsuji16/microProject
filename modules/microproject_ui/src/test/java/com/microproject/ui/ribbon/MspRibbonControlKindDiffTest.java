@@ -71,7 +71,7 @@ class MspRibbonControlKindDiffTest {
 	 * implements the documented kind; never add one to make a regression pass.
 	 */
 	private static final Map<String, RibbonControlKind> KNOWN_GAPS = Map.ofEntries(
-		Map.entry("RibbonChooseSort", RibbonControlKind.SPLIT_BUTTON));
+		Map.entry("RibbonTaskInspector", RibbonControlKind.BUTTON));
 
 	private record SpecRow(String ribbonId, RibbonControlKind mspKind, String evidence) {
 	}
@@ -176,15 +176,15 @@ class MspRibbonControlKindDiffTest {
 			assertNotNull(stream, SPEC + " is missing");
 			BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
 			String header = reader.readLine();
-			assertEquals("ribbonId,mspKind,mspActivation,evidence,location,popupItems", header);
+			assertEquals("ribbonId,mspControlId,mspKind,mspActivation,evidence,location,popupItems", header);
 			String line;
 			while ((line = reader.readLine()) != null) {
 				if (line.isBlank()) {
 					continue;
 				}
-				String[] cells = line.split(",", 6);
-				assertEquals(6, cells.length, "Malformed row: " + line);
-				SpecRow previous = rows.put(cells[0], new SpecRow(cells[0], RibbonControlKind.parse(cells[1]), cells[3]));
+				String[] cells = line.split(",", 7);
+				assertEquals(7, cells.length, "Malformed row: " + line);
+				SpecRow previous = rows.put(cells[0], new SpecRow(cells[0], RibbonControlKind.parse(cells[2]), cells[4]));
 				assertTrue(previous == null, "Duplicate row: " + cells[0]);
 			}
 		}

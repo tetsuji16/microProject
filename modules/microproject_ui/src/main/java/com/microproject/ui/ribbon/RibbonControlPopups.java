@@ -149,14 +149,16 @@ final class RibbonControlPopups {
 		if (specification.getKeyTip() != null) {
 			button.putClientProperty(KEY_TIP_PROPERTY, specification.getKeyTip());
 		}
-		boolean dropDown = kind == RibbonControlKind.DROP_DOWN;
+		// On a ribbon button a combo box shows its current value and lists its choices like a
+		// drop-down; the editable JComboBox form is only built by createInputControl.
+		boolean dropDown = kind == RibbonControlKind.DROP_DOWN || kind == RibbonControlKind.COMBO_BOX;
 		boolean dynamic = DYNAMIC_ENTRY_COMMANDS.contains(specification.getId());
 		if (!kind.hasPopup() || (specification.getItemIds().isEmpty() && !dropDown && !dynamic)) {
 			return;
 		}
-		JPopupMenu popup = kind == RibbonControlKind.GALLERY
-			? createGalleryPopup(button, specification, commandSource, text)
-			: createPopup(specification, commandSource, text);
+		// A gallery on a ribbon button lists commands that run their own actions (for example
+		// Sort), so it is built like a menu; createInputControl keeps the value-committing grid.
+		JPopupMenu popup = createPopup(specification, commandSource, text);
 		button.putClientProperty(POPUP_PROPERTY, popup);
 		trackPopupOpen(button, popup);
 		if (dropDown) {

@@ -5,9 +5,9 @@
 ## 規範ソース
 
 - [MS-CUSTOMUI] Custom UI XML Markup Specification（コントロール要素の定義と挙動）
-- Office Fluent UI Command Identifiers の Project 用一覧（`ProjectControls.xlsx`、コマンドごとの Control Type 列）
+- Office Fluent UI Command Identifiers の Project 用一覧（`ProjectControls.xlsx`、Microsoft 365 Current Channel 版。コマンドごとの Control Name と Control Type 列）: https://github.com/OfficeDev/office-fluent-ui-command-identifiers
 
-インストール済みの Microsoft Project は補助的な証拠であり、判定には必須ではありません。現時点の差分行は上記資料から導いた document-derived compatibility decision で、`ProjectControls.xlsx` との行単位の照合はまだ行っていません（下記 `evidence` 列を参照）。
+インストール済みの Microsoft Project は補助的な証拠であり、判定には必須ではありません。各行は `ProjectControls.xlsx` の Control Name（`mspControlId` 列）と Control Type を照合した結果を記録します。対応する Microsoft Project のコントロールが無い製品独自のコマンドは `mspControlId` を空にし、`BASELINE` のまま `popupItems` に `product-only` と記します（下記 `evidence` 列を参照）。
 
 ## コントロール種別
 
@@ -68,9 +68,10 @@ RibbonMarkOnTrack.keytip=U
 | 列 | 内容 |
 |---|---|
 | `ribbonId` | コマンド id |
+| `mspControlId` | `ProjectControls.xlsx` の Control Name。対応するコントロールが無い製品独自のコマンドは空 |
 | `mspKind` | Microsoft Project での種別 |
 | `mspActivation` | Microsoft Project で本体をクリックした結果（後述の「クリック時の挙動」） |
-| `evidence` | `BASELINE`: 現在の実装をそのまま記録した行（未照合）。`PENDING_VERIFY`: 資料から導いた差分で、行単位の照合待ち。`DOCUMENTED`: `ProjectControls.xlsx` と照合済み |
+| `evidence` | `BASELINE`: 現在の実装をそのまま記録した行（対応する Microsoft Project のコントロールが無い `product-only` の行、および種別の扱いが未決定の行）。`PENDING_VERIFY`: 資料から導いた差分で、行単位の照合待ち。`DOCUMENTED`: `mspControlId` が `ProjectControls.xlsx` の Control Type と一致、または表示切替ボタンのように `xlsx: gallery (split gallery)` と明記した既決の例外 |
 | `location` | `タブ/グループ` または `TaskBar` |
 | `popupItems` | 想定するポップアップの内容（説明文） |
 
@@ -78,16 +79,14 @@ RibbonMarkOnTrack.keytip=U
 
 ## 現時点の種別差分（1 件）
 
-| コマンド | 現在 | Microsoft Project | ポップアップの内容 |
-|---|---|---|---|
-| `RibbonChooseSort` | SPLIT_BUTTON | MENU | 開始日順 / 終了日順 / 優先度順 / コスト順 / ID 順 / 並べ替え。「並べ替え」ダイアログのコマンドが未実装 |
+`KNOWN_GAPS` は `RibbonTaskInspector`（現在 `BUTTON`、`ProjectControls.xlsx` の `InspectTasksMenu` は `splitButton`）のみです。並べ替えは `GALLERY`、フィルターとグループは `COMBO_BOX` として実装済みです。
+
+`ProjectControls.xlsx` と種別が食い違うが扱い未決定の行（`BASELINE` のまま、`popupItems` に `xlsx:` として記録）: `RibbonToggleProgressLine`（xlsx は `button`）、`RibbonRecentProjects` / `RibbonBackstageProjectInformation` / `RibbonPrint`（xlsx は Backstage の `tab`）、`RibbonPDF`（xlsx は `task`）。
 
 種別は契約どおりでも、次の点は未対応です。
 
-- KeyTip が未設定のコントロールがある（Help タブと文脈 Format タブのアクセス キー、Task / View タブの多くのコントロール）
-- 本番の `menuInternal.properties` には `GALLERY` / `COMBO_BOX` / `EDIT_BOX` を使うコマンドがまだ無い（描画とモデルは対応済み）
-- 「その他のフィルター / グループ」、形式を選択して貼り付け、図のコピー、空白行の挿入、置換、ジャンプはメニュー項目に無い（`.text` を持つコマンドが無い）
-- グループのダイアログ起動ツールは 3 グループだけ（タスクの表示 → カレンダー ビューの設定、タスクの追跡 → タスク情報、リソースのプロパティ → リソース情報）
+- KeyTip: Microsoft は Project のリボン KeyTip 一覧を公開していません（サポート ページ keyboard-shortcuts-for-project-7a4dc22b-ceb8-4a97-ac6f-6f9eaf36414a にも KeyTip の一覧はありません）。そのため設定済みの 4 件のみを維持し、残りは資料が無いことによる既知の未対応です
+- 本番の `menuInternal.properties` で `EDIT_BOX` を使うコマンドはまだ無い（描画とモデルは対応済み）
 
 ## クリック時の挙動（`RibbonActivation`）
 
@@ -128,13 +127,9 @@ RibbonMarkOnTrack.keytip=U
 
 CSV の `mspActivation` 列が Microsoft Project での挙動です。`MspRibbonActivationDiffTest` がモデルと比べ、差分は `KNOWN_ACTIVATION_GAPS` に「現在の挙動」と共に列挙します（`KNOWN_GAPS` と同じく減る方向のみ）。同テストは、契約の種別と挙動の組み合わせが成り立つことも検査します。
 
-### 現時点の挙動差分（1 件）
+### 現時点の挙動差分（0 件）
 
-資料から導いた判断（document-derived compatibility decision）で、行単位の照合待ち（`PENDING_VERIFY`）です。
-
-| コマンド | 現在 | Microsoft Project | 補足 |
-|---|---|---|---|
-| `RibbonChooseSort` | DIALOG | POPUP | クリックでメニューを開く。ダイアログはメニュー項目から開く |
+`KNOWN_ACTIVATION_GAPS` は空です。
 
 契約と一致していても、次の点は未確認または未対応です。
 

@@ -7,6 +7,7 @@ package com.microproject.pm.graphic.views;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microproject.testsupport.GuiJourney;
@@ -249,34 +250,13 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		// expose that existing Sort Order action from its split-menu affordance, without adding a
 		// second sort implementation. See https://support.microsoft.com/en-us/project/sort-tasks-resources-or-dates-in-project-desktop
 		AbstractButton sortButton = findShowingButtonByCommand(window, "RibbonChooseSort");
-		Point sortButtonLocation = sortButton.getLocationOnScreen();
-		robot.mouseMove(sortButtonLocation.x + sortButton.getWidth() - 8,
-			sortButtonLocation.y + sortButton.getHeight() / 2);
-		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		robot.waitForIdle();
-		JPopupMenu sortMenu = (JPopupMenu) sortButton.getClientProperty("MicroProject.ribbon.sortMenu");
-		GuiAcceptanceSupport.await(() -> sortMenu != null && sortMenu.isShowing(),
-			"the Sort split-button chevron did not open its menu");
-		JMenuItem sortOrderItem = findComponent(sortMenu, JMenuItem.class);
-		assertEquals(java.util.ResourceBundle.getBundle("com.microproject.menu.menu").getString("Sort.text"),
-			sortOrderItem.getText());
-		assertEquals("RibbonChooseSort", sortOrderItem.getActionCommand());
-		assertEquals(sortButton.getAction(), sortOrderItem.getAction(),
-			"the menu item and ribbon command must share the canonical action");
-		AbstractButton sortMenuButton = (AbstractButton) sortButton.getClientProperty("MicroProject.ribbon.sortMenuButton");
-		assertTrue(sortMenuButton.isFocusable(), "Sort menu arrow must be keyboard accessible");
-		assertEquals(java.util.ResourceBundle.getBundle("com.microproject.menu.menu")
-			.getString("SortMenu.accessibleName"), sortMenuButton.getAccessibleContext().getAccessibleName());
-		robot.keyPress(KeyEvent.VK_ESCAPE);
-		robot.keyRelease(KeyEvent.VK_ESCAPE);
-		robot.waitForIdle();
-		SwingUtilities.invokeAndWait(sortMenuButton::requestFocusInWindow);
-		robot.keyPress(KeyEvent.VK_SPACE);
-		robot.keyRelease(KeyEvent.VK_SPACE);
-		robot.waitForIdle();
-		GuiAcceptanceSupport.await(sortMenu::isShowing, "Space on the accessible Sort menu arrow did not open its menu");
-		click(robot, sortOrderItem);
+		click(robot, sortButton);
+		GuiAcceptanceSupport.await(() -> findShowingButtonByCommand("RibbonSortBy") != null,
+			"the Sort gallery did not open its popup with the Sort By item");
+		for (String quickSort : List.of("RibbonSortStartDate", "RibbonSortFinishDate", "RibbonSortPriority",
+			"RibbonSortCost", "RibbonSortId"))
+			assertNotNull(findShowingButtonByCommand(quickSort), "Sort gallery must list " + quickSort);
+		click(robot, findShowingButtonByCommand("RibbonSortBy"));
 		GuiAcceptanceSupport.await(() -> findDialogWith(ResourceSortOrderPanel.class) != null,
 			"Sort Order menu item did not use the existing resource sort dialog");
 		JDialog menuSortDialog = findDialogWith(ResourceSortOrderPanel.class);
@@ -310,7 +290,7 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			assertTrue(workspace.isSortAscending());
 		});
 
-		click(robot, findShowingButtonByCommand(window, "RibbonChooseSort"));
+		openSortBy(robot, window);
 		GuiAcceptanceSupport.await(() -> findDialogWith(ResourceSortOrderPanel.class) != null,
 			"Resource Sort Order dialog did not open from the View ribbon");
 		JDialog sortDialog = findDialogWith(ResourceSortOrderPanel.class);
@@ -321,7 +301,7 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			&& manager.getLastRibbonCommandResult().status() == RibbonCommandResult.Status.NO_CHANGE
 			&& "dialog-cancelled".equals(manager.getLastRibbonCommandResult().reason()),
 			"cancelling Sort Order did not publish a no-change outcome");
-		click(robot, findShowingButtonByCommand(window, "RibbonChooseSort"));
+		openSortBy(robot, window);
 		GuiAcceptanceSupport.await(() -> findDialogWith(ResourceSortOrderPanel.class) != null,
 			"Resource Sort Order dialog did not reopen after cancel");
 		sortDialog = findDialogWith(ResourceSortOrderPanel.class);
@@ -343,12 +323,12 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			.equals(List.of(emptyName, alpha, tiedAlpha, zulu)),
 			"Sort Order confirmation did not apply ascending Name order with empty/equal values");
 		assertEquals(RibbonCommandResult.Status.CHANGED, manager.getLastRibbonCommandResult().status());
-		assertEquals("RibbonChooseSort", manager.getLastRibbonCommandResult().commandId());
+		assertEquals("RibbonSortBy", manager.getLastRibbonCommandResult().commandId());
 		GuiAcceptanceSupport.await(() -> diagnostics.toString().lines().anyMatch(line ->
-			line.contains("UI_COMMAND id=RibbonChooseSort") && line.contains("viewChanged=true")),
+			line.contains("UI_COMMAND id=RibbonSortBy") && line.contains("viewChanged=true")),
 			"a view-only Resource Sort change must be observable through the active sheet projection");
 		assertFalse(diagnostics.toString().contains(
-			"UI_COMMAND_FAILURE id=RibbonChooseSort reason=reported-change-not-observed"),
+			"UI_COMMAND_FAILURE id=RibbonSortBy reason=reported-change-not-observed"),
 			"the successful view-only sort must not produce a false no-op diagnostic");
 		ResourceView.Workspace persistedWorkspace = (ResourceView.Workspace) resourceView.createWorkspace(0);
 		SwingUtilities.invokeAndWait(() -> {
@@ -369,7 +349,7 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		});
 		// Multi-key: Name ascending, then Standard Rate descending breaks the former Alpha tie.
 		SwingUtilities.invokeAndWait(() -> tiedAlpha.setStandardRate(new Rate(75)));
-		click(robot, findShowingButtonByCommand(window, "RibbonChooseSort"));
+		openSortBy(robot, window);
 		GuiAcceptanceSupport.await(() -> findDialogWith(ResourceSortOrderPanel.class) != null,
 			"Resource Sort Order dialog did not reopen for the multi-key step");
 		JDialog multiKeyDialog = findDialogWith(ResourceSortOrderPanel.class);
@@ -923,6 +903,22 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 		} catch (Exception exception) {
 			throw new AssertionError("Unable to locate showing button for semantic label: " + text, exception);
 		}
+	}
+
+	private static void openSortBy(Robot robot, Window window) throws Exception {
+		click(robot, findShowingButtonByCommand(window, "RibbonChooseSort"));
+		GuiAcceptanceSupport.await(() -> findShowingButtonByCommand("RibbonSortBy") != null,
+			"the Sort gallery did not open its popup with the Sort By item");
+		click(robot, findShowingButtonByCommand("RibbonSortBy"));
+	}
+
+	/** Finds a showing button or menu item in any window, including popup windows. */
+	private static AbstractButton findShowingButtonByCommand(String command) {
+		for (Window candidate : Window.getWindows()) {
+			AbstractButton found = findShowingButtonByCommand(candidate, command);
+			if (found != null) return found;
+		}
+		return null;
 	}
 
 	private static AbstractButton findShowingButtonByCommand(Component root, String command) {

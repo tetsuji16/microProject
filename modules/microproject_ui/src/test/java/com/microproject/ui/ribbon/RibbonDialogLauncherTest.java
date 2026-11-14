@@ -56,17 +56,19 @@ import com.microproject.ribbon.SwingRibbonModel;
 
 /** The group dialog launchers declared by {@code <band>.dialogLauncher}: data, validation and wiring. */
 class RibbonDialogLauncherTest {
-	private static final String CALENDAR_VIEW_SETTINGS = "CalendarViewSettings";
+	private static final String BAR_STYLES = "BarStylesAction";
 
 	@Test
-	void taskViewsResourcePropertiesAndScheduleGroupsDeclareTheirLaunchers() {
+	void onlyTheFormatGroupsDeclareLaunchers() {
 		SwingRibbonModel model = new SwingRibbonFactory(
 			new MenuRibbonCommandSource(new ExtToolBarFactory(recordingActionMap(new ArrayList<>()),
 				MenuDefinitionSupport.ribbonBundles(Locale.ROOT))),
 			MenuDefinitionSupport.ribbonBundles(Locale.ROOT)).createModel(MenuManager.STANDARD_RIBBON);
-		assertEquals("RibbonCalendarViewSettings", band(model, "ViewTaskRibbonBand").getDialogLauncherId());
-		assertEquals("RibbonTaskInformation", band(model, "TaskTrackingRibbonBand").getDialogLauncherId());
-		assertEquals("RibbonResourceInformation", band(model, "ResourcePropertiesRibbonBand").getDialogLauncherId());
+		assertEquals("RibbonBarStyles", band(model, "FormatBarRibbonBand").getDialogLauncherId());
+		assertEquals("RibbonLayout", band(model, "FormatLayoutRibbonBand").getDialogLauncherId());
+		assertNull(band(model, "ViewTaskRibbonBand").getDialogLauncherId());
+		assertNull(band(model, "TaskTrackingRibbonBand").getDialogLauncherId());
+		assertNull(band(model, "ResourcePropertiesRibbonBand").getDialogLauncherId());
 		assertNull(band(model, "ViewDataRibbonBand").getDialogLauncherId());
 	}
 
@@ -76,7 +78,7 @@ class RibbonDialogLauncherTest {
 	}
 
 	@Test
-	void theLauncherButtonOfTheViewTabRunsTheCalendarViewSettingsCommand() throws Exception {
+	void theLauncherButtonOfTheFormatTabRunsTheBarStylesCommand() throws Exception {
 		List<String> invoked = new ArrayList<>();
 		SwingUtilities.invokeAndWait(() -> {
 			ExtToolBarFactory buttons = new ExtToolBarFactory(recordingActionMap(invoked),
@@ -84,15 +86,17 @@ class RibbonDialogLauncherTest {
 			SwingRibbonFactory factory = new SwingRibbonFactory(new MenuRibbonCommandSource(buttons),
 				MenuDefinitionSupport.ribbonBundles(Locale.ROOT));
 			JPanel host = factory.createPanel(MenuManager.STANDARD_RIBBON, () -> { });
-			findByText(host, "View").doClick();
-			AbstractButton launcher = findByName(host, ModernRibbonPanel.DIALOG_LAUNCHER_NAME_PREFIX + "ViewTaskRibbonBand");
+			UiComponentWalker.flatten(host).stream().filter(ModernRibbonPanel.class::isInstance).map(ModernRibbonPanel.class::cast)
+				.findFirst().orElseThrow().setVisibleContextualTabs(List.of("FormatRibbonTask"));
+			findByText(host, "Format").doClick();
+			AbstractButton launcher = findByName(host, ModernRibbonPanel.DIALOG_LAUNCHER_NAME_PREFIX + "FormatBarRibbonBand");
 			assertNotNull(launcher.getAction(), "the launcher runs the command Action");
 			assertEquals(MenuDefinitionSupport.ribbonBundles(Locale.ROOT).length > 0, launcher.getToolTipText() != null);
 			assertNull(launcher.getText(), "the launcher is an icon only");
 			invoked.clear();
 			launcher.doClick(0);
 		});
-		assertEquals(List.of(CALENDAR_VIEW_SETTINGS), invoked);
+		assertEquals(List.of(BAR_STYLES), invoked);
 	}
 
 	private static AbstractButton findByName(JPanel root, String name) {

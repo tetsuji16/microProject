@@ -72,8 +72,7 @@ class MspRibbonActivationDiffTest {
 	 * change that implements the documented behavior; never add one to make a
 	 * regression pass.
 	 */
-	private static final Map<String, RibbonActivation> KNOWN_ACTIVATION_GAPS = Map.ofEntries(
-		Map.entry("RibbonChooseSort", RibbonActivation.DIALOG));
+	private static final Map<String, RibbonActivation> KNOWN_ACTIVATION_GAPS = Map.ofEntries();
 
 	private record SpecRow(String ribbonId, RibbonControlKind mspKind, RibbonActivation mspActivation, String evidence) {
 	}
@@ -168,16 +167,16 @@ class MspRibbonActivationDiffTest {
 		try (InputStream stream = MspRibbonActivationDiffTest.class.getResourceAsStream(SPEC)) {
 			assertNotNull(stream, SPEC + " is missing");
 			BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
-			assertEquals("ribbonId,mspKind,mspActivation,evidence,location,popupItems", reader.readLine());
+			assertEquals("ribbonId,mspControlId,mspKind,mspActivation,evidence,location,popupItems", reader.readLine());
 			String line;
 			while ((line = reader.readLine()) != null) {
 				if (line.isBlank()) {
 					continue;
 				}
-				String[] cells = line.split(",", 6);
-				assertEquals(6, cells.length, "Malformed row: " + line);
-				rows.put(cells[0], new SpecRow(cells[0], RibbonControlKind.parse(cells[1]),
-					RibbonActivation.parse(cells[2]), cells[3]));
+				String[] cells = line.split(",", 7);
+				assertEquals(7, cells.length, "Malformed row: " + line);
+				rows.put(cells[0], new SpecRow(cells[0], RibbonControlKind.parse(cells[2]),
+					RibbonActivation.parse(cells[3]), cells[4]));
 			}
 		}
 		return rows;

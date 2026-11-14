@@ -7502,7 +7502,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ViewRibbonTask.title"));
 		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab");
-		click(robot, findShowingButtonByCommand("RibbonChooseSort"));
+		openSortBy(robot);
 		JComboBox<?> sorterChoice = findShowingTransformCombo("Sorter.StartDate");
 		int dateSorterIndex = -1;
 		for (int index = 0; index < sorterChoice.getItemCount(); index++) {
@@ -7548,7 +7548,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				.equals(java.util.Set.of(rowForTask(sheet, tiedEarlier))),
 			"visible-row selection identity must follow the tied task after ascending Start Date sorting");
 
-		click(robot, findShowingButtonByCommand("RibbonChooseSort"));
+		openSortBy(robot);
 		JComboBox<?> descendingStartChoice = findShowingTransformCombo("Sorter.StartDate");
 		int descendingStartIndex = -1;
 		for (int index = 0; index < descendingStartChoice.getItemCount(); index++) {
@@ -7570,7 +7570,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		// Microsoft Project's Application.Sort documents Ascending1=False for a
 		// selected field (https://learn.microsoft.com/en-us/office/vba/api/project.application.sort).
 		// Exercise the documented direction through the same task-view route.
-		click(robot, findShowingButtonByCommand("RibbonChooseSort"));
+		openSortBy(robot);
 		JComboBox<?> finishSorterChoice = findShowingTransformCombo("Sorter.StartDate");
 		int finishSorterIndex = -1;
 		for (int index = 0; index < finishSorterChoice.getItemCount(); index++) {
@@ -7616,7 +7616,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 		// Microsoft Project's Sort dialog permits a secondary field with its own direction.
 		// Keep Outline off is view-only here; this product contract does not rewrite WBS.
-		click(robot, findShowingButtonByCommand("RibbonChooseSort"));
+		openSortBy(robot);
 		Dialog multiKeyChooser = (Dialog) java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
 		JComboBox<?> multiPrimary = findShowingTransformCombo("Sorter.FinishDate");
 		int startIndex = -1;
@@ -7680,7 +7680,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			assertEquals(sheetRow, ganttRow, "Gantt must paint the task at the same visible row as its table row");
 		}
 		List<Long> flatModeIds = List.of(later.getId(), earlier.getId(), tiedEarlier.getId(), emptyDate.getId());
-		click(robot, findShowingButtonByCommand("RibbonChooseSort"));
+		openSortBy(robot);
 		Dialog flatSortChooser = (Dialog) java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
 		JCheckBox flatPermanent = UiComponentWalker.flatten(flatSortChooser).stream()
 			.filter(JCheckBox.class::isInstance).map(JCheckBox.class::cast)
@@ -7720,7 +7720,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		List<Long> originalIds = List.of(later.getId(), earlier.getId(), tiedEarlier.getId(), emptyDate.getId());
 		boolean undoBeforeCancel = project.getUndoController().canUndo();
 		boolean dirtyBeforeCancel = project.needsSaving();
-		click(robot, findShowingButtonByCommand("RibbonChooseSort"));
+		openSortBy(robot);
 		Dialog permanentChooser = (Dialog) java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
 		JCheckBox permanentCheck = UiComponentWalker.flatten(permanentChooser).stream()
 			.filter(JCheckBox.class::isInstance).map(JCheckBox.class::cast)
@@ -7744,7 +7744,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertEquals(undoBeforeCancel, project.getUndoController().canUndo(), "confirmation cancel must not add an Undo edit");
 		assertEquals(dirtyBeforeCancel, project.needsSaving(), "confirmation cancel must not dirty the project");
 
-		click(robot, findShowingButtonByCommand("RibbonChooseSort"));
+		openSortBy(robot);
 		JComboBox<?> permanentSorterAgain = findShowingTransformCombo("Sorter.FinishDate");
 		int finishDateIndex = -1;
 		for (int index = 0; index < permanentSorterAgain.getItemCount(); index++) {
@@ -8612,6 +8612,22 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 	private static AbstractButton findShowingButtonByText(java.awt.Container container, String text) throws Exception {
 		return GuiAcceptanceSupport.findShowingButtonByText(container, text);
+	}
+
+	/** Opens the View > Sort gallery and picks its Sort By item, which opens the generic Sort dialog. */
+	private void openSortBy(Robot robot) throws Exception {
+		click(robot, findShowingButtonByCommand("RibbonChooseSort"));
+		GuiAcceptanceSupport.await(() -> showingButtonInAnyWindow("RibbonSortBy") != null,
+			"the Sort gallery did not open its popup with the Sort By item");
+		click(robot, showingButtonInAnyWindow("RibbonSortBy"));
+	}
+
+	private static AbstractButton showingButtonInAnyWindow(String command) {
+		for (java.awt.Window candidate : java.awt.Window.getWindows())
+			for (java.awt.Component component : UiComponentWalker.flatten(candidate))
+				if (component instanceof AbstractButton button && button.isShowing()
+					&& command.equals(button.getActionCommand())) return button;
+		return null;
 	}
 
 	private AbstractButton findShowingButtonByCommand(String command) throws Exception {
