@@ -76,6 +76,12 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 	SearchContext context;
 	JButton next;
 	JComboBox<String> direction;
+	/** Replace mode (Find and Replace); everything below is created lazily and null-guarded. */
+	boolean replaceMode;
+	JTextField replaceWith;
+	JLabel replaceLabel;
+	JButton replace;
+	JButton replaceAll;
 	public static FindDialog getInstance(DocumentFrame owner,Searchable searchable, Field current) {
 		return new FindDialog(owner,searchable,current);
 	}
@@ -108,6 +114,41 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 		bind(true);
 		updateFindButtonState();
 		search.requestFocus();
+	}
+
+	/** Switches between plain Find and Find and Replace; may be called before or after the dialog is built. */
+	public void setReplaceMode(boolean replaceMode) {
+		this.replaceMode = replaceMode;
+		setTitle(Messages.getString(replaceMode ? "FindDialog.Replace" : "FindDialog.Find")); //$NON-NLS-1$ //$NON-NLS-2$
+		if (replaceLabel != null)
+			replaceLabel.setVisible(replaceMode);
+		if (replaceWith != null)
+			replaceWith.setVisible(replaceMode);
+		if (replace != null)
+			replace.setVisible(replaceMode);
+		if (replaceAll != null)
+			replaceAll.setVisible(replaceMode);
+		updateFindButtonState();
+	}
+
+	public boolean isReplaceMode() {
+		return replaceMode;
+	}
+
+	/** Replaces the current match, then moves to the next one. */
+	void onReplace() {
+		bind(false);
+		context.setForward(true);
+		searchable.replace(context, replaceWith == null ? "" : replaceWith.getText(), false);
+		if (!searchable.findNext(context))
+			Alert.warn(Messages.getString("FindDialog.NoMatches")); //$NON-NLS-1$
+	}
+
+	void onReplaceAll() {
+		bind(false);
+		int count = searchable.replace(context, replaceWith == null ? "" : replaceWith.getText(), true);
+		Alert.warn(count == 0 ? Messages.getString("FindDialog.NoMatches") //$NON-NLS-1$
+			: Messages.getString("FindDialog.Replaced") + " " + count); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
 	public void onOk() {
@@ -148,7 +189,7 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 		// Separating the component initialization and configuration
 		// from the layout code makes both parts easier to read.
 		FormLayout layout = new FormLayout("default, 3dlu, default, 3dlu, default", // cols //$NON-NLS-1$
-				FlatUiSupport.preferredFormRows(7)); // rows //$NON-NLS-1$
+				FlatUiSupport.preferredFormRows(9)); // rows //$NON-NLS-1$
 
 
 
@@ -161,6 +202,15 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 
 
 		builder.append(Messages.getString("FindDialog.Find"),search); //$NON-NLS-1$
+		builder.nextLine(2);
+		if (replaceWith == null) {
+			replaceWith = new JTextField(30);
+			replaceWith.setName("findDialogReplaceWith");
+			replaceLabel = new JLabel(Messages.getString("FindDialog.ReplaceWith")); //$NON-NLS-1$
+		}
+		replaceLabel.setVisible(replaceMode);
+		replaceWith.setVisible(replaceMode);
+		builder.append(replaceLabel, replaceWith);
 		builder.nextLine(2);
 		builder.append(Messages.getString("Text.Field"),combo); //$NON-NLS-1$
 		builder.nextLine(2);
@@ -198,7 +248,19 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 		JButton close = new JButton(Messages.getString("ButtonText.Close"));
 		close.setName("findDialogClose");
 		FlatUiSupport.styleDialogButton(close, false);
+		replace = new JButton(Messages.getString("FindDialog.Replace")); //$NON-NLS-1$
+		replace.setName("findDialogReplace");
+		FlatUiSupport.styleDialogButton(replace, false);
+		replace.setVisible(replaceMode);
+		replace.addActionListener(e -> onReplace());
+		replaceAll = new JButton(Messages.getString("FindDialog.ReplaceAll")); //$NON-NLS-1$
+		replaceAll.setName("findDialogReplaceAll");
+		FlatUiSupport.styleDialogButton(replaceAll, false);
+		replaceAll.setVisible(replaceMode);
+		replaceAll.addActionListener(e -> onReplaceAll());
 		buttonPanel.add(next);
+		buttonPanel.add(replace);
+		buttonPanel.add(replaceAll);
 		buttonPanel.add(close);
 		updateFindButtonState();
 		next.addActionListener(new ActionListener() {
@@ -220,7 +282,12 @@ public final class FindDialog extends AbstractDialog implements ObjectEvent.List
 	private void updateFindButtonState() {
 		if (next == null)
 			return;
-		next.setEnabled(search.getText().length() != 0);
+		boolean hasQuery = search.getText().length() != 0;
+		next.setEnabled(hasQuery);
+		if (replace != null)
+			replace.setEnabled(hasQuery);
+		if (replaceAll != null)
+			replaceAll.setEnabled(hasQuery);
 
 	}
 	@Override

@@ -1482,14 +1482,26 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 
 	private JButton createDialogLauncher(SwingRibbonModel.RibbonBand band) {
 		String commandId = band.getDialogLauncherId();
-		JButton launcher = new JButton(commandSource.createAction(commandId));
+		String label = getStringOrNull(commandId + ".text");
+		String tip = label == null ? commandId : label;
+		// The command Action fires a ShortDescription change (null) once it is bound, which makes the button
+		// clear its tooltip; the launcher keeps its label-derived tip independent of the Action.
+		JButton launcher = new JButton(commandSource.createAction(commandId)) {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public String getToolTipText() {
+				String own = super.getToolTipText();
+				return own == null ? tip : own;
+			}
+		};
 		launcher.setHideActionText(true);
 		launcher.setText(null);
 		launcher.setIcon(new DialogLauncherIcon());
 		launcher.setName(DIALOG_LAUNCHER_NAME_PREFIX + band.getId());
-		String label = getStringOrNull(commandId + ".text");
-		launcher.setToolTipText(label == null ? commandId : label);
-		launcher.getAccessibleContext().setAccessibleName(label == null ? commandId : label);
+		launcher.setToolTipText(tip);
+		javax.swing.ToolTipManager.sharedInstance().registerComponent(launcher); // stays registered when the Action clears the tip
+		launcher.getAccessibleContext().setAccessibleName(tip);
 		launcher.setActionCommand(commandId);
 		launcher.setBorderPainted(false);
 		launcher.setContentAreaFilled(false);
@@ -1781,7 +1793,6 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			// The action already opens its chooser.  Painting the chevron in its own
 			// hit-area keeps the label clean and matches Office split-button geometry.
 			button.putClientProperty("MicroProject.ribbonSplit", Boolean.TRUE);
-			if ("RibbonChooseSort".equals(buttonId)) installSortOrderMenu(button);
 		}
 		RibbonControlPopups.install(button, specification, commandSource, this::getStringOrNull, () -> dropDownSource.get());
 		String description = getStringOrNull(buttonId + ".tooltip");
@@ -1799,48 +1810,6 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		}
 		button.getAccessibleContext().setAccessibleName(button.getText() == null ? buttonId : button.getText());
 		return button;
-	}
-
-	private void installSortOrderMenu(AbstractButton button) {
-		String menuText = getStringOrNull("Sort.text");
-		if (menuText == null || button.getAction() == null) return;
-		JPopupMenu popup = new JPopupMenu();
-		popup.setName("microproject.ribbon.sortMenu");
-		JMenuItem sortOrder = new JMenuItem(button.getAction());
-		sortOrder.setText(menuText);
-		sortOrder.setActionCommand(button.getActionCommand());
-		sortOrder.setName("microproject.ribbon.sortMenu.sortOrder");
-		popup.add(sortOrder);
-		button.getAccessibleContext().setAccessibleDescription(menuText);
-
-		JButton menuButton = new JButton();
-		menuButton.setName("microproject.ribbon.sortMenuButton");
-		menuButton.setToolTipText(menuText);
-		menuButton.setFocusable(true);
-		menuButton.setBorderPainted(false);
-		menuButton.setContentAreaFilled(false);
-		menuButton.setOpaque(false);
-		menuButton.setEnabled(button.isEnabled());
-		menuButton.getAccessibleContext().setAccessibleName(getStringOrNull("SortMenu.accessibleName"));
-		menuButton.getAccessibleContext().setAccessibleDescription(menuText);
-		menuButton.addActionListener(event -> {
-			if (!menuButton.isShowing() || !button.isEnabled()) return;
-			popup.show(menuButton, 0, menuButton.getHeight());
-			popup.requestFocusInWindow();
-		});
-		button.addPropertyChangeListener("enabled", event -> menuButton.setEnabled(button.isEnabled()));
-		button.putClientProperty("MicroProject.ribbon.sortMenu", popup);
-		button.putClientProperty("MicroProject.ribbon.sortMenuButton", menuButton);
-		button.setLayout(null);
-		button.add(menuButton);
-		int arrowWidth = RibbonButtonStyler.SPLIT_BUTTON_EXTRA_WIDTH;
-		Runnable resizeMenuButton = () -> menuButton.setBounds(Math.max(0, button.getWidth() - arrowWidth), 0,
-			Math.min(arrowWidth, button.getWidth()), button.getHeight());
-		button.addComponentListener(new java.awt.event.ComponentAdapter() {
-			@Override public void componentResized(java.awt.event.ComponentEvent event) { resizeMenuButton.run(); }
-			@Override public void componentShown(java.awt.event.ComponentEvent event) { resizeMenuButton.run(); }
-		});
-		resizeMenuButton.run();
 	}
 
 	private void showDisplayModePopup(java.awt.event.MouseEvent event) {

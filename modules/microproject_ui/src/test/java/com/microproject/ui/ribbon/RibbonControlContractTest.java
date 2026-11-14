@@ -65,7 +65,7 @@ class RibbonControlContractTest {
 		SwingRibbonModel model = model(Map.of());
 		assertEquals(RibbonControlKind.BUTTON, button(model, "RibbonCut").getControlKind());
 		assertEquals(RibbonControlKind.TOGGLE_BUTTON, button(model, "RibbonFormatPainter").getControlKind());
-		assertEquals(RibbonControlKind.SPLIT_BUTTON, button(model, "RibbonChooseSort").getControlKind());
+		assertEquals(RibbonControlKind.GALLERY, button(model, "RibbonChooseSort").getControlKind());
 		assertTrue(button(model, "RibbonCut").getItemIds().isEmpty());
 		assertNull(button(model, "RibbonDelete").getKeyTip());
 	}
@@ -132,10 +132,10 @@ class RibbonControlContractTest {
 	void clipboardInsertAndFindAreSplitButtonsWithTheirCommandsInThePopup() {
 		SwingRibbonModel model = model(Map.of());
 		Map<String, List<String>> expected = Map.of(
-			"RibbonPaste", List.of("RibbonPaste"),
-			"RibbonCopy", List.of("RibbonCopy"),
-			"RibbonInsert", List.of("RibbonInsert", "RibbonInsertRecurring"),
-			"RibbonFind", List.of("RibbonFind"));
+			"RibbonPaste", List.of("RibbonPaste", "RibbonPasteSpecial"),
+			"RibbonCopy", List.of("RibbonCopy", "RibbonCopyPicture"),
+			"RibbonInsert", List.of("RibbonInsert", "RibbonInsertBlankRow", "RibbonInsertRecurring"),
+			"RibbonFind", List.of("RibbonFind", "RibbonReplace"));
 		expected.forEach((id, items) -> {
 			SwingRibbonModel.RibbonButton button = button(model, id);
 			assertEquals(RibbonControlKind.SPLIT_BUTTON, button.getControlKind(), id);
@@ -167,14 +167,24 @@ class RibbonControlContractTest {
 	}
 
 	@Test
-	void filterAndGroupAreDropDownsWhoseFixedItemOpensTheirDialog() {
+	void filterAndGroupAreComboBoxesWhoseFixedItemOpensTheirDialog() {
 		SwingRibbonModel model = model(Map.of());
-		for (String id : List.of("RibbonChooseFilter", "RibbonChooseGroup")) {
+		Map<String, String> moreItem = Map.of("RibbonChooseFilter", "RibbonMoreFilters", "RibbonChooseGroup", "RibbonMoreGroups");
+		moreItem.forEach((id, more) -> {
 			SwingRibbonModel.RibbonButton button = button(model, id);
-			assertEquals(RibbonControlKind.DROP_DOWN, button.getControlKind(), id);
+			assertEquals(RibbonControlKind.COMBO_BOX, button.getControlKind(), id);
 			assertEquals(RibbonActivation.POPUP, button.getActivation(), id);
-			assertEquals(List.of(id), button.getItemIds(), id);
-		}
+			assertEquals(List.of(more), button.getItemIds(), id);
+		});
+	}
+
+	@Test
+	void sortIsAGalleryOfQuickSortsEndingWithTheSortDialog() {
+		SwingRibbonModel.RibbonButton button = button(model(Map.of()), "RibbonChooseSort");
+		assertEquals(RibbonControlKind.GALLERY, button.getControlKind());
+		assertEquals(RibbonActivation.POPUP, button.getActivation());
+		assertEquals(List.of("RibbonSortStartDate", "RibbonSortFinishDate", "RibbonSortPriority", "RibbonSortCost",
+			"RibbonSortId", "-", "RibbonSortBy"), button.getItemIds());
 	}
 
 	@Test
@@ -325,6 +335,40 @@ class RibbonControlContractTest {
 		JButton smallArrow = (JButton) buttons[1].getClientProperty(RibbonControlPopups.ARROW_BUTTON_PROPERTY);
 		assertEquals(new java.awt.Rectangle(0, 30, 80, 30), largeArrow.getBounds());
 		assertEquals(new java.awt.Rectangle(62, 0, 18, 22), smallArrow.getBounds());
+	}
+
+	@Test
+	void galleryOnARibbonButtonListsCommandsAsMenuItemsThatRunTheirOwnActions() {
+		JButton button = countingButton(new AtomicInteger());
+		RibbonControlPopups.install(button, specification(RibbonControlKind.GALLERY), commandSource(), key -> null);
+
+		JPopupMenu popup = assertInstanceOf(JPopupMenu.class, button.getClientProperty(RibbonControlPopups.POPUP_PROPERTY));
+		assertEquals(3, popup.getComponentCount());
+		assertEquals("RibbonCopy", assertInstanceOf(JMenuItem.class, popup.getComponent(0)).getActionCommand());
+		assertInstanceOf(JPopupMenu.Separator.class, popup.getComponent(1));
+		assertEquals("RibbonCut", assertInstanceOf(JMenuItem.class, popup.getComponent(2)).getActionCommand());
+		assertEquals(RibbonControlKind.GALLERY, button.getClientProperty(RibbonControlPopups.CONTROL_KIND_PROPERTY));
+	}
+
+	@Test
+	void everyPopupOnlyCommandOfTheNewPopupsHasATextAndAnAction() {
+		SwingRibbonModel model = model(Map.of());
+		ResourceBundle[] bundles = MenuDefinitionSupport.ribbonBundles(Locale.ROOT);
+		MenuRibbonCommandSource source = commandSource();
+		for (String id : List.of("RibbonChooseSort", "RibbonChooseFilter", "RibbonChooseGroup", "RibbonPaste",
+			"RibbonCopy", "RibbonInsert", "RibbonFind")) {
+			for (String item : button(model, id).getItemIds()) {
+				if ("-".equals(item)) {
+					continue;
+				}
+				assertNotNull(source.createAction(item), id + " item " + item + " needs an Action");
+				boolean hasText = false;
+				for (ResourceBundle bundle : bundles) {
+					hasText |= bundle.containsKey(item + ".text");
+				}
+				assertTrue(hasText, id + " item " + item + " needs " + item + ".text");
+			}
+		}
 	}
 
 	@Test

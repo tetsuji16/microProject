@@ -77,22 +77,13 @@ class TaskStateToggleSyncTest {
 	}
 
 	@Test
-	void percentCompleteTogglesPressOnlyTheMatchingValue() throws Exception {
+	void percentCompleteButtonsAreCommandsAndNeverShowAPressedState() throws Exception {
 		try (HeadlessDocumentFixture fx = new HeadlessDocumentFixture("First", "Second")) {
 			fx.select(fx.task(0));
 			fx.run(CommandId.PERCENT_COMPLETE_50);
-			assertEquals("50,", pressedPercent(fx));
-			fx.run(CommandId.PERCENT_COMPLETE_50);
-			assertEquals("50,", pressedPercent(fx));
-			fx.run(CommandId.PERCENT_COMPLETE_100);
-			assertEquals("100,", pressedPercent(fx));
-			fx.run(CommandId.PERCENT_COMPLETE_0);
-			assertEquals("0,", pressedPercent(fx));
-			HeadlessDocumentFixture.onEdt(() -> fx.task(0).setPercentComplete(0.3D));
 			HeadlessDocumentFixture.onEdt(fx.frame::syncTaskStateToggles);
 			assertEquals("", pressedPercent(fx));
-			HeadlessDocumentFixture.onEdt(() -> fx.task(0).setPercentComplete(0.5D));
-			fx.select(fx.task(0), fx.task(1));
+			fx.run(CommandId.PERCENT_COMPLETE_100);
 			HeadlessDocumentFixture.onEdt(fx.frame::syncTaskStateToggles);
 			assertEquals("", pressedPercent(fx));
 		}

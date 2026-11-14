@@ -2008,6 +2008,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_CUT, new CutAction());
 		actionsMap.addHandler(ACTION_COPY, new CopyAction());
 		actionsMap.addHandler(ACTION_PASTE, new PasteAction());
+		actionsMap.addHandler("PasteSpecialAction", new PasteSpecialAction());
+		actionsMap.addHandler("CopyPictureAction", new CopyPictureAction());
+		actionsMap.addHandler("ReplaceAction", new ReplaceAction());
+		actionsMap.addHandler("QuickSortStartDate", new QuickSortAction("QuickSortStartDate", "Sorter.StartDate", "Field.start"));
+		actionsMap.addHandler("QuickSortFinishDate", new QuickSortAction("QuickSortFinishDate", "Sorter.FinishDate", "Field.finish"));
+		actionsMap.addHandler("QuickSortPriority", new QuickSortAction("QuickSortPriority", "Field.priority", "Field.priority"));
+		actionsMap.addHandler("QuickSortCost", new QuickSortAction("QuickSortCost", "Sorter.Cost", "Field.cost"));
+		actionsMap.addHandler("QuickSortId", new QuickSortAction("QuickSortId", null, "Field.id"));
 		actionsMap.addHandler(ACTION_PASTE_INSERT, new PasteInsertAction());
 		actionsMap.addHandler("RibbonFormatPainter", new FormatPainterAction());
 		actionsMap.addHandler(ACTION_DELETE, new DeleteAction());
@@ -3273,6 +3281,134 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		protected boolean allowed(boolean enable) {
 			if (enable==false) return true;
 			return isDocumentWritable();
+		}
+	}
+
+	/** Paste: lets the user choose how the clipboard is pasted (Paste Special). */
+	public class PasteSpecialAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private static final String COMMAND_ID = "PasteSpecial";
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive() || getCurrentFrame() == null) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(COMMAND_ID, "no-active-document"));
+				return;
+			}
+			DocumentFrame frame = getCurrentFrame();
+			javax.swing.JPanel panel = new javax.swing.JPanel(new java.awt.GridLayout(0, 1, 0, 4));
+			panel.add(new javax.swing.JLabel(Messages.getString("PasteSpecial.Prompt")));
+			javax.swing.JRadioButton paste = new javax.swing.JRadioButton(Messages.getString("PasteSpecial.Paste"), true);
+			javax.swing.JRadioButton insert = new javax.swing.JRadioButton(Messages.getString("PasteSpecial.PasteInsert"));
+			javax.swing.JRadioButton values = new javax.swing.JRadioButton(Messages.getString("PasteSpecial.PasteValues"));
+			javax.swing.ButtonGroup group = new javax.swing.ButtonGroup();
+			for (javax.swing.JRadioButton option : new javax.swing.JRadioButton[] { paste, insert, values }) {
+				group.add(option);
+				panel.add(option);
+			}
+			int choice = PopupDialogSupport.showConfirmDialog(getFrame(), panel, Messages.getString("PasteSpecial.Title"),
+				JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+			if (choice != JOptionPane.OK_OPTION) {
+				publishTaskCommandOutcome(this, new RibbonCommandResult(COMMAND_ID, RibbonCommandResult.Status.NO_CHANGE,
+					"dialog-cancelled").withActiveView(frame.getTopViewId()));
+			} else if (insert.isSelected()) {
+				new PasteInsertAction().actionPerformed(event);
+			} else if (values.isSelected()) {
+				SpreadSheet sheet = frame.getActiveSpreadSheet();
+				boolean pasted = sheet != null && sheet.pasteClipboardAsValues();
+				publishTaskCommandOutcome(this, (pasted ? RibbonCommandResult.changed(COMMAND_ID)
+					: RibbonCommandResult.rejected(COMMAND_ID, "nothing-to-paste")).withActiveView(frame.getTopViewId()));
+			} else {
+				new PasteAction().actionPerformed(event);
+			}
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return isDocumentWritable();
+		}
+	}
+
+	/** Copy: puts an image of the active view on the system clipboard (Copy Picture). */
+	public class CopyPictureAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private static final String COMMAND_ID = "CopyPicture";
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive() || getCurrentFrame() == null) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(COMMAND_ID, "no-active-document"));
+				return;
+			}
+			DocumentFrame frame = getCurrentFrame();
+			boolean copied = false;
+			try {
+				copied = frame.getActiveTopView() instanceof javax.swing.JComponent view && ViewPictureClipboard.copy(view);
+			} catch (java.awt.HeadlessException | IllegalStateException failure) {
+				logger.log(Level.WARNING, "Unable to copy the view picture", failure);
+			}
+			publishTaskCommandOutcome(this, (copied ? RibbonCommandResult.noChange(COMMAND_ID)
+				: RibbonCommandResult.rejected(COMMAND_ID, "no-view-image")).withActiveView(frame.getTopViewId()));
+		}
+	}
+
+	/** Find: the Find dialog in replace mode (Replace). */
+	public class ReplaceAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive())
+				doFind(getCurrentFrame().getTopSpreadSheet(), null, null, true);
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return isDocumentWritable() && getCurrentFrame() != null && getCurrentFrame().getActiveSpreadSheet() != null;
+		}
+	}
+
+	/**
+	 * Sort quick sort (ascending) by one field of the active view. Task views use the
+	 * view's sorter {@code taskSorterId} (outline order when {@code null}); resource views sort
+	 * by {@code resourceFieldId} and reject the command when that column is not shown.
+	 */
+	public class QuickSortAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private final String commandId;
+		private final String taskSorterId;
+		private final String resourceFieldId;
+		QuickSortAction(String commandId, String taskSorterId, String resourceFieldId) {
+			this.commandId = commandId;
+			this.taskSorterId = taskSorterId;
+			this.resourceFieldId = resourceFieldId;
+		}
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			DocumentFrame frame = getCurrentFrame();
+			if (!isDocumentActive() || frame == null) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(commandId, "no-active-document"));
+				return;
+			}
+			if (frame.getActiveTopView() instanceof ResourceView resourceView) {
+				List<ResourceView.SortKey> previousKeys = resourceView.getSortKeys();
+				if (!resourceView.applySortOrder(resourceFieldId, true)) {
+					publishTaskCommandOutcome(this, RibbonCommandResult.rejected(commandId, "invalid-sort-field")
+						.withActiveView(frame.getTopViewId()));
+					return;
+				}
+				publishTaskCommandOutcome(this, (previousKeys.equals(resourceView.getSortKeys())
+					? RibbonCommandResult.noChange(commandId) : RibbonCommandResult.changed(commandId))
+					.withActiveView(frame.getTopViewId()));
+				return;
+			}
+			com.microproject.grouping.core.transform.ViewConfiguration view =
+				com.microproject.grouping.core.transform.ViewConfiguration.getView(frame.getTopViewId());
+			if (view == null || view.getTransform() == null) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(commandId, "no-sortable-view"));
+				return;
+			}
+			TaskSortSpec spec = taskSorterId == null ? TaskSortSpec.outlineDefault()
+				: new TaskSortSpec(List.of(new TaskSortSpec.Key(taskSorterId, true)), true);
+			boolean same = spec.equals(view.getTransform().getTaskSortSpec());
+			view.getTransform().setTaskSortSpec(spec);
+			publishTaskCommandOutcome(this, (same ? RibbonCommandResult.noChange(commandId)
+				: RibbonCommandResult.changed(commandId)).withActiveView(frame.getTopViewId()));
 		}
 	}
 
@@ -5488,13 +5624,16 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 	}
 	public void doFind(Searchable searchable, Field field, String initialQuery) {
+		doFind(searchable, field, initialQuery, false);
+	}
+	public void doFind(Searchable searchable, Field field, String initialQuery, boolean replaceMode) {
 		if (getCurrentFrame()==null||!getCurrentFrame().isActive())
 			return;
 		if (searchable == null)
 			return;
 		if (!beforeFindRoute(searchable, field))
 			return;
-		getCurrentFrame().doFind(searchable, field, initialQuery);
+		getCurrentFrame().doFind(searchable, field, initialQuery, replaceMode);
 
 	}
 
