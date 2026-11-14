@@ -413,14 +413,11 @@ class RibbonControlContractTest {
 	}
 
 	@Test
-	void onlyButtonToggleSplitMenuDropDownAndCheckBoxHaveADedicatedRendererSoFar() {
+	void everyKindButTheGroupLauncherHasADedicatedRenderer() {
 		for (RibbonControlKind kind : RibbonControlKind.values()) {
-			boolean expected = kind == RibbonControlKind.BUTTON || kind == RibbonControlKind.TOGGLE_BUTTON
-				|| kind == RibbonControlKind.SPLIT_BUTTON || kind == RibbonControlKind.MENU
-				|| kind == RibbonControlKind.DROP_DOWN || kind == RibbonControlKind.CHECK_BOX;
-			assertEquals(expected, RibbonControlPopups.isNativelyRendered(kind), kind.name());
+			assertEquals(kind != RibbonControlKind.DIALOG_LAUNCHER, RibbonControlPopups.isNativelyRendered(kind), kind.name());
 		}
-		assertFalse(RibbonControlPopups.isNativelyRendered(RibbonControlKind.GALLERY));
+		assertFalse(RibbonControlPopups.isNativelyRendered(RibbonControlKind.DIALOG_LAUNCHER));
 	}
 
 	@Test

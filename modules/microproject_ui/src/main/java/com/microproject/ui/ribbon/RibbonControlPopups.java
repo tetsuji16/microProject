@@ -35,6 +35,9 @@ import javax.swing.AbstractAction;
 import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JTextField;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JRadioButtonMenuItem;
@@ -91,6 +94,14 @@ final class RibbonControlPopups {
 	 * {@link RibbonDropDownSource#popupEntries}, instead of fixed {@code <id>.items}.
 	 */
 	static final java.util.Set<String> DYNAMIC_ENTRY_COMMANDS = java.util.Set.of("RibbonTopBarUndo", "RibbonTopBarRedo");
+	/** Client property (an {@link Integer}) of a gallery's button naming the grid's column count. */
+	static final String GALLERY_COLUMNS_PROPERTY = "MicroProject.ribbon.galleryColumns";
+	/** Client property of a gallery popup holding the id of the selected item, or absent. */
+	static final String GALLERY_SELECTION_PROPERTY = "MicroProject.ribbon.gallerySelection";
+	/** Client property of a gallery popup holding its item grid. */
+	static final String GALLERY_GRID_PROPERTY = "MicroProject.ribbon.galleryGrid";
+	static final int DEFAULT_GALLERY_COLUMNS = 4;
+	static final String INPUT_NAME_PREFIX = "microproject.ribbon.input.";
 	static final String POPUP_NAME_PREFIX = "microproject.ribbon.controlMenu.";
 	static final String ARROW_BUTTON_NAME_PREFIX = "microproject.ribbon.controlMenuButton.";
 	private static final String SPLIT_PROPERTY = "MicroProject.ribbonSplit";
@@ -108,8 +119,8 @@ final class RibbonControlPopups {
 	 */
 	static boolean isNativelyRendered(RibbonControlKind kind) {
 		return switch (kind) {
-			case BUTTON, TOGGLE_BUTTON, SPLIT_BUTTON, MENU, DROP_DOWN, CHECK_BOX -> true;
-			case GALLERY, COMBO_BOX, EDIT_BOX, DIALOG_LAUNCHER -> false;
+			case BUTTON, TOGGLE_BUTTON, SPLIT_BUTTON, MENU, DROP_DOWN, CHECK_BOX, GALLERY, COMBO_BOX, EDIT_BOX -> true;
+			case DIALOG_LAUNCHER -> false;
 		};
 	}
 
@@ -143,7 +154,9 @@ final class RibbonControlPopups {
 		if (!kind.hasPopup() || (specification.getItemIds().isEmpty() && !dropDown && !dynamic)) {
 			return;
 		}
-		JPopupMenu popup = createPopup(specification, commandSource, text);
+		JPopupMenu popup = kind == RibbonControlKind.GALLERY
+			? createGalleryPopup(button, specification, commandSource, text)
+			: createPopup(specification, commandSource, text);
 		button.putClientProperty(POPUP_PROPERTY, popup);
 		trackPopupOpen(button, popup);
 		if (dropDown) {
@@ -158,6 +171,144 @@ final class RibbonControlPopups {
 		} else {
 			openPopupOnClick(button, popup);
 		}
+	}
+
+	/**
+	 * Creates the component of a value-carrying control that Office draws as itself rather
+	 * than as a button: a popup grid for {@code GALLERY}, an editable {@link JComboBox} for
+	 * {@code COMBO_BOX} and a {@link JTextField} for {@code EDIT_BOX}. Committing a value
+	 * runs the command's Action once with the value as the {@code actionCommand} of the event.
+	 *
+	 * @throws IllegalArgumentException for the other kinds, which are buttons
+	 */
+	static JComponent createInputControl(SwingRibbonModel.RibbonButton specification,
+		RibbonCommandSource commandSource, UnaryOperator<String> text) {
+		return switch (specification.getControlKind()) {
+			case GALLERY -> createGalleryPopup(null, specification, commandSource, text);
+			case COMBO_BOX -> createComboBox(specification, commandSource, text);
+			case EDIT_BOX -> createEditBox(specification, commandSource);
+			default -> throw new IllegalArgumentException(specification.getControlKind() + " is not an input control");
+		};
+	}
+
+	/** Passes a committed value to the command of the control; the value is the event's action command. */
+	private static void commit(RibbonCommandSource commandSource, String commandId, Object source, String value) {
+		Action action = commandSource.createAction(commandId);
+		if (action != null && action.isEnabled()) {
+			action.actionPerformed(new java.awt.event.ActionEvent(source, java.awt.event.ActionEvent.ACTION_PERFORMED, value));
+		}
+	}
+
+	private static int controlHeight() {
+		return new FlatLafRibbonTheme().inlineButtonHeight();
+	}
+
+	private static java.awt.Font controlFont() {
+		return new FlatLafRibbonTheme().buttonFont();
+	}
+
+	/**
+	 * A popup that lays the items out as an icon grid, {@value #DEFAULT_GALLERY_COLUMNS}
+	 * columns unless {@code owner} (or, without an owner, nothing) carries
+	 * {@link #GALLERY_COLUMNS_PROPERTY}. The selected item is highlighted; picking an item
+	 * selects it and commits the item id.
+	 */
+	static JPopupMenu createGalleryPopup(JComponent owner, SwingRibbonModel.RibbonButton specification,
+		RibbonCommandSource commandSource, UnaryOperator<String> text) {
+		JPopupMenu popup = new JPopupMenu();
+		popup.setName(POPUP_NAME_PREFIX + specification.getId());
+		int columns = DEFAULT_GALLERY_COLUMNS;
+		if (owner != null && owner.getClientProperty(GALLERY_COLUMNS_PROPERTY) instanceof Integer declared && declared > 0) {
+			columns = declared;
+		}
+		javax.swing.JPanel grid = new javax.swing.JPanel(new java.awt.GridLayout(0, columns, 2, 2));
+		grid.setOpaque(false);
+		javax.swing.ButtonGroup group = new javax.swing.ButtonGroup();
+		for (String itemId : specification.getItemIds()) {
+			if (ITEM_SEPARATOR.equals(itemId)) {
+				continue;
+			}
+			Action itemAction = commandSource.createAction(itemId);
+			javax.swing.JToggleButton cell = new javax.swing.JToggleButton();
+			cell.setName(popup.getName() + "." + itemId);
+			cell.setActionCommand(itemId);
+			javax.swing.Icon icon = itemAction == null ? null : (javax.swing.Icon) itemAction.getValue(Action.SMALL_ICON);
+			String itemText = text.apply(itemId + ".text");
+			if (icon != null) {
+				cell.setIcon(icon);
+			} else {
+				cell.setText(itemText == null ? itemId : itemText);
+			}
+			cell.setToolTipText(itemText == null ? itemId : itemText);
+			cell.setFont(controlFont());
+			cell.setFocusable(false);
+			cell.addActionListener(event -> {
+				popup.putClientProperty(GALLERY_SELECTION_PROPERTY, itemId);
+				popup.setVisible(false);
+				commit(commandSource, specification.getId(), cell, itemId);
+			});
+			group.add(cell);
+			grid.add(cell);
+		}
+		popup.putClientProperty(GALLERY_GRID_PROPERTY, grid);
+		popup.add(grid);
+		popup.addPropertyChangeListener(GALLERY_SELECTION_PROPERTY, event -> highlightGallerySelection(grid, (String) event.getNewValue()));
+		return popup;
+	}
+
+	/** Highlights {@code itemId} in the gallery {@code popup}; {@code null} clears the selection. */
+	static void selectGalleryItem(JPopupMenu popup, String itemId) {
+		popup.putClientProperty(GALLERY_SELECTION_PROPERTY, itemId);
+	}
+
+	private static void highlightGallerySelection(javax.swing.JPanel grid, String itemId) {
+		for (java.awt.Component component : grid.getComponents()) {
+			if (component instanceof javax.swing.JToggleButton cell) {
+				cell.setSelected(cell.getActionCommand().equals(itemId));
+			}
+		}
+	}
+
+	private static JComboBox<String> createComboBox(SwingRibbonModel.RibbonButton specification,
+		RibbonCommandSource commandSource, UnaryOperator<String> text) {
+		JComboBox<String> combo = new JComboBox<>();
+		combo.setName(INPUT_NAME_PREFIX + specification.getId());
+		combo.setEditable(true);
+		combo.setFont(controlFont());
+		for (String itemId : specification.getItemIds()) {
+			if (!ITEM_SEPARATOR.equals(itemId)) {
+				String itemText = text.apply(itemId + ".text");
+				combo.addItem(itemText == null ? itemId : itemText);
+			}
+		}
+		combo.setSelectedIndex(-1);
+		java.awt.Dimension size = combo.getPreferredSize();
+		combo.setPreferredSize(new java.awt.Dimension(size.width, controlHeight()));
+		// Enter in the editor also changes the selection, which would commit a second time.
+		boolean[] committingFromEditor = { false };
+		if (combo.getEditor().getEditorComponent() instanceof JTextField editor) {
+			editor.addActionListener(event -> {
+				committingFromEditor[0] = true;
+				javax.swing.SwingUtilities.invokeLater(() -> committingFromEditor[0] = false);
+				commit(commandSource, specification.getId(), combo, editor.getText());
+			});
+		}
+		combo.addActionListener(event -> {
+			if (!committingFromEditor[0] && combo.getSelectedItem() != null) {
+				commit(commandSource, specification.getId(), combo, combo.getSelectedItem().toString());
+			}
+		});
+		return combo;
+	}
+
+	private static JTextField createEditBox(SwingRibbonModel.RibbonButton specification, RibbonCommandSource commandSource) {
+		JTextField field = new JTextField(12);
+		field.setName(INPUT_NAME_PREFIX + specification.getId());
+		field.setFont(controlFont());
+		java.awt.Dimension size = field.getPreferredSize();
+		field.setPreferredSize(new java.awt.Dimension(size.width, controlHeight()));
+		field.addActionListener(event -> commit(commandSource, specification.getId(), field, field.getText()));
+		return field;
 	}
 
 	private static JPopupMenu createPopup(SwingRibbonModel.RibbonButton specification,
