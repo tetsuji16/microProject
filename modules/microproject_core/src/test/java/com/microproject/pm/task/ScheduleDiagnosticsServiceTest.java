@@ -100,6 +100,96 @@ class ScheduleDiagnosticsServiceTest {
 		assertFalse(ScheduleDiagnosticsService.hasDependencyConflict(successor));
 	}
 
+	@Test
+	void warningRequiresManualActiveNonSummaryTaskWithLinkOrConstraintConflict() throws Exception {
+		Project project = project();
+		NormalTask predecessor = task(project, "Predecessor");
+		NormalTask successor = task(project, "Successor");
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		predecessor.setDuration(2L * day);
+		Dependency dependency = DependencyService.getInstance().newDependency(
+				predecessor, successor, DependencyType.FS, 0L, this);
+		successor.setManualDates(predecessor.getStart(), predecessor.getEnd());
+
+		assertTrue(ScheduleDiagnosticsService.hasWarning(successor));
+		assertTrue(ScheduleDiagnosticsService.showsWarning(successor));
+		assertTrue(successor.isWarning());
+		successor.setIgnoreWarnings(true);
+		assertTrue(ScheduleDiagnosticsService.hasWarning(successor));
+		assertFalse(ScheduleDiagnosticsService.showsWarning(successor));
+		successor.setIgnoreWarnings(false);
+
+		dependency.setDisabled(true);
+		assertFalse(ScheduleDiagnosticsService.hasWarning(successor), "disabled link");
+		dependency.setDisabled(false);
+		successor.setInactiveTask(true);
+		assertFalse(ScheduleDiagnosticsService.hasWarning(successor), "inactive task");
+		successor.setInactiveTask(false);
+		successor.setManuallyScheduled(false);
+		assertFalse(ScheduleDiagnosticsService.hasWarning(successor), "auto scheduled");
+		assertFalse(ScheduleDiagnosticsService.hasWarning(predecessor), "auto scheduled predecessor");
+	}
+
+	@Test
+	void warningDetectsConstraintViolationsOnManualTasks() throws Exception {
+		Project project = project();
+		NormalTask task = task(project, "Constrained");
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		long start = project.getWorkCalendar().add(project.getStart(), 2L * day, false);
+		long finish = project.getWorkCalendar().add(start, day, false);
+		task.setManualDates(start, finish);
+		task.setConstraintType(ConstraintType.SNET);
+		task.setConstraintDate(project.getWorkCalendar().add(start, day, false));
+		assertTrue(ScheduleDiagnosticsService.hasWarning(task), "SNET after start");
+		task.setConstraintDate(start);
+		assertFalse(ScheduleDiagnosticsService.hasWarning(task), "SNET satisfied");
+		task.setConstraintType(ConstraintType.MSO);
+		task.setConstraintDate(project.getWorkCalendar().add(start, day, false));
+		assertTrue(ScheduleDiagnosticsService.hasWarning(task), "MSO after start");
+		task.setConstraintType(ConstraintType.FNLT);
+		task.setConstraintDate(start);
+		assertTrue(ScheduleDiagnosticsService.hasWarning(task), "FNLT before finish");
+		task.setConstraintType(ConstraintType.MFO);
+		assertTrue(ScheduleDiagnosticsService.hasWarning(task), "MFO before finish");
+		task.setConstraintDate(finish);
+		assertFalse(ScheduleDiagnosticsService.hasWarning(task), "MFO satisfied");
+		task.setConstraintType(ConstraintType.ASAP);
+		assertFalse(ScheduleDiagnosticsService.hasWarning(task), "no constraint");
+	}
+
+	@Test
+	void suggestionFlagsManualTaskThatCouldStartEarlier() throws Exception {
+		Project project = project();
+		NormalTask predecessor = task(project, "Predecessor");
+		NormalTask successor = task(project, "Successor");
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		predecessor.setManualDates(project.getStart(), project.getWorkCalendar().add(project.getStart(), day, false));
+		long late = project.getWorkCalendar().add(predecessor.getEnd(), 3L * day, false);
+		successor.setManualDates(late, project.getWorkCalendar().add(late, day, false));
+		Dependency dependency = DependencyService.getInstance().newDependency(
+				predecessor, successor, DependencyType.FS, 0L, this);
+
+		assertFalse(ScheduleDiagnosticsService.hasWarning(successor));
+		assertTrue(ScheduleDiagnosticsService.hasSuggestion(successor));
+		assertTrue(ScheduleDiagnosticsService.showsSuggestion(successor));
+		assertFalse(ScheduleDiagnosticsService.hasSuggestion(predecessor), "no predecessor links");
+		successor.setIgnoreWarnings(true);
+		assertTrue(ScheduleDiagnosticsService.hasSuggestion(successor));
+		assertFalse(ScheduleDiagnosticsService.showsSuggestion(successor));
+		successor.setIgnoreWarnings(false);
+
+		dependency.setDisabled(true);
+		assertFalse(ScheduleDiagnosticsService.hasSuggestion(successor), "disabled link");
+		dependency.setDisabled(false);
+		successor.setManuallyScheduled(false);
+		assertFalse(ScheduleDiagnosticsService.hasSuggestion(successor), "auto scheduled");
+		successor.setManuallyScheduled(true);
+		successor.setManualDates(predecessor.getEnd(), project.getWorkCalendar().add(predecessor.getEnd(), day, false));
+		assertFalse(ScheduleDiagnosticsService.hasSuggestion(successor), "starts exactly at the boundary");
+		successor.setManualDates(predecessor.getStart(), predecessor.getEnd());
+		assertFalse(ScheduleDiagnosticsService.hasSuggestion(successor), "warning suppresses suggestion");
+	}
+
 	private void assertConflict(int type) throws Exception {
 		Project project = project();
 		NormalTask predecessor = task(project, "Predecessor");
