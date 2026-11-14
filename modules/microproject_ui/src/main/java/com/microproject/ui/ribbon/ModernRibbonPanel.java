@@ -1582,6 +1582,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			button.putClientProperty("MicroProject.ribbonSplit", Boolean.TRUE);
 			if ("RibbonChooseSort".equals(buttonId)) installSortOrderMenu(button);
 		}
+		RibbonControlPopups.install(button, specification, commandSource, this::getStringOrNull);
 		String tooltip = getStringOrNull(buttonId + ".tooltip");
 		if (tooltip != null) {
 			// The key shown is the one registered for the command, never a separately

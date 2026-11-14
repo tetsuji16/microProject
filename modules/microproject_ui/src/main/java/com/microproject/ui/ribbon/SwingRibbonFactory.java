@@ -35,6 +35,7 @@ import javax.swing.JPanel;
 
 import com.microproject.ribbon.CustomRibbonBandGenerator;
 import com.microproject.ribbon.RibbonCommandSource;
+import com.microproject.ribbon.RibbonControlKind;
 import com.microproject.ribbon.RibbonIconRegistry;
 import com.microproject.ribbon.SwingRibbonModel;
 import com.microproject.ribbon.SwingRibbonModel.CustomBandProvider;
@@ -151,7 +152,7 @@ public final class SwingRibbonFactory {
 			SwingRibbonModel.ButtonSize size = resolveButtonSize(buttonId, priority);
 			int collapsePriority = resolveCollapsePriority(buttonId, priority);
 			String text = resolveStringOrNull(buttonId + ".text");
-			buttons.add(new SwingRibbonModel.RibbonButton(
+			buttons.add(applyControlContract(new SwingRibbonModel.RibbonButton(
 				buttonId,
 				text == null ? buttonId : text,
 				priority,
@@ -161,9 +162,42 @@ public final class SwingRibbonFactory {
 				presentation,
 				collapsePriority,
 				resolveStringOrNull(buttonId + ".backstagePage"),
-				Boolean.parseBoolean(resolveStringOrNull(buttonId + ".backstageImmediate"))));
+				Boolean.parseBoolean(resolveStringOrNull(buttonId + ".backstageImmediate")))));
 		}
-		return new SwingRibbonModel.RibbonBand(bandId, resolveString(bandId + ".title"), buttons);
+		SwingRibbonModel.RibbonBand band = new SwingRibbonModel.RibbonBand(bandId, resolveString(bandId + ".title"), buttons);
+		String dialogLauncher = resolveStringOrNull(bandId + ".dialogLauncher");
+		return dialogLauncher == null || dialogLauncher.isBlank() ? band : band.withDialogLauncher(dialogLauncher.trim());
+	}
+
+	/**
+	 * Reads the Office control contract of a command: {@code X.control} (a
+	 * {@link RibbonControlKind}), {@code X.items} (popup command ids, {@code -} is a
+	 * separator) and {@code X.keytip}. Commands that declare none of them keep the
+	 * kind implied by {@code X.type} / {@code X.presentation}.
+	 */
+	private SwingRibbonModel.RibbonButton applyControlContract(SwingRibbonModel.RibbonButton button) {
+		String buttonId = button.getId();
+		String controlValue = resolveStringOrNull(buttonId + ".control");
+		List<String> items = resolveList(buttonId + ".items");
+		String keyTip = resolveStringOrNull(buttonId + ".keytip");
+		if (controlValue == null && items.isEmpty() && keyTip == null) {
+			return button;
+		}
+		RibbonControlKind kind = button.getControlKind();
+		if (controlValue != null) {
+			try {
+				kind = RibbonControlKind.parse(controlValue);
+			} catch (IllegalArgumentException ex) {
+				throw new IllegalStateException("Invalid " + buttonId + ".control: " + ex.getMessage(), ex);
+			}
+		}
+		if (kind == RibbonControlKind.DIALOG_LAUNCHER) {
+			throw new IllegalStateException(buttonId + ".control: a dialog launcher belongs to a group; declare <band>.dialogLauncher instead");
+		}
+		if (!items.isEmpty() && !kind.hasPopup()) {
+			throw new IllegalStateException(buttonId + ".items is declared but control kind " + kind + " has no popup");
+		}
+		return button.withControl(kind, items, keyTip == null || keyTip.isBlank() ? null : keyTip.trim());
 	}
 
 	private SwingRibbonModel.ButtonSize resolveButtonSize(String buttonId, SwingRibbonModel.ButtonPriority priority) {
