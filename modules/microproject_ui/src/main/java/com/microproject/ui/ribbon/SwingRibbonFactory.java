@@ -34,7 +34,9 @@ import javax.swing.JComponent;
 import javax.swing.JPanel;
 
 import com.microproject.ribbon.CustomRibbonBandGenerator;
+import com.microproject.ribbon.RibbonActivation;
 import com.microproject.ribbon.RibbonCommandSource;
+import com.microproject.ribbon.RibbonControlKind;
 import com.microproject.ribbon.RibbonIconRegistry;
 import com.microproject.ribbon.SwingRibbonModel;
 import com.microproject.ribbon.SwingRibbonModel.CustomBandProvider;
@@ -42,6 +44,7 @@ import com.microproject.ribbon.SwingRibbonModel.CustomBandProvider;
 public final class SwingRibbonFactory {
 	private final RibbonCommandSource commandSource;
 	private final ResourceBundle[] bundles;
+	private volatile RibbonDropDownSource dropDownSource;
 	private final RibbonIconRegistry iconRegistry;
 
 	public SwingRibbonFactory(RibbonCommandSource commandSource, ResourceBundle... bundles) {
@@ -62,7 +65,12 @@ public final class SwingRibbonFactory {
 			tabs.add(createTab(tabId, customBandsGenerator));
 		}
 		List<String> taskBarButtons = resolveList(ribbonId + ".TaskBar");
-		SwingRibbonModel model = new SwingRibbonModel(ribbonId, tabs, taskBarButtons);
+		List<SwingRibbonModel.RibbonButton> taskBarControls = new ArrayList<>(taskBarButtons.size());
+		for (String buttonId : taskBarButtons) {
+			taskBarControls.add(applyActivation(applyControlContract(
+				new SwingRibbonModel.RibbonButton(buttonId, SwingRibbonModel.ButtonPriority.LOW))));
+		}
+		SwingRibbonModel model = new SwingRibbonModel(ribbonId, tabs, taskBarButtons).withTaskBarControls(taskBarControls);
 		RibbonCommandCatalog.validate(model, bundles);
 		return model;
 	}
@@ -78,6 +86,7 @@ public final class SwingRibbonFactory {
 	public JPanel createPanel(SwingRibbonModel model, Runnable helpAction) {
 		Objects.requireNonNull(model);
 		ModernRibbonPanel panel = new ModernRibbonPanel(model, commandSource, bundles, helpAction);
+		panel.setDropDownSource(() -> dropDownSource);
 		panel.build();
 		JPanel host = new JPanel(new BorderLayout());
 		host.setOpaque(true);
@@ -85,6 +94,46 @@ public final class SwingRibbonFactory {
 		host.add(panel, BorderLayout.CENTER);
 		host.putClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY, panel);
 		return host;
+	}
+
+	/** Sets where the drop-down controls of every ribbon built by this factory read their values. */
+	public void setDropDownSource(RibbonDropDownSource source) {
+		this.dropDownSource = source;
+	}
+
+	/** Re-reads the label of the drop-downs of {@code id} on the event dispatch thread. */
+	public void refreshDropDowns(String id) {
+		Runnable refresh = () -> {
+			for (javax.swing.AbstractButton button : commandSource.getButtons(id)) {
+				if (button.getClientProperty(RibbonControlPopups.REFRESH_PROPERTY) instanceof Runnable action) {
+					action.run();
+				}
+			}
+		};
+		if (javax.swing.SwingUtilities.isEventDispatchThread()) {
+			refresh.run();
+		} else {
+			javax.swing.SwingUtilities.invokeLater(refresh);
+		}
+	}
+
+	/**
+	 * The popup of the split button or menu registered for {@code id}, or {@code null}
+	 * when the command has none. For the quick access bar, whose buttons are drawn by
+	 * the window chrome.
+	 */
+	public javax.swing.JPopupMenu getControlPopup(String id) {
+		for (JComponent control : commandSource.getCommandControls(id)) {
+			if (control.getClientProperty(RibbonControlPopups.POPUP_PROPERTY) instanceof javax.swing.JPopupMenu popup) {
+				return popup;
+			}
+		}
+		return null;
+	}
+
+	/** Re-reads the dynamic entries of {@code popup}; false when it then has nothing to show. */
+	public static boolean prepareControlPopup(javax.swing.JPopupMenu popup) {
+		return RibbonControlPopups.prepareForShow(popup);
 	}
 
 	public String getActionStringFromId(String id) {
@@ -113,8 +162,31 @@ public final class SwingRibbonFactory {
 		for (String bandId : bandIds) {
 			bands.add(createBand(bandId, customBandsGenerator));
 		}
+		rejectDuplicateKeyTips(tabId, bands);
 		return new SwingRibbonModel.RibbonTab(tabId, resolveString(tabId + ".title"), bands,
 			Boolean.parseBoolean(resolveStringOrNull(tabId + ".contextual")), resolveStringOrNull(tabId + ".accessKey"));
+	}
+
+	/** A KeyTip names one control of a tab; two controls of the same tab must not share it or be a prefix of each other. */
+	private static void rejectDuplicateKeyTips(String tabId, List<SwingRibbonModel.RibbonBand> bands) {
+		java.util.Map<String, String> owners = new java.util.HashMap<>();
+		for (SwingRibbonModel.RibbonBand band : bands) {
+			for (SwingRibbonModel.RibbonButton button : band.getButtons()) {
+				String keyTip = button.getKeyTip();
+				if (keyTip == null) {
+					continue;
+				}
+				String tip = keyTip.toUpperCase(java.util.Locale.ROOT);
+				for (java.util.Map.Entry<String, String> owner : owners.entrySet()) {
+					boolean clash = owner.getKey().startsWith(tip) || tip.startsWith(owner.getKey());
+					if (clash && !owner.getValue().equals(button.getId())) {
+						throw new IllegalStateException("Duplicate KeyTip " + keyTip + " in tab " + tabId + ": "
+							+ owner.getValue() + " and " + button.getId());
+					}
+				}
+				owners.put(tip, button.getId());
+			}
+		}
 	}
 
 	private SwingRibbonModel.RibbonBand createBand(String bandId, CustomRibbonBandGenerator customBandsGenerator) {
@@ -151,7 +223,7 @@ public final class SwingRibbonFactory {
 			SwingRibbonModel.ButtonSize size = resolveButtonSize(buttonId, priority);
 			int collapsePriority = resolveCollapsePriority(buttonId, priority);
 			String text = resolveStringOrNull(buttonId + ".text");
-			buttons.add(new SwingRibbonModel.RibbonButton(
+			buttons.add(applyActivation(applyControlContract(new SwingRibbonModel.RibbonButton(
 				buttonId,
 				text == null ? buttonId : text,
 				priority,
@@ -161,9 +233,87 @@ public final class SwingRibbonFactory {
 				presentation,
 				collapsePriority,
 				resolveStringOrNull(buttonId + ".backstagePage"),
-				Boolean.parseBoolean(resolveStringOrNull(buttonId + ".backstageImmediate"))));
+				Boolean.parseBoolean(resolveStringOrNull(buttonId + ".backstageImmediate"))))));
 		}
-		return new SwingRibbonModel.RibbonBand(bandId, resolveString(bandId + ".title"), buttons);
+		SwingRibbonModel.RibbonBand band = new SwingRibbonModel.RibbonBand(bandId, resolveString(bandId + ".title"), buttons);
+		String dialogLauncher = resolveStringOrNull(bandId + ".dialogLauncher");
+		if (dialogLauncher == null || dialogLauncher.isBlank()) {
+			return band;
+		}
+		String launcherId = dialogLauncher.trim();
+		try {
+			commandSource.createAction(launcherId);
+		} catch (RuntimeException ex) {
+			throw new IllegalStateException(bandId + ".dialogLauncher " + launcherId + " is not a command with an Action", ex);
+		}
+		return band.withDialogLauncher(launcherId);
+	}
+
+	/**
+	 * Reads the Office control contract of a command: {@code X.control} (a
+	 * {@link RibbonControlKind}), {@code X.items} (popup command ids, {@code -} is a
+	 * separator) and {@code X.keytip}. Commands that declare none of them keep the
+	 * kind implied by {@code X.type} / {@code X.presentation}.
+	 */
+	private SwingRibbonModel.RibbonButton applyControlContract(SwingRibbonModel.RibbonButton button) {
+		String buttonId = button.getId();
+		String controlValue = resolveStringOrNull(buttonId + ".control");
+		List<String> items = resolveList(buttonId + ".items");
+		String keyTip = resolveStringOrNull(buttonId + ".keytip");
+		if (controlValue == null && items.isEmpty() && keyTip == null) {
+			return button;
+		}
+		RibbonControlKind kind = button.getControlKind();
+		if (controlValue != null) {
+			try {
+				kind = RibbonControlKind.parse(controlValue);
+			} catch (IllegalArgumentException ex) {
+				throw new IllegalStateException("Invalid " + buttonId + ".control: " + ex.getMessage(), ex);
+			}
+		}
+		if (kind == RibbonControlKind.DIALOG_LAUNCHER) {
+			throw new IllegalStateException(buttonId + ".control: a dialog launcher belongs to a group; declare <band>.dialogLauncher instead");
+		}
+		if (!items.isEmpty() && !kind.hasPopup()) {
+			throw new IllegalStateException(buttonId + ".items is declared but control kind " + kind + " has no popup");
+		}
+		return button.withControl(kind, items, keyTip == null || keyTip.isBlank() ? null : keyTip.trim());
+	}
+
+	/**
+	 * Reads {@code X.activation} (a {@link RibbonActivation}): what a click on the
+	 * control body does. Commands that declare none keep the activation implied by
+	 * their kind, {@code X.type} and Backstage metadata. A declaration that
+	 * contradicts that metadata fails model creation.
+	 */
+	private SwingRibbonModel.RibbonButton applyActivation(SwingRibbonModel.RibbonButton button) {
+		String buttonId = button.getId();
+		String value = resolveStringOrNull(buttonId + ".activation");
+		if (value == null) {
+			return button;
+		}
+		RibbonActivation activation;
+		try {
+			activation = RibbonActivation.parse(value);
+		} catch (IllegalArgumentException ex) {
+			throw new IllegalStateException("Invalid " + buttonId + ".activation: " + ex.getMessage(), ex);
+		}
+		RibbonControlKind kind = button.getControlKind();
+		boolean popupOnly = kind.hasPopup() && !kind.invokesOnClick();
+		if ((activation == RibbonActivation.POPUP) != popupOnly) {
+			throw new IllegalStateException(buttonId + ".activation " + activation + " contradicts control kind " + kind
+				+ ": exactly the kinds whose click only opens their popup are POPUP");
+		}
+		if (activation.keepsPressedState() != button.isToggle() && !popupOnly) {
+			throw new IllegalStateException(buttonId + ".activation " + activation + " contradicts " + buttonId
+				+ ".type: exactly the activations that keep a pressed state need type=TOGGLE");
+		}
+		boolean backstagePage = button.getBackstagePage() != null && !button.isBackstageImmediate();
+		if ((activation == RibbonActivation.BACKSTAGE) != backstagePage) {
+			throw new IllegalStateException(buttonId + ".activation " + activation + " contradicts " + buttonId
+				+ ".backstagePage: exactly the commands that open a Backstage page are BACKSTAGE");
+		}
+		return button.withActivation(activation);
 	}
 
 	private SwingRibbonModel.ButtonSize resolveButtonSize(String buttonId, SwingRibbonModel.ButtonPriority priority) {

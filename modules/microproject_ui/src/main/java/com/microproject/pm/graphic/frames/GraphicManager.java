@@ -98,6 +98,7 @@ import javax.swing.undo.CannotUndoException;
 import com.microproject.menu.resource.MissingListenerException;
 import com.microproject.ui.shell.MicroProjectShell;
 import com.microproject.ui.ribbon.RibbonController;
+import com.microproject.ui.ribbon.RibbonDropDownSource;
 import com.microproject.configuration.Configuration;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.configuration.Settings;
@@ -1875,6 +1876,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (menuManager == null)
 			menuManager = MenuManager.getInstance(this);
 		actionsMap = new MenuActionsMap(menuManager);
+		menuManager.setRibbonDropDownSource(new TransformDropDownSource());
 		actionsMap.addHandler(ACTION_NEW_PROJECT, new NewProjectAction());
 		actionsMap.addHandler(ACTION_NEW_MASTER_PROJECT, new NewMasterProjectAction());
 		actionsMap.addHandler(ACTION_OPEN_PROJECT, new OpenProjectAction());
@@ -1948,7 +1950,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_TOGGLE_CRITICAL_CHAIN, new ToggleCriticalChainAction());
 		actionsMap.addHandler(ACTION_DELEGATE_TASKS, new DelegateTasksAction());
 		actionsMap.addHandler(ACTION_TIMELINE, new TimelineAction());
-		actionsMap.addHandler(ACTION_CALENDAR_VIEW, new CalendarViewAction());
+		actionsMap.addHandler(ACTION_CALENDAR_VIEW, new ViewAction(ACTION_CALENDAR_VIEW));
 		actionsMap.addHandler(ACTION_CUSTOM_REPORT, new CustomReportAction());
 		actionsMap.addHandler(ACTION_UPDATE_TASKS, new UpdateTasksAction());
 		actionsMap.addHandler(ACTION_UPDATE_PROJECT, new UpdateProjectAction());
@@ -1976,6 +1978,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_GROUP, groupTransform);
 		actionsMap.addHandler(ACTION_CHOOSE_GROUP, groupTransform);
 		actionsMap.addHandler(ACTION_CALENDAR_OPTIONS, new CalendarOptionsAction());
+		actionsMap.addHandler(ACTION_CALENDAR_VIEW_SETTINGS, new CalendarViewSettingsAction());
 		actionsMap.addHandler("GeneralOptions", new GeneralOptionsAction());
 		actionsMap.addHandler(ACTION_SAVE_BASELINE, new SaveBaselineAction());
 		actionsMap.addHandler(ACTION_CLEAR_BASELINE, new ClearBaselineAction());
@@ -2237,6 +2240,16 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			if (!beforeCalendarOptionsRoute()) return;
 			doCalendarOptionsDialog();
+		}
+	}
+
+	/** Opens the calendar view settings dialog; the Task Views group dialog launcher runs it. */
+	public class CalendarViewSettingsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive())
+				getCurrentFrame().doCalendarViewDialog();
 		}
 	}
 
@@ -2967,6 +2980,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			if (!isDocumentActive()) return;
 			DocumentFrame frame = getCurrentFrame();
 			boolean masked = PrivacyDisplayMode.toggle(frame.getProject());
+			frame.syncPrivacyMaskToggle();
 			GanttView ganttView = frame.getGanttView();
 			if (ganttView != null) {
 				if (ganttView.getGantt() != null) ganttView.getGantt().repaint();
@@ -3331,6 +3345,98 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	        	return;
 	        }
 	        showTransformChooser(type, this, actionId, taskSortSelection);
+	        refreshTransformDropDowns();
+		}
+	}
+
+	private static final String RIBBON_FILTER_ID = "RibbonChooseFilter";
+	private static final String RIBBON_GROUP_ID = "RibbonChooseGroup";
+
+	/** Re-reads the filter and group labels of the ribbon from the active view. */
+	private void refreshTransformDropDowns() {
+		getMenuManager().refreshRibbonDropDown(RIBBON_FILTER_ID);
+		getMenuManager().refreshRibbonDropDown(RIBBON_GROUP_ID);
+	}
+
+	private static final String RIBBON_UNDO_ID = "RibbonTopBarUndo";
+	private static final String RIBBON_REDO_ID = "RibbonTopBarRedo";
+	private static final int HISTORY_LIST_SIZE = 20;
+
+	/** Values and choices of the ribbon Filter and Group drop-downs (the transforms of the active top view) and the undo/redo history lists. */
+	private final class TransformDropDownSource implements RibbonDropDownSource {
+		@Override
+		public List<String> popupEntries(String commandId) {
+			boolean undo = RIBBON_UNDO_ID.equals(commandId);
+			if (!undo && !RIBBON_REDO_ID.equals(commandId))
+				return List.of();
+			DocumentFrame frame = getCurrentFrame();
+			UndoController controller = frame == null || !isDocumentActive() ? null : frame.getUndoController();
+			if (controller == null)
+				return List.of();
+			List<String> names = undo ? controller.getUndoNames(HISTORY_LIST_SIZE) : controller.getRedoNames(HISTORY_LIST_SIZE);
+			List<String> entries = new ArrayList<>(names.size());
+			for (int index = 0; index < names.size(); index++) {
+				String name = names.get(index);
+				entries.add(name == null || name.isBlank() ? "#" + (index + 1) : name);
+			}
+			return entries;
+		}
+
+		/** Choosing entry {@code n} undoes or redoes the steps up to and including it. */
+		@Override
+		public void selectPopupEntry(String commandId, int index) {
+			boolean undo = RIBBON_UNDO_ID.equals(commandId);
+			if (index < 0 || (!undo && !RIBBON_REDO_ID.equals(commandId)))
+				return;
+			setMeAsLastGraphicManager();
+			for (int step = 0; step <= index; step++)
+				doUndoRedo(undo);
+		}
+
+		private TransformComboBoxModel model(String commandId) {
+			int type = RIBBON_FILTER_ID.equals(commandId) ? TransformComboBoxModel.FILTER
+					: RIBBON_GROUP_ID.equals(commandId) ? TransformComboBoxModel.GROUPER : 0;
+			DocumentFrame frame = getCurrentFrame();
+			if (type == 0 || frame == null)
+				return null;
+			com.microproject.grouping.core.transform.ViewConfiguration view =
+				com.microproject.grouping.core.transform.ViewConfiguration.getView(frame.getTopViewId());
+			if (view == null || view.getTransform() == null)
+				return null;
+			TransformComboBoxModel model = new TransformComboBoxModel(type);
+			model.setView(view);
+			return model;
+		}
+
+		@Override
+		public String currentValue(String commandId) {
+			TransformComboBoxModel model = model(commandId);
+			return model == null || model.getSelectedItem() == null ? null : model.getSelectedItem().toString();
+		}
+
+		@Override
+		public List<String> choices(String commandId) {
+			TransformComboBoxModel model = model(commandId);
+			List<String> names = new ArrayList<>();
+			for (int index = 0; model != null && index < model.getSize(); index++)
+				names.add(model.getElementAt(index).toString());
+			return names;
+		}
+
+		@Override
+		public void select(String commandId, int index) {
+			TransformComboBoxModel model = model(commandId);
+			if (model == null || index < 0 || index >= model.getSize())
+				return;
+			setMeAsLastGraphicManager();
+			CommonSpreadSheet spreadSheet = getCurrentFrame().getTopSpreadSheet();
+			if (spreadSheet != null) {
+				if (spreadSheet.isEditing())
+					spreadSheet.getCellEditor().stopCellEditing();
+				spreadSheet.clearSelection();
+			}
+			model.changeTransform(model.getElementAt(index));
+			refreshTransformDropDowns();
 		}
 	}
 
@@ -4562,6 +4668,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_CHOOSE_FILTER, hasDocument);
 		getMenuManager().setActionEnabled(ACTION_CHOOSE_SORT, hasDocument);
 		getMenuManager().setActionEnabled(ACTION_CHOOSE_GROUP, hasDocument);
+		refreshTransformDropDowns();
 
 		if (getCurrentFrame() != null) {
 			getCurrentFrame().refreshUndoButtons();
@@ -4626,18 +4733,15 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		boolean progressSelected = false;
 		boolean resourceLabelSelected = false;
 		boolean taskLabelSelected = false;
-		boolean gridlinesSelected = false;
 		if (ganttActive) {
 			GanttView ganttView = getCurrentFrame().getGanttView();
 			progressSelected = ganttView.isProgressLineEnabled();
 			resourceLabelSelected = ganttView.isResourceNameAnnotationSelected();
 			taskLabelSelected = ganttView.isTaskNameAnnotationSelected();
-			gridlinesSelected = ganttView.isSpreadsheetGridVisible();
 		}
 		getMenuManager().setActionSelected(ACTION_TOGGLE_PROGRESS_LINE, progressSelected);
 		getMenuManager().setActionSelected(ACTION_LABEL_RESOURCE_NAMES, resourceLabelSelected);
 		getMenuManager().setActionSelected(ACTION_LABEL_TASK_NAME, taskLabelSelected);
-		getMenuManager().setActionSelected(ACTION_GRIDLINES, gridlinesSelected);
 	}
 	/**
 	 * React to selection changed events and forward them on to any bottom window
@@ -5373,14 +5477,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent event) {
 			setMeAsLastGraphicManager();
-			if (isDocumentActive()) getCurrentFrame().doTimelineDialog();
-		}
-	}
-	public class CalendarViewAction extends MenuActionsMap.DocumentMenuAction {
-		private static final long serialVersionUID = 1L;
-		public void actionPerformed(ActionEvent event) {
-			setMeAsLastGraphicManager();
-			if (isDocumentActive()) getCurrentFrame().doCalendarViewDialog();
+			if (isDocumentActive()) getCurrentFrame().toggleTimelineView();
 		}
 	}
 	public class CustomReportAction extends MenuActionsMap.DocumentMenuAction {

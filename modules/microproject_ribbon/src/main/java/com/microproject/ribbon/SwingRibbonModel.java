@@ -77,6 +77,10 @@ public final class SwingRibbonModel {
 		private final int collapsePriority;
 		private final String backstagePage;
 		private final boolean backstageImmediate;
+		private final RibbonControlKind controlKind;
+		private final List<String> itemIds;
+		private final String keyTip;
+		private final RibbonActivation activation;
 
 		public RibbonButton(String id, ButtonPriority priority) {
 			this(id, priority, null, false);
@@ -102,6 +106,13 @@ public final class SwingRibbonModel {
 
 		public RibbonButton(String id, String text, ButtonPriority priority, ButtonSize size, String iconKey, boolean toggle,
 			ButtonPresentation presentation, int collapsePriority, String backstagePage, boolean backstageImmediate) {
+			this(id, text, priority, size, iconKey, toggle, presentation, collapsePriority, backstagePage,
+				backstageImmediate, defaultControlKind(toggle, presentation), List.of(), null, null);
+		}
+
+		private RibbonButton(String id, String text, ButtonPriority priority, ButtonSize size, String iconKey, boolean toggle,
+			ButtonPresentation presentation, int collapsePriority, String backstagePage, boolean backstageImmediate,
+			RibbonControlKind controlKind, List<String> itemIds, String keyTip, RibbonActivation activation) {
 			this.id = Objects.requireNonNull(id);
 			this.text = Objects.requireNonNull(text);
 			this.priority = Objects.requireNonNull(priority);
@@ -112,6 +123,64 @@ public final class SwingRibbonModel {
 			this.collapsePriority = collapsePriority;
 			this.backstagePage = backstagePage;
 			this.backstageImmediate = backstageImmediate;
+			this.controlKind = Objects.requireNonNull(controlKind);
+			this.itemIds = List.copyOf(itemIds);
+			this.keyTip = keyTip;
+			this.activation = activation;
+		}
+
+		/**
+		 * The control kind implied by the pre-existing {@code type} / {@code presentation}
+		 * metadata, used when a command declares no explicit {@code .control}.
+		 */
+		public static RibbonControlKind defaultControlKind(boolean toggle, ButtonPresentation presentation) {
+			if (presentation == ButtonPresentation.SPLIT) {
+				return RibbonControlKind.SPLIT_BUTTON;
+			}
+			return toggle ? RibbonControlKind.TOGGLE_BUTTON : RibbonControlKind.BUTTON;
+		}
+
+		/**
+		 * Returns a copy with an explicit control contract.
+		 *
+		 * @param kind the Office control type of this command
+		 * @param items command ids shown in the popup of the control, in order; {@code "-"} is a separator
+		 * @param keyTip the Alt-sequence key tip, or {@code null}
+		 */
+		public RibbonButton withControl(RibbonControlKind kind, List<String> items, String keyTip) {
+			return new RibbonButton(id, text, priority, size, iconKey, toggle, presentation, collapsePriority,
+				backstagePage, backstageImmediate, kind, items, keyTip, activation);
+		}
+
+		/**
+		 * Returns a copy that declares what a click on the control body does. Without
+		 * it the activation is inferred by
+		 * {@link RibbonActivation#defaultFor(RibbonControlKind, boolean, String, boolean)}.
+		 */
+		public RibbonButton withActivation(RibbonActivation declared) {
+			return new RibbonButton(id, text, priority, size, iconKey, toggle, presentation, collapsePriority,
+				backstagePage, backstageImmediate, controlKind, itemIds, keyTip, Objects.requireNonNull(declared));
+		}
+
+		/** What a click on the control body does and whether the control stays highlighted afterwards. */
+		public RibbonActivation getActivation() {
+			return activation != null ? activation
+				: RibbonActivation.defaultFor(controlKind, toggle, backstagePage, backstageImmediate);
+		}
+
+		/** The Office control type that defines how this command reacts to input. */
+		public RibbonControlKind getControlKind() {
+			return controlKind;
+		}
+
+		/** Command ids of the popup entries ({@code "-"} is a separator); empty when the control has none. */
+		public List<String> getItemIds() {
+			return itemIds;
+		}
+
+		/** The Alt-sequence key tip, or {@code null} when none is declared. */
+		public String getKeyTip() {
+			return keyTip;
 		}
 
 		public String getId() {
@@ -157,7 +226,7 @@ public final class SwingRibbonModel {
 		}
 
 		public boolean isSplit() {
-			return presentation == ButtonPresentation.SPLIT;
+			return presentation == ButtonPresentation.SPLIT || controlKind == RibbonControlKind.SPLIT_BUTTON;
 		}
 
 		public int getCollapsePriority() {
@@ -176,22 +245,34 @@ public final class SwingRibbonModel {
 		private final List<RibbonButton> buttons;
 		private final CustomBandProvider customBandProvider;
 		private final int preferredWidthHint;
+		private final String dialogLauncherId;
 
 		public RibbonBand(String id, String title, List<RibbonButton> buttons) {
-			this(id, title, RibbonBandKind.BUTTONS, List.copyOf(buttons), null, -1);
+			this(id, title, RibbonBandKind.BUTTONS, List.copyOf(buttons), null, -1, null);
 		}
 
 		public RibbonBand(String id, String title, CustomBandProvider customBandProvider) {
-			this(id, title, RibbonBandKind.CUSTOM, List.of(), Objects.requireNonNull(customBandProvider), customBandProvider.getPreferredWidthHint());
+			this(id, title, RibbonBandKind.CUSTOM, List.of(), Objects.requireNonNull(customBandProvider), customBandProvider.getPreferredWidthHint(), null);
 		}
 
-		private RibbonBand(String id, String title, RibbonBandKind kind, List<RibbonButton> buttons, CustomBandProvider customBandProvider, int preferredWidthHint) {
+		private RibbonBand(String id, String title, RibbonBandKind kind, List<RibbonButton> buttons, CustomBandProvider customBandProvider, int preferredWidthHint, String dialogLauncherId) {
 			this.id = Objects.requireNonNull(id);
 			this.title = Objects.requireNonNull(title);
 			this.kind = Objects.requireNonNull(kind);
 			this.buttons = buttons;
 			this.customBandProvider = customBandProvider;
 			this.preferredWidthHint = preferredWidthHint;
+			this.dialogLauncherId = dialogLauncherId;
+		}
+
+		/** Returns a copy whose group corner shows a dialog launcher for the given command id. */
+		public RibbonBand withDialogLauncher(String commandId) {
+			return new RibbonBand(id, title, kind, buttons, customBandProvider, preferredWidthHint, commandId);
+		}
+
+		/** The command opened by the dialog launcher of the group, or {@code null} when the group has none. */
+		public String getDialogLauncherId() {
+			return dialogLauncherId;
 		}
 
 		public String getId() {
@@ -269,11 +350,22 @@ public final class SwingRibbonModel {
 	private final String id;
 	private final List<RibbonTab> tabs;
 	private final List<String> taskBarButtons;
+	private final List<RibbonButton> taskBarControls;
 
 	public SwingRibbonModel(String id, List<RibbonTab> tabs, List<String> taskBarButtons) {
+		this(id, tabs, taskBarButtons.stream().map(buttonId -> new RibbonButton(buttonId, ButtonPriority.LOW)).toList(), null);
+	}
+
+	private SwingRibbonModel(String id, List<RibbonTab> tabs, List<RibbonButton> taskBarControls, Void marker) {
 		this.id = Objects.requireNonNull(id);
 		this.tabs = List.copyOf(tabs);
-		this.taskBarButtons = List.copyOf(taskBarButtons);
+		this.taskBarControls = List.copyOf(taskBarControls);
+		this.taskBarButtons = this.taskBarControls.stream().map(RibbonButton::getId).toList();
+	}
+
+	/** @param controls the quick access commands with their control contract, in display order */
+	public SwingRibbonModel withTaskBarControls(List<RibbonButton> controls) {
+		return new SwingRibbonModel(id, tabs, controls, null);
 	}
 
 	public String getId() {
@@ -286,5 +378,10 @@ public final class SwingRibbonModel {
 
 	public List<String> getTaskBarButtons() {
 		return Collections.unmodifiableList(taskBarButtons);
+	}
+
+	/** The quick access commands as controls, carrying the kind, popup items and key tip of each. */
+	public List<RibbonButton> getTaskBarControls() {
+		return Collections.unmodifiableList(taskBarControls);
 	}
 }
