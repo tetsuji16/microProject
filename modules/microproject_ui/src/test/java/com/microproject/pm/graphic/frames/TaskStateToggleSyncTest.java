@@ -41,7 +41,7 @@ class TaskStateToggleSyncTest {
 			fx.select(fx.task(0));
 			fx.run(CommandId.TASK_MODE_AUTOMATIC);
 			fx.select(fx.task(0), fx.task(1));
-			fx.frame.syncTaskStateToggles();
+			HeadlessDocumentFixture.onEdt(fx.frame::syncTaskStateToggles);
 			assertEquals(false, pressed(fx, "TaskModeManual"));
 			assertEquals(false, pressed(fx, "TaskModeAutomatic"));
 		}
@@ -56,14 +56,14 @@ class TaskStateToggleSyncTest {
 			assertEquals(true, pressed(fx, "InactivateTask"));
 
 			fx.select(fx.task(0), fx.task(1));
-			fx.frame.syncTaskStateToggles();
+			HeadlessDocumentFixture.onEdt(fx.frame::syncTaskStateToggles);
 			assertEquals(false, pressed(fx, "InactivateTask"));
 
 			fx.select(fx.task(1));
-			fx.frame.syncTaskStateToggles();
+			HeadlessDocumentFixture.onEdt(fx.frame::syncTaskStateToggles);
 			assertEquals(false, pressed(fx, "InactivateTask"));
 			fx.select(fx.task(0));
-			fx.frame.syncTaskStateToggles();
+			HeadlessDocumentFixture.onEdt(fx.frame::syncTaskStateToggles);
 			assertEquals(true, pressed(fx, "InactivateTask"));
 		}
 	}
@@ -88,12 +88,12 @@ class TaskStateToggleSyncTest {
 			assertEquals("100,", pressedPercent(fx));
 			fx.run(CommandId.PERCENT_COMPLETE_0);
 			assertEquals("0,", pressedPercent(fx));
-			fx.task(0).setPercentComplete(0.3D);
-			fx.frame.syncTaskStateToggles();
+			HeadlessDocumentFixture.onEdt(() -> fx.task(0).setPercentComplete(0.3D));
+			HeadlessDocumentFixture.onEdt(fx.frame::syncTaskStateToggles);
 			assertEquals("", pressedPercent(fx));
-			fx.task(0).setPercentComplete(0.5D);
+			HeadlessDocumentFixture.onEdt(() -> fx.task(0).setPercentComplete(0.5D));
 			fx.select(fx.task(0), fx.task(1));
-			fx.frame.syncTaskStateToggles();
+			HeadlessDocumentFixture.onEdt(fx.frame::syncTaskStateToggles);
 			assertEquals("", pressedPercent(fx));
 		}
 	}
