@@ -124,10 +124,12 @@ class TaskRibbonHeadlessCommandTest {
 		String name = "Inactivate acceptance";
 		try (HeadlessDocumentFixture fx = new HeadlessDocumentFixture(name)) {
 			NormalTask task = fx.task(0);
-			task.setDuration(CalendarOption.getInstance().getMillisPerDay());
-			task.setPercentComplete(0.4D);
-			fx.project.recalculate();
-			int rowsBefore = fx.sheet().getRowCount();
+			HeadlessDocumentFixture.onEdt(() -> {
+				task.setDuration(CalendarOption.getInstance().getMillisPerDay());
+				task.setPercentComplete(0.4D);
+				fx.project.recalculate();
+			});
+			int rowsBefore = fx.rowCount();
 			assertFalse(task.isInactiveTask(), "the fixture task must start active");
 
 			fx.select(task);
@@ -136,7 +138,7 @@ class TaskRibbonHeadlessCommandTest {
 			assertEquals(List.of(task.getUniqueId()), result.affectedTaskIds(), "Inactivate affected task IDs");
 			assertTrue(task.isInactiveTask(), "Inactivate must clear the selected task's Active field");
 			assertTrue(fx.project.getTaskList().contains(task), "Inactivate must keep the task record");
-			assertEquals(rowsBefore, fx.sheet().getRowCount(), "Inactivate must keep the task table row");
+			assertEquals(rowsBefore, fx.rowCount(), "Inactivate must keep the task table row");
 			assertEquals(0.4D, task.getPercentComplete(), 0.00001D, "Inactivate must preserve progress");
 
 			fx.undo();
