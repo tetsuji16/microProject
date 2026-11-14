@@ -158,6 +158,14 @@ class RibbonControlContractTest {
 	}
 
 	@Test
+	void saveBaselineIsAMenuWithSetAndClearItems() {
+		SwingRibbonModel.RibbonButton button = button(model(Map.of()), "RibbonSaveBaseline");
+		assertEquals(RibbonControlKind.MENU, button.getControlKind());
+		assertEquals(RibbonActivation.POPUP, button.getActivation());
+		assertEquals(List.of("RibbonSaveBaseline", "RibbonClearBaseline"), button.getItemIds());
+	}
+
+	@Test
 	void menuOnlyOpensItsPopup() {
 		AtomicInteger invoked = new AtomicInteger();
 		JButton button = countingButton(invoked);

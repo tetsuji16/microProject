@@ -81,7 +81,6 @@ class MspRibbonActivationDiffTest {
 		Map.entry("RibbonPercentComplete50", RibbonActivation.COMMAND),
 		Map.entry("RibbonPercentComplete75", RibbonActivation.COMMAND),
 		Map.entry("RibbonPercentComplete100", RibbonActivation.COMMAND),
-		Map.entry("RibbonSaveBaseline", RibbonActivation.DIALOG),
 		Map.entry("RibbonChooseSort", RibbonActivation.DIALOG),
 		Map.entry("RibbonChooseFilter", RibbonActivation.DIALOG),
 		Map.entry("RibbonChooseGroup", RibbonActivation.DIALOG),
