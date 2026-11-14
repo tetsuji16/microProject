@@ -2969,6 +2969,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			if (!isDocumentActive()) return;
 			DocumentFrame frame = getCurrentFrame();
 			boolean masked = PrivacyDisplayMode.toggle(frame.getProject());
+			frame.syncPrivacyMaskToggle();
 			GanttView ganttView = frame.getGanttView();
 			if (ganttView != null) {
 				if (ganttView.getGantt() != null) ganttView.getGantt().repaint();

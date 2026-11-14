@@ -107,7 +107,7 @@ RibbonTaskUsageDetail,SPLIT_BUTTON,EXCLUSIVE_VIEW,PENDING_VERIFY,ViewRibbonTask/
 RibbonResourceUsageDetail,SPLIT_BUTTON,EXCLUSIVE_VIEW,PENDING_VERIFY,ViewRibbonTask/ViewResourceRibbonBand,Toggle current view + view list
 RibbonArrangeAll,BUTTON,COMMAND,BASELINE,ViewRibbonTask/ViewWindowRibbonBand,
 RibbonDetails,CHECK_BOX,TOGGLE_STATE,PENDING_VERIFY,ViewRibbonTask/ViewWindowRibbonBand,Details check box in Split View
-RibbonPrivacyMask,BUTTON,COMMAND,BASELINE,ViewRibbonTask/ViewWindowRibbonBand,
+RibbonPrivacyMask,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,ViewRibbonTask/ViewWindowRibbonBand,
 RibbonChooseFilter,DROP_DOWN,POPUP,PENDING_VERIFY,ViewRibbonTask/ViewDataRibbonBand,Filter list with current filter shown
 RibbonChooseSort,MENU,POPUP,PENDING_VERIFY,ViewRibbonTask/ViewDataRibbonBand,by Start Date / by Finish Date / by Priority / by Cost / by ID / Sort By
 RibbonChooseGroup,DROP_DOWN,POPUP,PENDING_VERIFY,ViewRibbonTask/ViewDataRibbonBand,Group list with current group shown

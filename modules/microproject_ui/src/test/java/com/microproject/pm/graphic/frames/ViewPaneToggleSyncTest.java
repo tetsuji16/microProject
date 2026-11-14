@@ -48,4 +48,22 @@ class ViewPaneToggleSyncTest {
 			assertEquals(false, pressed(fx, MenuActionConstants.ACTION_DETAILS));
 		}
 	}
+
+	@Test
+	void privacyMaskButtonFollowsTheDocumentsMaskState() throws Exception {
+		try (HeadlessDocumentFixture fx = new HeadlessDocumentFixture("First")) {
+			String id = MenuActionConstants.ACTION_TOGGLE_PRIVACY_MASK;
+			assertEquals(false, pressed(fx, id));
+			// The mask state belongs to the document; the button only mirrors it.
+			assertEquals(true, com.microproject.ui.privacy.PrivacyDisplayMode.toggle(fx.project));
+			assertEquals(false, pressed(fx, id));
+			HeadlessDocumentFixture.onEdt(fx.frame::syncPrivacyMaskToggle);
+			assertEquals(true, pressed(fx, id));
+
+			// Re-activating the document re-reads its state instead of keeping a stale press.
+			com.microproject.ui.privacy.PrivacyDisplayMode.toggle(fx.project);
+			HeadlessDocumentFixture.onEdt(() -> fx.frame.refreshViewButtons(true));
+			assertEquals(false, pressed(fx, id));
+		}
+	}
 }

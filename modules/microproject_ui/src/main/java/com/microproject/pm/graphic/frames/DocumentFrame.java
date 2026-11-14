@@ -2485,7 +2485,16 @@ public class DocumentFrame extends NamedFrame implements
 		if (lastTopButton != null)
 			menuManager.setActionSelected(lastTopButton,enable);
 		setBottomActionSelected(enable ? lastBottomButton : null);
+		if (enable)
+			syncPrivacyMaskToggle();
 
+	}
+
+	/** Privacy Mask is pressed while this document's presentation is masked; the state is the document's, not the button's. */
+	void syncPrivacyMaskToggle() {
+		if (menuManager != null)
+			menuManager.setActionSelected(ACTION_TOGGLE_PRIVACY_MASK,
+				com.microproject.ui.privacy.PrivacyDisplayMode.isMasked(project));
 	}
 	public void refreshUndoButtons() {
 		UndoController undoController = null;
