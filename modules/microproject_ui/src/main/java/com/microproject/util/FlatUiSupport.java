@@ -75,6 +75,8 @@ import javax.swing.plaf.FontUIResource;
  * Small FlatLaf-friendly UI helpers for shared Swing styling.
  */
 public final class FlatUiSupport {
+	/** Client property published while a ribbon control's popup is showing. */
+	public static final String POPUP_OPEN_PROPERTY = "MicroProject.ribbon.popupOpen";
 	public static final String BUTTON_STYLE_ROLE_PROPERTY = "MicroProject.buttonStyleRole";
 	public static final String BUTTON_STYLE_ROLE_TOOLBAR = "toolbar";
 	public static final String BUTTON_STYLE_ROLE_RIBBON_LARGE = "ribbonLarge";
@@ -463,6 +465,10 @@ public final class FlatUiSupport {
 		button.getModel().addChangeListener(listener);
 		button.putClientProperty("MicroProject.ribbonStateChangeListener", listener);
 		button.addPropertyChangeListener("enabled", event -> updateRibbonCommandStatePainting(button));
+		button.addPropertyChangeListener(POPUP_OPEN_PROPERTY, event -> {
+			updateRibbonCommandStatePainting(button);
+			button.repaint();
+		});
 		updateRibbonCommandStatePainting(button);
 	}
 
@@ -516,6 +522,15 @@ public final class FlatUiSupport {
 		return blend(buttonAccentColor(button), buttonStyleBaseBackground(button), 0.46f);
 	}
 
+	/** True while the popup of a ribbon control is showing; set by the ribbon popup wiring. */
+	public static boolean isPopupOpen(AbstractButton button) {
+		return button != null && Boolean.TRUE.equals(button.getClientProperty(POPUP_OPEN_PROPERTY));
+	}
+
+	private static boolean isRibbonSplitButton(AbstractButton button) {
+		return Boolean.TRUE.equals(button.getClientProperty("MicroProject.ribbonSplit"));
+	}
+
 	public static Color resolveCommandButtonBackground(AbstractButton button) {
 		if (button == null)
 			return null;
@@ -524,6 +539,9 @@ public final class FlatUiSupport {
 			return null;
 		if (model.isPressed() || model.isArmed())
 			return commandButtonPressedBackground(button);
+		// A split button shows its open popup on the arrow strip only (see CommandButtonBorder).
+		if (isPopupOpen(button) && !isRibbonSplitButton(button))
+			return commandButtonSelectedBackground(button);
 		if (supportsPersistentSelectedState(button) && model.isSelected())
 			return commandButtonSelectedBackground(button);
 		if (model.isRollover())
@@ -1277,6 +1295,10 @@ public final class FlatUiSupport {
 				g2.drawRoundRect(x, y, width - 1, height - 1, arc, arc);
 				if (isRibbonSplit(button)) {
 					int splitX = x + width - 18;
+					if (isPopupOpen(button)) {
+						g2.setColor(commandButtonSelectedBackground(button));
+						g2.fillRect(splitX + 1, y + 1, width - 19, height - 2);
+					}
 					g2.setColor(separatorColor());
 					g2.drawLine(splitX, y + 4, splitX, y + height - 5);
 					int centerX = splitX + 9;

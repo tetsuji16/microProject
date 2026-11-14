@@ -45,6 +45,7 @@ import com.microproject.ribbon.RibbonActivation;
 import com.microproject.ribbon.RibbonCommandSource;
 import com.microproject.ribbon.RibbonControlKind;
 import com.microproject.ribbon.SwingRibbonModel;
+import com.microproject.util.FlatUiSupport;
 
 /**
  * Applies the input behavior of a {@link RibbonControlKind} to the Swing button
@@ -72,7 +73,7 @@ final class RibbonControlPopups {
 	 * showing. Office draws the control (the arrow part of a split button) pressed
 	 * for exactly that time.
 	 */
-	static final String POPUP_OPEN_PROPERTY = "MicroProject.ribbon.popupOpen";
+	static final String POPUP_OPEN_PROPERTY = FlatUiSupport.POPUP_OPEN_PROPERTY;
 	/**
 	 * Client property holding the {@link Runnable} that re-reads the current value
 	 * of a drop-down and shows it as the control's label.

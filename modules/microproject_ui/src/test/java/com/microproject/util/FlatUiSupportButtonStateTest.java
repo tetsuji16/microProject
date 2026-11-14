@@ -206,4 +206,33 @@ class FlatUiSupportButtonStateTest {
 		}
 		return false;
 	}
+
+	@Test
+	void openPopupPaintsMenuLikeRibbonButtonAsSelected() {
+		JButton button = new JButton("Paste");
+		FlatUiSupport.styleRibbonSmallButton(button);
+		assertNull(FlatUiSupport.resolveCommandButtonBackground(button));
+
+		button.putClientProperty(FlatUiSupport.POPUP_OPEN_PROPERTY, Boolean.TRUE);
+		assertTrue(FlatUiSupport.isPopupOpen(button));
+		assertEquals(
+			FlatUiSupport.commandButtonSelectedBackground(button),
+			FlatUiSupport.resolveCommandButtonBackground(button));
+		assertTrue(button.isContentAreaFilled());
+
+		button.putClientProperty(FlatUiSupport.POPUP_OPEN_PROPERTY, null);
+		assertNull(FlatUiSupport.resolveCommandButtonBackground(button));
+		assertFalse(button.isContentAreaFilled());
+	}
+
+	@Test
+	void openPopupOfSplitButtonLeavesTheMainAreaUnfilled() {
+		JButton button = new JButton("Mark");
+		FlatUiSupport.styleRibbonSmallButton(button);
+		button.putClientProperty("MicroProject.ribbonSplit", Boolean.TRUE);
+		button.putClientProperty(FlatUiSupport.POPUP_OPEN_PROPERTY, Boolean.TRUE);
+
+		assertTrue(FlatUiSupport.isPopupOpen(button));
+		assertNull(FlatUiSupport.resolveCommandButtonBackground(button));
+	}
 }

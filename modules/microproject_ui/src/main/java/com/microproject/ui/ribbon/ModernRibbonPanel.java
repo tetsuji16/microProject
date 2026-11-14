@@ -1604,7 +1604,6 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		if (specification.getIconKey() != null) {
 			button.putClientProperty(RibbonButtonStyler.ICON_KEY_PROPERTY, specification.getIconKey());
 		}
-		button.putClientProperty("MicroProject.ribbonToggle", specification.isToggle());
 		button.getAccessibleContext().setAccessibleName(button.getText() == null ? buttonId : button.getText());
 		return button;
 	}
