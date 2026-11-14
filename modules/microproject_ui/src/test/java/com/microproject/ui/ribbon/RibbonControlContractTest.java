@@ -43,6 +43,8 @@ import javax.swing.AbstractAction;
 import javax.swing.JButton;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import javax.swing.event.PopupMenuEvent;
+import javax.swing.event.PopupMenuListener;
 
 import org.junit.jupiter.api.Test;
 
@@ -51,6 +53,7 @@ import com.microproject.menu.MenuActionMapSupport;
 import com.microproject.menu.MenuManager;
 import com.microproject.menu.MenuRibbonCommandSource;
 import com.microproject.menu.testsupport.MenuDefinitionSupport;
+import com.microproject.ribbon.RibbonActivation;
 import com.microproject.ribbon.RibbonControlKind;
 import com.microproject.ribbon.SwingRibbonModel;
 
@@ -142,6 +145,63 @@ class RibbonControlContractTest {
 		assertEquals(1, invoked.get());
 		assertNull(button.getClientProperty(RibbonControlPopups.POPUP_PROPERTY));
 		assertEquals(0, button.getComponentCount());
+	}
+
+	@Test
+	void activationIsReadFromResourcesOrInferred() {
+		SwingRibbonModel model = model(Map.of(
+			"RibbonPaste.activation", " dialog ",
+			"RibbonClear.control", "MENU",
+			"RibbonClear.items", "RibbonCut"));
+		assertEquals(RibbonActivation.DIALOG, button(model, "RibbonPaste").getActivation());
+		assertEquals(RibbonActivation.POPUP, button(model, "RibbonClear").getActivation());
+		assertEquals(RibbonActivation.COMMAND, button(model, "RibbonCut").getActivation());
+		assertEquals(RibbonActivation.MODE, button(model, "RibbonFormatPainter").getActivation());
+		assertEquals(RibbonActivation.EXCLUSIVE_VIEW, button(model, "RibbonGantt").getActivation());
+		assertEquals(RibbonActivation.TOGGLE_STATE, button(model, "RibbonHistogram").getActivation());
+		assertEquals(RibbonActivation.BACKSTAGE, button(model, "RibbonOpenProject").getActivation());
+		assertEquals(RibbonActivation.COMMAND, button(model, "RibbonSaveProject").getActivation());
+	}
+
+	@Test
+	void activationThatContradictsTheOtherMetadataFailsModelCreation() {
+		assertThrows(IllegalStateException.class, () -> model(Map.of("RibbonPaste.activation", "hover")));
+		// A pressed state needs type=TOGGLE, and a toggle needs a pressed state.
+		assertThrows(IllegalStateException.class, () -> model(Map.of("RibbonPaste.activation", "TOGGLE_STATE")));
+		assertThrows(IllegalStateException.class, () -> model(Map.of("RibbonHistogram.activation", "DIALOG")));
+		// POPUP is exactly the kinds whose click only opens their popup.
+		assertThrows(IllegalStateException.class, () -> model(Map.of("RibbonPaste.activation", "POPUP")));
+		assertThrows(IllegalStateException.class, () -> model(Map.of(
+			"RibbonClear.control", "MENU", "RibbonClear.items", "RibbonCut", "RibbonClear.activation", "DIALOG")));
+		// BACKSTAGE is exactly the commands that open a Backstage page.
+		assertThrows(IllegalStateException.class, () -> model(Map.of("RibbonPaste.activation", "BACKSTAGE")));
+		assertThrows(IllegalStateException.class, () -> model(Map.of("RibbonOpenProject.activation", "DIALOG")));
+	}
+
+	@Test
+	void buttonPublishesItsActivationAndWhetherItsPopupIsOpen() {
+		JButton button = countingButton(new AtomicInteger());
+		RibbonControlPopups.install(button, specification(RibbonControlKind.MENU), commandSource(), key -> null);
+		assertEquals(RibbonActivation.POPUP, button.getClientProperty(RibbonControlPopups.ACTIVATION_PROPERTY));
+		assertNull(button.getClientProperty(RibbonControlPopups.POPUP_OPEN_PROPERTY));
+
+		JPopupMenu popup = assertInstanceOf(JPopupMenu.class, button.getClientProperty(RibbonControlPopups.POPUP_PROPERTY));
+		PopupMenuEvent event = new PopupMenuEvent(popup);
+		for (PopupMenuListener listener : popup.getPopupMenuListeners()) {
+			listener.popupMenuWillBecomeVisible(event);
+		}
+		assertEquals(Boolean.TRUE, button.getClientProperty(RibbonControlPopups.POPUP_OPEN_PROPERTY));
+		for (PopupMenuListener listener : popup.getPopupMenuListeners()) {
+			listener.popupMenuWillBecomeInvisible(event);
+		}
+		assertNull(button.getClientProperty(RibbonControlPopups.POPUP_OPEN_PROPERTY));
+
+		JButton plain = countingButton(new AtomicInteger());
+		RibbonControlPopups.install(plain,
+			new SwingRibbonModel.RibbonButton("RibbonPaste", SwingRibbonModel.ButtonPriority.MEDIUM)
+				.withActivation(RibbonActivation.DIALOG),
+			commandSource(), key -> null);
+		assertEquals(RibbonActivation.DIALOG, plain.getClientProperty(RibbonControlPopups.ACTIVATION_PROPERTY));
 	}
 
 	@Test

@@ -80,6 +80,7 @@ public final class SwingRibbonModel {
 		private final RibbonControlKind controlKind;
 		private final List<String> itemIds;
 		private final String keyTip;
+		private final RibbonActivation activation;
 
 		public RibbonButton(String id, ButtonPriority priority) {
 			this(id, priority, null, false);
@@ -106,12 +107,12 @@ public final class SwingRibbonModel {
 		public RibbonButton(String id, String text, ButtonPriority priority, ButtonSize size, String iconKey, boolean toggle,
 			ButtonPresentation presentation, int collapsePriority, String backstagePage, boolean backstageImmediate) {
 			this(id, text, priority, size, iconKey, toggle, presentation, collapsePriority, backstagePage,
-				backstageImmediate, defaultControlKind(toggle, presentation), List.of(), null);
+				backstageImmediate, defaultControlKind(toggle, presentation), List.of(), null, null);
 		}
 
 		private RibbonButton(String id, String text, ButtonPriority priority, ButtonSize size, String iconKey, boolean toggle,
 			ButtonPresentation presentation, int collapsePriority, String backstagePage, boolean backstageImmediate,
-			RibbonControlKind controlKind, List<String> itemIds, String keyTip) {
+			RibbonControlKind controlKind, List<String> itemIds, String keyTip, RibbonActivation activation) {
 			this.id = Objects.requireNonNull(id);
 			this.text = Objects.requireNonNull(text);
 			this.priority = Objects.requireNonNull(priority);
@@ -125,6 +126,7 @@ public final class SwingRibbonModel {
 			this.controlKind = Objects.requireNonNull(controlKind);
 			this.itemIds = List.copyOf(itemIds);
 			this.keyTip = keyTip;
+			this.activation = activation;
 		}
 
 		/**
@@ -147,7 +149,23 @@ public final class SwingRibbonModel {
 		 */
 		public RibbonButton withControl(RibbonControlKind kind, List<String> items, String keyTip) {
 			return new RibbonButton(id, text, priority, size, iconKey, toggle, presentation, collapsePriority,
-				backstagePage, backstageImmediate, kind, items, keyTip);
+				backstagePage, backstageImmediate, kind, items, keyTip, activation);
+		}
+
+		/**
+		 * Returns a copy that declares what a click on the control body does. Without
+		 * it the activation is inferred by
+		 * {@link RibbonActivation#defaultFor(RibbonControlKind, boolean, String, boolean)}.
+		 */
+		public RibbonButton withActivation(RibbonActivation declared) {
+			return new RibbonButton(id, text, priority, size, iconKey, toggle, presentation, collapsePriority,
+				backstagePage, backstageImmediate, controlKind, itemIds, keyTip, Objects.requireNonNull(declared));
+		}
+
+		/** What a click on the control body does and whether the control stays highlighted afterwards. */
+		public RibbonActivation getActivation() {
+			return activation != null ? activation
+				: RibbonActivation.defaultFor(controlKind, toggle, backstagePage, backstageImmediate);
 		}
 
 		/** The Office control type that defines how this command reacts to input. */

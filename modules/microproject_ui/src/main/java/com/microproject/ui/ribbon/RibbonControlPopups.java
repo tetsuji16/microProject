@@ -32,7 +32,10 @@ import javax.swing.AbstractButton;
 import javax.swing.JButton;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import javax.swing.event.PopupMenuEvent;
+import javax.swing.event.PopupMenuListener;
 
+import com.microproject.ribbon.RibbonActivation;
 import com.microproject.ribbon.RibbonCommandSource;
 import com.microproject.ribbon.RibbonControlKind;
 import com.microproject.ribbon.SwingRibbonModel;
@@ -56,6 +59,14 @@ final class RibbonControlPopups {
 	static final String ARROW_BUTTON_PROPERTY = "MicroProject.ribbon.controlMenuButton";
 	/** Client property holding the declared key tip of a ribbon button. */
 	static final String KEY_TIP_PROPERTY = "MicroProject.ribbon.keyTip";
+	/** Client property holding the {@link RibbonActivation} of a ribbon button. */
+	static final String ACTIVATION_PROPERTY = "MicroProject.ribbon.activation";
+	/**
+	 * Client property that is {@link Boolean#TRUE} while the popup of the control is
+	 * showing. Office draws the control (the arrow part of a split button) pressed
+	 * for exactly that time.
+	 */
+	static final String POPUP_OPEN_PROPERTY = "MicroProject.ribbon.popupOpen";
 	static final String POPUP_NAME_PREFIX = "microproject.ribbon.controlMenu.";
 	static final String ARROW_BUTTON_NAME_PREFIX = "microproject.ribbon.controlMenuButton.";
 	private static final String SPLIT_PROPERTY = "MicroProject.ribbonSplit";
@@ -86,6 +97,7 @@ final class RibbonControlPopups {
 		RibbonCommandSource commandSource, UnaryOperator<String> text) {
 		RibbonControlKind kind = specification.getControlKind();
 		button.putClientProperty(CONTROL_KIND_PROPERTY, kind);
+		button.putClientProperty(ACTIVATION_PROPERTY, specification.getActivation());
 		if (specification.getKeyTip() != null) {
 			button.putClientProperty(KEY_TIP_PROPERTY, specification.getKeyTip());
 		}
@@ -94,6 +106,7 @@ final class RibbonControlPopups {
 		}
 		JPopupMenu popup = createPopup(specification, commandSource, text);
 		button.putClientProperty(POPUP_PROPERTY, popup);
+		trackPopupOpen(button, popup);
 		button.putClientProperty(SPLIT_PROPERTY, Boolean.TRUE);
 		if (kind.invokesOnClick()) {
 			installArrowHitArea(button, specification.getId(), popup);
@@ -123,6 +136,31 @@ final class RibbonControlPopups {
 			popup.add(item);
 		}
 		return popup;
+	}
+
+	/** Publishes {@link #POPUP_OPEN_PROPERTY} for as long as the popup is showing. */
+	private static void trackPopupOpen(AbstractButton button, JPopupMenu popup) {
+		popup.addPopupMenuListener(new PopupMenuListener() {
+			@Override
+			public void popupMenuWillBecomeVisible(PopupMenuEvent event) {
+				setPopupOpen(true);
+			}
+
+			@Override
+			public void popupMenuWillBecomeInvisible(PopupMenuEvent event) {
+				setPopupOpen(false);
+			}
+
+			@Override
+			public void popupMenuCanceled(PopupMenuEvent event) {
+				setPopupOpen(false);
+			}
+
+			private void setPopupOpen(boolean open) {
+				button.putClientProperty(POPUP_OPEN_PROPERTY, open ? Boolean.TRUE : null);
+				button.repaint();
+			}
+		});
 	}
 
 	/** Menu-like controls: the button keeps its caption and icon but only opens the popup. */

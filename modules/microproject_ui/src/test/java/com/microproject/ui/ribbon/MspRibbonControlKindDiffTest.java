@@ -94,6 +94,11 @@ class MspRibbonControlKindDiffTest {
 		Map.entry("RibbonTaskModeManual", RibbonControlKind.BUTTON),
 		Map.entry("RibbonTaskModeAutomatic", RibbonControlKind.BUTTON),
 		Map.entry("RibbonInactivateTask", RibbonControlKind.BUTTON),
+		Map.entry("RibbonPercentComplete0", RibbonControlKind.BUTTON),
+		Map.entry("RibbonPercentComplete25", RibbonControlKind.BUTTON),
+		Map.entry("RibbonPercentComplete50", RibbonControlKind.BUTTON),
+		Map.entry("RibbonPercentComplete75", RibbonControlKind.BUTTON),
+		Map.entry("RibbonPercentComplete100", RibbonControlKind.BUTTON),
 		Map.entry("RibbonTopBarUndo", RibbonControlKind.BUTTON),
 		Map.entry("RibbonTopBarRedo", RibbonControlKind.BUTTON));
 
@@ -199,15 +204,15 @@ class MspRibbonControlKindDiffTest {
 			assertNotNull(stream, SPEC + " is missing");
 			BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
 			String header = reader.readLine();
-			assertEquals("ribbonId,mspKind,evidence,location,popupItems", header);
+			assertEquals("ribbonId,mspKind,mspActivation,evidence,location,popupItems", header);
 			String line;
 			while ((line = reader.readLine()) != null) {
 				if (line.isBlank()) {
 					continue;
 				}
-				String[] cells = line.split(",", 5);
-				assertEquals(5, cells.length, "Malformed row: " + line);
-				SpecRow previous = rows.put(cells[0], new SpecRow(cells[0], RibbonControlKind.parse(cells[1]), cells[2]));
+				String[] cells = line.split(",", 6);
+				assertEquals(6, cells.length, "Malformed row: " + line);
+				SpecRow previous = rows.put(cells[0], new SpecRow(cells[0], RibbonControlKind.parse(cells[1]), cells[3]));
 				assertTrue(previous == null, "Duplicate row: " + cells[0]);
 			}
 		}

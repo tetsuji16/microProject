@@ -1,130 +1,130 @@
-ribbonId,mspKind,evidence,location,popupItems
-RibbonNewProject,BUTTON,BASELINE,FileRibbonTask/FileRibbonBand,
-RibbonNewMasterProject,BUTTON,BASELINE,FileRibbonTask/FileRibbonBand,
-RibbonOpenProject,BUTTON,BASELINE,FileRibbonTask/FileRibbonBand,
-RibbonRecentProjects,BUTTON,BASELINE,FileRibbonTask/FileRibbonBand,
-RibbonSaveProject,BUTTON,BASELINE,FileRibbonTask/FileRibbonBand,
-RibbonBackstageProjectInformation,BUTTON,BASELINE,FileRibbonTask/FileRibbonBand,
-RibbonBackstageOptions,BUTTON,BASELINE,FileRibbonTask/FileRibbonBand,
-RibbonSaveProjectAs,BUTTON,BASELINE,FileRibbonTask/FileRibbonBand,
-RibbonSaveMpoAs,BUTTON,BASELINE,FileRibbonTask/FileRibbonBand,
-RibbonCloseProject,BUTTON,BASELINE,FileRibbonTask/FileRibbonBand,
-RibbonExportProject,BUTTON,BASELINE,FileRibbonTask/FileExchangeRibbonBand,
-RibbonImportProject,BUTTON,BASELINE,FileRibbonTask/FileExchangeRibbonBand,
-RibbonPrint,BUTTON,BASELINE,FileRibbonTask/PrintRibbonBand,
-RibbonPrintPreview,BUTTON,BASELINE,FileRibbonTask/PrintRibbonBand,
-RibbonPDF,BUTTON,BASELINE,FileRibbonTask/PrintRibbonBand,
-RibbonLocale,BUTTON,BASELINE,FileRibbonTask/PreferencesRibbonBand,
-RibbonPaste,SPLIT_BUTTON,PENDING_VERIFY,TaskRibbonTask/TaskClipboardRibbonBand,Paste / Paste Special
-RibbonCopy,SPLIT_BUTTON,PENDING_VERIFY,TaskRibbonTask/TaskClipboardRibbonBand,Copy / Copy Picture
-RibbonCut,BUTTON,BASELINE,TaskRibbonTask/TaskClipboardRibbonBand,
-RibbonFormatPainter,TOGGLE_BUTTON,BASELINE,TaskRibbonTask/TaskClipboardRibbonBand,
-RibbonInsert,SPLIT_BUTTON,PENDING_VERIFY,TaskRibbonTask/TaskInsertRibbonBand,Task / Recurring Task / Blank Row / Import Outlook Tasks
-RibbonInsertMilestone,BUTTON,BASELINE,TaskRibbonTask/TaskInsertRibbonBand,
-RibbonInsertSummary,BUTTON,BASELINE,TaskRibbonTask/TaskInsertRibbonBand,
-RibbonInsertRecurring,BUTTON,BASELINE,TaskRibbonTask/TaskInsertRibbonBand,
-RibbonInsertProject,BUTTON,BASELINE,TaskRibbonTask/TaskInsertRibbonBand,
-RibbonMoveTaskUp,BUTTON,BASELINE,TaskRibbonTask/TaskOutlineRibbonBand,
-RibbonMoveTaskDown,BUTTON,BASELINE,TaskRibbonTask/TaskOutlineRibbonBand,
-RibbonExpand,BUTTON,BASELINE,TaskRibbonTask/TaskOutlineRibbonBand,
-RibbonCollapse,BUTTON,BASELINE,TaskRibbonTask/TaskOutlineRibbonBand,
-RibbonAssignResources,BUTTON,BASELINE,TaskRibbonTask/TaskDependenciesRibbonBand,
-RibbonDelegateTasks,BUTTON,BASELINE,TaskRibbonTask/TaskDependenciesRibbonBand,
-RibbonTaskInformation,BUTTON,BASELINE,TaskRibbonTask/TaskPropertiesRibbonBand,
-RibbonTaskInspector,BUTTON,BASELINE,TaskRibbonTask/TaskPropertiesRibbonBand,
-RibbonNotes,BUTTON,BASELINE,TaskRibbonTask/TaskPropertiesRibbonBand,
-RibbonTaskDetails,TOGGLE_BUTTON,BASELINE,TaskRibbonTask/TaskPropertiesRibbonBand,
-RibbonCustomFields,BUTTON,BASELINE,TaskRibbonTask/TaskPropertiesRibbonBand,
-RibbonMarkOnTrack,SPLIT_BUTTON,PENDING_VERIFY,TaskRibbonTask/TaskTrackingRibbonBand,Mark on Track / Update Tasks
-RibbonUpdateTasks,BUTTON,BASELINE,TaskRibbonTask/TaskTrackingRibbonBand,
-RibbonLink,BUTTON,BASELINE,TaskRibbonTask/TaskTrackingRibbonBand,
-RibbonUnlink,BUTTON,BASELINE,TaskRibbonTask/TaskTrackingRibbonBand,
-RibbonRespectLinks,BUTTON,BASELINE,TaskRibbonTask/TaskTrackingRibbonBand,
-RibbonIndent,BUTTON,BASELINE,TaskRibbonTask/TaskTrackingRibbonBand,
-RibbonOutdent,BUTTON,BASELINE,TaskRibbonTask/TaskTrackingRibbonBand,
-RibbonTaskModeManual,TOGGLE_BUTTON,PENDING_VERIFY,TaskRibbonTask/TaskTrackingRibbonBand,Pressed when the selected task is manually scheduled
-RibbonTaskModeAutomatic,TOGGLE_BUTTON,PENDING_VERIFY,TaskRibbonTask/TaskTrackingRibbonBand,Pressed when the selected task is auto scheduled
-RibbonInactivateTask,TOGGLE_BUTTON,PENDING_VERIFY,TaskRibbonTask/TaskTrackingRibbonBand,Pressed when the selected task is inactive
-RibbonPercentComplete0,BUTTON,BASELINE,TaskRibbonTask/TaskTrackingRibbonBand,
-RibbonPercentComplete25,BUTTON,BASELINE,TaskRibbonTask/TaskTrackingRibbonBand,
-RibbonPercentComplete50,BUTTON,BASELINE,TaskRibbonTask/TaskTrackingRibbonBand,
-RibbonPercentComplete75,BUTTON,BASELINE,TaskRibbonTask/TaskTrackingRibbonBand,
-RibbonPercentComplete100,BUTTON,BASELINE,TaskRibbonTask/TaskTrackingRibbonBand,
-RibbonDelete,BUTTON,BASELINE,TaskRibbonTask/TaskEditingRibbonBand,
-RibbonClear,MENU,PENDING_VERIFY,TaskRibbonTask/TaskEditingRibbonBand,Clear Formatting / Clear Hyperlinks / Clear Notes / Clear All / Entire Row
-RibbonSelectAll,BUTTON,BASELINE,TaskRibbonTask/TaskEditingRibbonBand,
-RibbonFind,SPLIT_BUTTON,PENDING_VERIFY,TaskRibbonTask/TaskEditingRibbonBand,Find / Replace / Go To
-RibbonScrollToTask,BUTTON,BASELINE,TaskRibbonTask/TaskEditingRibbonBand,
-RibbonScrollToToday,BUTTON,BASELINE,TaskRibbonTask/TaskEditingRibbonBand,
-RibbonHideSelectedTasks,BUTTON,BASELINE,TaskRibbonTask/TaskEditingRibbonBand,
-RibbonShowAllTasks,BUTTON,BASELINE,TaskRibbonTask/TaskEditingRibbonBand,
-RibbonInsertResource,MENU,PENDING_VERIFY,ResourceRibbonTask/ResourceInsertRibbonBand,Work Resource / Material Resource / Cost Resource
-RibbonResourceInformation,BUTTON,BASELINE,ResourceRibbonTask/ResourcePropertiesRibbonBand,
-RibbonTimesheet,BUTTON,BASELINE,ResourceRibbonTask/ResourceAssignmentsRibbonBand,
-RibbonTeamFilter,TOGGLE_BUTTON,BASELINE,ResourceRibbonTask/ResourceAssignmentsRibbonBand,
-RibbonLevelSelection,BUTTON,BASELINE,ResourceRibbonTask/ResourceLevelRibbonBand,
-RibbonLevelAll,BUTTON,BASELINE,ResourceRibbonTask/ResourceLevelRibbonBand,
-RibbonClearLevelSelection,BUTTON,BASELINE,ResourceRibbonTask/ResourceLevelRibbonBand,
-RibbonClearLevelAll,BUTTON,BASELINE,ResourceRibbonTask/ResourceLevelRibbonBand,
-RibbonLevelResources,BUTTON,BASELINE,ResourceRibbonTask/ResourceLevelRibbonBand,
-RibbonNextOverallocation,BUTTON,BASELINE,ResourceRibbonTask/ResourceLevelRibbonBand,
-RibbonUseResourcePool,BUTTON,BASELINE,ResourceRibbonTask/ResourcePoolRibbonBand,
-RibbonCreateResourcePool,BUTTON,BASELINE,ResourceRibbonTask/ResourcePoolRibbonBand,
-RibbonRefreshResourcePool,BUTTON,BASELINE,ResourceRibbonTask/ResourcePoolRibbonBand,
-RibbonReport,TOGGLE_BUTTON,BASELINE,ReportRibbonTask/ReportViewsRibbonBand,
-RibbonCustomReport,BUTTON,BASELINE,ReportRibbonTask/ReportViewsRibbonBand,
-RibbonHistogram,TOGGLE_BUTTON,BASELINE,ReportRibbonTask/ReportViewsRibbonBand,
-RibbonCharts,TOGGLE_BUTTON,BASELINE,ReportRibbonTask/ReportViewsRibbonBand,
-RibbonTaskUsage,TOGGLE_BUTTON,BASELINE,ReportRibbonTask/ReportAnalysisRibbonBand,
-RibbonResourceUsage,TOGGLE_BUTTON,BASELINE,ReportRibbonTask/ReportAnalysisRibbonBand,
-RibbonCCPMBufferStatus,BUTTON,BASELINE,ReportRibbonTask/ReportAnalysisRibbonBand,
-RibbonProjectInformation,BUTTON,BASELINE,ProjectRibbonTask/ProjectInfoRibbonBand,
-RibbonChangeWorkingTime,BUTTON,BASELINE,ProjectRibbonTask/ProjectInfoRibbonBand,
-RibbonCalendarOptions,BUTTON,BASELINE,ProjectRibbonTask/ProjectInfoRibbonBand,
-RibbonProjectsDialog,BUTTON,BASELINE,ProjectRibbonTask/ProjectInfoRibbonBand,
-RibbonMoveProject,BUTTON,BASELINE,ProjectRibbonTask/ProjectScheduleRibbonBand,
-RibbonRecalculate,BUTTON,BASELINE,ProjectRibbonTask/ProjectScheduleRibbonBand,
-RibbonRefreshSubprojects,BUTTON,BASELINE,ProjectRibbonTask/ProjectScheduleRibbonBand,
-RibbonOpenSubproject,BUTTON,BASELINE,ProjectRibbonTask/ProjectScheduleRibbonBand,
-RibbonRemoveSubproject,BUTTON,BASELINE,ProjectRibbonTask/ProjectScheduleRibbonBand,
-RibbonStatusDate,BUTTON,BASELINE,ProjectRibbonTask/ProjectStatusRibbonBand,
-RibbonUpdateProject,BUTTON,BASELINE,ProjectRibbonTask/ProjectStatusRibbonBand,
-RibbonSaveBaseline,MENU,PENDING_VERIFY,ProjectRibbonTask/ProjectBaselineRibbonBand,Set Baseline / Clear Baseline
-RibbonClearBaseline,BUTTON,BASELINE,ProjectRibbonTask/ProjectBaselineRibbonBand,
-RibbonCCPMSettings,BUTTON,BASELINE,ProjectRibbonTask/ProjectCcpmRibbonBand,
-RibbonCCPMClear,BUTTON,BASELINE,ProjectRibbonTask/ProjectCcpmRibbonBand,
-RibbonGantt,SPLIT_BUTTON,PENDING_VERIFY,ViewRibbonTask/ViewTaskRibbonBand,Toggle current view + task view list
-RibbonTrackingGantt,TOGGLE_BUTTON,BASELINE,ViewRibbonTask/ViewTaskRibbonBand,
-RibbonTimeline,CHECK_BOX,PENDING_VERIFY,ViewRibbonTask/ViewTaskRibbonBand,Timeline check box in Split View
-RibbonCalendarView,SPLIT_BUTTON,PENDING_VERIFY,ViewRibbonTask/ViewTaskRibbonBand,Toggle current view + view list
-RibbonNetwork,SPLIT_BUTTON,PENDING_VERIFY,ViewRibbonTask/ViewTaskRibbonBand,Toggle current view + view list
-RibbonWBS,TOGGLE_BUTTON,BASELINE,ViewRibbonTask/ViewTaskRibbonBand,
-RibbonCCPMNetwork,BUTTON,BASELINE,ViewRibbonTask/ViewTaskRibbonBand,
-RibbonResources,SPLIT_BUTTON,PENDING_VERIFY,ViewRibbonTask/ViewResourceRibbonBand,Toggle current view + resource view list
-RibbonRBS,TOGGLE_BUTTON,BASELINE,ViewRibbonTask/ViewResourceRibbonBand,
-RibbonProjects,TOGGLE_BUTTON,BASELINE,ViewRibbonTask/ViewResourceRibbonBand,
-RibbonTaskUsageDetail,SPLIT_BUTTON,PENDING_VERIFY,ViewRibbonTask/ViewResourceRibbonBand,Toggle current view + view list
-RibbonResourceUsageDetail,SPLIT_BUTTON,PENDING_VERIFY,ViewRibbonTask/ViewResourceRibbonBand,Toggle current view + view list
-RibbonArrangeAll,BUTTON,BASELINE,ViewRibbonTask/ViewWindowRibbonBand,
-RibbonDetails,CHECK_BOX,PENDING_VERIFY,ViewRibbonTask/ViewWindowRibbonBand,Details check box in Split View
-RibbonPrivacyMask,BUTTON,BASELINE,ViewRibbonTask/ViewWindowRibbonBand,
-RibbonChooseFilter,DROP_DOWN,PENDING_VERIFY,ViewRibbonTask/ViewDataRibbonBand,Filter list with current filter shown
-RibbonChooseSort,MENU,PENDING_VERIFY,ViewRibbonTask/ViewDataRibbonBand,by Start Date / by Finish Date / by Priority / by Cost / by ID / Sort By
-RibbonChooseGroup,DROP_DOWN,PENDING_VERIFY,ViewRibbonTask/ViewDataRibbonBand,Group list with current group shown
-RibbonZoomIn,BUTTON,BASELINE,ViewRibbonTask/ViewZoomRibbonBand,
-RibbonZoomOut,BUTTON,BASELINE,ViewRibbonTask/ViewZoomRibbonBand,
-RibbonZoomSelectedTasks,BUTTON,BASELINE,ViewRibbonTask/ViewZoomRibbonBand,
-RibbonMicroProjectDocumentation,BUTTON,BASELINE,HelpRibbonTask/HelpRibbonBand,
-RibbonAboutMicroProject,BUTTON,BASELINE,HelpRibbonTask/HelpRibbonBand,
-RibbonToggleProgressLine,TOGGLE_BUTTON,BASELINE,FormatRibbonTask/FormatDisplayRibbonBand,
-RibbonLabelResourceNames,TOGGLE_BUTTON,BASELINE,FormatRibbonTask/FormatDisplayRibbonBand,
-RibbonLabelTaskName,TOGGLE_BUTTON,BASELINE,FormatRibbonTask/FormatDisplayRibbonBand,
-RibbonGridlines,MENU,PENDING_VERIFY,FormatRibbonTask/FormatDisplayRibbonBand,Gridlines / Progress Lines
-RibbonToggleCriticalChain,TOGGLE_BUTTON,BASELINE,FormatRibbonTask/FormatDisplayRibbonBand,
-RibbonTimescale,BUTTON,BASELINE,FormatRibbonTask/FormatBarRibbonBand,
-RibbonBarStyles,BUTTON,BASELINE,FormatRibbonTask/FormatBarRibbonBand,
-RibbonTextStyles,BUTTON,BASELINE,FormatRibbonTask/FormatBarRibbonBand,
-RibbonLayout,BUTTON,BASELINE,FormatRibbonTask/FormatLayoutRibbonBand,
-RibbonTopBarSaveProject,BUTTON,BASELINE,TaskBar,
-RibbonTopBarUndo,SPLIT_BUTTON,PENDING_VERIFY,TaskBar,Undo + multi-level undo list
-RibbonTopBarRedo,SPLIT_BUTTON,PENDING_VERIFY,TaskBar,Redo + multi-level redo list
+ribbonId,mspKind,mspActivation,evidence,location,popupItems
+RibbonNewProject,BUTTON,BACKSTAGE,BASELINE,FileRibbonTask/FileRibbonBand,
+RibbonNewMasterProject,BUTTON,BACKSTAGE,BASELINE,FileRibbonTask/FileRibbonBand,
+RibbonOpenProject,BUTTON,BACKSTAGE,BASELINE,FileRibbonTask/FileRibbonBand,
+RibbonRecentProjects,BUTTON,BACKSTAGE,BASELINE,FileRibbonTask/FileRibbonBand,
+RibbonSaveProject,BUTTON,COMMAND,BASELINE,FileRibbonTask/FileRibbonBand,
+RibbonBackstageProjectInformation,BUTTON,BACKSTAGE,BASELINE,FileRibbonTask/FileRibbonBand,
+RibbonBackstageOptions,BUTTON,BACKSTAGE,BASELINE,FileRibbonTask/FileRibbonBand,
+RibbonSaveProjectAs,BUTTON,BACKSTAGE,BASELINE,FileRibbonTask/FileRibbonBand,
+RibbonSaveMpoAs,BUTTON,BACKSTAGE,BASELINE,FileRibbonTask/FileRibbonBand,
+RibbonCloseProject,BUTTON,COMMAND,BASELINE,FileRibbonTask/FileRibbonBand,
+RibbonExportProject,BUTTON,BACKSTAGE,BASELINE,FileRibbonTask/FileExchangeRibbonBand,
+RibbonImportProject,BUTTON,BACKSTAGE,BASELINE,FileRibbonTask/FileExchangeRibbonBand,
+RibbonPrint,BUTTON,BACKSTAGE,BASELINE,FileRibbonTask/PrintRibbonBand,
+RibbonPrintPreview,BUTTON,BACKSTAGE,BASELINE,FileRibbonTask/PrintRibbonBand,
+RibbonPDF,BUTTON,BACKSTAGE,BASELINE,FileRibbonTask/PrintRibbonBand,
+RibbonLocale,BUTTON,BACKSTAGE,BASELINE,FileRibbonTask/PreferencesRibbonBand,
+RibbonPaste,SPLIT_BUTTON,COMMAND,PENDING_VERIFY,TaskRibbonTask/TaskClipboardRibbonBand,Paste / Paste Special
+RibbonCopy,SPLIT_BUTTON,COMMAND,PENDING_VERIFY,TaskRibbonTask/TaskClipboardRibbonBand,Copy / Copy Picture
+RibbonCut,BUTTON,COMMAND,BASELINE,TaskRibbonTask/TaskClipboardRibbonBand,
+RibbonFormatPainter,TOGGLE_BUTTON,MODE,BASELINE,TaskRibbonTask/TaskClipboardRibbonBand,
+RibbonInsert,SPLIT_BUTTON,COMMAND,PENDING_VERIFY,TaskRibbonTask/TaskInsertRibbonBand,Task / Recurring Task / Blank Row / Import Outlook Tasks
+RibbonInsertMilestone,BUTTON,COMMAND,BASELINE,TaskRibbonTask/TaskInsertRibbonBand,
+RibbonInsertSummary,BUTTON,COMMAND,BASELINE,TaskRibbonTask/TaskInsertRibbonBand,
+RibbonInsertRecurring,BUTTON,DIALOG,BASELINE,TaskRibbonTask/TaskInsertRibbonBand,
+RibbonInsertProject,BUTTON,DIALOG,BASELINE,TaskRibbonTask/TaskInsertRibbonBand,
+RibbonMoveTaskUp,BUTTON,COMMAND,BASELINE,TaskRibbonTask/TaskOutlineRibbonBand,
+RibbonMoveTaskDown,BUTTON,COMMAND,BASELINE,TaskRibbonTask/TaskOutlineRibbonBand,
+RibbonExpand,BUTTON,COMMAND,BASELINE,TaskRibbonTask/TaskOutlineRibbonBand,
+RibbonCollapse,BUTTON,COMMAND,BASELINE,TaskRibbonTask/TaskOutlineRibbonBand,
+RibbonAssignResources,BUTTON,DIALOG,BASELINE,TaskRibbonTask/TaskDependenciesRibbonBand,
+RibbonDelegateTasks,BUTTON,DIALOG,BASELINE,TaskRibbonTask/TaskDependenciesRibbonBand,
+RibbonTaskInformation,BUTTON,DIALOG,BASELINE,TaskRibbonTask/TaskPropertiesRibbonBand,
+RibbonTaskInspector,BUTTON,COMMAND,BASELINE,TaskRibbonTask/TaskPropertiesRibbonBand,
+RibbonNotes,BUTTON,DIALOG,BASELINE,TaskRibbonTask/TaskPropertiesRibbonBand,
+RibbonTaskDetails,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,TaskRibbonTask/TaskPropertiesRibbonBand,
+RibbonCustomFields,BUTTON,DIALOG,BASELINE,TaskRibbonTask/TaskPropertiesRibbonBand,
+RibbonMarkOnTrack,SPLIT_BUTTON,COMMAND,PENDING_VERIFY,TaskRibbonTask/TaskTrackingRibbonBand,Mark on Track / Update Tasks
+RibbonUpdateTasks,BUTTON,DIALOG,BASELINE,TaskRibbonTask/TaskTrackingRibbonBand,
+RibbonLink,BUTTON,COMMAND,BASELINE,TaskRibbonTask/TaskTrackingRibbonBand,
+RibbonUnlink,BUTTON,COMMAND,BASELINE,TaskRibbonTask/TaskTrackingRibbonBand,
+RibbonRespectLinks,BUTTON,COMMAND,BASELINE,TaskRibbonTask/TaskTrackingRibbonBand,
+RibbonIndent,BUTTON,COMMAND,BASELINE,TaskRibbonTask/TaskTrackingRibbonBand,
+RibbonOutdent,BUTTON,COMMAND,BASELINE,TaskRibbonTask/TaskTrackingRibbonBand,
+RibbonTaskModeManual,TOGGLE_BUTTON,TOGGLE_STATE,PENDING_VERIFY,TaskRibbonTask/TaskTrackingRibbonBand,Pressed when the selected task is manually scheduled
+RibbonTaskModeAutomatic,TOGGLE_BUTTON,TOGGLE_STATE,PENDING_VERIFY,TaskRibbonTask/TaskTrackingRibbonBand,Pressed when the selected task is auto scheduled
+RibbonInactivateTask,TOGGLE_BUTTON,TOGGLE_STATE,PENDING_VERIFY,TaskRibbonTask/TaskTrackingRibbonBand,Pressed when the selected task is inactive
+RibbonPercentComplete0,TOGGLE_BUTTON,TOGGLE_STATE,PENDING_VERIFY,TaskRibbonTask/TaskTrackingRibbonBand,
+RibbonPercentComplete25,TOGGLE_BUTTON,TOGGLE_STATE,PENDING_VERIFY,TaskRibbonTask/TaskTrackingRibbonBand,
+RibbonPercentComplete50,TOGGLE_BUTTON,TOGGLE_STATE,PENDING_VERIFY,TaskRibbonTask/TaskTrackingRibbonBand,
+RibbonPercentComplete75,TOGGLE_BUTTON,TOGGLE_STATE,PENDING_VERIFY,TaskRibbonTask/TaskTrackingRibbonBand,
+RibbonPercentComplete100,TOGGLE_BUTTON,TOGGLE_STATE,PENDING_VERIFY,TaskRibbonTask/TaskTrackingRibbonBand,
+RibbonDelete,BUTTON,COMMAND,BASELINE,TaskRibbonTask/TaskEditingRibbonBand,
+RibbonClear,MENU,POPUP,PENDING_VERIFY,TaskRibbonTask/TaskEditingRibbonBand,Clear Formatting / Clear Hyperlinks / Clear Notes / Clear All / Entire Row
+RibbonSelectAll,BUTTON,COMMAND,BASELINE,TaskRibbonTask/TaskEditingRibbonBand,
+RibbonFind,SPLIT_BUTTON,DIALOG,PENDING_VERIFY,TaskRibbonTask/TaskEditingRibbonBand,Find / Replace / Go To
+RibbonScrollToTask,BUTTON,COMMAND,BASELINE,TaskRibbonTask/TaskEditingRibbonBand,
+RibbonScrollToToday,BUTTON,COMMAND,BASELINE,TaskRibbonTask/TaskEditingRibbonBand,
+RibbonHideSelectedTasks,BUTTON,COMMAND,BASELINE,TaskRibbonTask/TaskEditingRibbonBand,
+RibbonShowAllTasks,BUTTON,COMMAND,BASELINE,TaskRibbonTask/TaskEditingRibbonBand,
+RibbonInsertResource,MENU,POPUP,PENDING_VERIFY,ResourceRibbonTask/ResourceInsertRibbonBand,Work Resource / Material Resource / Cost Resource
+RibbonResourceInformation,BUTTON,DIALOG,BASELINE,ResourceRibbonTask/ResourcePropertiesRibbonBand,
+RibbonTimesheet,BUTTON,DIALOG,BASELINE,ResourceRibbonTask/ResourceAssignmentsRibbonBand,
+RibbonTeamFilter,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,ResourceRibbonTask/ResourceAssignmentsRibbonBand,
+RibbonLevelSelection,BUTTON,COMMAND,BASELINE,ResourceRibbonTask/ResourceLevelRibbonBand,
+RibbonLevelAll,BUTTON,COMMAND,BASELINE,ResourceRibbonTask/ResourceLevelRibbonBand,
+RibbonClearLevelSelection,BUTTON,COMMAND,BASELINE,ResourceRibbonTask/ResourceLevelRibbonBand,
+RibbonClearLevelAll,BUTTON,COMMAND,BASELINE,ResourceRibbonTask/ResourceLevelRibbonBand,
+RibbonLevelResources,BUTTON,DIALOG,BASELINE,ResourceRibbonTask/ResourceLevelRibbonBand,
+RibbonNextOverallocation,BUTTON,COMMAND,BASELINE,ResourceRibbonTask/ResourceLevelRibbonBand,
+RibbonUseResourcePool,BUTTON,DIALOG,BASELINE,ResourceRibbonTask/ResourcePoolRibbonBand,
+RibbonCreateResourcePool,BUTTON,COMMAND,BASELINE,ResourceRibbonTask/ResourcePoolRibbonBand,
+RibbonRefreshResourcePool,BUTTON,COMMAND,BASELINE,ResourceRibbonTask/ResourcePoolRibbonBand,
+RibbonReport,TOGGLE_BUTTON,EXCLUSIVE_VIEW,BASELINE,ReportRibbonTask/ReportViewsRibbonBand,
+RibbonCustomReport,BUTTON,DIALOG,BASELINE,ReportRibbonTask/ReportViewsRibbonBand,
+RibbonHistogram,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,ReportRibbonTask/ReportViewsRibbonBand,
+RibbonCharts,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,ReportRibbonTask/ReportViewsRibbonBand,
+RibbonTaskUsage,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,ReportRibbonTask/ReportAnalysisRibbonBand,
+RibbonResourceUsage,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,ReportRibbonTask/ReportAnalysisRibbonBand,
+RibbonCCPMBufferStatus,BUTTON,DIALOG,BASELINE,ReportRibbonTask/ReportAnalysisRibbonBand,
+RibbonProjectInformation,BUTTON,DIALOG,BASELINE,ProjectRibbonTask/ProjectInfoRibbonBand,
+RibbonChangeWorkingTime,BUTTON,DIALOG,BASELINE,ProjectRibbonTask/ProjectInfoRibbonBand,
+RibbonCalendarOptions,BUTTON,DIALOG,BASELINE,ProjectRibbonTask/ProjectInfoRibbonBand,
+RibbonProjectsDialog,BUTTON,DIALOG,BASELINE,ProjectRibbonTask/ProjectInfoRibbonBand,
+RibbonMoveProject,BUTTON,DIALOG,BASELINE,ProjectRibbonTask/ProjectScheduleRibbonBand,
+RibbonRecalculate,BUTTON,COMMAND,BASELINE,ProjectRibbonTask/ProjectScheduleRibbonBand,
+RibbonRefreshSubprojects,BUTTON,COMMAND,BASELINE,ProjectRibbonTask/ProjectScheduleRibbonBand,
+RibbonOpenSubproject,BUTTON,COMMAND,BASELINE,ProjectRibbonTask/ProjectScheduleRibbonBand,
+RibbonRemoveSubproject,BUTTON,COMMAND,BASELINE,ProjectRibbonTask/ProjectScheduleRibbonBand,
+RibbonStatusDate,BUTTON,DIALOG,BASELINE,ProjectRibbonTask/ProjectStatusRibbonBand,
+RibbonUpdateProject,BUTTON,DIALOG,BASELINE,ProjectRibbonTask/ProjectStatusRibbonBand,
+RibbonSaveBaseline,MENU,POPUP,PENDING_VERIFY,ProjectRibbonTask/ProjectBaselineRibbonBand,Set Baseline / Clear Baseline
+RibbonClearBaseline,BUTTON,DIALOG,BASELINE,ProjectRibbonTask/ProjectBaselineRibbonBand,
+RibbonCCPMSettings,BUTTON,DIALOG,BASELINE,ProjectRibbonTask/ProjectCcpmRibbonBand,
+RibbonCCPMClear,BUTTON,COMMAND,BASELINE,ProjectRibbonTask/ProjectCcpmRibbonBand,
+RibbonGantt,SPLIT_BUTTON,EXCLUSIVE_VIEW,PENDING_VERIFY,ViewRibbonTask/ViewTaskRibbonBand,Toggle current view + task view list
+RibbonTrackingGantt,TOGGLE_BUTTON,EXCLUSIVE_VIEW,BASELINE,ViewRibbonTask/ViewTaskRibbonBand,
+RibbonTimeline,CHECK_BOX,TOGGLE_STATE,PENDING_VERIFY,ViewRibbonTask/ViewTaskRibbonBand,Timeline check box in Split View
+RibbonCalendarView,SPLIT_BUTTON,EXCLUSIVE_VIEW,PENDING_VERIFY,ViewRibbonTask/ViewTaskRibbonBand,Toggle current view + view list
+RibbonNetwork,SPLIT_BUTTON,EXCLUSIVE_VIEW,PENDING_VERIFY,ViewRibbonTask/ViewTaskRibbonBand,Toggle current view + view list
+RibbonWBS,TOGGLE_BUTTON,EXCLUSIVE_VIEW,BASELINE,ViewRibbonTask/ViewTaskRibbonBand,
+RibbonCCPMNetwork,BUTTON,DIALOG,BASELINE,ViewRibbonTask/ViewTaskRibbonBand,
+RibbonResources,SPLIT_BUTTON,EXCLUSIVE_VIEW,PENDING_VERIFY,ViewRibbonTask/ViewResourceRibbonBand,Toggle current view + resource view list
+RibbonRBS,TOGGLE_BUTTON,EXCLUSIVE_VIEW,BASELINE,ViewRibbonTask/ViewResourceRibbonBand,
+RibbonProjects,TOGGLE_BUTTON,EXCLUSIVE_VIEW,BASELINE,ViewRibbonTask/ViewResourceRibbonBand,
+RibbonTaskUsageDetail,SPLIT_BUTTON,EXCLUSIVE_VIEW,PENDING_VERIFY,ViewRibbonTask/ViewResourceRibbonBand,Toggle current view + view list
+RibbonResourceUsageDetail,SPLIT_BUTTON,EXCLUSIVE_VIEW,PENDING_VERIFY,ViewRibbonTask/ViewResourceRibbonBand,Toggle current view + view list
+RibbonArrangeAll,BUTTON,COMMAND,BASELINE,ViewRibbonTask/ViewWindowRibbonBand,
+RibbonDetails,CHECK_BOX,TOGGLE_STATE,PENDING_VERIFY,ViewRibbonTask/ViewWindowRibbonBand,Details check box in Split View
+RibbonPrivacyMask,BUTTON,COMMAND,BASELINE,ViewRibbonTask/ViewWindowRibbonBand,
+RibbonChooseFilter,DROP_DOWN,POPUP,PENDING_VERIFY,ViewRibbonTask/ViewDataRibbonBand,Filter list with current filter shown
+RibbonChooseSort,MENU,POPUP,PENDING_VERIFY,ViewRibbonTask/ViewDataRibbonBand,by Start Date / by Finish Date / by Priority / by Cost / by ID / Sort By
+RibbonChooseGroup,DROP_DOWN,POPUP,PENDING_VERIFY,ViewRibbonTask/ViewDataRibbonBand,Group list with current group shown
+RibbonZoomIn,BUTTON,COMMAND,BASELINE,ViewRibbonTask/ViewZoomRibbonBand,
+RibbonZoomOut,BUTTON,COMMAND,BASELINE,ViewRibbonTask/ViewZoomRibbonBand,
+RibbonZoomSelectedTasks,BUTTON,COMMAND,BASELINE,ViewRibbonTask/ViewZoomRibbonBand,
+RibbonMicroProjectDocumentation,BUTTON,DIALOG,BASELINE,HelpRibbonTask/HelpRibbonBand,
+RibbonAboutMicroProject,BUTTON,DIALOG,BASELINE,HelpRibbonTask/HelpRibbonBand,
+RibbonToggleProgressLine,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,FormatRibbonTask/FormatDisplayRibbonBand,
+RibbonLabelResourceNames,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,FormatRibbonTask/FormatDisplayRibbonBand,
+RibbonLabelTaskName,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,FormatRibbonTask/FormatDisplayRibbonBand,
+RibbonGridlines,MENU,POPUP,PENDING_VERIFY,FormatRibbonTask/FormatDisplayRibbonBand,Gridlines / Progress Lines
+RibbonToggleCriticalChain,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,FormatRibbonTask/FormatDisplayRibbonBand,
+RibbonTimescale,BUTTON,DIALOG,BASELINE,FormatRibbonTask/FormatBarRibbonBand,
+RibbonBarStyles,BUTTON,DIALOG,BASELINE,FormatRibbonTask/FormatBarRibbonBand,
+RibbonTextStyles,BUTTON,DIALOG,BASELINE,FormatRibbonTask/FormatBarRibbonBand,
+RibbonLayout,BUTTON,DIALOG,BASELINE,FormatRibbonTask/FormatLayoutRibbonBand,
+RibbonTopBarSaveProject,BUTTON,COMMAND,BASELINE,TaskBar,
+RibbonTopBarUndo,SPLIT_BUTTON,COMMAND,PENDING_VERIFY,TaskBar,Undo + multi-level undo list
+RibbonTopBarRedo,SPLIT_BUTTON,COMMAND,PENDING_VERIFY,TaskBar,Redo + multi-level redo list

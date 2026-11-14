@@ -34,6 +34,7 @@ import javax.swing.JComponent;
 import javax.swing.JPanel;
 
 import com.microproject.ribbon.CustomRibbonBandGenerator;
+import com.microproject.ribbon.RibbonActivation;
 import com.microproject.ribbon.RibbonCommandSource;
 import com.microproject.ribbon.RibbonControlKind;
 import com.microproject.ribbon.RibbonIconRegistry;
@@ -152,7 +153,7 @@ public final class SwingRibbonFactory {
 			SwingRibbonModel.ButtonSize size = resolveButtonSize(buttonId, priority);
 			int collapsePriority = resolveCollapsePriority(buttonId, priority);
 			String text = resolveStringOrNull(buttonId + ".text");
-			buttons.add(applyControlContract(new SwingRibbonModel.RibbonButton(
+			buttons.add(applyActivation(applyControlContract(new SwingRibbonModel.RibbonButton(
 				buttonId,
 				text == null ? buttonId : text,
 				priority,
@@ -162,7 +163,7 @@ public final class SwingRibbonFactory {
 				presentation,
 				collapsePriority,
 				resolveStringOrNull(buttonId + ".backstagePage"),
-				Boolean.parseBoolean(resolveStringOrNull(buttonId + ".backstageImmediate")))));
+				Boolean.parseBoolean(resolveStringOrNull(buttonId + ".backstageImmediate"))))));
 		}
 		SwingRibbonModel.RibbonBand band = new SwingRibbonModel.RibbonBand(bandId, resolveString(bandId + ".title"), buttons);
 		String dialogLauncher = resolveStringOrNull(bandId + ".dialogLauncher");
@@ -198,6 +199,42 @@ public final class SwingRibbonFactory {
 			throw new IllegalStateException(buttonId + ".items is declared but control kind " + kind + " has no popup");
 		}
 		return button.withControl(kind, items, keyTip == null || keyTip.isBlank() ? null : keyTip.trim());
+	}
+
+	/**
+	 * Reads {@code X.activation} (a {@link RibbonActivation}): what a click on the
+	 * control body does. Commands that declare none keep the activation implied by
+	 * their kind, {@code X.type} and Backstage metadata. A declaration that
+	 * contradicts that metadata fails model creation.
+	 */
+	private SwingRibbonModel.RibbonButton applyActivation(SwingRibbonModel.RibbonButton button) {
+		String buttonId = button.getId();
+		String value = resolveStringOrNull(buttonId + ".activation");
+		if (value == null) {
+			return button;
+		}
+		RibbonActivation activation;
+		try {
+			activation = RibbonActivation.parse(value);
+		} catch (IllegalArgumentException ex) {
+			throw new IllegalStateException("Invalid " + buttonId + ".activation: " + ex.getMessage(), ex);
+		}
+		RibbonControlKind kind = button.getControlKind();
+		boolean popupOnly = kind.hasPopup() && !kind.invokesOnClick();
+		if ((activation == RibbonActivation.POPUP) != popupOnly) {
+			throw new IllegalStateException(buttonId + ".activation " + activation + " contradicts control kind " + kind
+				+ ": exactly the kinds whose click only opens their popup are POPUP");
+		}
+		if (activation.keepsPressedState() != button.isToggle() && !popupOnly) {
+			throw new IllegalStateException(buttonId + ".activation " + activation + " contradicts " + buttonId
+				+ ".type: exactly the activations that keep a pressed state need type=TOGGLE");
+		}
+		boolean backstagePage = button.getBackstagePage() != null && !button.isBackstageImmediate();
+		if ((activation == RibbonActivation.BACKSTAGE) != backstagePage) {
+			throw new IllegalStateException(buttonId + ".activation " + activation + " contradicts " + buttonId
+				+ ".backstagePage: exactly the commands that open a Backstage page are BACKSTAGE");
+		}
+		return button.withActivation(activation);
 	}
 
 	private SwingRibbonModel.ButtonSize resolveButtonSize(String buttonId, SwingRibbonModel.ButtonPriority priority) {

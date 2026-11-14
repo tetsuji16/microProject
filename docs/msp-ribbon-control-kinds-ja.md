@@ -69,13 +69,14 @@ RibbonMarkOnTrack.keytip=U
 |---|---|
 | `ribbonId` | コマンド id |
 | `mspKind` | Microsoft Project での種別 |
+| `mspActivation` | Microsoft Project で本体をクリックした結果（後述の「クリック時の挙動」） |
 | `evidence` | `BASELINE`: 現在の実装をそのまま記録した行（未照合）。`PENDING_VERIFY`: 資料から導いた差分で、行単位の照合待ち。`DOCUMENTED`: `ProjectControls.xlsx` と照合済み |
 | `location` | `タブ/グループ` または `TaskBar` |
 | `popupItems` | 想定するポップアップの内容（説明文） |
 
 `MspRibbonControlKindDiffTest` はモデルの種別と CSV を比べます。未対応の差分は同テストの `KNOWN_GAPS` に「現在の種別」と共に列挙します。対応を実装すると、エントリを削除するまでテストが失敗するので、一覧は減る方向にしか動きません。回帰を通すためにエントリを足してはいけません。
 
-## 現時点の差分（25 件）
+## 現時点の種別差分（30 件）
 
 | コマンド | 現在 | Microsoft Project | ポップアップの内容 |
 |---|---|---|---|
@@ -104,6 +105,7 @@ RibbonMarkOnTrack.keytip=U
 | `RibbonTaskModeManual` | BUTTON | TOGGLE_BUTTON | 選択タスクが手動スケジュールなら押下 |
 | `RibbonTaskModeAutomatic` | BUTTON | TOGGLE_BUTTON | 選択タスクが自動スケジュールなら押下 |
 | `RibbonInactivateTask` | BUTTON | TOGGLE_BUTTON | 選択タスクが非アクティブなら押下 |
+| `RibbonPercentComplete0` / `25` / `50` / `75` / `100` | BUTTON | TOGGLE_BUTTON | 選択タスクの達成率と一致すれば押下 |
 
 種別とは別に、次の挙動も未対応です。
 
@@ -113,9 +115,71 @@ RibbonMarkOnTrack.keytip=U
 - `GALLERY` / `DROP_DOWN` / `COMBO_BOX` / `CHECK_BOX` / `EDIT_BOX` の専用描画
 - screentip / supertip
 
+## クリック時の挙動（`RibbonActivation`）
+
+種別（どの Office コントロールか）とは別に、本体をクリックした結果を `com.microproject.ribbon.RibbonActivation` で表します。分割ボタンは本体の挙動で分類します（矢印は常にポップアップを開きます）。
+
+| 値 | クリックの結果 | クリック後の見た目 |
+|---|---|---|
+| `COMMAND` | 即時に実行する | 通常表示に戻る |
+| `DIALOG` | ダイアログまたはウィンドウを開く | 通常表示に戻る |
+| `POPUP` | コントロールに付いたポップアップを開く | 開いている間だけ押下表示 |
+| `TOGGLE_STATE` | オン / オフの状態を切り替える | オンの間は押下（反転）表示が残る |
+| `EXCLUSIVE_VIEW` | 表示中のビューを切り替える | そのビューが表示中の間は押下表示。再クリックしても解除されない |
+| `MODE` | 入力モードに入る | モードが終わるまで押下表示 |
+| `BACKSTAGE` | Backstage のページを開く | — |
+
+### 宣言と既定値
+
+`menuInternal.properties` の `<id>.activation` で宣言します。省略時は他のメタデータから推定します（`RibbonActivation.defaultFor`）。
+
+1. 種別がポップアップ専用（`MENU` / `GALLERY` / `DROP_DOWN` / `COMBO_BOX`）→ `POPUP`
+2. `<id>.backstagePage` があり `backstageImmediate` でない → `BACKSTAGE`
+3. `<id>.type=TOGGLE` → `TOGGLE_STATE`
+4. それ以外 → `COMMAND`
+
+`DIALOG` / `EXCLUSIVE_VIEW` / `MODE` は推定できないので、必ず宣言します。次の矛盾はモデル構築時に `IllegalStateException` になります。
+
+- `POPUP` とポップアップ専用の種別は必ず一致する
+- 押下状態が残る値（`TOGGLE_STATE` / `EXCLUSIVE_VIEW` / `MODE`）と `type=TOGGLE` は必ず一致する
+- `BACKSTAGE` と「Backstage のページを開くコマンド」は必ず一致する
+
+### 押下表示の仕組み
+
+- 押下状態が残る値：アプリケーション側が `MenuManager.setActionSelected(actionId, boolean)` を呼び、`Action.SELECTED_KEY` 経由でボタンの選択表示に反映します。呼び出し元は `DocumentFrame`（上ビュー、下ペイン、書式のコピー）と `GraphicManager`（進捗線、ラベル、クリティカル チェーン、チーム フィルター）です。
+- `POPUP`：`RibbonControlPopups` が、ポップアップ表示中だけボタンの client property `MicroProject.ribbon.popupOpen` を `TRUE` にします。押下色の描画は未対応です（下記）。
+- 各ボタンは client property `MicroProject.ribbon.activation` に自分の値を持ちます。
+
+### 契約と差分テスト
+
+CSV の `mspActivation` 列が Microsoft Project での挙動です。`MspRibbonActivationDiffTest` がモデルと比べ、差分は `KNOWN_ACTIVATION_GAPS` に「現在の挙動」と共に列挙します（`KNOWN_GAPS` と同じく減る方向のみ）。同テストは、契約の種別と挙動の組み合わせが成り立つことも検査します。
+
+### 現時点の挙動差分（17 件）
+
+資料から導いた判断（document-derived compatibility decision）で、行単位の照合待ち（`PENDING_VERIFY`）です。
+
+| コマンド | 現在 | Microsoft Project | 補足 |
+|---|---|---|---|
+| `RibbonTaskModeManual` / `RibbonTaskModeAutomatic` | COMMAND | TOGGLE_STATE | 選択タスクのスケジュール モードに合わせて押下表示 |
+| `RibbonInactivateTask` | COMMAND | TOGGLE_STATE | 選択タスクが非アクティブなら押下表示 |
+| `RibbonPercentComplete0` / `25` / `50` / `75` / `100` | COMMAND | TOGGLE_STATE | 選択タスクの達成率と一致するボタンが押下表示 |
+| `RibbonClear` / `RibbonInsertResource` | COMMAND | POPUP | クリックでメニューを開く。本体のコマンドは無い |
+| `RibbonSaveBaseline` / `RibbonGridlines` / `RibbonChooseSort` | DIALOG | POPUP | クリックでメニューを開く。ダイアログはメニュー項目から開く |
+| `RibbonChooseFilter` / `RibbonChooseGroup` | DIALOG | POPUP | 現在値を表示するドロップダウン |
+| `RibbonTimeline` | DIALOG | TOGGLE_STATE | タイムラインの表示 / 非表示のチェック。現在は設定ダイアログを開く |
+| `RibbonCalendarView` | DIALOG | EXCLUSIVE_VIEW | カレンダー ビューへ切り替える。現在はダイアログを開く |
+
+契約と一致していても、次の点は未対応または不整合です。
+
+- ポップアップ表示中の押下表示（`popupOpen` を描画に使っていない）
+- `DIALOG` のコマンドが実際にダイアログを開くこと、`EXCLUSIVE_VIEW` が再クリックで解除されないことの GUI 受け入れテスト
+- 製品独自の `RibbonPrivacyMask` と `RibbonTaskInspector` は状態を切り替えるのに押下表示が無い
+- `RibbonGridlines` は `type=ITEM` なのに `setActionSelected` が呼ばれている
+- client property `MicroProject.ribbonToggle` は参照元が無い
+
 ## 検証コマンド
 
 ```
 .\gradlew.bat :microproject_ribbon:test
-.\gradlew.bat :microproject_ui:test --tests "*MspRibbonControlKindDiffTest" --tests "*RibbonControlContractTest" --tests "*MspRibbonSpecDiffTest"
+.\gradlew.bat :microproject_ui:test --tests "*MspRibbonControlKindDiffTest" --tests "*MspRibbonActivationDiffTest" --tests "*RibbonControlContractTest" --tests "*MspRibbonSpecDiffTest"
 ```
