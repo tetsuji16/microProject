@@ -309,7 +309,8 @@ final class RibbonControlPopups {
 			String name = change.getPropertyName();
 			if ("enabled".equals(name)) {
 				mirror.setEnabled(command.isEnabled());
-			} else if (name != null) {
+			} else if (name != null && !java.util.Objects.equals(mirror.getValue(name), command.getValue(name))) {
+				// AbstractAction fires for null-to-null, so an unguarded copy can ping-pong with the binding.
 				mirror.putValue(name, command.getValue(name));
 			}
 		});
