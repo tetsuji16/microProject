@@ -71,10 +71,6 @@ class MspRibbonControlKindDiffTest {
 	 * implements the documented kind; never add one to make a regression pass.
 	 */
 	private static final Map<String, RibbonControlKind> KNOWN_GAPS = Map.ofEntries(
-		Map.entry("RibbonPaste", RibbonControlKind.BUTTON),
-		Map.entry("RibbonCopy", RibbonControlKind.BUTTON),
-		Map.entry("RibbonInsert", RibbonControlKind.BUTTON),
-		Map.entry("RibbonFind", RibbonControlKind.BUTTON),
 		Map.entry("RibbonClear", RibbonControlKind.BUTTON),
 		Map.entry("RibbonInsertResource", RibbonControlKind.BUTTON),
 		Map.entry("RibbonGridlines", RibbonControlKind.BUTTON),

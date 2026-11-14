@@ -62,11 +62,11 @@ class RibbonControlContractTest {
 	@Test
 	void commandsWithoutControlMetadataKeepTheKindImpliedByTypeAndPresentation() {
 		SwingRibbonModel model = model(Map.of());
-		assertEquals(RibbonControlKind.BUTTON, button(model, "RibbonPaste").getControlKind());
+		assertEquals(RibbonControlKind.BUTTON, button(model, "RibbonCut").getControlKind());
 		assertEquals(RibbonControlKind.TOGGLE_BUTTON, button(model, "RibbonFormatPainter").getControlKind());
 		assertEquals(RibbonControlKind.SPLIT_BUTTON, button(model, "RibbonChooseSort").getControlKind());
-		assertTrue(button(model, "RibbonPaste").getItemIds().isEmpty());
-		assertNull(button(model, "RibbonPaste").getKeyTip());
+		assertTrue(button(model, "RibbonCut").getItemIds().isEmpty());
+		assertNull(button(model, "RibbonCut").getKeyTip());
 	}
 
 	@Test
@@ -96,7 +96,7 @@ class RibbonControlContractTest {
 	@Test
 	void invalidControlMetadataFailsModelCreation() {
 		assertThrows(IllegalStateException.class, () -> model(Map.of("RibbonPaste.control", "carousel")));
-		assertThrows(IllegalStateException.class, () -> model(Map.of("RibbonPaste.items", "RibbonCopy")));
+		assertThrows(IllegalStateException.class, () -> model(Map.of("RibbonCut.items", "RibbonCopy")));
 		assertThrows(IllegalStateException.class, () -> model(Map.of("RibbonPaste.control", "dialogBoxLauncher")));
 	}
 
@@ -125,6 +125,21 @@ class RibbonControlContractTest {
 		SwingRibbonModel.RibbonButton markOnTrack = button(model(Map.of()), "RibbonMarkOnTrack");
 		assertEquals(RibbonControlKind.SPLIT_BUTTON, markOnTrack.getControlKind());
 		assertEquals(List.of("RibbonMarkOnTrack", "RibbonUpdateTasks"), markOnTrack.getItemIds());
+	}
+
+	@Test
+	void clipboardInsertAndFindAreSplitButtonsWithTheirCommandsInThePopup() {
+		SwingRibbonModel model = model(Map.of());
+		Map<String, List<String>> expected = Map.of(
+			"RibbonPaste", List.of("RibbonPaste"),
+			"RibbonCopy", List.of("RibbonCopy"),
+			"RibbonInsert", List.of("RibbonInsert", "RibbonInsertRecurring"),
+			"RibbonFind", List.of("RibbonFind"));
+		expected.forEach((id, items) -> {
+			SwingRibbonModel.RibbonButton button = button(model, id);
+			assertEquals(RibbonControlKind.SPLIT_BUTTON, button.getControlKind(), id);
+			assertEquals(items, button.getItemIds(), id);
+		});
 	}
 
 	@Test
