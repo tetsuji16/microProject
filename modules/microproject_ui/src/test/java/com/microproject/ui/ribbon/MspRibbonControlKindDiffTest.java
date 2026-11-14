@@ -74,7 +74,6 @@ class MspRibbonControlKindDiffTest {
 		Map.entry("RibbonPaste", RibbonControlKind.BUTTON),
 		Map.entry("RibbonCopy", RibbonControlKind.BUTTON),
 		Map.entry("RibbonInsert", RibbonControlKind.BUTTON),
-		Map.entry("RibbonMarkOnTrack", RibbonControlKind.BUTTON),
 		Map.entry("RibbonFind", RibbonControlKind.BUTTON),
 		Map.entry("RibbonClear", RibbonControlKind.BUTTON),
 		Map.entry("RibbonInsertResource", RibbonControlKind.BUTTON),

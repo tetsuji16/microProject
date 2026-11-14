@@ -121,6 +121,13 @@ class RibbonControlContractTest {
 	}
 
 	@Test
+	void markOnTrackIsASplitButtonWithItsUpdateTasksSibling() {
+		SwingRibbonModel.RibbonButton markOnTrack = button(model(Map.of()), "RibbonMarkOnTrack");
+		assertEquals(RibbonControlKind.SPLIT_BUTTON, markOnTrack.getControlKind());
+		assertEquals(List.of("RibbonMarkOnTrack", "RibbonUpdateTasks"), markOnTrack.getItemIds());
+	}
+
+	@Test
 	void menuOnlyOpensItsPopup() {
 		AtomicInteger invoked = new AtomicInteger();
 		JButton button = countingButton(invoked);
