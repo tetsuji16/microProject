@@ -77,6 +77,10 @@ import javax.swing.plaf.FontUIResource;
 public final class FlatUiSupport {
 	/** Client property published while a ribbon control's popup is showing. */
 	public static final String POPUP_OPEN_PROPERTY = "MicroProject.ribbon.popupOpen";
+	/** Client property holding the arrow button a ribbon split button owns; it paints its own arrow area. */
+	public static final String SPLIT_ARROW_PROPERTY = "MicroProject.ribbon.controlMenuButton";
+	/** Width of the arrow strip of a small split button, and of the chevron column of a large one. */
+	public static final int SPLIT_ARROW_WIDTH = 18;
 	public static final String BUTTON_STYLE_ROLE_PROPERTY = "MicroProject.buttonStyleRole";
 	public static final String BUTTON_STYLE_ROLE_TOOLBAR = "toolbar";
 	public static final String BUTTON_STYLE_ROLE_RIBBON_LARGE = "ribbonLarge";
@@ -525,6 +529,69 @@ public final class FlatUiSupport {
 	/** True while the popup of a ribbon control is showing; set by the ribbon popup wiring. */
 	public static boolean isPopupOpen(AbstractButton button) {
 		return button != null && Boolean.TRUE.equals(button.getClientProperty(POPUP_OPEN_PROPERTY));
+	}
+
+	/** True for a ribbon command laid out as a large (icon above label) button. */
+	public static boolean isLargeRibbonButton(AbstractButton button) {
+		return button != null && "large".equals(button.getClientProperty("MicroProject.ribbonButtonSize"));
+	}
+
+	/**
+	 * The area of a split button that opens its popup, in the button's coordinates.
+	 * A large button has its arrow on the lower half (the label row, as in Office);
+	 * a small or medium one on a strip at the right edge.
+	 */
+	public static java.awt.Rectangle ribbonSplitArrowBounds(AbstractButton button) {
+		int width = Math.max(0, button.getWidth());
+		int height = Math.max(0, button.getHeight());
+		if (isLargeRibbonButton(button)) {
+			int top = height / 2;
+			return new java.awt.Rectangle(0, top, width, height - top);
+		}
+		int arrowWidth = Math.min(SPLIT_ARROW_WIDTH, width);
+		return new java.awt.Rectangle(width - arrowWidth, 0, arrowWidth, height);
+	}
+
+	/**
+	 * Paints the arrow area of a split button into {@code area}: the optional
+	 * highlight, the separator against the body and the chevron.
+	 */
+	public static void paintRibbonSplitArrowArea(Graphics2D g2, AbstractButton button, java.awt.Rectangle area, Color fill) {
+		enableAntialiasing(g2);
+		if (fill != null) {
+			g2.setColor(fill);
+			g2.fillRect(area.x, area.y, area.width, area.height);
+		}
+		g2.setColor(separatorColor());
+		int centerX;
+		if (isLargeRibbonButton(button)) {
+			g2.drawLine(area.x + 4, area.y, area.x + area.width - 5, area.y);
+			centerX = area.x + area.width - SPLIT_ARROW_WIDTH / 2;
+		} else {
+			g2.drawLine(area.x, area.y + 4, area.x, area.y + area.height - 5);
+			centerX = area.x + SPLIT_ARROW_WIDTH / 2;
+		}
+		int centerY = area.y + area.height / 2;
+		g2.setColor(button.isEnabled() ? labelForeground() : disabledForeground());
+		g2.drawLine(centerX - 3, centerY - 1, centerX, centerY + 2);
+		g2.drawLine(centerX, centerY + 2, centerX + 3, centerY - 1);
+	}
+
+	/**
+	 * The highlight of the arrow area for the state of {@code arrowModel}. The body and the
+	 * arrow light up separately: while the body is highlighted the arrow area is
+	 * painted back to the surface color.
+	 */
+	public static Color ribbonSplitArrowFill(AbstractButton button, ButtonModel arrowModel) {
+		if (!button.isEnabled())
+			return null;
+		if (arrowModel.isPressed() || arrowModel.isArmed())
+			return commandButtonPressedBackground(button);
+		if (isPopupOpen(button))
+			return commandButtonSelectedBackground(button);
+		if (arrowModel.isRollover())
+			return commandButtonHoverBackground(button);
+		return button.isOpaque() && button.isContentAreaFilled() ? ribbonSurfaceColor() : null;
 	}
 
 	private static boolean isRibbonSplitButton(AbstractButton button) {
@@ -1293,7 +1360,7 @@ public final class FlatUiSupport {
 				int bottom = y + height - 1;
 				g2.setColor(border);
 				g2.drawRoundRect(x, y, width - 1, height - 1, arc, arc);
-				if (isRibbonSplit(button)) {
+				if (isRibbonSplit(button) && !(button.getClientProperty(SPLIT_ARROW_PROPERTY) instanceof Component)) {
 					int splitX = x + width - 18;
 					if (isPopupOpen(button)) {
 						g2.setColor(commandButtonSelectedBackground(button));

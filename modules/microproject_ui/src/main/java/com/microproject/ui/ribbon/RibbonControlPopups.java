@@ -63,7 +63,7 @@ final class RibbonControlPopups {
 	/** Client property holding the {@link JPopupMenu} of a popup-owning control. */
 	static final String POPUP_PROPERTY = "MicroProject.ribbon.controlMenu";
 	/** Client property holding the arrow hit area of a split button. */
-	static final String ARROW_BUTTON_PROPERTY = "MicroProject.ribbon.controlMenuButton";
+	static final String ARROW_BUTTON_PROPERTY = FlatUiSupport.SPLIT_ARROW_PROPERTY;
 	/** Client property holding the declared key tip of a ribbon button. */
 	static final String KEY_TIP_PROPERTY = "MicroProject.ribbon.keyTip";
 	/** Client property holding the {@link RibbonActivation} of a ribbon button. */
@@ -384,10 +384,27 @@ final class RibbonControlPopups {
 		button.setMnemonic(mnemonic);
 	}
 
-	/** Split buttons: a transparent child over the arrow strip opens the popup. */
+	/**
+	 * Split buttons: a child over the arrow area opens the popup. The area is the
+	 * lower half of a large button and the right edge strip of a small one; the child
+	 * paints its own highlight so that the body and the arrow light up separately.
+	 */
 	private static void installArrowHitArea(AbstractButton button, String commandId, JPopupMenu popup) {
-		JButton arrow = new JButton();
+		JButton arrow = new JButton() {
+			@Override
+			protected void paintComponent(java.awt.Graphics graphics) {
+				java.awt.Graphics2D g2 = (java.awt.Graphics2D) graphics.create();
+				try {
+					FlatUiSupport.paintRibbonSplitArrowArea(g2, button,
+						new java.awt.Rectangle(0, 0, getWidth(), getHeight()),
+						FlatUiSupport.ribbonSplitArrowFill(button, getModel()));
+				} finally {
+					g2.dispose();
+				}
+			}
+		};
 		arrow.setName(ARROW_BUTTON_NAME_PREFIX + commandId);
+		arrow.setRolloverEnabled(true);
 		arrow.setFocusable(true);
 		arrow.setBorderPainted(false);
 		arrow.setContentAreaFilled(false);
@@ -403,9 +420,9 @@ final class RibbonControlPopups {
 		button.putClientProperty(ARROW_BUTTON_PROPERTY, arrow);
 		button.setLayout(null);
 		button.add(arrow);
-		int arrowWidth = RibbonButtonStyler.SPLIT_BUTTON_EXTRA_WIDTH;
-		Runnable resize = () -> arrow.setBounds(Math.max(0, button.getWidth() - arrowWidth), 0,
-			Math.min(arrowWidth, button.getWidth()), button.getHeight());
+		Runnable resize = () -> arrow.setBounds(FlatUiSupport.ribbonSplitArrowBounds(button));
+		// The size class is applied by the styler, possibly after this wiring.
+		button.addPropertyChangeListener(RibbonButtonStyler.SIZE_PROPERTY, event -> resize.run());
 		button.addComponentListener(new ComponentAdapter() {
 			@Override
 			public void componentResized(ComponentEvent event) {

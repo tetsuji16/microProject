@@ -289,6 +289,45 @@ class RibbonControlContractTest {
 	}
 
 	@Test
+	void largeSplitButtonHasItsArrowOnTheLowerHalfAndSmallOnTheRightEdge() throws Exception {
+		javax.swing.SwingUtilities.invokeAndWait(() -> {
+			JButton large = countingButton(new AtomicInteger());
+			large.putClientProperty(RibbonButtonStyler.SIZE_PROPERTY, "large");
+			RibbonControlPopups.install(large, specification(RibbonControlKind.SPLIT_BUTTON), commandSource(), key -> null);
+			large.setSize(80, 61);
+			JButton largeArrow = assertInstanceOf(JButton.class, large.getClientProperty(RibbonControlPopups.ARROW_BUTTON_PROPERTY));
+			assertEquals(new java.awt.Rectangle(0, 30, 80, 31), com.microproject.util.FlatUiSupport.ribbonSplitArrowBounds(large));
+
+			JButton small = countingButton(new AtomicInteger());
+			small.putClientProperty(RibbonButtonStyler.SIZE_PROPERTY, "small");
+			RibbonControlPopups.install(small, specification(RibbonControlKind.SPLIT_BUTTON), commandSource(), key -> null);
+			small.setSize(80, 22);
+			assertEquals(new java.awt.Rectangle(62, 0, 18, 22), com.microproject.util.FlatUiSupport.ribbonSplitArrowBounds(small));
+			assertNotNull(largeArrow);
+		});
+		// Resizing is delivered through the event queue.
+		javax.swing.SwingUtilities.invokeAndWait(() -> { });
+	}
+
+	@Test
+	void theArrowChildFollowsTheSizeClassOfItsButton() throws Exception {
+		JButton[] buttons = new JButton[2];
+		javax.swing.SwingUtilities.invokeAndWait(() -> {
+			for (int i = 0; i < 2; i++) {
+				buttons[i] = countingButton(new AtomicInteger());
+				buttons[i].putClientProperty(RibbonButtonStyler.SIZE_PROPERTY, i == 0 ? "large" : "small");
+				RibbonControlPopups.install(buttons[i], specification(RibbonControlKind.SPLIT_BUTTON), commandSource(), key -> null);
+				buttons[i].setSize(80, i == 0 ? 60 : 22);
+			}
+		});
+		javax.swing.SwingUtilities.invokeAndWait(() -> { });
+		JButton largeArrow = (JButton) buttons[0].getClientProperty(RibbonControlPopups.ARROW_BUTTON_PROPERTY);
+		JButton smallArrow = (JButton) buttons[1].getClientProperty(RibbonControlPopups.ARROW_BUTTON_PROPERTY);
+		assertEquals(new java.awt.Rectangle(0, 30, 80, 30), largeArrow.getBounds());
+		assertEquals(new java.awt.Rectangle(62, 0, 18, 22), smallArrow.getBounds());
+	}
+
+	@Test
 	void menuOnlyOpensItsPopup() {
 		AtomicInteger invoked = new AtomicInteger();
 		JButton button = countingButton(invoked);
