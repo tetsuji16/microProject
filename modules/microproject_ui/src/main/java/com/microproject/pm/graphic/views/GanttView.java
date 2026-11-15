@@ -33,8 +33,12 @@ import java.util.TreeSet;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
 import javax.swing.JViewport;
+import javax.swing.table.TableColumnModel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.TableColumnModelEvent;
+import javax.swing.event.TableColumnModelListener;
 
 import com.microproject.help.HelpUtil;
 import com.microproject.menu.MenuActionConstants;
@@ -105,6 +109,13 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	private TaskSelectionController taskSelectionController;
 	private boolean synchronizingRowGeometry;
 	private Runnable columnHeaderHeightBinding;
+	private final TableColumnModelListener dividerColumnListener = new TableColumnModelListener() {
+		@Override public void columnAdded(TableColumnModelEvent event) { requestDividerBoundsEnforcement(); }
+		@Override public void columnRemoved(TableColumnModelEvent event) { requestDividerBoundsEnforcement(); }
+		@Override public void columnMoved(TableColumnModelEvent event) { requestDividerBoundsEnforcement(); }
+		@Override public void columnMarginChanged(ChangeEvent event) { requestDividerBoundsEnforcement(); }
+		@Override public void columnSelectionChanged(ListSelectionEvent event) { }
+	};
 	public static final String spreadsheetCategory=taskSpreadsheetCategory;
 
 
@@ -175,6 +186,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 			columnHeaderHeightBinding = null;
 		}
 		removeSpreadsheetViewportListener();
+		removeDividerColumnListener();
 		removeTaskSelectionController();
 		if (gantt != null) {
 			gantt.setBarSelectionListener(null);
@@ -221,6 +233,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 			spreadSheet.setFieldArrayWithWidths(fields);
 			((SpreadSheetColumnModel) spreadSheet.getColumnModel()).ensureMinimumReadableWidths();
 		}
+		spreadSheet.getColumnModel().addColumnModelListener(dividerColumnListener);
 		((SpreadSheetModel) spreadSheet.getModel()).setFieldContext(fieldContext);
 		project.removeScheduleListener(this); // in case was already attached and recreating (applet)
 		project.addScheduleListener(this);
@@ -270,6 +283,21 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		return minimumViewportWidth + paneChrome;
 	}
 
+	@Override
+	protected int maximumLeftPaneWidth() {
+		if (spreadSheet == null || leftScrollPane == null)
+			return Integer.MAX_VALUE;
+		TableColumnModel columns = spreadSheet.getColumnModel();
+		JViewport viewport = leftScrollPane.getViewport();
+		int tableEdge = viewport.getX() + columns.getTotalColumnWidth() - viewport.getViewPosition().x;
+		return Math.max(0, tableEdge);
+	}
+
+	@Override
+	protected boolean enforcesMaximumLeftPaneWidth() {
+		return true;
+	}
+
    public void activateEmptyRowHeader(boolean activate){
     ganttScrollPane.activateEmptyRowHeader(activate);
    }
@@ -286,6 +314,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	}
 	public void setColumns(ArrayList fields){
 		spreadSheet.setFieldArray(fields);
+		requestDividerBoundsEnforcement();
 	}
 	/**
 	 * @return Returns the spreadSheet.
@@ -569,6 +598,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 
 	public void reinitialize() { // applet
 		removeSpreadsheetViewportListener();
+		removeDividerColumnListener();
 		removeTaskSelectionController();
 		if (coord != null && ganttScrollPane != null) {
 			coord.removeTimeScaleListener(ganttScrollPane);
@@ -585,6 +615,11 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		synchronizeGanttHeightWithSpreadsheet(leftScrollPane.getViewport().getViewSize());
 		requestResponsiveDividerLayout();
 		requestSplitHierarchyValidation();
+	}
+
+	private void removeDividerColumnListener() {
+		if (spreadSheet != null)
+			spreadSheet.getColumnModel().removeColumnModelListener(dividerColumnListener);
 	}
 	public void restoreWorkspace(WorkspaceSetting w, int context) {
 		Workspace ws = (Workspace) w;
@@ -861,6 +896,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 					if (synchronizingRowGeometry || leftScrollPane == null) {
 						return;
 					}
+					requestDividerBoundsEnforcement();
 					Dimension size = leftScrollPane.getViewport().getViewSize();
 					if (oldSize != null && oldSize.height == size.height) {
 						return;

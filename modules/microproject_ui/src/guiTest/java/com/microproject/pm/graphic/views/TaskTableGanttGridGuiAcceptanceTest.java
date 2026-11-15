@@ -371,6 +371,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		assertTrue(view.getGantt().getWidth() > 200, "the Gantt must remain visible after resizing around a saved column width");
 		assertColumnHeadersAligned(view.getSpreadSheet());
 		captureVisibleLayout(robot, "issue-432-manual-width-after-resize.png");
+		SwingUtilities.invokeAndWait(() -> view.setDividerLocation(120));
 		int dividerBeforeDrag = view.getDividerLocation();
 		String dividerTarget = dragSplitDivider(robot, view, 35);
 		assertTrue(dividerBeforeDrag != view.getDividerLocation(),
@@ -396,6 +397,22 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		robot.delay(350);
 		assertEquals(restoredDividerLocation, view.getDividerLocation(),
 			"resizing must preserve the explicitly restored divider location");
+		// Issue #972: a real drag must stop at the right edge of the remaining columns.
+		SwingUtilities.invokeAndWait(() -> {
+			var columns = view.getSpreadSheet().getColumnModel();
+			while (columns.getColumnCount() > 2)
+				columns.removeColumn(columns.getColumn(columns.getColumnCount() - 1));
+			view.setDividerLocation(100);
+		});
+		robot.delay(350);
+		dragSplitDivider(robot, view, 500);
+		SwingUtilities.invokeAndWait(() -> {
+			var sheet = view.getSpreadSheet();
+			int edge = SwingUtilities.convertPoint(sheet, sheet.getColumnModel().getTotalColumnWidth(), 0, view).x;
+			assertTrue(view.getDividerLocation() <= edge + 2,
+				"physical drag must not expose blank space beyond the last column: divider="
+					+ view.getDividerLocation() + " edge=" + edge);
+		});
 		Files.writeString(directory.resolve("issue-432-layout.txt"), evidence.toString());
 	}
 
