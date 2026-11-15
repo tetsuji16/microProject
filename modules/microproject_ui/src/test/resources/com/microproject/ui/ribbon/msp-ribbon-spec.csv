@@ -168,6 +168,7 @@ Format,Format,Timescale,RibbonTimescale,REQUIRED,S20
 Format,Bar Styles,Bar Styles,RibbonBarStyles,REQUIRED,S38
 Format,Format,Text Styles,RibbonTextStyles,REQUIRED,S38
 Format,Format,Table Gridlines,RibbonSheetGridlines,REQUIRED,S38
+Format,Layout,Layout Now,RibbonNetworkLayoutNow,REQUIRED,S38
 Format,Format,Layout,RibbonLayout,REQUIRED,S38
 Format,Columns,Insert Column,RibbonInsertColumn,REQUIRED,S38
 Format,Columns,Align Left,RibbonAlignLeft,REQUIRED,S38

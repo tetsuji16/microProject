@@ -105,8 +105,25 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 	/** Creates the same calendar UI for embedding in a document view. */
 	public static javax.swing.JPanel createEmbeddedPanel(java.awt.Frame owner, Project project) {
 		CalendarViewDialogBox dialog = new CalendarViewDialogBox(owner, project);
-		return PopupDialogSupport.detachContentPanel(dialog, "Calendar view");
+		javax.swing.JPanel panel = PopupDialogSupport.detachContentPanel(dialog, "Calendar view");
+		panel.putClientProperty(DIALOG_PROPERTY, dialog);
+		return panel;
 	}
+
+	/** Client property of an embedded calendar panel that carries its {@link CalendarViewDialogBox}. */
+	public static final String DIALOG_PROPERTY = "microproject.calendarViewDialog";
+
+	/** Shows or hides the grid lines between the day cells of the month grid. */
+	public void setGridlinesVisible(boolean visible) {
+		gridlinesVisible = visible;
+		canvas.repaint();
+	}
+
+	public boolean isGridlinesVisible() {
+		return gridlinesVisible;
+	}
+
+	private boolean gridlinesVisible = true;
 
 	@Override
 	public void setLocationRelativeTo(Component reference) {
@@ -203,7 +220,7 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 			int column = index % 7, row = index / 7, x = column * width, y = HEADER + row * CELL_HEIGHT;
 			boolean currentMonth = YearMonth.from(day).equals(month);
 			g.setColor(currentMonth ? FlatUiSupport.dataSurfaceBackground() : FlatUiSupport.panelBackground()); g.fillRect(x, y, width, CELL_HEIGHT);
-			g.setColor(FlatUiSupport.borderColor()); g.drawRect(x, y, width, CELL_HEIGHT);
+			if (gridlinesVisible) { g.setColor(FlatUiSupport.borderColor()); g.drawRect(x, y, width, CELL_HEIGHT); }
 			if (day.equals(LocalDate.now(zone))) { g.setColor(FlatUiSupport.errorForeground()); g.setStroke(new BasicStroke(2F)); g.drawRect(x + 1, y + 1, width - 2, CELL_HEIGHT - 2); }
 			g.setColor(currentMonth ? FlatUiSupport.tableForeground() : FlatUiSupport.disabledForeground());
 			g.drawString(Integer.toString(day.getDayOfMonth()), x + 7, y + 17);

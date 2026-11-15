@@ -64,10 +64,8 @@ class RibbonDialogLauncherTest {
 			new MenuRibbonCommandSource(new ExtToolBarFactory(recordingActionMap(new ArrayList<>()),
 				MenuDefinitionSupport.ribbonBundles(Locale.ROOT))),
 			MenuDefinitionSupport.ribbonBundles(Locale.ROOT)).createModel(MenuManager.STANDARD_RIBBON);
-		assertEquals("RibbonBarStyles", band(model, "FormatBarRibbonBand").getDialogLauncherId());
 		assertEquals("RibbonBarStyles", band(model, "GanttStylesRibbonBand").getDialogLauncherId());
 		assertEquals("RibbonLayout", band(model, "GanttFormatRibbonBand").getDialogLauncherId());
-		assertEquals("RibbonLayout", band(model, "FormatLayoutRibbonBand").getDialogLauncherId());
 		assertNull(band(model, "ViewTaskRibbonBand").getDialogLauncherId());
 		assertNull(band(model, "TaskTrackingRibbonBand").getDialogLauncherId());
 		assertNull(band(model, "ResourcePropertiesRibbonBand").getDialogLauncherId());

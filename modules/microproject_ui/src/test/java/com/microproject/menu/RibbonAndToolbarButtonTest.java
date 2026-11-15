@@ -143,14 +143,14 @@ class RibbonAndToolbarButtonTest {
 	void menuManagerPropagatesCustomBandGeneratorsIntoTheModelAndPanel() throws Exception {
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		CustomRibbonBandGenerator generator = bandId ->
-			"SheetShowHideRibbonBand".equals(bandId) ? customBand("Layout from generator") : null;
+			"GanttBarStylesRibbonBand".equals(bandId) ? customBand("Layout from generator") : null;
 
 		SwingUtilities.invokeAndWait(() -> {
 			SwingRibbonModel model = manager.getRibbon(MenuManager.STANDARD_RIBBON, generator);
 			SwingRibbonModel.RibbonBand layoutBand = model.getTabs().stream()
 				.filter(tab -> tab.getId().equals("FormatRibbonTask"))
 				.flatMap(tab -> tab.getBands().stream())
-				.filter(band -> band.getId().equals("SheetShowHideRibbonBand"))
+				.filter(band -> band.getId().equals("GanttBarStylesRibbonBand"))
 				.findFirst()
 				.orElseThrow();
 			assertTrue(layoutBand.isCustomBand());
@@ -423,12 +423,14 @@ class RibbonAndToolbarButtonTest {
 			List.of("GanttFormatRibbonBand", "SheetColumnsRibbonBand", "GanttBarStylesRibbonBand", "GanttStylesRibbonBand",
 				"SheetShowHideRibbonBand", "GanttFormatExtrasRibbonBand"),
 			ribbonBandIds("FormatRibbonTask"));
-		assertTrue(ribbonBandIds("NetworkFormatRibbonTask").contains("FormatDisplayRibbonBand"));
-		assertTrue(ribbonBandIds("CalendarFormatRibbonTask").contains("FormatBarRibbonBand"));
-		assertTrue(ribbonBandIds("CalendarFormatRibbonTask").contains("FormatLayoutRibbonBand"));
-		assertEquals(
-			List.of("RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName", "RibbonGridlines", "RibbonToggleCriticalChain"),
-			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("FormatDisplayRibbonBand"));
+		assertEquals(List.of("NetworkShowHideRibbonBand", "NetworkLayoutRibbonBand"), ribbonBandIds("NetworkFormatRibbonTask"));
+		assertEquals(List.of("CalendarFormatRibbonBand"), ribbonBandIds("CalendarFormatRibbonTask"));
+		assertEquals(List.of("RibbonSummaryTasks"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("NetworkShowHideRibbonBand"));
+		assertEquals(List.of("RibbonNetworkLayoutNow"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("NetworkLayoutRibbonBand"));
+		assertEquals(List.of("RibbonSheetGridlines"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("CalendarFormatRibbonBand"));
 		assertEquals(
 			List.of("RibbonTextStyles", "RibbonGridlines", "RibbonLayout"),
 			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("GanttFormatRibbonBand"));
@@ -447,9 +449,6 @@ class RibbonAndToolbarButtonTest {
 		assertEquals(
 			List.of("RibbonSwitchWindows", "RibbonArrangeAll", "RibbonPrivacyMask"),
 			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("ViewWindowRibbonBand"));
-		assertEquals(
-			List.of("RibbonTimescale", "RibbonBarStyles", "RibbonTextStyles"),
-			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("FormatBarRibbonBand"));
 	}
 
 	@Test

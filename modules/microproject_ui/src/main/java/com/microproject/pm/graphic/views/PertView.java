@@ -149,6 +149,24 @@ public class PertView extends JScrollPane implements BaseView {
 		}
 	}
 
+	@Override public boolean supportsSummaryTasksToggle() {
+		return cache instanceof com.microproject.pm.graphic.model.cache.ViewNodeModelCache;
+	}
+	@Override public boolean isSummaryTasksVisible() {
+		return !(cache instanceof com.microproject.pm.graphic.model.cache.ViewNodeModelCache viewCache) || !viewCache.getViewTransformer().isHideSummaryTasks();
+	}
+	/** Hides or shows the summary task boxes through the view transform (boxes only; tasks are untouched). */
+	@Override public void setSummaryTasksVisible(boolean visible) {
+		if (cache instanceof com.microproject.pm.graphic.model.cache.ViewNodeModelCache viewCache)
+			viewCache.getViewTransformer().setHideSummaryTasks(!visible);
+	}
+	/** Recomputes every box position from the dependency levels (Layout Now). */
+	public void layoutNow() {
+		if (pert != null && pert.getNetworkLayout() != null) {
+			pert.getNetworkLayout().updateBounds();
+			pert.repaint();
+		}
+	}
 	public boolean canScrollToTask() {
 		return false;
 	}

@@ -1947,6 +1947,8 @@ class RibbonButtonBehaviorTest {
 			"RibbonInsertColumn", "RibbonAlignLeft", "RibbonAlignCenter", "RibbonAlignRight", "RibbonColumnSettings",
 			"RibbonFormatBarStyles", "RibbonCriticalTasks", "RibbonSlack", "RibbonLateTasks", "RibbonTaskPath",
 			"RibbonShowBaseline", "RibbonSlippage", "RibbonGanttStyleGallery", "RibbonOutlineNumbers", "RibbonSummaryTasks");
+		// Network and Calendar Format tabs: each needs the active Network/Calendar view; behaviour is covered by NetworkCalendarFormatTest (Summary Tasks, Layout Now, calendar gridlines).
+		add(map, Strategy.STRUCTURAL_ONLY, "RibbonNetworkLayoutNow");
 		// Usage Format tabs: each needs an active usage view; behaviour is covered by UsageDetailRibbonGuiAcceptanceTest (guiTest: detail toggle, last-row guard, Add Details) and UsageDetailValuesTest (computed rows).
 		add(map, Strategy.STRUCTURAL_ONLY,
 			"RibbonUsageDetailWork", "RibbonUsageDetailActualWork", "RibbonUsageDetailBaselineWork", "RibbonUsageDetailCost",

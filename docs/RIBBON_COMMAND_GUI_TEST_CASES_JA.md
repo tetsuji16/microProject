@@ -186,6 +186,7 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonGanttStyleGallery (RibbonGanttStyleDefault / Blue / Green / Orange / Purple / Gray) | ガント チャートの配色を選ぶ | バーの配色が切り替わり、ビューと共に保存される |
 | RibbonOutlineNumbers | アウトライン番号の表示を切り替える | タスク名の前に番号が表示／非表示になる |
 | RibbonSummaryTasks | サマリー タスクの行を切り替える | サマリー タスクの行が表示／非表示になる |
+| RibbonNetworkLayoutNow | ネットワーク図のボックス位置を再計算 | すべてのボックスが依存関係の階層に従って再配置される |
 | RibbonSheetGridlines | 表の罫線の表示を選ぶ | 表の罫線が表示／非表示になる |
 | RibbonUsageDetailWork | 作業時間の詳細行を切り替える | 使用状況グリッドに作業時間の行が表示／非表示になる |
 | RibbonUsageDetailActualWork | 実績作業時間の詳細行を切り替える | 使用状況グリッドに実績作業時間の行が表示／非表示になる |

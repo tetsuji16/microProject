@@ -62,6 +62,8 @@ final class RibbonCommandCatalog {
 	private static final String VIEW = "ViewRibbonTask";
 	private static final String HELP = "HelpRibbonTask";
 	private static final String FORMAT = "FormatRibbonTask";
+	private static final String NETWORK_FORMAT = "NetworkFormatRibbonTask";
+	private static final String CALENDAR_FORMAT = "CalendarFormatRibbonTask";
 	private static final String TASK_SHEET_FORMAT = "TaskSheetFormatRibbonTask";
 	private static final String TASK_USAGE_FORMAT = "TaskUsageFormatRibbonTask";
 	private static final String RESOURCE_SHEET_FORMAT = "ResourceSheetFormatRibbonTask";
@@ -189,22 +191,6 @@ final class RibbonCommandCatalog {
 		register(result, CommandScope.FORMAT, FORMAT,
 			"RibbonInsertColumn", "RibbonAlignLeft", "RibbonAlignCenter", "RibbonAlignRight", "RibbonColumnSettings",
 			"RibbonHideColumn", "RibbonFieldSettings", "RibbonFormatBarStyles", "RibbonFormatBar", "RibbonBarStylesItem", "RibbonCriticalTasks", "RibbonSlack", "RibbonLateTasks", "RibbonTaskPath", "RibbonPathPredecessors", "RibbonPathDrivingPredecessors", "RibbonPathSuccessors", "RibbonPathDrivenSuccessors", "RibbonPathRemove", "RibbonShowBaseline", "RibbonSlippage", "RibbonGanttStyleGallery", "RibbonOutlineNumbers", "RibbonSummaryTasks", "RibbonGanttStyleDefault", "RibbonGanttStyleBlue", "RibbonGanttStyleGreen", "RibbonGanttStyleOrange", "RibbonGanttStylePurple", "RibbonGanttStyleGray");
-		// Format controls are shared by the implemented contextual tabs.  The
-		// catalog permits a subset per tab; each command remains primary on the
-		// normal Format tab and cannot appear on an unrelated tab.
-		for (String id : List.of("RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName",
-			"RibbonGridlines", "RibbonToggleCriticalChain", "RibbonTimescale", "RibbonBarStyles", "RibbonTextStyles", "RibbonLayout")) {
-			Placement placement = result.get(id);
-			// Progress Lines is a Gridlines menu item on the Gantt tab, so its only top-level control is on
-			// the Network tab; Timescale left the Gantt tab (it stays on the Calendar tab).
-			String primary = switch (id) {
-				case "RibbonToggleProgressLine" -> "NetworkFormatRibbonTask";
-				case "RibbonTimescale" -> "CalendarFormatRibbonTask";
-				default -> placement.primaryTab();
-			};
-			result.put(id, new Placement(placement.scope(), primary,
-				Set.of(FORMAT, "NetworkFormatRibbonTask", "CalendarFormatRibbonTask")));
-		}
 		// Table-view Format tabs reuse the Gantt Columns and Show/Hide commands; each acts on the active spreadsheet view.
 		for (String id : List.of("RibbonInsertColumn", "RibbonAlignLeft", "RibbonAlignCenter", "RibbonAlignRight",
 			"RibbonColumnSettings", "RibbonHideColumn", "RibbonFieldSettings", "RibbonCustomFields")) {
@@ -215,9 +201,12 @@ final class RibbonCommandCatalog {
 		}
 		for (String id : List.of("RibbonOutlineNumbers", "RibbonSummaryTasks")) {
 			Placement placement = result.get(id);
-			result.put(id, new Placement(placement.scope(), placement.primaryTab(), Set.of(FORMAT, TASK_SHEET_FORMAT, TASK_USAGE_FORMAT)));
+			result.put(id, new Placement(placement.scope(), placement.primaryTab(),
+				"RibbonSummaryTasks".equals(id) ? Set.of(FORMAT, TASK_SHEET_FORMAT, TASK_USAGE_FORMAT, NETWORK_FORMAT)
+					: Set.of(FORMAT, TASK_SHEET_FORMAT, TASK_USAGE_FORMAT)));
 		}
-		register(result, CommandScope.FORMAT, TASK_USAGE_FORMAT, Set.of(TASK_SHEET_FORMAT, TASK_USAGE_FORMAT, RESOURCE_SHEET_FORMAT, RESOURCE_USAGE_FORMAT),
+		register(result, CommandScope.FORMAT, NETWORK_FORMAT, Set.of(NETWORK_FORMAT), "RibbonNetworkLayoutNow");
+		register(result, CommandScope.FORMAT, TASK_USAGE_FORMAT, Set.of(TASK_SHEET_FORMAT, TASK_USAGE_FORMAT, RESOURCE_SHEET_FORMAT, RESOURCE_USAGE_FORMAT, CALENDAR_FORMAT),
 			"RibbonSheetGridlines");
 		// Usage Details rows are shared by the two usage Format tabs.
 		register(result, CommandScope.FORMAT, TASK_USAGE_FORMAT, Set.of(TASK_USAGE_FORMAT, RESOURCE_USAGE_FORMAT),

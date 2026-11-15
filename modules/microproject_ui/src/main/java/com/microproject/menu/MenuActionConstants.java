@@ -130,6 +130,7 @@ public interface MenuActionConstants {
 	public static final String ACTION_GFMT_OUTLINE_NUMBERS = "GanttOutlineNumbers";
 	public static final String ACTION_GFMT_SUMMARY_TASKS = "GanttSummaryTasks";
 	public static final String ACTION_SHEET_GRIDLINES = "SheetGridlines";
+	public static final String ACTION_NETWORK_LAYOUT_NOW = "NetworkLayoutNow";
 	public static final String ACTION_USAGE_DETAIL_WORK = "UsageDetailWork";
 	public static final String ACTION_USAGE_DETAIL_ACTUAL_WORK = "UsageDetailActualWork";
 	public static final String ACTION_USAGE_DETAIL_BASELINE_WORK = "UsageDetailBaselineWork";

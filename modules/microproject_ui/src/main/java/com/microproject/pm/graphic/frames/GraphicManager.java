@@ -166,6 +166,7 @@ import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeEvent;
 import com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeListener;
 import com.microproject.pm.graphic.views.GanttView;
+import com.microproject.pm.graphic.views.PertView;
 import com.microproject.pm.graphic.views.BaseView;
 import com.microproject.ui.privacy.PrivacyDisplayMode;
 import com.microproject.pm.graphic.views.ProjectsDialog;
@@ -1988,7 +1989,15 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_GFMT_BASELINE, ganttFormatAction(ACTION_GFMT_BASELINE, view -> view.setBaselineVisible(!view.isBaselineVisible())));
 		actionsMap.addHandler(ACTION_GFMT_SLIPPAGE, ganttFormatAction(ACTION_GFMT_SLIPPAGE, view -> view.setSlippageVisible(!view.isSlippageVisible())));
 		actionsMap.addHandler(ACTION_GFMT_OUTLINE_NUMBERS, sheetFormatAction(ACTION_GFMT_OUTLINE_NUMBERS, view -> view.setOutlineNumbersVisible(!view.isOutlineNumbersVisible())));
-		actionsMap.addHandler(ACTION_GFMT_SUMMARY_TASKS, sheetFormatAction(ACTION_GFMT_SUMMARY_TASKS, view -> view.setSummaryTasksVisible(!view.isSummaryTasksVisible())));
+		actionsMap.addHandler(ACTION_GFMT_SUMMARY_TASKS, summaryTasksAction());
+		actionsMap.addHandler(ACTION_NETWORK_LAYOUT_NOW, new MenuActionsMap.DocumentMenuAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) {
+				setMeAsLastGraphicManager();
+				if (!beforeToggleRoute(ACTION_NETWORK_LAYOUT_NOW)) return;
+				if (getActiveNetworkView() != null) getActiveNetworkView().layoutNow();
+			}
+		});
 		actionsMap.addHandler(ACTION_GFMT_PATH_PREDECESSORS, ganttFormatAction(ACTION_GFMT_PATH_PREDECESSORS, view -> view.setTaskPathKind(TaskPathAnalyzer.Kind.PREDECESSORS)));
 		actionsMap.addHandler(ACTION_GFMT_PATH_DRIVING_PREDECESSORS, ganttFormatAction(ACTION_GFMT_PATH_DRIVING_PREDECESSORS, view -> view.setTaskPathKind(TaskPathAnalyzer.Kind.DRIVING_PREDECESSORS)));
 		actionsMap.addHandler(ACTION_GFMT_PATH_SUCCESSORS, ganttFormatAction(ACTION_GFMT_PATH_SUCCESSORS, view -> view.setTaskPathKind(TaskPathAnalyzer.Kind.SUCCESSORS)));
@@ -2930,6 +2939,16 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
 			if (!beforeChooserRoute(ACTION_SHEET_GRIDLINES)) return;
+			com.microproject.dialog.CalendarViewDialogBox calendar = getActiveCalendarDialog();
+			if (calendar != null) {
+				if (GraphicsEnvironment.isHeadless()) return;
+				javax.swing.JCheckBox calendarGrid = new javax.swing.JCheckBox(
+					getMenuManager().getString("RibbonSheetGridlines.text"), calendar.isGridlinesVisible());
+				int answer = PopupDialogSupport.showConfirmDialog(getFrame(), calendarGrid,
+					getMenuManager().getString("RibbonSheetGridlines.text"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+				if (answer == JOptionPane.OK_OPTION) calendar.setGridlinesVisible(calendarGrid.isSelected());
+				return;
+			}
 			BaseView sheetView = getActiveSheetView();
 			if (sheetView == null || GraphicsEnvironment.isHeadless()) return;
 			javax.swing.JCheckBox visible = new javax.swing.JCheckBox(
@@ -2976,6 +2995,21 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				BaseView view = getActiveSheetView();
 				if (view == null) return;
 				body.accept(view);
+				syncGanttViewRibbonState();
+			}
+		};
+	}
+
+	/** Summary Tasks toggle: acts on the active spreadsheet-based view, or on the Network Diagram. */
+	private MenuActionsMap.DocumentMenuAction summaryTasksAction() {
+		return new MenuActionsMap.DocumentMenuAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) {
+				setMeAsLastGraphicManager();
+				if (!beforeToggleRoute(ACTION_GFMT_SUMMARY_TASKS)) return;
+				BaseView view = getActiveSummaryTasksView();
+				if (view == null) return;
+				view.setSummaryTasksVisible(!view.isSummaryTasksVisible());
 				syncGanttViewRibbonState();
 			}
 		};
@@ -4697,6 +4731,34 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		return view != null && view.getSpreadSheet() != null ? view : null;
 	}
 
+	/** The active Network Diagram view, else null. */
+	PertView getActiveNetworkView() {
+		DocumentFrame frame = getCurrentFrame();
+		if (frame == null || frame.getProject() == null || !ACTION_NETWORK.equals(frame.getTopViewId()))
+			return null;
+		return frame.getActiveTopView() instanceof PertView view ? view : null;
+	}
+
+	/** The active embedded Calendar view's dialog, else null. */
+	com.microproject.dialog.CalendarViewDialogBox getActiveCalendarDialog() {
+		DocumentFrame frame = getCurrentFrame();
+		if (frame == null || frame.getProject() == null || !ACTION_CALENDAR_VIEW.equals(frame.getTopViewId()))
+			return null;
+		if (!(frame.getActiveTopView() instanceof javax.swing.JComponent view))
+			return null;
+		for (java.awt.Component child : view.getComponents())
+			if (child instanceof javax.swing.JComponent component
+					&& component.getClientProperty(com.microproject.dialog.CalendarViewDialogBox.DIALOG_PROPERTY) instanceof com.microproject.dialog.CalendarViewDialogBox dialog)
+				return dialog;
+		return null;
+	}
+
+	/** The view whose summary rows/boxes the Summary Tasks command toggles: a sheet view or the Network Diagram. */
+	private BaseView getActiveSummaryTasksView() {
+		BaseView sheet = getActiveSheetView();
+		return sheet != null ? sheet : getActiveNetworkView();
+	}
+
 	private UsageDetailView getActiveUsageView() {
 		return getActiveSheetView() instanceof UsageDetailView view ? view : null;
 	}
@@ -5365,7 +5427,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_BAR, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_TIMESCALE, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_GRIDLINES, ganttActive);
-		getMenuManager().setActionEnabled(ACTION_SHEET_GRIDLINES, sheetActive);
+		getMenuManager().setActionEnabled(ACTION_SHEET_GRIDLINES, sheetActive || getActiveCalendarDialog() != null);
+		getMenuManager().setActionEnabled(ACTION_NETWORK_LAYOUT_NOW, getActiveNetworkView() != null);
 		getMenuManager().setActionEnabled(ACTION_TEXT_STYLES, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_BAR_STYLES, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_LAYOUT, ganttActive);
@@ -5393,7 +5456,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_GFMT_STYLE_PURPLE, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_GFMT_STYLE_GRAY, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_GFMT_OUTLINE_NUMBERS, sheetActive);
-		getMenuManager().setActionEnabled(ACTION_GFMT_SUMMARY_TASKS, sheetActive && sheetView.supportsSummaryTasksToggle());
+		BaseView summaryView = getActiveSummaryTasksView();
+		getMenuManager().setActionEnabled(ACTION_GFMT_SUMMARY_TASKS, summaryView != null && summaryView.supportsSummaryTasksToggle());
 
 		boolean progressSelected = false;
 		boolean resourceLabelSelected = false;
@@ -5413,7 +5477,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionSelected(ACTION_GFMT_BASELINE, ganttActive && getCurrentFrame().getGanttView().isBaselineVisible());
 		getMenuManager().setActionSelected(ACTION_GFMT_SLIPPAGE, ganttActive && getCurrentFrame().getGanttView().isSlippageVisible());
 		getMenuManager().setActionSelected(ACTION_GFMT_OUTLINE_NUMBERS, sheetActive && sheetView.isOutlineNumbersVisible());
-		getMenuManager().setActionSelected(ACTION_GFMT_SUMMARY_TASKS, sheetActive && sheetView.isSummaryTasksVisible());
+		getMenuManager().setActionSelected(ACTION_GFMT_SUMMARY_TASKS, summaryView != null && summaryView.isSummaryTasksVisible());
 		UsageDetailView usageView = sheetView instanceof UsageDetailView view ? view : null;
 		for (String[] detail : USAGE_DETAIL_ACTIONS) {
 			getMenuManager().setActionEnabled(detail[0], usageView != null);

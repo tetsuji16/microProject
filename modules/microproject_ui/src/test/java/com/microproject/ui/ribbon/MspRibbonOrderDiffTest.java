@@ -87,6 +87,14 @@ class MspRibbonOrderDiffTest {
 		"assignments have no Assignment Information dialog and no notes of their own; Task and Resource Information are reached from the Task and Resource tabs";
 	private static final String TEXT_STYLES_SHEET =
 		"the Text Styles dialog only chooses which field labels the Gantt bars (task name or resource names); it has no per-item-type cell font to apply to sheet or usage rows";
+	private static final String NO_BOX_ENGINE =
+		"Network Diagram boxes take their fields and look from the shared task bar format configuration; there is no per-view box field, box format or box style engine to edit";
+	private static final String NO_FREE_PLACEMENT =
+		"Network Diagram boxes are placed automatically by dependency level; there is no free box placement, so alignment of selected boxes has no engine";
+	private static final String NO_PROJECT_SUMMARY =
+		"the task model has no project summary task (task 0) row to show; the project is not a task";
+	private static final String CALENDAR_NO_OPTIONS =
+		"the Calendar month grid has fixed fonts, card colours, week start and week height; it has no format or layout option model to back this control";
 	private static final String WRAP_TEXT =
 		"cells render on one line; the sheet has no multi-line cell/row-height engine (only header wrapping exists, under Field Settings)";
 
@@ -102,7 +110,9 @@ class MspRibbonOrderDiffTest {
 		Map.entry("TaskSheetFormatRibbonTask", "TabTaskSheetViewFormat"),
 		Map.entry("TaskUsageFormatRibbonTask", "TabTaskUsageViewFormat"),
 		Map.entry("ResourceSheetFormatRibbonTask", "TabResourceSheetViewFormat"),
-		Map.entry("ResourceUsageFormatRibbonTask", "TabResourceUsageViewFormat"));
+		Map.entry("ResourceUsageFormatRibbonTask", "TabResourceUsageViewFormat"),
+		Map.entry("NetworkFormatRibbonTask", "TabNetworkDiagramFormat"),
+		Map.entry("CalendarFormatRibbonTask", "TabCalendarFormat"));
 
 	/** Our band ("tab/band") -> the Microsoft group of the same tab it implements. */
 	private static final Map<String, String> BAND_GROUPS = Map.ofEntries(
@@ -147,7 +157,10 @@ class MspRibbonOrderDiffTest {
 		Map.entry("ResourceSheetFormatRibbonTask/SheetColumnsRibbonBand", "GroupColumns"),
 		Map.entry("ResourceUsageFormatRibbonTask/SheetFormatRibbonBand", "GroupUsageViewFormat"),
 		Map.entry("ResourceUsageFormatRibbonTask/SheetColumnsRibbonBand", "GroupColumns"),
-		Map.entry("ResourceUsageFormatRibbonTask/ResourceUsageDetailsRibbonBand", "GroupResourceUsageViewDetails"));
+		Map.entry("ResourceUsageFormatRibbonTask/ResourceUsageDetailsRibbonBand", "GroupResourceUsageViewDetails"),
+		Map.entry("NetworkFormatRibbonTask/NetworkShowHideRibbonBand", "GroupNetworkDiagramShowHide"),
+		Map.entry("NetworkFormatRibbonTask/NetworkLayoutRibbonBand", "GroupNetworkDiagramLayout"),
+		Map.entry("CalendarFormatRibbonTask/CalendarFormatRibbonBand", "GroupCalendarViewFormat"));
 
 	/**
 	 * Bands with no group of their own on that Microsoft tab. They stay, are placed after every
@@ -173,6 +186,11 @@ class MspRibbonOrderDiffTest {
 		Map.entry("TabReportOverview/GroupCompareProject", "Compare Projects; " + PHASE_1B),
 		Map.entry("TabReportOverview/GroupVisualReports",
 			"scope exclusion: Visual Reports require external Excel/Visio (EXCLUDED in msp-ribbon-spec.csv)"),
+		Map.entry("TabNetworkDiagramFormat/GroupNetworkDiagramDisplay", NO_BOX_ENGINE),
+		Map.entry("TabNetworkDiagramFormat/GroupNetworkDiagramFormat", NO_BOX_ENGINE),
+		Map.entry("TabCalendarFormat/GroupCalendarViewLayout", CALENDAR_NO_OPTIONS),
+		Map.entry("TabCalendarFormat/GroupCalendarViewShowHide",
+			"the Calendar view shows no task list pane to toggle, and " + NO_PROJECT_SUMMARY),
 		Map.entry("TabProject/GroupOfficeExtension",
 			OFFICE_ADDIN),
 		Map.entry("TabProject/GroupProofing", "Spelling; " + PHASE_1B),
@@ -188,6 +206,14 @@ class MspRibbonOrderDiffTest {
 	 * with the reason. A control counts as present when it or one of its menu children is mapped.
 	 */
 	private static final Map<String, String> MISSING_CONTROLS = Map.ofEntries(
+		Map.entry("TabCalendarFormat/TextStyles", CALENDAR_NO_OPTIONS),
+		Map.entry("TabCalendarFormat/CalendarViewFormatBarStyles", CALENDAR_NO_OPTIONS),
+		Map.entry("TabNetworkDiagramFormat/NetworkDiagramBoxLinkLabelsShow", "links are drawn without labels; the renderer has no link label (type/lag) drawing"),
+		Map.entry("TabNetworkDiagramFormat/NetworkDiagramBoxStraightLinkStyles", "links are always routed orthogonally; no straight-line link routing exists"),
+		Map.entry("TabNetworkDiagramFormat/NetworkDiagramBoxProgressMarksShow", "boxes are drawn without progress marks; the renderer has no progress mark drawing"),
+		Map.entry("TabNetworkDiagramFormat/ProjectSummaryTaskShow", NO_PROJECT_SUMMARY),
+		Map.entry("TabNetworkDiagramFormat/NetworkDiagramAlignMenu", NO_FREE_PLACEMENT),
+		Map.entry("TabNetworkDiagramFormat/NetworkDiagramLayout", "layout is automatic by dependency level with no options, so there is no Layout dialog to open"),
 		Map.entry("TabTask/TaskSplit", "requires task split model; tracked separately"),
 		Map.entry("TabTask/DeliverablesMenu", ONLINE + " (deliverables)"),
 		Map.entry("TabResource/AddEngagement", "scope exclusion: " + ONLINE + " (engagements)"),
