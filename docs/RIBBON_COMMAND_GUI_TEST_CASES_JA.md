@@ -108,6 +108,8 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 
 | ID | 操作ユースケース | 合格条件 |
 |---|---|---|
+| RibbonReportDashboards / RibbonReportResources / RibbonReportInProgress / RibbonReportCustom | レポートギャラリーから既存レポートを開く | 選んだレポートが表示される |
+| RibbonReportRecent | 今セッションで開いたレポートを再表示 | 直近のレポートが開く |
 | RibbonReport | レポート一覧を表示 | レポート画面が表示される |
 | RibbonCustomReport | カスタムレポートを開く | カスタムレポート操作が可能 |
 | RibbonHistogram | リソースヒストグラムを表示 | ヒストグラムが描画される |
@@ -148,6 +150,9 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonNoTextNoSubWindow | サブウィンドウ表示を切り替える | 表示モードが切り替わる |
 | RibbonDetails | 詳細ペインを表示／非表示 | 下部ビューの表示状態が切り替わる |
 | RibbonArrangeAll | 全ウィンドウを整列 | 開いているプロジェクトが整列される |
+| RibbonSwitchWindows | 開いているプロジェクトの一覧から切り替え | 選んだプロジェクトのウィンドウが前面になる |
+| RibbonTeamPlanner | チームプランナーを表示 | チームプランナー画面が表示される |
+| RibbonTimescaleGallery | 時間スケールを一覧から選択 | ガントの時間スケールが変わる |
 | RibbonChooseFilter / RibbonChooseSort / RibbonChooseGroup | フィルター・ソート・グループを変更 | 選択条件が一覧へ反映される |
 | RibbonZoomIn / RibbonZoomOut | 時間軸を拡大／縮小 | ガントの時間スケールが変わる |
 | RibbonZoomEntireProject | Gantt / Task Usage / Resource Usage で View > ズーム の「プロジェクト全体」を押す | タイムスケールがプロジェクトの開始から終了までを表示できる縮尺に変わる。データは変更されない。 |

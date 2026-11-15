@@ -46,7 +46,7 @@ class MspRibbonSpecDiffTest {
 		Map.entry("RibbonLinksBetweenProjects", "no Links Between Projects dialog exists"),
 		Map.entry("RibbonDefineWbs", "WBS code definition is deliberately not exposed until implemented (RibbonStructureTest)"),
 		Map.entry("RibbonSpelling", "no spell checker (F7) exists"),
-		Map.entry("RibbonNewWindow", "no New Window / Switch Windows commands exist"),
+		Map.entry("RibbonNewWindow", "no New Window command: one document frame per project, a second window on the same project is unsupported"),
 		Map.entry("RibbonOutline", "View > Data > Outline levels not wired to a ribbon command"),
 		Map.entry("RibbonTables", "View > Data > Tables not wired to a ribbon command"),
 		Map.entry("RibbonHighlight", "View > Data > Highlight filter not wired to a ribbon command"));

@@ -165,7 +165,8 @@ final class RibbonCommandCatalog {
 		register(result, CommandScope.TASK, PROJECT, "RibbonInsertProject", "RibbonCustomFields");
 		register(result, CommandScope.TASK, VIEW, "RibbonExpand", "RibbonCollapse");
 		register(result, CommandScope.REPORT, REPORT,
-			"RibbonReport", "RibbonCustomReport", "RibbonHistogram", "RibbonCharts", "RibbonTaskUsage", "RibbonResourceUsage", "RibbonCCPMBufferStatus");
+			"RibbonReport", "RibbonCustomReport", "RibbonHistogram", "RibbonCharts", "RibbonTaskUsage", "RibbonResourceUsage", "RibbonCCPMBufferStatus",
+			"RibbonReportDashboards", "RibbonReportResources", "RibbonReportInProgress", "RibbonReportCustom", "RibbonReportRecent");
 		register(result, CommandScope.PROJECT, PROJECT,
 			"RibbonProjectInformation", "RibbonProjectsDialog", "RibbonChangeWorkingTime",
 			"RibbonCalendarOptions", "RibbonStatusDate", "RibbonUpdateProject", "RibbonMoveProject", "RibbonRecalculate", "RibbonRefreshSubprojects", "RibbonOpenSubproject", "RibbonRemoveSubproject", "RibbonSaveBaseline", "RibbonClearBaseline",
@@ -173,7 +174,8 @@ final class RibbonCommandCatalog {
 	register(result, CommandScope.VIEW, VIEW,
 			"RibbonGantt", "RibbonTrackingGantt", "RibbonNetwork", "RibbonWBS", "RibbonResources", "RibbonRBS",
 			"RibbonTimeline", "RibbonCalendarView", "RibbonProjects", "RibbonTaskUsageDetail", "RibbonResourceUsageDetail", "RibbonDetails", "RibbonNoTextNoSubWindow",
-			"RibbonArrangeAll", "RibbonChooseFilter", "RibbonChooseSort", "RibbonChooseGroup", "RibbonZoomIn", "RibbonZoomOut", "RibbonZoomEntireProject", "RibbonZoomSelectedTasks", "RibbonCCPMNetwork", "RibbonPrivacyMask");
+			"RibbonArrangeAll", "RibbonChooseFilter", "RibbonChooseSort", "RibbonChooseGroup", "RibbonZoomIn", "RibbonZoomOut", "RibbonZoomEntireProject", "RibbonZoomSelectedTasks", "RibbonCCPMNetwork", "RibbonPrivacyMask",
+			"RibbonTeamPlanner", "RibbonTimescaleGallery", "RibbonSwitchWindows");
 		register(result, CommandScope.FORMAT, FORMAT,
 			"RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName", "RibbonGridlines",
 			"RibbonToggleCriticalChain", "RibbonTimescale", "RibbonBarStyles", "RibbonTextStyles", "RibbonLayout");

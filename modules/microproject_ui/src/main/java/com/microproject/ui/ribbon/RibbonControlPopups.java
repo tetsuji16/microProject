@@ -93,7 +93,8 @@ final class RibbonControlPopups {
 	 * Commands whose popup lists entries produced just before it opens, by
 	 * {@link RibbonDropDownSource#popupEntries}, instead of fixed {@code <id>.items}.
 	 */
-	static final java.util.Set<String> DYNAMIC_ENTRY_COMMANDS = java.util.Set.of("RibbonTopBarUndo", "RibbonTopBarRedo");
+	static final java.util.Set<String> DYNAMIC_ENTRY_COMMANDS = java.util.Set.of("RibbonTopBarUndo", "RibbonTopBarRedo",
+		"RibbonSwitchWindows", "RibbonReportRecent");
 	/** Client property (an {@link Integer}) of a gallery's button naming the grid's column count. */
 	static final String GALLERY_COLUMNS_PROPERTY = "MicroProject.ribbon.galleryColumns";
 	/** Client property of a gallery popup holding the id of the selected item, or absent. */

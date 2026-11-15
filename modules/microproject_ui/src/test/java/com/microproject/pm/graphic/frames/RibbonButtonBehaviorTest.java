@@ -1524,6 +1524,25 @@ class RibbonButtonBehaviorTest {
 	}
 
 	@Test
+	void recentReportsReopensTheLastReportOpenedInTheSession() throws Exception {
+		Harness harness = newHarness();
+
+		harness.invoke("RibbonCharts");
+		harness.invoke("RibbonReport");
+		harness.resetCalls();
+		harness.invoke("RibbonReportRecent");
+		assertCall(harness, "view", MenuActionConstants.ACTION_REPORT);
+	}
+
+	@Test
+	void teamPlannerRoutesToTheDelegationSurface() throws Exception {
+		Harness harness = newHarness();
+
+		harness.invoke("RibbonTeamPlanner");
+		assertEquals(1, harness.frame.structuralCallCount("RibbonDelegateTasks"));
+	}
+
+	@Test
 	void viewAndToggleRoutesAreInvokableAgainstALiveDocumentContext() throws Exception {
 		Harness harness = newHarness();
 
@@ -2038,6 +2057,10 @@ class RibbonButtonBehaviorTest {
 		// TaskMoveServiceTest, TaskFormatPainterServiceTest and TaskRibbonHeadlessCommandTest.
 		add(map, Strategy.STRUCTURAL_ONLY, "RibbonFontName", "RibbonFontSize", "RibbonUnderline", "RibbonFillColor",
 			"RibbonMoveTask", "RibbonScheduleMode", "RibbonAddToTimeline");
+		// Report/View galleries and menus (#1166 phase 1b) route through RibbonDropDownSource; asserted in recentReportsReopensTheLastReportOpenedInTheSession and teamPlannerRoutesToTheDelegationSurface.
+		add(map, Strategy.STRUCTURAL_ONLY,
+			"RibbonReportDashboards", "RibbonReportResources", "RibbonReportInProgress", "RibbonReportCustom",
+			"RibbonReportRecent", "RibbonTeamPlanner", "RibbonTimescaleGallery", "RibbonSwitchWindows");
 		// Task-tab commands added for #769/#453; behavior is asserted in TaskTabRibbonCommandsTest.
 		add(map, Strategy.STRUCTURAL_ONLY,
 			"RibbonInsertMilestone", "RibbonInsertSummary", "RibbonClear", "RibbonSelectAll", "RibbonTaskDetails",

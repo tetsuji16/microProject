@@ -76,7 +76,8 @@ class MspRibbonOrderDiffTest {
 	/** Out-of-goal scope exclusions (not deferred work). */
 	private static final String AGILE = "scope exclusion: Agile/Scrum features are phase 4 and outside the current compatibility goal";
 	private static final String OFFICE_ADDIN = "scope exclusion: local Office add-ins / VBA / COM automation stay unresolved goal rows (AGENTS.md)";
-	private static final String REPORT_GALLERIES = PHASE_1B + " (report galleries)";
+	private static final String REPORT_ITEMS =
+		"report galleries list the existing product reports; Microsoft's only child is More Reports";
 	private static final String VIEW_GALLERY_ITEMS =
 		"view gallery lists product views; Microsoft's children are Reset/Save/More; " + PHASE_1B;
 	private static final String LIST_ITEMS = "list items; Microsoft's children are Clear/New/More; " + PHASE_1B;
@@ -154,14 +155,10 @@ class MspRibbonOrderDiffTest {
 		Map.entry("TabTask/TaskSplit", "requires task split model; tracked separately"),
 		Map.entry("TabTask/DeliverablesMenu", ONLINE + " (deliverables)"),
 		Map.entry("TabResource/AddEngagement", "scope exclusion: " + ONLINE + " (engagements)"),
-		Map.entry("TabReportOverview/CreateNewReportMenu", REPORT_GALLERIES),
-		Map.entry("TabReportOverview/ReportDashboardGallery", REPORT_GALLERIES),
-		Map.entry("TabReportOverview/ReportResourceGallery", REPORT_GALLERIES),
-		Map.entry("TabReportOverview/ReportCostGallery", REPORT_GALLERIES),
-		Map.entry("TabReportOverview/ReportInProgressGallery", REPORT_GALLERIES),
-		Map.entry("TabReportOverview/ReportGettingStartedGallery", REPORT_GALLERIES),
-		Map.entry("TabReportOverview/ReportCustomGallery", REPORT_GALLERIES),
-		Map.entry("TabReportOverview/ReportRecentGallery", REPORT_GALLERIES),
+		Map.entry("TabReportOverview/CreateNewReportMenu",
+			"no report designer: Custom Report builds task reports only, so Blank/Chart/Table/Comparison report authoring has no engine"),
+		Map.entry("TabReportOverview/ReportCostGallery", "no cost report exists in the report engine to list"),
+		Map.entry("TabReportOverview/ReportGettingStartedGallery", "no Getting Started report templates exist to list"),
 		Map.entry("TabReportOverview/ReportAgileGallery", AGILE),
 		Map.entry("TabProject/SelectAgileMethodology", AGILE),
 		Map.entry("TabProject/ManageSprints", AGILE),
@@ -169,23 +166,19 @@ class MspRibbonOrderDiffTest {
 		Map.entry("TabProject/WbsMenu", "WBS codes are derived from the outline only; core has no WBS code mask or renumber facility to back Define Code/Renumber"),
 		Map.entry("TabProject/StatusDateLabel", "the Status Date button already shows the date (StatusDateControlUpdater); a separate non-interactive label control needs ribbon label support; " + PHASE_1B),
 		Map.entry("TabView/TaskBoardViewGallery", AGILE),
-		Map.entry("TabView/TaskViewsOtherGallery", PHASE_1B),
-		Map.entry("TabView/TeamPlannerViewGallery", PHASE_1B),
+		Map.entry("TabView/TaskViewsOtherGallery", "no further task views exist beyond those in the Task Views gallery"),
 		Map.entry("TabView/ResourcePlanViewGallery", "scope exclusion: Resource Plan view belongs to Project Online / Server resource engagements (AGENTS.md)"),
-		Map.entry("TabView/ResourceOtherViewGallery", PHASE_1B),
-		Map.entry("TabView/TablesGallery", PHASE_1B),
-		Map.entry("TabView/HighlightFiltersGroup", PHASE_1B),
-		Map.entry("TabView/TimescaleLabel", PHASE_1B + " (label control)"),
-		Map.entry("TabView/TimescaleGallery", PHASE_1B),
-		Map.entry("TabView/GalleryTimelineView", PHASE_1B),
-		Map.entry("TabView/ViewDetailsGallery", PHASE_1B),
-		Map.entry("TabView/WindowNew", PHASE_1B),
-		Map.entry("TabView/WindowSwitchWindowsMenuWord", PHASE_1B),
-		Map.entry("TabView/HideWindowMenu", PHASE_1B),
-		Map.entry("HelpTab/Help", "our Help commands are product-specific and not mapped; " + PHASE_1B),
+		Map.entry("TabView/ResourceOtherViewGallery", "no further resource views exist beyond those in the Resource Views gallery"),
+		Map.entry("TabView/TablesGallery", "views have no named table definitions to switch; columns are edited per view"),
+		Map.entry("TabView/HighlightFiltersGroup", "filters only hide rows; the engine has no highlight (row emphasis) filter"),
+		Map.entry("TabView/TimescaleLabel", "static label control is not supported by the ribbon; the Timescale list shows the current value"),
+		Map.entry("TabView/GalleryTimelineView", "the lower pane offers only the Timeline and Details check boxes; no lower-pane view picker exists"),
+		Map.entry("TabView/ViewDetailsGallery", "the lower pane offers only the Details check box; no lower-pane view picker exists"),
+		Map.entry("TabView/WindowNew", "one document frame per project (addProjectFrame reuses it); a second window on the same project is not supported"),
+		Map.entry("TabView/HideWindowMenu", "the frame manager has no hidden-window state to back Hide/Unhide"),
 		Map.entry("HelpTab/OfficeFeedbackHelpTab", "Office feedback service is outside the standalone desktop goal"),
-		Map.entry("HelpTab/ShowTraining", PHASE_1B),
-		Map.entry("HelpTab/WhatsNewRecentUpdates", PHASE_1B));
+		Map.entry("HelpTab/ShowTraining", "Microsoft training content is an online service; no local equivalent and no network calls are added"),
+		Map.entry("HelpTab/WhatsNewRecentUpdates", "Microsoft update announcements are an online service; no local equivalent and no network calls are added"));
 
 	private record Extension(String after, String reason) {
 	}
@@ -230,7 +223,6 @@ class MspRibbonOrderDiffTest {
 		Map.entry("RibbonRBS", after("ResourceSheetViewGallery", "RBS view; no Microsoft gallery entry point")),
 		Map.entry("RibbonProjects", after("ResourceSheetViewGallery", "projects view; no Microsoft gallery entry point")),
 		Map.entry("RibbonPrivacyMask", after("WindowsArrangeAll", "window-level display toggle")),
-		Map.entry("RibbonMicroProjectDocumentation", after(END, "product documentation; no Microsoft control mapped")),
 		Map.entry("RibbonAboutMicroProject", after(END, "product About; no Microsoft control mapped")));
 
 	/** Items of popups (by ribbon id) -> the Microsoft menu child they correspond to. */
@@ -265,7 +257,8 @@ class MspRibbonOrderDiffTest {
 		Map.entry("RibbonFillLeft", "FillLeft"),
 		Map.entry("RibbonFillRight", "FillRight"),
 		Map.entry("RibbonFillUp", "FillUp"),
-		Map.entry("RibbonSortBy", "SortByDialog"));
+		Map.entry("RibbonSortBy", "SortByDialog"),
+		Map.entry("RibbonTimescale", "Timescale"));
 
 	/**
 	 * Popups (by ribbon id) with items that have no Microsoft child to be ordered against, with the
@@ -287,6 +280,11 @@ class MspRibbonOrderDiffTest {
 		Map.entry("RibbonFontSize", "the size list is a fixed set of sizes; only the More Font Sizes entry is a command"),
 		Map.entry("RibbonScheduleMode",
 			"Microsoft's Mode menu lists project-start/finish scheduling choices; the Manually/Auto Schedule items are mode commands"),
+		Map.entry("RibbonReportDashboards", REPORT_ITEMS),
+		Map.entry("RibbonReportResources", REPORT_ITEMS),
+		Map.entry("RibbonReportInProgress", REPORT_ITEMS),
+		Map.entry("RibbonReportCustom", REPORT_ITEMS),
+		Map.entry("RibbonTeamPlanner", VIEW_GALLERY_ITEMS),
 		Map.entry("RibbonChooseFilter", LIST_ITEMS),
 		Map.entry("RibbonChooseSort", "sort presets are product commands; only Sort By maps"),
 		Map.entry("RibbonChooseGroup", LIST_ITEMS));

@@ -87,6 +87,9 @@ public interface MenuActionConstants {
 	public static final String ACTION_DETAILS                 = "Details";
 	public static final String ACTION_NO_SUB_WINDOW           = "NoSubWindow";
 	public static final String ACTION_ARRANGE_ALL             = "ArrangeAll";
+	public static final String ACTION_SWITCH_WINDOWS          = "SwitchWindows";
+	public static final String ACTION_TEAM_PLANNER            = "TeamPlanner";
+	public static final String ACTION_RECENT_REPORTS          = "RecentReports";
 	public static final String ACTION_TIMELINE                = "Timeline";
 	public static final String ACTION_CALENDAR_VIEW           = "CalendarView";
 

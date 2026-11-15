@@ -2054,6 +2054,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_DETAILS, new ViewAction(ACTION_DETAILS));
 		actionsMap.addHandler(ACTION_NO_SUB_WINDOW, new ViewAction(ACTION_NO_SUB_WINDOW));
 		actionsMap.addHandler(ACTION_ARRANGE_ALL, new ArrangeAllAction());
+		actionsMap.addHandler(ACTION_SWITCH_WINDOWS, new SwitchWindowsAction());
+		actionsMap.addHandler(ACTION_TEAM_PLANNER, new TeamPlannerAction());
+		actionsMap.addHandler(ACTION_RECENT_REPORTS, new RecentReportsAction());
 
 
 		actionsMap.addHandler(ACTION_PALETTE, new PaletteAction());
@@ -2748,8 +2751,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent event) {
 			setMeAsLastGraphicManager();
-			if (isDocumentActive()) com.microproject.dialog.CriticalChainStatusDialogBox.show(
-				getFrame(), getCurrentFrame().getProject(), com.microproject.dialog.CriticalChainStatusDialogBox.Surface.BUFFER_STATUS);
+			if (isDocumentActive()) {
+				rememberReport(ACTION_CCPM_BUFFER_STATUS);
+				com.microproject.dialog.CriticalChainStatusDialogBox.show(
+					getFrame(), getCurrentFrame().getProject(), com.microproject.dialog.CriticalChainStatusDialogBox.Surface.BUFFER_STATUS);
+			}
 		}
 	}
 
@@ -3569,6 +3575,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			if (getCurrentFrame() == null)
 				return;
+			rememberReport(viewName);
 			if (!beforeViewSwitchRoute(viewName))
 				return;
 			setColorTheme(viewName);
@@ -3638,6 +3645,23 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	private final class TransformDropDownSource implements RibbonDropDownSource {
 		@Override
 		public List<String> popupEntries(String commandId) {
+			if (RIBBON_SWITCH_WINDOWS_ID.equals(commandId)) {
+				List<DocumentFrame> frames = openDocumentFrames();
+				List<String> names = new ArrayList<>(frames.size());
+				for (int index = 0; index < frames.size(); index++) {
+					Project project = frames.get(index).getProject();
+					names.add((index + 1) + " " + (project == null ? "" : project.getName()));
+				}
+				return names;
+			}
+			if (RIBBON_RECENT_REPORTS_ID.equals(commandId)) {
+				if (!isDocumentActive())
+					return List.of();
+				List<String> names = new ArrayList<>(recentReportActions.size());
+				for (String actionId : recentReportActions)
+					names.add(getMenuManager().getString("Ribbon" + actionId + ".text"));
+				return names;
+			}
 			boolean undo = RIBBON_UNDO_ID.equals(commandId);
 			if (!undo && !RIBBON_REDO_ID.equals(commandId))
 				return List.of();
@@ -3657,6 +3681,19 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		/** Choosing entry {@code n} undoes or redoes the steps up to and including it. */
 		@Override
 		public void selectPopupEntry(String commandId, int index) {
+			if (RIBBON_SWITCH_WINDOWS_ID.equals(commandId)) {
+				List<DocumentFrame> frames = openDocumentFrames();
+				if (index >= 0 && index < frames.size()) {
+					setMeAsLastGraphicManager();
+					setCurrentFrame(frames.get(index));
+				}
+				return;
+			}
+			if (RIBBON_RECENT_REPORTS_ID.equals(commandId)) {
+				setMeAsLastGraphicManager();
+				openRecentReport(index);
+				return;
+			}
 			boolean undo = RIBBON_UNDO_ID.equals(commandId);
 			if (index < 0 || (!undo && !RIBBON_REDO_ID.equals(commandId)))
 				return;
@@ -3682,6 +3719,12 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 		@Override
 		public String currentValue(String commandId) {
+			if (RIBBON_TIMESCALE_ID.equals(commandId)) {
+				GanttView ganttView = getActiveGanttView();
+				List<String> labels = timescaleLabels(ganttView);
+				int scale = ganttView == null ? -1 : ganttView.getScale();
+				return scale >= 0 && scale < labels.size() ? labels.get(scale) : null;
+			}
 			if (RIBBON_FONT_NAME_ID.equals(commandId) || RIBBON_FONT_SIZE_ID.equals(commandId)) {
 				DocumentFrame frame = isDocumentActive() ? getCurrentFrame() : null;
 				if (frame == null)
@@ -3697,6 +3740,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 		@Override
 		public List<String> choices(String commandId) {
+			if (RIBBON_TIMESCALE_ID.equals(commandId))
+				return timescaleLabels(getActiveGanttView());
 			if (RIBBON_FONT_NAME_ID.equals(commandId))
 				return List.of(java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames());
 			if (RIBBON_FONT_SIZE_ID.equals(commandId))
@@ -3710,6 +3755,15 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 		@Override
 		public void select(String commandId, int index) {
+			if (RIBBON_TIMESCALE_ID.equals(commandId)) {
+				GanttView ganttView = getActiveGanttView();
+				if (ganttView == null || index < 0 || index >= ganttView.getScaleCount())
+					return;
+				setMeAsLastGraphicManager();
+				ganttView.setScale(index);
+				setZoomButtons();
+				return;
+			}
 			if (RIBBON_FONT_NAME_ID.equals(commandId) || RIBBON_FONT_SIZE_ID.equals(commandId)) {
 				List<String> options = choices(commandId);
 				DocumentFrame frame = isDocumentActive() ? getCurrentFrame() : null;
@@ -4366,6 +4420,68 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		return true;
 	}
 
+	private static final String RIBBON_TIMESCALE_ID = "RibbonTimescaleGallery";
+	private static final String RIBBON_SWITCH_WINDOWS_ID = "RibbonSwitchWindows";
+	private static final String RIBBON_RECENT_REPORTS_ID = "RibbonReportRecent";
+	private static final int RECENT_REPORT_LIMIT = 8;
+	/** Report commands remembered by Report > Recent; each is also a registered action id. */
+	private static final List<String> REPORT_ACTION_IDS = List.of(ACTION_REPORT, ACTION_CHARTS, ACTION_HISTOGRAM,
+		ACTION_TASK_USAGE, ACTION_RESOURCE_USAGE, ACTION_CUSTOM_REPORT, ACTION_CCPM_BUFFER_STATUS);
+	/** Report action ids opened in this session, most recent first. */
+	private final List<String> recentReportActions = new ArrayList<>();
+
+	private void rememberReport(String actionId) {
+		if (!REPORT_ACTION_IDS.contains(actionId))
+			return;
+		recentReportActions.remove(actionId);
+		recentReportActions.add(0, actionId);
+		while (recentReportActions.size() > RECENT_REPORT_LIMIT)
+			recentReportActions.remove(recentReportActions.size() - 1);
+	}
+
+	/** Report > Recent: reopens the report opened last in this session. */
+	public class RecentReportsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			openRecentReport(0);
+		}
+	}
+
+	private void openRecentReport(int index) {
+		if (!isDocumentActive() || index < 0 || index >= recentReportActions.size())
+			return;
+		Action action = actionsMap.getConcreteAction(recentReportActions.get(index));
+		if (action != null && action.isEnabled())
+			action.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, recentReportActions.get(index)));
+	}
+
+	/** View > Team Planner: shows the Team Planner view. */
+	public class TeamPlannerAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive()) getCurrentFrame().doDelegateTasksDialog();
+		}
+	}
+
+	private List<DocumentFrame> openDocumentFrames() {
+		return getFrameManager() == null ? List.of() : getFrameManager().getDocumentFrames();
+	}
+
+	/** View > Switch Windows: activates the next open project; the ribbon menu lists them all. */
+	public class SwitchWindowsAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			List<DocumentFrame> frames = openDocumentFrames();
+			if (frames.size() < 2)
+				return;
+			int current = frames.indexOf(getCurrentFrame());
+			setCurrentFrame(frames.get((current + 1) % frames.size()));
+		}
+	}
+
 	public class ArrangeAllAction extends MenuActionsMap.GlobalMenuAction {
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent event) {
@@ -4587,6 +4703,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			}
 		}
 		return new TaskSortSpec(keys, options.isKeepOutline());
+	}
+
+	private List<String> timescaleLabels(GanttView ganttView) {
+		if (ganttView == null)
+			return List.of();
+		return List.of(DocumentStatusBar.formatScaleChoices(getMenuManager().getString("RibbonTimescale.text"),
+			ganttView.getScaleCount(), ganttView::getTimeScale));
 	}
 
 	private void showTimescaleChooser() {
@@ -4952,6 +5075,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_CCPM_CLEAR,!readOnly && hasCcpmPlan);
 		getMenuManager().setActionEnabled(ACTION_CCPM_BUFFER_STATUS,project != null);
 		getMenuManager().setActionEnabled(ACTION_CCPM_NETWORK,project != null);
+		getMenuManager().setActionEnabled(ACTION_TEAM_PLANNER, project != null);
+		getMenuManager().setActionEnabled(ACTION_RECENT_REPORTS, project != null);
 		getMenuManager().setActionEnabled(ACTION_TOGGLE_CRITICAL_CHAIN,hasCcpmPlan && isActiveGanttView());
 		Action criticalChainAction = getMenuManager().getActionFromId(ACTION_TOGGLE_CRITICAL_CHAIN);
 		if (criticalChainAction != null) {
@@ -5048,6 +5173,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				? usageView.canZoomToProject()
 				: activeView instanceof GanttView ganttView && ganttView.canZoomToProject();
 		getMenuManager().setActionEnabled(ACTION_ZOOM_ENTIRE_PROJECT, canZoomProject);
+		getMenuManager().refreshRibbonDropDown(RIBBON_TIMESCALE_ID);
 		getMenuManager().setActionEnabled(ACTION_SCROLL_TO_TODAY, activeView instanceof GanttView);
 
 	}
@@ -5826,7 +5952,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent event) {
 			setMeAsLastGraphicManager();
-			if (isDocumentActive()) getCurrentFrame().doCustomReportDialog();
+			if (isDocumentActive()) {
+				getCurrentFrame().doCustomReportDialog();
+				rememberReport(ACTION_CUSTOM_REPORT);
+			}
 		}
 	}
 	public void doFind(Searchable searchable, Field field, String initialQuery) {
