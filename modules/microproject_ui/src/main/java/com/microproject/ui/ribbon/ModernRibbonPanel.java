@@ -1273,9 +1273,8 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		// every group with a proxy wasted the available ribbon width and could leave
 		// a single lonely button visible.  Preserve the left-hand groups and replace
 		// trailing groups one at a time until the row fits.
-		for (int index = tab.getBands().size() - 1;
-			index > 0 && availableBandWidth > 0 && !fitsInWidth(bandPanels, availableBandWidth, bandRow);
-			index--) {
+		for (int index : collapseOrder(tab.getBands())) {
+			if (availableBandWidth <= 0 || fitsInWidth(bandPanels, availableBandWidth, bandRow)) break;
 			presentations.set(index, RibbonDensity.COLLAPSED);
 			bandPanels = rebuildBands(bandRow, bandConstraints, tab.getBands(), presentations, bandPanels);
 		}
@@ -1332,6 +1331,24 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 
 	private boolean needsWidthAwareRebuild(String tabId) {
 		return getWidth() > 0 && !Objects.equals(tabBodyBuildWidths.get(tabId), Integer.valueOf(getWidth()));
+	}
+
+	/**
+	 * Band indices in the order they collapse: ascending keep rank, then right to left.
+	 * The first band is normally kept, but a band that declares a positive keep rank
+	 * outlasts it, so the first band collapses just before the ranked bands.
+	 */
+	static List<Integer> collapseOrder(List<SwingRibbonModel.RibbonBand> bands) {
+		List<Integer> order = new ArrayList<>(bands.size());
+		for (int index = bands.size() - 1; index > 0; index--) order.add(index);
+		order.sort(java.util.Comparator.comparingInt(index -> bands.get(index).getKeepRank()));
+		boolean rankedBandExists = order.stream().anyMatch(index -> bands.get(index).getKeepRank() > 0);
+		if (rankedBandExists && !bands.isEmpty() && bands.get(0).getKeepRank() == 0) {
+			int firstRanked = 0;
+			while (bands.get(order.get(firstRanked)).getKeepRank() == 0) firstRanked++;
+			order.add(firstRanked, 0);
+		}
+		return order;
 	}
 
 	private static boolean fitsInWidth(List<RibbonBandPanel> bandPanels, int availableWidth, Container container) {

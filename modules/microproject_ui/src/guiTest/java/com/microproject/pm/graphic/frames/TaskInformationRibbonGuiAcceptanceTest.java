@@ -5122,6 +5122,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"Indent must be disabled without a selected task");
 		assertFalse(findVisibleOrOverflowButton(robot, "RibbonOutdent").isEnabled(),
 			"Outdent must be disabled without a selected task");
+		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("ViewRibbonTask.title")), "Robot click did not select the View ribbon tab");
 		assertFalse(findVisibleOrOverflowButton(robot, "RibbonCollapse").isEnabled(),
 			"Collapse must be disabled without a selected task");
 		assertFalse(findVisibleOrOverflowButton(robot, "RibbonExpand").isEnabled(),
@@ -5164,8 +5166,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, new Rectangle(parentRowTarget.screenPoint().x, parentRowTarget.screenPoint().y, 1, 1));
 		assertTrue(isTaskVisible(sheet, child), "selecting the summary row must not collapse its children");
 		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
-				.getString("TaskRibbonTask.title"));
-		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
+				.getString("ViewRibbonTask.title"));
+		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the View ribbon tab");
 		AbstractButton collapse = findVisibleOrOverflowButton(robot, "RibbonCollapse");
 		GuiAcceptanceSupport.await(collapse::isEnabled, "Collapse remained disabled for a selected summary");
 		RibbonCommandResult previousCollapseOutcome = manager.getLastRibbonCommandResult();
