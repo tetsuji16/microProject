@@ -231,14 +231,14 @@ class MicrosoftShortcutsRootPaneTest {
 				KeyStroke key = com.microproject.menu.ShortcutHints.primary(shortcuts,
 					actionKey.apply(commandId), actionKey);
 				if (key == null) {
-					if (tooltip.matches(".*\\((Ctrl|Cmd|Alt|Shift)\\+[^)]*\\)$"))
+					if (tooltip.matches(".*</b> \\((Ctrl|Cmd|Alt|Shift)\\+[^)]*\\).*"))
 						problems.add(commandId + " advertises an unregistered key: " + tooltip);
 					continue;
 				}
 				String hint = "(" + com.microproject.menu.ShortcutHints.describe(key) + ")";
 				hinted.put(commandId, hint);
-				if (!tooltip.endsWith(" " + hint) || tooltip.indexOf('(') != tooltip.lastIndexOf(hint))
-					problems.add(commandId + " must end with exactly one " + hint + " but was: " + tooltip);
+				if (!tooltip.contains("</b> " + hint) || tooltip.indexOf(hint) != tooltip.lastIndexOf(hint))
+					problems.add(commandId + " must show exactly one " + hint + " after its name but was: " + tooltip);
 			}
 			assertTrue(problems.isEmpty(), "ribbon screen tips must match the registered shortcuts: " + problems);
 			assertEquals("(Alt+Shift+Up)", hinted.get("RibbonMoveTaskUp"), "hinted commands: " + hinted);

@@ -98,6 +98,7 @@ import javax.swing.undo.CannotUndoException;
 import com.microproject.menu.resource.MissingListenerException;
 import com.microproject.ui.shell.MicroProjectShell;
 import com.microproject.ui.ribbon.RibbonController;
+import com.microproject.ui.ribbon.RibbonDropDownSource;
 import com.microproject.configuration.Configuration;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.configuration.Settings;
@@ -180,6 +181,8 @@ import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.task.TaskPathAnalyzer;
+import com.microproject.pm.graphic.gantt.GanttBarColorScheme;
 import com.microproject.preference.ConfigurationFile;
 import com.microproject.preference.GlobalPreferences;
 import com.microproject.print.GraphPageable;
@@ -1875,6 +1878,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (menuManager == null)
 			menuManager = MenuManager.getInstance(this);
 		actionsMap = new MenuActionsMap(menuManager);
+		menuManager.setRibbonDropDownSource(new TransformDropDownSource());
 		actionsMap.addHandler(ACTION_NEW_PROJECT, new NewProjectAction());
 		actionsMap.addHandler(ACTION_NEW_MASTER_PROJECT, new NewMasterProjectAction());
 		actionsMap.addHandler(ACTION_OPEN_PROJECT, new OpenProjectAction());
@@ -1897,6 +1901,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_INFORMATION, new InformationAction());
 		actionsMap.addHandler("RibbonTaskInformation", new RibbonTaskInformationAction());
 		actionsMap.addHandler("RibbonTaskInspector", new RibbonTaskInspectorAction());
+		actionsMap.addHandler(ACTION_INSPECT_TASK, new InspectTaskAction());
+		actionsMap.addHandler(ACTION_SHOW_TASK_WARNINGS, new ShowTaskWarningsAction());
+		actionsMap.addHandler(ACTION_SHOW_TASK_SUGGESTIONS, new ShowTaskSuggestionsAction());
+		actionsMap.addHandler(ACTION_SHOW_IGNORED_PROBLEMS, new ShowIgnoredProblemsAction());
 		actionsMap.addHandler("RibbonResourceInformation", new RibbonResourceInformationAction());
 		actionsMap.addHandler(ACTION_NOTES, new NotesAction());
 		actionsMap.addHandler(ACTION_ASSIGN_RESOURCES, new AssignResourcesAction());
@@ -1919,6 +1927,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_INSERT_MILESTONE, new InsertTaskKindAction(CommandId.INSERT_MILESTONE));
 		actionsMap.addHandler(ACTION_INSERT_SUMMARY, new InsertTaskKindAction(CommandId.INSERT_SUMMARY));
 		actionsMap.addHandler(ACTION_CLEAR_CONTENTS, new ClearContentsAction());
+		for (String fillAction : List.of(ACTION_FILL_DOWN, ACTION_FILL_UP, ACTION_FILL_LEFT, ACTION_FILL_RIGHT))
+			actionsMap.addHandler(fillAction, new FillAction(fillAction));
 		actionsMap.addHandler(ACTION_SELECT_ALL, new SelectAllAction());
 		actionsMap.addHandler(ACTION_INSERT_RESOURCE, new InsertResourceAction());
 		actionsMap.addHandler(ACTION_SAVE_PROJECT, new SaveProjectAction());
@@ -1948,7 +1958,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_TOGGLE_CRITICAL_CHAIN, new ToggleCriticalChainAction());
 		actionsMap.addHandler(ACTION_DELEGATE_TASKS, new DelegateTasksAction());
 		actionsMap.addHandler(ACTION_TIMELINE, new TimelineAction());
-		actionsMap.addHandler(ACTION_CALENDAR_VIEW, new CalendarViewAction());
+		actionsMap.addHandler(ACTION_CALENDAR_VIEW, new ViewAction(ACTION_CALENDAR_VIEW));
 		actionsMap.addHandler(ACTION_CUSTOM_REPORT, new CustomReportAction());
 		actionsMap.addHandler(ACTION_UPDATE_TASKS, new UpdateTasksAction());
 		actionsMap.addHandler(ACTION_UPDATE_PROJECT, new UpdateProjectAction());
@@ -1963,6 +1973,32 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_TEXT_STYLES, new TextStylesAction());
 		actionsMap.addHandler(ACTION_BAR_STYLES, barStylesAction);
 		actionsMap.addHandler(ACTION_LAYOUT, new LayoutAction());
+		// Gantt Chart Format contextual tab
+		actionsMap.addHandler(ACTION_GFMT_INSERT_COLUMN, ganttFormatAction(ACTION_GFMT_INSERT_COLUMN, view -> view.getSpreadSheet().insertColumnFromRibbon()));
+		actionsMap.addHandler(ACTION_GFMT_HIDE_COLUMN, ganttFormatAction(ACTION_GFMT_HIDE_COLUMN, view -> view.getSpreadSheet().hideColumnFromRibbon()));
+		actionsMap.addHandler(ACTION_GFMT_FIELD_SETTINGS, ganttFormatAction(ACTION_GFMT_FIELD_SETTINGS, view -> view.getSpreadSheet().showFieldSettingsFromRibbon()));
+		actionsMap.addHandler(ACTION_GFMT_ALIGN_LEFT, ganttFormatAction(ACTION_GFMT_ALIGN_LEFT, view -> view.getSpreadSheet().setColumnAlignment(view.getSpreadSheet().getRibbonFieldIndex(), SpreadSheetFieldArray.ALIGN_LEFT)));
+		actionsMap.addHandler(ACTION_GFMT_ALIGN_CENTER, ganttFormatAction(ACTION_GFMT_ALIGN_CENTER, view -> view.getSpreadSheet().setColumnAlignment(view.getSpreadSheet().getRibbonFieldIndex(), SpreadSheetFieldArray.ALIGN_CENTER)));
+		actionsMap.addHandler(ACTION_GFMT_ALIGN_RIGHT, ganttFormatAction(ACTION_GFMT_ALIGN_RIGHT, view -> view.getSpreadSheet().setColumnAlignment(view.getSpreadSheet().getRibbonFieldIndex(), SpreadSheetFieldArray.ALIGN_RIGHT)));
+		actionsMap.addHandler(ACTION_GFMT_FORMAT_BAR, ganttFormatAction(ACTION_GFMT_FORMAT_BAR, GanttView::showFormatBarDialog));
+		actionsMap.addHandler(ACTION_GFMT_CRITICAL_TASKS, ganttFormatAction(ACTION_GFMT_CRITICAL_TASKS, view -> view.setCriticalTasksVisible(!view.isCriticalTasksVisible())));
+		actionsMap.addHandler(ACTION_GFMT_SLACK, ganttFormatAction(ACTION_GFMT_SLACK, view -> view.setSlackVisible(!view.isSlackVisible())));
+		actionsMap.addHandler(ACTION_GFMT_LATE_TASKS, ganttFormatAction(ACTION_GFMT_LATE_TASKS, view -> view.setLateTasksVisible(!view.isLateTasksVisible())));
+		actionsMap.addHandler(ACTION_GFMT_BASELINE, ganttFormatAction(ACTION_GFMT_BASELINE, view -> view.setBaselineVisible(!view.isBaselineVisible())));
+		actionsMap.addHandler(ACTION_GFMT_SLIPPAGE, ganttFormatAction(ACTION_GFMT_SLIPPAGE, view -> view.setSlippageVisible(!view.isSlippageVisible())));
+		actionsMap.addHandler(ACTION_GFMT_OUTLINE_NUMBERS, ganttFormatAction(ACTION_GFMT_OUTLINE_NUMBERS, view -> view.setOutlineNumbersVisible(!view.isOutlineNumbersVisible())));
+		actionsMap.addHandler(ACTION_GFMT_SUMMARY_TASKS, ganttFormatAction(ACTION_GFMT_SUMMARY_TASKS, view -> view.setSummaryTasksVisible(!view.isSummaryTasksVisible())));
+		actionsMap.addHandler(ACTION_GFMT_PATH_PREDECESSORS, ganttFormatAction(ACTION_GFMT_PATH_PREDECESSORS, view -> view.setTaskPathKind(TaskPathAnalyzer.Kind.PREDECESSORS)));
+		actionsMap.addHandler(ACTION_GFMT_PATH_DRIVING_PREDECESSORS, ganttFormatAction(ACTION_GFMT_PATH_DRIVING_PREDECESSORS, view -> view.setTaskPathKind(TaskPathAnalyzer.Kind.DRIVING_PREDECESSORS)));
+		actionsMap.addHandler(ACTION_GFMT_PATH_SUCCESSORS, ganttFormatAction(ACTION_GFMT_PATH_SUCCESSORS, view -> view.setTaskPathKind(TaskPathAnalyzer.Kind.SUCCESSORS)));
+		actionsMap.addHandler(ACTION_GFMT_PATH_DRIVEN_SUCCESSORS, ganttFormatAction(ACTION_GFMT_PATH_DRIVEN_SUCCESSORS, view -> view.setTaskPathKind(TaskPathAnalyzer.Kind.DRIVEN_SUCCESSORS)));
+		actionsMap.addHandler(ACTION_GFMT_PATH_REMOVE, ganttFormatAction(ACTION_GFMT_PATH_REMOVE, view -> view.setTaskPathKind(null)));
+		actionsMap.addHandler(ACTION_GFMT_STYLE_DEFAULT, ganttFormatAction(ACTION_GFMT_STYLE_DEFAULT, view -> view.setBarColorScheme(GanttBarColorScheme.DEFAULT)));
+		actionsMap.addHandler(ACTION_GFMT_STYLE_BLUE, ganttFormatAction(ACTION_GFMT_STYLE_BLUE, view -> view.setBarColorScheme(GanttBarColorScheme.BLUE)));
+		actionsMap.addHandler(ACTION_GFMT_STYLE_GREEN, ganttFormatAction(ACTION_GFMT_STYLE_GREEN, view -> view.setBarColorScheme(GanttBarColorScheme.GREEN)));
+		actionsMap.addHandler(ACTION_GFMT_STYLE_ORANGE, ganttFormatAction(ACTION_GFMT_STYLE_ORANGE, view -> view.setBarColorScheme(GanttBarColorScheme.ORANGE)));
+		actionsMap.addHandler(ACTION_GFMT_STYLE_PURPLE, ganttFormatAction(ACTION_GFMT_STYLE_PURPLE, view -> view.setBarColorScheme(GanttBarColorScheme.PURPLE)));
+		actionsMap.addHandler(ACTION_GFMT_STYLE_GRAY, ganttFormatAction(ACTION_GFMT_STYLE_GRAY, view -> view.setBarColorScheme(GanttBarColorScheme.GRAY)));
 		actionsMap.addHandler(ACTION_INSERT_RECURRING, new RecurringTaskAction());
 		// Legacy menu ids remain aliases of the canonical transform commands.  A
 		// single action instance keeps menu, ribbon and toolbar behavior identical.
@@ -1976,6 +2012,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_GROUP, groupTransform);
 		actionsMap.addHandler(ACTION_CHOOSE_GROUP, groupTransform);
 		actionsMap.addHandler(ACTION_CALENDAR_OPTIONS, new CalendarOptionsAction());
+		actionsMap.addHandler(ACTION_CALENDAR_VIEW_SETTINGS, new CalendarViewSettingsAction());
 		actionsMap.addHandler("GeneralOptions", new GeneralOptionsAction());
 		actionsMap.addHandler(ACTION_SAVE_BASELINE, new SaveBaselineAction());
 		actionsMap.addHandler(ACTION_CLEAR_BASELINE, new ClearBaselineAction());
@@ -1985,6 +2022,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_ZOOM_IN, new ZoomInAction());
 		actionsMap.addHandler(ACTION_ZOOM_OUT, new ZoomOutAction());
 		actionsMap.addHandler(ACTION_ZOOM_SELECTED_TASKS, new ZoomSelectedTasksAction());
+		actionsMap.addHandler(ACTION_ZOOM_ENTIRE_PROJECT, new ZoomEntireProjectAction());
 		actionsMap.addHandler(ACTION_SCROLL_TO_TASK, new ScrollToTaskAction());
 		actionsMap.addHandler(ACTION_SCROLL_TO_TODAY, new ScrollToTodayAction());
 		actionsMap.addHandler(ACTION_TOGGLE_PROGRESS_LINE, new ToggleProgressLineAction());
@@ -2005,8 +2043,26 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_CUT, new CutAction());
 		actionsMap.addHandler(ACTION_COPY, new CopyAction());
 		actionsMap.addHandler(ACTION_PASTE, new PasteAction());
+		actionsMap.addHandler("PasteSpecialAction", new PasteSpecialAction());
+		actionsMap.addHandler("CopyPictureAction", new CopyPictureAction());
+		actionsMap.addHandler("ReplaceAction", new ReplaceAction());
+		actionsMap.addHandler("QuickSortStartDate", new QuickSortAction("QuickSortStartDate", "Sorter.StartDate", "Field.start"));
+		actionsMap.addHandler("QuickSortFinishDate", new QuickSortAction("QuickSortFinishDate", "Sorter.FinishDate", "Field.finish"));
+		actionsMap.addHandler("QuickSortPriority", new QuickSortAction("QuickSortPriority", "Field.priority", "Field.priority"));
+		actionsMap.addHandler("QuickSortCost", new QuickSortAction("QuickSortCost", "Sorter.Cost", "Field.cost"));
+		actionsMap.addHandler("QuickSortId", new QuickSortAction("QuickSortId", null, "Field.id"));
 		actionsMap.addHandler(ACTION_PASTE_INSERT, new PasteInsertAction());
 		actionsMap.addHandler("RibbonFormatPainter", new FormatPainterAction());
+		actionsMap.addHandler(ACTION_BOLD, new TaskFontAction(ACTION_BOLD));
+		actionsMap.addHandler(ACTION_ITALIC, new TaskFontAction(ACTION_ITALIC));
+		actionsMap.addHandler(ACTION_FONT_COLOR, new TaskFontAction(ACTION_FONT_COLOR));
+		actionsMap.addHandler(ACTION_UNDERLINE, new TaskFontAction(ACTION_UNDERLINE));
+		actionsMap.addHandler(ACTION_BACKGROUND_COLOR, new TaskFontAction(ACTION_BACKGROUND_COLOR));
+		actionsMap.addHandler(ACTION_FONT_NAME, new TaskFontAction(ACTION_FONT_NAME));
+		actionsMap.addHandler(ACTION_FONT_SIZE, new TaskFontAction(ACTION_FONT_SIZE));
+		actionsMap.addHandler(CommandId.RESOURCE_LEVEL_RESOURCE.actionId(), new TaskRouteAction(CommandId.RESOURCE_LEVEL_RESOURCE));
+		for (CommandId moveCommand : TASK_ROUTED_COMMANDS)
+			actionsMap.addHandler(moveCommand.actionId(), new TaskRouteAction(moveCommand));
 		actionsMap.addHandler(ACTION_DELETE, new DeleteAction());
 
 		actionsMap.addHandler(ACTION_GANTT, new ViewAction(ACTION_GANTT));
@@ -2026,6 +2082,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_DETAILS, new ViewAction(ACTION_DETAILS));
 		actionsMap.addHandler(ACTION_NO_SUB_WINDOW, new ViewAction(ACTION_NO_SUB_WINDOW));
 		actionsMap.addHandler(ACTION_ARRANGE_ALL, new ArrangeAllAction());
+		actionsMap.addHandler(ACTION_SWITCH_WINDOWS, new SwitchWindowsAction());
+		actionsMap.addHandler(ACTION_TEAM_PLANNER, new TeamPlannerAction());
+		actionsMap.addHandler(ACTION_RECENT_REPORTS, new RecentReportsAction());
 
 
 		actionsMap.addHandler(ACTION_PALETTE, new PaletteAction());
@@ -2240,6 +2299,16 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 	}
 
+	/** Opens the calendar view settings dialog; the Task Views group dialog launcher runs it. */
+	public class CalendarViewSettingsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive())
+				getCurrentFrame().doCalendarViewDialog();
+		}
+	}
+
 	/** Selection routing must tolerate a cleared table selection. */
 	static boolean isEmptySelection(List<?> nodes) {
 		return nodes == null || nodes.isEmpty();
@@ -2276,6 +2345,60 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			DocumentFrame frame = getCurrentFrame();
 			if (frame != null) frame.toggleTaskInspector();
 		}
+	}
+	public class InspectTaskAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			DocumentFrame frame = getCurrentFrame();
+			if (frame != null) frame.inspectTask();
+		}
+	}
+	public class ShowTaskWarningsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!beforeToggleRoute(ACTION_SHOW_TASK_WARNINGS)) return;
+			GlobalPreferences prefs = getPreferences();
+			prefs.setShowTaskWarnings(!prefs.isShowTaskWarnings());
+			syncTaskDiagnosticToggles();
+		}
+	}
+	public class ShowTaskSuggestionsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!beforeToggleRoute(ACTION_SHOW_TASK_SUGGESTIONS)) return;
+			GlobalPreferences prefs = getPreferences();
+			prefs.setShowTaskSuggestions(!prefs.isShowTaskSuggestions());
+			syncTaskDiagnosticToggles();
+		}
+	}
+	public class ShowIgnoredProblemsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			DocumentFrame frame = getCurrentFrame();
+			if (frame != null) frame.showIgnoredProblems();
+		}
+	}
+
+	/** Task context menu: opens the Task Inspector on the clicked task. */
+	public void fixTaskInInspector(Task task) {
+		DocumentFrame frame = getCurrentFrame();
+		if (frame != null && task != null) frame.fixTaskInInspector(task);
+	}
+
+	/** Task context menu: undoably sets Ignore Warnings on the clicked task. */
+	public void ignoreTaskProblems(Task task) {
+		DocumentFrame frame = getCurrentFrame();
+		if (frame != null && task != null) frame.setIgnoreWarnings(List.of(task), true);
+	}
+
+	private void syncTaskDiagnosticToggles() {
+		GlobalPreferences prefs = getPreferences();
+		getMenuManager().setActionSelected(ACTION_SHOW_TASK_WARNINGS, prefs.isShowTaskWarnings());
+		getMenuManager().setActionSelected(ACTION_SHOW_TASK_SUGGESTIONS, prefs.isShowTaskSuggestions());
 	}
 
 	public void setTaskModeAutomatic(Task task) {
@@ -2656,8 +2779,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent event) {
 			setMeAsLastGraphicManager();
-			if (isDocumentActive()) com.microproject.dialog.CriticalChainStatusDialogBox.show(
-				getFrame(), getCurrentFrame().getProject(), com.microproject.dialog.CriticalChainStatusDialogBox.Surface.BUFFER_STATUS);
+			if (isDocumentActive()) {
+				rememberReport(ACTION_CCPM_BUFFER_STATUS);
+				com.microproject.dialog.CriticalChainStatusDialogBox.show(
+					getFrame(), getCurrentFrame().getProject(), com.microproject.dialog.CriticalChainStatusDialogBox.Surface.BUFFER_STATUS);
+			}
 		}
 	}
 
@@ -2779,6 +2905,22 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			showTextStyleChooser();
 		}
 	}
+
+	/** Adapter of one Gantt Chart Format command: acts on the active Gantt view, then refreshes the ribbon state. */
+	private MenuActionsMap.DocumentMenuAction ganttFormatAction(String actionId, java.util.function.Consumer<GanttView> body) {
+		return new MenuActionsMap.DocumentMenuAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) {
+				setMeAsLastGraphicManager();
+				if (!beforeToggleRoute(actionId)) return;
+				GanttView view = getActiveGanttView();
+				if (view == null) return;
+				body.accept(view);
+				syncGanttViewRibbonState();
+			}
+		};
+	}
+
 	public class BarStylesAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
@@ -2967,6 +3109,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			if (!isDocumentActive()) return;
 			DocumentFrame frame = getCurrentFrame();
 			boolean masked = PrivacyDisplayMode.toggle(frame.getProject());
+			frame.syncPrivacyMaskToggle();
 			GanttView ganttView = frame.getGanttView();
 			if (ganttView != null) {
 				if (ganttView.getGantt() != null) ganttView.getGantt().repaint();
@@ -3064,6 +3207,20 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 					usageView.zoomToSelectedTasks();
 				else if (activeView instanceof GanttView ganttView && ganttView.canZoomToSelectedTasks())
 					ganttView.zoomToSelectedTasks();
+			}
+			setZoomButtons();
+		}
+	}
+	public class ZoomEntireProjectAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive()) {
+				BaseView activeView = getCurrentFrame().getActiveTopView();
+				if (activeView instanceof UsageDetailView usageView && usageView.canZoomToProject())
+					usageView.zoomToProject();
+				else if (activeView instanceof GanttView ganttView && ganttView.canZoomToProject())
+					ganttView.zoomToProject();
 			}
 			setZoomButtons();
 		}
@@ -3215,6 +3372,54 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				: RibbonCommandResult.rejected(CommandId.COPY.actionId(), "no-active-document"));
 		}
 	}
+	/** Task > Font group: Bold, Italic and Font Color of the selected tasks (one undoable edit each). */
+	private static final List<CommandId> TASK_ROUTED_COMMANDS = List.of(
+		CommandId.TASK_MOVE_FORWARD_DAY, CommandId.TASK_MOVE_FORWARD_WEEK, CommandId.TASK_MOVE_FORWARD_FOUR_WEEKS,
+		CommandId.TASK_MOVE_FORWARD_CUSTOM, CommandId.TASK_MOVE_BACK_DAY, CommandId.TASK_MOVE_BACK_WEEK,
+		CommandId.TASK_MOVE_BACK_FOUR_WEEKS, CommandId.TASK_MOVE_BACK_CUSTOM, CommandId.TASK_ADD_TO_TIMELINE);
+	/** Routes a ribbon command straight through the shared task-command pipeline. */
+	private final class TaskRouteAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private final CommandId command;
+		TaskRouteAction(CommandId command) {
+			this.command = command;
+		}
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, dispatchTaskCommand(command));
+			DocumentFrame frame = getCurrentFrame();
+			if (frame != null)
+				getMenuManager().setActionSelected(CommandId.TASK_ADD_TO_TIMELINE.actionId(), frame.isSelectedTaskOnTimeline());
+		}
+	}
+	public class TaskFontAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private final String fontAction;
+		public TaskFontAction(String fontAction) {
+			this.fontAction = fontAction;
+		}
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			DocumentFrame frame = isDocumentActive() ? getCurrentFrame() : null;
+			if (frame == null || !isDocumentWritable())
+				return;
+			switch (fontAction) {
+			case ACTION_BOLD -> frame.toggleSelectedTaskBold();
+			case ACTION_ITALIC -> frame.toggleSelectedTaskItalic();
+			case ACTION_UNDERLINE -> frame.toggleSelectedTaskUnderline();
+			case ACTION_BACKGROUND_COLOR -> frame.chooseSelectedTaskBackground();
+			case ACTION_FONT_NAME, ACTION_FONT_SIZE -> { }
+			default -> frame.chooseSelectedTaskFontColor();
+			}
+			getMenuManager().setActionSelected(ACTION_BOLD, frame.isSelectedTaskTextBold());
+			getMenuManager().setActionSelected(ACTION_ITALIC, frame.isSelectedTaskTextItalic());
+			getMenuManager().setActionSelected(ACTION_UNDERLINE, frame.isSelectedTaskTextUnderline());
+		}
+		@Override protected boolean allowed(boolean enable) {
+			return !enable || isDocumentActive() && getCurrentFrame() != null
+				&& getCurrentFrame().canFormatSelectedTaskText();
+		}
+	}
 	public class FormatPainterAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
 		@Override public void actionPerformed(ActionEvent event) {
@@ -3262,6 +3467,134 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 	}
 
+	/** Paste: lets the user choose how the clipboard is pasted (Paste Special). */
+	public class PasteSpecialAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private static final String COMMAND_ID = "PasteSpecial";
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive() || getCurrentFrame() == null) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(COMMAND_ID, "no-active-document"));
+				return;
+			}
+			DocumentFrame frame = getCurrentFrame();
+			javax.swing.JPanel panel = new javax.swing.JPanel(new java.awt.GridLayout(0, 1, 0, 4));
+			panel.add(new javax.swing.JLabel(Messages.getString("PasteSpecial.Prompt")));
+			javax.swing.JRadioButton paste = new javax.swing.JRadioButton(Messages.getString("PasteSpecial.Paste"), true);
+			javax.swing.JRadioButton insert = new javax.swing.JRadioButton(Messages.getString("PasteSpecial.PasteInsert"));
+			javax.swing.JRadioButton values = new javax.swing.JRadioButton(Messages.getString("PasteSpecial.PasteValues"));
+			javax.swing.ButtonGroup group = new javax.swing.ButtonGroup();
+			for (javax.swing.JRadioButton option : new javax.swing.JRadioButton[] { paste, insert, values }) {
+				group.add(option);
+				panel.add(option);
+			}
+			int choice = PopupDialogSupport.showConfirmDialog(getFrame(), panel, Messages.getString("PasteSpecial.Title"),
+				JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+			if (choice != JOptionPane.OK_OPTION) {
+				publishTaskCommandOutcome(this, new RibbonCommandResult(COMMAND_ID, RibbonCommandResult.Status.NO_CHANGE,
+					"dialog-cancelled").withActiveView(frame.getTopViewId()));
+			} else if (insert.isSelected()) {
+				new PasteInsertAction().actionPerformed(event);
+			} else if (values.isSelected()) {
+				SpreadSheet sheet = frame.getActiveSpreadSheet();
+				boolean pasted = sheet != null && sheet.pasteClipboardAsValues();
+				publishTaskCommandOutcome(this, (pasted ? RibbonCommandResult.changed(COMMAND_ID)
+					: RibbonCommandResult.rejected(COMMAND_ID, "nothing-to-paste")).withActiveView(frame.getTopViewId()));
+			} else {
+				new PasteAction().actionPerformed(event);
+			}
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return isDocumentWritable();
+		}
+	}
+
+	/** Copy: puts an image of the active view on the system clipboard (Copy Picture). */
+	public class CopyPictureAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private static final String COMMAND_ID = "CopyPicture";
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive() || getCurrentFrame() == null) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(COMMAND_ID, "no-active-document"));
+				return;
+			}
+			DocumentFrame frame = getCurrentFrame();
+			boolean copied = false;
+			try {
+				copied = frame.getActiveTopView() instanceof javax.swing.JComponent view && ViewPictureClipboard.copy(view);
+			} catch (java.awt.HeadlessException | IllegalStateException failure) {
+				logger.log(Level.WARNING, "Unable to copy the view picture", failure);
+			}
+			publishTaskCommandOutcome(this, (copied ? RibbonCommandResult.noChange(COMMAND_ID)
+				: RibbonCommandResult.rejected(COMMAND_ID, "no-view-image")).withActiveView(frame.getTopViewId()));
+		}
+	}
+
+	/** Find: the Find dialog in replace mode (Replace). */
+	public class ReplaceAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive())
+				doFind(getCurrentFrame().getTopSpreadSheet(), null, null, true);
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return isDocumentWritable() && getCurrentFrame() != null && getCurrentFrame().getActiveSpreadSheet() != null;
+		}
+	}
+
+	/**
+	 * Sort quick sort (ascending) by one field of the active view. Task views use the
+	 * view's sorter {@code taskSorterId} (outline order when {@code null}); resource views sort
+	 * by {@code resourceFieldId} and reject the command when that column is not shown.
+	 */
+	public class QuickSortAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private final String commandId;
+		private final String taskSorterId;
+		private final String resourceFieldId;
+		QuickSortAction(String commandId, String taskSorterId, String resourceFieldId) {
+			this.commandId = commandId;
+			this.taskSorterId = taskSorterId;
+			this.resourceFieldId = resourceFieldId;
+		}
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			DocumentFrame frame = getCurrentFrame();
+			if (!isDocumentActive() || frame == null) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(commandId, "no-active-document"));
+				return;
+			}
+			if (frame.getActiveTopView() instanceof ResourceView resourceView) {
+				List<ResourceView.SortKey> previousKeys = resourceView.getSortKeys();
+				if (!resourceView.applySortOrder(resourceFieldId, true)) {
+					publishTaskCommandOutcome(this, RibbonCommandResult.rejected(commandId, "invalid-sort-field")
+						.withActiveView(frame.getTopViewId()));
+					return;
+				}
+				publishTaskCommandOutcome(this, (previousKeys.equals(resourceView.getSortKeys())
+					? RibbonCommandResult.noChange(commandId) : RibbonCommandResult.changed(commandId))
+					.withActiveView(frame.getTopViewId()));
+				return;
+			}
+			com.microproject.grouping.core.transform.ViewConfiguration view =
+				com.microproject.grouping.core.transform.ViewConfiguration.getView(frame.getTopViewId());
+			if (view == null || view.getTransform() == null) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(commandId, "no-sortable-view"));
+				return;
+			}
+			TaskSortSpec spec = taskSorterId == null ? TaskSortSpec.outlineDefault()
+				: new TaskSortSpec(List.of(new TaskSortSpec.Key(taskSorterId, true)), true);
+			boolean same = spec.equals(view.getTransform().getTaskSortSpec());
+			view.getTransform().setTaskSortSpec(spec);
+			publishTaskCommandOutcome(this, (same ? RibbonCommandResult.noChange(commandId)
+				: RibbonCommandResult.changed(commandId)).withActiveView(frame.getTopViewId()));
+		}
+	}
+
 	public class DeleteAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
@@ -3286,6 +3619,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			if (getCurrentFrame() == null)
 				return;
+			rememberReport(viewName);
 			if (!beforeViewSwitchRoute(viewName))
 				return;
 			setColorTheme(viewName);
@@ -3331,6 +3665,174 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	        	return;
 	        }
 	        showTransformChooser(type, this, actionId, taskSortSelection);
+	        refreshTransformDropDowns();
+		}
+	}
+
+	private static final String RIBBON_FILTER_ID = "RibbonChooseFilter";
+	private static final String RIBBON_GROUP_ID = "RibbonChooseGroup";
+	private static final String RIBBON_FONT_NAME_ID = "RibbonFontName";
+	private static final String RIBBON_FONT_SIZE_ID = "RibbonFontSize";
+	private static final List<Integer> FONT_SIZES = List.of(8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72);
+
+	/** Re-reads the filter and group labels of the ribbon from the active view. */
+	private void refreshTransformDropDowns() {
+		getMenuManager().refreshRibbonDropDown(RIBBON_FILTER_ID);
+		getMenuManager().refreshRibbonDropDown(RIBBON_GROUP_ID);
+	}
+
+	private static final String RIBBON_UNDO_ID = "RibbonTopBarUndo";
+	private static final String RIBBON_REDO_ID = "RibbonTopBarRedo";
+	private static final int HISTORY_LIST_SIZE = 20;
+
+	/** Values and choices of the ribbon Filter and Group drop-downs (the transforms of the active top view) and the undo/redo history lists. */
+	private final class TransformDropDownSource implements RibbonDropDownSource {
+		@Override
+		public List<String> popupEntries(String commandId) {
+			if (RIBBON_SWITCH_WINDOWS_ID.equals(commandId)) {
+				List<DocumentFrame> frames = openDocumentFrames();
+				List<String> names = new ArrayList<>(frames.size());
+				for (int index = 0; index < frames.size(); index++) {
+					Project project = frames.get(index).getProject();
+					names.add((index + 1) + " " + (project == null ? "" : project.getName()));
+				}
+				return names;
+			}
+			if (RIBBON_RECENT_REPORTS_ID.equals(commandId)) {
+				if (!isDocumentActive())
+					return List.of();
+				List<String> names = new ArrayList<>(recentReportActions.size());
+				for (String actionId : recentReportActions)
+					names.add(getMenuManager().getString("Ribbon" + actionId + ".text"));
+				return names;
+			}
+			boolean undo = RIBBON_UNDO_ID.equals(commandId);
+			if (!undo && !RIBBON_REDO_ID.equals(commandId))
+				return List.of();
+			DocumentFrame frame = getCurrentFrame();
+			UndoController controller = frame == null || !isDocumentActive() ? null : frame.getUndoController();
+			if (controller == null)
+				return List.of();
+			List<String> names = undo ? controller.getUndoNames(HISTORY_LIST_SIZE) : controller.getRedoNames(HISTORY_LIST_SIZE);
+			List<String> entries = new ArrayList<>(names.size());
+			for (int index = 0; index < names.size(); index++) {
+				String name = names.get(index);
+				entries.add(name == null || name.isBlank() ? "#" + (index + 1) : name);
+			}
+			return entries;
+		}
+
+		/** Choosing entry {@code n} undoes or redoes the steps up to and including it. */
+		@Override
+		public void selectPopupEntry(String commandId, int index) {
+			if (RIBBON_SWITCH_WINDOWS_ID.equals(commandId)) {
+				List<DocumentFrame> frames = openDocumentFrames();
+				if (index >= 0 && index < frames.size()) {
+					setMeAsLastGraphicManager();
+					setCurrentFrame(frames.get(index));
+				}
+				return;
+			}
+			if (RIBBON_RECENT_REPORTS_ID.equals(commandId)) {
+				setMeAsLastGraphicManager();
+				openRecentReport(index);
+				return;
+			}
+			boolean undo = RIBBON_UNDO_ID.equals(commandId);
+			if (index < 0 || (!undo && !RIBBON_REDO_ID.equals(commandId)))
+				return;
+			setMeAsLastGraphicManager();
+			for (int step = 0; step <= index; step++)
+				doUndoRedo(undo);
+		}
+
+		private TransformComboBoxModel model(String commandId) {
+			int type = RIBBON_FILTER_ID.equals(commandId) ? TransformComboBoxModel.FILTER
+					: RIBBON_GROUP_ID.equals(commandId) ? TransformComboBoxModel.GROUPER : 0;
+			DocumentFrame frame = getCurrentFrame();
+			if (type == 0 || frame == null)
+				return null;
+			com.microproject.grouping.core.transform.ViewConfiguration view =
+				com.microproject.grouping.core.transform.ViewConfiguration.getView(frame.getTopViewId());
+			if (view == null || view.getTransform() == null)
+				return null;
+			TransformComboBoxModel model = new TransformComboBoxModel(type);
+			model.setView(view);
+			return model;
+		}
+
+		@Override
+		public String currentValue(String commandId) {
+			if (RIBBON_TIMESCALE_ID.equals(commandId)) {
+				GanttView ganttView = getActiveGanttView();
+				List<String> labels = timescaleLabels(ganttView);
+				int scale = ganttView == null ? -1 : ganttView.getScale();
+				return scale >= 0 && scale < labels.size() ? labels.get(scale) : null;
+			}
+			if (RIBBON_FONT_NAME_ID.equals(commandId) || RIBBON_FONT_SIZE_ID.equals(commandId)) {
+				DocumentFrame frame = isDocumentActive() ? getCurrentFrame() : null;
+				if (frame == null)
+					return null;
+				if (RIBBON_FONT_NAME_ID.equals(commandId))
+					return frame.selectedTaskFontFamily();
+				int size = frame.selectedTaskFontSize();
+				return size <= 0 ? null : Integer.toString(size);
+			}
+			TransformComboBoxModel model = model(commandId);
+			return model == null || model.getSelectedItem() == null ? null : model.getSelectedItem().toString();
+		}
+
+		@Override
+		public List<String> choices(String commandId) {
+			if (RIBBON_TIMESCALE_ID.equals(commandId))
+				return timescaleLabels(getActiveGanttView());
+			if (RIBBON_FONT_NAME_ID.equals(commandId))
+				return List.of(java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames());
+			if (RIBBON_FONT_SIZE_ID.equals(commandId))
+				return FONT_SIZES.stream().map(String::valueOf).toList();
+			TransformComboBoxModel model = model(commandId);
+			List<String> names = new ArrayList<>();
+			for (int index = 0; model != null && index < model.getSize(); index++)
+				names.add(model.getElementAt(index).toString());
+			return names;
+		}
+
+		@Override
+		public void select(String commandId, int index) {
+			if (RIBBON_TIMESCALE_ID.equals(commandId)) {
+				GanttView ganttView = getActiveGanttView();
+				if (ganttView == null || index < 0 || index >= ganttView.getScaleCount())
+					return;
+				setMeAsLastGraphicManager();
+				ganttView.setScale(index);
+				setZoomButtons();
+				return;
+			}
+			if (RIBBON_FONT_NAME_ID.equals(commandId) || RIBBON_FONT_SIZE_ID.equals(commandId)) {
+				List<String> options = choices(commandId);
+				DocumentFrame frame = isDocumentActive() ? getCurrentFrame() : null;
+				if (frame == null || !isDocumentWritable() || index < 0 || index >= options.size())
+					return;
+				setMeAsLastGraphicManager();
+				if (RIBBON_FONT_NAME_ID.equals(commandId))
+					frame.setSelectedTaskFontFamily(options.get(index));
+				else
+					frame.setSelectedTaskFontSize(Integer.parseInt(options.get(index)));
+				getMenuManager().refreshRibbonDropDown(commandId);
+				return;
+			}
+			TransformComboBoxModel model = model(commandId);
+			if (model == null || index < 0 || index >= model.getSize())
+				return;
+			setMeAsLastGraphicManager();
+			CommonSpreadSheet spreadSheet = getCurrentFrame().getTopSpreadSheet();
+			if (spreadSheet != null) {
+				if (spreadSheet.isEditing())
+					spreadSheet.getCellEditor().stopCellEditing();
+				spreadSheet.clearSelection();
+			}
+			model.changeTransform(model.getElementAt(index));
+			refreshTransformDropDowns();
 		}
 	}
 
@@ -3488,6 +3990,24 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 	}
 
+
+	/** Edit > Fill (Down, Up, Left, Right) on the active sheet's selected cells. */
+	public class FillAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private final String fillAction;
+		public FillAction(String fillAction) {
+			this.fillAction = fillAction;
+		}
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive() && isDocumentWritable())
+				getCurrentFrame().doFill(fillAction);
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return isDocumentWritable();
+		}
+	}
 
 	/** Routes the Resource ribbon command to the resource sheet's canonical New action. */
 	public class InsertResourceAction extends MenuActionsMap.DocumentMenuAction {
@@ -3944,6 +4464,68 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		return true;
 	}
 
+	private static final String RIBBON_TIMESCALE_ID = "RibbonTimescaleGallery";
+	private static final String RIBBON_SWITCH_WINDOWS_ID = "RibbonSwitchWindows";
+	private static final String RIBBON_RECENT_REPORTS_ID = "RibbonReportRecent";
+	private static final int RECENT_REPORT_LIMIT = 8;
+	/** Report commands remembered by Report > Recent; each is also a registered action id. */
+	private static final List<String> REPORT_ACTION_IDS = List.of(ACTION_REPORT, ACTION_CHARTS, ACTION_HISTOGRAM,
+		ACTION_TASK_USAGE, ACTION_RESOURCE_USAGE, ACTION_CUSTOM_REPORT, ACTION_CCPM_BUFFER_STATUS);
+	/** Report action ids opened in this session, most recent first. */
+	private final List<String> recentReportActions = new ArrayList<>();
+
+	private void rememberReport(String actionId) {
+		if (!REPORT_ACTION_IDS.contains(actionId))
+			return;
+		recentReportActions.remove(actionId);
+		recentReportActions.add(0, actionId);
+		while (recentReportActions.size() > RECENT_REPORT_LIMIT)
+			recentReportActions.remove(recentReportActions.size() - 1);
+	}
+
+	/** Report > Recent: reopens the report opened last in this session. */
+	public class RecentReportsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			openRecentReport(0);
+		}
+	}
+
+	private void openRecentReport(int index) {
+		if (!isDocumentActive() || index < 0 || index >= recentReportActions.size())
+			return;
+		Action action = actionsMap.getConcreteAction(recentReportActions.get(index));
+		if (action != null && action.isEnabled())
+			action.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, recentReportActions.get(index)));
+	}
+
+	/** View > Team Planner: shows the Team Planner view. */
+	public class TeamPlannerAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive()) getCurrentFrame().doDelegateTasksDialog();
+		}
+	}
+
+	private List<DocumentFrame> openDocumentFrames() {
+		return getFrameManager() == null ? List.of() : getFrameManager().getDocumentFrames();
+	}
+
+	/** View > Switch Windows: activates the next open project; the ribbon menu lists them all. */
+	public class SwitchWindowsAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			List<DocumentFrame> frames = openDocumentFrames();
+			if (frames.size() < 2)
+				return;
+			int current = frames.indexOf(getCurrentFrame());
+			setCurrentFrame(frames.get((current + 1) % frames.size()));
+		}
+	}
+
 	public class ArrangeAllAction extends MenuActionsMap.GlobalMenuAction {
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent event) {
@@ -4165,6 +4747,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			}
 		}
 		return new TaskSortSpec(keys, options.isKeepOutline());
+	}
+
+	private List<String> timescaleLabels(GanttView ganttView) {
+		if (ganttView == null)
+			return List.of();
+		return List.of(DocumentStatusBar.formatScaleChoices(getMenuManager().getString("RibbonTimescale.text"),
+			ganttView.getScaleCount(), ganttView::getTimeScale));
 	}
 
 	private void showTimescaleChooser() {
@@ -4438,6 +5027,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_INFORMATION,infoEnabled);
 		getMenuManager().setActionEnabled("RibbonTaskInformation", taskInfoEnabled);
 		getMenuManager().setActionEnabled("RibbonTaskInspector", taskInfoEnabled);
+		getMenuManager().setActionEnabled(ACTION_INSPECT_TASK, taskInfoEnabled);
+		getMenuManager().setActionEnabled(ACTION_SHOW_TASK_WARNINGS, isDocumentActive());
+		getMenuManager().setActionEnabled(ACTION_SHOW_TASK_SUGGESTIONS, isDocumentActive());
+		getMenuManager().setActionEnabled(ACTION_SHOW_IGNORED_PROBLEMS, isDocumentWritable());
+		syncTaskDiagnosticToggles();
 		getMenuManager().setActionEnabled("RibbonResourceInformation", resourceInfoEnabled);
 		getMenuManager().setActionEnabled(ACTION_NOTES,infoEnabled);
 		getMenuManager().setActionEnabled(ACTION_INSERT_TASK, !readOnly && (taskType || resourceType)&&(actions==null||actions.contains(ACTION_INSERT_TASK)));
@@ -4449,6 +5043,19 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_DELETE,!readOnly && (actions==null||actions.contains(ACTION_DELETE)));
 		getMenuManager().setActionEnabled("RibbonFormatPainter", !readOnly && taskType && editFrame != null
 			&& editFrame.canStartFormatPainter());
+		boolean canFormatTaskText = !readOnly && taskType && editFrame != null && editFrame.canFormatSelectedTaskText();
+		for (String fontAction : List.of(ACTION_BOLD, ACTION_ITALIC, ACTION_FONT_COLOR,
+				ACTION_UNDERLINE, ACTION_BACKGROUND_COLOR, ACTION_FONT_NAME, ACTION_FONT_SIZE))
+			getMenuManager().setActionEnabled(fontAction, canFormatTaskText);
+		getMenuManager().setActionSelected(ACTION_BOLD, canFormatTaskText && editFrame.isSelectedTaskTextBold());
+		getMenuManager().setActionSelected(ACTION_ITALIC, canFormatTaskText && editFrame.isSelectedTaskTextItalic());
+		getMenuManager().setActionSelected(ACTION_UNDERLINE, canFormatTaskText && editFrame.isSelectedTaskTextUnderline());
+		getMenuManager().refreshRibbonDropDown(RIBBON_FONT_NAME_ID);
+		getMenuManager().refreshRibbonDropDown(RIBBON_FONT_SIZE_ID);
+		for (CommandId moveCommand : TASK_ROUTED_COMMANDS)
+			getMenuManager().setActionEnabled(moveCommand.actionId(), canFormatTaskText);
+		getMenuManager().setActionSelected(CommandId.TASK_ADD_TO_TIMELINE.actionId(),
+			canFormatTaskText && editFrame.isSelectedTaskOnTimeline());
 		// After hierarchy Undo/Redo the lead node supplied by the selection event
 		// may still describe the pre-mutation row.  Command enablement must use the
 		// same stable task selection that execution uses, not that stale singleton.
@@ -4499,6 +5106,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_TIMESHEET,!readOnly && project != null);
 		getMenuManager().setActionEnabled(ACTION_LEVEL_RESOURCES,!readOnly && project != null);
 		getMenuManager().setActionEnabled(ACTION_LEVEL_ALL,!readOnly && project != null);
+		getMenuManager().setActionEnabled(CommandId.RESOURCE_LEVEL_RESOURCE.actionId(), !readOnly && project != null);
 		getMenuManager().setActionEnabled(ACTION_LEVEL_SELECTION,
 			!readOnly && getCurrentFrame() != null && getCurrentFrame().hasTaskSelection(true, 1, false));
 		getMenuManager().setActionEnabled(ACTION_CLEAR_LEVEL_ALL, !readOnly && project != null);
@@ -4511,6 +5119,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_CCPM_CLEAR,!readOnly && hasCcpmPlan);
 		getMenuManager().setActionEnabled(ACTION_CCPM_BUFFER_STATUS,project != null);
 		getMenuManager().setActionEnabled(ACTION_CCPM_NETWORK,project != null);
+		getMenuManager().setActionEnabled(ACTION_TEAM_PLANNER, project != null);
+		getMenuManager().setActionEnabled(ACTION_RECENT_REPORTS, project != null);
 		getMenuManager().setActionEnabled(ACTION_TOGGLE_CRITICAL_CHAIN,hasCcpmPlan && isActiveGanttView());
 		Action criticalChainAction = getMenuManager().getActionFromId(ACTION_TOGGLE_CRITICAL_CHAIN);
 		if (criticalChainAction != null) {
@@ -4538,6 +5148,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_INSERT_SUMMARY, !readOnly && taskType && hasEditableTaskSelection);
 		getMenuManager().setActionEnabled(ACTION_CLEAR_CONTENTS, !readOnly && getCurrentFrame() != null
 				&& getCurrentFrame().getActiveSpreadSheet() != null);
+		for (String fillAction : List.of(ACTION_FILL_DOWN, ACTION_FILL_UP, ACTION_FILL_LEFT, ACTION_FILL_RIGHT))
+			getMenuManager().setActionEnabled(fillAction, !readOnly && getCurrentFrame() != null
+					&& getCurrentFrame().getActiveSpreadSheet() != null);
 		getMenuManager().setActionEnabled(ACTION_SELECT_ALL, getCurrentFrame() != null
 				&& getCurrentFrame().getActiveSpreadSheet() != null);
 		getMenuManager().setActionEnabled(ACTION_CALENDAR_OPTIONS,getCurrentFrame() != null);
@@ -4562,6 +5175,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_CHOOSE_FILTER, hasDocument);
 		getMenuManager().setActionEnabled(ACTION_CHOOSE_SORT, hasDocument);
 		getMenuManager().setActionEnabled(ACTION_CHOOSE_GROUP, hasDocument);
+		refreshTransformDropDowns();
 
 		if (getCurrentFrame() != null) {
 			getCurrentFrame().refreshUndoButtons();
@@ -4599,6 +5213,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				? usageView.canZoomToSelectedTasks()
 				: activeView instanceof GanttView ganttView && ganttView.canZoomToSelectedTasks();
 		getMenuManager().setActionEnabled(ACTION_ZOOM_SELECTED_TASKS, canZoomSelection);
+		boolean canZoomProject = activeView instanceof UsageDetailView usageView
+				? usageView.canZoomToProject()
+				: activeView instanceof GanttView ganttView && ganttView.canZoomToProject();
+		getMenuManager().setActionEnabled(ACTION_ZOOM_ENTIRE_PROJECT, canZoomProject);
+		getMenuManager().refreshRibbonDropDown(RIBBON_TIMESCALE_ID);
 		getMenuManager().setActionEnabled(ACTION_SCROLL_TO_TODAY, activeView instanceof GanttView);
 
 	}
@@ -4622,22 +5241,57 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_TEXT_STYLES, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_BAR_STYLES, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_LAYOUT, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_INSERT_COLUMN, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_HIDE_COLUMN, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_FIELD_SETTINGS, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_ALIGN_LEFT, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_ALIGN_CENTER, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_ALIGN_RIGHT, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_FORMAT_BAR, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_CRITICAL_TASKS, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_SLACK, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_LATE_TASKS, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_BASELINE, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_SLIPPAGE, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_PATH_PREDECESSORS, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_PATH_DRIVING_PREDECESSORS, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_PATH_SUCCESSORS, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_PATH_DRIVEN_SUCCESSORS, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_PATH_REMOVE, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_STYLE_DEFAULT, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_STYLE_BLUE, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_STYLE_GREEN, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_STYLE_ORANGE, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_STYLE_PURPLE, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_STYLE_GRAY, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_OUTLINE_NUMBERS, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_SUMMARY_TASKS, ganttActive);
 
 		boolean progressSelected = false;
 		boolean resourceLabelSelected = false;
 		boolean taskLabelSelected = false;
-		boolean gridlinesSelected = false;
 		if (ganttActive) {
 			GanttView ganttView = getCurrentFrame().getGanttView();
 			progressSelected = ganttView.isProgressLineEnabled();
 			resourceLabelSelected = ganttView.isResourceNameAnnotationSelected();
 			taskLabelSelected = ganttView.isTaskNameAnnotationSelected();
-			gridlinesSelected = ganttView.isSpreadsheetGridVisible();
 		}
 		getMenuManager().setActionSelected(ACTION_TOGGLE_PROGRESS_LINE, progressSelected);
 		getMenuManager().setActionSelected(ACTION_LABEL_RESOURCE_NAMES, resourceLabelSelected);
 		getMenuManager().setActionSelected(ACTION_LABEL_TASK_NAME, taskLabelSelected);
-		getMenuManager().setActionSelected(ACTION_GRIDLINES, gridlinesSelected);
+		getMenuManager().setActionSelected(ACTION_GFMT_CRITICAL_TASKS, ganttActive && getCurrentFrame().getGanttView().isCriticalTasksVisible());
+		getMenuManager().setActionSelected(ACTION_GFMT_SLACK, ganttActive && getCurrentFrame().getGanttView().isSlackVisible());
+		getMenuManager().setActionSelected(ACTION_GFMT_LATE_TASKS, ganttActive && getCurrentFrame().getGanttView().isLateTasksVisible());
+		getMenuManager().setActionSelected(ACTION_GFMT_BASELINE, ganttActive && getCurrentFrame().getGanttView().isBaselineVisible());
+		getMenuManager().setActionSelected(ACTION_GFMT_SLIPPAGE, ganttActive && getCurrentFrame().getGanttView().isSlippageVisible());
+		getMenuManager().setActionSelected(ACTION_GFMT_OUTLINE_NUMBERS, ganttActive && getCurrentFrame().getGanttView().isOutlineNumbersVisible());
+		getMenuManager().setActionSelected(ACTION_GFMT_SUMMARY_TASKS, ganttActive && getCurrentFrame().getGanttView().isSummaryTasksVisible());
+		getMenuManager().setActionSelected(ACTION_GFMT_STYLE_DEFAULT, ganttActive && getCurrentFrame().getGanttView().getBarColorScheme() == GanttBarColorScheme.DEFAULT);
+		getMenuManager().setActionSelected(ACTION_GFMT_STYLE_BLUE, ganttActive && getCurrentFrame().getGanttView().getBarColorScheme() == GanttBarColorScheme.BLUE);
+		getMenuManager().setActionSelected(ACTION_GFMT_STYLE_GREEN, ganttActive && getCurrentFrame().getGanttView().getBarColorScheme() == GanttBarColorScheme.GREEN);
+		getMenuManager().setActionSelected(ACTION_GFMT_STYLE_ORANGE, ganttActive && getCurrentFrame().getGanttView().getBarColorScheme() == GanttBarColorScheme.ORANGE);
+		getMenuManager().setActionSelected(ACTION_GFMT_STYLE_PURPLE, ganttActive && getCurrentFrame().getGanttView().getBarColorScheme() == GanttBarColorScheme.PURPLE);
+		getMenuManager().setActionSelected(ACTION_GFMT_STYLE_GRAY, ganttActive && getCurrentFrame().getGanttView().getBarColorScheme() == GanttBarColorScheme.GRAY);
 	}
 	/**
 	 * React to selection changed events and forward them on to any bottom window
@@ -4646,6 +5300,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	public void selectionChanged(SelectionNodeEvent e) {
 		setZoomButtons();
 		assignmentDialogCoordinator.selectionChanged(e);
+		if (isActiveGanttView())
+			getCurrentFrame().getGanttView().refreshTaskPath();
 
 		Node currentNode=e.getCurrentNode();
 		Object currentImpl=currentNode.getImpl();
@@ -5373,31 +6029,30 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent event) {
 			setMeAsLastGraphicManager();
-			if (isDocumentActive()) getCurrentFrame().doTimelineDialog();
-		}
-	}
-	public class CalendarViewAction extends MenuActionsMap.DocumentMenuAction {
-		private static final long serialVersionUID = 1L;
-		public void actionPerformed(ActionEvent event) {
-			setMeAsLastGraphicManager();
-			if (isDocumentActive()) getCurrentFrame().doCalendarViewDialog();
+			if (isDocumentActive()) getCurrentFrame().toggleTimelineView();
 		}
 	}
 	public class CustomReportAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent event) {
 			setMeAsLastGraphicManager();
-			if (isDocumentActive()) getCurrentFrame().doCustomReportDialog();
+			if (isDocumentActive()) {
+				getCurrentFrame().doCustomReportDialog();
+				rememberReport(ACTION_CUSTOM_REPORT);
+			}
 		}
 	}
 	public void doFind(Searchable searchable, Field field, String initialQuery) {
+		doFind(searchable, field, initialQuery, false);
+	}
+	public void doFind(Searchable searchable, Field field, String initialQuery, boolean replaceMode) {
 		if (getCurrentFrame()==null||!getCurrentFrame().isActive())
 			return;
 		if (searchable == null)
 			return;
 		if (!beforeFindRoute(searchable, field))
 			return;
-		getCurrentFrame().doFind(searchable, field, initialQuery);
+		getCurrentFrame().doFind(searchable, field, initialQuery, replaceMode);
 
 	}
 

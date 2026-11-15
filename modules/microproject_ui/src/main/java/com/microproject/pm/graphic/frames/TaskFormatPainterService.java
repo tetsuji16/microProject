@@ -8,6 +8,7 @@ package com.microproject.pm.graphic.frames;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.UnaryOperator;
 
 import javax.swing.undo.AbstractUndoableEdit;
 
@@ -26,7 +27,7 @@ final class TaskFormatPainterService {
 
 	static TaskTextFormat capture(Task task) {
 		return new TaskTextFormat(task.getFontFamily(), task.getFontSize(), task.getFontColor(), task.isFontBold(),
-			task.isFontItalic(), task.isFontStrikethrough());
+			task.isFontItalic(), task.isFontStrikethrough(), task.isFontUnderline(), task.getFontBackground());
 	}
 
 	static List<Long> apply(Project project, List<Task> targets, TaskTextFormat format,
@@ -36,7 +37,23 @@ final class TaskFormatPainterService {
 
 	static List<Long> apply(Project project, List<Task> targets, TaskTextFormat format,
 			UndoController undoController, ApplyHook hook) {
-		if (project == null || project.isReadOnly() || targets == null || targets.isEmpty() || format == null)
+		if (format == null)
+			return List.of();
+		return applyDerived(project, targets, ignored -> format, undoController, hook);
+	}
+
+	/**
+	 * Applies {@code change} to the current text format of every target, as one undoable edit. Used by
+	 * the Task &gt; Font group, where each task keeps the attributes the command does not touch.
+	 */
+	static List<Long> applyChange(Project project, List<Task> targets, UnaryOperator<TaskTextFormat> change,
+			UndoController undoController) {
+		return applyDerived(project, targets, change, undoController, (task, index) -> { });
+	}
+
+	private static List<Long> applyDerived(Project project, List<Task> targets, UnaryOperator<TaskTextFormat> change,
+			UndoController undoController, ApplyHook hook) {
+		if (project == null || project.isReadOnly() || targets == null || targets.isEmpty() || change == null)
 			return List.of();
 		EditSupport edits = undoController == null ? null : undoController.getEditSupport();
 		if (edits == null)
@@ -47,9 +64,10 @@ final class TaskFormatPainterService {
 			if (target == null || target.getProject() != project || target.isReadOnly())
 				return List.of();
 			TaskTextFormat current = capture(target);
-			if (!current.equals(format)) {
+			TaskTextFormat changed = change.apply(current);
+			if (changed != null && !current.equals(changed)) {
 				before.putIfAbsent(target, current);
-				after.put(target, format);
+				after.put(target, changed);
 			}
 		}
 		if (after.isEmpty())
@@ -132,7 +150,40 @@ final class TaskFormatPainterService {
 		applyStatesAtomically(project, states, undoController, hook, () -> { });
 	}
 
-	record TaskTextFormat(String family, int size, Integer color, boolean bold, boolean italic, boolean strikethrough) {
+	record TaskTextFormat(String family, int size, Integer color, boolean bold, boolean italic, boolean strikethrough,
+			boolean underline, Integer background) {
+		TaskTextFormat(String family, int size, Integer color, boolean bold, boolean italic, boolean strikethrough) {
+			this(family, size, color, bold, italic, strikethrough, false, null);
+		}
+
+		TaskTextFormat withFamily(String value) {
+			return new TaskTextFormat(value, size, color, bold, italic, strikethrough, underline, background);
+		}
+
+		TaskTextFormat withSize(int value) {
+			return new TaskTextFormat(family, value, color, bold, italic, strikethrough, underline, background);
+		}
+
+		TaskTextFormat withBold(boolean value) {
+			return new TaskTextFormat(family, size, color, value, italic, strikethrough, underline, background);
+		}
+
+		TaskTextFormat withItalic(boolean value) {
+			return new TaskTextFormat(family, size, color, bold, value, strikethrough, underline, background);
+		}
+
+		TaskTextFormat withUnderline(boolean value) {
+			return new TaskTextFormat(family, size, color, bold, italic, strikethrough, value, background);
+		}
+
+		TaskTextFormat withColor(Integer value) {
+			return new TaskTextFormat(family, size, value, bold, italic, strikethrough, underline, background);
+		}
+
+		TaskTextFormat withBackground(Integer value) {
+			return new TaskTextFormat(family, size, color, bold, italic, strikethrough, underline, value);
+		}
+
 		private void applyTo(Task task) {
 			task.setFontFamily(family);
 			task.setFontSize(size);
@@ -140,6 +191,8 @@ final class TaskFormatPainterService {
 			task.setFontBold(bold);
 			task.setFontItalic(italic);
 			task.setFontStrikethrough(strikethrough);
+			task.setFontUnderline(underline);
+			task.setFontBackground(background);
 		}
 	}
 

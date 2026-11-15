@@ -285,6 +285,8 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		manualWidths.add(false);
 		var headerWraps = new ArrayList<Boolean>(cols.getColumnCount() + 1);
 		headerWraps.add(true);
+		var alignments = new ArrayList<Integer>(cols.getColumnCount() + 1);
+		alignments.add(SpreadSheetFieldArray.ALIGN_DEFAULT);
 		for (int i = 0; i < cols.getColumnCount(); i++) {
 			colWidths.add(cols.getColumn(i).getWidth());
 			Object identifier = cols.getColumn(i).getIdentifier();
@@ -293,10 +295,12 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 					&& spreadSheetColumns.isWidthManuallyAdjusted(field.getId());
 			manualWidths.add(manuallyAdjusted);
 			headerWraps.add(!(cols instanceof SpreadSheetColumnModel spreadSheetColumns) || spreadSheetColumns.isHeaderWrap(i));
+			alignments.add(cols instanceof SpreadSheetColumnModel spreadSheetColumns ? spreadSheetColumns.getAlignment(i) : SpreadSheetFieldArray.ALIGN_DEFAULT);
 		}
 		result.setWidths(colWidths);
 		result.setManualWidths(manualWidths);
 		result.setHeaderWraps(headerWraps);
+		result.setAlignments(alignments);
 		return result;
 	}
 
@@ -1896,6 +1900,49 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			ctx.setRow(r);
 		}
 		return found;
+	}
+
+	/**
+	 * Used by the replace mode of the find dialog: replaces the search text in the text cells of
+	 * the searched field. With {@code all} false only the current row is considered. Cells
+	 * that are read-only or not text are left alone. Returns the number of cells changed.
+	 */
+	@Override
+	public int replace(SearchContext context, String replacement, boolean all) {
+		if (context == null || context.getField() == null || replacement == null)
+			return 0;
+		String search = context.getSearchValue();
+		if (search == null || search.isEmpty())
+			return 0;
+		int col = getFieldArray().indexOf(context.getField()) - 1;
+		SpreadSheetModel sheetModel = getSpreadSheetModel();
+		if (col < 0 || sheetModel == null)
+			return 0;
+		finishCurrentOperations();
+		int first = all ? 0 : getCurrentRow();
+		int last = all ? getRowCount() - 1 : getCurrentRow();
+		int replaced = 0;
+		for (int row = Math.max(first, 0); row <= last && row < getRowCount(); row++) {
+			Node node = sheetModel.getNodeInRow(row);
+			if (node == null || !context.matches(node.getImpl()) || !isCellEditable(row, col))
+				continue;
+			if (!(getValueAt(row, col) instanceof String current))
+				continue;
+			String updated = replaceText(current, search, replacement, context.isCaseSensitive());
+			if (updated.equals(current))
+				continue;
+			setValueAt(updated, row, col);
+			if (getLastException() != null)
+				break;
+			replaced++;
+		}
+		return replaced;
+	}
+
+	static String replaceText(String text, String search, String replacement, boolean caseSensitive) {
+		java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(java.util.regex.Pattern.quote(search),
+			caseSensitive ? 0 : java.util.regex.Pattern.CASE_INSENSITIVE | java.util.regex.Pattern.UNICODE_CASE);
+		return pattern.matcher(text).replaceAll(java.util.regex.Matcher.quoteReplacement(replacement));
 	}
 
 	public void selectObject(Object object) {

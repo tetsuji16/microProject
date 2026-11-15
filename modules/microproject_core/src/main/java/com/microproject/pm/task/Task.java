@@ -158,6 +158,8 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	private transient LevelingManualDateState levelingManualDateState;
 	private transient boolean levelingCanSplit = true;
 	private transient boolean levelAssignments = true;
+	/** Hides Task Inspector warning and suggestion indicators for this task. */
+	private transient boolean ignoreWarnings;
 	private transient boolean recurringTask;
 	/** Keeps incomplete planning data fixed until the user returns to automatic scheduling. */
 	protected boolean manuallyScheduled = false;
@@ -172,6 +174,9 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	protected boolean fontBold;
 	protected boolean fontItalic;
 	protected boolean fontStrikethrough;
+	protected boolean fontUnderline;
+	/** Cell background (fill) color as 0xRRGGBB, or null for the view default. */
+	protected Integer fontBackground;
 	protected Double inactivePercentComplete;
 	/** Explicit user choice for the concise project timeline. */
 	protected boolean displayOnTimeline = false;
@@ -191,6 +196,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		input.defaultReadObject();
 		levelingCanSplit = true;
 		levelAssignments = true;
+		ignoreWarnings = false;
 	}
 
 	protected int constraintType = ConstraintType.Kind.ASAP.code();
@@ -1190,6 +1196,8 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		task.fontBold = fontBold;
 		task.fontItalic = fontItalic;
 		task.fontStrikethrough = fontStrikethrough;
+		task.fontUnderline = fontUnderline;
+		task.fontBackground = fontBackground;
 		task.external = external;
 		task.projectId = projectId;
 		task.physicalPercentComplete = physicalPercentComplete;
@@ -1204,6 +1212,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		task.levelingDelay = levelingDelay;
 		task.manuallyScheduled = manuallyScheduled;
 		task.inactiveTask = inactiveTask;
+		task.ignoreWarnings = ignoreWarnings;
 		task.inactivePercentComplete = inactivePercentComplete;
 		task.displayOnTimeline = displayOnTimeline;
 		task.manualStart = manualStart;
@@ -1551,7 +1560,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	 * @param dependency
 	 * @return
 	 */
-	private static long calcFreeSlack(Dependency dependency) {
+	public static long calcFreeSlack(Dependency dependency) {
 		ScheduleWindow predecessor = (ScheduleWindow) dependency
 				.getPredecessor();
 		ScheduleWindow successor = (ScheduleWindow) dependency.getSuccessor();
@@ -1883,6 +1892,10 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	public final void setLevelingCanSplit(boolean value) { levelingCanSplit = value; setDirty(true); }
 	public final boolean isLevelAssignments() { return levelAssignments; }
 	public final void setLevelAssignments(boolean value) { levelAssignments = value; setDirty(true); }
+	public final boolean isIgnoreWarnings() { return ignoreWarnings; }
+	public final void setIgnoreWarnings(boolean value) { ignoreWarnings = value; setDirty(true); }
+	/** Calculated Warning field: a manually scheduled task whose dates conflict with links or constraints. */
+	public final boolean isWarning() { return ScheduleDiagnosticsService.hasWarning(this); }
 	public final boolean isRecurringTask() { return recurringTask; }
 	public final void setRecurringTask(boolean value) { recurringTask = value; }
 	public final boolean isManuallyScheduled() {
@@ -1996,6 +2009,25 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		if (this.fontStrikethrough == fontStrikethrough)
 			return;
 		this.fontStrikethrough = fontStrikethrough;
+		setDirty(true);
+	}
+	public final boolean isFontUnderline() {
+		return fontUnderline;
+	}
+	public final void setFontUnderline(boolean fontUnderline) {
+		if (this.fontUnderline == fontUnderline)
+			return;
+		this.fontUnderline = fontUnderline;
+		setDirty(true);
+	}
+	public final Integer getFontBackground() {
+		return fontBackground;
+	}
+	public final void setFontBackground(Integer fontBackground) {
+		Integer normalized = fontBackground == null ? null : Integer.valueOf(fontBackground.intValue() & 0x00FFFFFF);
+		if (java.util.Objects.equals(this.fontBackground, normalized))
+			return;
+		this.fontBackground = normalized;
 		setDirty(true);
 	}
 	protected final void updateInactivePercentComplete(double percentComplete) {

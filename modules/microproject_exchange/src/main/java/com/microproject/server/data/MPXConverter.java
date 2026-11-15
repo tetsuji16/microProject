@@ -705,6 +705,8 @@ private static int autoId = 0;
 			mpxTask.setActualFinish(toMpxDate(sourceTask.getActualFinish()));
 		mpxTask.setActualDuration(toMPXDuration(sourceTask.getActualDuration(), defaults));
 		mpxTask.setActive(!sourceTask.isInactiveTask());
+		if (sourceTask.isIgnoreWarnings())
+			mpxTask.set(org.mpxj.TaskField.IGNORE_WARNINGS, Boolean.TRUE);
 		mpxTask.setTaskMode(sourceTask.isManuallyScheduled() ? TaskMode.MANUALLY_SCHEDULED : TaskMode.AUTO_SCHEDULED);
 		if (sourceTask.isManuallyScheduled())
 			mpxTask.setManualDuration(toTaskDuration(sourceTask, defaults));
