@@ -59,6 +59,7 @@ import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.scheduling.ConstraintType;
@@ -887,6 +888,33 @@ class NormalTaskDurationTest {
 					+ " successorStart=" + successor.getStart() + " early=" + successor.getEarlyStart() + "/" + successor.getEarlyFinish()
 					+ " dependencyDate=" + dependency.getDate(true) + " convertedStart="
 					+ dependency.calcForwardDependencyDate(predecessor.getStart(), predecessor.getEnd(), true));
+	}
+
+	@Test
+	void draggingTheFirstBarOfAnAssignedTaskMovesItOnceByTheDraggedAmount() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		task.setDuration(2L * day());
+		Assignment assignment = assignResource(project, task);
+		project.recalculate();
+		WorkCalendar cal = task.getEffectiveWorkCalendar();
+		long oldStart = assignment.getStart();
+		long oldEnd = assignment.getEnd();
+		long oldDelay = assignment.getDelay();
+		long oldDuration = task.getDuration();
+		long shift = 2L * day();
+		long movedStart = cal.add(oldStart, shift, false);
+
+		// The Gantt drag (GanttInteractor.applyIntervalDrag) pins the drop point with SNET first.
+		task.setScheduleConstraint(ConstraintType.Kind.SNET, movedStart);
+		task.moveInterval(this, movedStart, cal.add(oldEnd, shift, false), new ScheduleInterval(oldStart, oldEnd), false);
+		project.recalculate();
+
+		assertEquals(0L, cal.compare(task.getStart(), movedStart, false), "the task must move by the dragged amount only");
+		assertEquals(0L, cal.compare(assignment.getStart(), movedStart, false), "the bar must land where it was dropped");
+		assertEquals(oldDelay, assignment.getDelay(), "the move must not be added to the assignment delay as well");
+		assertEquals(Duration.millis(oldDuration), Duration.millis(task.getDuration()));
+		assertTaskMatchesAssignment(task, assignment);
 	}
 
 	@Test
