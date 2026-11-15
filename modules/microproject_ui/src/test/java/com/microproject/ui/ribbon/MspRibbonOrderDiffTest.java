@@ -83,15 +83,26 @@ class MspRibbonOrderDiffTest {
 	private static final String LIST_ITEMS = "list items; Microsoft's children are Clear/New/More; " + PHASE_1B;
 
 	/** Our core tab -> Microsoft tab. */
-	private static final Map<String, String> TABS = Map.of(
-		"TaskRibbonTask", "TabTask",
-		"ResourceRibbonTask", "TabResource",
-		"ReportRibbonTask", "TabReportOverview",
-		"ProjectRibbonTask", "TabProject",
-		"ViewRibbonTask", "TabView",
-		"HelpRibbonTask", "HelpTab",
+	private static final String ASSIGNMENT_PROPERTIES =
+		"assignments have no Assignment Information dialog and no notes of their own; Task and Resource Information are reached from the Task and Resource tabs";
+	private static final String TEXT_STYLES_SHEET =
+		"the Text Styles dialog only chooses which field labels the Gantt bars (task name or resource names); it has no per-item-type cell font to apply to sheet or usage rows";
+	private static final String WRAP_TEXT =
+		"cells render on one line; the sheet has no multi-line cell/row-height engine (only header wrapping exists, under Field Settings)";
+
+	private static final Map<String, String> TABS = Map.ofEntries(
+		Map.entry("TaskRibbonTask", "TabTask"),
+		Map.entry("ResourceRibbonTask", "TabResource"),
+		Map.entry("ReportRibbonTask", "TabReportOverview"),
+		Map.entry("ProjectRibbonTask", "TabProject"),
+		Map.entry("ViewRibbonTask", "TabView"),
+		Map.entry("HelpRibbonTask", "HelpTab"),
 		// contextual tabs: add one entry here (plus its bands below) to compare another one
-		"FormatRibbonTask", "TabGanttChartFormat");
+		Map.entry("FormatRibbonTask", "TabGanttChartFormat"),
+		Map.entry("TaskSheetFormatRibbonTask", "TabTaskSheetViewFormat"),
+		Map.entry("TaskUsageFormatRibbonTask", "TabTaskUsageViewFormat"),
+		Map.entry("ResourceSheetFormatRibbonTask", "TabResourceSheetViewFormat"),
+		Map.entry("ResourceUsageFormatRibbonTask", "TabResourceUsageViewFormat"));
 
 	/** Our band ("tab/band") -> the Microsoft group of the same tab it implements. */
 	private static final Map<String, String> BAND_GROUPS = Map.ofEntries(
@@ -121,10 +132,22 @@ class MspRibbonOrderDiffTest {
 		Map.entry("ViewRibbonTask/ViewWindowRibbonBand", "GroupWindow"),
 		Map.entry("HelpRibbonTask/HelpRibbonBand", "GroupHelpAndSupport"),
 		Map.entry("FormatRibbonTask/GanttFormatRibbonBand", "GroupGanttChartFormat"),
-		Map.entry("FormatRibbonTask/GanttColumnsRibbonBand", "GroupColumns"),
+		Map.entry("FormatRibbonTask/SheetColumnsRibbonBand", "GroupColumns"),
 		Map.entry("FormatRibbonTask/GanttBarStylesRibbonBand", "GroupGanttChartBarStyles"),
 		Map.entry("FormatRibbonTask/GanttStylesRibbonBand", "GroupGanttChartSyles"),
-		Map.entry("FormatRibbonTask/GanttShowHideRibbonBand", "GroupGanttChartShowHide"));
+		Map.entry("FormatRibbonTask/SheetShowHideRibbonBand", "GroupGanttChartShowHide"),
+		Map.entry("TaskSheetFormatRibbonTask/SheetFormatRibbonBand", "GroupSheetFormat"),
+		Map.entry("TaskSheetFormatRibbonTask/SheetColumnsRibbonBand", "GroupColumns"),
+		Map.entry("TaskSheetFormatRibbonTask/SheetShowHideRibbonBand", "GroupGanttChartShowHide"),
+		Map.entry("TaskUsageFormatRibbonTask/SheetFormatRibbonBand", "GroupUsageViewFormat"),
+		Map.entry("TaskUsageFormatRibbonTask/SheetColumnsRibbonBand", "GroupColumns"),
+		Map.entry("TaskUsageFormatRibbonTask/TaskUsageDetailsRibbonBand", "GroupTaskUsageViewDetails"),
+		Map.entry("TaskUsageFormatRibbonTask/SheetShowHideRibbonBand", "GroupTaskUsageShowHide"),
+		Map.entry("ResourceSheetFormatRibbonTask/SheetFormatRibbonBand", "GroupSheetFormat"),
+		Map.entry("ResourceSheetFormatRibbonTask/SheetColumnsRibbonBand", "GroupColumns"),
+		Map.entry("ResourceUsageFormatRibbonTask/SheetFormatRibbonBand", "GroupUsageViewFormat"),
+		Map.entry("ResourceUsageFormatRibbonTask/SheetColumnsRibbonBand", "GroupColumns"),
+		Map.entry("ResourceUsageFormatRibbonTask/ResourceUsageDetailsRibbonBand", "GroupResourceUsageViewDetails"));
 
 	/**
 	 * Bands with no group of their own on that Microsoft tab. They stay, are placed after every
@@ -155,6 +178,8 @@ class MspRibbonOrderDiffTest {
 		Map.entry("TabProject/GroupProofing", "Spelling; " + PHASE_1B),
 		Map.entry("TabGanttChartFormat/GroupDrawings",
 			"no drawing layer: the Gantt has no drawing objects (lines, arrows, shapes, text boxes) to create, edit, order or persist"),
+		Map.entry("TabTaskUsageViewFormat/GroupAssignmentProperties", ASSIGNMENT_PROPERTIES),
+		Map.entry("TabResourceUsageViewFormat/GroupAssignmentProperties", ASSIGNMENT_PROPERTIES),
 		Map.entry("TabView/GroupMacros",
 			"scope exclusion: " + "VBA/macros excluded by the #797 scope decision (EXCLUDED in msp-ribbon-spec.csv)"));
 
@@ -179,6 +204,18 @@ class MspRibbonOrderDiffTest {
 		Map.entry("TabGanttChartFormat/WrapText",
 			"cells render on one line; the sheet has no multi-line cell/row-height engine (only header wrapping exists, under Field Settings)"),
 		Map.entry("TabGanttChartFormat/ProjectSummaryTaskShow",
+			"the task model has no project summary task (task 0) row to show; the project is not a task"),
+		Map.entry("TabTaskSheetViewFormat/TextStyles", TEXT_STYLES_SHEET),
+		Map.entry("TabTaskSheetViewFormat/WrapText", WRAP_TEXT),
+		Map.entry("TabTaskSheetViewFormat/ProjectSummaryTaskShow",
+			"the task model has no project summary task (task 0) row to show; the project is not a task"),
+		Map.entry("TabTaskUsageViewFormat/TextStyles", TEXT_STYLES_SHEET),
+		Map.entry("TabResourceSheetViewFormat/TextStyles", TEXT_STYLES_SHEET),
+		Map.entry("TabResourceUsageViewFormat/TextStyles", TEXT_STYLES_SHEET),
+		Map.entry("TabTaskUsageViewFormat/WrapText", WRAP_TEXT),
+		Map.entry("TabResourceSheetViewFormat/WrapText", WRAP_TEXT),
+		Map.entry("TabResourceUsageViewFormat/WrapText", WRAP_TEXT),
+		Map.entry("TabTaskUsageViewFormat/ProjectSummaryTaskShow",
 			"the task model has no project summary task (task 0) row to show; the project is not a task"),
 		Map.entry("TabView/TaskBoardViewGallery", AGILE),
 		Map.entry("TabView/TaskViewsOtherGallery", "no further task views exist beyond those in the Task Views gallery"),
@@ -233,6 +270,7 @@ class MspRibbonOrderDiffTest {
 		Map.entry("RibbonCalendarOptions", after("ChangeWorkingTime", "calendar settings next to Change Working Time")),
 		Map.entry("RibbonProjectsDialog", after("ChangeWorkingTime", "project list dialog of Properties")),
 		Map.entry("RibbonTrackingGantt", after("CalendarViewGallery", "Gantt variant; no Microsoft gallery entry point")),
+		Map.entry("RibbonTaskSheet", after("CalendarViewGallery", "Task Sheet view; Microsoft lists it under Other Views")),
 		Map.entry("RibbonWBS", after("CalendarViewGallery", "WBS view; no Microsoft gallery entry point")),
 		Map.entry("RibbonCCPMNetwork", after("CalendarViewGallery", "CCPM view, a supported extension")),
 		Map.entry("RibbonRBS", after("ResourceSheetViewGallery", "RBS view; no Microsoft gallery entry point")),

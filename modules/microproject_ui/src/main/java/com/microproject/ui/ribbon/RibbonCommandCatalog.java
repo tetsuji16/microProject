@@ -62,6 +62,10 @@ final class RibbonCommandCatalog {
 	private static final String VIEW = "ViewRibbonTask";
 	private static final String HELP = "HelpRibbonTask";
 	private static final String FORMAT = "FormatRibbonTask";
+	private static final String TASK_SHEET_FORMAT = "TaskSheetFormatRibbonTask";
+	private static final String TASK_USAGE_FORMAT = "TaskUsageFormatRibbonTask";
+	private static final String RESOURCE_SHEET_FORMAT = "ResourceSheetFormatRibbonTask";
+	private static final String RESOURCE_USAGE_FORMAT = "ResourceUsageFormatRibbonTask";
 	private static final String QUICK_ACCESS = "QuickAccessToolbar";
 	private static final Map<String, Placement> PLACEMENTS = placements();
 
@@ -174,7 +178,7 @@ final class RibbonCommandCatalog {
 			"RibbonCalendarOptions", "RibbonStatusDate", "RibbonUpdateProject", "RibbonMoveProject", "RibbonRecalculate", "RibbonRefreshSubprojects", "RibbonOpenSubproject", "RibbonRemoveSubproject", "RibbonSaveBaseline", "RibbonClearBaseline",
 			"RibbonCCPMSettings", "RibbonCCPMClear");
 	register(result, CommandScope.VIEW, VIEW,
-			"RibbonGantt", "RibbonTrackingGantt", "RibbonNetwork", "RibbonWBS", "RibbonResources", "RibbonRBS",
+			"RibbonGantt", "RibbonTrackingGantt", "RibbonTaskSheet", "RibbonNetwork", "RibbonWBS", "RibbonResources", "RibbonRBS",
 			"RibbonTimeline", "RibbonCalendarView", "RibbonProjects", "RibbonTaskUsageDetail", "RibbonResourceUsageDetail", "RibbonDetails", "RibbonNoTextNoSubWindow",
 			"RibbonArrangeAll", "RibbonChooseFilter", "RibbonChooseSort", "RibbonChooseGroup", "RibbonZoomIn", "RibbonZoomOut", "RibbonZoomEntireProject", "RibbonZoomSelectedTasks", "RibbonCCPMNetwork", "RibbonPrivacyMask",
 			"RibbonTeamPlanner", "RibbonTimescaleGallery", "RibbonSwitchWindows");
@@ -201,6 +205,27 @@ final class RibbonCommandCatalog {
 			result.put(id, new Placement(placement.scope(), primary,
 				Set.of(FORMAT, "NetworkFormatRibbonTask", "CalendarFormatRibbonTask")));
 		}
+		// Table-view Format tabs reuse the Gantt Columns and Show/Hide commands; each acts on the active spreadsheet view.
+		for (String id : List.of("RibbonInsertColumn", "RibbonAlignLeft", "RibbonAlignCenter", "RibbonAlignRight",
+			"RibbonColumnSettings", "RibbonHideColumn", "RibbonFieldSettings", "RibbonCustomFields")) {
+			Placement placement = result.get(id);
+			Set<String> tabs = new java.util.HashSet<>(placement.permittedTabs());
+			tabs.addAll(Set.of(TASK_SHEET_FORMAT, TASK_USAGE_FORMAT, RESOURCE_SHEET_FORMAT, RESOURCE_USAGE_FORMAT));
+			result.put(id, new Placement(placement.scope(), placement.primaryTab(), Set.copyOf(tabs)));
+		}
+		for (String id : List.of("RibbonOutlineNumbers", "RibbonSummaryTasks")) {
+			Placement placement = result.get(id);
+			result.put(id, new Placement(placement.scope(), placement.primaryTab(), Set.of(FORMAT, TASK_SHEET_FORMAT, TASK_USAGE_FORMAT)));
+		}
+		register(result, CommandScope.FORMAT, TASK_USAGE_FORMAT, Set.of(TASK_SHEET_FORMAT, TASK_USAGE_FORMAT, RESOURCE_SHEET_FORMAT, RESOURCE_USAGE_FORMAT),
+			"RibbonSheetGridlines");
+		// Usage Details rows are shared by the two usage Format tabs.
+		register(result, CommandScope.FORMAT, TASK_USAGE_FORMAT, Set.of(TASK_USAGE_FORMAT, RESOURCE_USAGE_FORMAT),
+			"RibbonUsageDetailWork", "RibbonUsageDetailActualWork", "RibbonUsageDetailBaselineWork", "RibbonUsageDetailCost",
+			"RibbonUsageDetailActualCost", "RibbonUsageDetailsAdd", "RibbonUsageDetailCumulativeWork");
+		// Overallocation and Remaining Availability only exist for resources.
+		register(result, CommandScope.FORMAT, RESOURCE_USAGE_FORMAT, Set.of(RESOURCE_USAGE_FORMAT),
+			"RibbonUsageDetailOverallocation", "RibbonUsageDetailRemainingAvailability");
 		register(result, CommandScope.DOCUMENT, TASK, Set.of(TASK, RESOURCE), "RibbonPaste", "RibbonCopy", "RibbonCut");
 		register(result, CommandScope.DOCUMENT, QUICK_ACCESS,
 			"RibbonTopBarSaveProject", "RibbonTopBarUndo", "RibbonTopBarRedo");

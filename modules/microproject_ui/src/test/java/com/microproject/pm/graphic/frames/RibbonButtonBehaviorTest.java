@@ -1548,6 +1548,7 @@ class RibbonButtonBehaviorTest {
 
 		assertView(harness, "RibbonGantt", MenuActionConstants.ACTION_GANTT);
 		assertView(harness, "RibbonTrackingGantt", MenuActionConstants.ACTION_TRACKING_GANTT);
+		assertView(harness, "RibbonTaskSheet", MenuActionConstants.ACTION_TASK_SHEET);
 		assertView(harness, "RibbonNetwork", MenuActionConstants.ACTION_NETWORK);
 		assertView(harness, "RibbonWBS", MenuActionConstants.ACTION_WBS);
 		assertView(harness, "RibbonResources", MenuActionConstants.ACTION_RESOURCES);
@@ -1946,6 +1947,11 @@ class RibbonButtonBehaviorTest {
 			"RibbonInsertColumn", "RibbonAlignLeft", "RibbonAlignCenter", "RibbonAlignRight", "RibbonColumnSettings",
 			"RibbonFormatBarStyles", "RibbonCriticalTasks", "RibbonSlack", "RibbonLateTasks", "RibbonTaskPath",
 			"RibbonShowBaseline", "RibbonSlippage", "RibbonGanttStyleGallery", "RibbonOutlineNumbers", "RibbonSummaryTasks");
+		// Usage Format tabs: each needs an active usage view; behaviour is covered by UsageDetailRibbonGuiAcceptanceTest (guiTest: detail toggle, last-row guard, Add Details) and UsageDetailValuesTest (computed rows).
+		add(map, Strategy.STRUCTURAL_ONLY,
+			"RibbonUsageDetailWork", "RibbonUsageDetailActualWork", "RibbonUsageDetailBaselineWork", "RibbonUsageDetailCost",
+			"RibbonUsageDetailActualCost", "RibbonUsageDetailsAdd", "RibbonSheetGridlines",
+			"RibbonUsageDetailCumulativeWork", "RibbonUsageDetailOverallocation", "RibbonUsageDetailRemainingAvailability");
 		add(map, Strategy.STRUCTURAL_ONLY,
 			"RibbonDelegateTasks",
 			"RibbonTeamFilter",
@@ -1979,6 +1985,7 @@ class RibbonButtonBehaviorTest {
 			"RibbonCalendarView",
 			"RibbonGantt",
 			"RibbonTrackingGantt",
+			"RibbonTaskSheet",
 			"RibbonNetwork",
 			"RibbonWBS",
 			"RibbonResources",

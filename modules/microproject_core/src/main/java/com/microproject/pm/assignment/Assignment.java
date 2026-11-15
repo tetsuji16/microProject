@@ -126,7 +126,7 @@ import com.microproject.util.Environment;
  * Class representing resource assignments
  * @stereotype thing
  */
-public final class Assignment implements Schedule, Association, Allocation, Delayable, HasTimeDistributedData, TimeDistributedFields, EarnedValueValues, EarnedValueFields, AssignmentSpecificFields, HasKey, BelongsToDocument, HasRequestDemandType,UpdatesFromTimesheet, CanSupplyRateUnit, HasCostRateIndex, Cloneable, DataObject  {
+public final class Assignment implements Schedule, Association, Allocation, Delayable, HasTimeDistributedData, TimeDistributedFields, UsageDetailFields, EarnedValueValues, EarnedValueFields, AssignmentSpecificFields, HasKey, BelongsToDocument, HasRequestDemandType,UpdatesFromTimesheet, CanSupplyRateUnit, HasCostRateIndex, Cloneable, DataObject  {
 	static final long serialVersionUID = 56779404923241L;
 	AssignmentDetail detail = null;
 	private transient Map<Integer, BaselineValues> importedBaselineValues;
@@ -1488,6 +1488,11 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	public long getWork(FieldContext fieldContext) {
 		return timeFacade.getWork(fieldContext);
 	}
+
+	@Override
+	public long getCumulativeWork(FieldContext fieldContext) {
+		return timeFacade.getCumulativeWork(fieldContext);
+	}
 	public double getActualCost(FieldContext fieldContext) {
 		return actualCost(FieldContext.start(fieldContext),FieldContext.end(fieldContext));
 	}
@@ -2505,6 +2510,11 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 				w = Duration.setAsNonTemporal(w);
 			}
 			return w;
+		}
+
+		long getCumulativeWork(FieldContext fieldContext) {
+			long w = UsageDetailValues.cumulativeWork(Assignment.this, FieldContext.end(fieldContext));
+			return isLabor() ? w : Duration.setAsNonTemporal(w);
 		}
 
 		long getRemainingWork(FieldContext fieldContext) {

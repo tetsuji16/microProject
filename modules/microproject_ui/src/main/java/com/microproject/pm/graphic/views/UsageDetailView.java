@@ -27,6 +27,7 @@ import java.awt.Dimension;
 import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.Collection;
+import java.util.List;
 
 import javax.swing.JScrollPane;
 
@@ -37,6 +38,7 @@ import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.model.cache.ReferenceNodeModelCache;
+import com.microproject.pm.graphic.model.cache.ViewNodeModelCache;
 import com.microproject.pm.graphic.model.transform.NodeCacheTransformer;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
@@ -236,6 +238,61 @@ public class UsageDetailView extends SplittedView implements BaseView, FieldArra
 		return spreadSheet;
 	}
 
+	/** Whether the distribution field of this id is shown as a detail row of the usage grid. */
+	public boolean isDetailFieldVisible(String fieldId) {
+		if (!isTimeSpreadSheetReady())
+			return false;
+		for (Object selected : timeSpreadSheet.getSelectedFieldArray())
+			if (selected instanceof Field field && fieldId.equals(field.getId()))
+				return true;
+		return false;
+	}
+
+	/** Shows or hides one detail row; the usage grid always keeps at least one. Returns false when the field is not a usage detail. */
+	public boolean toggleDetailField(String fieldId) {
+		if (!isTimeSpreadSheetReady())
+			return false;
+		for (Field field : getDistributionFields())
+			if (fieldId.equals(field.getId())) {
+				timeSpreadSheet.selectFieldArray(field);
+				return true;
+			}
+		return false;
+	}
+
+	/** Distribution fields that are not shown as detail rows yet (the Add Details choices). */
+	public List<Field> getAvailableDetailFields() {
+		List<Field> available = new ArrayList<>();
+		if (!isTimeSpreadSheetReady())
+			return available;
+		for (Field field : getDistributionFields())
+			if (!isDetailFieldVisible(field.getId()))
+				available.add(field);
+		return available;
+	}
+
+	public void addDetailFields(Collection<? extends Field> fields) {
+		if (!isTimeSpreadSheetReady() || fields == null)
+			return;
+		for (Field field : fields)
+			if (!isDetailFieldVisible(field.getId()))
+				timeSpreadSheet.selectFieldArray(field);
+	}
+
+	public boolean supportsSummaryTasksToggle() {
+		return taskUsage;
+	}
+
+	public boolean isSummaryTasksVisible() {
+		return !(cache instanceof ViewNodeModelCache viewCache) || !viewCache.getViewTransformer().isHideSummaryTasks();
+	}
+
+	/** Hides or shows the summary task rows through the view transform (rows only; tasks are untouched). */
+	public void setSummaryTasksVisible(boolean visible) {
+		if (cache instanceof ViewNodeModelCache viewCache)
+			viewCache.getViewTransformer().setHideSummaryTasks(!visible);
+	}
+
 	public TimeSpreadSheet getTimeSpreadSheet() {
 		return timeSpreadSheet;
 	}
@@ -378,6 +435,8 @@ public class UsageDetailView extends SplittedView implements BaseView, FieldArra
 		if (timeScrollPane != null && ws.scrollPane != null) {
 			timeScrollPane.restoreWorkspace(ws.scrollPane, context);
 		}
+		if (supportsSummaryTasksToggle())
+			setSummaryTasksVisible(ws.summaryTasksVisible == null || ws.summaryTasksVisible.booleanValue());
 		restoreDividerLocation(ws.dividerLocation);
 	}
 	public WorkspaceSetting createWorkspace(int context) {
@@ -393,6 +452,8 @@ public class UsageDetailView extends SplittedView implements BaseView, FieldArra
 			ws.scrollPane = timeScrollPane.createWorkspace(context);
 		}
 		ws.dividerLocation = getDividerLocation();
+		if (supportsSummaryTasksToggle())
+			ws.summaryTasksVisible = Boolean.valueOf(isSummaryTasksVisible());
 		return ws;
 	}
 
@@ -403,6 +464,14 @@ public class UsageDetailView extends SplittedView implements BaseView, FieldArra
 		Collection selectedFieldArray;
 		WorkspaceSetting scrollPane;
 		int dividerLocation;
+		// Hide Summary Tasks switch of Task Usage; null in workspaces saved before it existed (summary tasks stay visible).
+		Boolean summaryTasksVisible;
+		public Boolean getSummaryTasksVisible() {
+			return summaryTasksVisible;
+		}
+		public void setSummaryTasksVisible(Boolean summaryTasksVisible) {
+			this.summaryTasksVisible = summaryTasksVisible;
+		}
 		public WorkspaceSetting getSpreadSheet() {
 			return spreadSheet;
 		}

@@ -107,6 +107,8 @@ public class NameCellComponent extends JPanel {
 		iconLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		iconLabel.setBorder(BorderFactory.createEmptyBorder(0, 1, 0, 1));
 		add(iconLabel);
+		// the name fills the width left after the indent and icon, so the column alignment visibly moves it
+		textComponent.setMaximumSize(new java.awt.Dimension(Short.MAX_VALUE, Short.MAX_VALUE));
 		add(textComponent);
 	}
 

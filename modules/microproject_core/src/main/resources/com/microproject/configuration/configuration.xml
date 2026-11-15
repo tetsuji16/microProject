@@ -162,6 +162,14 @@
 				boundsField="com.microproject.configuration.Settings.NUM_HIERARCHIES"
 				readOnly="true" />
 		</class>
+		<class name="com.microproject.pm.assignment.UsageDetailFields">
+			<field property="cumulativeWork" id="Field.cumulativeWork" readOnly="true"
+				vector="true" duration="true" work="true" sum="Sum" />
+			<field property="overallocation" id="Field.overallocation" readOnly="true"
+				vector="true" duration="true" work="true" sum="Sum" />
+			<field property="remainingAvailability" id="Field.remainingAvailability" readOnly="true"
+				vector="true" duration="true" work="true" sum="Sum" />
+		</class>
 		<class name="com.microproject.pm.costing.BasicEarnedValueFields">
 			<field property="acwp" id="Field.acwp" readOnly="true" help="Earned_Value"
 				vector="true" money="true" sum="Sum" >

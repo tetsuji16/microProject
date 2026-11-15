@@ -1381,6 +1381,21 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 
 	private boolean outlineNumbersVisible;
 
+	/** Whether the sheet draws its row and column gridlines (sheet Format, Gridlines). */
+	public boolean isGridVisible() {
+		return getShowHorizontalLines() || getShowVerticalLines();
+	}
+
+	public void setGridVisible(boolean visible) {
+		setShowHorizontalLines(visible);
+		setShowVerticalLines(visible);
+		if (getRowHeader() != null) {
+			getRowHeader().setShowHorizontalLines(visible);
+			getRowHeader().repaint();
+		}
+		repaint();
+	}
+
 	/** Whether the Name column shows the outline number in front of task names (Gantt Chart Format, Show/Hide). */
 	public boolean isOutlineNumbersVisible() {
 		return outlineNumbersVisible;

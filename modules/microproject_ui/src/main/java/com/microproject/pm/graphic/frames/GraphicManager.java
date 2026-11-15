@@ -1970,24 +1970,25 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_BAR, barStylesAction);
 		actionsMap.addHandler(ACTION_TIMESCALE, new TimescaleAction());
 		actionsMap.addHandler(ACTION_GRIDLINES, new GridlinesAction());
+		actionsMap.addHandler(ACTION_SHEET_GRIDLINES, new SheetGridlinesAction());
 		actionsMap.addHandler(ACTION_TEXT_STYLES, new TextStylesAction());
 		actionsMap.addHandler(ACTION_BAR_STYLES, barStylesAction);
 		actionsMap.addHandler(ACTION_LAYOUT, new LayoutAction());
 		// Gantt Chart Format contextual tab
-		actionsMap.addHandler(ACTION_GFMT_INSERT_COLUMN, ganttFormatAction(ACTION_GFMT_INSERT_COLUMN, view -> view.getSpreadSheet().insertColumnFromRibbon()));
-		actionsMap.addHandler(ACTION_GFMT_HIDE_COLUMN, ganttFormatAction(ACTION_GFMT_HIDE_COLUMN, view -> view.getSpreadSheet().hideColumnFromRibbon()));
-		actionsMap.addHandler(ACTION_GFMT_FIELD_SETTINGS, ganttFormatAction(ACTION_GFMT_FIELD_SETTINGS, view -> view.getSpreadSheet().showFieldSettingsFromRibbon()));
-		actionsMap.addHandler(ACTION_GFMT_ALIGN_LEFT, ganttFormatAction(ACTION_GFMT_ALIGN_LEFT, view -> view.getSpreadSheet().setColumnAlignment(view.getSpreadSheet().getRibbonFieldIndex(), SpreadSheetFieldArray.ALIGN_LEFT)));
-		actionsMap.addHandler(ACTION_GFMT_ALIGN_CENTER, ganttFormatAction(ACTION_GFMT_ALIGN_CENTER, view -> view.getSpreadSheet().setColumnAlignment(view.getSpreadSheet().getRibbonFieldIndex(), SpreadSheetFieldArray.ALIGN_CENTER)));
-		actionsMap.addHandler(ACTION_GFMT_ALIGN_RIGHT, ganttFormatAction(ACTION_GFMT_ALIGN_RIGHT, view -> view.getSpreadSheet().setColumnAlignment(view.getSpreadSheet().getRibbonFieldIndex(), SpreadSheetFieldArray.ALIGN_RIGHT)));
+		actionsMap.addHandler(ACTION_GFMT_INSERT_COLUMN, sheetFormatAction(ACTION_GFMT_INSERT_COLUMN, view -> view.getSpreadSheet().insertColumnFromRibbon()));
+		actionsMap.addHandler(ACTION_GFMT_HIDE_COLUMN, sheetFormatAction(ACTION_GFMT_HIDE_COLUMN, view -> view.getSpreadSheet().hideColumnFromRibbon()));
+		actionsMap.addHandler(ACTION_GFMT_FIELD_SETTINGS, sheetFormatAction(ACTION_GFMT_FIELD_SETTINGS, view -> view.getSpreadSheet().showFieldSettingsFromRibbon()));
+		actionsMap.addHandler(ACTION_GFMT_ALIGN_LEFT, sheetFormatAction(ACTION_GFMT_ALIGN_LEFT, view -> view.getSpreadSheet().setColumnAlignment(view.getSpreadSheet().getRibbonFieldIndex(), SpreadSheetFieldArray.ALIGN_LEFT)));
+		actionsMap.addHandler(ACTION_GFMT_ALIGN_CENTER, sheetFormatAction(ACTION_GFMT_ALIGN_CENTER, view -> view.getSpreadSheet().setColumnAlignment(view.getSpreadSheet().getRibbonFieldIndex(), SpreadSheetFieldArray.ALIGN_CENTER)));
+		actionsMap.addHandler(ACTION_GFMT_ALIGN_RIGHT, sheetFormatAction(ACTION_GFMT_ALIGN_RIGHT, view -> view.getSpreadSheet().setColumnAlignment(view.getSpreadSheet().getRibbonFieldIndex(), SpreadSheetFieldArray.ALIGN_RIGHT)));
 		actionsMap.addHandler(ACTION_GFMT_FORMAT_BAR, ganttFormatAction(ACTION_GFMT_FORMAT_BAR, GanttView::showFormatBarDialog));
 		actionsMap.addHandler(ACTION_GFMT_CRITICAL_TASKS, ganttFormatAction(ACTION_GFMT_CRITICAL_TASKS, view -> view.setCriticalTasksVisible(!view.isCriticalTasksVisible())));
 		actionsMap.addHandler(ACTION_GFMT_SLACK, ganttFormatAction(ACTION_GFMT_SLACK, view -> view.setSlackVisible(!view.isSlackVisible())));
 		actionsMap.addHandler(ACTION_GFMT_LATE_TASKS, ganttFormatAction(ACTION_GFMT_LATE_TASKS, view -> view.setLateTasksVisible(!view.isLateTasksVisible())));
 		actionsMap.addHandler(ACTION_GFMT_BASELINE, ganttFormatAction(ACTION_GFMT_BASELINE, view -> view.setBaselineVisible(!view.isBaselineVisible())));
 		actionsMap.addHandler(ACTION_GFMT_SLIPPAGE, ganttFormatAction(ACTION_GFMT_SLIPPAGE, view -> view.setSlippageVisible(!view.isSlippageVisible())));
-		actionsMap.addHandler(ACTION_GFMT_OUTLINE_NUMBERS, ganttFormatAction(ACTION_GFMT_OUTLINE_NUMBERS, view -> view.setOutlineNumbersVisible(!view.isOutlineNumbersVisible())));
-		actionsMap.addHandler(ACTION_GFMT_SUMMARY_TASKS, ganttFormatAction(ACTION_GFMT_SUMMARY_TASKS, view -> view.setSummaryTasksVisible(!view.isSummaryTasksVisible())));
+		actionsMap.addHandler(ACTION_GFMT_OUTLINE_NUMBERS, sheetFormatAction(ACTION_GFMT_OUTLINE_NUMBERS, view -> view.setOutlineNumbersVisible(!view.isOutlineNumbersVisible())));
+		actionsMap.addHandler(ACTION_GFMT_SUMMARY_TASKS, sheetFormatAction(ACTION_GFMT_SUMMARY_TASKS, view -> view.setSummaryTasksVisible(!view.isSummaryTasksVisible())));
 		actionsMap.addHandler(ACTION_GFMT_PATH_PREDECESSORS, ganttFormatAction(ACTION_GFMT_PATH_PREDECESSORS, view -> view.setTaskPathKind(TaskPathAnalyzer.Kind.PREDECESSORS)));
 		actionsMap.addHandler(ACTION_GFMT_PATH_DRIVING_PREDECESSORS, ganttFormatAction(ACTION_GFMT_PATH_DRIVING_PREDECESSORS, view -> view.setTaskPathKind(TaskPathAnalyzer.Kind.DRIVING_PREDECESSORS)));
 		actionsMap.addHandler(ACTION_GFMT_PATH_SUCCESSORS, ganttFormatAction(ACTION_GFMT_PATH_SUCCESSORS, view -> view.setTaskPathKind(TaskPathAnalyzer.Kind.SUCCESSORS)));
@@ -1999,6 +2000,16 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_GFMT_STYLE_ORANGE, ganttFormatAction(ACTION_GFMT_STYLE_ORANGE, view -> view.setBarColorScheme(GanttBarColorScheme.ORANGE)));
 		actionsMap.addHandler(ACTION_GFMT_STYLE_PURPLE, ganttFormatAction(ACTION_GFMT_STYLE_PURPLE, view -> view.setBarColorScheme(GanttBarColorScheme.PURPLE)));
 		actionsMap.addHandler(ACTION_GFMT_STYLE_GRAY, ganttFormatAction(ACTION_GFMT_STYLE_GRAY, view -> view.setBarColorScheme(GanttBarColorScheme.GRAY)));
+		// Usage Format tabs: detail rows of the usage grid
+		actionsMap.addHandler(ACTION_USAGE_DETAIL_WORK, usageDetailAction(ACTION_USAGE_DETAIL_WORK, "Field.work"));
+		actionsMap.addHandler(ACTION_USAGE_DETAIL_ACTUAL_WORK, usageDetailAction(ACTION_USAGE_DETAIL_ACTUAL_WORK, "Field.actualWork"));
+		actionsMap.addHandler(ACTION_USAGE_DETAIL_BASELINE_WORK, usageDetailAction(ACTION_USAGE_DETAIL_BASELINE_WORK, "Field.baselineWork"));
+		actionsMap.addHandler(ACTION_USAGE_DETAIL_CUMULATIVE_WORK, usageDetailAction(ACTION_USAGE_DETAIL_CUMULATIVE_WORK, "Field.cumulativeWork"));
+		actionsMap.addHandler(ACTION_USAGE_DETAIL_OVERALLOCATION, usageDetailAction(ACTION_USAGE_DETAIL_OVERALLOCATION, "Field.overallocation"));
+		actionsMap.addHandler(ACTION_USAGE_DETAIL_REMAINING_AVAILABILITY, usageDetailAction(ACTION_USAGE_DETAIL_REMAINING_AVAILABILITY, "Field.remainingAvailability"));
+		actionsMap.addHandler(ACTION_USAGE_DETAIL_COST, usageDetailAction(ACTION_USAGE_DETAIL_COST, "Field.cost"));
+		actionsMap.addHandler(ACTION_USAGE_DETAIL_ACTUAL_COST, usageDetailAction(ACTION_USAGE_DETAIL_ACTUAL_COST, "Field.actualCost"));
+		actionsMap.addHandler(ACTION_USAGE_DETAILS_ADD, new UsageDetailsAddAction());
 		actionsMap.addHandler(ACTION_INSERT_RECURRING, new RecurringTaskAction());
 		// Legacy menu ids remain aliases of the canonical transform commands.  A
 		// single action instance keeps menu, ribbon and toolbar behavior identical.
@@ -2067,6 +2078,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 		actionsMap.addHandler(ACTION_GANTT, new ViewAction(ACTION_GANTT));
 		actionsMap.addHandler(ACTION_TRACKING_GANTT, new ViewAction(ACTION_TRACKING_GANTT));
+		actionsMap.addHandler(ACTION_TASK_SHEET, new ViewAction(ACTION_TASK_SHEET));
 		actionsMap.addHandler(ACTION_TASK_USAGE_DETAIL, new ViewAction(ACTION_TASK_USAGE_DETAIL));
 		actionsMap.addHandler(ACTION_RESOURCE_USAGE_DETAIL, new ViewAction(ACTION_RESOURCE_USAGE_DETAIL));
 		actionsMap.addHandler(ACTION_NETWORK, new ViewAction(ACTION_NETWORK));
@@ -2731,10 +2743,18 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			return new ContextualRibbonDescriptor(topViewId, "FormatRibbonTask", "GanttChartFormat.contextualTitle", true);
 		if (ACTION_TRACKING_GANTT.equals(topViewId))
 			return new ContextualRibbonDescriptor(topViewId, "FormatRibbonTask", "TrackingGanttFormat.contextualTitle", true);
+		if (ACTION_TASK_SHEET.equals(topViewId))
+			return new ContextualRibbonDescriptor(topViewId, "TaskSheetFormatRibbonTask", "TaskSheetFormat.contextualTitle", true);
 		if (ACTION_NETWORK.equals(topViewId))
 			return new ContextualRibbonDescriptor(topViewId, "NetworkFormatRibbonTask", "NetworkFormat.contextualTitle", true);
 		if (ACTION_CALENDAR_VIEW.equals(topViewId))
 			return new ContextualRibbonDescriptor(topViewId, "CalendarFormatRibbonTask", "CalendarFormat.contextualTitle", true);
+		if (ACTION_TASK_USAGE_DETAIL.equals(topViewId))
+			return new ContextualRibbonDescriptor(topViewId, "TaskUsageFormatRibbonTask", "TaskUsageFormat.contextualTitle", true);
+		if (ACTION_RESOURCES.equals(topViewId))
+			return new ContextualRibbonDescriptor(topViewId, "ResourceSheetFormatRibbonTask", "ResourceSheetFormat.contextualTitle", true);
+		if (ACTION_RESOURCE_USAGE_DETAIL.equals(topViewId))
+			return new ContextualRibbonDescriptor(topViewId, "ResourceUsageFormatRibbonTask", "ResourceUsageFormat.contextualTitle", true);
 		return new ContextualRibbonDescriptor(topViewId == null ? "" : topViewId, "", "", false);
 	}
 
@@ -2897,6 +2917,31 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				com.microproject.dialog.GridlinesDialogBox.show(getFrame(), getActiveGanttView());
 		}
 	}
+	/** Gridlines of a table view: the sheet has no chart lines, so the dialog only chooses whether the sheet grid shows. */
+	/** A Gantt view keeps its own gridline state (saved in the workspace), so it is set through the view. */
+	static void applySheetGridVisibility(BaseView sheetView, boolean visible) {
+		if (sheetView instanceof GanttView ganttView)
+			ganttView.setSpreadsheetGridVisible(visible);
+		else
+			sheetView.getSpreadSheet().setGridVisible(visible);
+	}
+	public class SheetGridlinesAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (!beforeChooserRoute(ACTION_SHEET_GRIDLINES)) return;
+			BaseView sheetView = getActiveSheetView();
+			if (sheetView == null || GraphicsEnvironment.isHeadless()) return;
+			javax.swing.JCheckBox visible = new javax.swing.JCheckBox(
+				getMenuManager().getString("RibbonSheetGridlines.text"), sheetView.getSpreadSheet().isGridVisible());
+			int choice = PopupDialogSupport.showConfirmDialog(getFrame(), visible,
+				getMenuManager().getString("RibbonSheetGridlines.text"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+			if (choice == JOptionPane.OK_OPTION) {
+				applySheetGridVisibility(sheetView, visible.isSelected());
+				syncGanttViewRibbonState();
+			}
+		}
+	}
 	public class TextStylesAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
@@ -2919,6 +2964,56 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				syncGanttViewRibbonState();
 			}
 		};
+	}
+
+	/** Adapter of one sheet Format command (Columns, Show/Hide): acts on the active spreadsheet-based view. */
+	private MenuActionsMap.DocumentMenuAction sheetFormatAction(String actionId, java.util.function.Consumer<BaseView> body) {
+		return new MenuActionsMap.DocumentMenuAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) {
+				setMeAsLastGraphicManager();
+				if (!beforeToggleRoute(actionId)) return;
+				BaseView view = getActiveSheetView();
+				if (view == null) return;
+				body.accept(view);
+				syncGanttViewRibbonState();
+			}
+		};
+	}
+
+	/** Adapter of one usage Details toggle: shows or hides one detail row of the active usage view. */
+	private MenuActionsMap.DocumentMenuAction usageDetailAction(String actionId, String fieldId) {
+		return new MenuActionsMap.DocumentMenuAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) {
+				setMeAsLastGraphicManager();
+				if (!beforeToggleRoute(actionId)) return;
+				UsageDetailView view = getActiveUsageView();
+				if (view == null) return;
+				view.toggleDetailField(fieldId);
+				syncGanttViewRibbonState();
+			}
+		};
+	}
+
+	/** Add Details: picks further detail rows (those not shown yet) for the active usage view. */
+	public class UsageDetailsAddAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!beforeChooserRoute(ACTION_USAGE_DETAILS_ADD)) return;
+			UsageDetailView view = getActiveUsageView();
+			if (view == null || GraphicsEnvironment.isHeadless()) return;
+			List<Field> available = view.getAvailableDetailFields();
+			if (available.isEmpty()) return;
+			javax.swing.JList<Field> list = new javax.swing.JList<>(available.toArray(new Field[0]));
+			int choice = PopupDialogSupport.showConfirmDialog(getFrame(), new javax.swing.JScrollPane(list),
+					getMenuManager().getString("RibbonUsageDetailsAdd.text"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+			if (choice == JOptionPane.OK_OPTION) {
+				view.addDetailFields(list.getSelectedValuesList());
+				syncGanttViewRibbonState();
+			}
+		}
 	}
 
 	public class BarStylesAction extends MenuActionsMap.DocumentMenuAction {
@@ -4588,6 +4683,24 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 	}
 
+	/** The active top view when the shared sheet Format commands apply to it (a spreadsheet-based view), else null. */
+	BaseView getActiveSheetView() {
+		DocumentFrame frame = getCurrentFrame();
+		if (frame == null || frame.getProject() == null)
+			return null;
+		String topViewId = frame.getTopViewId();
+		if (!(ACTION_GANTT.equals(topViewId) || ACTION_TRACKING_GANTT.equals(topViewId) || ACTION_TASK_SHEET.equals(topViewId)
+				|| ACTION_TASK_USAGE_DETAIL.equals(topViewId) || ACTION_RESOURCE_USAGE_DETAIL.equals(topViewId)
+				|| ACTION_RESOURCES.equals(topViewId)))
+			return null;
+		BaseView view = frame.getActiveTopView();
+		return view != null && view.getSpreadSheet() != null ? view : null;
+	}
+
+	private UsageDetailView getActiveUsageView() {
+		return getActiveSheetView() instanceof UsageDetailView view ? view : null;
+	}
+
 	private GanttView getActiveGanttView() {
 		if (!isActiveGanttView() || getCurrentFrame() == null)
 			return null;
@@ -5230,23 +5343,38 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		return ACTION_GANTT.equals(topViewId) || ACTION_TRACKING_GANTT.equals(topViewId);
 	}
 
+	/** Usage Details toggles: action id and the distribution field each one shows as a detail row. */
+	private static final String[][] USAGE_DETAIL_ACTIONS = {
+		{ ACTION_USAGE_DETAIL_WORK, "Field.work" },
+		{ ACTION_USAGE_DETAIL_ACTUAL_WORK, "Field.actualWork" },
+		{ ACTION_USAGE_DETAIL_BASELINE_WORK, "Field.baselineWork" },
+		{ ACTION_USAGE_DETAIL_CUMULATIVE_WORK, "Field.cumulativeWork" },
+		{ ACTION_USAGE_DETAIL_OVERALLOCATION, "Field.overallocation" },
+		{ ACTION_USAGE_DETAIL_REMAINING_AVAILABILITY, "Field.remainingAvailability" },
+		{ ACTION_USAGE_DETAIL_COST, "Field.cost" },
+		{ ACTION_USAGE_DETAIL_ACTUAL_COST, "Field.actualCost" }
+	};
+
 	private void syncGanttViewRibbonState() {
 		boolean ganttActive = isActiveGanttView();
+		BaseView sheetView = getActiveSheetView();
+		boolean sheetActive = sheetView != null;
 		getMenuManager().setActionEnabled(ACTION_TOGGLE_PROGRESS_LINE, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_LABEL_RESOURCE_NAMES, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_LABEL_TASK_NAME, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_BAR, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_TIMESCALE, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_GRIDLINES, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_SHEET_GRIDLINES, sheetActive);
 		getMenuManager().setActionEnabled(ACTION_TEXT_STYLES, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_BAR_STYLES, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_LAYOUT, ganttActive);
-		getMenuManager().setActionEnabled(ACTION_GFMT_INSERT_COLUMN, ganttActive);
-		getMenuManager().setActionEnabled(ACTION_GFMT_HIDE_COLUMN, ganttActive);
-		getMenuManager().setActionEnabled(ACTION_GFMT_FIELD_SETTINGS, ganttActive);
-		getMenuManager().setActionEnabled(ACTION_GFMT_ALIGN_LEFT, ganttActive);
-		getMenuManager().setActionEnabled(ACTION_GFMT_ALIGN_CENTER, ganttActive);
-		getMenuManager().setActionEnabled(ACTION_GFMT_ALIGN_RIGHT, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_INSERT_COLUMN, sheetActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_HIDE_COLUMN, sheetActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_FIELD_SETTINGS, sheetActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_ALIGN_LEFT, sheetActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_ALIGN_CENTER, sheetActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_ALIGN_RIGHT, sheetActive);
 		getMenuManager().setActionEnabled(ACTION_GFMT_FORMAT_BAR, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_GFMT_CRITICAL_TASKS, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_GFMT_SLACK, ganttActive);
@@ -5264,8 +5392,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_GFMT_STYLE_ORANGE, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_GFMT_STYLE_PURPLE, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_GFMT_STYLE_GRAY, ganttActive);
-		getMenuManager().setActionEnabled(ACTION_GFMT_OUTLINE_NUMBERS, ganttActive);
-		getMenuManager().setActionEnabled(ACTION_GFMT_SUMMARY_TASKS, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_OUTLINE_NUMBERS, sheetActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_SUMMARY_TASKS, sheetActive && sheetView.supportsSummaryTasksToggle());
 
 		boolean progressSelected = false;
 		boolean resourceLabelSelected = false;
@@ -5284,8 +5412,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionSelected(ACTION_GFMT_LATE_TASKS, ganttActive && getCurrentFrame().getGanttView().isLateTasksVisible());
 		getMenuManager().setActionSelected(ACTION_GFMT_BASELINE, ganttActive && getCurrentFrame().getGanttView().isBaselineVisible());
 		getMenuManager().setActionSelected(ACTION_GFMT_SLIPPAGE, ganttActive && getCurrentFrame().getGanttView().isSlippageVisible());
-		getMenuManager().setActionSelected(ACTION_GFMT_OUTLINE_NUMBERS, ganttActive && getCurrentFrame().getGanttView().isOutlineNumbersVisible());
-		getMenuManager().setActionSelected(ACTION_GFMT_SUMMARY_TASKS, ganttActive && getCurrentFrame().getGanttView().isSummaryTasksVisible());
+		getMenuManager().setActionSelected(ACTION_GFMT_OUTLINE_NUMBERS, sheetActive && sheetView.isOutlineNumbersVisible());
+		getMenuManager().setActionSelected(ACTION_GFMT_SUMMARY_TASKS, sheetActive && sheetView.isSummaryTasksVisible());
+		UsageDetailView usageView = sheetView instanceof UsageDetailView view ? view : null;
+		for (String[] detail : USAGE_DETAIL_ACTIONS) {
+			getMenuManager().setActionEnabled(detail[0], usageView != null);
+			getMenuManager().setActionSelected(detail[0], usageView != null && usageView.isDetailFieldVisible(detail[1]));
+		}
+		getMenuManager().setActionEnabled(ACTION_USAGE_DETAILS_ADD, usageView != null);
 		getMenuManager().setActionSelected(ACTION_GFMT_STYLE_DEFAULT, ganttActive && getCurrentFrame().getGanttView().getBarColorScheme() == GanttBarColorScheme.DEFAULT);
 		getMenuManager().setActionSelected(ACTION_GFMT_STYLE_BLUE, ganttActive && getCurrentFrame().getGanttView().getBarColorScheme() == GanttBarColorScheme.BLUE);
 		getMenuManager().setActionSelected(ACTION_GFMT_STYLE_GREEN, ganttActive && getCurrentFrame().getGanttView().getBarColorScheme() == GanttBarColorScheme.GREEN);
@@ -5763,6 +5897,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			colorThemes = new HashMap();
 			colorThemes.put(ACTION_GANTT,"Bloody Moon"); //$NON-NLS-1$
 			colorThemes.put(ACTION_TRACKING_GANTT,"Mahogany"); //$NON-NLS-1$
+			colorThemes.put(ACTION_TASK_SHEET,"Bloody Moon"); //$NON-NLS-1$
 			colorThemes.put(ACTION_NETWORK,"Emerald Grass"); //$NON-NLS-1$
 			colorThemes.put(ACTION_RESOURCES,"Blue Yonder"); //$NON-NLS-1$
 			colorThemes.put(ACTION_PROJECTS,"Emerald Grass"); //$NON-NLS-1$

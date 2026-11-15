@@ -96,6 +96,7 @@ import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.HasTimeDistributedData;
 import com.microproject.pm.assignment.TimeDistributedDataConsolidator;
 import com.microproject.pm.assignment.TimeDistributedFields;
+import com.microproject.pm.assignment.UsageDetailFields;
 import com.microproject.pm.assignment.TimeDistributedFieldVisibility;
 import com.microproject.pm.assignment.timesheet.TimesheetHelper;
 import com.microproject.pm.assignment.timesheet.TimesheetStatus;
@@ -156,7 +157,7 @@ import com.microproject.util.UiDispatch;
 /**
  * Project class
  */
-public class Project implements Document, BelongsToDocument, HasKey, HasPriority, MutableHasStartAndEnd, ProjectSpecificFields, HasNotes, HasBaseCalendar, HasCalendar, NodeModelDataFactory, HierarchyListener, HasTimeDistributedData, TimeDistributedFields, EarnedValueValues, EarnedValueFields, DataObject, HasSentinels, BaselineScheduleFields, Schedule,UpdatesFromTimesheet, HasExtraFields, HasExpenseType, SavableToWorkspace {
+public class Project implements Document, BelongsToDocument, HasKey, HasPriority, MutableHasStartAndEnd, ProjectSpecificFields, HasNotes, HasBaseCalendar, HasCalendar, NodeModelDataFactory, HierarchyListener, HasTimeDistributedData, TimeDistributedFields, UsageDetailFields, EarnedValueValues, EarnedValueFields, DataObject, HasSentinels, BaselineScheduleFields, Schedule,UpdatesFromTimesheet, HasExtraFields, HasExpenseType, SavableToWorkspace {
 	private record LeafScheduleTransition(NormalTask task, RollupSpan span, double percentComplete) { }
 	static final long serialVersionUID = 17283790404932L;
 	private static final Logger logger = Logger.getLogger(Project.class.getName());
