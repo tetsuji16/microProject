@@ -40,6 +40,8 @@ public final class TimelineViewSettings implements ViewSettingsState {
 
 	public static final int MIN_TEXT_LINES = 1;
 	public static final int MAX_TEXT_LINES = 4;
+	/** The most timeline bars a view can hold; creation and restore use the same limit. */
+	public static final int MAX_BARS = 20;
 
 	private long rangeStart;
 	private long rangeEnd;
@@ -113,7 +115,7 @@ public final class TimelineViewSettings implements ViewSettingsState {
 
 	/** Appends an empty timeline bar and returns its index. */
 	public int addBar() {
-		barCount++;
+		if (barCount < MAX_BARS) barCount++;
 		return barCount - 1;
 	}
 
@@ -178,7 +180,7 @@ public final class TimelineViewSettings implements ViewSettingsState {
 		expanded = Codec.bool(p, "expanded", false);
 		barLabels = Codec.bool(p, "barLabels", true);
 		setTextLines(Codec.integer(p, "textLines", MIN_TEXT_LINES));
-		barCount = Math.max(1, Math.min(20, Codec.integer(p, "barCount", 1)));
+		barCount = Math.max(1, Math.min(MAX_BARS, Codec.integer(p, "barCount", 1)));
 		textStyles.clear();
 		for (TextItem item : TextItem.values()) {
 			String value = p.getProperty("text." + item.name());

@@ -354,7 +354,19 @@ public final class TimelineDialogBox extends FlatLafDialog {
 			return lanes;
 		}
 
-		private int lanePitch() { return settings.laneHeight() + 22 + (settings.isShowTaskDates() ? 12 : 0); }
+		private int lanePitch() { return settings.laneHeight() + 22 + (settings.isShowTaskDates() ? 12 : 0) + calloutExtra(); }
+
+		/** Height the callout text boxes hang below a bar, so a callout never overlaps the next lane. */
+		private int calloutExtra() {
+			int extra = 0;
+			Font labelFont = styled(TimelineViewSettings.TextItem.LABEL);
+			for (Task task : displayedTasks()) {
+				if (!settings.isCallout(task.getUniqueId())) continue;
+				int lineHeight = getFontMetrics(taskFont(labelFont, task)).getHeight();
+				extra = Math.max(extra, 10 + settings.getTextLines() * lineHeight + 6);
+			}
+			return extra;
+		}
 
 		private int barSectionHeight(List<Task> barTasks) {
 			return AXIS_OFFSET + Math.max(1, lanesOf(barTasks).size()) * lanePitch() + BAR_TAIL;
@@ -527,7 +539,8 @@ public final class TimelineDialogBox extends FlatLafDialog {
 		}
 
 		private Font taskFont(Font base, Task task) {
-			int style = (task.isFontBold() ? Font.BOLD : Font.PLAIN) | (task.isFontItalic() ? Font.ITALIC : Font.PLAIN);
+			// Keep the bold/italic of the Text Styles base font when the task has no flags of its own.
+			int style = base.getStyle() | (task.isFontBold() ? Font.BOLD : Font.PLAIN) | (task.isFontItalic() ? Font.ITALIC : Font.PLAIN);
 			String family = task.getFontFamily();
 			float size = task.getFontSize() > 0 ? task.getFontSize() : base.getSize2D();
 			Font font = family == null || family.isBlank() ? base : new Font(family, style, Math.round(size));

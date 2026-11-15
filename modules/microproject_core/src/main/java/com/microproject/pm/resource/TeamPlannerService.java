@@ -137,10 +137,11 @@ public final class TeamPlannerService {
 	/**
 	 * Reschedules like {@link #reschedule}, then moves the task later one day at a time until none
 	 * of its assignments is overallocated. When no free slot exists within {@code MAX_SHIFT_DAYS}
-	 * the original start is restored and an {@link IllegalArgumentException} is thrown.
+	 * the original constraint and start are restored and an {@link IllegalArgumentException} is thrown.
 	 */
 	public void reschedulePreventingOverallocation(Task task, long newStart, Object eventSource) {
-		long original = task.getStart();
+		int originalConstraint = task.getConstraintType();
+		long originalConstraintDate = task.getConstraintDate();
 		long candidate = newStart;
 		for (int day = 0; day <= MAX_SHIFT_DAYS; day++) {
 			reschedule(task, candidate, eventSource);
@@ -148,7 +149,11 @@ public final class TeamPlannerService {
 				return;
 			candidate += ONE_DAY;
 		}
-		reschedule(task, original, eventSource);
+		// Restore the original constraint (an ASAP task must not stay SNET), then the original start.
+		ScheduleService.getInstance().setConstraint(eventSource, task, originalConstraint, originalConstraintDate,
+			task.getOwningProject().getUndoController().getEditSupport());
+		task.setDirty(true);
+		task.getOwningProject().recalculate();
 		throw new IllegalArgumentException("No slot without overallocation was found for the task");
 	}
 
@@ -199,18 +204,32 @@ public final class TeamPlannerService {
 		if (resource == null || !resource.isLabor() || candidate.getTask().isInactiveTask()) {
 			return false;
 		}
-		double units = 0D;
-		long probe = candidate.getStart();
+		// Capacity changes only where an assignment starts, so probing the candidate start and every
+		// other start inside the candidate interval covers the whole interval.
+		long from = candidate.getStart();
+		long to = candidate.getEnd();
+		List<Long> probes = new ArrayList<>();
+		probes.add(from);
 		for (Object value : resource.getAssignments()) {
 			Assignment assignment = (Assignment) value;
-			if (assignment.getTask().isInactiveTask()) {
-				continue;
-			}
-			if (assignment.getStart() <= probe && assignment.getEnd() > probe) {
-				units += Math.max(0D, assignment.getUnits());
-			}
+			if (!assignment.getTask().isInactiveTask() && assignment.getStart() > from && assignment.getStart() < to)
+				probes.add(assignment.getStart());
 		}
-		return units > resource.getMaximumUnits() + 0.000001D;
+		for (long probe : probes) {
+			double units = 0D;
+			for (Object value : resource.getAssignments()) {
+				Assignment assignment = (Assignment) value;
+				if (assignment.getTask().isInactiveTask()) {
+					continue;
+				}
+				if (assignment.getStart() <= probe && assignment.getEnd() > probe) {
+					units += Math.max(0D, assignment.getUnits());
+				}
+			}
+			if (units > resource.getMaximumUnits() + 0.000001D)
+				return true;
+		}
+		return false;
 	}
 
 	public static String displayName(Resource resource) {

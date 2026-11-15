@@ -482,18 +482,28 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 		private void commitDrag(Point release) {
 			int dayDelta = Math.round((release.x - dragOrigin.x) / (float) pixelsPerDay);
 			int row = targetRow(release.y);
+			Resource sourceResource = dragged.resource();
+			com.microproject.pm.assignment.Assignment moved = null;
 			try {
 				if (row >= 0) {
 					Resource target = rows.get(row);
-					if (target != dragged.resource()) {
-						service.reassign(dragged.assignment(), target, this);
+					if (target != sourceResource) {
+						moved = service.reassign(dragged.assignment(), target, this);
 					}
 				}
-				if (dayDelta != 0) {
-					long work = dayDelta * CalendarOption.getInstance().getMillisPerDay();
-					long newStart = dragged.task().getEffectiveWorkCalendar().add(dragged.task().getStart(), work, false);
-					if (settings.isPreventOverallocation()) service.reschedulePreventingOverallocation(dragged.task(), newStart, this);
-					else service.reschedule(dragged.task(), newStart, this);
+				try {
+					if (dayDelta != 0) {
+						long work = dayDelta * CalendarOption.getInstance().getMillisPerDay();
+						long newStart = dragged.task().getEffectiveWorkCalendar().add(dragged.task().getStart(), work, false);
+						if (settings.isPreventOverallocation()) service.reschedulePreventingOverallocation(dragged.task(), newStart, this);
+						else service.reschedule(dragged.task(), newStart, this);
+					} else if (moved != null && settings.isPreventOverallocation()) {
+						// A resource-only drag must honour Prevent Overallocation as well.
+						service.reschedulePreventingOverallocation(dragged.task(), dragged.task().getStart(), this);
+					}
+				} catch (IllegalArgumentException failure) {
+					if (moved != null) service.reassign(moved, sourceResource, this);
+					throw failure;
 				}
 			} catch (IllegalArgumentException ex) {
 				javax.swing.JOptionPane.showMessageDialog(this, ex.getMessage(), UsabilityStrings.text("team.title"),

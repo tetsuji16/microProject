@@ -89,6 +89,16 @@ class TeamPlannerServiceTest {
 		assertTrue(slots.stream().anyMatch(slot -> slot.task() == sharerTask));
 	}
 
+	@Test void overlapAfterTheAssignmentStartIsStillAConflict() {
+		Fixture fixture = fixture(); NormalTask early = task(fixture.project, "Early"); NormalTask late = task(fixture.project, "Late");
+		late.setStart(early.getStart() + 3_600_000L);
+		AssignmentService.getInstance().newAssignment(early, fixture.first, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(late, fixture.first, 1D, 0L, this);
+		assertTrue(new TeamPlannerService().slots(fixture.project).stream()
+			.filter(slot -> slot.task() == early).allMatch(TeamPlannerService.Slot::overallocated),
+			"the earlier assignment overlaps the later one after its own start");
+	}
+
 	private Fixture fixture() {
 		DataFactoryUndoController undo = new DataFactoryUndoController(); ResourcePool pool = ResourcePool.createRourcePool("team-test", undo);
 		Project project = Project.createProject(pool, undo); project.initialize(false, false); project.setFileName("C:/team-planner-fixtures/" + System.nanoTime() + ".mpo");

@@ -61,4 +61,11 @@ class TimelineViewSettingsTest {
 		assertEquals(settings.getBarCount(), restored.getBarCount());
 		assertEquals(bar, restored.barOf(8L));
 	}
+
+	@Test
+	void barCountIsCappedAtTheSameLimitForCreationAndRestore() {
+		TimelineViewSettings settings = new TimelineViewSettings();
+		for (int i = 0; i < TimelineViewSettings.MAX_BARS + 5; i++) settings.addBar();
+		assertEquals(TimelineViewSettings.MAX_BARS, settings.getBarCount());
+	}
 }

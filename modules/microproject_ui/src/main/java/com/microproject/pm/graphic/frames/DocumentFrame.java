@@ -855,6 +855,19 @@ public class DocumentFrame extends NamedFrame implements
 		return nodes.stream().map(Node::getImpl).filter(Task.class::isInstance).map(Task.class::cast).toList();
 	}
 
+	/** Targets for a command enabled on the Timeline selection: the Timeline's selected tasks, not the sheet rows. */
+	private EditableTaskTargets resolveTimelineTaskTargets(CommandId command, String lockLabel) {
+		List<Task> tasks = selectedFormattableTasks();
+		List<Long> ids = tasks.stream().map(Task::getUniqueId).toList();
+		RibbonCommandResult rejection = null;
+		if (project == null) rejection = rejectedWithSelection(command, "no-active-document", ids);
+		else if (project.isReadOnly()) rejection = rejectedWithSelection(command, "document-read-only", ids);
+		else if (tasks.isEmpty()) rejection = rejectedWithSelection(command, "selection-too-small", ids);
+		else if (!CollaborationHelper.tryLockNodes(project, tasks, this, lockLabel))
+			rejection = rejectedWithSelection(command, LOCK_DENIED_REASON, ids);
+		return new EditableTaskTargets(List.of(), tasks, ids, rejection);
+	}
+
 	private void restoreTaskRows(List<Node> nodes) {
 		SpreadSheet sheet = getActiveSpreadSheet();
 		if (sheet != null) sheet.restoreTaskRowSelection(nodes);
@@ -909,7 +922,9 @@ public class DocumentFrame extends NamedFrame implements
 
 	/** Task &gt; Move: shifts the selected tasks by working days (manual dates, or a Start No Earlier Than constraint). */
 	private RibbonCommandResult applyTaskMove(CommandId command, int workingDays) {
-		EditableTaskTargets targets = resolveEditableTaskTargets(command, "move task");
+		EditableTaskTargets targets = ACTION_TIMELINE.equals(getTopViewId())
+			? resolveTimelineTaskTargets(command, "move task")
+			: resolveEditableTaskTargets(command, "move task");
 		if (targets.rejection() != null) return targets.rejection();
 		try {
 			var result = new TaskMoveService().moveByWorkingDays(project, targets.tasks(), workingDays);
@@ -2021,7 +2036,10 @@ public class DocumentFrame extends NamedFrame implements
 			restoreWorkspaceFor(timelineView);
 			TimelineDialogBox timelineDialog = getEmbeddedTimelineDialog();
 			if (timelineDialog != null)
-				timelineDialog.setSelectionListener(() -> getGraphicManager().syncGanttViewRibbonState());
+				timelineDialog.setSelectionListener(() -> {
+					getGraphicManager().syncGanttViewRibbonState();
+					getGraphicManager().setButtonState(getSelectedImpl(), project);
+				});
 		}
 		return timelineView;
 	}
