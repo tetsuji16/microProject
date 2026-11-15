@@ -236,6 +236,14 @@ public final class SwingRibbonFactory {
 				Boolean.parseBoolean(resolveStringOrNull(buttonId + ".backstageImmediate"))))));
 		}
 		SwingRibbonModel.RibbonBand band = new SwingRibbonModel.RibbonBand(bandId, resolveString(bandId + ".title"), buttons);
+		String keepRank = resolveStringOrNull(bandId + ".keepRank");
+		if (keepRank != null && !keepRank.isBlank()) {
+			try {
+				band = band.withKeepRank(Integer.parseInt(keepRank.trim()));
+			} catch (NumberFormatException ex) {
+				throw new IllegalStateException("Invalid " + bandId + ".keepRank: " + keepRank, ex);
+			}
+		}
 		String dialogLauncher = resolveStringOrNull(bandId + ".dialogLauncher");
 		if (dialogLauncher == null || dialogLauncher.isBlank()) {
 			return band;

@@ -53,6 +53,14 @@ class RibbonStructureTest {
 	}
 
 	@Test
+	void viewDataGroupKeepsSortAsFirstLargeControlAndStaysDirectBeforeResourceViews() {
+		assertEquals("RibbonChooseSort.TOP", menuInternalBundle().getString("ViewDataRibbonBand").split("\s+")[0]);
+		assertEquals("gallery", menuInternalBundle().getString("RibbonChooseSort.control"));
+		// At the 1120 px reference window the group holding Sort must outlast the wider Resource views group.
+		assertEquals("1", menuInternalBundle().getString("ViewDataRibbonBand.keepRank"));
+	}
+
+	@Test
 	void helpCommandsLiveOnTheStandardHelpTabAndShareTheirCanonicalActions() {
 		assertEquals(List.of("HelpRibbonBand"), ribbonBandIds("HelpRibbonTask"));
 		assertTrue(!ribbonBandIds("FileRibbonTask").contains("HelpRibbonBand"));

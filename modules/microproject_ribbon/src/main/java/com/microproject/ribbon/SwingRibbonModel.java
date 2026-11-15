@@ -246,16 +246,17 @@ public final class SwingRibbonModel {
 		private final CustomBandProvider customBandProvider;
 		private final int preferredWidthHint;
 		private final String dialogLauncherId;
+		private final int keepRank;
 
 		public RibbonBand(String id, String title, List<RibbonButton> buttons) {
-			this(id, title, RibbonBandKind.BUTTONS, List.copyOf(buttons), null, -1, null);
+			this(id, title, RibbonBandKind.BUTTONS, List.copyOf(buttons), null, -1, null, 0);
 		}
 
 		public RibbonBand(String id, String title, CustomBandProvider customBandProvider) {
-			this(id, title, RibbonBandKind.CUSTOM, List.of(), Objects.requireNonNull(customBandProvider), customBandProvider.getPreferredWidthHint(), null);
+			this(id, title, RibbonBandKind.CUSTOM, List.of(), Objects.requireNonNull(customBandProvider), customBandProvider.getPreferredWidthHint(), null, 0);
 		}
 
-		private RibbonBand(String id, String title, RibbonBandKind kind, List<RibbonButton> buttons, CustomBandProvider customBandProvider, int preferredWidthHint, String dialogLauncherId) {
+		private RibbonBand(String id, String title, RibbonBandKind kind, List<RibbonButton> buttons, CustomBandProvider customBandProvider, int preferredWidthHint, String dialogLauncherId, int keepRank) {
 			this.id = Objects.requireNonNull(id);
 			this.title = Objects.requireNonNull(title);
 			this.kind = Objects.requireNonNull(kind);
@@ -263,11 +264,25 @@ public final class SwingRibbonModel {
 			this.customBandProvider = customBandProvider;
 			this.preferredWidthHint = preferredWidthHint;
 			this.dialogLauncherId = dialogLauncherId;
+			this.keepRank = keepRank;
 		}
 
 		/** Returns a copy whose group corner shows a dialog launcher for the given command id. */
 		public RibbonBand withDialogLauncher(String commandId) {
-			return new RibbonBand(id, title, kind, buttons, customBandProvider, preferredWidthHint, commandId);
+			return new RibbonBand(id, title, kind, buttons, customBandProvider, preferredWidthHint, commandId, keepRank);
+		}
+
+		/** Returns a copy that collapses into its group proxy after every group of a lower keep rank. */
+		public RibbonBand withKeepRank(int rank) {
+			return new RibbonBand(id, title, kind, buttons, customBandProvider, preferredWidthHint, dialogLauncherId, rank);
+		}
+
+		/**
+		 * Width-collapse precedence: groups collapse in ascending keep rank, and within one rank from the
+		 * right. The default 0 gives the plain right-to-left order; a higher rank keeps a group direct longer.
+		 */
+		public int getKeepRank() {
+			return keepRank;
 		}
 
 		/** The command opened by the dialog launcher of the group, or {@code null} when the group has none. */

@@ -1273,9 +1273,8 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		// every group with a proxy wasted the available ribbon width and could leave
 		// a single lonely button visible.  Preserve the left-hand groups and replace
 		// trailing groups one at a time until the row fits.
-		for (int index = tab.getBands().size() - 1;
-			index > 0 && availableBandWidth > 0 && !fitsInWidth(bandPanels, availableBandWidth, bandRow);
-			index--) {
+		for (int index : collapseOrder(tab.getBands())) {
+			if (availableBandWidth <= 0 || fitsInWidth(bandPanels, availableBandWidth, bandRow)) break;
 			presentations.set(index, RibbonDensity.COLLAPSED);
 			bandPanels = rebuildBands(bandRow, bandConstraints, tab.getBands(), presentations, bandPanels);
 		}
@@ -1332,6 +1331,14 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 
 	private boolean needsWidthAwareRebuild(String tabId) {
 		return getWidth() > 0 && !Objects.equals(tabBodyBuildWidths.get(tabId), Integer.valueOf(getWidth()));
+	}
+
+	/** Band indices (except the first) in the order they collapse: ascending keep rank, then right to left. */
+	private static List<Integer> collapseOrder(List<SwingRibbonModel.RibbonBand> bands) {
+		List<Integer> order = new ArrayList<>(bands.size());
+		for (int index = bands.size() - 1; index > 0; index--) order.add(index);
+		order.sort(java.util.Comparator.comparingInt(index -> bands.get(index).getKeepRank()));
+		return order;
 	}
 
 	private static boolean fitsInWidth(List<RibbonBandPanel> bandPanels, int availableWidth, Container container) {
