@@ -66,7 +66,8 @@ class TimelineTeamPlannerRibbonGuiAcceptanceTest {
 		RibbonDisplayPreferences.save(RibbonDisplayMode.ALWAYS_SHOW);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
-		showProject(project());
+		Project project = project();
+		showProject(project);
 		Robot robot = new GuiRobot();
 		robot.setAutoDelay(45);
 		GuiAcceptanceSupport.await(() -> onEdt(() -> window.isShowing() && manager.getCurrentFrame() != null),
@@ -108,6 +109,15 @@ class TimelineTeamPlannerRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> onEdt(() -> timeline.getSettings().getBarCount() == bars + 1), "Insert Bar did not add a timeline bar");
 		clickCommand(robot, "RibbonTimelineAddExisting");
 		confirmDialog(robot, dialog -> { });
+		// Add to Timeline is enabled from the Timeline selection, so it must act on the Timeline's
+		// selected task, not on the (empty) table selection.
+		com.microproject.pm.task.Task target = project.getTasks().getFirst();
+		boolean onTimeline = onEdt(target::isDisplayOnTimeline);
+		onEdt(() -> { timeline.selectTasks(java.util.List.of(target)); return null; });
+		onEdt(() -> { manager.getAction(com.microproject.ribbon.CommandId.TASK_ADD_TO_TIMELINE.actionId()).actionPerformed(
+			new java.awt.event.ActionEvent(this, java.awt.event.ActionEvent.ACTION_PERFORMED, "AddToTimeline")); return null; });
+		GuiAcceptanceSupport.await(() -> onEdt(() -> target.isDisplayOnTimeline() != onTimeline),
+			"Add to Timeline did not act on the Timeline-selected task");
 
 		click(robot, screenBounds(viewTab));
 		// The View > Team Planner entry is a gallery; its command route is the Team Planner action.

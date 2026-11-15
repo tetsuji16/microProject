@@ -868,6 +868,16 @@ public class DocumentFrame extends NamedFrame implements
 		return new EditableTaskTargets(List.of(), tasks, ids, rejection);
 	}
 
+	/**
+	 * Targets of the commands whose enablement follows the Timeline selection (Move, Add to Timeline):
+	 * the Timeline's selected tasks while the Timeline is the top view, otherwise the table selection.
+	 */
+	private EditableTaskTargets resolveViewTaskTargets(CommandId command, String lockLabel) {
+		return ACTION_TIMELINE.equals(getTopViewId())
+			? resolveTimelineTaskTargets(command, lockLabel)
+			: resolveEditableTaskTargets(command, lockLabel);
+	}
+
 	private void restoreTaskRows(List<Node> nodes) {
 		SpreadSheet sheet = getActiveSpreadSheet();
 		if (sheet != null) sheet.restoreTaskRowSelection(nodes);
@@ -922,9 +932,7 @@ public class DocumentFrame extends NamedFrame implements
 
 	/** Task &gt; Move: shifts the selected tasks by working days (manual dates, or a Start No Earlier Than constraint). */
 	private RibbonCommandResult applyTaskMove(CommandId command, int workingDays) {
-		EditableTaskTargets targets = ACTION_TIMELINE.equals(getTopViewId())
-			? resolveTimelineTaskTargets(command, "move task")
-			: resolveEditableTaskTargets(command, "move task");
+		EditableTaskTargets targets = resolveViewTaskTargets(command, "move task");
 		if (targets.rejection() != null) return targets.rejection();
 		try {
 			var result = new TaskMoveService().moveByWorkingDays(project, targets.tasks(), workingDays);
@@ -958,7 +966,7 @@ public class DocumentFrame extends NamedFrame implements
 
 	/** Task &gt; Properties &gt; Add to Timeline: puts the selected tasks on, or when all already are, takes them off the timeline. */
 	private RibbonCommandResult applyAddToTimeline(CommandId command) {
-		EditableTaskTargets targets = resolveEditableTaskTargets(command, "add to timeline");
+		EditableTaskTargets targets = resolveViewTaskTargets(command, "add to timeline");
 		if (targets.rejection() != null) return targets.rejection();
 		boolean value = !targets.tasks().stream().allMatch(Task::isDisplayOnTimeline);
 		List<Task> changed = targets.tasks().stream().filter(task -> task.isDisplayOnTimeline() != value).toList();
