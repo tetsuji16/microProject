@@ -1899,6 +1899,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_INFORMATION, new InformationAction());
 		actionsMap.addHandler("RibbonTaskInformation", new RibbonTaskInformationAction());
 		actionsMap.addHandler("RibbonTaskInspector", new RibbonTaskInspectorAction());
+		actionsMap.addHandler(ACTION_INSPECT_TASK, new InspectTaskAction());
+		actionsMap.addHandler(ACTION_SHOW_TASK_WARNINGS, new ShowTaskWarningsAction());
+		actionsMap.addHandler(ACTION_SHOW_TASK_SUGGESTIONS, new ShowTaskSuggestionsAction());
+		actionsMap.addHandler(ACTION_SHOW_IGNORED_PROBLEMS, new ShowIgnoredProblemsAction());
 		actionsMap.addHandler("RibbonResourceInformation", new RibbonResourceInformationAction());
 		actionsMap.addHandler(ACTION_NOTES, new NotesAction());
 		actionsMap.addHandler(ACTION_ASSIGN_RESOURCES, new AssignResourcesAction());
@@ -2297,6 +2301,60 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			DocumentFrame frame = getCurrentFrame();
 			if (frame != null) frame.toggleTaskInspector();
 		}
+	}
+	public class InspectTaskAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			DocumentFrame frame = getCurrentFrame();
+			if (frame != null) frame.inspectTask();
+		}
+	}
+	public class ShowTaskWarningsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!beforeToggleRoute(ACTION_SHOW_TASK_WARNINGS)) return;
+			GlobalPreferences prefs = getPreferences();
+			prefs.setShowTaskWarnings(!prefs.isShowTaskWarnings());
+			syncTaskDiagnosticToggles();
+		}
+	}
+	public class ShowTaskSuggestionsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!beforeToggleRoute(ACTION_SHOW_TASK_SUGGESTIONS)) return;
+			GlobalPreferences prefs = getPreferences();
+			prefs.setShowTaskSuggestions(!prefs.isShowTaskSuggestions());
+			syncTaskDiagnosticToggles();
+		}
+	}
+	public class ShowIgnoredProblemsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			DocumentFrame frame = getCurrentFrame();
+			if (frame != null) frame.showIgnoredProblems();
+		}
+	}
+
+	/** Task context menu: opens the Task Inspector on the clicked task. */
+	public void fixTaskInInspector(Task task) {
+		DocumentFrame frame = getCurrentFrame();
+		if (frame != null && task != null) frame.fixTaskInInspector(task);
+	}
+
+	/** Task context menu: undoably sets Ignore Warnings on the clicked task. */
+	public void ignoreTaskProblems(Task task) {
+		DocumentFrame frame = getCurrentFrame();
+		if (frame != null && task != null) frame.setIgnoreWarnings(List.of(task), true);
+	}
+
+	private void syncTaskDiagnosticToggles() {
+		GlobalPreferences prefs = getPreferences();
+		getMenuManager().setActionSelected(ACTION_SHOW_TASK_WARNINGS, prefs.isShowTaskWarnings());
+		getMenuManager().setActionSelected(ACTION_SHOW_TASK_SUGGESTIONS, prefs.isShowTaskSuggestions());
 	}
 
 	public void setTaskModeAutomatic(Task task) {
@@ -4680,6 +4738,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_INFORMATION,infoEnabled);
 		getMenuManager().setActionEnabled("RibbonTaskInformation", taskInfoEnabled);
 		getMenuManager().setActionEnabled("RibbonTaskInspector", taskInfoEnabled);
+		getMenuManager().setActionEnabled(ACTION_INSPECT_TASK, taskInfoEnabled);
+		getMenuManager().setActionEnabled(ACTION_SHOW_TASK_WARNINGS, isDocumentActive());
+		getMenuManager().setActionEnabled(ACTION_SHOW_TASK_SUGGESTIONS, isDocumentActive());
+		getMenuManager().setActionEnabled(ACTION_SHOW_IGNORED_PROBLEMS, isDocumentWritable());
+		syncTaskDiagnosticToggles();
 		getMenuManager().setActionEnabled("RibbonResourceInformation", resourceInfoEnabled);
 		getMenuManager().setActionEnabled(ACTION_NOTES,infoEnabled);
 		getMenuManager().setActionEnabled(ACTION_INSERT_TASK, !readOnly && (taskType || resourceType)&&(actions==null||actions.contains(ACTION_INSERT_TASK)));

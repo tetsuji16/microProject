@@ -294,7 +294,9 @@ public class DocumentFrame extends NamedFrame implements
 		setLayout(new BorderLayout()); // main view fills the center, status bar below
 		taskInspectorPanel = new TaskInspectorPanel(this::navigateInspectorPredecessor,
 			task -> getGraphicManager().setTaskModeAutomatic(task),
-			task -> getGraphicManager().canSetTaskModeAutomatic(task));
+			task -> getGraphicManager().canSetTaskModeAutomatic(task),
+			(task, ignore) -> setIgnoreWarnings(List.of(task), ignore),
+			task -> project != null && !project.isReadOnly() && !task.isReadOnly());
 		taskInspectorPanel.setVisible(false);
 		taskInspectorSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, taskInspectorPanel, mainView);
 		taskInspectorSplit.setBorder(null);
@@ -2256,6 +2258,61 @@ public class DocumentFrame extends NamedFrame implements
 		showTaskInspector(!taskInspectorVisible());
 	}
 
+	/** Inspect Task: shows the inspector for the current selection. */
+	public void inspectTask() {
+		showTaskInspector(true);
+	}
+
+	/** Fix in Task Inspector: selects the task and opens the inspector on it. */
+	public void fixTaskInInspector(Task task) {
+		Node node = findTaskNode(project, task);
+		SpreadSheet sheet = getActiveSpreadSheet();
+		if (node != null && sheet != null && sheet.taskNodeToViewRow(node) >= 0)
+			sheet.restoreTaskRowSelection(List.of(node));
+		showTaskInspector(true);
+		if (taskInspectorPanel != null && task != null)
+			taskInspectorPanel.showTask(task);
+	}
+
+	/** Undoable Ignore Warnings change; false when nothing changed or the change was refused. */
+	public boolean setIgnoreWarnings(List<Task> tasks, boolean ignore) {
+		if (project == null || project.isReadOnly() || tasks == null || tasks.isEmpty()) return false;
+		try {
+			var result = new com.microproject.pm.task.TaskWarningsService().setIgnoreWarnings(project, tasks, ignore);
+			return finishWarningsChange(result.change());
+		} catch (RuntimeException refused) {
+			GraphicManager.traceUi("ignore-warnings refused " + refused);
+			return false;
+		}
+	}
+
+	/** Show Ignored Problems: clears Ignore Warnings on every task of the project. */
+	public boolean showIgnoredProblems() {
+		if (project == null || project.isReadOnly()) return false;
+		try {
+			return finishWarningsChange(new com.microproject.pm.task.TaskWarningsService().showIgnoredProblems(project).change());
+		} catch (RuntimeException refused) {
+			GraphicManager.traceUi("show-ignored-problems refused " + refused);
+			return false;
+		}
+	}
+
+	private boolean finishWarningsChange(com.microproject.pm.task.ReversibleModelChange change) {
+		if (!change.hasChanged()) return false;
+		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), change);
+		refreshTaskDiagnostics();
+		return true;
+	}
+
+	/** Repaints the sheets and refreshes the inspector after warnings, suggestions or Ignore Warnings change. */
+	void refreshTaskDiagnostics() {
+		if (taskInspectorPanel != null && taskInspectorPanel.isVisible() && lastSelectionEvent != null
+				&& lastSelectionEvent.getCurrentNode() != null
+				&& lastSelectionEvent.getCurrentNode().getImpl() instanceof Task selected)
+			taskInspectorPanel.showTask(selected);
+		repaint();
+	}
+
 	boolean taskInspectorVisible() { return taskInspectorPanel != null && taskInspectorPanel.isVisible(); }
 	TaskInspectorPanel getTaskInspectorPanel() { return taskInspectorPanel; }
 	JSplitPane getTaskInspectorSplit() { return taskInspectorSplit; }
@@ -2608,6 +2665,7 @@ public class DocumentFrame extends NamedFrame implements
 				if (filter!=null){
 					filter.setFilterTeam(getGraphicManager().getPreferences().isShowProjectResourcesOnly());
 				}
+				refreshTaskDiagnostics();
 				if (ganttView != null)
 					ganttView.setSpreadsheetGridVisible(getGraphicManager().getPreferences().isShowRowLines());
 				if (ganttView != null)

@@ -92,6 +92,54 @@ class TaskInspectorPanelTest {
 		return text.toString();
 	}
 
+	@Test
+	void indicatorCheckBoxReflectsAndAppliesIgnoreWarnings() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("inspector-ignore", undo), undo);
+		project.initialize(false, false);
+		NormalTask task = new NormalTask(project);
+		task.setName("Checked task");
+		project.connectTask(task);
+		java.util.List<Object> applied = new java.util.ArrayList<>();
+
+		SwingUtilities.invokeAndWait(() -> {
+			TaskInspectorPanel panel = new TaskInspectorPanel(t -> { }, t -> { }, t -> false,
+				(t, ignore) -> { applied.add(t); applied.add(ignore); }, t -> true);
+			panel.showTask(task);
+			javax.swing.JCheckBox box = findCheckBox(panel);
+			assertEquals(Messages.getString("TaskInspector.ShowIndicators"), box.getText());
+			assertTrue(box.isSelected());
+			assertTrue(box.isEnabled());
+			box.doClick();
+			assertEquals(java.util.List.of(task, Boolean.TRUE), applied);
+			task.setIgnoreWarnings(true);
+			panel.showTask(task);
+			assertTrue(!findCheckBox(panel).isSelected());
+			TaskInspectorPanel readOnly = new TaskInspectorPanel(t -> { }, t -> { }, t -> false);
+			readOnly.showTask(task);
+			assertTrue(!findCheckBox(readOnly).isEnabled());
+		});
+	}
+
+	@Test
+	void indicatorCheckBoxLabelHasEnglishAndJapaneseValues() {
+		assertEquals("Show warning and suggestion indicators for this task",
+			ResourceBundle.getBundle("com.microproject.strings.client", Locale.ROOT).getString("TaskInspector.ShowIndicators"));
+		assertEquals("このタスクの警告と提案のインジケーターを表示する",
+			ResourceBundle.getBundle("com.microproject.strings.client", Locale.JAPANESE).getString("TaskInspector.ShowIndicators"));
+	}
+
+	private static javax.swing.JCheckBox findCheckBox(Container root) {
+		for (Component child : root.getComponents()) {
+			if (child instanceof javax.swing.JCheckBox box) return box;
+			if (child instanceof Container container) {
+				javax.swing.JCheckBox nested = findCheckBox(container);
+				if (nested != null) return nested;
+			}
+		}
+		return null;
+	}
+
 	private static JButton findButton(Container container, String text) {
 		for (Component component : container.getComponents()) {
 			if (component instanceof JButton button && text.equals(button.getText())) return button;

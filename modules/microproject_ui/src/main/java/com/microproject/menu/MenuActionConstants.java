@@ -103,6 +103,10 @@ public interface MenuActionConstants {
 	public static final String ACTION_TASK_MODE_MANUAL       = "TaskModeManual";
 	public static final String ACTION_TASK_MODE_AUTOMATIC    = "TaskModeAutomatic";
 	public static final String ACTION_INACTIVATE_TASK        = "InactivateTask";
+	public static final String ACTION_INSPECT_TASK           = "InspectTask";
+	public static final String ACTION_SHOW_TASK_WARNINGS     = "ShowTaskWarnings";
+	public static final String ACTION_SHOW_TASK_SUGGESTIONS  = "ShowTaskSuggestions";
+	public static final String ACTION_SHOW_IGNORED_PROBLEMS  = "ShowIgnoredProblems";
 	public static final String ACTION_STATUS_DATE             = "StatusDate";
 	public static final String ACTION_MARK_ON_TRACK           = "MarkOnTrack";
 	public static final String ACTION_PERCENT_COMPLETE_0 = "PercentComplete0";

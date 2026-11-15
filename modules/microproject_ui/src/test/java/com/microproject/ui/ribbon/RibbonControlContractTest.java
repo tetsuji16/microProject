@@ -129,6 +129,14 @@ class RibbonControlContractTest {
 	}
 
 	@Test
+	void taskInspectorIsASplitButtonWithInspectionToggleItems() {
+		SwingRibbonModel.RibbonButton inspector = button(model(Map.of()), "RibbonTaskInspector");
+		assertEquals(RibbonControlKind.SPLIT_BUTTON, inspector.getControlKind());
+		assertEquals(List.of("RibbonInspectTask", "RibbonShowTaskWarnings", "RibbonShowTaskSuggestions",
+			"RibbonShowIgnoredProblems"), inspector.getItemIds());
+	}
+
+	@Test
 	void clipboardInsertAndFindAreSplitButtonsWithTheirCommandsInThePopup() {
 		SwingRibbonModel model = model(Map.of());
 		Map<String, List<String>> expected = Map.of(

@@ -37,6 +37,7 @@ import com.microproject.menu.MenuManager;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.pm.graphic.IconManager;
 import com.microproject.pm.graphic.frames.GraphicManager;
+import com.microproject.pm.task.ScheduleDiagnosticsService;
 import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Task;
 import com.microproject.strings.Messages;
@@ -52,6 +53,8 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 	    private JMenuItem refreshLinkedProject;
 	    private JMenuItem locateLinkedProject;
 	    private JMenuItem removeLinkedProject;
+	    private JMenuItem fixInTaskInspector;
+	    private JMenuItem ignoreTaskProblems;
 	    /**
 	     * 
 	     */
@@ -126,6 +129,27 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 				});
 				removeLinkedProject.setVisible(false);
 				add(removeLinkedProject);
+				fixInTaskInspector = new JMenuItem(MenuManager.getMenuString("PopupFixInTaskInspector.text"));
+				fixInTaskInspector.setIcon(getPopupIcon("ribbon.taskInspector"));
+				fixInTaskInspector.setName("fixInTaskInspector");
+				fixInTaskInspector.addActionListener(event -> {
+					GraphicManager manager = GraphicManager.getInstance(spreadSheet);
+					Task task = spreadSheet.getTaskAtRow(row);
+					if (manager != null && task != null)
+						manager.fixTaskInInspector(task);
+				});
+				fixInTaskInspector.setVisible(false);
+				add(fixInTaskInspector);
+				ignoreTaskProblems = new JMenuItem(MenuManager.getMenuString("PopupIgnoreTaskProblems.text"));
+				ignoreTaskProblems.setName("ignoreTaskProblems");
+				ignoreTaskProblems.addActionListener(event -> {
+					GraphicManager manager = GraphicManager.getInstance(spreadSheet);
+					Task task = spreadSheet.getTaskAtRow(row);
+					if (manager != null && task != null)
+						manager.ignoreTaskProblems(task);
+				});
+				ignoreTaskProblems.setVisible(false);
+				add(ignoreTaskProblems);
 				if (actions != null && actions.length > 0) {
 					addSeparator();
 				}
@@ -285,6 +309,14 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 	     */
 	    public void setRow(int row) {
 	        this.row = row;
+	        if (fixInTaskInspector != null && ignoreTaskProblems != null) {
+	        	Task clicked = spreadSheet.getTaskAtRow(row);
+	        	boolean problem = clicked != null && (ScheduleDiagnosticsService.showsWarning(clicked)
+	        		|| ScheduleDiagnosticsService.showsSuggestion(clicked));
+	        	fixInTaskInspector.setVisible(problem);
+	        	ignoreTaskProblems.setVisible(problem);
+	        	ignoreTaskProblems.setEnabled(problem && !clicked.isReadOnly());
+	        }
 	        if (openLinkedProject != null) {
 	        Task task = spreadSheet.getTaskAtRow(row);
 	        openLinkedProject.setVisible(task instanceof SubProj);
