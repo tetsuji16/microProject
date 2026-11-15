@@ -238,3 +238,11 @@ Format,Schedule,Prevent Overallocations,RibbonTeamPlannerPreventOverallocation,R
 Format,Show/Hide,Expand Resource Rows,RibbonTeamPlannerExpandRows,REQUIRED,S38
 Format,Show/Hide,Unassigned Tasks,RibbonTeamPlannerUnassigned,REQUIRED,S38
 Format,Show/Hide,Unscheduled Tasks,RibbonTeamPlannerUnscheduled,REQUIRED,S38
+Format,Format,Text Styles,RibbonResourceGraphTextStyles,REQUIRED,S38
+Format,Format,Gridlines,RibbonResourceGraphGridlines,REQUIRED,S38
+Format,Format,Bar Styles,RibbonResourceGraphBarStyles,REQUIRED,S38
+Format,Navigate,Previous Resource,RibbonResourceGraphPrevious,REQUIRED,S38
+Format,Navigate,Next Resource,RibbonResourceGraphNext,REQUIRED,S38
+Format,Data,Graph,RibbonResourceGraphData,REQUIRED,S38
+Format,Data,Proposed Bookings,RibbonResourceGraphProposedBookings,EXCLUDED,proposed bookings belong to Project Server/Project Online enterprise resource management; outside the standalone desktop goal
+Format,Show/Hide,Values,RibbonResourceGraphValues,EXTENSION,one-click toggle of the ShowValues setting that Microsoft keeps in the Resource Graph Bar Styles dialog

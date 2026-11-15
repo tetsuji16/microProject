@@ -66,6 +66,7 @@ final class RibbonCommandCatalog {
 	private static final String CALENDAR_FORMAT = "CalendarFormatRibbonTask";
 	private static final String TIMELINE_FORMAT = "TimelineFormatRibbonTask";
 	private static final String TEAM_PLANNER_FORMAT = "TeamPlannerFormatRibbonTask";
+	private static final String RESOURCE_GRAPH_FORMAT = "ResourceGraphFormatRibbonTask";
 	private static final String TASK_SHEET_FORMAT = "TaskSheetFormatRibbonTask";
 	private static final String TASK_USAGE_FORMAT = "TaskUsageFormatRibbonTask";
 	private static final String RESOURCE_SHEET_FORMAT = "ResourceSheetFormatRibbonTask";
@@ -225,6 +226,10 @@ final class RibbonCommandCatalog {
 			tabs.add(TIMELINE_FORMAT);
 			result.put(id, new Placement(placement.scope(), placement.primaryTab(), Set.copyOf(tabs)));
 		}
+		register(result, CommandScope.FORMAT, RESOURCE_GRAPH_FORMAT, Set.of(RESOURCE_GRAPH_FORMAT),
+			"RibbonResourceGraphTextStyles", "RibbonResourceGraphGridlines", "RibbonResourceGraphBarStyles", "RibbonResourceGraphPrevious", "RibbonResourceGraphNext", "RibbonResourceGraphData", "RibbonResourceGraphValues",
+			"RibbonResourceGraphPeakUnits", "RibbonResourceGraphWork", "RibbonResourceGraphCumulativeWork", "RibbonResourceGraphOverallocation", "RibbonResourceGraphPercentAllocation",
+			"RibbonResourceGraphRemainingAvailability", "RibbonResourceGraphCost", "RibbonResourceGraphCumulativeCost", "RibbonResourceGraphWorkAvailability", "RibbonResourceGraphUnitAvailability");
 		register(result, CommandScope.FORMAT, TEAM_PLANNER_FORMAT, Set.of(TEAM_PLANNER_FORMAT), "RibbonTeamPlannerOutline",
 			"RibbonTeamPlannerGridlines", "RibbonTeamPlannerTextStyles", "RibbonTeamPlannerTextLines", "RibbonTeamPlannerSelectedStyle",
 			"RibbonTeamPlannerAutoStyle", "RibbonTeamPlannerManualStyle", "RibbonTeamPlannerActualStyle", "RibbonTeamPlannerExternalStyle",

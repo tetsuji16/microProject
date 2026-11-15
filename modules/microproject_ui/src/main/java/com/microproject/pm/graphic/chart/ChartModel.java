@@ -63,6 +63,7 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 	private ChartView chartModel;
 	XYSeriesCollection seriesCollection;
 	XYSeriesCollection secondSeriesCollection = null;
+	private ResourceGraphData resourceGraph;
 	CoordinatesConverter coord;
 
 	public ChartModel(CoordinatesConverter coord) {
@@ -221,6 +222,44 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 		secondSeriesCollection = new XYSeriesCollection();
 		secondSeriesCollection.addSeries(availabilitySeries);
 		secondSeriesCollection.addSeries(overallocatedSeries);
+	}
+
+	/**
+	 * Computes the Resource Graph for the graph type of the settings: the per-interval work, cost and
+	 * availability of the filtered resources and of the selected tasks, turned into series by
+	 * {@link ResourceGraphData}.
+	 */
+	public void computeResourceGraph(Project project, List<?> tasks, List<Resource> resources, ResourceGraphSettings settings,
+			boolean selectedOnTop) {
+		GroupedCalculatedValues availability = (GroupedCalculatedValues) computeAvailability(resources);
+		int n = availability.size();
+		long[] dates = new long[n];
+		double[] availabilityValues = new double[n];
+		for (int i = 0; i < n; i++) {
+			Long date = availability.getDate(i);
+			dates[i] = date == null ? 0L : date.longValue();
+			availabilityValues[i] = availability.getUnscaledValue(i);
+		}
+		ResourceGraphSettings.GraphType type = settings.getGraphType();
+		boolean cost = type == ResourceGraphSettings.GraphType.COST || type == ResourceGraphSettings.GraphType.CUMULATIVE_COST;
+		Object trace = cost ? COST : WORK;
+		GroupedCalculatedValues total = (GroupedCalculatedValues) computeTrace(project.getTaskOutlineIterator(), resources, trace, true, false);
+		GroupedCalculatedValues selected = (GroupedCalculatedValues) computeTrace(tasks == null ? null : tasks.iterator(), resources, trace, true, false);
+		double[] totalValues = new double[n];
+		double[] selectedValues = new double[n];
+		for (int i = 0; i < n; i++) {
+			if (dates[i] == 0L && total != null && i < total.size() && total.getDate(i) != null)
+				dates[i] = total.getDate(i).longValue();
+			totalValues[i] = total == null ? 0D : total.getUnscaledValue(i);
+			selectedValues[i] = selected == null ? 0D : selected.getUnscaledValue(i);
+		}
+		resourceGraph = ResourceGraphData.compute(type, dates, cost ? null : totalValues, cost ? null : selectedValues,
+			availabilityValues, cost ? totalValues : null, cost ? selectedValues : null, getScaleFactor(WORK), selectedOnTop);
+	}
+
+	/** The series computed by the last {@link #computeResourceGraph}, or null before the first one. */
+	public ResourceGraphData getResourceGraph() {
+		return resourceGraph;
 	}
 
 	/** Resource Graph over-allocation is the work above the resource availability. */

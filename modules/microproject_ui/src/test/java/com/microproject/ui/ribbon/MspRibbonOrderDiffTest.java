@@ -110,7 +110,8 @@ class MspRibbonOrderDiffTest {
 		Map.entry("NetworkFormatRibbonTask", "TabNetworkDiagramFormat"),
 		Map.entry("CalendarFormatRibbonTask", "TabCalendarFormat"),
 		Map.entry("TimelineFormatRibbonTask", "TabTimelineViewFormat"),
-		Map.entry("TeamPlannerFormatRibbonTask", "TabTeamPlannerFormat"));
+		Map.entry("TeamPlannerFormatRibbonTask", "TabTeamPlannerFormat"),
+		Map.entry("ResourceGraphFormatRibbonTask", "TabResourceGraphFormat"));
 
 	/** Our band ("tab/band") -> the Microsoft group of the same tab it implements. */
 	private static final Map<String, String> BAND_GROUPS = Map.ofEntries(
@@ -172,7 +173,10 @@ class MspRibbonOrderDiffTest {
 		Map.entry("TeamPlannerFormatRibbonTask/TeamPlannerFormatRibbonBand", "GroupTeamPlannerFormat"),
 		Map.entry("TeamPlannerFormatRibbonTask/TeamPlannerStylesRibbonBand", "GroupStylesEdit"),
 		Map.entry("TeamPlannerFormatRibbonTask/TeamPlannerScheduleRibbonBand", "GroupTeamPlannerSchedule"),
-		Map.entry("TeamPlannerFormatRibbonTask/TeamPlannerShowHideRibbonBand", "GroupTeamPlannerShowHide"));
+		Map.entry("TeamPlannerFormatRibbonTask/TeamPlannerShowHideRibbonBand", "GroupTeamPlannerShowHide"),
+		Map.entry("ResourceGraphFormatRibbonTask/ResourceGraphFormatRibbonBand", "GroupResourceGraphFormat"),
+		Map.entry("ResourceGraphFormatRibbonTask/ResourceGraphNavigateRibbonBand", "GroupResourceGraphNavigate"),
+		Map.entry("ResourceGraphFormatRibbonTask/ResourceGraphDataRibbonBand", "GroupResourceGraphData"));
 
 	/**
 	 * Bands with no group of their own on that Microsoft tab. They stay, are placed after every
@@ -186,6 +190,8 @@ class MspRibbonOrderDiffTest {
 		"microProject usage and critical-chain buffer reports; no Microsoft report group of that shape",
 		"ProjectRibbonTask/ProjectCcpmRibbonBand",
 		"CCPM is a supported microProject extension with no Microsoft equivalent",
+		"ResourceGraphFormatRibbonTask/ResourceGraphShowHideRibbonBand",
+		"the Values toggle is a one-click form of the ShowValues setting that Microsoft keeps in the Resource Graph Bar Styles dialog; Microsoft has no Show/Hide group on that tab",
 		"FormatRibbonTask/GanttFormatExtrasRibbonBand",
 		"annotation labels and the CCPM critical chain are microProject Gantt options with no Microsoft Gantt Chart Format group");
 
@@ -221,6 +227,8 @@ class MspRibbonOrderDiffTest {
 		Map.entry("TabNetworkDiagramFormat/ProjectSummaryTaskShow", NO_PROJECT_SUMMARY),
 		Map.entry("TabCalendarFormat/ProjectSummaryTaskShow", NO_PROJECT_SUMMARY),
 		Map.entry("TabNetworkDiagramFormat/NetworkDiagramAlignMenu", NO_FREE_PLACEMENT),
+		Map.entry("TabResourceGraphFormat/GraphLabel",
+			"static caption of the Graph gallery; the Graph menu button carries its own caption"),
 		Map.entry("TabTask/TaskSplit", "requires task split model; tracked separately"),
 		Map.entry("TabTask/DeliverablesMenu", ONLINE + " (deliverables)"),
 		Map.entry("TabResource/AddEngagement", "scope exclusion: " + ONLINE + " (engagements)"),
@@ -396,6 +404,8 @@ class MspRibbonOrderDiffTest {
 	 * reason. Items listed in {@link #ITEM_CONTROLS} are always checked.
 	 */
 	private static final Map<String, String> UNORDERED_ITEM_POPUPS = Map.ofEntries(
+		Map.entry("RibbonResourceGraphData",
+			"the menu lists the ten Graph options; the published control list gives GraphViewGallery no children"),
 		Map.entry("RibbonClear",
 			"Microsoft's Clear menu children (Formatting, Hyperlinks, Notes, All, Row); " + PHASE_1B),
 		Map.entry("RibbonInsertResource", "Microsoft's Add Resources menu children; " + PHASE_1B),

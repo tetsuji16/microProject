@@ -69,6 +69,8 @@ public class ChartInfo implements Serializable, SelectionNodeListener, ScheduleE
 	boolean histogram = true;
 	boolean selectedOnTop = true;
 	boolean work=true;
+	private final ResourceGraphSettings resourceGraphSettings = new ResourceGraphSettings();
+	private Runnable resourceSelectionListener;
 	Object traces[] = {};	
 	TimeChartPanel chartPanel;
 	AxisPanel axisPanel;
@@ -314,7 +316,7 @@ public class ChartInfo implements Serializable, SelectionNodeListener, ScheduleE
 		this.tasks = tasks;
 		this.resources = resources;
 		if (isResourceGraph())
-			model.computeHistogram(getProject(), tasks, resources,traces);
+			model.computeResourceGraph(getProject(), tasks, resources, resourceGraphSettings, selectedOnTop);
 		else
 			model.computeValues(tasks,resources, cumulative, traces, histogram);
 		chart = chartPanel.buildChart();
@@ -377,6 +379,26 @@ public class ChartInfo implements Serializable, SelectionNodeListener, ScheduleE
 		return work;
 	}
 
+	/** The Resource Graph Format settings of this view. */
+	public ResourceGraphSettings getResourceGraphSettings() {
+		return resourceGraphSettings;
+	}
+
+	/** Moves the graph to the previous (-1) or next (+1) resource; false when there is none in that direction. */
+	public boolean selectAdjacentResource(int delta) {
+		return chartLegend != null && chartLegend.selectAdjacentResource(delta);
+	}
+
+	public boolean hasAdjacentResource(int delta) {
+		return chartLegend != null && chartLegend.hasAdjacentResource(delta);
+	}
+
+	/** Re-plots the graph after its settings changed. */
+	public void resourceGraphSettingsChanged() {
+		if (chartPanel != null && isResourceGraph())
+			updateChart(tasks, resources);
+	}
+
 	public void setWork(boolean work) {
 		this.work = work;
 	}
@@ -387,16 +409,34 @@ public class ChartInfo implements Serializable, SelectionNodeListener, ScheduleE
 		histogram = ws.histogram;
 		selectedOnTop = ws.selectedOnTop;
 		work = ws.work;
+		resourceGraphSettings.restoreSettings(ws.resourceGraphSettings);
 		chartPanel.setVerticalScrolling(ws.verticalScroll);
 		if (!isResourceGraph())
 			setTraces(SpreadSheetFieldArray.fromIdArray(ws.traces));
 	}
+
+	/** Notified when the selected resources of the legend tree change, so ribbon state such as Previous/Next Resource can refresh. */
+	public void setResourceSelectionListener(Runnable listener) {
+		resourceSelectionListener = listener;
+	}
+
+	void fireResourceSelectionChanged() {
+		if (resourceSelectionListener != null)
+			resourceSelectionListener.run();
+	}
+
+	/** Re-plots a restored Resource Graph; call once the restoring guard is cleared. */
+	public void replotRestoredResourceGraph() {
+		resourceGraphSettingsChanged();
+	}
+
 	public WorkspaceSetting createWorkspace(int context) {
 		Workspace ws = new Workspace();
 		ws.cumulative = cumulative;
 		ws.histogram = histogram;
 		ws.selectedOnTop = selectedOnTop;
 		ws.work = work;
+		ws.resourceGraphSettings = isResourceGraph() ? resourceGraphSettings.saveSettings() : null;
 		ws.verticalScroll = chartPanel.isVerticalScrolling();
 		if (!isResourceGraph())
 			ws.traces = SpreadSheetFieldArray.toIdArray(traces);
@@ -411,6 +451,8 @@ public class ChartInfo implements Serializable, SelectionNodeListener, ScheduleE
 		boolean work;
 		Object[] traces;
 		boolean verticalScroll;
+		/** Resource Graph Format settings as text; null in workspaces saved before they existed. */
+		String resourceGraphSettings;
 		public boolean isCumulative() {
 			return cumulative;
 		}
@@ -440,6 +482,12 @@ public class ChartInfo implements Serializable, SelectionNodeListener, ScheduleE
 		}
 		public void setTraces(Object[] traces) {
 			this.traces = traces;
+		}
+		public String getResourceGraphSettings() {
+			return resourceGraphSettings;
+		}
+		public void setResourceGraphSettings(String resourceGraphSettings) {
+			this.resourceGraphSettings = resourceGraphSettings;
 		}
 		public boolean isVerticalScroll() {
 			return verticalScroll;

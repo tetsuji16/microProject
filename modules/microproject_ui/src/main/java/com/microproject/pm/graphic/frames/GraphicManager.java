@@ -165,6 +165,8 @@ import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeEvent;
 import com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeListener;
+import com.microproject.pm.graphic.chart.ResourceGraphSettings;
+import com.microproject.pm.graphic.views.ChartView;
 import com.microproject.pm.graphic.views.GanttView;
 import com.microproject.pm.graphic.views.PertView;
 import com.microproject.pm.graphic.views.BaseView;
@@ -784,7 +786,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 			setTitle(false);
 			frame.refreshViewButtons(true);
-			updateRibbonContext(frame.getTopViewId());
+			updateRibbonContext(frame.getRibbonContextViewId());
 
 			if(!Environment.isPlugin()){
 				setEnabledDocumentMenuActions(true);
@@ -1992,6 +1994,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_GFMT_SUMMARY_TASKS, summaryTasksAction());
 		registerNetworkCalendarFormatActions();
 		registerTimelineTeamPlannerFormatActions();
+		registerResourceGraphFormatActions();
 		actionsMap.addHandler(ACTION_NETWORK_LAYOUT_NOW, new MenuActionsMap.DocumentMenuAction() {
 			private static final long serialVersionUID = 1L;
 			@Override public void actionPerformed(ActionEvent event) {
@@ -2770,6 +2773,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			return new ContextualRibbonDescriptor(topViewId, "ResourceSheetFormatRibbonTask", "ResourceSheetFormat.contextualTitle", true);
 		if (ACTION_RESOURCE_USAGE_DETAIL.equals(topViewId))
 			return new ContextualRibbonDescriptor(topViewId, "ResourceUsageFormatRibbonTask", "ResourceUsageFormat.contextualTitle", true);
+		if (ACTION_HISTOGRAM.equals(topViewId))
+			return new ContextualRibbonDescriptor(topViewId, "ResourceGraphFormatRibbonTask", "ResourceGraphFormat.contextualTitle", true);
 		return new ContextualRibbonDescriptor(topViewId == null ? "" : topViewId, "", "", false);
 	}
 
@@ -2781,6 +2786,22 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			? List.of(descriptor.tabId()) : List.of());
 		ribbonFrame.setContextualRibbonTabTitles(descriptor.implemented()
 			? Map.of(descriptor.tabId(), getMenuManager().getString(descriptor.titleKey())) : Map.of());
+		syncGanttViewRibbonState();
+	}
+
+	/** The view whose contextual tab applies: the Resource Graph while its lower pane is active, else the top view. */
+	public String getRibbonContextViewId() {
+		if (getCurrentFrame() == null)
+			return ACTION_GANTT;
+		return getCurrentFrame().getRibbonContextViewId();
+	}
+
+	/** The Resource Graph while it is the active pane of the current document, otherwise null. */
+	ChartView getActiveResourceGraphView() {
+		DocumentFrame frame = getCurrentFrame();
+		if (frame == null || frame.getProject() == null)
+			return null;
+		return frame.getActiveResourceGraphView();
 	}
 
 	/** Project-level entry point; the dialog owns preview, apply, and cancel semantics. */
@@ -2928,6 +2949,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
 			if (!beforeChooserRoute(ACTION_GRIDLINES)) return;
+			if (getActiveResourceGraphView() != null) {
+				actionsMap.getConcreteAction(ACTION_RESOURCE_GRAPH_GRIDLINES).actionPerformed(arg0);
+				return;
+			}
 			if (!GraphicsEnvironment.isHeadless())
 				com.microproject.dialog.GridlinesDialogBox.show(getFrame(), getActiveGanttView());
 		}
@@ -2972,6 +2997,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
 			if (!beforeChooserRoute(ACTION_TEXT_STYLES)) return;
+			if (getActiveResourceGraphView() != null) {
+				actionsMap.getConcreteAction(ACTION_RESOURCE_GRAPH_TEXT_STYLES).actionPerformed(arg0);
+				return;
+			}
 			if (getActiveTimelineDialog() != null) {
 				actionsMap.getConcreteAction(ACTION_TIMELINE_TEXT_STYLES).actionPerformed(arg0);
 				return;
@@ -3163,6 +3192,56 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				syncGanttViewRibbonState();
 			}
 		};
+	}
+
+	private static final ResourceGraphSettings.GraphType[] RESOURCE_GRAPH_TYPES = ResourceGraphSettings.GraphType.values();
+	private static final String[] RESOURCE_GRAPH_TYPE_ACTIONS = {
+		ACTION_RESOURCE_GRAPH_PEAK_UNITS, ACTION_RESOURCE_GRAPH_WORK, ACTION_RESOURCE_GRAPH_CUMULATIVE_WORK,
+		ACTION_RESOURCE_GRAPH_OVERALLOCATION, ACTION_RESOURCE_GRAPH_PERCENT_ALLOCATION, ACTION_RESOURCE_GRAPH_REMAINING_AVAILABILITY,
+		ACTION_RESOURCE_GRAPH_COST, ACTION_RESOURCE_GRAPH_CUMULATIVE_COST, ACTION_RESOURCE_GRAPH_WORK_AVAILABILITY,
+		ACTION_RESOURCE_GRAPH_UNIT_AVAILABILITY };
+
+	/** Resource Graph Format tab: the Graph options, Values, Previous/Next Resource and the three format dialogs. */
+	private void registerResourceGraphFormatActions() {
+		java.util.function.Function<String, String> text = this::formatText;
+		java.util.function.Supplier<ChartView> graph = this::getActiveResourceGraphView;
+		java.util.function.Consumer<ChartView> refresh = ChartView::resourceGraphSettingsChanged;
+		java.util.function.Consumer<ChartView> none = view -> { };
+		actionsMap.addHandler(ACTION_RESOURCE_GRAPH_TEXT_STYLES, viewDialog(ACTION_RESOURCE_GRAPH_TEXT_STYLES, graph, "ResourceGraph.title.textStyles",
+			view -> ResourceGraphFormatDialogs.textStyle(view.getResourceGraphSettings(), text), refresh));
+		actionsMap.addHandler(ACTION_RESOURCE_GRAPH_GRIDLINES, viewDialog(ACTION_RESOURCE_GRAPH_GRIDLINES, graph, "ResourceGraph.title.gridlines",
+			view -> ResourceGraphFormatDialogs.gridlines(view.getResourceGraphSettings(), text), refresh));
+		actionsMap.addHandler(ACTION_RESOURCE_GRAPH_BAR_STYLES, viewDialog(ACTION_RESOURCE_GRAPH_BAR_STYLES, graph, "ResourceGraph.title.barStyles",
+			view -> ResourceGraphFormatDialogs.barStyles(view.getResourceGraphSettings(), text), refresh));
+		for (int i = 0; i < RESOURCE_GRAPH_TYPES.length; i++) {
+			ResourceGraphSettings.GraphType type = RESOURCE_GRAPH_TYPES[i];
+			String action = RESOURCE_GRAPH_TYPE_ACTIONS[i];
+			actionsMap.addHandler(action, viewCommand(action, graph, view -> view.getResourceGraphSettings().setGraphType(type), refresh));
+		}
+		actionsMap.addHandler(ACTION_RESOURCE_GRAPH_SHOW_VALUES, viewCommand(ACTION_RESOURCE_GRAPH_SHOW_VALUES, graph,
+			view -> view.getResourceGraphSettings().setShowValues(!view.getResourceGraphSettings().isShowValues()), refresh));
+		actionsMap.addHandler(ACTION_RESOURCE_GRAPH_PREVIOUS_RESOURCE, viewCommand(ACTION_RESOURCE_GRAPH_PREVIOUS_RESOURCE, graph,
+			view -> view.selectAdjacentResource(-1), none));
+		actionsMap.addHandler(ACTION_RESOURCE_GRAPH_NEXT_RESOURCE, viewCommand(ACTION_RESOURCE_GRAPH_NEXT_RESOURCE, graph,
+			view -> view.selectAdjacentResource(1), none));
+	}
+
+	/** Enable and check state of the Resource Graph Format tab. */
+	private void syncResourceGraphRibbonState() {
+		ChartView graph = getActiveResourceGraphView();
+		boolean active = graph != null;
+		ResourceGraphSettings settings = active ? graph.getResourceGraphSettings() : null;
+		for (int i = 0; i < RESOURCE_GRAPH_TYPES.length; i++) {
+			getMenuManager().setActionEnabled(RESOURCE_GRAPH_TYPE_ACTIONS[i], active);
+			getMenuManager().setActionSelected(RESOURCE_GRAPH_TYPE_ACTIONS[i], active && settings.getGraphType() == RESOURCE_GRAPH_TYPES[i]);
+		}
+		getMenuManager().setActionEnabled(ACTION_RESOURCE_GRAPH_TEXT_STYLES, active);
+		getMenuManager().setActionEnabled(ACTION_RESOURCE_GRAPH_GRIDLINES, active);
+		getMenuManager().setActionEnabled(ACTION_RESOURCE_GRAPH_BAR_STYLES, active);
+		getMenuManager().setActionEnabled(ACTION_RESOURCE_GRAPH_SHOW_VALUES, active);
+		getMenuManager().setActionSelected(ACTION_RESOURCE_GRAPH_SHOW_VALUES, active && settings.isShowValues());
+		getMenuManager().setActionEnabled(ACTION_RESOURCE_GRAPH_PREVIOUS_RESOURCE, active && graph.hasAdjacentResource(-1));
+		getMenuManager().setActionEnabled(ACTION_RESOURCE_GRAPH_NEXT_RESOURCE, active && graph.hasAdjacentResource(1));
 	}
 
 	private void registerTimelineTeamPlannerFormatActions() {
@@ -3368,6 +3447,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
 			if (!beforeChooserRoute(ACTION_BAR_STYLES)) return;
+			if (getActiveResourceGraphView() != null) {
+				actionsMap.getConcreteAction(ACTION_RESOURCE_GRAPH_BAR_STYLES).actionPerformed(arg0);
+				return;
+			}
 			showBarStyleChooser();
 		}
 	}
@@ -5809,7 +5892,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_LABEL_TASK_NAME, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_BAR, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_TIMESCALE, ganttActive);
-		getMenuManager().setActionEnabled(ACTION_GRIDLINES, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GRIDLINES, ganttActive || getActiveResourceGraphView() != null);
 		getMenuManager().setActionEnabled(ACTION_SHEET_GRIDLINES, sheetActive || getActiveCalendarDialog() != null);
 		getMenuManager().setActionEnabled(ACTION_NETWORK_LAYOUT_NOW, getActiveNetworkView() != null);
 		PertView networkView = getActiveNetworkView();
@@ -5826,8 +5909,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionSelected(ACTION_NETWORK_PROGRESS_MARKS, networkView != null && networkView.getDisplayOptions().isProgressMarks());
 		getMenuManager().setActionSelected(ACTION_CALENDAR_TASK_LIST, calendarView != null && calendarView.getSettings().isTaskListVisible());
 		syncTimelineTeamPlannerRibbonState();
-		getMenuManager().setActionEnabled(ACTION_TEXT_STYLES, ganttActive || getActiveTimelineDialog() != null || getActiveTeamPlannerDialog() != null);
-		getMenuManager().setActionEnabled(ACTION_BAR_STYLES, ganttActive);
+		syncResourceGraphRibbonState();
+		getMenuManager().setActionEnabled(ACTION_TEXT_STYLES, ganttActive || getActiveTimelineDialog() != null || getActiveTeamPlannerDialog() != null
+			|| getActiveResourceGraphView() != null);
+		getMenuManager().setActionEnabled(ACTION_BAR_STYLES, ganttActive || getActiveResourceGraphView() != null);
 		getMenuManager().setActionEnabled(ACTION_LAYOUT, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_GFMT_INSERT_COLUMN, sheetActive);
 		getMenuManager().setActionEnabled(ACTION_GFMT_HIDE_COLUMN, sheetActive);

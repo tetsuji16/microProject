@@ -111,7 +111,7 @@ class RibbonAndToolbarButtonTest {
 			((ModernRibbonPanel) ribbon.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY))
 				.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask",
 					"TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask",
-					"TaskSheetFormatRibbonTask", "TaskUsageFormatRibbonTask", "ResourceSheetFormatRibbonTask", "ResourceUsageFormatRibbonTask"));
+					"TaskSheetFormatRibbonTask", "TaskUsageFormatRibbonTask", "ResourceSheetFormatRibbonTask", "ResourceUsageFormatRibbonTask", "ResourceGraphFormatRibbonTask"));
 			assertAttachedButtonsAreVisible(ribbon, MenuManager.STANDARD_RIBBON);
 		});
 	}
@@ -379,7 +379,8 @@ class RibbonAndToolbarButtonTest {
 				"TaskSheetFormatRibbonTask",
 				"TaskUsageFormatRibbonTask",
 				"ResourceSheetFormatRibbonTask",
-				"ResourceUsageFormatRibbonTask"),
+				"ResourceUsageFormatRibbonTask",
+				"ResourceGraphFormatRibbonTask"),
 			ribbonTaskIds());
 	}
 
@@ -432,6 +433,10 @@ class RibbonAndToolbarButtonTest {
 			"TimelineSelectionRibbonBand", "TimelineCopyRibbonBand"), ribbonBandIds("TimelineFormatRibbonTask"));
 		assertEquals(List.of("TeamPlannerFormatRibbonBand", "TeamPlannerStylesRibbonBand", "TeamPlannerScheduleRibbonBand", "TeamPlannerShowHideRibbonBand"),
 			ribbonBandIds("TeamPlannerFormatRibbonTask"));
+		assertEquals(List.of("ResourceGraphFormatRibbonBand", "ResourceGraphNavigateRibbonBand", "ResourceGraphDataRibbonBand", "ResourceGraphShowHideRibbonBand"),
+			ribbonBandIds("ResourceGraphFormatRibbonTask"));
+		assertEquals(List.of("RibbonResourceGraphTextStyles", "RibbonResourceGraphGridlines", "RibbonResourceGraphBarStyles"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("ResourceGraphFormatRibbonBand"));
 		assertEquals(List.of("RibbonNetworkLinkLabels", "RibbonNetworkStraightLinks", "RibbonNetworkProgressMarks", "RibbonSummaryTasks"),
 			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("NetworkShowHideRibbonBand"));
 		assertEquals(List.of("RibbonNetworkBoxFieldsCollapsed"),
@@ -679,7 +684,7 @@ class RibbonAndToolbarButtonTest {
 			// Every contextual Format tab, so the buttons only the Network/Calendar tabs carry are visible too.
 			ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask",
 					"TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask",
-				"TaskSheetFormatRibbonTask", "TaskUsageFormatRibbonTask", "ResourceSheetFormatRibbonTask", "ResourceUsageFormatRibbonTask"));
+				"TaskSheetFormatRibbonTask", "TaskUsageFormatRibbonTask", "ResourceSheetFormatRibbonTask", "ResourceUsageFormatRibbonTask", "ResourceGraphFormatRibbonTask"));
 			ResourceBundle labels = menuBundle(Locale.getDefault());
 
 			for (String tabId : ribbonTaskIds()) {

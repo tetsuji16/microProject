@@ -231,6 +231,13 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonTeamPlannerExpandRows | リソース行を展開する | 状態または表示が変わる |
 | RibbonTeamPlannerUnassigned | 未割り当てタスクの表示を切り替える | 状態または表示が変わる |
 | RibbonTeamPlannerUnscheduled | 未スケジュール タスクの表示を切り替える | 状態または表示が変わる |
+| RibbonResourceGraphTextStyles | リソース グラフのテキスト スタイルを開く | 設定が反映される |
+| RibbonResourceGraphGridlines | リソース グラフの目盛線を設定する | 設定が反映される |
+| RibbonResourceGraphBarStyles | リソース グラフのバー スタイルを開く | 設定が反映され、ビューと共に保存される |
+| RibbonResourceGraphPrevious | 前のリソースを選択する | グラフが前のリソースに切り替わる |
+| RibbonResourceGraphNext | 次のリソースを選択する | グラフが次のリソースに切り替わる |
+| RibbonResourceGraphData | グラフの種類メニューを開く | 選択した種類のグラフが表示される |
+| RibbonResourceGraphValues | 値の表示を切り替える | 状態または表示が変わる |
 | RibbonSheetGridlines | 表の罫線の表示を選ぶ | 表の罫線が表示／非表示になる |
 | RibbonUsageDetailWork | 作業時間の詳細行を切り替える | 使用状況グリッドに作業時間の行が表示／非表示になる |
 | RibbonUsageDetailActualWork | 実績作業時間の詳細行を切り替える | 使用状況グリッドに実績作業時間の行が表示／非表示になる |
