@@ -918,6 +918,38 @@ class NormalTaskDurationTest {
 	}
 
 	@Test
+	void draggingTheFirstBarOfADelayedAssignmentKeepsTheDelayAndLandsTheBarAtTheDropPoint() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		task.setDuration(2L * day());
+		Assignment assignment = assignResource(project, task);
+		assignment.setDelay(day());
+		project.recalculate();
+		WorkCalendar cal = task.getEffectiveWorkCalendar();
+		long oldTaskStart = task.getStart();
+		long oldStart = assignment.getStart();
+		long oldEnd = assignment.getEnd();
+		long oldDelay = assignment.getDelay();
+		assertEquals(day(), cal.compare(oldStart, oldTaskStart, false), "precondition: the first bar starts one delay after the task");
+		long shift = 2L * day();
+		long movedStart = cal.add(oldStart, shift, false);
+		ScheduleInterval firstBar = new ScheduleInterval(oldStart, oldEnd);
+
+		// GanttInteractor pins SNET at the task start implied by the drop point.
+		long constraintDate = task.getStartForFirstBarStart(movedStart, firstBar);
+		assertEquals(0L, cal.compare(constraintDate, cal.add(oldTaskStart, shift, false), false));
+		task.setScheduleConstraint(ConstraintType.Kind.SNET, constraintDate);
+		task.moveInterval(this, movedStart, cal.add(oldEnd, shift, false), firstBar, false);
+		project.recalculate();
+
+		assertEquals(0L, cal.compare(assignment.getStart(), movedStart, false), "the bar must land where it was dropped");
+		assertEquals(0L, cal.compare(task.getStart(), cal.add(oldTaskStart, shift, false), false), "the task must move by the dragged amount only");
+		assertEquals(oldDelay, assignment.getDelay());
+		assertEquals(movedStart, task.getStartForFirstBarStart(movedStart, new ScheduleInterval(task.getStart(), task.getEnd())),
+			"without a lead the drop point is the task start");
+	}
+
+	@Test
 	void directMoveKeepsFinishBasedDependenciesAlignedWithoutAssignments() throws InvalidAssociationException {
 		for (int type : new int[] { DependencyType.FF, DependencyType.SF }) {
 			Project project = createProject();

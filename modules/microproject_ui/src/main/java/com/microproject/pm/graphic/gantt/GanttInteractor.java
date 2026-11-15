@@ -845,7 +845,8 @@ public class GanttInteractor extends GraphInteractor{
 	}
 
 	private long getRequestedConstraintDate(long requestedStart, long requestedEnd) {
-		return requestedStart;
+		Task task = getSourceTask();
+		return task == null ? requestedStart : task.getStartForFirstBarStart(requestedStart, selectedInterval);
 	}
 
     private boolean prepareConstraintForIntervalUpdate(Task task, ConstraintType.Kind constraintType, long constraintDate, ConstraintType.Kind originalConstraintType, long originalConstraintDate) {

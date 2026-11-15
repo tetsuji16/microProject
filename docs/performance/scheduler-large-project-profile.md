@@ -10,7 +10,7 @@ It is skipped by the normal `test` task and runs only with `-Dmicroproject.profi
 (`microproject.profile*` system properties are forwarded to the test JVM by `modules/microproject_core/build.gradle.kts`).
 
 ```
-.\gradlew.bat :microproject_core:test --tests "*LargeProjectSchedulingProfile*" -Dmicroproject.profile=true -i
+.\gradlew.bat :microproject_core:test --rerun --tests "*LargeProjectSchedulingProfile*" -Dmicroproject.profile=true -i
 ```
 
 Optional properties: `-Dmicroproject.profile.scales=1000,2000,5000` (task counts; this is the default) and

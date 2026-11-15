@@ -88,6 +88,7 @@ import com.microproject.pm.resource.Resource;
 import com.microproject.pm.scheduling.CanBeLeveled;
 import com.microproject.pm.scheduling.ConstraintType;
 import com.microproject.pm.scheduling.Schedule;
+import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.pm.scheduling.ScheduleUtil;
 import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.pm.snapshot.SnapshottableImpl;
@@ -509,6 +510,19 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	 * @return
 	 */
 	public abstract WorkCalendar getEffectiveWorkCalendar();
+
+	/**
+	 * Returns the task start implied by dropping the first Gantt bar at {@code barStart}.
+	 * The first bar of an assigned task begins at the earliest assignment, which may lie
+	 * after the task start by an assignment delay; that working-time lead is kept.
+	 */
+	public long getStartForFirstBarStart(long barStart, ScheduleInterval firstBar) {
+		if (firstBar == null)
+			return barStart;
+		WorkCalendar cal = getEffectiveWorkCalendar();
+		long lead = cal.compare(firstBar.getStart(), getStart(), false);
+		return lead > 0L ? cal.add(barStart, -lead, false) : barStart;
+	}
 
 	public boolean isMilestone() {
 		return false;
