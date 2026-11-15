@@ -1961,7 +1961,9 @@ class RibbonButtonBehaviorTest {
 			"RibbonTimelineRemove", "RibbonTimelineCopy", "RibbonTeamPlannerOutline", "RibbonTeamPlannerGridlines", "RibbonTeamPlannerTextStyles",
 			"RibbonTeamPlannerTextLines", "RibbonTeamPlannerSelectedStyle", "RibbonTeamPlannerAutoStyle", "RibbonTeamPlannerManualStyle",
 			"RibbonTeamPlannerActualStyle", "RibbonTeamPlannerExternalStyle", "RibbonTeamPlannerLateStyle", "RibbonTeamPlannerPreventOverallocation",
-			"RibbonTeamPlannerExpandRows", "RibbonTeamPlannerUnassigned", "RibbonTeamPlannerUnscheduled");
+			"RibbonTeamPlannerExpandRows", "RibbonTeamPlannerUnassigned", "RibbonTeamPlannerUnscheduled",
+			"RibbonResourceGraphTextStyles", "RibbonResourceGraphGridlines", "RibbonResourceGraphBarStyles", "RibbonResourceGraphPrevious", "RibbonResourceGraphNext",
+			"RibbonResourceGraphData", "RibbonResourceGraphValues");
 		// Usage Format tabs: each needs an active usage view; behaviour is covered by UsageDetailRibbonGuiAcceptanceTest (guiTest: detail toggle, last-row guard, Add Details) and UsageDetailValuesTest (computed rows).
 		add(map, Strategy.STRUCTURAL_ONLY,
 			"RibbonUsageDetailWork", "RibbonUsageDetailActualWork", "RibbonUsageDetailBaselineWork", "RibbonUsageDetailCost",

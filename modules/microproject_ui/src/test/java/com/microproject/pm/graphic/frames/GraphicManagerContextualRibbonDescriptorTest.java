@@ -28,6 +28,14 @@ class GraphicManagerContextualRibbonDescriptorTest {
 	}
 
 	@Test
+	void resourceGraphPaneHasItsOwnContextualTab() {
+		var graph = GraphicManager.contextualRibbonDescriptor("Histogram");
+		assertTrue(graph.implemented());
+		assertEquals("ResourceGraphFormatRibbonTask", graph.tabId());
+		assertEquals("ResourceGraphFormat.contextualTitle", graph.titleKey());
+	}
+
+	@Test
 	void contextualMatrixDoesNotAdvertiseUnsupportedReportSurfaces() {
 		var expected = java.util.Map.of(
 			"Gantt", "FormatRibbonTask",
