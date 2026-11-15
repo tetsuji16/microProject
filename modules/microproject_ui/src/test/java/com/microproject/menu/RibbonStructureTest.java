@@ -169,7 +169,7 @@ class RibbonStructureTest {
 		assertEquals(List.of("RibbonAssignResources", "RibbonUseResourcePool", "RibbonCreateResourcePool",
 				"RibbonRefreshResourcePool", "RibbonTimesheet", "RibbonTeamFilter"),
 			ribbonButtonIds("ResourceAssignmentsRibbonBand"));
-		assertEquals(List.of("RibbonLevelSelection", "RibbonLevelAll",
+		assertEquals(List.of("RibbonLevelSelection", "RibbonLevelResource", "RibbonLevelAll",
 				"RibbonClearLevelSelection", "RibbonLevelResources", "RibbonClearLevelAll", "RibbonNextOverallocation"),
 			ribbonButtonIds("ResourceLevelRibbonBand"));
 		assertEquals("TOGGLE", menuInternalBundle().getString("RibbonTeamFilter.type"));

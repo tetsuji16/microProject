@@ -622,6 +622,7 @@ public class DocumentFrame extends NamedFrame implements
 		case TASK_MOVE_BACK_CUSTOM -> lastTaskCommandResult = applyCustomTaskMove(command, -1);
 		case TASK_ADD_TO_TIMELINE -> lastTaskCommandResult = applyAddToTimeline(command);
 		case RESOURCE_LEVEL_ALL -> lastTaskCommandResult = applyResourceLevelAll(command);
+		case RESOURCE_LEVEL_RESOURCE -> lastTaskCommandResult = applyResourceLevelResources(command);
 		case RESOURCE_LEVEL_SELECTION -> lastTaskCommandResult = applyResourceLevelSelection(command);
 		case RESOURCE_CLEAR_LEVEL_ALL -> lastTaskCommandResult = clearResourceLeveling(command, false);
 		case RESOURCE_CLEAR_LEVEL_SELECTION -> lastTaskCommandResult = clearResourceLeveling(command, true);
@@ -1060,6 +1061,55 @@ public class DocumentFrame extends NamedFrame implements
 				failure.getClass().getSimpleName(), selectedIds, List.of(), getTopViewId());
 		}
 		return applyResourceLevelingPlan(command, plan, selectedIds, selectedNodes, null);
+	}
+
+	/** Test seam: replaces the resource picker dialog; receives all resources and returns the chosen ones. */
+	java.util.function.Function<List<com.microproject.pm.resource.Resource>, List<com.microproject.pm.resource.Resource>> levelResourcePicker;
+
+	/** Resource &gt; Level &gt; Level Resource: levels only the resources picked in a dialog, as one undoable edit. */
+	private RibbonCommandResult applyResourceLevelResources(CommandId command) {
+		if (project == null || project.isReadOnly())
+			return RibbonCommandResult.rejected(command.actionId(), project == null ? "no-active-document" : "document-read-only");
+		finishAnyOperations();
+		List<com.microproject.pm.resource.Resource> all = new ArrayList<>(project.getResourcePool().getResourceList());
+		if (all.isEmpty())
+			return RibbonCommandResult.noChange(command.actionId(), getSelectedTaskIds()).withActiveView(getTopViewId());
+		List<com.microproject.pm.resource.Resource> chosen;
+		if (levelResourcePicker != null)
+			chosen = levelResourcePicker.apply(all);
+		else if (java.awt.GraphicsEnvironment.isHeadless())
+			return RibbonCommandResult.rejected(command.actionId(), "dialog-unavailable");
+		else
+			chosen = pickResourcesToLevel(all);
+		if (chosen == null || chosen.isEmpty())
+			return RibbonCommandResult.noChange(command.actionId(), getSelectedTaskIds()).withActiveView(getTopViewId());
+		List<Long> selectedIds = getSelectedTaskIds();
+		SelectionSnapshot selectionSnapshot = SelectionSnapshot.capture(getActiveSpreadSheet(), List.of());
+		ResourceLevelingService.Plan plan;
+		try {
+			plan = new ResourceLevelingService().preview(project, chosen, ResourceLevelingService.Options.defaults());
+		} catch (RuntimeException failure) {
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.FAILED,
+				failure.getClass().getSimpleName(), selectedIds, List.of(), getTopViewId());
+		}
+		return applyResourceLevelingPlan(command, plan, selectedIds, selectionSnapshot.selectedNodes, selectionSnapshot);
+	}
+
+	private List<com.microproject.pm.resource.Resource> pickResourcesToLevel(List<com.microproject.pm.resource.Resource> all) {
+		javax.swing.DefaultListModel<String> model = new javax.swing.DefaultListModel<>();
+		for (com.microproject.pm.resource.Resource resource : all)
+			model.addElement(String.valueOf(resource.getName()));
+		javax.swing.JList<String> list = new javax.swing.JList<>(model);
+		list.setVisibleRowCount(Math.min(12, Math.max(4, all.size())));
+		javax.swing.JPanel panel = new javax.swing.JPanel(new java.awt.BorderLayout(0, 6));
+		panel.add(new javax.swing.JLabel(Messages.getString("LevelResource.prompt")), java.awt.BorderLayout.NORTH);
+		panel.add(new javax.swing.JScrollPane(list), java.awt.BorderLayout.CENTER);
+		int answer = JOptionPane.showConfirmDialog(this, panel, Messages.getString("LevelResource.title"),
+			JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+		if (answer != JOptionPane.OK_OPTION) return List.of();
+		List<com.microproject.pm.resource.Resource> chosen = new ArrayList<>();
+		for (int index : list.getSelectedIndices()) chosen.add(all.get(index));
+		return chosen;
 	}
 
 	private RibbonCommandResult applyResourceLevelAll(CommandId command) {

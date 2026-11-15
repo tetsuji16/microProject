@@ -2288,6 +2288,24 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void mpoDisplayOnTimelineRoundTripsAndOlderFilesDefaultToFalse() throws Exception {
+		Project project = projectForRoundTrip();
+		firstTask(project).setDisplayOnTimeline(true);
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, archive));
+		assertTrue(firstTask(loadFromBytes(archive.toByteArray())).isDisplayOnTimeline(), "timeline flag must round-trip");
+
+		Project plain = projectForRoundTrip();
+		firstTask(plain).setFontBold(true);
+		ByteArrayOutputStream plainArchive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(plain, plainArchive));
+		String styles = new String(readEntries(plainArchive.toByteArray()).get(MpoFileImporter.TASK_TEXT_STYLES_ENTRY),
+			StandardCharsets.UTF_8);
+		assertFalse(styles.contains("displayOnTimeline"), styles);
+		assertFalse(firstTask(loadFromBytes(plainArchive.toByteArray())).isDisplayOnTimeline());
+	}
+
+	@Test
 	void mpoRejectsCorruptedTaskTextStyleInsteadOfClampingIt() throws Exception {
 		Project project = projectForRoundTrip();
 		firstTask(project).setFontBold(true);

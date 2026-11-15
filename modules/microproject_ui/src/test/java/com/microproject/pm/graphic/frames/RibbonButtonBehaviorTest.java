@@ -1553,6 +1553,21 @@ class RibbonButtonBehaviorTest {
 	}
 
 	@Test
+	void levelResourceOffersAllResourcesAndDoesNothingWhenNoneChosen() throws Exception {
+		Harness harness = newHarness();
+		harness.selectNone();
+		List<Integer> offered = new ArrayList<>();
+		harness.frame.levelResourcePicker = resources -> {
+			offered.add(resources.size());
+			return List.of();
+		};
+		harness.invoke("RibbonLevelResource");
+		var result = harness.frame.getLastTaskCommandResult();
+		assertNotNull(result);
+		assertEquals(RibbonCommandResult.Status.NO_CHANGE, result.status());
+	}
+
+	@Test
 	void levelAllIsEnabledWithoutSelectionAndDoesNotLatchAfterNoChange() throws Exception {
 		// Microsoft Project Standard 2024's Resource > Level All applies to all
 		// resources/tasks in the plan (document-derived momentary command contract):
@@ -1715,6 +1730,7 @@ class RibbonButtonBehaviorTest {
 			"RibbonInsertResource",
 			"RibbonInsertRecurring",
 			"RibbonLevelSelection",
+			"RibbonLevelResource",
 			"RibbonClearLevelSelection",
 			"RibbonClearLevelAll",
 			"RibbonLevelResources",
@@ -1983,6 +1999,7 @@ class RibbonButtonBehaviorTest {
 			"RibbonInsertRecurring",
 			"RibbonArrangeAll",
 			"RibbonLevelSelection",
+			"RibbonLevelResource",
 			"RibbonLevelAll",
 			"RibbonClearLevelSelection",
 			"RibbonClearLevelAll",

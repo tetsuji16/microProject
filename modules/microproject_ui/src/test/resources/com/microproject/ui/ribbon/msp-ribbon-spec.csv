@@ -82,6 +82,7 @@ Resource,Properties,Details,RibbonResourceDetails,REQUIRED,S16
 Resource,Assignments,Timesheet,RibbonTimesheet,EXTENSION,MSP timesheets require Project Server/Online
 Resource,Assignments,Team Filter,RibbonTeamFilter,EXTENSION,local team filter; no desktop MSP equivalent
 Resource,Level,Level Selection,RibbonLevelSelection,REQUIRED,S2
+Resource,Level,Level Resource,RibbonLevelResource,REQUIRED,S2
 Resource,Level,Level All,RibbonLevelAll,REQUIRED,S2
 Resource,Level,Clear Leveling (selection),RibbonClearLevelSelection,REQUIRED,S2
 Resource,Level,Clear Leveling (all),RibbonClearLevelAll,REQUIRED,S2

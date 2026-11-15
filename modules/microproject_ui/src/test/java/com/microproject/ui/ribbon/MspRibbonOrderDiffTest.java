@@ -151,7 +151,6 @@ class MspRibbonOrderDiffTest {
 	 * with the reason. A control counts as present when it or one of its menu children is mapped.
 	 */
 	private static final Map<String, String> MISSING_CONTROLS = Map.ofEntries(
-		Map.entry("TabResource/LevelResource", "per-resource leveling picker; the Leveling Options dialog is the only leveling dialog; " + PHASE_1B),
 		Map.entry("TabTask/TaskSplit", "requires task split model; tracked separately"),
 		Map.entry("TabTask/DeliverablesMenu", ONLINE + " (deliverables)"),
 		Map.entry("TabResource/AddEngagement", "scope exclusion: " + ONLINE + " (engagements)"),
@@ -166,9 +165,9 @@ class MspRibbonOrderDiffTest {
 		Map.entry("TabReportOverview/ReportAgileGallery", AGILE),
 		Map.entry("TabProject/SelectAgileMethodology", AGILE),
 		Map.entry("TabProject/ManageSprints", AGILE),
-		Map.entry("TabProject/LinksBetweenProjects", PHASE_1B),
-		Map.entry("TabProject/WbsMenu", PHASE_1B),
-		Map.entry("TabProject/StatusDateLabel", PHASE_1B + " (label control)"),
+		Map.entry("TabProject/LinksBetweenProjects", "external-task placeholders live in a private ExternalTaskManager with no query/re-point API, so a Change Links dialog cannot be backed by the engine yet"),
+		Map.entry("TabProject/WbsMenu", "WBS codes are derived from the outline only; core has no WBS code mask or renumber facility to back Define Code/Renumber"),
+		Map.entry("TabProject/StatusDateLabel", "the Status Date button already shows the date (StatusDateControlUpdater); a separate non-interactive label control needs ribbon label support; " + PHASE_1B),
 		Map.entry("TabView/TaskBoardViewGallery", AGILE),
 		Map.entry("TabView/TaskViewsOtherGallery", PHASE_1B),
 		Map.entry("TabView/TeamPlannerViewGallery", PHASE_1B),

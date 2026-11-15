@@ -2032,6 +2032,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_BACKGROUND_COLOR, new TaskFontAction(ACTION_BACKGROUND_COLOR));
 		actionsMap.addHandler(ACTION_FONT_NAME, new TaskFontAction(ACTION_FONT_NAME));
 		actionsMap.addHandler(ACTION_FONT_SIZE, new TaskFontAction(ACTION_FONT_SIZE));
+		actionsMap.addHandler(CommandId.RESOURCE_LEVEL_RESOURCE.actionId(), new TaskRouteAction(CommandId.RESOURCE_LEVEL_RESOURCE));
 		for (CommandId moveCommand : TASK_ROUTED_COMMANDS)
 			actionsMap.addHandler(moveCommand.actionId(), new TaskRouteAction(moveCommand));
 		actionsMap.addHandler(ACTION_DELETE, new DeleteAction());
@@ -4938,6 +4939,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_TIMESHEET,!readOnly && project != null);
 		getMenuManager().setActionEnabled(ACTION_LEVEL_RESOURCES,!readOnly && project != null);
 		getMenuManager().setActionEnabled(ACTION_LEVEL_ALL,!readOnly && project != null);
+		getMenuManager().setActionEnabled(CommandId.RESOURCE_LEVEL_RESOURCE.actionId(), !readOnly && project != null);
 		getMenuManager().setActionEnabled(ACTION_LEVEL_SELECTION,
 			!readOnly && getCurrentFrame() != null && getCurrentFrame().hasTaskSelection(true, 1, false));
 		getMenuManager().setActionEnabled(ACTION_CLEAR_LEVEL_ALL, !readOnly && project != null);

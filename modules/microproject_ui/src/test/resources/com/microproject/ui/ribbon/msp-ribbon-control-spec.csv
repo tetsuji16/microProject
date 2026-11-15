@@ -66,6 +66,7 @@ RibbonResourceInformation,ResourceInformation,BUTTON,DIALOG,DOCUMENTED,ResourceR
 RibbonTimesheet,,BUTTON,DIALOG,BASELINE,ResourceRibbonTask/ResourceAssignmentsRibbonBand,product-only
 RibbonTeamFilter,,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,ResourceRibbonTask/ResourceAssignmentsRibbonBand,product-only
 RibbonLevelSelection,LevelSelection,BUTTON,COMMAND,DOCUMENTED,ResourceRibbonTask/ResourceLevelRibbonBand,
+RibbonLevelResource,LevelResource,BUTTON,DIALOG,DOCUMENTED,ResourceRibbonTask/ResourceLevelRibbonBand,
 RibbonLevelAll,LevelNow,BUTTON,COMMAND,DOCUMENTED,ResourceRibbonTask/ResourceLevelRibbonBand,
 RibbonClearLevelSelection,,BUTTON,COMMAND,BASELINE,ResourceRibbonTask/ResourceLevelRibbonBand,product-only
 RibbonClearLevelAll,LevelingClear,BUTTON,COMMAND,DOCUMENTED,ResourceRibbonTask/ResourceLevelRibbonBand,

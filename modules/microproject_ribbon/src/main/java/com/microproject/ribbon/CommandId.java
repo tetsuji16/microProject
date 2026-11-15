@@ -48,6 +48,7 @@ public enum CommandId {
 	TASK_MOVE_BACK_FOUR_WEEKS("TaskMoveBackFourWeeks"),
 	TASK_MOVE_BACK_CUSTOM("TaskMoveBackCustom"),
 	TASK_ADD_TO_TIMELINE("TaskAddToTimeline"),
+	RESOURCE_LEVEL_RESOURCE("LevelResource"),
 	RESOURCE_LEVEL_ALL("LevelAll"),
 	RESOURCE_LEVEL_SELECTION("LevelSelection"),
 	RESOURCE_CLEAR_LEVEL_ALL("ClearLevelAll"),
