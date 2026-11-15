@@ -110,6 +110,7 @@ class RibbonAndToolbarButtonTest {
 			JPanel ribbon = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 			((ModernRibbonPanel) ribbon.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY))
 				.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask",
+					"TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask",
 					"TaskSheetFormatRibbonTask", "TaskUsageFormatRibbonTask", "ResourceSheetFormatRibbonTask", "ResourceUsageFormatRibbonTask"));
 			assertAttachedButtonsAreVisible(ribbon, MenuManager.STANDARD_RIBBON);
 		});
@@ -373,6 +374,8 @@ class RibbonAndToolbarButtonTest {
 				"FormatRibbonTask",
 				"NetworkFormatRibbonTask",
 				"CalendarFormatRibbonTask",
+				"TimelineFormatRibbonTask",
+				"TeamPlannerFormatRibbonTask",
 				"TaskSheetFormatRibbonTask",
 				"TaskUsageFormatRibbonTask",
 				"ResourceSheetFormatRibbonTask",
@@ -425,6 +428,10 @@ class RibbonAndToolbarButtonTest {
 			ribbonBandIds("FormatRibbonTask"));
 		assertEquals(List.of("NetworkDisplayRibbonBand", "NetworkFormatRibbonBand", "NetworkShowHideRibbonBand", "NetworkLayoutRibbonBand"), ribbonBandIds("NetworkFormatRibbonTask"));
 		assertEquals(List.of("CalendarFormatRibbonBand", "CalendarLayoutRibbonBand", "CalendarShowHideRibbonBand"), ribbonBandIds("CalendarFormatRibbonTask"));
+		assertEquals(List.of("TimelineTextStylesRibbonBand", "TimelineFontRibbonBand", "TimelineShowHideRibbonBand", "TimelineInsertRibbonBand",
+			"TimelineSelectionRibbonBand", "TimelineCopyRibbonBand"), ribbonBandIds("TimelineFormatRibbonTask"));
+		assertEquals(List.of("TeamPlannerFormatRibbonBand", "TeamPlannerStylesRibbonBand", "TeamPlannerScheduleRibbonBand", "TeamPlannerShowHideRibbonBand"),
+			ribbonBandIds("TeamPlannerFormatRibbonTask"));
 		assertEquals(List.of("RibbonNetworkLinkLabels", "RibbonNetworkStraightLinks", "RibbonNetworkProgressMarks", "RibbonSummaryTasks"),
 			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("NetworkShowHideRibbonBand"));
 		assertEquals(List.of("RibbonNetworkBoxFieldsCollapsed"),
@@ -671,6 +678,7 @@ class RibbonAndToolbarButtonTest {
 			ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
 			// Every contextual Format tab, so the buttons only the Network/Calendar tabs carry are visible too.
 			ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask",
+					"TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask",
 				"TaskSheetFormatRibbonTask", "TaskUsageFormatRibbonTask", "ResourceSheetFormatRibbonTask", "ResourceUsageFormatRibbonTask"));
 			ResourceBundle labels = menuBundle(Locale.getDefault());
 

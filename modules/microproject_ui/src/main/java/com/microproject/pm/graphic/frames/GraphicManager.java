@@ -1991,6 +1991,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_GFMT_OUTLINE_NUMBERS, sheetFormatAction(ACTION_GFMT_OUTLINE_NUMBERS, view -> view.setOutlineNumbersVisible(!view.isOutlineNumbersVisible())));
 		actionsMap.addHandler(ACTION_GFMT_SUMMARY_TASKS, summaryTasksAction());
 		registerNetworkCalendarFormatActions();
+		registerTimelineTeamPlannerFormatActions();
 		actionsMap.addHandler(ACTION_NETWORK_LAYOUT_NOW, new MenuActionsMap.DocumentMenuAction() {
 			private static final long serialVersionUID = 1L;
 			@Override public void actionPerformed(ActionEvent event) {
@@ -2759,6 +2760,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			return new ContextualRibbonDescriptor(topViewId, "NetworkFormatRibbonTask", "NetworkFormat.contextualTitle", true);
 		if (ACTION_CALENDAR_VIEW.equals(topViewId))
 			return new ContextualRibbonDescriptor(topViewId, "CalendarFormatRibbonTask", "CalendarFormat.contextualTitle", true);
+		if (ACTION_TIMELINE.equals(topViewId))
+			return new ContextualRibbonDescriptor(topViewId, "TimelineFormatRibbonTask", "TimelineFormat.contextualTitle", true);
+		if (ACTION_DELEGATE_TASKS.equals(topViewId))
+			return new ContextualRibbonDescriptor(topViewId, "TeamPlannerFormatRibbonTask", "TeamPlannerFormat.contextualTitle", true);
 		if (ACTION_TASK_USAGE_DETAIL.equals(topViewId))
 			return new ContextualRibbonDescriptor(topViewId, "TaskUsageFormatRibbonTask", "TaskUsageFormat.contextualTitle", true);
 		if (ACTION_RESOURCES.equals(topViewId))
@@ -2967,6 +2972,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
 			if (!beforeChooserRoute(ACTION_TEXT_STYLES)) return;
+			if (getActiveTimelineDialog() != null) {
+				actionsMap.getConcreteAction(ACTION_TIMELINE_TEXT_STYLES).actionPerformed(arg0);
+				return;
+			}
+			if (getActiveTeamPlannerDialog() != null) {
+				actionsMap.getConcreteAction(ACTION_TEAM_PLANNER_TEXT_STYLES).actionPerformed(arg0);
+				return;
+			}
 			showTextStyleChooser();
 		}
 	}
@@ -3112,6 +3125,179 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			calendar.getSettings().setTaskListVisible(!calendar.getSettings().isTaskListVisible());
 			calendar.settingsChanged();
 		}));
+	}
+
+	/** A command or toggle of a view-specific Format tab, acting on that view's active dialog. */
+	private <D> MenuActionsMap.DocumentMenuAction viewCommand(String actionId, java.util.function.Supplier<D> active,
+			java.util.function.Consumer<D> run, java.util.function.Consumer<D> after) {
+		return new MenuActionsMap.DocumentMenuAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) {
+				setMeAsLastGraphicManager();
+				if (!beforeToggleRoute(actionId)) return;
+				D dialog = active.get();
+				if (dialog == null) return;
+				run.accept(dialog);
+				after.accept(dialog);
+				syncGanttViewRibbonState();
+			}
+		};
+	}
+
+	/** A dialog command of a view-specific Format tab: shows the panel and applies it on OK. */
+	private <D> MenuActionsMap.DocumentMenuAction viewDialog(String actionId, java.util.function.Supplier<D> active, String titleKey,
+			java.util.function.Function<D, NetworkCalendarFormatDialogs.OptionPanel> panelFactory, java.util.function.Consumer<D> after) {
+		return new MenuActionsMap.DocumentMenuAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) {
+				setMeAsLastGraphicManager();
+				if (!beforeChooserRoute(actionId)) return;
+				D dialog = active.get();
+				if (dialog == null || GraphicsEnvironment.isHeadless()) return;
+				NetworkCalendarFormatDialogs.OptionPanel panel = panelFactory.apply(dialog);
+				int answer = PopupDialogSupport.showConfirmDialog(getFrame(), panel, formatText(titleKey),
+					JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+				if (answer != JOptionPane.OK_OPTION) return;
+				panel.apply();
+				after.accept(dialog);
+				syncGanttViewRibbonState();
+			}
+		};
+	}
+
+	private void registerTimelineTeamPlannerFormatActions() {
+		java.util.function.Function<String, String> text = this::formatText;
+		java.util.function.Supplier<com.microproject.dialog.TimelineDialogBox> timeline = this::getActiveTimelineDialog;
+		java.util.function.Consumer<com.microproject.dialog.TimelineDialogBox> refresh = com.microproject.dialog.TimelineDialogBox::settingsChanged;
+		java.util.function.Consumer<com.microproject.dialog.TimelineDialogBox> none = dialog -> { };
+		actionsMap.addHandler(ACTION_TIMELINE_TEXT_STYLES, viewDialog(ACTION_TIMELINE_TEXT_STYLES, timeline, "RibbonTimelineTextStyles.text",
+			dialog -> TimelineTeamPlannerFormatDialogs.timelineTextStyles(dialog.getSettings(), text), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_SET_DATE_RANGE, viewDialog(ACTION_TIMELINE_SET_DATE_RANGE, timeline, "RibbonTimelineDateRange.text",
+			dialog -> TimelineTeamPlannerFormatDialogs.dateRange(dialog.getSettings(), dialog.axisRange(), text), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_VIEW_TEXT_LINE_HEIGHT, viewDialog(ACTION_TIMELINE_VIEW_TEXT_LINE_HEIGHT, timeline, "RibbonTimelineTextLines.text",
+			dialog -> TimelineTeamPlannerFormatDialogs.textLines(dialog.getSettings().getTextLines(),
+				com.microproject.dialog.TimelineViewSettings.MIN_TEXT_LINES, com.microproject.dialog.TimelineViewSettings.MAX_TEXT_LINES,
+				dialog.getSettings()::setTextLines, text), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_ADD_EXISTING_TASKS, viewDialog(ACTION_TIMELINE_ADD_EXISTING_TASKS, timeline, "RibbonTimelineAddExisting.text",
+			dialog -> TimelineTeamPlannerFormatDialogs.existingTasks(
+				dialog.allTasks().stream().filter(task -> !task.isDisplayOnTimeline()).toList(),
+				chosen -> dialog.displayTasks(chosen, true), text), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_SHOW_TASK_DATES, viewCommand(ACTION_TIMELINE_SHOW_TASK_DATES, timeline,
+			dialog -> dialog.getSettings().setShowTaskDates(!dialog.getSettings().isShowTaskDates()), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_SHOW_TODAY, viewCommand(ACTION_TIMELINE_SHOW_TODAY, timeline,
+			dialog -> dialog.getSettings().setShowToday(!dialog.getSettings().isShowToday()), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_SHOW_TIMESCALE, viewCommand(ACTION_TIMELINE_SHOW_TIMESCALE, timeline,
+			dialog -> dialog.getSettings().setShowTimescale(!dialog.getSettings().isShowTimescale()), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_SHOW_TASK_PROGRESS, viewCommand(ACTION_TIMELINE_SHOW_TASK_PROGRESS, timeline,
+			dialog -> dialog.getSettings().setShowProgress(!dialog.getSettings().isShowProgress()), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_VIEW_EXPAND, viewCommand(ACTION_TIMELINE_VIEW_EXPAND, timeline,
+			dialog -> dialog.getSettings().setExpanded(!dialog.getSettings().isExpanded()), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_BAR_SET_LABEL, viewCommand(ACTION_TIMELINE_BAR_SET_LABEL, timeline,
+			dialog -> dialog.getSettings().setBarLabels(!dialog.getSettings().isBarLabels()), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_VIEW_OVERLAPPED_TASKS_SHOW, viewCommand(ACTION_TIMELINE_VIEW_OVERLAPPED_TASKS_SHOW, timeline,
+			dialog -> dialog.getSettings().setShowOverlapped(!dialog.getSettings().isShowOverlapped()), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_VIEW_PAN_AND_ZOOM_SHOW, viewCommand(ACTION_TIMELINE_VIEW_PAN_AND_ZOOM_SHOW, timeline,
+			dialog -> dialog.getSettings().setShowPanZoom(!dialog.getSettings().isShowPanZoom()), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_INSERT_BAR, viewCommand(ACTION_TIMELINE_INSERT_BAR, timeline,
+			dialog -> dialog.insertBar(), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_INSERT_TASK, viewCommand(ACTION_TIMELINE_INSERT_TASK, timeline,
+			dialog -> dialog.insertNewTask(false, false), none));
+		actionsMap.addHandler(ACTION_TIMELINE_INSERT_CALLOUT, viewCommand(ACTION_TIMELINE_INSERT_CALLOUT, timeline,
+			dialog -> dialog.insertNewTask(false, true), none));
+		actionsMap.addHandler(ACTION_TIMELINE_INSERT_MILESTONE, viewCommand(ACTION_TIMELINE_INSERT_MILESTONE, timeline,
+			dialog -> dialog.insertNewTask(true, false), none));
+		actionsMap.addHandler(ACTION_TIMELINE_DISPLAY_ON_TIMELINE, viewCommand(ACTION_TIMELINE_DISPLAY_ON_TIMELINE, timeline,
+			dialog -> dialog.displayTasks(dialog.getSelectedTasks(), !allDisplayedOnTimeline(dialog)), none));
+		actionsMap.addHandler(ACTION_TIMELINE_DISPLAY_AS_CALLOUT, viewCommand(ACTION_TIMELINE_DISPLAY_AS_CALLOUT, timeline,
+			dialog -> dialog.setCallouts(dialog.getSelectedTasks(), !allCallouts(dialog)), none));
+		actionsMap.addHandler(ACTION_TIMELINE_REMOVE_TASK, viewCommand(ACTION_TIMELINE_REMOVE_TASK, timeline,
+			dialog -> dialog.displayTasks(dialog.getSelectedTasks(), false), none));
+		actionsMap.addHandler(ACTION_TIMELINE_COPY_FOR_EMAIL, viewCommand(ACTION_TIMELINE_COPY_FOR_EMAIL, timeline,
+			dialog -> dialog.copyPicture(com.microproject.dialog.TimelineDialogBox.PictureSize.EMAIL), none));
+		actionsMap.addHandler(ACTION_TIMELINE_COPY_FOR_PRESENTATION, viewCommand(ACTION_TIMELINE_COPY_FOR_PRESENTATION, timeline,
+			dialog -> dialog.copyPicture(com.microproject.dialog.TimelineDialogBox.PictureSize.PRESENTATION), none));
+		actionsMap.addHandler(ACTION_TIMELINE_COPY_FULL_SIZE, viewCommand(ACTION_TIMELINE_COPY_FULL_SIZE, timeline,
+			dialog -> dialog.copyPicture(com.microproject.dialog.TimelineDialogBox.PictureSize.FULL), none));
+
+		java.util.function.Supplier<com.microproject.dialog.TeamPlannerDialogBox> planner = this::getActiveTeamPlannerDialog;
+		java.util.function.Consumer<com.microproject.dialog.TeamPlannerDialogBox> plannerRefresh = com.microproject.dialog.TeamPlannerDialogBox::settingsChanged;
+		String[] outlineActions = { ACTION_TEAM_PLANNER_OUTLINE_SHOW_ALL, ACTION_TEAM_PLANNER_OUTLINE_LEVEL1, ACTION_TEAM_PLANNER_OUTLINE_LEVEL2,
+			ACTION_TEAM_PLANNER_OUTLINE_LEVEL3, ACTION_TEAM_PLANNER_OUTLINE_LEVEL4, ACTION_TEAM_PLANNER_OUTLINE_LEVEL5,
+			ACTION_TEAM_PLANNER_OUTLINE_LEVEL6, ACTION_TEAM_PLANNER_OUTLINE_LEVEL7, ACTION_TEAM_PLANNER_OUTLINE_LEVEL8,
+			ACTION_TEAM_PLANNER_OUTLINE_LEVEL9 };
+		for (int level = 0; level < outlineActions.length; level++) {
+			int outlineLevel = level;
+			actionsMap.addHandler(outlineActions[level], viewCommand(outlineActions[level], planner,
+				dialog -> dialog.getSettings().setOutlineLevel(outlineLevel), plannerRefresh));
+		}
+		actionsMap.addHandler(ACTION_TEAM_PLANNER_GRIDLINES, viewCommand(ACTION_TEAM_PLANNER_GRIDLINES, planner,
+			dialog -> dialog.getSettings().setGridlines(!dialog.getSettings().isGridlines()), plannerRefresh));
+		actionsMap.addHandler(ACTION_TEAM_PLANNER_TEXT_STYLES, viewDialog(ACTION_TEAM_PLANNER_TEXT_STYLES, planner, "RibbonTeamPlannerTextStyles.text",
+			dialog -> TimelineTeamPlannerFormatDialogs.textStyle(dialog.getSettings().getTextStyle(), dialog.getSettings()::setTextStyle, text), plannerRefresh));
+		actionsMap.addHandler(ACTION_TEAM_PLANNER_TEXT_LINES, viewDialog(ACTION_TEAM_PLANNER_TEXT_LINES, planner, "RibbonTeamPlannerTextLines.text",
+			dialog -> TimelineTeamPlannerFormatDialogs.textLines(dialog.getSettings().getTextLines(),
+				com.microproject.dialog.TeamPlannerViewSettings.MIN_TEXT_LINES, com.microproject.dialog.TeamPlannerViewSettings.MAX_TEXT_LINES,
+				dialog.getSettings()::setTextLines, text), plannerRefresh));
+		actionsMap.addHandler(ACTION_TEAM_PLANNER_SELECTED_FILL, viewDialog(ACTION_TEAM_PLANNER_SELECTED_FILL, planner, "RibbonTeamPlannerSelectedFill.text",
+			dialog -> {
+				java.util.List<Task> selected = dialog.getSelectedTasks();
+				Integer current = selected.isEmpty() ? null : dialog.getSettings().getTaskFill(selected.get(0).getUniqueId());
+				return TimelineTeamPlannerFormatDialogs.color(formatText("RibbonTeamPlannerSelectedFill.text"), current,
+					rgb -> selected.forEach(task -> dialog.getSettings().setTaskFill(task.getUniqueId(), rgb)), text);
+			}, plannerRefresh));
+		actionsMap.addHandler(ACTION_TEAM_PLANNER_SELECTED_BORDER, viewDialog(ACTION_TEAM_PLANNER_SELECTED_BORDER, planner, "RibbonTeamPlannerSelectedBorder.text",
+			dialog -> {
+				java.util.List<Task> selected = dialog.getSelectedTasks();
+				Integer current = selected.isEmpty() ? null : dialog.getSettings().getTaskBorder(selected.get(0).getUniqueId());
+				return TimelineTeamPlannerFormatDialogs.color(formatText("RibbonTeamPlannerSelectedBorder.text"), current,
+					rgb -> selected.forEach(task -> dialog.getSettings().setTaskBorder(task.getUniqueId(), rgb)), text);
+			}, plannerRefresh));
+		registerTeamPlannerCategory("Auto", com.microproject.dialog.TeamPlannerViewSettings.Category.AUTO,
+			ACTION_TEAM_PLANNER_AUTO_BORDER, ACTION_TEAM_PLANNER_AUTO_FILL, ACTION_TEAM_PLANNER_AUTO_RESET);
+		registerTeamPlannerCategory("Manual", com.microproject.dialog.TeamPlannerViewSettings.Category.MANUAL,
+			ACTION_TEAM_PLANNER_MANUAL_BORDER, ACTION_TEAM_PLANNER_MANUAL_FILL, ACTION_TEAM_PLANNER_MANUAL_RESET);
+		registerTeamPlannerCategory("Actual", com.microproject.dialog.TeamPlannerViewSettings.Category.ACTUAL,
+			ACTION_TEAM_PLANNER_ACTUAL_BORDER, ACTION_TEAM_PLANNER_ACTUAL_FILL, ACTION_TEAM_PLANNER_ACTUAL_RESET);
+		registerTeamPlannerCategory("External", com.microproject.dialog.TeamPlannerViewSettings.Category.EXTERNAL,
+			ACTION_TEAM_PLANNER_EXTERNAL_BORDER, ACTION_TEAM_PLANNER_EXTERNAL_FILL, ACTION_TEAM_PLANNER_EXTERNAL_RESET);
+		registerTeamPlannerCategory("Late", com.microproject.dialog.TeamPlannerViewSettings.Category.LATE,
+			ACTION_TEAM_PLANNER_LATE_BORDER, ACTION_TEAM_PLANNER_LATE_FILL, ACTION_TEAM_PLANNER_LATE_RESET);
+		actionsMap.addHandler(ACTION_TEAM_PLANNER_PREVENT_OVERALLOCATION, viewCommand(ACTION_TEAM_PLANNER_PREVENT_OVERALLOCATION, planner,
+			dialog -> dialog.getSettings().setPreventOverallocation(!dialog.getSettings().isPreventOverallocation()), plannerRefresh));
+		actionsMap.addHandler(ACTION_TEAM_PLANNER_EXPAND_ROWS, viewCommand(ACTION_TEAM_PLANNER_EXPAND_ROWS, planner,
+			dialog -> dialog.getSettings().setExpandRows(!dialog.getSettings().isExpandRows()), plannerRefresh));
+		actionsMap.addHandler(ACTION_TEAM_PLANNER_UNASSIGNED_TASKS_SHOW, viewCommand(ACTION_TEAM_PLANNER_UNASSIGNED_TASKS_SHOW, planner,
+			dialog -> dialog.getSettings().setShowUnassigned(!dialog.getSettings().isShowUnassigned()), plannerRefresh));
+		actionsMap.addHandler(ACTION_TEAM_PLANNER_UNSCHEDULED_TASKS_SHOW, viewCommand(ACTION_TEAM_PLANNER_UNSCHEDULED_TASKS_SHOW, planner,
+			dialog -> dialog.getSettings().setShowUnscheduled(!dialog.getSettings().isShowUnscheduled()), plannerRefresh));
+	}
+
+	/** The Border, Fill and Reset commands of one Team Planner task category. */
+	private void registerTeamPlannerCategory(String key, com.microproject.dialog.TeamPlannerViewSettings.Category category,
+			String borderAction, String fillAction, String resetAction) {
+		java.util.function.Function<String, String> text = this::formatText;
+		java.util.function.Supplier<com.microproject.dialog.TeamPlannerDialogBox> planner = this::getActiveTeamPlannerDialog;
+		java.util.function.Consumer<com.microproject.dialog.TeamPlannerDialogBox> refresh = com.microproject.dialog.TeamPlannerDialogBox::settingsChanged;
+		String borderKey = "RibbonTeamPlanner" + key + "Border.text";
+		String fillKey = "RibbonTeamPlanner" + key + "Fill.text";
+		actionsMap.addHandler(borderAction, viewDialog(borderAction, planner, "RibbonTeamPlanner" + key + "Style.text",
+			dialog -> TimelineTeamPlannerFormatDialogs.color(formatText(borderKey), dialog.getSettings().getBorder(category),
+				rgb -> dialog.getSettings().setBorder(category, rgb), text), refresh));
+		actionsMap.addHandler(fillAction, viewDialog(fillAction, planner, "RibbonTeamPlanner" + key + "Style.text",
+			dialog -> TimelineTeamPlannerFormatDialogs.color(formatText(fillKey), dialog.getSettings().getFill(category),
+				rgb -> dialog.getSettings().setFill(category, rgb), text), refresh));
+		actionsMap.addHandler(resetAction, viewCommand(resetAction, planner,
+			dialog -> dialog.getSettings().resetCategory(category), refresh));
+	}
+
+	private static boolean allDisplayedOnTimeline(com.microproject.dialog.TimelineDialogBox dialog) {
+		java.util.List<Task> selected = dialog.getSelectedTasks();
+		return !selected.isEmpty() && selected.stream().allMatch(Task::isDisplayOnTimeline);
+	}
+
+	private static boolean allCallouts(com.microproject.dialog.TimelineDialogBox dialog) {
+		java.util.List<Task> selected = dialog.getSelectedTasks();
+		return !selected.isEmpty() && selected.stream().allMatch(task -> dialog.getSettings().isCallout(task.getUniqueId()));
 	}
 
 	/** The box kinds of the tasks selected in the Network Diagram; every kind when nothing is selected. */
@@ -4887,6 +5073,69 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		return null;
 	}
 
+	/** The active embedded Timeline view's dialog, else null. */
+	com.microproject.dialog.TimelineDialogBox getActiveTimelineDialog() {
+		DocumentFrame frame = getCurrentFrame();
+		if (frame == null || frame.getProject() == null || !ACTION_TIMELINE.equals(frame.getTopViewId()))
+			return null;
+		return frame.getEmbeddedTimelineDialog();
+	}
+
+	/** The active embedded Team Planner view's dialog, else null. */
+	com.microproject.dialog.TeamPlannerDialogBox getActiveTeamPlannerDialog() {
+		DocumentFrame frame = getCurrentFrame();
+		if (frame == null || frame.getProject() == null || !ACTION_DELEGATE_TASKS.equals(frame.getTopViewId()))
+			return null;
+		return frame.getEmbeddedTeamPlannerDialog();
+	}
+
+	/** Enable and check state of the Timeline Format and Team Planner Format tabs. */
+	private void syncTimelineTeamPlannerRibbonState() {
+		com.microproject.dialog.TimelineDialogBox timeline = getActiveTimelineDialog();
+		com.microproject.dialog.TeamPlannerDialogBox planner = getActiveTeamPlannerDialog();
+		for (String action : new String[] { ACTION_TIMELINE_TEXT_STYLES, ACTION_TIMELINE_SET_DATE_RANGE, ACTION_TIMELINE_SHOW_TASK_DATES,
+				ACTION_TIMELINE_SHOW_TODAY, ACTION_TIMELINE_SHOW_TIMESCALE, ACTION_TIMELINE_SHOW_TASK_PROGRESS, ACTION_TIMELINE_VIEW_EXPAND,
+				ACTION_TIMELINE_BAR_SET_LABEL, ACTION_TIMELINE_VIEW_OVERLAPPED_TASKS_SHOW, ACTION_TIMELINE_VIEW_PAN_AND_ZOOM_SHOW,
+				ACTION_TIMELINE_VIEW_TEXT_LINE_HEIGHT, ACTION_TIMELINE_INSERT_BAR, ACTION_TIMELINE_ADD_EXISTING_TASKS,
+				ACTION_TIMELINE_INSERT_TASK, ACTION_TIMELINE_INSERT_CALLOUT, ACTION_TIMELINE_INSERT_MILESTONE,
+				ACTION_TIMELINE_COPY_FOR_EMAIL, ACTION_TIMELINE_COPY_FOR_PRESENTATION, ACTION_TIMELINE_COPY_FULL_SIZE })
+			getMenuManager().setActionEnabled(action, timeline != null);
+		boolean timelineSelection = timeline != null && !timeline.getSelectedTasks().isEmpty();
+		for (String action : new String[] { ACTION_TIMELINE_DISPLAY_ON_TIMELINE, ACTION_TIMELINE_DISPLAY_AS_CALLOUT, ACTION_TIMELINE_REMOVE_TASK })
+			getMenuManager().setActionEnabled(action, timelineSelection);
+		com.microproject.dialog.TimelineViewSettings timelineSettings = timeline == null ? null : timeline.getSettings();
+		getMenuManager().setActionSelected(ACTION_TIMELINE_SHOW_TASK_DATES, timelineSettings != null && timelineSettings.isShowTaskDates());
+		getMenuManager().setActionSelected(ACTION_TIMELINE_SHOW_TODAY, timelineSettings != null && timelineSettings.isShowToday());
+		getMenuManager().setActionSelected(ACTION_TIMELINE_SHOW_TIMESCALE, timelineSettings != null && timelineSettings.isShowTimescale());
+		getMenuManager().setActionSelected(ACTION_TIMELINE_SHOW_TASK_PROGRESS, timelineSettings != null && timelineSettings.isShowProgress());
+		getMenuManager().setActionSelected(ACTION_TIMELINE_VIEW_EXPAND, timelineSettings != null && timelineSettings.isExpanded());
+		getMenuManager().setActionSelected(ACTION_TIMELINE_BAR_SET_LABEL, timelineSettings != null && timelineSettings.isBarLabels());
+		getMenuManager().setActionSelected(ACTION_TIMELINE_VIEW_OVERLAPPED_TASKS_SHOW, timelineSettings != null && timelineSettings.isShowOverlapped());
+		getMenuManager().setActionSelected(ACTION_TIMELINE_VIEW_PAN_AND_ZOOM_SHOW, timelineSettings != null && timelineSettings.isShowPanZoom());
+		getMenuManager().setActionSelected(ACTION_TIMELINE_DISPLAY_ON_TIMELINE, timelineSelection && allDisplayedOnTimeline(timeline));
+		getMenuManager().setActionSelected(ACTION_TIMELINE_DISPLAY_AS_CALLOUT, timelineSelection && allCallouts(timeline));
+
+		for (String action : new String[] { ACTION_TEAM_PLANNER_OUTLINE_SHOW_ALL, ACTION_TEAM_PLANNER_OUTLINE_LEVEL1,
+				ACTION_TEAM_PLANNER_OUTLINE_LEVEL2, ACTION_TEAM_PLANNER_OUTLINE_LEVEL3, ACTION_TEAM_PLANNER_OUTLINE_LEVEL4,
+				ACTION_TEAM_PLANNER_OUTLINE_LEVEL5, ACTION_TEAM_PLANNER_OUTLINE_LEVEL6, ACTION_TEAM_PLANNER_OUTLINE_LEVEL7,
+				ACTION_TEAM_PLANNER_OUTLINE_LEVEL8, ACTION_TEAM_PLANNER_OUTLINE_LEVEL9, ACTION_TEAM_PLANNER_GRIDLINES,
+				ACTION_TEAM_PLANNER_TEXT_STYLES, ACTION_TEAM_PLANNER_TEXT_LINES, ACTION_TEAM_PLANNER_SELECTED_FILL,
+				ACTION_TEAM_PLANNER_SELECTED_BORDER, ACTION_TEAM_PLANNER_AUTO_BORDER, ACTION_TEAM_PLANNER_AUTO_FILL,
+				ACTION_TEAM_PLANNER_AUTO_RESET, ACTION_TEAM_PLANNER_MANUAL_BORDER, ACTION_TEAM_PLANNER_MANUAL_FILL,
+				ACTION_TEAM_PLANNER_MANUAL_RESET, ACTION_TEAM_PLANNER_ACTUAL_BORDER, ACTION_TEAM_PLANNER_ACTUAL_FILL,
+				ACTION_TEAM_PLANNER_ACTUAL_RESET, ACTION_TEAM_PLANNER_EXTERNAL_BORDER, ACTION_TEAM_PLANNER_EXTERNAL_FILL,
+				ACTION_TEAM_PLANNER_EXTERNAL_RESET, ACTION_TEAM_PLANNER_LATE_BORDER, ACTION_TEAM_PLANNER_LATE_FILL,
+				ACTION_TEAM_PLANNER_LATE_RESET, ACTION_TEAM_PLANNER_PREVENT_OVERALLOCATION, ACTION_TEAM_PLANNER_EXPAND_ROWS,
+				ACTION_TEAM_PLANNER_UNASSIGNED_TASKS_SHOW, ACTION_TEAM_PLANNER_UNSCHEDULED_TASKS_SHOW })
+			getMenuManager().setActionEnabled(action, planner != null);
+		com.microproject.dialog.TeamPlannerViewSettings plannerSettings = planner == null ? null : planner.getSettings();
+		getMenuManager().setActionSelected(ACTION_TEAM_PLANNER_GRIDLINES, plannerSettings != null && plannerSettings.isGridlines());
+		getMenuManager().setActionSelected(ACTION_TEAM_PLANNER_PREVENT_OVERALLOCATION, plannerSettings != null && plannerSettings.isPreventOverallocation());
+		getMenuManager().setActionSelected(ACTION_TEAM_PLANNER_EXPAND_ROWS, plannerSettings != null && plannerSettings.isExpandRows());
+		getMenuManager().setActionSelected(ACTION_TEAM_PLANNER_UNASSIGNED_TASKS_SHOW, plannerSettings != null && plannerSettings.isShowUnassigned());
+		getMenuManager().setActionSelected(ACTION_TEAM_PLANNER_UNSCHEDULED_TASKS_SHOW, plannerSettings != null && plannerSettings.isShowUnscheduled());
+	}
+
 	/** The view whose summary rows/boxes the Summary Tasks command toggles: a sheet view or the Network Diagram. */
 	private BaseView getActiveSummaryTasksView() {
 		BaseView sheet = getActiveSheetView();
@@ -5551,7 +5800,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		{ ACTION_USAGE_DETAIL_ACTUAL_COST, "Field.actualCost" }
 	};
 
-	private void syncGanttViewRibbonState() {
+	void syncGanttViewRibbonState() {
 		boolean ganttActive = isActiveGanttView();
 		BaseView sheetView = getActiveSheetView();
 		boolean sheetActive = sheetView != null;
@@ -5576,7 +5825,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionSelected(ACTION_NETWORK_STRAIGHT_LINKS, networkView != null && networkView.getDisplayOptions().isStraightLinks());
 		getMenuManager().setActionSelected(ACTION_NETWORK_PROGRESS_MARKS, networkView != null && networkView.getDisplayOptions().isProgressMarks());
 		getMenuManager().setActionSelected(ACTION_CALENDAR_TASK_LIST, calendarView != null && calendarView.getSettings().isTaskListVisible());
-		getMenuManager().setActionEnabled(ACTION_TEXT_STYLES, ganttActive);
+		syncTimelineTeamPlannerRibbonState();
+		getMenuManager().setActionEnabled(ACTION_TEXT_STYLES, ganttActive || getActiveTimelineDialog() != null || getActiveTeamPlannerDialog() != null);
 		getMenuManager().setActionEnabled(ACTION_BAR_STYLES, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_LAYOUT, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_GFMT_INSERT_COLUMN, sheetActive);

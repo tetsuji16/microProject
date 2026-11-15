@@ -1953,6 +1953,15 @@ class RibbonButtonBehaviorTest {
 			"RibbonNetworkBoxFieldsCollapsed", "RibbonNetworkBoxFormat", "RibbonNetworkBoxStyles", "RibbonNetworkLayout", "RibbonNetworkLinkLabels",
 			"RibbonNetworkStraightLinks", "RibbonNetworkProgressMarks", "RibbonCalendarTextStyles", "RibbonCalendarBarStyles", "RibbonCalendarLayoutNow",
 			"RibbonCalendarWeekHeightBestFit", "RibbonCalendarLayout", "RibbonCalendarTaskList");
+		// Timeline and Team Planner Format tabs: each needs the active Timeline/Team Planner view; behaviour is covered by TimelineTeamPlannerFormatTest (settings, selection commands, picture copy, state sync) and TimelineTeamPlannerRibbonGuiAcceptanceTest (guiTest).
+		add(map, Strategy.STRUCTURAL_ONLY,
+			"RibbonTimelineTextStyles", "RibbonTimelineDateRange", "RibbonTimelineDates", "RibbonTimelineExpand", "RibbonTimelineBarLabels",
+			"RibbonTimelineOverlapped", "RibbonTimelinePanZoom", "RibbonTimelineTextLines", "RibbonTimelineInsertBar", "RibbonTimelineAddExisting",
+			"RibbonTimelineInsertTask", "RibbonTimelineInsertCallout", "RibbonTimelineInsertMilestone", "RibbonTimelineDisplay", "RibbonTimelineCallout",
+			"RibbonTimelineRemove", "RibbonTimelineCopy", "RibbonTeamPlannerOutline", "RibbonTeamPlannerGridlines", "RibbonTeamPlannerTextStyles",
+			"RibbonTeamPlannerTextLines", "RibbonTeamPlannerSelectedStyle", "RibbonTeamPlannerAutoStyle", "RibbonTeamPlannerManualStyle",
+			"RibbonTeamPlannerActualStyle", "RibbonTeamPlannerExternalStyle", "RibbonTeamPlannerLateStyle", "RibbonTeamPlannerPreventOverallocation",
+			"RibbonTeamPlannerExpandRows", "RibbonTeamPlannerUnassigned", "RibbonTeamPlannerUnscheduled");
 		// Usage Format tabs: each needs an active usage view; behaviour is covered by UsageDetailRibbonGuiAcceptanceTest (guiTest: detail toggle, last-row guard, Add Details) and UsageDetailValuesTest (computed rows).
 		add(map, Strategy.STRUCTURAL_ONLY,
 			"RibbonUsageDetailWork", "RibbonUsageDetailActualWork", "RibbonUsageDetailBaselineWork", "RibbonUsageDetailCost",

@@ -28,12 +28,14 @@ class GraphicManagerContextualRibbonDescriptorTest {
 	}
 
 	@Test
-	void contextualMatrixDoesNotAdvertiseUnsupportedTimelineOrReportSurfaces() {
+	void contextualMatrixDoesNotAdvertiseUnsupportedReportSurfaces() {
 		var expected = java.util.Map.of(
 			"Gantt", "FormatRibbonTask",
 			"TrackingGantt", "FormatRibbonTask",
 			"Network", "NetworkFormatRibbonTask",
 			"CalendarView", "CalendarFormatRibbonTask",
+			"Timeline", "TimelineFormatRibbonTask",
+			"DelegateTasks", "TeamPlannerFormatRibbonTask",
 			"TaskSheet", "TaskSheetFormatRibbonTask",
 			"TaskUsageDetail", "TaskUsageFormatRibbonTask",
 			"Resources", "ResourceSheetFormatRibbonTask",
@@ -43,7 +45,7 @@ class GraphicManagerContextualRibbonDescriptorTest {
 			assertTrue(descriptor.implemented(), view);
 			assertEquals(tab, descriptor.tabId(), view);
 		});
-		for (String unsupported : java.util.List.of("Timeline", "Report", "ResourceSheet", "TaskUsage", "")) {
+		for (String unsupported : java.util.List.of("Report", "ResourceSheet", "TaskUsage", "")) {
 			assertFalse(GraphicManager.contextualRibbonDescriptor(unsupported).implemented(), unsupported);
 		}
 	}

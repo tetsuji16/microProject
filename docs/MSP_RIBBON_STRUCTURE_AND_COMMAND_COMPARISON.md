@@ -29,7 +29,8 @@ than presenting it as a measured MSP result.
 
 The current implementation has seven normal tabs in this order: File, Task,
 Resource, Report, Project, View, Help. `FormatRibbonTask`,
-`NetworkFormatRibbonTask`, and `CalendarFormatRibbonTask` are contextual
+`NetworkFormatRibbonTask`, `CalendarFormatRibbonTask`,
+`TimelineFormatRibbonTask`, and `TeamPlannerFormatRibbonTask` are contextual
 surfaces, not normal tabs. Their view-specific visibility is covered by
 `ContextualRibbonVisibilityContractTest` and the GUI acceptance routes. This
 is the current microProject structure; it is not evidence that every MSP

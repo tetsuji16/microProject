@@ -42,6 +42,9 @@ import static com.microproject.util.IdentityCollections.containsIdentity;
 
 /** Model operations used by the interactive Team Planner timeline. */
 public final class TeamPlannerService {
+	private static final int MAX_SHIFT_DAYS = 400;
+	private static final long ONE_DAY = 24L * 60L * 60L * 1000L;
+
 	public record Slot(Task task, Resource resource, Assignment assignment, long start, long end,
 		double units, boolean overallocated) {
 	}
@@ -116,6 +119,60 @@ public final class TeamPlannerService {
 			task.getOwningProject().getUndoController().getEditSupport());
 		task.setDirty(true);
 		task.getOwningProject().recalculate();
+	}
+
+	/** Whether any assignment of the task is overallocated at its current schedule. */
+	public boolean isOverallocated(Task task) {
+		Objects.requireNonNull(task, "task");
+		if (!(task instanceof NormalTask normalTask))
+			return false;
+		for (Object value : normalTask.getAssignments()) {
+			Assignment assignment = (Assignment) value;
+			if (isOverallocated(assignment.getResource(), assignment))
+				return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Reschedules like {@link #reschedule}, then moves the task later one day at a time until none
+	 * of its assignments is overallocated. When no free slot exists within {@code MAX_SHIFT_DAYS}
+	 * the original start is restored and an {@link IllegalArgumentException} is thrown.
+	 */
+	public void reschedulePreventingOverallocation(Task task, long newStart, Object eventSource) {
+		long original = task.getStart();
+		long candidate = newStart;
+		for (int day = 0; day <= MAX_SHIFT_DAYS; day++) {
+			reschedule(task, candidate, eventSource);
+			if (!isOverallocated(task))
+				return;
+			candidate += ONE_DAY;
+		}
+		reschedule(task, original, eventSource);
+		throw new IllegalArgumentException("No slot without overallocation was found for the task");
+	}
+
+	/** Tasks without any resource assignment, in outline order of the active project. */
+	public List<Task> unassignedTasks(Project project) {
+		Objects.requireNonNull(project, "project");
+		List<Task> result = new ArrayList<>();
+		for (Task task : ProjectHierarchyQueries.outline(project)) {
+			if (task instanceof NormalTask normalTask && !task.isSummary() && !task.isInactiveTask()
+				&& normalTask.getAssignments().isEmpty())
+				result.add(task);
+		}
+		return List.copyOf(result);
+	}
+
+	/** Manually scheduled tasks that have no start or finish yet. */
+	public List<Task> unscheduledTasks(Project project) {
+		Objects.requireNonNull(project, "project");
+		List<Task> result = new ArrayList<>();
+		for (Task task : ProjectHierarchyQueries.outline(project)) {
+			if (!task.isSummary() && task.isManuallyScheduled() && (task.getStart() <= 0L || task.getEnd() <= 0L))
+				result.add(task);
+		}
+		return List.copyOf(result);
 	}
 
 	public Assignment reassign(Assignment assignment, Resource target, Object eventSource) {
