@@ -435,6 +435,8 @@ public class UsageDetailView extends SplittedView implements BaseView, FieldArra
 		if (timeScrollPane != null && ws.scrollPane != null) {
 			timeScrollPane.restoreWorkspace(ws.scrollPane, context);
 		}
+		if (supportsSummaryTasksToggle())
+			setSummaryTasksVisible(ws.summaryTasksVisible == null || ws.summaryTasksVisible.booleanValue());
 		restoreDividerLocation(ws.dividerLocation);
 	}
 	public WorkspaceSetting createWorkspace(int context) {
@@ -450,6 +452,8 @@ public class UsageDetailView extends SplittedView implements BaseView, FieldArra
 			ws.scrollPane = timeScrollPane.createWorkspace(context);
 		}
 		ws.dividerLocation = getDividerLocation();
+		if (supportsSummaryTasksToggle())
+			ws.summaryTasksVisible = Boolean.valueOf(isSummaryTasksVisible());
 		return ws;
 	}
 
@@ -460,6 +464,14 @@ public class UsageDetailView extends SplittedView implements BaseView, FieldArra
 		Collection selectedFieldArray;
 		WorkspaceSetting scrollPane;
 		int dividerLocation;
+		// Hide Summary Tasks switch of Task Usage; null in workspaces saved before it existed (summary tasks stay visible).
+		Boolean summaryTasksVisible;
+		public Boolean getSummaryTasksVisible() {
+			return summaryTasksVisible;
+		}
+		public void setSummaryTasksVisible(Boolean summaryTasksVisible) {
+			this.summaryTasksVisible = summaryTasksVisible;
+		}
 		public WorkspaceSetting getSpreadSheet() {
 			return spreadSheet;
 		}

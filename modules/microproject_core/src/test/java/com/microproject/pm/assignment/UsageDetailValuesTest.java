@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Test;
 import com.microproject.field.FieldContext;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.availability.Availability;
+import com.microproject.pm.calendar.WorkDay;
+import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
@@ -51,6 +53,29 @@ class UsageDetailValuesTest {
 		assertEquals(assignment.getResourceAvailability(),
 			UsageDetailValues.availableWork(resource, assignment.getStart(), assignment.getEnd()));
 		assertEquals(0L, UsageDetailValues.availableWork(resource, assignment.getEnd(), assignment.getStart()));
+	}
+
+	@Test
+	void resourceWithoutCalendarUsesTheProjectCalendarNotTheTaskCalendar() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		task.setDuration(2L * DAY);
+		WorkingCalendar taskCalendar = WorkingCalendar.getStandardBasedInstance();
+		taskCalendar.setWeekDay(java.util.Calendar.WEDNESDAY - 1, new WorkDay());
+		taskCalendar.setWeekDay(java.util.Calendar.THURSDAY - 1, new WorkDay());
+		task.setWorkCalendar(taskCalendar);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		resource.setWorkCalendar(null);
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		long start = assignment.getStart();
+		long end = start + 7L * DAY;
+		double units = ((Availability) resource.getAvailabilityTable().getList().iterator().next()).getMaximumUnits();
+
+		long projectWork = Math.round(project.getEffectiveWorkCalendar().compare(end, start, false) * units);
+		long taskWork = Math.round(taskCalendar.compare(end, start, false) * units);
+
+		assertTrue(projectWork > 0L && projectWork != taskWork, "the task calendar must differ from the project calendar");
+		assertEquals(projectWork, UsageDetailValues.availableWork(resource, start, end));
 	}
 
 	@Test
@@ -131,7 +156,10 @@ class UsageDetailValuesTest {
 		com.microproject.field.Field cumulative = com.microproject.configuration.Configuration.getFieldFromId("Field.cumulativeWork");
 		com.microproject.field.Field work = com.microproject.configuration.Configuration.getFieldFromId("Field.work");
 		// the first period starts the assignment, so its running total is its work
-		assertEquals(String.valueOf(work.getValue(assignment, period)), String.valueOf(cumulative.getValue(assignment, period)));
+		Object expectedWork = work.getValue(assignment, period);
+		Object cumulativeValue = cumulative.getValue(assignment, period);
+		assertTrue(expectedWork instanceof Number && ((Number) expectedWork).longValue() > 0L, "the period carries work");
+		assertEquals(((Number) expectedWork).longValue(), ((Number) cumulativeValue).longValue());
 	}
 
 	private static FieldContext period(long start, long end) {

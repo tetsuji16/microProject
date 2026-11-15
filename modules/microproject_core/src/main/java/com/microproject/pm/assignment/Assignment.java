@@ -1488,6 +1488,11 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	public long getWork(FieldContext fieldContext) {
 		return timeFacade.getWork(fieldContext);
 	}
+
+	@Override
+	public long getCumulativeWork(FieldContext fieldContext) {
+		return timeFacade.getCumulativeWork(fieldContext);
+	}
 	public double getActualCost(FieldContext fieldContext) {
 		return actualCost(FieldContext.start(fieldContext),FieldContext.end(fieldContext));
 	}
@@ -2505,6 +2510,11 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 				w = Duration.setAsNonTemporal(w);
 			}
 			return w;
+		}
+
+		long getCumulativeWork(FieldContext fieldContext) {
+			long w = UsageDetailValues.cumulativeWork(Assignment.this, FieldContext.end(fieldContext));
+			return isLabor() ? w : Duration.setAsNonTemporal(w);
 		}
 
 		long getRemainingWork(FieldContext fieldContext) {

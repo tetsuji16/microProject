@@ -66,10 +66,10 @@ class UsageDetailRibbonGuiAcceptanceTest {
 
 	@Test
 	void costToggleLastRowGuardAndAddDetailsDialogWorkOnTaskUsage() throws Exception {
-		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for usage ribbon coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
 		previousNewLook = Environment.isNewLook();
 		previousRibbonDisplayMode = RibbonDisplayPreferences.load();
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for usage ribbon coverage.");
 		RibbonDisplayPreferences.save(RibbonDisplayMode.ALWAYS_SHOW);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);

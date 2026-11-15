@@ -2918,6 +2918,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 	}
 	/** Gridlines of a table view: the sheet has no chart lines, so the dialog only chooses whether the sheet grid shows. */
+	/** A Gantt view keeps its own gridline state (saved in the workspace), so it is set through the view. */
+	static void applySheetGridVisibility(BaseView sheetView, boolean visible) {
+		if (sheetView instanceof GanttView ganttView)
+			ganttView.setSpreadsheetGridVisible(visible);
+		else
+			sheetView.getSpreadSheet().setGridVisible(visible);
+	}
 	public class SheetGridlinesAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
@@ -2930,7 +2937,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			int choice = PopupDialogSupport.showConfirmDialog(getFrame(), visible,
 				getMenuManager().getString("RibbonSheetGridlines.text"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
 			if (choice == JOptionPane.OK_OPTION) {
-				sheetView.getSpreadSheet().setGridVisible(visible.isSelected());
+				applySheetGridVisibility(sheetView, visible.isSelected());
 				syncGanttViewRibbonState();
 			}
 		}

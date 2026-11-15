@@ -64,14 +64,17 @@ public final class UsageDetailValues {
 		return Math.round(capacity);
 	}
 
-	/** The calendar of the resource; a resource without its own calendar works on the calendar of its assignments (project calendar). */
+	/** The calendar of the resource; a resource without its own calendar works on the project calendar. */
 	private static WorkCalendar calendarOf(Resource resource) {
 		WorkCalendar calendar = resource.getEffectiveWorkCalendar();
 		if (calendar != null || resource.getAssignments() == null)
 			return calendar;
 		for (Object assignment : resource.getAssignments()) {
-			if (assignment instanceof Assignment own && own.getEffectiveWorkCalendar() != null)
-				return own.getEffectiveWorkCalendar();
+			if (assignment instanceof Assignment own && own.getTask() != null && own.getTask().getProject() != null) {
+				WorkCalendar projectCalendar = own.getTask().getProject().getEffectiveWorkCalendar();
+				if (projectCalendar != null)
+					return projectCalendar;
+			}
 		}
 		return null;
 	}
