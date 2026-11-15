@@ -166,6 +166,7 @@ Format,Gantt Chart Format,Critical Chain,RibbonToggleCriticalChain,EXTENSION,CCP
 Format,Format,Timescale,RibbonTimescale,REQUIRED,S20
 Format,Bar Styles,Bar Styles,RibbonBarStyles,REQUIRED,S38
 Format,Format,Text Styles,RibbonTextStyles,REQUIRED,S38
+Format,Format,Table Gridlines,RibbonSheetGridlines,REQUIRED,S38
 Format,Format,Layout,RibbonLayout,REQUIRED,S38
 Format,Columns,Insert Column,RibbonInsertColumn,REQUIRED,S38
 Format,Columns,Align Left,RibbonAlignLeft,REQUIRED,S38
@@ -182,3 +183,9 @@ Format,Bar Styles,Slippage,RibbonSlippage,REQUIRED,S38
 Format,Gantt Chart Style,Gantt Chart Style,RibbonGanttStyleGallery,REQUIRED,S38
 Format,Show/Hide,Outline Number,RibbonOutlineNumbers,REQUIRED,S38
 Format,Show/Hide,Summary Tasks,RibbonSummaryTasks,REQUIRED,S38
+Format,Details,Work,RibbonUsageDetailWork,REQUIRED,S38
+Format,Details,Actual Work,RibbonUsageDetailActualWork,REQUIRED,S38
+Format,Details,Baseline Work,RibbonUsageDetailBaselineWork,REQUIRED,S38
+Format,Details,Cost,RibbonUsageDetailCost,REQUIRED,S38
+Format,Details,Actual Cost,RibbonUsageDetailActualCost,REQUIRED,S38
+Format,Details,Add Details,RibbonUsageDetailsAdd,REQUIRED,S38

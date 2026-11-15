@@ -49,7 +49,8 @@ class RibbonStructureTest {
 		assertEquals(List.of(
 			"FileRibbonTask", "TaskRibbonTask", "ResourceRibbonTask", "ReportRibbonTask",
 			"ProjectRibbonTask", "ViewRibbonTask", "HelpRibbonTask", "FormatRibbonTask",
-			"NetworkFormatRibbonTask", "CalendarFormatRibbonTask"), ribbonTaskIds());
+			"NetworkFormatRibbonTask", "CalendarFormatRibbonTask", "TaskUsageFormatRibbonTask",
+			"ResourceSheetFormatRibbonTask", "ResourceUsageFormatRibbonTask"), ribbonTaskIds());
 	}
 
 	@Test
@@ -217,12 +218,16 @@ class RibbonStructureTest {
 		Set<String> contextualFormatCommands = Set.of(
 			"RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName",
 			"RibbonGridlines", "RibbonToggleCriticalChain", "RibbonTimescale", "RibbonBarStyles",
-			"RibbonTextStyles", "RibbonLayout");
+			"RibbonTextStyles", "RibbonLayout",
+			// the table-view Format tabs share the Gantt Columns, Show/Hide and usage Details commands
+			"RibbonInsertColumn", "RibbonAlignLeft", "RibbonAlignCenter", "RibbonAlignRight", "RibbonColumnSettings",
+			"RibbonHideColumn", "RibbonFieldSettings", "RibbonOutlineNumbers", "RibbonSummaryTasks",
+			"RibbonUsageDetailWork", "RibbonUsageDetailActualWork", "RibbonUsageDetailCost", "RibbonUsageDetailsAdd", "RibbonSheetGridlines");
 		for (Map.Entry<String, Set<String>> entry : tabsByButton.entrySet()) {
 			boolean legalContextualFormatDuplicate = contextualFormatCommands.contains(entry.getKey())
-				&& entry.getValue().contains("FormatRibbonTask")
 				&& entry.getValue().stream().allMatch(Set.of(
-					"FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask")::contains);
+					"FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask", "TaskUsageFormatRibbonTask",
+					"ResourceSheetFormatRibbonTask", "ResourceUsageFormatRibbonTask")::contains);
 			assertTrue(entry.getValue().size() == 1 || permittedDuplicates.contains(entry.getKey())
 				|| legalContextualFormatDuplicate,
 				() -> "Unexpected duplicate ribbon command: " + entry.getKey() + " in " + entry.getValue());

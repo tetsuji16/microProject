@@ -1946,6 +1946,10 @@ class RibbonButtonBehaviorTest {
 			"RibbonInsertColumn", "RibbonAlignLeft", "RibbonAlignCenter", "RibbonAlignRight", "RibbonColumnSettings",
 			"RibbonFormatBarStyles", "RibbonCriticalTasks", "RibbonSlack", "RibbonLateTasks", "RibbonTaskPath",
 			"RibbonShowBaseline", "RibbonSlippage", "RibbonGanttStyleGallery", "RibbonOutlineNumbers", "RibbonSummaryTasks");
+		// Usage Format tabs: each needs an active usage view; behaviour is covered by SheetFormatRibbonTest (detail rows, Add Details, shared Columns, gridlines).
+		add(map, Strategy.STRUCTURAL_ONLY,
+			"RibbonUsageDetailWork", "RibbonUsageDetailActualWork", "RibbonUsageDetailBaselineWork", "RibbonUsageDetailCost",
+			"RibbonUsageDetailActualCost", "RibbonUsageDetailsAdd", "RibbonSheetGridlines");
 		add(map, Strategy.STRUCTURAL_ONLY,
 			"RibbonDelegateTasks",
 			"RibbonTeamFilter",

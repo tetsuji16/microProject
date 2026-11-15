@@ -33,13 +33,16 @@ class GraphicManagerContextualRibbonDescriptorTest {
 			"Gantt", "FormatRibbonTask",
 			"TrackingGantt", "FormatRibbonTask",
 			"Network", "NetworkFormatRibbonTask",
-			"CalendarView", "CalendarFormatRibbonTask");
+			"CalendarView", "CalendarFormatRibbonTask",
+			"TaskUsageDetail", "TaskUsageFormatRibbonTask",
+			"Resources", "ResourceSheetFormatRibbonTask",
+			"ResourceUsageDetail", "ResourceUsageFormatRibbonTask");
 		expected.forEach((view, tab) -> {
 			var descriptor = GraphicManager.contextualRibbonDescriptor(view);
 			assertTrue(descriptor.implemented(), view);
 			assertEquals(tab, descriptor.tabId(), view);
 		});
-		for (String unsupported : java.util.List.of("Timeline", "Report", "ResourceSheet", "")) {
+		for (String unsupported : java.util.List.of("Timeline", "Report", "ResourceSheet", "TaskUsage", "")) {
 			assertFalse(GraphicManager.contextualRibbonDescriptor(unsupported).implemented(), unsupported);
 		}
 	}

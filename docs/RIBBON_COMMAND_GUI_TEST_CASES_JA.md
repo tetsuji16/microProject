@@ -185,6 +185,13 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonGanttStyleGallery (RibbonGanttStyleDefault / Blue / Green / Orange / Purple / Gray) | ガント チャートの配色を選ぶ | バーの配色が切り替わり、ビューと共に保存される |
 | RibbonOutlineNumbers | アウトライン番号の表示を切り替える | タスク名の前に番号が表示／非表示になる |
 | RibbonSummaryTasks | サマリー タスクの行を切り替える | サマリー タスクの行が表示／非表示になる |
+| RibbonSheetGridlines | 表の罫線の表示を選ぶ | 表の罫線が表示／非表示になる |
+| RibbonUsageDetailWork | 作業時間の詳細行を切り替える | 使用状況グリッドに作業時間の行が表示／非表示になる |
+| RibbonUsageDetailActualWork | 実績作業時間の詳細行を切り替える | 使用状況グリッドに実績作業時間の行が表示／非表示になる |
+| RibbonUsageDetailBaselineWork | ベースライン作業時間の詳細行を切り替える | 使用状況グリッドにベースライン作業時間の行が表示／非表示になる |
+| RibbonUsageDetailCost | コストの詳細行を切り替える | 使用状況グリッドにコストの行が表示／非表示になる |
+| RibbonUsageDetailActualCost | 実績コストの詳細行を切り替える | 使用状況グリッドに実績コストの行が表示／非表示になる |
+| RibbonUsageDetailsAdd | 表示していない詳細行を選んで追加する | 選んだ詳細行が使用状況グリッドに追加される |
 
 ### クイックアクセス（QuickAccessToolbar）
 

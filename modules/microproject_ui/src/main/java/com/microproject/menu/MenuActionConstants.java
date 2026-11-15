@@ -128,6 +128,13 @@ public interface MenuActionConstants {
 	public static final String ACTION_GFMT_STYLE_GRAY = "GanttStyleGray";
 	public static final String ACTION_GFMT_OUTLINE_NUMBERS = "GanttOutlineNumbers";
 	public static final String ACTION_GFMT_SUMMARY_TASKS = "GanttSummaryTasks";
+	public static final String ACTION_SHEET_GRIDLINES = "SheetGridlines";
+	public static final String ACTION_USAGE_DETAIL_WORK = "UsageDetailWork";
+	public static final String ACTION_USAGE_DETAIL_ACTUAL_WORK = "UsageDetailActualWork";
+	public static final String ACTION_USAGE_DETAIL_BASELINE_WORK = "UsageDetailBaselineWork";
+	public static final String ACTION_USAGE_DETAIL_COST = "UsageDetailCost";
+	public static final String ACTION_USAGE_DETAIL_ACTUAL_COST = "UsageDetailActualCost";
+	public static final String ACTION_USAGE_DETAILS_ADD = "UsageDetailsAdd";
 
 	public static final String ACTION_INSERT_TASK             = "InsertTask";
 	public static final String ACTION_TASK_MODE_MANUAL       = "TaskModeManual";

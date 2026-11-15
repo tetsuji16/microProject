@@ -428,6 +428,9 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 			spreadSheet.setOutlineNumbersVisible(visible);
 	}
 	private boolean summaryTasksVisible = true;
+	public boolean supportsSummaryTasksToggle() {
+		return true;
+	}
 	public boolean isSummaryTasksVisible() {
 		// The transform is shared by views of the same name, so it is the source of truth when attached.
 		if (cache instanceof ViewNodeModelCache viewCache)
