@@ -151,16 +151,9 @@ class MspRibbonOrderDiffTest {
 	 * with the reason. A control counts as present when it or one of its menu children is mapped.
 	 */
 	private static final Map<String, String> MISSING_CONTROLS = Map.ofEntries(
-		Map.entry("TabTask/Font", "font-name combo box; " + PHASE_1B),
-		Map.entry("TabTask/FontSize", "font-size combo box; " + PHASE_1B),
-		Map.entry("TabTask/Underline", "Task has no underline attribute and MPO does not persist one; " + PHASE_1B),
-		Map.entry("TabTask/FontFillBackColorPicker", "Task has no cell background attribute and MPO does not persist one; " + PHASE_1B),
 		Map.entry("TabResource/LevelResource", "per-resource leveling picker; the Leveling Options dialog is the only leveling dialog; " + PHASE_1B),
 		Map.entry("TabTask/TaskSplit", "requires task split model; tracked separately"),
-		Map.entry("TabTask/MoveTaskMenu", PHASE_1B),
-		Map.entry("TabTask/ScheduleModeMenu", PHASE_1B),
 		Map.entry("TabTask/DeliverablesMenu", ONLINE + " (deliverables)"),
-		Map.entry("TabTask/TaskAddToTimeline", PHASE_1B),
 		Map.entry("TabResource/AddEngagement", "scope exclusion: " + ONLINE + " (engagements)"),
 		Map.entry("TabReportOverview/CreateNewReportMenu", REPORT_GALLERIES),
 		Map.entry("TabReportOverview/ReportDashboardGallery", REPORT_GALLERIES),
@@ -211,9 +204,9 @@ class MspRibbonOrderDiffTest {
 	 * Microsoft control of its band, or after all mapped controls when the anchor is {@link #END}.
 	 */
 	private static final Map<String, Extension> EXTENSIONS = Map.ofEntries(
-		Map.entry("RibbonMoveTaskUp", after("InspectTasksMenu", "move-in-outline commands of the Tasks group")),
-		Map.entry("RibbonMoveTaskDown", after("InspectTasksMenu", "move-in-outline commands of the Tasks group")),
-		Map.entry("RibbonDelegateTasks", after("InspectTasksMenu", "task delegation, closest to the Tasks group")),
+		Map.entry("RibbonMoveTaskUp", after("ScheduleModeMenu", "move-in-outline commands of the Tasks group")),
+		Map.entry("RibbonMoveTaskDown", after("ScheduleModeMenu", "move-in-outline commands of the Tasks group")),
+		Map.entry("RibbonDelegateTasks", after("ScheduleModeMenu", "task delegation, closest to the Tasks group")),
 		Map.entry("RibbonDelete", after("EditFillMenu", "row deletion next to Clear")),
 		Map.entry("RibbonSelectAll", after("EditFillMenu", "selection command of Editing")),
 		Map.entry("RibbonScrollToToday", after("EditFillMenu", "Go To companion of Editing")),
@@ -260,6 +253,15 @@ class MspRibbonOrderDiffTest {
 		Map.entry("RibbonInsertBlankRow", "BlankRowInsert"),
 		Map.entry("RibbonSaveBaseline", "BaselineSave"),
 		Map.entry("RibbonClearBaseline", "BaselineClear"),
+		Map.entry("RibbonMoveForwardDay", "TaskMoveForwardOneDay"),
+		Map.entry("RibbonMoveForwardWeek", "TaskMoveForwardOneWeek"),
+		Map.entry("RibbonMoveForwardFourWeeks", "TaskMoveForwardFourWeeks"),
+		Map.entry("RibbonMoveForwardCustom", "TaskMoveForwardCustom"),
+		Map.entry("RibbonMoveBackDay", "TaskMoveBackOneDay"),
+		Map.entry("RibbonMoveBackWeek", "TaskMoveBackOneWeek"),
+		Map.entry("RibbonMoveBackFourWeeks", "TaskMoveBackFourWeeks"),
+		Map.entry("RibbonMoveBackCustom", "TaskMoveBackCustom"),
+		Map.entry("RibbonMoveWhenResourcesAvailable", "ScheduleTaskWhenResourcesAvailable"),
 		Map.entry("RibbonFillDown", "FillDown"),
 		Map.entry("RibbonFillLeft", "FillLeft"),
 		Map.entry("RibbonFillRight", "FillRight"),
@@ -282,6 +284,10 @@ class MspRibbonOrderDiffTest {
 		Map.entry("RibbonTaskUsageDetail", VIEW_GALLERY_ITEMS),
 		Map.entry("RibbonResources", VIEW_GALLERY_ITEMS),
 		Map.entry("RibbonResourceUsageDetail", VIEW_GALLERY_ITEMS),
+		Map.entry("RibbonFontName", "the font list is the installed font families; only the More Fonts entry is a command"),
+		Map.entry("RibbonFontSize", "the size list is a fixed set of sizes; only the More Font Sizes entry is a command"),
+		Map.entry("RibbonScheduleMode",
+			"Microsoft's Mode menu lists project-start/finish scheduling choices; the Manually/Auto Schedule items are mode commands"),
 		Map.entry("RibbonChooseFilter", LIST_ITEMS),
 		Map.entry("RibbonChooseSort", "sort presets are product commands; only Sort By maps"),
 		Map.entry("RibbonChooseGroup", LIST_ITEMS));

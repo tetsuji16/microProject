@@ -27,7 +27,7 @@ final class TaskFormatPainterService {
 
 	static TaskTextFormat capture(Task task) {
 		return new TaskTextFormat(task.getFontFamily(), task.getFontSize(), task.getFontColor(), task.isFontBold(),
-			task.isFontItalic(), task.isFontStrikethrough());
+			task.isFontItalic(), task.isFontStrikethrough(), task.isFontUnderline(), task.getFontBackground());
 	}
 
 	static List<Long> apply(Project project, List<Task> targets, TaskTextFormat format,
@@ -150,17 +150,38 @@ final class TaskFormatPainterService {
 		applyStatesAtomically(project, states, undoController, hook, () -> { });
 	}
 
-	record TaskTextFormat(String family, int size, Integer color, boolean bold, boolean italic, boolean strikethrough) {
+	record TaskTextFormat(String family, int size, Integer color, boolean bold, boolean italic, boolean strikethrough,
+			boolean underline, Integer background) {
+		TaskTextFormat(String family, int size, Integer color, boolean bold, boolean italic, boolean strikethrough) {
+			this(family, size, color, bold, italic, strikethrough, false, null);
+		}
+
+		TaskTextFormat withFamily(String value) {
+			return new TaskTextFormat(value, size, color, bold, italic, strikethrough, underline, background);
+		}
+
+		TaskTextFormat withSize(int value) {
+			return new TaskTextFormat(family, value, color, bold, italic, strikethrough, underline, background);
+		}
+
 		TaskTextFormat withBold(boolean value) {
-			return new TaskTextFormat(family, size, color, value, italic, strikethrough);
+			return new TaskTextFormat(family, size, color, value, italic, strikethrough, underline, background);
 		}
 
 		TaskTextFormat withItalic(boolean value) {
-			return new TaskTextFormat(family, size, color, bold, value, strikethrough);
+			return new TaskTextFormat(family, size, color, bold, value, strikethrough, underline, background);
+		}
+
+		TaskTextFormat withUnderline(boolean value) {
+			return new TaskTextFormat(family, size, color, bold, italic, strikethrough, value, background);
 		}
 
 		TaskTextFormat withColor(Integer value) {
-			return new TaskTextFormat(family, size, value, bold, italic, strikethrough);
+			return new TaskTextFormat(family, size, value, bold, italic, strikethrough, underline, background);
+		}
+
+		TaskTextFormat withBackground(Integer value) {
+			return new TaskTextFormat(family, size, color, bold, italic, strikethrough, underline, value);
 		}
 
 		private void applyTo(Task task) {
@@ -170,6 +191,8 @@ final class TaskFormatPainterService {
 			task.setFontBold(bold);
 			task.setFontItalic(italic);
 			task.setFontStrikethrough(strikethrough);
+			task.setFontUnderline(underline);
+			task.setFontBackground(background);
 		}
 	}
 

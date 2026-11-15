@@ -2261,6 +2261,33 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void mpoTextStyleUnderlineAndFillColorRoundTripAndOlderFilesDefault() throws Exception {
+		Project project = projectForRoundTrip();
+		Task styled = firstTask(project);
+		styled.setFontUnderline(true);
+		styled.setFontBackground(Integer.valueOf(0xFFE699));
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, archive));
+		Task reopened = firstTask(loadFromBytes(archive.toByteArray()));
+		assertTrue(reopened.isFontUnderline(), "underline must round-trip");
+		assertEquals(Integer.valueOf(0xFFE699), reopened.getFontBackground(), "cell fill color must round-trip");
+
+		// A file written before underline and fill existed has neither key: it must load as defaults,
+		// and a task that uses neither must not write them.
+		Project legacy = projectForRoundTrip();
+		firstTask(legacy).setFontBold(true);
+		ByteArrayOutputStream legacyArchive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(legacy, legacyArchive));
+		String styles = new String(readEntries(legacyArchive.toByteArray()).get(MpoFileImporter.TASK_TEXT_STYLES_ENTRY),
+			StandardCharsets.UTF_8);
+		assertFalse(styles.contains("underline") || styles.contains("fillColor"), styles);
+		Task older = firstTask(loadFromBytes(legacyArchive.toByteArray()));
+		assertTrue(older.isFontBold());
+		assertFalse(older.isFontUnderline());
+		assertNull(older.getFontBackground());
+	}
+
+	@Test
 	void mpoRejectsCorruptedTaskTextStyleInsteadOfClampingIt() throws Exception {
 		Project project = projectForRoundTrip();
 		firstTask(project).setFontBold(true);

@@ -61,6 +61,13 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonTaskViewGantt | Task > 表示 のガントチャートギャラリーを開き、ビューを選ぶ | 選択したガント系ビューへ切り替わる。既存のビュー切替アクションと同一。 |
 | RibbonBold | タスクを選択して Task > フォントの「太字」を押す | 選択タスクのテキストが太字になりトグル状態が反映される。Undo/Redoで戻る。 |
 | RibbonItalic | タスクを選択して Task > フォントの「斜体」を押す | 選択タスクのテキストが斜体になりトグル状態が反映される。Undo/Redoで戻る。 |
+| RibbonFontName | タスクを選択して Task > フォントのフォント名コンボからフォントを選ぶ | 選択タスクのフォントが変わりコンボに現在値が表示される。Undo/Redoで1回で戻り、MPO保存再読込で保持される。 |
+| RibbonFontSize | タスクを選択して Task > フォントのフォント サイズコンボから値を選ぶ | 選択タスクの文字サイズが変わる。Undo/Redoで1回で戻り、MPO保存再読込で保持される。 |
+| RibbonUnderline | タスクを選択して Task > フォントの「下線」を押す | 選択タスクのテキストに下線が引かれトグル状態が反映される。Undo/Redoで戻り、MPO保存再読込で保持される。 |
+| RibbonFillColor | タスクを選択して Task > フォントの「背景色」を押し色を選ぶ | 選択タスクのセルの背景色が変わる。キャンセルでは変更されない。Undo/Redoで戻り、MPO保存再読込で保持される。 |
+| RibbonMoveTask | タスクを選択して Task > タスクの「移動」から前後の日数を選ぶ | 手動スケジュールのタスクは期間を保ったまま開始日が移動し、自動スケジュールのタスクには開始日の制約（Start No Earlier Than）が付く。集約タスクと非アクティブタスクは対象外。「ユーザー設定」は稼働日数を入力する。Undo/Redoで戻る。 |
+| RibbonScheduleMode | タスクを選択して Task > タスクの「モード」から手動/自動スケジュールを選ぶ | RibbonTaskModeManual / RibbonTaskModeAutomatic と同じ動作でタスクモードが変わる。 |
+| RibbonAddToTimeline | タスクを選択して Task > プロパティの「タイムラインに追加」を押す | 選択タスクがタイムラインの対象になり（全て対象済みなら解除）、トグル状態が反映される。Undo/Redoで戻る。 |
 | RibbonFontColor | タスクを選択して「フォントの色」を押し色を選ぶ | 選択タスクのテキスト色が変わる。キャンセルでは変更されない。Undo/Redoで戻る。 |
 | RibbonFont | Task > フォントの「フォント...」を押す | テキストスタイルダイアログが開く。 |
 | RibbonFill | セル範囲を選択して Task > 編集の「フィル」から方向を選ぶ | 選択範囲の先頭（上/左方向は末尾）のセル内容が方向に沿って編集可能セルへコピーされる。Undo/Redoで戻る。RibbonFillDown/RibbonFillUp/RibbonFillLeft/RibbonFillRight。 |

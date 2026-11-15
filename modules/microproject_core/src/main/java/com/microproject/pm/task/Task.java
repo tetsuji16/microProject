@@ -174,6 +174,9 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	protected boolean fontBold;
 	protected boolean fontItalic;
 	protected boolean fontStrikethrough;
+	protected boolean fontUnderline;
+	/** Cell background (fill) color as 0xRRGGBB, or null for the view default. */
+	protected Integer fontBackground;
 	protected Double inactivePercentComplete;
 	/** Explicit user choice for the concise project timeline. */
 	protected boolean displayOnTimeline = false;
@@ -1193,6 +1196,8 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		task.fontBold = fontBold;
 		task.fontItalic = fontItalic;
 		task.fontStrikethrough = fontStrikethrough;
+		task.fontUnderline = fontUnderline;
+		task.fontBackground = fontBackground;
 		task.external = external;
 		task.projectId = projectId;
 		task.physicalPercentComplete = physicalPercentComplete;
@@ -2004,6 +2009,25 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		if (this.fontStrikethrough == fontStrikethrough)
 			return;
 		this.fontStrikethrough = fontStrikethrough;
+		setDirty(true);
+	}
+	public final boolean isFontUnderline() {
+		return fontUnderline;
+	}
+	public final void setFontUnderline(boolean fontUnderline) {
+		if (this.fontUnderline == fontUnderline)
+			return;
+		this.fontUnderline = fontUnderline;
+		setDirty(true);
+	}
+	public final Integer getFontBackground() {
+		return fontBackground;
+	}
+	public final void setFontBackground(Integer fontBackground) {
+		Integer normalized = fontBackground == null ? null : Integer.valueOf(fontBackground.intValue() & 0x00FFFFFF);
+		if (java.util.Objects.equals(this.fontBackground, normalized))
+			return;
+		this.fontBackground = normalized;
 		setDirty(true);
 	}
 	protected final void updateInactivePercentComplete(double percentComplete) {

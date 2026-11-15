@@ -23,7 +23,11 @@ Task,Clipboard,Paste,RibbonPaste,REQUIRED,S13
 Task,Clipboard,Copy,RibbonCopy,REQUIRED,S13
 Task,Clipboard,Cut,RibbonCut,REQUIRED,S13
 Task,Clipboard,Format Painter,RibbonFormatPainter,REQUIRED,S14
+Task,Font,Font,RibbonFontName,REQUIRED,S24
+Task,Font,Font Size,RibbonFontSize,REQUIRED,S24
 Task,Font,Bold,RibbonBold,REQUIRED,S24
+Task,Font,Underline,RibbonUnderline,REQUIRED,S24
+Task,Font,Background Color,RibbonFillColor,REQUIRED,S24
 Task,Font,Italic,RibbonItalic,REQUIRED,S24
 Task,Font,Font Color,RibbonFontColor,REQUIRED,S24
 Task,Font,Font,RibbonFont,REQUIRED,S24
@@ -52,6 +56,8 @@ Task,Schedule,Respect Links,RibbonRespectLinks,REQUIRED,S7
 Task,Schedule,Indent,RibbonIndent,REQUIRED,S27
 Task,Schedule,Outdent,RibbonOutdent,REQUIRED,S27
 Task,Tasks,Manually Schedule,RibbonTaskModeManual,REQUIRED,S21
+Task,Tasks,Move,RibbonMoveTask,REQUIRED,S21
+Task,Tasks,Mode,RibbonScheduleMode,REQUIRED,S21
 Task,Tasks,Auto Schedule,RibbonTaskModeAutomatic,REQUIRED,S21
 Task,Schedule,Inactivate,RibbonInactivateTask,REQUIRED,S8
 Task,Schedule,0% Complete,RibbonPercentComplete0,REQUIRED,S3

@@ -43,7 +43,6 @@ class MspRibbonSpecDiffTest {
 
 	/** REQUIRED commands that the ribbon does not yet expose, each with the reason it is open. */
 	private static final Map<String, String> KNOWN_GAPS = Map.ofEntries(
-		Map.entry("RibbonAddToTimeline", "no Add to Timeline command or Action exists yet"),
 		Map.entry("RibbonLinksBetweenProjects", "no Links Between Projects dialog exists"),
 		Map.entry("RibbonDefineWbs", "WBS code definition is deliberately not exposed until implemented (RibbonStructureTest)"),
 		Map.entry("RibbonSpelling", "no spell checker (F7) exists"),

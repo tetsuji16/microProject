@@ -156,7 +156,9 @@ final class RibbonCommandCatalog {
 			"RibbonLevelResources", "RibbonNextOverallocation",
 			"RibbonUseResourcePool", "RibbonCreateResourcePool", "RibbonRefreshResourcePool");
 		register(result, CommandScope.TASK, RESOURCE, "RibbonAssignResources");
-		register(result, CommandScope.TASK, TASK, "RibbonBold", "RibbonItalic", "RibbonFontColor", "RibbonFont", "RibbonFill");
+		register(result, CommandScope.TASK, TASK, "RibbonBold", "RibbonItalic", "RibbonFontColor", "RibbonFont", "RibbonFill",
+			"RibbonFontName", "RibbonFontSize", "RibbonUnderline", "RibbonFillColor",
+			"RibbonMoveTask", "RibbonScheduleMode", "RibbonAddToTimeline");
 		register(result, CommandScope.VIEW, TASK, "RibbonTaskViewGantt");
 		register(result, CommandScope.VIEW, RESOURCE, "RibbonResourceViews");
 		register(result, CommandScope.RESOURCE, RESOURCE, "RibbonResourceNotes", "RibbonResourceDetails");

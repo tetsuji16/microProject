@@ -132,6 +132,10 @@ public interface MenuActionConstants {
 	public static final String ACTION_BOLD                    = "Bold";
 	public static final String ACTION_ITALIC                  = "Italic";
 	public static final String ACTION_FONT_COLOR              = "FontColor";
+	public static final String ACTION_UNDERLINE               = "Underline";
+	public static final String ACTION_BACKGROUND_COLOR        = "BackgroundColor";
+	public static final String ACTION_FONT_NAME               = "FontName";
+	public static final String ACTION_FONT_SIZE               = "FontSize";
 	public static final String ACTION_BAR                     = "Bar";
 	public static final String ACTION_TIMESCALE               = "Timescale";
 	public static final String ACTION_GRIDLINES               = "Gridlines";

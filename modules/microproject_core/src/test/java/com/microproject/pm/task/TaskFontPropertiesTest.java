@@ -26,7 +26,13 @@ class TaskFontPropertiesTest {
 		source.setFontBold(true);
 		source.setFontItalic(true);
 		source.setFontStrikethrough(true);
+		source.setFontUnderline(true);
+		source.setFontBackground(Integer.valueOf(0xFFAABBCC));
 		source.cloneTo(target);
+		assertEquals(true, target.isFontUnderline());
+		assertEquals(Integer.valueOf(0xAABBCC), target.getFontBackground());
+		target.setFontBackground(null);
+		assertNull(target.getFontBackground());
 
 		assertEquals("Dialog", target.getFontFamily());
 		assertEquals(72, target.getFontSize());

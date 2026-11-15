@@ -243,6 +243,34 @@ class TaskFormatPainterServiceTest {
 			project.getUndoController()).isEmpty(), "an unchanged format is a no-op");
 	}
 
+	@Test
+	void underlineBackgroundFamilyAndSizeApplyAsOneUndoableEditAndAreCopiedByFormatPainter() {
+		Project project = createProject();
+		Task first = (Task)project.createLocalTaskNode(null).getImpl();
+		Task second = (Task)project.createLocalTaskNode(null).getImpl();
+		project.getUndoController().clear();
+
+		TaskFormatPainterService.applyChange(project, List.of(first, second),
+			format -> format.withUnderline(true).withBackground(0xFFEE00).withFamily("Serif").withSize(18),
+			project.getUndoController());
+		for (Task task : List.of(first, second)) {
+			assertTrue(task.isFontUnderline());
+			assertEquals(Integer.valueOf(0xFFEE00), task.getFontBackground());
+			assertEquals("Serif", task.getFontFamily());
+			assertEquals(18, task.getFontSize());
+		}
+		TaskFormatPainterService.TaskTextFormat captured = TaskFormatPainterService.capture(first);
+		assertTrue(captured.underline());
+		assertEquals(0xFFEE00, captured.background());
+
+		project.getUndoController().undo();
+		assertTrue(isDefaultFormat(first));
+		assertTrue(isDefaultFormat(second));
+		project.getUndoController().redo();
+		assertTrue(second.isFontUnderline());
+		assertEquals(Integer.valueOf(0xFFEE00), second.getFontBackground());
+	}
+
 	private static Project createProject() {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("format-painter", undo), undo);

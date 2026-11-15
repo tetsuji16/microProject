@@ -251,7 +251,8 @@ final class MpoSidecarJson {
 	static byte[] taskTextStylesJson(Project project, String taskIdentities) throws IOException {
 		return perTaskOptionsJson(project, taskIdentities, "text style", "text styles",
 			task -> task.getFontFamily() == null && task.getFontSize() == 0 && task.getFontColor() == null
-				&& !task.isFontBold() && !task.isFontItalic() && !task.isFontStrikethrough(),
+				&& !task.isFontBold() && !task.isFontItalic() && !task.isFontStrikethrough()
+				&& !task.isFontUnderline() && task.getFontBackground() == null,
 			(task, node) -> {
 				if (task.getFontFamily() != null) node.put("fontFamily", task.getFontFamily());
 				node.put("fontSize", task.getFontSize());
@@ -259,6 +260,9 @@ final class MpoSidecarJson {
 				node.put("bold", task.isFontBold());
 				node.put("italic", task.isFontItalic());
 				node.put("strikethrough", task.isFontStrikethrough());
+				// Absent keys mean the default, so files without underline/background stay byte-identical.
+				if (task.isFontUnderline()) node.put("underline", true);
+				if (task.getFontBackground() != null) node.put("fillColor", task.getFontBackground().intValue());
 			});
 	}
 
@@ -271,6 +275,8 @@ final class MpoSidecarJson {
 				JsonNode bold = node.get("bold");
 				JsonNode italic = node.get("italic");
 				JsonNode strikethrough = node.get("strikethrough");
+				JsonNode underline = node.get("underline");
+				JsonNode fillColor = node.get("fillColor");
 				// Task.setFontSize accepts 0 (inherit) through 72 points; a larger stored value
 				// is corrupted data, not a size to clamp silently.
 				if ((family != null && !family.isTextual()) || size == null || !size.isIntegralNumber()
@@ -278,7 +284,10 @@ final class MpoSidecarJson {
 						|| (color != null && (!color.isIntegralNumber() || !color.canConvertToInt()
 							|| color.intValue() < 0 || color.intValue() > 0xFFFFFF))
 						|| bold == null || !bold.isBoolean() || italic == null || !italic.isBoolean()
-						|| strikethrough == null || !strikethrough.isBoolean())
+						|| strikethrough == null || !strikethrough.isBoolean()
+						|| (underline != null && !underline.isBoolean())
+						|| (fillColor != null && (!fillColor.isIntegralNumber() || !fillColor.canConvertToInt()
+							|| fillColor.intValue() < 0 || fillColor.intValue() > 0xFFFFFF)))
 					throw new IOException("Invalid MPO task text style values");
 				return task -> {
 					task.setFontFamily(family == null ? null : family.textValue());
@@ -287,6 +296,8 @@ final class MpoSidecarJson {
 					task.setFontBold(bold.booleanValue());
 					task.setFontItalic(italic.booleanValue());
 					task.setFontStrikethrough(strikethrough.booleanValue());
+					task.setFontUnderline(underline != null && underline.booleanValue());
+					task.setFontBackground(fillColor == null ? null : Integer.valueOf(fillColor.intValue()));
 				};
 			});
 	}

@@ -125,6 +125,7 @@ import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourceLevelingService;
 import com.microproject.pm.resource.TeamPlannerService;
 import com.microproject.pm.task.Portfolio;
+import com.microproject.pm.task.TaskMoveService;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.BaselineRollupOptions;
 import com.microproject.pm.task.ProjectEvent;
@@ -611,6 +612,15 @@ public class DocumentFrame extends NamedFrame implements
 		case TASK_MODE_AUTOMATIC -> lastTaskCommandResult = applyTaskMode(command, com.microproject.pm.task.TaskModeService.Mode.AUTOMATIC);
 		case INACTIVATE_TASK -> lastTaskCommandResult = applyInactivateTask(command);
 		case RESPECT_LINKS -> lastTaskCommandResult = applyRespectLinks(command);
+		case TASK_MOVE_FORWARD_DAY -> lastTaskCommandResult = applyTaskMove(command, TaskMoveService.DAY);
+		case TASK_MOVE_FORWARD_WEEK -> lastTaskCommandResult = applyTaskMove(command, TaskMoveService.WEEK);
+		case TASK_MOVE_FORWARD_FOUR_WEEKS -> lastTaskCommandResult = applyTaskMove(command, TaskMoveService.FOUR_WEEKS);
+		case TASK_MOVE_BACK_DAY -> lastTaskCommandResult = applyTaskMove(command, -TaskMoveService.DAY);
+		case TASK_MOVE_BACK_WEEK -> lastTaskCommandResult = applyTaskMove(command, -TaskMoveService.WEEK);
+		case TASK_MOVE_BACK_FOUR_WEEKS -> lastTaskCommandResult = applyTaskMove(command, -TaskMoveService.FOUR_WEEKS);
+		case TASK_MOVE_FORWARD_CUSTOM -> lastTaskCommandResult = applyCustomTaskMove(command, 1);
+		case TASK_MOVE_BACK_CUSTOM -> lastTaskCommandResult = applyCustomTaskMove(command, -1);
+		case TASK_ADD_TO_TIMELINE -> lastTaskCommandResult = applyAddToTimeline(command);
 		case RESOURCE_LEVEL_ALL -> lastTaskCommandResult = applyResourceLevelAll(command);
 		case RESOURCE_LEVEL_SELECTION -> lastTaskCommandResult = applyResourceLevelSelection(command);
 		case RESOURCE_CLEAR_LEVEL_ALL -> lastTaskCommandResult = clearResourceLeveling(command, false);
@@ -894,6 +904,57 @@ public class DocumentFrame extends NamedFrame implements
 	private RibbonCommandResult taskSelectionOutcome(CommandId command, RibbonCommandResult.Status status,
 			List<Long> selectedTaskIds) {
 		return new RibbonCommandResult(command.actionId(), status, "", selectedTaskIds, selectedTaskIds, getTopViewId());
+	}
+
+	/** Task &gt; Move: shifts the selected tasks by working days (manual dates, or a Start No Earlier Than constraint). */
+	private RibbonCommandResult applyTaskMove(CommandId command, int workingDays) {
+		EditableTaskTargets targets = resolveEditableTaskTargets(command, "move task");
+		if (targets.rejection() != null) return targets.rejection();
+		try {
+			var result = new TaskMoveService().moveByWorkingDays(project, targets.tasks(), workingDays);
+			if (!result.change().hasChanged())
+				return taskSelectionOutcome(command, RibbonCommandResult.Status.NO_CHANGE, targets.selectedIds());
+			SwingUndoAdapter.post(project.getUndoController().getEditSupport(), result.change());
+			restoreTaskRows(targets.nodes());
+			return taskSelectionOutcome(command, RibbonCommandResult.Status.CHANGED, targets.selectedIds());
+		} catch (RuntimeException failure) {
+			return RibbonCommandResult.failed(command.actionId(), failure).withSelectedTaskIds(targets.selectedIds());
+		}
+	}
+
+	private RibbonCommandResult applyCustomTaskMove(CommandId command, int direction) {
+		if (project == null || project.isReadOnly())
+			return RibbonCommandResult.rejected(command.actionId(), project == null ? "no-active-document" : "document-read-only");
+		Object answer = javax.swing.JOptionPane.showInputDialog(this, Messages.getString("TaskMove.customPrompt"),
+			Messages.getString("TaskMove.customTitle"), javax.swing.JOptionPane.QUESTION_MESSAGE, null, null, "1");
+		if (answer == null)
+			return RibbonCommandResult.noChange(command.actionId(), getSelectedTaskIds()).withActiveView("task");
+		int days;
+		try {
+			days = Integer.parseInt(answer.toString().trim());
+		} catch (NumberFormatException invalid) {
+			return RibbonCommandResult.rejected(command.actionId(), "invalid-number");
+		}
+		if (days <= 0 || days > 36500)
+			return RibbonCommandResult.rejected(command.actionId(), "invalid-number");
+		return applyTaskMove(command, days * direction);
+	}
+
+	/** Task &gt; Properties &gt; Add to Timeline: puts the selected tasks on, or when all already are, takes them off the timeline. */
+	private RibbonCommandResult applyAddToTimeline(CommandId command) {
+		EditableTaskTargets targets = resolveEditableTaskTargets(command, "add to timeline");
+		if (targets.rejection() != null) return targets.rejection();
+		boolean value = !targets.tasks().stream().allMatch(Task::isDisplayOnTimeline);
+		List<Task> changed = targets.tasks().stream().filter(task -> task.isDisplayOnTimeline() != value).toList();
+		if (changed.isEmpty())
+			return taskSelectionOutcome(command, RibbonCommandResult.Status.NO_CHANGE, targets.selectedIds());
+		com.microproject.pm.task.ReversibleModelChange change = com.microproject.pm.task.ReversibleModelChange.changed(
+			() -> changed.forEach(task -> task.setDisplayOnTimeline(!value)),
+			() -> changed.forEach(task -> task.setDisplayOnTimeline(value)));
+		changed.forEach(task -> task.setDisplayOnTimeline(value));
+		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), change);
+		restoreTaskRows(targets.nodes());
+		return taskSelectionOutcome(command, RibbonCommandResult.Status.CHANGED, targets.selectedIds());
 	}
 
 	private RibbonCommandResult applyInactivateTask(CommandId command) {
@@ -2431,6 +2492,58 @@ public class DocumentFrame extends NamedFrame implements
 			Integer rgb = chosen.getRGB() & 0xFFFFFF;
 			applyToSelectedTaskText(format -> format.withColor(rgb), "task-font-color");
 		}
+	}
+
+	/** True when every selected task is underlined (the pressed state of the Underline button). */
+	boolean isSelectedTaskTextUnderline() {
+		List<Node> nodes = selectedFormattableTaskNodes();
+		return !nodes.isEmpty() && nodes.stream().allMatch(node -> ((Task) node.getImpl()).isFontUnderline());
+	}
+
+	/** True when every selected task is on the timeline (the pressed state of Add to Timeline). */
+	boolean isSelectedTaskOnTimeline() {
+		List<Node> nodes = selectedFormattableTaskNodes();
+		return !nodes.isEmpty() && nodes.stream().allMatch(node -> ((Task) node.getImpl()).isDisplayOnTimeline());
+	}
+
+	/** Underline on the selected tasks unless all of them already are, then off. One undoable edit. */
+	void toggleSelectedTaskUnderline() {
+		boolean value = !isSelectedTaskTextUnderline();
+		applyToSelectedTaskText(format -> format.withUnderline(value), "task-font-underline");
+	}
+
+	/** Asks for a color and applies it as the cell background fill of the selected tasks. One undoable edit. */
+	void chooseSelectedTaskBackground() {
+		List<Node> nodes = selectedFormattableTaskNodes();
+		if (nodes.isEmpty())
+			return;
+		Integer current = ((Task) nodes.getFirst().getImpl()).getFontBackground();
+		java.awt.Color chosen = javax.swing.JColorChooser.showDialog(this,
+			Messages.getString("TaskFill.title"), current == null ? java.awt.Color.WHITE : new java.awt.Color(current));
+		if (chosen != null) {
+			Integer rgb = chosen.getRGB() & 0xFFFFFF;
+			applyToSelectedTaskText(format -> format.withBackground(rgb), "task-font-fill");
+		}
+	}
+
+	/** Font family of the lead selected task, or null without a formattable selection. */
+	String selectedTaskFontFamily() {
+		List<Node> nodes = selectedFormattableTaskNodes();
+		return nodes.isEmpty() ? null : ((Task) nodes.getFirst().getImpl()).getFontFamily();
+	}
+
+	/** Font size of the lead selected task, or 0 without a formattable selection. */
+	int selectedTaskFontSize() {
+		List<Node> nodes = selectedFormattableTaskNodes();
+		return nodes.isEmpty() ? 0 : ((Task) nodes.getFirst().getImpl()).getFontSize();
+	}
+
+	void setSelectedTaskFontFamily(String family) {
+		applyToSelectedTaskText(format -> format.withFamily(family), "task-font-family");
+	}
+
+	void setSelectedTaskFontSize(int size) {
+		applyToSelectedTaskText(format -> format.withSize(size), "task-font-size");
 	}
 
 	private void applyToSelectedTaskText(java.util.function.UnaryOperator<TaskFormatPainterService.TaskTextFormat> change,

@@ -2017,6 +2017,10 @@ class RibbonButtonBehaviorTest {
 		add(map, Strategy.STRUCTURAL_ONLY,
 			"RibbonTaskViewGantt", "RibbonBold", "RibbonItalic", "RibbonFontColor", "RibbonFont", "RibbonFill",
 			"RibbonResourceViews", "RibbonResourceNotes", "RibbonResourceDetails");
+		// Font name/size, underline, fill, Move, Mode and Add to Timeline: behavior asserted in
+		// TaskMoveServiceTest, TaskFormatPainterServiceTest and TaskRibbonHeadlessCommandTest.
+		add(map, Strategy.STRUCTURAL_ONLY, "RibbonFontName", "RibbonFontSize", "RibbonUnderline", "RibbonFillColor",
+			"RibbonMoveTask", "RibbonScheduleMode", "RibbonAddToTimeline");
 		// Task-tab commands added for #769/#453; behavior is asserted in TaskTabRibbonCommandsTest.
 		add(map, Strategy.STRUCTURAL_ONLY,
 			"RibbonInsertMilestone", "RibbonInsertSummary", "RibbonClear", "RibbonSelectAll", "RibbonTaskDetails",

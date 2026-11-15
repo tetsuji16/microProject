@@ -2028,6 +2028,12 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_BOLD, new TaskFontAction(ACTION_BOLD));
 		actionsMap.addHandler(ACTION_ITALIC, new TaskFontAction(ACTION_ITALIC));
 		actionsMap.addHandler(ACTION_FONT_COLOR, new TaskFontAction(ACTION_FONT_COLOR));
+		actionsMap.addHandler(ACTION_UNDERLINE, new TaskFontAction(ACTION_UNDERLINE));
+		actionsMap.addHandler(ACTION_BACKGROUND_COLOR, new TaskFontAction(ACTION_BACKGROUND_COLOR));
+		actionsMap.addHandler(ACTION_FONT_NAME, new TaskFontAction(ACTION_FONT_NAME));
+		actionsMap.addHandler(ACTION_FONT_SIZE, new TaskFontAction(ACTION_FONT_SIZE));
+		for (CommandId moveCommand : TASK_ROUTED_COMMANDS)
+			actionsMap.addHandler(moveCommand.actionId(), new TaskRouteAction(moveCommand));
 		actionsMap.addHandler(ACTION_DELETE, new DeleteAction());
 
 		actionsMap.addHandler(ACTION_GANTT, new ViewAction(ACTION_GANTT));
@@ -3316,6 +3322,25 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 	}
 	/** Task > Font group: Bold, Italic and Font Color of the selected tasks (one undoable edit each). */
+	private static final List<CommandId> TASK_ROUTED_COMMANDS = List.of(
+		CommandId.TASK_MOVE_FORWARD_DAY, CommandId.TASK_MOVE_FORWARD_WEEK, CommandId.TASK_MOVE_FORWARD_FOUR_WEEKS,
+		CommandId.TASK_MOVE_FORWARD_CUSTOM, CommandId.TASK_MOVE_BACK_DAY, CommandId.TASK_MOVE_BACK_WEEK,
+		CommandId.TASK_MOVE_BACK_FOUR_WEEKS, CommandId.TASK_MOVE_BACK_CUSTOM, CommandId.TASK_ADD_TO_TIMELINE);
+	/** Routes a ribbon command straight through the shared task-command pipeline. */
+	private final class TaskRouteAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private final CommandId command;
+		TaskRouteAction(CommandId command) {
+			this.command = command;
+		}
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, dispatchTaskCommand(command));
+			DocumentFrame frame = getCurrentFrame();
+			if (frame != null)
+				getMenuManager().setActionSelected(CommandId.TASK_ADD_TO_TIMELINE.actionId(), frame.isSelectedTaskOnTimeline());
+		}
+	}
 	public class TaskFontAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
 		private final String fontAction;
@@ -3330,10 +3355,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			switch (fontAction) {
 			case ACTION_BOLD -> frame.toggleSelectedTaskBold();
 			case ACTION_ITALIC -> frame.toggleSelectedTaskItalic();
+			case ACTION_UNDERLINE -> frame.toggleSelectedTaskUnderline();
+			case ACTION_BACKGROUND_COLOR -> frame.chooseSelectedTaskBackground();
+			case ACTION_FONT_NAME, ACTION_FONT_SIZE -> { }
 			default -> frame.chooseSelectedTaskFontColor();
 			}
 			getMenuManager().setActionSelected(ACTION_BOLD, frame.isSelectedTaskTextBold());
 			getMenuManager().setActionSelected(ACTION_ITALIC, frame.isSelectedTaskTextItalic());
+			getMenuManager().setActionSelected(ACTION_UNDERLINE, frame.isSelectedTaskTextUnderline());
 		}
 		@Override protected boolean allowed(boolean enable) {
 			return !enable || isDocumentActive() && getCurrentFrame() != null
@@ -3590,6 +3619,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	private static final String RIBBON_FILTER_ID = "RibbonChooseFilter";
 	private static final String RIBBON_GROUP_ID = "RibbonChooseGroup";
+	private static final String RIBBON_FONT_NAME_ID = "RibbonFontName";
+	private static final String RIBBON_FONT_SIZE_ID = "RibbonFontSize";
+	private static final List<Integer> FONT_SIZES = List.of(8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72);
 
 	/** Re-reads the filter and group labels of the ribbon from the active view. */
 	private void refreshTransformDropDowns() {
@@ -3649,12 +3681,25 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 		@Override
 		public String currentValue(String commandId) {
+			if (RIBBON_FONT_NAME_ID.equals(commandId) || RIBBON_FONT_SIZE_ID.equals(commandId)) {
+				DocumentFrame frame = isDocumentActive() ? getCurrentFrame() : null;
+				if (frame == null)
+					return null;
+				if (RIBBON_FONT_NAME_ID.equals(commandId))
+					return frame.selectedTaskFontFamily();
+				int size = frame.selectedTaskFontSize();
+				return size <= 0 ? null : Integer.toString(size);
+			}
 			TransformComboBoxModel model = model(commandId);
 			return model == null || model.getSelectedItem() == null ? null : model.getSelectedItem().toString();
 		}
 
 		@Override
 		public List<String> choices(String commandId) {
+			if (RIBBON_FONT_NAME_ID.equals(commandId))
+				return List.of(java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames());
+			if (RIBBON_FONT_SIZE_ID.equals(commandId))
+				return FONT_SIZES.stream().map(String::valueOf).toList();
 			TransformComboBoxModel model = model(commandId);
 			List<String> names = new ArrayList<>();
 			for (int index = 0; model != null && index < model.getSize(); index++)
@@ -3664,6 +3709,19 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 		@Override
 		public void select(String commandId, int index) {
+			if (RIBBON_FONT_NAME_ID.equals(commandId) || RIBBON_FONT_SIZE_ID.equals(commandId)) {
+				List<String> options = choices(commandId);
+				DocumentFrame frame = isDocumentActive() ? getCurrentFrame() : null;
+				if (frame == null || !isDocumentWritable() || index < 0 || index >= options.size())
+					return;
+				setMeAsLastGraphicManager();
+				if (RIBBON_FONT_NAME_ID.equals(commandId))
+					frame.setSelectedTaskFontFamily(options.get(index));
+				else
+					frame.setSelectedTaskFontSize(Integer.parseInt(options.get(index)));
+				getMenuManager().refreshRibbonDropDown(commandId);
+				return;
+			}
 			TransformComboBoxModel model = model(commandId);
 			if (model == null || index < 0 || index >= model.getSize())
 				return;
@@ -4818,10 +4876,18 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled("RibbonFormatPainter", !readOnly && taskType && editFrame != null
 			&& editFrame.canStartFormatPainter());
 		boolean canFormatTaskText = !readOnly && taskType && editFrame != null && editFrame.canFormatSelectedTaskText();
-		for (String fontAction : List.of(ACTION_BOLD, ACTION_ITALIC, ACTION_FONT_COLOR))
+		for (String fontAction : List.of(ACTION_BOLD, ACTION_ITALIC, ACTION_FONT_COLOR,
+				ACTION_UNDERLINE, ACTION_BACKGROUND_COLOR, ACTION_FONT_NAME, ACTION_FONT_SIZE))
 			getMenuManager().setActionEnabled(fontAction, canFormatTaskText);
 		getMenuManager().setActionSelected(ACTION_BOLD, canFormatTaskText && editFrame.isSelectedTaskTextBold());
 		getMenuManager().setActionSelected(ACTION_ITALIC, canFormatTaskText && editFrame.isSelectedTaskTextItalic());
+		getMenuManager().setActionSelected(ACTION_UNDERLINE, canFormatTaskText && editFrame.isSelectedTaskTextUnderline());
+		getMenuManager().refreshRibbonDropDown(RIBBON_FONT_NAME_ID);
+		getMenuManager().refreshRibbonDropDown(RIBBON_FONT_SIZE_ID);
+		for (CommandId moveCommand : TASK_ROUTED_COMMANDS)
+			getMenuManager().setActionEnabled(moveCommand.actionId(), canFormatTaskText);
+		getMenuManager().setActionSelected(CommandId.TASK_ADD_TO_TIMELINE.actionId(),
+			canFormatTaskText && editFrame.isSelectedTaskOnTimeline());
 		// After hierarchy Undo/Redo the lead node supplied by the selection event
 		// may still describe the pre-mutation row.  Command enablement must use the
 		// same stable task selection that execution uses, not that stale singleton.

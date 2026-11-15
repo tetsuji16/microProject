@@ -124,7 +124,7 @@ class RibbonStructureTest {
 			"TaskPropertiesRibbonBand", "TaskEditingRibbonBand"),
 			ribbonBandIds("TaskRibbonTask"));
 		assertEquals(List.of("RibbonTaskModeManual", "RibbonTaskModeAutomatic", "RibbonTaskInspector",
-				"RibbonMoveTaskUp", "RibbonMoveTaskDown", "RibbonDelegateTasks"),
+				"RibbonMoveTask", "RibbonScheduleMode", "RibbonMoveTaskUp", "RibbonMoveTaskDown", "RibbonDelegateTasks"),
 			ribbonButtonIds("TaskTasksRibbonBand"));
 		assertEquals(List.of("RibbonExpand", "RibbonCollapse"),
 			ribbonButtonIds("ViewDataRibbonBand").stream().filter(id -> id.equals("RibbonExpand") || id.equals("RibbonCollapse")).toList());
