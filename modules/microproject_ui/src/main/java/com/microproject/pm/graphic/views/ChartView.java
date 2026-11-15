@@ -134,6 +134,24 @@ public class ChartView extends SplittedView implements SelectionNodeListener, Ba
 		chartInfo.selectionChanged(e); // pass it along
 	}
 	
+	/** The Resource Graph Format settings; meaningful for the Resource Graph mode. */
+	public com.microproject.pm.graphic.chart.ResourceGraphSettings getResourceGraphSettings() {
+		return chartInfo.getResourceGraphSettings();
+	}
+
+	/** Re-plots after the Resource Graph Format settings changed. */
+	public void resourceGraphSettingsChanged() {
+		chartInfo.resourceGraphSettingsChanged();
+	}
+
+	public boolean selectAdjacentResource(int delta) {
+		return chartInfo.selectAdjacentResource(delta);
+	}
+
+	public boolean hasAdjacentResource(int delta) {
+		return chartInfo.hasAdjacentResource(delta);
+	}
+
 	public int getHeaderComponentHeight() {
 		if (scrollPane == null)
 			return GraphicConfiguration.getInstance().getColumnHeaderHeight();

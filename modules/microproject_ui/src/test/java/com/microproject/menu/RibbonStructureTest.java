@@ -51,7 +51,7 @@ class RibbonStructureTest {
 			"ProjectRibbonTask", "ViewRibbonTask", "HelpRibbonTask", "FormatRibbonTask",
 			"NetworkFormatRibbonTask", "CalendarFormatRibbonTask", "TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask",
 			"TaskSheetFormatRibbonTask", "TaskUsageFormatRibbonTask",
-			"ResourceSheetFormatRibbonTask", "ResourceUsageFormatRibbonTask"), ribbonTaskIds());
+			"ResourceSheetFormatRibbonTask", "ResourceUsageFormatRibbonTask", "ResourceGraphFormatRibbonTask"), ribbonTaskIds());
 	}
 
 	@Test
@@ -242,7 +242,7 @@ class RibbonStructureTest {
 				&& entry.getValue().stream().allMatch(Set.of(
 					"FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask", "TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask",
 					"TaskSheetFormatRibbonTask", "TaskUsageFormatRibbonTask",
-					"ResourceSheetFormatRibbonTask", "ResourceUsageFormatRibbonTask")::contains);
+					"ResourceSheetFormatRibbonTask", "ResourceUsageFormatRibbonTask", "ResourceGraphFormatRibbonTask")::contains);
 			assertTrue(entry.getValue().size() == 1 || permittedDuplicates.contains(entry.getKey())
 				|| legalContextualFormatDuplicate,
 				() -> "Unexpected duplicate ribbon command: " + entry.getKey() + " in " + entry.getValue());

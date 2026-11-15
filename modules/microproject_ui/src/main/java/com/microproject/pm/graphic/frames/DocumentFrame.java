@@ -192,6 +192,9 @@ public class DocumentFrame extends NamedFrame implements
 	MenuActionsMap actionsMap = null;
 	BaseView activeTopView = null;
 	BaseView activeBottomView = null;
+	/** True while the Resource Graph in the bottom pane holds the user's focus, so its contextual tab shows. */
+	private boolean bottomPaneActive;
+	private java.awt.event.AWTEventListener bottomPaneListener;
 	private CalendarViewDialogBox calendarViewDialog;
 	/** Result of the last typed task command route, consumed by menu/ribbon actions. */
 	private RibbonCommandResult lastTaskCommandResult;
@@ -2231,7 +2234,8 @@ public class DocumentFrame extends NamedFrame implements
 		getGraphicManager().setTaskInformation(view.showsTasks(),view.showsResources());
 		refreshUndoButtons();
 		getGraphicManager().setEnabledDocumentMenuActions(true);
-		getGraphicManager().updateRibbonContext(viewName);
+		bottomPaneActive = false;
+		getGraphicManager().updateRibbonContext(getRibbonContextViewId());
 		showWaitCursor(false);
 //this doesn't have any effect		setFrameIcon(menuManager.getToolButtonFromId(viewName).getIcon());
 
@@ -2307,6 +2311,7 @@ public class DocumentFrame extends NamedFrame implements
 		setBottomActionSelected(viewName);
 		toggleMinWidth();
 		refreshUndoButtons();
+		trackBottomPaneFocus(view == histogramView);
 
 		if (view instanceof SelectionNodeListener selectionListener)
 			pushCurrentSelectionToBottomView(selectionListener);
@@ -2342,6 +2347,48 @@ public class DocumentFrame extends NamedFrame implements
 		setBottomActionSelected(ACTION_NO_SUB_WINDOW);
 		toggleMinWidth();
 		refreshUndoButtons();
+		trackBottomPaneFocus(false);
+	}
+
+	/** Starts or stops following which pane the user presses, for the Resource Graph contextual tab. */
+	private void trackBottomPaneFocus(boolean histogramActive) {
+		boolean before = bottomPaneActive;
+		if (bottomPaneListener != null) {
+			java.awt.Toolkit.getDefaultToolkit().removeAWTEventListener(bottomPaneListener);
+			bottomPaneListener = null;
+		}
+		bottomPaneActive = histogramActive;
+		if (histogramActive) {
+			bottomPaneListener = event -> {
+				if (event.getID() != java.awt.event.MouseEvent.MOUSE_PRESSED || !(event.getSource() instanceof Component source))
+					return;
+				boolean inGraph = histogramView != null && SwingUtilities.isDescendingFrom(source, histogramView);
+				boolean inFrame = SwingUtilities.isDescendingFrom(source, mainView);
+				if (!inFrame)
+					return;
+				if (inGraph != bottomPaneActive) {
+					bottomPaneActive = inGraph;
+					getGraphicManager().updateRibbonContext(getRibbonContextViewId());
+				}
+				if (inGraph)
+					SwingUtilities.invokeLater(() -> getGraphicManager().syncGanttViewRibbonState());
+			};
+			java.awt.Toolkit.getDefaultToolkit().addAWTEventListener(bottomPaneListener, java.awt.AWTEvent.MOUSE_EVENT_MASK);
+		}
+		if (before != bottomPaneActive)
+			getGraphicManager().updateRibbonContext(getRibbonContextViewId());
+	}
+
+	/** The view whose contextual ribbon tab applies: the Resource Graph while its pane is active, else the top view. */
+	String getRibbonContextViewId() {
+		if (bottomPaneActive && histogramView != null && activeBottomView == histogramView)
+			return ACTION_HISTOGRAM;
+		return getTopViewId();
+	}
+
+	/** The Resource Graph view while it is the active pane, otherwise null. */
+	public ChartView getActiveResourceGraphView() {
+		return ACTION_HISTOGRAM.equals(getRibbonContextViewId()) ? histogramView : null;
 	}
 
 	private void setBottomActionSelected(String selectedAction) {
@@ -3064,6 +3111,10 @@ public class DocumentFrame extends NamedFrame implements
 
 	public void cleanUp() {
 		logger.fine("Document Frame Cleanup");
+		if (bottomPaneListener != null) {
+			java.awt.Toolkit.getDefaultToolkit().removeAWTEventListener(bottomPaneListener);
+			bottomPaneListener = null;
+		}
 		// Embedded MPOF files are owned by the document lifetime.  Release them
 		// before dropping the model reference so Windows can delete open handles.
 		getGraphicManager().closeProjectArtifacts(project);

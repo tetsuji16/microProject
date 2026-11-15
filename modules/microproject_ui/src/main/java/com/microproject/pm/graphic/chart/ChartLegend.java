@@ -118,6 +118,38 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 		this.simple = chartInfo.isResourceGraph();
 	}
 	
+	/**
+	 * Moves the resource shown by the Resource Graph one row up (-1) or down (+1) the resource list.
+	 *
+	 * @return false when the list is empty or already at that end
+	 */
+	boolean selectAdjacentResource(int delta) {
+		if (tree == null)
+			return false;
+		int rows = tree.getRowCount();
+		if (rows == 0)
+			return false;
+		int[] selected = tree.getSelectionRows();
+		int current = selected == null || selected.length == 0 ? (delta > 0 ? -1 : rows) : selected[0];
+		int target = current + delta;
+		if (target < 0 || target >= rows)
+			return false;
+		tree.setSelectionRow(target);
+		tree.scrollRowToVisible(target);
+		return true;
+	}
+
+	/** Whether {@link #selectAdjacentResource} would move in that direction. */
+	boolean hasAdjacentResource(int delta) {
+		if (tree == null)
+			return false;
+		int rows = tree.getRowCount();
+		int[] selected = tree.getSelectionRows();
+		int current = selected == null || selected.length == 0 ? (delta > 0 ? -1 : rows) : selected[0];
+		int target = current + delta;
+		return target >= 0 && target < rows;
+	}
+
 	void rebuildTree() {
 		initTree();
 //		((AbstractMutableNodeHierarchy)chartInfo.getCache().getReference().getModel().getHierarchy()).dump();

@@ -98,7 +98,7 @@ public class MainRibbonFrame extends FlatLafFrame implements FrameHolder{
 		}
 		getContentPane().revalidate();
 		getContentPane().repaint();
-		if (graphicManager != null) graphicManager.updateRibbonContext(graphicManager.getTopViewId());
+		if (graphicManager != null) graphicManager.updateRibbonContext(graphicManager.getRibbonContextViewId());
 	}
 
 	public void setRibbonBackstageHost(RibbonBackstageHost host) {
