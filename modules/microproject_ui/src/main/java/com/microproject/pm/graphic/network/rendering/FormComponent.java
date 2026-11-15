@@ -73,6 +73,7 @@ public class FormComponent extends JPanel{
 	protected boolean editor;
 	protected int zoom;
 	protected boolean texture=true;
+	private com.microproject.pm.graphic.network.NetworkDisplayOptions.BoxStyle boxStyle = com.microproject.pm.graphic.network.NetworkDisplayOptions.BoxStyle.DEFAULT;
 	private final Map<TexturedShape, RepresentativeFill> representativeFillCache = new IdentityHashMap<>();
 	private final Map<TexturedShape, ThemedShape> themedShapeCache = new IdentityHashMap<>();
 	
@@ -332,13 +333,40 @@ public class FormComponent extends JPanel{
 		};
 	}
 
+	/** Border colour and shape the box is drawn with (Box Styles / Box Format); DEFAULT keeps the configured box. */
+	public void setBoxStyle(com.microproject.pm.graphic.network.NetworkDisplayOptions.BoxStyle style) {
+		this.boxStyle = style == null ? com.microproject.pm.graphic.network.NetworkDisplayOptions.BoxStyle.DEFAULT : style;
+	}
+
 	private void drawFormatShape(Graphics2D g2, BarFormat format, TexturedShape shape,
 		double width, double height, double x, double y, boolean useTexture) {
+		if (shape == format.getMiddle() && !com.microproject.pm.graphic.network.NetworkDisplayOptions.BoxStyle.DEFAULT.equals(boxStyle)) {
+			drawStyledBox(g2, format, shape, width, height);
+			return;
+		}
 		if (!isDefaultDiagramFormat(format)) {
 			shape.draw(g2, width, height, x, y, useTexture);
 			return;
 		}
 		themedShape(format, shape).draw(g2, width, height, x, y, useTexture);
+	}
+
+	/** The one outline of a restyled box: the chosen shape filled like the configured box and stroked in the chosen colour. */
+	private void drawStyledBox(Graphics2D g2, BarFormat format, TexturedShape shape, double width, double height) {
+		TexturedShape base = isDefaultDiagramFormat(format) ? themedShape(format, shape) : shape;
+		java.awt.Shape outline = com.microproject.pm.graphic.network.NetworkDisplayOptions.outline(boxStyle.shape(),
+			new java.awt.geom.Rectangle2D.Double(1, 1, Math.max(1, width - 2), Math.max(1, height - 2)));
+		java.awt.Paint oldPaint = g2.getPaint();
+		java.awt.Stroke oldStroke = g2.getStroke();
+		if (base.getPaint() != null) {
+			g2.setPaint(base.getPaint());
+			g2.fill(outline);
+		}
+		g2.setColor(boxStyle.color() != null ? boxStyle.color() : base.getColor() != null ? base.getColor() : getForeground());
+		g2.setStroke(new java.awt.BasicStroke(2f));
+		g2.draw(outline);
+		g2.setPaint(oldPaint);
+		g2.setStroke(oldStroke);
 	}
 
 	private TexturedShape themedShape(BarFormat format, TexturedShape shape) {

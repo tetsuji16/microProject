@@ -168,6 +168,7 @@ Format,Format,Timescale,RibbonTimescale,REQUIRED,S20
 Format,Bar Styles,Bar Styles,RibbonBarStyles,REQUIRED,S38
 Format,Format,Text Styles,RibbonTextStyles,REQUIRED,S38
 Format,Format,Table Gridlines,RibbonSheetGridlines,REQUIRED,S38
+Format,Layout,Layout Now,RibbonNetworkLayoutNow,REQUIRED,S38
 Format,Format,Layout,RibbonLayout,REQUIRED,S38
 Format,Columns,Insert Column,RibbonInsertColumn,REQUIRED,S38
 Format,Columns,Align Left,RibbonAlignLeft,REQUIRED,S38
@@ -193,3 +194,16 @@ Format,Details,Remaining Availability,RibbonUsageDetailRemainingAvailability,REQ
 Format,Details,Cost,RibbonUsageDetailCost,REQUIRED,S38
 Format,Details,Actual Cost,RibbonUsageDetailActualCost,REQUIRED,S38
 Format,Details,Add Details,RibbonUsageDetailsAdd,REQUIRED,S38
+Format,Display,Collapse Boxes,RibbonNetworkBoxFieldsCollapsed,REQUIRED,S38
+Format,Format,Box,RibbonNetworkBoxFormat,REQUIRED,S38
+Format,Format,Box Styles,RibbonNetworkBoxStyles,REQUIRED,S38
+Format,Format,Layout,RibbonNetworkLayout,REQUIRED,S38
+Format,Show/Hide,Link Labels,RibbonNetworkLinkLabels,REQUIRED,S38
+Format,Show/Hide,Straight Links,RibbonNetworkStraightLinks,REQUIRED,S38
+Format,Show/Hide,Progress Marks,RibbonNetworkProgressMarks,REQUIRED,S38
+Format,Format,Text Styles,RibbonCalendarTextStyles,REQUIRED,S38
+Format,Format,Bar Styles,RibbonCalendarBarStyles,REQUIRED,S38
+Format,Layout,Layout Now,RibbonCalendarLayoutNow,REQUIRED,S38
+Format,Layout,Best Fit,RibbonCalendarWeekHeightBestFit,REQUIRED,S38
+Format,Layout,Layout,RibbonCalendarLayout,REQUIRED,S38
+Format,Show/Hide,Task List,RibbonCalendarTaskList,REQUIRED,S38

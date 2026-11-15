@@ -151,6 +151,8 @@ public abstract class NetworkRenderer extends GraphRenderer{
 				else
 					g2.setColor(format.getMiddle().getColor());
 				g2.draw(path);
+				if (((NetworkParams)graphInfo).getDisplayOptions().isLinkLabels())
+					drawLinkLabel(g2, linkLabelText(dependency), routing);
 				
 			//}
 			if (format.getStart()==null&&format.getEnd()==null) return;
@@ -167,6 +169,22 @@ public abstract class NetworkRenderer extends GraphRenderer{
 			if (oldColor!=null) g2.setColor(oldColor);
 			if (oldStroke!= null) g2.setStroke(oldStroke);
 
+		}
+		private String linkLabelText(GraphicDependency dependency){
+			Dependency dep=dependency.getDependency();
+			if (dep==null) return NetworkDisplayOptions.linkLabel(dependency.getType(),0L);
+			com.microproject.datatype.DurationDefaults defaults=null;
+			if (dep.getSuccessor() instanceof com.microproject.pm.task.Task task&&task.getProject()!=null) defaults=task.getProject().getDurationDefaults();
+			return NetworkDisplayOptions.linkLabel(dependency.getType(),dep.getLag(),defaults);
+		}
+		private void drawLinkLabel(Graphics2D g, String text, LinkRouting routing) {
+			java.awt.Font oldFont = g.getFont();
+			g.setFont(oldFont.deriveFont(Math.max(8f, oldFont.getSize2D() - 2f)));
+			java.awt.FontMetrics metrics = g.getFontMetrics();
+			float x = (routing.getFirstX() + routing.getLastX()) / 2f - metrics.stringWidth(text) / 2f;
+			float y = (routing.getFirstY() + routing.getLastY()) / 2f - 2f;
+			g.drawString(text, x, y);
+			g.setFont(oldFont);
 		}
 		private void drawLinkArrows(Dependency dep, AffineTransform transform, TexturedShape shape, double x, double y) {
 			Color oldEndColor = format.getEnd().getColor();
@@ -348,6 +366,53 @@ public abstract class NetworkRenderer extends GraphRenderer{
 		
 		public void paintNode(Graphics2D g,GraphicNode node){
 			Rectangle bounds=getBounds(node);
+			paintNodeContent(g,node,bounds);
+			paintNodeDecorations(g,node,bounds);
+		}
+
+		/** Collapsed boxes show the task ID only. */
+		private void paintCollapsedBox(Graphics2D g,GraphicNode node,Rectangle bounds){
+			Object impl=node.getNode().getImpl();
+			String id=impl instanceof com.microproject.pm.task.Task task?Long.toString(task.getId()):"";
+			Color oldColor=g.getColor();
+			g.setColor(javax.swing.UIManager.getColor("Table.background")==null?Color.WHITE:javax.swing.UIManager.getColor("Table.background"));
+			NetworkDisplayOptions.BoxStyle style=((NetworkParams)graphInfo).getDisplayOptions().getStyle(NetworkDisplayOptions.boxType(impl));
+			java.awt.Shape outline=NetworkDisplayOptions.outline(style.shape(),new java.awt.geom.Rectangle2D.Double(bounds.x,bounds.y,bounds.width-1,bounds.height-1));
+			g.fill(outline);
+			Color border=style.color()!=null?style.color():javax.swing.UIManager.getColor("Table.foreground")==null?Color.DARK_GRAY:javax.swing.UIManager.getColor("Table.foreground");
+			g.setColor(border);
+			g.draw(outline);
+			g.setColor(javax.swing.UIManager.getColor("Table.foreground")==null?Color.DARK_GRAY:javax.swing.UIManager.getColor("Table.foreground"));
+			java.awt.FontMetrics metrics=g.getFontMetrics();
+			g.drawString(id,bounds.x+(bounds.width-metrics.stringWidth(id))/2,bounds.y+(bounds.height+metrics.getAscent()-metrics.getDescent())/2);
+			g.setColor(oldColor);
+		}
+
+		/** Progress marks, drawn over the box (the border style is part of the box itself, see FormComponent). */
+		private void paintNodeDecorations(Graphics2D g,GraphicNode node,Rectangle bounds){
+			NetworkDisplayOptions options=((NetworkParams)graphInfo).getDisplayOptions();
+			Object impl=node.getNode().getImpl();
+			Color oldColor=g.getColor();
+			Stroke oldStroke=g.getStroke();
+			if (options.isProgressMarks()&&impl instanceof com.microproject.pm.task.Task task){
+				NetworkDisplayOptions.ProgressMark mark=NetworkDisplayOptions.progressMark(task.getPercentComplete());
+				if (mark!=NetworkDisplayOptions.ProgressMark.NONE){
+					g.setColor(javax.swing.UIManager.getColor("Table.foreground")==null?Color.DARK_GRAY:javax.swing.UIManager.getColor("Table.foreground"));
+					g.setStroke(new java.awt.BasicStroke(1.5f));
+					g.drawLine(bounds.x,bounds.y+bounds.height,bounds.x+bounds.width,bounds.y);
+					if (mark==NetworkDisplayOptions.ProgressMark.CROSS)
+						g.drawLine(bounds.x,bounds.y,bounds.x+bounds.width,bounds.y+bounds.height);
+				}
+			}
+			g.setColor(oldColor);
+			g.setStroke(oldStroke);
+		}
+
+		private void paintNodeContent(Graphics2D g,GraphicNode node,Rectangle bounds){
+			if (((NetworkParams)graphInfo).getDisplayOptions().isCollapsed()){
+				paintCollapsedBox(g,node,bounds);
+				return;
+			}
 			if (isEditing(node)){
 				editor.paintEditor(node);
 			}else{
