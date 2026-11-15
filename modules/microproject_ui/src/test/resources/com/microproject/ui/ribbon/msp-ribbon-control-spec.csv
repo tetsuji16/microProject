@@ -113,6 +113,7 @@ RibbonChooseSort,SortGallery,GALLERY,POPUP,DOCUMENTED,ViewRibbonTask/ViewDataRib
 RibbonChooseGroup,GroupingsGroup,COMBO_BOX,POPUP,DOCUMENTED,ViewRibbonTask/ViewDataRibbonBand,Group list with current group shown / More Groups
 RibbonZoomIn,ZoomIn,BUTTON,COMMAND,DOCUMENTED,ViewRibbonTask/ViewZoomRibbonBand,
 RibbonZoomOut,ZoomOut,BUTTON,COMMAND,DOCUMENTED,ViewRibbonTask/ViewZoomRibbonBand,
+RibbonZoomEntireProject,ZoomEntireProject,BUTTON,COMMAND,DOCUMENTED,ViewRibbonTask/ViewZoomRibbonBand,
 RibbonZoomSelectedTasks,ZoomSelectedTasks,BUTTON,COMMAND,DOCUMENTED,ViewRibbonTask/ViewZoomRibbonBand,
 RibbonMicroProjectDocumentation,,BUTTON,DIALOG,BASELINE,HelpRibbonTask/HelpRibbonBand,product-only
 RibbonAboutMicroProject,,BUTTON,DIALOG,BASELINE,HelpRibbonTask/HelpRibbonBand,product-only

@@ -316,6 +316,15 @@ public class UsageDetailView extends SplittedView implements BaseView, FieldArra
 		SelectedTasksTimescaleZoom.zoom(selectedNodesForZoom(), coord, timeScrollPane);
 	}
 
+	public boolean canZoomToProject() {
+		return documentFrame != null && SelectedTasksTimescaleZoom.canZoomProject(documentFrame.getProject());
+	}
+
+	public void zoomToProject() {
+		if (documentFrame != null)
+			SelectedTasksTimescaleZoom.zoomProject(documentFrame.getProject(), coord, timeScrollPane);
+	}
+
 	public SelectedTasksTimescaleZoom.DateRange getVisibleDateRange() {
 		return SelectedTasksTimescaleZoom.visibleRange(coord, timeScrollPane);
 	}

@@ -1994,6 +1994,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_ZOOM_IN, new ZoomInAction());
 		actionsMap.addHandler(ACTION_ZOOM_OUT, new ZoomOutAction());
 		actionsMap.addHandler(ACTION_ZOOM_SELECTED_TASKS, new ZoomSelectedTasksAction());
+		actionsMap.addHandler(ACTION_ZOOM_ENTIRE_PROJECT, new ZoomEntireProjectAction());
 		actionsMap.addHandler(ACTION_SCROLL_TO_TASK, new ScrollToTaskAction());
 		actionsMap.addHandler(ACTION_SCROLL_TO_TODAY, new ScrollToTodayAction());
 		actionsMap.addHandler(ACTION_TOGGLE_PROGRESS_LINE, new ToggleProgressLineAction());
@@ -3149,6 +3150,20 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 					usageView.zoomToSelectedTasks();
 				else if (activeView instanceof GanttView ganttView && ganttView.canZoomToSelectedTasks())
 					ganttView.zoomToSelectedTasks();
+			}
+			setZoomButtons();
+		}
+	}
+	public class ZoomEntireProjectAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive()) {
+				BaseView activeView = getCurrentFrame().getActiveTopView();
+				if (activeView instanceof UsageDetailView usageView && usageView.canZoomToProject())
+					usageView.zoomToProject();
+				else if (activeView instanceof GanttView ganttView && ganttView.canZoomToProject())
+					ganttView.zoomToProject();
 			}
 			setZoomButtons();
 		}
@@ -4961,6 +4976,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				? usageView.canZoomToSelectedTasks()
 				: activeView instanceof GanttView ganttView && ganttView.canZoomToSelectedTasks();
 		getMenuManager().setActionEnabled(ACTION_ZOOM_SELECTED_TASKS, canZoomSelection);
+		boolean canZoomProject = activeView instanceof UsageDetailView usageView
+				? usageView.canZoomToProject()
+				: activeView instanceof GanttView ganttView && ganttView.canZoomToProject();
+		getMenuManager().setActionEnabled(ACTION_ZOOM_ENTIRE_PROJECT, canZoomProject);
 		getMenuManager().setActionEnabled(ACTION_SCROLL_TO_TODAY, activeView instanceof GanttView);
 
 	}

@@ -143,6 +143,7 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonArrangeAll | 全ウィンドウを整列 | 開いているプロジェクトが整列される |
 | RibbonChooseFilter / RibbonChooseSort / RibbonChooseGroup | フィルター・ソート・グループを変更 | 選択条件が一覧へ反映される |
 | RibbonZoomIn / RibbonZoomOut | 時間軸を拡大／縮小 | ガントの時間スケールが変わる |
+| RibbonZoomEntireProject | Gantt / Task Usage / Resource Usage で View > ズーム の「プロジェクト全体」を押す | タイムスケールがプロジェクトの開始から終了までを表示できる縮尺に変わる。データは変更されない。 |
 | RibbonZoomSelectedTasks | Gantt / Tracking Gantt / Task Usage / Resource Usage で選択タスクにズーム | 選択タスクの日付範囲が可視範囲に収まり、タスク日付は変わらない。日付付き選択がない場合は無効。 |
 | RibbonCCPMNetwork | CCPMネットワークを表示 | CCPMネットワークが描画される |
 

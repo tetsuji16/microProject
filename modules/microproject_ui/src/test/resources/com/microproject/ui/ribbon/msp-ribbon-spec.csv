@@ -137,6 +137,7 @@ View,Data,Tables,RibbonTables,REQUIRED,S32
 View,Data,Highlight,RibbonHighlight,REQUIRED,S9a
 View,Zoom,Zoom In,RibbonZoomIn,REQUIRED,S20
 View,Zoom,Zoom Out,RibbonZoomOut,REQUIRED,S20
+View,Zoom,Entire Project,RibbonZoomEntireProject,REQUIRED,S20
 View,Zoom,Selected Tasks,RibbonZoomSelectedTasks,REQUIRED,S20
 View,Macros,Macros,RibbonMacros,EXCLUDED,VBA/macros excluded by the 2026-10-12 scope decision (#797)
 View,Macros,Visual Basic,RibbonVisualBasic,EXCLUDED,VBA/macros excluded by the 2026-10-12 scope decision (#797)
