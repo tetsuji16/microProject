@@ -36,4 +36,40 @@ class NetworkCalendarFormatTest {
 			});
 		}
 	}
+
+	@Test
+	void networkDisplayOptionsReachTheDiagramAndSurviveAWorkspaceRoundTrip() throws Exception {
+		try (HeadlessDocumentFixture fx = new HeadlessDocumentFixture("First", "Second")) {
+			HeadlessDocumentFixture.onEdt(() -> assertTrue(fx.frame.activateView(MenuActionConstants.ACTION_NETWORK)));
+			HeadlessDocumentFixture.onEdt(() -> {
+				PertView view = fx.manager.getActiveNetworkView();
+				assertFalse(view.getDisplayOptions().isLinkLabels());
+				assertFalse(view.getLinkRouting() instanceof com.microproject.pm.graphic.link_routing.StraightNetworkLinkRouting);
+				view.setLinkLabels(true);
+				view.setProgressMarks(true);
+				view.setStraightLinks(true);
+				view.setCollapsedBoxes(true);
+				view.setBoxSpacing(30);
+				view.setBoxStyle(com.microproject.pm.graphic.network.NetworkDisplayOptions.BoxType.CRITICAL,
+					new com.microproject.pm.graphic.network.NetworkDisplayOptions.BoxStyle(0xC0392B, com.microproject.pm.graphic.network.NetworkDisplayOptions.BoxShape.ROUNDED));
+				assertTrue(view.getLinkRouting() instanceof com.microproject.pm.graphic.link_routing.StraightNetworkLinkRouting);
+				assertTrue(view.getDisplayOptions().isCollapsed());
+				com.microproject.workspace.WorkspaceSetting workspace = view.createWorkspace(0);
+				view.setLinkLabels(false);
+				view.setProgressMarks(false);
+				view.setStraightLinks(false);
+				view.setCollapsedBoxes(false);
+				view.setBoxSpacing(0);
+				view.setBoxStyle(com.microproject.pm.graphic.network.NetworkDisplayOptions.BoxType.CRITICAL, null);
+				assertFalse(view.getLinkRouting() instanceof com.microproject.pm.graphic.link_routing.StraightNetworkLinkRouting);
+				view.restoreWorkspace(workspace, 0);
+				assertTrue(view.getDisplayOptions().isLinkLabels());
+				assertTrue(view.getDisplayOptions().isProgressMarks());
+				assertTrue(view.getDisplayOptions().isCollapsed());
+				assertEquals(30, view.getDisplayOptions().getBoxSpacing());
+				assertTrue(view.getLinkRouting() instanceof com.microproject.pm.graphic.link_routing.StraightNetworkLinkRouting);
+				assertEquals(0xC0392B, view.getDisplayOptions().getStyle(com.microproject.pm.graphic.network.NetworkDisplayOptions.BoxType.CRITICAL).rgb());
+			});
+		}
+	}
 }

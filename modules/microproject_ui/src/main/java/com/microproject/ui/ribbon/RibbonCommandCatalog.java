@@ -205,7 +205,11 @@ final class RibbonCommandCatalog {
 				"RibbonSummaryTasks".equals(id) ? Set.of(FORMAT, TASK_SHEET_FORMAT, TASK_USAGE_FORMAT, NETWORK_FORMAT)
 					: Set.of(FORMAT, TASK_SHEET_FORMAT, TASK_USAGE_FORMAT)));
 		}
-		register(result, CommandScope.FORMAT, NETWORK_FORMAT, Set.of(NETWORK_FORMAT), "RibbonNetworkLayoutNow");
+		register(result, CommandScope.FORMAT, NETWORK_FORMAT, Set.of(NETWORK_FORMAT), "RibbonNetworkLayoutNow", "RibbonNetworkBoxFieldsCollapsed",
+			"RibbonNetworkBoxFormat", "RibbonNetworkBoxStyles", "RibbonNetworkLayout", "RibbonNetworkLinkLabels", "RibbonNetworkStraightLinks",
+			"RibbonNetworkProgressMarks");
+		register(result, CommandScope.FORMAT, CALENDAR_FORMAT, Set.of(CALENDAR_FORMAT), "RibbonCalendarTextStyles", "RibbonCalendarBarStyles",
+			"RibbonCalendarLayoutNow", "RibbonCalendarWeekHeightBestFit", "RibbonCalendarLayout", "RibbonCalendarTaskList");
 		register(result, CommandScope.FORMAT, TASK_USAGE_FORMAT, Set.of(TASK_SHEET_FORMAT, TASK_USAGE_FORMAT, RESOURCE_SHEET_FORMAT, RESOURCE_USAGE_FORMAT, CALENDAR_FORMAT),
 			"RibbonSheetGridlines");
 		// Usage Details rows are shared by the two usage Format tabs.

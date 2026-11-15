@@ -423,13 +423,21 @@ class RibbonAndToolbarButtonTest {
 			List.of("GanttFormatRibbonBand", "SheetColumnsRibbonBand", "GanttBarStylesRibbonBand", "GanttStylesRibbonBand",
 				"SheetShowHideRibbonBand", "GanttFormatExtrasRibbonBand"),
 			ribbonBandIds("FormatRibbonTask"));
-		assertEquals(List.of("NetworkShowHideRibbonBand", "NetworkLayoutRibbonBand"), ribbonBandIds("NetworkFormatRibbonTask"));
-		assertEquals(List.of("CalendarFormatRibbonBand"), ribbonBandIds("CalendarFormatRibbonTask"));
-		assertEquals(List.of("RibbonSummaryTasks"),
+		assertEquals(List.of("NetworkDisplayRibbonBand", "NetworkFormatRibbonBand", "NetworkShowHideRibbonBand", "NetworkLayoutRibbonBand"), ribbonBandIds("NetworkFormatRibbonTask"));
+		assertEquals(List.of("CalendarFormatRibbonBand", "CalendarLayoutRibbonBand", "CalendarShowHideRibbonBand"), ribbonBandIds("CalendarFormatRibbonTask"));
+		assertEquals(List.of("RibbonNetworkLinkLabels", "RibbonNetworkStraightLinks", "RibbonNetworkProgressMarks", "RibbonSummaryTasks"),
 			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("NetworkShowHideRibbonBand"));
+		assertEquals(List.of("RibbonNetworkBoxFieldsCollapsed"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("NetworkDisplayRibbonBand"));
+		assertEquals(List.of("RibbonNetworkBoxFormat", "RibbonNetworkBoxStyles", "RibbonNetworkLayout"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("NetworkFormatRibbonBand"));
+		assertEquals(List.of("RibbonCalendarLayoutNow", "RibbonCalendarWeekHeightBestFit", "RibbonCalendarLayout"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("CalendarLayoutRibbonBand"));
+		assertEquals(List.of("RibbonCalendarTaskList"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("CalendarShowHideRibbonBand"));
 		assertEquals(List.of("RibbonNetworkLayoutNow"),
 			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("NetworkLayoutRibbonBand"));
-		assertEquals(List.of("RibbonSheetGridlines"),
+		assertEquals(List.of("RibbonCalendarTextStyles", "RibbonCalendarBarStyles", "RibbonSheetGridlines"),
 			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("CalendarFormatRibbonBand"));
 		assertEquals(
 			List.of("RibbonTextStyles", "RibbonGridlines", "RibbonLayout"),

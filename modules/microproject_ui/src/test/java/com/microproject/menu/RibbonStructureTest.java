@@ -223,7 +223,10 @@ class RibbonStructureTest {
 			"RibbonInsertColumn", "RibbonAlignLeft", "RibbonAlignCenter", "RibbonAlignRight", "RibbonColumnSettings",
 			"RibbonHideColumn", "RibbonFieldSettings", "RibbonOutlineNumbers", "RibbonSummaryTasks",
 			"RibbonUsageDetailWork", "RibbonUsageDetailActualWork", "RibbonUsageDetailCost", "RibbonUsageDetailsAdd", "RibbonSheetGridlines",
-			"RibbonUsageDetailCumulativeWork", "RibbonNetworkLayoutNow");
+			"RibbonUsageDetailCumulativeWork", "RibbonNetworkLayoutNow",
+			"RibbonNetworkBoxFieldsCollapsed", "RibbonNetworkBoxFormat", "RibbonNetworkBoxStyles", "RibbonNetworkLayout", "RibbonNetworkLinkLabels",
+			"RibbonNetworkStraightLinks", "RibbonNetworkProgressMarks", "RibbonCalendarTextStyles", "RibbonCalendarBarStyles", "RibbonCalendarLayoutNow",
+			"RibbonCalendarWeekHeightBestFit", "RibbonCalendarLayout", "RibbonCalendarTaskList");
 		for (Map.Entry<String, Set<String>> entry : tabsByButton.entrySet()) {
 			boolean legalContextualFormatDuplicate = contextualFormatCommands.contains(entry.getKey())
 				&& entry.getValue().stream().allMatch(Set.of(

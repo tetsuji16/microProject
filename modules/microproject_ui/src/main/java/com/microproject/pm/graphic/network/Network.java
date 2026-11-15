@@ -107,6 +107,27 @@ public class Network extends Graph implements NetworkLayoutListener, NetworkPara
 	public LinkRouting getRouting(){
 		return routing;
 	}
+	private final NetworkDisplayOptions displayOptions = new NetworkDisplayOptions();
+	@Override public NetworkDisplayOptions getDisplayOptions() {
+		return displayOptions;
+	}
+	/** Switches the link routing between orthogonal and straight lines, keeping the diagram orientation. */
+	public void setStraightLinks(boolean straight) {
+		displayOptions.setStraightLinks(straight);
+		boolean vertical = !(routing instanceof com.microproject.pm.graphic.link_routing.NetworkLinkRouting nr) || nr.isVertical();
+		com.microproject.pm.graphic.link_routing.NetworkLinkRouting next = straight
+			? new com.microproject.pm.graphic.link_routing.StraightNetworkLinkRouting()
+			: new DefaultNetworkLinkRouting();
+		next.setVertical(vertical);
+		this.routing = next;
+		repaint();
+	}
+	/** Repaints after a display option changed that alters the box size or spacing. */
+	public void relayout() {
+		((NetworkUI)ui).resetForms();
+		if (getNetworkLayout() != null) getNetworkLayout().updateBounds();
+		repaint();
+	}
 	public void setRouting(LinkRouting routing) {
 		this.routing=routing;
 	}
@@ -126,6 +147,13 @@ public class Network extends Graph implements NetworkLayoutListener, NetworkPara
 	public void restoreWorkspace(WorkspaceSetting w, int context) {
 		Workspace ws = (Workspace) w;
 		makeZoom(ws.zoom);
+		displayOptions.setProgressMarks(ws.progressMarks != null && ws.progressMarks.booleanValue());
+		displayOptions.setLinkLabels(ws.linkLabels != null && ws.linkLabels.booleanValue());
+		displayOptions.setCollapsed(ws.collapsedBoxes != null && ws.collapsedBoxes.booleanValue());
+		displayOptions.setBoxSpacing(ws.boxSpacing == null ? 0 : ws.boxSpacing.intValue());
+		displayOptions.decodeStyles(ws.boxStyles);
+		setStraightLinks(ws.straightLinks != null && ws.straightLinks.booleanValue());
+		if (ws.collapsedBoxes != null || ws.boxSpacing != null) relayout();
      	Container p = getParent();
      	if (p instanceof JViewport && ws.viewPosition != null) {
      		try {
@@ -139,6 +167,12 @@ public class Network extends Graph implements NetworkLayoutListener, NetworkPara
 	public WorkspaceSetting createWorkspace(int context) {
 		Workspace ws = new Workspace();
 		ws.zoom = zoom;
+		ws.progressMarks = Boolean.valueOf(displayOptions.isProgressMarks());
+		ws.linkLabels = Boolean.valueOf(displayOptions.isLinkLabels());
+		ws.straightLinks = Boolean.valueOf(displayOptions.isStraightLinks());
+		ws.collapsedBoxes = Boolean.valueOf(displayOptions.isCollapsed());
+		ws.boxSpacing = Integer.valueOf(displayOptions.getBoxSpacing());
+		ws.boxStyles = displayOptions.encodeStyles();
      	Container p = getParent();
      	if (p instanceof JViewport) {
      		ws.viewPosition = ((JViewport)p).getViewPosition();
@@ -149,6 +183,12 @@ public class Network extends Graph implements NetworkLayoutListener, NetworkPara
 		private static final long serialVersionUID = 7804032466144588065L;
 		int zoom;
 		Point viewPosition = null;
+		Boolean progressMarks;
+		Boolean linkLabels;
+		Boolean straightLinks;
+		Boolean collapsedBoxes;
+		Integer boxSpacing;
+		String boxStyles;
 		public int getZoom() {
 			return zoom;
 		}

@@ -187,6 +187,19 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonOutlineNumbers | アウトライン番号の表示を切り替える | タスク名の前に番号が表示／非表示になる |
 | RibbonSummaryTasks | サマリー タスクの行を切り替える | サマリー タスクの行が表示／非表示になる |
 | RibbonNetworkLayoutNow | ネットワーク図のボックス位置を再計算 | すべてのボックスが依存関係の階層に従って再配置される |
+| RibbonNetworkBoxFieldsCollapsed | ボックスを折りたたむ | 状態または表示が変わる |
+| RibbonNetworkBoxFormat | ボックス | 設定が反映される |
+| RibbonNetworkBoxStyles | ボックス スタイル | 設定が反映される |
+| RibbonNetworkLayout | レイアウト | 設定が反映される |
+| RibbonNetworkLinkLabels | リンク ラベル | 状態または表示が変わる |
+| RibbonNetworkStraightLinks | 直線リンク | 状態または表示が変わる |
+| RibbonNetworkProgressMarks | 進捗マーク | 状態または表示が変わる |
+| RibbonCalendarTextStyles | テキスト スタイル | 設定が反映される |
+| RibbonCalendarBarStyles | バー スタイル | 設定が反映される |
+| RibbonCalendarLayoutNow | 今すぐレイアウト | 設定が反映される |
+| RibbonCalendarWeekHeightBestFit | 週の高さを最適化 | 設定が反映される |
+| RibbonCalendarLayout | レイアウト | 設定が反映される |
+| RibbonCalendarTaskList | タスク一覧 | 状態または表示が変わる |
 | RibbonSheetGridlines | 表の罫線の表示を選ぶ | 表の罫線が表示／非表示になる |
 | RibbonUsageDetailWork | 作業時間の詳細行を切り替える | 使用状況グリッドに作業時間の行が表示／非表示になる |
 | RibbonUsageDetailActualWork | 実績作業時間の詳細行を切り替える | 使用状況グリッドに実績作業時間の行が表示／非表示になる |

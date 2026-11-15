@@ -1990,6 +1990,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_GFMT_SLIPPAGE, ganttFormatAction(ACTION_GFMT_SLIPPAGE, view -> view.setSlippageVisible(!view.isSlippageVisible())));
 		actionsMap.addHandler(ACTION_GFMT_OUTLINE_NUMBERS, sheetFormatAction(ACTION_GFMT_OUTLINE_NUMBERS, view -> view.setOutlineNumbersVisible(!view.isOutlineNumbersVisible())));
 		actionsMap.addHandler(ACTION_GFMT_SUMMARY_TASKS, summaryTasksAction());
+		registerNetworkCalendarFormatActions();
 		actionsMap.addHandler(ACTION_NETWORK_LAYOUT_NOW, new MenuActionsMap.DocumentMenuAction() {
 			private static final long serialVersionUID = 1L;
 			@Override public void actionPerformed(ActionEvent event) {
@@ -2998,6 +2999,132 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				syncGanttViewRibbonState();
 			}
 		};
+	}
+
+	private String formatText(String key) {
+		return getMenuManager().getString(key);
+	}
+
+	/** A toggle of the Network Diagram Format tab, acting on the active Network view. */
+	private MenuActionsMap.DocumentMenuAction networkToggle(String actionId, java.util.function.Consumer<PertView> toggle) {
+		return new MenuActionsMap.DocumentMenuAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) {
+				setMeAsLastGraphicManager();
+				if (!beforeToggleRoute(actionId)) return;
+				PertView view = getActiveNetworkView();
+				if (view == null) return;
+				toggle.accept(view);
+				syncGanttViewRibbonState();
+			}
+		};
+	}
+
+	/** A dialog command of the Network Diagram Format tab: shows the panel and applies it on OK. */
+	private MenuActionsMap.DocumentMenuAction networkDialog(String actionId, String titleKey,
+			java.util.function.Function<PertView, NetworkCalendarFormatDialogs.OptionPanel> panelFactory, java.util.function.Consumer<PertView> afterApply) {
+		return new MenuActionsMap.DocumentMenuAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) {
+				setMeAsLastGraphicManager();
+				if (!beforeChooserRoute(actionId)) return;
+				PertView view = getActiveNetworkView();
+				if (view == null || GraphicsEnvironment.isHeadless()) return;
+				NetworkCalendarFormatDialogs.OptionPanel panel = panelFactory.apply(view);
+				int answer = PopupDialogSupport.showConfirmDialog(getFrame(), panel, formatText(titleKey),
+					JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+				if (answer != JOptionPane.OK_OPTION) return;
+				panel.apply();
+				afterApply.accept(view);
+				syncGanttViewRibbonState();
+			}
+		};
+	}
+
+	/** A command or toggle of the Calendar Format tab, acting on the active Calendar view. */
+	private MenuActionsMap.DocumentMenuAction calendarCommand(String actionId, boolean toggle,
+			java.util.function.Consumer<com.microproject.dialog.CalendarViewDialogBox> run) {
+		return new MenuActionsMap.DocumentMenuAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) {
+				setMeAsLastGraphicManager();
+				if (!beforeToggleRoute(actionId)) return;
+				com.microproject.dialog.CalendarViewDialogBox calendar = getActiveCalendarDialog();
+				if (calendar == null) return;
+				run.accept(calendar);
+				syncGanttViewRibbonState();
+			}
+		};
+	}
+
+	private MenuActionsMap.DocumentMenuAction calendarDialog(String actionId, String titleKey,
+			java.util.function.Function<com.microproject.dialog.CalendarViewSettings, NetworkCalendarFormatDialogs.OptionPanel> panelFactory) {
+		return new MenuActionsMap.DocumentMenuAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) {
+				setMeAsLastGraphicManager();
+				if (!beforeChooserRoute(actionId)) return;
+				com.microproject.dialog.CalendarViewDialogBox calendar = getActiveCalendarDialog();
+				if (calendar == null || GraphicsEnvironment.isHeadless()) return;
+				NetworkCalendarFormatDialogs.OptionPanel panel = panelFactory.apply(calendar.getSettings());
+				int answer = PopupDialogSupport.showConfirmDialog(getFrame(), panel, formatText(titleKey),
+					JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+				if (answer != JOptionPane.OK_OPTION) return;
+				panel.apply();
+				calendar.settingsChanged();
+				syncGanttViewRibbonState();
+			}
+		};
+	}
+
+	private void registerNetworkCalendarFormatActions() {
+		java.util.function.Function<String, String> text = this::formatText;
+		actionsMap.addHandler(ACTION_NETWORK_BOX_COLLAPSED, networkToggle(ACTION_NETWORK_BOX_COLLAPSED,
+			view -> view.setCollapsedBoxes(!view.getDisplayOptions().isCollapsed())));
+		actionsMap.addHandler(ACTION_NETWORK_LINK_LABELS, networkToggle(ACTION_NETWORK_LINK_LABELS,
+			view -> view.setLinkLabels(!view.getDisplayOptions().isLinkLabels())));
+		actionsMap.addHandler(ACTION_NETWORK_STRAIGHT_LINKS, networkToggle(ACTION_NETWORK_STRAIGHT_LINKS,
+			view -> view.setStraightLinks(!view.getDisplayOptions().isStraightLinks())));
+		actionsMap.addHandler(ACTION_NETWORK_PROGRESS_MARKS, networkToggle(ACTION_NETWORK_PROGRESS_MARKS,
+			view -> view.setProgressMarks(!view.getDisplayOptions().isProgressMarks())));
+		actionsMap.addHandler(ACTION_NETWORK_BOX_STYLES, networkDialog(ACTION_NETWORK_BOX_STYLES, "RibbonNetworkBoxStyles.text",
+			view -> NetworkCalendarFormatDialogs.boxStyles(view.getDisplayOptions(), java.util.List.of(com.microproject.pm.graphic.network.NetworkDisplayOptions.BoxType.values()), text),
+			PertView::repaintDiagram));
+		actionsMap.addHandler(ACTION_NETWORK_BOX_FORMAT, networkDialog(ACTION_NETWORK_BOX_FORMAT, "RibbonNetworkBoxFormat.text",
+			view -> NetworkCalendarFormatDialogs.boxStyles(view.getDisplayOptions(), selectedBoxTypes(), text),
+			PertView::repaintDiagram));
+		actionsMap.addHandler(ACTION_NETWORK_LAYOUT_OPTIONS, networkDialog(ACTION_NETWORK_LAYOUT_OPTIONS, "RibbonNetworkLayout.text",
+			view -> NetworkCalendarFormatDialogs.networkLayout(new NetworkCalendarFormatDialogs.NetworkLayoutChoice(
+				view.getDisplayOptions().isStraightLinks(), view.getDisplayOptions().getBoxSpacing(), view.isSummaryTasksVisible()), text,
+				choice -> view.applyLayoutChoice(choice.straight(), choice.spacing(), choice.summaryTasks())),
+			PertView::layoutNow));
+		actionsMap.addHandler(ACTION_CALENDAR_TEXT_STYLES, calendarDialog(ACTION_CALENDAR_TEXT_STYLES, "RibbonCalendarTextStyles.text",
+			settings -> NetworkCalendarFormatDialogs.calendarTextStyles(settings, text)));
+		actionsMap.addHandler(ACTION_CALENDAR_BAR_STYLES, calendarDialog(ACTION_CALENDAR_BAR_STYLES, "RibbonCalendarBarStyles.text",
+			settings -> NetworkCalendarFormatDialogs.calendarBarStyles(settings, text)));
+		actionsMap.addHandler(ACTION_CALENDAR_LAYOUT_OPTIONS, calendarDialog(ACTION_CALENDAR_LAYOUT_OPTIONS, "RibbonCalendarLayout.text",
+			settings -> NetworkCalendarFormatDialogs.calendarLayout(settings, text)));
+		actionsMap.addHandler(ACTION_CALENDAR_LAYOUT_NOW, calendarCommand(ACTION_CALENDAR_LAYOUT_NOW, false,
+			com.microproject.dialog.CalendarViewDialogBox::layoutNow));
+		actionsMap.addHandler(ACTION_CALENDAR_BEST_FIT, calendarCommand(ACTION_CALENDAR_BEST_FIT, false,
+			com.microproject.dialog.CalendarViewDialogBox::weekHeightBestFit));
+		actionsMap.addHandler(ACTION_CALENDAR_TASK_LIST, calendarCommand(ACTION_CALENDAR_TASK_LIST, true, calendar -> {
+			calendar.getSettings().setTaskListVisible(!calendar.getSettings().isTaskListVisible());
+			calendar.settingsChanged();
+		}));
+	}
+
+	/** The box kinds of the tasks selected in the Network Diagram; every kind when nothing is selected. */
+	private java.util.List<com.microproject.pm.graphic.network.NetworkDisplayOptions.BoxType> selectedBoxTypes() {
+		java.util.Set<com.microproject.pm.graphic.network.NetworkDisplayOptions.BoxType> types = new java.util.TreeSet<>();
+		DocumentFrame frame = getCurrentFrame();
+		if (frame != null)
+			for (Object node : frame.getSelectedTaskNodes(false, false))
+				if (node instanceof com.microproject.grouping.core.Node selected)
+					types.add(com.microproject.pm.graphic.network.NetworkDisplayOptions.boxType(selected.getImpl()));
+		return types.isEmpty()
+			? java.util.List.of(com.microproject.pm.graphic.network.NetworkDisplayOptions.BoxType.values())
+			: new java.util.ArrayList<>(types);
 	}
 
 	/** Summary Tasks toggle: acts on the active spreadsheet-based view, or on the Network Diagram. */
@@ -5429,6 +5556,19 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_GRIDLINES, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_SHEET_GRIDLINES, sheetActive || getActiveCalendarDialog() != null);
 		getMenuManager().setActionEnabled(ACTION_NETWORK_LAYOUT_NOW, getActiveNetworkView() != null);
+		PertView networkView = getActiveNetworkView();
+		com.microproject.dialog.CalendarViewDialogBox calendarView = getActiveCalendarDialog();
+		for (String action : new String[] { ACTION_NETWORK_BOX_COLLAPSED, ACTION_NETWORK_BOX_FORMAT, ACTION_NETWORK_BOX_STYLES,
+				ACTION_NETWORK_LAYOUT_OPTIONS, ACTION_NETWORK_LINK_LABELS, ACTION_NETWORK_STRAIGHT_LINKS, ACTION_NETWORK_PROGRESS_MARKS })
+			getMenuManager().setActionEnabled(action, networkView != null);
+		for (String action : new String[] { ACTION_CALENDAR_TEXT_STYLES, ACTION_CALENDAR_BAR_STYLES, ACTION_CALENDAR_LAYOUT_NOW,
+				ACTION_CALENDAR_BEST_FIT, ACTION_CALENDAR_LAYOUT_OPTIONS, ACTION_CALENDAR_TASK_LIST })
+			getMenuManager().setActionEnabled(action, calendarView != null);
+		getMenuManager().setActionSelected(ACTION_NETWORK_BOX_COLLAPSED, networkView != null && networkView.getDisplayOptions().isCollapsed());
+		getMenuManager().setActionSelected(ACTION_NETWORK_LINK_LABELS, networkView != null && networkView.getDisplayOptions().isLinkLabels());
+		getMenuManager().setActionSelected(ACTION_NETWORK_STRAIGHT_LINKS, networkView != null && networkView.getDisplayOptions().isStraightLinks());
+		getMenuManager().setActionSelected(ACTION_NETWORK_PROGRESS_MARKS, networkView != null && networkView.getDisplayOptions().isProgressMarks());
+		getMenuManager().setActionSelected(ACTION_CALENDAR_TASK_LIST, calendarView != null && calendarView.getSettings().isTaskListVisible());
 		getMenuManager().setActionEnabled(ACTION_TEXT_STYLES, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_BAR_STYLES, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_LAYOUT, ganttActive);

@@ -1948,7 +1948,11 @@ class RibbonButtonBehaviorTest {
 			"RibbonFormatBarStyles", "RibbonCriticalTasks", "RibbonSlack", "RibbonLateTasks", "RibbonTaskPath",
 			"RibbonShowBaseline", "RibbonSlippage", "RibbonGanttStyleGallery", "RibbonOutlineNumbers", "RibbonSummaryTasks");
 		// Network and Calendar Format tabs: each needs the active Network/Calendar view; behaviour is covered by NetworkCalendarFormatTest (Summary Tasks, Layout Now, calendar gridlines).
-		add(map, Strategy.STRUCTURAL_ONLY, "RibbonNetworkLayoutNow");
+		// New Network and Calendar commands: NetworkDisplayOptionsTest / CalendarViewSettingsTest (decisions), NetworkCalendarFormatTest (PertView flags, routing swap, workspace round trip), NetworkCalendarRibbonGuiAcceptanceTest (clicks).
+		add(map, Strategy.STRUCTURAL_ONLY, "RibbonNetworkLayoutNow",
+			"RibbonNetworkBoxFieldsCollapsed", "RibbonNetworkBoxFormat", "RibbonNetworkBoxStyles", "RibbonNetworkLayout", "RibbonNetworkLinkLabels",
+			"RibbonNetworkStraightLinks", "RibbonNetworkProgressMarks", "RibbonCalendarTextStyles", "RibbonCalendarBarStyles", "RibbonCalendarLayoutNow",
+			"RibbonCalendarWeekHeightBestFit", "RibbonCalendarLayout", "RibbonCalendarTaskList");
 		// Usage Format tabs: each needs an active usage view; behaviour is covered by UsageDetailRibbonGuiAcceptanceTest (guiTest: detail toggle, last-row guard, Add Details) and UsageDetailValuesTest (computed rows).
 		add(map, Strategy.STRUCTURAL_ONLY,
 			"RibbonUsageDetailWork", "RibbonUsageDetailActualWork", "RibbonUsageDetailBaselineWork", "RibbonUsageDetailCost",

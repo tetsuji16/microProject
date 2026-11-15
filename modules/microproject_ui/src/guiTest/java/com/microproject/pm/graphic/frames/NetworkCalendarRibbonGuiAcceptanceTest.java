@@ -90,6 +90,26 @@ class NetworkCalendarRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> onEdt(network::isSummaryTasksVisible), "second Summary Tasks click did not restore the boxes");
 		clickCommand(robot, "RibbonNetworkLayoutNow");
 
+		clickCommand(robot, "RibbonNetworkLinkLabels");
+		GuiAcceptanceSupport.await(() -> onEdt(() -> network.getDisplayOptions().isLinkLabels()), "Link Labels did not turn on");
+		clickCommand(robot, "RibbonNetworkProgressMarks");
+		GuiAcceptanceSupport.await(() -> onEdt(() -> network.getDisplayOptions().isProgressMarks()), "Progress Marks did not turn on");
+		clickCommand(robot, "RibbonNetworkStraightLinks");
+		GuiAcceptanceSupport.await(() -> onEdt(() -> network.getDisplayOptions().isStraightLinks()
+			&& network.getLinkRouting() instanceof com.microproject.pm.graphic.link_routing.StraightNetworkLinkRouting), "Straight Links did not switch the routing");
+		clickCommand(robot, "RibbonNetworkBoxFieldsCollapsed");
+		GuiAcceptanceSupport.await(() -> onEdt(() -> network.getDisplayOptions().isCollapsed()), "Collapse Boxes did not collapse the boxes");
+		clickCommand(robot, "RibbonNetworkBoxFieldsCollapsed");
+		GuiAcceptanceSupport.await(() -> onEdt(() -> !network.getDisplayOptions().isCollapsed()), "second Collapse Boxes click did not expand the boxes");
+		clickCommand(robot, "RibbonNetworkBoxStyles");
+		confirmDialog(robot, dialog -> ((javax.swing.JComboBox<?>) find(dialog, javax.swing.JComboBox.class).get(0)).setSelectedIndex(1));
+		GuiAcceptanceSupport.await(() -> onEdt(() -> network.getDisplayOptions().hasStyles()), "Box Styles did not store a border color");
+		clickCommand(robot, "RibbonNetworkBoxFormat");
+		confirmDialog(robot, dialog -> { });
+		clickCommand(robot, "RibbonNetworkLayout");
+		confirmDialog(robot, dialog -> ((javax.swing.JSpinner) find(dialog, javax.swing.JSpinner.class).get(0)).setValue(40));
+		GuiAcceptanceSupport.await(() -> onEdt(() -> network.getDisplayOptions().getBoxSpacing() == 40), "the Layout dialog did not set the box spacing");
+
 		click(robot, screenBounds(viewTab));
 		clickCommand(robot, "RibbonCalendarView");
 		GuiAcceptanceSupport.await(() -> onEdt(() -> manager.getActiveCalendarDialog() != null), "Calendar view did not open");
@@ -102,6 +122,58 @@ class NetworkCalendarRibbonGuiAcceptanceTest {
 				if (w instanceof JDialog d && d.isShowing() && containsCheckBox(d.getContentPane())) return true;
 			return false;
 		}), "Calendar Gridlines did not open its dialog");
+		confirmDialog(robot, dialog -> { });
+		com.microproject.dialog.CalendarViewDialogBox calendar = onEdt(() -> manager.getActiveCalendarDialog());
+		clickCommand(robot, "RibbonCalendarTextStyles");
+		confirmDialog(robot, dialog -> ((javax.swing.JSpinner) find(dialog, javax.swing.JSpinner.class).get(0)).setValue(14));
+		GuiAcceptanceSupport.await(() -> onEdt(() -> calendar.getSettings().getTextStyle(com.microproject.dialog.CalendarViewSettings.TextItem.BAR_TEXT).size() == 14),
+			"Text Styles did not set the bar text size");
+		clickCommand(robot, "RibbonCalendarBarStyles");
+		confirmDialog(robot, dialog -> ((javax.swing.JComboBox<?>) find(dialog, javax.swing.JComboBox.class).get(0)).setSelectedIndex(1));
+		GuiAcceptanceSupport.await(() -> onEdt(() -> calendar.getSettings().getBarColor(com.microproject.dialog.CalendarViewSettings.BarType.NORMAL) != null),
+			"Bar Styles did not set the bar color");
+		onEdt(() -> { calendar.getSettings().setRowHeight(220); calendar.settingsChanged(); return null; });
+		clickCommand(robot, "RibbonCalendarWeekHeightBestFit");
+		GuiAcceptanceSupport.await(() -> onEdt(() -> calendar.getRowHeight() < 220), "Week Height Best Fit did not change the row height");
+		clickCommand(robot, "RibbonCalendarLayout");
+		confirmDialog(robot, dialog -> ((javax.swing.JCheckBox) find(dialog, javax.swing.JCheckBox.class).get(0)).setSelected(true));
+		GuiAcceptanceSupport.await(() -> onEdt(() -> calendar.getSettings().isFitAsManyTasksAsPossible()), "the Calendar Layout dialog did not set the fit option");
+		clickCommand(robot, "RibbonCalendarLayoutNow");
+		clickCommand(robot, "RibbonCalendarTaskList");
+		GuiAcceptanceSupport.await(() -> onEdt(() -> calendar.getSettings().isTaskListVisible() && !calendar.getTaskListEntries().isEmpty()),
+			"Task List did not show the tasks of the month");
+	}
+
+	private static <T extends Component> java.util.List<T> find(Container container, Class<T> type) {
+		java.util.List<T> result = new java.util.ArrayList<>();
+		for (Component c : container.getComponents()) {
+			if (type.isInstance(c)) result.add(type.cast(c));
+			if (c instanceof Container child) result.addAll(find(child, type));
+		}
+		return result;
+	}
+
+	/** Waits for the option dialog, lets the test change it, and confirms it with OK. */
+	private void confirmDialog(Robot robot, java.util.function.Consumer<Container> edit) throws Exception {
+		GuiAcceptanceSupport.await(() -> onEdt(() -> {
+			for (Window w : Window.getWindows())
+				if (w instanceof JDialog d && d.isShowing() && d.isModal()) return true;
+			return false;
+		}), "the option dialog did not open");
+		JDialog dialog = onEdt(() -> {
+			for (Window w : Window.getWindows())
+				if (w instanceof JDialog d && d.isShowing() && d.isModal()) return d;
+			return null;
+		});
+		onEdt(() -> { edit.accept(dialog.getContentPane()); return null; });
+		String okText = javax.swing.UIManager.getString("OptionPane.okButtonText");
+		AbstractButton ok = onEdt(() -> {
+			for (javax.swing.JButton b : find(dialog.getContentPane(), javax.swing.JButton.class))
+				if (okText.equals(b.getText())) return b;
+			return null;
+		});
+		click(robot, screenBounds(ok));
+		GuiAcceptanceSupport.await(() -> onEdt(() -> !dialog.isShowing()), "the option dialog did not close after OK");
 	}
 
 	private static boolean containsCheckBox(Container container) {

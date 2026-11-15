@@ -160,6 +160,29 @@ public class PertView extends JScrollPane implements BaseView {
 		if (cache instanceof com.microproject.pm.graphic.model.cache.ViewNodeModelCache viewCache)
 			viewCache.getViewTransformer().setHideSummaryTasks(!visible);
 	}
+	public com.microproject.pm.graphic.network.NetworkDisplayOptions getDisplayOptions() {
+		return pert.getDisplayOptions();
+	}
+	/** The routing currently used for the links (orthogonal or straight). */
+	public com.microproject.pm.graphic.graph.LinkRouting getLinkRouting() { return pert.getRouting(); }
+	public void repaintDiagram() { pert.repaint(); }
+	/** Layout dialog choices: link style, box spacing and whether summary task boxes show. */
+	public void applyLayoutChoice(boolean straight, int spacing, boolean summaryTasks) {
+		pert.setStraightLinks(straight);
+		pert.getDisplayOptions().setBoxSpacing(spacing);
+		if (supportsSummaryTasksToggle()) setSummaryTasksVisible(summaryTasks);
+	}
+	public void setProgressMarks(boolean value) { pert.getDisplayOptions().setProgressMarks(value); pert.repaint(); }
+	public void setLinkLabels(boolean value) { pert.getDisplayOptions().setLinkLabels(value); pert.repaint(); }
+	public void setStraightLinks(boolean value) { pert.setStraightLinks(value); }
+	/** Collapsed boxes show the task ID only; the diagram is laid out again for the smaller boxes. */
+	public void setCollapsedBoxes(boolean value) { pert.getDisplayOptions().setCollapsed(value); pert.relayout(); }
+	public void setBoxSpacing(int value) { pert.getDisplayOptions().setBoxSpacing(value); pert.relayout(); }
+	public void setBoxStyle(com.microproject.pm.graphic.network.NetworkDisplayOptions.BoxType type,
+			com.microproject.pm.graphic.network.NetworkDisplayOptions.BoxStyle style) {
+		pert.getDisplayOptions().setStyle(type, style);
+		pert.repaint();
+	}
 	/** Recomputes every box position from the dependency levels (Layout Now). */
 	public void layoutNow() {
 		if (pert != null && pert.getNetworkLayout() != null) {

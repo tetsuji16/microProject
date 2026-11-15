@@ -98,6 +98,14 @@ public abstract class LinkRouting {
 		addLinkPoint(x1, y1);
 	}
 	
+	/** Appends one straight segment between the two connection points. */
+	protected final void routeStraight(GeneralPath target, double x0, double y0, double x1, double y1) {
+		path = target;
+		resetLinkPoints();
+		addLinkPoint(x0, y0);
+		addLinkPoint(x1, y1);
+	}
+
 	//public abstract void routePath(GeneralPath path,double x0,double y0,double x1,double y1,double[] extraPoints, int type);
 	
 	
