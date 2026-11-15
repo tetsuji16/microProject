@@ -95,6 +95,8 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	DocumentFrame documentFrame;
 	FieldContext fieldContext;
 	private boolean tracking = false;
+	private boolean taskSheet = false;
+	private int sheetSavedDividerSize = 0;
 	private boolean standardProgressLineEnabled = false;
 	private boolean trackingProgressLineEnabled = true;
 	private boolean spreadsheetGridVisible = Gantt.DEFAULT_GRID_LINES_VISIBLE;
@@ -573,6 +575,8 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		}
 		cleanupContentViews();
 		super.reinitialize();
+		if (taskSheet && rightScrollPane != null)
+			rightScrollPane.setVisible(false);
 		setSpreadsheetGridVisible(spreadsheetGridVisible);
 		updateHeight(project);
 		updateSize();
@@ -785,6 +789,30 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	}
 	public boolean isTracking() {
 		return tracking;
+	}
+	/** True while the view is shown as the Task Sheet: the task table with the chart collapsed. */
+	public boolean isTaskSheet() {
+		return taskSheet;
+	}
+	/**
+	 * Collapses the chart pane (Task Sheet) or brings it back (Gantt Chart views).  The divider is
+	 * left where it was, so the chart layout returns unchanged when the sheet is closed.
+	 */
+	public void setTaskSheet(boolean sheet) {
+		if (this.taskSheet == sheet)
+			return;
+		this.taskSheet = sheet;
+		if (rightScrollPane == null)
+			return;
+		if (sheet) {
+			sheetSavedDividerSize = getDividerSize();
+			setDividerSize(0);
+		} else {
+			setDividerSize(sheetSavedDividerSize);
+		}
+		rightScrollPane.setVisible(!sheet);
+		revalidate();
+		repaint();
 	}
 	public void setTracking(boolean tracking) {
 		if (gantt != null) {

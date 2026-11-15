@@ -127,6 +127,7 @@ Project,Server,Microsoft Planner link,RibbonPlannerLink,EXCLUDED,Microsoft Plann
 Project,Share,Share,RibbonShare,EXCLUDED,cloud sharing/Teams are outside the standalone desktop goal
 View,Task Views,Gantt Chart,RibbonGantt,REQUIRED,S32
 View,Task Views,Tracking Gantt,RibbonTrackingGantt,REQUIRED,S32
+View,Task Views,Task Sheet,RibbonTaskSheet,REQUIRED,S32
 View,Split View,Timeline,RibbonTimeline,REQUIRED,S26
 View,Task Views,Calendar,RibbonCalendarView,REQUIRED,S32
 View,Task Views,Network Diagram,RibbonNetwork,REQUIRED,S32
@@ -186,6 +187,9 @@ Format,Show/Hide,Summary Tasks,RibbonSummaryTasks,REQUIRED,S38
 Format,Details,Work,RibbonUsageDetailWork,REQUIRED,S38
 Format,Details,Actual Work,RibbonUsageDetailActualWork,REQUIRED,S38
 Format,Details,Baseline Work,RibbonUsageDetailBaselineWork,REQUIRED,S38
+Format,Details,Cumulative Work,RibbonUsageDetailCumulativeWork,REQUIRED,S38
+Format,Details,Overallocation,RibbonUsageDetailOverallocation,REQUIRED,S38
+Format,Details,Remaining Availability,RibbonUsageDetailRemainingAvailability,REQUIRED,S38
 Format,Details,Cost,RibbonUsageDetailCost,REQUIRED,S38
 Format,Details,Actual Cost,RibbonUsageDetailActualCost,REQUIRED,S38
 Format,Details,Add Details,RibbonUsageDetailsAdd,REQUIRED,S38

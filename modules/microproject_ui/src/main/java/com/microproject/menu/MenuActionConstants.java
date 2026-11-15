@@ -70,6 +70,7 @@ public interface MenuActionConstants {
 
 	public static final String ACTION_GANTT                   = "Gantt";
 	public static final String ACTION_TRACKING_GANTT          = "TrackingGantt";
+	public static final String ACTION_TASK_SHEET              = "TaskSheet";
 	public static final String ACTION_TASK_USAGE_DETAIL       = "TaskUsageDetail";
 	public static final String ACTION_RESOURCE_USAGE_DETAIL   = "ResourceUsageDetail";
 	public static final String ACTION_NETWORK                 = "Network";
@@ -132,6 +133,9 @@ public interface MenuActionConstants {
 	public static final String ACTION_USAGE_DETAIL_WORK = "UsageDetailWork";
 	public static final String ACTION_USAGE_DETAIL_ACTUAL_WORK = "UsageDetailActualWork";
 	public static final String ACTION_USAGE_DETAIL_BASELINE_WORK = "UsageDetailBaselineWork";
+	public static final String ACTION_USAGE_DETAIL_CUMULATIVE_WORK = "UsageDetailCumulativeWork";
+	public static final String ACTION_USAGE_DETAIL_OVERALLOCATION = "UsageDetailOverallocation";
+	public static final String ACTION_USAGE_DETAIL_REMAINING_AVAILABILITY = "UsageDetailRemainingAvailability";
 	public static final String ACTION_USAGE_DETAIL_COST = "UsageDetailCost";
 	public static final String ACTION_USAGE_DETAIL_ACTUAL_COST = "UsageDetailActualCost";
 	public static final String ACTION_USAGE_DETAILS_ADD = "UsageDetailsAdd";

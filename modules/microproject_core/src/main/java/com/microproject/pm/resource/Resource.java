@@ -31,6 +31,7 @@ import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.HasAssignments;
 import com.microproject.pm.assignment.HasTimeDistributedData;
 import com.microproject.pm.assignment.TimeDistributedFields;
+import com.microproject.pm.assignment.UsageDetailFields;
 import com.microproject.pm.assignment.timesheet.UpdatesFromTimesheet;
 import com.microproject.pm.availability.AvailabilityTable;
 import com.microproject.pm.calendar.HasBaseCalendar;
@@ -49,7 +50,7 @@ import com.microproject.server.data.DataObject;
 /**
  * @stereotype thing 
  */
-public interface Resource extends HasCalendar, HasKey, BelongsToDocument, Cost, HasAssignments, ResourceSpecificFields, HasTimeDistributedData, TimeDistributedFields,EarnedValueValues, EarnedValueFields, HasNotes, HasBaseCalendar, DataObject, CanSupplyRateUnit,Cloneable, BelongsToHierarchy, CustomFields, UpdatesFromTimesheet {
+public interface Resource extends HasCalendar, HasKey, BelongsToDocument, Cost, HasAssignments, ResourceSpecificFields, HasTimeDistributedData, TimeDistributedFields, UsageDetailFields,EarnedValueValues, EarnedValueFields, HasNotes, HasBaseCalendar, DataObject, CanSupplyRateUnit,Cloneable, BelongsToHierarchy, CustomFields, UpdatesFromTimesheet {
     /**
      * @associates <{com.microproject.pm.resource.ResourceType}> 
      */

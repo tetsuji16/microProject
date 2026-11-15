@@ -110,7 +110,7 @@ class RibbonAndToolbarButtonTest {
 			JPanel ribbon = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 			((ModernRibbonPanel) ribbon.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY))
 				.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask",
-					"TaskUsageFormatRibbonTask", "ResourceSheetFormatRibbonTask", "ResourceUsageFormatRibbonTask"));
+					"TaskSheetFormatRibbonTask", "TaskUsageFormatRibbonTask", "ResourceSheetFormatRibbonTask", "ResourceUsageFormatRibbonTask"));
 			assertAttachedButtonsAreVisible(ribbon, MenuManager.STANDARD_RIBBON);
 		});
 	}
@@ -373,6 +373,7 @@ class RibbonAndToolbarButtonTest {
 				"FormatRibbonTask",
 				"NetworkFormatRibbonTask",
 				"CalendarFormatRibbonTask",
+				"TaskSheetFormatRibbonTask",
 				"TaskUsageFormatRibbonTask",
 				"ResourceSheetFormatRibbonTask",
 				"ResourceUsageFormatRibbonTask"),
@@ -663,7 +664,7 @@ class RibbonAndToolbarButtonTest {
 			ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
 			// Every contextual Format tab, so the buttons only the Network/Calendar tabs carry are visible too.
 			ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask",
-				"TaskUsageFormatRibbonTask", "ResourceSheetFormatRibbonTask", "ResourceUsageFormatRibbonTask"));
+				"TaskSheetFormatRibbonTask", "TaskUsageFormatRibbonTask", "ResourceSheetFormatRibbonTask", "ResourceUsageFormatRibbonTask"));
 			ResourceBundle labels = menuBundle(Locale.getDefault());
 
 			for (String tabId : ribbonTaskIds()) {

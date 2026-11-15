@@ -2004,6 +2004,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_USAGE_DETAIL_WORK, usageDetailAction(ACTION_USAGE_DETAIL_WORK, "Field.work"));
 		actionsMap.addHandler(ACTION_USAGE_DETAIL_ACTUAL_WORK, usageDetailAction(ACTION_USAGE_DETAIL_ACTUAL_WORK, "Field.actualWork"));
 		actionsMap.addHandler(ACTION_USAGE_DETAIL_BASELINE_WORK, usageDetailAction(ACTION_USAGE_DETAIL_BASELINE_WORK, "Field.baselineWork"));
+		actionsMap.addHandler(ACTION_USAGE_DETAIL_CUMULATIVE_WORK, usageDetailAction(ACTION_USAGE_DETAIL_CUMULATIVE_WORK, "Field.cumulativeWork"));
+		actionsMap.addHandler(ACTION_USAGE_DETAIL_OVERALLOCATION, usageDetailAction(ACTION_USAGE_DETAIL_OVERALLOCATION, "Field.overallocation"));
+		actionsMap.addHandler(ACTION_USAGE_DETAIL_REMAINING_AVAILABILITY, usageDetailAction(ACTION_USAGE_DETAIL_REMAINING_AVAILABILITY, "Field.remainingAvailability"));
 		actionsMap.addHandler(ACTION_USAGE_DETAIL_COST, usageDetailAction(ACTION_USAGE_DETAIL_COST, "Field.cost"));
 		actionsMap.addHandler(ACTION_USAGE_DETAIL_ACTUAL_COST, usageDetailAction(ACTION_USAGE_DETAIL_ACTUAL_COST, "Field.actualCost"));
 		actionsMap.addHandler(ACTION_USAGE_DETAILS_ADD, new UsageDetailsAddAction());
@@ -2075,6 +2078,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 		actionsMap.addHandler(ACTION_GANTT, new ViewAction(ACTION_GANTT));
 		actionsMap.addHandler(ACTION_TRACKING_GANTT, new ViewAction(ACTION_TRACKING_GANTT));
+		actionsMap.addHandler(ACTION_TASK_SHEET, new ViewAction(ACTION_TASK_SHEET));
 		actionsMap.addHandler(ACTION_TASK_USAGE_DETAIL, new ViewAction(ACTION_TASK_USAGE_DETAIL));
 		actionsMap.addHandler(ACTION_RESOURCE_USAGE_DETAIL, new ViewAction(ACTION_RESOURCE_USAGE_DETAIL));
 		actionsMap.addHandler(ACTION_NETWORK, new ViewAction(ACTION_NETWORK));
@@ -2739,6 +2743,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			return new ContextualRibbonDescriptor(topViewId, "FormatRibbonTask", "GanttChartFormat.contextualTitle", true);
 		if (ACTION_TRACKING_GANTT.equals(topViewId))
 			return new ContextualRibbonDescriptor(topViewId, "FormatRibbonTask", "TrackingGanttFormat.contextualTitle", true);
+		if (ACTION_TASK_SHEET.equals(topViewId))
+			return new ContextualRibbonDescriptor(topViewId, "TaskSheetFormatRibbonTask", "TaskSheetFormat.contextualTitle", true);
 		if (ACTION_NETWORK.equals(topViewId))
 			return new ContextualRibbonDescriptor(topViewId, "NetworkFormatRibbonTask", "NetworkFormat.contextualTitle", true);
 		if (ACTION_CALENDAR_VIEW.equals(topViewId))
@@ -4676,7 +4682,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (frame == null || frame.getProject() == null)
 			return null;
 		String topViewId = frame.getTopViewId();
-		if (!(ACTION_GANTT.equals(topViewId) || ACTION_TRACKING_GANTT.equals(topViewId)
+		if (!(ACTION_GANTT.equals(topViewId) || ACTION_TRACKING_GANTT.equals(topViewId) || ACTION_TASK_SHEET.equals(topViewId)
 				|| ACTION_TASK_USAGE_DETAIL.equals(topViewId) || ACTION_RESOURCE_USAGE_DETAIL.equals(topViewId)
 				|| ACTION_RESOURCES.equals(topViewId)))
 			return null;
@@ -5335,6 +5341,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		{ ACTION_USAGE_DETAIL_WORK, "Field.work" },
 		{ ACTION_USAGE_DETAIL_ACTUAL_WORK, "Field.actualWork" },
 		{ ACTION_USAGE_DETAIL_BASELINE_WORK, "Field.baselineWork" },
+		{ ACTION_USAGE_DETAIL_CUMULATIVE_WORK, "Field.cumulativeWork" },
+		{ ACTION_USAGE_DETAIL_OVERALLOCATION, "Field.overallocation" },
+		{ ACTION_USAGE_DETAIL_REMAINING_AVAILABILITY, "Field.remainingAvailability" },
 		{ ACTION_USAGE_DETAIL_COST, "Field.cost" },
 		{ ACTION_USAGE_DETAIL_ACTUAL_COST, "Field.actualCost" }
 	};
@@ -5881,6 +5890,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			colorThemes = new HashMap();
 			colorThemes.put(ACTION_GANTT,"Bloody Moon"); //$NON-NLS-1$
 			colorThemes.put(ACTION_TRACKING_GANTT,"Mahogany"); //$NON-NLS-1$
+			colorThemes.put(ACTION_TASK_SHEET,"Bloody Moon"); //$NON-NLS-1$
 			colorThemes.put(ACTION_NETWORK,"Emerald Grass"); //$NON-NLS-1$
 			colorThemes.put(ACTION_RESOURCES,"Blue Yonder"); //$NON-NLS-1$
 			colorThemes.put(ACTION_PROJECTS,"Emerald Grass"); //$NON-NLS-1$

@@ -270,7 +270,7 @@ class RibbonControlContractTest {
 	void viewSwitchButtonsAreToggleSplitButtonsListingTheirFamilyOfViews() {
 		SwingRibbonModel model = model(Map.of());
 		List<String> taskViews = List.of("RibbonGantt", "RibbonTrackingGantt", "RibbonCalendarView", "RibbonNetwork",
-			"RibbonWBS", "RibbonTaskUsageDetail");
+			"RibbonWBS", "RibbonTaskUsageDetail", "RibbonTaskSheet");
 		List<String> resourceViews = List.of("RibbonResources", "RibbonRBS", "RibbonResourceUsageDetail");
 		Map<String, List<String>> expected = Map.of(
 			"RibbonGantt", taskViews, "RibbonNetwork", taskViews, "RibbonCalendarView", taskViews,

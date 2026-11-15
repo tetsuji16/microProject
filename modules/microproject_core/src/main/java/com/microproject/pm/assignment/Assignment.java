@@ -126,7 +126,7 @@ import com.microproject.util.Environment;
  * Class representing resource assignments
  * @stereotype thing
  */
-public final class Assignment implements Schedule, Association, Allocation, Delayable, HasTimeDistributedData, TimeDistributedFields, EarnedValueValues, EarnedValueFields, AssignmentSpecificFields, HasKey, BelongsToDocument, HasRequestDemandType,UpdatesFromTimesheet, CanSupplyRateUnit, HasCostRateIndex, Cloneable, DataObject  {
+public final class Assignment implements Schedule, Association, Allocation, Delayable, HasTimeDistributedData, TimeDistributedFields, UsageDetailFields, EarnedValueValues, EarnedValueFields, AssignmentSpecificFields, HasKey, BelongsToDocument, HasRequestDemandType,UpdatesFromTimesheet, CanSupplyRateUnit, HasCostRateIndex, Cloneable, DataObject  {
 	static final long serialVersionUID = 56779404923241L;
 	AssignmentDetail detail = null;
 	private transient Map<Integer, BaselineValues> importedBaselineValues;

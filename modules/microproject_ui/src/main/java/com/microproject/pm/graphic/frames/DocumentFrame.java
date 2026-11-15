@@ -1036,7 +1036,7 @@ public class DocumentFrame extends NamedFrame implements
 	public boolean canNavigateToNextOverallocatedTask() {
 		if (project == null || getActiveSpreadSheet() == null) return false;
 		return switch (getTopViewId()) {
-			case ACTION_GANTT, ACTION_TRACKING_GANTT, ACTION_NETWORK, ACTION_WBS,
+			case ACTION_GANTT, ACTION_TRACKING_GANTT, ACTION_TASK_SHEET, ACTION_NETWORK, ACTION_WBS,
 				ACTION_TASK_USAGE, ACTION_TASK_USAGE_DETAIL -> true;
 			default -> false;
 		};
@@ -2084,6 +2084,9 @@ public class DocumentFrame extends NamedFrame implements
 		} else if (viewName.equals(ACTION_TRACKING_GANTT)) {
 			activateTrackingGanttView();
 			return top;
+		} else if (viewName.equals(ACTION_TASK_SHEET)) {
+			activateTaskSheetView();
+			return top;
 		} else if (viewName.equals(ACTION_TASK_USAGE_DETAIL))
 			topView = getTaskUsageDetailView();
 		else if (viewName.equals(ACTION_RESOURCE_USAGE_DETAIL))
@@ -2194,12 +2197,21 @@ public class DocumentFrame extends NamedFrame implements
 	public void activateGanttView() {
 		getGanttView().setBarStyles("standard");
 		getGanttView().setTracking(false);
+		getGanttView().setTaskSheet(false);
 		activateTopView(getGanttView(),ACTION_GANTT);
 	}
 	public void activateTrackingGanttView() {
 		getGanttView().setBarStyles("Tracking");
 		getGanttView().setTracking(true);
+		getGanttView().setTaskSheet(false);
 		activateTopView(getGanttView(),ACTION_TRACKING_GANTT);
+	}
+	/** The Task Sheet is the Gantt task table with the chart collapsed. */
+	public void activateTaskSheetView() {
+		getGanttView().setBarStyles("standard");
+		getGanttView().setTracking(false);
+		getGanttView().setTaskSheet(true);
+		activateTopView(getGanttView(),ACTION_TASK_SHEET);
 	}
 
 	public void activateBottomView(BaseView view,String viewName) {

@@ -86,24 +86,23 @@ class MspRibbonOrderDiffTest {
 	private static final String ASSIGNMENT_PROPERTIES =
 		"assignments have no Assignment Information dialog and no notes of their own; Task and Resource Information are reached from the Task and Resource tabs";
 	private static final String TEXT_STYLES_SHEET =
-		"Text Styles restyles item types (critical, summary, milestone...) in the Gantt; the sheet has no per-item-type font engine, only the Gantt annotation text";
+		"the Text Styles dialog only chooses which field labels the Gantt bars (task name or resource names); it has no per-item-type cell font to apply to sheet or usage rows";
 	private static final String WRAP_TEXT =
 		"cells render on one line; the sheet has no multi-line cell/row-height engine (only header wrapping exists, under Field Settings)";
-	private static final String CUMULATIVE_WORK =
-		"no cumulative-work distribution field exists for the usage grid to list as a detail row";
 
-	private static final Map<String, String> TABS = Map.of(
-		"TaskRibbonTask", "TabTask",
-		"ResourceRibbonTask", "TabResource",
-		"ReportRibbonTask", "TabReportOverview",
-		"ProjectRibbonTask", "TabProject",
-		"ViewRibbonTask", "TabView",
-		"HelpRibbonTask", "HelpTab",
+	private static final Map<String, String> TABS = Map.ofEntries(
+		Map.entry("TaskRibbonTask", "TabTask"),
+		Map.entry("ResourceRibbonTask", "TabResource"),
+		Map.entry("ReportRibbonTask", "TabReportOverview"),
+		Map.entry("ProjectRibbonTask", "TabProject"),
+		Map.entry("ViewRibbonTask", "TabView"),
+		Map.entry("HelpRibbonTask", "HelpTab"),
 		// contextual tabs: add one entry here (plus its bands below) to compare another one
-		"FormatRibbonTask", "TabGanttChartFormat",
-		"TaskUsageFormatRibbonTask", "TabTaskUsageViewFormat",
-		"ResourceSheetFormatRibbonTask", "TabResourceSheetViewFormat",
-		"ResourceUsageFormatRibbonTask", "TabResourceUsageViewFormat");
+		Map.entry("FormatRibbonTask", "TabGanttChartFormat"),
+		Map.entry("TaskSheetFormatRibbonTask", "TabTaskSheetViewFormat"),
+		Map.entry("TaskUsageFormatRibbonTask", "TabTaskUsageViewFormat"),
+		Map.entry("ResourceSheetFormatRibbonTask", "TabResourceSheetViewFormat"),
+		Map.entry("ResourceUsageFormatRibbonTask", "TabResourceUsageViewFormat"));
 
 	/** Our band ("tab/band") -> the Microsoft group of the same tab it implements. */
 	private static final Map<String, String> BAND_GROUPS = Map.ofEntries(
@@ -137,6 +136,9 @@ class MspRibbonOrderDiffTest {
 		Map.entry("FormatRibbonTask/GanttBarStylesRibbonBand", "GroupGanttChartBarStyles"),
 		Map.entry("FormatRibbonTask/GanttStylesRibbonBand", "GroupGanttChartSyles"),
 		Map.entry("FormatRibbonTask/SheetShowHideRibbonBand", "GroupGanttChartShowHide"),
+		Map.entry("TaskSheetFormatRibbonTask/SheetFormatRibbonBand", "GroupSheetFormat"),
+		Map.entry("TaskSheetFormatRibbonTask/SheetColumnsRibbonBand", "GroupColumns"),
+		Map.entry("TaskSheetFormatRibbonTask/SheetShowHideRibbonBand", "GroupGanttChartShowHide"),
 		Map.entry("TaskUsageFormatRibbonTask/SheetFormatRibbonBand", "GroupUsageViewFormat"),
 		Map.entry("TaskUsageFormatRibbonTask/SheetColumnsRibbonBand", "GroupColumns"),
 		Map.entry("TaskUsageFormatRibbonTask/TaskUsageDetailsRibbonBand", "GroupTaskUsageViewDetails"),
@@ -203,6 +205,10 @@ class MspRibbonOrderDiffTest {
 			"cells render on one line; the sheet has no multi-line cell/row-height engine (only header wrapping exists, under Field Settings)"),
 		Map.entry("TabGanttChartFormat/ProjectSummaryTaskShow",
 			"the task model has no project summary task (task 0) row to show; the project is not a task"),
+		Map.entry("TabTaskSheetViewFormat/TextStyles", TEXT_STYLES_SHEET),
+		Map.entry("TabTaskSheetViewFormat/WrapText", WRAP_TEXT),
+		Map.entry("TabTaskSheetViewFormat/ProjectSummaryTaskShow",
+			"the task model has no project summary task (task 0) row to show; the project is not a task"),
 		Map.entry("TabTaskUsageViewFormat/TextStyles", TEXT_STYLES_SHEET),
 		Map.entry("TabResourceSheetViewFormat/TextStyles", TEXT_STYLES_SHEET),
 		Map.entry("TabResourceUsageViewFormat/TextStyles", TEXT_STYLES_SHEET),
@@ -211,12 +217,6 @@ class MspRibbonOrderDiffTest {
 		Map.entry("TabResourceUsageViewFormat/WrapText", WRAP_TEXT),
 		Map.entry("TabTaskUsageViewFormat/ProjectSummaryTaskShow",
 			"the task model has no project summary task (task 0) row to show; the project is not a task"),
-		Map.entry("TabTaskUsageViewFormat/UsageViewDetailCumulativeWork", CUMULATIVE_WORK),
-		Map.entry("TabResourceUsageViewFormat/UsageViewDetailCumulativeWork", CUMULATIVE_WORK),
-		Map.entry("TabResourceUsageViewFormat/UsageViewDetailOverallocation",
-			"no overallocation distribution field exists for the usage grid to list as a detail row"),
-		Map.entry("TabResourceUsageViewFormat/UsageViewDetailRemainingAvailability",
-			"no remaining-availability distribution field exists for the usage grid to list as a detail row"),
 		Map.entry("TabView/TaskBoardViewGallery", AGILE),
 		Map.entry("TabView/TaskViewsOtherGallery", "no further task views exist beyond those in the Task Views gallery"),
 		Map.entry("TabView/ResourcePlanViewGallery", "scope exclusion: Resource Plan view belongs to Project Online / Server resource engagements (AGENTS.md)"),
@@ -270,6 +270,7 @@ class MspRibbonOrderDiffTest {
 		Map.entry("RibbonCalendarOptions", after("ChangeWorkingTime", "calendar settings next to Change Working Time")),
 		Map.entry("RibbonProjectsDialog", after("ChangeWorkingTime", "project list dialog of Properties")),
 		Map.entry("RibbonTrackingGantt", after("CalendarViewGallery", "Gantt variant; no Microsoft gallery entry point")),
+		Map.entry("RibbonTaskSheet", after("CalendarViewGallery", "Task Sheet view; Microsoft lists it under Other Views")),
 		Map.entry("RibbonWBS", after("CalendarViewGallery", "WBS view; no Microsoft gallery entry point")),
 		Map.entry("RibbonCCPMNetwork", after("CalendarViewGallery", "CCPM view, a supported extension")),
 		Map.entry("RibbonRBS", after("ResourceSheetViewGallery", "RBS view; no Microsoft gallery entry point")),

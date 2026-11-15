@@ -34,6 +34,7 @@ class GraphicManagerContextualRibbonDescriptorTest {
 			"TrackingGantt", "FormatRibbonTask",
 			"Network", "NetworkFormatRibbonTask",
 			"CalendarView", "CalendarFormatRibbonTask",
+			"TaskSheet", "TaskSheetFormatRibbonTask",
 			"TaskUsageDetail", "TaskUsageFormatRibbonTask",
 			"Resources", "ResourceSheetFormatRibbonTask",
 			"ResourceUsageDetail", "ResourceUsageFormatRibbonTask");

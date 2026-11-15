@@ -72,6 +72,7 @@ import com.microproject.pm.assignment.HasAssignments;
 import com.microproject.pm.assignment.HasTimeDistributedData;
 import com.microproject.pm.assignment.TimeDistributedDataConsolidator;
 import com.microproject.pm.assignment.TimeDistributedFields;
+import com.microproject.pm.assignment.UsageDetailFields;
 import com.microproject.pm.assignment.timesheet.TimesheetHelper;
 import com.microproject.pm.assignment.timesheet.TimesheetStatus;
 import com.microproject.pm.calendar.CalendarService;
@@ -109,7 +110,7 @@ import com.microproject.util.Environment;
  */
 public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		SchedulingFields, HasAssignments, EarnedValueValues,
-		EarnedValueFields, TimeDistributedFields, BaselineScheduleFields,
+		EarnedValueFields, TimeDistributedFields, UsageDetailFields, BaselineScheduleFields,
 		HasTaskIndicators {
 	private static final Logger logger = Logger.getLogger(NormalTask.class.getName());
 	static final long serialVersionUID = 273898992929L;

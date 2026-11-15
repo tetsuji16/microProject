@@ -142,6 +142,7 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | ID | 操作ユースケース | 合格条件 |
 |---|---|---|
 | RibbonGantt / RibbonTrackingGantt | ガント／トラッキングガントを表示 | 選択ビューが表示される |
+| RibbonTaskSheet | タスクシート（チャートなしのタスク表）を表示 | ガントチャートが折りたたまれ、タスク表のみが表示される |
 | RibbonNetwork / RibbonWBS | ネットワーク／WBSを表示 | グラフまたはWBSが描画される |
 | RibbonResources / RibbonRBS | リソース／RBSを表示 | 選択ビューが表示される |
 | RibbonTimeline / RibbonCalendarView | タイムライン／カレンダーを表示 | 選択ビューが表示される |
@@ -189,6 +190,9 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonUsageDetailWork | 作業時間の詳細行を切り替える | 使用状況グリッドに作業時間の行が表示／非表示になる |
 | RibbonUsageDetailActualWork | 実績作業時間の詳細行を切り替える | 使用状況グリッドに実績作業時間の行が表示／非表示になる |
 | RibbonUsageDetailBaselineWork | ベースライン作業時間の詳細行を切り替える | 使用状況グリッドにベースライン作業時間の行が表示／非表示になる |
+| RibbonUsageDetailCumulativeWork | 累積作業時間の詳細行を切り替える | 使用状況グリッドに累積作業時間の行が表示／非表示になる |
+| RibbonUsageDetailOverallocation | 過剰割り当ての詳細行を切り替える | リソース使用状況グリッドに過剰割り当ての行が表示／非表示になる |
+| RibbonUsageDetailRemainingAvailability | 残りの稼働可能時間の詳細行を切り替える | リソース使用状況グリッドに残りの稼働可能時間の行が表示／非表示になる |
 | RibbonUsageDetailCost | コストの詳細行を切り替える | 使用状況グリッドにコストの行が表示／非表示になる |
 | RibbonUsageDetailActualCost | 実績コストの詳細行を切り替える | 使用状況グリッドに実績コストの行が表示／非表示になる |
 | RibbonUsageDetailsAdd | 表示していない詳細行を選んで追加する | 選んだ詳細行が使用状況グリッドに追加される |
