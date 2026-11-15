@@ -135,6 +135,10 @@ public class ChartView extends SplittedView implements SelectionNodeListener, Ba
 	}
 	
 	/** The Resource Graph Format settings; meaningful for the Resource Graph mode. */
+	public void setResourceSelectionListener(Runnable listener) {
+		chartInfo.setResourceSelectionListener(listener);
+	}
+
 	public com.microproject.pm.graphic.chart.ResourceGraphSettings getResourceGraphSettings() {
 		return chartInfo.getResourceGraphSettings();
 	}
@@ -225,7 +229,7 @@ public class ChartView extends SplittedView implements SelectionNodeListener, Ba
 		getLeftScrollPane().getViewport().setViewPosition(ws.legendViewPosition);
 		getRightScrollPane().getViewport().setViewPosition(ws.chartViewPosition);
 		chartInfo.setRestoring(false);
-		
+		chartInfo.replotRestoredResourceGraph();
 	}
 	public WorkspaceSetting createWorkspace(int context) {
 		Workspace ws = new Workspace();

@@ -2024,6 +2024,10 @@ public class DocumentFrame extends NamedFrame implements
 			histogramView = new ChartView(this, ChartMode.RESOURCE_GRAPH, graphicManager
 					.getMenuManager(),mainView.getSynchronizer(),addTransformerInitializationClosure());
 			histogramView.init(coord);
+			histogramView.setResourceSelectionListener(() -> SwingUtilities.invokeLater(() -> {
+				if (bottomPaneActive && activeBottomView == histogramView)
+					getGraphicManager().syncGanttViewRibbonState();
+			}));
 			restoreWorkspaceFor(histogramView);
 		}
 		return histogramView;
@@ -2360,11 +2364,13 @@ public class DocumentFrame extends NamedFrame implements
 		bottomPaneActive = histogramActive;
 		if (histogramActive) {
 			bottomPaneListener = event -> {
-				if (event.getID() != java.awt.event.MouseEvent.MOUSE_PRESSED || !(event.getSource() instanceof Component source))
+				boolean pressed = event.getID() == java.awt.event.MouseEvent.MOUSE_PRESSED;
+				boolean focused = event.getID() == java.awt.event.FocusEvent.FOCUS_GAINED;
+				if (!(pressed || focused) || !(event.getSource() instanceof Component source))
 					return;
 				boolean inGraph = histogramView != null && SwingUtilities.isDescendingFrom(source, histogramView);
 				boolean inFrame = SwingUtilities.isDescendingFrom(source, mainView);
-				if (!inFrame)
+				if (!inFrame) // the ribbon controls of the graph lie outside the frame: keep the graph context
 					return;
 				if (inGraph != bottomPaneActive) {
 					bottomPaneActive = inGraph;
@@ -2373,7 +2379,8 @@ public class DocumentFrame extends NamedFrame implements
 				if (inGraph)
 					SwingUtilities.invokeLater(() -> getGraphicManager().syncGanttViewRibbonState());
 			};
-			java.awt.Toolkit.getDefaultToolkit().addAWTEventListener(bottomPaneListener, java.awt.AWTEvent.MOUSE_EVENT_MASK);
+			java.awt.Toolkit.getDefaultToolkit().addAWTEventListener(bottomPaneListener,
+				java.awt.AWTEvent.MOUSE_EVENT_MASK | java.awt.AWTEvent.FOCUS_EVENT_MASK);
 		}
 		if (before != bottomPaneActive)
 			getGraphicManager().updateRibbonContext(getRibbonContextViewId());

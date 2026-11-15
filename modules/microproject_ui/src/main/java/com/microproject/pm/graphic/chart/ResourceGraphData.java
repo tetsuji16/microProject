@@ -29,8 +29,15 @@ public final class ResourceGraphData {
 		MONEY
 	}
 
-	/** One plotted series; {@code y} is as drawn (possibly stacked), {@code raw} the value shown as a label. */
-	public record Series(Item item, double[] x, double[] y, double[] raw) {
+	/**
+	 * One plotted series; {@code y} is as drawn (possibly stacked), {@code raw} the value shown as a label.
+	 * A non-null {@code base} is the lower bound of each bar of a stacked item (the bar spans {@code base} to {@code y}).
+	 */
+	public record Series(Item item, double[] x, double[] y, double[] raw, double[] base) {
+		public Series(Item item, double[] x, double[] y, double[] raw) {
+			this(item, x, y, raw, null);
+		}
+
 		public boolean isEmpty() {
 			return x.length == 0;
 		}
@@ -192,7 +199,7 @@ public final class ResourceGraphData {
 				plottedFiltered = new double[n];
 				for (int i = 0; i < n; i++)
 					plottedFiltered[i] = Math.max(0D, filtered[i] - resource[i]);
-				list.add(new Series(Item.ALLOCATED_RESOURCE, x, plottedResource, resource));
+				list.add(new Series(Item.ALLOCATED_RESOURCE, x, plottedResource, resource, plottedFiltered));
 				list.add(new Series(Item.ALLOCATED_FILTERED, x, plottedFiltered, filtered));
 			} else {
 				list.add(new Series(Item.ALLOCATED_FILTERED, x, plottedFiltered, filtered));
@@ -223,22 +230,18 @@ public final class ResourceGraphData {
 		return new ResourceGraphData(type == null ? GraphType.PEAK_UNITS : type, kind, list, lineX, lineY);
 	}
 
-	/** Keeps the intervals whose value is above zero, so an item without any stays empty. */
+	/**
+	 * Keeps every interval when at least one value is above zero, so separate overloads stay separated by
+	 * zero-valued intervals; an item without any overload stays empty.
+	 */
 	private static Series positiveOnly(Item item, double[] x, double[] values) {
-		int count = 0;
+		boolean any = false;
 		for (double value : values)
 			if (value > 0D)
-				count++;
-		double[] px = new double[count];
-		double[] py = new double[count];
-		int at = 0;
-		for (int i = 0; i < values.length; i++) {
-			if (values[i] > 0D) {
-				px[at] = x[i];
-				py[at++] = values[i];
-			}
-		}
-		return new Series(item, px, py, py);
+				any = true;
+		if (!any)
+			return new Series(item, new double[0], new double[0], new double[0]);
+		return new Series(item, x, values, values);
 	}
 
 	private static double[] fit(double[] values, int n) {

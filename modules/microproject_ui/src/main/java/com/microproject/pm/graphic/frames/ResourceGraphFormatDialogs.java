@@ -105,7 +105,7 @@ final class ResourceGraphFormatDialogs {
 		NetworkCalendarFormatDialogs.OptionPanel panel = new NetworkCalendarFormatDialogs.OptionPanel();
 		TextStyle current = settings.getTextStyle();
 		String label = text.apply("ResourceGraph.dialog.textSize");
-		JSpinner size = new JSpinner(new SpinnerNumberModel(current.size(), 0, 36, 1));
+		JSpinner size = new JSpinner(new SpinnerNumberModel(Math.max(0, Math.min(ResourceGraphSettings.MAX_TEXT_SIZE, current.size())), 0, ResourceGraphSettings.MAX_TEXT_SIZE, 1));
 		size.getAccessibleContext().setAccessibleName(label);
 		JCheckBox bold = new JCheckBox(text.apply("FormatDialog.bold"), current.bold());
 		bold.getAccessibleContext().setAccessibleName(label + " " + text.apply("FormatDialog.bold"));

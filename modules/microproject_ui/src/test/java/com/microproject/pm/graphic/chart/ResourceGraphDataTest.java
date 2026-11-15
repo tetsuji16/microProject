@@ -45,9 +45,9 @@ class ResourceGraphDataTest {
 		assertEquals(ValueKind.UNITS, data.getKind());
 		assertY(new double[] { 1D, 1.5D, 0.5D }, data, Item.ALLOCATED_FILTERED);
 		assertY(new double[] { 0.5D, 0.75D, 0D }, data, Item.ALLOCATED_RESOURCE);
-		assertY(new double[] { 0.5D }, data, Item.OVERALLOCATED_FILTERED);
-		assertArrayEquals(new double[] { 1D }, data.getSeries(Item.OVERALLOCATED_FILTERED).x(), DELTA);
-		assertY(new double[] { 0.5D }, data, Item.OVERALLOCATED_RESOURCE);
+		assertY(new double[] { 0D, 0.5D, 0D }, data, Item.OVERALLOCATED_FILTERED);
+		assertArrayEquals(new double[] { 0, 1, 2 }, data.getSeries(Item.OVERALLOCATED_FILTERED).x(), DELTA);
+		assertY(new double[] { 0D, 0.5D, 0D }, data, Item.OVERALLOCATED_RESOURCE);
 		assertArrayEquals(new double[] { 0, 1, 1, 1, 1, 1 }, data.getAvailabilityY(), DELTA);
 		assertArrayEquals(new double[] { 0, 0, 1, 1, 2, 2 }, data.getAvailabilityX(), DELTA);
 	}
@@ -58,7 +58,7 @@ class ResourceGraphDataTest {
 		assertEquals(ValueKind.HOURS, data.getKind());
 		assertY(new double[] { 8, 12, 4 }, data, Item.ALLOCATED_FILTERED);
 		assertY(new double[] { 4, 6, 0 }, data, Item.ALLOCATED_RESOURCE);
-		assertY(new double[] { 4 }, data, Item.OVERALLOCATED_FILTERED);
+		assertY(new double[] { 0, 4, 0 }, data, Item.OVERALLOCATED_FILTERED);
 		assertArrayEquals(new double[] { 0, 8, 8, 8, 8, 8 }, data.getAvailabilityY(), DELTA);
 	}
 
@@ -68,7 +68,7 @@ class ResourceGraphDataTest {
 		assertEquals(ValueKind.HOURS, data.getKind());
 		assertY(new double[] { 8, 20, 24 }, data, Item.ALLOCATED_FILTERED);
 		assertY(new double[] { 4, 10, 10 }, data, Item.ALLOCATED_RESOURCE);
-		assertY(new double[] { 4, 4 }, data, Item.OVERALLOCATED_FILTERED);
+		assertY(new double[] { 0, 4, 4 }, data, Item.OVERALLOCATED_FILTERED);
 		assertArrayEquals(new double[] { 0, 8, 8, 16, 16, 24 }, data.getAvailabilityY(), DELTA);
 	}
 
@@ -78,8 +78,8 @@ class ResourceGraphDataTest {
 		assertEquals(ValueKind.HOURS, data.getKind());
 		assertNull(data.getSeries(Item.ALLOCATED_FILTERED));
 		assertNull(data.getSeries(Item.ALLOCATED_RESOURCE));
-		assertY(new double[] { 4 }, data, Item.OVERALLOCATED_FILTERED);
-		assertY(new double[] { 4 }, data, Item.OVERALLOCATED_RESOURCE);
+		assertY(new double[] { 0, 4, 0 }, data, Item.OVERALLOCATED_FILTERED);
+		assertY(new double[] { 0, 4, 0 }, data, Item.OVERALLOCATED_RESOURCE);
 		assertEquals(0, data.getAvailabilityX().length);
 	}
 
@@ -89,7 +89,7 @@ class ResourceGraphDataTest {
 		assertEquals(ValueKind.UNITS, data.getKind());
 		assertY(new double[] { 1D, 1.5D, 0.5D }, data, Item.ALLOCATED_FILTERED);
 		assertY(new double[] { 0.5D, 0.75D, 0D }, data, Item.ALLOCATED_RESOURCE);
-		assertY(new double[] { 0.5D }, data, Item.OVERALLOCATED_FILTERED);
+		assertY(new double[] { 0D, 0.5D, 0D }, data, Item.OVERALLOCATED_FILTERED);
 		assertArrayEquals(new double[] { 0, 1, 1, 1, 1, 1 }, data.getAvailabilityY(), DELTA);
 	}
 
@@ -140,6 +140,25 @@ class ResourceGraphDataTest {
 		assertArrayEquals(new double[] { 4, 6, 0 }, resource.raw(), DELTA);
 		assertY(new double[] { 4, 6, 4 }, data, Item.ALLOCATED_FILTERED);
 		assertArrayEquals(new double[] { 8, 12, 4 }, data.getSeries(Item.ALLOCATED_FILTERED).raw(), DELTA);
+		// the selected portion spans from the rest up to the total, independent of the other item
+		assertArrayEquals(new double[] { 4, 6, 4 }, resource.base(), DELTA);
+		assertNull(data.getSeries(Item.ALLOCATED_FILTERED).base());
+	}
+
+	@Test
+	void separateOverloadsStayApartAndKeepTheirIntervalBoundaries() {
+		ResourceGraphData data = ResourceGraphData.compute(GraphType.WORK, new long[] { 0L, 1L, 2L, 3L, 4L },
+			new double[] { 12 * H, 8 * H, 12 * H, 8 * H, 8 * H }, new double[5], new double[] { 8 * H, 8 * H, 8 * H, 8 * H, 8 * H },
+			null, null, UNIT, false);
+		assertY(new double[] { 4, 0, 4, 0, 0 }, data, Item.OVERALLOCATED_FILTERED);
+		assertArrayEquals(new double[] { 0, 1, 2, 3, 4 }, data.getSeries(Item.OVERALLOCATED_FILTERED).x(), DELTA);
+	}
+
+	@Test
+	void finalIntervalEndRepeatsThePreviousWidthOrOneDay() {
+		assertEquals(3D, ResourceGraphChart.intervalEnd(new double[] { 0, 1, 2 }, 2), DELTA);
+		assertEquals(1D, ResourceGraphChart.intervalEnd(new double[] { 0, 1, 2 }, 0), DELTA);
+		assertEquals(86_400_000D, ResourceGraphChart.intervalEnd(new double[] { 0 }, 0), DELTA);
 	}
 
 	@Test

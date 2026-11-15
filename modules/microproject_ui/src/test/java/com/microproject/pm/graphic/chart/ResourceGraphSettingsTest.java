@@ -10,7 +10,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.Color;
+import java.awt.TexturePaint;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.StringReader;
+import java.io.UncheckedIOException;
 import java.util.List;
+import java.util.Properties;
 
 import javax.swing.JTree;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -71,7 +78,48 @@ class ResourceGraphSettingsTest {
 		assertFalse(copy.isHorizontalGridlines());
 		assertTrue(copy.isVerticalGridlines());
 		assertEquals(new TextStyle(14, true), copy.getTextStyle());
-		assertEquals(source.saveSettings(), copy.saveSettings());
+		assertEquals(properties(source.saveSettings()), properties(copy.saveSettings()));
+	}
+
+	/** The saved text as parsed properties: Properties.store prepends a timestamp comment. */
+	private static Properties properties(String state) {
+		Properties p = new Properties();
+		try {
+			p.load(new StringReader(state));
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+		return p;
+	}
+
+	@Test
+	void outOfRangeTextSizesAreClampedToTheTextStyleDialogRange() {
+		ResourceGraphSettings s = new ResourceGraphSettings();
+		s.restoreSettings("text=48,false");
+		assertEquals(ResourceGraphSettings.MAX_TEXT_SIZE, s.getTextStyle().size());
+		s.restoreSettings("text=-5,true");
+		assertEquals(0, s.getTextStyle().size());
+		assertTrue(s.getTextStyle().bold());
+	}
+
+	@Test
+	void diagonalHatchTilesHaveStrokesAndGaps() {
+		Color color = new Color(0x112233);
+		for (Pattern pattern : new Pattern[] { Pattern.DIAGONAL_UP, Pattern.DIAGONAL_DOWN }) {
+			TexturePaint paint = (TexturePaint) pattern.paint(color);
+			BufferedImage tile = paint.getImage();
+			int strokes = 0;
+			int gaps = 0;
+			for (int y = 0; y < tile.getHeight(); y++)
+				for (int x = 0; x < tile.getWidth(); x++) {
+					if (tile.getRGB(x, y) == (0xFF000000 | color.getRGB()))
+						strokes++;
+					else
+						gaps++;
+				}
+			assertTrue(strokes > 0, pattern + " has no foreground pixels");
+			assertTrue(gaps > strokes, pattern + " is a solid tile");
+		}
 	}
 
 	@Test
@@ -98,7 +146,7 @@ class ResourceGraphSettingsTest {
 
 		ChartInfo target = newGraph();
 		target.restoreWorkspace(saved, 0);
-		assertEquals(customised().saveSettings(), target.getResourceGraphSettings().saveSettings());
+		assertEquals(properties(customised().saveSettings()), properties(target.getResourceGraphSettings().saveSettings()));
 		assertEquals(GraphType.CUMULATIVE_COST, target.getResourceGraphSettings().getGraphType());
 	}
 

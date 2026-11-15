@@ -162,10 +162,11 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 		final JTree finalTree = tree;
 		tree.addTreeSelectionListener(new TreeSelectionListener() {
 			public void valueChanged(TreeSelectionEvent evt) {
-				if (selecting)
-					return;
-				TreePath[] paths = ((JTree)evt.getSource()).getSelectionPaths(); //evt.getPaths();
-				chartInfo.updateChart(selectedObjects,pathsToList(paths));
+				if (!selecting) {
+					TreePath[] paths = ((JTree)evt.getSource()).getSelectionPaths(); //evt.getPaths();
+					chartInfo.updateChart(selectedObjects,pathsToList(paths));
+				}
+				chartInfo.fireResourceSelectionChanged();
 			}
 			
 		});

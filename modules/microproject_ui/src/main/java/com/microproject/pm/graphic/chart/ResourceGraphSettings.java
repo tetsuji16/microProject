@@ -54,7 +54,10 @@ public final class ResourceGraphSettings implements ViewSettingsState {
 	public enum Pattern {
 		SOLID, DOTS, HORIZONTAL, VERTICAL, DIAGONAL_UP, DIAGONAL_DOWN, CROSS_HATCH;
 
-		/** The paint of this pattern in the given colour. */
+			/** Distance between two diagonal strokes; divides the tile size so the tiles join seamlessly. */
+	private static final int HATCH_SPACING = 4;
+
+	/** The paint of this pattern in the given colour. */
 		public Paint paint(Color color) {
 			if (this == SOLID)
 				return color;
@@ -73,11 +76,11 @@ public final class ResourceGraphSettings implements ViewSettingsState {
 					case HORIZONTAL -> g.fillRect(0, 3, size, 2);
 					case VERTICAL -> g.fillRect(3, 0, 2, size);
 					case DIAGONAL_UP -> {
-						for (int i = -size; i < size; i++)
+						for (int i = -size; i < size; i += HATCH_SPACING)
 							g.drawLine(i, size, i + size, 0);
 					}
 					case DIAGONAL_DOWN -> {
-						for (int i = -size; i < size; i++)
+						for (int i = -size; i < size; i += HATCH_SPACING)
 							g.drawLine(i, 0, i + size, size);
 					}
 					case CROSS_HATCH -> {
@@ -129,6 +132,9 @@ public final class ResourceGraphSettings implements ViewSettingsState {
 
 	private GraphType graphType = GraphType.PEAK_UNITS;
 	private final Map<Item, BarStyle> styles = new EnumMap<>(Item.class);
+	/** Largest text size the Text Styles dialog offers; 0 means the automatic size. */
+	public static final int MAX_TEXT_SIZE = 36;
+
 	private boolean showValues;
 	private boolean showAvailabilityLine = true;
 	private boolean horizontalGridlines = true;
@@ -216,7 +222,10 @@ public final class ResourceGraphSettings implements ViewSettingsState {
 		if (text != null) {
 			String[] parts = text.split(",");
 			try {
-				if (parts.length == 2) textStyle = new TextStyle(Integer.parseInt(parts[0].trim()), Boolean.parseBoolean(parts[1].trim()));
+					if (parts.length == 2) {
+					int size = Math.max(0, Math.min(MAX_TEXT_SIZE, Integer.parseInt(parts[0].trim())));
+					textStyle = new TextStyle(size, Boolean.parseBoolean(parts[1].trim()));
+				}
 			} catch (NumberFormatException malformed) {
 				// keep the default style
 			}

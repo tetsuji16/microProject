@@ -70,6 +70,7 @@ public class ChartInfo implements Serializable, SelectionNodeListener, ScheduleE
 	boolean selectedOnTop = true;
 	boolean work=true;
 	private final ResourceGraphSettings resourceGraphSettings = new ResourceGraphSettings();
+	private Runnable resourceSelectionListener;
 	Object traces[] = {};	
 	TimeChartPanel chartPanel;
 	AxisPanel axisPanel;
@@ -413,6 +414,22 @@ public class ChartInfo implements Serializable, SelectionNodeListener, ScheduleE
 		if (!isResourceGraph())
 			setTraces(SpreadSheetFieldArray.fromIdArray(ws.traces));
 	}
+
+	/** Notified when the selected resources of the legend tree change, so ribbon state such as Previous/Next Resource can refresh. */
+	public void setResourceSelectionListener(Runnable listener) {
+		resourceSelectionListener = listener;
+	}
+
+	void fireResourceSelectionChanged() {
+		if (resourceSelectionListener != null)
+			resourceSelectionListener.run();
+	}
+
+	/** Re-plots a restored Resource Graph; call once the restoring guard is cleared. */
+	public void replotRestoredResourceGraph() {
+		resourceGraphSettingsChanged();
+	}
+
 	public WorkspaceSetting createWorkspace(int context) {
 		Workspace ws = new Workspace();
 		ws.cumulative = cumulative;

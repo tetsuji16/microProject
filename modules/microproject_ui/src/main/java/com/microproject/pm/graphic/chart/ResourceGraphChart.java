@@ -19,11 +19,15 @@ import org.jfree.chart.plot.DatasetRenderingOrder;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.chart.plot.XYPlot;
 import org.jfree.chart.renderer.xy.StandardXYItemRenderer;
+import org.jfree.chart.renderer.xy.StandardXYBarPainter;
 import org.jfree.chart.renderer.xy.XYAreaRenderer;
+import org.jfree.chart.renderer.xy.XYBarRenderer;
 import org.jfree.chart.renderer.xy.XYItemRenderer;
 import org.jfree.chart.renderer.xy.XYStepAreaRenderer;
 import org.jfree.chart.renderer.xy.XYStepRenderer;
 import org.jfree.chart.ui.TextAnchor;
+import org.jfree.data.xy.XYIntervalSeries;
+import org.jfree.data.xy.XYIntervalSeriesCollection;
 import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
 
@@ -39,6 +43,8 @@ public final class ResourceGraphChart {
 	private static final Color AVAILABILITY_COLOR = new Color(0x404040);
 	/** More value labels than this would only overprint each other. */
 	private static final int MAX_LABELS = 400;
+	/** Width given to the final interval when no earlier interval tells it (one day, in milliseconds). */
+	private static final double DEFAULT_INTERVAL = 86_400_000D;
 
 	private ResourceGraphChart() {
 	}
@@ -56,11 +62,26 @@ public final class ResourceGraphChart {
 			BarStyle style = settings.getStyle(series.item());
 			if (style.showAs() == ShowAs.DO_NOT_SHOW || series.isEmpty())
 				continue;
-			XYSeries values = new XYSeries(series.item().name(), false, true);
-			for (int i = 0; i < series.x().length; i++)
-				values.add(series.x()[i], series.y()[i]);
-			plot.setDataset(index, new XYSeriesCollection(values));
-			XYItemRenderer renderer = renderer(style.showAs());
+			XYItemRenderer renderer;
+			if (series.base() != null) {
+				// a stacked item spans its own lower and upper bound, so hiding another item cannot expose it
+				XYIntervalSeries values = new XYIntervalSeries(series.item().name(), false, true);
+				for (int i = 0; i < series.x().length; i++)
+					values.add(series.x()[i], series.x()[i], intervalEnd(series.x(), i), series.y()[i], series.base()[i], series.y()[i]);
+				XYIntervalSeriesCollection collection = new XYIntervalSeriesCollection();
+				collection.addSeries(values);
+				plot.setDataset(index, collection);
+				renderer = stackedRenderer();
+			} else {
+				XYSeries values = new XYSeries(series.item().name(), false, true);
+				for (int i = 0; i < series.x().length; i++)
+					values.add(series.x()[i], series.y()[i]);
+				// the last interval needs its end boundary, or a step area has no width there
+				int last = series.x().length - 1;
+				values.add(intervalEnd(series.x(), last), series.y()[last]);
+				plot.setDataset(index, new XYSeriesCollection(values));
+				renderer = renderer(style.showAs());
+			}
 			renderer.setSeriesPaint(0, style.pattern().paint(new Color(style.rgb())));
 			if (style.showAs() == ShowAs.STEP_LINE || style.showAs() == ShowAs.LINE)
 				renderer.setSeriesStroke(0, PredefinedStroke.LARGE_FRAMED);
@@ -88,6 +109,22 @@ public final class ResourceGraphChart {
 		chart.setAntiAlias(false);
 		chart.setBorderVisible(false);
 		return chart;
+	}
+
+	/** End of interval {@code i}: the start of the next one, or one more interval width after the last start. */
+	static double intervalEnd(double[] starts, int i) {
+		if (i + 1 < starts.length)
+			return starts[i + 1];
+		return i > 0 ? starts[i] + (starts[i] - starts[i - 1]) : starts[i] + DEFAULT_INTERVAL;
+	}
+
+	private static XYItemRenderer stackedRenderer() {
+		XYBarRenderer renderer = new XYBarRenderer(0D);
+		renderer.setUseYInterval(true);
+		renderer.setShadowVisible(false);
+		renderer.setDrawBarOutline(false);
+		renderer.setBarPainter(new StandardXYBarPainter());
+		return renderer;
 	}
 
 	static XYItemRenderer renderer(ShowAs showAs) {
