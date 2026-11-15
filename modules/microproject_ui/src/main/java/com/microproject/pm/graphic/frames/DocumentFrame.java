@@ -973,12 +973,19 @@ public class DocumentFrame extends NamedFrame implements
 		if (changed.isEmpty())
 			return taskSelectionOutcome(command, RibbonCommandResult.Status.NO_CHANGE, targets.selectedIds());
 		com.microproject.pm.task.ReversibleModelChange change = com.microproject.pm.task.ReversibleModelChange.changed(
-			() -> changed.forEach(task -> task.setDisplayOnTimeline(!value)),
-			() -> changed.forEach(task -> task.setDisplayOnTimeline(value)));
+			() -> { changed.forEach(task -> task.setDisplayOnTimeline(!value)); refreshEmbeddedTimeline(); },
+			() -> { changed.forEach(task -> task.setDisplayOnTimeline(value)); refreshEmbeddedTimeline(); });
 		changed.forEach(task -> task.setDisplayOnTimeline(value));
 		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), change);
+		refreshEmbeddedTimeline();
 		restoreTaskRows(targets.nodes());
 		return taskSelectionOutcome(command, RibbonCommandResult.Status.CHANGED, targets.selectedIds());
+	}
+
+	/** Repaints the embedded Timeline pane, when one is shown, after its displayed-task set changed. */
+	private void refreshEmbeddedTimeline() {
+		TimelineDialogBox timeline = getEmbeddedTimelineDialog();
+		if (timeline != null) timeline.reloadTasks();
 	}
 
 	private RibbonCommandResult applyInactivateTask(CommandId command) {

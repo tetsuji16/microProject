@@ -75,6 +75,38 @@ class TeamPlannerServiceTest {
 		assertEquals(start, task.getStart());
 	}
 
+	@Test void resourceOnlyDragIgnoresAnotherResourceThatIsAlreadyOverallocated() {
+		Fixture fixture = fixture(); NormalTask task = task(fixture.project, "Two resources"); NormalTask other = task(fixture.project, "Other");
+		ResourceImpl busy = fixture.project.getResourcePool().newResourceInstance(); busy.setName("Engineer C");
+		ResourceImpl free = fixture.project.getResourcePool().newResourceInstance(); free.setName("Engineer D");
+		var moving = AssignmentService.getInstance().newAssignment(task, fixture.first, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(task, busy, 1D, 0L, this);
+		AssignmentService.getInstance().newAssignment(other, busy, 1D, 0L, this);
+		TeamPlannerService service = new TeamPlannerService();
+		assertTrue(service.isOverallocated(task), "fixture: C is overallocated by the other task");
+		int constraint = task.getConstraintType(); long start = task.getStart();
+		var moved = service.applyDrag(moving, free, null, true, this);
+		assertEquals(free, moved.getResource());
+		assertEquals(constraint, task.getConstraintType(), "the free destination must not move the task's dates");
+		assertEquals(start, task.getStart());
+	}
+
+	@Test void rejectedDragWithAnExhaustiveSearchRestoresEverythingBeyondTheUndoLimit() {
+		Fixture fixture = fixture(); NormalTask task = task(fixture.project, "Move me");
+		// A 100% assignment always overloads a 50% resource, so the slot search runs all 401 candidates.
+		fixture.second.setMaximumUnits(0.5D);
+		var assignment = AssignmentService.getInstance().newAssignment(task, fixture.first, 1D, 0L, this);
+		int constraint = task.getConstraintType(); long start = task.getStart();
+		int limit = fixture.project.getUndoController().getLimit();
+		assertThrows(IllegalArgumentException.class,
+			() -> new TeamPlannerService().applyDrag(assignment, fixture.second, null, true, this));
+		assertSame(assignment, task.findAssignment(fixture.first), "the reassignment must be undone even after 400 candidates");
+		assertEquals(null, task.findAssignment(fixture.second));
+		assertEquals(constraint, task.getConstraintType());
+		assertEquals(start, task.getStart());
+		assertEquals(limit, fixture.project.getUndoController().getLimit(), "the undo limit must be restored");
+	}
+
 	@Test void failedDragRestoresTheOriginalAssignmentAndConstraint() {
 		Fixture fixture = fixture(); NormalTask task = task(fixture.project, "In progress");
 		var assignment = AssignmentService.getInstance().newAssignment(task, fixture.first, 0.5D, 0L, this);

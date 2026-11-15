@@ -29,6 +29,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
@@ -141,12 +142,17 @@ public final class TeamPlannerService {
 	 * the original constraint and start are restored and an {@link IllegalArgumentException} is thrown.
 	 */
 	public void reschedulePreventingOverallocation(Task task, long newStart, Object eventSource) {
+		reschedulePreventingOverallocation(task, newStart, () -> isOverallocated(task), eventSource);
+	}
+
+	private void reschedulePreventingOverallocation(Task task, long newStart, BooleanSupplier conflict,
+			Object eventSource) {
 		int originalConstraint = task.getConstraintType();
 		long originalConstraintDate = task.getConstraintDate();
 		long candidate = newStart;
 		for (int day = 0; day <= MAX_SHIFT_DAYS; day++) {
 			reschedule(task, candidate, eventSource);
-			if (!isOverallocated(task))
+			if (!conflict.getAsBoolean())
 				return;
 			candidate += ONE_DAY;
 		}
@@ -195,7 +201,12 @@ public final class TeamPlannerService {
 			Object eventSource) {
 		Objects.requireNonNull(assignment, "assignment");
 		Task task = assignment.getTask();
-		UndoController.Session session = task.getOwningProject().getUndoController().beginSession();
+		UndoController undo = task.getOwningProject().getUndoController();
+		// A bounded slot search can post hundreds of edits; keep them all so rollback and the single-step
+		// merge never depend on edits the undo limit would otherwise evict.
+		int limit = undo.getLimit();
+		undo.setLimit(-1);
+		UndoController.Session session = undo.beginSession();
 		UndoController.enterDialogEditScope();
 		boolean applied = false;
 		try {
@@ -204,19 +215,26 @@ public final class TeamPlannerService {
 			if (newStart != null) {
 				if (preventOverallocation) reschedulePreventingOverallocation(task, newStart, eventSource);
 				else reschedule(task, newStart, eventSource);
-			} else if (result != assignment && preventOverallocation && isOverallocated(task)) {
-				reschedulePreventingOverallocation(task, task.getStart(), eventSource);
+			} else if (result != assignment && preventOverallocation && isOverallocated(result.getResource(), result)) {
+				// Only the moved assignment's destination decides a resource-only drag; other resources of
+				// the task that are already overallocated must not move its dates.
+				reschedulePreventingOverallocation(task, task.getStart(),
+					() -> isOverallocated(result.getResource(), result), eventSource);
 			}
 			applied = true;
 			return result;
 		} finally {
 			UndoController.exitDialogEditScope();
-			if (applied) {
-				session.commit();
-			} else {
-				session.rollback();
-				task.setDirty(true);
-				task.getOwningProject().recalculate();
+			try {
+				if (applied) {
+					session.commit();
+				} else {
+					session.rollback();
+					task.setDirty(true);
+					task.getOwningProject().recalculate();
+				}
+			} finally {
+				undo.setLimit(limit);
 			}
 		}
 	}
