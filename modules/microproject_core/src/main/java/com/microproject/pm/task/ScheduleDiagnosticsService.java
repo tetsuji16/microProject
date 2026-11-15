@@ -99,6 +99,71 @@ public final class ScheduleDiagnosticsService {
 		return List.copyOf(result);
 	}
 
+	/**
+	 * Task Inspector warning: a manually scheduled, active, non-summary task whose dates conflict with an
+	 * enabled predecessor link or violate a start/finish date constraint.
+	 */
+	public static boolean hasWarning(Task task) {
+		Objects.requireNonNull(task, "task");
+		if (!isInspectable(task))
+			return false;
+		return hasDependencyConflict(task) || violatesConstraint(task);
+	}
+
+	/**
+	 * Task Inspector suggestion: a manually scheduled task without a warning whose enabled predecessor links
+	 * (and start constraint) would all permit an earlier start than its current one.
+	 */
+	public static boolean hasSuggestion(Task task) {
+		Objects.requireNonNull(task, "task");
+		if (!isInspectable(task) || hasWarning(task))
+			return false;
+		boolean linked = false;
+		for (var value : task.getPredecessorList()) {
+			Dependency dependency = (Dependency) value;
+			if (dependency.isDisabled() || ((Task) dependency.getPredecessor()).isInactiveTask())
+				continue;
+			linked = true;
+			DependencyBoundary boundary = requiredBoundary(dependency);
+			long current = boundary.finish() ? task.getEnd() : task.getStart();
+			if (boundary.requiredDate() >= current)
+				return false;
+		}
+		if (!linked)
+			return false;
+		ConstraintType.Kind kind = task.getConstraintTypeKind();
+		long date = task.getConstraintDate();
+		if ((kind == ConstraintType.Kind.SNET || kind == ConstraintType.Kind.MSO) && date > 0L && date >= task.getStart())
+			return false;
+		return true;
+	}
+
+	/** Warning indicator shown to the user; hidden when the task ignores warnings. */
+	public static boolean showsWarning(Task task) {
+		return !task.isIgnoreWarnings() && hasWarning(task);
+	}
+
+	/** Suggestion indicator shown to the user; hidden when the task ignores warnings. */
+	public static boolean showsSuggestion(Task task) {
+		return !task.isIgnoreWarnings() && hasSuggestion(task);
+	}
+
+	private static boolean isInspectable(Task task) {
+		return task.isManuallyScheduled() && !task.isInactiveTask() && !task.isSummary();
+	}
+
+	private static boolean violatesConstraint(Task task) {
+		ConstraintType.Kind kind = task.getConstraintTypeKind();
+		long date = task.getConstraintDate();
+		if (kind == null || date <= 0L)
+			return false;
+		return switch (kind) {
+			case SNET, MSO -> task.getStart() < date;
+			case FNLT, MFO -> task.getEnd() > date;
+			default -> false;
+		};
+	}
+
 	/** Returns whether any enabled incoming link is contradicted by the task's current dates. */
 	public static boolean hasDependencyConflict(Task task) {
 		return hasDependencyConflict(task, true);

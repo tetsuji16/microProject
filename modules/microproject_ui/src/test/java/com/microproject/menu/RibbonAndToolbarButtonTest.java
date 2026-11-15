@@ -142,14 +142,14 @@ class RibbonAndToolbarButtonTest {
 	void menuManagerPropagatesCustomBandGeneratorsIntoTheModelAndPanel() throws Exception {
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		CustomRibbonBandGenerator generator = bandId ->
-			"FormatLayoutRibbonBand".equals(bandId) ? customBand("Layout from generator") : null;
+			"GanttShowHideRibbonBand".equals(bandId) ? customBand("Layout from generator") : null;
 
 		SwingUtilities.invokeAndWait(() -> {
 			SwingRibbonModel model = manager.getRibbon(MenuManager.STANDARD_RIBBON, generator);
 			SwingRibbonModel.RibbonBand layoutBand = model.getTabs().stream()
 				.filter(tab -> tab.getId().equals("FormatRibbonTask"))
 				.flatMap(tab -> tab.getBands().stream())
-				.filter(band -> band.getId().equals("FormatLayoutRibbonBand"))
+				.filter(band -> band.getId().equals("GanttShowHideRibbonBand"))
 				.findFirst()
 				.orElseThrow();
 			assertTrue(layoutBand.isCustomBand());
@@ -414,14 +414,33 @@ class RibbonAndToolbarButtonTest {
 
 	@Test
 	void formatRibbonIncludesDisplayAndBarBands() {
-		assertTrue(ribbonBandIds("FormatRibbonTask").contains("FormatDisplayRibbonBand"));
-		assertTrue(ribbonBandIds("FormatRibbonTask").contains("FormatBarRibbonBand"));
-		assertTrue(ribbonBandIds("FormatRibbonTask").contains("FormatLayoutRibbonBand"));
+		assertEquals(
+			List.of("GanttFormatRibbonBand", "GanttColumnsRibbonBand", "GanttBarStylesRibbonBand", "GanttStylesRibbonBand",
+				"GanttShowHideRibbonBand", "GanttFormatExtrasRibbonBand"),
+			ribbonBandIds("FormatRibbonTask"));
+		assertTrue(ribbonBandIds("NetworkFormatRibbonTask").contains("FormatDisplayRibbonBand"));
+		assertTrue(ribbonBandIds("CalendarFormatRibbonTask").contains("FormatBarRibbonBand"));
+		assertTrue(ribbonBandIds("CalendarFormatRibbonTask").contains("FormatLayoutRibbonBand"));
 		assertEquals(
 			List.of("RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName", "RibbonGridlines", "RibbonToggleCriticalChain"),
 			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("FormatDisplayRibbonBand"));
 		assertEquals(
-			List.of("RibbonArrangeAll", "RibbonDetails", "RibbonPrivacyMask"),
+			List.of("RibbonTextStyles", "RibbonGridlines", "RibbonLayout"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("GanttFormatRibbonBand"));
+		assertEquals(
+			List.of("RibbonInsertColumn", "RibbonAlignLeft", "RibbonAlignCenter", "RibbonAlignRight", "RibbonColumnSettings", "RibbonCustomFields"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("GanttColumnsRibbonBand"));
+		assertEquals(
+			List.of("RibbonFormatBarStyles", "RibbonCriticalTasks", "RibbonSlack", "RibbonLateTasks", "RibbonTaskPath", "RibbonShowBaseline", "RibbonSlippage"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("GanttBarStylesRibbonBand"));
+		assertEquals(
+			List.of("RibbonGanttStyleGallery", "RibbonBarStyles"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("GanttStylesRibbonBand"));
+		assertEquals(
+			List.of("RibbonOutlineNumbers", "RibbonSummaryTasks"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("GanttShowHideRibbonBand"));
+		assertEquals(
+			List.of("RibbonSwitchWindows", "RibbonArrangeAll", "RibbonPrivacyMask"),
 			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("ViewWindowRibbonBand"));
 		assertEquals(
 			List.of("RibbonTimescale", "RibbonBarStyles", "RibbonTextStyles"),
@@ -638,7 +657,8 @@ class RibbonAndToolbarButtonTest {
 			MenuManager manager = graphicManager.getMenuManager();
 			JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 			ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
-			ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
+			// Every contextual Format tab, so the buttons only the Network/Calendar tabs carry are visible too.
+			ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask"));
 			ResourceBundle labels = menuBundle(Locale.getDefault());
 
 			for (String tabId : ribbonTaskIds()) {

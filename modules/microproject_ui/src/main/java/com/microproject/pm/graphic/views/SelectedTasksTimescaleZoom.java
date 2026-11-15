@@ -32,6 +32,7 @@ import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.graphic.timescale.ScaledScrollPane;
 import com.microproject.pm.resource.Resource;
+import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 
 /** Shared view-only range resolution and zoom behavior for selected tasks. */
@@ -52,7 +53,9 @@ public final class SelectedTasksTimescaleZoom {
 
 	/** Document-derived: task rows use task dates, assignment rows their own dates, resource rows their assignments' span. */
 	private static void accumulate(Object value, long[] span) {
-		if (value instanceof Task task) {
+		if (value instanceof Project project) {
+			include(project.getStart(), project.getEnd(), span);
+		} else if (value instanceof Task task) {
 			include(task.getStart(), task.getEnd(), span);
 		} else if (value instanceof Assignment assignment) {
 			if (!include(assignment.getStart(), assignment.getEnd(), span) && assignment.getTask() != null)
@@ -70,6 +73,15 @@ public final class SelectedTasksTimescaleZoom {
 		span[0] = Math.min(span[0], start);
 		span[1] = Math.max(span[1], end);
 		return true;
+	}
+
+	/** Zoom Entire Project: fits the whole project span (Microsoft ZoomTimescale Entire Project). */
+	static boolean zoomProject(Project project, CoordinatesConverter coord, ScaledScrollPane scrollPane) {
+		return project != null && zoom(java.util.List.of(project), coord, scrollPane);
+	}
+
+	static boolean canZoomProject(Project project) {
+		return project != null && canZoom(java.util.List.of(project));
 	}
 
 	static boolean canZoom(Collection<?> selected) {

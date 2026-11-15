@@ -87,22 +87,56 @@ public interface MenuActionConstants {
 	public static final String ACTION_DETAILS                 = "Details";
 	public static final String ACTION_NO_SUB_WINDOW           = "NoSubWindow";
 	public static final String ACTION_ARRANGE_ALL             = "ArrangeAll";
+	public static final String ACTION_SWITCH_WINDOWS          = "SwitchWindows";
+	public static final String ACTION_TEAM_PLANNER            = "TeamPlanner";
+	public static final String ACTION_RECENT_REPORTS          = "RecentReports";
 	public static final String ACTION_TIMELINE                = "Timeline";
 	public static final String ACTION_CALENDAR_VIEW           = "CalendarView";
 
 	public static final String ACTION_ZOOM_IN                 = "ZoomIn";
 	public static final String ACTION_ZOOM_OUT                = "ZoomOut";
 	public static final String ACTION_ZOOM_SELECTED_TASKS      = "ZoomSelectedTasks";
+	public static final String ACTION_ZOOM_ENTIRE_PROJECT      = "ZoomEntireProject";
 	public static final String ACTION_SCROLL_TO_TASK          = "ScrollToTask";
 	public static final String ACTION_SCROLL_TO_TODAY         = "ScrollToToday";
 	public static final String ACTION_TOGGLE_PROGRESS_LINE    = "ToggleProgressLine";
 	public static final String ACTION_LABEL_RESOURCE_NAMES    = "LabelResourceNames";
 	public static final String ACTION_LABEL_TASK_NAME         = "LabelTaskName";
+	// Gantt Chart Format contextual tab
+	public static final String ACTION_GFMT_INSERT_COLUMN = "GanttInsertColumn";
+	public static final String ACTION_GFMT_HIDE_COLUMN = "GanttHideColumn";
+	public static final String ACTION_GFMT_FIELD_SETTINGS = "GanttFieldSettings";
+	public static final String ACTION_GFMT_ALIGN_LEFT = "GanttAlignLeft";
+	public static final String ACTION_GFMT_ALIGN_CENTER = "GanttAlignCenter";
+	public static final String ACTION_GFMT_ALIGN_RIGHT = "GanttAlignRight";
+	public static final String ACTION_GFMT_FORMAT_BAR = "GanttFormatBar";
+	public static final String ACTION_GFMT_CRITICAL_TASKS = "GanttCriticalTasks";
+	public static final String ACTION_GFMT_SLACK = "GanttSlack";
+	public static final String ACTION_GFMT_LATE_TASKS = "GanttLateTasks";
+	public static final String ACTION_GFMT_BASELINE = "GanttBaseline";
+	public static final String ACTION_GFMT_SLIPPAGE = "GanttSlippage";
+	public static final String ACTION_GFMT_PATH_PREDECESSORS = "GanttPathPredecessors";
+	public static final String ACTION_GFMT_PATH_DRIVING_PREDECESSORS = "GanttPathDrivingPredecessors";
+	public static final String ACTION_GFMT_PATH_SUCCESSORS = "GanttPathSuccessors";
+	public static final String ACTION_GFMT_PATH_DRIVEN_SUCCESSORS = "GanttPathDrivenSuccessors";
+	public static final String ACTION_GFMT_PATH_REMOVE = "GanttPathRemove";
+	public static final String ACTION_GFMT_STYLE_DEFAULT = "GanttStyleDefault";
+	public static final String ACTION_GFMT_STYLE_BLUE = "GanttStyleBlue";
+	public static final String ACTION_GFMT_STYLE_GREEN = "GanttStyleGreen";
+	public static final String ACTION_GFMT_STYLE_ORANGE = "GanttStyleOrange";
+	public static final String ACTION_GFMT_STYLE_PURPLE = "GanttStylePurple";
+	public static final String ACTION_GFMT_STYLE_GRAY = "GanttStyleGray";
+	public static final String ACTION_GFMT_OUTLINE_NUMBERS = "GanttOutlineNumbers";
+	public static final String ACTION_GFMT_SUMMARY_TASKS = "GanttSummaryTasks";
 
 	public static final String ACTION_INSERT_TASK             = "InsertTask";
 	public static final String ACTION_TASK_MODE_MANUAL       = "TaskModeManual";
 	public static final String ACTION_TASK_MODE_AUTOMATIC    = "TaskModeAutomatic";
 	public static final String ACTION_INACTIVATE_TASK        = "InactivateTask";
+	public static final String ACTION_INSPECT_TASK           = "InspectTask";
+	public static final String ACTION_SHOW_TASK_WARNINGS     = "ShowTaskWarnings";
+	public static final String ACTION_SHOW_TASK_SUGGESTIONS  = "ShowTaskSuggestions";
+	public static final String ACTION_SHOW_IGNORED_PROBLEMS  = "ShowIgnoredProblems";
 	public static final String ACTION_STATUS_DATE             = "StatusDate";
 	public static final String ACTION_MARK_ON_TRACK           = "MarkOnTrack";
 	public static final String ACTION_PERCENT_COMPLETE_0 = "PercentComplete0";
@@ -124,6 +158,13 @@ public interface MenuActionConstants {
 	public static final String ACTION_NEW             	      = ACTION_INSERT_TASK;
 
 	public static final String ACTION_FONT                    = "Font";
+	public static final String ACTION_BOLD                    = "Bold";
+	public static final String ACTION_ITALIC                  = "Italic";
+	public static final String ACTION_FONT_COLOR              = "FontColor";
+	public static final String ACTION_UNDERLINE               = "Underline";
+	public static final String ACTION_BACKGROUND_COLOR        = "BackgroundColor";
+	public static final String ACTION_FONT_NAME               = "FontName";
+	public static final String ACTION_FONT_SIZE               = "FontSize";
 	public static final String ACTION_BAR                     = "Bar";
 	public static final String ACTION_TIMESCALE               = "Timescale";
 	public static final String ACTION_GRIDLINES               = "Gridlines";
@@ -162,6 +203,7 @@ public interface MenuActionConstants {
 	public static final String ACTION_CLEAR_BASELINE          = "ClearBaseline";
 	public static final String ACTION_LOCALE		          = "LocaleAction";
 	public static final String ACTION_CALENDAR_OPTIONS        = "CalendarOptions";
+	public static final String ACTION_CALENDAR_VIEW_SETTINGS  = "CalendarViewSettings";
 
 
 	public static final String ACTION_SORT                    = "Sort";

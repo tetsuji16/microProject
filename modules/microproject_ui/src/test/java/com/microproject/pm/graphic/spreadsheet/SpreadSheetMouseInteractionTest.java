@@ -346,6 +346,40 @@ class SpreadSheetMouseInteractionTest {
 	}
 
 	@Test
+	void taskPopupOffersFixAndIgnoreOnlyForTasksWithProblems() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			SpreadSheetPopupMenu popup = sheet.getPopup();
+			NormalTask first = fixture.firstTask();
+			NormalTask second = fixture.secondTask();
+			first.setDuration(2L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+			try {
+				com.microproject.pm.dependency.DependencyService.getInstance().newDependency(
+				first, second, com.microproject.pm.dependency.DependencyType.FS, 0L, this);
+			} catch (Exception failure) {
+				throw new AssertionError(failure);
+			}
+			second.setManualDates(first.getStart(), first.getEnd());
+			assertTrue(com.microproject.pm.task.ScheduleDiagnosticsService.showsWarning(second));
+
+			popup.setRow(findRow(sheet, first));
+			assertFalse(menuItem(popup, "fixInTaskInspector").isVisible());
+			assertFalse(menuItem(popup, "ignoreTaskProblems").isVisible());
+
+			popup.setRow(findRow(sheet, second));
+			assertTrue(menuItem(popup, "fixInTaskInspector").isVisible());
+			assertTrue(menuItem(popup, "ignoreTaskProblems").isVisible());
+			assertTrue(menuItem(popup, "ignoreTaskProblems").isEnabled());
+
+			second.setIgnoreWarnings(true);
+			popup.setRow(findRow(sheet, second));
+			assertFalse(menuItem(popup, "fixInTaskInspector").isVisible());
+			assertFalse(menuItem(popup, "ignoreTaskProblems").isVisible());
+		});
+	}
+
+	@Test
 	void taskPopupUsesLiveActionsAndFlatSvgIconsForEveryCommandItem() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Fixture fixture = createFixture();

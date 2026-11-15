@@ -19,6 +19,24 @@ import com.microproject.options.EditOption;
 
 class GlobalPreferencesTest {
 	@Test
+	void taskDiagnosticIndicatorTogglesPersistAndAreReadableStatically() {
+		GlobalPreferences preferences = new GlobalPreferences();
+		boolean originalWarnings = preferences.isShowTaskWarnings();
+		boolean originalSuggestions = preferences.isShowTaskSuggestions();
+		try {
+			preferences.setShowTaskWarnings(false);
+			preferences.setShowTaskSuggestions(true);
+			assertFalse(GlobalPreferences.isTaskWarningsShown());
+			assertTrue(GlobalPreferences.isTaskSuggestionsShown());
+			assertFalse(new GlobalPreferences().isShowTaskWarnings());
+			assertTrue(new GlobalPreferences().isShowTaskSuggestions());
+		} finally {
+			preferences.setShowTaskWarnings(originalWarnings);
+			preferences.setShowTaskSuggestions(originalSuggestions);
+		}
+	}
+
+	@Test
 	void userSettingsAreNormalizedAndExposeStableDefaults() {
 		GlobalPreferences preferences = new GlobalPreferences();
 		String originalName = preferences.getUserName();

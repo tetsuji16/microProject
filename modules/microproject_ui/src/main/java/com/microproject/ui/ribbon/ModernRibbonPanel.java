@@ -26,6 +26,7 @@ package com.microproject.ui.ribbon;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.AWTEvent;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
@@ -38,6 +39,9 @@ import java.awt.Insets;
 import java.awt.Point;
 import java.awt.RenderingHints;
 import java.awt.Toolkit;
+import java.awt.KeyboardFocusManager;
+import java.awt.KeyEventDispatcher;
+import java.awt.Window;
 import java.awt.event.AWTEventListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -56,6 +60,7 @@ import java.util.MissingResourceException;
 import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 import java.util.function.Consumer;
 
 import javax.swing.AbstractButton;
@@ -71,6 +76,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import javax.swing.JLayeredPane;
 import javax.swing.JRootPane;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JScrollPane;
@@ -100,6 +106,9 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	public static final String DISPLAY_MODE_POPUP_NAME = "microproject.ribbon.displayModePopup";
 	static final String RIBBON_SURFACE_COMPONENT_NAME = "microProjectRibbonSurface";
 	static final String RIBBON_BAND_COMPONENT_NAME = "microProjectRibbonBand";
+	/** Name prefix of the group dialog launcher button; the group id follows. */
+	static final String DIALOG_LAUNCHER_NAME_PREFIX = "microproject.ribbon.dialogLauncher.";
+	private static final int DIALOG_LAUNCHER_SIZE = 16;
 	public static final String COLLAPSED_POPUP_PROPERTY = "MicroProject.ribbonCollapsedPopup";
 	public static final String TAB_OVERFLOW_POPUP_PROPERTY = "MicroProject.ribbonTabOverflowPopup";
 	public static final String COLLAPSED_TAB_LAUNCHER_PROPERTY = "MicroProject.ribbonCollapsedTabLauncher";
@@ -200,6 +209,15 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	private BiConsumer<JPopupMenu, MouseEvent> displayModePopupPresenter =
 		(popup, event) -> popup.show(event.getComponent(), event.getX(), event.getY());
 
+	private Supplier<RibbonDropDownSource> dropDownSource = () -> null;
+	private final RibbonKeyTipSession keyTipSession = new RibbonKeyTipSession(this::tabKeyTips, this::controlKeyTips,
+		this::keyTipsChanged);
+	private final RibbonKeyTipInput keyTipInput = new RibbonKeyTipInput(keyTipSession);
+	private final RibbonKeyTipOverlay keyTipOverlay = new RibbonKeyTipOverlay(keyTipSession::visibleTargets);
+	private final KeyEventDispatcher keyTipDispatcher = this::dispatchKeyTipEvent;
+	private final AWTEventListener keyTipMouseListener = this::cancelKeyTipsOnMouse;
+	private final java.beans.PropertyChangeListener keyTipWindowListener = event -> keyTipSession.cancel();
+
 	ModernRibbonPanel(SwingRibbonModel model, RibbonCommandSource commandSource, ResourceBundle[] bundles, Runnable helpAction) {
 		super(new BorderLayout());
 		this.model = Objects.requireNonNull(model);
@@ -219,6 +237,11 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		this.cards.setBackground(theme.chromeBackground());
 		setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, theme.topLineColor()));
 		setPreferredSize(new Dimension(0, theme.tabHeight() + theme.surfaceHeight() + 1));
+	}
+
+	/** Sets where drop-down controls read their value and choices; may be called after {@link #build()}. */
+	void setDropDownSource(Supplier<RibbonDropDownSource> source) {
+		this.dropDownSource = Objects.requireNonNull(source);
 	}
 
 	/**
@@ -401,6 +424,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	public void addNotify() {
 		super.addNotify();
 		installTabAccessKeys();
+		installKeyTips();
 		applyDisplayMode();
 		if (autoHideRevealed) startAutoHideDismissal();
 		updateResponsiveMode();
@@ -410,6 +434,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	public void removeNotify() {
 		stopAutoHideReveal();
 		applyDisplayMode();
+		uninstallKeyTips();
 		uninstallTabAccessKeys();
 		super.removeNotify();
 	}
@@ -935,6 +960,105 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		shortcutRoot = null;
 	}
 
+	/** The Alt key sequence of this ribbon; exposed so tests can drive it without a window. */
+	RibbonKeyTipSession keyTipSession() {
+		return keyTipSession;
+	}
+
+	RibbonKeyTipInput keyTipInput() {
+		return keyTipInput;
+	}
+
+	private void installKeyTips() {
+		KeyboardFocusManager manager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+		manager.removeKeyEventDispatcher(keyTipDispatcher);
+		manager.addKeyEventDispatcher(keyTipDispatcher);
+		manager.removePropertyChangeListener("activeWindow", keyTipWindowListener);
+		manager.addPropertyChangeListener("activeWindow", keyTipWindowListener);
+		Toolkit.getDefaultToolkit().removeAWTEventListener(keyTipMouseListener);
+		Toolkit.getDefaultToolkit().addAWTEventListener(keyTipMouseListener, AWTEvent.MOUSE_EVENT_MASK);
+	}
+
+	private void uninstallKeyTips() {
+		keyTipSession.cancel();
+		KeyboardFocusManager manager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+		manager.removeKeyEventDispatcher(keyTipDispatcher);
+		manager.removePropertyChangeListener("activeWindow", keyTipWindowListener);
+		Toolkit.getDefaultToolkit().removeAWTEventListener(keyTipMouseListener);
+	}
+
+	private boolean dispatchKeyTipEvent(KeyEvent event) {
+		Window window = SwingUtilities.getWindowAncestor(this);
+		if (window == null || !(event.getSource() instanceof Component source)) return false;
+		Window sourceWindow = source instanceof Window own ? own : SwingUtilities.getWindowAncestor(source);
+		if (sourceWindow != window) return false;
+		if (keyTipInput.dispatch(event.getID(), event.getKeyCode(), event.getModifiersEx())) {
+			event.consume();
+			return true;
+		}
+		return false;
+	}
+
+	private void cancelKeyTipsOnMouse(AWTEvent event) {
+		if (event.getID() == MouseEvent.MOUSE_PRESSED && keyTipSession.isActive()) {
+			keyTipSession.cancel();
+		}
+	}
+
+	/** The tab KeyTips are the tab access keys of the visible tabs. */
+	private Map<String, RibbonKeyTipSession.Target> tabKeyTips() {
+		Map<String, RibbonKeyTipSession.Target> tips = new LinkedHashMap<>();
+		for (SwingRibbonModel.RibbonTab tab : model.getTabs()) {
+			String accessKey = tab.getAccessKey();
+			JToggleButton button = tabButtons.get(tab.getId());
+			if (accessKey == null || accessKey.isBlank() || button == null || !isTabVisible(tab.getId())) continue;
+			tips.putIfAbsent(accessKey.trim(), new RibbonKeyTipSession.Target(tab.getId(), button, () -> showTab(tab.getId())));
+		}
+		return tips;
+	}
+
+	/** The KeyTips of the controls the selected tab shows: the ones that are visible and enabled. */
+	private Map<String, RibbonKeyTipSession.Target> controlKeyTips(String tabId) {
+		Map<String, RibbonKeyTipSession.Target> tips = new LinkedHashMap<>();
+		JPanel body = tabBodies.get(tabId);
+		if (body == null || !tabId.equals(activeTabId)) return tips;
+		List<AbstractButton> buttons = new ArrayList<>();
+		collectButtons(body, buttons);
+		for (AbstractButton button : buttons) {
+			if (!(button.getClientProperty(RibbonControlPopups.KEY_TIP_PROPERTY) instanceof String tip)
+				|| !button.isEnabled() || !isVisibleWithin(button, body)) continue;
+			tips.putIfAbsent(tip, new RibbonKeyTipSession.Target(button.getName() == null ? tip : button.getName(),
+				button, () -> button.doClick(0)));
+		}
+		return tips;
+	}
+
+	private static boolean isVisibleWithin(Component component, Component root) {
+		for (Component current = component; current != null; current = current.getParent()) {
+			if (!current.isVisible()) return false;
+			if (current == root) return true;
+		}
+		return false;
+	}
+
+	private void keyTipsChanged() {
+		JRootPane root = SwingUtilities.getRootPane(this);
+		if (root == null) return;
+		JLayeredPane layers = root.getLayeredPane();
+		if (!keyTipSession.isActive()) {
+			if (keyTipOverlay.getParent() != null) {
+				layers.remove(keyTipOverlay);
+				layers.repaint();
+			}
+			return;
+		}
+		if (keyTipOverlay.getParent() != layers) {
+			layers.add(keyTipOverlay, JLayeredPane.POPUP_LAYER);
+		}
+		keyTipOverlay.setBounds(0, 0, layers.getWidth(), layers.getHeight());
+		keyTipOverlay.repaint();
+	}
+
 	private static String accessActionId(String tabId) { return "microproject.ribbon.select." + tabId; }
 
 	@Override
@@ -983,10 +1107,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	}
 
 	private void registerQuickAccessActions() {
-		for (String buttonId : model.getTaskBarButtons()) {
-			SwingRibbonModel.RibbonButton specification = new SwingRibbonModel.RibbonButton(
-				buttonId,
-				SwingRibbonModel.ButtonPriority.LOW);
+		for (SwingRibbonModel.RibbonButton specification : model.getTaskBarControls()) {
 			// Keep the registered proxy styled like a ribbon command so shared
 			// action-state tests and enablement propagation see the same contract.
 			buttonStyler.styleActionButton(createButton(specification, true), "small");
@@ -1328,9 +1449,8 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		// every group with a proxy wasted the available ribbon width and could leave
 		// a single lonely button visible.  Preserve the left-hand groups and replace
 		// trailing groups one at a time until the row fits.
-		for (int index = tab.getBands().size() - 1;
-			index > 0 && availableBandWidth > 0 && !fitsInWidth(bandPanels, availableBandWidth, bandRow);
-			index--) {
+		for (int index : collapseOrder(tab.getBands())) {
+			if (availableBandWidth <= 0 || fitsInWidth(bandPanels, availableBandWidth, bandRow)) break;
 			presentations.set(index, RibbonDensity.COLLAPSED);
 			bandPanels = rebuildBands(bandRow, bandConstraints, tab.getBands(), presentations, bandPanels);
 		}
@@ -1387,6 +1507,24 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 
 	private boolean needsWidthAwareRebuild(String tabId) {
 		return getWidth() > 0 && !Objects.equals(tabBodyBuildWidths.get(tabId), Integer.valueOf(getWidth()));
+	}
+
+	/**
+	 * Band indices in the order they collapse: ascending keep rank, then right to left.
+	 * The first band is normally kept, but a band that declares a positive keep rank
+	 * outlasts it, so the first band collapses just before the ranked bands.
+	 */
+	static List<Integer> collapseOrder(List<SwingRibbonModel.RibbonBand> bands) {
+		List<Integer> order = new ArrayList<>(bands.size());
+		for (int index = bands.size() - 1; index > 0; index--) order.add(index);
+		order.sort(java.util.Comparator.comparingInt(index -> bands.get(index).getKeepRank()));
+		boolean rankedBandExists = order.stream().anyMatch(index -> bands.get(index).getKeepRank() > 0);
+		if (rankedBandExists && !bands.isEmpty() && bands.get(0).getKeepRank() == 0) {
+			int firstRanked = 0;
+			while (bands.get(order.get(firstRanked)).getKeepRank() == 0) firstRanked++;
+			order.add(firstRanked, 0);
+		}
+		return order;
 	}
 
 	private static boolean fitsInWidth(List<RibbonBandPanel> bandPanels, int availableWidth, Container container) {
@@ -1512,8 +1650,99 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		title.setForeground(theme.bandTitleForeground());
 		title.setFont(theme.bandTitleFont());
 		title.setBorder(BorderFactory.createEmptyBorder(1, 0, 0, 0));
-		panel.bind(content, title, computeBandWidth(content, title));
+		JComponent titleRow = createBandTitleRow(band, title);
+		panel.bind(content, titleRow, computeBandWidth(content, titleRow));
 		return panel;
+	}
+
+	/**
+	 * The caption of a group. A group that declares a dialog launcher gets the small
+	 * launcher button at the right end of the caption row, as in Office; the caption
+	 * stays centered because the left end reserves the same width.
+	 */
+	private JComponent createBandTitleRow(SwingRibbonModel.RibbonBand band, JLabel title) {
+		if (band.getDialogLauncherId() == null) {
+			return title;
+		}
+		JButton launcher = createDialogLauncher(band);
+		JPanel row = new JPanel(new BorderLayout());
+		row.setOpaque(false);
+		row.add(Box.createRigidArea(launcher.getPreferredSize()), BorderLayout.WEST);
+		row.add(title, BorderLayout.CENTER);
+		row.add(launcher, BorderLayout.EAST);
+		return row;
+	}
+
+	private JButton createDialogLauncher(SwingRibbonModel.RibbonBand band) {
+		String commandId = band.getDialogLauncherId();
+		String label = getStringOrNull(commandId + ".text");
+		String tip = label == null ? commandId : label;
+		// The command Action fires a ShortDescription change (null) once it is bound, which makes the button
+		// clear its tooltip; the launcher keeps its label-derived tip independent of the Action.
+		JButton launcher = new JButton(commandSource.createAction(commandId)) {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public String getToolTipText() {
+				String own = super.getToolTipText();
+				return own == null ? tip : own;
+			}
+		};
+		launcher.setHideActionText(true);
+		launcher.setText(null);
+		launcher.setIcon(new DialogLauncherIcon());
+		launcher.setName(DIALOG_LAUNCHER_NAME_PREFIX + band.getId());
+		launcher.setToolTipText(tip);
+		javax.swing.ToolTipManager.sharedInstance().registerComponent(launcher); // stays registered when the Action clears the tip
+		launcher.getAccessibleContext().setAccessibleName(tip);
+		launcher.setActionCommand(commandId);
+		launcher.setBorderPainted(false);
+		launcher.setContentAreaFilled(false);
+		launcher.setFocusPainted(false);
+		launcher.setFocusable(false);
+		launcher.setMargin(new Insets(0, 0, 0, 0));
+		launcher.putClientProperty("JComponent.titleBarCaption", Boolean.FALSE);
+		Dimension size = new Dimension(DIALOG_LAUNCHER_SIZE, DIALOG_LAUNCHER_SIZE);
+		launcher.setPreferredSize(size);
+		launcher.setMinimumSize(size);
+		launcher.setMaximumSize(size);
+		return launcher;
+	}
+
+	/** The diagonal arrow of the group dialog launcher, drawn in the caption color of the theme. */
+	private final class DialogLauncherIcon implements javax.swing.Icon {
+		@Override
+		public int getIconWidth() {
+			return DIALOG_LAUNCHER_SIZE;
+		}
+
+		@Override
+		public int getIconHeight() {
+			return DIALOG_LAUNCHER_SIZE;
+		}
+
+		@Override
+		public void paintIcon(Component component, Graphics graphics, int x, int y) {
+			Graphics2D g2 = (Graphics2D) graphics.create();
+			try {
+				g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+				Color color = theme.bandTitleForeground();
+				boolean enabled = component == null || component.isEnabled();
+				g2.setColor(enabled ? color : new Color(color.getRed(), color.getGreen(), color.getBlue(), 90));
+				int left = x + 4;
+				int top = y + 4;
+				int right = x + DIALOG_LAUNCHER_SIZE - 5;
+				int bottom = y + DIALOG_LAUNCHER_SIZE - 5;
+				// Corner bracket of the group frame, then the arrow pointing to its lower right.
+				g2.drawLine(left, top, right - 2, top);
+				g2.drawLine(left, top, left, bottom - 2);
+				g2.drawLine(left + 2, top + 2, right, bottom);
+				g2.drawLine(right, bottom - 3, right, bottom);
+				g2.drawLine(right - 3, bottom, right, bottom);
+			} finally {
+				g2.dispose();
+			}
+		}
 	}
 
 	private RibbonBandPanel buildCustomBand(RibbonBandPanel panel, SwingRibbonModel.RibbonBand band) {
@@ -1596,7 +1825,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		return panel;
 	}
 
-	private int computeBandWidth(JComponent content, JLabel title) {
+	private int computeBandWidth(JComponent content, JComponent title) {
 		int contentWidth = content.getPreferredSize().width;
 		int titleWidth = title.getPreferredSize().width;
 		return Math.max(BAND_MIN_WIDTH, Math.max(
@@ -1757,14 +1986,14 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			// The action already opens its chooser.  Painting the chevron in its own
 			// hit-area keeps the label clean and matches Office split-button geometry.
 			button.putClientProperty("MicroProject.ribbonSplit", Boolean.TRUE);
-			if ("RibbonChooseSort".equals(buttonId)) installSortOrderMenu(button);
 		}
-		String tooltip = getStringOrNull(buttonId + ".tooltip");
-		if (tooltip != null) {
+		RibbonControlPopups.install(button, specification, commandSource, this::getStringOrNull, () -> dropDownSource.get());
+		String description = getStringOrNull(buttonId + ".tooltip");
+		if (text != null || description != null) {
 			// The key shown is the one registered for the command, never a separately
 			// maintained string, so the screen tip cannot disagree with the binding.
-			button.setToolTipText(com.microproject.menu.ShortcutHints.withShortcut(tooltip,
-				commandSource.getShortcut(buttonId)));
+			button.setToolTipText(com.microproject.menu.ShortcutHints.screenTip(text,
+				commandSource.getShortcut(buttonId), description));
 		}
 		button.setAlignmentY(Component.TOP_ALIGNMENT);
 		button.putClientProperty("JComponent.titleBarCaption", Boolean.FALSE);
@@ -1772,51 +2001,8 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		if (specification.getIconKey() != null) {
 			button.putClientProperty(RibbonButtonStyler.ICON_KEY_PROPERTY, specification.getIconKey());
 		}
-		button.putClientProperty("MicroProject.ribbonToggle", specification.isToggle());
 		button.getAccessibleContext().setAccessibleName(button.getText() == null ? buttonId : button.getText());
 		return button;
-	}
-
-	private void installSortOrderMenu(AbstractButton button) {
-		String menuText = getStringOrNull("Sort.text");
-		if (menuText == null || button.getAction() == null) return;
-		JPopupMenu popup = new JPopupMenu();
-		popup.setName("microproject.ribbon.sortMenu");
-		JMenuItem sortOrder = new JMenuItem(button.getAction());
-		sortOrder.setText(menuText);
-		sortOrder.setActionCommand(button.getActionCommand());
-		sortOrder.setName("microproject.ribbon.sortMenu.sortOrder");
-		popup.add(sortOrder);
-		button.getAccessibleContext().setAccessibleDescription(menuText);
-
-		JButton menuButton = new JButton();
-		menuButton.setName("microproject.ribbon.sortMenuButton");
-		menuButton.setToolTipText(menuText);
-		menuButton.setFocusable(true);
-		menuButton.setBorderPainted(false);
-		menuButton.setContentAreaFilled(false);
-		menuButton.setOpaque(false);
-		menuButton.setEnabled(button.isEnabled());
-		menuButton.getAccessibleContext().setAccessibleName(getStringOrNull("SortMenu.accessibleName"));
-		menuButton.getAccessibleContext().setAccessibleDescription(menuText);
-		menuButton.addActionListener(event -> {
-			if (!menuButton.isShowing() || !button.isEnabled()) return;
-			popup.show(menuButton, 0, menuButton.getHeight());
-			popup.requestFocusInWindow();
-		});
-		button.addPropertyChangeListener("enabled", event -> menuButton.setEnabled(button.isEnabled()));
-		button.putClientProperty("MicroProject.ribbon.sortMenu", popup);
-		button.putClientProperty("MicroProject.ribbon.sortMenuButton", menuButton);
-		button.setLayout(null);
-		button.add(menuButton);
-		int arrowWidth = RibbonButtonStyler.SPLIT_BUTTON_EXTRA_WIDTH;
-		Runnable resizeMenuButton = () -> menuButton.setBounds(Math.max(0, button.getWidth() - arrowWidth), 0,
-			Math.min(arrowWidth, button.getWidth()), button.getHeight());
-		button.addComponentListener(new java.awt.event.ComponentAdapter() {
-			@Override public void componentResized(java.awt.event.ComponentEvent event) { resizeMenuButton.run(); }
-			@Override public void componentShown(java.awt.event.ComponentEvent event) { resizeMenuButton.run(); }
-		});
-		resizeMenuButton.run();
 	}
 
 	private void showDisplayModePopup(java.awt.event.MouseEvent event) {
@@ -1926,7 +2112,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 
 	private final class RibbonBandPanel extends JPanel {
 		private JComponent content;
-		private JLabel title;
+		private JComponent title;
 		private int targetWidth;
 		private int contentPreferredHeight;
 		private boolean showSeparator;
@@ -1955,7 +2141,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			this.showSeparator = showSeparator;
 		}
 
-		private void bind(JComponent content, JLabel title, int targetWidth) {
+		private void bind(JComponent content, JComponent title, int targetWidth) {
 			this.content = content;
 			this.title = title;
 			this.targetWidth = targetWidth;

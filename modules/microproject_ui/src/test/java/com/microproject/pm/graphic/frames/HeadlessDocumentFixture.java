@@ -73,8 +73,17 @@ final class HeadlessDocumentFixture implements AutoCloseable {
 		return tasks.get(index);
 	}
 
-	SpreadSheet sheet() {
-		return frame.getActiveSpreadSheet();
+	/** Reads the active sheet on the EDT, where the view state is published. */
+	SpreadSheet sheet() throws Exception {
+		AtomicReference<SpreadSheet> sheet = new AtomicReference<>();
+		onEdt(() -> sheet.set(frame.getActiveSpreadSheet()));
+		return sheet.get();
+	}
+
+	int rowCount() throws Exception {
+		AtomicReference<Integer> rows = new AtomicReference<>();
+		onEdt(() -> rows.set(frame.getActiveSpreadSheet().getRowCount()));
+		return rows.get();
 	}
 
 	/** Selects exactly the given tasks in the task spreadsheet (model rows to view rows). */
@@ -112,6 +121,10 @@ final class HeadlessDocumentFixture implements AutoCloseable {
 	}
 
 	static void onEdt(ThrowingRunnable action) throws Exception {
+		if (SwingUtilities.isEventDispatchThread()) {
+			action.run();
+			return;
+		}
 		Throwable[] failure = new Throwable[1];
 		SwingUtilities.invokeAndWait(() -> {
 			try {

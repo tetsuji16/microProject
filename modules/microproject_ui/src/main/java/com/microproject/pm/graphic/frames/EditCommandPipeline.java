@@ -31,6 +31,22 @@ final class EditCommandPipeline {
 		case MenuActionConstants.ACTION_CLEAR_CONTENTS -> {
 			return sheet.clearSelectedCellValues();
 		}
+		case MenuActionConstants.ACTION_FILL_DOWN -> {
+			sheet.fillSelection(SpreadSheet.FillDirection.DOWN);
+			return true;
+		}
+		case MenuActionConstants.ACTION_FILL_UP -> {
+			sheet.fillSelection(SpreadSheet.FillDirection.UP);
+			return true;
+		}
+		case MenuActionConstants.ACTION_FILL_LEFT -> {
+			sheet.fillSelection(SpreadSheet.FillDirection.LEFT);
+			return true;
+		}
+		case MenuActionConstants.ACTION_FILL_RIGHT -> {
+			sheet.fillSelection(SpreadSheet.FillDirection.RIGHT);
+			return true;
+		}
 		case MenuActionConstants.ACTION_CUT, MenuActionConstants.ACTION_COPY -> {
 			return sheet.performAction(command, new ActionEvent(sheet, ActionEvent.ACTION_PERFORMED, command));
 		}

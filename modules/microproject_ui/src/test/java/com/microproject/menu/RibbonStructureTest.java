@@ -53,6 +53,14 @@ class RibbonStructureTest {
 	}
 
 	@Test
+	void viewDataGroupKeepsSortAsFirstLargeControlAndStaysDirectBeforeResourceViews() {
+		assertEquals("RibbonChooseSort.TOP", menuInternalBundle().getString("ViewDataRibbonBand").split("\s+")[0]);
+		assertEquals("gallery", menuInternalBundle().getString("RibbonChooseSort.control"));
+		// At the 1120 px reference window the group holding Sort must outlast the wider Resource views group.
+		assertEquals("1", menuInternalBundle().getString("ViewDataRibbonBand.keepRank"));
+	}
+
+	@Test
 	void helpCommandsLiveOnTheStandardHelpTabAndShareTheirCanonicalActions() {
 		assertEquals(List.of("HelpRibbonBand"), ribbonBandIds("HelpRibbonTask"));
 		assertTrue(!ribbonBandIds("FileRibbonTask").contains("HelpRibbonBand"));
@@ -96,7 +104,7 @@ class RibbonStructureTest {
 
 	@Test
 	void taskClipboardGroupUsesTheLocalizedClipboardTitle() {
-		assertEquals(List.of("RibbonPaste", "RibbonCopy", "RibbonCut", "RibbonFormatPainter"),
+		assertEquals(List.of("RibbonPaste", "RibbonCut", "RibbonCopy", "RibbonFormatPainter"),
 			ribbonButtonIds("TaskClipboardRibbonBand"));
 		for (String tag : List.of("ar", "da", "de", "el", "es", "fr", "hi", "it", "ja", "ko", "nl", "pt", "ru",
 				"sv", "th", "tr", "ur", "vi", "zh", "zh-CN", "zh-TW")) {
@@ -112,48 +120,57 @@ class RibbonStructureTest {
 		assertEquals(List.of("RibbonExportProject", "RibbonImportProject"),
 			ribbonButtonIds("FileExchangeRibbonBand"));
 		assertEquals(List.of(
-			"TaskClipboardRibbonBand", "TaskInsertRibbonBand", "TaskOutlineRibbonBand", "TaskDependenciesRibbonBand",
-			"TaskPropertiesRibbonBand", "TaskTrackingRibbonBand", "TaskEditingRibbonBand"),
+			"TaskViewRibbonBand", "TaskClipboardRibbonBand", "TaskFontRibbonBand", "TaskTrackingRibbonBand", "TaskTasksRibbonBand", "TaskInsertRibbonBand",
+			"TaskPropertiesRibbonBand", "TaskEditingRibbonBand"),
 			ribbonBandIds("TaskRibbonTask"));
-		assertEquals(List.of("RibbonMoveTaskUp", "RibbonMoveTaskDown", "RibbonExpand", "RibbonCollapse"),
-			ribbonButtonIds("TaskOutlineRibbonBand"));
+		assertEquals(List.of("RibbonTaskModeManual", "RibbonTaskModeAutomatic", "RibbonTaskInspector",
+				"RibbonMoveTask", "RibbonScheduleMode", "RibbonMoveTaskUp", "RibbonMoveTaskDown", "RibbonDelegateTasks"),
+			ribbonButtonIds("TaskTasksRibbonBand"));
+		assertEquals(List.of("RibbonExpand", "RibbonCollapse"),
+			ribbonButtonIds("ViewDataRibbonBand").stream().filter(id -> id.equals("RibbonExpand") || id.equals("RibbonCollapse")).toList());
 		assertEquals("MoveTaskUpAction",menuInternalBundle().getString("RibbonMoveTaskUp.action"));
 		assertEquals("MoveTaskDownAction",menuInternalBundle().getString("RibbonMoveTaskDown.action"));
 		assertFalse(menuBundle(Locale.ROOT).getString("RibbonMoveTaskUp.tooltip").contains("Alt+Shift+Up"),
 			"the screen tip key comes from the registered binding (#973), not the bundle");
 		assertFalse(menuBundle(Locale.ROOT).getString("RibbonMoveTaskDown.tooltip").contains("Alt+Shift+Down"),
 			"the screen tip key comes from the registered binding (#973), not the bundle");
-		assertEquals(List.of("RibbonAssignResources", "RibbonDelegateTasks"),
-			ribbonButtonIds("TaskDependenciesRibbonBand"));
-		assertEquals(List.of("RibbonMarkOnTrack", "RibbonUpdateTasks", "RibbonLink", "RibbonUnlink", "RibbonRespectLinks",
-			"RibbonIndent", "RibbonOutdent", "RibbonTaskModeManual", "RibbonTaskModeAutomatic", "RibbonInactivateTask",
-			"RibbonPercentComplete0", "RibbonPercentComplete25", "RibbonPercentComplete50", "RibbonPercentComplete75", "RibbonPercentComplete100"),
+		assertEquals(List.of(
+			"RibbonPercentComplete0", "RibbonPercentComplete25", "RibbonPercentComplete50", "RibbonPercentComplete75", "RibbonPercentComplete100",
+			"RibbonOutdent", "RibbonIndent", "RibbonLink", "RibbonUnlink", "RibbonMarkOnTrack", "RibbonUpdateTasks",
+			"RibbonRespectLinks", "RibbonInactivateTask"),
 			ribbonButtonIds("TaskTrackingRibbonBand"));
-		assertEquals(List.of("RibbonProjectInformation", "RibbonChangeWorkingTime", "RibbonCalendarOptions", "RibbonProjectsDialog"),
+		assertEquals(List.of("RibbonProjectInformation", "RibbonCustomFields", "RibbonChangeWorkingTime", "RibbonCalendarOptions", "RibbonProjectsDialog"),
 			ribbonButtonIds("ProjectInfoRibbonBand"));
 		assertEquals(List.of("RibbonStatusDate", "RibbonUpdateProject"),
 			ribbonButtonIds("ProjectStatusRibbonBand"));
-		assertEquals(List.of("ProjectInfoRibbonBand", "ProjectScheduleRibbonBand", "ProjectStatusRibbonBand",
-			"ProjectBaselineRibbonBand", "ProjectCcpmRibbonBand"), ribbonBandIds("ProjectRibbonTask"));
+		assertEquals(List.of("ProjectInsertRibbonBand", "ProjectInfoRibbonBand", "ProjectScheduleRibbonBand",
+			"ProjectStatusRibbonBand", "ProjectCcpmRibbonBand"), ribbonBandIds("ProjectRibbonTask"));
 		assertEquals(List.of(
-			"ClipboardRibbonBand", "ResourceInsertRibbonBand", "ResourcePropertiesRibbonBand",
-			"ResourceAssignmentsRibbonBand", "ResourceLevelRibbonBand", "ResourcePoolRibbonBand"), ribbonBandIds("ResourceRibbonTask"));
-		assertEquals(List.of("RibbonTimesheet", "RibbonTeamFilter"), ribbonButtonIds("ResourceAssignmentsRibbonBand"));
-		assertEquals(List.of("RibbonUseResourcePool", "RibbonCreateResourcePool", "RibbonRefreshResourcePool"), ribbonButtonIds("ResourcePoolRibbonBand"));
-			assertEquals(List.of("RibbonMoveProject", "RibbonRecalculate", "RibbonRefreshSubprojects", "RibbonOpenSubproject", "RibbonRemoveSubproject"),
-				ribbonButtonIds("ProjectScheduleRibbonBand"));
+			"ResourceViewRibbonBand", "ResourceAssignmentsRibbonBand", "ResourceInsertRibbonBand", "ResourcePropertiesRibbonBand",
+			"ResourceLevelRibbonBand", "ClipboardRibbonBand"), ribbonBandIds("ResourceRibbonTask"));
+		assertEquals(List.of("RibbonAssignResources", "RibbonUseResourcePool", "RibbonCreateResourcePool",
+			"RibbonRefreshResourcePool", "RibbonTimesheet", "RibbonTeamFilter"), ribbonButtonIds("ResourceAssignmentsRibbonBand"));
+		assertEquals(List.of("RibbonInsertProject", "RibbonRefreshSubprojects", "RibbonOpenSubproject", "RibbonRemoveSubproject"),
+			ribbonButtonIds("ProjectInsertRibbonBand"));
+		assertEquals(List.of("RibbonRecalculate", "RibbonSaveBaseline", "RibbonClearBaseline", "RibbonMoveProject"),
+			ribbonButtonIds("ProjectScheduleRibbonBand"));
 	}
 
 	@Test
 	void issue36ResourceCommandsMatchTheMsProjectRibbonModel() {
-		assertEquals(List.of("RibbonTaskUsageDetail", "RibbonResourceUsageDetail"),
+		assertEquals(List.of("RibbonTaskUsageDetail"),
+			ribbonButtonIds("ViewTaskRibbonBand").stream()
+				.filter(id -> id.endsWith("UsageDetail"))
+				.toList());
+		assertEquals(List.of("RibbonResourceUsageDetail"),
 			ribbonButtonIds("ViewResourceRibbonBand").stream()
 				.filter(id -> id.endsWith("UsageDetail"))
 				.toList());
-		assertEquals(List.of("RibbonTimesheet", "RibbonTeamFilter"),
+		assertEquals(List.of("RibbonAssignResources", "RibbonUseResourcePool", "RibbonCreateResourcePool",
+				"RibbonRefreshResourcePool", "RibbonTimesheet", "RibbonTeamFilter"),
 			ribbonButtonIds("ResourceAssignmentsRibbonBand"));
-		assertEquals(List.of("RibbonLevelSelection", "RibbonLevelAll", "RibbonClearLevelSelection",
-				"RibbonClearLevelAll", "RibbonLevelResources", "RibbonNextOverallocation"),
+		assertEquals(List.of("RibbonLevelSelection", "RibbonLevelResource", "RibbonLevelAll",
+				"RibbonClearLevelSelection", "RibbonLevelResources", "RibbonClearLevelAll", "RibbonNextOverallocation"),
 			ribbonButtonIds("ResourceLevelRibbonBand"));
 		assertEquals("TOGGLE", menuInternalBundle().getString("RibbonTeamFilter.type"));
 	}
@@ -195,7 +212,8 @@ class RibbonStructureTest {
 				tabsByButton.computeIfAbsent(button, ignored -> new LinkedHashSet<>()).add(task);
 			}
 		}
-		Set<String> permittedDuplicates = Set.of("RibbonPaste", "RibbonCopy", "RibbonCut");
+		// Custom Fields is both a Project Properties command and a Columns command of the Gantt Chart Format tab.
+		Set<String> permittedDuplicates = Set.of("RibbonPaste", "RibbonCopy", "RibbonCut", "RibbonCustomFields");
 		Set<String> contextualFormatCommands = Set.of(
 			"RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName",
 			"RibbonGridlines", "RibbonToggleCriticalChain", "RibbonTimescale", "RibbonBarStyles",

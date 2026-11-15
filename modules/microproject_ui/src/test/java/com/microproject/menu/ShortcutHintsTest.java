@@ -51,10 +51,15 @@ class ShortcutHintsTest {
 	}
 
 	@Test
-	void appendsTheShortcutOnlyWhenOneIsBound() {
-		assertEquals("Save (Ctrl+S)", ShortcutHints.withShortcut("Save", KeyStroke.getKeyStroke(KeyEvent.VK_S, CTRL)));
-		assertEquals("Save", ShortcutHints.withShortcut("Save", null));
-		assertNull(ShortcutHints.withShortcut(null, KeyStroke.getKeyStroke(KeyEvent.VK_S, CTRL)));
+	void screenTipHasTheBoldNameThenTheShortcutThenTheDescriptionOnASecondLine() {
+		KeyStroke ctrlS = KeyStroke.getKeyStroke(KeyEvent.VK_S, CTRL);
+		assertEquals("<html><b>Save</b> (Ctrl+S)<br>Save the project</html>",
+			ShortcutHints.screenTip("Save", ctrlS, "Save the project"));
+		assertEquals("<html><b>Save</b><br>Save the project</html>", ShortcutHints.screenTip("Save", null, "Save the project"));
+		assertEquals("<html><b>Save</b> (Ctrl+S)</html>", ShortcutHints.screenTip("Save", ctrlS, null));
+		assertEquals("<html>Save the project</html>", ShortcutHints.screenTip(null, ctrlS, "Save the project"));
+		assertEquals("<html><b>A &amp; B</b><br>x &lt; y</html>", ShortcutHints.screenTip("A & B", null, "x < y"));
+		assertNull(ShortcutHints.screenTip(null, ctrlS, null));
 	}
 
 	@Test

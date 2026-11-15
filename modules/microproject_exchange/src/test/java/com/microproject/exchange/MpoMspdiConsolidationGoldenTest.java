@@ -39,7 +39,7 @@ class MpoMspdiConsolidationGoldenTest {
 	/** SHA-256 per MPO entry (zip entry names sorted) and for the MSPDI export, captured pre-consolidation. */
 	private static final Map<String, String> GOLDEN = new TreeMap<>(Map.ofEntries(
 		Map.entry("mpo:META-INF/manifest.xml",
-			"61d8a018338fcd46de53980af75bec4d1e29cb7f9262ac02195548cfaa1ab524"),
+			"4f396f61aa818e7489002f7b2ef8d6031005b62eb3362a8681d95648fc341818"),
 		Map.entry("mpo:ccpm/history.jsonl",
 			"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
 		Map.entry("mpo:changes/task-identities.json",
@@ -53,7 +53,7 @@ class MpoMspdiConsolidationGoldenTest {
 		Map.entry("mpo:microproject/baseline-profiles.json",
 			"9de99943b2136eef7bcbd94d6e65b5e8c87b54a2ad7f084c5f632846e168fd90"),
 		Map.entry("mpo:microproject/task-leveling-options.json",
-			"8943e99b4d802623f46df4dec8dc4669a4596e4bd9877703469bab7319662ba2"),
+			"d9a62165b5d43424796a10c391acf5a409f330ad3d223d02dae80b453f04447f"),
 		Map.entry("mpo:microproject/task-schedules.json",
 			"191d2c6f7c6345ca55fa6dcc514ca6ed9ae951f06d39b1d7a9e461de0b06fcb5"),
 		Map.entry("mpo:microproject/task-splits.json",

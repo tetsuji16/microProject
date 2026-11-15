@@ -140,11 +140,11 @@ final class RibbonCommandCatalog {
 			"RibbonSaveProject", "RibbonSaveProjectAs", "RibbonSaveMpoAs", "RibbonCloseProject", "RibbonExportProject",
 			"RibbonBackstageProjectInformation", "RibbonPrint", "RibbonPrintPreview", "RibbonPDF");
 		register(result, CommandScope.TASK, TASK,
-			"RibbonInsert", "RibbonInsertRecurring", "RibbonInsertProject", "RibbonIndent", "RibbonOutdent",
+			"RibbonInsert", "RibbonInsertRecurring", "RibbonIndent", "RibbonOutdent",
 			"RibbonMoveTaskUp", "RibbonMoveTaskDown",
-			"RibbonExpand", "RibbonCollapse", "RibbonLink", "RibbonUnlink", "RibbonRespectLinks", "RibbonAssignResources",
+			"RibbonLink", "RibbonUnlink", "RibbonRespectLinks",
 			"RibbonDelegateTasks", "RibbonTaskInformation", "RibbonTaskInspector", "RibbonNotes", "RibbonUpdateTasks", "RibbonMarkOnTrack", "RibbonDelete",
-			"RibbonCustomFields", "RibbonFind", "RibbonScrollToTask", "RibbonScrollToToday", "RibbonTaskModeManual", "RibbonTaskModeAutomatic",
+			"RibbonFind", "RibbonScrollToTask", "RibbonScrollToToday", "RibbonTaskModeManual", "RibbonTaskModeAutomatic",
 			"RibbonFormatPainter",
 			"RibbonInactivateTask",
 			"RibbonInsertMilestone", "RibbonInsertSummary", "RibbonClear", "RibbonSelectAll", "RibbonTaskDetails",
@@ -152,11 +152,23 @@ final class RibbonCommandCatalog {
 			"RibbonHideSelectedTasks", "RibbonShowAllTasks");
 		register(result, CommandScope.RESOURCE, RESOURCE,
 			"RibbonInsertResource", "RibbonResourceInformation", "RibbonTimesheet", "RibbonTeamFilter",
-			"RibbonLevelSelection", "RibbonLevelAll", "RibbonClearLevelSelection", "RibbonClearLevelAll",
+			"RibbonLevelSelection", "RibbonLevelResource", "RibbonLevelAll", "RibbonClearLevelSelection", "RibbonClearLevelAll",
 			"RibbonLevelResources", "RibbonNextOverallocation",
 			"RibbonUseResourcePool", "RibbonCreateResourcePool", "RibbonRefreshResourcePool");
+		register(result, CommandScope.TASK, RESOURCE, "RibbonAssignResources");
+		register(result, CommandScope.TASK, TASK, "RibbonBold", "RibbonItalic", "RibbonFontColor", "RibbonFont", "RibbonFill",
+			"RibbonFontName", "RibbonFontSize", "RibbonUnderline", "RibbonFillColor",
+			"RibbonMoveTask", "RibbonScheduleMode", "RibbonAddToTimeline");
+		register(result, CommandScope.VIEW, TASK, "RibbonTaskViewGantt");
+		register(result, CommandScope.VIEW, RESOURCE, "RibbonResourceViews");
+		register(result, CommandScope.RESOURCE, RESOURCE, "RibbonResourceNotes", "RibbonResourceDetails");
+		register(result, CommandScope.TASK, PROJECT, "RibbonInsertProject");
+		// Custom Fields is also a Columns-group command of the Gantt Chart Format tab.
+		register(result, CommandScope.TASK, PROJECT, Set.of(PROJECT, FORMAT), "RibbonCustomFields");
+		register(result, CommandScope.TASK, VIEW, "RibbonExpand", "RibbonCollapse");
 		register(result, CommandScope.REPORT, REPORT,
-			"RibbonReport", "RibbonCustomReport", "RibbonHistogram", "RibbonCharts", "RibbonTaskUsage", "RibbonResourceUsage", "RibbonCCPMBufferStatus");
+			"RibbonReport", "RibbonCustomReport", "RibbonHistogram", "RibbonCharts", "RibbonTaskUsage", "RibbonResourceUsage", "RibbonCCPMBufferStatus",
+			"RibbonReportDashboards", "RibbonReportResources", "RibbonReportInProgress", "RibbonReportCustom", "RibbonReportRecent");
 		register(result, CommandScope.PROJECT, PROJECT,
 			"RibbonProjectInformation", "RibbonProjectsDialog", "RibbonChangeWorkingTime",
 			"RibbonCalendarOptions", "RibbonStatusDate", "RibbonUpdateProject", "RibbonMoveProject", "RibbonRecalculate", "RibbonRefreshSubprojects", "RibbonOpenSubproject", "RibbonRemoveSubproject", "RibbonSaveBaseline", "RibbonClearBaseline",
@@ -164,17 +176,29 @@ final class RibbonCommandCatalog {
 	register(result, CommandScope.VIEW, VIEW,
 			"RibbonGantt", "RibbonTrackingGantt", "RibbonNetwork", "RibbonWBS", "RibbonResources", "RibbonRBS",
 			"RibbonTimeline", "RibbonCalendarView", "RibbonProjects", "RibbonTaskUsageDetail", "RibbonResourceUsageDetail", "RibbonDetails", "RibbonNoTextNoSubWindow",
-			"RibbonArrangeAll", "RibbonChooseFilter", "RibbonChooseSort", "RibbonChooseGroup", "RibbonZoomIn", "RibbonZoomOut", "RibbonZoomSelectedTasks", "RibbonCCPMNetwork", "RibbonPrivacyMask");
+			"RibbonArrangeAll", "RibbonChooseFilter", "RibbonChooseSort", "RibbonChooseGroup", "RibbonZoomIn", "RibbonZoomOut", "RibbonZoomEntireProject", "RibbonZoomSelectedTasks", "RibbonCCPMNetwork", "RibbonPrivacyMask",
+			"RibbonTeamPlanner", "RibbonTimescaleGallery", "RibbonSwitchWindows");
 		register(result, CommandScope.FORMAT, FORMAT,
 			"RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName", "RibbonGridlines",
 			"RibbonToggleCriticalChain", "RibbonTimescale", "RibbonBarStyles", "RibbonTextStyles", "RibbonLayout");
+		// Gantt Chart Format tab commands; they act on the active Gantt view and appear on no other tab.
+		register(result, CommandScope.FORMAT, FORMAT,
+			"RibbonInsertColumn", "RibbonAlignLeft", "RibbonAlignCenter", "RibbonAlignRight", "RibbonColumnSettings",
+			"RibbonHideColumn", "RibbonFieldSettings", "RibbonFormatBarStyles", "RibbonFormatBar", "RibbonBarStylesItem", "RibbonCriticalTasks", "RibbonSlack", "RibbonLateTasks", "RibbonTaskPath", "RibbonPathPredecessors", "RibbonPathDrivingPredecessors", "RibbonPathSuccessors", "RibbonPathDrivenSuccessors", "RibbonPathRemove", "RibbonShowBaseline", "RibbonSlippage", "RibbonGanttStyleGallery", "RibbonOutlineNumbers", "RibbonSummaryTasks", "RibbonGanttStyleDefault", "RibbonGanttStyleBlue", "RibbonGanttStyleGreen", "RibbonGanttStyleOrange", "RibbonGanttStylePurple", "RibbonGanttStyleGray");
 		// Format controls are shared by the implemented contextual tabs.  The
 		// catalog permits a subset per tab; each command remains primary on the
 		// normal Format tab and cannot appear on an unrelated tab.
 		for (String id : List.of("RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName",
 			"RibbonGridlines", "RibbonToggleCriticalChain", "RibbonTimescale", "RibbonBarStyles", "RibbonTextStyles", "RibbonLayout")) {
 			Placement placement = result.get(id);
-			result.put(id, new Placement(placement.scope(), placement.primaryTab(),
+			// Progress Lines is a Gridlines menu item on the Gantt tab, so its only top-level control is on
+			// the Network tab; Timescale left the Gantt tab (it stays on the Calendar tab).
+			String primary = switch (id) {
+				case "RibbonToggleProgressLine" -> "NetworkFormatRibbonTask";
+				case "RibbonTimescale" -> "CalendarFormatRibbonTask";
+				default -> placement.primaryTab();
+			};
+			result.put(id, new Placement(placement.scope(), primary,
 				Set.of(FORMAT, "NetworkFormatRibbonTask", "CalendarFormatRibbonTask")));
 		}
 		register(result, CommandScope.DOCUMENT, TASK, Set.of(TASK, RESOURCE), "RibbonPaste", "RibbonCopy", "RibbonCut");

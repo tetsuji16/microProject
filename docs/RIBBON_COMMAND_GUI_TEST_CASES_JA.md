@@ -58,6 +58,22 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonDelegateTasks | タスクを委任する | 委任操作または結果ダイアログが表示される |
 | RibbonTaskInformation | タスク情報を開く | タスク情報ダイアログが表示される |
 | RibbonFormatPainter | 1つの編集可能なタスクを選び、書式のコピーを1回押して別タスクを選択する。連続適用はボタンを2回押し、Escapeで解除する | 6つのタスク文字書式（フォント、サイズ、色、太字、斜体、取り消し線）だけを適用し、タスクデータやガントバーの個別書式を変えない。複数選択・読み取り専用・ロック対象は拒否する。Undo/RedoとMPO保存再読込を確認する。Microsoftの説明は1回適用、ダブルクリックで連続適用、Escapeで終了を定義するがタスクの個別書式項目は列挙しないため、6項目の範囲はdocument-derived product contractとする。根拠: [Microsoft Format Painter](https://support.microsoft.com/en-us/word/use-the-format-painter)。 |
+| RibbonTaskViewGantt | Task > 表示 のガントチャートギャラリーを開き、ビューを選ぶ | 選択したガント系ビューへ切り替わる。既存のビュー切替アクションと同一。 |
+| RibbonBold | タスクを選択して Task > フォントの「太字」を押す | 選択タスクのテキストが太字になりトグル状態が反映される。Undo/Redoで戻る。 |
+| RibbonItalic | タスクを選択して Task > フォントの「斜体」を押す | 選択タスクのテキストが斜体になりトグル状態が反映される。Undo/Redoで戻る。 |
+| RibbonFontName | タスクを選択して Task > フォントのフォント名コンボからフォントを選ぶ | 選択タスクのフォントが変わりコンボに現在値が表示される。Undo/Redoで1回で戻り、MPO保存再読込で保持される。 |
+| RibbonFontSize | タスクを選択して Task > フォントのフォント サイズコンボから値を選ぶ | 選択タスクの文字サイズが変わる。Undo/Redoで1回で戻り、MPO保存再読込で保持される。 |
+| RibbonUnderline | タスクを選択して Task > フォントの「下線」を押す | 選択タスクのテキストに下線が引かれトグル状態が反映される。Undo/Redoで戻り、MPO保存再読込で保持される。 |
+| RibbonFillColor | タスクを選択して Task > フォントの「背景色」を押し色を選ぶ | 選択タスクのセルの背景色が変わる。キャンセルでは変更されない。Undo/Redoで戻り、MPO保存再読込で保持される。 |
+| RibbonMoveTask | タスクを選択して Task > タスクの「移動」から前後の日数を選ぶ | 手動スケジュールのタスクは期間を保ったまま開始日が移動し、自動スケジュールのタスクには開始日の制約（Start No Earlier Than）が付く。集約タスクと非アクティブタスクは対象外。「ユーザー設定」は稼働日数を入力する。Undo/Redoで戻る。 |
+| RibbonScheduleMode | タスクを選択して Task > タスクの「モード」から手動/自動スケジュールを選ぶ | RibbonTaskModeManual / RibbonTaskModeAutomatic と同じ動作でタスクモードが変わる。 |
+| RibbonAddToTimeline | タスクを選択して Task > プロパティの「タイムラインに追加」を押す | 選択タスクがタイムラインの対象になり（全て対象済みなら解除）、トグル状態が反映される。Undo/Redoで戻る。 |
+| RibbonFontColor | タスクを選択して「フォントの色」を押し色を選ぶ | 選択タスクのテキスト色が変わる。キャンセルでは変更されない。Undo/Redoで戻る。 |
+| RibbonFont | Task > フォントの「フォント...」を押す | テキストスタイルダイアログが開く。 |
+| RibbonFill | セル範囲を選択して Task > 編集の「フィル」から方向を選ぶ | 選択範囲の先頭（上/左方向は末尾）のセル内容が方向に沿って編集可能セルへコピーされる。Undo/Redoで戻る。RibbonFillDown/RibbonFillUp/RibbonFillLeft/RibbonFillRight。 |
+| RibbonResourceViews | Resource > 表示 のギャラリーからリソース系ビューを選ぶ | 選択したリソース系ビューへ切り替わる。 |
+| RibbonResourceNotes | リソースを選択して Resource > プロパティの「メモ」を押す | リソースのメモ表示/編集が開く。 |
+| RibbonResourceDetails | Resource > プロパティの「詳細」を押す | 詳細ペインが切り替わりトグル状態が反映される。 |
 | RibbonNotes | タスクメモを編集 | メモを保存して再表示できる |
 | RibbonUpdateTasks | タスクの進捗を更新 | 更新値がタスク表とバーへ反映される |
 | RibbonDelete | 選択タスクを削除 | 確認後に対象行だけが削除される |
@@ -92,6 +108,8 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 
 | ID | 操作ユースケース | 合格条件 |
 |---|---|---|
+| RibbonReportDashboards / RibbonReportResources / RibbonReportInProgress / RibbonReportCustom | レポートギャラリーから既存レポートを開く | 選んだレポートが表示される |
+| RibbonReportRecent | 今セッションで開いたレポートを再表示 | 直近のレポートが開く |
 | RibbonReport | レポート一覧を表示 | レポート画面が表示される |
 | RibbonCustomReport | カスタムレポートを開く | カスタムレポート操作が可能 |
 | RibbonHistogram | リソースヒストグラムを表示 | ヒストグラムが描画される |
@@ -132,8 +150,12 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonNoTextNoSubWindow | サブウィンドウ表示を切り替える | 表示モードが切り替わる |
 | RibbonDetails | 詳細ペインを表示／非表示 | 下部ビューの表示状態が切り替わる |
 | RibbonArrangeAll | 全ウィンドウを整列 | 開いているプロジェクトが整列される |
+| RibbonSwitchWindows | 開いているプロジェクトの一覧から切り替え | 選んだプロジェクトのウィンドウが前面になる |
+| RibbonTeamPlanner | チームプランナーを表示 | チームプランナー画面が表示される |
+| RibbonTimescaleGallery | 時間スケールを一覧から選択 | ガントの時間スケールが変わる |
 | RibbonChooseFilter / RibbonChooseSort / RibbonChooseGroup | フィルター・ソート・グループを変更 | 選択条件が一覧へ反映される |
 | RibbonZoomIn / RibbonZoomOut | 時間軸を拡大／縮小 | ガントの時間スケールが変わる |
+| RibbonZoomEntireProject | Gantt / Task Usage / Resource Usage で View > ズーム の「プロジェクト全体」を押す | タイムスケールがプロジェクトの開始から終了までを表示できる縮尺に変わる。データは変更されない。 |
 | RibbonZoomSelectedTasks | Gantt / Tracking Gantt / Task Usage / Resource Usage で選択タスクにズーム | 選択タスクの日付範囲が可視範囲に収まり、タスク日付は変わらない。日付付き選択がない場合は無効。 |
 | RibbonCCPMNetwork | CCPMネットワークを表示 | CCPMネットワークが描画される |
 
@@ -149,6 +171,20 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonBar / RibbonBarStyles | バー表示／バー書式を変更する | ガントバー表示が変わる |
 | RibbonTextStyles | テキスト書式を変更する | 表示テキスト書式が変わる |
 | RibbonLayout | レイアウトを変更する | レイアウト変更後も操作可能 |
+| RibbonInsertColumn | 選択列の前に列を挿入する | 選んだフィールドの列が挿入される |
+| RibbonAlignLeft / RibbonAlignCenter / RibbonAlignRight | 選択列の配置を左／中央／右にする | 列の文字配置が変わり、保存して開き直しても保たれる |
+| RibbonColumnSettings (RibbonHideColumn / RibbonFieldSettings) | 列を非表示にする／フィールドの設定を開く | 列が非表示になる／配置と見出し折り返しを変更できる |
+| RibbonCustomFields | カスタムフィールドを開く（列グループ） | カスタムフィールド操作が可能 |
+| RibbonFormatBarStyles (RibbonFormatBar / RibbonBarStylesItem) | 選択タスクのバー書式／バー スタイルを開く | 各ダイアログが開き、結果がガントに反映される |
+| RibbonCriticalTasks | クリティカル タスクの強調を切り替える | クリティカル タスクのバー色が切り替わる |
+| RibbonSlack | スラック表示を切り替える | タスク後ろのスラックバーが表示／非表示になる |
+| RibbonLateTasks | 遅れているタスクの強調を切り替える | 遅れているタスクのバー色が切り替わる |
+| RibbonTaskPath (RibbonPathPredecessors / RibbonPathDrivingPredecessors / RibbonPathSuccessors / RibbonPathDrivenSuccessors / RibbonPathRemove) | 選択タスクの先行／後続パスを強調する | 種類ごとの色でバーが強調され、選択変更に追従し、解除で元に戻る |
+| RibbonShowBaseline | ベースライン バーの表示を切り替える | ベースライン バーが表示／非表示になる |
+| RibbonSlippage | スリップ線の表示を切り替える | ベースライン開始から現在の開始までの線が表示／非表示になる |
+| RibbonGanttStyleGallery (RibbonGanttStyleDefault / Blue / Green / Orange / Purple / Gray) | ガント チャートの配色を選ぶ | バーの配色が切り替わり、ビューと共に保存される |
+| RibbonOutlineNumbers | アウトライン番号の表示を切り替える | タスク名の前に番号が表示／非表示になる |
+| RibbonSummaryTasks | サマリー タスクの行を切り替える | サマリー タスクの行が表示／非表示になる |
 
 ### クイックアクセス（QuickAccessToolbar）
 

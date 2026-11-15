@@ -63,6 +63,8 @@ final class MpoSidecarJson {
 			serialized.put("manual", fields.isManualWidth(index));
 			// Optional key, written only when wrapping is switched off so default layouts stay byte-identical.
 			if (!fields.isHeaderWrap(index)) serialized.put("wrapHeader", false);
+			// Same rule for the alignment override: absent means the column keeps its default alignment.
+			if (fields.getAlignment(index) != SpreadSheetFieldArray.ALIGN_DEFAULT) serialized.put("align", fields.getAlignment(index));
 		}
 		return JSON.writeValueAsBytes(root);
 	}
@@ -76,6 +78,7 @@ final class MpoSidecarJson {
 		var widths = new java.util.ArrayList<Integer>();
 		var manualWidths = new java.util.ArrayList<Boolean>();
 		var headerWraps = new java.util.ArrayList<Boolean>();
+		var alignments = new java.util.ArrayList<Integer>();
 		for (JsonNode entry : entries) {
 			String id = entry.path("id").asText(null);
 			if (id == null || id.isBlank()) throw new IOException("Invalid MPO layout field id");
@@ -87,10 +90,12 @@ final class MpoSidecarJson {
 			widths.add(width);
 			manualWidths.add(entry.path("manual").asBoolean(false));
 			headerWraps.add(entry.path("wrapHeader").asBoolean(true));
+			alignments.add(entry.path("align").asInt(SpreadSheetFieldArray.ALIGN_DEFAULT));
 		}
 		fields.setWidths(widths);
 		fields.setManualWidths(manualWidths);
 		fields.setHeaderWraps(headerWraps);
+		fields.setAlignments(alignments);
 		fields.setCategory(com.microproject.graphic.configuration.SpreadSheetCategories.taskSpreadsheetCategory);
 		fields.setName(project.getName());
 		project.setFieldArray(fields);
@@ -219,10 +224,12 @@ final class MpoSidecarJson {
 			// The current core model cannot encode MSPDI recurrence. Preserve an
 			// imported recurring task's effective No/Yes values even when they equal
 			// that source task's recurrence-sensitive defaults.
-			task -> !task.isRecurringTask() && task.isLevelingCanSplit() && task.isLevelAssignments(),
+			task -> !task.isRecurringTask() && task.isLevelingCanSplit() && task.isLevelAssignments()
+				&& !task.isIgnoreWarnings(),
 			(task, node) -> {
 				node.put("levelingCanSplit", task.isLevelingCanSplit());
 				node.put("levelAssignments", task.isLevelAssignments());
+				node.put("ignoreWarnings", task.isIgnoreWarnings());
 			});
 	}
 
@@ -234,7 +241,12 @@ final class MpoSidecarJson {
 				JsonNode levelAssignments = node.get("levelAssignments");
 				if (canSplit == null || !canSplit.isBoolean() || levelAssignments == null || !levelAssignments.isBoolean())
 					throw new IOException("Invalid MPO task leveling option values");
+				JsonNode ignoreWarnings = node.get("ignoreWarnings");
+				// Absent in files written before the Ignore Warnings field existed.
+				if (ignoreWarnings != null && !ignoreWarnings.isBoolean())
+					throw new IOException("Invalid MPO task leveling option values");
 				return task -> {
+					task.setIgnoreWarnings(ignoreWarnings != null && ignoreWarnings.booleanValue());
 					task.setLevelingCanSplit(canSplit.booleanValue());
 					task.setLevelAssignments(levelAssignments.booleanValue());
 				};
@@ -244,7 +256,8 @@ final class MpoSidecarJson {
 	static byte[] taskTextStylesJson(Project project, String taskIdentities) throws IOException {
 		return perTaskOptionsJson(project, taskIdentities, "text style", "text styles",
 			task -> task.getFontFamily() == null && task.getFontSize() == 0 && task.getFontColor() == null
-				&& !task.isFontBold() && !task.isFontItalic() && !task.isFontStrikethrough(),
+				&& !task.isFontBold() && !task.isFontItalic() && !task.isFontStrikethrough()
+				&& !task.isFontUnderline() && task.getFontBackground() == null && !task.isDisplayOnTimeline(),
 			(task, node) -> {
 				if (task.getFontFamily() != null) node.put("fontFamily", task.getFontFamily());
 				node.put("fontSize", task.getFontSize());
@@ -252,6 +265,10 @@ final class MpoSidecarJson {
 				node.put("bold", task.isFontBold());
 				node.put("italic", task.isFontItalic());
 				node.put("strikethrough", task.isFontStrikethrough());
+				// Absent keys mean the default, so files without underline/background stay byte-identical.
+				if (task.isFontUnderline()) node.put("underline", true);
+				if (task.isDisplayOnTimeline()) node.put("displayOnTimeline", true);
+				if (task.getFontBackground() != null) node.put("fillColor", task.getFontBackground().intValue());
 			});
 	}
 
@@ -264,6 +281,9 @@ final class MpoSidecarJson {
 				JsonNode bold = node.get("bold");
 				JsonNode italic = node.get("italic");
 				JsonNode strikethrough = node.get("strikethrough");
+				JsonNode underline = node.get("underline");
+				JsonNode fillColor = node.get("fillColor");
+				JsonNode onTimeline = node.get("displayOnTimeline");
 				// Task.setFontSize accepts 0 (inherit) through 72 points; a larger stored value
 				// is corrupted data, not a size to clamp silently.
 				if ((family != null && !family.isTextual()) || size == null || !size.isIntegralNumber()
@@ -271,7 +291,11 @@ final class MpoSidecarJson {
 						|| (color != null && (!color.isIntegralNumber() || !color.canConvertToInt()
 							|| color.intValue() < 0 || color.intValue() > 0xFFFFFF))
 						|| bold == null || !bold.isBoolean() || italic == null || !italic.isBoolean()
-						|| strikethrough == null || !strikethrough.isBoolean())
+						|| strikethrough == null || !strikethrough.isBoolean()
+						|| (underline != null && !underline.isBoolean())
+						|| (onTimeline != null && !onTimeline.isBoolean())
+						|| (fillColor != null && (!fillColor.isIntegralNumber() || !fillColor.canConvertToInt()
+							|| fillColor.intValue() < 0 || fillColor.intValue() > 0xFFFFFF)))
 					throw new IOException("Invalid MPO task text style values");
 				return task -> {
 					task.setFontFamily(family == null ? null : family.textValue());
@@ -280,6 +304,9 @@ final class MpoSidecarJson {
 					task.setFontBold(bold.booleanValue());
 					task.setFontItalic(italic.booleanValue());
 					task.setFontStrikethrough(strikethrough.booleanValue());
+					task.setFontUnderline(underline != null && underline.booleanValue());
+					task.setDisplayOnTimeline(onTimeline != null && onTimeline.booleanValue());
+					task.setFontBackground(fillColor == null ? null : Integer.valueOf(fillColor.intValue()));
 				};
 			});
 	}
@@ -345,6 +372,7 @@ final class MpoSidecarJson {
 			Task task = (Task) iterator.next();
 			task.setLevelingCanSplit(!task.isRecurringTask());
 			task.setLevelAssignments(true);
+			task.setIgnoreWarnings(false);
 		}
 	}
 
