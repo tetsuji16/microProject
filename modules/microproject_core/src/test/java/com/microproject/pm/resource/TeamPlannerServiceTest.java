@@ -26,6 +26,7 @@ package com.microproject.pm.resource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -62,6 +63,31 @@ class TeamPlannerServiceTest {
 		assertEquals(ConstraintType.SNET, task.getConstraintType());
 		var replacement = service.reassign(assignment, fixture.second, this);
 		assertEquals(fixture.second, replacement.getResource());
+	}
+
+	@Test void resourceOnlyDragToAFreeResourceKeepsTheScheduleUnderPreventOverallocation() {
+		Fixture fixture = fixture(); NormalTask task = task(fixture.project, "Hand over");
+		var assignment = AssignmentService.getInstance().newAssignment(task, fixture.first, 1D, 0L, this);
+		int constraint = task.getConstraintType(); long start = task.getStart();
+		var moved = new TeamPlannerService().applyDrag(assignment, fixture.second, null, true, this);
+		assertEquals(fixture.second, moved.getResource());
+		assertEquals(constraint, task.getConstraintType(), "no conflict, so the task must not be pinned with SNET");
+		assertEquals(start, task.getStart());
+	}
+
+	@Test void failedDragRestoresTheOriginalAssignmentAndConstraint() {
+		Fixture fixture = fixture(); NormalTask task = task(fixture.project, "In progress");
+		var assignment = AssignmentService.getInstance().newAssignment(task, fixture.first, 0.5D, 0L, this);
+		task.setPercentComplete(0.5D);
+		int constraint = task.getConstraintType();
+		long newStart = fixture.project.getWorkCalendar().add(task.getStart(), day() * 2L, false);
+		assertThrows(IllegalArgumentException.class,
+			() -> new TeamPlannerService().applyDrag(assignment, fixture.second, newStart, false, this));
+		assertSame(assignment, task.findAssignment(fixture.first), "the original assignment object must come back");
+		assertSame(assignment, fixture.first.findAssignment(task));
+		assertEquals(null, task.findAssignment(fixture.second));
+		assertEquals(0.5D, assignment.getUnits(), 1e-9);
+		assertEquals(constraint, task.getConstraintType());
 	}
 
 	@Test void sharedPoolOverloadIncludesAssignmentsFromAnotherProject() {

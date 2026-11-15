@@ -38,6 +38,7 @@ import com.microproject.pm.task.ProjectHierarchyQueries;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.scheduling.ConstraintType;
 import com.microproject.pm.scheduling.ScheduleService;
+import com.microproject.undo.UndoController;
 import static com.microproject.util.IdentityCollections.containsIdentity;
 
 /** Model operations used by the interactive Team Planner timeline. */
@@ -178,6 +179,46 @@ public final class TeamPlannerService {
 				result.add(task);
 		}
 		return List.copyOf(result);
+	}
+
+	/**
+	 * Applies one Team Planner drag as a single undo step: an optional reassignment to {@code target}
+	 * ({@code null} keeps the resource), then an optional reschedule to {@code newStart} ({@code null}
+	 * keeps the dates). With {@code preventOverallocation} the task moves later until it no longer
+	 * overallocates; a resource-only drag is rescheduled only when the new resource is overallocated.
+	 * When the drag cannot be applied every edit is undone, so the original assignment, task detail and
+	 * constraint come back, and the {@link IllegalArgumentException} is rethrown.
+	 *
+	 * @return the assignment that now carries the dragged work
+	 */
+	public Assignment applyDrag(Assignment assignment, Resource target, Long newStart, boolean preventOverallocation,
+			Object eventSource) {
+		Objects.requireNonNull(assignment, "assignment");
+		Task task = assignment.getTask();
+		UndoController.Session session = task.getOwningProject().getUndoController().beginSession();
+		UndoController.enterDialogEditScope();
+		boolean applied = false;
+		try {
+			Assignment result = target == null || target == assignment.getResource()
+				? assignment : reassign(assignment, target, eventSource);
+			if (newStart != null) {
+				if (preventOverallocation) reschedulePreventingOverallocation(task, newStart, eventSource);
+				else reschedule(task, newStart, eventSource);
+			} else if (result != assignment && preventOverallocation && isOverallocated(task)) {
+				reschedulePreventingOverallocation(task, task.getStart(), eventSource);
+			}
+			applied = true;
+			return result;
+		} finally {
+			UndoController.exitDialogEditScope();
+			if (applied) {
+				session.commit();
+			} else {
+				session.rollback();
+				task.setDirty(true);
+				task.getOwningProject().recalculate();
+			}
+		}
 	}
 
 	public Assignment reassign(Assignment assignment, Resource target, Object eventSource) {
