@@ -2032,6 +2032,16 @@ public class DocumentFrame extends NamedFrame implements
 		return calendarView;
 	}
 
+	/** The embedded Calendar view's dialog when that view has been created (active or not), else null. */
+	public CalendarViewDialogBox getEmbeddedCalendarDialog() {
+		if (calendarView == null) return null;
+		for (java.awt.Component child : calendarView.getComponents())
+			if (child instanceof javax.swing.JComponent component
+					&& component.getClientProperty(CalendarViewDialogBox.DIALOG_PROPERTY) instanceof CalendarViewDialogBox dialog)
+				return dialog;
+		return null;
+	}
+
 	public DockableProjectToolView getTeamPlannerView() {
 		if (teamPlannerView == null) {
 			teamPlannerView = new DockableProjectToolView(project, ACTION_DELEGATE_TASKS,

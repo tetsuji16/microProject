@@ -3376,6 +3376,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				frame.getCalendarViewDialog().refreshTaskList();
 				frame.getCalendarViewDialog().repaint();
 			}
+			if (frame.getEmbeddedCalendarDialog() != null) {
+				frame.getEmbeddedCalendarDialog().refreshTaskList();
+				frame.getEmbeddedCalendarDialog().repaint();
+			}
 			if (frame.getTimelineView() != null) frame.getTimelineView().repaint();
 			frame.setTabTitle(masked ? "Project (Masked)" : frame.getProject().getName());
 		}

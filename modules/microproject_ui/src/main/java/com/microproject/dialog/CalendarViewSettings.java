@@ -88,7 +88,7 @@ public final class CalendarViewSettings {
 		return barHeight(fontHeight) + BAR_GAP;
 	}
 
-	/** How many task bars fit in a row of the given height. */
+	/** How many task bars fit wholly in a row of the given height; zero when not even one does. */
 	public static int visibleTaskCount(int rowHeight, boolean companionDay) {
 		return visibleTaskCount(rowHeight, companionDay, BAR_PITCH);
 	}
@@ -96,7 +96,7 @@ public final class CalendarViewSettings {
 	/** As {@link #visibleTaskCount(int, boolean)} for bars of the given pitch. */
 	public static int visibleTaskCount(int rowHeight, boolean companionDay, int pitch) {
 		int top = companionDay ? TASKS_TOP_WITH_COMPANION : TASKS_TOP;
-		return Math.max(1, (rowHeight - top - BOTTOM_MARGIN) / pitch);
+		return Math.max(0, (rowHeight - top - BOTTOM_MARGIN) / pitch);
 	}
 
 	/** Sort key of the "fit as many tasks as possible" layout: the tasks with least slack come first. */

@@ -47,6 +47,13 @@ class CalendarViewSettingsTest {
 	}
 
 	@Test
+	void aRowTooShortForOneBarShowsNoBar() {
+		int pitch = CalendarViewSettings.barPitch(45);
+		assertEquals(0, CalendarViewSettings.visibleTaskCount(60, false, pitch), "a 60px row cannot hold a bar for 45px text");
+		assertEquals(0, CalendarViewSettings.visibleTaskCount(60, true, pitch));
+	}
+
+	@Test
 	void settingsKeepOnlyChangedValues() {
 		CalendarViewSettings settings = new CalendarViewSettings();
 		assertEquals(null, settings.getBarColor(CalendarViewSettings.BarType.CRITICAL));
