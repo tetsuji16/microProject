@@ -1943,21 +1943,10 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			long shift = cal.compare(start,assignmentStart,false);
 			long newTaskStart = cal.add(getStart(),shift,false);
 			long newTaskEnd = cal.add(getEnd(),shift,false);
-			setCurrentScheduleStart(newTaskStart);
-			setCurrentScheduleFinish(newTaskEnd);
-
-			for (Association association : getAssignments()) {
-				Assignment assignment = (Assignment) association;
-				long assignmentStartBeforeMove = assignment.getStart();
-				long assignmentEndBeforeMove = assignment.getEnd();
-				assignment.moveInterval(
-						eventSource,
-						cal.add(assignmentStartBeforeMove, shift, false),
-						cal.add(assignmentEndBeforeMove, shift, false),
-						new ScheduleInterval(assignmentStartBeforeMove, assignmentEndBeforeMove),
-						true);
-			}
-			setRawDuration(Duration.setAsEstimated(cal.compare(newTaskEnd, newTaskStart, false), estimated));
+			// Assignment starts are the task start plus their own delays, so moving the task
+			// moves the assignment bars too; shifting them again would double the drag.
+			moveScheduleKeepingAssignmentDelays(eventSource, newTaskStart, newTaskEnd);
+			return;
 		} else {
 			long amount =cal.compare(end,oldInterval.getEnd(),false);
 			if (amount == 0L) // skip if nothing moved

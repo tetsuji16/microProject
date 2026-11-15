@@ -25,6 +25,8 @@ tasks.test {
     useJUnitPlatform()
     systemProperty("projectlibre.test.releaseVersion", rootProject.version.toString())
     systemProperty("projectlibre.test.developmentBuild", developmentBuild)
+    System.getProperties().stringPropertyNames().filter { it.startsWith("microproject.profile") }
+        .forEach { systemProperty(it, System.getProperty(it)) }
 }
 
 tasks.processResources {

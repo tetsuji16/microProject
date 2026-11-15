@@ -65,6 +65,33 @@ class TaskSheetScheduleWorkflowTest {
 	}
 
 	@Test
+	void undoAndRedoOfADurationEditRestoreTheDurationPin() throws Exception {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long day = day();
+		task.setDuration(day);
+		project.recalculate();
+		assertFalse(task.durationPinnedByScheduleEdit);
+		long start = task.getStart();
+
+		task.setDuration(2L * day, taskSheetContext());
+		assertTrue(task.durationPinnedByScheduleEdit);
+		var undo = project.getUndoController();
+		undo.undo();
+		assertFalse(task.durationPinnedByScheduleEdit, "undo must also drop the pin set by the undone edit");
+		undo.redo();
+		assertTrue(task.durationPinnedByScheduleEdit, "redo must bring the pin back");
+		undo.undo();
+
+		// with the pin gone, a Finish edit recalculates Duration and keeps Start
+		WorkCalendar calendar = task.getEffectiveWorkCalendar();
+		long oldDuration = task.getDuration();
+		TaskSheetScheduleWorkflow.applyFinish(task, calendar.add(task.getEnd(), day, false));
+		assertEquals(0L, calendar.compare(task.getStart(), start, false));
+		assertTrue(Duration.millis(task.getDuration()) > Duration.millis(oldDuration));
+	}
+
+	@Test
 	void durationEditRecalculatesSuccessorAsOneUndoableTransaction() throws Exception {
 		Project project = createProject();
 		NormalTask predecessor = createTask(project);

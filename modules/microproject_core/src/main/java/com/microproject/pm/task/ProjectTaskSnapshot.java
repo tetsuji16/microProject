@@ -19,7 +19,8 @@ public final class ProjectTaskSnapshot {
 			Double override = task instanceof NormalTask normal
 				? normal.getImportedPercentCompleteOverride() : null;
 			result.put(task, new TaskState(task.backupDetail(), override, task.isInactiveTask(), task.isDirty(),
-				task.isManuallyScheduled(), task.getManualStart(), task.getManualFinish(), task.getLevelingDelay(), task.getLevelingManualDateState(), task.isIgnoreWarnings()));
+				task.isManuallyScheduled(), task.getManualStart(), task.getManualFinish(), task.getLevelingDelay(), task.getLevelingManualDateState(), task.isIgnoreWarnings(),
+				task.durationPinnedByScheduleEdit));
 		}
 		tasks = Collections.unmodifiableMap(result);
 		projectDirtyState = project.captureDirtyState();
@@ -39,6 +40,7 @@ public final class ProjectTaskSnapshot {
 			task.setLevelingDelay(state.levelingDelay());
 			task.setLevelingManualDateState(state.levelingManualDateState());
 			task.setIgnoreWarnings(state.ignoreWarnings());
+			task.durationPinnedByScheduleEdit = state.durationPinnedByScheduleEdit();
 			if (task instanceof NormalTask normal)
 				normal.restoreImportedPercentCompleteOverride(state.importedPercentCompleteOverride());
 		}
@@ -52,5 +54,6 @@ public final class ProjectTaskSnapshot {
 
 	public record TaskState(Object detail, Double importedPercentCompleteOverride, boolean inactiveTask, boolean dirty,
 		boolean manuallyScheduled, long manualStart, long manualFinish, long levelingDelay,
-		Task.LevelingManualDateState levelingManualDateState, boolean ignoreWarnings) { }
+		Task.LevelingManualDateState levelingManualDateState, boolean ignoreWarnings,
+		boolean durationPinnedByScheduleEdit) { }
 }
