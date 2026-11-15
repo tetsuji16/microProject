@@ -211,8 +211,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			return new DisplayedBarColors(BarColorField.DEFAULT_BAR_RGB, BarColorField.DEFAULT_BAR_RGB,
 					BarColorField.DEFAULT_BAR_RGB);
 		BarFormat format = resolveMainBarFormat(task);
-		Color middle = GanttRendererSupport.resolveTaskBarColor(false, isCriticalTask(task), null, defaultTaskBarColor,
-				palette.getStatusColor(task, task), palette.getBaselineBarColor(), palette.getCriticalTaskColor());
+		Color middle = resolveEffectiveTaskBarColor(task, false, null, task);
 		Color endpoint = format != null && GanttBarSupport.shouldUseUniformEndpointColor(format)
 				? middle
 				: palette.getAccentColor(format, middle, task);
@@ -242,8 +241,12 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
     private Color resolveTaskFillColor(GraphicNode node, BarFormat format, Schedule schedule) {
 		boolean baseline = GanttBarSupport.isBaselineBarFormat(format);
         GanttBarFormatOverrides.BarFormat individualFormat = getIndividualBarFormat(node, format);
-		Object impl = getNodeImpl(node);
-		if (!baseline && individualFormat.getMiddleRgb() == null) {
+		return resolveEffectiveTaskBarColor(getNodeImpl(node), baseline, individualFormat.getMiddleRgb(), schedule);
+	}
+
+	/** The one colour resolution shared by painting and {@link #resolveDisplayedBarColors(Task)}. */
+	private Color resolveEffectiveTaskBarColor(Object impl, boolean baseline, Integer middleRgb, Schedule schedule) {
+		if (!baseline && middleRgb == null) {
 			Color viewColor = resolveViewHighlightColor(impl);
 			if (viewColor != null)
 				return viewColor;
@@ -256,7 +259,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			criticalColor = scheme.getCriticalColor();
 		}
 		return GanttRendererSupport.resolveTaskBarColor(baseline, isCriticalTask(impl),
-				individualFormat.getMiddleRgb(), configuredRgb, palette.getStatusColor(schedule, impl),
+				middleRgb, configuredRgb, palette.getStatusColor(schedule, impl),
 				palette.getBaselineBarColor(), criticalColor);
     }
 
@@ -1580,6 +1583,8 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			node=nodeIterator.next();
 			paintNode(g2,node,false,projection);
 		}
+		// Slack and slippage lie under the labels.
+		paintSlackAndSlippage(g2,projection);
 		// Keep bar labels in the topmost layer.  Dependency paths can cross the
 		// area beside a task bar, so painting annotations before links makes task
 		// names hard to read.
@@ -1587,7 +1592,6 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			node=nodeIterator.next();
 			paintAnnotation(g2,node,projection);
 		}
-		paintSlackAndSlippage(g2,projection);
 		paintProgressLine(g2,projection);
 
 		if (visibleBounds!=null) g2.setClip(svgClip);

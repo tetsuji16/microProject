@@ -178,6 +178,23 @@ class GanttFormatRibbonTest {
 	}
 
 	@Test
+	void displayedBarColorsReportTheTaskPathColourLikeThePainter() throws Exception {
+		Project project = newProject("gfmt-displayed-colors");
+		Gantt gantt = new Gantt(project, "Gantt");
+		try {
+			NormalTask a = task(project, "A");
+			NormalTask b = task(project, "B");
+			DependencyService.getInstance().newDependency(a, b, DependencyType.FS, 0L, this);
+			project.recalculate();
+			gantt.setBarColorScheme(GanttBarColorScheme.BLUE);
+			gantt.setTaskPath(TaskPathAnalyzer.Kind.PREDECESSORS, List.of(b));
+			assertEquals(Integer.valueOf(0xF2A33A), gantt.getDisplayedBarColors(a).middleRgb());
+		} finally {
+			gantt.cleanUp();
+		}
+	}
+
+	@Test
 	void outlineNumbersSwitchLivesOnTheSheet() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			SpreadSheet sheet = new SpreadSheet();

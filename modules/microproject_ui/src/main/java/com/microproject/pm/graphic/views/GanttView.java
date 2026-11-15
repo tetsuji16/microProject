@@ -333,6 +333,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		var eventType = evt.getType();
 		if (eventType == ScheduleEvent.SCHEDULE) {
 			//gantt.updateSize(); //done throught cache
+			refreshTaskPath();
 			return;
 		}
 		if (eventType == ScheduleEvent.ACTUAL) {
@@ -428,6 +429,9 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	}
 	private boolean summaryTasksVisible = true;
 	public boolean isSummaryTasksVisible() {
+		// The transform is shared by views of the same name, so it is the source of truth when attached.
+		if (cache instanceof ViewNodeModelCache viewCache)
+			return !viewCache.getViewTransformer().isHideSummaryTasks();
 		return summaryTasksVisible;
 	}
 	/** Hides or shows the summary task rows through the view transform (rows only; tasks are untouched). */

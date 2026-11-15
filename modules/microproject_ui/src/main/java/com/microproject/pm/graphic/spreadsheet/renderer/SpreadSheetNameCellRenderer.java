@@ -30,6 +30,9 @@ import javax.swing.table.DefaultTableCellRenderer;
 
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.spreadsheet.OutlineNumbering;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheetColumnModel;
+import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
+import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetParams;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
@@ -61,7 +64,28 @@ public class SpreadSheetNameCellRenderer extends DefaultTableCellRenderer  imple
 					&& node.getImpl() instanceof Task && display != null)
 				display = OutlineNumbering.prefix(node, display.toString());
 		}
-		return NameCellComponent.getComponent(table,display,isSelected,hasFocus,row,column/*,textComponent*/);
+		NameCellComponent component = NameCellComponent.getComponent(table,display,isSelected,hasFocus,row,column/*,textComponent*/);
+		applyAlignmentOverride(component, table, column);
+		return component;
+	}
+	/** Column alignment chosen on the ribbon; the name keeps its left alignment unless one is set. */
+	private static void applyAlignmentOverride(NameCellComponent component, JTable table, int column) {
+		if (table == null || !(table.getColumnModel() instanceof SpreadSheetColumnModel columns)
+				|| !(table.getModel() instanceof CommonSpreadSheetModel model)
+				|| !(component.getTextComponent() instanceof javax.swing.JLabel label))
+			return;
+		String fieldId;
+		try {
+			var field = model.getFieldInColumn(table.convertColumnIndexToModel(column));
+			fieldId = field == null ? null : field.getId();
+		} catch (RuntimeException outOfRange) {
+			return;
+		}
+		int alignment = fieldId == null ? SpreadSheetFieldArray.ALIGN_DEFAULT : columns.getAlignment(fieldId);
+		if (alignment == SpreadSheetFieldArray.ALIGN_LEFT) label.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
+		else if (alignment == SpreadSheetFieldArray.ALIGN_CENTER) label.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+		else if (alignment == SpreadSheetFieldArray.ALIGN_RIGHT) label.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+		else label.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
 	}
 	public Component getComponent(Object value, GraphicNode node,Field field,SpreadSheetParams params){
 		//JComponent textComponent=new JLabel();
