@@ -120,7 +120,7 @@ class RibbonStructureTest {
 		assertEquals(List.of("RibbonExportProject", "RibbonImportProject"),
 			ribbonButtonIds("FileExchangeRibbonBand"));
 		assertEquals(List.of(
-			"TaskClipboardRibbonBand", "TaskTrackingRibbonBand", "TaskTasksRibbonBand", "TaskInsertRibbonBand",
+			"TaskViewRibbonBand", "TaskClipboardRibbonBand", "TaskFontRibbonBand", "TaskTrackingRibbonBand", "TaskTasksRibbonBand", "TaskInsertRibbonBand",
 			"TaskPropertiesRibbonBand", "TaskEditingRibbonBand"),
 			ribbonBandIds("TaskRibbonTask"));
 		assertEquals(List.of("RibbonTaskModeManual", "RibbonTaskModeAutomatic", "RibbonTaskInspector",
@@ -146,7 +146,7 @@ class RibbonStructureTest {
 		assertEquals(List.of("ProjectInsertRibbonBand", "ProjectInfoRibbonBand", "ProjectScheduleRibbonBand",
 			"ProjectStatusRibbonBand", "ProjectCcpmRibbonBand"), ribbonBandIds("ProjectRibbonTask"));
 		assertEquals(List.of(
-			"ResourceAssignmentsRibbonBand", "ResourceInsertRibbonBand", "ResourcePropertiesRibbonBand",
+			"ResourceViewRibbonBand", "ResourceAssignmentsRibbonBand", "ResourceInsertRibbonBand", "ResourcePropertiesRibbonBand",
 			"ResourceLevelRibbonBand", "ClipboardRibbonBand"), ribbonBandIds("ResourceRibbonTask"));
 		assertEquals(List.of("RibbonAssignResources", "RibbonUseResourcePool", "RibbonCreateResourcePool",
 			"RibbonRefreshResourcePool", "RibbonTimesheet", "RibbonTeamFilter"), ribbonButtonIds("ResourceAssignmentsRibbonBand"));
@@ -169,8 +169,8 @@ class RibbonStructureTest {
 		assertEquals(List.of("RibbonAssignResources", "RibbonUseResourcePool", "RibbonCreateResourcePool",
 				"RibbonRefreshResourcePool", "RibbonTimesheet", "RibbonTeamFilter"),
 			ribbonButtonIds("ResourceAssignmentsRibbonBand"));
-		assertEquals(List.of("RibbonLevelSelection", "RibbonLevelResources", "RibbonLevelAll",
-				"RibbonClearLevelSelection", "RibbonClearLevelAll", "RibbonNextOverallocation"),
+		assertEquals(List.of("RibbonLevelSelection", "RibbonLevelAll",
+				"RibbonClearLevelSelection", "RibbonLevelResources", "RibbonClearLevelAll", "RibbonNextOverallocation"),
 			ribbonButtonIds("ResourceLevelRibbonBand"));
 		assertEquals("TOGGLE", menuInternalBundle().getString("RibbonTeamFilter.type"));
 	}

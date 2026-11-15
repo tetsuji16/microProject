@@ -215,6 +215,34 @@ class TaskFormatPainterServiceTest {
 		assertEquals(before, TaskFormatPainterService.capture(task));
 	}
 
+	@Test
+	void boldItalicAndColorChangesApplyToEverySelectedTaskAsOneUndoableEdit() {
+		Project project = createProject();
+		Task first = (Task)project.createLocalTaskNode(null).getImpl();
+		Task second = (Task)project.createLocalTaskNode(null).getImpl();
+		second.setFontSize(14);
+		project.getUndoController().clear();
+
+		assertEquals(List.of(first.getUniqueId(), second.getUniqueId()), TaskFormatPainterService.applyChange(project,
+			List.of(first, second), format -> format.withBold(true).withItalic(true).withColor(0x123456),
+			project.getUndoController()));
+		for (Task task : List.of(first, second)) {
+			TaskFormatPainterService.TaskTextFormat format = TaskFormatPainterService.capture(task);
+			assertTrue(format.bold());
+			assertTrue(format.italic());
+			assertEquals(0x123456, format.color());
+		}
+		assertEquals(14, TaskFormatPainterService.capture(second).size(), "unrelated text properties are kept per task");
+		project.getUndoController().undo();
+		assertTrue(isDefaultFormat(first));
+		assertEquals(14, TaskFormatPainterService.capture(second).size());
+		assertFalse(TaskFormatPainterService.capture(second).bold());
+		project.getUndoController().redo();
+		assertTrue(TaskFormatPainterService.capture(first).bold());
+		assertTrue(TaskFormatPainterService.applyChange(project, List.of(first), format -> format,
+			project.getUndoController()).isEmpty(), "an unchanged format is a no-op");
+	}
+
 	private static Project createProject() {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("format-painter", undo), undo);

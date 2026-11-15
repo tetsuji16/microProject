@@ -1925,6 +1925,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_INSERT_MILESTONE, new InsertTaskKindAction(CommandId.INSERT_MILESTONE));
 		actionsMap.addHandler(ACTION_INSERT_SUMMARY, new InsertTaskKindAction(CommandId.INSERT_SUMMARY));
 		actionsMap.addHandler(ACTION_CLEAR_CONTENTS, new ClearContentsAction());
+		for (String fillAction : List.of(ACTION_FILL_DOWN, ACTION_FILL_UP, ACTION_FILL_LEFT, ACTION_FILL_RIGHT))
+			actionsMap.addHandler(fillAction, new FillAction(fillAction));
 		actionsMap.addHandler(ACTION_SELECT_ALL, new SelectAllAction());
 		actionsMap.addHandler(ACTION_INSERT_RESOURCE, new InsertResourceAction());
 		actionsMap.addHandler(ACTION_SAVE_PROJECT, new SaveProjectAction());
@@ -2022,6 +2024,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler("QuickSortId", new QuickSortAction("QuickSortId", null, "Field.id"));
 		actionsMap.addHandler(ACTION_PASTE_INSERT, new PasteInsertAction());
 		actionsMap.addHandler("RibbonFormatPainter", new FormatPainterAction());
+		actionsMap.addHandler(ACTION_BOLD, new TaskFontAction(ACTION_BOLD));
+		actionsMap.addHandler(ACTION_ITALIC, new TaskFontAction(ACTION_ITALIC));
+		actionsMap.addHandler(ACTION_FONT_COLOR, new TaskFontAction(ACTION_FONT_COLOR));
 		actionsMap.addHandler(ACTION_DELETE, new DeleteAction());
 
 		actionsMap.addHandler(ACTION_GANTT, new ViewAction(ACTION_GANTT));
@@ -3295,6 +3300,31 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				: RibbonCommandResult.rejected(CommandId.COPY.actionId(), "no-active-document"));
 		}
 	}
+	/** Task > Font group: Bold, Italic and Font Color of the selected tasks (one undoable edit each). */
+	public class TaskFontAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private final String fontAction;
+		public TaskFontAction(String fontAction) {
+			this.fontAction = fontAction;
+		}
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			DocumentFrame frame = isDocumentActive() ? getCurrentFrame() : null;
+			if (frame == null || !isDocumentWritable())
+				return;
+			switch (fontAction) {
+			case ACTION_BOLD -> frame.toggleSelectedTaskBold();
+			case ACTION_ITALIC -> frame.toggleSelectedTaskItalic();
+			default -> frame.chooseSelectedTaskFontColor();
+			}
+			getMenuManager().setActionSelected(ACTION_BOLD, frame.isSelectedTaskTextBold());
+			getMenuManager().setActionSelected(ACTION_ITALIC, frame.isSelectedTaskTextItalic());
+		}
+		@Override protected boolean allowed(boolean enable) {
+			return !enable || isDocumentActive() && getCurrentFrame() != null
+				&& getCurrentFrame().canFormatSelectedTaskText();
+		}
+	}
 	public class FormatPainterAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
 		@Override public void actionPerformed(ActionEvent event) {
@@ -3788,6 +3818,24 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		}
 	}
 
+
+	/** Edit > Fill (Down, Up, Left, Right) on the active sheet's selected cells. */
+	public class FillAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private final String fillAction;
+		public FillAction(String fillAction) {
+			this.fillAction = fillAction;
+		}
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive() && isDocumentWritable())
+				getCurrentFrame().doFill(fillAction);
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return isDocumentWritable();
+		}
+	}
 
 	/** Routes the Resource ribbon command to the resource sheet's canonical New action. */
 	public class InsertResourceAction extends MenuActionsMap.DocumentMenuAction {
@@ -4754,6 +4802,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_DELETE,!readOnly && (actions==null||actions.contains(ACTION_DELETE)));
 		getMenuManager().setActionEnabled("RibbonFormatPainter", !readOnly && taskType && editFrame != null
 			&& editFrame.canStartFormatPainter());
+		boolean canFormatTaskText = !readOnly && taskType && editFrame != null && editFrame.canFormatSelectedTaskText();
+		for (String fontAction : List.of(ACTION_BOLD, ACTION_ITALIC, ACTION_FONT_COLOR))
+			getMenuManager().setActionEnabled(fontAction, canFormatTaskText);
+		getMenuManager().setActionSelected(ACTION_BOLD, canFormatTaskText && editFrame.isSelectedTaskTextBold());
+		getMenuManager().setActionSelected(ACTION_ITALIC, canFormatTaskText && editFrame.isSelectedTaskTextItalic());
 		// After hierarchy Undo/Redo the lead node supplied by the selection event
 		// may still describe the pre-mutation row.  Command enablement must use the
 		// same stable task selection that execution uses, not that stale singleton.
@@ -4843,6 +4896,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_INSERT_SUMMARY, !readOnly && taskType && hasEditableTaskSelection);
 		getMenuManager().setActionEnabled(ACTION_CLEAR_CONTENTS, !readOnly && getCurrentFrame() != null
 				&& getCurrentFrame().getActiveSpreadSheet() != null);
+		for (String fillAction : List.of(ACTION_FILL_DOWN, ACTION_FILL_UP, ACTION_FILL_LEFT, ACTION_FILL_RIGHT))
+			getMenuManager().setActionEnabled(fillAction, !readOnly && getCurrentFrame() != null
+					&& getCurrentFrame().getActiveSpreadSheet() != null);
 		getMenuManager().setActionEnabled(ACTION_SELECT_ALL, getCurrentFrame() != null
 				&& getCurrentFrame().getActiveSpreadSheet() != null);
 		getMenuManager().setActionEnabled(ACTION_CALENDAR_OPTIONS,getCurrentFrame() != null);

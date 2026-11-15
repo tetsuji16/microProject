@@ -66,7 +66,7 @@ RibbonLevelSelection,LevelSelection,BUTTON,COMMAND,DOCUMENTED,ResourceRibbonTask
 RibbonLevelAll,LevelNow,BUTTON,COMMAND,DOCUMENTED,ResourceRibbonTask/ResourceLevelRibbonBand,
 RibbonClearLevelSelection,,BUTTON,COMMAND,BASELINE,ResourceRibbonTask/ResourceLevelRibbonBand,product-only
 RibbonClearLevelAll,LevelingClear,BUTTON,COMMAND,DOCUMENTED,ResourceRibbonTask/ResourceLevelRibbonBand,
-RibbonLevelResources,LevelResource,BUTTON,DIALOG,DOCUMENTED,ResourceRibbonTask/ResourceLevelRibbonBand,
+RibbonLevelResources,LevelingOptions,BUTTON,DIALOG,DOCUMENTED,ResourceRibbonTask/ResourceLevelRibbonBand,
 RibbonNextOverallocation,OverallocationGoTo,BUTTON,COMMAND,DOCUMENTED,ResourceRibbonTask/ResourceLevelRibbonBand,
 RibbonUseResourcePool,ResourcesShare,BUTTON,DIALOG,DOCUMENTED,ResourceRibbonTask/ResourceAssignmentsRibbonBand,
 RibbonCreateResourcePool,,BUTTON,COMMAND,BASELINE,ResourceRibbonTask/ResourceAssignmentsRibbonBand,product-only
@@ -128,3 +128,12 @@ RibbonLayout,LayoutDialog,BUTTON,DIALOG,DOCUMENTED,FormatRibbonTask/FormatLayout
 RibbonTopBarSaveProject,FileSave,BUTTON,COMMAND,DOCUMENTED,TaskBar,
 RibbonTopBarUndo,Undo,SPLIT_BUTTON,COMMAND,DOCUMENTED,TaskBar,Undo + multi-level undo list; xlsx: gallery (split gallery)
 RibbonTopBarRedo,Redo,SPLIT_BUTTON,COMMAND,DOCUMENTED,TaskBar,Redo + multi-level redo list; xlsx: gallery (split gallery)
+RibbonTaskViewGantt,TaskAllViewsGallery,GALLERY,POPUP,DOCUMENTED,TaskRibbonTask/TaskViewRibbonBand,Gantt / Tracking Gantt / Calendar / Network Diagram / WBS / Task Usage
+RibbonResourceViews,ResourceAllViewsGallery,GALLERY,POPUP,DOCUMENTED,ResourceRibbonTask/ResourceViewRibbonBand,Resource Sheet / Resource Usage / RBS / Projects
+RibbonBold,Bold,TOGGLE_BUTTON,TOGGLE_STATE,DOCUMENTED,TaskRibbonTask/TaskFontRibbonBand,Pressed when every selected task is bold
+RibbonItalic,Italic,TOGGLE_BUTTON,TOGGLE_STATE,DOCUMENTED,TaskRibbonTask/TaskFontRibbonBand,Pressed when every selected task is italic
+RibbonFontColor,FontColorPicker,BUTTON,DIALOG,PENDING_VERIFY,TaskRibbonTask/TaskFontRibbonBand,Microsoft shows a color gallery; this opens the color chooser
+RibbonFont,FontDialog,BUTTON,DIALOG,DOCUMENTED,TaskRibbonTask/TaskFontRibbonBand,Opens the Text Styles dialog
+RibbonFill,EditFillMenu,MENU,POPUP,DOCUMENTED,TaskRibbonTask/TaskEditingRibbonBand,Down / Left / Right / Up
+RibbonResourceNotes,ResourceNotes,BUTTON,DIALOG,DOCUMENTED,ResourceRibbonTask/ResourcePropertiesRibbonBand,
+RibbonResourceDetails,ResourceDetailsDisplay,TOGGLE_BUTTON,TOGGLE_STATE,DOCUMENTED,ResourceRibbonTask/ResourcePropertiesRibbonBand,Pressed when the details pane is shown

@@ -1741,6 +1741,11 @@ public class DocumentFrame extends NamedFrame implements
 		EditCommandPipeline.execute(this, MenuActionConstants.ACTION_CLEAR_CONTENTS);
 	}
 
+	/** Edit > Fill: copies the first (Down/Right) or last (Up/Left) selected cells across the selection. */
+	public void doFill(String fillAction) {
+		EditCommandPipeline.execute(this, fillAction);
+	}
+
 	public void doCut() {
 		EditCommandPipeline.execute(this, MenuActionConstants.ACTION_CUT);
 			//NodeListTransferHandler.getCutAction(ss).actionPerformed(new ActionEvent(this,0,null));
@@ -2368,6 +2373,76 @@ public class DocumentFrame extends NamedFrame implements
 		formatPainterContinuous = false;
 		getMenuManager().setActionSelected("RibbonFormatPainter", true);
 		GraphicManager.traceUi("format-painter armed sourceTask=" + source.getUniqueId());
+	}
+
+	/** The writable tasks of the active table selection that the Task &gt; Font group formats. */
+	private List<Node> selectedFormattableTaskNodes() {
+		if (project == null || project.isReadOnly() || getActiveSpreadSheet() == null)
+			return List.of();
+		ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(true, false);
+		if (!selection.isEligible(1))
+			return List.of();
+		List<Node> nodes = new ArrayList<>(selection.nodes().size());
+		for (Node node : selection.nodes()) {
+			if (!(node.getImpl() instanceof Task task) || task.getProject() != project || task.isReadOnly())
+				return List.of();
+			nodes.add(node);
+		}
+		return nodes;
+	}
+
+	boolean canFormatSelectedTaskText() {
+		return !selectedFormattableTaskNodes().isEmpty();
+	}
+
+	/** True when every selected task is bold (the pressed state of the Bold button). */
+	boolean isSelectedTaskTextBold() {
+		List<Node> nodes = selectedFormattableTaskNodes();
+		return !nodes.isEmpty() && nodes.stream().allMatch(node -> ((Task) node.getImpl()).isFontBold());
+	}
+
+	/** True when every selected task is italic (the pressed state of the Italic button). */
+	boolean isSelectedTaskTextItalic() {
+		List<Node> nodes = selectedFormattableTaskNodes();
+		return !nodes.isEmpty() && nodes.stream().allMatch(node -> ((Task) node.getImpl()).isFontItalic());
+	}
+
+	/** Bold on the selected tasks unless all of them already are, then off. One undoable edit. */
+	void toggleSelectedTaskBold() {
+		boolean value = !isSelectedTaskTextBold();
+		applyToSelectedTaskText(format -> format.withBold(value), "task-font-bold");
+	}
+
+	/** Italic on the selected tasks unless all of them already are, then off. One undoable edit. */
+	void toggleSelectedTaskItalic() {
+		boolean value = !isSelectedTaskTextItalic();
+		applyToSelectedTaskText(format -> format.withItalic(value), "task-font-italic");
+	}
+
+	/** Asks for a color and applies it as the text color of the selected tasks. One undoable edit. */
+	void chooseSelectedTaskFontColor() {
+		List<Node> nodes = selectedFormattableTaskNodes();
+		if (nodes.isEmpty())
+			return;
+		Integer current = ((Task) nodes.getFirst().getImpl()).getFontColor();
+		java.awt.Color chosen = javax.swing.JColorChooser.showDialog(this,
+			Messages.getString("TaskInformationDialog.FontColor"), current == null ? java.awt.Color.BLACK : new java.awt.Color(current));
+		if (chosen != null) {
+			Integer rgb = chosen.getRGB() & 0xFFFFFF;
+			applyToSelectedTaskText(format -> format.withColor(rgb), "task-font-color");
+		}
+	}
+
+	private void applyToSelectedTaskText(java.util.function.UnaryOperator<TaskFormatPainterService.TaskTextFormat> change,
+			String reason) {
+		finishAnyOperations();
+		List<Node> nodes = selectedFormattableTaskNodes();
+		if (nodes.isEmpty() || !CollaborationHelper.tryLockNodes(project, nodes, this, reason))
+			return;
+		List<Task> tasks = new ArrayList<>(nodes.size());
+		for (Node node : nodes)
+			tasks.add((Task) node.getImpl());
+		TaskFormatPainterService.applyChange(project, tasks, change, getUndoController());
 	}
 
 	void cancelFormatPainter() {

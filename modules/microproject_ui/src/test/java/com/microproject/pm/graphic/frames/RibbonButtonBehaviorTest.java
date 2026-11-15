@@ -2013,6 +2013,10 @@ class RibbonButtonBehaviorTest {
 			"RibbonUnlink",
 			"RibbonRespectLinks");
 		add(map, Strategy.STRUCTURAL_ONLY, "RibbonFormatPainter");
+		// Ribbon remaining groups (#1166): behavior asserted in SpreadSheetFillPlanTest / TaskFormatPainterServiceTest.
+		add(map, Strategy.STRUCTURAL_ONLY,
+			"RibbonTaskViewGantt", "RibbonBold", "RibbonItalic", "RibbonFontColor", "RibbonFont", "RibbonFill",
+			"RibbonResourceViews", "RibbonResourceNotes", "RibbonResourceDetails");
 		// Task-tab commands added for #769/#453; behavior is asserted in TaskTabRibbonCommandsTest.
 		add(map, Strategy.STRUCTURAL_ONLY,
 			"RibbonInsertMilestone", "RibbonInsertSummary", "RibbonClear", "RibbonSelectAll", "RibbonTaskDetails",

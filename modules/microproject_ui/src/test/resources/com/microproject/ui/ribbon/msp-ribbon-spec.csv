@@ -23,6 +23,9 @@ Task,Clipboard,Paste,RibbonPaste,REQUIRED,S13
 Task,Clipboard,Copy,RibbonCopy,REQUIRED,S13
 Task,Clipboard,Cut,RibbonCut,REQUIRED,S13
 Task,Clipboard,Format Painter,RibbonFormatPainter,REQUIRED,S14
+Task,Font,Bold,RibbonBold,REQUIRED,S24
+Task,Font,Italic,RibbonItalic,REQUIRED,S24
+Task,Font,Font Color,RibbonFontColor,REQUIRED,S24
 Task,Font,Font,RibbonFont,REQUIRED,S24
 Task,Insert,Task,RibbonInsert,REQUIRED,S12
 Task,Insert,Milestone,RibbonInsertMilestone,REQUIRED,S23
@@ -66,7 +69,10 @@ Task,Editing,Scroll to Today,RibbonScrollToToday,EXTENSION,product-only timescal
 Task,Editing,Hide Selected,RibbonHideSelectedTasks,EXTENSION,product-only hide command (AGENTS.md product extension contract)
 Task,Editing,Show All,RibbonShowAllTasks,EXTENSION,product-only counterpart of Hide Selected
 Resource,Insert,Resource,RibbonInsertResource,REQUIRED,S16
+Resource,View,Resource view dropdown,RibbonResourceViews,REQUIRED,S32
 Resource,Properties,Resource Information,RibbonResourceInformation,REQUIRED,S16
+Resource,Properties,Notes,RibbonResourceNotes,REQUIRED,S16
+Resource,Properties,Details,RibbonResourceDetails,REQUIRED,S16
 Resource,Assignments,Timesheet,RibbonTimesheet,EXTENSION,MSP timesheets require Project Server/Online
 Resource,Assignments,Team Filter,RibbonTeamFilter,EXTENSION,local team filter; no desktop MSP equivalent
 Resource,Level,Level Selection,RibbonLevelSelection,REQUIRED,S2

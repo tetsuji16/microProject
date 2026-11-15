@@ -128,6 +128,9 @@ public interface MenuActionConstants {
 	public static final String ACTION_NEW             	      = ACTION_INSERT_TASK;
 
 	public static final String ACTION_FONT                    = "Font";
+	public static final String ACTION_BOLD                    = "Bold";
+	public static final String ACTION_ITALIC                  = "Italic";
+	public static final String ACTION_FONT_COLOR              = "FontColor";
 	public static final String ACTION_BAR                     = "Bar";
 	public static final String ACTION_TIMESCALE               = "Timescale";
 	public static final String ACTION_GRIDLINES               = "Gridlines";

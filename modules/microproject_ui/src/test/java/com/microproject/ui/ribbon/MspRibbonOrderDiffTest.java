@@ -73,6 +73,9 @@ class MspRibbonOrderDiffTest {
 
 	private static final String PHASE_1B = "not implemented yet; phase 1b, #1166";
 	private static final String ONLINE = "Project Online / Project Server scope is outside the standalone desktop goal (AGENTS.md)";
+	/** Out-of-goal scope exclusions (not deferred work). */
+	private static final String AGILE = "scope exclusion: Agile/Scrum features are phase 4 and outside the current compatibility goal";
+	private static final String OFFICE_ADDIN = "scope exclusion: local Office add-ins / VBA / COM automation stay unresolved goal rows (AGENTS.md)";
 	private static final String REPORT_GALLERIES = PHASE_1B + " (report galleries)";
 	private static final String VIEW_GALLERY_ITEMS =
 		"view gallery lists product views; Microsoft's children are Reset/Save/More; " + PHASE_1B;
@@ -89,12 +92,15 @@ class MspRibbonOrderDiffTest {
 
 	/** Our band ("tab/band") -> the Microsoft group of the same tab it implements. */
 	private static final Map<String, String> BAND_GROUPS = Map.ofEntries(
+		Map.entry("TaskRibbonTask/TaskViewRibbonBand", "GroupTaskViewSimple"),
 		Map.entry("TaskRibbonTask/TaskClipboardRibbonBand", "GroupClipboard"),
+		Map.entry("TaskRibbonTask/TaskFontRibbonBand", "GroupFont"),
 		Map.entry("TaskRibbonTask/TaskTrackingRibbonBand", "GroupTaskSchedule"),
 		Map.entry("TaskRibbonTask/TaskTasksRibbonBand", "GroupTasksLayout"),
 		Map.entry("TaskRibbonTask/TaskInsertRibbonBand", "GroupTaskInsert"),
 		Map.entry("TaskRibbonTask/TaskPropertiesRibbonBand", "GroupTaskProperties"),
 		Map.entry("TaskRibbonTask/TaskEditingRibbonBand", "GroupEditing"),
+		Map.entry("ResourceRibbonTask/ResourceViewRibbonBand", "GroupResourceViewSimple"),
 		Map.entry("ResourceRibbonTask/ResourceAssignmentsRibbonBand", "GroupAssignments"),
 		Map.entry("ResourceRibbonTask/ResourceInsertRibbonBand", "GroupResourceInsert"),
 		Map.entry("ResourceRibbonTask/ResourcePropertiesRibbonBand", "GroupResourceProperties"),
@@ -131,33 +137,31 @@ class MspRibbonOrderDiffTest {
 
 	/** Microsoft groups of the compared tabs that we have no band for ("tab/group"), with the reason. */
 	private static final Map<String, String> MISSING_GROUPS = Map.ofEntries(
-		Map.entry("TabTask/GroupTaskViewSimple", "Task-tab view gallery; " + PHASE_1B),
-		Map.entry("TabTask/GroupFont", "Font group controls; " + PHASE_1B),
-		Map.entry("TabResource/GroupResourceViewSimple", "Resource-tab view gallery; " + PHASE_1B),
 		Map.entry("TabReportOverview/GroupCompareProject", "Compare Projects; " + PHASE_1B),
 		Map.entry("TabReportOverview/GroupVisualReports",
-			"EXCLUDED in msp-ribbon-spec.csv: requires external Excel/Visio"),
+			"scope exclusion: Visual Reports require external Excel/Visio (EXCLUDED in msp-ribbon-spec.csv)"),
 		Map.entry("TabProject/GroupOfficeExtension",
-			"Office add-ins stay an unresolved goal row (AGENTS.md: local Office add-ins)"),
+			OFFICE_ADDIN),
 		Map.entry("TabProject/GroupProofing", "Spelling; " + PHASE_1B),
 		Map.entry("TabView/GroupMacros",
-			"EXCLUDED in msp-ribbon-spec.csv: VBA/macros excluded by the #797 scope decision"));
+			"scope exclusion: " + "VBA/macros excluded by the #797 scope decision (EXCLUDED in msp-ribbon-spec.csv)"));
 
 	/**
 	 * Top-level Microsoft controls inside a group we implement that no control of that band maps to,
 	 * with the reason. A control counts as present when it or one of its menu children is mapped.
 	 */
 	private static final Map<String, String> MISSING_CONTROLS = Map.ofEntries(
+		Map.entry("TabTask/Font", "font-name combo box; " + PHASE_1B),
+		Map.entry("TabTask/FontSize", "font-size combo box; " + PHASE_1B),
+		Map.entry("TabTask/Underline", "Task has no underline attribute and MPO does not persist one; " + PHASE_1B),
+		Map.entry("TabTask/FontFillBackColorPicker", "Task has no cell background attribute and MPO does not persist one; " + PHASE_1B),
+		Map.entry("TabResource/LevelResource", "per-resource leveling picker; the Leveling Options dialog is the only leveling dialog; " + PHASE_1B),
 		Map.entry("TabTask/TaskSplit", PHASE_1B),
 		Map.entry("TabTask/MoveTaskMenu", PHASE_1B),
 		Map.entry("TabTask/ScheduleModeMenu", PHASE_1B),
 		Map.entry("TabTask/DeliverablesMenu", ONLINE + " (deliverables)"),
 		Map.entry("TabTask/TaskAddToTimeline", PHASE_1B),
-		Map.entry("TabTask/EditFillMenu", PHASE_1B),
-		Map.entry("TabResource/AddEngagement", ONLINE + " (engagements)"),
-		Map.entry("TabResource/ResourceNotes", PHASE_1B),
-		Map.entry("TabResource/ResourceDetailsDisplay", PHASE_1B),
-		Map.entry("TabResource/LevelingOptions", PHASE_1B),
+		Map.entry("TabResource/AddEngagement", "scope exclusion: " + ONLINE + " (engagements)"),
 		Map.entry("TabReportOverview/CreateNewReportMenu", REPORT_GALLERIES),
 		Map.entry("TabReportOverview/ReportDashboardGallery", REPORT_GALLERIES),
 		Map.entry("TabReportOverview/ReportResourceGallery", REPORT_GALLERIES),
@@ -166,16 +170,16 @@ class MspRibbonOrderDiffTest {
 		Map.entry("TabReportOverview/ReportGettingStartedGallery", REPORT_GALLERIES),
 		Map.entry("TabReportOverview/ReportCustomGallery", REPORT_GALLERIES),
 		Map.entry("TabReportOverview/ReportRecentGallery", REPORT_GALLERIES),
-		Map.entry("TabReportOverview/ReportAgileGallery", REPORT_GALLERIES),
-		Map.entry("TabProject/SelectAgileMethodology", PHASE_1B),
-		Map.entry("TabProject/ManageSprints", PHASE_1B),
+		Map.entry("TabReportOverview/ReportAgileGallery", AGILE),
+		Map.entry("TabProject/SelectAgileMethodology", AGILE),
+		Map.entry("TabProject/ManageSprints", AGILE),
 		Map.entry("TabProject/LinksBetweenProjects", PHASE_1B),
 		Map.entry("TabProject/WbsMenu", PHASE_1B),
 		Map.entry("TabProject/StatusDateLabel", PHASE_1B + " (label control)"),
-		Map.entry("TabView/TaskBoardViewGallery", PHASE_1B),
+		Map.entry("TabView/TaskBoardViewGallery", AGILE),
 		Map.entry("TabView/TaskViewsOtherGallery", PHASE_1B),
 		Map.entry("TabView/TeamPlannerViewGallery", PHASE_1B),
-		Map.entry("TabView/ResourcePlanViewGallery", PHASE_1B),
+		Map.entry("TabView/ResourcePlanViewGallery", "scope exclusion: Resource Plan view belongs to Project Online / Server resource engagements (AGENTS.md)"),
 		Map.entry("TabView/ResourceOtherViewGallery", PHASE_1B),
 		Map.entry("TabView/TablesGallery", PHASE_1B),
 		Map.entry("TabView/HighlightFiltersGroup", PHASE_1B),
@@ -211,11 +215,11 @@ class MspRibbonOrderDiffTest {
 		Map.entry("RibbonMoveTaskUp", after("InspectTasksMenu", "move-in-outline commands of the Tasks group")),
 		Map.entry("RibbonMoveTaskDown", after("InspectTasksMenu", "move-in-outline commands of the Tasks group")),
 		Map.entry("RibbonDelegateTasks", after("InspectTasksMenu", "task delegation, closest to the Tasks group")),
-		Map.entry("RibbonDelete", after("ClearMenu", "row deletion next to Clear")),
-		Map.entry("RibbonSelectAll", after("ClearMenu", "selection command of Editing")),
-		Map.entry("RibbonScrollToToday", after("ClearMenu", "Go To companion of Editing")),
-		Map.entry("RibbonHideSelectedTasks", after("ClearMenu", "row visibility command of Editing")),
-		Map.entry("RibbonShowAllTasks", after("ClearMenu", "row visibility command of Editing")),
+		Map.entry("RibbonDelete", after("EditFillMenu", "row deletion next to Clear")),
+		Map.entry("RibbonSelectAll", after("EditFillMenu", "selection command of Editing")),
+		Map.entry("RibbonScrollToToday", after("EditFillMenu", "Go To companion of Editing")),
+		Map.entry("RibbonHideSelectedTasks", after("EditFillMenu", "row visibility command of Editing")),
+		Map.entry("RibbonShowAllTasks", after("EditFillMenu", "row visibility command of Editing")),
 		Map.entry("RibbonCreateResourcePool", after("ResourcesShare", "resource pool creation, next to sharing a pool")),
 		Map.entry("RibbonTimesheet", after("ResourcePoolRefresh", "assignment-related command with no Microsoft control")),
 		Map.entry("RibbonTeamFilter", after("ResourcePoolRefresh", "assignment-related command with no Microsoft control")),
@@ -257,6 +261,10 @@ class MspRibbonOrderDiffTest {
 		Map.entry("RibbonInsertBlankRow", "BlankRowInsert"),
 		Map.entry("RibbonSaveBaseline", "BaselineSave"),
 		Map.entry("RibbonClearBaseline", "BaselineClear"),
+		Map.entry("RibbonFillDown", "FillDown"),
+		Map.entry("RibbonFillLeft", "FillLeft"),
+		Map.entry("RibbonFillRight", "FillRight"),
+		Map.entry("RibbonFillUp", "FillUp"),
 		Map.entry("RibbonSortBy", "SortByDialog"));
 
 	/**
@@ -267,6 +275,8 @@ class MspRibbonOrderDiffTest {
 		Map.entry("RibbonClear",
 			"Microsoft's Clear menu children (Formatting, Hyperlinks, Notes, All, Row); " + PHASE_1B),
 		Map.entry("RibbonInsertResource", "Microsoft's Add Resources menu children; " + PHASE_1B),
+		Map.entry("RibbonTaskViewGantt", VIEW_GALLERY_ITEMS),
+		Map.entry("RibbonResourceViews", VIEW_GALLERY_ITEMS),
 		Map.entry("RibbonGantt", VIEW_GALLERY_ITEMS),
 		Map.entry("RibbonCalendarView", VIEW_GALLERY_ITEMS),
 		Map.entry("RibbonNetwork", VIEW_GALLERY_ITEMS),
