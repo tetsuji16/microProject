@@ -12,12 +12,14 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -41,12 +43,22 @@ public final class TaskInspectorPanel extends JPanel {
 	private final Consumer<Task> navigate;
 	private final Consumer<Task> makeAutomatic;
 	private final Predicate<Task> canMakeAutomatic;
+	private final BiConsumer<Task, Boolean> setIgnoreWarnings;
+	private final Predicate<Task> canIgnoreWarnings;
 	private Task task;
 
 	public TaskInspectorPanel(Consumer<Task> navigate, Consumer<Task> makeAutomatic, Predicate<Task> canMakeAutomatic) {
+		this(navigate, makeAutomatic, canMakeAutomatic, (selected, ignore) -> { }, selected -> false);
+	}
+
+	/** {@code setIgnoreWarnings} applies the per-task Ignore Warnings flag (undoably) when the check box is toggled. */
+	public TaskInspectorPanel(Consumer<Task> navigate, Consumer<Task> makeAutomatic, Predicate<Task> canMakeAutomatic,
+			BiConsumer<Task, Boolean> setIgnoreWarnings, Predicate<Task> canIgnoreWarnings) {
 		this.navigate = navigate;
 		this.makeAutomatic = makeAutomatic;
 		this.canMakeAutomatic = canMakeAutomatic;
+		this.setIgnoreWarnings = setIgnoreWarnings;
+		this.canIgnoreWarnings = canIgnoreWarnings;
 		setLayout(new BorderLayout(0, 8));
 		content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
 		setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
@@ -91,6 +103,14 @@ public final class TaskInspectorPanel extends JPanel {
 			mode.add(automatic);
 		}
 		section(Messages.getString("TaskInspector.SchedulingMode"), mode);
+		JCheckBox indicators = new JCheckBox(Messages.getString("TaskInspector.ShowIndicators"), !selected.isIgnoreWarnings());
+		indicators.setName("taskInspectorShowIndicators");
+		indicators.setEnabled(canIgnoreWarnings.test(selected));
+		indicators.addActionListener(event -> {
+			setIgnoreWarnings.accept(selected, !indicators.isSelected());
+			indicators.setSelected(!selected.isIgnoreWarnings());
+		});
+		content.add(indicators);
 		section(Messages.getString("TaskInspector.Refresh"), Messages.getString("TaskInspector.RefreshGuidance"));
 		String diagnostics = new ScheduleDiagnosticsService().diagnose(selected).stream()
 			.map(issue -> issue.severity() + ": " + issue.summary() + "\n" + issue.recommendation())

@@ -2261,6 +2261,51 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void mpoTextStyleUnderlineAndFillColorRoundTripAndOlderFilesDefault() throws Exception {
+		Project project = projectForRoundTrip();
+		Task styled = firstTask(project);
+		styled.setFontUnderline(true);
+		styled.setFontBackground(Integer.valueOf(0xFFE699));
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, archive));
+		Task reopened = firstTask(loadFromBytes(archive.toByteArray()));
+		assertTrue(reopened.isFontUnderline(), "underline must round-trip");
+		assertEquals(Integer.valueOf(0xFFE699), reopened.getFontBackground(), "cell fill color must round-trip");
+
+		// A file written before underline and fill existed has neither key: it must load as defaults,
+		// and a task that uses neither must not write them.
+		Project legacy = projectForRoundTrip();
+		firstTask(legacy).setFontBold(true);
+		ByteArrayOutputStream legacyArchive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(legacy, legacyArchive));
+		String styles = new String(readEntries(legacyArchive.toByteArray()).get(MpoFileImporter.TASK_TEXT_STYLES_ENTRY),
+			StandardCharsets.UTF_8);
+		assertFalse(styles.contains("underline") || styles.contains("fillColor"), styles);
+		Task older = firstTask(loadFromBytes(legacyArchive.toByteArray()));
+		assertTrue(older.isFontBold());
+		assertFalse(older.isFontUnderline());
+		assertNull(older.getFontBackground());
+	}
+
+	@Test
+	void mpoDisplayOnTimelineRoundTripsAndOlderFilesDefaultToFalse() throws Exception {
+		Project project = projectForRoundTrip();
+		firstTask(project).setDisplayOnTimeline(true);
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(project, archive));
+		assertTrue(firstTask(loadFromBytes(archive.toByteArray())).isDisplayOnTimeline(), "timeline flag must round-trip");
+
+		Project plain = projectForRoundTrip();
+		firstTask(plain).setFontBold(true);
+		ByteArrayOutputStream plainArchive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(plain, plainArchive));
+		String styles = new String(readEntries(plainArchive.toByteArray()).get(MpoFileImporter.TASK_TEXT_STYLES_ENTRY),
+			StandardCharsets.UTF_8);
+		assertFalse(styles.contains("displayOnTimeline"), styles);
+		assertFalse(firstTask(loadFromBytes(plainArchive.toByteArray())).isDisplayOnTimeline());
+	}
+
+	@Test
 	void mpoRejectsCorruptedTaskTextStyleInsteadOfClampingIt() throws Exception {
 		Project project = projectForRoundTrip();
 		firstTask(project).setFontBold(true);
@@ -2432,6 +2477,36 @@ class MpoFileImporterTest {
 		assertTrue(restored.isHeaderWrap(0));
 		assertFalse(restored.isHeaderWrap(1));
 		assertTrue(restored.isHeaderWrap(2));
+	}
+
+	@Test
+	void columnAlignmentSurvivesMpoSaveAndReloadWhileDefaultLayoutsStayUnchanged() throws Exception {
+		FieldDictionary dictionary = FieldDictionary.getInstance();
+		Project defaults = projectForRoundTrip();
+		SpreadSheetFieldArray plain = new SpreadSheetFieldArray();
+		plain.add(dictionary.getFieldFromId("Field.name"));
+		plain.add(dictionary.getFieldFromId("Field.duration"));
+		defaults.setFieldArray(plain);
+		ByteArrayOutputStream defaultArchive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(defaults, defaultArchive));
+		String defaultLayout = new String(readEntries(defaultArchive.toByteArray()).get(MpoFileImporter.LAYOUT_ENTRY),
+			StandardCharsets.UTF_8);
+		assertFalse(defaultLayout.contains("align"), "default layouts keep the previous bytes");
+
+		Project original = projectForRoundTrip();
+		SpreadSheetFieldArray layout = new SpreadSheetFieldArray();
+		layout.add(dictionary.getFieldFromId("Field.name"));
+		layout.add(dictionary.getFieldFromId("Field.duration"));
+		layout.add(dictionary.getFieldFromId("Field.percentComplete"));
+		layout.setAlignments(new ArrayList<>(List.of(SpreadSheetFieldArray.ALIGN_RIGHT,
+			SpreadSheetFieldArray.ALIGN_DEFAULT, SpreadSheetFieldArray.ALIGN_CENTER)));
+		original.setFieldArray(layout);
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(original, archive));
+		SpreadSheetFieldArray restored = loadFromBytes(archive.toByteArray()).getFieldArray();
+		assertEquals(SpreadSheetFieldArray.ALIGN_RIGHT, restored.getAlignment(0));
+		assertEquals(SpreadSheetFieldArray.ALIGN_DEFAULT, restored.getAlignment(1));
+		assertEquals(SpreadSheetFieldArray.ALIGN_CENTER, restored.getAlignment(2));
 	}
 
 	@Test
@@ -5152,6 +5227,31 @@ class MpoFileImporterTest {
 		Project older = loadFromBytes(zip(entries).toByteArray());
 		assertTrue(firstTask(older).isLevelingCanSplit(), "older MPO defaults to the documented Yes value");
 		assertTrue(firstTask(older).isLevelAssignments(), "older MPO defaults to the documented Yes value");
+	}
+
+	@Test
+	void mpoIgnoreWarningsRoundTripsAndOlderFilesDefaultToFalse() throws Exception {
+		Project original = projectForRoundTrip();
+		firstTask(original).setIgnoreWarnings(true);
+		ByteArrayOutputStream current = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(original, current);
+		Map<String, byte[]> entries = readEntries(current.toByteArray());
+		assertTrue(entries.containsKey(MpoFileImporter.TASK_LEVELING_OPTIONS_ENTRY));
+		assertTrue(firstTask(loadFromBytes(current.toByteArray())).isIgnoreWarnings());
+
+		Project defaults = projectForRoundTrip();
+		ByteArrayOutputStream plain = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(defaults, plain);
+		assertFalse(firstTask(loadFromBytes(plain.toByteArray())).isIgnoreWarnings());
+
+		entries.remove(MpoFileImporter.TASK_LEVELING_OPTIONS_ENTRY);
+		String manifest = new String(entries.get(MpoFileImporter.MANIFEST_ENTRY), StandardCharsets.UTF_8);
+		manifest = manifest.replaceAll("(?m)^\\s*<entry\\s+path=\\\""
+			+ java.util.regex.Pattern.quote(MpoFileImporter.TASK_LEVELING_OPTIONS_ENTRY)
+			+ "\\\" sha256=\\\"[^\\\"]*\\\"\\s*/>\\R?", "");
+		entries.put(MpoFileImporter.MANIFEST_ENTRY, manifest.getBytes(StandardCharsets.UTF_8));
+		assertFalse(firstTask(loadFromBytes(zip(entries).toByteArray())).isIgnoreWarnings(),
+			"older MPO without the sidecar defaults to No");
 	}
 
 	@Test

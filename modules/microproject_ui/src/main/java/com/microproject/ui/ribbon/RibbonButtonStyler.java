@@ -114,6 +114,15 @@ final class RibbonButtonStyler {
 		if (button == null) {
 			return;
 		}
+		if (button.getClientProperty(RibbonControlPopups.CONTROL_KIND_PROPERTY) == com.microproject.ribbon.RibbonControlKind.CHECK_BOX) {
+			// A check box is a small-row control: the glyph keeps the 16 px row height at every size.
+			Icon checkBox = new RibbonCheckBoxIcon(SMALL_ICON_SIZE);
+			button.setIcon(checkBox);
+			button.setSelectedIcon(checkBox);
+			button.setRolloverIcon(checkBox);
+			button.setDisabledIcon(checkBox);
+			return;
+		}
 		Icon ribbonIcon = null;
 		try {
 			Object iconKeyProperty = button.getClientProperty(ICON_KEY_PROPERTY);

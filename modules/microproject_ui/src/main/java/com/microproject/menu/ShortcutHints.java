@@ -92,11 +92,31 @@ public final class ShortcutHints {
 		return text.append(keyName(key.getKeyCode())).toString();
 	}
 
-	/** Appends the shortcut to a screen tip: {@code Save (Ctrl+S)}. */
-	public static String withShortcut(String tooltip, KeyStroke key) {
-		if (tooltip == null || key == null)
-			return tooltip;
-		return tooltip + " (" + describe(key) + ")";
+	/**
+	 * The screen tip of a ribbon command as two-line HTML: the bold name followed by the
+	 * shortcut in parentheses, then the description. Missing parts are left out.
+	 */
+	public static String screenTip(String name, KeyStroke key, String description) {
+		boolean hasName = name != null && !name.isBlank();
+		boolean hasDescription = description != null && !description.isBlank();
+		if (!hasName && !hasDescription)
+			return null;
+		StringBuilder html = new StringBuilder("<html>");
+		if (hasName) {
+			html.append("<b>").append(escapeHtml(name)).append("</b>");
+			if (key != null)
+				html.append(" (").append(escapeHtml(describe(key))).append(')');
+		}
+		if (hasDescription) {
+			if (hasName)
+				html.append("<br>");
+			html.append(escapeHtml(description));
+		}
+		return html.append("</html>").toString();
+	}
+
+	private static String escapeHtml(String text) {
+		return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
 	}
 
 	private static int modifiers(KeyStroke key) {

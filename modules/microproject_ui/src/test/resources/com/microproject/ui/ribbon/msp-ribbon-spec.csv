@@ -23,6 +23,13 @@ Task,Clipboard,Paste,RibbonPaste,REQUIRED,S13
 Task,Clipboard,Copy,RibbonCopy,REQUIRED,S13
 Task,Clipboard,Cut,RibbonCut,REQUIRED,S13
 Task,Clipboard,Format Painter,RibbonFormatPainter,REQUIRED,S14
+Task,Font,Font,RibbonFontName,REQUIRED,S24
+Task,Font,Font Size,RibbonFontSize,REQUIRED,S24
+Task,Font,Bold,RibbonBold,REQUIRED,S24
+Task,Font,Underline,RibbonUnderline,REQUIRED,S24
+Task,Font,Background Color,RibbonFillColor,REQUIRED,S24
+Task,Font,Italic,RibbonItalic,REQUIRED,S24
+Task,Font,Font Color,RibbonFontColor,REQUIRED,S24
 Task,Font,Font,RibbonFont,REQUIRED,S24
 Task,Insert,Task,RibbonInsert,REQUIRED,S12
 Task,Insert,Milestone,RibbonInsertMilestone,REQUIRED,S23
@@ -49,6 +56,8 @@ Task,Schedule,Respect Links,RibbonRespectLinks,REQUIRED,S7
 Task,Schedule,Indent,RibbonIndent,REQUIRED,S27
 Task,Schedule,Outdent,RibbonOutdent,REQUIRED,S27
 Task,Tasks,Manually Schedule,RibbonTaskModeManual,REQUIRED,S21
+Task,Tasks,Move,RibbonMoveTask,REQUIRED,S21
+Task,Tasks,Mode,RibbonScheduleMode,REQUIRED,S21
 Task,Tasks,Auto Schedule,RibbonTaskModeAutomatic,REQUIRED,S21
 Task,Schedule,Inactivate,RibbonInactivateTask,REQUIRED,S8
 Task,Schedule,0% Complete,RibbonPercentComplete0,REQUIRED,S3
@@ -66,10 +75,14 @@ Task,Editing,Scroll to Today,RibbonScrollToToday,EXTENSION,product-only timescal
 Task,Editing,Hide Selected,RibbonHideSelectedTasks,EXTENSION,product-only hide command (AGENTS.md product extension contract)
 Task,Editing,Show All,RibbonShowAllTasks,EXTENSION,product-only counterpart of Hide Selected
 Resource,Insert,Resource,RibbonInsertResource,REQUIRED,S16
+Resource,View,Resource view dropdown,RibbonResourceViews,REQUIRED,S32
 Resource,Properties,Resource Information,RibbonResourceInformation,REQUIRED,S16
+Resource,Properties,Notes,RibbonResourceNotes,REQUIRED,S16
+Resource,Properties,Details,RibbonResourceDetails,REQUIRED,S16
 Resource,Assignments,Timesheet,RibbonTimesheet,EXTENSION,MSP timesheets require Project Server/Online
 Resource,Assignments,Team Filter,RibbonTeamFilter,EXTENSION,local team filter; no desktop MSP equivalent
 Resource,Level,Level Selection,RibbonLevelSelection,REQUIRED,S2
+Resource,Level,Level Resource,RibbonLevelResource,REQUIRED,S2
 Resource,Level,Level All,RibbonLevelAll,REQUIRED,S2
 Resource,Level,Clear Leveling (selection),RibbonClearLevelSelection,REQUIRED,S2
 Resource,Level,Clear Leveling (all),RibbonClearLevelAll,REQUIRED,S2
@@ -78,6 +91,11 @@ Resource,Level,Next Overallocation,RibbonNextOverallocation,REQUIRED,S4
 Resource,Pool,Share Resources / Use Resource Pool,RibbonUseResourcePool,REQUIRED,S18
 Resource,Pool,Create Resource Pool,RibbonCreateResourcePool,REQUIRED,S18
 Resource,Pool,Refresh Resource Pool,RibbonRefreshResourcePool,REQUIRED,S18
+Report,Reports,Dashboards,RibbonReportDashboards,REQUIRED,S25
+Report,Reports,Resources,RibbonReportResources,REQUIRED,S25
+Report,Reports,In Progress,RibbonReportInProgress,REQUIRED,S25
+Report,Reports,Custom,RibbonReportCustom,REQUIRED,S25
+Report,Reports,Recent,RibbonReportRecent,REQUIRED,S25
 Report,Reports,Reports,RibbonReport,REQUIRED,S25
 Report,Reports,Custom Report,RibbonCustomReport,REQUIRED,S25
 Report,Reports,Resource Histogram,RibbonHistogram,REQUIRED,S32
@@ -118,7 +136,9 @@ View,Resource Views,Resource Sheet,RibbonResources,REQUIRED,S32
 View,Resource Views,Resource Breakdown (RBS),RibbonRBS,EXTENSION,product RBS view; no desktop MSP view
 View,Resource Views,Projects,RibbonProjects,EXTENSION,product multi-project view
 View,Task Views,Task Usage,RibbonTaskUsageDetail,REQUIRED,S32
+View,Resource Views,Team Planner,RibbonTeamPlanner,REQUIRED,S32
 View,Resource Views,Resource Usage,RibbonResourceUsageDetail,REQUIRED,S32
+View,Window,Switch Windows,RibbonSwitchWindows,REQUIRED,S36
 View,Window,Arrange All,RibbonArrangeAll,REQUIRED,S36
 View,Window,New Window,RibbonNewWindow,REQUIRED,S36
 View,Split View,Details,RibbonDetails,REQUIRED,S32
@@ -129,8 +149,10 @@ View,Data,Group,RibbonChooseGroup,REQUIRED,S9b
 View,Data,Outline,RibbonOutline,REQUIRED,S27
 View,Data,Tables,RibbonTables,REQUIRED,S32
 View,Data,Highlight,RibbonHighlight,REQUIRED,S9a
+View,Zoom,Timescale,RibbonTimescaleGallery,REQUIRED,S20
 View,Zoom,Zoom In,RibbonZoomIn,REQUIRED,S20
 View,Zoom,Zoom Out,RibbonZoomOut,REQUIRED,S20
+View,Zoom,Entire Project,RibbonZoomEntireProject,REQUIRED,S20
 View,Zoom,Selected Tasks,RibbonZoomSelectedTasks,REQUIRED,S20
 View,Macros,Macros,RibbonMacros,EXCLUDED,VBA/macros excluded by the 2026-10-12 scope decision (#797)
 View,Macros,Visual Basic,RibbonVisualBasic,EXCLUDED,VBA/macros excluded by the 2026-10-12 scope decision (#797)
@@ -145,3 +167,18 @@ Format,Format,Timescale,RibbonTimescale,REQUIRED,S20
 Format,Bar Styles,Bar Styles,RibbonBarStyles,REQUIRED,S38
 Format,Format,Text Styles,RibbonTextStyles,REQUIRED,S38
 Format,Format,Layout,RibbonLayout,REQUIRED,S38
+Format,Columns,Insert Column,RibbonInsertColumn,REQUIRED,S38
+Format,Columns,Align Left,RibbonAlignLeft,REQUIRED,S38
+Format,Columns,Center,RibbonAlignCenter,REQUIRED,S38
+Format,Columns,Align Right,RibbonAlignRight,REQUIRED,S38
+Format,Columns,Column Settings,RibbonColumnSettings,REQUIRED,S38
+Format,Bar Styles,Format,RibbonFormatBarStyles,REQUIRED,S38
+Format,Bar Styles,Critical Tasks,RibbonCriticalTasks,REQUIRED,S38
+Format,Bar Styles,Slack,RibbonSlack,REQUIRED,S38
+Format,Bar Styles,Late Tasks,RibbonLateTasks,REQUIRED,S38
+Format,Bar Styles,Task Path,RibbonTaskPath,REQUIRED,S38
+Format,Bar Styles,Baseline,RibbonShowBaseline,REQUIRED,S38
+Format,Bar Styles,Slippage,RibbonSlippage,REQUIRED,S38
+Format,Gantt Chart Style,Gantt Chart Style,RibbonGanttStyleGallery,REQUIRED,S38
+Format,Show/Hide,Outline Number,RibbonOutlineNumbers,REQUIRED,S38
+Format,Show/Hide,Summary Tasks,RibbonSummaryTasks,REQUIRED,S38

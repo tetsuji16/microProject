@@ -29,5 +29,13 @@ public interface Searchable {
 	boolean findNext(SearchContext context);
 	SearchContext createSearchContext();
 	List getAvailableFields();
+
+	/**
+	 * Replaces the search text of {@code context} with {@code replacement} in the current match
+	 * ({@code all} false) or in every match ({@code all} true); returns the number of replacements.
+	 */
+	default int replace(SearchContext context, String replacement, boolean all) {
+		return 0;
+	}
 }
 
