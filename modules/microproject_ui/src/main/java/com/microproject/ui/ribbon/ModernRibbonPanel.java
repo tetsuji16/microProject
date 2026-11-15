@@ -1333,11 +1333,21 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		return getWidth() > 0 && !Objects.equals(tabBodyBuildWidths.get(tabId), Integer.valueOf(getWidth()));
 	}
 
-	/** Band indices (except the first) in the order they collapse: ascending keep rank, then right to left. */
-	private static List<Integer> collapseOrder(List<SwingRibbonModel.RibbonBand> bands) {
+	/**
+	 * Band indices in the order they collapse: ascending keep rank, then right to left.
+	 * The first band is normally kept, but a band that declares a positive keep rank
+	 * outlasts it, so the first band collapses just before the ranked bands.
+	 */
+	static List<Integer> collapseOrder(List<SwingRibbonModel.RibbonBand> bands) {
 		List<Integer> order = new ArrayList<>(bands.size());
 		for (int index = bands.size() - 1; index > 0; index--) order.add(index);
 		order.sort(java.util.Comparator.comparingInt(index -> bands.get(index).getKeepRank()));
+		boolean rankedBandExists = order.stream().anyMatch(index -> bands.get(index).getKeepRank() > 0);
+		if (rankedBandExists && !bands.isEmpty() && bands.get(0).getKeepRank() == 0) {
+			int firstRanked = 0;
+			while (bands.get(order.get(firstRanked)).getKeepRank() == 0) firstRanked++;
+			order.add(firstRanked, 0);
+		}
 		return order;
 	}
 
