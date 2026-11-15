@@ -598,12 +598,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		if (ws != null && ws.timescaleMinorLineColor != null) gantt.setTimescaleMinorLineColor(new java.awt.Color(ws.timescaleMinorLineColor.intValue(), true));
 		if (ws != null && ws.nonWorkingBoundaryColor != null) gantt.setNonWorkingBoundaryColor(new java.awt.Color(ws.nonWorkingBoundaryColor.intValue(), true));
 		setCurrentAnnotationFieldId(ws.annotationFieldId);
-		setCriticalTasksVisible(ws.criticalTasksVisible == null || ws.criticalTasksVisible.booleanValue());
-		setSlackVisible(ws.slackVisible != null && ws.slackVisible.booleanValue());
-		setLateTasksVisible(ws.lateTasksVisible != null && ws.lateTasksVisible.booleanValue());
-		setBaselineVisible(ws.baselineVisible == null || ws.baselineVisible.booleanValue());
-		setSlippageVisible(ws.slippageVisible != null && ws.slippageVisible.booleanValue());
-		setBarColorScheme(GanttBarColorScheme.fromId(ws.barColorScheme));
+		applyBarFormat(gantt, ws);
 		setOutlineNumbersVisible(ws.outlineNumbersVisible != null && ws.outlineNumbersVisible.booleanValue());
 		setSummaryTasksVisible(ws.summaryTasksVisible == null || ws.summaryTasksVisible.booleanValue());
 		gantt.setProgressLineEnabled(ws.progressLineEnabled);
@@ -638,17 +633,32 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		if (gantt.getTimescaleMajorLineColor() != null) ws.timescaleMajorLineColor = Integer.valueOf(gantt.getTimescaleMajorLineColor().getRGB());
 		if (gantt.getTimescaleMinorLineColor() != null) ws.timescaleMinorLineColor = Integer.valueOf(gantt.getTimescaleMinorLineColor().getRGB());
 		if (gantt.getNonWorkingBoundaryColor() != null) ws.nonWorkingBoundaryColor = Integer.valueOf(gantt.getNonWorkingBoundaryColor().getRGB());
-		ws.criticalTasksVisible = Boolean.valueOf(isCriticalTasksVisible());
-		ws.slackVisible = Boolean.valueOf(isSlackVisible());
-		ws.lateTasksVisible = Boolean.valueOf(isLateTasksVisible());
-		ws.baselineVisible = Boolean.valueOf(isBaselineVisible());
-		ws.slippageVisible = Boolean.valueOf(isSlippageVisible());
-		ws.barColorScheme = getBarColorScheme().getId();
+		captureBarFormat(gantt, ws);
 		ws.outlineNumbersVisible = Boolean.valueOf(isOutlineNumbersVisible());
 		ws.summaryTasksVisible = Boolean.valueOf(isSummaryTasksVisible());
 		ws.annotationFieldId = currentAnnotationFieldId;
 		ws.dividerLocation = getDividerLocation();
 		return ws;
+	}
+
+	/** Writes the Gantt Chart Format bar switches of the chart into the workspace. */
+	static void captureBarFormat(Gantt gantt, Workspace ws) {
+		ws.criticalTasksVisible = Boolean.valueOf(gantt.isCriticalTasksVisible());
+		ws.slackVisible = Boolean.valueOf(gantt.isSlackVisible());
+		ws.lateTasksVisible = Boolean.valueOf(gantt.isLateTasksVisible());
+		ws.baselineVisible = Boolean.valueOf(gantt.isBaselineVisible());
+		ws.slippageVisible = Boolean.valueOf(gantt.isSlippageVisible());
+		ws.barColorScheme = gantt.getBarColorScheme().getId();
+	}
+
+	/** Applies the bar switches of a workspace; workspaces saved before they existed get the defaults. */
+	static void applyBarFormat(Gantt gantt, Workspace ws) {
+		gantt.setCriticalTasksVisible(ws.criticalTasksVisible == null || ws.criticalTasksVisible.booleanValue());
+		gantt.setSlackVisible(ws.slackVisible != null && ws.slackVisible.booleanValue());
+		gantt.setLateTasksVisible(ws.lateTasksVisible != null && ws.lateTasksVisible.booleanValue());
+		gantt.setBaselineVisible(ws.baselineVisible == null || ws.baselineVisible.booleanValue());
+		gantt.setSlippageVisible(ws.slippageVisible != null && ws.slippageVisible.booleanValue());
+		gantt.setBarColorScheme(GanttBarColorScheme.fromId(ws.barColorScheme));
 	}
 
 	static boolean gridLinesVisibleFromWorkspace(Workspace workspace) {
