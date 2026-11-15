@@ -11,6 +11,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.jfree.chart.plot.XYPlot;
+import org.jfree.chart.renderer.xy.XYBarRenderer;
+import org.jfree.data.xy.IntervalXYDataset;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.graphic.chart.ResourceGraphData.ValueKind;
@@ -143,6 +146,29 @@ class ResourceGraphDataTest {
 		// the selected portion spans from the rest up to the total, independent of the other item
 		assertArrayEquals(new double[] { 4, 6, 4 }, resource.base(), DELTA);
 		assertNull(data.getSeries(Item.ALLOCATED_FILTERED).base());
+	}
+
+	@Test
+	void stackedItemsHonorTheirShowAsShape() {
+		ResourceGraphData data = compute(GraphType.WORK, true);
+		ResourceGraphSettings settings = new ResourceGraphSettings();
+		XYPlot bars = ResourceGraphChart.build(data, settings).getXYPlot();
+		int index = datasetIndex(bars, Item.ALLOCATED_RESOURCE);
+		assertTrue(bars.getRenderer(index) instanceof XYBarRenderer);
+		assertTrue(bars.getDataset(index) instanceof IntervalXYDataset);
+		ResourceGraphSettings.BarStyle style = settings.getStyle(Item.ALLOCATED_RESOURCE);
+		settings.setStyle(Item.ALLOCATED_RESOURCE, new ResourceGraphSettings.BarStyle(ResourceGraphSettings.ShowAs.LINE, style.rgb(), style.pattern()));
+		XYPlot line = ResourceGraphChart.build(data, settings).getXYPlot();
+		index = datasetIndex(line, Item.ALLOCATED_RESOURCE);
+		assertTrue(!(line.getRenderer(index) instanceof XYBarRenderer), "a stacked item shown as a line must not draw bars");
+		assertEquals(12D, line.getDataset(index).getYValue(0, 1), DELTA);
+	}
+
+	private static int datasetIndex(XYPlot plot, Item item) {
+		for (int i = 0; i < plot.getDatasetCount(); i++)
+			if (plot.getDataset(i) != null && item.name().equals(plot.getDataset(i).getSeriesKey(0)))
+				return i;
+		throw new AssertionError(item + " has no dataset");
 	}
 
 	@Test

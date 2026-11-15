@@ -63,8 +63,9 @@ public final class ResourceGraphChart {
 			if (style.showAs() == ShowAs.DO_NOT_SHOW || series.isEmpty())
 				continue;
 			XYItemRenderer renderer;
-			if (series.base() != null) {
-				// a stacked item spans its own lower and upper bound, so hiding another item cannot expose it
+			if (series.base() != null && style.showAs() == ShowAs.BAR) {
+				// a stacked bar spans its own lower and upper bound, so hiding another item cannot expose it;
+				// other shapes trace the stacked upper bound with their own renderer
 				XYIntervalSeries values = new XYIntervalSeries(series.item().name(), false, true);
 				for (int i = 0; i < series.x().length; i++)
 					values.add(series.x()[i], series.x()[i], intervalEnd(series.x(), i), series.y()[i], series.base()[i], series.y()[i]);
