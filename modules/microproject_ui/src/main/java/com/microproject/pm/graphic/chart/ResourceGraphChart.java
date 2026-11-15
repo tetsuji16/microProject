@@ -58,7 +58,10 @@ public final class ResourceGraphChart {
 		plot.setOrientation(PlotOrientation.VERTICAL);
 		plot.setDatasetRenderingOrder(DatasetRenderingOrder.FORWARD);
 		int index = 0;
-		for (ResourceGraphData.Series series : data.getSeries()) {
+		// filled shapes first, then line-only shapes, so a fill cannot paint over a line drawn before it
+		java.util.List<ResourceGraphData.Series> ordered = new java.util.ArrayList<>(data.getSeries());
+		ordered.sort(java.util.Comparator.comparing(series -> isLineOnly(settings.getStyle(series.item()).showAs())));
+		for (ResourceGraphData.Series series : ordered) {
 			BarStyle style = settings.getStyle(series.item());
 			if (style.showAs() == ShowAs.DO_NOT_SHOW || series.isEmpty())
 				continue;
@@ -128,6 +131,10 @@ public final class ResourceGraphChart {
 		return renderer;
 	}
 
+	static boolean isLineOnly(ShowAs showAs) {
+		return showAs == ShowAs.LINE || showAs == ShowAs.STEP || showAs == ShowAs.STEP_LINE;
+	}
+
 	static XYItemRenderer renderer(ShowAs showAs) {
 		return switch (showAs) {
 			case AREA -> new XYAreaRenderer(XYAreaRenderer.AREA);
@@ -150,7 +157,10 @@ public final class ResourceGraphChart {
 		int size = settings.getTextStyle().size() > 0 ? settings.getTextStyle().size() : 9;
 		Font font = new Font(Font.SANS_SERIF, settings.getTextStyle().bold() ? Font.BOLD : Font.PLAIN, size);
 		int count = 0;
-		for (ResourceGraphData.Series series : data.getSeries()) {
+		// filled shapes first, then line-only shapes, so a fill cannot paint over a line drawn before it
+		java.util.List<ResourceGraphData.Series> ordered = new java.util.ArrayList<>(data.getSeries());
+		ordered.sort(java.util.Comparator.comparing(series -> isLineOnly(settings.getStyle(series.item()).showAs())));
+		for (ResourceGraphData.Series series : ordered) {
 			BarStyle style = settings.getStyle(series.item());
 			if (style.showAs() == ShowAs.DO_NOT_SHOW)
 				continue;

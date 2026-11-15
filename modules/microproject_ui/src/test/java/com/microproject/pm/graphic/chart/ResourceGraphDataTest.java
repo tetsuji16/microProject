@@ -162,6 +162,7 @@ class ResourceGraphDataTest {
 		index = datasetIndex(line, Item.ALLOCATED_RESOURCE);
 		assertTrue(!(line.getRenderer(index) instanceof XYBarRenderer), "a stacked item shown as a line must not draw bars");
 		assertEquals(12D, line.getDataset(index).getYValue(0, 1), DELTA);
+		assertTrue(index > datasetIndex(line, Item.ALLOCATED_FILTERED), "the descending stacked line must be drawn after the filtered fill");
 	}
 
 	private static int datasetIndex(XYPlot plot, Item item) {
