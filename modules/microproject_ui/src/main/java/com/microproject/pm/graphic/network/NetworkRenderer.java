@@ -152,7 +152,7 @@ public abstract class NetworkRenderer extends GraphRenderer{
 					g2.setColor(format.getMiddle().getColor());
 				g2.draw(path);
 				if (((NetworkParams)graphInfo).getDisplayOptions().isLinkLabels())
-					drawLinkLabel(g2, NetworkDisplayOptions.linkLabel(dependency.getType(), dependency.getDependency() == null ? 0L : dependency.getDependency().getLag()), routing);
+					drawLinkLabel(g2, linkLabelText(dependency), routing);
 				
 			//}
 			if (format.getStart()==null&&format.getEnd()==null) return;
@@ -169,6 +169,13 @@ public abstract class NetworkRenderer extends GraphRenderer{
 			if (oldColor!=null) g2.setColor(oldColor);
 			if (oldStroke!= null) g2.setStroke(oldStroke);
 
+		}
+		private String linkLabelText(GraphicDependency dependency){
+			Dependency dep=dependency.getDependency();
+			if (dep==null) return NetworkDisplayOptions.linkLabel(dependency.getType(),0L);
+			com.microproject.datatype.DurationDefaults defaults=null;
+			if (dep.getSuccessor() instanceof com.microproject.pm.task.Task task&&task.getProject()!=null) defaults=task.getProject().getDurationDefaults();
+			return NetworkDisplayOptions.linkLabel(dependency.getType(),dep.getLag(),defaults);
 		}
 		private void drawLinkLabel(Graphics2D g, String text, LinkRouting routing) {
 			java.awt.Font oldFont = g.getFont();
@@ -369,26 +376,24 @@ public abstract class NetworkRenderer extends GraphRenderer{
 			String id=impl instanceof com.microproject.pm.task.Task task?Long.toString(task.getId()):"";
 			Color oldColor=g.getColor();
 			g.setColor(javax.swing.UIManager.getColor("Table.background")==null?Color.WHITE:javax.swing.UIManager.getColor("Table.background"));
-			g.fillRect(bounds.x,bounds.y,bounds.width,bounds.height);
+			NetworkDisplayOptions.BoxStyle style=((NetworkParams)graphInfo).getDisplayOptions().getStyle(NetworkDisplayOptions.boxType(impl));
+			java.awt.Shape outline=NetworkDisplayOptions.outline(style.shape(),new java.awt.geom.Rectangle2D.Double(bounds.x,bounds.y,bounds.width-1,bounds.height-1));
+			g.fill(outline);
+			Color border=style.color()!=null?style.color():javax.swing.UIManager.getColor("Table.foreground")==null?Color.DARK_GRAY:javax.swing.UIManager.getColor("Table.foreground");
+			g.setColor(border);
+			g.draw(outline);
 			g.setColor(javax.swing.UIManager.getColor("Table.foreground")==null?Color.DARK_GRAY:javax.swing.UIManager.getColor("Table.foreground"));
-			g.drawRect(bounds.x,bounds.y,bounds.width-1,bounds.height-1);
 			java.awt.FontMetrics metrics=g.getFontMetrics();
 			g.drawString(id,bounds.x+(bounds.width-metrics.stringWidth(id))/2,bounds.y+(bounds.height+metrics.getAscent()-metrics.getDescent())/2);
 			g.setColor(oldColor);
 		}
 
-		/** Per-box-type border style and progress marks, drawn over the box. */
+		/** Progress marks, drawn over the box (the border style is part of the box itself, see FormComponent). */
 		private void paintNodeDecorations(Graphics2D g,GraphicNode node,Rectangle bounds){
 			NetworkDisplayOptions options=((NetworkParams)graphInfo).getDisplayOptions();
 			Object impl=node.getNode().getImpl();
 			Color oldColor=g.getColor();
 			Stroke oldStroke=g.getStroke();
-			NetworkDisplayOptions.BoxStyle style=options.getStyle(NetworkDisplayOptions.boxType(impl));
-			if (!NetworkDisplayOptions.BoxStyle.DEFAULT.equals(style)){
-				g.setColor(style.color()==null?g.getColor():style.color());
-				g.setStroke(new java.awt.BasicStroke(2f));
-				g.draw(NetworkDisplayOptions.outline(style.shape(),new java.awt.geom.Rectangle2D.Double(bounds.x+1,bounds.y+1,bounds.width-2,bounds.height-2)));
-			}
 			if (options.isProgressMarks()&&impl instanceof com.microproject.pm.task.Task task){
 				NetworkDisplayOptions.ProgressMark mark=NetworkDisplayOptions.progressMark(task.getPercentComplete());
 				if (mark!=NetworkDisplayOptions.ProgressMark.NONE){

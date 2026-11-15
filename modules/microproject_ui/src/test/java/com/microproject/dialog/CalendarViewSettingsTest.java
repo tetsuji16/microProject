@@ -32,6 +32,21 @@ class CalendarViewSettingsTest {
 	}
 
 	@Test
+	void barGeometryGrowsWithTheTextSize() {
+		int smallHeight = CalendarViewSettings.barHeight(12);
+		assertEquals(CalendarViewSettings.BAR_PITCH - 4, smallHeight, "ordinary text keeps the default 19px bar");
+		int bigFont = 36 + 9;
+		assertTrue(CalendarViewSettings.barHeight(bigFont) >= bigFont + 5, "the bar holds the big text");
+		int pitch = CalendarViewSettings.barPitch(bigFont);
+		assertTrue(pitch > CalendarViewSettings.BAR_PITCH);
+		assertTrue(CalendarViewSettings.bestFitRowHeight(3, false, pitch) > CalendarViewSettings.bestFitRowHeight(3, false));
+		for (int tasks = 1; tasks <= 8; tasks++)
+			assertTrue(CalendarViewSettings.visibleTaskCount(CalendarViewSettings.bestFitRowHeight(tasks, true, pitch), true, pitch) >= tasks);
+		assertTrue(CalendarViewSettings.visibleTaskCount(CalendarViewSettings.DEFAULT_ROW_HEIGHT, false, pitch)
+			< CalendarViewSettings.visibleTaskCount(CalendarViewSettings.DEFAULT_ROW_HEIGHT, false));
+	}
+
+	@Test
 	void settingsKeepOnlyChangedValues() {
 		CalendarViewSettings settings = new CalendarViewSettings();
 		assertEquals(null, settings.getBarColor(CalendarViewSettings.BarType.CRITICAL));

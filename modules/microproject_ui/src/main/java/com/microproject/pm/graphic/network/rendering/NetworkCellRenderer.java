@@ -42,6 +42,9 @@ public class NetworkCellRenderer{
 	public FormComponent getRendererComponent(GraphicNode node,int zoom){
 		FormComponent form=formatSelector.getForm(node,zoom,false);
 		if (form == null) return null;
+		form.setBoxStyle(params instanceof com.microproject.pm.graphic.network.NetworkParams network
+			? network.getDisplayOptions().getStyle(com.microproject.pm.graphic.network.NetworkDisplayOptions.boxType(node.getNode().getImpl()))
+			: null);
 		form.setFields(node.getNode(),params.getCache().getModel());
 		return form;
 	}

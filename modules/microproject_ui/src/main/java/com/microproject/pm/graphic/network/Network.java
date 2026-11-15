@@ -149,11 +149,13 @@ public class Network extends Graph implements NetworkLayoutListener, NetworkPara
 		makeZoom(ws.zoom);
 		displayOptions.setProgressMarks(ws.progressMarks != null && ws.progressMarks.booleanValue());
 		displayOptions.setLinkLabels(ws.linkLabels != null && ws.linkLabels.booleanValue());
+		boolean wasCollapsed = displayOptions.isCollapsed();
+		int wasSpacing = displayOptions.getBoxSpacing();
 		displayOptions.setCollapsed(ws.collapsedBoxes != null && ws.collapsedBoxes.booleanValue());
 		displayOptions.setBoxSpacing(ws.boxSpacing == null ? 0 : ws.boxSpacing.intValue());
 		displayOptions.decodeStyles(ws.boxStyles);
 		setStraightLinks(ws.straightLinks != null && ws.straightLinks.booleanValue());
-		if (ws.collapsedBoxes != null || ws.boxSpacing != null) relayout();
+		if (wasCollapsed != displayOptions.isCollapsed() || wasSpacing != displayOptions.getBoxSpacing()) relayout();
      	Container p = getParent();
      	if (p instanceof JViewport && ws.viewPosition != null) {
      		try {

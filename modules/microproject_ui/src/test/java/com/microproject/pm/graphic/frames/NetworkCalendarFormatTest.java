@@ -72,4 +72,35 @@ class NetworkCalendarFormatTest {
 			});
 		}
 	}
+
+	@Test
+	void restoringALegacyWorkspaceRelaysOutAWidenedDiagram() throws Exception {
+		try (HeadlessDocumentFixture fx = new HeadlessDocumentFixture("First", "Second")) {
+			HeadlessDocumentFixture.onEdt(() -> assertTrue(fx.frame.activateView(MenuActionConstants.ACTION_NETWORK)));
+			HeadlessDocumentFixture.onEdt(() -> {
+				PertView view = fx.manager.getActiveNetworkView();
+				view.setCollapsedBoxes(true);
+				view.setBoxSpacing(30);
+				int[] layouts = { 0 };
+				try {
+					java.lang.reflect.Field field = com.microproject.pm.graphic.views.PertView.class.getDeclaredField("pert");
+					field.setAccessible(true);
+					((com.microproject.pm.graphic.network.Network) field.get(view)).getNetworkLayout().addNetworkLayoutListener(event -> layouts[0]++);
+				} catch (ReflectiveOperationException e) {
+					throw new AssertionError(e);
+				}
+				com.microproject.pm.graphic.network.Network.Workspace legacyNetwork = new com.microproject.pm.graphic.network.Network.Workspace();
+				legacyNetwork.setZoom(view.getScale());
+				com.microproject.pm.graphic.views.PertView.Workspace legacy = new com.microproject.pm.graphic.views.PertView.Workspace();
+				legacy.setNetwork(legacyNetwork);
+				view.restoreWorkspace(legacy, 0);
+				assertFalse(view.getDisplayOptions().isCollapsed());
+				assertEquals(0, view.getDisplayOptions().getBoxSpacing());
+				assertTrue(layouts[0] > 0, "the reset collapsed and spacing state must lay the boxes out again");
+				layouts[0] = 0;
+				view.restoreWorkspace(legacy, 0);
+				assertEquals(0, layouts[0], "nothing changed, so no relayout");
+			});
+		}
+	}
 }

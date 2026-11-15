@@ -15,7 +15,7 @@ import com.microproject.pm.task.Task;
  * and the layout options, with the pure decisions the calendar canvas takes from them.
  */
 public final class CalendarViewSettings {
-	public enum BarType { NORMAL, CRITICAL, MILESTONE, SUMMARY }
+	public enum BarType { NORMAL, CRITICAL, MILESTONE }
 	public enum TextItem { BAR_TEXT, DAY_NUMBERS }
 
 	/** Font size and weight of one kind of calendar text; a size of 0 keeps the configured one. */
@@ -27,6 +27,7 @@ public final class CalendarViewSettings {
 	public static final int MIN_ROW_HEIGHT = 60;
 	/** Height of one task bar plus the gap below it. */
 	public static final int BAR_PITCH = 23;
+	private static final int BAR_GAP = 4;
 	private static final int TASKS_TOP = 23;
 	private static final int TASKS_TOP_WITH_COMPANION = 38;
 	private static final int BOTTOM_MARGIN = 10;
@@ -62,21 +63,40 @@ public final class CalendarViewSettings {
 
 	/** The bar type a task is drawn as. */
 	public static BarType barType(Task task) {
-		if (task.isSummary()) return BarType.SUMMARY;
 		if (task.isMilestone()) return BarType.MILESTONE;
 		return task.isCritical() ? BarType.CRITICAL : BarType.NORMAL;
 	}
 
 	/** Row height that shows the busiest day completely (Week Height Best Fit). */
 	public static int bestFitRowHeight(int maxTasksPerDay, boolean companionDay) {
+		return bestFitRowHeight(maxTasksPerDay, companionDay, BAR_PITCH);
+	}
+
+	/** As {@link #bestFitRowHeight(int, boolean)} for bars of the given pitch (see {@link #barPitch(int)}). */
+	public static int bestFitRowHeight(int maxTasksPerDay, boolean companionDay, int pitch) {
 		int top = companionDay ? TASKS_TOP_WITH_COMPANION : TASKS_TOP;
-		return Math.max(MIN_ROW_HEIGHT, top + Math.max(1, maxTasksPerDay) * BAR_PITCH + BOTTOM_MARGIN);
+		return Math.max(MIN_ROW_HEIGHT, top + Math.max(1, maxTasksPerDay) * pitch + BOTTOM_MARGIN);
+	}
+
+	/** Height of a task bar whose text has the given font height; never below the default bar. */
+	public static int barHeight(int fontHeight) {
+		return Math.max(BAR_PITCH - BAR_GAP, fontHeight + 5);
+	}
+
+	/** Height of a bar plus the gap below it. */
+	public static int barPitch(int fontHeight) {
+		return barHeight(fontHeight) + BAR_GAP;
 	}
 
 	/** How many task bars fit in a row of the given height. */
 	public static int visibleTaskCount(int rowHeight, boolean companionDay) {
+		return visibleTaskCount(rowHeight, companionDay, BAR_PITCH);
+	}
+
+	/** As {@link #visibleTaskCount(int, boolean)} for bars of the given pitch. */
+	public static int visibleTaskCount(int rowHeight, boolean companionDay, int pitch) {
 		int top = companionDay ? TASKS_TOP_WITH_COMPANION : TASKS_TOP;
-		return Math.max(1, (rowHeight - top - BOTTOM_MARGIN) / BAR_PITCH);
+		return Math.max(1, (rowHeight - top - BOTTOM_MARGIN) / pitch);
 	}
 
 	/** Sort key of the "fit as many tasks as possible" layout: the tasks with least slack come first. */

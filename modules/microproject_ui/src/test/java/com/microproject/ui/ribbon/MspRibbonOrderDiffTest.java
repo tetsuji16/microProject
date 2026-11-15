@@ -196,7 +196,7 @@ class MspRibbonOrderDiffTest {
 		Map.entry("TabView/GroupMacros",
 			"scope exclusion: " + "VBA/macros excluded by the #797 scope decision (EXCLUDED in msp-ribbon-spec.csv)"));
 
-	/** Controls Microsoft lists in two groups of one tab; one command implements both and sits in the first group. */
+	/** Controls Microsoft lists in two groups of one tab; one command implements both and sits in the first group; the second listing is exempt only while the command is mapped somewhere in the tab. */
 	private static final Set<String> MSP_LISTS_TWICE = Set.of("TabNetworkDiagramFormat/NetworkDiagramLayout");
 
 	/**
@@ -527,6 +527,14 @@ class MspRibbonOrderDiffTest {
 	void microsoftControlsWeLackAreReasonedAndStillMissing() {
 		List<String> problems = new ArrayList<>();
 		Set<String> used = new TreeSet<>();
+		Set<String> mappedInTab = new TreeSet<>();
+		forEachBand((tab, band, controls) -> {
+			for (OurControl control : controls) {
+				if (control.mapped()) {
+					mappedInTab.add(TABS.get(tab) + "/" + control.idMso());
+				}
+			}
+		});
 		forEachBand((tab, band, controls) -> {
 			String group = BAND_GROUPS.get(tab + "/" + band.getId());
 			if (group == null) {
@@ -549,7 +557,7 @@ class MspRibbonOrderDiffTest {
 					present |= child.parent().equals(row.idMso()) && mapped.contains(child.idMso());
 				}
 				String key = mspTab + "/" + row.idMso();
-				if (!present && MSP_LISTS_TWICE.contains(key)) {
+				if (!present && MSP_LISTS_TWICE.contains(key) && mappedInTab.contains(key)) {
 					continue;
 				}
 				if (present && MISSING_CONTROLS.containsKey(key)) {

@@ -29,6 +29,7 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
@@ -169,7 +170,8 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 		return java.util.Collections.list(taskListModel.elements());
 	}
 
-	private void refreshTaskList() {
+	/** Rebuilds the Task List, e.g. after the privacy mask changes the displayed names. */
+	public void refreshTaskList() {
 		taskListModel.clear();
 		if (!settings.isTaskListVisible()) return;
 		for (Task task : canvas.tasksInMonth()) taskListModel.addElement(PrivacyDisplayMode.taskName(task));
@@ -259,7 +261,15 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 			int most = 0;
 			LocalDate start = gridStart();
 			for (int index = 0; index < DAYS_IN_GRID; index++) most = Math.max(most, tasksOn(start.plusDays(index)).size());
-			return CalendarViewSettings.bestFitRowHeight(most, companionShown());
+			return CalendarViewSettings.bestFitRowHeight(most, companionShown(), barPitch());
+		}
+
+		private int barFontHeight() {
+			return getFontMetrics(styled(getFont(), CalendarViewSettings.TextItem.BAR_TEXT)).getHeight();
+		}
+
+		private int barPitch() {
+			return CalendarViewSettings.barPitch(barFontHeight());
 		}
 
 		List<Task> tasksInMonth() {
@@ -337,7 +347,11 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 			g.setFont(dayFont);
 			String companionDay = AlternativeCalendarDisplay.companionDay(day, Locale.getDefault(Locale.Category.FORMAT));
 			int taskCardTop = 23;
-			int maxVisibleTasks = CalendarViewSettings.visibleTaskCount(cellHeight, false);
+			Font barFont = styled(g.getFont(), CalendarViewSettings.TextItem.BAR_TEXT);
+			FontMetrics barMetrics = g.getFontMetrics(barFont);
+			int barHeight = CalendarViewSettings.barHeight(barMetrics.getHeight());
+			int pitch = CalendarViewSettings.barPitch(barMetrics.getHeight());
+			int maxVisibleTasks = CalendarViewSettings.visibleTaskCount(cellHeight, false, pitch);
 			if (!companionDay.isEmpty()) {
 				Font baseFont = g.getFont();
 				g.setFont(baseFont.deriveFont(Math.max(9F, baseFont.getSize2D() - 2F)));
@@ -345,24 +359,23 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 				g.drawString(companionDay, x + 7, y + 31);
 				g.setFont(baseFont);
 				taskCardTop = 38;
-				maxVisibleTasks = CalendarViewSettings.visibleTaskCount(cellHeight, true);
+				maxVisibleTasks = CalendarViewSettings.visibleTaskCount(cellHeight, true, pitch);
 			}
 			List<Task> onDay = orderedTasksOn(day);
-			Font barFont = styled(g.getFont(), CalendarViewSettings.TextItem.BAR_TEXT);
 			int visible = Math.min(maxVisibleTasks, onDay.size());
 			for (int i = 0; i < visible; i++) {
-				Task task = onDay.get(i); Rectangle bounds = new Rectangle(x + 5, y + taskCardTop + i * 23, Math.max(20, width - 10), 19);
+				Task task = onDay.get(i); Rectangle bounds = new Rectangle(x + 5, y + taskCardTop + i * pitch, Math.max(20, width - 10), barHeight);
 				Integer barRgb = settings.getBarColor(CalendarViewSettings.barType(task));
 				g.setColor(barRgb != null ? new Color(barRgb) : task.isInactiveTask() ? FlatUiSupport.disabledForeground() : task.isManuallyScheduled() ? FlatUiSupport.accentColor().darker() : FlatUiSupport.ribbonAccentColor());
 				g.fillRoundRect(bounds.x, bounds.y, bounds.width, bounds.height, 7, 7);
 				g.setColor(barRgb != null && isLight(barRgb) ? Color.BLACK : FlatUiSupport.tableSelectionForeground()); String name = PrivacyDisplayMode.taskName(task);
 				Font previousFont = g.getFont(); g.setFont(barFont);
 				while (name.length() > 2 && g.getFontMetrics().stringWidth(name) > bounds.width - 8) name = name.substring(0, name.length() - 2) + "…";
-				g.drawString(name, bounds.x + 4, bounds.y + 14); cards.add(new Card(task, bounds));
+				g.drawString(name, bounds.x + 4, bounds.y + (bounds.height + barMetrics.getAscent() - barMetrics.getDescent()) / 2); cards.add(new Card(task, bounds));
 				g.setFont(previousFont);
 				if (hasDependencies(task)) {
 					g.setColor(FlatUiSupport.ribbonTabHoverColor());
-					g.drawString("↗", bounds.x + bounds.width - 15, bounds.y + 14);
+					g.drawString("↗", bounds.x + bounds.width - 15, bounds.y + (bounds.height + barMetrics.getAscent() - barMetrics.getDescent()) / 2);
 					cards.set(cards.size() - 1, new Card(task, bounds,
 						new Rectangle(bounds.x + bounds.width - 22, bounds.y, 22, bounds.height)));
 				}

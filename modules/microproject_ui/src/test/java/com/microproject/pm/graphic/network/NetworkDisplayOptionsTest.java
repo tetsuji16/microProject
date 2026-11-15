@@ -43,6 +43,18 @@ class NetworkDisplayOptionsTest {
 	}
 
 	@Test
+	void lagLabelUsesTheProjectsHoursPerDay() {
+		long eightHours = 8 * 60 * 60 * 1000L;
+		com.microproject.datatype.DurationDefaults fourHourDays = new com.microproject.datatype.DurationDefaults(240.0D, 1200.0D, 20.0D);
+		String twoDays = NetworkDisplayOptions.linkLabel(DependencyType.Kind.FS, eightHours, fourHourDays);
+		assertTrue(twoDays.startsWith("FS+2"), twoDays);
+		String oneDay = NetworkDisplayOptions.linkLabel(DependencyType.Kind.FS, eightHours,
+			com.microproject.datatype.DurationDefaults.PRODUCT_DEFAULTS);
+		assertTrue(oneDay.startsWith("FS+1"), oneDay);
+		assertTrue(NetworkDisplayOptions.linkLabel(DependencyType.Kind.FS, -eightHours, fourHourDays).startsWith("FS-2"));
+	}
+
+	@Test
 	void progressMarkIsSlashInProgressAndCrossWhenComplete() {
 		assertEquals(NetworkDisplayOptions.ProgressMark.NONE, NetworkDisplayOptions.progressMark(0.0));
 		assertEquals(NetworkDisplayOptions.ProgressMark.SLASH, NetworkDisplayOptions.progressMark(0.4));

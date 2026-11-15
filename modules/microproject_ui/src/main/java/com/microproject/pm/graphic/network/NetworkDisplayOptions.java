@@ -15,6 +15,7 @@ import java.util.EnumMap;
 import java.util.Map;
 
 import com.microproject.datatype.Duration;
+import com.microproject.datatype.DurationDefaults;
 import com.microproject.datatype.DurationFormat;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.task.Task;
@@ -84,8 +85,15 @@ public final class NetworkDisplayOptions {
 
 	/** "FS" for a plain link, "SS+2d" or "FS-1d" when the link has lag or lead. */
 	public static String linkLabel(DependencyType.Kind kind, long lag) {
+		return linkLabel(kind, lag, null);
+	}
+
+	/** As {@link #linkLabel(DependencyType.Kind, long)}, with the lag unit sizes (hours per day ...) of the owning project. */
+	public static String linkLabel(DependencyType.Kind kind, long lag, DurationDefaults defaults) {
 		if (lag == 0) return kind.name();
-		String text = DurationFormat.getInstance().format(new Duration(Math.abs(lag)));
+		Duration duration = new Duration(Math.abs(lag));
+		String text = defaults == null ? DurationFormat.getInstance().format(duration)
+			: DurationFormat.getProjectInstance().format(duration, defaults);
 		return kind.name() + (lag < 0 ? "-" : "+") + text;
 	}
 
