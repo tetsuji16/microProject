@@ -53,7 +53,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.options.GeneralOption;
-import com.microproject.pm.availability.AvailabilityTable;
+import com.microproject.interval.ValueObjectForIntervalTable;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.frames.MainRibbonFrame;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
@@ -91,6 +91,15 @@ class ResourceAvailabilityRowDeleteGuiAcceptanceTest {
 
 	@Test
 	void physicalPopupDeleteOfAvailabilityRowMarksProjectForSaving() throws Exception {
+		runIntervalRowScenario(false);
+	}
+
+	@Test
+	void physicalPopupDeleteOfCostRateRowMarksProjectForSaving() throws Exception {
+		runIntervalRowScenario(true);
+	}
+
+	private void runIntervalRowScenario(boolean costRate) throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousClientSide = Environment.isClientSide();
 		Environment.setClientSide(true);
@@ -106,7 +115,7 @@ class ResourceAvailabilityRowDeleteGuiAcceptanceTest {
 		project.setName("Resource availability delete");
 		ResourceImpl resource = pool.newResourceInstance();
 		resource.setName("Availability GUI resource");
-		AvailabilityTable table = resource.getAvailabilityTable();
+		ValueObjectForIntervalTable table = costRate ? resource.getCostRateTable(0) : resource.getAvailabilityTable();
 		table.newValueObject(DateTime.calendarInstance(2030, Calendar.JANUARY, 1).getTimeInMillis());
 		assertEquals(2, table.getList().size());
 
@@ -131,7 +140,7 @@ class ResourceAvailabilityRowDeleteGuiAcceptanceTest {
 		robot.setAutoDelay(40);
 		JTabbedPane tabs = find(dialog, JTabbedPane.class, c -> true);
 		assertNotNull(tabs, "Resource Information must expose its tabs");
-		int availabilityTab = tabs.indexOfTab(Messages.getString("ResourceInformationDialog.ResourceAvailability")); //$NON-NLS-1$
+		int availabilityTab = tabs.indexOfTab(Messages.getString(costRate ? "ResourceInformationDialog.Costs" : "ResourceInformationDialog.ResourceAvailability")); //$NON-NLS-1$
 		assertTrue(availabilityTab >= 0, "Resource Information must expose the Resource Availability tab");
 		Rectangle tabBounds = tabs.getBoundsAt(availabilityTab);
 		click(robot, tabs, tabBounds, InputEvent.BUTTON1_DOWN_MASK);
@@ -139,7 +148,7 @@ class ResourceAvailabilityRowDeleteGuiAcceptanceTest {
 				"Robot click did not select the Resource Availability tab");
 
 		SpreadSheet sheet = find(dialog, SpreadSheet.class,
-				c -> "availabilitySpreadsheet".equals(c.getSpreadSheetCategory()) && c.isShowing()); //$NON-NLS-1$
+				c -> (costRate ? "costRates" : "availabilitySpreadsheet").equals(c.getSpreadSheetCategory()) && c.isShowing()); //$NON-NLS-1$
 		assertNotNull(sheet, "The availability table must be showing");
 		GuiAcceptanceSupport.awaitInputAndEventQueueIdle(robot, "availability table painted");
 		project.markSaved();
