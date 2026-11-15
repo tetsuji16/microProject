@@ -421,7 +421,7 @@ class RibbonAndToolbarButtonTest {
 			List.of("RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName", "RibbonGridlines", "RibbonToggleCriticalChain"),
 			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("FormatDisplayRibbonBand"));
 		assertEquals(
-			List.of("RibbonArrangeAll", "RibbonPrivacyMask"),
+			List.of("RibbonSwitchWindows", "RibbonArrangeAll", "RibbonPrivacyMask"),
 			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("ViewWindowRibbonBand"));
 		assertEquals(
 			List.of("RibbonTimescale", "RibbonBarStyles", "RibbonTextStyles"),

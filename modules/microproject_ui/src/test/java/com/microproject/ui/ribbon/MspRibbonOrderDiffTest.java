@@ -73,7 +73,11 @@ class MspRibbonOrderDiffTest {
 
 	private static final String PHASE_1B = "not implemented yet; phase 1b, #1166";
 	private static final String ONLINE = "Project Online / Project Server scope is outside the standalone desktop goal (AGENTS.md)";
-	private static final String REPORT_GALLERIES = PHASE_1B + " (report galleries)";
+	/** Out-of-goal scope exclusions (not deferred work). */
+	private static final String AGILE = "scope exclusion: Agile/Scrum features are phase 4 and outside the current compatibility goal";
+	private static final String OFFICE_ADDIN = "scope exclusion: local Office add-ins / VBA / COM automation stay unresolved goal rows (AGENTS.md)";
+	private static final String REPORT_ITEMS =
+		"report galleries list the existing product reports; Microsoft's only child is More Reports";
 	private static final String VIEW_GALLERY_ITEMS =
 		"view gallery lists product views; Microsoft's children are Reset/Save/More; " + PHASE_1B;
 	private static final String LIST_ITEMS = "list items; Microsoft's children are Clear/New/More; " + PHASE_1B;
@@ -89,12 +93,15 @@ class MspRibbonOrderDiffTest {
 
 	/** Our band ("tab/band") -> the Microsoft group of the same tab it implements. */
 	private static final Map<String, String> BAND_GROUPS = Map.ofEntries(
+		Map.entry("TaskRibbonTask/TaskViewRibbonBand", "GroupTaskViewSimple"),
 		Map.entry("TaskRibbonTask/TaskClipboardRibbonBand", "GroupClipboard"),
+		Map.entry("TaskRibbonTask/TaskFontRibbonBand", "GroupFont"),
 		Map.entry("TaskRibbonTask/TaskTrackingRibbonBand", "GroupTaskSchedule"),
 		Map.entry("TaskRibbonTask/TaskTasksRibbonBand", "GroupTasksLayout"),
 		Map.entry("TaskRibbonTask/TaskInsertRibbonBand", "GroupTaskInsert"),
 		Map.entry("TaskRibbonTask/TaskPropertiesRibbonBand", "GroupTaskProperties"),
 		Map.entry("TaskRibbonTask/TaskEditingRibbonBand", "GroupEditing"),
+		Map.entry("ResourceRibbonTask/ResourceViewRibbonBand", "GroupResourceViewSimple"),
 		Map.entry("ResourceRibbonTask/ResourceAssignmentsRibbonBand", "GroupAssignments"),
 		Map.entry("ResourceRibbonTask/ResourceInsertRibbonBand", "GroupResourceInsert"),
 		Map.entry("ResourceRibbonTask/ResourcePropertiesRibbonBand", "GroupResourceProperties"),
@@ -131,66 +138,47 @@ class MspRibbonOrderDiffTest {
 
 	/** Microsoft groups of the compared tabs that we have no band for ("tab/group"), with the reason. */
 	private static final Map<String, String> MISSING_GROUPS = Map.ofEntries(
-		Map.entry("TabTask/GroupTaskViewSimple", "Task-tab view gallery; " + PHASE_1B),
-		Map.entry("TabTask/GroupFont", "Font group controls; " + PHASE_1B),
-		Map.entry("TabResource/GroupResourceViewSimple", "Resource-tab view gallery; " + PHASE_1B),
 		Map.entry("TabReportOverview/GroupCompareProject", "Compare Projects; " + PHASE_1B),
 		Map.entry("TabReportOverview/GroupVisualReports",
-			"EXCLUDED in msp-ribbon-spec.csv: requires external Excel/Visio"),
+			"scope exclusion: Visual Reports require external Excel/Visio (EXCLUDED in msp-ribbon-spec.csv)"),
 		Map.entry("TabProject/GroupOfficeExtension",
-			"Office add-ins stay an unresolved goal row (AGENTS.md: local Office add-ins)"),
+			OFFICE_ADDIN),
 		Map.entry("TabProject/GroupProofing", "Spelling; " + PHASE_1B),
 		Map.entry("TabView/GroupMacros",
-			"EXCLUDED in msp-ribbon-spec.csv: VBA/macros excluded by the #797 scope decision"));
+			"scope exclusion: " + "VBA/macros excluded by the #797 scope decision (EXCLUDED in msp-ribbon-spec.csv)"));
 
 	/**
 	 * Top-level Microsoft controls inside a group we implement that no control of that band maps to,
 	 * with the reason. A control counts as present when it or one of its menu children is mapped.
 	 */
 	private static final Map<String, String> MISSING_CONTROLS = Map.ofEntries(
-		Map.entry("TabTask/TaskSplit", PHASE_1B),
-		Map.entry("TabTask/MoveTaskMenu", PHASE_1B),
-		Map.entry("TabTask/ScheduleModeMenu", PHASE_1B),
+		Map.entry("TabTask/TaskSplit", "requires task split model; tracked separately"),
 		Map.entry("TabTask/DeliverablesMenu", ONLINE + " (deliverables)"),
-		Map.entry("TabTask/TaskAddToTimeline", PHASE_1B),
-		Map.entry("TabTask/EditFillMenu", PHASE_1B),
-		Map.entry("TabResource/AddEngagement", ONLINE + " (engagements)"),
-		Map.entry("TabResource/ResourceNotes", PHASE_1B),
-		Map.entry("TabResource/ResourceDetailsDisplay", PHASE_1B),
-		Map.entry("TabResource/LevelingOptions", PHASE_1B),
-		Map.entry("TabReportOverview/CreateNewReportMenu", REPORT_GALLERIES),
-		Map.entry("TabReportOverview/ReportDashboardGallery", REPORT_GALLERIES),
-		Map.entry("TabReportOverview/ReportResourceGallery", REPORT_GALLERIES),
-		Map.entry("TabReportOverview/ReportCostGallery", REPORT_GALLERIES),
-		Map.entry("TabReportOverview/ReportInProgressGallery", REPORT_GALLERIES),
-		Map.entry("TabReportOverview/ReportGettingStartedGallery", REPORT_GALLERIES),
-		Map.entry("TabReportOverview/ReportCustomGallery", REPORT_GALLERIES),
-		Map.entry("TabReportOverview/ReportRecentGallery", REPORT_GALLERIES),
-		Map.entry("TabReportOverview/ReportAgileGallery", REPORT_GALLERIES),
-		Map.entry("TabProject/SelectAgileMethodology", PHASE_1B),
-		Map.entry("TabProject/ManageSprints", PHASE_1B),
-		Map.entry("TabProject/LinksBetweenProjects", PHASE_1B),
-		Map.entry("TabProject/WbsMenu", PHASE_1B),
-		Map.entry("TabProject/StatusDateLabel", PHASE_1B + " (label control)"),
-		Map.entry("TabView/TaskBoardViewGallery", PHASE_1B),
-		Map.entry("TabView/TaskViewsOtherGallery", PHASE_1B),
-		Map.entry("TabView/TeamPlannerViewGallery", PHASE_1B),
-		Map.entry("TabView/ResourcePlanViewGallery", PHASE_1B),
-		Map.entry("TabView/ResourceOtherViewGallery", PHASE_1B),
-		Map.entry("TabView/TablesGallery", PHASE_1B),
-		Map.entry("TabView/HighlightFiltersGroup", PHASE_1B),
-		Map.entry("TabView/TimescaleLabel", PHASE_1B + " (label control)"),
-		Map.entry("TabView/TimescaleGallery", PHASE_1B),
-		Map.entry("TabView/ZoomEntireProject", PHASE_1B),
-		Map.entry("TabView/GalleryTimelineView", PHASE_1B),
-		Map.entry("TabView/ViewDetailsGallery", PHASE_1B),
-		Map.entry("TabView/WindowNew", PHASE_1B),
-		Map.entry("TabView/WindowSwitchWindowsMenuWord", PHASE_1B),
-		Map.entry("TabView/HideWindowMenu", PHASE_1B),
-		Map.entry("HelpTab/Help", "our Help commands are product-specific and not mapped; " + PHASE_1B),
+		Map.entry("TabResource/AddEngagement", "scope exclusion: " + ONLINE + " (engagements)"),
+		Map.entry("TabReportOverview/CreateNewReportMenu",
+			"no report designer: Custom Report builds task reports only, so Blank/Chart/Table/Comparison report authoring has no engine"),
+		Map.entry("TabReportOverview/ReportCostGallery", "no cost report exists in the report engine to list"),
+		Map.entry("TabReportOverview/ReportGettingStartedGallery", "no Getting Started report templates exist to list"),
+		Map.entry("TabReportOverview/ReportAgileGallery", AGILE),
+		Map.entry("TabProject/SelectAgileMethodology", AGILE),
+		Map.entry("TabProject/ManageSprints", AGILE),
+		Map.entry("TabProject/LinksBetweenProjects", "external-task placeholders live in a private ExternalTaskManager with no query/re-point API, so a Change Links dialog cannot be backed by the engine yet"),
+		Map.entry("TabProject/WbsMenu", "WBS codes are derived from the outline only; core has no WBS code mask or renumber facility to back Define Code/Renumber"),
+		Map.entry("TabProject/StatusDateLabel", "the Status Date button already shows the date (StatusDateControlUpdater); a separate non-interactive label control needs ribbon label support; " + PHASE_1B),
+		Map.entry("TabView/TaskBoardViewGallery", AGILE),
+		Map.entry("TabView/TaskViewsOtherGallery", "no further task views exist beyond those in the Task Views gallery"),
+		Map.entry("TabView/ResourcePlanViewGallery", "scope exclusion: Resource Plan view belongs to Project Online / Server resource engagements (AGENTS.md)"),
+		Map.entry("TabView/ResourceOtherViewGallery", "no further resource views exist beyond those in the Resource Views gallery"),
+		Map.entry("TabView/TablesGallery", "views have no named table definitions to switch; columns are edited per view"),
+		Map.entry("TabView/HighlightFiltersGroup", "filters only hide rows; the engine has no highlight (row emphasis) filter"),
+		Map.entry("TabView/TimescaleLabel", "static label control is not supported by the ribbon; the Timescale list shows the current value"),
+		Map.entry("TabView/GalleryTimelineView", "the lower pane offers only the Timeline and Details check boxes; no lower-pane view picker exists"),
+		Map.entry("TabView/ViewDetailsGallery", "the lower pane offers only the Details check box; no lower-pane view picker exists"),
+		Map.entry("TabView/WindowNew", "one document frame per project (addProjectFrame reuses it); a second window on the same project is not supported"),
+		Map.entry("TabView/HideWindowMenu", "the frame manager has no hidden-window state to back Hide/Unhide"),
 		Map.entry("HelpTab/OfficeFeedbackHelpTab", "Office feedback service is outside the standalone desktop goal"),
-		Map.entry("HelpTab/ShowTraining", PHASE_1B),
-		Map.entry("HelpTab/WhatsNewRecentUpdates", PHASE_1B));
+		Map.entry("HelpTab/ShowTraining", "Microsoft training content is an online service; no local equivalent and no network calls are added"),
+		Map.entry("HelpTab/WhatsNewRecentUpdates", "Microsoft update announcements are an online service; no local equivalent and no network calls are added"));
 
 	private record Extension(String after, String reason) {
 	}
@@ -208,14 +196,14 @@ class MspRibbonOrderDiffTest {
 	 * Microsoft control of its band, or after all mapped controls when the anchor is {@link #END}.
 	 */
 	private static final Map<String, Extension> EXTENSIONS = Map.ofEntries(
-		Map.entry("RibbonMoveTaskUp", after("InspectTasksMenu", "move-in-outline commands of the Tasks group")),
-		Map.entry("RibbonMoveTaskDown", after("InspectTasksMenu", "move-in-outline commands of the Tasks group")),
-		Map.entry("RibbonDelegateTasks", after("InspectTasksMenu", "task delegation, closest to the Tasks group")),
-		Map.entry("RibbonDelete", after("ClearMenu", "row deletion next to Clear")),
-		Map.entry("RibbonSelectAll", after("ClearMenu", "selection command of Editing")),
-		Map.entry("RibbonScrollToToday", after("ClearMenu", "Go To companion of Editing")),
-		Map.entry("RibbonHideSelectedTasks", after("ClearMenu", "row visibility command of Editing")),
-		Map.entry("RibbonShowAllTasks", after("ClearMenu", "row visibility command of Editing")),
+		Map.entry("RibbonMoveTaskUp", after("ScheduleModeMenu", "move-in-outline commands of the Tasks group")),
+		Map.entry("RibbonMoveTaskDown", after("ScheduleModeMenu", "move-in-outline commands of the Tasks group")),
+		Map.entry("RibbonDelegateTasks", after("ScheduleModeMenu", "task delegation, closest to the Tasks group")),
+		Map.entry("RibbonDelete", after("EditFillMenu", "row deletion next to Clear")),
+		Map.entry("RibbonSelectAll", after("EditFillMenu", "selection command of Editing")),
+		Map.entry("RibbonScrollToToday", after("EditFillMenu", "Go To companion of Editing")),
+		Map.entry("RibbonHideSelectedTasks", after("EditFillMenu", "row visibility command of Editing")),
+		Map.entry("RibbonShowAllTasks", after("EditFillMenu", "row visibility command of Editing")),
 		Map.entry("RibbonCreateResourcePool", after("ResourcesShare", "resource pool creation, next to sharing a pool")),
 		Map.entry("RibbonTimesheet", after("ResourcePoolRefresh", "assignment-related command with no Microsoft control")),
 		Map.entry("RibbonTeamFilter", after("ResourcePoolRefresh", "assignment-related command with no Microsoft control")),
@@ -235,7 +223,6 @@ class MspRibbonOrderDiffTest {
 		Map.entry("RibbonRBS", after("ResourceSheetViewGallery", "RBS view; no Microsoft gallery entry point")),
 		Map.entry("RibbonProjects", after("ResourceSheetViewGallery", "projects view; no Microsoft gallery entry point")),
 		Map.entry("RibbonPrivacyMask", after("WindowsArrangeAll", "window-level display toggle")),
-		Map.entry("RibbonMicroProjectDocumentation", after(END, "product documentation; no Microsoft control mapped")),
 		Map.entry("RibbonAboutMicroProject", after(END, "product About; no Microsoft control mapped")));
 
 	/** Items of popups (by ribbon id) -> the Microsoft menu child they correspond to. */
@@ -257,7 +244,21 @@ class MspRibbonOrderDiffTest {
 		Map.entry("RibbonInsertBlankRow", "BlankRowInsert"),
 		Map.entry("RibbonSaveBaseline", "BaselineSave"),
 		Map.entry("RibbonClearBaseline", "BaselineClear"),
-		Map.entry("RibbonSortBy", "SortByDialog"));
+		Map.entry("RibbonMoveForwardDay", "TaskMoveForwardOneDay"),
+		Map.entry("RibbonMoveForwardWeek", "TaskMoveForwardOneWeek"),
+		Map.entry("RibbonMoveForwardFourWeeks", "TaskMoveForwardFourWeeks"),
+		Map.entry("RibbonMoveForwardCustom", "TaskMoveForwardCustom"),
+		Map.entry("RibbonMoveBackDay", "TaskMoveBackOneDay"),
+		Map.entry("RibbonMoveBackWeek", "TaskMoveBackOneWeek"),
+		Map.entry("RibbonMoveBackFourWeeks", "TaskMoveBackFourWeeks"),
+		Map.entry("RibbonMoveBackCustom", "TaskMoveBackCustom"),
+		Map.entry("RibbonMoveWhenResourcesAvailable", "ScheduleTaskWhenResourcesAvailable"),
+		Map.entry("RibbonFillDown", "FillDown"),
+		Map.entry("RibbonFillLeft", "FillLeft"),
+		Map.entry("RibbonFillRight", "FillRight"),
+		Map.entry("RibbonFillUp", "FillUp"),
+		Map.entry("RibbonSortBy", "SortByDialog"),
+		Map.entry("RibbonTimescale", "Timescale"));
 
 	/**
 	 * Popups (by ribbon id) with items that have no Microsoft child to be ordered against, with the
@@ -267,12 +268,23 @@ class MspRibbonOrderDiffTest {
 		Map.entry("RibbonClear",
 			"Microsoft's Clear menu children (Formatting, Hyperlinks, Notes, All, Row); " + PHASE_1B),
 		Map.entry("RibbonInsertResource", "Microsoft's Add Resources menu children; " + PHASE_1B),
+		Map.entry("RibbonTaskViewGantt", VIEW_GALLERY_ITEMS),
+		Map.entry("RibbonResourceViews", VIEW_GALLERY_ITEMS),
 		Map.entry("RibbonGantt", VIEW_GALLERY_ITEMS),
 		Map.entry("RibbonCalendarView", VIEW_GALLERY_ITEMS),
 		Map.entry("RibbonNetwork", VIEW_GALLERY_ITEMS),
 		Map.entry("RibbonTaskUsageDetail", VIEW_GALLERY_ITEMS),
 		Map.entry("RibbonResources", VIEW_GALLERY_ITEMS),
 		Map.entry("RibbonResourceUsageDetail", VIEW_GALLERY_ITEMS),
+		Map.entry("RibbonFontName", "the font list is the installed font families; only the More Fonts entry is a command"),
+		Map.entry("RibbonFontSize", "the size list is a fixed set of sizes; only the More Font Sizes entry is a command"),
+		Map.entry("RibbonScheduleMode",
+			"Microsoft's Mode menu lists project-start/finish scheduling choices; the Manually/Auto Schedule items are mode commands"),
+		Map.entry("RibbonReportDashboards", REPORT_ITEMS),
+		Map.entry("RibbonReportResources", REPORT_ITEMS),
+		Map.entry("RibbonReportInProgress", REPORT_ITEMS),
+		Map.entry("RibbonReportCustom", REPORT_ITEMS),
+		Map.entry("RibbonTeamPlanner", VIEW_GALLERY_ITEMS),
 		Map.entry("RibbonChooseFilter", LIST_ITEMS),
 		Map.entry("RibbonChooseSort", "sort presets are product commands; only Sort By maps"),
 		Map.entry("RibbonChooseGroup", LIST_ITEMS));

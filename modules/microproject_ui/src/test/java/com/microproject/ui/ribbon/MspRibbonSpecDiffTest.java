@@ -43,14 +43,10 @@ class MspRibbonSpecDiffTest {
 
 	/** REQUIRED commands that the ribbon does not yet expose, each with the reason it is open. */
 	private static final Map<String, String> KNOWN_GAPS = Map.ofEntries(
-		Map.entry("RibbonTaskViewGantt", "Task > View dropdown absent; views are only on the View tab"),
-		Map.entry("RibbonFont", "Task > Font group absent; Text Styles on the Format tab covers the dialog, Ctrl+Shift+F exists"),
-		Map.entry("RibbonAddToTimeline", "no Add to Timeline command or Action exists yet"),
-		Map.entry("RibbonFill", "FillDown Action and Ctrl+D exist but no ribbon button is wired"),
 		Map.entry("RibbonLinksBetweenProjects", "no Links Between Projects dialog exists"),
 		Map.entry("RibbonDefineWbs", "WBS code definition is deliberately not exposed until implemented (RibbonStructureTest)"),
 		Map.entry("RibbonSpelling", "no spell checker (F7) exists"),
-		Map.entry("RibbonNewWindow", "no New Window / Switch Windows commands exist"),
+		Map.entry("RibbonNewWindow", "no New Window command: one document frame per project, a second window on the same project is unsupported"),
 		Map.entry("RibbonOutline", "View > Data > Outline levels not wired to a ribbon command"),
 		Map.entry("RibbonTables", "View > Data > Tables not wired to a ribbon command"),
 		Map.entry("RibbonHighlight", "View > Data > Highlight filter not wired to a ribbon command"));

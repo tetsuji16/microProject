@@ -87,12 +87,16 @@ public interface MenuActionConstants {
 	public static final String ACTION_DETAILS                 = "Details";
 	public static final String ACTION_NO_SUB_WINDOW           = "NoSubWindow";
 	public static final String ACTION_ARRANGE_ALL             = "ArrangeAll";
+	public static final String ACTION_SWITCH_WINDOWS          = "SwitchWindows";
+	public static final String ACTION_TEAM_PLANNER            = "TeamPlanner";
+	public static final String ACTION_RECENT_REPORTS          = "RecentReports";
 	public static final String ACTION_TIMELINE                = "Timeline";
 	public static final String ACTION_CALENDAR_VIEW           = "CalendarView";
 
 	public static final String ACTION_ZOOM_IN                 = "ZoomIn";
 	public static final String ACTION_ZOOM_OUT                = "ZoomOut";
 	public static final String ACTION_ZOOM_SELECTED_TASKS      = "ZoomSelectedTasks";
+	public static final String ACTION_ZOOM_ENTIRE_PROJECT      = "ZoomEntireProject";
 	public static final String ACTION_SCROLL_TO_TASK          = "ScrollToTask";
 	public static final String ACTION_SCROLL_TO_TODAY         = "ScrollToToday";
 	public static final String ACTION_TOGGLE_PROGRESS_LINE    = "ToggleProgressLine";
@@ -128,6 +132,13 @@ public interface MenuActionConstants {
 	public static final String ACTION_NEW             	      = ACTION_INSERT_TASK;
 
 	public static final String ACTION_FONT                    = "Font";
+	public static final String ACTION_BOLD                    = "Bold";
+	public static final String ACTION_ITALIC                  = "Italic";
+	public static final String ACTION_FONT_COLOR              = "FontColor";
+	public static final String ACTION_UNDERLINE               = "Underline";
+	public static final String ACTION_BACKGROUND_COLOR        = "BackgroundColor";
+	public static final String ACTION_FONT_NAME               = "FontName";
+	public static final String ACTION_FONT_SIZE               = "FontSize";
 	public static final String ACTION_BAR                     = "Bar";
 	public static final String ACTION_TIMESCALE               = "Timescale";
 	public static final String ACTION_GRIDLINES               = "Gridlines";

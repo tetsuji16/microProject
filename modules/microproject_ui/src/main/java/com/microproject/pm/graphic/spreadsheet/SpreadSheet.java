@@ -520,21 +520,54 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		return null;
 	}
 
+	/** Direction of an Edit &gt; Fill command, as in Microsoft Project's Fill menu. */
+	public enum FillDirection { DOWN, UP, LEFT, RIGHT }
+
+	/** One cell copy of a fill: the value at {@code sourceRow/sourceColumn} goes to {@code targetRow/targetColumn}. */
+	public record FillStep(int sourceRow, int sourceColumn, int targetRow, int targetColumn) { }
+
+	/**
+	 * Plans a fill of the selected block. Down and Right copy the first selected row or column into
+	 * the rest; Up and Left copy the last. Fewer than two rows (columns for Left/Right) plan nothing.
+	 */
+	public static List<FillStep> planFill(int[] selectedRows, int[] selectedColumns, FillDirection direction) {
+		int[] rows = selectedRows.clone();
+		int[] columns = selectedColumns.clone();
+		java.util.Arrays.sort(rows);
+		java.util.Arrays.sort(columns);
+		List<FillStep> steps = new ArrayList<>();
+		boolean vertical = direction == FillDirection.DOWN || direction == FillDirection.UP;
+		int[] along = vertical ? rows : columns;
+		int[] across = vertical ? columns : rows;
+		if (along.length < 2)
+			return steps;
+		boolean fromFirst = direction == FillDirection.DOWN || direction == FillDirection.RIGHT;
+		int source = fromFirst ? along[0] : along[along.length - 1];
+		for (int other : across) {
+			for (int target : along) {
+				if (target == source)
+					continue;
+				steps.add(vertical ? new FillStep(source, other, target, other) : new FillStep(other, source, other, target));
+			}
+		}
+		return steps;
+	}
+
 	/** Copies each selected column's first selected value into the remaining selected rows. */
 	public void fillDownSelection() {
+		fillSelection(FillDirection.DOWN);
+	}
+
+	/** Fills the selected block in {@code direction}, skipping cells that are not editable. */
+	public void fillSelection(FillDirection direction) {
 		finishCurrentOperations();
 		int[] rows = getSelectedRows();
 		int[] columns = getSelectedColumns();
-		if (rows.length < 2)
-			return;
 		if (columns.length == 0 && getSelectedColumn() >= 0)
 			columns = new int[] { getSelectedColumn() };
-		for (int column : columns) {
-			Object value = getValueAt(rows[0], column);
-			for (int index = 1; index < rows.length; index++) {
-				if (getModel().isCellEditable(rows[index], column))
-					setValueAt(value, rows[index], column);
-			}
+		for (FillStep step : planFill(rows, columns, direction)) {
+			if (getModel().isCellEditable(step.targetRow(), step.targetColumn()))
+				setValueAt(getValueAt(step.sourceRow(), step.sourceColumn()), step.targetRow(), step.targetColumn());
 		}
 	}
 

@@ -28,9 +28,10 @@ public final class TaskFontStyle {
 		int size = task.getFontSize();
 		int style = (task.isFontBold() ? Font.BOLD : Font.PLAIN) | (task.isFontItalic() ? Font.ITALIC : Font.PLAIN);
 		boolean strikethrough = task.isFontStrikethrough() || task.isInactiveTask();
-		if ((family == null || family.isBlank()) && size == 0 && style == Font.PLAIN && !strikethrough)
+		boolean underline = task.isFontUnderline();
+		if ((family == null || family.isBlank()) && size == 0 && style == Font.PLAIN && !strikethrough && !underline)
 			return fallback;
-		FontKey key = new FontKey(fallback, family == null || family.isBlank() ? null : family, style, size, strikethrough);
+		FontKey key = new FontKey(fallback, family == null || family.isBlank() ? null : family, style, size, strikethrough, underline);
 		synchronized (FONT_CACHE) {
 			Font cached = FONT_CACHE.get(key);
 			if (cached != null)
@@ -39,9 +40,12 @@ public final class TaskFontStyle {
 		Font resolved = fallback.deriveFont(style, (float)(size == 0 ? fallback.getSize() : size));
 		if (family != null && !family.isBlank())
 			resolved = new Font(family, style, size == 0 ? fallback.getSize() : size);
-		if (strikethrough) {
+		if (strikethrough || underline) {
 			Map<TextAttribute, Object> attributes = new HashMap<>(resolved.getAttributes());
-			attributes.put(TextAttribute.STRIKETHROUGH, TextAttribute.STRIKETHROUGH_ON);
+			if (strikethrough)
+				attributes.put(TextAttribute.STRIKETHROUGH, TextAttribute.STRIKETHROUGH_ON);
+			if (underline)
+				attributes.put(TextAttribute.UNDERLINE, TextAttribute.UNDERLINE_ON);
 			resolved = resolved.deriveFont(attributes);
 		}
 		synchronized (FONT_CACHE) {
@@ -50,7 +54,7 @@ public final class TaskFontStyle {
 		return resolved;
 	}
 
-	private record FontKey(Font fallback, String family, int style, int size, boolean strikethrough) {
+	private record FontKey(Font fallback, String family, int style, int size, boolean strikethrough, boolean underline) {
 	}
 
 	/** Small LRU of derived fonts so painting does not allocate a Font per cell/row. */
@@ -75,11 +79,22 @@ public final class TaskFontStyle {
 		return new Color(task.getFontColor().intValue());
 	}
 
+	/** The task's cell fill color, or {@code fallback} when it has none. */
+	public static Color resolveBackground(Object object, Color fallback) {
+		if (!(object instanceof Task task) || task.getFontBackground() == null)
+			return fallback;
+		return new Color(task.getFontBackground().intValue());
+	}
+
 	public static void apply(Component component, Object object, boolean selected) {
 		if (component == null || !(object instanceof Task))
 			return;
 		component.setFont(resolveFont(object, component.getFont()));
-		if (!selected)
+		if (!selected) {
 			component.setForeground(resolveColor(object, component.getForeground()));
+			Color fill = resolveBackground(object, null);
+			if (fill != null)
+				component.setBackground(fill);
+		}
 	}
 }

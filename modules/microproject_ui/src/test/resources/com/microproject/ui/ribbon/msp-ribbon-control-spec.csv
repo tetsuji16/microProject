@@ -24,6 +24,8 @@ RibbonInsertMilestone,MilestoneInsert,BUTTON,COMMAND,DOCUMENTED,TaskRibbonTask/T
 RibbonInsertSummary,SummaryTaskInsert,BUTTON,COMMAND,DOCUMENTED,TaskRibbonTask/TaskInsertRibbonBand,
 RibbonInsertRecurring,RecurringTaskInsert,BUTTON,DIALOG,DOCUMENTED,TaskRibbonTask/TaskInsertRibbonBand,
 RibbonInsertProject,SubprojectInsert,BUTTON,DIALOG,DOCUMENTED,ProjectRibbonTask/ProjectInsertRibbonBand,
+RibbonMoveTask,MoveTaskMenu,MENU,POPUP,DOCUMENTED,TaskRibbonTask/TaskTasksRibbonBand,Forward and back by 1 day / 1 week / 4 weeks / custom working days
+RibbonScheduleMode,ScheduleModeMenu,MENU,POPUP,DOCUMENTED,TaskRibbonTask/TaskTasksRibbonBand,Manually Schedule / Auto Schedule
 RibbonMoveTaskUp,,BUTTON,COMMAND,BASELINE,TaskRibbonTask/TaskTasksRibbonBand,product-only
 RibbonMoveTaskDown,,BUTTON,COMMAND,BASELINE,TaskRibbonTask/TaskTasksRibbonBand,product-only
 RibbonExpand,OutlineSubtasksShow,BUTTON,COMMAND,DOCUMENTED,ViewRibbonTask/ViewDataRibbonBand,
@@ -33,6 +35,7 @@ RibbonDelegateTasks,,BUTTON,DIALOG,BASELINE,TaskRibbonTask/TaskTasksRibbonBand,p
 RibbonTaskInformation,TaskInformation,BUTTON,DIALOG,DOCUMENTED,TaskRibbonTask/TaskPropertiesRibbonBand,
 RibbonTaskInspector,InspectTasksMenu,SPLIT_BUTTON,COMMAND,DOCUMENTED,TaskRibbonTask/TaskTasksRibbonBand,Inspect Task / Show Warnings / Show Suggestions / Show Ignored Problems
 RibbonNotes,TaskNotes,BUTTON,DIALOG,DOCUMENTED,TaskRibbonTask/TaskPropertiesRibbonBand,
+RibbonAddToTimeline,TaskAddToTimeline,TOGGLE_BUTTON,TOGGLE_STATE,DOCUMENTED,TaskRibbonTask/TaskPropertiesRibbonBand,Pressed when every selected task is on the timeline
 RibbonTaskDetails,TaskDetailsDisplay,TOGGLE_BUTTON,TOGGLE_STATE,DOCUMENTED,TaskRibbonTask/TaskPropertiesRibbonBand,
 RibbonCustomFields,CustomFieldDialog,BUTTON,DIALOG,DOCUMENTED,ProjectRibbonTask/ProjectInfoRibbonBand,
 RibbonMarkOnTrack,UpdateAsScheduledMenu,SPLIT_BUTTON,COMMAND,DOCUMENTED,TaskRibbonTask/TaskTrackingRibbonBand,Mark on Track / Update Tasks
@@ -63,14 +66,20 @@ RibbonResourceInformation,ResourceInformation,BUTTON,DIALOG,DOCUMENTED,ResourceR
 RibbonTimesheet,,BUTTON,DIALOG,BASELINE,ResourceRibbonTask/ResourceAssignmentsRibbonBand,product-only
 RibbonTeamFilter,,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,ResourceRibbonTask/ResourceAssignmentsRibbonBand,product-only
 RibbonLevelSelection,LevelSelection,BUTTON,COMMAND,DOCUMENTED,ResourceRibbonTask/ResourceLevelRibbonBand,
+RibbonLevelResource,LevelResource,BUTTON,DIALOG,DOCUMENTED,ResourceRibbonTask/ResourceLevelRibbonBand,
 RibbonLevelAll,LevelNow,BUTTON,COMMAND,DOCUMENTED,ResourceRibbonTask/ResourceLevelRibbonBand,
 RibbonClearLevelSelection,,BUTTON,COMMAND,BASELINE,ResourceRibbonTask/ResourceLevelRibbonBand,product-only
 RibbonClearLevelAll,LevelingClear,BUTTON,COMMAND,DOCUMENTED,ResourceRibbonTask/ResourceLevelRibbonBand,
-RibbonLevelResources,LevelResource,BUTTON,DIALOG,DOCUMENTED,ResourceRibbonTask/ResourceLevelRibbonBand,
+RibbonLevelResources,LevelingOptions,BUTTON,DIALOG,DOCUMENTED,ResourceRibbonTask/ResourceLevelRibbonBand,
 RibbonNextOverallocation,OverallocationGoTo,BUTTON,COMMAND,DOCUMENTED,ResourceRibbonTask/ResourceLevelRibbonBand,
 RibbonUseResourcePool,ResourcesShare,BUTTON,DIALOG,DOCUMENTED,ResourceRibbonTask/ResourceAssignmentsRibbonBand,
 RibbonCreateResourcePool,,BUTTON,COMMAND,BASELINE,ResourceRibbonTask/ResourceAssignmentsRibbonBand,product-only
 RibbonRefreshResourcePool,ResourcePoolRefresh,BUTTON,COMMAND,DOCUMENTED,ResourceRibbonTask/ResourceAssignmentsRibbonBand,
+RibbonReportDashboards,ReportDashboardGallery,GALLERY,POPUP,DOCUMENTED,ReportRibbonTask/ReportViewsRibbonBand,Project overview / Charts
+RibbonReportResources,ReportResourceGallery,GALLERY,POPUP,DOCUMENTED,ReportRibbonTask/ReportViewsRibbonBand,Resource Usage / Resource Histogram
+RibbonReportInProgress,ReportInProgressGallery,GALLERY,POPUP,DOCUMENTED,ReportRibbonTask/ReportViewsRibbonBand,Task Usage / CCPM Buffer Status
+RibbonReportCustom,ReportCustomGallery,GALLERY,POPUP,DOCUMENTED,ReportRibbonTask/ReportViewsRibbonBand,Custom Report
+RibbonReportRecent,ReportRecentGallery,MENU,POPUP,DOCUMENTED,ReportRibbonTask/ReportViewsRibbonBand,Reports opened in this session
 RibbonReport,,TOGGLE_BUTTON,EXCLUSIVE_VIEW,BASELINE,ReportRibbonTask/ReportViewsRibbonBand,product-only
 RibbonCustomReport,,BUTTON,DIALOG,BASELINE,ReportRibbonTask/ReportViewsRibbonBand,product-only
 RibbonHistogram,,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,ReportRibbonTask/ReportViewsRibbonBand,product-only
@@ -104,17 +113,21 @@ RibbonResources,ResourceSheetViewGallery,SPLIT_BUTTON,EXCLUSIVE_VIEW,DOCUMENTED,
 RibbonRBS,,TOGGLE_BUTTON,EXCLUSIVE_VIEW,BASELINE,ViewRibbonTask/ViewResourceRibbonBand,product-only
 RibbonProjects,,TOGGLE_BUTTON,EXCLUSIVE_VIEW,BASELINE,ViewRibbonTask/ViewResourceRibbonBand,product-only
 RibbonTaskUsageDetail,TaskUsageViewGallery,SPLIT_BUTTON,EXCLUSIVE_VIEW,DOCUMENTED,ViewRibbonTask/ViewTaskRibbonBand,Toggle current view + view list; xlsx: gallery (split gallery)
+RibbonTeamPlanner,TeamPlannerViewGallery,GALLERY,POPUP,DOCUMENTED,ViewRibbonTask/ViewResourceRibbonBand,Team Planner view
 RibbonResourceUsageDetail,ResourceUsageViewGallery,SPLIT_BUTTON,EXCLUSIVE_VIEW,DOCUMENTED,ViewRibbonTask/ViewResourceRibbonBand,Toggle current view + view list; xlsx: gallery (split gallery)
+RibbonSwitchWindows,WindowSwitchWindowsMenuWord,MENU,POPUP,DOCUMENTED,ViewRibbonTask/ViewWindowRibbonBand,Lists the open projects
 RibbonArrangeAll,WindowsArrangeAll,BUTTON,COMMAND,DOCUMENTED,ViewRibbonTask/ViewWindowRibbonBand,
 RibbonDetails,FormViewShow,CHECK_BOX,TOGGLE_STATE,DOCUMENTED,ViewRibbonTask/ViewSplitRibbonBand,Details check box in Split View
 RibbonPrivacyMask,,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,ViewRibbonTask/ViewWindowRibbonBand,product-only
 RibbonChooseFilter,FiltersGallery,COMBO_BOX,POPUP,DOCUMENTED,ViewRibbonTask/ViewDataRibbonBand,Filter list with current filter shown / More Filters
 RibbonChooseSort,SortGallery,GALLERY,POPUP,DOCUMENTED,ViewRibbonTask/ViewDataRibbonBand,by Start Date / by Finish Date / by Priority / by Cost / by ID / Sort By
 RibbonChooseGroup,GroupingsGroup,COMBO_BOX,POPUP,DOCUMENTED,ViewRibbonTask/ViewDataRibbonBand,Group list with current group shown / More Groups
+RibbonTimescaleGallery,TimescaleGallery,COMBO_BOX,POPUP,DOCUMENTED,ViewRibbonTask/ViewZoomRibbonBand,Timescale list / Timescale dialog
 RibbonZoomIn,ZoomIn,BUTTON,COMMAND,DOCUMENTED,ViewRibbonTask/ViewZoomRibbonBand,
 RibbonZoomOut,ZoomOut,BUTTON,COMMAND,DOCUMENTED,ViewRibbonTask/ViewZoomRibbonBand,
+RibbonZoomEntireProject,ZoomEntireProject,BUTTON,COMMAND,DOCUMENTED,ViewRibbonTask/ViewZoomRibbonBand,
 RibbonZoomSelectedTasks,ZoomSelectedTasks,BUTTON,COMMAND,DOCUMENTED,ViewRibbonTask/ViewZoomRibbonBand,
-RibbonMicroProjectDocumentation,,BUTTON,DIALOG,BASELINE,HelpRibbonTask/HelpRibbonBand,product-only
+RibbonMicroProjectDocumentation,Help,BUTTON,DIALOG,DOCUMENTED,HelpRibbonTask/HelpRibbonBand,Opens the local product help
 RibbonAboutMicroProject,,BUTTON,DIALOG,BASELINE,HelpRibbonTask/HelpRibbonBand,product-only
 RibbonToggleProgressLine,ProgressLines,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,FormatRibbonTask/FormatDisplayRibbonBand,xlsx: button - kind pending decision
 RibbonLabelResourceNames,,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,FormatRibbonTask/FormatDisplayRibbonBand,product-only
@@ -128,3 +141,16 @@ RibbonLayout,LayoutDialog,BUTTON,DIALOG,DOCUMENTED,FormatRibbonTask/FormatLayout
 RibbonTopBarSaveProject,FileSave,BUTTON,COMMAND,DOCUMENTED,TaskBar,
 RibbonTopBarUndo,Undo,SPLIT_BUTTON,COMMAND,DOCUMENTED,TaskBar,Undo + multi-level undo list; xlsx: gallery (split gallery)
 RibbonTopBarRedo,Redo,SPLIT_BUTTON,COMMAND,DOCUMENTED,TaskBar,Redo + multi-level redo list; xlsx: gallery (split gallery)
+RibbonTaskViewGantt,TaskAllViewsGallery,GALLERY,POPUP,DOCUMENTED,TaskRibbonTask/TaskViewRibbonBand,Gantt / Tracking Gantt / Calendar / Network Diagram / WBS / Task Usage
+RibbonResourceViews,ResourceAllViewsGallery,GALLERY,POPUP,DOCUMENTED,ResourceRibbonTask/ResourceViewRibbonBand,Resource Sheet / Resource Usage / RBS / Projects
+RibbonFontName,Font,COMBO_BOX,POPUP,DOCUMENTED,TaskRibbonTask/TaskFontRibbonBand,Installed font families; applies to the selected tasks
+RibbonFontSize,FontSize,COMBO_BOX,POPUP,DOCUMENTED,TaskRibbonTask/TaskFontRibbonBand,Font sizes 8 to 72; applies to the selected tasks
+RibbonBold,Bold,TOGGLE_BUTTON,TOGGLE_STATE,DOCUMENTED,TaskRibbonTask/TaskFontRibbonBand,Pressed when every selected task is bold
+RibbonItalic,Italic,TOGGLE_BUTTON,TOGGLE_STATE,DOCUMENTED,TaskRibbonTask/TaskFontRibbonBand,Pressed when every selected task is italic
+RibbonUnderline,Underline,TOGGLE_BUTTON,TOGGLE_STATE,DOCUMENTED,TaskRibbonTask/TaskFontRibbonBand,Pressed when every selected task is underlined
+RibbonFillColor,FontFillBackColorPicker,BUTTON,DIALOG,PENDING_VERIFY,TaskRibbonTask/TaskFontRibbonBand,Microsoft shows a color gallery; this opens the color chooser
+RibbonFontColor,FontColorPicker,BUTTON,DIALOG,PENDING_VERIFY,TaskRibbonTask/TaskFontRibbonBand,Microsoft shows a color gallery; this opens the color chooser
+RibbonFont,FontDialog,BUTTON,DIALOG,DOCUMENTED,TaskRibbonTask/TaskFontRibbonBand,Opens the Text Styles dialog
+RibbonFill,EditFillMenu,MENU,POPUP,DOCUMENTED,TaskRibbonTask/TaskEditingRibbonBand,Down / Left / Right / Up
+RibbonResourceNotes,ResourceNotes,BUTTON,DIALOG,DOCUMENTED,ResourceRibbonTask/ResourcePropertiesRibbonBand,
+RibbonResourceDetails,ResourceDetailsDisplay,TOGGLE_BUTTON,TOGGLE_STATE,DOCUMENTED,ResourceRibbonTask/ResourcePropertiesRibbonBand,Pressed when the details pane is shown

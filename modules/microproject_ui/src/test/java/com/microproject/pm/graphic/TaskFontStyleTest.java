@@ -40,6 +40,20 @@ class TaskFontStyleTest {
 	}
 
 	@Test
+	void underlineAndBackgroundFillAreResolvedFromTheTaskAndLeaveOtherTasksUntouched() {
+		Font fallback = new Font("Dialog", Font.PLAIN, 11);
+		NormalTask task = new NormalTask();
+		assertEquals(null, TaskFontStyle.resolveBackground(task, null));
+		task.setFontUnderline(true);
+		task.setFontBackground(Integer.valueOf(0x00FF00));
+
+		assertEquals(java.awt.font.TextAttribute.UNDERLINE_ON,
+			TaskFontStyle.resolveFont(task, fallback).getAttributes().get(TextAttribute.UNDERLINE));
+		assertEquals(new Color(0x00FF00), TaskFontStyle.resolveBackground(task, null));
+		assertEquals(null, TaskFontStyle.resolveBackground(new NormalTask(), null));
+	}
+
+	@Test
 	void inactiveTasksAreRenderedDimmedAndStruckThroughWithoutChangingSavedFormatting() {
 		Font fallback = new Font("Dialog", Font.PLAIN, 11);
 		NormalTask task = new NormalTask();
