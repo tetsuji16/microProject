@@ -1941,6 +1941,11 @@ class RibbonButtonBehaviorTest {
 			"RibbonMicroProjectDocumentation",
 			"RibbonAboutMicroProject",
 			"RibbonInsertProject");
+		// Gantt Chart Format tab: each needs an active Gantt view; behaviour is covered by GanttFormatRibbonTest.
+		add(map, Strategy.STRUCTURAL_ONLY,
+			"RibbonInsertColumn", "RibbonAlignLeft", "RibbonAlignCenter", "RibbonAlignRight", "RibbonColumnSettings",
+			"RibbonFormatBarStyles", "RibbonCriticalTasks", "RibbonSlack", "RibbonLateTasks", "RibbonTaskPath",
+			"RibbonShowBaseline", "RibbonSlippage", "RibbonGanttStyleGallery", "RibbonOutlineNumbers", "RibbonSummaryTasks");
 		add(map, Strategy.STRUCTURAL_ONLY,
 			"RibbonDelegateTasks",
 			"RibbonTeamFilter",

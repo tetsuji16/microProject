@@ -285,6 +285,8 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		manualWidths.add(false);
 		var headerWraps = new ArrayList<Boolean>(cols.getColumnCount() + 1);
 		headerWraps.add(true);
+		var alignments = new ArrayList<Integer>(cols.getColumnCount() + 1);
+		alignments.add(SpreadSheetFieldArray.ALIGN_DEFAULT);
 		for (int i = 0; i < cols.getColumnCount(); i++) {
 			colWidths.add(cols.getColumn(i).getWidth());
 			Object identifier = cols.getColumn(i).getIdentifier();
@@ -293,10 +295,12 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 					&& spreadSheetColumns.isWidthManuallyAdjusted(field.getId());
 			manualWidths.add(manuallyAdjusted);
 			headerWraps.add(!(cols instanceof SpreadSheetColumnModel spreadSheetColumns) || spreadSheetColumns.isHeaderWrap(i));
+			alignments.add(cols instanceof SpreadSheetColumnModel spreadSheetColumns ? spreadSheetColumns.getAlignment(i) : SpreadSheetFieldArray.ALIGN_DEFAULT);
 		}
 		result.setWidths(colWidths);
 		result.setManualWidths(manualWidths);
 		result.setHeaderWraps(headerWraps);
+		result.setAlignments(alignments);
 		return result;
 	}
 

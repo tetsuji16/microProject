@@ -1560,7 +1560,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	 * @param dependency
 	 * @return
 	 */
-	private static long calcFreeSlack(Dependency dependency) {
+	public static long calcFreeSlack(Dependency dependency) {
 		ScheduleWindow predecessor = (ScheduleWindow) dependency
 				.getPredecessor();
 		ScheduleWindow successor = (ScheduleWindow) dependency.getSuccessor();

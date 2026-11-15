@@ -54,6 +54,7 @@ import com.microproject.pm.graphic.timescale.ScaledComponent;
 import com.microproject.pm.graphic.views.synchro.ScrollPaneSynchronizer;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.task.TaskPathAnalyzer;
 import com.microproject.pm.time.HasStartAndEnd;
 import com.microproject.preference.GlobalPreferences;
 import com.microproject.strings.Messages;
@@ -80,6 +81,16 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	/** A view-local annotation field value that suppresses all task labels. */
 	public static final String ANNOTATION_FIELD_HIDDEN = "Gantt.Annotation.Hidden";
 	private boolean progressLineEnabled = false;
+	/** Gantt Chart Format bar display switches; critical bars and baselines are on by default. */
+	private boolean criticalTasksVisible = true;
+	private boolean slackVisible;
+	private boolean lateTasksVisible;
+	private boolean baselineVisible = true;
+	private boolean slippageVisible;
+	private GanttBarColorScheme barColorScheme = GanttBarColorScheme.DEFAULT;
+	/** Task Path highlight: null when off, otherwise the kind and the tasks it currently covers. */
+	private TaskPathAnalyzer.Kind taskPathKind;
+	private Set<Task> taskPathTasks = Collections.emptySet();
 	private boolean projectStartLineVisible = true;
 	private boolean statusDateLineVisible = true;
 	private boolean currentDateLineVisible = true;
@@ -295,6 +306,88 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	}
 	public void setRouting(LinkRouting routing) {
 		this.routing = routing;
+	}
+
+	public boolean isCriticalTasksVisible() {
+		return criticalTasksVisible;
+	}
+
+	public void setCriticalTasksVisible(boolean criticalTasksVisible) {
+		this.criticalTasksVisible = criticalTasksVisible;
+		repaint();
+	}
+
+	public boolean isSlackVisible() {
+		return slackVisible;
+	}
+
+	public void setSlackVisible(boolean slackVisible) {
+		this.slackVisible = slackVisible;
+		repaint();
+	}
+
+	public boolean isLateTasksVisible() {
+		return lateTasksVisible;
+	}
+
+	public void setLateTasksVisible(boolean lateTasksVisible) {
+		this.lateTasksVisible = lateTasksVisible;
+		repaint();
+	}
+
+	public boolean isBaselineVisible() {
+		return baselineVisible;
+	}
+
+	public void setBaselineVisible(boolean baselineVisible) {
+		this.baselineVisible = baselineVisible;
+		repaint();
+	}
+
+	public boolean isSlippageVisible() {
+		return slippageVisible;
+	}
+
+	public void setSlippageVisible(boolean slippageVisible) {
+		this.slippageVisible = slippageVisible;
+		repaint();
+	}
+
+	public GanttBarColorScheme getBarColorScheme() {
+		return barColorScheme;
+	}
+
+	public void setBarColorScheme(GanttBarColorScheme barColorScheme) {
+		this.barColorScheme = barColorScheme == null ? GanttBarColorScheme.DEFAULT : barColorScheme;
+		repaint();
+	}
+
+	/** The active Task Path highlight, or null when none is shown. */
+	public TaskPathAnalyzer.Kind getTaskPathKind() {
+		return taskPathKind;
+	}
+
+	/** Tasks covered by the active Task Path highlight (never contains the selection itself). */
+	public Set<Task> getTaskPathTasks() {
+		return taskPathTasks;
+	}
+
+	/**
+	 * Switches the Task Path highlight on for the given selection, or off when {@code kind} is null.
+	 * Callers pass the selection again whenever it changes so the highlight follows it.
+	 */
+	/** Opens the Format Bar dialog (the one of the bar context menu) for a task. */
+	public void showFormatBarDialog(Task task) {
+		if (task != null)
+			GanttBarFormatDialog.show(this, this, task);
+	}
+
+	public void setTaskPath(TaskPathAnalyzer.Kind kind, java.util.Collection<? extends Task> selection) {
+		this.taskPathKind = kind;
+		this.taskPathTasks = kind == null || selection == null || selection.isEmpty()
+				? Collections.emptySet()
+				: Collections.unmodifiableSet(TaskPathAnalyzer.path(selection, kind));
+		repaint();
 	}
 
 	public boolean isProgressLineEnabled() {

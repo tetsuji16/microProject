@@ -162,7 +162,9 @@ final class RibbonCommandCatalog {
 		register(result, CommandScope.VIEW, TASK, "RibbonTaskViewGantt");
 		register(result, CommandScope.VIEW, RESOURCE, "RibbonResourceViews");
 		register(result, CommandScope.RESOURCE, RESOURCE, "RibbonResourceNotes", "RibbonResourceDetails");
-		register(result, CommandScope.TASK, PROJECT, "RibbonInsertProject", "RibbonCustomFields");
+		register(result, CommandScope.TASK, PROJECT, "RibbonInsertProject");
+		// Custom Fields is also a Columns-group command of the Gantt Chart Format tab.
+		register(result, CommandScope.TASK, PROJECT, Set.of(PROJECT, FORMAT), "RibbonCustomFields");
 		register(result, CommandScope.TASK, VIEW, "RibbonExpand", "RibbonCollapse");
 		register(result, CommandScope.REPORT, REPORT,
 			"RibbonReport", "RibbonCustomReport", "RibbonHistogram", "RibbonCharts", "RibbonTaskUsage", "RibbonResourceUsage", "RibbonCCPMBufferStatus",
@@ -179,13 +181,24 @@ final class RibbonCommandCatalog {
 		register(result, CommandScope.FORMAT, FORMAT,
 			"RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName", "RibbonGridlines",
 			"RibbonToggleCriticalChain", "RibbonTimescale", "RibbonBarStyles", "RibbonTextStyles", "RibbonLayout");
+		// Gantt Chart Format tab commands; they act on the active Gantt view and appear on no other tab.
+		register(result, CommandScope.FORMAT, FORMAT,
+			"RibbonInsertColumn", "RibbonAlignLeft", "RibbonAlignCenter", "RibbonAlignRight", "RibbonColumnSettings",
+			"RibbonHideColumn", "RibbonFieldSettings", "RibbonFormatBarStyles", "RibbonFormatBar", "RibbonBarStylesItem", "RibbonCriticalTasks", "RibbonSlack", "RibbonLateTasks", "RibbonTaskPath", "RibbonPathPredecessors", "RibbonPathDrivingPredecessors", "RibbonPathSuccessors", "RibbonPathDrivenSuccessors", "RibbonPathRemove", "RibbonShowBaseline", "RibbonSlippage", "RibbonGanttStyleGallery", "RibbonOutlineNumbers", "RibbonSummaryTasks", "RibbonGanttStyleDefault", "RibbonGanttStyleBlue", "RibbonGanttStyleGreen", "RibbonGanttStyleOrange", "RibbonGanttStylePurple", "RibbonGanttStyleGray");
 		// Format controls are shared by the implemented contextual tabs.  The
 		// catalog permits a subset per tab; each command remains primary on the
 		// normal Format tab and cannot appear on an unrelated tab.
 		for (String id : List.of("RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName",
 			"RibbonGridlines", "RibbonToggleCriticalChain", "RibbonTimescale", "RibbonBarStyles", "RibbonTextStyles", "RibbonLayout")) {
 			Placement placement = result.get(id);
-			result.put(id, new Placement(placement.scope(), placement.primaryTab(),
+			// Progress Lines is a Gridlines menu item on the Gantt tab, so its only top-level control is on
+			// the Network tab; Timescale left the Gantt tab (it stays on the Calendar tab).
+			String primary = switch (id) {
+				case "RibbonToggleProgressLine" -> "NetworkFormatRibbonTask";
+				case "RibbonTimescale" -> "CalendarFormatRibbonTask";
+				default -> placement.primaryTab();
+			};
+			result.put(id, new Placement(placement.scope(), primary,
 				Set.of(FORMAT, "NetworkFormatRibbonTask", "CalendarFormatRibbonTask")));
 		}
 		register(result, CommandScope.DOCUMENT, TASK, Set.of(TASK, RESOURCE), "RibbonPaste", "RibbonCopy", "RibbonCut");

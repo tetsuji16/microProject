@@ -76,6 +76,7 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 	private final Set<String> manuallyAdjustedWidthFields = new HashSet<>();
 	/** Field ids whose heading must stay on one line (wrapping is the default). */
 	private final Set<String> unwrappedHeaderFields = new HashSet<>();
+	private final java.util.Map<String, Integer> alignmentByField = new java.util.HashMap<>();
 	private boolean applyingSavedWidths;
 
 	boolean svg;
@@ -320,11 +321,14 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 		this.fieldArray = fieldArray;
 		originalFieldArray = new ArrayList<>(fieldArray);
 		unwrappedHeaderFields.clear();
+		alignmentByField.clear();
 		if (fieldArray instanceof SpreadSheetFieldArray fields) {
 			for (int index = 0; index < fields.size(); index++) {
 				Field field = fields.get(index);
 				if (field != null && !fields.isHeaderWrap(index))
 					unwrappedHeaderFields.add(field.getId());
+				if (field != null && fields.getAlignment(index) != SpreadSheetFieldArray.ALIGN_DEFAULT)
+					alignmentByField.put(field.getId(), fields.getAlignment(index));
 			}
 		}
 	}
@@ -333,6 +337,17 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 	public boolean isHeaderWrap(int viewColumn) {
 		Field field = getFieldInViewColumn(viewColumn);
 		return field == null || !unwrappedHeaderFields.contains(field.getId());
+	}
+
+	/** Alignment override (SpreadSheetFieldArray.ALIGN_*) of the given view column. */
+	public int getAlignment(int viewColumn) {
+		Field field = getFieldInViewColumn(viewColumn);
+		return field == null ? SpreadSheetFieldArray.ALIGN_DEFAULT
+				: alignmentByField.getOrDefault(field.getId(), SpreadSheetFieldArray.ALIGN_DEFAULT);
+	}
+
+	public int getAlignment(String fieldId) {
+		return alignmentByField.getOrDefault(fieldId, SpreadSheetFieldArray.ALIGN_DEFAULT);
 	}
 
 	public boolean isHeaderWrap(String fieldId) {

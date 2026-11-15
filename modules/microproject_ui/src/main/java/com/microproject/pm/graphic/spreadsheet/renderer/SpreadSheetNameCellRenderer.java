@@ -29,6 +29,8 @@ import javax.swing.JTable;
 import javax.swing.table.DefaultTableCellRenderer;
 
 import com.microproject.pm.graphic.model.cache.GraphicNode;
+import com.microproject.pm.graphic.spreadsheet.OutlineNumbering;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetParams;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.field.Field;
@@ -55,6 +57,9 @@ public class SpreadSheetNameCellRenderer extends DefaultTableCellRenderer  imple
 				display = PrivacyDisplayMode.taskName(task);
 			else if (node != null && node.getImpl() instanceof Resource resource)
 				display = PrivacyDisplayMode.resourceName(resource);
+			if (node != null && table instanceof SpreadSheet sheet && sheet.isOutlineNumbersVisible()
+					&& node.getImpl() instanceof Task && display != null)
+				display = OutlineNumbering.prefix(node, display.toString());
 		}
 		return NameCellComponent.getComponent(table,display,isSelected,hasFocus,row,column/*,textComponent*/);
 	}

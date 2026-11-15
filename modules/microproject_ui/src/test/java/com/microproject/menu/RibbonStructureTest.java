@@ -212,7 +212,8 @@ class RibbonStructureTest {
 				tabsByButton.computeIfAbsent(button, ignored -> new LinkedHashSet<>()).add(task);
 			}
 		}
-		Set<String> permittedDuplicates = Set.of("RibbonPaste", "RibbonCopy", "RibbonCut");
+		// Custom Fields is both a Project Properties command and a Columns command of the Gantt Chart Format tab.
+		Set<String> permittedDuplicates = Set.of("RibbonPaste", "RibbonCopy", "RibbonCut", "RibbonCustomFields");
 		Set<String> contextualFormatCommands = Set.of(
 			"RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName",
 			"RibbonGridlines", "RibbonToggleCriticalChain", "RibbonTimescale", "RibbonBarStyles",

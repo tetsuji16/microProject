@@ -129,15 +129,30 @@ RibbonZoomEntireProject,ZoomEntireProject,BUTTON,COMMAND,DOCUMENTED,ViewRibbonTa
 RibbonZoomSelectedTasks,ZoomSelectedTasks,BUTTON,COMMAND,DOCUMENTED,ViewRibbonTask/ViewZoomRibbonBand,
 RibbonMicroProjectDocumentation,Help,BUTTON,DIALOG,DOCUMENTED,HelpRibbonTask/HelpRibbonBand,Opens the local product help
 RibbonAboutMicroProject,,BUTTON,DIALOG,BASELINE,HelpRibbonTask/HelpRibbonBand,product-only
-RibbonToggleProgressLine,ProgressLines,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,FormatRibbonTask/FormatDisplayRibbonBand,xlsx: button - kind pending decision
-RibbonLabelResourceNames,,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,FormatRibbonTask/FormatDisplayRibbonBand,product-only
-RibbonLabelTaskName,,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,FormatRibbonTask/FormatDisplayRibbonBand,product-only
-RibbonGridlines,GridlinesMenu,MENU,POPUP,DOCUMENTED,FormatRibbonTask/FormatDisplayRibbonBand,Gridlines / Progress Lines
-RibbonToggleCriticalChain,,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,FormatRibbonTask/FormatDisplayRibbonBand,product-only
-RibbonTimescale,Timescale,BUTTON,DIALOG,DOCUMENTED,FormatRibbonTask/FormatBarRibbonBand,
-RibbonBarStyles,BarStylesFormat,BUTTON,DIALOG,DOCUMENTED,FormatRibbonTask/FormatBarRibbonBand,
-RibbonTextStyles,TextStyles,BUTTON,DIALOG,DOCUMENTED,FormatRibbonTask/FormatBarRibbonBand,
-RibbonLayout,LayoutDialog,BUTTON,DIALOG,DOCUMENTED,FormatRibbonTask/FormatLayoutRibbonBand,
+RibbonToggleProgressLine,ProgressLines,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,FormatRibbonTask/GanttFormatRibbonBand,xlsx: button - kind pending decision
+RibbonLabelResourceNames,,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,FormatRibbonTask/GanttFormatExtrasRibbonBand,product-only
+RibbonLabelTaskName,,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,FormatRibbonTask/GanttFormatExtrasRibbonBand,product-only
+RibbonGridlines,GridlinesMenu,MENU,POPUP,DOCUMENTED,FormatRibbonTask/GanttFormatRibbonBand,Gridlines / Progress Lines
+RibbonToggleCriticalChain,,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,FormatRibbonTask/GanttFormatExtrasRibbonBand,product-only
+RibbonTimescale,Timescale,BUTTON,DIALOG,DOCUMENTED,CalendarFormatRibbonTask/FormatBarRibbonBand,
+RibbonBarStyles,BarStylesFormat,BUTTON,DIALOG,DOCUMENTED,FormatRibbonTask/GanttStylesRibbonBand,
+RibbonTextStyles,TextStyles,BUTTON,DIALOG,DOCUMENTED,FormatRibbonTask/GanttFormatRibbonBand,
+RibbonLayout,LayoutDialog,BUTTON,DIALOG,DOCUMENTED,FormatRibbonTask/GanttFormatRibbonBand,
+RibbonInsertColumn,InsertColumn3,BUTTON,DIALOG,DOCUMENTED,FormatRibbonTask/GanttColumnsRibbonBand,
+RibbonAlignLeft,AlignLeft,BUTTON,COMMAND,DOCUMENTED,FormatRibbonTask/GanttColumnsRibbonBand,
+RibbonAlignCenter,AlignCenter,BUTTON,COMMAND,DOCUMENTED,FormatRibbonTask/GanttColumnsRibbonBand,
+RibbonAlignRight,AlignRight,BUTTON,COMMAND,DOCUMENTED,FormatRibbonTask/GanttColumnsRibbonBand,
+RibbonColumnSettings,ColumnSettingsMenu,MENU,POPUP,DOCUMENTED,FormatRibbonTask/GanttColumnsRibbonBand,Hide Column / Field Settings
+RibbonFormatBarStyles,FormatBarStylesMenu,MENU,POPUP,DOCUMENTED,FormatRibbonTask/GanttBarStylesRibbonBand,Bar / Bar Styles
+RibbonCriticalTasks,CriticalTasks,TOGGLE_BUTTON,TOGGLE_STATE,DOCUMENTED,FormatRibbonTask/GanttBarStylesRibbonBand,
+RibbonSlack,Slack,TOGGLE_BUTTON,TOGGLE_STATE,DOCUMENTED,FormatRibbonTask/GanttBarStylesRibbonBand,
+RibbonLateTasks,LateTasks,TOGGLE_BUTTON,TOGGLE_STATE,DOCUMENTED,FormatRibbonTask/GanttBarStylesRibbonBand,
+RibbonTaskPath,TaskPath,MENU,POPUP,DOCUMENTED,FormatRibbonTask/GanttBarStylesRibbonBand,Predecessors / Driving Predecessors / Successors / Driven Successors / Remove Highlighting
+RibbonShowBaseline,Baseline,TOGGLE_BUTTON,TOGGLE_STATE,DOCUMENTED,FormatRibbonTask/GanttBarStylesRibbonBand,
+RibbonSlippage,Slippage,TOGGLE_BUTTON,TOGGLE_STATE,DOCUMENTED,FormatRibbonTask/GanttBarStylesRibbonBand,
+RibbonGanttStyleGallery,GanttChartGallery,GALLERY,POPUP,DOCUMENTED,FormatRibbonTask/GanttStylesRibbonBand,Default / Blue / Green / Orange / Purple / Gray colour schemes
+RibbonOutlineNumbers,OutlineNumbers,CHECK_BOX,TOGGLE_STATE,DOCUMENTED,FormatRibbonTask/GanttShowHideRibbonBand,
+RibbonSummaryTasks,SummaryTasks,CHECK_BOX,TOGGLE_STATE,DOCUMENTED,FormatRibbonTask/GanttShowHideRibbonBand,
 RibbonTopBarSaveProject,FileSave,BUTTON,COMMAND,DOCUMENTED,TaskBar,
 RibbonTopBarUndo,Undo,SPLIT_BUTTON,COMMAND,DOCUMENTED,TaskBar,Undo + multi-level undo list; xlsx: gallery (split gallery)
 RibbonTopBarRedo,Redo,SPLIT_BUTTON,COMMAND,DOCUMENTED,TaskBar,Redo + multi-level redo list; xlsx: gallery (split gallery)

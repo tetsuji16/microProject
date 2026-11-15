@@ -329,7 +329,20 @@ public class ViewTransformer{
         this.transformer = transformer;
     }
 
+    /** View-local Summary Tasks switch of the Gantt Chart Format tab; not part of the saved transform. */
+    private transient boolean hideSummaryTasks;
+
+    public boolean isHideSummaryTasks() {
+    	return hideSummaryTasks;
+    }
+    public void setHideSummaryTasks(boolean hideSummaryTasks) {
+    	if (this.hideSummaryTasks == hideSummaryTasks) return;
+    	this.hideSummaryTasks = hideSummaryTasks;
+    	fireTransformerChanged(this);
+    }
+
     public boolean isShowSummary(){
+    	if (hideSummaryTasks) return false;
     	if (!isShowSummary(getHiddenFilter())) return false;
        	if (!isShowSummary(getUserFilter())) return false;
        	if (!isShowSummary(getHiddenSorter())) return false;

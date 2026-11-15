@@ -90,7 +90,9 @@ import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.pm.scheduling.Schedule;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.task.TaskPathAnalyzer;
 import com.microproject.pm.ccpm.CriticalChainService;
 import com.microproject.timescale.CalendarUtil;
 import com.microproject.timescale.TimeInterval;
@@ -240,14 +242,63 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
     private Color resolveTaskFillColor(GraphicNode node, BarFormat format, Schedule schedule) {
 		boolean baseline = GanttBarSupport.isBaselineBarFormat(format);
         GanttBarFormatOverrides.BarFormat individualFormat = getIndividualBarFormat(node, format);
-		return GanttRendererSupport.resolveTaskBarColor(baseline, isCriticalTask(getNodeImpl(node)),
-				individualFormat.getMiddleRgb(), defaultTaskBarColor, palette.getStatusColor(schedule, getNodeImpl(node)),
-				palette.getBaselineBarColor(), palette.getCriticalTaskColor());
+		Object impl = getNodeImpl(node);
+		if (!baseline && individualFormat.getMiddleRgb() == null) {
+			Color viewColor = resolveViewHighlightColor(impl);
+			if (viewColor != null)
+				return viewColor;
+		}
+		Integer configuredRgb = defaultTaskBarColor;
+		Color criticalColor = palette.getCriticalTaskColor();
+		if (graphInfo instanceof Gantt gantt && gantt.getBarColorScheme().getTaskColor() != null) {
+			GanttBarColorScheme scheme = gantt.getBarColorScheme();
+			configuredRgb = Integer.valueOf(scheme.getTaskColor().getRGB() & 0x00ffffff);
+			criticalColor = scheme.getCriticalColor();
+		}
+		return GanttRendererSupport.resolveTaskBarColor(baseline, isCriticalTask(impl),
+				individualFormat.getMiddleRgb(), configuredRgb, palette.getStatusColor(schedule, impl),
+				palette.getBaselineBarColor(), criticalColor);
     }
+
+	/** Task Path highlight colours, one per kind so the four modes can be told apart. */
+	static Color taskPathColor(TaskPathAnalyzer.Kind kind) {
+		return switch (kind) {
+			case PREDECESSORS -> new Color(0xF2A33A);
+			case DRIVING_PREDECESSORS -> new Color(0xC2410C);
+			case SUCCESSORS -> new Color(0x3DB5C9);
+			case DRIVEN_SUCCESSORS -> new Color(0x7C3AED);
+		};
+	}
+
+	static final Color LATE_TASK_COLOR = new Color(0xB4237A);
+
+	/** A task is late when it now finishes after its baseline finish. */
+	static boolean isLate(Object impl) {
+		if (!(impl instanceof NormalTask task) || task.isSummary())
+			return false;
+		long baselineFinish = task.getBaselineFinishOrZero();
+		return baselineFinish > 0L && task.getEnd() > baselineFinish;
+	}
+
+	/** Colour forced by this Gantt's Task Path or Late Tasks display, or null when none applies. */
+	private Color resolveViewHighlightColor(Object impl) {
+		if (!(graphInfo instanceof Gantt gantt) || !(impl instanceof Task task))
+			return null;
+		if (gantt.getTaskPathKind() != null && gantt.getTaskPathTasks().contains(task))
+			return taskPathColor(gantt.getTaskPathKind());
+		if (gantt.isLateTasksVisible() && isLate(impl))
+			return LATE_TASK_COLOR;
+		return null;
+	}
+
+	/** False for formats the view switched off (the baseline bars of Baseline). */
+	private boolean isFormatDisplayed(BarFormat format) {
+		return !(graphInfo instanceof Gantt gantt) || gantt.isBaselineVisible() || !GanttBarSupport.isBaselineBarFormat(format);
+	}
 
 	private boolean isCriticalTask(Object impl) {
 		if (!(impl instanceof Task task)) return false;
-		if (task.isCritical()) return true;
+		if (task.isCritical() && (!(graphInfo instanceof Gantt gantt) || gantt.isCriticalTasksVisible())) return true;
 		// Resource-constrained CCPM edges are not part of the legacy
 		// critical-path flag.  Prefer the document's shared CCPM analysis
 		// snapshot, so Gantt, network and buffer status expose one chain.
@@ -559,6 +610,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		public void accept(Object arg0) {
 			format = (BarFormat)arg0;
 			if (format.getLayer()>maxLayer||format.getLayer()<minLayer) return;
+			if (!isFormatDisplayed(format)) return;
 			if (shouldSuppressTaskBarForAssignments(node, format)) return;
 
 
@@ -1142,6 +1194,59 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		}
 	}
 
+	/**
+	 * Slack (thin hatched bar from a task's finish to its late finish) and Slippage (line from the baseline
+	 * start to the current start) of the Gantt Chart Format tab; both are view-local overlays.
+	 */
+	private void paintSlackAndSlippage(Graphics2D g2, RevisionedProjectionIndex projection) {
+		if (!(graphInfo instanceof Gantt gantt) || (!gantt.isSlackVisible() && !gantt.isSlippageVisible()))
+			return;
+		CoordinatesConverter coord = ((GanttParams) graphInfo).getCoord();
+		if (coord == null)
+			return;
+		Color oldColor = g2.getColor();
+		Stroke oldStroke = g2.getStroke();
+		enablePaintHints(g2);
+		int barHeight = config.getGanttBarHeight();
+		for (GraphicNode node : nodeList) {
+			if (node.isAssignment() || node.getNode() == null || !(node.getNode().getImpl() instanceof Task task))
+				continue;
+			int row = projection.rowForNode(node);
+			if (row < 0)
+				continue;
+			double top = ((GanttParams) graphInfo).getRowHeight() * (double) row + config.getGanttBarYOffset();
+			double centre = top + barHeight / 2.0d;
+			if (gantt.isSlackVisible() && !node.isSummary() && !task.isMilestone() && task.getEnd() > 0L
+					&& task.getLateFinish() > task.getEnd()) {
+				double x0 = coord.toX(task.getEnd());
+				double x1 = coord.toX(task.getLateFinish());
+				double height = Math.max(3.0d, barHeight / 3.0d);
+				g2.setColor(SLACK_COLOR);
+				g2.fill(new Rectangle2D.Double(x0, centre - height / 2.0d, Math.max(1.0d, x1 - x0), height));
+			}
+			if (gantt.isSlippageVisible() && task instanceof NormalTask normal && !node.isSummary()) {
+				long baselineStart = normal.getBaselineStartOrZero();
+				if (baselineStart > 0L && task.getStart() > 0L && baselineStart != task.getStart()) {
+					double x0 = coord.toX(baselineStart);
+					double x1 = coord.toX(task.getStart());
+					g2.setStroke(SLIPPAGE_STROKE);
+					g2.setColor(task.getStart() > baselineStart ? SLIPPAGE_LATE_COLOR : SLIPPAGE_EARLY_COLOR);
+					g2.draw(new Line2D.Double(x0, centre, x1, centre));
+					g2.fill(new Rectangle2D.Double(x0 - 2.0d, centre - 2.0d, 4.0d, 4.0d));
+				}
+			}
+		}
+		if (oldColor != null)
+			g2.setColor(oldColor);
+		if (oldStroke != null)
+			g2.setStroke(oldStroke);
+	}
+
+	private static final Color SLACK_COLOR = new Color(0x6B7280, false);
+	private static final Color SLIPPAGE_LATE_COLOR = new Color(0xD9372B);
+	private static final Color SLIPPAGE_EARLY_COLOR = new Color(0x3C9A4F);
+	private static final Stroke SLIPPAGE_STROKE = new BasicStroke(1.5f);
+
 	private void paintProgressLine(Graphics2D g2, RevisionedProjectionIndex projection) {
 		if (!(graphInfo instanceof Gantt))
 			return;
@@ -1482,6 +1587,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			node=nodeIterator.next();
 			paintAnnotation(g2,node,projection);
 		}
+		paintSlackAndSlippage(g2,projection);
 		paintProgressLine(g2,projection);
 
 		if (visibleBounds!=null) g2.setClip(svgClip);

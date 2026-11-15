@@ -43,6 +43,10 @@ import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
+import com.microproject.pm.graphic.model.cache.ViewNodeModelCache;
+import com.microproject.pm.graphic.gantt.GanttBarColorScheme;
+import com.microproject.pm.task.Task;
+import com.microproject.pm.task.TaskPathAnalyzer;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.graphic.model.cache.ReferenceNodeModelCache;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
@@ -371,6 +375,99 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 			return Double.NaN;
 		return interval.getStart();
 	}
+	// Gantt Chart Format tab switches. The state lives in the Gantt (bar display) and the sheet
+	// (outline numbers) of this view and travels with the view workspace.
+	public boolean isCriticalTasksVisible() {
+		return gantt == null || gantt.isCriticalTasksVisible();
+	}
+	public void setCriticalTasksVisible(boolean visible) {
+		if (gantt != null)
+			gantt.setCriticalTasksVisible(visible);
+	}
+	public boolean isSlackVisible() {
+		return gantt != null && gantt.isSlackVisible();
+	}
+	public void setSlackVisible(boolean visible) {
+		if (gantt != null)
+			gantt.setSlackVisible(visible);
+	}
+	public boolean isLateTasksVisible() {
+		return gantt != null && gantt.isLateTasksVisible();
+	}
+	public void setLateTasksVisible(boolean visible) {
+		if (gantt != null)
+			gantt.setLateTasksVisible(visible);
+	}
+	public boolean isBaselineVisible() {
+		return gantt == null || gantt.isBaselineVisible();
+	}
+	public void setBaselineVisible(boolean visible) {
+		if (gantt != null)
+			gantt.setBaselineVisible(visible);
+	}
+	public boolean isSlippageVisible() {
+		return gantt != null && gantt.isSlippageVisible();
+	}
+	public void setSlippageVisible(boolean visible) {
+		if (gantt != null)
+			gantt.setSlippageVisible(visible);
+	}
+	public GanttBarColorScheme getBarColorScheme() {
+		return gantt == null ? GanttBarColorScheme.DEFAULT : gantt.getBarColorScheme();
+	}
+	public void setBarColorScheme(GanttBarColorScheme scheme) {
+		if (gantt != null)
+			gantt.setBarColorScheme(scheme);
+	}
+	public boolean isOutlineNumbersVisible() {
+		return spreadSheet != null && spreadSheet.isOutlineNumbersVisible();
+	}
+	public void setOutlineNumbersVisible(boolean visible) {
+		if (spreadSheet != null)
+			spreadSheet.setOutlineNumbersVisible(visible);
+	}
+	private boolean summaryTasksVisible = true;
+	public boolean isSummaryTasksVisible() {
+		return summaryTasksVisible;
+	}
+	/** Hides or shows the summary task rows through the view transform (rows only; tasks are untouched). */
+	public void setSummaryTasksVisible(boolean visible) {
+		summaryTasksVisible = visible;
+		if (cache instanceof ViewNodeModelCache viewCache)
+			viewCache.getViewTransformer().setHideSummaryTasks(!visible);
+	}
+	/** Task Path highlight of the active mode (null when off); see {@link #refreshTaskPath()}. */
+	public TaskPathAnalyzer.Kind getTaskPathKind() {
+		return gantt == null ? null : gantt.getTaskPathKind();
+	}
+	/** Turns a Task Path highlight on for the selected tasks, or off with null. */
+	public void setTaskPathKind(TaskPathAnalyzer.Kind kind) {
+		if (gantt != null)
+			gantt.setTaskPath(kind, selectedTasks());
+	}
+	/** Re-evaluates the Task Path for the current selection; call when the selection changes. */
+	public void refreshTaskPath() {
+		if (gantt != null && gantt.getTaskPathKind() != null)
+			gantt.setTaskPath(gantt.getTaskPathKind(), selectedTasks());
+	}
+	/** Ribbon Format Bar: the bar format dialog for the first selected task. */
+	public void showFormatBarDialog() {
+		List<Task> tasks = selectedTasks();
+		if (gantt != null && !tasks.isEmpty())
+			gantt.showFormatBarDialog(tasks.get(0));
+	}
+
+	private List<Task> selectedTasks() {
+		List<Task> tasks = new java.util.ArrayList<>();
+		if (spreadSheet != null) {
+			for (Object impl : spreadSheet.getSelectedNodesImpl()) {
+				if (impl instanceof Task task)
+					tasks.add(task);
+			}
+		}
+		return tasks;
+	}
+
 	public boolean isProgressLineEnabled() {
 		return gantt != null && gantt.isProgressLineEnabled();
 	}
@@ -501,6 +598,14 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		if (ws != null && ws.timescaleMinorLineColor != null) gantt.setTimescaleMinorLineColor(new java.awt.Color(ws.timescaleMinorLineColor.intValue(), true));
 		if (ws != null && ws.nonWorkingBoundaryColor != null) gantt.setNonWorkingBoundaryColor(new java.awt.Color(ws.nonWorkingBoundaryColor.intValue(), true));
 		setCurrentAnnotationFieldId(ws.annotationFieldId);
+		setCriticalTasksVisible(ws.criticalTasksVisible == null || ws.criticalTasksVisible.booleanValue());
+		setSlackVisible(ws.slackVisible != null && ws.slackVisible.booleanValue());
+		setLateTasksVisible(ws.lateTasksVisible != null && ws.lateTasksVisible.booleanValue());
+		setBaselineVisible(ws.baselineVisible == null || ws.baselineVisible.booleanValue());
+		setSlippageVisible(ws.slippageVisible != null && ws.slippageVisible.booleanValue());
+		setBarColorScheme(GanttBarColorScheme.fromId(ws.barColorScheme));
+		setOutlineNumbersVisible(ws.outlineNumbersVisible != null && ws.outlineNumbersVisible.booleanValue());
+		setSummaryTasksVisible(ws.summaryTasksVisible == null || ws.summaryTasksVisible.booleanValue());
 		gantt.setProgressLineEnabled(ws.progressLineEnabled);
 		if (tracking)
 			trackingProgressLineEnabled = ws.progressLineEnabled;
@@ -533,6 +638,14 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		if (gantt.getTimescaleMajorLineColor() != null) ws.timescaleMajorLineColor = Integer.valueOf(gantt.getTimescaleMajorLineColor().getRGB());
 		if (gantt.getTimescaleMinorLineColor() != null) ws.timescaleMinorLineColor = Integer.valueOf(gantt.getTimescaleMinorLineColor().getRGB());
 		if (gantt.getNonWorkingBoundaryColor() != null) ws.nonWorkingBoundaryColor = Integer.valueOf(gantt.getNonWorkingBoundaryColor().getRGB());
+		ws.criticalTasksVisible = Boolean.valueOf(isCriticalTasksVisible());
+		ws.slackVisible = Boolean.valueOf(isSlackVisible());
+		ws.lateTasksVisible = Boolean.valueOf(isLateTasksVisible());
+		ws.baselineVisible = Boolean.valueOf(isBaselineVisible());
+		ws.slippageVisible = Boolean.valueOf(isSlippageVisible());
+		ws.barColorScheme = getBarColorScheme().getId();
+		ws.outlineNumbersVisible = Boolean.valueOf(isOutlineNumbersVisible());
+		ws.summaryTasksVisible = Boolean.valueOf(isSummaryTasksVisible());
 		ws.annotationFieldId = currentAnnotationFieldId;
 		ws.dividerLocation = getDividerLocation();
 		return ws;
@@ -563,6 +676,15 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		Boolean timescaleMajorLineVisible;
 		Boolean timescaleMinorLineVisible;
 		Boolean nonWorkingBoundaryVisible;
+		// Gantt Chart Format switches; null in workspaces saved before they existed (defaults apply).
+		Boolean criticalTasksVisible;
+		Boolean slackVisible;
+		Boolean lateTasksVisible;
+		Boolean baselineVisible;
+		Boolean slippageVisible;
+		String barColorScheme;
+		Boolean outlineNumbersVisible;
+		Boolean summaryTasksVisible;
 		Integer timescaleMajorLineStyle;
 		Integer timescaleMinorLineStyle;
 		Integer nonWorkingBoundaryStyle;

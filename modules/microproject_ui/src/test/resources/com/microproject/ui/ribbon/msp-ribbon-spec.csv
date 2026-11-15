@@ -167,3 +167,18 @@ Format,Format,Timescale,RibbonTimescale,REQUIRED,S20
 Format,Bar Styles,Bar Styles,RibbonBarStyles,REQUIRED,S38
 Format,Format,Text Styles,RibbonTextStyles,REQUIRED,S38
 Format,Format,Layout,RibbonLayout,REQUIRED,S38
+Format,Columns,Insert Column,RibbonInsertColumn,REQUIRED,S38
+Format,Columns,Align Left,RibbonAlignLeft,REQUIRED,S38
+Format,Columns,Center,RibbonAlignCenter,REQUIRED,S38
+Format,Columns,Align Right,RibbonAlignRight,REQUIRED,S38
+Format,Columns,Column Settings,RibbonColumnSettings,REQUIRED,S38
+Format,Bar Styles,Format,RibbonFormatBarStyles,REQUIRED,S38
+Format,Bar Styles,Critical Tasks,RibbonCriticalTasks,REQUIRED,S38
+Format,Bar Styles,Slack,RibbonSlack,REQUIRED,S38
+Format,Bar Styles,Late Tasks,RibbonLateTasks,REQUIRED,S38
+Format,Bar Styles,Task Path,RibbonTaskPath,REQUIRED,S38
+Format,Bar Styles,Baseline,RibbonShowBaseline,REQUIRED,S38
+Format,Bar Styles,Slippage,RibbonSlippage,REQUIRED,S38
+Format,Gantt Chart Style,Gantt Chart Style,RibbonGanttStyleGallery,REQUIRED,S38
+Format,Show/Hide,Outline Number,RibbonOutlineNumbers,REQUIRED,S38
+Format,Show/Hide,Summary Tasks,RibbonSummaryTasks,REQUIRED,S38

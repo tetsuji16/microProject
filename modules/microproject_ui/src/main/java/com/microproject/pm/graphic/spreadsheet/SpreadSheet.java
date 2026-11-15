@@ -120,6 +120,7 @@ import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.strings.Messages;
+import com.microproject.dialog.ColumnDialog;
 import com.microproject.undo.UndoController;
 import com.microproject.util.Alert;
 import com.microproject.util.BrowserControl;
@@ -1376,6 +1377,83 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		SpreadSheetFieldArray after = (before.clone()).withHeaderWrap(fieldIndex, wrap);
 		applyColumnLayoutChange(before, after, fieldIndex - 1, Messages.getString("SpreadSheetColumnMenu.HeaderWrap"));
 		return true;
+	}
+
+	private boolean outlineNumbersVisible;
+
+	/** Whether the Name column shows the outline number in front of task names (Gantt Chart Format, Show/Hide). */
+	public boolean isOutlineNumbersVisible() {
+		return outlineNumbersVisible;
+	}
+
+	public void setOutlineNumbersVisible(boolean outlineNumbersVisible) {
+		if (this.outlineNumbersVisible == outlineNumbersVisible)
+			return;
+		this.outlineNumbersVisible = outlineNumbersVisible;
+		repaint();
+	}
+
+	/** Alignment override (SpreadSheetFieldArray.ALIGN_*) of this field-array column. */
+	public int getColumnAlignment(int fieldIndex) {
+		return getFieldArray() instanceof SpreadSheetFieldArray fields ? fields.getAlignment(fieldIndex)
+				: SpreadSheetFieldArray.ALIGN_DEFAULT;
+	}
+
+	/** Sets the alignment of one column through the shared column-layout path (saved with the project, undoable). */
+	public boolean setColumnAlignment(int fieldIndex, int alignment) {
+		if (!isCanModifyColumns() || !(getFieldArray() instanceof SpreadSheetFieldArray fields)
+				|| fieldIndex < 1 || fieldIndex >= fields.size() || fields.getAlignment(fieldIndex) == alignment)
+			return false;
+		SpreadSheetFieldArray before = getFieldArrayWithWidths(fields).clone();
+		SpreadSheetFieldArray after = (before.clone()).withAlignment(fieldIndex, alignment);
+		applyColumnLayoutChange(before, after, fieldIndex - 1, Messages.getString("SpreadSheetColumnMenu.Alignment"));
+		return true;
+	}
+
+	/** Ribbon: field-array index of the column the user is working in (the current column, else the first visible one). */
+	public int getRibbonFieldIndex() {
+		int viewColumn = Math.max(0, getCurrentViewColumn());
+		return viewColumn + 1;
+	}
+
+	/** Ribbon Insert Column: asks for a field and inserts it before the current column (same path as the header menu). */
+	public void insertColumnFromRibbon() {
+		if (!(getFieldArray() instanceof SpreadSheetFieldArray fields))
+			return;
+		Field field = ColumnDialog.getFieldFromDialog(this, getAvailableFields(), fields);
+		if (field != null)
+			insertColumn(Math.min(getRibbonFieldIndex(), fields.size()), field);
+	}
+
+	/** Ribbon Hide Column: hides the current column through the header-menu path; warns when it is the last one. */
+	public void hideColumnFromRibbon() {
+		if (!removeSelectedColumn(getRibbonFieldIndex() - 1))
+			Alert.warn(Messages.getString("Message.cantEmptySpreadsheet"), this);
+	}
+
+	/** Ribbon Field Settings: alignment and header wrapping of the current column. */
+	public void showFieldSettingsFromRibbon() {
+		int fieldIndex = getRibbonFieldIndex();
+		if (!(getFieldArray() instanceof SpreadSheetFieldArray fields) || fieldIndex >= fields.size())
+			return;
+		String[] names = {
+			Messages.getString("SpreadSheetColumnMenu.AlignDefault"),
+			Messages.getString("SpreadSheetColumnMenu.AlignLeft"),
+			Messages.getString("SpreadSheetColumnMenu.AlignCenter"),
+			Messages.getString("SpreadSheetColumnMenu.AlignRight") };
+		javax.swing.JComboBox<String> align = new javax.swing.JComboBox<>(names);
+		align.setSelectedIndex(getColumnAlignment(fieldIndex));
+		javax.swing.JCheckBox wrap = new javax.swing.JCheckBox(Messages.getString("SpreadSheetColumnMenu.HeaderWrap"),
+				isColumnHeaderWrap(fieldIndex));
+		javax.swing.JPanel panel = new javax.swing.JPanel(new java.awt.GridLayout(0, 1, 0, 6));
+		panel.add(new javax.swing.JLabel(Messages.getString("SpreadSheetColumnMenu.Alignment")));
+		panel.add(align);
+		panel.add(wrap);
+		if (javax.swing.JOptionPane.showConfirmDialog(this, panel, Messages.getString("SpreadSheetColumnMenu.FieldSettings"),
+				javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.PLAIN_MESSAGE) != javax.swing.JOptionPane.OK_OPTION)
+			return;
+		setColumnAlignment(fieldIndex, align.getSelectedIndex());
+		setColumnHeaderWrap(fieldIndex, wrap.isSelected());
 	}
 
 	public void createDefaultColumnsFromModel(ArrayList fieldArray) {

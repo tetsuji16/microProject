@@ -65,6 +65,8 @@ class RibbonDialogLauncherTest {
 				MenuDefinitionSupport.ribbonBundles(Locale.ROOT))),
 			MenuDefinitionSupport.ribbonBundles(Locale.ROOT)).createModel(MenuManager.STANDARD_RIBBON);
 		assertEquals("RibbonBarStyles", band(model, "FormatBarRibbonBand").getDialogLauncherId());
+		assertEquals("RibbonBarStyles", band(model, "GanttStylesRibbonBand").getDialogLauncherId());
+		assertEquals("RibbonLayout", band(model, "GanttFormatRibbonBand").getDialogLauncherId());
 		assertEquals("RibbonLayout", band(model, "FormatLayoutRibbonBand").getDialogLauncherId());
 		assertNull(band(model, "ViewTaskRibbonBand").getDialogLauncherId());
 		assertNull(band(model, "TaskTrackingRibbonBand").getDialogLauncherId());
@@ -89,7 +91,7 @@ class RibbonDialogLauncherTest {
 			UiComponentWalker.flatten(host).stream().filter(ModernRibbonPanel.class::isInstance).map(ModernRibbonPanel.class::cast)
 				.findFirst().orElseThrow().setVisibleContextualTabs(List.of("FormatRibbonTask"));
 			findByText(host, "Format").doClick();
-			AbstractButton launcher = findByName(host, ModernRibbonPanel.DIALOG_LAUNCHER_NAME_PREFIX + "FormatBarRibbonBand");
+			AbstractButton launcher = findByName(host, ModernRibbonPanel.DIALOG_LAUNCHER_NAME_PREFIX + "GanttStylesRibbonBand");
 			assertNotNull(launcher.getAction(), "the launcher runs the command Action");
 			assertEquals(MenuDefinitionSupport.ribbonBundles(Locale.ROOT).length > 0, launcher.getToolTipText() != null);
 			assertNull(launcher.getText(), "the launcher is an icon only");

@@ -2480,6 +2480,36 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void columnAlignmentSurvivesMpoSaveAndReloadWhileDefaultLayoutsStayUnchanged() throws Exception {
+		FieldDictionary dictionary = FieldDictionary.getInstance();
+		Project defaults = projectForRoundTrip();
+		SpreadSheetFieldArray plain = new SpreadSheetFieldArray();
+		plain.add(dictionary.getFieldFromId("Field.name"));
+		plain.add(dictionary.getFieldFromId("Field.duration"));
+		defaults.setFieldArray(plain);
+		ByteArrayOutputStream defaultArchive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(defaults, defaultArchive));
+		String defaultLayout = new String(readEntries(defaultArchive.toByteArray()).get(MpoFileImporter.LAYOUT_ENTRY),
+			StandardCharsets.UTF_8);
+		assertFalse(defaultLayout.contains("align"), "default layouts keep the previous bytes");
+
+		Project original = projectForRoundTrip();
+		SpreadSheetFieldArray layout = new SpreadSheetFieldArray();
+		layout.add(dictionary.getFieldFromId("Field.name"));
+		layout.add(dictionary.getFieldFromId("Field.duration"));
+		layout.add(dictionary.getFieldFromId("Field.percentComplete"));
+		layout.setAlignments(new ArrayList<>(List.of(SpreadSheetFieldArray.ALIGN_RIGHT,
+			SpreadSheetFieldArray.ALIGN_DEFAULT, SpreadSheetFieldArray.ALIGN_CENTER)));
+		original.setFieldArray(layout);
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(original, archive));
+		SpreadSheetFieldArray restored = loadFromBytes(archive.toByteArray()).getFieldArray();
+		assertEquals(SpreadSheetFieldArray.ALIGN_RIGHT, restored.getAlignment(0));
+		assertEquals(SpreadSheetFieldArray.ALIGN_DEFAULT, restored.getAlignment(1));
+		assertEquals(SpreadSheetFieldArray.ALIGN_CENTER, restored.getAlignment(2));
+	}
+
+	@Test
 	void mpoPreservesUnknownExtensionBytesAcrossLoadAndSave() throws Exception {
 		Project project = projectForRoundTrip();
 		ByteArrayOutputStream generated = new ByteArrayOutputStream();

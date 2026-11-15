@@ -104,6 +104,11 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
         reference.setModel(model);
     }
 
+	/** The view transform this cache displays through; shared by every view of the same name. */
+	public com.microproject.grouping.core.transform.ViewTransformer getViewTransformer() {
+		return ((NodeCacheTransformer) visibleNodes.getTransformer()).getTransformer();
+	}
+
 	public WalkersNodeModel getWalkersModel(){
 		NodeCacheTransformer transformer=(NodeCacheTransformer)visibleNodes.getTransformer();
 		return transformer.getWalkersModel();
