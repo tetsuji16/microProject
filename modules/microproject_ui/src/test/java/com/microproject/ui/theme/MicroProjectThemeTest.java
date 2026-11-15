@@ -102,4 +102,18 @@ class MicroProjectThemeTest {
 		assertTrue(tokens.dialogSurfaceBackground().getRed() > tokens.dialogBackground().getRed());
 		assertTrue(tokens.borderColor().getRed() > tokens.tableBackground().getRed());
 	}
+	@Test
+	void backstageNavigationTokensKeepWhiteTextReadableOnEveryState() {
+		for (MicroProjectThemeTokens tokens : new MicroProjectThemeTokens[] {
+			MicroProjectThemeTokens.light(), MicroProjectThemeTokens.dark() }) {
+			Color text = tokens.backstageNavigationForeground();
+			for (Color surface : new Color[] { tokens.backstageNavigationBackground(),
+				tokens.backstageNavigationHoverBackground(), tokens.backstageNavigationSelectedBackground() }) {
+				double a = com.microproject.util.ColorLuminance.relativeLuminance(text);
+				double b = com.microproject.util.ColorLuminance.relativeLuminance(surface);
+				double contrast = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+				assertTrue(contrast >= 4.5, "contrast " + contrast + " on " + surface);
+			}
+		}
+	}
 }
