@@ -137,7 +137,8 @@ public class TaskIndicatorsComponent extends IndicatorsComponent{
 		
 		if (indicators instanceof Task) {
 			Task t = (Task)indicators;
-			if (ScheduleDiagnosticsService.hasDependencyConflict(t)) {
+			if (com.microproject.preference.GlobalPreferences.isTaskWarningsShown() && !t.isIgnoreWarnings()
+					&& ScheduleDiagnosticsService.hasDependencyConflict(t)) {
 				setLook(dependencyConflict,isSelected,hasFocus);
 				label.add(dependencyConflict);
 				text.append(Messages.getString("TaskIndicatorsComponent.DependencyConflict")); //$NON-NLS-1$

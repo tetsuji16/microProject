@@ -70,8 +70,7 @@ class MspRibbonControlKindDiffTest {
 	 * mapped to the kind they have today. Remove an entry in the change that
 	 * implements the documented kind; never add one to make a regression pass.
 	 */
-	private static final Map<String, RibbonControlKind> KNOWN_GAPS = Map.ofEntries(
-		Map.entry("RibbonTaskInspector", RibbonControlKind.BUTTON));
+	private static final Map<String, RibbonControlKind> KNOWN_GAPS = Map.of();
 
 	private record SpecRow(String ribbonId, RibbonControlKind mspKind, String evidence) {
 	}

@@ -37,6 +37,9 @@ public interface TaskSpecificFields {
 	void setLevelingCanSplit(boolean levelingCanSplit);
 	boolean isLevelAssignments();
 	void setLevelAssignments(boolean levelAssignments);
+	boolean isIgnoreWarnings();
+	void setIgnoreWarnings(boolean ignoreWarnings);
+	boolean isWarning();
 	double getFixedCost();
 	void setFixedCost(double fixedCost);	
 	boolean isWbsParent();

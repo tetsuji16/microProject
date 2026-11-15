@@ -5155,6 +5155,31 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void mpoIgnoreWarningsRoundTripsAndOlderFilesDefaultToFalse() throws Exception {
+		Project original = projectForRoundTrip();
+		firstTask(original).setIgnoreWarnings(true);
+		ByteArrayOutputStream current = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(original, current);
+		Map<String, byte[]> entries = readEntries(current.toByteArray());
+		assertTrue(entries.containsKey(MpoFileImporter.TASK_LEVELING_OPTIONS_ENTRY));
+		assertTrue(firstTask(loadFromBytes(current.toByteArray())).isIgnoreWarnings());
+
+		Project defaults = projectForRoundTrip();
+		ByteArrayOutputStream plain = new ByteArrayOutputStream();
+		new MpoFileImporter().saveProject(defaults, plain);
+		assertFalse(firstTask(loadFromBytes(plain.toByteArray())).isIgnoreWarnings());
+
+		entries.remove(MpoFileImporter.TASK_LEVELING_OPTIONS_ENTRY);
+		String manifest = new String(entries.get(MpoFileImporter.MANIFEST_ENTRY), StandardCharsets.UTF_8);
+		manifest = manifest.replaceAll("(?m)^\\s*<entry\\s+path=\\\""
+			+ java.util.regex.Pattern.quote(MpoFileImporter.TASK_LEVELING_OPTIONS_ENTRY)
+			+ "\\\" sha256=\\\"[^\\\"]*\\\"\\s*/>\\R?", "");
+		entries.put(MpoFileImporter.MANIFEST_ENTRY, manifest.getBytes(StandardCharsets.UTF_8));
+		assertFalse(firstTask(loadFromBytes(zip(entries).toByteArray())).isIgnoreWarnings(),
+			"older MPO without the sidecar defaults to No");
+	}
+
+	@Test
 	void draftManifestMustIdentifyTheProjectSnapshotEntry() throws Exception {
 		Project original = projectForRoundTrip();
 		ByteArrayOutputStream current = new ByteArrayOutputStream();

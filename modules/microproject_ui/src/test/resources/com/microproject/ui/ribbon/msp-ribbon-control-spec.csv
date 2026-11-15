@@ -31,7 +31,7 @@ RibbonCollapse,OutlineSubtasksHide,BUTTON,COMMAND,DOCUMENTED,TaskRibbonTask/Task
 RibbonAssignResources,ResourcesAssign,BUTTON,DIALOG,DOCUMENTED,TaskRibbonTask/TaskDependenciesRibbonBand,
 RibbonDelegateTasks,,BUTTON,DIALOG,BASELINE,TaskRibbonTask/TaskDependenciesRibbonBand,product-only
 RibbonTaskInformation,TaskInformation,BUTTON,DIALOG,DOCUMENTED,TaskRibbonTask/TaskPropertiesRibbonBand,
-RibbonTaskInspector,InspectTasksMenu,SPLIT_BUTTON,COMMAND,DOCUMENTED,TaskRibbonTask/TaskPropertiesRibbonBand,xlsx: splitButton
+RibbonTaskInspector,InspectTasksMenu,SPLIT_BUTTON,COMMAND,DOCUMENTED,TaskRibbonTask/TaskPropertiesRibbonBand,Inspect Task / Show Warnings / Show Suggestions / Show Ignored Problems
 RibbonNotes,TaskNotes,BUTTON,DIALOG,DOCUMENTED,TaskRibbonTask/TaskPropertiesRibbonBand,
 RibbonTaskDetails,TaskDetailsDisplay,TOGGLE_BUTTON,TOGGLE_STATE,DOCUMENTED,TaskRibbonTask/TaskPropertiesRibbonBand,
 RibbonCustomFields,CustomFieldDialog,BUTTON,DIALOG,DOCUMENTED,TaskRibbonTask/TaskPropertiesRibbonBand,

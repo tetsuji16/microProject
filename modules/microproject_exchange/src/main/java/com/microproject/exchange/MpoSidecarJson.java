@@ -219,10 +219,12 @@ final class MpoSidecarJson {
 			// The current core model cannot encode MSPDI recurrence. Preserve an
 			// imported recurring task's effective No/Yes values even when they equal
 			// that source task's recurrence-sensitive defaults.
-			task -> !task.isRecurringTask() && task.isLevelingCanSplit() && task.isLevelAssignments(),
+			task -> !task.isRecurringTask() && task.isLevelingCanSplit() && task.isLevelAssignments()
+				&& !task.isIgnoreWarnings(),
 			(task, node) -> {
 				node.put("levelingCanSplit", task.isLevelingCanSplit());
 				node.put("levelAssignments", task.isLevelAssignments());
+				node.put("ignoreWarnings", task.isIgnoreWarnings());
 			});
 	}
 
@@ -234,7 +236,12 @@ final class MpoSidecarJson {
 				JsonNode levelAssignments = node.get("levelAssignments");
 				if (canSplit == null || !canSplit.isBoolean() || levelAssignments == null || !levelAssignments.isBoolean())
 					throw new IOException("Invalid MPO task leveling option values");
+				JsonNode ignoreWarnings = node.get("ignoreWarnings");
+				// Absent in files written before the Ignore Warnings field existed.
+				if (ignoreWarnings != null && !ignoreWarnings.isBoolean())
+					throw new IOException("Invalid MPO task leveling option values");
 				return task -> {
+					task.setIgnoreWarnings(ignoreWarnings != null && ignoreWarnings.booleanValue());
 					task.setLevelingCanSplit(canSplit.booleanValue());
 					task.setLevelAssignments(levelAssignments.booleanValue());
 				};
@@ -345,6 +352,7 @@ final class MpoSidecarJson {
 			Task task = (Task) iterator.next();
 			task.setLevelingCanSplit(!task.isRecurringTask());
 			task.setLevelAssignments(true);
+			task.setIgnoreWarnings(false);
 		}
 	}
 
