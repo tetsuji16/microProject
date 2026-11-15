@@ -108,7 +108,9 @@ class MspRibbonOrderDiffTest {
 		Map.entry("ResourceSheetFormatRibbonTask", "TabResourceSheetViewFormat"),
 		Map.entry("ResourceUsageFormatRibbonTask", "TabResourceUsageViewFormat"),
 		Map.entry("NetworkFormatRibbonTask", "TabNetworkDiagramFormat"),
-		Map.entry("CalendarFormatRibbonTask", "TabCalendarFormat"));
+		Map.entry("CalendarFormatRibbonTask", "TabCalendarFormat"),
+		Map.entry("TimelineFormatRibbonTask", "TabTimelineViewFormat"),
+		Map.entry("TeamPlannerFormatRibbonTask", "TabTeamPlannerFormat"));
 
 	/** Our band ("tab/band") -> the Microsoft group of the same tab it implements. */
 	private static final Map<String, String> BAND_GROUPS = Map.ofEntries(
@@ -160,7 +162,17 @@ class MspRibbonOrderDiffTest {
 		Map.entry("NetworkFormatRibbonTask/NetworkLayoutRibbonBand", "GroupNetworkDiagramLayout"),
 		Map.entry("CalendarFormatRibbonTask/CalendarFormatRibbonBand", "GroupCalendarViewFormat"),
 		Map.entry("CalendarFormatRibbonTask/CalendarLayoutRibbonBand", "GroupCalendarViewLayout"),
-		Map.entry("CalendarFormatRibbonTask/CalendarShowHideRibbonBand", "GroupCalendarViewShowHide"));
+		Map.entry("CalendarFormatRibbonTask/CalendarShowHideRibbonBand", "GroupCalendarViewShowHide"),
+		Map.entry("TimelineFormatRibbonTask/TimelineTextStylesRibbonBand", "GroupTimelineViewTextStyles"),
+		Map.entry("TimelineFormatRibbonTask/TimelineFontRibbonBand", "GroupFont"),
+		Map.entry("TimelineFormatRibbonTask/TimelineShowHideRibbonBand", "GroupTimelineViewShowHide"),
+		Map.entry("TimelineFormatRibbonTask/TimelineInsertRibbonBand", "GroupTimelineViewInsert"),
+		Map.entry("TimelineFormatRibbonTask/TimelineSelectionRibbonBand", "GroupTimelineViewCurrentSelection"),
+		Map.entry("TimelineFormatRibbonTask/TimelineCopyRibbonBand", "GroupTimelineCopy"),
+		Map.entry("TeamPlannerFormatRibbonTask/TeamPlannerFormatRibbonBand", "GroupTeamPlannerFormat"),
+		Map.entry("TeamPlannerFormatRibbonTask/TeamPlannerStylesRibbonBand", "GroupStylesEdit"),
+		Map.entry("TeamPlannerFormatRibbonTask/TeamPlannerScheduleRibbonBand", "GroupTeamPlannerSchedule"),
+		Map.entry("TeamPlannerFormatRibbonTask/TeamPlannerShowHideRibbonBand", "GroupTeamPlannerShowHide"));
 
 	/**
 	 * Bands with no group of their own on that Microsoft tab. They stay, are placed after every
@@ -191,6 +203,8 @@ class MspRibbonOrderDiffTest {
 		Map.entry("TabProject/GroupProofing", "Spelling; " + PHASE_1B),
 		Map.entry("TabGanttChartFormat/GroupDrawings",
 			"no drawing layer: the Gantt has no drawing objects (lines, arrows, shapes, text boxes) to create, edit, order or persist"),
+		Map.entry("TabTimelineViewFormat/GroupSwitchTimeline",
+			"the lower pane offers only the Timeline and Details check boxes; there is no lower-pane view picker, so the Timeline label, the view gallery and More Views have nothing to switch between"),
 		Map.entry("TabTaskUsageViewFormat/GroupAssignmentProperties", ASSIGNMENT_PROPERTIES),
 		Map.entry("TabResourceUsageViewFormat/GroupAssignmentProperties", ASSIGNMENT_PROPERTIES),
 		Map.entry("TabView/GroupMacros",
@@ -341,7 +355,41 @@ class MspRibbonOrderDiffTest {
 		Map.entry("RibbonPathDrivingPredecessors", "HighlightDrivingPredecessors"),
 		Map.entry("RibbonPathSuccessors", "HighlightSuccessors"),
 		Map.entry("RibbonPathDrivenSuccessors", "HighlightDrivenSuccessors"),
-		Map.entry("RibbonPathRemove", "RemoveTaskPathHighlight"));
+		Map.entry("RibbonPathRemove", "RemoveTaskPathHighlight"),
+		Map.entry("RibbonTimelineShowTaskDates", "TimelineShowTaskDates"),
+		Map.entry("RibbonTimelineShowToday", "TimelineShowToday"),
+		Map.entry("RibbonTimelineShowTimescale", "TimelineViewTimescaleShow"),
+		Map.entry("RibbonTimelineShowProgress", "TimelineShowTaskProgress"),
+		Map.entry("RibbonTimelineCopyEmail", "TimelineViewCopyForEmail"),
+		Map.entry("RibbonTimelineCopyPresentation", "TimelineViewCopyForPresentation"),
+		Map.entry("RibbonTimelineCopyFullSize", "TimelineViewCopyFullSize"),
+		Map.entry("RibbonTeamPlannerOutlineAll", "TeamPlannerOutlineShowAll"),
+		Map.entry("RibbonTeamPlannerSelectedFill", "TeamPlannerTaskFillColorGallery"),
+		Map.entry("RibbonTeamPlannerSelectedBorder", "TeamPlannerTaskBorderColorGallery"),
+		Map.entry("RibbonTeamPlannerAutoBorder", "TeamPlannerAutoScheduledBorder"),
+		Map.entry("RibbonTeamPlannerAutoFill", "TeamPlannerAutoScheduledFillColor"),
+		Map.entry("RibbonTeamPlannerAutoReset", "TeamPlannerAutoScheduleResetToDefault"),
+		Map.entry("RibbonTeamPlannerManualBorder", "TeamPlannerManualBorder"),
+		Map.entry("RibbonTeamPlannerManualFill", "TeamPlannerManuallyScheduledFillColor"),
+		Map.entry("RibbonTeamPlannerManualReset", "TeamPlannerManuallyScheduleResetToDefault"),
+		Map.entry("RibbonTeamPlannerActualBorder", "TeamPlannerActualBorderColor"),
+		Map.entry("RibbonTeamPlannerActualFill", "TeamPlannerActualFillColor"),
+		Map.entry("RibbonTeamPlannerActualReset", "TeamPlannerActualResetToDefault"),
+		Map.entry("RibbonTeamPlannerExternalBorder", "TeamPlannerExternalBorder"),
+		Map.entry("RibbonTeamPlannerExternalFill", "TeamPlannerExternalFillColor"),
+		Map.entry("RibbonTeamPlannerExternalReset", "TeamPlannerExternalResetToDefault"),
+		Map.entry("RibbonTeamPlannerLateBorder", "TeamPlannerLateBorder"),
+		Map.entry("RibbonTeamPlannerLateFill", "TeamPlannerLateFillColor"),
+		Map.entry("RibbonTeamPlannerLateReset", "TeamPlannerLateResetToDefault"),
+		Map.entry("RibbonTeamPlannerOutline1", "TeamPlannerOutlineLevel1"),
+		Map.entry("RibbonTeamPlannerOutline2", "TeamPlannerOutlineLevel2"),
+		Map.entry("RibbonTeamPlannerOutline3", "TeamPlannerOutlineLevel3"),
+		Map.entry("RibbonTeamPlannerOutline4", "TeamPlannerOutlineLevel4"),
+		Map.entry("RibbonTeamPlannerOutline5", "TeamPlannerOutlineLevel5"),
+		Map.entry("RibbonTeamPlannerOutline6", "TeamPlannerOutlineLevel6"),
+		Map.entry("RibbonTeamPlannerOutline7", "TeamPlannerOutlineLevel7"),
+		Map.entry("RibbonTeamPlannerOutline8", "TeamPlannerOutlineLevel8"),
+		Map.entry("RibbonTeamPlannerOutline9", "TeamPlannerOutlineLevel9"));
 
 	/**
 	 * Popups (by ribbon id) with items that have no Microsoft child to be ordered against, with the

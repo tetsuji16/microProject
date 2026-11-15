@@ -200,6 +200,37 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonCalendarWeekHeightBestFit | 週の高さを最適化 | 設定が反映される |
 | RibbonCalendarLayout | レイアウト | 設定が反映される |
 | RibbonCalendarTaskList | タスク一覧 | 状態または表示が変わる |
+| RibbonTimelineTextStyles | タイムラインのテキスト スタイルを開く | 選んだ項目の書式が反映される |
+| RibbonTimelineDateRange | タイムラインの日付範囲を設定する | 開始日と終了日が反映される |
+| RibbonTimelineDates | タイムラインの日付の表示を選ぶ | 状態または表示が変わる |
+| RibbonTimelineExpand | タイムラインを展開する | 状態または表示が変わる |
+| RibbonTimelineBarLabels | バーのラベルを切り替える | 状態または表示が変わる |
+| RibbonTimelineOverlapped | 重なったタスクの表示を切り替える | 状態または表示が変わる |
+| RibbonTimelinePanZoom | パンとズームの表示を切り替える | 状態または表示が変わる |
+| RibbonTimelineTextLines | テキストの行の高さを設定する | 設定が反映される |
+| RibbonTimelineInsertBar | タイムライン バーを挿入する | バーが追加される |
+| RibbonTimelineAddExisting | 既存のタスクをタイムラインに追加する | 選んだタスクが追加される |
+| RibbonTimelineInsertTask | タスクを挿入する | タスクがタイムラインに追加される |
+| RibbonTimelineInsertCallout | 吹き出しタスクを挿入する | 吹き出しが追加される |
+| RibbonTimelineInsertMilestone | マイルストーンを挿入する | マイルストーンが追加される |
+| RibbonTimelineDisplay | 選択タスクをタイムラインに表示する | 状態または表示が変わる |
+| RibbonTimelineCallout | 選択タスクを吹き出しで表示する | 状態または表示が変わる |
+| RibbonTimelineRemove | 選択タスクをタイムラインから削除する | タスクがタイムラインから外れる |
+| RibbonTimelineCopy | タイムラインをコピーする | 画像がクリップボードに入る |
+| RibbonTeamPlannerOutline | アウトライン レベルを選んで表示する | 指定レベルまで表示される |
+| RibbonTeamPlannerGridlines | 罫線の表示を切り替える | 状態または表示が変わる |
+| RibbonTeamPlannerTextStyles | チーム プランナーのテキスト スタイルを開く | 設定が反映される |
+| RibbonTeamPlannerTextLines | テキストの行数を設定する | 設定が反映される |
+| RibbonTeamPlannerSelectedStyle | 選択タスクのスタイルを設定する | 塗りつぶしと枠線が反映される |
+| RibbonTeamPlannerAutoStyle | 自動スケジュールのスタイルを設定する | 設定が反映される |
+| RibbonTeamPlannerManualStyle | 手動スケジュールのスタイルを設定する | 設定が反映される |
+| RibbonTeamPlannerActualStyle | 実績のスタイルを設定する | 設定が反映される |
+| RibbonTeamPlannerExternalStyle | 外部タスクのスタイルを設定する | 設定が反映される |
+| RibbonTeamPlannerLateStyle | 遅延タスクのスタイルを設定する | 設定が反映される |
+| RibbonTeamPlannerPreventOverallocation | 過剰割り当てを防ぐ | 状態または表示が変わる |
+| RibbonTeamPlannerExpandRows | リソース行を展開する | 状態または表示が変わる |
+| RibbonTeamPlannerUnassigned | 未割り当てタスクの表示を切り替える | 状態または表示が変わる |
+| RibbonTeamPlannerUnscheduled | 未スケジュール タスクの表示を切り替える | 状態または表示が変わる |
 | RibbonSheetGridlines | 表の罫線の表示を選ぶ | 表の罫線が表示／非表示になる |
 | RibbonUsageDetailWork | 作業時間の詳細行を切り替える | 使用状況グリッドに作業時間の行が表示／非表示になる |
 | RibbonUsageDetailActualWork | 実績作業時間の詳細行を切り替える | 使用状況グリッドに実績作業時間の行が表示／非表示になる |

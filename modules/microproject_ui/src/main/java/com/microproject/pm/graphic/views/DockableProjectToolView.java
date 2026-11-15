@@ -10,6 +10,7 @@ import java.awt.BorderLayout;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 
+import com.microproject.dialog.ViewSettingsState;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.task.Project;
@@ -25,10 +26,12 @@ public final class DockableProjectToolView extends JPanel implements BaseView {
 	private static final long serialVersionUID = 1L;
 	private final Project project;
 	private final String viewName;
+	private final JComponent content;
 
 	public DockableProjectToolView(Project project, String viewName, JComponent content) {
 		this.project = project;
 		this.viewName = viewName;
+		this.content = content;
 		setLayout(new BorderLayout());
 		if (content != null)
 			add(content, BorderLayout.CENTER);
@@ -51,10 +54,24 @@ public final class DockableProjectToolView extends JPanel implements BaseView {
 	@Override public boolean isPrintable() { return false; }
 	@Override public void cleanUp() { removeAll(); }
 	@Override public NodeModelCache getCache() { return null; }
-	@Override public WorkspaceSetting createWorkspace(int context) { return new Workspace(); }
-	@Override public void restoreWorkspace(WorkspaceSetting workspace, int context) { }
+	@Override public WorkspaceSetting createWorkspace(int context) {
+		Workspace workspace = new Workspace();
+		if (content != null && content.getClientProperty(ViewSettingsState.PROPERTY) instanceof ViewSettingsState state)
+			workspace.settings = state.saveSettings();
+		return workspace;
+	}
+	@Override public void restoreWorkspace(WorkspaceSetting workspace, int context) {
+		if (workspace instanceof Workspace saved && saved.settings != null && !saved.settings.isEmpty()
+			&& content != null && content.getClientProperty(ViewSettingsState.PROPERTY) instanceof ViewSettingsState state) {
+			state.restoreSettings(saved.settings);
+			if (content.getClientProperty(ViewSettingsState.REFRESH_PROPERTY) instanceof Runnable refresh)
+				refresh.run();
+		}
+	}
 
 	private static final class Workspace implements WorkspaceSetting {
 		private static final long serialVersionUID = 1L;
+		/** The embedded view's display flags as text; null in workspaces saved before they were kept. */
+		private String settings;
 	}
 }

@@ -45,7 +45,7 @@ final class NetworkCalendarFormatDialogs {
 	/** A confirmable option panel. */
 	static final class OptionPanel extends JPanel {
 		private static final long serialVersionUID = 1L;
-		private transient Runnable applier = () -> { };
+		transient Runnable applier = () -> { };
 
 		OptionPanel() {
 			super(new GridBagLayout());
@@ -96,7 +96,7 @@ final class NetworkCalendarFormatDialogs {
 		return rgb == DEFAULT_COLOR ? null : rgb;
 	}
 
-	private static void row(JPanel panel, int row, Component... cells) {
+	static void row(JPanel panel, int row, Component... cells) {
 		GridBagConstraints c = new GridBagConstraints();
 		c.gridy = row;
 		c.insets = new Insets(2, 4, 2, 4);

@@ -49,7 +49,8 @@ class RibbonStructureTest {
 		assertEquals(List.of(
 			"FileRibbonTask", "TaskRibbonTask", "ResourceRibbonTask", "ReportRibbonTask",
 			"ProjectRibbonTask", "ViewRibbonTask", "HelpRibbonTask", "FormatRibbonTask",
-			"NetworkFormatRibbonTask", "CalendarFormatRibbonTask", "TaskSheetFormatRibbonTask", "TaskUsageFormatRibbonTask",
+			"NetworkFormatRibbonTask", "CalendarFormatRibbonTask", "TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask",
+			"TaskSheetFormatRibbonTask", "TaskUsageFormatRibbonTask",
 			"ResourceSheetFormatRibbonTask", "ResourceUsageFormatRibbonTask"), ribbonTaskIds());
 	}
 
@@ -214,7 +215,8 @@ class RibbonStructureTest {
 			}
 		}
 		// Custom Fields is both a Project Properties command and a Columns command of the Gantt Chart Format tab.
-		Set<String> permittedDuplicates = Set.of("RibbonPaste", "RibbonCopy", "RibbonCut", "RibbonCustomFields");
+		Set<String> permittedDuplicates = Set.of("RibbonPaste", "RibbonCopy", "RibbonCut", "RibbonCustomFields", "RibbonFontName", "RibbonFontSize", "RibbonBold", "RibbonItalic",
+			"RibbonUnderline", "RibbonFillColor", "RibbonFontColor", "RibbonFont");
 		Set<String> contextualFormatCommands = Set.of(
 			"RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName",
 			"RibbonGridlines", "RibbonToggleCriticalChain", "RibbonTimescale", "RibbonBarStyles",
@@ -226,11 +228,20 @@ class RibbonStructureTest {
 			"RibbonUsageDetailCumulativeWork", "RibbonNetworkLayoutNow",
 			"RibbonNetworkBoxFieldsCollapsed", "RibbonNetworkBoxFormat", "RibbonNetworkBoxStyles", "RibbonNetworkLayout", "RibbonNetworkLinkLabels",
 			"RibbonNetworkStraightLinks", "RibbonNetworkProgressMarks", "RibbonCalendarTextStyles", "RibbonCalendarBarStyles", "RibbonCalendarLayoutNow",
-			"RibbonCalendarWeekHeightBestFit", "RibbonCalendarLayout", "RibbonCalendarTaskList");
+			"RibbonCalendarWeekHeightBestFit", "RibbonCalendarLayout", "RibbonCalendarTaskList",
+			// the Timeline and Team Planner Format tabs
+			"RibbonTimelineTextStyles", "RibbonTimelineDateRange", "RibbonTimelineDates", "RibbonTimelineExpand", "RibbonTimelineBarLabels",
+			"RibbonTimelineOverlapped", "RibbonTimelinePanZoom", "RibbonTimelineTextLines", "RibbonTimelineInsertBar", "RibbonTimelineAddExisting",
+			"RibbonTimelineInsertTask", "RibbonTimelineInsertCallout", "RibbonTimelineInsertMilestone", "RibbonTimelineDisplay",
+			"RibbonTimelineCallout", "RibbonTimelineRemove", "RibbonTimelineCopy", "RibbonTeamPlannerOutline", "RibbonTeamPlannerGridlines",
+			"RibbonTeamPlannerTextStyles", "RibbonTeamPlannerTextLines", "RibbonTeamPlannerSelectedStyle", "RibbonTeamPlannerAutoStyle",
+			"RibbonTeamPlannerManualStyle", "RibbonTeamPlannerActualStyle", "RibbonTeamPlannerExternalStyle", "RibbonTeamPlannerLateStyle",
+			"RibbonTeamPlannerPreventOverallocation", "RibbonTeamPlannerExpandRows", "RibbonTeamPlannerUnassigned", "RibbonTeamPlannerUnscheduled");
 		for (Map.Entry<String, Set<String>> entry : tabsByButton.entrySet()) {
 			boolean legalContextualFormatDuplicate = contextualFormatCommands.contains(entry.getKey())
 				&& entry.getValue().stream().allMatch(Set.of(
-					"FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask", "TaskSheetFormatRibbonTask", "TaskUsageFormatRibbonTask",
+					"FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask", "TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask",
+					"TaskSheetFormatRibbonTask", "TaskUsageFormatRibbonTask",
 					"ResourceSheetFormatRibbonTask", "ResourceUsageFormatRibbonTask")::contains);
 			assertTrue(entry.getValue().size() == 1 || permittedDuplicates.contains(entry.getKey())
 				|| legalContextualFormatDuplicate,

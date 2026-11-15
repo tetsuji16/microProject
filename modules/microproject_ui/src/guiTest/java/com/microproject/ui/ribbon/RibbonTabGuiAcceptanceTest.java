@@ -146,7 +146,7 @@ class RibbonTabGuiAcceptanceTest {
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
-		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask"));
+		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask", "TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask"));
 		show(host);
 		List<AbstractButton> tabs = new ArrayList<>();
 		for (String tabId : MenuDefinitionSupport.ribbonTaskIds()) {
@@ -228,7 +228,7 @@ class RibbonTabGuiAcceptanceTest {
 		robot.setAutoDelay(35);
 		EnumSet<CommandId> physicalTaskCommands = EnumSet.noneOf(CommandId.class);
 		for (String tabId : MenuDefinitionSupport.ribbonTaskIds().stream()
-				.filter(tabId -> !Set.of("NetworkFormatRibbonTask", "CalendarFormatRibbonTask").contains(tabId))
+				.filter(tabId -> !Set.of("NetworkFormatRibbonTask", "CalendarFormatRibbonTask", "TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask").contains(tabId))
 				.toList()) {
 			String title = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString(tabId + ".title");
 			AbstractButton tab = findButton(host, title);
@@ -304,7 +304,7 @@ class RibbonTabGuiAcceptanceTest {
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
-		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask"));
+		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask", "TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask"));
 		// Keep the window within a normal desktop at 125/150%; commands that do
 		// not fit are intentionally represented by the responsive popup route.
 		show(host, 1000, false);
@@ -337,7 +337,7 @@ class RibbonTabGuiAcceptanceTest {
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 
-		List<String> contextualTabs = List.of("NetworkFormatRibbonTask", "CalendarFormatRibbonTask");
+		List<String> contextualTabs = List.of("NetworkFormatRibbonTask", "CalendarFormatRibbonTask", "TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask");
 		for (String tabId : contextualTabs) {
 			// Simulate the active-view transition: a contextual tab is hidden until
 			// the corresponding view publishes its descriptor, then becomes visible.
@@ -349,6 +349,8 @@ class RibbonTabGuiAcceptanceTest {
 			SwingUtilities.invokeAndWait(() -> ribbon.setVisibleContextualTabs(Set.of(tabId)));
 			GuiPhysicalRouteAdapter.awaitVisible(tab::isShowing,
 				"contextual tab did not become visible after view transition: " + tabId);
+			// Successive contextual tabs share one screen position; wait out the double-click interval so the click selects the tab instead of collapsing the ribbon.
+			robot.delay(700);
 			click(robot, tab);
 			GuiAcceptanceSupport.await(tab::isSelected,
 				"Robot click did not select contextual tab " + tabId);
@@ -360,7 +362,7 @@ class RibbonTabGuiAcceptanceTest {
 			Set<String> contextualButtons = MenuDefinitionSupport.ribbonButtonIdsForTask(tabId);
 			assertTrue(!contextualButtons.isEmpty(), tabId + " must expose a non-empty format surface");
 			for (String buttonId : contextualButtons) {
-				AbstractButton button = GuiPhysicalRouteAdapter.visibleButton(host, buttonId);
+				AbstractButton button = GuiPhysicalRouteAdapter.visibleButton(robot, host, buttonId);
 				assertTrue(button.isEnabled(), () -> tabId + " command is unexpectedly disabled: " + buttonId);
 				String actionId = manager.getToolBarFactory().getActionStringFromId(buttonId);
 				assertTrue(actionId != null && !actionId.isBlank(),

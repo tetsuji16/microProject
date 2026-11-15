@@ -207,3 +207,34 @@ Format,Layout,Layout Now,RibbonCalendarLayoutNow,REQUIRED,S38
 Format,Layout,Best Fit,RibbonCalendarWeekHeightBestFit,REQUIRED,S38
 Format,Layout,Layout,RibbonCalendarLayout,REQUIRED,S38
 Format,Show/Hide,Task List,RibbonCalendarTaskList,REQUIRED,S38
+Format,Text Styles,Text Styles,RibbonTimelineTextStyles,REQUIRED,S38
+Format,Show/Hide,Date Range,RibbonTimelineDateRange,REQUIRED,S38
+Format,Show/Hide,Dates,RibbonTimelineDates,REQUIRED,S38
+Format,Show/Hide,Expand Timeline,RibbonTimelineExpand,REQUIRED,S38
+Format,Show/Hide,Bar Labels,RibbonTimelineBarLabels,REQUIRED,S38
+Format,Show/Hide,Overlapped Tasks,RibbonTimelineOverlapped,REQUIRED,S38
+Format,Show/Hide,Pan & Zoom,RibbonTimelinePanZoom,REQUIRED,S38
+Format,Show/Hide,Text Lines,RibbonTimelineTextLines,REQUIRED,S38
+Format,Insert,Timeline Bar,RibbonTimelineInsertBar,REQUIRED,S38
+Format,Insert,Existing Tasks,RibbonTimelineAddExisting,REQUIRED,S38
+Format,Insert,Task,RibbonTimelineInsertTask,REQUIRED,S38
+Format,Insert,Callout,RibbonTimelineInsertCallout,REQUIRED,S38
+Format,Insert,Milestone,RibbonTimelineInsertMilestone,REQUIRED,S38
+Format,Current Selection,Display on Timeline,RibbonTimelineDisplay,REQUIRED,S38
+Format,Current Selection,Display as Callout,RibbonTimelineCallout,REQUIRED,S38
+Format,Current Selection,Remove from Timeline,RibbonTimelineRemove,REQUIRED,S38
+Format,Copy,Copy Timeline,RibbonTimelineCopy,REQUIRED,S38
+Format,Format,Outline,RibbonTeamPlannerOutline,REQUIRED,S38
+Format,Format,Gridlines,RibbonTeamPlannerGridlines,REQUIRED,S38
+Format,Format,Text Styles,RibbonTeamPlannerTextStyles,REQUIRED,S38
+Format,Format,Text Lines,RibbonTeamPlannerTextLines,REQUIRED,S38
+Format,Styles,Selected Tasks,RibbonTeamPlannerSelectedStyle,REQUIRED,S38
+Format,Styles,Auto Scheduled Tasks,RibbonTeamPlannerAutoStyle,REQUIRED,S38
+Format,Styles,Manually Scheduled Tasks,RibbonTeamPlannerManualStyle,REQUIRED,S38
+Format,Styles,Actual Work,RibbonTeamPlannerActualStyle,REQUIRED,S38
+Format,Styles,External Tasks,RibbonTeamPlannerExternalStyle,REQUIRED,S38
+Format,Styles,Late Tasks,RibbonTeamPlannerLateStyle,REQUIRED,S38
+Format,Schedule,Prevent Overallocations,RibbonTeamPlannerPreventOverallocation,REQUIRED,S38
+Format,Show/Hide,Expand Resource Rows,RibbonTeamPlannerExpandRows,REQUIRED,S38
+Format,Show/Hide,Unassigned Tasks,RibbonTeamPlannerUnassigned,REQUIRED,S38
+Format,Show/Hide,Unscheduled Tasks,RibbonTeamPlannerUnscheduled,REQUIRED,S38

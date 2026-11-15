@@ -855,6 +855,29 @@ public class DocumentFrame extends NamedFrame implements
 		return nodes.stream().map(Node::getImpl).filter(Task.class::isInstance).map(Task.class::cast).toList();
 	}
 
+	/** Targets for a command enabled on the Timeline selection: the Timeline's selected tasks, not the sheet rows. */
+	private EditableTaskTargets resolveTimelineTaskTargets(CommandId command, String lockLabel) {
+		List<Task> tasks = selectedFormattableTasks();
+		List<Long> ids = tasks.stream().map(Task::getUniqueId).toList();
+		RibbonCommandResult rejection = null;
+		if (project == null) rejection = rejectedWithSelection(command, "no-active-document", ids);
+		else if (project.isReadOnly()) rejection = rejectedWithSelection(command, "document-read-only", ids);
+		else if (tasks.isEmpty()) rejection = rejectedWithSelection(command, "selection-too-small", ids);
+		else if (!CollaborationHelper.tryLockNodes(project, tasks, this, lockLabel))
+			rejection = rejectedWithSelection(command, LOCK_DENIED_REASON, ids);
+		return new EditableTaskTargets(List.of(), tasks, ids, rejection);
+	}
+
+	/**
+	 * Targets of the commands whose enablement follows the Timeline selection (Move, Add to Timeline):
+	 * the Timeline's selected tasks while the Timeline is the top view, otherwise the table selection.
+	 */
+	private EditableTaskTargets resolveViewTaskTargets(CommandId command, String lockLabel) {
+		return ACTION_TIMELINE.equals(getTopViewId())
+			? resolveTimelineTaskTargets(command, lockLabel)
+			: resolveEditableTaskTargets(command, lockLabel);
+	}
+
 	private void restoreTaskRows(List<Node> nodes) {
 		SpreadSheet sheet = getActiveSpreadSheet();
 		if (sheet != null) sheet.restoreTaskRowSelection(nodes);
@@ -909,7 +932,7 @@ public class DocumentFrame extends NamedFrame implements
 
 	/** Task &gt; Move: shifts the selected tasks by working days (manual dates, or a Start No Earlier Than constraint). */
 	private RibbonCommandResult applyTaskMove(CommandId command, int workingDays) {
-		EditableTaskTargets targets = resolveEditableTaskTargets(command, "move task");
+		EditableTaskTargets targets = resolveViewTaskTargets(command, "move task");
 		if (targets.rejection() != null) return targets.rejection();
 		try {
 			var result = new TaskMoveService().moveByWorkingDays(project, targets.tasks(), workingDays);
@@ -943,19 +966,26 @@ public class DocumentFrame extends NamedFrame implements
 
 	/** Task &gt; Properties &gt; Add to Timeline: puts the selected tasks on, or when all already are, takes them off the timeline. */
 	private RibbonCommandResult applyAddToTimeline(CommandId command) {
-		EditableTaskTargets targets = resolveEditableTaskTargets(command, "add to timeline");
+		EditableTaskTargets targets = resolveViewTaskTargets(command, "add to timeline");
 		if (targets.rejection() != null) return targets.rejection();
 		boolean value = !targets.tasks().stream().allMatch(Task::isDisplayOnTimeline);
 		List<Task> changed = targets.tasks().stream().filter(task -> task.isDisplayOnTimeline() != value).toList();
 		if (changed.isEmpty())
 			return taskSelectionOutcome(command, RibbonCommandResult.Status.NO_CHANGE, targets.selectedIds());
 		com.microproject.pm.task.ReversibleModelChange change = com.microproject.pm.task.ReversibleModelChange.changed(
-			() -> changed.forEach(task -> task.setDisplayOnTimeline(!value)),
-			() -> changed.forEach(task -> task.setDisplayOnTimeline(value)));
+			() -> { changed.forEach(task -> task.setDisplayOnTimeline(!value)); refreshEmbeddedTimeline(); },
+			() -> { changed.forEach(task -> task.setDisplayOnTimeline(value)); refreshEmbeddedTimeline(); });
 		changed.forEach(task -> task.setDisplayOnTimeline(value));
 		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), change);
+		refreshEmbeddedTimeline();
 		restoreTaskRows(targets.nodes());
 		return taskSelectionOutcome(command, RibbonCommandResult.Status.CHANGED, targets.selectedIds());
+	}
+
+	/** Repaints the embedded Timeline pane, when one is shown, after its displayed-task set changed. */
+	private void refreshEmbeddedTimeline() {
+		TimelineDialogBox timeline = getEmbeddedTimelineDialog();
+		if (timeline != null) timeline.reloadTasks();
 	}
 
 	private RibbonCommandResult applyInactivateTask(CommandId command) {
@@ -2019,8 +2049,34 @@ public class DocumentFrame extends NamedFrame implements
 			timelineView = new DockableProjectToolView(project, ACTION_TIMELINE,
 				TimelineDialogBox.createEmbeddedPanel(getGraphicManager().getFrame(), project));
 			restoreWorkspaceFor(timelineView);
+			TimelineDialogBox timelineDialog = getEmbeddedTimelineDialog();
+			if (timelineDialog != null)
+				timelineDialog.setSelectionListener(() -> {
+					getGraphicManager().syncGanttViewRibbonState();
+					getGraphicManager().setButtonState(getSelectedImpl(), project);
+				});
 		}
 		return timelineView;
+	}
+
+	/** The embedded Timeline view's dialog when that view has been created (active or not), else null. */
+	public TimelineDialogBox getEmbeddedTimelineDialog() {
+		if (timelineView == null) return null;
+		for (java.awt.Component child : timelineView.getComponents())
+			if (child instanceof javax.swing.JComponent component
+					&& component.getClientProperty(TimelineDialogBox.DIALOG_PROPERTY) instanceof TimelineDialogBox dialog)
+				return dialog;
+		return null;
+	}
+
+	/** The embedded Team Planner view's dialog when that view has been created (active or not), else null. */
+	public TeamPlannerDialogBox getEmbeddedTeamPlannerDialog() {
+		if (teamPlannerView == null) return null;
+		for (java.awt.Component child : teamPlannerView.getComponents())
+			if (child instanceof javax.swing.JComponent component
+					&& component.getClientProperty(TeamPlannerDialogBox.DIALOG_PROPERTY) instanceof TeamPlannerDialogBox dialog)
+				return dialog;
+		return null;
 	}
 
 	public DockableProjectToolView getCalendarView() {
@@ -2509,7 +2565,7 @@ public class DocumentFrame extends NamedFrame implements
 	}
 
 	/** The writable tasks of the active table selection that the Task &gt; Font group formats. */
-	private List<Node> selectedFormattableTaskNodes() {
+	private List<Node> selectedFormattableSpreadsheetNodes() {
 		if (project == null || project.isReadOnly() || getActiveSpreadSheet() == null)
 			return List.of();
 		ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(true, false);
@@ -2524,20 +2580,43 @@ public class DocumentFrame extends NamedFrame implements
 		return nodes;
 	}
 
+	/**
+	 * The writable tasks the Font group formats: the selected tasks of the Timeline chooser while the
+	 * Timeline view is active, otherwise the selected rows of the active table.
+	 */
+	private List<Task> selectedFormattableTasks() {
+		if (project == null || project.isReadOnly())
+			return List.of();
+		if (ACTION_TIMELINE.equals(getTopViewId())) {
+			TimelineDialogBox timeline = getEmbeddedTimelineDialog();
+			if (timeline == null)
+				return List.of();
+			List<Task> tasks = timeline.getSelectedTasks();
+			for (Task task : tasks)
+				if (task.getProject() != project || task.isReadOnly())
+					return List.of();
+			return tasks;
+		}
+		List<Task> tasks = new ArrayList<>();
+		for (Node node : selectedFormattableSpreadsheetNodes())
+			tasks.add((Task) node.getImpl());
+		return tasks;
+	}
+
 	boolean canFormatSelectedTaskText() {
-		return !selectedFormattableTaskNodes().isEmpty();
+		return !selectedFormattableTasks().isEmpty();
 	}
 
 	/** True when every selected task is bold (the pressed state of the Bold button). */
 	boolean isSelectedTaskTextBold() {
-		List<Node> nodes = selectedFormattableTaskNodes();
-		return !nodes.isEmpty() && nodes.stream().allMatch(node -> ((Task) node.getImpl()).isFontBold());
+		List<Task> nodes = selectedFormattableTasks();
+		return !nodes.isEmpty() && nodes.stream().allMatch(Task::isFontBold);
 	}
 
 	/** True when every selected task is italic (the pressed state of the Italic button). */
 	boolean isSelectedTaskTextItalic() {
-		List<Node> nodes = selectedFormattableTaskNodes();
-		return !nodes.isEmpty() && nodes.stream().allMatch(node -> ((Task) node.getImpl()).isFontItalic());
+		List<Task> nodes = selectedFormattableTasks();
+		return !nodes.isEmpty() && nodes.stream().allMatch(Task::isFontItalic);
 	}
 
 	/** Bold on the selected tasks unless all of them already are, then off. One undoable edit. */
@@ -2554,10 +2633,10 @@ public class DocumentFrame extends NamedFrame implements
 
 	/** Asks for a color and applies it as the text color of the selected tasks. One undoable edit. */
 	void chooseSelectedTaskFontColor() {
-		List<Node> nodes = selectedFormattableTaskNodes();
+		List<Task> nodes = selectedFormattableTasks();
 		if (nodes.isEmpty())
 			return;
-		Integer current = ((Task) nodes.getFirst().getImpl()).getFontColor();
+		Integer current = nodes.getFirst().getFontColor();
 		java.awt.Color chosen = javax.swing.JColorChooser.showDialog(this,
 			Messages.getString("TaskInformationDialog.FontColor"), current == null ? java.awt.Color.BLACK : new java.awt.Color(current));
 		if (chosen != null) {
@@ -2568,14 +2647,14 @@ public class DocumentFrame extends NamedFrame implements
 
 	/** True when every selected task is underlined (the pressed state of the Underline button). */
 	boolean isSelectedTaskTextUnderline() {
-		List<Node> nodes = selectedFormattableTaskNodes();
-		return !nodes.isEmpty() && nodes.stream().allMatch(node -> ((Task) node.getImpl()).isFontUnderline());
+		List<Task> nodes = selectedFormattableTasks();
+		return !nodes.isEmpty() && nodes.stream().allMatch(Task::isFontUnderline);
 	}
 
 	/** True when every selected task is on the timeline (the pressed state of Add to Timeline). */
 	boolean isSelectedTaskOnTimeline() {
-		List<Node> nodes = selectedFormattableTaskNodes();
-		return !nodes.isEmpty() && nodes.stream().allMatch(node -> ((Task) node.getImpl()).isDisplayOnTimeline());
+		List<Task> nodes = selectedFormattableTasks();
+		return !nodes.isEmpty() && nodes.stream().allMatch(Task::isDisplayOnTimeline);
 	}
 
 	/** Underline on the selected tasks unless all of them already are, then off. One undoable edit. */
@@ -2586,10 +2665,10 @@ public class DocumentFrame extends NamedFrame implements
 
 	/** Asks for a color and applies it as the cell background fill of the selected tasks. One undoable edit. */
 	void chooseSelectedTaskBackground() {
-		List<Node> nodes = selectedFormattableTaskNodes();
+		List<Task> nodes = selectedFormattableTasks();
 		if (nodes.isEmpty())
 			return;
-		Integer current = ((Task) nodes.getFirst().getImpl()).getFontBackground();
+		Integer current = nodes.getFirst().getFontBackground();
 		java.awt.Color chosen = javax.swing.JColorChooser.showDialog(this,
 			Messages.getString("TaskFill.title"), current == null ? java.awt.Color.WHITE : new java.awt.Color(current));
 		if (chosen != null) {
@@ -2600,14 +2679,14 @@ public class DocumentFrame extends NamedFrame implements
 
 	/** Font family of the lead selected task, or null without a formattable selection. */
 	String selectedTaskFontFamily() {
-		List<Node> nodes = selectedFormattableTaskNodes();
-		return nodes.isEmpty() ? null : ((Task) nodes.getFirst().getImpl()).getFontFamily();
+		List<Task> nodes = selectedFormattableTasks();
+		return nodes.isEmpty() ? null : nodes.getFirst().getFontFamily();
 	}
 
 	/** Font size of the lead selected task, or 0 without a formattable selection. */
 	int selectedTaskFontSize() {
-		List<Node> nodes = selectedFormattableTaskNodes();
-		return nodes.isEmpty() ? 0 : ((Task) nodes.getFirst().getImpl()).getFontSize();
+		List<Task> nodes = selectedFormattableTasks();
+		return nodes.isEmpty() ? 0 : nodes.getFirst().getFontSize();
 	}
 
 	void setSelectedTaskFontFamily(String family) {
@@ -2621,13 +2700,10 @@ public class DocumentFrame extends NamedFrame implements
 	private void applyToSelectedTaskText(java.util.function.UnaryOperator<TaskFormatPainterService.TaskTextFormat> change,
 			String reason) {
 		finishAnyOperations();
-		List<Node> nodes = selectedFormattableTaskNodes();
+		List<Task> nodes = selectedFormattableTasks();
 		if (nodes.isEmpty() || !CollaborationHelper.tryLockNodes(project, nodes, this, reason))
 			return;
-		List<Task> tasks = new ArrayList<>(nodes.size());
-		for (Node node : nodes)
-			tasks.add((Task) node.getImpl());
-		TaskFormatPainterService.applyChange(project, tasks, change, getUndoController());
+		TaskFormatPainterService.applyChange(project, nodes, change, getUndoController());
 	}
 
 	void cancelFormatPainter() {

@@ -64,6 +64,8 @@ final class RibbonCommandCatalog {
 	private static final String FORMAT = "FormatRibbonTask";
 	private static final String NETWORK_FORMAT = "NetworkFormatRibbonTask";
 	private static final String CALENDAR_FORMAT = "CalendarFormatRibbonTask";
+	private static final String TIMELINE_FORMAT = "TimelineFormatRibbonTask";
+	private static final String TEAM_PLANNER_FORMAT = "TeamPlannerFormatRibbonTask";
 	private static final String TASK_SHEET_FORMAT = "TaskSheetFormatRibbonTask";
 	private static final String TASK_USAGE_FORMAT = "TaskUsageFormatRibbonTask";
 	private static final String RESOURCE_SHEET_FORMAT = "ResourceSheetFormatRibbonTask";
@@ -210,6 +212,24 @@ final class RibbonCommandCatalog {
 			"RibbonNetworkProgressMarks");
 		register(result, CommandScope.FORMAT, CALENDAR_FORMAT, Set.of(CALENDAR_FORMAT), "RibbonCalendarTextStyles", "RibbonCalendarBarStyles",
 			"RibbonCalendarLayoutNow", "RibbonCalendarWeekHeightBestFit", "RibbonCalendarLayout", "RibbonCalendarTaskList");
+		register(result, CommandScope.FORMAT, TIMELINE_FORMAT, Set.of(TIMELINE_FORMAT), "RibbonTimelineTextStyles", "RibbonTimelineDateRange",
+			"RibbonTimelineDates", "RibbonTimelineExpand", "RibbonTimelineBarLabels", "RibbonTimelineOverlapped", "RibbonTimelinePanZoom",
+			"RibbonTimelineTextLines", "RibbonTimelineInsertBar", "RibbonTimelineAddExisting", "RibbonTimelineInsertTask",
+			"RibbonTimelineInsertCallout", "RibbonTimelineInsertMilestone", "RibbonTimelineDisplay", "RibbonTimelineCallout",
+			"RibbonTimelineRemove", "RibbonTimelineCopy");
+		// The Timeline Format Font group reuses the Task tab font commands; they act on the tasks selected on the timeline.
+		for (String id : List.of("RibbonFontName", "RibbonFontSize", "RibbonBold", "RibbonItalic", "RibbonUnderline",
+			"RibbonFillColor", "RibbonFontColor", "RibbonFont")) {
+			Placement placement = result.get(id);
+			Set<String> tabs = new java.util.HashSet<>(placement.permittedTabs());
+			tabs.add(TIMELINE_FORMAT);
+			result.put(id, new Placement(placement.scope(), placement.primaryTab(), Set.copyOf(tabs)));
+		}
+		register(result, CommandScope.FORMAT, TEAM_PLANNER_FORMAT, Set.of(TEAM_PLANNER_FORMAT), "RibbonTeamPlannerOutline",
+			"RibbonTeamPlannerGridlines", "RibbonTeamPlannerTextStyles", "RibbonTeamPlannerTextLines", "RibbonTeamPlannerSelectedStyle",
+			"RibbonTeamPlannerAutoStyle", "RibbonTeamPlannerManualStyle", "RibbonTeamPlannerActualStyle", "RibbonTeamPlannerExternalStyle",
+			"RibbonTeamPlannerLateStyle", "RibbonTeamPlannerPreventOverallocation", "RibbonTeamPlannerExpandRows",
+			"RibbonTeamPlannerUnassigned", "RibbonTeamPlannerUnscheduled");
 		register(result, CommandScope.FORMAT, TASK_USAGE_FORMAT, Set.of(TASK_SHEET_FORMAT, TASK_USAGE_FORMAT, RESOURCE_SHEET_FORMAT, RESOURCE_USAGE_FORMAT, CALENDAR_FORMAT),
 			"RibbonSheetGridlines");
 		// Usage Details rows are shared by the two usage Format tabs.
