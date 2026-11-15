@@ -118,6 +118,8 @@ class TimelineTeamPlannerRibbonGuiAcceptanceTest {
 			new java.awt.event.ActionEvent(this, java.awt.event.ActionEvent.ACTION_PERFORMED, "AddToTimeline")); return null; });
 		GuiAcceptanceSupport.await(() -> onEdt(() -> target.isDisplayOnTimeline() != onTimeline),
 			"Add to Timeline did not act on the Timeline-selected task");
+		org.junit.jupiter.api.Assertions.assertEquals(java.util.List.of(target), onEdt(timeline::getSelectedTasks),
+			"refreshing the Timeline after Add to Timeline must keep its selection");
 
 		click(robot, screenBounds(viewTab));
 		// The View > Team Planner entry is a gallery; its command route is the Team Planner action.

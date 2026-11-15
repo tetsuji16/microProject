@@ -158,10 +158,12 @@ public final class TimelineDialogBox extends FlatLafDialog {
 		}
 	}
 
-	/** Re-reads the project's tasks after a change that adds or removes tasks. */
+	/** Re-reads the project's tasks after a change that adds or removes tasks, keeping the chooser selection. */
 	public void reloadTasks() {
+		List<Task> selected = getSelectedTasks();
 		loadTasks();
 		((AbstractTableModel) chooser.getModel()).fireTableDataChanged();
+		selectTasks(selected);
 		canvas.refresh();
 	}
 
