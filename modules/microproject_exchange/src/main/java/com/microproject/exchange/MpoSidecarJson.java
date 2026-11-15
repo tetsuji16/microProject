@@ -63,6 +63,8 @@ final class MpoSidecarJson {
 			serialized.put("manual", fields.isManualWidth(index));
 			// Optional key, written only when wrapping is switched off so default layouts stay byte-identical.
 			if (!fields.isHeaderWrap(index)) serialized.put("wrapHeader", false);
+			// Same rule for the alignment override: absent means the column keeps its default alignment.
+			if (fields.getAlignment(index) != SpreadSheetFieldArray.ALIGN_DEFAULT) serialized.put("align", fields.getAlignment(index));
 		}
 		return JSON.writeValueAsBytes(root);
 	}
@@ -76,6 +78,7 @@ final class MpoSidecarJson {
 		var widths = new java.util.ArrayList<Integer>();
 		var manualWidths = new java.util.ArrayList<Boolean>();
 		var headerWraps = new java.util.ArrayList<Boolean>();
+		var alignments = new java.util.ArrayList<Integer>();
 		for (JsonNode entry : entries) {
 			String id = entry.path("id").asText(null);
 			if (id == null || id.isBlank()) throw new IOException("Invalid MPO layout field id");
@@ -87,10 +90,12 @@ final class MpoSidecarJson {
 			widths.add(width);
 			manualWidths.add(entry.path("manual").asBoolean(false));
 			headerWraps.add(entry.path("wrapHeader").asBoolean(true));
+			alignments.add(entry.path("align").asInt(SpreadSheetFieldArray.ALIGN_DEFAULT));
 		}
 		fields.setWidths(widths);
 		fields.setManualWidths(manualWidths);
 		fields.setHeaderWraps(headerWraps);
+		fields.setAlignments(alignments);
 		fields.setCategory(com.microproject.graphic.configuration.SpreadSheetCategories.taskSpreadsheetCategory);
 		fields.setName(project.getName());
 		project.setFieldArray(fields);

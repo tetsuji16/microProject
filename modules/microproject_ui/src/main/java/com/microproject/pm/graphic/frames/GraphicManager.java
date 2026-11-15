@@ -181,6 +181,8 @@ import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.task.TaskPathAnalyzer;
+import com.microproject.pm.graphic.gantt.GanttBarColorScheme;
 import com.microproject.preference.ConfigurationFile;
 import com.microproject.preference.GlobalPreferences;
 import com.microproject.print.GraphPageable;
@@ -1971,6 +1973,32 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_TEXT_STYLES, new TextStylesAction());
 		actionsMap.addHandler(ACTION_BAR_STYLES, barStylesAction);
 		actionsMap.addHandler(ACTION_LAYOUT, new LayoutAction());
+		// Gantt Chart Format contextual tab
+		actionsMap.addHandler(ACTION_GFMT_INSERT_COLUMN, ganttFormatAction(ACTION_GFMT_INSERT_COLUMN, view -> view.getSpreadSheet().insertColumnFromRibbon()));
+		actionsMap.addHandler(ACTION_GFMT_HIDE_COLUMN, ganttFormatAction(ACTION_GFMT_HIDE_COLUMN, view -> view.getSpreadSheet().hideColumnFromRibbon()));
+		actionsMap.addHandler(ACTION_GFMT_FIELD_SETTINGS, ganttFormatAction(ACTION_GFMT_FIELD_SETTINGS, view -> view.getSpreadSheet().showFieldSettingsFromRibbon()));
+		actionsMap.addHandler(ACTION_GFMT_ALIGN_LEFT, ganttFormatAction(ACTION_GFMT_ALIGN_LEFT, view -> view.getSpreadSheet().setColumnAlignment(view.getSpreadSheet().getRibbonFieldIndex(), SpreadSheetFieldArray.ALIGN_LEFT)));
+		actionsMap.addHandler(ACTION_GFMT_ALIGN_CENTER, ganttFormatAction(ACTION_GFMT_ALIGN_CENTER, view -> view.getSpreadSheet().setColumnAlignment(view.getSpreadSheet().getRibbonFieldIndex(), SpreadSheetFieldArray.ALIGN_CENTER)));
+		actionsMap.addHandler(ACTION_GFMT_ALIGN_RIGHT, ganttFormatAction(ACTION_GFMT_ALIGN_RIGHT, view -> view.getSpreadSheet().setColumnAlignment(view.getSpreadSheet().getRibbonFieldIndex(), SpreadSheetFieldArray.ALIGN_RIGHT)));
+		actionsMap.addHandler(ACTION_GFMT_FORMAT_BAR, ganttFormatAction(ACTION_GFMT_FORMAT_BAR, GanttView::showFormatBarDialog));
+		actionsMap.addHandler(ACTION_GFMT_CRITICAL_TASKS, ganttFormatAction(ACTION_GFMT_CRITICAL_TASKS, view -> view.setCriticalTasksVisible(!view.isCriticalTasksVisible())));
+		actionsMap.addHandler(ACTION_GFMT_SLACK, ganttFormatAction(ACTION_GFMT_SLACK, view -> view.setSlackVisible(!view.isSlackVisible())));
+		actionsMap.addHandler(ACTION_GFMT_LATE_TASKS, ganttFormatAction(ACTION_GFMT_LATE_TASKS, view -> view.setLateTasksVisible(!view.isLateTasksVisible())));
+		actionsMap.addHandler(ACTION_GFMT_BASELINE, ganttFormatAction(ACTION_GFMT_BASELINE, view -> view.setBaselineVisible(!view.isBaselineVisible())));
+		actionsMap.addHandler(ACTION_GFMT_SLIPPAGE, ganttFormatAction(ACTION_GFMT_SLIPPAGE, view -> view.setSlippageVisible(!view.isSlippageVisible())));
+		actionsMap.addHandler(ACTION_GFMT_OUTLINE_NUMBERS, ganttFormatAction(ACTION_GFMT_OUTLINE_NUMBERS, view -> view.setOutlineNumbersVisible(!view.isOutlineNumbersVisible())));
+		actionsMap.addHandler(ACTION_GFMT_SUMMARY_TASKS, ganttFormatAction(ACTION_GFMT_SUMMARY_TASKS, view -> view.setSummaryTasksVisible(!view.isSummaryTasksVisible())));
+		actionsMap.addHandler(ACTION_GFMT_PATH_PREDECESSORS, ganttFormatAction(ACTION_GFMT_PATH_PREDECESSORS, view -> view.setTaskPathKind(TaskPathAnalyzer.Kind.PREDECESSORS)));
+		actionsMap.addHandler(ACTION_GFMT_PATH_DRIVING_PREDECESSORS, ganttFormatAction(ACTION_GFMT_PATH_DRIVING_PREDECESSORS, view -> view.setTaskPathKind(TaskPathAnalyzer.Kind.DRIVING_PREDECESSORS)));
+		actionsMap.addHandler(ACTION_GFMT_PATH_SUCCESSORS, ganttFormatAction(ACTION_GFMT_PATH_SUCCESSORS, view -> view.setTaskPathKind(TaskPathAnalyzer.Kind.SUCCESSORS)));
+		actionsMap.addHandler(ACTION_GFMT_PATH_DRIVEN_SUCCESSORS, ganttFormatAction(ACTION_GFMT_PATH_DRIVEN_SUCCESSORS, view -> view.setTaskPathKind(TaskPathAnalyzer.Kind.DRIVEN_SUCCESSORS)));
+		actionsMap.addHandler(ACTION_GFMT_PATH_REMOVE, ganttFormatAction(ACTION_GFMT_PATH_REMOVE, view -> view.setTaskPathKind(null)));
+		actionsMap.addHandler(ACTION_GFMT_STYLE_DEFAULT, ganttFormatAction(ACTION_GFMT_STYLE_DEFAULT, view -> view.setBarColorScheme(GanttBarColorScheme.DEFAULT)));
+		actionsMap.addHandler(ACTION_GFMT_STYLE_BLUE, ganttFormatAction(ACTION_GFMT_STYLE_BLUE, view -> view.setBarColorScheme(GanttBarColorScheme.BLUE)));
+		actionsMap.addHandler(ACTION_GFMT_STYLE_GREEN, ganttFormatAction(ACTION_GFMT_STYLE_GREEN, view -> view.setBarColorScheme(GanttBarColorScheme.GREEN)));
+		actionsMap.addHandler(ACTION_GFMT_STYLE_ORANGE, ganttFormatAction(ACTION_GFMT_STYLE_ORANGE, view -> view.setBarColorScheme(GanttBarColorScheme.ORANGE)));
+		actionsMap.addHandler(ACTION_GFMT_STYLE_PURPLE, ganttFormatAction(ACTION_GFMT_STYLE_PURPLE, view -> view.setBarColorScheme(GanttBarColorScheme.PURPLE)));
+		actionsMap.addHandler(ACTION_GFMT_STYLE_GRAY, ganttFormatAction(ACTION_GFMT_STYLE_GRAY, view -> view.setBarColorScheme(GanttBarColorScheme.GRAY)));
 		actionsMap.addHandler(ACTION_INSERT_RECURRING, new RecurringTaskAction());
 		// Legacy menu ids remain aliases of the canonical transform commands.  A
 		// single action instance keeps menu, ribbon and toolbar behavior identical.
@@ -2877,6 +2905,22 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			showTextStyleChooser();
 		}
 	}
+
+	/** Adapter of one Gantt Chart Format command: acts on the active Gantt view, then refreshes the ribbon state. */
+	private MenuActionsMap.DocumentMenuAction ganttFormatAction(String actionId, java.util.function.Consumer<GanttView> body) {
+		return new MenuActionsMap.DocumentMenuAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) {
+				setMeAsLastGraphicManager();
+				if (!beforeToggleRoute(actionId)) return;
+				GanttView view = getActiveGanttView();
+				if (view == null) return;
+				body.accept(view);
+				syncGanttViewRibbonState();
+			}
+		};
+	}
+
 	public class BarStylesAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
@@ -5197,6 +5241,31 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_TEXT_STYLES, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_BAR_STYLES, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_LAYOUT, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_INSERT_COLUMN, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_HIDE_COLUMN, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_FIELD_SETTINGS, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_ALIGN_LEFT, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_ALIGN_CENTER, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_ALIGN_RIGHT, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_FORMAT_BAR, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_CRITICAL_TASKS, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_SLACK, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_LATE_TASKS, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_BASELINE, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_SLIPPAGE, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_PATH_PREDECESSORS, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_PATH_DRIVING_PREDECESSORS, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_PATH_SUCCESSORS, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_PATH_DRIVEN_SUCCESSORS, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_PATH_REMOVE, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_STYLE_DEFAULT, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_STYLE_BLUE, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_STYLE_GREEN, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_STYLE_ORANGE, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_STYLE_PURPLE, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_STYLE_GRAY, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_OUTLINE_NUMBERS, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_SUMMARY_TASKS, ganttActive);
 
 		boolean progressSelected = false;
 		boolean resourceLabelSelected = false;
@@ -5210,6 +5279,19 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionSelected(ACTION_TOGGLE_PROGRESS_LINE, progressSelected);
 		getMenuManager().setActionSelected(ACTION_LABEL_RESOURCE_NAMES, resourceLabelSelected);
 		getMenuManager().setActionSelected(ACTION_LABEL_TASK_NAME, taskLabelSelected);
+		getMenuManager().setActionSelected(ACTION_GFMT_CRITICAL_TASKS, ganttActive && getCurrentFrame().getGanttView().isCriticalTasksVisible());
+		getMenuManager().setActionSelected(ACTION_GFMT_SLACK, ganttActive && getCurrentFrame().getGanttView().isSlackVisible());
+		getMenuManager().setActionSelected(ACTION_GFMT_LATE_TASKS, ganttActive && getCurrentFrame().getGanttView().isLateTasksVisible());
+		getMenuManager().setActionSelected(ACTION_GFMT_BASELINE, ganttActive && getCurrentFrame().getGanttView().isBaselineVisible());
+		getMenuManager().setActionSelected(ACTION_GFMT_SLIPPAGE, ganttActive && getCurrentFrame().getGanttView().isSlippageVisible());
+		getMenuManager().setActionSelected(ACTION_GFMT_OUTLINE_NUMBERS, ganttActive && getCurrentFrame().getGanttView().isOutlineNumbersVisible());
+		getMenuManager().setActionSelected(ACTION_GFMT_SUMMARY_TASKS, ganttActive && getCurrentFrame().getGanttView().isSummaryTasksVisible());
+		getMenuManager().setActionSelected(ACTION_GFMT_STYLE_DEFAULT, ganttActive && getCurrentFrame().getGanttView().getBarColorScheme() == GanttBarColorScheme.DEFAULT);
+		getMenuManager().setActionSelected(ACTION_GFMT_STYLE_BLUE, ganttActive && getCurrentFrame().getGanttView().getBarColorScheme() == GanttBarColorScheme.BLUE);
+		getMenuManager().setActionSelected(ACTION_GFMT_STYLE_GREEN, ganttActive && getCurrentFrame().getGanttView().getBarColorScheme() == GanttBarColorScheme.GREEN);
+		getMenuManager().setActionSelected(ACTION_GFMT_STYLE_ORANGE, ganttActive && getCurrentFrame().getGanttView().getBarColorScheme() == GanttBarColorScheme.ORANGE);
+		getMenuManager().setActionSelected(ACTION_GFMT_STYLE_PURPLE, ganttActive && getCurrentFrame().getGanttView().getBarColorScheme() == GanttBarColorScheme.PURPLE);
+		getMenuManager().setActionSelected(ACTION_GFMT_STYLE_GRAY, ganttActive && getCurrentFrame().getGanttView().getBarColorScheme() == GanttBarColorScheme.GRAY);
 	}
 	/**
 	 * React to selection changed events and forward them on to any bottom window
@@ -5218,6 +5300,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	public void selectionChanged(SelectionNodeEvent e) {
 		setZoomButtons();
 		assignmentDialogCoordinator.selectionChanged(e);
+		if (isActiveGanttView())
+			getCurrentFrame().getGanttView().refreshTaskPath();
 
 		Node currentNode=e.getCurrentNode();
 		Object currentImpl=currentNode.getImpl();

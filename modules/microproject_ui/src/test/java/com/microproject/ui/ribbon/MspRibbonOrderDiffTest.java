@@ -89,7 +89,9 @@ class MspRibbonOrderDiffTest {
 		"ReportRibbonTask", "TabReportOverview",
 		"ProjectRibbonTask", "TabProject",
 		"ViewRibbonTask", "TabView",
-		"HelpRibbonTask", "HelpTab");
+		"HelpRibbonTask", "HelpTab",
+		// contextual tabs: add one entry here (plus its bands below) to compare another one
+		"FormatRibbonTask", "TabGanttChartFormat");
 
 	/** Our band ("tab/band") -> the Microsoft group of the same tab it implements. */
 	private static final Map<String, String> BAND_GROUPS = Map.ofEntries(
@@ -117,7 +119,12 @@ class MspRibbonOrderDiffTest {
 		Map.entry("ViewRibbonTask/ViewZoomRibbonBand", "GroupZoom"),
 		Map.entry("ViewRibbonTask/ViewSplitRibbonBand", "GroupViewSplit"),
 		Map.entry("ViewRibbonTask/ViewWindowRibbonBand", "GroupWindow"),
-		Map.entry("HelpRibbonTask/HelpRibbonBand", "GroupHelpAndSupport"));
+		Map.entry("HelpRibbonTask/HelpRibbonBand", "GroupHelpAndSupport"),
+		Map.entry("FormatRibbonTask/GanttFormatRibbonBand", "GroupGanttChartFormat"),
+		Map.entry("FormatRibbonTask/GanttColumnsRibbonBand", "GroupColumns"),
+		Map.entry("FormatRibbonTask/GanttBarStylesRibbonBand", "GroupGanttChartBarStyles"),
+		Map.entry("FormatRibbonTask/GanttStylesRibbonBand", "GroupGanttChartSyles"),
+		Map.entry("FormatRibbonTask/GanttShowHideRibbonBand", "GroupGanttChartShowHide"));
 
 	/**
 	 * Bands with no group of their own on that Microsoft tab. They stay, are placed after every
@@ -130,7 +137,9 @@ class MspRibbonOrderDiffTest {
 		"ReportRibbonTask/ReportAnalysisRibbonBand",
 		"microProject usage and critical-chain buffer reports; no Microsoft report group of that shape",
 		"ProjectRibbonTask/ProjectCcpmRibbonBand",
-		"CCPM is a supported microProject extension with no Microsoft equivalent");
+		"CCPM is a supported microProject extension with no Microsoft equivalent",
+		"FormatRibbonTask/GanttFormatExtrasRibbonBand",
+		"annotation labels and the CCPM critical chain are microProject Gantt options with no Microsoft Gantt Chart Format group");
 
 	/** Extension bands whose mapped controls are ordered like this Microsoft group ("tab/group"). */
 	private static final Map<String, String> BORROWED_GROUPS = Map.of(
@@ -144,6 +153,8 @@ class MspRibbonOrderDiffTest {
 		Map.entry("TabProject/GroupOfficeExtension",
 			OFFICE_ADDIN),
 		Map.entry("TabProject/GroupProofing", "Spelling; " + PHASE_1B),
+		Map.entry("TabGanttChartFormat/GroupDrawings",
+			"no drawing layer: the Gantt has no drawing objects (lines, arrows, shapes, text boxes) to create, edit, order or persist"),
 		Map.entry("TabView/GroupMacros",
 			"scope exclusion: " + "VBA/macros excluded by the #797 scope decision (EXCLUDED in msp-ribbon-spec.csv)"));
 
@@ -165,6 +176,10 @@ class MspRibbonOrderDiffTest {
 		Map.entry("TabProject/LinksBetweenProjects", "external-task placeholders live in a private ExternalTaskManager with no query/re-point API, so a Change Links dialog cannot be backed by the engine yet"),
 		Map.entry("TabProject/WbsMenu", "WBS codes are derived from the outline only; core has no WBS code mask or renumber facility to back Define Code/Renumber"),
 		Map.entry("TabProject/StatusDateLabel", "the Status Date button already shows the date (StatusDateControlUpdater); a separate non-interactive label control needs ribbon label support; " + PHASE_1B),
+		Map.entry("TabGanttChartFormat/WrapText",
+			"cells render on one line; the sheet has no multi-line cell/row-height engine (only header wrapping exists, under Field Settings)"),
+		Map.entry("TabGanttChartFormat/ProjectSummaryTaskShow",
+			"the task model has no project summary task (task 0) row to show; the project is not a task"),
 		Map.entry("TabView/TaskBoardViewGallery", AGILE),
 		Map.entry("TabView/TaskViewsOtherGallery", "no further task views exist beyond those in the Task Views gallery"),
 		Map.entry("TabView/ResourcePlanViewGallery", "scope exclusion: Resource Plan view belongs to Project Online / Server resource engagements (AGENTS.md)"),
@@ -258,7 +273,18 @@ class MspRibbonOrderDiffTest {
 		Map.entry("RibbonFillRight", "FillRight"),
 		Map.entry("RibbonFillUp", "FillUp"),
 		Map.entry("RibbonSortBy", "SortByDialog"),
-		Map.entry("RibbonTimescale", "Timescale"));
+		Map.entry("RibbonTimescale", "Timescale"),
+		Map.entry("RibbonGridlines", "GridlinesProject"),
+		Map.entry("RibbonToggleProgressLine", "ProgressLines"),
+		Map.entry("RibbonHideColumn", "ColumnHideProject"),
+		Map.entry("RibbonFieldSettings", "FieldSettings"),
+		Map.entry("RibbonFormatBar", "GanttBarFormat"),
+		Map.entry("RibbonBarStylesItem", "BarStylesFormat"),
+		Map.entry("RibbonPathPredecessors", "HighlightPredecessors"),
+		Map.entry("RibbonPathDrivingPredecessors", "HighlightDrivingPredecessors"),
+		Map.entry("RibbonPathSuccessors", "HighlightSuccessors"),
+		Map.entry("RibbonPathDrivenSuccessors", "HighlightDrivenSuccessors"),
+		Map.entry("RibbonPathRemove", "RemoveTaskPathHighlight"));
 
 	/**
 	 * Popups (by ribbon id) with items that have no Microsoft child to be ordered against, with the
@@ -287,7 +313,9 @@ class MspRibbonOrderDiffTest {
 		Map.entry("RibbonTeamPlanner", VIEW_GALLERY_ITEMS),
 		Map.entry("RibbonChooseFilter", LIST_ITEMS),
 		Map.entry("RibbonChooseSort", "sort presets are product commands; only Sort By maps"),
-		Map.entry("RibbonChooseGroup", LIST_ITEMS));
+		Map.entry("RibbonChooseGroup", LIST_ITEMS),
+		Map.entry("RibbonGanttStyleGallery",
+			"colour-scheme presets of the Gantt Chart Style gallery; Microsoft's gallery lists its own bar-style presets"));
 
 	private record OrderRow(String tab, String group, int position, String idMso, String parent) {
 	}

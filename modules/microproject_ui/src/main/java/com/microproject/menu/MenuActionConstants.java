@@ -102,6 +102,32 @@ public interface MenuActionConstants {
 	public static final String ACTION_TOGGLE_PROGRESS_LINE    = "ToggleProgressLine";
 	public static final String ACTION_LABEL_RESOURCE_NAMES    = "LabelResourceNames";
 	public static final String ACTION_LABEL_TASK_NAME         = "LabelTaskName";
+	// Gantt Chart Format contextual tab
+	public static final String ACTION_GFMT_INSERT_COLUMN = "GanttInsertColumn";
+	public static final String ACTION_GFMT_HIDE_COLUMN = "GanttHideColumn";
+	public static final String ACTION_GFMT_FIELD_SETTINGS = "GanttFieldSettings";
+	public static final String ACTION_GFMT_ALIGN_LEFT = "GanttAlignLeft";
+	public static final String ACTION_GFMT_ALIGN_CENTER = "GanttAlignCenter";
+	public static final String ACTION_GFMT_ALIGN_RIGHT = "GanttAlignRight";
+	public static final String ACTION_GFMT_FORMAT_BAR = "GanttFormatBar";
+	public static final String ACTION_GFMT_CRITICAL_TASKS = "GanttCriticalTasks";
+	public static final String ACTION_GFMT_SLACK = "GanttSlack";
+	public static final String ACTION_GFMT_LATE_TASKS = "GanttLateTasks";
+	public static final String ACTION_GFMT_BASELINE = "GanttBaseline";
+	public static final String ACTION_GFMT_SLIPPAGE = "GanttSlippage";
+	public static final String ACTION_GFMT_PATH_PREDECESSORS = "GanttPathPredecessors";
+	public static final String ACTION_GFMT_PATH_DRIVING_PREDECESSORS = "GanttPathDrivingPredecessors";
+	public static final String ACTION_GFMT_PATH_SUCCESSORS = "GanttPathSuccessors";
+	public static final String ACTION_GFMT_PATH_DRIVEN_SUCCESSORS = "GanttPathDrivenSuccessors";
+	public static final String ACTION_GFMT_PATH_REMOVE = "GanttPathRemove";
+	public static final String ACTION_GFMT_STYLE_DEFAULT = "GanttStyleDefault";
+	public static final String ACTION_GFMT_STYLE_BLUE = "GanttStyleBlue";
+	public static final String ACTION_GFMT_STYLE_GREEN = "GanttStyleGreen";
+	public static final String ACTION_GFMT_STYLE_ORANGE = "GanttStyleOrange";
+	public static final String ACTION_GFMT_STYLE_PURPLE = "GanttStylePurple";
+	public static final String ACTION_GFMT_STYLE_GRAY = "GanttStyleGray";
+	public static final String ACTION_GFMT_OUTLINE_NUMBERS = "GanttOutlineNumbers";
+	public static final String ACTION_GFMT_SUMMARY_TASKS = "GanttSummaryTasks";
 
 	public static final String ACTION_INSERT_TASK             = "InsertTask";
 	public static final String ACTION_TASK_MODE_MANUAL       = "TaskModeManual";

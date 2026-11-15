@@ -171,6 +171,20 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 | RibbonBar / RibbonBarStyles | バー表示／バー書式を変更する | ガントバー表示が変わる |
 | RibbonTextStyles | テキスト書式を変更する | 表示テキスト書式が変わる |
 | RibbonLayout | レイアウトを変更する | レイアウト変更後も操作可能 |
+| RibbonInsertColumn | 選択列の前に列を挿入する | 選んだフィールドの列が挿入される |
+| RibbonAlignLeft / RibbonAlignCenter / RibbonAlignRight | 選択列の配置を左／中央／右にする | 列の文字配置が変わり、保存して開き直しても保たれる |
+| RibbonColumnSettings (RibbonHideColumn / RibbonFieldSettings) | 列を非表示にする／フィールドの設定を開く | 列が非表示になる／配置と見出し折り返しを変更できる |
+| RibbonCustomFields | カスタムフィールドを開く（列グループ） | カスタムフィールド操作が可能 |
+| RibbonFormatBarStyles (RibbonFormatBar / RibbonBarStylesItem) | 選択タスクのバー書式／バー スタイルを開く | 各ダイアログが開き、結果がガントに反映される |
+| RibbonCriticalTasks | クリティカル タスクの強調を切り替える | クリティカル タスクのバー色が切り替わる |
+| RibbonSlack | スラック表示を切り替える | タスク後ろのスラックバーが表示／非表示になる |
+| RibbonLateTasks | 遅れているタスクの強調を切り替える | 遅れているタスクのバー色が切り替わる |
+| RibbonTaskPath (RibbonPathPredecessors / RibbonPathDrivingPredecessors / RibbonPathSuccessors / RibbonPathDrivenSuccessors / RibbonPathRemove) | 選択タスクの先行／後続パスを強調する | 種類ごとの色でバーが強調され、選択変更に追従し、解除で元に戻る |
+| RibbonShowBaseline | ベースライン バーの表示を切り替える | ベースライン バーが表示／非表示になる |
+| RibbonSlippage | スリップ線の表示を切り替える | ベースライン開始から現在の開始までの線が表示／非表示になる |
+| RibbonGanttStyleGallery (RibbonGanttStyleDefault / Blue / Green / Orange / Purple / Gray) | ガント チャートの配色を選ぶ | バーの配色が切り替わり、ビューと共に保存される |
+| RibbonOutlineNumbers | アウトライン番号の表示を切り替える | タスク名の前に番号が表示／非表示になる |
+| RibbonSummaryTasks | サマリー タスクの行を切り替える | サマリー タスクの行が表示／非表示になる |
 
 ### クイックアクセス（QuickAccessToolbar）
 

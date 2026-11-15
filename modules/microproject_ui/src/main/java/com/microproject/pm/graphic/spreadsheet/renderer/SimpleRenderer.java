@@ -39,6 +39,8 @@ import javax.swing.table.DefaultTableCellRenderer;
 
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.TaskFontStyle;
+import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.pm.graphic.spreadsheet.SpreadSheetColumnModel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetParams;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
 import com.microproject.field.Field;
@@ -97,6 +99,14 @@ public class SimpleRenderer extends DefaultTableCellRenderer/*ContextSensitiveCe
 		}
 		if (value instanceof String) component.setHorizontalAlignment(SwingConstants.LEFT);
 		else component.setHorizontalAlignment(SwingConstants.RIGHT);
+		if (table != null && table.getColumnModel() instanceof SpreadSheetColumnModel columns
+				&& table.getModel() instanceof CommonSpreadSheetModel alignmentModel) {
+			String alignedField = fieldIdInColumn(table, alignmentModel, column);
+			int override = alignedField == null ? SpreadSheetFieldArray.ALIGN_DEFAULT : columns.getAlignment(alignedField);
+			if (override == SpreadSheetFieldArray.ALIGN_LEFT) component.setHorizontalAlignment(SwingConstants.LEFT);
+			else if (override == SpreadSheetFieldArray.ALIGN_CENTER) component.setHorizontalAlignment(SwingConstants.CENTER);
+			else if (override == SpreadSheetFieldArray.ALIGN_RIGHT) component.setHorizontalAlignment(SwingConstants.RIGHT);
+		}
 		return component;
 	}
 	
