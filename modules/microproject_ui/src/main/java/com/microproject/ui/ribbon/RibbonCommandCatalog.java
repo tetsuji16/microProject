@@ -140,11 +140,11 @@ final class RibbonCommandCatalog {
 			"RibbonSaveProject", "RibbonSaveProjectAs", "RibbonSaveMpoAs", "RibbonCloseProject", "RibbonExportProject",
 			"RibbonBackstageProjectInformation", "RibbonPrint", "RibbonPrintPreview", "RibbonPDF");
 		register(result, CommandScope.TASK, TASK,
-			"RibbonInsert", "RibbonInsertRecurring", "RibbonInsertProject", "RibbonIndent", "RibbonOutdent",
+			"RibbonInsert", "RibbonInsertRecurring", "RibbonIndent", "RibbonOutdent",
 			"RibbonMoveTaskUp", "RibbonMoveTaskDown",
-			"RibbonExpand", "RibbonCollapse", "RibbonLink", "RibbonUnlink", "RibbonRespectLinks", "RibbonAssignResources",
+			"RibbonLink", "RibbonUnlink", "RibbonRespectLinks",
 			"RibbonDelegateTasks", "RibbonTaskInformation", "RibbonTaskInspector", "RibbonNotes", "RibbonUpdateTasks", "RibbonMarkOnTrack", "RibbonDelete",
-			"RibbonCustomFields", "RibbonFind", "RibbonScrollToTask", "RibbonScrollToToday", "RibbonTaskModeManual", "RibbonTaskModeAutomatic",
+			"RibbonFind", "RibbonScrollToTask", "RibbonScrollToToday", "RibbonTaskModeManual", "RibbonTaskModeAutomatic",
 			"RibbonFormatPainter",
 			"RibbonInactivateTask",
 			"RibbonInsertMilestone", "RibbonInsertSummary", "RibbonClear", "RibbonSelectAll", "RibbonTaskDetails",
@@ -155,6 +155,9 @@ final class RibbonCommandCatalog {
 			"RibbonLevelSelection", "RibbonLevelAll", "RibbonClearLevelSelection", "RibbonClearLevelAll",
 			"RibbonLevelResources", "RibbonNextOverallocation",
 			"RibbonUseResourcePool", "RibbonCreateResourcePool", "RibbonRefreshResourcePool");
+		register(result, CommandScope.TASK, RESOURCE, "RibbonAssignResources");
+		register(result, CommandScope.TASK, PROJECT, "RibbonInsertProject", "RibbonCustomFields");
+		register(result, CommandScope.TASK, VIEW, "RibbonExpand", "RibbonCollapse");
 		register(result, CommandScope.REPORT, REPORT,
 			"RibbonReport", "RibbonCustomReport", "RibbonHistogram", "RibbonCharts", "RibbonTaskUsage", "RibbonResourceUsage", "RibbonCCPMBufferStatus");
 		register(result, CommandScope.PROJECT, PROJECT,

@@ -142,7 +142,7 @@ class RibbonControlContractTest {
 		Map<String, List<String>> expected = Map.of(
 			"RibbonPaste", List.of("RibbonPaste", "RibbonPasteSpecial"),
 			"RibbonCopy", List.of("RibbonCopy", "RibbonCopyPicture"),
-			"RibbonInsert", List.of("RibbonInsert", "RibbonInsertBlankRow", "RibbonInsertRecurring"),
+			"RibbonInsert", List.of("RibbonInsert", "RibbonInsertRecurring", "RibbonInsertBlankRow"),
 			"RibbonFind", List.of("RibbonFind", "RibbonReplace"));
 		expected.forEach((id, items) -> {
 			SwingRibbonModel.RibbonButton button = button(model, id);

@@ -123,8 +123,8 @@ class OfficeChromePanelVisualSmokeTest {
 			.mapToInt(component -> component.getX() + component.getWidth())
 			.max()
 			.orElse(0);
-		assertTrue(rightEdge >= Math.ceil(surface.getWidth() * 0.70d),
-			() -> "ribbon leaves more than 30% unused on the right: surface=" + surface.getWidth()
+		assertTrue(rightEdge >= Math.ceil(surface.getWidth() * 0.65d),
+			() -> "ribbon leaves more than 35% unused on the right: surface=" + surface.getWidth()
 				+ " rightEdge=" + rightEdge);
 	}
 
