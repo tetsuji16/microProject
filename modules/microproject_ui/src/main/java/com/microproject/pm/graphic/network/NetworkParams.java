@@ -69,6 +69,8 @@ public interface NetworkParams extends GraphParams,NetworkLayoutListener{
 		return sr;
 	}
 	public NetworkLayout getNetworkLayout();
+	/** Display options of the Network Format tab; views without their own get the defaults. */
+	public default NetworkDisplayOptions getDisplayOptions(){ return new NetworkDisplayOptions(); }
 	
 
 }

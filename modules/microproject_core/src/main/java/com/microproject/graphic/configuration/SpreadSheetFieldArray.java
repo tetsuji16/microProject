@@ -57,6 +57,16 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 	 * so POD files load with the default and only MPO persists the switch.
 	 */
 	transient ArrayList<Boolean> headerWraps = null;
+	/**
+	 * Per-column data alignment override (see the ALIGN_* constants); null or a missing entry
+	 * means the column keeps its type-based default.  Transient for the same reason as
+	 * {@link #headerWraps}: only MPO persists it.
+	 */
+	transient ArrayList<Integer> alignments = null;
+	public static final int ALIGN_DEFAULT = 0;
+	public static final int ALIGN_LEFT = 1;
+	public static final int ALIGN_CENTER = 2;
+	public static final int ALIGN_RIGHT = 3;
 	@Override
 	public SpreadSheetFieldArray clone() {
 		SpreadSheetFieldArray copy = (SpreadSheetFieldArray) super.clone();
@@ -64,6 +74,7 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 		copy.widths = widths == null ? null : new ArrayList<>(widths);
 		copy.manualWidths = manualWidths == null ? null : new ArrayList<>(manualWidths);
 		copy.headerWraps = headerWraps == null ? null : new ArrayList<>(headerWraps);
+		copy.alignments = alignments == null ? null : new ArrayList<>(alignments);
 		return copy;
 	}
 
@@ -117,6 +128,17 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 		return f;
 	}
 
+	/** Same editable-copy contract as {@link #withHeaderWrap}: returns the array carrying the new alignment. */
+	public SpreadSheetFieldArray withAlignment(int position, int alignment) {
+		SpreadSheetFieldArray f = makeEditableVersion();
+		f.alignColumnMetadata();
+		ArrayList<Integer> values = new ArrayList<>(f.size());
+		for (int index = 0; index < f.size(); index++)
+			values.add(index == position ? Integer.valueOf(alignment) : Integer.valueOf(f.getAlignment(index)));
+		f.setAlignments(values);
+		return f;
+	}
+
 	public SpreadSheetFieldArray move(int oldPosition, int newPosition) {
 		SpreadSheetFieldArray f = makeEditableVersion();
 		f.alignColumnMetadata();
@@ -133,6 +155,7 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 		alignMetadata(widths, -1);
 		alignMetadata(manualWidths, false);
 		alignMetadata(headerWraps, true);
+		alignMetadata(alignments, ALIGN_DEFAULT);
 	}
 
 	private <T> void alignMetadata(ArrayList<T> metadata, T defaultValue) {
@@ -151,6 +174,8 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 			manualWidths.add(position, false);
 		if (headerWraps != null)
 			headerWraps.add(position, true);
+		if (alignments != null)
+			alignments.add(position, ALIGN_DEFAULT);
 	}
 
 	private void removeColumnMetadata(int position) {
@@ -160,12 +185,15 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 			manualWidths.remove(position);
 		if (headerWraps != null)
 			headerWraps.remove(position);
+		if (alignments != null)
+			alignments.remove(position);
 	}
 
 	private void moveColumnMetadata(int oldPosition, int newPosition) {
 		moveMetadata(widths, oldPosition, newPosition);
 		moveMetadata(manualWidths, oldPosition, newPosition);
 		moveMetadata(headerWraps, oldPosition, newPosition);
+		moveMetadata(alignments, oldPosition, newPosition);
 	}
 
 	private <T> void moveMetadata(ArrayList<T> metadata, int oldPosition, int newPosition) {
@@ -416,6 +444,24 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 	public boolean isHeaderWrap(int column) {
 		return headerWraps == null || column < 0 || column >= headerWraps.size()
 				|| !Boolean.FALSE.equals(headerWraps.get(column));
+	}
+
+	/** Alignment override of this field-array column: one of the ALIGN_* constants (default ALIGN_DEFAULT). */
+	public int getAlignment(int column) {
+		if (alignments == null || column < 0 || column >= alignments.size() || alignments.get(column) == null)
+			return ALIGN_DEFAULT;
+		int value = alignments.get(column);
+		return value < ALIGN_DEFAULT || value > ALIGN_RIGHT ? ALIGN_DEFAULT : value;
+	}
+
+	public ArrayList<Integer> getAlignments() {
+		return alignments;
+	}
+
+	/** Stores the per-column alignments; an all-default list is stored as null so defaults stay implicit. */
+	public void setAlignments(ArrayList<Integer> alignments) {
+		this.alignments = alignments == null || alignments.stream().allMatch(value -> value == null || value == ALIGN_DEFAULT)
+				? null : alignments;
 	}
 
 	public ArrayList<Boolean> getHeaderWraps() {

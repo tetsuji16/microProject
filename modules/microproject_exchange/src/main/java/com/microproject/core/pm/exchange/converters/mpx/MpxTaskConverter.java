@@ -147,6 +147,7 @@ public class MpxTaskConverter {
 		}
 
 		task.setInactiveTask(!mpxTask.getActive());
+		task.setIgnoreWarnings(Boolean.TRUE.equals(mpxTask.get(org.mpxj.TaskField.IGNORE_WARNINGS)));
 		task.setManuallyScheduled(mpxTask.getTaskMode() == TaskMode.MANUALLY_SCHEDULED);
 
 	}

@@ -782,6 +782,11 @@ tasks.register<Exec>("packageWindowsAppImage") {
     }
 }
 
+fun windowsFileAssociationOptions(inputDir: File): List<String> =
+    listOf("mpp", "mpo", "pod", "xml").flatMap { extension ->
+        listOf("--file-associations", File(inputDir, "$extension.properties").absolutePath)
+    }
+
 tasks.register<Exec>("packageWindowsMsi") {
     group = "distribution"
     description = "Builds the Windows MSI for the current Gradle version."
@@ -812,10 +817,7 @@ tasks.register<Exec>("packageWindowsMsi") {
             "--add-modules", windowsRuntimeModules.joinToString(","),
             "--jlink-options", "--strip-native-commands --strip-debug --no-man-pages --no-header-files --compress zip-9",
             "--dest", windowsMsiDir.get().asFile.absolutePath,
-            "--file-associations", File(inputDir, "mpp.properties").absolutePath,
-            "--file-associations", File(inputDir, "mpo.properties").absolutePath,
-            "--file-associations", File(inputDir, "pod.properties").absolutePath,
-            "--file-associations", File(inputDir, "xml.properties").absolutePath,
+            *windowsFileAssociationOptions(inputDir).toTypedArray(),
             "--win-menu",
             "--win-shortcut",
             "--win-dir-chooser",
@@ -844,12 +846,16 @@ tasks.register<Exec>("packageWindowsExe") {
             "--description", applicationDescription,
             "--copyright", applicationCopyright,
             "--input", inputDir.absolutePath,
-            "--main-jar", "microproject_ui.jar",
-            "--main-class", "com.microproject.main.Main",
+            "--main-jar", "microproject_bootstrap.jar",
+            "--main-class", "com.microproject.bootstrap.MicroProjectUpdater",
+            "--java-options", updaterEnabledJavaOption,
+            "--java-options", nativeAccessJavaOption,
             "--icon", File(inputDir, "microproject.ico").absolutePath,
             "--license-file", File(inputDir, "license.txt").absolutePath,
             "--resource-dir", windowsInstallerResourcesDir.asFile.absolutePath,
             "--add-modules", windowsRuntimeModules.joinToString(","),
+            "--jlink-options", "--strip-native-commands --strip-debug --no-man-pages --no-header-files --compress zip-9",
+            *windowsFileAssociationOptions(inputDir).toTypedArray(),
             "--win-menu",
             "--win-shortcut",
             "--win-dir-chooser",

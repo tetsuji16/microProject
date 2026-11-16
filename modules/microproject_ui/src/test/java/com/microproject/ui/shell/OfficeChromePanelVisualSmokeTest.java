@@ -124,7 +124,7 @@ class OfficeChromePanelVisualSmokeTest {
 			.max()
 			.orElse(0);
 		assertTrue(rightEdge >= Math.ceil(surface.getWidth() * 0.70d),
-			() -> "ribbon leaves more than 30% unused on the right: surface=" + surface.getWidth()
+			() -> "ribbon leaves more than 35% unused on the right: surface=" + surface.getWidth()
 				+ " rightEdge=" + rightEdge);
 	}
 
@@ -153,9 +153,9 @@ class OfficeChromePanelVisualSmokeTest {
 		AbstractButton paste = UiComponentWalker.flatten(tabBody).stream()
 			.filter(AbstractButton.class::isInstance)
 			.map(AbstractButton.class::cast)
-			.filter(button -> "RibbonPaste".equals(button.getActionCommand()))
+			.filter(button -> "RibbonTaskViewGantt".equals(button.getActionCommand()))
 			.findFirst()
-			.orElseThrow(() -> new AssertionError("Task ribbon did not expose its Paste command"));
+			.orElseThrow(() -> new AssertionError("Task ribbon did not expose its leading View command"));
 		Rectangle bounds = javax.swing.SwingUtilities.convertRectangle(paste.getParent(), paste.getBounds(), tabBody);
 		// Microsoft documents Project's ribbon tabs and command groups at
 		// https://support.microsoft.com/en-us/project/edit-a-project-in-project-desktop,

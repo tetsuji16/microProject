@@ -117,6 +117,8 @@ public class TimeChartPanel extends ChartPanel implements Scrollable, ScaledComp
 	}
 
 	protected JFreeChart buildChart() {
+		if (chartInfo.isResourceGraph() && chartInfo.getModel().getResourceGraph() != null)
+			return ResourceGraphChart.build(chartInfo.getModel().getResourceGraph(), chartInfo.getResourceGraphSettings());
 		JFreeChart newChart = ChartHelper.createChart(chartInfo.getModel().getDataset(), chartInfo.isHistogram(), chartInfo.getModel()
 				.getSecondDataset());
 		NumberFormat numberFormat = NumberFormat.getPercentInstance(); // default
@@ -162,6 +164,12 @@ public class TimeChartPanel extends ChartPanel implements Scrollable, ScaledComp
 		JFreeChart chart = chartInfo.getChart();
 		final Object[] traces = chartInfo.getTraces();
 		setChart(chart);
+		if (chartInfo.isResourceGraph() && chartInfo.getModel().getResourceGraph() != null) {
+			// series colours, strokes and labels were set when the Resource Graph was built
+			chart.getXYPlot().getDomainAxis().setLowerBound(chartInfo.getCoord().getOrigin());
+			chart.getXYPlot().getDomainAxis().setUpperBound(Math.max(chartInfo.getCoord().getEnd(), chartInfo.getCoord().toTime(viewport.getWidth())));
+			return;
+		}
 
 		Color color;
 		Paint paint;

@@ -13,15 +13,23 @@ import com.microproject.util.FlatUiSupport;
 
 /** FlatLaf-backed adapter; all look-and-feel details stay in the UI module. */
 final class FlatLafRibbonTheme implements RibbonTheme {
-	public Color chromeBackground() { return FlatUiSupport.ribbonChromeBackground(); }
-	public Color topLineColor() { return FlatUiSupport.ribbonTopLineColor(); }
-	public Color surfaceColor() { return FlatUiSupport.ribbonSurfaceColor(); }
-	public Color surfaceBorderColor() { return FlatUiSupport.ribbonSurfaceBorderColor(); }
-	public Color bandSeparatorColor() { return FlatUiSupport.ribbonBandSeparatorColor(); }
-	public Color panelBackground() { return FlatUiSupport.panelBackground(); }
-	public Color tabSelectedForeground() { return FlatUiSupport.tabSelectedForeground(); }
-	public Color tabUnselectedForeground() { return FlatUiSupport.tabUnselectedForeground(); }
-	public Color bandTitleForeground() { return FlatUiSupport.ribbonBandTitleForeground(); }
+	/**
+	 * The ribbon sets these colours itself.  A UIResource colour would be replaced by
+	 * the look-and-feel default the next time a component's UI is updated.
+	 */
+	private static Color plain(Color color) {
+		return color == null ? null : new Color(color.getRGB(), true);
+	}
+
+	public Color chromeBackground() { return plain(FlatUiSupport.ribbonChromeBackground()); }
+	public Color topLineColor() { return plain(FlatUiSupport.ribbonTopLineColor()); }
+	public Color surfaceColor() { return plain(FlatUiSupport.ribbonSurfaceColor()); }
+	public Color surfaceBorderColor() { return plain(FlatUiSupport.ribbonSurfaceBorderColor()); }
+	public Color bandSeparatorColor() { return plain(FlatUiSupport.ribbonBandSeparatorColor()); }
+	public Color panelBackground() { return plain(FlatUiSupport.panelBackground()); }
+	public Color tabSelectedForeground() { return plain(FlatUiSupport.tabSelectedForeground()); }
+	public Color tabUnselectedForeground() { return plain(FlatUiSupport.tabUnselectedForeground()); }
+	public Color bandTitleForeground() { return plain(FlatUiSupport.ribbonBandTitleForeground()); }
 	public Font buttonFont() { return FlatUiSupport.ribbonButtonFont(); }
 	public Font tabFont() { return FlatUiSupport.ribbonTabFont(); }
 	public Font bandTitleFont() { return FlatUiSupport.ribbonBandTitleFont(); }

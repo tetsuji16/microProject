@@ -1453,7 +1453,16 @@ class RibbonButtonBehaviorTest {
 			.orElseThrow(() -> new AssertionError("RibbonSaveBaseline button was not created"));
 
 		assertTrue(button.isEnabled(), "Baseline save must be enabled for a writable project");
-		SwingUtilities.invokeAndWait(button::doClick);
+		// The button is a menu: its "Save Baseline" item runs the command.
+		javax.swing.JPopupMenu popup = (javax.swing.JPopupMenu) button.getClientProperty("MicroProject.ribbon.controlMenu");
+		assertNotNull(popup, "RibbonSaveBaseline must own a popup menu");
+		javax.swing.JMenuItem item = java.util.Arrays.stream(popup.getComponents())
+			.filter(javax.swing.JMenuItem.class::isInstance)
+			.map(javax.swing.JMenuItem.class::cast)
+			.filter(candidate -> "RibbonSaveBaseline".equals(candidate.getActionCommand()))
+			.findFirst()
+			.orElseThrow(() -> new AssertionError("The baseline menu has no Save Baseline item"));
+		SwingUtilities.invokeAndWait(item::doClick);
 
 		assertEquals(1, harness.frame.baselineDialogCallCount(true));
 		assertNotNull(harness.task.getSnapshot(Snapshottable.BASELINE),
@@ -1515,11 +1524,31 @@ class RibbonButtonBehaviorTest {
 	}
 
 	@Test
+	void recentReportsReopensTheLastReportOpenedInTheSession() throws Exception {
+		Harness harness = newHarness();
+
+		harness.invoke("RibbonCharts");
+		harness.invoke("RibbonReport");
+		harness.resetCalls();
+		harness.invoke("RibbonReportRecent");
+		assertCall(harness, "view", MenuActionConstants.ACTION_REPORT);
+	}
+
+	@Test
+	void teamPlannerRoutesToTheDelegationSurface() throws Exception {
+		Harness harness = newHarness();
+
+		harness.invoke("RibbonTeamPlanner");
+		assertEquals(1, harness.frame.structuralCallCount("RibbonDelegateTasks"));
+	}
+
+	@Test
 	void viewAndToggleRoutesAreInvokableAgainstALiveDocumentContext() throws Exception {
 		Harness harness = newHarness();
 
 		assertView(harness, "RibbonGantt", MenuActionConstants.ACTION_GANTT);
 		assertView(harness, "RibbonTrackingGantt", MenuActionConstants.ACTION_TRACKING_GANTT);
+		assertView(harness, "RibbonTaskSheet", MenuActionConstants.ACTION_TASK_SHEET);
 		assertView(harness, "RibbonNetwork", MenuActionConstants.ACTION_NETWORK);
 		assertView(harness, "RibbonWBS", MenuActionConstants.ACTION_WBS);
 		assertView(harness, "RibbonResources", MenuActionConstants.ACTION_RESOURCES);
@@ -1541,6 +1570,21 @@ class RibbonButtonBehaviorTest {
 		assertToggle(harness, "RibbonLabelResourceNames", true);
 		assertToggle(harness, "RibbonLabelTaskName", true);
 		assertChooser(harness, "RibbonGridlines", MenuActionConstants.ACTION_GRIDLINES);
+	}
+
+	@Test
+	void levelResourceOffersAllResourcesAndDoesNothingWhenNoneChosen() throws Exception {
+		Harness harness = newHarness();
+		harness.selectNone();
+		List<Integer> offered = new ArrayList<>();
+		harness.frame.levelResourcePicker = resources -> {
+			offered.add(resources.size());
+			return List.of();
+		};
+		harness.invoke("RibbonLevelResource");
+		var result = harness.frame.getLastTaskCommandResult();
+		assertNotNull(result);
+		assertEquals(RibbonCommandResult.Status.NO_CHANGE, result.status());
 	}
 
 	@Test
@@ -1706,6 +1750,7 @@ class RibbonButtonBehaviorTest {
 			"RibbonInsertResource",
 			"RibbonInsertRecurring",
 			"RibbonLevelSelection",
+			"RibbonLevelResource",
 			"RibbonClearLevelSelection",
 			"RibbonClearLevelAll",
 			"RibbonLevelResources",
@@ -1897,6 +1942,33 @@ class RibbonButtonBehaviorTest {
 			"RibbonMicroProjectDocumentation",
 			"RibbonAboutMicroProject",
 			"RibbonInsertProject");
+		// Gantt Chart Format tab: each needs an active Gantt view; behaviour is covered by GanttFormatRibbonTest (state, workspace, task path, gallery, alignment, outline numbers, summary tasks).
+		add(map, Strategy.STRUCTURAL_ONLY,
+			"RibbonInsertColumn", "RibbonAlignLeft", "RibbonAlignCenter", "RibbonAlignRight", "RibbonColumnSettings",
+			"RibbonFormatBarStyles", "RibbonCriticalTasks", "RibbonSlack", "RibbonLateTasks", "RibbonTaskPath",
+			"RibbonShowBaseline", "RibbonSlippage", "RibbonGanttStyleGallery", "RibbonOutlineNumbers", "RibbonSummaryTasks");
+		// Network and Calendar Format tabs: each needs the active Network/Calendar view; behaviour is covered by NetworkCalendarFormatTest (Summary Tasks, Layout Now, calendar gridlines).
+		// New Network and Calendar commands: NetworkDisplayOptionsTest / CalendarViewSettingsTest (decisions), NetworkCalendarFormatTest (PertView flags, routing swap, workspace round trip), NetworkCalendarRibbonGuiAcceptanceTest (clicks).
+		add(map, Strategy.STRUCTURAL_ONLY, "RibbonNetworkLayoutNow",
+			"RibbonNetworkBoxFieldsCollapsed", "RibbonNetworkBoxFormat", "RibbonNetworkBoxStyles", "RibbonNetworkLayout", "RibbonNetworkLinkLabels",
+			"RibbonNetworkStraightLinks", "RibbonNetworkProgressMarks", "RibbonCalendarTextStyles", "RibbonCalendarBarStyles", "RibbonCalendarLayoutNow",
+			"RibbonCalendarWeekHeightBestFit", "RibbonCalendarLayout", "RibbonCalendarTaskList");
+		// Timeline and Team Planner Format tabs: each needs the active Timeline/Team Planner view; behaviour is covered by TimelineTeamPlannerFormatTest (settings, selection commands, picture copy, state sync) and TimelineTeamPlannerRibbonGuiAcceptanceTest (guiTest).
+		add(map, Strategy.STRUCTURAL_ONLY,
+			"RibbonTimelineTextStyles", "RibbonTimelineDateRange", "RibbonTimelineDates", "RibbonTimelineExpand", "RibbonTimelineBarLabels",
+			"RibbonTimelineOverlapped", "RibbonTimelinePanZoom", "RibbonTimelineTextLines", "RibbonTimelineInsertBar", "RibbonTimelineAddExisting",
+			"RibbonTimelineInsertTask", "RibbonTimelineInsertCallout", "RibbonTimelineInsertMilestone", "RibbonTimelineDisplay", "RibbonTimelineCallout",
+			"RibbonTimelineRemove", "RibbonTimelineCopy", "RibbonTeamPlannerOutline", "RibbonTeamPlannerGridlines", "RibbonTeamPlannerTextStyles",
+			"RibbonTeamPlannerTextLines", "RibbonTeamPlannerSelectedStyle", "RibbonTeamPlannerAutoStyle", "RibbonTeamPlannerManualStyle",
+			"RibbonTeamPlannerActualStyle", "RibbonTeamPlannerExternalStyle", "RibbonTeamPlannerLateStyle", "RibbonTeamPlannerPreventOverallocation",
+			"RibbonTeamPlannerExpandRows", "RibbonTeamPlannerUnassigned", "RibbonTeamPlannerUnscheduled",
+			"RibbonResourceGraphTextStyles", "RibbonResourceGraphGridlines", "RibbonResourceGraphBarStyles", "RibbonResourceGraphPrevious", "RibbonResourceGraphNext",
+			"RibbonResourceGraphData", "RibbonResourceGraphValues");
+		// Usage Format tabs: each needs an active usage view; behaviour is covered by UsageDetailRibbonGuiAcceptanceTest (guiTest: detail toggle, last-row guard, Add Details) and UsageDetailValuesTest (computed rows).
+		add(map, Strategy.STRUCTURAL_ONLY,
+			"RibbonUsageDetailWork", "RibbonUsageDetailActualWork", "RibbonUsageDetailBaselineWork", "RibbonUsageDetailCost",
+			"RibbonUsageDetailActualCost", "RibbonUsageDetailsAdd", "RibbonSheetGridlines",
+			"RibbonUsageDetailCumulativeWork", "RibbonUsageDetailOverallocation", "RibbonUsageDetailRemainingAvailability");
 		add(map, Strategy.STRUCTURAL_ONLY,
 			"RibbonDelegateTasks",
 			"RibbonTeamFilter",
@@ -1930,6 +2002,7 @@ class RibbonButtonBehaviorTest {
 			"RibbonCalendarView",
 			"RibbonGantt",
 			"RibbonTrackingGantt",
+			"RibbonTaskSheet",
 			"RibbonNetwork",
 			"RibbonWBS",
 			"RibbonResources",
@@ -1944,7 +2017,7 @@ class RibbonButtonBehaviorTest {
 			"RibbonDetails",
 			"RibbonResourceUsage",
 			"RibbonNoTextNoSubWindow");
-		add(map, Strategy.VIEW_ONLY, "RibbonZoomSelectedTasks", "RibbonScrollToToday");
+		add(map, Strategy.VIEW_ONLY, "RibbonZoomEntireProject", "RibbonZoomSelectedTasks", "RibbonScrollToToday");
 		add(map, Strategy.ROUTE_CHOOSER,
 			"RibbonChooseFilter",
 			"RibbonChooseSort",
@@ -1974,6 +2047,7 @@ class RibbonButtonBehaviorTest {
 			"RibbonInsertRecurring",
 			"RibbonArrangeAll",
 			"RibbonLevelSelection",
+			"RibbonLevelResource",
 			"RibbonLevelAll",
 			"RibbonClearLevelSelection",
 			"RibbonClearLevelAll",
@@ -2004,6 +2078,18 @@ class RibbonButtonBehaviorTest {
 			"RibbonUnlink",
 			"RibbonRespectLinks");
 		add(map, Strategy.STRUCTURAL_ONLY, "RibbonFormatPainter");
+		// Ribbon remaining groups (#1166): behavior asserted in SpreadSheetFillPlanTest / TaskFormatPainterServiceTest.
+		add(map, Strategy.STRUCTURAL_ONLY,
+			"RibbonTaskViewGantt", "RibbonBold", "RibbonItalic", "RibbonFontColor", "RibbonFont", "RibbonFill",
+			"RibbonResourceViews", "RibbonResourceNotes", "RibbonResourceDetails");
+		// Font name/size, underline, fill, Move, Mode and Add to Timeline: behavior asserted in
+		// TaskMoveServiceTest, TaskFormatPainterServiceTest and TaskRibbonHeadlessCommandTest.
+		add(map, Strategy.STRUCTURAL_ONLY, "RibbonFontName", "RibbonFontSize", "RibbonUnderline", "RibbonFillColor",
+			"RibbonMoveTask", "RibbonScheduleMode", "RibbonAddToTimeline");
+		// Report/View galleries and menus (#1166 phase 1b) route through RibbonDropDownSource; asserted in recentReportsReopensTheLastReportOpenedInTheSession and teamPlannerRoutesToTheDelegationSurface.
+		add(map, Strategy.STRUCTURAL_ONLY,
+			"RibbonReportDashboards", "RibbonReportResources", "RibbonReportInProgress", "RibbonReportCustom",
+			"RibbonReportRecent", "RibbonTeamPlanner", "RibbonTimescaleGallery", "RibbonSwitchWindows");
 		// Task-tab commands added for #769/#453; behavior is asserted in TaskTabRibbonCommandsTest.
 		add(map, Strategy.STRUCTURAL_ONLY,
 			"RibbonInsertMilestone", "RibbonInsertSummary", "RibbonClear", "RibbonSelectAll", "RibbonTaskDetails",

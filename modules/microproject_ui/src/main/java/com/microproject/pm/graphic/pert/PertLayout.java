@@ -33,6 +33,7 @@ import java.util.ListIterator;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.event.CompositeCacheEvent;
+import com.microproject.pm.graphic.network.NetworkDisplayOptions;
 import com.microproject.pm.graphic.network.NetworkParams;
 import com.microproject.pm.graphic.network.layout.AbstractNetworkLayout;
 import com.microproject.graphic.configuration.GraphicConfiguration;
@@ -58,7 +59,10 @@ public class PertLayout extends AbstractNetworkLayout {
 		GraphicConfiguration config=GraphicConfiguration.getInstance();
 		
 		Point2D origin=new Point2D.Double(config.getPertXOffset(),config.getPertYOffset());
-		Rectangle2D ref=new Rectangle2D.Double(config.getPertXOffset(),config.getPertYOffset(),config.getPertCellWidth(),config.getPertCellHeight());
+		NetworkDisplayOptions options=network.getDisplayOptions();
+		java.awt.Dimension boxSize=options.boxSize(config.getPertCellWidth(),config.getPertCellHeight());
+		int spacing=options.getBoxSpacing();
+		Rectangle2D ref=new Rectangle2D.Double(config.getPertXOffset(),config.getPertYOffset(),boxSize.width,boxSize.height);
 		int row=0;
 		int col=-1;
 		setEmpty();
@@ -70,8 +74,8 @@ public class PertLayout extends AbstractNetworkLayout {
 		    
 		    TexturedShape texturedShape=findShape(current);
 		    if (texturedShape==null) continue;
-		    double centerX=origin.getX()+ref.getMaxX()*col+ref.getWidth()/2;
-		    double centerY=origin.getY()+ref.getMaxY()*row+ref.getHeight()/2;
+		    double centerX=origin.getX()+(ref.getMaxX()+spacing)*col+ref.getWidth()/2;
+		    double centerY=origin.getY()+(ref.getMaxY()+spacing)*row+ref.getHeight()/2;
 		    GeneralPath shape=texturedShape.toGeneralPath(ref.getWidth(),ref.getHeight(),centerX-ref.getWidth()/2,centerY,null);
 		    current.setPertShape(shape,centerX,centerY);
 		    Rectangle cellBounds=network.scale(shape.getBounds());

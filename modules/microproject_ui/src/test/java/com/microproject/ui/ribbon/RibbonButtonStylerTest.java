@@ -25,6 +25,7 @@ package com.microproject.ui.ribbon;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -166,5 +167,34 @@ class RibbonButtonStylerTest {
 		assertTrue(button.getPreferredSize().width >= FlatUiSupport.ribbonLargeButtonMinWidth());
 		assertTrue(!button.getText().contains("..."));
 		assertTrue(button.getPreferredSize().width >= 92);
+	}
+
+	@Test
+	void checkBoxControlsPaintASquareThatShowsTheCheckMarkOnlyWhenSelected() {
+		RibbonButtonStyler styler = new RibbonButtonStyler();
+		javax.swing.JToggleButton button = new javax.swing.JToggleButton("Timeline");
+		button.putClientProperty(RibbonControlPopups.CONTROL_KIND_PROPERTY, com.microproject.ribbon.RibbonControlKind.CHECK_BOX);
+		button.putClientProperty(RibbonButtonStyler.ICON_KEY_PROPERTY, "view.timeline");
+
+		styler.styleActionButton(button, "small");
+
+		assertTrue(button.getIcon() instanceof RibbonCheckBoxIcon);
+		assertEquals(button.getIcon().getIconWidth(), button.getIcon().getIconHeight());
+		assertEquals(16, button.getIcon().getIconHeight());
+		assertNotEquals(paint(button, false), paint(button, true));
+		assertEquals(paint(button, true), paint(button, true));
+	}
+
+	private static java.util.List<Integer> paint(javax.swing.JToggleButton button, boolean selected) {
+		button.setSelected(selected);
+		java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(16, 16, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+		java.awt.Graphics2D graphics = image.createGraphics();
+		button.getIcon().paintIcon(button, graphics, 0, 0);
+		graphics.dispose();
+		java.util.List<Integer> pixels = new java.util.ArrayList<>();
+		for (int y = 0; y < 16; y++)
+			for (int x = 0; x < 16; x++)
+				pixels.add(image.getRGB(x, y));
+		return pixels;
 	}
 }

@@ -62,6 +62,15 @@ final class RibbonCommandCatalog {
 	private static final String VIEW = "ViewRibbonTask";
 	private static final String HELP = "HelpRibbonTask";
 	private static final String FORMAT = "FormatRibbonTask";
+	private static final String NETWORK_FORMAT = "NetworkFormatRibbonTask";
+	private static final String CALENDAR_FORMAT = "CalendarFormatRibbonTask";
+	private static final String TIMELINE_FORMAT = "TimelineFormatRibbonTask";
+	private static final String TEAM_PLANNER_FORMAT = "TeamPlannerFormatRibbonTask";
+	private static final String RESOURCE_GRAPH_FORMAT = "ResourceGraphFormatRibbonTask";
+	private static final String TASK_SHEET_FORMAT = "TaskSheetFormatRibbonTask";
+	private static final String TASK_USAGE_FORMAT = "TaskUsageFormatRibbonTask";
+	private static final String RESOURCE_SHEET_FORMAT = "ResourceSheetFormatRibbonTask";
+	private static final String RESOURCE_USAGE_FORMAT = "ResourceUsageFormatRibbonTask";
 	private static final String QUICK_ACCESS = "QuickAccessToolbar";
 	private static final Map<String, Placement> PLACEMENTS = placements();
 
@@ -140,11 +149,11 @@ final class RibbonCommandCatalog {
 			"RibbonSaveProject", "RibbonSaveProjectAs", "RibbonSaveMpoAs", "RibbonCloseProject", "RibbonExportProject",
 			"RibbonBackstageProjectInformation", "RibbonPrint", "RibbonPrintPreview", "RibbonPDF");
 		register(result, CommandScope.TASK, TASK,
-			"RibbonInsert", "RibbonInsertRecurring", "RibbonInsertProject", "RibbonIndent", "RibbonOutdent",
+			"RibbonInsert", "RibbonInsertRecurring", "RibbonIndent", "RibbonOutdent",
 			"RibbonMoveTaskUp", "RibbonMoveTaskDown",
-			"RibbonExpand", "RibbonCollapse", "RibbonLink", "RibbonUnlink", "RibbonRespectLinks", "RibbonAssignResources",
+			"RibbonLink", "RibbonUnlink", "RibbonRespectLinks",
 			"RibbonDelegateTasks", "RibbonTaskInformation", "RibbonTaskInspector", "RibbonNotes", "RibbonUpdateTasks", "RibbonMarkOnTrack", "RibbonDelete",
-			"RibbonCustomFields", "RibbonFind", "RibbonScrollToTask", "RibbonScrollToToday", "RibbonTaskModeManual", "RibbonTaskModeAutomatic",
+			"RibbonFind", "RibbonScrollToTask", "RibbonScrollToToday", "RibbonTaskModeManual", "RibbonTaskModeAutomatic",
 			"RibbonFormatPainter",
 			"RibbonInactivateTask",
 			"RibbonInsertMilestone", "RibbonInsertSummary", "RibbonClear", "RibbonSelectAll", "RibbonTaskDetails",
@@ -152,31 +161,89 @@ final class RibbonCommandCatalog {
 			"RibbonHideSelectedTasks", "RibbonShowAllTasks");
 		register(result, CommandScope.RESOURCE, RESOURCE,
 			"RibbonInsertResource", "RibbonResourceInformation", "RibbonTimesheet", "RibbonTeamFilter",
-			"RibbonLevelSelection", "RibbonLevelAll", "RibbonClearLevelSelection", "RibbonClearLevelAll",
+			"RibbonLevelSelection", "RibbonLevelResource", "RibbonLevelAll", "RibbonClearLevelSelection", "RibbonClearLevelAll",
 			"RibbonLevelResources", "RibbonNextOverallocation",
 			"RibbonUseResourcePool", "RibbonCreateResourcePool", "RibbonRefreshResourcePool");
+		register(result, CommandScope.TASK, RESOURCE, "RibbonAssignResources");
+		register(result, CommandScope.TASK, TASK, "RibbonBold", "RibbonItalic", "RibbonFontColor", "RibbonFont", "RibbonFill",
+			"RibbonFontName", "RibbonFontSize", "RibbonUnderline", "RibbonFillColor",
+			"RibbonMoveTask", "RibbonScheduleMode", "RibbonAddToTimeline");
+		register(result, CommandScope.VIEW, TASK, "RibbonTaskViewGantt");
+		register(result, CommandScope.VIEW, RESOURCE, "RibbonResourceViews");
+		register(result, CommandScope.RESOURCE, RESOURCE, "RibbonResourceNotes", "RibbonResourceDetails");
+		register(result, CommandScope.TASK, PROJECT, "RibbonInsertProject");
+		// Custom Fields is also a Columns-group command of the Gantt Chart Format tab.
+		register(result, CommandScope.TASK, PROJECT, Set.of(PROJECT, FORMAT), "RibbonCustomFields");
+		register(result, CommandScope.TASK, VIEW, "RibbonExpand", "RibbonCollapse");
 		register(result, CommandScope.REPORT, REPORT,
-			"RibbonReport", "RibbonCustomReport", "RibbonHistogram", "RibbonCharts", "RibbonTaskUsage", "RibbonResourceUsage", "RibbonCCPMBufferStatus");
+			"RibbonReport", "RibbonCustomReport", "RibbonHistogram", "RibbonCharts", "RibbonTaskUsage", "RibbonResourceUsage", "RibbonCCPMBufferStatus",
+			"RibbonReportDashboards", "RibbonReportResources", "RibbonReportInProgress", "RibbonReportCustom", "RibbonReportRecent");
 		register(result, CommandScope.PROJECT, PROJECT,
 			"RibbonProjectInformation", "RibbonProjectsDialog", "RibbonChangeWorkingTime",
 			"RibbonCalendarOptions", "RibbonStatusDate", "RibbonUpdateProject", "RibbonMoveProject", "RibbonRecalculate", "RibbonRefreshSubprojects", "RibbonOpenSubproject", "RibbonRemoveSubproject", "RibbonSaveBaseline", "RibbonClearBaseline",
 			"RibbonCCPMSettings", "RibbonCCPMClear");
 	register(result, CommandScope.VIEW, VIEW,
-			"RibbonGantt", "RibbonTrackingGantt", "RibbonNetwork", "RibbonWBS", "RibbonResources", "RibbonRBS",
+			"RibbonGantt", "RibbonTrackingGantt", "RibbonTaskSheet", "RibbonNetwork", "RibbonWBS", "RibbonResources", "RibbonRBS",
 			"RibbonTimeline", "RibbonCalendarView", "RibbonProjects", "RibbonTaskUsageDetail", "RibbonResourceUsageDetail", "RibbonDetails", "RibbonNoTextNoSubWindow",
-			"RibbonArrangeAll", "RibbonChooseFilter", "RibbonChooseSort", "RibbonChooseGroup", "RibbonZoomIn", "RibbonZoomOut", "RibbonZoomSelectedTasks", "RibbonCCPMNetwork", "RibbonPrivacyMask");
+			"RibbonArrangeAll", "RibbonChooseFilter", "RibbonChooseSort", "RibbonChooseGroup", "RibbonZoomIn", "RibbonZoomOut", "RibbonZoomEntireProject", "RibbonZoomSelectedTasks", "RibbonCCPMNetwork", "RibbonPrivacyMask",
+			"RibbonTeamPlanner", "RibbonTimescaleGallery", "RibbonSwitchWindows");
 		register(result, CommandScope.FORMAT, FORMAT,
 			"RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName", "RibbonGridlines",
 			"RibbonToggleCriticalChain", "RibbonTimescale", "RibbonBarStyles", "RibbonTextStyles", "RibbonLayout");
-		// Format controls are shared by the implemented contextual tabs.  The
-		// catalog permits a subset per tab; each command remains primary on the
-		// normal Format tab and cannot appear on an unrelated tab.
-		for (String id : List.of("RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName",
-			"RibbonGridlines", "RibbonToggleCriticalChain", "RibbonTimescale", "RibbonBarStyles", "RibbonTextStyles", "RibbonLayout")) {
+		// Gantt Chart Format tab commands; they act on the active Gantt view and appear on no other tab.
+		register(result, CommandScope.FORMAT, FORMAT,
+			"RibbonInsertColumn", "RibbonAlignLeft", "RibbonAlignCenter", "RibbonAlignRight", "RibbonColumnSettings",
+			"RibbonHideColumn", "RibbonFieldSettings", "RibbonFormatBarStyles", "RibbonFormatBar", "RibbonBarStylesItem", "RibbonCriticalTasks", "RibbonSlack", "RibbonLateTasks", "RibbonTaskPath", "RibbonPathPredecessors", "RibbonPathDrivingPredecessors", "RibbonPathSuccessors", "RibbonPathDrivenSuccessors", "RibbonPathRemove", "RibbonShowBaseline", "RibbonSlippage", "RibbonGanttStyleGallery", "RibbonOutlineNumbers", "RibbonSummaryTasks", "RibbonGanttStyleDefault", "RibbonGanttStyleBlue", "RibbonGanttStyleGreen", "RibbonGanttStyleOrange", "RibbonGanttStylePurple", "RibbonGanttStyleGray");
+		// Table-view Format tabs reuse the Gantt Columns and Show/Hide commands; each acts on the active spreadsheet view.
+		for (String id : List.of("RibbonInsertColumn", "RibbonAlignLeft", "RibbonAlignCenter", "RibbonAlignRight",
+			"RibbonColumnSettings", "RibbonHideColumn", "RibbonFieldSettings", "RibbonCustomFields")) {
+			Placement placement = result.get(id);
+			Set<String> tabs = new java.util.HashSet<>(placement.permittedTabs());
+			tabs.addAll(Set.of(TASK_SHEET_FORMAT, TASK_USAGE_FORMAT, RESOURCE_SHEET_FORMAT, RESOURCE_USAGE_FORMAT));
+			result.put(id, new Placement(placement.scope(), placement.primaryTab(), Set.copyOf(tabs)));
+		}
+		for (String id : List.of("RibbonOutlineNumbers", "RibbonSummaryTasks")) {
 			Placement placement = result.get(id);
 			result.put(id, new Placement(placement.scope(), placement.primaryTab(),
-				Set.of(FORMAT, "NetworkFormatRibbonTask", "CalendarFormatRibbonTask")));
+				"RibbonSummaryTasks".equals(id) ? Set.of(FORMAT, TASK_SHEET_FORMAT, TASK_USAGE_FORMAT, NETWORK_FORMAT)
+					: Set.of(FORMAT, TASK_SHEET_FORMAT, TASK_USAGE_FORMAT)));
 		}
+		register(result, CommandScope.FORMAT, NETWORK_FORMAT, Set.of(NETWORK_FORMAT), "RibbonNetworkLayoutNow", "RibbonNetworkBoxFieldsCollapsed",
+			"RibbonNetworkBoxFormat", "RibbonNetworkBoxStyles", "RibbonNetworkLayout", "RibbonNetworkLinkLabels", "RibbonNetworkStraightLinks",
+			"RibbonNetworkProgressMarks");
+		register(result, CommandScope.FORMAT, CALENDAR_FORMAT, Set.of(CALENDAR_FORMAT), "RibbonCalendarTextStyles", "RibbonCalendarBarStyles",
+			"RibbonCalendarLayoutNow", "RibbonCalendarWeekHeightBestFit", "RibbonCalendarLayout", "RibbonCalendarTaskList");
+		register(result, CommandScope.FORMAT, TIMELINE_FORMAT, Set.of(TIMELINE_FORMAT), "RibbonTimelineTextStyles", "RibbonTimelineDateRange",
+			"RibbonTimelineDates", "RibbonTimelineExpand", "RibbonTimelineBarLabels", "RibbonTimelineOverlapped", "RibbonTimelinePanZoom",
+			"RibbonTimelineTextLines", "RibbonTimelineInsertBar", "RibbonTimelineAddExisting", "RibbonTimelineInsertTask",
+			"RibbonTimelineInsertCallout", "RibbonTimelineInsertMilestone", "RibbonTimelineDisplay", "RibbonTimelineCallout",
+			"RibbonTimelineRemove", "RibbonTimelineCopy");
+		// The Timeline Format Font group reuses the Task tab font commands; they act on the tasks selected on the timeline.
+		for (String id : List.of("RibbonFontName", "RibbonFontSize", "RibbonBold", "RibbonItalic", "RibbonUnderline",
+			"RibbonFillColor", "RibbonFontColor", "RibbonFont")) {
+			Placement placement = result.get(id);
+			Set<String> tabs = new java.util.HashSet<>(placement.permittedTabs());
+			tabs.add(TIMELINE_FORMAT);
+			result.put(id, new Placement(placement.scope(), placement.primaryTab(), Set.copyOf(tabs)));
+		}
+		register(result, CommandScope.FORMAT, RESOURCE_GRAPH_FORMAT, Set.of(RESOURCE_GRAPH_FORMAT),
+			"RibbonResourceGraphTextStyles", "RibbonResourceGraphGridlines", "RibbonResourceGraphBarStyles", "RibbonResourceGraphPrevious", "RibbonResourceGraphNext", "RibbonResourceGraphData", "RibbonResourceGraphValues",
+			"RibbonResourceGraphPeakUnits", "RibbonResourceGraphWork", "RibbonResourceGraphCumulativeWork", "RibbonResourceGraphOverallocation", "RibbonResourceGraphPercentAllocation",
+			"RibbonResourceGraphRemainingAvailability", "RibbonResourceGraphCost", "RibbonResourceGraphCumulativeCost", "RibbonResourceGraphWorkAvailability", "RibbonResourceGraphUnitAvailability");
+		register(result, CommandScope.FORMAT, TEAM_PLANNER_FORMAT, Set.of(TEAM_PLANNER_FORMAT), "RibbonTeamPlannerOutline",
+			"RibbonTeamPlannerGridlines", "RibbonTeamPlannerTextStyles", "RibbonTeamPlannerTextLines", "RibbonTeamPlannerSelectedStyle",
+			"RibbonTeamPlannerAutoStyle", "RibbonTeamPlannerManualStyle", "RibbonTeamPlannerActualStyle", "RibbonTeamPlannerExternalStyle",
+			"RibbonTeamPlannerLateStyle", "RibbonTeamPlannerPreventOverallocation", "RibbonTeamPlannerExpandRows",
+			"RibbonTeamPlannerUnassigned", "RibbonTeamPlannerUnscheduled");
+		register(result, CommandScope.FORMAT, TASK_USAGE_FORMAT, Set.of(TASK_SHEET_FORMAT, TASK_USAGE_FORMAT, RESOURCE_SHEET_FORMAT, RESOURCE_USAGE_FORMAT, CALENDAR_FORMAT),
+			"RibbonSheetGridlines");
+		// Usage Details rows are shared by the two usage Format tabs.
+		register(result, CommandScope.FORMAT, TASK_USAGE_FORMAT, Set.of(TASK_USAGE_FORMAT, RESOURCE_USAGE_FORMAT),
+			"RibbonUsageDetailWork", "RibbonUsageDetailActualWork", "RibbonUsageDetailBaselineWork", "RibbonUsageDetailCost",
+			"RibbonUsageDetailActualCost", "RibbonUsageDetailsAdd", "RibbonUsageDetailCumulativeWork");
+		// Overallocation and Remaining Availability only exist for resources.
+		register(result, CommandScope.FORMAT, RESOURCE_USAGE_FORMAT, Set.of(RESOURCE_USAGE_FORMAT),
+			"RibbonUsageDetailOverallocation", "RibbonUsageDetailRemainingAvailability");
 		register(result, CommandScope.DOCUMENT, TASK, Set.of(TASK, RESOURCE), "RibbonPaste", "RibbonCopy", "RibbonCut");
 		register(result, CommandScope.DOCUMENT, QUICK_ACCESS,
 			"RibbonTopBarSaveProject", "RibbonTopBarUndo", "RibbonTopBarRedo");

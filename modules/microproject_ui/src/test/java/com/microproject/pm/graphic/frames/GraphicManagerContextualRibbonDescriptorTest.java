@@ -28,18 +28,32 @@ class GraphicManagerContextualRibbonDescriptorTest {
 	}
 
 	@Test
-	void contextualMatrixDoesNotAdvertiseUnsupportedTimelineOrReportSurfaces() {
+	void resourceGraphPaneHasItsOwnContextualTab() {
+		var graph = GraphicManager.contextualRibbonDescriptor("Histogram");
+		assertTrue(graph.implemented());
+		assertEquals("ResourceGraphFormatRibbonTask", graph.tabId());
+		assertEquals("ResourceGraphFormat.contextualTitle", graph.titleKey());
+	}
+
+	@Test
+	void contextualMatrixDoesNotAdvertiseUnsupportedReportSurfaces() {
 		var expected = java.util.Map.of(
 			"Gantt", "FormatRibbonTask",
 			"TrackingGantt", "FormatRibbonTask",
 			"Network", "NetworkFormatRibbonTask",
-			"CalendarView", "CalendarFormatRibbonTask");
+			"CalendarView", "CalendarFormatRibbonTask",
+			"Timeline", "TimelineFormatRibbonTask",
+			"DelegateTasks", "TeamPlannerFormatRibbonTask",
+			"TaskSheet", "TaskSheetFormatRibbonTask",
+			"TaskUsageDetail", "TaskUsageFormatRibbonTask",
+			"Resources", "ResourceSheetFormatRibbonTask",
+			"ResourceUsageDetail", "ResourceUsageFormatRibbonTask");
 		expected.forEach((view, tab) -> {
 			var descriptor = GraphicManager.contextualRibbonDescriptor(view);
 			assertTrue(descriptor.implemented(), view);
 			assertEquals(tab, descriptor.tabId(), view);
 		});
-		for (String unsupported : java.util.List.of("Timeline", "Report", "ResourceSheet", "")) {
+		for (String unsupported : java.util.List.of("Report", "ResourceSheet", "TaskUsage", "")) {
 			assertFalse(GraphicManager.contextualRibbonDescriptor(unsupported).implemented(), unsupported);
 		}
 	}

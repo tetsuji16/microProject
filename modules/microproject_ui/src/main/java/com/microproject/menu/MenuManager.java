@@ -114,7 +114,7 @@ public class MenuManager {
 	public JMenuBar getMenu(String name) {
 		JMenuBar menuBar = menuFactory.createJMenuBar(name);
 		menuBar.setOpaque(true);
-		menuBar.setBackground(FlatUiSupport.ribbonChromeBackground());
+		FlatUiSupport.followThemeBackground(menuBar, FlatUiSupport::ribbonChromeBackground);
 		return menuBar;
 	}
 
@@ -188,6 +188,18 @@ public class MenuManager {
 	public JMenuItem getMenuItemFromId(String id) {
 		return menuFactory.getMenuItemFromId(id);
 	}
+	/** Sets where ribbon drop-downs (filter, group) read their value and choices. */
+	public void setRibbonDropDownSource(com.microproject.ui.ribbon.RibbonDropDownSource source) {
+		if (ribbonFactory != null)
+			ribbonFactory.setDropDownSource(source);
+	}
+
+	/** Re-reads the label of the ribbon drop-downs bound to {@code id}. */
+	public void refreshRibbonDropDown(String id) {
+		if (ribbonFactory != null)
+			ribbonFactory.refreshDropDowns(id);
+	}
+
 	public List<?> getToolButtonsFromId(String id) {
 		List<?> toolbarButtons = toolBarFactory.getButtonsFromId(id);
 		ArrayList<Object> result = new ArrayList<>(toolbarButtons == null ? 0 : toolbarButtons.size());

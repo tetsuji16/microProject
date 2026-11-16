@@ -20,6 +20,8 @@ import org.junit.jupiter.api.Test;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.scheduling.ScheduleEvent;
 import com.microproject.pm.task.Project;
+import com.microproject.timescale.TimeScaleEvent;
+import com.microproject.timescale.TimeScaleListener;
 import com.microproject.undo.DataFactoryUndoController;
 
 class ScaledScrollPaneTest {
@@ -137,6 +139,94 @@ class ScaledScrollPaneTest {
 		});
 	}
 
+	/**
+	 * Issue #1126: the Gantt chart resizes its view from the same time-scale
+	 * notification, after this pane has handled it. The left-edge date must not be
+	 * lost to the view width of the previous range.
+	 */
+	@Test
+	void originChangeKeepsTheLeftDateWhenTheViewGrowsAfterThePaneIsNotified() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			var undoController = new DataFactoryUndoController();
+			var resourcePool = ResourcePool.createRourcePool("scaled-scroll-pane-stale-width-test", undoController);
+			var project = Project.createProject(resourcePool, undoController);
+			var coord = new CoordinatesConverter(project);
+			var component = new SelfSizingScaledComponent();
+			var pane = new ScaledScrollPane(component, coord, null, 20);
+			pane.setSize(400, 300);
+			component.matchRange();
+			pane.validate();
+			JViewport viewport = pane.getViewport();
+			double onePixel = Math.abs(coord.toTime(1) - coord.toTime(0));
+			assertTrue(viewport.getViewSize().width > viewport.getExtentSize().width, "the chart must be scrollable");
+
+			double leftDateBefore = coord.toTime(viewport.getViewPosition().x);
+			for (int edit = 0; edit < 20; edit++) {
+				// A later finish date, as produced by editing a duration in the task table.
+				coord.ensureRangeIncludes(coord.getEnd() + 86_400_000L, 0);
+				pane.validate();
+			}
+			assertTrue(Math.abs(coord.toTime(viewport.getViewPosition().x) - leftDateBefore) <= onePixel,
+				"schedule growth must not pan the chart");
+
+			// Far enough that the position needs more room than the previous view width had.
+			coord.extendViewBefore(120);
+			pane.validate();
+			assertTrue(Math.abs(coord.toTime(viewport.getViewPosition().x) - leftDateBefore) <= onePixel,
+				"a large origin change must keep the left-edge date (x=" + viewport.getViewPosition().x
+						+ ", view width=" + viewport.getViewSize().width + ")");
+
+			// A later user scroll is not pulled back to the restored date.
+			int scrolledX = viewport.getViewPosition().x + 100;
+			viewport.setViewPosition(new Point(scrolledX, 0));
+			coord.ensureRangeIncludes(coord.getEnd() + 86_400_000L, 0);
+			pane.validate();
+			assertEquals(scrolledX, viewport.getViewPosition().x);
+		});
+	}
+
+	/**
+	 * Opening a file restores the saved time range into a converter whose views
+	 * already exist. They must follow it, and a later origin change must keep the
+	 * date the user scrolled to afterwards.
+	 */
+	@Test
+	void workspaceRestoreOfTheTimeRangeUpdatesExistingViews() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			var undoController = new DataFactoryUndoController();
+			var resourcePool = ResourcePool.createRourcePool("scaled-scroll-pane-workspace-test", undoController);
+			var project = Project.createProject(resourcePool, undoController);
+			var coord = new CoordinatesConverter(project);
+			var component = new SelfSizingScaledComponent();
+			var pane = new ScaledScrollPane(component, coord, null, 20);
+			pane.setSize(400, 300);
+			component.matchRange();
+			pane.validate();
+			JViewport viewport = pane.getViewport();
+			double onePixel = Math.abs(coord.toTime(1) - coord.toTime(0));
+
+			var saved = (CoordinatesConverter.Workspace) coord.createWorkspace(0);
+			saved.setOrigin(coord.getOrigin() - 200L * 86_400_000L);
+			saved.setEnd(coord.getEnd() + 200L * 86_400_000L);
+			double leftDateBefore = coord.toTime(viewport.getViewPosition().x);
+			coord.restoreWorkspace(saved, 0);
+			pane.validate();
+
+			assertEquals((int) Math.ceil(coord.getWidth()), viewport.getViewSize().width,
+				"the chart must be resized to the restored range");
+			assertTrue(Math.abs(coord.toTime(viewport.getViewPosition().x) - leftDateBefore) <= onePixel,
+				"restoring the range must not pan the chart");
+
+			int scrolledX = viewport.getViewPosition().x + 150;
+			viewport.setViewPosition(new Point(scrolledX, 0));
+			double scrolledDate = coord.toTime(scrolledX);
+			coord.extendViewBefore(30);
+			pane.validate();
+			assertTrue(Math.abs(coord.toTime(viewport.getViewPosition().x) - scrolledDate) <= onePixel,
+				"a scroll made after the restore must survive the next origin change");
+		});
+	}
+
 	private static void assertOriginChangeKeepsLeftDateAnchored(int initialX) {
 		var undoController = new DataFactoryUndoController();
 		var resourcePool = ResourcePool.createRourcePool("scaled-scroll-pane-test", undoController);
@@ -167,6 +257,35 @@ class ScaledScrollPaneTest {
 					+ coord.getTimescaleManager().getScale().toTime(initialX)
 					+ ", scaleOffsetAfter=" + coord.getTimescaleManager().getScale()
 							.toTime(viewport.getViewPosition().x) + ")");
+	}
+
+	/** Sizes its view to the date range from the time-scale notification, like the Gantt chart. */
+	private static final class SelfSizingScaledComponent extends JPanel implements ScaledComponent, TimeScaleListener {
+		private CoordinatesConverter coordinates;
+
+		@Override
+		public void setCoord(CoordinatesConverter coord) {
+			coordinates = coord;
+			coord.addTimeScaleListener(this);
+		}
+
+		@Override
+		public CoordinatesConverter getCoord() {
+			return coordinates;
+		}
+
+		@Override
+		public void timeScaleChanged(TimeScaleEvent event) {
+			matchRange();
+		}
+
+		void matchRange() {
+			Dimension size = new Dimension((int) Math.ceil(coordinates.getWidth()), 300);
+			setPreferredSize(size);
+			if (getParent() instanceof JViewport viewport)
+				viewport.setViewSize(size);
+			revalidate();
+		}
 	}
 
 	private static final class TestScaledComponent extends JPanel implements ScaledComponent {

@@ -125,6 +125,7 @@ import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourceLevelingService;
 import com.microproject.pm.resource.TeamPlannerService;
 import com.microproject.pm.task.Portfolio;
+import com.microproject.pm.task.TaskMoveService;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.BaselineRollupOptions;
 import com.microproject.pm.task.ProjectEvent;
@@ -176,6 +177,7 @@ public class DocumentFrame extends NamedFrame implements
 	protected UsageDetailView taskUsageView;
 	protected UsageDetailView resourceUsageView;
 	protected DockableProjectToolView timelineView;
+	protected DockableProjectToolView calendarView;
 	protected DockableProjectToolView teamPlannerView;
 	protected ReportView reportView;
 	// Column selection belongs to this document frame.  Keeping it static leaks
@@ -190,6 +192,9 @@ public class DocumentFrame extends NamedFrame implements
 	MenuActionsMap actionsMap = null;
 	BaseView activeTopView = null;
 	BaseView activeBottomView = null;
+	/** True while the Resource Graph in the bottom pane holds the user's focus, so its contextual tab shows. */
+	private boolean bottomPaneActive;
+	private java.awt.event.AWTEventListener bottomPaneListener;
 	private CalendarViewDialogBox calendarViewDialog;
 	/** Result of the last typed task command route, consumed by menu/ribbon actions. */
 	private RibbonCommandResult lastTaskCommandResult;
@@ -293,7 +298,9 @@ public class DocumentFrame extends NamedFrame implements
 		setLayout(new BorderLayout()); // main view fills the center, status bar below
 		taskInspectorPanel = new TaskInspectorPanel(this::navigateInspectorPredecessor,
 			task -> getGraphicManager().setTaskModeAutomatic(task),
-			task -> getGraphicManager().canSetTaskModeAutomatic(task));
+			task -> getGraphicManager().canSetTaskModeAutomatic(task),
+			(task, ignore) -> setIgnoreWarnings(List.of(task), ignore),
+			task -> project != null && !project.isReadOnly() && !task.isReadOnly());
 		taskInspectorPanel.setVisible(false);
 		taskInspectorSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, taskInspectorPanel, mainView);
 		taskInspectorSplit.setBorder(null);
@@ -531,8 +538,24 @@ public class DocumentFrame extends NamedFrame implements
 		new RecurringTaskCoordinator().openDialogAndInsert(this);
 	}
 
-	void doTimelineDialog() {
+	/** Top view shown before the timeline, so hiding the timeline returns to it. */
+	private String topViewBeforeTimeline;
+
+	/**
+	 * Timeline check box: shows the timeline pane, or hides it by returning to the view that
+	 * was shown before it. The pressed state follows the active top view (activateTopView /
+	 * deactivateTopView), never the button's own toggling.
+	 */
+	void toggleTimelineView() {
 		finishAnyOperations();
+		if (activeTopView != null && activeTopView == timelineView) {
+			String restore = topViewBeforeTimeline == null || ACTION_TIMELINE.equals(topViewBeforeTimeline)
+				? ACTION_GANTT : topViewBeforeTimeline;
+			activateView(restore);
+			return;
+		}
+		if (lastTopButton != null && !ACTION_TIMELINE.equals(lastTopButton))
+			topViewBeforeTimeline = lastTopButton;
 		activateTopView(getTimelineView(), ACTION_TIMELINE);
 	}
 
@@ -592,7 +615,17 @@ public class DocumentFrame extends NamedFrame implements
 		case TASK_MODE_AUTOMATIC -> lastTaskCommandResult = applyTaskMode(command, com.microproject.pm.task.TaskModeService.Mode.AUTOMATIC);
 		case INACTIVATE_TASK -> lastTaskCommandResult = applyInactivateTask(command);
 		case RESPECT_LINKS -> lastTaskCommandResult = applyRespectLinks(command);
+		case TASK_MOVE_FORWARD_DAY -> lastTaskCommandResult = applyTaskMove(command, TaskMoveService.DAY);
+		case TASK_MOVE_FORWARD_WEEK -> lastTaskCommandResult = applyTaskMove(command, TaskMoveService.WEEK);
+		case TASK_MOVE_FORWARD_FOUR_WEEKS -> lastTaskCommandResult = applyTaskMove(command, TaskMoveService.FOUR_WEEKS);
+		case TASK_MOVE_BACK_DAY -> lastTaskCommandResult = applyTaskMove(command, -TaskMoveService.DAY);
+		case TASK_MOVE_BACK_WEEK -> lastTaskCommandResult = applyTaskMove(command, -TaskMoveService.WEEK);
+		case TASK_MOVE_BACK_FOUR_WEEKS -> lastTaskCommandResult = applyTaskMove(command, -TaskMoveService.FOUR_WEEKS);
+		case TASK_MOVE_FORWARD_CUSTOM -> lastTaskCommandResult = applyCustomTaskMove(command, 1);
+		case TASK_MOVE_BACK_CUSTOM -> lastTaskCommandResult = applyCustomTaskMove(command, -1);
+		case TASK_ADD_TO_TIMELINE -> lastTaskCommandResult = applyAddToTimeline(command);
 		case RESOURCE_LEVEL_ALL -> lastTaskCommandResult = applyResourceLevelAll(command);
+		case RESOURCE_LEVEL_RESOURCE -> lastTaskCommandResult = applyResourceLevelResources(command);
 		case RESOURCE_LEVEL_SELECTION -> lastTaskCommandResult = applyResourceLevelSelection(command);
 		case RESOURCE_CLEAR_LEVEL_ALL -> lastTaskCommandResult = clearResourceLeveling(command, false);
 		case RESOURCE_CLEAR_LEVEL_SELECTION -> lastTaskCommandResult = clearResourceLeveling(command, true);
@@ -609,6 +642,7 @@ public class DocumentFrame extends NamedFrame implements
 		if (lastTaskCommandResult == null)
 			lastTaskCommandResult = RibbonCommandResult.dispatched(command.actionId());
 		lastTaskCommandResult = lastTaskCommandResult.withActiveView(getTopViewId());
+		syncTaskStateToggles();
 		return lastTaskCommandResult;
 	}
 
@@ -824,6 +858,29 @@ public class DocumentFrame extends NamedFrame implements
 		return nodes.stream().map(Node::getImpl).filter(Task.class::isInstance).map(Task.class::cast).toList();
 	}
 
+	/** Targets for a command enabled on the Timeline selection: the Timeline's selected tasks, not the sheet rows. */
+	private EditableTaskTargets resolveTimelineTaskTargets(CommandId command, String lockLabel) {
+		List<Task> tasks = selectedFormattableTasks();
+		List<Long> ids = tasks.stream().map(Task::getUniqueId).toList();
+		RibbonCommandResult rejection = null;
+		if (project == null) rejection = rejectedWithSelection(command, "no-active-document", ids);
+		else if (project.isReadOnly()) rejection = rejectedWithSelection(command, "document-read-only", ids);
+		else if (tasks.isEmpty()) rejection = rejectedWithSelection(command, "selection-too-small", ids);
+		else if (!CollaborationHelper.tryLockNodes(project, tasks, this, lockLabel))
+			rejection = rejectedWithSelection(command, LOCK_DENIED_REASON, ids);
+		return new EditableTaskTargets(List.of(), tasks, ids, rejection);
+	}
+
+	/**
+	 * Targets of the commands whose enablement follows the Timeline selection (Move, Add to Timeline):
+	 * the Timeline's selected tasks while the Timeline is the top view, otherwise the table selection.
+	 */
+	private EditableTaskTargets resolveViewTaskTargets(CommandId command, String lockLabel) {
+		return ACTION_TIMELINE.equals(getTopViewId())
+			? resolveTimelineTaskTargets(command, lockLabel)
+			: resolveEditableTaskTargets(command, lockLabel);
+	}
+
 	private void restoreTaskRows(List<Node> nodes) {
 		SpreadSheet sheet = getActiveSpreadSheet();
 		if (sheet != null) sheet.restoreTaskRowSelection(nodes);
@@ -845,6 +902,22 @@ public class DocumentFrame extends NamedFrame implements
 				: RibbonCommandResult.noChange(command.actionId(), affectedTaskIds)).withActiveView("task");
 	}
 
+	/**
+	 * Pressed state of the selected-task toggles (Manually Schedule, Auto Schedule, Inactivate)
+	 * comes from the model of the selected tasks, never from the button's own toggling: a
+	 * toggle is pressed only when every selected task is in that state, so mixed selections
+	 * and empty selections are not pressed.
+	 */
+	void syncTaskStateToggles() {
+		if (menuManager == null)
+			return;
+		List<Task> selected = activeTopView == null ? List.of() : taskImpls(resolveTaskSelection(false, true).nodes());
+		boolean any = !selected.isEmpty();
+		menuManager.setActionSelected(ACTION_TASK_MODE_MANUAL, any && selected.stream().allMatch(Task::isManuallyScheduled));
+		menuManager.setActionSelected(ACTION_TASK_MODE_AUTOMATIC, any && selected.stream().noneMatch(Task::isManuallyScheduled));
+		menuManager.setActionSelected(ACTION_INACTIVATE_TASK, any && selected.stream().allMatch(Task::isInactiveTask));
+	}
+
 	private RibbonCommandResult applyTaskMode(CommandId command, com.microproject.pm.task.TaskModeService.Mode mode) {
 		EditableTaskTargets targets = resolveEditableTaskTargets(command, "change task mode");
 		if (targets.rejection() != null) return targets.rejection();
@@ -858,6 +931,64 @@ public class DocumentFrame extends NamedFrame implements
 	private RibbonCommandResult taskSelectionOutcome(CommandId command, RibbonCommandResult.Status status,
 			List<Long> selectedTaskIds) {
 		return new RibbonCommandResult(command.actionId(), status, "", selectedTaskIds, selectedTaskIds, getTopViewId());
+	}
+
+	/** Task &gt; Move: shifts the selected tasks by working days (manual dates, or a Start No Earlier Than constraint). */
+	private RibbonCommandResult applyTaskMove(CommandId command, int workingDays) {
+		EditableTaskTargets targets = resolveViewTaskTargets(command, "move task");
+		if (targets.rejection() != null) return targets.rejection();
+		try {
+			var result = new TaskMoveService().moveByWorkingDays(project, targets.tasks(), workingDays);
+			if (!result.change().hasChanged())
+				return taskSelectionOutcome(command, RibbonCommandResult.Status.NO_CHANGE, targets.selectedIds());
+			SwingUndoAdapter.post(project.getUndoController().getEditSupport(), result.change());
+			restoreTaskRows(targets.nodes());
+			return taskSelectionOutcome(command, RibbonCommandResult.Status.CHANGED, targets.selectedIds());
+		} catch (RuntimeException failure) {
+			return RibbonCommandResult.failed(command.actionId(), failure).withSelectedTaskIds(targets.selectedIds());
+		}
+	}
+
+	private RibbonCommandResult applyCustomTaskMove(CommandId command, int direction) {
+		if (project == null || project.isReadOnly())
+			return RibbonCommandResult.rejected(command.actionId(), project == null ? "no-active-document" : "document-read-only");
+		Object answer = javax.swing.JOptionPane.showInputDialog(this, Messages.getString("TaskMove.customPrompt"),
+			Messages.getString("TaskMove.customTitle"), javax.swing.JOptionPane.QUESTION_MESSAGE, null, null, "1");
+		if (answer == null)
+			return RibbonCommandResult.noChange(command.actionId(), getSelectedTaskIds()).withActiveView("task");
+		int days;
+		try {
+			days = Integer.parseInt(answer.toString().trim());
+		} catch (NumberFormatException invalid) {
+			return RibbonCommandResult.rejected(command.actionId(), "invalid-number");
+		}
+		if (days <= 0 || days > 36500)
+			return RibbonCommandResult.rejected(command.actionId(), "invalid-number");
+		return applyTaskMove(command, days * direction);
+	}
+
+	/** Task &gt; Properties &gt; Add to Timeline: puts the selected tasks on, or when all already are, takes them off the timeline. */
+	private RibbonCommandResult applyAddToTimeline(CommandId command) {
+		EditableTaskTargets targets = resolveViewTaskTargets(command, "add to timeline");
+		if (targets.rejection() != null) return targets.rejection();
+		boolean value = !targets.tasks().stream().allMatch(Task::isDisplayOnTimeline);
+		List<Task> changed = targets.tasks().stream().filter(task -> task.isDisplayOnTimeline() != value).toList();
+		if (changed.isEmpty())
+			return taskSelectionOutcome(command, RibbonCommandResult.Status.NO_CHANGE, targets.selectedIds());
+		com.microproject.pm.task.ReversibleModelChange change = com.microproject.pm.task.ReversibleModelChange.changed(
+			() -> { changed.forEach(task -> task.setDisplayOnTimeline(!value)); refreshEmbeddedTimeline(); },
+			() -> { changed.forEach(task -> task.setDisplayOnTimeline(value)); refreshEmbeddedTimeline(); });
+		changed.forEach(task -> task.setDisplayOnTimeline(value));
+		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), change);
+		refreshEmbeddedTimeline();
+		restoreTaskRows(targets.nodes());
+		return taskSelectionOutcome(command, RibbonCommandResult.Status.CHANGED, targets.selectedIds());
+	}
+
+	/** Repaints the embedded Timeline pane, when one is shown, after its displayed-task set changed. */
+	private void refreshEmbeddedTimeline() {
+		TimelineDialogBox timeline = getEmbeddedTimelineDialog();
+		if (timeline != null) timeline.reloadTasks();
 	}
 
 	private RibbonCommandResult applyInactivateTask(CommandId command) {
@@ -938,7 +1069,7 @@ public class DocumentFrame extends NamedFrame implements
 	public boolean canNavigateToNextOverallocatedTask() {
 		if (project == null || getActiveSpreadSheet() == null) return false;
 		return switch (getTopViewId()) {
-			case ACTION_GANTT, ACTION_TRACKING_GANTT, ACTION_NETWORK, ACTION_WBS,
+			case ACTION_GANTT, ACTION_TRACKING_GANTT, ACTION_TASK_SHEET, ACTION_NETWORK, ACTION_WBS,
 				ACTION_TASK_USAGE, ACTION_TASK_USAGE_DETAIL -> true;
 			default -> false;
 		};
@@ -963,6 +1094,55 @@ public class DocumentFrame extends NamedFrame implements
 				failure.getClass().getSimpleName(), selectedIds, List.of(), getTopViewId());
 		}
 		return applyResourceLevelingPlan(command, plan, selectedIds, selectedNodes, null);
+	}
+
+	/** Test seam: replaces the resource picker dialog; receives all resources and returns the chosen ones. */
+	java.util.function.Function<List<com.microproject.pm.resource.Resource>, List<com.microproject.pm.resource.Resource>> levelResourcePicker;
+
+	/** Resource &gt; Level &gt; Level Resource: levels only the resources picked in a dialog, as one undoable edit. */
+	private RibbonCommandResult applyResourceLevelResources(CommandId command) {
+		if (project == null || project.isReadOnly())
+			return RibbonCommandResult.rejected(command.actionId(), project == null ? "no-active-document" : "document-read-only");
+		finishAnyOperations();
+		List<com.microproject.pm.resource.Resource> all = new ArrayList<>(project.getResourcePool().getResourceList());
+		if (all.isEmpty())
+			return RibbonCommandResult.noChange(command.actionId(), getSelectedTaskIds()).withActiveView(getTopViewId());
+		List<com.microproject.pm.resource.Resource> chosen;
+		if (levelResourcePicker != null)
+			chosen = levelResourcePicker.apply(all);
+		else if (java.awt.GraphicsEnvironment.isHeadless())
+			return RibbonCommandResult.rejected(command.actionId(), "dialog-unavailable");
+		else
+			chosen = pickResourcesToLevel(all);
+		if (chosen == null || chosen.isEmpty())
+			return RibbonCommandResult.noChange(command.actionId(), getSelectedTaskIds()).withActiveView(getTopViewId());
+		List<Long> selectedIds = getSelectedTaskIds();
+		SelectionSnapshot selectionSnapshot = SelectionSnapshot.capture(getActiveSpreadSheet(), List.of());
+		ResourceLevelingService.Plan plan;
+		try {
+			plan = new ResourceLevelingService().preview(project, chosen, ResourceLevelingService.Options.defaults());
+		} catch (RuntimeException failure) {
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.FAILED,
+				failure.getClass().getSimpleName(), selectedIds, List.of(), getTopViewId());
+		}
+		return applyResourceLevelingPlan(command, plan, selectedIds, selectionSnapshot.selectedNodes, selectionSnapshot);
+	}
+
+	private List<com.microproject.pm.resource.Resource> pickResourcesToLevel(List<com.microproject.pm.resource.Resource> all) {
+		javax.swing.DefaultListModel<String> model = new javax.swing.DefaultListModel<>();
+		for (com.microproject.pm.resource.Resource resource : all)
+			model.addElement(String.valueOf(resource.getName()));
+		javax.swing.JList<String> list = new javax.swing.JList<>(model);
+		list.setVisibleRowCount(Math.min(12, Math.max(4, all.size())));
+		javax.swing.JPanel panel = new javax.swing.JPanel(new java.awt.BorderLayout(0, 6));
+		panel.add(new javax.swing.JLabel(Messages.getString("LevelResource.prompt")), java.awt.BorderLayout.NORTH);
+		panel.add(new javax.swing.JScrollPane(list), java.awt.BorderLayout.CENTER);
+		int answer = JOptionPane.showConfirmDialog(this, panel, Messages.getString("LevelResource.title"),
+			JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+		if (answer != JOptionPane.OK_OPTION) return List.of();
+		List<com.microproject.pm.resource.Resource> chosen = new ArrayList<>();
+		for (int index : list.getSelectedIndices()) chosen.add(all.get(index));
+		return chosen;
 	}
 
 	private RibbonCommandResult applyResourceLevelAll(CommandId command) {
@@ -1705,6 +1885,11 @@ public class DocumentFrame extends NamedFrame implements
 		EditCommandPipeline.execute(this, MenuActionConstants.ACTION_CLEAR_CONTENTS);
 	}
 
+	/** Edit > Fill: copies the first (Down/Right) or last (Up/Left) selected cells across the selection. */
+	public void doFill(String fillAction) {
+		EditCommandPipeline.execute(this, fillAction);
+	}
+
 	public void doCut() {
 		EditCommandPipeline.execute(this, MenuActionConstants.ACTION_CUT);
 			//NodeListTransferHandler.getCutAction(ss).actionPerformed(new ActionEvent(this,0,null));
@@ -1839,6 +2024,10 @@ public class DocumentFrame extends NamedFrame implements
 			histogramView = new ChartView(this, ChartMode.RESOURCE_GRAPH, graphicManager
 					.getMenuManager(),mainView.getSynchronizer(),addTransformerInitializationClosure());
 			histogramView.init(coord);
+			histogramView.setResourceSelectionListener(() -> SwingUtilities.invokeLater(() -> {
+				if (bottomPaneActive && activeBottomView == histogramView)
+					getGraphicManager().syncGanttViewRibbonState();
+			}));
 			restoreWorkspaceFor(histogramView);
 		}
 		return histogramView;
@@ -1867,8 +2056,53 @@ public class DocumentFrame extends NamedFrame implements
 			timelineView = new DockableProjectToolView(project, ACTION_TIMELINE,
 				TimelineDialogBox.createEmbeddedPanel(getGraphicManager().getFrame(), project));
 			restoreWorkspaceFor(timelineView);
+			TimelineDialogBox timelineDialog = getEmbeddedTimelineDialog();
+			if (timelineDialog != null)
+				timelineDialog.setSelectionListener(() -> {
+					getGraphicManager().syncGanttViewRibbonState();
+					getGraphicManager().setButtonState(getSelectedImpl(), project);
+				});
 		}
 		return timelineView;
+	}
+
+	/** The embedded Timeline view's dialog when that view has been created (active or not), else null. */
+	public TimelineDialogBox getEmbeddedTimelineDialog() {
+		if (timelineView == null) return null;
+		for (java.awt.Component child : timelineView.getComponents())
+			if (child instanceof javax.swing.JComponent component
+					&& component.getClientProperty(TimelineDialogBox.DIALOG_PROPERTY) instanceof TimelineDialogBox dialog)
+				return dialog;
+		return null;
+	}
+
+	/** The embedded Team Planner view's dialog when that view has been created (active or not), else null. */
+	public TeamPlannerDialogBox getEmbeddedTeamPlannerDialog() {
+		if (teamPlannerView == null) return null;
+		for (java.awt.Component child : teamPlannerView.getComponents())
+			if (child instanceof javax.swing.JComponent component
+					&& component.getClientProperty(TeamPlannerDialogBox.DIALOG_PROPERTY) instanceof TeamPlannerDialogBox dialog)
+				return dialog;
+		return null;
+	}
+
+	public DockableProjectToolView getCalendarView() {
+		if (calendarView == null) {
+			calendarView = new DockableProjectToolView(project, ACTION_CALENDAR_VIEW,
+				CalendarViewDialogBox.createEmbeddedPanel(getGraphicManager().getFrame(), project));
+			restoreWorkspaceFor(calendarView);
+		}
+		return calendarView;
+	}
+
+	/** The embedded Calendar view's dialog when that view has been created (active or not), else null. */
+	public CalendarViewDialogBox getEmbeddedCalendarDialog() {
+		if (calendarView == null) return null;
+		for (java.awt.Component child : calendarView.getComponents())
+			if (child instanceof javax.swing.JComponent component
+					&& component.getClientProperty(CalendarViewDialogBox.DIALOG_PROPERTY) instanceof CalendarViewDialogBox dialog)
+				return dialog;
+		return null;
 	}
 
 	public DockableProjectToolView getTeamPlannerView() {
@@ -1923,6 +2157,9 @@ public class DocumentFrame extends NamedFrame implements
 		} else if (viewName.equals(ACTION_TRACKING_GANTT)) {
 			activateTrackingGanttView();
 			return top;
+		} else if (viewName.equals(ACTION_TASK_SHEET)) {
+			activateTaskSheetView();
+			return top;
 		} else if (viewName.equals(ACTION_TASK_USAGE_DETAIL))
 			topView = getTaskUsageDetailView();
 		else if (viewName.equals(ACTION_RESOURCE_USAGE_DETAIL))
@@ -1944,6 +2181,8 @@ public class DocumentFrame extends NamedFrame implements
 			topView = getProjectView();
 		else if (viewName.equals(ACTION_TIMELINE))
 			topView = getTimelineView();
+		else if (viewName.equals(ACTION_CALENDAR_VIEW))
+			topView = getCalendarView();
 		else if (viewName.equals(ACTION_DELEGATE_TASKS))
 			topView = getTeamPlannerView();
 		else if (viewName.equals(ACTION_HISTOGRAM))
@@ -1999,7 +2238,8 @@ public class DocumentFrame extends NamedFrame implements
 		getGraphicManager().setTaskInformation(view.showsTasks(),view.showsResources());
 		refreshUndoButtons();
 		getGraphicManager().setEnabledDocumentMenuActions(true);
-		getGraphicManager().updateRibbonContext(viewName);
+		bottomPaneActive = false;
+		getGraphicManager().updateRibbonContext(getRibbonContextViewId());
 		showWaitCursor(false);
 //this doesn't have any effect		setFrameIcon(menuManager.getToolButtonFromId(viewName).getIcon());
 
@@ -2031,12 +2271,21 @@ public class DocumentFrame extends NamedFrame implements
 	public void activateGanttView() {
 		getGanttView().setBarStyles("standard");
 		getGanttView().setTracking(false);
+		getGanttView().setTaskSheet(false);
 		activateTopView(getGanttView(),ACTION_GANTT);
 	}
 	public void activateTrackingGanttView() {
 		getGanttView().setBarStyles("Tracking");
 		getGanttView().setTracking(true);
+		getGanttView().setTaskSheet(false);
 		activateTopView(getGanttView(),ACTION_TRACKING_GANTT);
+	}
+	/** The Task Sheet is the Gantt task table with the chart collapsed. */
+	public void activateTaskSheetView() {
+		getGanttView().setBarStyles("standard");
+		getGanttView().setTracking(false);
+		getGanttView().setTaskSheet(true);
+		activateTopView(getGanttView(),ACTION_TASK_SHEET);
 	}
 
 	public void activateBottomView(BaseView view,String viewName) {
@@ -2066,6 +2315,7 @@ public class DocumentFrame extends NamedFrame implements
 		setBottomActionSelected(viewName);
 		toggleMinWidth();
 		refreshUndoButtons();
+		trackBottomPaneFocus(view == histogramView);
 
 		if (view instanceof SelectionNodeListener selectionListener)
 			pushCurrentSelectionToBottomView(selectionListener);
@@ -2101,6 +2351,51 @@ public class DocumentFrame extends NamedFrame implements
 		setBottomActionSelected(ACTION_NO_SUB_WINDOW);
 		toggleMinWidth();
 		refreshUndoButtons();
+		trackBottomPaneFocus(false);
+	}
+
+	/** Starts or stops following which pane the user presses, for the Resource Graph contextual tab. */
+	private void trackBottomPaneFocus(boolean histogramActive) {
+		boolean before = bottomPaneActive;
+		if (bottomPaneListener != null) {
+			java.awt.Toolkit.getDefaultToolkit().removeAWTEventListener(bottomPaneListener);
+			bottomPaneListener = null;
+		}
+		bottomPaneActive = histogramActive;
+		if (histogramActive) {
+			bottomPaneListener = event -> {
+				boolean pressed = event.getID() == java.awt.event.MouseEvent.MOUSE_PRESSED;
+				boolean focused = event.getID() == java.awt.event.FocusEvent.FOCUS_GAINED;
+				if (!(pressed || focused) || !(event.getSource() instanceof Component source))
+					return;
+				boolean inGraph = histogramView != null && SwingUtilities.isDescendingFrom(source, histogramView);
+				boolean inFrame = SwingUtilities.isDescendingFrom(source, mainView);
+				if (!inFrame) // the ribbon controls of the graph lie outside the frame: keep the graph context
+					return;
+				if (inGraph != bottomPaneActive) {
+					bottomPaneActive = inGraph;
+					getGraphicManager().updateRibbonContext(getRibbonContextViewId());
+				}
+				if (inGraph)
+					SwingUtilities.invokeLater(() -> getGraphicManager().syncGanttViewRibbonState());
+			};
+			java.awt.Toolkit.getDefaultToolkit().addAWTEventListener(bottomPaneListener,
+				java.awt.AWTEvent.MOUSE_EVENT_MASK | java.awt.AWTEvent.FOCUS_EVENT_MASK);
+		}
+		if (before != bottomPaneActive)
+			getGraphicManager().updateRibbonContext(getRibbonContextViewId());
+	}
+
+	/** The view whose contextual ribbon tab applies: the Resource Graph while its pane is active, else the top view. */
+	String getRibbonContextViewId() {
+		if (bottomPaneActive && histogramView != null && activeBottomView == histogramView)
+			return ACTION_HISTOGRAM;
+		return getTopViewId();
+	}
+
+	/** The Resource Graph view while it is the active pane, otherwise null. */
+	public ChartView getActiveResourceGraphView() {
+		return ACTION_HISTOGRAM.equals(getRibbonContextViewId()) ? histogramView : null;
 	}
 
 	private void setBottomActionSelected(String selectedAction) {
@@ -2178,6 +2473,7 @@ public class DocumentFrame extends NamedFrame implements
 	public void selectionChanged(SelectionNodeEvent e) {
 		applyFormatPainterToSelection(e);
 		lastSelectionEvent=e;
+		syncTaskStateToggles();
 		statusBar.setSelectedCount(e.getNodes() == null ? 0 : e.getNodes().size());
 		Component bottom = mainView.getBottomComponent();
 		if (bottom != null && bottom instanceof SelectionNodeListener)
@@ -2208,6 +2504,61 @@ public class DocumentFrame extends NamedFrame implements
 
 	public void toggleTaskInspector() {
 		showTaskInspector(!taskInspectorVisible());
+	}
+
+	/** Inspect Task: shows the inspector for the current selection. */
+	public void inspectTask() {
+		showTaskInspector(true);
+	}
+
+	/** Fix in Task Inspector: selects the task and opens the inspector on it. */
+	public void fixTaskInInspector(Task task) {
+		Node node = findTaskNode(project, task);
+		SpreadSheet sheet = getActiveSpreadSheet();
+		if (node != null && sheet != null && sheet.taskNodeToViewRow(node) >= 0)
+			sheet.restoreTaskRowSelection(List.of(node));
+		showTaskInspector(true);
+		if (taskInspectorPanel != null && task != null)
+			taskInspectorPanel.showTask(task);
+	}
+
+	/** Undoable Ignore Warnings change; false when nothing changed or the change was refused. */
+	public boolean setIgnoreWarnings(List<Task> tasks, boolean ignore) {
+		if (project == null || project.isReadOnly() || tasks == null || tasks.isEmpty()) return false;
+		try {
+			var result = new com.microproject.pm.task.TaskWarningsService().setIgnoreWarnings(project, tasks, ignore);
+			return finishWarningsChange(result.change());
+		} catch (RuntimeException refused) {
+			GraphicManager.traceUi("ignore-warnings refused " + refused);
+			return false;
+		}
+	}
+
+	/** Show Ignored Problems: clears Ignore Warnings on every task of the project. */
+	public boolean showIgnoredProblems() {
+		if (project == null || project.isReadOnly()) return false;
+		try {
+			return finishWarningsChange(new com.microproject.pm.task.TaskWarningsService().showIgnoredProblems(project).change());
+		} catch (RuntimeException refused) {
+			GraphicManager.traceUi("show-ignored-problems refused " + refused);
+			return false;
+		}
+	}
+
+	private boolean finishWarningsChange(com.microproject.pm.task.ReversibleModelChange change) {
+		if (!change.hasChanged()) return false;
+		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), change);
+		refreshTaskDiagnostics();
+		return true;
+	}
+
+	/** Repaints the sheets and refreshes the inspector after warnings, suggestions or Ignore Warnings change. */
+	void refreshTaskDiagnostics() {
+		if (taskInspectorPanel != null && taskInspectorPanel.isVisible() && lastSelectionEvent != null
+				&& lastSelectionEvent.getCurrentNode() != null
+				&& lastSelectionEvent.getCurrentNode().getImpl() instanceof Task selected)
+			taskInspectorPanel.showTask(selected);
+		repaint();
 	}
 
 	boolean taskInspectorVisible() { return taskInspectorPanel != null && taskInspectorPanel.isVisible(); }
@@ -2265,6 +2616,148 @@ public class DocumentFrame extends NamedFrame implements
 		formatPainterContinuous = false;
 		getMenuManager().setActionSelected("RibbonFormatPainter", true);
 		GraphicManager.traceUi("format-painter armed sourceTask=" + source.getUniqueId());
+	}
+
+	/** The writable tasks of the active table selection that the Task &gt; Font group formats. */
+	private List<Node> selectedFormattableSpreadsheetNodes() {
+		if (project == null || project.isReadOnly() || getActiveSpreadSheet() == null)
+			return List.of();
+		ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(true, false);
+		if (!selection.isEligible(1))
+			return List.of();
+		List<Node> nodes = new ArrayList<>(selection.nodes().size());
+		for (Node node : selection.nodes()) {
+			if (!(node.getImpl() instanceof Task task) || task.getProject() != project || task.isReadOnly())
+				return List.of();
+			nodes.add(node);
+		}
+		return nodes;
+	}
+
+	/**
+	 * The writable tasks the Font group formats: the selected tasks of the Timeline chooser while the
+	 * Timeline view is active, otherwise the selected rows of the active table.
+	 */
+	private List<Task> selectedFormattableTasks() {
+		if (project == null || project.isReadOnly())
+			return List.of();
+		if (ACTION_TIMELINE.equals(getTopViewId())) {
+			TimelineDialogBox timeline = getEmbeddedTimelineDialog();
+			if (timeline == null)
+				return List.of();
+			List<Task> tasks = timeline.getSelectedTasks();
+			for (Task task : tasks)
+				if (task.getProject() != project || task.isReadOnly())
+					return List.of();
+			return tasks;
+		}
+		List<Task> tasks = new ArrayList<>();
+		for (Node node : selectedFormattableSpreadsheetNodes())
+			tasks.add((Task) node.getImpl());
+		return tasks;
+	}
+
+	boolean canFormatSelectedTaskText() {
+		return !selectedFormattableTasks().isEmpty();
+	}
+
+	/** True when every selected task is bold (the pressed state of the Bold button). */
+	boolean isSelectedTaskTextBold() {
+		List<Task> nodes = selectedFormattableTasks();
+		return !nodes.isEmpty() && nodes.stream().allMatch(Task::isFontBold);
+	}
+
+	/** True when every selected task is italic (the pressed state of the Italic button). */
+	boolean isSelectedTaskTextItalic() {
+		List<Task> nodes = selectedFormattableTasks();
+		return !nodes.isEmpty() && nodes.stream().allMatch(Task::isFontItalic);
+	}
+
+	/** Bold on the selected tasks unless all of them already are, then off. One undoable edit. */
+	void toggleSelectedTaskBold() {
+		boolean value = !isSelectedTaskTextBold();
+		applyToSelectedTaskText(format -> format.withBold(value), "task-font-bold");
+	}
+
+	/** Italic on the selected tasks unless all of them already are, then off. One undoable edit. */
+	void toggleSelectedTaskItalic() {
+		boolean value = !isSelectedTaskTextItalic();
+		applyToSelectedTaskText(format -> format.withItalic(value), "task-font-italic");
+	}
+
+	/** Asks for a color and applies it as the text color of the selected tasks. One undoable edit. */
+	void chooseSelectedTaskFontColor() {
+		List<Task> nodes = selectedFormattableTasks();
+		if (nodes.isEmpty())
+			return;
+		Integer current = nodes.getFirst().getFontColor();
+		java.awt.Color chosen = javax.swing.JColorChooser.showDialog(this,
+			Messages.getString("TaskInformationDialog.FontColor"), current == null ? java.awt.Color.BLACK : new java.awt.Color(current));
+		if (chosen != null) {
+			Integer rgb = chosen.getRGB() & 0xFFFFFF;
+			applyToSelectedTaskText(format -> format.withColor(rgb), "task-font-color");
+		}
+	}
+
+	/** True when every selected task is underlined (the pressed state of the Underline button). */
+	boolean isSelectedTaskTextUnderline() {
+		List<Task> nodes = selectedFormattableTasks();
+		return !nodes.isEmpty() && nodes.stream().allMatch(Task::isFontUnderline);
+	}
+
+	/** True when every selected task is on the timeline (the pressed state of Add to Timeline). */
+	boolean isSelectedTaskOnTimeline() {
+		List<Task> nodes = selectedFormattableTasks();
+		return !nodes.isEmpty() && nodes.stream().allMatch(Task::isDisplayOnTimeline);
+	}
+
+	/** Underline on the selected tasks unless all of them already are, then off. One undoable edit. */
+	void toggleSelectedTaskUnderline() {
+		boolean value = !isSelectedTaskTextUnderline();
+		applyToSelectedTaskText(format -> format.withUnderline(value), "task-font-underline");
+	}
+
+	/** Asks for a color and applies it as the cell background fill of the selected tasks. One undoable edit. */
+	void chooseSelectedTaskBackground() {
+		List<Task> nodes = selectedFormattableTasks();
+		if (nodes.isEmpty())
+			return;
+		Integer current = nodes.getFirst().getFontBackground();
+		java.awt.Color chosen = javax.swing.JColorChooser.showDialog(this,
+			Messages.getString("TaskFill.title"), current == null ? java.awt.Color.WHITE : new java.awt.Color(current));
+		if (chosen != null) {
+			Integer rgb = chosen.getRGB() & 0xFFFFFF;
+			applyToSelectedTaskText(format -> format.withBackground(rgb), "task-font-fill");
+		}
+	}
+
+	/** Font family of the lead selected task, or null without a formattable selection. */
+	String selectedTaskFontFamily() {
+		List<Task> nodes = selectedFormattableTasks();
+		return nodes.isEmpty() ? null : nodes.getFirst().getFontFamily();
+	}
+
+	/** Font size of the lead selected task, or 0 without a formattable selection. */
+	int selectedTaskFontSize() {
+		List<Task> nodes = selectedFormattableTasks();
+		return nodes.isEmpty() ? 0 : nodes.getFirst().getFontSize();
+	}
+
+	void setSelectedTaskFontFamily(String family) {
+		applyToSelectedTaskText(format -> format.withFamily(family), "task-font-family");
+	}
+
+	void setSelectedTaskFontSize(int size) {
+		applyToSelectedTaskText(format -> format.withSize(size), "task-font-size");
+	}
+
+	private void applyToSelectedTaskText(java.util.function.UnaryOperator<TaskFormatPainterService.TaskTextFormat> change,
+			String reason) {
+		finishAnyOperations();
+		List<Task> nodes = selectedFormattableTasks();
+		if (nodes.isEmpty() || !CollaborationHelper.tryLockNodes(project, nodes, this, reason))
+			return;
+		TaskFormatPainterService.applyChange(project, nodes, change, getUndoController());
 	}
 
 	void cancelFormatPainter() {
@@ -2434,7 +2927,16 @@ public class DocumentFrame extends NamedFrame implements
 		if (lastTopButton != null)
 			menuManager.setActionSelected(lastTopButton,enable);
 		setBottomActionSelected(enable ? lastBottomButton : null);
+		if (enable)
+			syncPrivacyMaskToggle();
 
+	}
+
+	/** Privacy Mask is pressed while this document's presentation is masked; the state is the document's, not the button's. */
+	void syncPrivacyMaskToggle() {
+		if (menuManager != null)
+			menuManager.setActionSelected(ACTION_TOGGLE_PRIVACY_MASK,
+				com.microproject.ui.privacy.PrivacyDisplayMode.isMasked(project));
 	}
 	public void refreshUndoButtons() {
 		UndoController undoController = null;
@@ -2463,6 +2965,7 @@ public class DocumentFrame extends NamedFrame implements
 		menuManager.setActionEnabled(ACTION_UNDO,canUndo);
 		menuManager.setActionEnabled(ACTION_REDO,canRedo);
 		getGraphicManager().refreshStatusDateControl();
+		syncTaskStateToggles();
 
 	}
 
@@ -2552,6 +3055,7 @@ public class DocumentFrame extends NamedFrame implements
 				if (filter!=null){
 					filter.setFilterTeam(getGraphicManager().getPreferences().isShowProjectResourcesOnly());
 				}
+				refreshTaskDiagnostics();
 				if (ganttView != null)
 					ganttView.setSpreadsheetGridVisible(getGraphicManager().getPreferences().isShowRowLines());
 				if (ganttView != null)
@@ -2614,6 +3118,10 @@ public class DocumentFrame extends NamedFrame implements
 
 	public void cleanUp() {
 		logger.fine("Document Frame Cleanup");
+		if (bottomPaneListener != null) {
+			java.awt.Toolkit.getDefaultToolkit().removeAWTEventListener(bottomPaneListener);
+			bottomPaneListener = null;
+		}
 		// Embedded MPOF files are owned by the document lifetime.  Release them
 		// before dropping the model reference so Windows can delete open handles.
 		getGraphicManager().closeProjectArtifacts(project);
@@ -2671,6 +3179,7 @@ public class DocumentFrame extends NamedFrame implements
 		taskUsageView = null;
 		resourceUsageView = null;
 		timelineView = null;
+		calendarView = null;
 		teamPlannerView = null;
 		reportView = null;
 		activeTopView = null;
@@ -2694,6 +3203,7 @@ public class DocumentFrame extends NamedFrame implements
 			resourceUsageView,
 			reportView,
 			timelineView,
+			calendarView,
 			teamPlannerView
 		};
 		ArrayUtils.forAllDo(views,c);
@@ -2770,6 +3280,7 @@ public class DocumentFrame extends NamedFrame implements
 		ws.saveViewWorkspace(ACTION_RESOURCE_USAGE,resourceUsageView);
 		ws.saveViewWorkspace(ACTION_REPORT,reportView);
 		ws.saveViewWorkspace(ACTION_TIMELINE,timelineView);
+		ws.saveViewWorkspace(ACTION_CALENDAR_VIEW,calendarView);
 		ws.saveViewWorkspace(ACTION_DELEGATE_TASKS,teamPlannerView);
 		return ws;
 	}
@@ -2870,6 +3381,9 @@ public class DocumentFrame extends NamedFrame implements
 		doFind(searchable, field, null);
 	}
 	public void doFind(Searchable searchable, Field field, String initialQuery) {
+		doFind(searchable, field, initialQuery, false);
+	}
+	public void doFind(Searchable searchable, Field field, String initialQuery, boolean replaceMode) {
 		if (!isActive())
 			return;
 
@@ -2878,6 +3392,7 @@ public class DocumentFrame extends NamedFrame implements
     		findDialog.pack();
     		findDialog.setModal(false);
 		}
+		findDialog.setReplaceMode(replaceMode);
 		findDialog.init(searchable, field, initialQuery);
     	findDialog.setLocationRelativeTo(this);//to center on screen
         findDialog.setVisible(true);

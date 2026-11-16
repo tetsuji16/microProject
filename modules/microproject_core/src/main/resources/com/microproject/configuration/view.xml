@@ -833,6 +833,7 @@
 			<column>Field.baselineWork</column>
 			<column>Field.bcwp</column>
 			<column>Field.bcws</column>
+			<column>Field.cumulativeWork</column>
 		</columns>
 	</spreadsheet>
 	<spreadsheet id="Spreadsheet.ResourceUsage.default" category="distributionSpreadsheet" actionListId="ActionList.resource">
@@ -845,6 +846,9 @@
 			<column>Field.baselineWork</column>
 			<column>Field.bcwp</column>
 			<column>Field.bcws</column>
+			<column>Field.cumulativeWork</column>
+			<column>Field.overallocation</column>
+			<column>Field.remainingAvailability</column>
 		</columns>
 	</spreadsheet>
 

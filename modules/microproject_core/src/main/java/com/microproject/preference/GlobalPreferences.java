@@ -46,6 +46,10 @@ public class GlobalPreferences {
 	private String userName = STORE.get("userName", System.getProperty("user.name", ""));
 	/** MS Project-compatible default: Gantt gridlines are hidden until enabled. */
 	private boolean showRowLines = STORE.getBoolean("showRowLines", false);
+	/** Task Inspector warning indicators in the task sheet; on by default like Microsoft Project. */
+	private static volatile boolean showTaskWarnings = STORE.getBoolean("showTaskWarnings", true);
+	/** Task Inspector suggestion indicators in the task sheet; off by default like Microsoft Project. */
+	private static volatile boolean showTaskSuggestions = STORE.getBoolean("showTaskSuggestions", false);
 	/** Null keeps grid lines synchronized with the active UI theme. */
 	private Integer gridLineColor = readColor("gridLineColor");
 	/** Null keeps the MS Project-compatible palette default for ordinary task bars. */
@@ -109,6 +113,25 @@ public class GlobalPreferences {
 		if (showRowLines == value) return;
 		showRowLines = value;
 		STORE.putBoolean("showRowLines", value);
+		fireUpdateEvent(this, this);
+	}
+
+	/** Static so cell renderers can read the persisted value without a preferences instance. */
+	public static boolean isTaskWarningsShown() { return showTaskWarnings; }
+	public static boolean isTaskSuggestionsShown() { return showTaskSuggestions; }
+	public boolean isShowTaskWarnings() { return showTaskWarnings; }
+	public void setShowTaskWarnings(boolean value) {
+		if (showTaskWarnings == value) return;
+		showTaskWarnings = value;
+		STORE.putBoolean("showTaskWarnings", value);
+		fireUpdateEvent(this, this);
+	}
+
+	public boolean isShowTaskSuggestions() { return showTaskSuggestions; }
+	public void setShowTaskSuggestions(boolean value) {
+		if (showTaskSuggestions == value) return;
+		showTaskSuggestions = value;
+		STORE.putBoolean("showTaskSuggestions", value);
 		fireUpdateEvent(this, this);
 	}
 

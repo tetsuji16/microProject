@@ -40,6 +40,20 @@ public interface BaseView extends SpreadSheetCategories, SavableToWorkspace{
 	boolean canScrollToTask();
 	int getScale();
 	SpreadSheet getSpreadSheet();
+	/** Whether the Name column shows outline numbers (sheet Format, Show/Hide). */
+	default boolean isOutlineNumbersVisible() {
+		SpreadSheet sheet = getSpreadSheet();
+		return sheet != null && sheet.isOutlineNumbersVisible();
+	}
+	default void setOutlineNumbersVisible(boolean visible) {
+		SpreadSheet sheet = getSpreadSheet();
+		if (sheet != null)
+			sheet.setOutlineNumbersVisible(visible);
+	}
+	/** Whether the view can hide its summary task rows through the view transform. */
+	default boolean supportsSummaryTasksToggle() { return false; }
+	default boolean isSummaryTasksVisible() { return true; }
+	default void setSummaryTasksVisible(boolean visible) { }
 	boolean hasNormalMinWidth();
 	String getViewName();
 	/** Stable semantic state for the active view's rendered projection (for diagnostics). */

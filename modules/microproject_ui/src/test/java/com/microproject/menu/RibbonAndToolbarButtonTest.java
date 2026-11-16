@@ -109,7 +109,9 @@ class RibbonAndToolbarButtonTest {
 		SwingUtilities.invokeAndWait(() -> {
 			JPanel ribbon = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 			((ModernRibbonPanel) ribbon.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY))
-				.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask"));
+				.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask",
+					"TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask",
+					"TaskSheetFormatRibbonTask", "TaskUsageFormatRibbonTask", "ResourceSheetFormatRibbonTask", "ResourceUsageFormatRibbonTask", "ResourceGraphFormatRibbonTask"));
 			assertAttachedButtonsAreVisible(ribbon, MenuManager.STANDARD_RIBBON);
 		});
 	}
@@ -142,14 +144,14 @@ class RibbonAndToolbarButtonTest {
 	void menuManagerPropagatesCustomBandGeneratorsIntoTheModelAndPanel() throws Exception {
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		CustomRibbonBandGenerator generator = bandId ->
-			"FormatLayoutRibbonBand".equals(bandId) ? customBand("Layout from generator") : null;
+			"GanttBarStylesRibbonBand".equals(bandId) ? customBand("Layout from generator") : null;
 
 		SwingUtilities.invokeAndWait(() -> {
 			SwingRibbonModel model = manager.getRibbon(MenuManager.STANDARD_RIBBON, generator);
 			SwingRibbonModel.RibbonBand layoutBand = model.getTabs().stream()
 				.filter(tab -> tab.getId().equals("FormatRibbonTask"))
 				.flatMap(tab -> tab.getBands().stream())
-				.filter(band -> band.getId().equals("FormatLayoutRibbonBand"))
+				.filter(band -> band.getId().equals("GanttBarStylesRibbonBand"))
 				.findFirst()
 				.orElseThrow();
 			assertTrue(layoutBand.isCustomBand());
@@ -371,7 +373,14 @@ class RibbonAndToolbarButtonTest {
 				"HelpRibbonTask",
 				"FormatRibbonTask",
 				"NetworkFormatRibbonTask",
-				"CalendarFormatRibbonTask"),
+				"CalendarFormatRibbonTask",
+				"TimelineFormatRibbonTask",
+				"TeamPlannerFormatRibbonTask",
+				"TaskSheetFormatRibbonTask",
+				"TaskUsageFormatRibbonTask",
+				"ResourceSheetFormatRibbonTask",
+				"ResourceUsageFormatRibbonTask",
+				"ResourceGraphFormatRibbonTask"),
 			ribbonTaskIds());
 	}
 
@@ -414,18 +423,52 @@ class RibbonAndToolbarButtonTest {
 
 	@Test
 	void formatRibbonIncludesDisplayAndBarBands() {
-		assertTrue(ribbonBandIds("FormatRibbonTask").contains("FormatDisplayRibbonBand"));
-		assertTrue(ribbonBandIds("FormatRibbonTask").contains("FormatBarRibbonBand"));
-		assertTrue(ribbonBandIds("FormatRibbonTask").contains("FormatLayoutRibbonBand"));
 		assertEquals(
-			List.of("RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName", "RibbonGridlines", "RibbonToggleCriticalChain"),
-			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("FormatDisplayRibbonBand"));
+			List.of("GanttFormatRibbonBand", "SheetColumnsRibbonBand", "GanttBarStylesRibbonBand", "GanttStylesRibbonBand",
+				"SheetShowHideRibbonBand", "GanttFormatExtrasRibbonBand"),
+			ribbonBandIds("FormatRibbonTask"));
+		assertEquals(List.of("NetworkDisplayRibbonBand", "NetworkFormatRibbonBand", "NetworkShowHideRibbonBand", "NetworkLayoutRibbonBand"), ribbonBandIds("NetworkFormatRibbonTask"));
+		assertEquals(List.of("CalendarFormatRibbonBand", "CalendarLayoutRibbonBand", "CalendarShowHideRibbonBand"), ribbonBandIds("CalendarFormatRibbonTask"));
+		assertEquals(List.of("TimelineTextStylesRibbonBand", "TimelineFontRibbonBand", "TimelineShowHideRibbonBand", "TimelineInsertRibbonBand",
+			"TimelineSelectionRibbonBand", "TimelineCopyRibbonBand"), ribbonBandIds("TimelineFormatRibbonTask"));
+		assertEquals(List.of("TeamPlannerFormatRibbonBand", "TeamPlannerStylesRibbonBand", "TeamPlannerScheduleRibbonBand", "TeamPlannerShowHideRibbonBand"),
+			ribbonBandIds("TeamPlannerFormatRibbonTask"));
+		assertEquals(List.of("ResourceGraphFormatRibbonBand", "ResourceGraphNavigateRibbonBand", "ResourceGraphDataRibbonBand", "ResourceGraphShowHideRibbonBand"),
+			ribbonBandIds("ResourceGraphFormatRibbonTask"));
+		assertEquals(List.of("RibbonResourceGraphTextStyles", "RibbonResourceGraphGridlines", "RibbonResourceGraphBarStyles"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("ResourceGraphFormatRibbonBand"));
+		assertEquals(List.of("RibbonNetworkLinkLabels", "RibbonNetworkStraightLinks", "RibbonNetworkProgressMarks", "RibbonSummaryTasks"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("NetworkShowHideRibbonBand"));
+		assertEquals(List.of("RibbonNetworkBoxFieldsCollapsed"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("NetworkDisplayRibbonBand"));
+		assertEquals(List.of("RibbonNetworkBoxFormat", "RibbonNetworkBoxStyles", "RibbonNetworkLayout"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("NetworkFormatRibbonBand"));
+		assertEquals(List.of("RibbonCalendarLayoutNow", "RibbonCalendarWeekHeightBestFit", "RibbonCalendarLayout"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("CalendarLayoutRibbonBand"));
+		assertEquals(List.of("RibbonCalendarTaskList"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("CalendarShowHideRibbonBand"));
+		assertEquals(List.of("RibbonNetworkLayoutNow"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("NetworkLayoutRibbonBand"));
+		assertEquals(List.of("RibbonCalendarTextStyles", "RibbonCalendarBarStyles", "RibbonSheetGridlines"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("CalendarFormatRibbonBand"));
 		assertEquals(
-			List.of("RibbonArrangeAll", "RibbonDetails", "RibbonPrivacyMask"),
+			List.of("RibbonTextStyles", "RibbonGridlines", "RibbonLayout"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("GanttFormatRibbonBand"));
+		assertEquals(
+			List.of("RibbonInsertColumn", "RibbonAlignLeft", "RibbonAlignCenter", "RibbonAlignRight", "RibbonColumnSettings", "RibbonCustomFields"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("SheetColumnsRibbonBand"));
+		assertEquals(
+			List.of("RibbonFormatBarStyles", "RibbonCriticalTasks", "RibbonSlack", "RibbonLateTasks", "RibbonTaskPath", "RibbonShowBaseline", "RibbonSlippage"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("GanttBarStylesRibbonBand"));
+		assertEquals(
+			List.of("RibbonGanttStyleGallery", "RibbonBarStyles"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("GanttStylesRibbonBand"));
+		assertEquals(
+			List.of("RibbonOutlineNumbers", "RibbonSummaryTasks"),
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("SheetShowHideRibbonBand"));
+		assertEquals(
+			List.of("RibbonSwitchWindows", "RibbonArrangeAll", "RibbonPrivacyMask"),
 			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("ViewWindowRibbonBand"));
-		assertEquals(
-			List.of("RibbonTimescale", "RibbonBarStyles", "RibbonTextStyles"),
-			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("FormatBarRibbonBand"));
 	}
 
 	@Test
@@ -638,7 +681,10 @@ class RibbonAndToolbarButtonTest {
 			MenuManager manager = graphicManager.getMenuManager();
 			JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 			ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
-			ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
+			// Every contextual Format tab, so the buttons only the Network/Calendar tabs carry are visible too.
+			ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask",
+					"TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask",
+				"TaskSheetFormatRibbonTask", "TaskUsageFormatRibbonTask", "ResourceSheetFormatRibbonTask", "ResourceUsageFormatRibbonTask", "ResourceGraphFormatRibbonTask"));
 			ResourceBundle labels = menuBundle(Locale.getDefault());
 
 			for (String tabId : ribbonTaskIds()) {

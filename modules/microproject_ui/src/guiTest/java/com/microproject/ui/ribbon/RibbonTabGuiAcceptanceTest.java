@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.accessibility.AccessibleState;
 import javax.imageio.ImageIO;
@@ -42,6 +43,7 @@ import javax.swing.Action;
 import javax.swing.JFrame;
 import javax.swing.JComponent;
 import javax.swing.JButton;
+import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JScrollPane;
 import javax.swing.MenuElement;
@@ -144,7 +146,7 @@ class RibbonTabGuiAcceptanceTest {
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
-		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask"));
+		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask", "TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask"));
 		show(host);
 		List<AbstractButton> tabs = new ArrayList<>();
 		for (String tabId : MenuDefinitionSupport.ribbonTaskIds()) {
@@ -226,7 +228,7 @@ class RibbonTabGuiAcceptanceTest {
 		robot.setAutoDelay(35);
 		EnumSet<CommandId> physicalTaskCommands = EnumSet.noneOf(CommandId.class);
 		for (String tabId : MenuDefinitionSupport.ribbonTaskIds().stream()
-				.filter(tabId -> !Set.of("NetworkFormatRibbonTask", "CalendarFormatRibbonTask").contains(tabId))
+				.filter(tabId -> !Set.of("NetworkFormatRibbonTask", "CalendarFormatRibbonTask", "TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask").contains(tabId))
 				.toList()) {
 			String title = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString(tabId + ".title");
 			AbstractButton tab = findButton(host, title);
@@ -302,7 +304,7 @@ class RibbonTabGuiAcceptanceTest {
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
-		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask"));
+		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask", "TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask"));
 		// Keep the window within a normal desktop at 125/150%; commands that do
 		// not fit are intentionally represented by the responsive popup route.
 		show(host, 1000, false);
@@ -335,7 +337,7 @@ class RibbonTabGuiAcceptanceTest {
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 
-		List<String> contextualTabs = List.of("NetworkFormatRibbonTask", "CalendarFormatRibbonTask");
+		List<String> contextualTabs = List.of("NetworkFormatRibbonTask", "CalendarFormatRibbonTask", "TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask");
 		for (String tabId : contextualTabs) {
 			// Simulate the active-view transition: a contextual tab is hidden until
 			// the corresponding view publishes its descriptor, then becomes visible.
@@ -347,6 +349,8 @@ class RibbonTabGuiAcceptanceTest {
 			SwingUtilities.invokeAndWait(() -> ribbon.setVisibleContextualTabs(Set.of(tabId)));
 			GuiPhysicalRouteAdapter.awaitVisible(tab::isShowing,
 				"contextual tab did not become visible after view transition: " + tabId);
+			// Successive contextual tabs share one screen position; wait out the double-click interval so the click selects the tab instead of collapsing the ribbon.
+			robot.delay(700);
 			click(robot, tab);
 			GuiAcceptanceSupport.await(tab::isSelected,
 				"Robot click did not select contextual tab " + tabId);
@@ -358,7 +362,7 @@ class RibbonTabGuiAcceptanceTest {
 			Set<String> contextualButtons = MenuDefinitionSupport.ribbonButtonIdsForTask(tabId);
 			assertTrue(!contextualButtons.isEmpty(), tabId + " must expose a non-empty format surface");
 			for (String buttonId : contextualButtons) {
-				AbstractButton button = GuiPhysicalRouteAdapter.visibleButton(host, buttonId);
+				AbstractButton button = GuiPhysicalRouteAdapter.visibleButton(robot, host, buttonId);
 				assertTrue(button.isEnabled(), () -> tabId + " command is unexpectedly disabled: " + buttonId);
 				String actionId = manager.getToolBarFactory().getActionStringFromId(buttonId);
 				assertTrue(actionId != null && !actionId.isBlank(),
@@ -573,7 +577,39 @@ class RibbonTabGuiAcceptanceTest {
 			AbstractButton newProject = (AbstractButton)namedComponent(backstage, "officeBackstageCommand-RibbonNewProject");
 			assertTrue(newProject != null && newProject.isShowing(), "New must be available in Backstage details");
 			assertTrue(newProject.isEnabled(), "New must be enabled on the File ribbon without a document");
+			// Issue #1115: Back on top, the Microsoft Project destination order, Options pinned to the bottom.
+			JComponent navigation = (JComponent)namedComponent(backstage, "officeBackstageNavigation");
+			assertEquals(com.microproject.ui.theme.MicroProjectTheme.tokens().backstageNavigationBackground(),
+				navigation.getBackground(), "Backstage navigation must use the theme's accent navigation colour");
+			int previousY = namedComponent(backstage, "officeBackstageBack").getLocationOnScreen().y;
+			for (String page : new String[] { "new", "open", "info", "save", "saveAs", "print", "export", "close", "options" }) {
+				Component destination = namedComponent(backstage, "officeBackstageNav-" + page);
+				assertTrue(destination != null && destination.isShowing(), "Backstage destination is not visible: " + page);
+				int y = destination.getLocationOnScreen().y;
+				assertTrue(y > previousY, "Backstage destination is out of order: " + page);
+				previousY = y;
+			}
+			Component options = namedComponent(backstage, "officeBackstageNav-options");
+			int navigationBottom = navigation.getLocationOnScreen().y + navigation.getHeight();
+			assertTrue(navigationBottom - (options.getLocationOnScreen().y + options.getHeight()) <= 16,
+				"Options must be pinned to the bottom of the Backstage navigation");
+			namedComponent(backstage, "officeBackstageNav-new").requestFocusInWindow();
 		});
+		GuiAcceptanceSupport.await(() -> namedComponent(frame.getRootPane(), "officeBackstageNav-new").isFocusOwner(),
+			"Backstage New destination did not take focus");
+		robot.keyPress(KeyEvent.VK_DOWN);
+		robot.keyRelease(KeyEvent.VK_DOWN);
+		GuiAcceptanceSupport.await(() -> namedComponent(frame.getRootPane(), "officeBackstageNav-open").isFocusOwner(),
+			"Down did not move focus to the next Backstage destination");
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(
+			() -> namedComponent(frame.getRootPane(), "officeBackstageCommand-RibbonOpenProject") != null,
+			"Enter did not open the focused Backstage destination");
+		robot.keyPress(KeyEvent.VK_UP);
+		robot.keyRelease(KeyEvent.VK_UP);
+		GuiAcceptanceSupport.await(() -> namedComponent(frame.getRootPane(), "officeBackstageNav-new").isFocusOwner(),
+			"Up did not move focus to the previous Backstage destination");
 		captureVisibleRibbon(robot, "ribbon-file-backstage-open.png");
 		robot.keyPress(KeyEvent.VK_ESCAPE);
 		robot.keyRelease(KeyEvent.VK_ESCAPE);
@@ -613,6 +649,48 @@ class RibbonTabGuiAcceptanceTest {
 		AbstractButton restoredTask = findButton(host, taskTitle);
 		assertTrue(restoredTask.isSelected(), "Closing Backstage did not restore the previously selected ribbon tab");
 		captureVisibleRibbon(robot, "ribbon-file-backstage.png");
+	}
+
+	@Test
+	void backstageClosesBeforeTheOptionsCommandOpensItsModalDialog() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI coverage.");
+		ModalCommandActionMap actions = new ModalCommandActionMap();
+		MenuManager manager = MenuManager.getInstance(actions);
+		actions.modalActionId = manager.getToolBarFactory().getActionStringFromId("RibbonBackstageOptions");
+		MainRibbonFrame mainFrame = new MainRibbonFrame("Backstage modal ordering", null);
+		frame = mainFrame;
+		MicroProjectShell.installRibbonShell(mainFrame, manager, null);
+		JPanel host = mainFrame.getRibbonPanel();
+		SwingUtilities.invokeAndWait(() -> {
+			frame.setSize(1100, 700);
+			frame.setLocation(0, 0);
+			frame.setVisible(true);
+		});
+		String taskTitle = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString("TaskRibbonTask.title");
+		String fileTitle = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString("FileRibbonTask.title");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		click(robot, findButton(host, taskTitle));
+		click(robot, findButton(host, fileTitle));
+		GuiAcceptanceSupport.await(() -> namedComponent(frame.getRootPane(), "officeBackstageOverlay") != null,
+			"File tab did not open Backstage");
+		clickCommand(robot, (AbstractButton)namedComponent(frame.getRootPane(), "officeBackstageNav-options"));
+		AbstractButton options = (AbstractButton)namedComponent(frame.getRootPane(), "officeBackstageCommand-RibbonBackstageOptions");
+		assertTrue(options != null, "Options destination omitted the General Options action");
+		int before = actions.count(actions.modalActionId);
+		clickCommand(robot, options);
+		GuiAcceptanceSupport.await(() -> actions.modalOpened.get(),
+			"The Options command did not open its modal dialog");
+		assertEquals(Boolean.FALSE, actions.overlayPresentWhenModalOpened.get(),
+			"Backstage must already be closed when the command's modal dialog becomes visible");
+		assertEquals(before + 1, actions.count(actions.modalActionId),
+			"The Options command must run exactly once");
+		GuiAcceptanceSupport.await(() -> namedComponent(frame.getRootPane(), "officeBackstageOverlay") == null,
+			"Backstage remained open after invoking a command");
+		AbstractButton restoredTask = findButton(host, taskTitle);
+		assertTrue(restoredTask.isSelected(), "Closing Backstage did not restore the previously selected ribbon tab");
+		GuiAcceptanceSupport.await(restoredTask::isFocusOwner,
+			"Focus did not return to the previously active ribbon tab after the modal command");
 	}
 
 	private static Component namedComponent(Component root, String name) {
@@ -1284,6 +1362,56 @@ class RibbonTabGuiAcceptanceTest {
 		assertTrue(screenshot.getWidth() == bounds[0].width && screenshot.getHeight() == bounds[0].height
 			&& screenshot.getWidth() >= screenAwareMinimumWidth && screenshot.getHeight() > 120,
 			"captured ribbon is unexpectedly small: " + screenshot.getWidth() + "x" + screenshot.getHeight());
+	}
+
+	/** Records whether the Backstage overlay is still attached when a modal command dialog opens. */
+	private final class ModalCommandActionMap implements ProjectMenuActionMap {
+		private final RecordingActionMap delegate = new RecordingActionMap();
+		private String modalActionId;
+		private final java.util.concurrent.atomic.AtomicBoolean modalOpened = new java.util.concurrent.atomic.AtomicBoolean();
+		private final AtomicReference<Boolean> overlayPresentWhenModalOpened = new AtomicReference<>();
+
+		@Override
+		public Action getAction(String key) {
+			Action recorded = delegate.getAction(key);
+			if (!key.equals(modalActionId)) return recorded;
+			return new AbstractAction(key) {
+				@Override
+				public void actionPerformed(java.awt.event.ActionEvent event) {
+					recorded.actionPerformed(event);
+					JDialog dialog = new JDialog(frame, "Preferences probe", true);
+					dialog.setName("backstageModalCommandProbe");
+					dialog.addWindowListener(new java.awt.event.WindowAdapter() {
+						@Override public void windowOpened(java.awt.event.WindowEvent event) {
+							modalOpened.set(true);
+							dialog.dispose();
+						}
+					});
+					// Safety net so a missed windowOpened cannot leave the suite in a modal loop.
+					javax.swing.Timer guard = new javax.swing.Timer(10000, e -> dialog.dispose());
+					guard.setRepeats(false);
+					guard.start();
+					dialog.setSize(320, 200);
+					dialog.setLocationRelativeTo(frame);
+					overlayPresentWhenModalOpened.set(
+						namedComponent(frame.getRootPane(), "officeBackstageOverlay") != null);
+					try {
+						dialog.setVisible(true);
+					} finally {
+						guard.stop();
+					}
+				}
+			};
+		}
+
+		@Override
+		public String getStringFromAction(Action action) {
+			return delegate.getStringFromAction(action);
+		}
+
+		int count(String actionId) {
+			return delegate.count(actionId);
+		}
 	}
 
 	private static final class RecordingActionMap implements ProjectMenuActionMap {
