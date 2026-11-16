@@ -795,9 +795,10 @@ class RibbonTabGuiAcceptanceTest {
 		robot.setAutoDelay(40);
 		click(robot, findButton(host, taskTitle));
 		click(robot, findButton(host, fileTitle));
-		GuiAcceptanceSupport.await(() -> namedComponent(frame.getRootPane(), "officeBackstageOverlay") != null,
+		GuiAcceptanceSupport.await(() -> findShowingComponent(frame.getRootPane(), "officeBackstageOverlay") != null
+			&& findShowingComponent(frame.getRootPane(), "officeBackstageNav-options") instanceof AbstractButton,
 			"File tab did not open Backstage");
-		clickCommand(robot, (AbstractButton)namedComponent(frame.getRootPane(), "officeBackstageNav-options"));
+		clickCommand(robot, (AbstractButton)findShowingComponent(frame.getRootPane(), "officeBackstageNav-options"));
 		AbstractButton options = (AbstractButton)namedComponent(frame.getRootPane(), "officeBackstageCommand-RibbonBackstageOptions");
 		assertTrue(options != null, "Options destination omitted the General Options action");
 		int before = actions.count(actions.modalActionId);
