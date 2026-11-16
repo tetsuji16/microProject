@@ -32,6 +32,7 @@ import java.beans.PropertyChangeListener;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
@@ -171,6 +172,11 @@ final class RibbonControlPopups {
 	 * remain the physical hit targets inside that row.
 	 */
 	static JMenu createNestedSplitMenu(AbstractButton button) {
+		return createNestedSplitMenu(button, MenuSelectionManager.defaultManager(), javax.swing.SwingUtilities::invokeLater);
+	}
+
+	static JMenu createNestedSplitMenu(AbstractButton button, MenuSelectionManager selectionManager,
+		Consumer<Runnable> defer) {
 		if (button.getClientProperty(CONTROL_KIND_PROPERTY) != RibbonControlKind.SPLIT_BUTTON
 			|| !(button.getClientProperty(POPUP_PROPERTY) instanceof JPopupMenu popup)
 			|| !(button.getClientProperty(ARROW_BUTTON_PROPERTY) instanceof JButton arrow)) {
@@ -185,9 +191,10 @@ final class RibbonControlPopups {
 		}
 		arrow.addActionListener(event -> {
 			if (arrow.isShowing() && button.isEnabled() && prepareForShow(popup)) {
-				selectNestedPopupPath(menu, popup);
+				selectNestedPopupPath(menu, popup, selectionManager);
 			}
 		});
+		button.addActionListener(event -> defer.accept(selectionManager::clearSelectedPath));
 		menu.setLayout(null);
 		menu.attachSplitPrimary(button);
 		menu.setPreferredSize(button.getPreferredSize());

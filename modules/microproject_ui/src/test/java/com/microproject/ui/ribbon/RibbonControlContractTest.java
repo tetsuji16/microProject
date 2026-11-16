@@ -33,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.event.ActionEvent;
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.ListResourceBundle;
 import java.util.Locale;
@@ -200,8 +201,10 @@ class RibbonControlContractTest {
 		RibbonControlPopups.install(button, specification(RibbonControlKind.SPLIT_BUTTON), commandSource(), key -> null);
 		JPopupMenu popup = assertInstanceOf(JPopupMenu.class, button.getClientProperty(RibbonControlPopups.POPUP_PROPERTY));
 		java.awt.Component firstPopupItem = popup.getComponent(0);
+		RecordingMenuSelectionManager manager = new RecordingMenuSelectionManager();
+		List<Runnable> deferred = new ArrayList<>();
 
-		JMenu splitMenu = RibbonControlPopups.createNestedSplitMenu(button);
+		JMenu splitMenu = RibbonControlPopups.createNestedSplitMenu(button, manager, deferred::add);
 		JButton arrow = assertInstanceOf(JButton.class,
 			button.getClientProperty(RibbonControlPopups.ARROW_BUTTON_PROPERTY));
 
@@ -214,16 +217,22 @@ class RibbonControlContractTest {
 		assertTrue(splitMenu.getPopupMenu() == popup, "the split row must reuse the existing popup instance");
 		assertTrue(popup.getInvoker() == splitMenu, "Swing submenu selection must identify the row JMenu as invoker");
 		assertTrue(popup.getComponent(0) == firstPopupItem, "the existing popup command items must not be copied");
-		assertNativeSplitArrowSelectionPath(splitMenu, popup);
+		assertNativeSplitArrowSelectionPath(splitMenu, popup, manager);
 
 		button.doClick(0);
 		assertEquals(1, invoked.get(), "the split primary action must remain available after arrow replacement");
+		assertEquals(3, manager.getSelectedPath().length,
+			"the menu path remains intact while primary action listeners finish dispatching");
+		assertEquals(1, deferred.size(), "primary activation schedules menu-path cleanup after action dispatch");
+		deferred.remove(0).run();
+		assertEquals(0, manager.getSelectedPath().length,
+			"primary activation must close the enclosing popup path after dispatch");
 	}
 
-	private static void assertNativeSplitArrowSelectionPath(JMenu splitMenu, JPopupMenu popup) {
+	private static void assertNativeSplitArrowSelectionPath(JMenu splitMenu, JPopupMenu popup,
+		RecordingMenuSelectionManager manager) {
 		JPopupMenu outer = new JPopupMenu();
 		outer.add(splitMenu);
-		RecordingMenuSelectionManager manager = new RecordingMenuSelectionManager();
 		assertTrue(RibbonControlPopups.selectNestedPopupPath(splitMenu, popup, manager),
 			"the direct-child split menu must be selectable from its containing popup");
 		MenuElement[] selectedPath = manager.getSelectedPath();
@@ -244,6 +253,11 @@ class RibbonControlContractTest {
 		@Override
 		public MenuElement[] getSelectedPath() {
 			return selectedPath.clone();
+		}
+
+		@Override
+		public void clearSelectedPath() {
+			selectedPath = new MenuElement[0];
 		}
 	}
 
