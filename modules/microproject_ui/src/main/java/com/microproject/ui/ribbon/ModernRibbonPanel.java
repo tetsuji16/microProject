@@ -1926,7 +1926,8 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 				command.setMaximumSize(new Dimension(260, command.getPreferredSize().height));
 			}
 			JMenu nestedMenu = RibbonControlPopups.createNestedMenu(command);
-			popup.add(nestedMenu == null ? command : nestedMenu);
+			JMenu nestedSplitMenu = nestedMenu == null ? RibbonControlPopups.createNestedSplitMenu(command) : null;
+			popup.add(nestedMenu != null ? nestedMenu : nestedSplitMenu != null ? nestedSplitMenu : command);
 		}
 	}
 

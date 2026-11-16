@@ -197,6 +197,7 @@ class RibbonTabGuiAcceptanceTest {
 	 * instead of this recording ActionMap.
 	 */
 	@Test
+	@org.junit.jupiter.api.Timeout(300)
 	void robotClicksEveryStandardRibbonCommandOnce() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Assumptions.assumeTrue(uiScale() <= 1.0d,
@@ -351,6 +352,15 @@ class RibbonTabGuiAcceptanceTest {
 		assertTrue(!popupCommands.isEmpty(), () -> commandId + " popup has no actionable command items");
 		for (String popupCommand : popupCommands) {
 			if (!popup.isVisible()) {
+				if (proxy != null && !button.isShowing()) {
+					JPopupMenu collapsed = (JPopupMenu) proxy.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY);
+					clickCommand(robot, proxy);
+					GuiAcceptanceSupport.await(collapsed::isVisible, "responsive group did not reopen for " + commandId);
+					button = findPopupCommand(collapsed, commandId);
+					assertTrue(button != null && button.isShowing(), "responsive command did not reappear: " + commandId);
+					popup = (JPopupMenu) button.getClientProperty(RibbonControlPopups.POPUP_PROPERTY);
+					assertTrue(popup != null, "responsive command lost its popup: " + commandId);
+				}
 				if (kind == RibbonControlKind.SPLIT_BUTTON) {
 					AbstractButton arrow = (AbstractButton) button.getClientProperty(RibbonControlPopups.ARROW_BUTTON_PROPERTY);
 					clickCommand(robot, arrow);
@@ -360,8 +370,8 @@ class RibbonTabGuiAcceptanceTest {
 				GuiAcceptanceSupport.await(popup::isVisible, commandId + " popup did not reopen");
 			}
 			AbstractButton item = findPopupCommand(popup, popupCommand);
-			assertTrue(item != null && item.isShowing() && item.isEnabled(),
-				() -> commandId + " popup item is not physically actionable: " + popupCommand);
+			GuiAcceptanceSupport.await(() -> item != null && item.isShowing() && item.isEnabled(),
+				commandId + " popup item is not physically actionable: " + popupCommand);
 			String actionId = manager.getToolBarFactory().getActionStringFromId(popupCommand);
 			int before = actions.count(actionId);
 			Point clickPoint = clickCommand(robot, item);
@@ -801,7 +811,7 @@ class RibbonTabGuiAcceptanceTest {
 	}
 
 	@Test
-	void viewRibbonKeepsTheLargeGanttButtonVisibleAndDispatchesItOnce() throws Exception {
+	void viewRibbonKeepsGanttReachableAndDispatchesItOnce() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		RecordingActionMap actions = new RecordingActionMap();
 		MenuManager manager = MenuManager.getInstance(actions);
@@ -819,16 +829,22 @@ class RibbonTabGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> { });
 
 		AbstractButton gantt = findAttachedButtonByCommand(host, "RibbonGantt");
-		SwingUtilities.invokeAndWait(() -> assertContainedInRibbonBand(gantt));
+		if (frame.getWidth() >= 1200) {
+			assertTrue(gantt != null, "the large Gantt button must be visible at full width");
+			AbstractButton largeGantt = gantt;
+			SwingUtilities.invokeAndWait(() -> assertContainedInRibbonBand(largeGantt));
+		} else if (gantt == null) {
+			gantt = com.microproject.testsupport.RibbonGuiSupport.findVisibleOrExpand(robot, host, "RibbonGantt");
+		}
 		Rectangle ganttScreenBounds = safeScreenBounds(gantt);
 		Rectangle windowBounds = frame.getBounds();
 		assertTrue(windowBounds.contains(ganttScreenBounds),
 			() -> "RibbonGantt must be fully visible in the Robot window: button=" + ganttScreenBounds + " window=" + windowBounds);
-		captureVisibleRibbon(robot, "ribbon-view-gantt-layout.png");
+		captureVisibleRibbon(robot, "ribbon-view-gantt-layout.png", Math.min(900, frame.getWidth() - 32));
 
 		String actionId = manager.getToolBarFactory().getActionStringFromId("RibbonGantt");
 		int before = actions.count(actionId);
-		click(robot, gantt);
+		com.microproject.testsupport.RibbonGuiSupport.clickSplitPrimary(robot, gantt);
 		GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
 			"Robot click did not dispatch RibbonGantt exactly once");
 	}

@@ -46,6 +46,8 @@ import javax.swing.JButton;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import javax.swing.MenuElement;
+import javax.swing.MenuSelectionManager;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
@@ -188,6 +190,60 @@ class RibbonControlContractTest {
 		assertTrue(popup.getInvoker() == nested, "the original popup must identify the facade as its JMenu invoker");
 		assertTrue(nested.getSubElements().length == 1 && nested.getSubElements()[0] == popup,
 			"Swing menu traversal must expose the original popup as its only submenu");
+	}
+
+	@Test
+	void collapsedSplitButtonKeepsPrimaryActionAndUsesItsExistingPopupForTheArrowSubmenu() {
+		AtomicInteger invoked = new AtomicInteger();
+		JButton button = countingButton(invoked);
+		button.setActionCommand("RibbonPaste");
+		RibbonControlPopups.install(button, specification(RibbonControlKind.SPLIT_BUTTON), commandSource(), key -> null);
+		JPopupMenu popup = assertInstanceOf(JPopupMenu.class, button.getClientProperty(RibbonControlPopups.POPUP_PROPERTY));
+		java.awt.Component firstPopupItem = popup.getComponent(0);
+
+		JMenu splitMenu = RibbonControlPopups.createNestedSplitMenu(button);
+		JButton arrow = assertInstanceOf(JButton.class,
+			button.getClientProperty(RibbonControlPopups.ARROW_BUTTON_PROPERTY));
+
+		assertNotNull(splitMenu);
+		assertEquals(0, invoked.get(), "installing a native arrow submenu must not invoke the primary command");
+		assertEquals("RibbonPaste", button.getActionCommand());
+		assertEquals(button, arrow.getParent());
+		assertEquals(RibbonControlPopups.ARROW_BUTTON_NAME_PREFIX + "RibbonPaste", arrow.getName());
+		assertEquals(splitMenu, button.getParent(), "the primary control remains in the same menu row");
+		assertTrue(splitMenu.getPopupMenu() == popup, "the split row must reuse the existing popup instance");
+		assertTrue(popup.getInvoker() == splitMenu, "Swing submenu selection must identify the row JMenu as invoker");
+		assertTrue(popup.getComponent(0) == firstPopupItem, "the existing popup command items must not be copied");
+		assertNativeSplitArrowSelectionPath(splitMenu, popup, (MenuElement) firstPopupItem);
+
+		button.doClick(0);
+		assertEquals(1, invoked.get(), "the split primary action must remain available after arrow replacement");
+	}
+
+	private static void assertNativeSplitArrowSelectionPath(JMenu splitMenu, JPopupMenu popup,
+		MenuElement firstItem) {
+		JPopupMenu outer = new JPopupMenu();
+		outer.add(splitMenu);
+		MenuSelectionManager manager = MenuSelectionManager.defaultManager();
+		MenuElement[] previousPath = manager.getSelectedPath();
+		try {
+			assertTrue(RibbonControlPopups.selectNestedPopupPath(splitMenu, popup),
+				"the direct-child split menu must be selectable from its containing popup");
+			MenuElement[] selectedPath = manager.getSelectedPath();
+			assertEquals(3, selectedPath.length);
+			assertTrue(selectedPath[0] == outer && selectedPath[1] == splitMenu && selectedPath[2] == popup,
+				"opening the arrow must preserve the outer JMenu and original submenu in the selection path");
+
+			MenuElement[] submenuPath = { outer, splitMenu, popup, firstItem };
+			manager.setSelectedPath(submenuPath);
+			selectedPath = manager.getSelectedPath();
+			assertEquals(4, selectedPath.length);
+			assertTrue(selectedPath[0] == outer && selectedPath[1] == splitMenu
+				&& selectedPath[2] == popup && selectedPath[3] == firstItem,
+				"the original popup and its first item must extend the containing menu path");
+		} finally {
+			manager.setSelectedPath(previousPath);
+		}
 	}
 
 	@Test

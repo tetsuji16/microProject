@@ -23,6 +23,7 @@
  *******************************************************************************/
 package com.microproject.ui.ribbon;
 
+import java.awt.Container;
 import java.awt.event.ActionListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
@@ -44,6 +45,7 @@ import javax.swing.JTextField;
 import javax.swing.JMenuItem;
 import javax.swing.JMenu;
 import javax.swing.MenuElement;
+import javax.swing.MenuSelectionManager;
 import javax.swing.JPopupMenu;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.event.PopupMenuEvent;
@@ -163,14 +165,60 @@ final class RibbonControlPopups {
 		return new ExistingPopupMenu(button, popup);
 	}
 
+	/**
+	 * Wraps a transient split button in a direct-child JMenu so BasicMenuUI can keep
+	 * the containing popup in its selection path. The primary button and its arrow
+	 * remain the physical hit targets inside that row.
+	 */
+	static JMenu createNestedSplitMenu(AbstractButton button) {
+		if (button.getClientProperty(CONTROL_KIND_PROPERTY) != RibbonControlKind.SPLIT_BUTTON
+			|| !(button.getClientProperty(POPUP_PROPERTY) instanceof JPopupMenu popup)
+			|| !(button.getClientProperty(ARROW_BUTTON_PROPERTY) instanceof JButton arrow)) {
+			return null;
+		}
+		if (arrow.getParent() != button) {
+			return null;
+		}
+		ExistingPopupMenu menu = new ExistingPopupMenu(button, popup, true);
+		for (ActionListener listener : arrow.getActionListeners()) {
+			arrow.removeActionListener(listener);
+		}
+		arrow.addActionListener(event -> {
+			if (arrow.isShowing() && button.isEnabled() && prepareForShow(popup)) {
+				selectNestedPopupPath(menu, popup);
+			}
+		});
+		menu.setLayout(null);
+		menu.attachSplitPrimary(button);
+		menu.setPreferredSize(button.getPreferredSize());
+		menu.setMinimumSize(button.getMinimumSize());
+		menu.setMaximumSize(button.getMaximumSize());
+		return menu;
+	}
+
+	/** Selects the containing popup, its split menu and the existing submenu as one Swing path. */
+	static boolean selectNestedPopupPath(JMenu menu, JPopupMenu popup) {
+		if (!(menu.getParent() instanceof JPopupMenu outerPopup)) {
+			return false;
+		}
+		MenuSelectionManager.defaultManager().setSelectedPath(new MenuElement[] { outerPopup, menu, popup });
+		return true;
+	}
+
 	/** JMenu backed by the existing control popup, rather than an independent popup. */
 	private static final class ExistingPopupMenu extends JMenu {
 		private final AbstractButton source;
 		private final JPopupMenu popup;
+		private final boolean splitHost;
 
 		ExistingPopupMenu(AbstractButton source, JPopupMenu popup) {
+			this(source, popup, false);
+		}
+
+		ExistingPopupMenu(AbstractButton source, JPopupMenu popup, boolean splitHost) {
 			this.source = source;
 			this.popup = popup;
+			this.splitHost = splitHost;
 			// JMenu's own popup is normally assigned this invoker by
 			// ensurePopupMenuCreated(). This facade returns an existing popup instead,
 			// so establish the same invoker relationship explicitly; JPopupMenu's
@@ -182,7 +230,7 @@ final class RibbonControlPopups {
 			}
 			putClientProperty(CONTROL_KIND_PROPERTY, source.getClientProperty(CONTROL_KIND_PROPERTY));
 			putClientProperty(POPUP_PROPERTY, popup);
-			putClientProperty(KEY_TIP_PROPERTY, source.getClientProperty(KEY_TIP_PROPERTY));
+			putClientProperty(KEY_TIP_PROPERTY, splitHost ? null : source.getClientProperty(KEY_TIP_PROPERTY));
 			popup.addPopupMenuListener(new PopupMenuListener() {
 				@Override
 				public void popupMenuWillBecomeVisible(PopupMenuEvent event) {
@@ -204,17 +252,23 @@ final class RibbonControlPopups {
 			});
 		}
 
+		void attachSplitPrimary(AbstractButton primary) {
+			// JMenu.add(Component) adds to its submenu. Use Container.addImpl here
+			// because the split primary is a visual hit target in the same row.
+			super.addImpl(primary, null, -1);
+		}
+
 		private void copyPresentation() {
-			setText(source.getText());
-			setIcon(source.getIcon());
+			setText(splitHost ? null : source.getText());
+			setIcon(splitHost ? null : source.getIcon());
 			setToolTipText(source.getToolTipText());
 			setEnabled(source.isEnabled());
 			setMnemonic(source.getMnemonic());
-			setActionCommand(source.getActionCommand());
+			setActionCommand(splitHost ? null : source.getActionCommand());
 			setFont(source.getFont());
 			setForeground(source.getForeground());
 			setBackground(source.getBackground());
-			setName(source.getName());
+			setName(splitHost ? ARROW_BUTTON_NAME_PREFIX + source.getActionCommand() : source.getName());
 			putClientProperty(RibbonButtonStyler.SIZE_PROPERTY,
 				source.getClientProperty(RibbonButtonStyler.SIZE_PROPERTY));
 			putClientProperty(RibbonButtonStyler.ICON_KEY_PROPERTY,
@@ -222,6 +276,16 @@ final class RibbonControlPopups {
 			putClientProperty("MicroProject.ribbonSplit", source.getClientProperty("MicroProject.ribbonSplit"));
 			getAccessibleContext().setAccessibleName(source.getAccessibleContext().getAccessibleName());
 			getAccessibleContext().setAccessibleDescription(source.getAccessibleContext().getAccessibleDescription());
+		}
+
+		@Override
+		public void doLayout() {
+			if (splitHost) {
+				source.setBounds(0, 0, getWidth(), getHeight());
+				source.doLayout();
+				return;
+			}
+			super.doLayout();
 		}
 
 		@Override
