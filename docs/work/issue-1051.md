@@ -13,10 +13,10 @@ Preserve the issue's original contract: attributes and normalized line endings; 
 | ID | Required result | State / evidence |
 |---|---|---|
 | A1 | Attributes and line-ending evidence | PR #1070 added attributes; `git ls-files --eol` and renormalization evidence in PR #1070. |
-| A2 | Consolidate duplicate content; preserve public routes | Local redirect checks passed: `website/` is canonical, `docs/usage-guide-ja.html` redirects with query/fragment; destination HTTP 200. Redirect copies remain intentional for legacy publishers. Deployment CI pending. |
+| A2 | Consolidate duplicate content; preserve public routes | Local redirect checks passed: `website/` is canonical, `docs/usage-guide-ja.html` redirects with query/fragment; destination HTTP 200. Redirect copies remain intentional for legacy publishers. Route checks passed; public deployment after merge remains to be confirmed. |
 | A3 | Remove temporary samples | PR #1070 removed tmp0 XML. `plan2.pod` is a fixed test fixture and must remain (PodRoundTripTest, PodSampleResourceRoundTripTest, PodResourceViewGuiAcceptanceTest). |
-| A4 | Comment findings and proposal for large files and archive | Draft below; issue comment still required. Owner decides large-file removal/moves. |
-| A5 | Verification and PR | Local build failed in two UI tests; build and GUI acceptance CI required by issue remain pending. |
+| A4 | Comment findings and proposal for large files and archive | Findings and candidate list posted in issue comment; owner retains the move/delete decision. |
+| A5 | Verification and PR | Local build failed in two UI tests; both passed individually. Required Windows/macOS/Linux build and Windows GUI acceptance CI passed on b420c015e. |
 
 ## Findings for A4
 
@@ -103,13 +103,14 @@ Dated root reports for separate review:
 
 ## Current slice
 
-**Next slice:** Validate redirects and line endings, then prepare the required issue comment and PR evidence.
-**Done when:** route checks pass and all acceptance rows have evidence or a precise blocker.
-**Then:** integration and issue closure only after required CI and issue comment.
+**Next slice:** Integrate PR #1128 against current master and verify the deployed public route.
+**Done when:** required CI passes on the integrated candidate and the public redirect works after deployment.
+**Then:** close the issue if all original acceptance criteria remain satisfied.
 
 ## Latest evidence
 
 - Baseline PR #1070: https://github.com/tetsuji16/microProject/pull/1070
 - Physical GUI: not applicable to HTML/document-only changes; issue still requires GUI acceptance CI.
 - Local build: `./gradlew.bat build -x guiTest --console=plain` failed: UI `IconManagerRibbonIconTest.taskTreeExpandersPreserveTheirNinePixelRasterShapeAndScaleAsVectors` and `MicrosoftProjectGanttPaletteTest.mapsSummaryAndBaselineFormatsToTheirMicrosoftProjectColors` (2 of 1440 UI tests). Documentation-only changes do not touch their code; cause not established.
-- CI: pending candidate SHA.
+- CI: Windows, macOS, and Linux build and Windows GUI acceptance passed on `b420c015e`: https://github.com/tetsuji16/microProject/actions/runs/43448965523 and https://github.com/tetsuji16/microProject/actions/runs/43448965429.
+- Required findings and archive proposal were posted on issue #1051; the packet above retains the candidate list.
