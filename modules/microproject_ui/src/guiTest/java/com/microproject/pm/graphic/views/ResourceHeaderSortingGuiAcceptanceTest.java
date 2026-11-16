@@ -463,7 +463,7 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			String viewTabText = java.util.ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("ViewRibbonTask.title");
 			click(robot, GuiAcceptanceSupport.findShowingButtonByText(window, viewTabText));
-			click(robot, RibbonGuiSupport.findVisibleOrExpand(robot, window.getRibbonPanel(), "RibbonResources"));
+			RibbonGuiSupport.clickSplitPrimary(robot, RibbonGuiSupport.findVisibleOrExpand(robot, window.getRibbonPanel(), "RibbonResources"));
 			// No notification is specified by the Resource View command. An unknown
 			// dialog may be an error and must not be silently acknowledged.
 			List<Window> dialogs = java.util.Arrays.stream(Window.getWindows())
@@ -474,7 +474,7 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			assertEquals(initialResourceCount, pool.getResourceList().size(), "opening the view must retain all resources");
 
 			click(robot, GuiAcceptanceSupport.findShowingButtonByText(window, viewTabText));
-			click(robot, RibbonGuiSupport.findVisibleOrExpand(robot, window.getRibbonPanel(), "RibbonGantt"));
+			RibbonGuiSupport.clickSplitPrimary(robot, RibbonGuiSupport.findVisibleOrExpand(robot, window.getRibbonPanel(), "RibbonGantt"));
 			GuiAcceptanceSupport.await(() -> frame.getActiveTopView() != null && frame.getActiveTopView().showsTasks(),
 				"physical Gantt ribbon command did not restore a task view");
 			SpreadSheet ganttSheet = frame.getGanttView().getSpreadSheet();
@@ -515,7 +515,7 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 				"physical Gantt task-row click did not select the rendered task after resize");
 
 			click(robot, GuiAcceptanceSupport.findShowingButtonByText(window, viewTabText));
-			click(robot, RibbonGuiSupport.findVisibleOrExpand(robot, window.getRibbonPanel(), "RibbonResources"));
+			RibbonGuiSupport.clickSplitPrimary(robot, RibbonGuiSupport.findVisibleOrExpand(robot, window.getRibbonPanel(), "RibbonResources"));
 			GuiAcceptanceSupport.await(() -> frame.getActiveTopView() instanceof ResourceView,
 				"physical Resource ribbon command did not restore Resource View after Gantt resize");
 			SpreadSheet resourceSheet = frame.getResourceView().getSpreadSheet();

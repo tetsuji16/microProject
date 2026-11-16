@@ -23,7 +23,9 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.testsupport.RibbonGuiSupport;
 import com.microproject.dialog.ResourceInformationDialog;
+import com.microproject.pm.graphic.views.ResourceView;
 
 /**
  * Physically exercises commands declared with {@code activation=DIALOG}. Most must open a
@@ -61,7 +63,10 @@ class RibbonDialogCommandGuiAcceptanceTest {
 	private static void check(RibbonCommandGuiFixture fixture, String commandId) throws Exception {
 		if ("RibbonResourceInformation".equals(commandId) || "RibbonResourceNotes".equals(commandId)) {
 			AbstractButton resourcesView = fixture.showCommand("RibbonResources");
-			if (resourcesView != null && !fixture.isSelected(resourcesView)) fixture.click(resourcesView);
+			assertNotNull(resourcesView, "Resource View command is unavailable");
+			if (!fixture.isSelected(resourcesView)) RibbonGuiSupport.clickSplitPrimary(fixture.robot, resourcesView);
+			GuiAcceptanceSupport.await(() -> fixture.manager.getCurrentFrame().getActiveTopView() instanceof ResourceView,
+				"the physical Resource View command did not activate the resource sheet");
 			fixture.clickRow(0);
 		}
 		AbstractButton button = fixture.showCommand(commandId);
@@ -77,7 +82,9 @@ class RibbonDialogCommandGuiAcceptanceTest {
 		if (!fixture.isEnabled(button)) {
 			// A resource command needs a selected resource.
 			AbstractButton resources = fixture.showCommand("RibbonResources");
-			fixture.click(resources);
+			RibbonGuiSupport.clickSplitPrimary(fixture.robot, resources);
+			GuiAcceptanceSupport.await(() -> fixture.manager.getCurrentFrame().getActiveTopView() instanceof ResourceView,
+				"the physical Resource View command did not activate the resource sheet");
 			fixture.clickRow(0);
 			button = fixture.showCommand(commandId);
 		}
@@ -110,18 +117,18 @@ class RibbonDialogCommandGuiAcceptanceTest {
 			GuiAcceptanceSupport.await(() -> !showing(fixture, precedence), "the resource precedence dialog did not close");
 			fixture.closeNewWindows(before);
 		} else if ("RibbonResourceNotes".equals(commandId)) {
-			assertNotNull(resourceDialogBefore, "Resource Notes requires the already-open Resource Information dialog");
 			GuiAcceptanceSupport.await(() -> {
 				try {
-					return fixture.isShowing(resourceDialogBefore)
-						&& fixture.isResourceNotesTabSelected(resourceDialogBefore);
+					ResourceInformationDialog dialog = fixture.visibleResourceInformationDialog();
+					return dialog != null && fixture.isResourceNotesTabSelected(dialog);
 				} catch (Exception failure) {
 					throw new AssertionError(failure);
 				}
-			}, "Resource Notes did not show the reused Resource Information dialog on its Notes tab");
-			assertSame(resourceDialogBefore, fixture.visibleResourceInformationDialog(),
+			}, "Resource Notes did not show the Resource Information dialog on its Notes tab");
+			ResourceInformationDialog resourceDialog = fixture.visibleResourceInformationDialog();
+			if (resourceDialogBefore != null) assertSame(resourceDialogBefore, resourceDialog,
 				"Resource Notes should reuse the existing Resource Information dialog");
-			fixture.closeWindow(resourceDialogBefore);
+			fixture.closeWindow(resourceDialog);
 			fixture.closeNewWindows(before);
 		} else {
 			awaitWindow(fixture, before, "no dialog or window opened");

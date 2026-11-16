@@ -326,10 +326,10 @@ final class RibbonCommandGuiFixture implements AutoCloseable {
 		if ("Gantt".equals(manager.getTopViewId())) return;
 		AbstractButton gantt = showCommand("RibbonGantt");
 		assertNotNull(gantt, "the Gantt command must be available to restore the task sheet");
-		if (!isSelected(gantt)) click(gantt);
+		if (!isSelected(gantt)) RibbonGuiSupport.clickSplitPrimary(robot, gantt);
 		GuiAcceptanceSupport.await(() -> {
 			try {
-				return activeSheet() != null;
+				return "Gantt".equals(manager.getTopViewId()) && activeSheet() != null;
 			} catch (Exception failure) {
 				throw new AssertionError(failure);
 			}
