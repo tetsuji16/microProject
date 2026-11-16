@@ -1874,6 +1874,53 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	void timescaleRibbonChooserPhysicallyShowsConfiguredHierarchyLabels() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot timescale chooser coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask task = createTask();
+		showProject(task.getOwningProject());
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		String formatTabLabel = ResourceBundle.getBundle("com.microproject.menu.menu").getString("FormatRibbonTask.title");
+		AbstractButton formatTab = UiComponentWalker.flatten(window).stream().filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast).filter(AbstractButton::isShowing)
+			.filter(button -> button.getText() != null && button.getText().contains(formatTabLabel))
+			.findFirst().orElseThrow(() -> new AssertionError("The contextual Gantt Format tab was not rendered"));
+		clickAndAwaitSelected(robot, formatTab, "Robot click did not select the Gantt Chart Format ribbon tab");
+		click(robot, findShowingButtonByCommand("RibbonTimescale"));
+		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
+			.anyMatch(candidate -> candidate.isShowing() && UiComponentWalker.flatten(candidate).stream()
+				.anyMatch(JComboBox.class::isInstance)), "the physical Timescale ribbon command did not open its chooser");
+		var scales = com.microproject.configuration.Configuration.getInstance().getTimeScales();
+		String[] expected = DocumentStatusBar.formatScaleChoices(
+			manager.getMenuManager().getString("RibbonTimescale.text"), scales.getScaleCount(), scales::getScale);
+		JComboBox<?> combo = java.util.Arrays.stream(Window.getWindows()).filter(Window::isShowing)
+			.flatMap(candidate -> UiComponentWalker.flatten(candidate).stream())
+			.filter(JComboBox.class::isInstance).map(JComboBox.class::cast)
+			.filter(candidate -> candidate.getItemCount() == expected.length
+				&& expected[0].equals(candidate.getItemAt(0)))
+			.findFirst().orElseThrow(() -> new AssertionError("The Timescale chooser did not render its scale list"));
+		assertEquals(9, combo.getItemCount(), "the rendered chooser must retain all nine configured scale levels");
+		for (int index = 0; index < expected.length; index++) {
+			String actual = (String)combo.getItemAt(index);
+			assertEquals(expected[index], actual, "rendered hierarchy label at scale " + (index + 1));
+			assertFalse(actual.contains("Timescale"), "chooser rows must omit the title prefix");
+			assertFalse(actual.matches(".*\\s+[1-9]$"), "chooser rows must omit the position suffix");
+		}
+		click(robot, combo);
+		GuiAcceptanceSupport.await(() -> combo.isPopupVisible(), "the chooser's physical dropdown did not open");
+		assertTrue(combo.isShowing(), "the scale list must be visible on screen");
+		assertTrue(combo.getItemCount() == expected.length, "the visible dropdown must expose every configured scale");
+		robot.keyPress(KeyEvent.VK_ESCAPE);
+		robot.keyRelease(KeyEvent.VK_ESCAPE);
+	}
+
+	@Test
 	void physicalSelectedTasksZoomFitsBothSeparatedGanttTasksWithoutChangingModelOrUndo() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
