@@ -102,8 +102,7 @@ public class DocumentStatusBar extends JPanel {
 		int count = Math.max(1, scaleCount);
 		int position = Math.min(Math.max(0, scaleIndex), count - 1) + 1;
 		if (scale == null) return timescaleLabel + " " + position;
-		return MessageFormat.format(Messages.getString("StatusBar.ScaleChoice"), timescaleLabel,
-				formatScaleDescription(scale), position, count);
+		return formatScaleDescription(scale);
 	}
 
 	static String[] formatScaleChoices(String timescaleLabel, int scaleCount, IntFunction<TimeScale> scaleAt) {
@@ -119,13 +118,15 @@ public class DocumentStatusBar extends JPanel {
 	 * used to infer a name: projects may supply a custom scale sequence.
 	 */
 	private static String formatScaleDescription(TimeScale scale) {
-		return formatInterval(scale.getCalendarField1(), scale.getNumber1());
+		String parent = formatInterval(scale.getCalendarField2(), scale.getNumber2());
+		String child = formatInterval(scale.getCalendarField1(), scale.getNumber1());
+		return MessageFormat.format(Messages.getString("StatusBar.ScaleHierarchy"), parent, child);
 	}
 	private static String formatInterval(int field, int amount) {
 		int n = Math.max(1, amount);
 		return switch (field) {
 			case Calendar.MINUTE -> interval("StatusBar.Interval.Minute", n);
-			case Calendar.HOUR_OF_DAY -> interval("StatusBar.Interval.Hour", n);
+			case Calendar.HOUR_OF_DAY -> interval(n == 1 ? "StatusBar.Interval.Hour" : "StatusBar.Interval.Hours", n);
 			case Calendar.DAY_OF_WEEK, Calendar.DAY_OF_MONTH, Calendar.DAY_OF_YEAR ->
 					n == 1 ? Messages.getString("StatusBar.Interval.Day") : interval("StatusBar.Interval.Days", n);
 			case Calendar.WEEK_OF_YEAR, Calendar.WEEK_OF_MONTH ->
