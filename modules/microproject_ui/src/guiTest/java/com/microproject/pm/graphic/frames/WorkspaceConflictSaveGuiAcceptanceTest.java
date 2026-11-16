@@ -44,6 +44,8 @@ import com.microproject.init.Init;
 import com.microproject.job.JobQueue;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
+import com.microproject.pm.graphic.views.GanttView;
+import com.microproject.workspace.SavableToWorkspace;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.renderer.NameCellComponent;
 import com.microproject.pm.task.NormalTask;
@@ -126,6 +128,60 @@ class WorkspaceConflictSaveGuiAcceptanceTest {
 		Task persistedTask = reopened.getTaskList().stream().filter(candidate -> savedTaskName.equals(candidate.getName()))
 			.findFirst().orElseThrow(() -> new AssertionError("MPO save lost its original task data"));
 		assertTrue(persistedTask instanceof NormalTask);
+	}
+
+	@Test
+	void reopeningMpoClampsOutOfRangeWorkspaceDivider(@TempDir Path tempDirectory) throws Exception {
+		assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		captureEnvironment(tempDirectory);
+		Path mpo = tempDirectory.resolve("divider-reopen.mpo");
+		writeMpo(mpo);
+		createWindow("microProject — divider restore acceptance");
+		installOpenChooser(mpo);
+		Robot robot = new GuiRobot();
+		robot.setAutoDelay(45);
+		openMpoThroughBackstage(robot);
+		DocumentFrame initial = awaitDocument(mpo);
+		project = initial.getProject();
+		DocumentFrame.Workspace workspace = onEdt(() -> (DocumentFrame.Workspace) initial.createWorkspace(SavableToWorkspace.VIEW));
+		String viewName = onEdt(() -> initial.getActiveTopView().getViewName());
+		GanttView.Workspace ganttWorkspace = (GanttView.Workspace) workspace.getViews().get(viewName);
+		assertNotNull(ganttWorkspace);
+		ganttWorkspace.setDividerLocation(10000);
+		SwingUtilities.invokeAndWait(() -> manager.closeDocumentWindow(initial));
+		GuiAcceptanceSupport.await(() -> onEdtUnchecked(() -> manager.findFrameForProjectFile(mpo.toString()) == null),
+			"the first document did not close");
+		project = null;
+		peerSession = new CollaborationSession(null, mpo.toString(), CollaborationUserIdentity.currentUserKey());
+		peerSession.loadWorkspace();
+		assertTrue(peerSession.saveWorkspace(workspace), "the out-of-range workspace must be saved to disk");
+		peerSession.stop();
+		peerSession = null;
+		CollaborationSession check = new CollaborationSession(null, mpo.toString(), CollaborationUserIdentity.currentUserKey());
+		DocumentFrame.Workspace diskWorkspace = (DocumentFrame.Workspace) check.loadWorkspace();
+		assertNotNull(diskWorkspace, "the saved workspace must be reloaded from disk");
+		assertEquals(10000, ((GanttView.Workspace) diskWorkspace.getViews().get(viewName)).getDividerLocation());
+		check.stop();
+		openMpoThroughBackstage(robot);
+		DocumentFrame reopened = awaitDocument(mpo);
+		project = reopened.getProject();
+		GuiAcceptanceSupport.await(() -> onEdtUnchecked(() -> reopened.getActiveTopView() instanceof GanttView view
+			&& view.isShowing() && view.getWidth() > 0 && view.getDividerLocation() > 0),
+			"reopened Gantt view did not lay out its restored workspace");
+		SwingUtilities.invokeAndWait(() -> {
+			GanttView view = (GanttView) reopened.getActiveTopView();
+			assertNotNull(reopened.workspace, "the reopened document must apply the persisted workspace");
+			assertEquals(10000, ((GanttView.Workspace) reopened.workspace.getViews().get(viewName)).getDividerLocation(),
+				"the actual reopen route must receive the out-of-range saved coordinate");
+			SpreadSheet sheet = view.getSpreadSheet();
+			int edge = SwingUtilities.convertPoint(sheet, sheet.getColumnModel().getTotalColumnWidth(), 0, view).x;
+			assertTrue(edge < view.getWidth() - view.getDividerSize() - 96,
+				"the final column must end before the normal pane-width limit: edge=" + edge + " width=" + view.getWidth());
+			assertTrue(view.getDividerLocation() <= edge + 2,
+				"reopening the MPO must clamp its saved divider to the last column: divider="
+					+ view.getDividerLocation() + " edge=" + edge);
+			assertTrue(view.getDividerLocation() < 10000, "the saved out-of-range coordinate must be corrected");
+		});
 	}
 
 	@AfterEach
