@@ -80,6 +80,37 @@ class SplittedViewLifecycleTest {
 	}
 
 	@Test
+	void contentBoundedDividerAppliesToDragRestoreColumnChangesAndResize() throws Exception {
+		TestView[] view = new TestView[1];
+		SwingUtilities.invokeAndWait(() -> {
+			view[0] = new TestView(new Synchronizer());
+			view[0].setSize(600, 300);
+			view[0].setMaximumLeftWidth(250);
+			view[0].init();
+			view[0].setDividerLocation(400);
+			assertEquals(view[0].getInsets().left + 250, view[0].getDividerLocation(),
+				"a dragged divider must stop at the content edge");
+			view[0].restoreForTest(500);
+			assertEquals(view[0].getInsets().left + 250, view[0].getDividerLocation(),
+				"an out-of-range saved location must be clamped");
+			view[0].setMaximumLeftWidth(170);
+			view[0].requestDividerBoundsForTest();
+		});
+		SwingUtilities.invokeAndWait(() -> { });
+		SwingUtilities.invokeAndWait(() -> {
+			assertEquals(view[0].getInsets().left + 170, view[0].getDividerLocation(),
+				"a narrower final column must pull the divider left");
+			view[0].setSize(230, 300);
+		});
+		SwingUtilities.invokeAndWait(() -> { });
+		SwingUtilities.invokeAndWait(() -> {
+			assertTrue(view[0].getDividerLocation() <= view[0].getInsets().left + 170,
+				"resizing the window must keep the divider before the content edge");
+			view[0].cleanUp();
+		});
+	}
+
+	@Test
 	void restoredDividerChoiceLocksBothMainViewChildrenAgainstResponsiveDefaults() throws Exception {
 		TestView[] views = new TestView[2];
 		int[] restoredLocation = new int[1];
@@ -158,6 +189,8 @@ class SplittedViewLifecycleTest {
 		private int rightCreated;
 		private final int preferredLeftWidth;
 		private final int minimumRightWidth;
+		private int maximumLeftWidth = Integer.MAX_VALUE;
+		private boolean enforceMaximumLeftWidth;
 
 		private TestView(Synchronizer synchronizer) {
 			this(synchronizer, -1, 96);
@@ -201,6 +234,25 @@ class SplittedViewLifecycleTest {
 
 		private void requestResponsiveForTest() {
 			requestResponsiveDividerLayout();
+		}
+
+		private void setMaximumLeftWidth(int width) {
+			maximumLeftWidth = width;
+			enforceMaximumLeftWidth = true;
+		}
+
+		private void requestDividerBoundsForTest() {
+			requestDividerBoundsEnforcement();
+		}
+
+		@Override
+		protected int maximumLeftPaneWidth() {
+			return maximumLeftWidth;
+		}
+
+		@Override
+		protected boolean enforcesMaximumLeftPaneWidth() {
+			return enforceMaximumLeftWidth;
 		}
 	}
 
