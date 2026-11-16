@@ -272,7 +272,8 @@ class RibbonTabGuiAcceptanceTest {
 						}
 						button = findAttachedButtonByCommand(frame, buttonId);
 					}
-					AbstractButton proxy = button == null ? findCollapsedProxyForCommand(frame, buttonId) : null;
+					AbstractButton proxy = button == null || SwingUtilities.getAncestorOfClass(JPopupMenu.class, button) != null
+						? findCollapsedProxyForCommand(frame, buttonId) : null;
 					assertTrue(button != null || proxy != null, () -> buttonId + " has no physical route in " + tabId);
 					assertTrue(button == null || button.isEnabled(), () -> buttonId + " is disabled in " + bandId);
 					exerciseRibbonControl(robot, manager, actions, buttonId, button, proxy,
@@ -314,7 +315,7 @@ class RibbonTabGuiAcceptanceTest {
 		Set<CommandId> physicalCommands, String bandId) throws Exception {
 		if (proxy != null) {
 			JPopupMenu collapsed = (JPopupMenu) proxy.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY);
-			clickCommand(robot, proxy);
+			if (!collapsed.isVisible()) clickCommand(robot, proxy);
 			GuiAcceptanceSupport.await(collapsed::isVisible,
 				"responsive group proxy did not open for " + commandId);
 			button = findPopupCommand(collapsed, commandId);
