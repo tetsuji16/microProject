@@ -334,6 +334,13 @@ class RibbonTabGuiAcceptanceTest {
 			recordPhysicalCommand(physicalCommands, actionId, commandId);
 		}
 		if (!kind.hasPopup()) return;
+		if (proxy != null && !button.isShowing()) {
+			JPopupMenu collapsed = (JPopupMenu) proxy.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY);
+			clickCommand(robot, proxy);
+			GuiAcceptanceSupport.await(collapsed::isVisible, "responsive group did not reopen for " + commandId);
+			button = findPopupCommand(collapsed, commandId);
+			assertTrue(button != null && button.isShowing(), "responsive command did not reappear: " + commandId);
+		}
 		JPopupMenu popup = (JPopupMenu) button.getClientProperty(RibbonControlPopups.POPUP_PROPERTY);
 		assertTrue(popup != null, () -> commandId + " declares a popup but has none");
 		List<String> popupCommands = popupActionCommands(popup, manager);
@@ -1249,6 +1256,8 @@ class RibbonTabGuiAcceptanceTest {
 
 	private static Point clickCommand(Robot robot, AbstractButton button) throws Exception {
 		Point[] location = new Point[1];
+		assertTrue(button.isShowing(), () -> "physical click target is no longer showing: " + button.getName()
+			+ " command=" + button.getActionCommand() + " text=" + button.getText());
 		SwingUtilities.invokeAndWait(() -> {
 			Point topLeft = button.getLocationOnScreen();
 			// Split/dropdown buttons reserve their right edge for the arrow; the
