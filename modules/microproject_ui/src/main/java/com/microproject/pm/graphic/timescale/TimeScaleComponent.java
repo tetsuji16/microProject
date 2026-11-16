@@ -108,10 +108,13 @@ public class TimeScaleComponent extends JPanel {
 		if (clipping){
 			x0=clipBounds.getX();
 			w=clipBounds.getWidth();//getWidth();
-			GraphicManager.getInstance().getLafManager().paintTimeScale(g2, clipBounds.x, 0,clipBounds.width,d.height, new Shape[]{
-					new Line2D.Double(x0,0,x0+w,0),
-					new Line2D.Double(x0,h-1,x0+w,h-1),
-			});
+			GraphicManager manager = GraphicManager.getInstance();
+			if (manager != null) {
+				manager.getLafManager().paintTimeScale(g2, clipBounds.x, 0,clipBounds.width,d.height, new Shape[]{
+						new Line2D.Double(x0,0,x0+w,0),
+						new Line2D.Double(x0,h-1,x0+w,h-1),
+				});
+			}
 		}else{
 			x0=0;
 			w=d.getWidth();
