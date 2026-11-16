@@ -384,6 +384,11 @@ class RibbonTabGuiAcceptanceTest {
 			Point clickPoint = clickCommand(robot, item);
 			GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
 				"Robot popup selection did not dispatch " + popupCommand + " (" + actionId + ") at " + clickPoint);
+			if (proxy != null) {
+				JPopupMenu collapsed = (JPopupMenu) proxy.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY);
+				GuiAcceptanceSupport.await(() -> !collapsed.isVisible(),
+					"responsive group did not close after selecting " + popupCommand);
+			}
 			recordPhysicalCommand(physicalCommands, actionId, popupCommand);
 		}
 	}
