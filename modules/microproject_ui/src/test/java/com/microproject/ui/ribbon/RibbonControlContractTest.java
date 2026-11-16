@@ -214,35 +214,36 @@ class RibbonControlContractTest {
 		assertTrue(splitMenu.getPopupMenu() == popup, "the split row must reuse the existing popup instance");
 		assertTrue(popup.getInvoker() == splitMenu, "Swing submenu selection must identify the row JMenu as invoker");
 		assertTrue(popup.getComponent(0) == firstPopupItem, "the existing popup command items must not be copied");
-		assertNativeSplitArrowSelectionPath(splitMenu, popup, (MenuElement) firstPopupItem);
+		assertNativeSplitArrowSelectionPath(splitMenu, popup);
 
 		button.doClick(0);
 		assertEquals(1, invoked.get(), "the split primary action must remain available after arrow replacement");
 	}
 
-	private static void assertNativeSplitArrowSelectionPath(JMenu splitMenu, JPopupMenu popup,
-		MenuElement firstItem) {
+	private static void assertNativeSplitArrowSelectionPath(JMenu splitMenu, JPopupMenu popup) {
 		JPopupMenu outer = new JPopupMenu();
 		outer.add(splitMenu);
-		MenuSelectionManager manager = MenuSelectionManager.defaultManager();
-		MenuElement[] previousPath = manager.getSelectedPath();
-		try {
-			assertTrue(RibbonControlPopups.selectNestedPopupPath(splitMenu, popup),
-				"the direct-child split menu must be selectable from its containing popup");
-			MenuElement[] selectedPath = manager.getSelectedPath();
-			assertEquals(3, selectedPath.length);
-			assertTrue(selectedPath[0] == outer && selectedPath[1] == splitMenu && selectedPath[2] == popup,
-				"opening the arrow must preserve the outer JMenu and original submenu in the selection path");
+		RecordingMenuSelectionManager manager = new RecordingMenuSelectionManager();
+		assertTrue(RibbonControlPopups.selectNestedPopupPath(splitMenu, popup, manager),
+			"the direct-child split menu must be selectable from its containing popup");
+		MenuElement[] selectedPath = manager.getSelectedPath();
+		assertEquals(3, selectedPath.length);
+		assertTrue(selectedPath[0] == outer && selectedPath[1] == splitMenu && selectedPath[2] == popup,
+			"opening the arrow must preserve the outer JMenu and original submenu in the selection path");
+	}
 
-			MenuElement[] submenuPath = { outer, splitMenu, popup, firstItem };
-			manager.setSelectedPath(submenuPath);
-			selectedPath = manager.getSelectedPath();
-			assertEquals(4, selectedPath.length);
-			assertTrue(selectedPath[0] == outer && selectedPath[1] == splitMenu
-				&& selectedPath[2] == popup && selectedPath[3] == firstItem,
-				"the original popup and its first item must extend the containing menu path");
-		} finally {
-			manager.setSelectedPath(previousPath);
+	/** Stores selected elements without invoking native popup visibility callbacks. */
+	private static final class RecordingMenuSelectionManager extends MenuSelectionManager {
+		private MenuElement[] selectedPath = new MenuElement[0];
+
+		@Override
+		public void setSelectedPath(MenuElement[] path) {
+			selectedPath = path.clone();
+		}
+
+		@Override
+		public MenuElement[] getSelectedPath() {
+			return selectedPath.clone();
 		}
 	}
 

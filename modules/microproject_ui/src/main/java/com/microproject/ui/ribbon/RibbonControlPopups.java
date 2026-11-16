@@ -198,10 +198,18 @@ final class RibbonControlPopups {
 
 	/** Selects the containing popup, its split menu and the existing submenu as one Swing path. */
 	static boolean selectNestedPopupPath(JMenu menu, JPopupMenu popup) {
+		return selectNestedPopupPath(menu, popup, MenuSelectionManager.defaultManager());
+	}
+
+	/**
+	 * Selects the nested popup path through the supplied manager. The overload keeps
+	 * path construction testable without asking headless Swing to show native popups.
+	 */
+	static boolean selectNestedPopupPath(JMenu menu, JPopupMenu popup, MenuSelectionManager selectionManager) {
 		if (!(menu.getParent() instanceof JPopupMenu outerPopup)) {
 			return false;
 		}
-		MenuSelectionManager.defaultManager().setSelectedPath(new MenuElement[] { outerPopup, menu, popup });
+		selectionManager.setSelectedPath(new MenuElement[] { outerPopup, menu, popup });
 		return true;
 	}
 
