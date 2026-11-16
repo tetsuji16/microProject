@@ -39,6 +39,8 @@ import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JTextField;
 import javax.swing.JMenuItem;
+import javax.swing.JMenu;
+import javax.swing.MenuElement;
 import javax.swing.JPopupMenu;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.event.PopupMenuEvent;
@@ -111,6 +113,98 @@ final class RibbonControlPopups {
 	private static final int MAX_LABEL_LENGTH = 16;
 
 	private RibbonControlPopups() {
+	}
+
+	/**
+	 * Returns a native submenu facade for a popup-only command placed inside another
+	 * ribbon popup. Reusing the original popup keeps its listeners and dynamic item
+	 * source intact while allowing Swing to maintain the complete menu-selection path.
+	 */
+	static JMenu createNestedMenu(AbstractButton button) {
+		Object kindValue = button.getClientProperty(CONTROL_KIND_PROPERTY);
+		Object popupValue = button.getClientProperty(POPUP_PROPERTY);
+		if (!(kindValue instanceof RibbonControlKind kind) || kind.invokesOnClick()
+			|| !(popupValue instanceof JPopupMenu popup)) {
+			return null;
+		}
+		return new ExistingPopupMenu(button, popup);
+	}
+
+	/** JMenu backed by the existing control popup, rather than an independent popup. */
+	private static final class ExistingPopupMenu extends JMenu {
+		private final AbstractButton source;
+		private final JPopupMenu popup;
+
+		ExistingPopupMenu(AbstractButton source, JPopupMenu popup) {
+			this.source = source;
+			this.popup = popup;
+			// JMenu's own popup is normally assigned this invoker by
+			// ensurePopupMenuCreated(). This facade returns an existing popup instead,
+			// so establish the same invoker relationship explicitly; JPopupMenu's
+			// menuSelectionChanged() opens a submenu only for a JMenu invoker.
+			popup.setInvoker(this);
+			copyPresentation();
+			for (String property : new String[] { "text", "icon", "toolTipText", "enabled", "mnemonic", "actionCommand" }) {
+				source.addPropertyChangeListener(property, event -> copyPresentation());
+			}
+			putClientProperty(CONTROL_KIND_PROPERTY, source.getClientProperty(CONTROL_KIND_PROPERTY));
+			putClientProperty(POPUP_PROPERTY, popup);
+			putClientProperty(KEY_TIP_PROPERTY, source.getClientProperty(KEY_TIP_PROPERTY));
+			popup.addPopupMenuListener(new PopupMenuListener() {
+				@Override
+				public void popupMenuWillBecomeVisible(PopupMenuEvent event) {
+					putClientProperty(POPUP_OPEN_PROPERTY, Boolean.TRUE);
+					repaint();
+				}
+
+				@Override
+				public void popupMenuWillBecomeInvisible(PopupMenuEvent event) {
+					putClientProperty(POPUP_OPEN_PROPERTY, null);
+					repaint();
+				}
+
+				@Override
+				public void popupMenuCanceled(PopupMenuEvent event) {
+					putClientProperty(POPUP_OPEN_PROPERTY, null);
+					repaint();
+				}
+			});
+		}
+
+		private void copyPresentation() {
+			setText(source.getText());
+			setIcon(source.getIcon());
+			setToolTipText(source.getToolTipText());
+			setEnabled(source.isEnabled());
+			setMnemonic(source.getMnemonic());
+			setActionCommand(source.getActionCommand());
+			setFont(source.getFont());
+			setForeground(source.getForeground());
+			setBackground(source.getBackground());
+			setName(source.getName());
+			putClientProperty(RibbonButtonStyler.SIZE_PROPERTY,
+				source.getClientProperty(RibbonButtonStyler.SIZE_PROPERTY));
+			putClientProperty(RibbonButtonStyler.ICON_KEY_PROPERTY,
+				source.getClientProperty(RibbonButtonStyler.ICON_KEY_PROPERTY));
+			putClientProperty("MicroProject.ribbonSplit", source.getClientProperty("MicroProject.ribbonSplit"));
+			getAccessibleContext().setAccessibleName(source.getAccessibleContext().getAccessibleName());
+			getAccessibleContext().setAccessibleDescription(source.getAccessibleContext().getAccessibleDescription());
+		}
+
+		@Override
+		public JPopupMenu getPopupMenu() {
+			return popup;
+		}
+
+		@Override
+		public boolean isPopupMenuVisible() {
+			return popup.isVisible();
+		}
+
+		@Override
+		public MenuElement[] getSubElements() {
+			return new MenuElement[] { popup };
+		}
 	}
 
 	/**

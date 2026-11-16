@@ -41,6 +41,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.AbstractAction;
 import javax.swing.JButton;
+import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JRadioButtonMenuItem;
@@ -119,6 +120,36 @@ class RibbonControlContractTest {
 		assertEquals(button, arrow.getParent());
 		assertEquals(Boolean.TRUE, button.getClientProperty("MicroProject.ribbonSplit"));
 		assertEquals("V", button.getClientProperty(RibbonControlPopups.KEY_TIP_PROPERTY));
+	}
+
+	@Test
+	void collapsedPopupMenuFacadeRetainsCommandIdentityAndTheOriginalPopup() {
+		JButton button = countingButton(new AtomicInteger());
+		button.setName("save-baseline-source");
+		button.setActionCommand("RibbonSaveBaseline");
+		button.putClientProperty(RibbonButtonStyler.SIZE_PROPERTY, "small");
+		button.putClientProperty(RibbonButtonStyler.ICON_KEY_PROPERTY, "baseline.save");
+		button.getAccessibleContext().setAccessibleName("Save baseline");
+		button.getAccessibleContext().setAccessibleDescription("Store the project baseline");
+		SwingRibbonModel.RibbonButton specification = new SwingRibbonModel.RibbonButton("RibbonSaveBaseline",
+			SwingRibbonModel.ButtonPriority.MEDIUM).withControl(RibbonControlKind.MENU, List.of("RibbonCopy"), "SB");
+		RibbonControlPopups.install(button, specification, commandSource(), key -> null);
+		JPopupMenu popup = assertInstanceOf(JPopupMenu.class, button.getClientProperty(RibbonControlPopups.POPUP_PROPERTY));
+
+		JMenu nested = RibbonControlPopups.createNestedMenu(button);
+
+		assertNotNull(nested);
+		assertEquals("RibbonSaveBaseline", nested.getActionCommand());
+		assertEquals("save-baseline-source", nested.getName());
+		assertEquals("small", nested.getClientProperty(RibbonButtonStyler.SIZE_PROPERTY));
+		assertEquals("baseline.save", nested.getClientProperty(RibbonButtonStyler.ICON_KEY_PROPERTY));
+		assertEquals("SB", nested.getClientProperty(RibbonControlPopups.KEY_TIP_PROPERTY));
+		assertEquals("Save baseline", nested.getAccessibleContext().getAccessibleName());
+		assertEquals("Store the project baseline", nested.getAccessibleContext().getAccessibleDescription());
+		assertTrue(nested.getPopupMenu() == popup, "the submenu must expose the original popup instance");
+		assertTrue(popup.getInvoker() == nested, "the original popup must identify the facade as its JMenu invoker");
+		assertTrue(nested.getSubElements().length == 1 && nested.getSubElements()[0] == popup,
+			"Swing menu traversal must expose the original popup as its only submenu");
 	}
 
 	@Test

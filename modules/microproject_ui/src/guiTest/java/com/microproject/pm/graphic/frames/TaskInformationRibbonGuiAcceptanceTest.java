@@ -4541,7 +4541,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertEquals(occupied, selectedBefore.get(slot).present(), "Fixture slot occupancy must match the journey");
 
 		showProject(project);
-		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		// Exercise the collapsed Project > Schedule popup without changing desktop resolution.
+		SwingUtilities.invokeAndWait(() -> window.setSize(900, 700));
 		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"Selected-task Baseline " + slot + " project did not become visible");
@@ -6139,7 +6140,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		NormalTask predecessor = fixture.adjacentFirst();
 		NormalTask successor = fixture.adjacentLast();
 		showProject(project);
-		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		// This journey explicitly covers the collapsed Task-group popup.
+		SwingUtilities.invokeAndWait(() -> window.setSize(900, 700));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
 				&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
 			"link test project did not become visible");

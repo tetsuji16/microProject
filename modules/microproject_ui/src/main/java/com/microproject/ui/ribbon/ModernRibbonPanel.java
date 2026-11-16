@@ -73,6 +73,7 @@ import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JMenu;
 import javax.swing.JPanel;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
@@ -1924,7 +1925,8 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			if (constrainWidth) {
 				command.setMaximumSize(new Dimension(260, command.getPreferredSize().height));
 			}
-			popup.add(command);
+			JMenu nestedMenu = RibbonControlPopups.createNestedMenu(command);
+			popup.add(nestedMenu == null ? command : nestedMenu);
 		}
 	}
 
