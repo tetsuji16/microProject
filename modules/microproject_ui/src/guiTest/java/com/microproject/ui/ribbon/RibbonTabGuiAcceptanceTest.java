@@ -370,6 +370,10 @@ class RibbonTabGuiAcceptanceTest {
 				}
 				if (kind == RibbonControlKind.SPLIT_BUTTON) {
 					AbstractButton arrow = (AbstractButton) button.getClientProperty(RibbonControlPopups.ARROW_BUTTON_PROPERTY);
+					assertTrue(arrow.isShowing(), "split arrow not showing: command=" + commandId
+						+ ", sourceShowing=" + button.isShowing() + ", sourceParent=" + button.getParent()
+						+ ", arrowParent=" + arrow.getParent() + ", proxy=" + proxy
+						+ ", selectedPath=" + java.util.Arrays.toString(javax.swing.MenuSelectionManager.defaultManager().getSelectedPath()));
 					clickCommand(robot, arrow);
 				} else {
 					clickCommand(robot, button);
