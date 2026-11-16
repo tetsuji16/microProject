@@ -40,6 +40,8 @@ import com.microproject.session.SessionFactory;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.testsupport.GuiRobot;
 import com.microproject.testsupport.WindowAcceptanceAssertions;
+import com.microproject.ui.util.SwingUiDispatcher;
+import com.microproject.util.UiDispatch;
 
 /** Physical recovery prompt and document state using only temporary storage. */
 class AutoRecoveryGuiAcceptanceTest {
@@ -68,6 +70,7 @@ class AutoRecoveryGuiAcceptanceTest {
 		prefs.putBoolean(AutoRecoveryManager.ENABLED_PREFERENCE, true);
 		ProjectFactory factory = ProjectFactory.getInstance();
 		var previousJobQueue = SessionFactory.getInstance().getJobQueue();
+		UiDispatch.setDispatcher(new SwingUiDispatcher());
 		MainRibbonFrame[] window = new MainRibbonFrame[1];
 		GraphicManager[] manager = new GraphicManager[1];
 		try {
@@ -152,8 +155,12 @@ class AutoRecoveryGuiAcceptanceTest {
 			try (var in = Files.newInputStream(file)) { reloaded = new MpoFileImporter().loadProject(in); }
 			assertTrue(reloaded.getTaskList().stream().anyMatch(item -> "Final Task".equals(item.getName())));
 		} finally {
-			SwingUtilities.invokeAndWait(() -> { if (manager[0] != null) manager[0].cleanUp(); if (window[0] != null) window[0].dispose(); });
-			SessionFactory.getInstance().setJobQueue(previousJobQueue);
+			try {
+				SwingUtilities.invokeAndWait(() -> { if (manager[0] != null) manager[0].cleanUp(); if (window[0] != null) window[0].dispose(); });
+			} finally {
+				SessionFactory.getInstance().setJobQueue(previousJobQueue);
+			UiDispatch.setDispatcher(null);
+			}
 		}
 	}
 

@@ -27,6 +27,7 @@ import java.awt.Dimension;
 import java.awt.Component;
 import java.awt.Insets;
 import java.awt.Container;
+import java.awt.Window;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.ComponentAdapter;
@@ -135,6 +136,10 @@ public abstract class SplittedView extends JSplitPane {
 			revalidate();
 		else
 			outermostValidationRoot.revalidate();
+		SwingUtilities.invokeLater(() -> {
+			Window window = SwingUtilities.getWindowAncestor(this);
+			if (window != null && window.isDisplayable()) window.validate();
+		});
 	}
 
 	public void init() {

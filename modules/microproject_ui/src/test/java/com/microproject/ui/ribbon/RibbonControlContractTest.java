@@ -32,6 +32,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.event.ActionEvent;
+import java.lang.ref.WeakReference;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.ListResourceBundle;
 import java.util.Locale;
@@ -40,9 +42,13 @@ import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.AbstractAction;
+import javax.swing.Action;
 import javax.swing.JButton;
+import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import javax.swing.MenuElement;
+import javax.swing.MenuSelectionManager;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
@@ -119,6 +125,140 @@ class RibbonControlContractTest {
 		assertEquals(button, arrow.getParent());
 		assertEquals(Boolean.TRUE, button.getClientProperty("MicroProject.ribbonSplit"));
 		assertEquals("V", button.getClientProperty(RibbonControlPopups.KEY_TIP_PROPERTY));
+	}
+
+	@Test
+	void popupCommandMirrorTracksLiveStateWithoutRetainingItsButtonTree() {
+		AbstractAction command = new AbstractAction("Menu") {
+			@Override
+			public void actionPerformed(ActionEvent event) {
+			}
+		};
+		WeakReference<AbstractAction> mirrorReference = createPopupMirror(command);
+		assertNotNull(mirrorReference.get());
+		command.setEnabled(false);
+		command.putValue(Action.SELECTED_KEY, Boolean.TRUE);
+		AbstractAction mirror = mirrorReference.get();
+		assertNotNull(mirror);
+		assertFalse(mirror.isEnabled());
+		assertEquals(Boolean.TRUE, mirror.getValue(Action.SELECTED_KEY));
+		mirror = null;
+
+		for (int attempt = 0; attempt < 40 && mirrorReference.get() != null; attempt++) {
+			System.gc();
+			// Modest allocation encourages collection without relying on a timed sleep.
+			byte[] pressure = new byte[256 * 1024];
+			pressure[0] = 1;
+		}
+		assertNull(mirrorReference.get(), "a long-lived command must not keep the transient popup button alive");
+		// The listener removes itself the next time the command changes after its target is gone.
+		command.setEnabled(true);
+		assertEquals(0, command.getPropertyChangeListeners().length,
+			"the weak mirror listener should detach after observing that its target was collected");
+	}
+
+	private static WeakReference<AbstractAction> createPopupMirror(AbstractAction command) {
+		JButton button = new JButton(command);
+		RibbonControlPopups.install(button, specification(RibbonControlKind.MENU), commandSource(), key -> null);
+		return new WeakReference<>(assertInstanceOf(AbstractAction.class, button.getAction()));
+	}
+
+	@Test
+	void collapsedPopupMenuFacadeRetainsCommandIdentityAndTheOriginalPopup() {
+		JButton button = countingButton(new AtomicInteger());
+		button.setName("save-baseline-source");
+		button.setActionCommand("RibbonSaveBaseline");
+		button.putClientProperty(RibbonButtonStyler.SIZE_PROPERTY, "small");
+		button.putClientProperty(RibbonButtonStyler.ICON_KEY_PROPERTY, "baseline.save");
+		button.getAccessibleContext().setAccessibleName("Save baseline");
+		button.getAccessibleContext().setAccessibleDescription("Store the project baseline");
+		SwingRibbonModel.RibbonButton specification = new SwingRibbonModel.RibbonButton("RibbonSaveBaseline",
+			SwingRibbonModel.ButtonPriority.MEDIUM).withControl(RibbonControlKind.MENU, List.of("RibbonCopy"), "SB");
+		RibbonControlPopups.install(button, specification, commandSource(), key -> null);
+		JPopupMenu popup = assertInstanceOf(JPopupMenu.class, button.getClientProperty(RibbonControlPopups.POPUP_PROPERTY));
+
+		JMenu nested = RibbonControlPopups.createNestedMenu(button);
+
+		assertNotNull(nested);
+		assertEquals("RibbonSaveBaseline", nested.getActionCommand());
+		assertEquals("save-baseline-source", nested.getName());
+		assertEquals("small", nested.getClientProperty(RibbonButtonStyler.SIZE_PROPERTY));
+		assertEquals("baseline.save", nested.getClientProperty(RibbonButtonStyler.ICON_KEY_PROPERTY));
+		assertEquals("SB", nested.getClientProperty(RibbonControlPopups.KEY_TIP_PROPERTY));
+		assertEquals("Save baseline", nested.getAccessibleContext().getAccessibleName());
+		assertEquals("Store the project baseline", nested.getAccessibleContext().getAccessibleDescription());
+		assertTrue(nested.getPopupMenu() == popup, "the submenu must expose the original popup instance");
+		assertTrue(popup.getInvoker() == nested, "the original popup must identify the facade as its JMenu invoker");
+		assertTrue(nested.getSubElements().length == 1 && nested.getSubElements()[0] == popup,
+			"Swing menu traversal must expose the original popup as its only submenu");
+	}
+
+	@Test
+	void collapsedSplitButtonKeepsPrimaryActionAndUsesItsExistingPopupForTheArrowSubmenu() {
+		AtomicInteger invoked = new AtomicInteger();
+		JButton button = countingButton(invoked);
+		button.setActionCommand("RibbonPaste");
+		RibbonControlPopups.install(button, specification(RibbonControlKind.SPLIT_BUTTON), commandSource(), key -> null);
+		JPopupMenu popup = assertInstanceOf(JPopupMenu.class, button.getClientProperty(RibbonControlPopups.POPUP_PROPERTY));
+		java.awt.Component firstPopupItem = popup.getComponent(0);
+		RecordingMenuSelectionManager manager = new RecordingMenuSelectionManager();
+		List<Runnable> deferred = new ArrayList<>();
+
+		JMenu splitMenu = RibbonControlPopups.createNestedSplitMenu(button, manager, deferred::add);
+		JButton arrow = assertInstanceOf(JButton.class,
+			button.getClientProperty(RibbonControlPopups.ARROW_BUTTON_PROPERTY));
+
+		assertNotNull(splitMenu);
+		assertEquals(0, invoked.get(), "installing a native arrow submenu must not invoke the primary command");
+		assertEquals("RibbonPaste", button.getActionCommand());
+		assertEquals(button, arrow.getParent());
+		assertEquals(RibbonControlPopups.ARROW_BUTTON_NAME_PREFIX + "RibbonPaste", arrow.getName());
+		assertEquals(splitMenu, button.getParent(), "the primary control remains in the same menu row");
+		assertTrue(splitMenu.getPopupMenu() == popup, "the split row must reuse the existing popup instance");
+		assertTrue(popup.getInvoker() == splitMenu, "Swing submenu selection must identify the row JMenu as invoker");
+		assertTrue(popup.getComponent(0) == firstPopupItem, "the existing popup command items must not be copied");
+		assertNativeSplitArrowSelectionPath(splitMenu, popup, manager);
+
+		button.doClick(0);
+		assertEquals(1, invoked.get(), "the split primary action must remain available after arrow replacement");
+		assertEquals(3, manager.getSelectedPath().length,
+			"the menu path remains intact while primary action listeners finish dispatching");
+		assertEquals(1, deferred.size(), "primary activation schedules menu-path cleanup after action dispatch");
+		deferred.remove(0).run();
+		assertEquals(0, manager.getSelectedPath().length,
+			"primary activation must close the enclosing popup path after dispatch");
+	}
+
+	private static void assertNativeSplitArrowSelectionPath(JMenu splitMenu, JPopupMenu popup,
+		RecordingMenuSelectionManager manager) {
+		JPopupMenu outer = new JPopupMenu();
+		outer.add(splitMenu);
+		assertTrue(RibbonControlPopups.selectNestedPopupPath(splitMenu, popup, manager),
+			"the direct-child split menu must be selectable from its containing popup");
+		MenuElement[] selectedPath = manager.getSelectedPath();
+		assertEquals(3, selectedPath.length);
+		assertTrue(selectedPath[0] == outer && selectedPath[1] == splitMenu && selectedPath[2] == popup,
+			"opening the arrow must preserve the outer JMenu and original submenu in the selection path");
+	}
+
+	/** Stores selected elements without invoking native popup visibility callbacks. */
+	private static final class RecordingMenuSelectionManager extends MenuSelectionManager {
+		private MenuElement[] selectedPath = new MenuElement[0];
+
+		@Override
+		public void setSelectedPath(MenuElement[] path) {
+			selectedPath = path.clone();
+		}
+
+		@Override
+		public MenuElement[] getSelectedPath() {
+			return selectedPath.clone();
+		}
+
+		@Override
+		public void clearSelectedPath() {
+			selectedPath = new MenuElement[0];
+		}
 	}
 
 	@Test
