@@ -81,7 +81,7 @@ public final class HelpDialog extends AbstractDialog {
 		license.setToolTipText(Messages.getString("HelpDialog.ShowLicense")); //$NON-NLS-1$
 		license.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				LicenseDialog.showDialog(HelpDialog.this);
+				LicenseDialog.showDialogForHelp(HelpDialog.this);
 			}
 		});		
 

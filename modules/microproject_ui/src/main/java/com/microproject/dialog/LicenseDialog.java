@@ -53,7 +53,7 @@ public final class LicenseDialog extends AbstractDialog {
 		LicenseDialog dlg = new LicenseDialog(owner);
 		dlg.doModal();
 	}
-	public static void showDialog(Dialog owner) {
+	static void showDialogForHelp(Dialog owner) {
 		LicenseDialog dlg = new LicenseDialog(owner);
 		dlg.doModal();
 	}
