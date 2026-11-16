@@ -84,6 +84,7 @@ public abstract class SplittedView extends JSplitPane {
 			@Override
 			public void componentResized(ComponentEvent event) {
 				requestResponsiveDividerLayout();
+				requestDividerBoundsEnforcement();
 			}
 		});
 		addPropertyChangeListener("UI", event -> installDividerGestureTracker());
@@ -182,7 +183,13 @@ public abstract class SplittedView extends JSplitPane {
 			return;
 		}
 		int dividerLocation = ((Integer) event.getNewValue()).intValue();
-		logger.info(() -> getClass().getSimpleName() + " divider changed to " + dividerLocation
+		int boundedLocation = clampDividerLocationToViewBounds(dividerLocation);
+		if (boundedLocation != dividerLocation) {
+			setDividerLocationSilently(boundedLocation);
+			dividerLocation = boundedLocation;
+		}
+		int publishedLocation = dividerLocation;
+		logger.info(() -> getClass().getSimpleName() + " divider changed to " + publishedLocation
 			+ " source=" + (event.getSource() == null ? "null" : event.getSource().getClass().getSimpleName()));
 		publishDividerLocationAndRequestValidation(event.getSource(), dividerLocation);
 	}
@@ -200,6 +207,7 @@ public abstract class SplittedView extends JSplitPane {
 			boundedLocation = insets.left + Math.max(MINIMUM_RESTORED_PANE_WIDTH,
 				Math.min(location - insets.left, maximumLocation));
 		}
+		boundedLocation = clampDividerLocationToViewBounds(boundedLocation);
 		setDividerLocationSilently(boundedLocation);
 		markDividerLocationManuallyAdjusted();
 		publishDividerLocationAndRequestValidation(this, boundedLocation);
@@ -240,6 +248,37 @@ public abstract class SplittedView extends JSplitPane {
 
 	protected int minimumResponsiveRightPaneWidth() {
 		return MINIMUM_RESTORED_PANE_WIDTH;
+	}
+
+	protected int maximumLeftPaneWidth() {
+		return Integer.MAX_VALUE;
+	}
+
+	protected boolean enforcesMaximumLeftPaneWidth() {
+		return false;
+	}
+
+	private int clampDividerLocationToViewBounds(int location) {
+		if (!enforcesMaximumLeftPaneWidth() || location < 0 || location == Integer.MAX_VALUE)
+			return location;
+		Insets insets = getInsets();
+		if (getWidth() <= 0)
+			return location;
+		int maximumWidth = maximumLeftPaneWidth();
+		if (maximumWidth == Integer.MAX_VALUE)
+			return location;
+		int maximumLocation = insets.left + Math.min(getWidth(), Math.max(0, maximumWidth));
+		return Math.min(location, maximumLocation);
+	}
+
+	protected final void requestDividerBoundsEnforcement() {
+		SwingUtilities.invokeLater(() -> {
+			int boundedLocation = clampDividerLocationToViewBounds(getDividerLocation());
+			if (boundedLocation != getDividerLocation()) {
+				setDividerLocationSilently(boundedLocation);
+				publishDividerLocationAndRequestValidation(this, boundedLocation);
+			}
+		});
 	}
 
 	final boolean isDividerLocationManuallyAdjusted() {
@@ -324,6 +363,7 @@ public abstract class SplittedView extends JSplitPane {
 	}
 
 	private void setDividerLocationSilently(int location) {
+		location = clampDividerLocationToViewBounds(location);
 		if (getDividerLocation() == location)
 			return;
 		silent = true;
