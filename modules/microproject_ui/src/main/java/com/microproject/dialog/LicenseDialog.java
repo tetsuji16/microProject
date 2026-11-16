@@ -24,6 +24,7 @@
 package com.microproject.dialog;
 
 import java.awt.Dimension;
+import java.awt.Dialog;
 import java.awt.Frame;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -52,11 +53,20 @@ public final class LicenseDialog extends AbstractDialog {
 		LicenseDialog dlg = new LicenseDialog(owner);
 		dlg.doModal();
 	}
+	public static void showDialog(Dialog owner) {
+		LicenseDialog dlg = new LicenseDialog(owner);
+		dlg.doModal();
+	}
 
 	private LicenseDialog(Frame owner) {
 		super(owner, buildDialogTitle(
 			Messages.getContextString("Text.ApplicationTitle"),
 			Messages.getString("LicenseDialog.License")), true); //$NON-NLS-1$ //$NON-NLS-2$
+	}
+	private LicenseDialog(Dialog owner) {
+		super(owner, buildDialogTitle(
+			Messages.getContextString("Text.ApplicationTitle"),
+			Messages.getString("LicenseDialog.License")), Dialog.ModalityType.APPLICATION_MODAL);
 	}
 
 	static String buildDialogTitle(String applicationTitle, String licenseTitle) {

@@ -2051,6 +2051,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> visibleDialog(LicenseDialog.class) != null,
 			"Help dialog License button did not open LicenseDialog");
 		LicenseDialog license = (LicenseDialog) visibleDialog(LicenseDialog.class);
+		assertTrue(license.getOwner() == help, "License dialog must belong to the Help dialog");
 		String productName = Messages.getContextString("Text.ApplicationTitle");
 		String title = ((Dialog) license).getTitle();
 		assertTrue(title.contains(productName), "License dialog title did not render " + productName + ": " + title);
@@ -2079,6 +2080,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		click(robot, ok);
 		GuiAcceptanceSupport.await(() -> visibleDialog(LicenseDialog.class) == null,
 			"OK did not close LicenseDialog");
+		GuiAcceptanceSupport.await(help::isActive, "Help dialog did not regain focus after closing LicenseDialog");
 		click(robot, findButton(help, Messages.getString("HelpDialog.ShowLicense"),
 			"Help dialog License button disappeared after closing LicenseDialog"));
 		GuiAcceptanceSupport.await(() -> visibleDialog(LicenseDialog.class) != null,

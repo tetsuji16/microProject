@@ -39,7 +39,6 @@ import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.pm.graphic.IconManager;
-import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.strings.Messages;
 import com.microproject.util.BrowserControl;
 import com.microproject.util.UiLinkTargets;
@@ -82,7 +81,7 @@ public final class HelpDialog extends AbstractDialog {
 		license.setToolTipText(Messages.getString("HelpDialog.ShowLicense")); //$NON-NLS-1$
 		license.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				LicenseDialog.showDialog(GraphicManager.getFrameInstance());
+				LicenseDialog.showDialog(HelpDialog.this);
 			}
 		});		
 
