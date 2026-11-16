@@ -456,17 +456,29 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	}
 
 	private void closeBackstage() {
-		if (!backstageOpen) return;
+		closeBackstage(true);
+	}
+
+	private String closeBackstage(boolean restoreFocus) {
+		if (!backstageOpen) return null;
 		backstageOpen = false;
 		if (backstageHost != null) backstageHost.hide();
 		String restore = tabBeforeBackstage;
 		tabBeforeBackstage = null;
 		if (restore != null && isTabVisible(restore)) {
 			showTab(restore);
-			JToggleButton tab = tabButtons.get(restore);
-			if (tab != null) SwingUtilities.invokeLater(() ->
-				SwingUtilities.invokeLater(tab::requestFocusInWindow));
+			if (restoreFocus) requestTabFocusAfterBackstage(restore);
 		}
+		return restore;
+	}
+
+	private void requestTabFocusAfterBackstage(String tabId) {
+		if (tabId == null || !isTabVisible(tabId)) return;
+		JToggleButton tab = tabButtons.get(tabId);
+		if (tab != null) SwingUtilities.invokeLater(() ->
+			SwingUtilities.invokeLater(() -> {
+				if (tab.isShowing() && tab.isEnabled()) tab.requestFocusInWindow();
+			}));
 	}
 
 	/**
@@ -476,21 +488,87 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	 */
 	private void closeBackstageBeforeCommand(AbstractButton button) {
 		ActionListener[] commandListeners = button.getActionListeners();
-		// Removing the bound Action also clears AbstractButton's Action binding.
-		// Leave it registered so enabled/name/icon updates keep reaching the control.
-		ActionListener boundAction = button.getAction();
+		javax.swing.Action commandAction = button.getAction();
+		String text = button.getText();
+		javax.swing.Icon icon = button.getIcon();
+		String toolTip = button.getToolTipText();
+		int mnemonic = button.getMnemonic();
+		String actionCommand = button.getActionCommand();
+		String accessibleName = button.getAccessibleContext().getAccessibleName();
 		for (ActionListener listener : commandListeners) {
-			if (listener != boundAction) button.removeActionListener(listener);
+			if (listener != commandAction) button.removeActionListener(listener);
 		}
-		// Swing dispatches newest listeners first: close before the retained Action runs.
-		button.addActionListener(event -> {
-			closeBackstage();
-			SwingUtilities.invokeLater(() -> {
-				for (ActionListener listener : commandListeners) {
-					if (listener != boundAction) listener.actionPerformed(event);
-				}
-			});
-		});
+		AbstractAction deferredAction = new AbstractAction() {
+			@Override
+			public void actionPerformed(ActionEvent event) {
+				String restoreTab = closeBackstage(false);
+				SwingUtilities.invokeLater(() -> {
+					try {
+						for (ActionListener listener : commandListeners) {
+							listener.actionPerformed(event);
+						}
+					} finally {
+						// A command may enter a modal event loop. Restore the tab only
+						// after that command returns, when the dialog no longer owns focus.
+						requestTabFocusAfterBackstage(restoreTab);
+					}
+				});
+			}
+		};
+		if (commandAction != null) {
+			for (String key : actionPropertyKeys(commandAction))
+				deferredAction.putValue(key, commandAction.getValue(key));
+			deferredAction.setEnabled(commandAction.isEnabled());
+			commandAction.addPropertyChangeListener(new BackstageActionMirror(commandAction, deferredAction));
+		}
+		// Keep the button bound to an Action so property changes still update its
+		// enabled state and presentation. The proxy defers the original listeners.
+		button.setAction(deferredAction);
+		// Some Office controls use a localized caption that intentionally differs
+		// from the internal Action name. Preserve that presentation when rebinding.
+		button.setText(text);
+		button.setIcon(icon);
+		button.setToolTipText(toolTip);
+		button.setMnemonic(mnemonic);
+		button.setActionCommand(actionCommand);
+		button.getAccessibleContext().setAccessibleName(accessibleName);
+	}
+
+	private static String[] actionPropertyKeys(javax.swing.Action action) {
+		java.util.LinkedHashSet<String> keys = new java.util.LinkedHashSet<>(List.of(
+			javax.swing.Action.NAME, javax.swing.Action.SHORT_DESCRIPTION, javax.swing.Action.LONG_DESCRIPTION,
+			javax.swing.Action.SMALL_ICON, javax.swing.Action.LARGE_ICON_KEY, javax.swing.Action.MNEMONIC_KEY,
+			javax.swing.Action.ACCELERATOR_KEY, javax.swing.Action.ACTION_COMMAND_KEY,
+			javax.swing.Action.SELECTED_KEY, javax.swing.Action.DISPLAYED_MNEMONIC_INDEX_KEY));
+		if (action instanceof AbstractAction abstractAction) {
+			Object[] customKeys = abstractAction.getKeys();
+			if (customKeys != null) {
+				for (Object key : customKeys) if (key instanceof String name) keys.add(name);
+			}
+		}
+		return keys.toArray(String[]::new);
+	}
+
+	private static final class BackstageActionMirror implements java.beans.PropertyChangeListener {
+		private final javax.swing.Action source;
+		private final java.lang.ref.WeakReference<AbstractAction> target;
+
+		private BackstageActionMirror(javax.swing.Action source, AbstractAction target) {
+			this.source = source;
+			this.target = new java.lang.ref.WeakReference<>(target);
+		}
+
+		@Override
+		public void propertyChange(java.beans.PropertyChangeEvent event) {
+			AbstractAction action = target.get();
+			if (action == null) {
+				source.removePropertyChangeListener(this);
+			} else if ("enabled".equals(event.getPropertyName())) {
+				action.setEnabled(source.isEnabled());
+			} else {
+				action.putValue(event.getPropertyName(), source.getValue(event.getPropertyName()));
+			}
+		}
 	}
 
 	private JComponent backstageView() {
@@ -1344,7 +1422,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 
 	private java.util.Optional<String> firstVisibleTabId() {
 		return model.getTabs().stream().map(SwingRibbonModel.RibbonTab::getId)
-			.filter(this::isTabVisible).findFirst();
+			.filter(this::isTabVisible).filter(id -> !isBackstageTab(id)).findFirst();
 	}
 
 	private void updateResponsiveMode() {

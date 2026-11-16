@@ -786,11 +786,21 @@ class GanttBarDateDragGuiAcceptanceTest {
 		Point endHandle = findResizeHandle(robot, fixture, false, Cursor.E_RESIZE_CURSOR, "finish resize");
 		assertTaskBarHit(fixture, endHandle);
 		assertResizeCursor(robot, endHandle, Cursor.E_RESIZE_CURSOR, "finish resize");
-		Point laterDate = screenPointForTaskDate(fixture,
-			originalEnd + com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		java.util.Calendar laterEndCalendar = java.util.Calendar.getInstance();
+		laterEndCalendar.setTimeInMillis(originalEnd);
+		laterEndCalendar.add(java.util.Calendar.DAY_OF_MONTH, 3);
+		Point laterDate = screenPointForTaskDate(fixture, laterEndCalendar.getTimeInMillis());
+		assertTrue(laterDate.x - endHandle.x >= java.awt.dnd.DragSource.getDragThreshold(),
+			"finish-resize gesture must exceed the desktop drag threshold: from=" + endHandle + " to=" + laterDate);
 		drag(robot, endHandle, laterDate);
-		GuiAcceptanceSupport.await(() -> fixture.predecessor.getEnd() > originalEnd,
-			"dragging the trailing bar handle did not resize the task finish");
+		try {
+			GuiAcceptanceSupport.await(() -> fixture.predecessor.getEnd() > originalEnd,
+				"dragging the trailing bar handle did not resize the task finish");
+		} catch (AssertionError failure) {
+			throw new AssertionError("Gantt finish resize did not commit: originalEnd=" + originalEnd
+				+ " actualEnd=" + fixture.predecessor.getEnd() + " pressPoint=" + endHandle
+				+ " dragPoint=" + laterDate + " bar=" + barBounds(fixture), failure);
+		}
 		long resizedEnd = fixture.predecessor.getEnd();
 		assertEquals(resizedStart, fixture.predecessor.getStart(),
 			"finish resize must retain the task start");

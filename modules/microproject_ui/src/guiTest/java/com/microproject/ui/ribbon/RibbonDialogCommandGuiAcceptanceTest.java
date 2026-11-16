@@ -6,6 +6,8 @@
 package com.microproject.ui.ribbon;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.GraphicsEnvironment;
@@ -21,11 +23,12 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.dialog.ResourceInformationDialog;
 
 /**
- * Every command that {@code menuInternal.properties} declares with {@code activation=DIALOG} must
- * open a dialog or window when clicked, and its button must not stay pressed afterwards. The list of
- * commands comes from the resource, so a new DIALOG command is covered without editing this test.
+ * Physically exercises commands declared with {@code activation=DIALOG}. Most must open a
+ * dialog/window; commands whose real contract is a view transition are checked against the active
+ * view. The list comes from the resource, so additions are covered without copying the command list.
  */
 class RibbonDialogCommandGuiAcceptanceTest {
 	/** Commands that open something other than a Swing window; each needs a stated reason. */
@@ -42,6 +45,9 @@ class RibbonDialogCommandGuiAcceptanceTest {
 			for (String commandId : commands) {
 				if (NOT_A_SWING_WINDOW.containsKey(commandId)) continue;
 				try {
+					fixture.restoreGanttView();
+					if ("RibbonInsertProject".equals(commandId)) fixture.saveCurrentProject();
+					if ("RibbonUseResourcePool".equals(commandId)) fixture.prepareSavedResourcePoolProject();
 					check(fixture, commandId);
 				} catch (AssertionError | Exception failure) {
 					failures.add(commandId + ": " + failure.getMessage());
@@ -53,8 +59,17 @@ class RibbonDialogCommandGuiAcceptanceTest {
 	}
 
 	private static void check(RibbonCommandGuiFixture fixture, String commandId) throws Exception {
+		if ("RibbonResourceInformation".equals(commandId) || "RibbonResourceNotes".equals(commandId)) {
+			AbstractButton resourcesView = fixture.showCommand("RibbonResources");
+			if (resourcesView != null && !fixture.isSelected(resourcesView)) fixture.click(resourcesView);
+			fixture.clickRow(0);
+		}
 		AbstractButton button = fixture.showCommand(commandId);
-		if (button == null) return; // only on a contextual tab that this view does not show
+		if (button == null) {
+			assertTrue(RibbonCommandGuiFixture.isContextualOrPopupOnly(commandId),
+				"standard ribbon command is missing: " + commandId);
+			return; // Contextual and popup commands have separate physical-route coverage.
+		}
 		if (!fixture.isEnabled(button)) {
 			fixture.clickRow(0);
 			button = fixture.showCommand(commandId);
@@ -70,11 +85,83 @@ class RibbonDialogCommandGuiAcceptanceTest {
 			throw new AssertionError("the button stays disabled with a task or a resource selected");
 		}
 		Set<Window> before = fixture.showingWindows();
+		ResourceInformationDialog resourceDialogBefore = "RibbonResourceNotes".equals(commandId)
+			? fixture.visibleResourceInformationDialog() : null;
+		String viewBefore = fixture.manager.getTopViewId();
 		fixture.click(button);
 		AbstractButton clicked = button;
-		GuiAcceptanceSupport.await(() -> opened(fixture, before), "no dialog or window opened");
-		fixture.closeNewWindows(before);
-		GuiAcceptanceSupport.await(() -> !pressed(fixture, clicked), "the button stays pressed after its dialog closed");
+		boolean viewSwitch = "RibbonDelegateTasks".equals(commandId) || "RibbonCustomReport".equals(commandId);
+		if ("RibbonDelegateTasks".equals(commandId)) {
+			GuiAcceptanceSupport.await(() -> "DelegateTasks".equals(fixture.manager.getTopViewId()),
+				"Delegate Tasks did not activate the Team Planner view");
+			assertFalse("DelegateTasks".equals(viewBefore), "the test must begin outside Team Planner");
+		} else if ("RibbonCustomReport".equals(commandId)) {
+			GuiAcceptanceSupport.await(() -> "Report".equals(fixture.manager.getTopViewId()),
+				"Custom Report did not activate the Report view");
+			assertFalse("Report".equals(viewBefore), "the test must begin outside Report");
+		} else if ("RibbonUseResourcePool".equals(commandId)) {
+			Window chooser = waitForWindow(fixture, before, "resource-pool project chooser did not open");
+			fixture.pressKey(java.awt.event.KeyEvent.VK_ENTER);
+			GuiAcceptanceSupport.await(() -> !showing(fixture, chooser), "the resource-pool chooser did not accept its saved project");
+			Window precedence = waitForWindow(fixture, before, "the resource precedence dialog did not open");
+			fixture.pressKey(java.awt.event.KeyEvent.VK_ENTER);
+			GuiAcceptanceSupport.await(() -> fixture.manager.getCurrentFrame().getProject().getSharedResourcePoolFile() != null,
+				"Use Resource Pool did not link the sharer to the saved pool");
+			GuiAcceptanceSupport.await(() -> !showing(fixture, precedence), "the resource precedence dialog did not close");
+			fixture.closeNewWindows(before);
+		} else if ("RibbonResourceNotes".equals(commandId)) {
+			assertNotNull(resourceDialogBefore, "Resource Notes requires the already-open Resource Information dialog");
+			GuiAcceptanceSupport.await(() -> {
+				try {
+					return fixture.isShowing(resourceDialogBefore)
+						&& fixture.isResourceNotesTabSelected(resourceDialogBefore);
+				} catch (Exception failure) {
+					throw new AssertionError(failure);
+				}
+			}, "Resource Notes did not show the reused Resource Information dialog on its Notes tab");
+			assertSame(resourceDialogBefore, fixture.visibleResourceInformationDialog(),
+				"Resource Notes should reuse the existing Resource Information dialog");
+			fixture.closeWindow(resourceDialogBefore);
+			fixture.closeNewWindows(before);
+		} else {
+			awaitWindow(fixture, before, "no dialog or window opened");
+			fixture.closeNewWindows(before);
+		}
+		if (viewSwitch) {
+			if ("RibbonDelegateTasks".equals(commandId))
+				assertTrue(fixture.isSelected(clicked), "Team Planner must remain selected for its active view");
+			else
+				assertFalse(fixture.isSelected(clicked), "the Custom Report action item must release after switching views");
+		} else {
+			GuiAcceptanceSupport.await(() -> !pressed(fixture, clicked), "the button stays pressed after its dialog closed");
+		}
+	}
+
+	private static Window waitForWindow(RibbonCommandGuiFixture fixture, Set<Window> before, String message) throws Exception {
+		awaitWindow(fixture, before, message);
+		try {
+			return fixture.newWindow(before);
+		} catch (Exception failure) {
+			throw new AssertionError(failure);
+		}
+	}
+
+	private static void awaitWindow(RibbonCommandGuiFixture fixture, Set<Window> before, String message) throws Exception {
+		try {
+			GuiAcceptanceSupport.await(() -> opened(fixture, before), message);
+		} catch (AssertionError failure) {
+			throw new AssertionError(message + "; showing windows opened by the route: "
+				+ fixture.describeWindows(before) + "; " + fixture.describeActiveSelection() + "; "
+				+ fixture.describeLastRouteDiagnostics(), failure);
+		}
+	}
+
+	private static boolean showing(RibbonCommandGuiFixture fixture, Window window) {
+		try {
+			return fixture.isShowing(window);
+		} catch (Exception failure) {
+			throw new AssertionError(failure);
+		}
 	}
 
 	private static boolean opened(RibbonCommandGuiFixture fixture, Set<Window> before) {

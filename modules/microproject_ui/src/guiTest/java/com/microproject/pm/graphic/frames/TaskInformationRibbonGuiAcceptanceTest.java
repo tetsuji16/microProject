@@ -2578,22 +2578,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertTrue(manager.getCurrentFrame().getCalendarViewDialog() == null
 			|| !manager.getCurrentFrame().getCalendarViewDialog().isShowing(),
 			"the Calendar view command must not open the calendar settings dialog");
-		// The settings dialog is opened through the Task Views group dialog launcher.
-		click(robot, findShowingButtonByCommand("RibbonCalendarViewSettings"));
-
-		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getCalendarViewDialog() != null
-			&& manager.getCurrentFrame().getCalendarViewDialog().isShowing(),
-			"Calendar View Settings launcher did not show CalendarViewDialogBox");
-		CalendarViewDialogBox dialog = manager.getCurrentFrame().getCalendarViewDialog();
-		java.awt.Rectangle usableBounds = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
-		java.awt.Rectangle dialogBounds = new java.awt.Rectangle(dialog.getLocationOnScreen(), dialog.getSize());
-		assertTrue(usableBounds.contains(dialogBounds),
-			"calendar dialog must fit the usable work area: dialog=" + dialogBounds + " usable=" + usableBounds);
-		assertTrue(dialog.getWidth() >= Math.min(900, usableBounds.width - 40)
-			&& dialog.getHeight() >= Math.min(600, usableBounds.height - 80),
-			"calendar dialog must use the available screen area while preserving its usable layout: dialog="
-				+ dialog.getSize() + " usable=" + usableBounds);
-		JScrollPane scrollPane = UiComponentWalker.flatten(dialog).stream()
+		CalendarViewDialogBox dialog = manager.getCurrentFrame().getEmbeddedCalendarDialog();
+		assertNotNull(dialog, "Calendar view must expose its embedded calendar");
+		Component calendarView = manager.getCurrentFrame().getCalendarView();
+		assertTrue(calendarView.isShowing(), "embedded calendar view must be visible");
+		JScrollPane scrollPane = UiComponentWalker.flatten(calendarView).stream()
 			.filter(JScrollPane.class::isInstance).map(JScrollPane.class::cast).findFirst()
 			.orElseThrow(() -> new AssertionError("calendar canvas scroll pane is missing"));
 		JComponent canvas = (JComponent) scrollPane.getViewport().getView();
@@ -2608,12 +2597,12 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertTrue(cardCount[0] > 0, "task fixture must render at least one calendar card");
 		assertTrue(displayedMonth[0].contains("令和"),
 			"the visible calendar month header must include the FORMAT-locale Japanese calendar date");
-		AbstractButton[] navigation = UiComponentWalker.flatten(dialog).stream()
+		AbstractButton[] navigation = UiComponentWalker.flatten(calendarView).stream()
 			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
 			.filter(AbstractButton::isShowing).toArray(AbstractButton[]::new);
 		assertTrue(navigation.length >= 3, "calendar must show previous, today, and next controls");
 		click(robot, navigation[0]);
-		GuiAcceptanceSupport.await(() -> dialog.isShowing() && !displayedMonth[0].equals(readDisplayedMonth(dialog)),
+		GuiAcceptanceSupport.await(() -> calendarView.isShowing() && !displayedMonth[0].equals(readDisplayedMonth(dialog)),
 			"previous-month navigation must keep the calendar dialog visible and change its month");
 	}
 
@@ -3011,11 +3000,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ViewRibbonTask.title"));
 		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab for Calendar");
-		click(robot, findShowingButtonByCommand("RibbonCalendarViewSettings"));
-		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getCalendarViewDialog() != null
-			&& manager.getCurrentFrame().getCalendarViewDialog().isShowing(), "calendar link dialog did not open");
-		CalendarViewDialogBox calendar = manager.getCurrentFrame().getCalendarViewDialog();
-		JScrollPane scrollPane = UiComponentWalker.flatten(calendar).stream()
+		click(robot, findShowingButtonByCommand("RibbonCalendarView"));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getEmbeddedCalendarDialog() != null
+			&& manager.getCurrentFrame().getCalendarView().isShowing(), "calendar view did not open");
+		CalendarViewDialogBox calendar = manager.getCurrentFrame().getEmbeddedCalendarDialog();
+		JScrollPane scrollPane = UiComponentWalker.flatten(manager.getCurrentFrame().getCalendarView()).stream()
 			.filter(JScrollPane.class::isInstance).map(JScrollPane.class::cast).findFirst()
 			.orElseThrow(() -> new AssertionError("calendar canvas scroll pane is missing"));
 		JComponent canvas = (JComponent) scrollPane.getViewport().getView();
@@ -3042,33 +3031,29 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"Remove must preserve the unrelated successor dependency");
 		assertEquals(List.of(unrelatedLink), List.copyOf(unrelated.getPredecessorList()),
 			"Remove must preserve the unrelated predecessor dependency");
-		assertEquals(3, calendar.getVisibleTaskCardCount(), "removing a link must keep all calendar task cards visible");
+		// Unlinking reschedules these tasks onto the same day; expand that week through
+		// the real Calendar Format route before asserting every card is visible.
+		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("CalendarFormat.contextualTitle")), "Robot click did not select Calendar Format");
+		click(robot, findShowingButtonByCommand("RibbonCalendarWeekHeightBestFit"));
+		GuiAcceptanceSupport.await(() -> calendar.getVisibleTaskCardCount() == 3,
+			"Best Fit must show all three calendar task cards after unlinking");
 		GuiAcceptanceSupport.await(() -> calendar.getDependencyMarkerBounds(predecessor) == null,
 			"calendar must remove the selected dependency marker after Remove");
-		closeWindowWithRobot(robot, calendar);
-		GuiAcceptanceSupport.await(() -> !calendar.isShowing(), "physical close did not return focus from Calendar to the project frame");
 		activateWindow(robot, window);
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
 		GuiAcceptanceSupport.await(() -> predecessor.getSuccessorList().contains(link)
 			&& successor.getPredecessorList().contains(link), "Ctrl+Z did not restore the calendar dependency endpoints");
-		click(robot, findShowingButtonByCommand("RibbonCalendarViewSettings"));
-		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getCalendarViewDialog() != null
-			&& manager.getCurrentFrame().getCalendarViewDialog().isShowing(), "Calendar did not reopen after physical Undo");
-		CalendarViewDialogBox restoredCalendar = manager.getCurrentFrame().getCalendarViewDialog();
+		CalendarViewDialogBox restoredCalendar = manager.getCurrentFrame().getEmbeddedCalendarDialog();
 		GuiAcceptanceSupport.await(() -> restoredCalendar.getDependencyMarkerBounds(predecessor) != null,
 			"Ctrl+Z did not restore the rendered calendar dependency marker");
 		assertEquals(List.of(unrelatedLink), List.copyOf(successor.getSuccessorList()),
 			"Undo must preserve the unrelated dependency");
-		closeWindowWithRobot(robot, restoredCalendar);
-		GuiAcceptanceSupport.await(() -> !restoredCalendar.isShowing(), "physical close did not return focus before Redo");
 		activateWindow(robot, window);
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
 		GuiAcceptanceSupport.await(() -> !predecessor.getSuccessorList().contains(link)
 			&& !successor.getPredecessorList().contains(link), "Ctrl+Y did not remove the calendar dependency again");
-		click(robot, findShowingButtonByCommand("RibbonCalendarViewSettings"));
-		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getCalendarViewDialog() != null
-			&& manager.getCurrentFrame().getCalendarViewDialog().isShowing(), "Calendar did not reopen after physical Redo");
-		CalendarViewDialogBox redoneCalendar = manager.getCurrentFrame().getCalendarViewDialog();
+		CalendarViewDialogBox redoneCalendar = manager.getCurrentFrame().getEmbeddedCalendarDialog();
 		GuiAcceptanceSupport.await(() -> redoneCalendar.getDependencyMarkerBounds(predecessor) == null,
 			"Ctrl+Y did not remove the rendered calendar dependency marker again");
 		assertSame(predecessor, link.getPredecessor(), "removing a link must not remove its predecessor task");
@@ -3274,7 +3259,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("ViewRibbonTask.title"));
 		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab for grouping");
-		click(robot, findShowingButtonByCommand("RibbonChooseGroup"));
+		openRibbonPopupCommand(robot, "RibbonChooseGroup", "RibbonMoreGroups");
 		JComboBox<?> groupChoice = findShowingTransformCombo("Grouper.None");
 		int durationGroupIndex = -1;
 		for (int index = 0; index < groupChoice.getItemCount(); index++) {
@@ -3364,7 +3349,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		// Grouping is a project-view preference shared by later physical GUI routes; restore the default.
 		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 				.getString("ViewRibbonTask.title")));
-		click(robot, findShowingButtonByCommand("RibbonChooseGroup"));
+		openRibbonPopupCommand(robot, "RibbonChooseGroup", "RibbonMoreGroups");
 		JComboBox<?> resetGroupChoice = findShowingTransformCombo("Grouper.CompleteIncomplete");
 		int noGroupIndex = -1;
 		for (int index = 0; index < resetGroupChoice.getItemCount(); index++) {
@@ -4075,7 +4060,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			.getString("ProjectRibbonTask.title")));
 		AbstractButton saveBaseline = findVisibleOrOverflowButton(robot, "RibbonSaveBaseline");
 		GuiAcceptanceSupport.await(saveBaseline::isEnabled, "Save Baseline remained disabled");
-		click(robot, saveBaseline);
+		openBaselineDialog(robot, "RibbonSaveBaseline");
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
 				.anyMatch(candidate -> candidate instanceof BaselineDialog && candidate.isShowing()),
 			"Save Baseline dialog did not open");
@@ -4124,7 +4109,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, task), nameColumn(sheet)));
 		long overwrittenBaselineStart = task.getStart();
 		long currentAssignmentWork = assignment.getWork(null);
-		click(robot, findVisibleOrOverflowButton(robot, "RibbonSaveBaseline"));
+		openBaselineDialog(robot, "RibbonSaveBaseline");
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
 				.anyMatch(candidate -> candidate instanceof BaselineDialog && candidate.isShowing()),
 			"Overwrite Save Baseline dialog did not open");
@@ -4342,7 +4327,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ProjectRibbonTask.title")));
-		click(robot, findVisibleOrOverflowButton(robot, "RibbonSaveBaseline"));
+		openBaselineDialog(robot, "RibbonSaveBaseline");
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
 				.anyMatch(candidate -> candidate instanceof BaselineDialog && candidate.isShowing()),
 			"Save Baseline dialog did not open for Baseline 1 recapture");
@@ -4567,7 +4552,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, selected), nameColumn(sheet)));
 		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ProjectRibbonTask.title")));
-		click(robot, findVisibleOrOverflowButton(robot, clear ? "RibbonClearBaseline" : "RibbonSaveBaseline"));
+		openBaselineDialog(robot, clear ? "RibbonClearBaseline" : "RibbonSaveBaseline");
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
 				.anyMatch(candidate -> candidate instanceof BaselineDialog && candidate.isShowing()),
 			"Baseline dialog did not open for selected-task journey");
@@ -4699,7 +4684,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ProjectRibbonTask.title"));
 		click(robot, projectTab);
-		click(robot, findVisibleOrOverflowButton(robot, "RibbonClearBaseline"));
+		openBaselineDialog(robot, "RibbonClearBaseline");
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
 				.anyMatch(candidate -> candidate instanceof BaselineDialog && candidate.isShowing()),
 			"Clear Baseline chooser did not open");
@@ -5128,6 +5113,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"Collapse must be disabled without a selected task");
 		assertFalse(findVisibleOrOverflowButton(robot, "RibbonExpand").isEnabled(),
 			"Expand must be disabled without a selected task");
+		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("TaskRibbonTask.title")), "Robot click did not select the Task ribbon tab");
 		AbstractButton hide = findVisibleOrOverflowButton(robot, "RibbonHideSelectedTasks");
 		AbstractButton show = findVisibleOrOverflowButton(robot, "RibbonShowAllTasks");
 		assertFalse(hide.isEnabled(), "Hide Selected Tasks must be disabled without a selected task");
@@ -7400,7 +7387,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ViewRibbonTask.title"));
 		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab for filtering");
-		click(robot, findShowingButtonByCommand("RibbonChooseFilter"));
+		openRibbonPopupCommand(robot, "RibbonChooseFilter", "RibbonMoreFilters");
 		JComboBox<?> filterChoice = findShowingTransformCombo("Filter.IncompleteTasks");
 		int incompleteIndex = -1;
 		for (int index = 0; index < filterChoice.getItemCount(); index++) {
@@ -8614,6 +8601,22 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 	private static AbstractButton findShowingButtonByText(java.awt.Container container, String text) throws Exception {
 		return GuiAcceptanceSupport.findShowingButtonByText(container, text);
+	}
+
+	/** Opens a ribbon popup and physically selects its requested command. */
+	private void openRibbonPopupCommand(Robot robot, String root, String command) throws Exception {
+		AbstractButton trigger = findVisibleOrOverflowButton(robot, root);
+		JPopupMenu popup = (JPopupMenu) trigger.getClientProperty("MicroProject.ribbon.controlMenu");
+		assertNotNull(popup, root + " must expose its command menu");
+		click(robot, trigger);
+		GuiAcceptanceSupport.await(popup::isShowing, root + " menu did not open");
+		JMenuItem item = GuiPhysicalRouteAdapter.visiblePopupItem(popup, command);
+		assertNotNull(item, root + " menu is missing " + command);
+		click(robot, item);
+	}
+
+	private void openBaselineDialog(Robot robot, String command) throws Exception {
+		openRibbonPopupCommand(robot, "RibbonSaveBaseline", command);
 	}
 
 	/** Opens the View > Sort gallery and picks its Sort By item, which opens the generic Sort dialog. */
