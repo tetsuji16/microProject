@@ -427,13 +427,16 @@ class RibbonTabGuiAcceptanceTest {
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
-		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask", "TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask"));
 		// Keep the window within a normal desktop at 125/150%; commands that do
 		// not fit are intentionally represented by the responsive popup route.
 		show(host, 1000, false);
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		for (String tabId : MenuDefinitionSupport.ribbonTaskIds()) {
+			// Each contextual tab is available only while its corresponding view is active.
+			SwingUtilities.invokeAndWait(() -> ribbon.setVisibleContextualTabs(
+				isContextualTab(tabId) ? Set.of(tabId) : Set.of()));
+			if (isContextualTab(tabId)) robot.delay(700);
 			AbstractButton tab = clickRibbonTab(robot, host, tabId);
 			GuiAcceptanceSupport.await(tab::isSelected, "high-DPI tab was not selected: " + tabId);
 			SwingUtilities.invokeAndWait(() -> assertVisibleRibbonControlsFit(host, tab));
