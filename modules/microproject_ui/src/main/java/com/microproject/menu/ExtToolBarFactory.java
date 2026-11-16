@@ -48,6 +48,8 @@ import com.microproject.pm.graphic.IconManager;
  *
  */
 public class ExtToolBarFactory extends ToolBarFactory {
+	/** Marks a UI-only popup opener which must not become a command action. */
+	public static final String POPUP_OPENER_ACTION_PROPERTY = "MicroProject.popupOpener";
 	private final Map<String, List<AbstractButton>> toolButtons = new LinkedHashMap<>();
 	private final Map<String, List<JComponent>> ribbonControls = new LinkedHashMap<>();
 	private final ProjectMenuActionMap actionMap;
@@ -110,7 +112,8 @@ public class ExtToolBarFactory extends ToolBarFactory {
 		AbstractButton button = super.createJButton(name);
 		String actionName = getActionStringFromId(name);
 		List<AbstractButton> registered = actionName == null ? null : toolButtons.get(actionName);
-		if (registered != null && !registered.isEmpty() && registered.get(0).getAction() != null) {
+		if (registered != null && !registered.isEmpty() && registered.get(0).getAction() != null
+				&& !Boolean.TRUE.equals(registered.get(0).getAction().getValue(POPUP_OPENER_ACTION_PROPERTY))) {
 			button.setAction(registered.get(0).getAction());
 		}
 		configureButton(button, name);

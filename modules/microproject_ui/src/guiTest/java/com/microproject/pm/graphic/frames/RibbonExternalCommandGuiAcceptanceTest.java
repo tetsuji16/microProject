@@ -950,6 +950,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Environment.setNewLook(true);
 
 		createWindow("microProject — Report to Gantt navigation acceptance");
+		SwingUtilities.invokeAndWait(() -> window.setSize(900, 700));
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		ResourcePool pool = ResourcePool.createRourcePool("report-navigation-gui", undo);
 		pool.setLocal(true);
@@ -983,9 +984,27 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		AbstractButton gantt = RibbonGuiSupport.findVisibleOrExpand(robot, window.getRibbonPanel(), "RibbonGantt");
 		assertTrue(gantt.isShowing() && gantt.isEnabled(),
 			"View > Gantt Chart must remain an available return route from Report");
-		RibbonGuiSupport.clickSplitPrimary(robot, gantt);
-		GuiAcceptanceSupport.await(() -> MenuActionConstants.ACTION_GANTT.equals(manager.getTopViewId()),
-			"View > Gantt Chart did not return from Report to the task schedule");
+		java.util.concurrent.atomic.AtomicBoolean dispatched = new java.util.concurrent.atomic.AtomicBoolean();
+		java.awt.event.ActionListener probe = event -> dispatched.set(true);
+		SwingUtilities.invokeAndWait(() -> gantt.addActionListener(probe));
+		Point primary;
+		try {
+			primary = RibbonGuiSupport.clickSplitPrimary(robot, gantt);
+			GuiAcceptanceSupport.await(dispatched::get, "Gantt primary did not receive a physical click; point=" + primary
+				+ " bounds=" + gantt.getBounds() + " showing=" + gantt.isShowing());
+		} finally {
+			SwingUtilities.invokeAndWait(() -> gantt.removeActionListener(probe));
+		}
+		try {
+			GuiAcceptanceSupport.await(() -> MenuActionConstants.ACTION_GANTT.equals(manager.getTopViewId()),
+				"View > Gantt Chart did not return from Report to the task schedule");
+		} catch (AssertionError failure) {
+			throw new AssertionError("Gantt primary action fired but view did not change: "
+				+ manager.getLastRibbonCommandResult() + " action=" + gantt.getAction()
+				+ " actionResult=" + (gantt.getAction() == null ? null : gantt.getAction().getValue(com.microproject.ribbon.RibbonCommandResult.RESULT_ACTION_PROPERTY))
+				+ " listeners=" + java.util.Arrays.toString(gantt.getActionListeners())
+				+ " selected=" + gantt.isSelected() + " topView=" + manager.getTopViewId(), failure);
+		}
 	}
 
 	/**

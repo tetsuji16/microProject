@@ -32,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.event.ActionEvent;
+import java.lang.ref.WeakReference;
 import java.util.List;
 import java.util.ListResourceBundle;
 import java.util.Locale;
@@ -40,6 +41,7 @@ import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.AbstractAction;
+import javax.swing.Action;
 import javax.swing.JButton;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
@@ -120,6 +122,42 @@ class RibbonControlContractTest {
 		assertEquals(button, arrow.getParent());
 		assertEquals(Boolean.TRUE, button.getClientProperty("MicroProject.ribbonSplit"));
 		assertEquals("V", button.getClientProperty(RibbonControlPopups.KEY_TIP_PROPERTY));
+	}
+
+	@Test
+	void popupCommandMirrorTracksLiveStateWithoutRetainingItsButtonTree() {
+		AbstractAction command = new AbstractAction("Menu") {
+			@Override
+			public void actionPerformed(ActionEvent event) {
+			}
+		};
+		WeakReference<AbstractAction> mirrorReference = createPopupMirror(command);
+		assertNotNull(mirrorReference.get());
+		command.setEnabled(false);
+		command.putValue(Action.SELECTED_KEY, Boolean.TRUE);
+		AbstractAction mirror = mirrorReference.get();
+		assertNotNull(mirror);
+		assertFalse(mirror.isEnabled());
+		assertEquals(Boolean.TRUE, mirror.getValue(Action.SELECTED_KEY));
+		mirror = null;
+
+		for (int attempt = 0; attempt < 40 && mirrorReference.get() != null; attempt++) {
+			System.gc();
+			// Modest allocation encourages collection without relying on a timed sleep.
+			byte[] pressure = new byte[256 * 1024];
+			pressure[0] = 1;
+		}
+		assertNull(mirrorReference.get(), "a long-lived command must not keep the transient popup button alive");
+		// The listener removes itself the next time the command changes after its target is gone.
+		command.setEnabled(true);
+		assertEquals(0, command.getPropertyChangeListeners().length,
+			"the weak mirror listener should detach after observing that its target was collected");
+	}
+
+	private static WeakReference<AbstractAction> createPopupMirror(AbstractAction command) {
+		JButton button = new JButton(command);
+		RibbonControlPopups.install(button, specification(RibbonControlKind.MENU), commandSource(), key -> null);
+		return new WeakReference<>(assertInstanceOf(AbstractAction.class, button.getAction()));
 	}
 
 	@Test

@@ -26,6 +26,9 @@ package com.microproject.ui.ribbon;
 import java.awt.event.ActionListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
@@ -111,6 +114,36 @@ final class RibbonControlPopups {
 	private static final String ITEM_SEPARATOR = "-";
 	private static final String CHOICE_PROPERTY = "MicroProject.ribbon.dropDownChoice";
 	private static final int MAX_LABEL_LENGTH = 16;
+
+	/** Mirrors a command without letting the long-lived command retain its button tree. */
+	private static final class WeakActionMirrorListener implements PropertyChangeListener {
+		private final WeakReference<AbstractAction> mirror;
+
+		WeakActionMirrorListener(AbstractAction mirror) {
+			this.mirror = new WeakReference<>(mirror);
+		}
+
+		@Override
+		public void propertyChange(PropertyChangeEvent event) {
+			AbstractAction target = mirror.get();
+			if (target == null) {
+				if (event.getSource() instanceof Action source) {
+					source.removePropertyChangeListener(this);
+				}
+				return;
+			}
+			if (!(event.getSource() instanceof Action source)) {
+				return;
+			}
+			String name = event.getPropertyName();
+			if ("enabled".equals(name)) {
+				target.setEnabled(source.isEnabled());
+			} else if (name != null && !java.util.Objects.equals(target.getValue(name), source.getValue(name))) {
+				// AbstractAction fires for null-to-null, so an unguarded copy can ping-pong with the binding.
+				target.putValue(name, source.getValue(name));
+			}
+		}
+	}
 
 	private RibbonControlPopups() {
 	}
@@ -614,16 +647,9 @@ final class RibbonControlPopups {
 			Action.LONG_DESCRIPTION, Action.SELECTED_KEY }) {
 			mirror.putValue(key, command.getValue(key));
 		}
+		mirror.putValue(com.microproject.menu.ExtToolBarFactory.POPUP_OPENER_ACTION_PROPERTY, Boolean.TRUE);
 		mirror.setEnabled(command.isEnabled());
-		command.addPropertyChangeListener(change -> {
-			String name = change.getPropertyName();
-			if ("enabled".equals(name)) {
-				mirror.setEnabled(command.isEnabled());
-			} else if (name != null && !java.util.Objects.equals(mirror.getValue(name), command.getValue(name))) {
-				// AbstractAction fires for null-to-null, so an unguarded copy can ping-pong with the binding.
-				mirror.putValue(name, command.getValue(name));
-			}
-		});
+		command.addPropertyChangeListener(new WeakActionMirrorListener(mirror));
 		button.setAction(mirror);
 		button.setText(text);
 		button.setIcon(icon);
