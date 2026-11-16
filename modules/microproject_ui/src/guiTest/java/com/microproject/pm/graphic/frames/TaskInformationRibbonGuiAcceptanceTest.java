@@ -8612,7 +8612,15 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(popup::isShowing, root + " menu did not open");
 		JMenuItem item = GuiPhysicalRouteAdapter.visiblePopupItem(popup, command);
 		assertNotNull(item, root + " menu is missing " + command);
-		click(robot, item);
+		java.util.concurrent.atomic.AtomicBoolean invoked = new java.util.concurrent.atomic.AtomicBoolean();
+		java.awt.event.ActionListener probe = event -> invoked.set(true);
+		SwingUtilities.invokeAndWait(() -> item.addActionListener(probe));
+		try {
+			click(robot, item);
+			GuiAcceptanceSupport.await(invoked::get, root + " popup item did not receive its physical click: " + command);
+		} finally {
+			SwingUtilities.invokeAndWait(() -> item.removeActionListener(probe));
+		}
 	}
 
 	private void openBaselineDialog(Robot robot, String command) throws Exception {

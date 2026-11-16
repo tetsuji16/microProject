@@ -18,7 +18,7 @@ The logged heap exhaustion does not establish the cause of the individual assert
 
 ## Current slice
 
-Integrate and run the full hosted Windows GUI acceptance on the reviewed candidate. Done when the full suite and required locale/scale legs pass on that candidate. Next: integrate to master and rerun the stable release gate as originally required.
+Investigate hosted full-run failures on candidate `d8d08c969`: first distinguish pre-contention baseline/Report failures and heap exhaustion from later blocked GUI input. Capture artifacts and model state before editing. Done when confirmed causes are fixed with focused evidence, followed by a full hosted Windows GUI run. Next: integrate to master and rerun stable release gate.
 
 ## Evidence
 
@@ -37,3 +37,5 @@ Integrate and run the full hosted Windows GUI acceptance on the reviewed candida
 - Dialog-command physical sweep: all commands passed after restoring the Gantt view between journeys, preparing a saved resource pool, initializing the session job queue as startup does, and asserting embedded view transitions and the reused Resource Notes dialog correctly. Command: `./gradlew.bat :microproject_ui:guiTest --tests "com.microproject.ui.ribbon.RibbonDialogCommandGuiAcceptanceTest.everyDialogCommandOpensAWindowAndReleasesItsButton" --max-workers=1 --console=plain`.
 - POD resource, large-project resource edit and MPO round trip, Report > Gantt, and Gantt resize/progress/split physical tests passed locally. The Gantt finish gesture had moved only 3 screen pixels, below the desktop drag threshold; its fixture now targets three calendar days and asserts a sufficient pixel delta.
 - `./gradlew.bat :microproject_ui:test --console=plain` passed after calendar-refresh coalescing. The focused calendar dependency Remove/Undo/Redo/MPO GUI journey also passed afterward. Hosted exact-candidate evidence remains pending.
+- [Hosted full run 43822041870](https://github.com/tetsuji16/microProject/actions/runs/43822041870) on `d8d08c969` failed: 212 tests, 24 failures, 1 skipped; locale/scale matrix did not run. The run logged baseline and Report assertions, a Java heap exhaustion, and later SearchHost foreground contention that stopped further Robot input. Do not attribute earlier failures to contention without evidence. Artifact: `gui-audit-evidence-43822041870`.
+- [Focused hosted baseline run 43826383775](https://github.com/tetsuji16/microProject/actions/runs/43826383775) also failed on `d8d08c969`, without the later full-run contention. A physical ActionListener probe now distinguishes menu-item delivery from dialog routing; hosted repro pending. Report > Gantt clicked the split arrow on the narrow hosted desktop; the physical route now uses the shared split-primary helper. Both affected local GUI journeys pass.

@@ -327,7 +327,7 @@ class RibbonTabGuiAcceptanceTest {
 			assertTrue(actionId != null, () -> commandId + " has no mapped action");
 			int before = actions.count(actionId);
 			Point clickPoint = kind == RibbonControlKind.SPLIT_BUTTON
-				? clickSplitPrimary(robot, button) : clickCommand(robot, button);
+				? com.microproject.testsupport.RibbonGuiSupport.clickSplitPrimary(robot, button) : clickCommand(robot, button);
 			GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
 				"Robot click did not dispatch " + commandId + " (" + actionId + ") at " + clickPoint);
 			recordPhysicalCommand(physicalCommands, actionId, commandId);
@@ -1294,20 +1294,6 @@ class RibbonTabGuiAcceptanceTest {
 			() -> "Ribbon button is clipped by its band: button=" + buttonBounds + " content=" + contentBounds);
 	}
 
-	private static Point clickSplitPrimary(Robot robot, AbstractButton button) throws Exception {
-		Point[] point = new Point[1];
-		SwingUtilities.invokeAndWait(() -> {
-			Point topLeft = button.getLocationOnScreen();
-			boolean large = "large".equals(button.getClientProperty(RibbonButtonStyler.SIZE_PROPERTY));
-			point[0] = large
-				? new Point(topLeft.x + button.getWidth() / 2, topLeft.y + Math.max(2, button.getHeight() / 4))
-				: new Point(topLeft.x + Math.max(2, button.getWidth() / 3), topLeft.y + button.getHeight() / 2);
-		});
-		robot.mouseMove(point[0].x, point[0].y);
-		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		return point[0];
-	}
 
 	private static void rightClick(Robot robot, AbstractButton button) throws Exception {
 		Point point = button.getLocationOnScreen();

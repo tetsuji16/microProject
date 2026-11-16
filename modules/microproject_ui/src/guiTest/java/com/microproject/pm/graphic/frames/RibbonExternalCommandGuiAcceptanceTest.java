@@ -983,7 +983,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		AbstractButton gantt = RibbonGuiSupport.findVisibleOrExpand(robot, window.getRibbonPanel(), "RibbonGantt");
 		assertTrue(gantt.isShowing() && gantt.isEnabled(),
 			"View > Gantt Chart must remain an available return route from Report");
-		click(robot, gantt);
+		RibbonGuiSupport.clickSplitPrimary(robot, gantt);
 		GuiAcceptanceSupport.await(() -> MenuActionConstants.ACTION_GANTT.equals(manager.getTopViewId()),
 			"View > Gantt Chart did not return from Report to the task schedule");
 	}
