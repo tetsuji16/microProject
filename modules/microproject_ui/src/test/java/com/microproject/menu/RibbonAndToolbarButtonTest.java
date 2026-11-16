@@ -40,6 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Component;
@@ -217,6 +218,23 @@ class RibbonAndToolbarButtonTest {
 
 			assertSame(registered.getAction(), popup.getAction());
 			assertEquals(registeredCount, factory.getButtonsFromId(actionId).size());
+		});
+	}
+
+	@Test
+	void transientRibbonButtonDoesNotCopyPopupOnlyAction() throws Exception {
+		ExtToolBarFactory factory = new ExtToolBarFactory(
+			MenuActionMapSupport.noopActionMap(), ribbonBundles(Locale.ROOT));
+		SwingUtilities.invokeAndWait(() -> {
+			AbstractButton registered = factory.createJButton("RibbonGantt");
+			javax.swing.Action popupOpener = new javax.swing.AbstractAction() {
+				@Override public void actionPerformed(java.awt.event.ActionEvent event) { }
+			};
+			popupOpener.putValue(ExtToolBarFactory.POPUP_OPENER_ACTION_PROPERTY, Boolean.TRUE);
+			registered.setAction(popupOpener);
+			AbstractButton transientButton = factory.createUnregisteredJButton("RibbonGantt");
+			assertNotSame(popupOpener, transientButton.getAction(),
+				"a popup opener is not the underlying Gantt command");
 		});
 	}
 

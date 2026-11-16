@@ -105,7 +105,7 @@ class PodResourceViewGuiAcceptanceTest {
 			assertEquals("Edited Task", renderedText(gantt, ganttRow, ganttNameColumn));
 			String viewTab = ResourceBundle.getBundle("com.microproject.menu.menu").getString("ViewRibbonTask.title");
 			WindowAcceptanceAssertions.clickComponent(robot, GuiAcceptanceSupport.findShowingButtonByText(window[0], viewTab));
-			WindowAcceptanceAssertions.clickComponent(robot, RibbonGuiSupport.findVisibleOrExpand(robot, window[0].getRibbonPanel(), "RibbonResources"));
+			RibbonGuiSupport.clickSplitPrimary(robot, RibbonGuiSupport.findVisibleOrExpand(robot, window[0].getRibbonPanel(), "RibbonResources"));
 			GuiAcceptanceSupport.await(() -> onEdt(() -> frame.getActiveTopView() instanceof ResourceView), "Resource ribbon did not open Resource View");
 			SpreadSheet sheet = onEdt(() -> frame.getResourceView().getSpreadSheet());
 			GuiAcceptanceSupport.await(() -> onEdt(() -> sheet.isShowing() && rowFor(sheet, resource) >= 0), "sample resource missing from visible outline: " + originalName);

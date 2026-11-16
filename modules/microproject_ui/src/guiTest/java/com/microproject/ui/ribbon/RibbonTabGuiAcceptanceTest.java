@@ -59,6 +59,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.menu.MenuActionMapSupport;
 import com.microproject.menu.MenuManager;
+import com.microproject.ribbon.RibbonControlKind;
 import com.microproject.menu.ProjectMenuActionMap;
 import com.microproject.pm.graphic.frames.MainRibbonFrame;
 import com.microproject.menu.testsupport.MenuDefinitionSupport;
@@ -157,6 +158,10 @@ class RibbonTabGuiAcceptanceTest {
 		robot.setAutoDelay(40);
 		for (int index = 0; index < MenuDefinitionSupport.ribbonTaskIds().size(); index++) {
 			String tabId = MenuDefinitionSupport.ribbonTaskIds().get(index);
+			// Simulate the active view for each contextual tab instead of leaving
+			// newer tabs permanently hidden in the isolated ribbon fixture.
+			SwingUtilities.invokeAndWait(() -> ribbon.setVisibleContextualTabs(Set.of(tabId)));
+			robot.delay(700); // Successive contextual tabs occupy the same screen position.
 			AbstractButton tab = clickRibbonTab(robot, host, tabId);
 			GuiAcceptanceSupport.await(tab::isSelected, "Robot click did not select ribbon tab " + tab.getText());
 			captureVisibleRibbon(robot, "ribbon-tab-" + index + ".png");
@@ -192,6 +197,7 @@ class RibbonTabGuiAcceptanceTest {
 	 * instead of this recording ActionMap.
 	 */
 	@Test
+	@org.junit.jupiter.api.Timeout(300)
 	void robotClicksEveryStandardRibbonCommandOnce() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Assumptions.assumeTrue(uiScale() <= 1.0d,
@@ -227,73 +233,190 @@ class RibbonTabGuiAcceptanceTest {
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		EnumSet<CommandId> physicalTaskCommands = EnumSet.noneOf(CommandId.class);
-		for (String tabId : MenuDefinitionSupport.ribbonTaskIds().stream()
-				.filter(tabId -> !Set.of("NetworkFormatRibbonTask", "CalendarFormatRibbonTask", "TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask").contains(tabId))
-				.toList()) {
+		for (String tabId : MenuDefinitionSupport.ribbonTaskIds()) {
+			boolean contextual = isContextualTab(tabId);
+			if (contextual) {
+				// In this wiring fixture, publish each contextual surface as its view
+				// becomes active. Production view-to-tab transitions are covered by
+				// the dedicated contextual route journeys.
+				SwingUtilities.invokeAndWait(() -> ribbon.setVisibleContextualTabs(Set.of(tabId)));
+				robot.delay(700);
+			} else {
+				SwingUtilities.invokeAndWait(() -> ribbon.setVisibleContextualTabs(Set.of()));
+			}
 			String title = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString(tabId + ".title");
+			if (!"FileRibbonTask".equals(tabId)) {
+				assertTrue(findShowingComponent(frame, "officeBackstageOverlay") == null,
+					"Backstage unexpectedly covers the ribbon before tab " + tabId);
+			}
 			AbstractButton tab = findButton(host, title);
 			click(robot, tab);
 			GuiAcceptanceSupport.await(tab::isSelected, "Robot click did not select ribbon tab " + title);
-			// The selection model and the command-panel replacement are separate EDT
-			// listeners; drain the queue before looking up the newly attached buttons.
 			SwingUtilities.invokeAndWait(() -> { });
 			for (String bandId : MenuDefinitionSupport.ribbonBandIds(tabId)) {
 				for (String buttonId : MenuDefinitionSupport.ribbonButtonIds(bandId)) {
-					if ("FileRibbonTask".equals(tabId))
-						openFileCommandDestination(robot, frame, tab, buttonId);
-					try {
-						GuiAcceptanceSupport.await(() -> hasPhysicalButtonForCommand(frame, buttonId),
-							"Selected ribbon tab " + tabId + " did not expose command or responsive group proxy " + buttonId);
-					} catch (AssertionError failure) {
-						throw new AssertionError(failure.getMessage() + "; "
-							+ ribbonCommandDiagnostic(frame, buttonId), failure);
+					if (!"FileRibbonTask".equals(tabId)) {
+						assertTrue(findShowingComponent(frame, "officeBackstageOverlay") == null,
+							"Backstage unexpectedly covers " + tabId + " before " + buttonId);
 					}
-					AbstractButton button = findAttachedButtonByCommand(frame, buttonId);
-					AbstractButton proxy = button == null ? findCollapsedProxyForCommand(frame, buttonId) : null;
+					AbstractButton button;
+					if ("FileRibbonTask".equals(tabId)) {
+						button = openFileCommandDestination(robot, frame, tab, buttonId);
+					} else {
+						try {
+							GuiAcceptanceSupport.await(() -> hasPhysicalButtonForCommand(frame, buttonId),
+								"Selected ribbon tab " + tabId + " did not expose command or responsive group proxy " + buttonId);
+						} catch (AssertionError failure) {
+							throw new AssertionError(failure.getMessage() + "; "
+								+ ribbonCommandDiagnostic(frame, buttonId), failure);
+						}
+						button = findAttachedButtonByCommand(frame, buttonId);
+					}
+					AbstractButton proxy = button == null || SwingUtilities.getAncestorOfClass(JPopupMenu.class, button) != null
+						? findCollapsedProxyForCommand(frame, buttonId) : null;
 					assertTrue(button != null || proxy != null, () -> buttonId + " has no physical route in " + tabId);
 					assertTrue(button == null || button.isEnabled(), () -> buttonId + " is disabled in " + bandId);
-					String actionId = manager.getToolBarFactory().getActionStringFromId(buttonId);
-					try {
-						physicalTaskCommands.add(CommandId.fromActionId(actionId));
-					} catch (RuntimeException ignoredAction) {
-						try {
-							// Ribbon definitions may expose a legacy action alias. If
-							// it is not one of the stable command ids, use the button
-							// id (RibbonInsert -> Insert) as the route identifier.
-							String buttonRoute = buttonId.replaceFirst("^Ribbon", "");
-							// The ribbon calls the task insertion command Insert,
-							// while the legacy menu contract calls it InsertTask.
-							physicalTaskCommands.add(CommandId.fromActionId(
-								"Insert".equals(buttonRoute) ? "InsertTask" : buttonRoute));
-						} catch (RuntimeException ignoredButton) {
-							// The standard ribbon also contains view/file/resource commands.
-						}
+					exerciseRibbonControl(robot, manager, actions, buttonId, button, proxy,
+						physicalTaskCommands, bandId);
+					if (!"FileRibbonTask".equals(tabId)) {
+						assertTrue(findShowingComponent(frame, "officeBackstageOverlay") == null,
+							"Backstage unexpectedly opened after " + tabId + "/" + buttonId);
 					}
-					int before = actions.count(actionId);
-					Point clickPoint;
-					if (button != null) {
-						clickPoint = clickCommand(robot, button);
-					} else {
-						JPopupMenu popup = (JPopupMenu) proxy.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY);
-						clickPoint = clickCommand(robot, proxy);
-						GuiAcceptanceSupport.await(popup::isVisible,
-							"responsive group proxy did not open for " + buttonId);
-						AbstractButton popupCommand = findPopupCommand(popup, buttonId);
-						assertTrue(popupCommand.isEnabled(), () -> buttonId + " is disabled in responsive popup " + bandId);
-						clickPoint = clickCommand(robot, popupCommand);
-					}
-					GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
-						"Robot click did not dispatch " + buttonId + " (" + actionId + ") at " + clickPoint
-							+ (button == null ? " through responsive group popup" : " bounds=" + button.getBounds()
-								+ " screen=" + safeScreenBounds(button)));
 				}
 			}
+			if ("FileRibbonTask".equals(tabId)
+					&& findShowingComponent(frame, "officeBackstageOverlay") != null) {
+				Component back = findShowingComponent(frame, "officeBackstageBack");
+				assertTrue(back instanceof AbstractButton,
+					"File command sweep left Backstage open without its physical Back control");
+				clickCommand(robot, (AbstractButton) back);
+				GuiAcceptanceSupport.await(
+					() -> findShowingComponent(frame, "officeBackstageOverlay") == null,
+					"Backstage remained open after the File command sweep");
+			}
 		}
+
 		EnumSet<CommandId> expectedRibbonCommands = EnumSet.allOf(CommandId.class);
 		expectedRibbonCommands.remove(CommandId.PASTE_INSERT);
 		assertTrue(physicalTaskCommands.containsAll(expectedRibbonCommands),
 				"every routed CommandId except popup-only PasteInsert must have a physical ribbon click: "
 						+ physicalTaskCommands);
+	}
+
+	private static boolean isContextualTab(String tabId) {
+		var internal = MenuDefinitionSupport.menuInternalBundle();
+		return internal.containsKey(tabId + ".contextual")
+			&& Boolean.parseBoolean(internal.getString(tabId + ".contextual"));
+	}
+
+	/** Exercises a ribbon control according to its declared physical control kind. */
+	private static void exerciseRibbonControl(Robot robot, MenuManager manager, RecordingActionMap actions,
+		String commandId, AbstractButton button, AbstractButton proxy,
+		Set<CommandId> physicalCommands, String bandId) throws Exception {
+		if (proxy != null) {
+			JPopupMenu collapsed = (JPopupMenu) proxy.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY);
+			if (!collapsed.isVisible()) clickCommand(robot, proxy);
+			GuiAcceptanceSupport.await(collapsed::isVisible,
+				"responsive group proxy did not open for " + commandId);
+			button = findPopupCommand(collapsed, commandId);
+			assertTrue(button != null, () -> commandId + " is absent from responsive group " + bandId);
+			assertTrue(button.isEnabled(), () -> commandId + " is disabled in responsive popup " + bandId);
+		}
+		RibbonControlKind kind = button.getClientProperty(RibbonControlPopups.CONTROL_KIND_PROPERTY)
+			instanceof RibbonControlKind declared ? declared : RibbonControlKind.BUTTON;
+		if (kind.invokesOnClick()) {
+			String actionId = manager.getToolBarFactory().getActionStringFromId(commandId);
+			assertTrue(actionId != null, () -> commandId + " has no mapped action");
+			int before = actions.count(actionId);
+			Point clickPoint = kind == RibbonControlKind.SPLIT_BUTTON
+				? com.microproject.testsupport.RibbonGuiSupport.clickSplitPrimary(robot, button) : clickCommand(robot, button);
+			GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
+				"Robot click did not dispatch " + commandId + " (" + actionId + ") at " + clickPoint);
+			recordPhysicalCommand(physicalCommands, actionId, commandId);
+		}
+		if (!kind.hasPopup()) return;
+		if (proxy != null && !button.isShowing()) {
+			JPopupMenu collapsed = (JPopupMenu) proxy.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY);
+			clickCommand(robot, proxy);
+			GuiAcceptanceSupport.await(collapsed::isVisible, "responsive group did not reopen for " + commandId);
+			button = findPopupCommand(collapsed, commandId);
+			assertTrue(button != null && button.isShowing(), "responsive command did not reappear: " + commandId);
+		}
+		JPopupMenu popup = (JPopupMenu) button.getClientProperty(RibbonControlPopups.POPUP_PROPERTY);
+		assertTrue(popup != null, () -> commandId + " declares a popup but has none");
+		List<String> popupCommands = popupActionCommands(popup, manager);
+		if (kind == RibbonControlKind.SPLIT_BUTTON) {
+			AbstractButton arrow = (AbstractButton) button.getClientProperty(RibbonControlPopups.ARROW_BUTTON_PROPERTY);
+			assertTrue(arrow != null, () -> commandId + " split button has no physical arrow route");
+			clickCommand(robot, arrow);
+		} else {
+			clickCommand(robot, button);
+		}
+		GuiAcceptanceSupport.await(popup::isVisible, commandId + " popup did not open");
+		if (popupCommands.isEmpty() && RibbonControlPopups.DYNAMIC_ENTRY_COMMANDS.contains(commandId)) {
+			assertEquals(0, popup.getComponentCount(), commandId + " empty-state popup should contain no report history entries");
+			return;
+		}
+		assertTrue(!popupCommands.isEmpty(), () -> commandId + " popup has no actionable command items");
+		for (String popupCommand : popupCommands) {
+			if (!popup.isVisible()) {
+				if (proxy != null && !button.isShowing()) {
+					JPopupMenu collapsed = (JPopupMenu) proxy.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY);
+					clickCommand(robot, proxy);
+					GuiAcceptanceSupport.await(collapsed::isVisible, "responsive group did not reopen for " + commandId);
+					button = findPopupCommand(collapsed, commandId);
+					assertTrue(button != null && button.isShowing(), "responsive command did not reappear: " + commandId);
+					popup = (JPopupMenu) button.getClientProperty(RibbonControlPopups.POPUP_PROPERTY);
+					assertTrue(popup != null, "responsive command lost its popup: " + commandId);
+				}
+				if (kind == RibbonControlKind.SPLIT_BUTTON) {
+					AbstractButton arrow = (AbstractButton) button.getClientProperty(RibbonControlPopups.ARROW_BUTTON_PROPERTY);
+					assertTrue(arrow.isShowing(), "split arrow not showing: command=" + commandId
+						+ ", sourceShowing=" + button.isShowing() + ", sourceParent=" + button.getParent()
+						+ ", arrowParent=" + arrow.getParent() + ", proxy=" + proxy
+						+ ", selectedPath=" + java.util.Arrays.toString(javax.swing.MenuSelectionManager.defaultManager().getSelectedPath()));
+					clickCommand(robot, arrow);
+				} else {
+					clickCommand(robot, button);
+				}
+				GuiAcceptanceSupport.await(popup::isVisible, commandId + " popup did not reopen");
+			}
+			AbstractButton item = findPopupCommand(popup, popupCommand);
+			GuiAcceptanceSupport.await(() -> item != null && item.isShowing() && item.isEnabled(),
+				commandId + " popup item is not physically actionable: " + popupCommand);
+			String actionId = manager.getToolBarFactory().getActionStringFromId(popupCommand);
+			int before = actions.count(actionId);
+			Point clickPoint = clickCommand(robot, item);
+			GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
+				"Robot popup selection did not dispatch " + popupCommand + " (" + actionId + ") at " + clickPoint);
+			if (proxy != null) {
+				JPopupMenu collapsed = (JPopupMenu) proxy.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY);
+				GuiAcceptanceSupport.await(() -> !collapsed.isVisible(),
+					"responsive group did not close after selecting " + popupCommand);
+			}
+			recordPhysicalCommand(physicalCommands, actionId, popupCommand);
+		}
+	}
+
+	private static List<String> popupActionCommands(JPopupMenu popup, MenuManager manager) {
+		return UiComponentWalker.flatten(popup).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.map(AbstractButton::getActionCommand).filter(command -> command != null && !command.isBlank())
+			.filter(command -> manager.getToolBarFactory().getActionStringFromId(command) != null)
+			.distinct().toList();
+	}
+
+	private static void recordPhysicalCommand(Set<CommandId> physicalCommands, String actionId, String routeId) {
+		try {
+			physicalCommands.add(CommandId.fromActionId(actionId));
+		} catch (RuntimeException ignoredAction) {
+			try {
+				String route = routeId.replaceFirst("^Ribbon", "");
+				physicalCommands.add(CommandId.fromActionId("Insert".equals(route) ? "InsertTask" : route));
+			} catch (RuntimeException ignoredRoute) {
+				// Ribbon routes outside the stable command catalog still get dispatch assertions.
+			}
+		}
 	}
 
 	@Test
@@ -304,13 +427,16 @@ class RibbonTabGuiAcceptanceTest {
 		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 		JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 		ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
-		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask", "TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask"));
 		// Keep the window within a normal desktop at 125/150%; commands that do
 		// not fit are intentionally represented by the responsive popup route.
 		show(host, 1000, false);
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		for (String tabId : MenuDefinitionSupport.ribbonTaskIds()) {
+			// Each contextual tab is available only while its corresponding view is active.
+			SwingUtilities.invokeAndWait(() -> ribbon.setVisibleContextualTabs(
+				isContextualTab(tabId) ? Set.of(tabId) : Set.of()));
+			if (isContextualTab(tabId)) robot.delay(700);
 			AbstractButton tab = clickRibbonTab(robot, host, tabId);
 			GuiAcceptanceSupport.await(tab::isSelected, "high-DPI tab was not selected: " + tabId);
 			SwingUtilities.invokeAndWait(() -> assertVisibleRibbonControlsFit(host, tab));
@@ -672,9 +798,10 @@ class RibbonTabGuiAcceptanceTest {
 		robot.setAutoDelay(40);
 		click(robot, findButton(host, taskTitle));
 		click(robot, findButton(host, fileTitle));
-		GuiAcceptanceSupport.await(() -> namedComponent(frame.getRootPane(), "officeBackstageOverlay") != null,
+		GuiAcceptanceSupport.await(() -> findShowingComponent(frame.getRootPane(), "officeBackstageOverlay") != null
+			&& findShowingComponent(frame.getRootPane(), "officeBackstageNav-options") instanceof AbstractButton,
 			"File tab did not open Backstage");
-		clickCommand(robot, (AbstractButton)namedComponent(frame.getRootPane(), "officeBackstageNav-options"));
+		clickCommand(robot, (AbstractButton)findShowingComponent(frame.getRootPane(), "officeBackstageNav-options"));
 		AbstractButton options = (AbstractButton)namedComponent(frame.getRootPane(), "officeBackstageCommand-RibbonBackstageOptions");
 		assertTrue(options != null, "Options destination omitted the General Options action");
 		int before = actions.count(actions.modalActionId);
@@ -705,7 +832,7 @@ class RibbonTabGuiAcceptanceTest {
 	}
 
 	@Test
-	void viewRibbonKeepsTheLargeGanttButtonVisibleAndDispatchesItOnce() throws Exception {
+	void viewRibbonKeepsGanttReachableAndDispatchesItOnce() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		RecordingActionMap actions = new RecordingActionMap();
 		MenuManager manager = MenuManager.getInstance(actions);
@@ -723,16 +850,22 @@ class RibbonTabGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> { });
 
 		AbstractButton gantt = findAttachedButtonByCommand(host, "RibbonGantt");
-		SwingUtilities.invokeAndWait(() -> assertContainedInRibbonBand(gantt));
+		if (frame.getWidth() >= 1200) {
+			assertTrue(gantt != null, "the large Gantt button must be visible at full width");
+			AbstractButton largeGantt = gantt;
+			SwingUtilities.invokeAndWait(() -> assertContainedInRibbonBand(largeGantt));
+		} else if (gantt == null) {
+			gantt = com.microproject.testsupport.RibbonGuiSupport.findVisibleOrExpand(robot, host, "RibbonGantt");
+		}
 		Rectangle ganttScreenBounds = safeScreenBounds(gantt);
 		Rectangle windowBounds = frame.getBounds();
 		assertTrue(windowBounds.contains(ganttScreenBounds),
 			() -> "RibbonGantt must be fully visible in the Robot window: button=" + ganttScreenBounds + " window=" + windowBounds);
-		captureVisibleRibbon(robot, "ribbon-view-gantt-layout.png");
+		captureVisibleRibbon(robot, "ribbon-view-gantt-layout.png", Math.min(900, frame.getWidth() - 32));
 
 		String actionId = manager.getToolBarFactory().getActionStringFromId("RibbonGantt");
 		int before = actions.count(actionId);
-		click(robot, gantt);
+		com.microproject.testsupport.RibbonGuiSupport.clickSplitPrimary(robot, gantt);
 		GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
 			"Robot click did not dispatch RibbonGantt exactly once");
 	}
@@ -1016,7 +1149,7 @@ class RibbonTabGuiAcceptanceTest {
 		});
 	}
 
-	private static void openFileCommandDestination(Robot robot, JFrame frame, AbstractButton fileTab,
+	private static AbstractButton openFileCommandDestination(Robot robot, JFrame frame, AbstractButton fileTab,
 		String commandId) throws Exception {
 		if (findShowingComponent(frame, "officeBackstageOverlay") == null) {
 			click(robot, fileTab);
@@ -1032,7 +1165,7 @@ class RibbonTabGuiAcceptanceTest {
 		// Immediate Backstage destinations are themselves the command button.
 		// Leave them for the shared physical click/count assertion below.
 		if (metadata.containsKey(commandId + ".backstageImmediate")
-			&& Boolean.parseBoolean(metadata.getString(commandId + ".backstageImmediate"))) return;
+			&& Boolean.parseBoolean(metadata.getString(commandId + ".backstageImmediate"))) return pageButton;
 		if (pageButton instanceof javax.swing.JToggleButton toggle && !toggle.isSelected()) {
 			click(robot, pageButton);
 			GuiAcceptanceSupport.await(() -> {
@@ -1041,8 +1174,9 @@ class RibbonTabGuiAcceptanceTest {
 			}, "Backstage did not select page " + pageId + " for " + commandId);
 		}
 		GuiAcceptanceSupport.await(
-			() -> findShowingComponent(frame, "officeBackstageCommand-" + commandId) != null,
+			() -> findShowingComponent(frame, "officeBackstageCommand-" + commandId) instanceof AbstractButton,
 			"Backstage page " + pageId + " did not expose command " + commandId);
+		return (AbstractButton) findShowingComponent(frame, "officeBackstageCommand-" + commandId);
 	}
 
 	private static Component findShowingComponent(Component root, String name) {
@@ -1136,6 +1270,8 @@ class RibbonTabGuiAcceptanceTest {
 
 	private static Point clickCommand(Robot robot, AbstractButton button) throws Exception {
 		Point[] location = new Point[1];
+		assertTrue(button.isShowing(), () -> "physical click target is no longer showing: " + button.getName()
+			+ " command=" + button.getActionCommand() + " text=" + button.getText());
 		SwingUtilities.invokeAndWait(() -> {
 			Point topLeft = button.getLocationOnScreen();
 			// Split/dropdown buttons reserve their right edge for the arrow; the
@@ -1196,6 +1332,7 @@ class RibbonTabGuiAcceptanceTest {
 		assertTrue(contentBounds.contains(buttonBounds),
 			() -> "Ribbon button is clipped by its band: button=" + buttonBounds + " content=" + contentBounds);
 	}
+
 
 	private static void rightClick(Robot robot, AbstractButton button) throws Exception {
 		Point point = button.getLocationOnScreen();

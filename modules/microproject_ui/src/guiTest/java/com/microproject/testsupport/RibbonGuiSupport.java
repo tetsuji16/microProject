@@ -8,6 +8,8 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.GraphicsConfiguration;
 import java.awt.Insets;
+import java.awt.Point;
+import java.awt.event.InputEvent;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Toolkit;
@@ -25,6 +27,22 @@ import com.microproject.ui.ribbon.ModernRibbonPanel;
 /** Physical Robot helpers for the application's Swing ribbon and overflow menus. */
 public final class RibbonGuiSupport {
 	private RibbonGuiSupport() { }
+
+	/** Clicks the primary area of a split button without activating its arrow. */
+	public static Point clickSplitPrimary(Robot robot, AbstractButton button) throws Exception {
+		Point[] point = new Point[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Point origin = button.getLocationOnScreen();
+			boolean large = "large".equals(button.getClientProperty("MicroProject.ribbonButtonSize"));
+			point[0] = large
+				? new Point(origin.x + button.getWidth() / 2, origin.y + Math.max(2, button.getHeight() / 4))
+				: new Point(origin.x + Math.max(2, button.getWidth() / 3), origin.y + button.getHeight() / 2);
+		});
+		robot.mouseMove(point[0].x, point[0].y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		return point[0];
+	}
 
 	public static AbstractButton findVisibleOrExpand(Robot robot, Component root, String commandId) throws Exception {
 		AtomicReference<AbstractButton> visible = new AtomicReference<>();

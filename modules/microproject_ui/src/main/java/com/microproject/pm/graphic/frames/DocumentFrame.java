@@ -2782,19 +2782,26 @@ public class DocumentFrame extends NamedFrame implements
 		}
 		List<Task> targets = new ArrayList<>(selection.nodes().size());
 		List<Node> targetNodes = new ArrayList<>(selection.nodes().size());
+		boolean selectedOtherTask = false;
 		for (Node node : selection.nodes()) {
 			if (!(node.getImpl() instanceof Task task) || task.getProject() != project || task.isReadOnly()) {
 				if (!formatPainterContinuous)
 					cancelFormatPainter();
 				return;
 			}
-			if (task == formatPainterSource || TaskFormatPainterService.capture(task).equals(formatPainterStyle))
+			if (task == formatPainterSource)
+				continue;
+			selectedOtherTask = true;
+			if (TaskFormatPainterService.capture(task).equals(formatPainterStyle))
 				continue;
 			targets.add(task);
 			targetNodes.add(node);
 		}
-		if (targets.isEmpty())
+		if (targets.isEmpty()) {
+			if (selectedOtherTask && !formatPainterContinuous)
+				cancelFormatPainter();
 			return;
+		}
 		if (project == null || project.isReadOnly()
 				|| !CollaborationHelper.tryLockNodes(project, targetNodes, this,
 					"format-painter")) {
@@ -3034,7 +3041,19 @@ public class DocumentFrame extends NamedFrame implements
 		getGraphicManager().showWaitCursor(show);
 	}
 
+	private final java.util.concurrent.atomic.AtomicBoolean calendarRefreshPending = new java.util.concurrent.atomic.AtomicBoolean();
+
 	public void objectChanged(ObjectEvent objectEvent) { // rename tab if project changes
+		if ((objectEvent.getObject() instanceof Task || objectEvent.getObject() instanceof Dependency)
+				&& (calendarViewDialog != null || calendarView != null)
+				&& calendarRefreshPending.compareAndSet(false, true)) {
+			SwingUtilities.invokeLater(() -> {
+				calendarRefreshPending.set(false);
+				if (calendarViewDialog != null) calendarViewDialog.refreshProjectView();
+				CalendarViewDialogBox embedded = getEmbeddedCalendarDialog();
+				if (embedded != null) embedded.refreshProjectView();
+			});
+		}
 		if (objectEvent.getObject() instanceof Project && objectEvent.isUpdate()) { //Only for projects
 			if (objectEvent.getField() == Configuration.getFieldFromId("Field.name")) {
 				getGraphicManager().setTabNameAndTitle(this,project);

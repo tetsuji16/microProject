@@ -190,6 +190,12 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 		canvas.repaint();
 	}
 
+	/** Refreshes both the standalone and embedded calendar after project changes. */
+	public void refreshProjectView() {
+		refreshTaskList();
+		canvas.repaint();
+	}
+
 	/** Returns the number of task cards rendered during the latest repaint. */
 	public int getVisibleTaskCardCount() {
 		return canvas.cards.size();

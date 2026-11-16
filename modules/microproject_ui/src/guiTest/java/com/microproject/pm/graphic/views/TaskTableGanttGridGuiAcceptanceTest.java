@@ -123,6 +123,12 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	private GraphicManager productionGraphicManager;
 	@AfterEach
 	void closeWindow() throws Exception {
+		if (frame != null) {
+			SwingUtilities.invokeAndWait(() -> {
+				frame.dispose();
+				frame = null;
+			});
+		}
 		if (popupGraphicManager != null) {
 			SwingUtilities.invokeAndWait(() -> popupGraphicManager.cleanUp());
 			popupGraphicManager = null;
@@ -134,12 +140,6 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		if (selectionController != null) {
 			SwingUtilities.invokeAndWait(() -> selectionController.close());
 			selectionController = null;
-		}
-		if (frame != null) {
-			SwingUtilities.invokeAndWait(() -> {
-				frame.dispose();
-				frame = null;
-			});
 		}
 		if (gantt != null) {
 			gantt.cleanUp();
