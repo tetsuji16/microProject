@@ -43,9 +43,11 @@ class RibbonViewStateGuiAcceptanceTest {
 					if (button == null || !fixture.isEnabled(button)) continue;
 					fixture.click(button);
 					GuiAcceptanceSupport.await(() -> pressed(fixture, button), view + " is not pressed after its click");
-					fixture.click(button);
+					AbstractButton reopened = fixture.showCommand(view);
+					assertTrue(reopened != null && fixture.isSelected(reopened), view + " is not pressed after reopening its group");
+					fixture.click(reopened);
 					fixture.robot.waitForIdle();
-					if (!fixture.isSelected(button)) failures.add(view + ": a second click released the button");
+					if (!fixture.isSelected(reopened)) failures.add(view + ": a second click released the button");
 					if (previous != null) {
 						AbstractButton old = fixture.showCommand(previous);
 						if (old != null && fixture.isSelected(old)) {

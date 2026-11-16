@@ -2570,9 +2570,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> com.microproject.menu.MenuActionConstants.ACTION_CALENDAR_VIEW
 			.equals(manager.getCurrentFrame().getTopViewId()), "Calendar command did not switch the top view to Calendar");
 		GuiAcceptanceSupport.await(calendarButton::isSelected, "Calendar command button must stay pressed for the active view");
-		click(robot, calendarButton);
+		AbstractButton reopenedCalendarButton = findShowingButtonByCommand("RibbonCalendarView");
+		assertTrue(reopenedCalendarButton.isSelected(), "Calendar command must stay pressed after reopening its group");
+		click(robot, reopenedCalendarButton);
 		SwingUtilities.invokeAndWait(() -> { });
-		assertTrue(calendarButton.isSelected(), "clicking the active Calendar view again must not unpress it");
+		assertTrue(reopenedCalendarButton.isSelected(), "clicking the active Calendar view again must not unpress it");
 		assertEquals(com.microproject.menu.MenuActionConstants.ACTION_CALENDAR_VIEW, manager.getCurrentFrame().getTopViewId(),
 			"clicking the active Calendar view again must keep the Calendar view");
 		assertTrue(manager.getCurrentFrame().getCalendarViewDialog() == null
