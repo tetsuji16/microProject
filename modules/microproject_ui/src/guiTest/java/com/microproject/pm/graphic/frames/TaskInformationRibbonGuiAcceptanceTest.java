@@ -50,6 +50,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.function.BooleanSupplier;
 import java.util.logging.Handler;
@@ -1887,10 +1888,13 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
 		String formatTabLabel = ResourceBundle.getBundle("com.microproject.menu.menu").getString("FormatRibbonTask.title");
-		AbstractButton formatTab = UiComponentWalker.flatten(window).stream().filter(AbstractButton.class::isInstance)
-			.map(AbstractButton.class::cast).filter(AbstractButton::isShowing)
+		AtomicReference<AbstractButton> formatTabReference = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> formatTabReference.set(UiComponentWalker.flatten(window).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast).filter(AbstractButton::isShowing)
 			.filter(button -> button.getText() != null && button.getText().contains(formatTabLabel))
-			.findFirst().orElseThrow(() -> new AssertionError("The contextual Gantt Format tab was not rendered"));
+			.findFirst().orElse(null)));
+		AbstractButton formatTab = formatTabReference.get();
+		assertNotNull(formatTab, "The contextual Gantt Format tab was not rendered");
 		clickAndAwaitSelected(robot, formatTab, "Robot click did not select the Gantt Chart Format ribbon tab");
 		click(robot, findShowingButtonByCommand("RibbonTimescale"));
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
@@ -1899,23 +1903,41 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		var scales = com.microproject.configuration.Configuration.getInstance().getTimeScales();
 		String[] expected = DocumentStatusBar.formatScaleChoices(
 			manager.getMenuManager().getString("RibbonTimescale.text"), scales.getScaleCount(), scales::getScale);
-		JComboBox<?> combo = java.util.Arrays.stream(Window.getWindows()).filter(Window::isShowing)
-			.flatMap(candidate -> UiComponentWalker.flatten(candidate).stream())
-			.filter(JComboBox.class::isInstance).map(JComboBox.class::cast)
-			.filter(candidate -> candidate.getItemCount() == expected.length
-				&& expected[0].equals(candidate.getItemAt(0)))
-			.findFirst().orElseThrow(() -> new AssertionError("The Timescale chooser did not render its scale list"));
-		assertEquals(9, combo.getItemCount(), "the rendered chooser must retain all nine configured scale levels");
+		AtomicReference<JComboBox<?>> comboReference = new AtomicReference<>();
+		List<String> renderedLabels = new ArrayList<>();
+		SwingUtilities.invokeAndWait(() -> {
+			JComboBox<?> combo = java.util.Arrays.stream(Window.getWindows()).filter(Window::isShowing)
+				.flatMap(candidate -> UiComponentWalker.flatten(candidate).stream())
+				.filter(JComboBox.class::isInstance).map(JComboBox.class::cast)
+				.filter(candidate -> candidate.getItemCount() == expected.length
+					&& expected[0].equals(candidate.getItemAt(0)))
+				.findFirst().orElse(null);
+			if (combo != null) {
+				comboReference.set(combo);
+				for (int index = 0; index < combo.getItemCount(); index++)
+					renderedLabels.add((String)combo.getItemAt(index));
+			}
+		});
+		JComboBox<?> combo = comboReference.get();
+		assertNotNull(combo, "The Timescale chooser did not render its scale list");
+		assertEquals(9, renderedLabels.size(), "the rendered chooser must retain all nine configured scale levels");
 		for (int index = 0; index < expected.length; index++) {
-			String actual = (String)combo.getItemAt(index);
+			String actual = renderedLabels.get(index);
 			assertEquals(expected[index], actual, "rendered hierarchy label at scale " + (index + 1));
 			assertFalse(actual.contains("Timescale"), "chooser rows must omit the title prefix");
 			assertFalse(actual.matches(".*\\s+[1-9]$"), "chooser rows must omit the position suffix");
 		}
 		click(robot, combo);
-		GuiAcceptanceSupport.await(() -> combo.isPopupVisible(), "the chooser's physical dropdown did not open");
-		assertTrue(combo.isShowing(), "the scale list must be visible on screen");
-		assertTrue(combo.getItemCount() == expected.length, "the visible dropdown must expose every configured scale");
+		AtomicBoolean popupVisible = new AtomicBoolean();
+		GuiAcceptanceSupport.await(() -> {
+			try {
+				SwingUtilities.invokeAndWait(() -> popupVisible.set(combo.isShowing() && combo.isPopupVisible()
+					&& combo.getItemCount() == expected.length));
+			} catch (Exception exception) {
+				throw new AssertionError("Unable to inspect the visible Timescale dropdown on the EDT", exception);
+			}
+			return popupVisible.get();
+		}, "the chooser's physical dropdown did not render all scale rows");
 		robot.keyPress(KeyEvent.VK_ESCAPE);
 		robot.keyRelease(KeyEvent.VK_ESCAPE);
 	}
