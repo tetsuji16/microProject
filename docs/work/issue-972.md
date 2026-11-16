@@ -18,3 +18,12 @@ state. Divider location is view state, not an undoable task mutation. Next slice
 
 
 Latest verification: `./gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.frames.WorkspaceConflictSaveGuiAcceptanceTest.reopeningMpoClampsOutOfRangeWorkspaceDivider" --max-workers=1 --console=plain` passed; exact candidate before commit: `554d71073` with the new test.
+
+
+## Post-merge GUI regression (2026-11-17)
+
+Stable release run [43969200466](https://github.com/tetsuji16/microProject/actions/runs/43969200466) failed when the divider Robot test followed the workspace-conflict test. The captured screenshot shows the modal `Message.projectAlreadyExists` prompt; native desktop evidence records a foreground `SunAwtDialog` before the file chooser. Reproduced locally by running the full `WorkspaceConflictSaveGuiAcceptanceTest` class on `8aa2ac423`.
+
+Cause: the first test left its opened `Workspace conflict fixture` in the singleton `ProjectFactory` portfolio. `GraphicManager.cleanUp()` removes listeners and frames but does not remove that project. `Project.equals` compares project names, so loading the next same-named fixture triggers `Portfolio.addProject`'s confirmation dialog and blocks the Robot route.
+
+The follow-up test fix closes the opened project through the normal document-close route, waits for removal from the shared portfolio, and uses a distinct project name for the divider fixture. The full class passed locally after the change. Focused hosted evidence is pending.
