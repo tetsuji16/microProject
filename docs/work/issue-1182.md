@@ -19,7 +19,7 @@ Blockers: candidate hosted checks and physical verification are recorded below.
 |---|---|---|---|
 | A1 | Timescale chooser entries contain only configured parent/child intervals; all nine shipped scales match their configured hierarchy | pass | `DocumentStatusBarTest.configuredNineScaleChoicesShowOnlyTheirParentAndChildIntervals` |
 | A2 | Missing scale uses a stable Timescale/index fallback; localized separator works in English/Japanese | pass | Focused fallback and bundle tests |
-| A3 | Physical Timescale chooser display check | pass | Robot opened Format > Timescale and verified the visible nine-row hierarchy chooser; `fda444e0d` |
+| A3 | Physical Timescale chooser display check | pass | Robot opened Format > Timescale and verified the visible nine-row hierarchy chooser; `0757c4b47` |
 
 ## Current slice
 
@@ -34,6 +34,6 @@ Blockers: candidate hosted checks and physical verification are recorded below.
 ## Latest evidence
 
 - Tests/build: `./gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.frames.DocumentStatusBarTest" --console=plain` — passed, 2026-11-16 (20 tasks; includes exact expected hierarchy for all nine configured levels).
-- Physical GUI: `./gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.timescaleRibbonChooserPhysicallyShowsConfiguredHierarchyLabels" --max-workers=1 --console=plain` — passed on `fda444e0d`; the Robot opened the Format tab Timescale command, verified the chooser rendered all nine localized hierarchy rows, and physically opened the dropdown.
-- Unit tests: `./gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.frames.DocumentStatusBarTest" --console=plain` — passed on `fda444e0d`.
+- Physical GUI: `./gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.timescaleRibbonChooserPhysicallyShowsConfiguredHierarchyLabels" --max-workers=1 --console=plain` — passed on `0757c4b47`; the Robot opened the Format tab Timescale command, verified the chooser rendered all nine localized hierarchy rows, and physically opened the dropdown.
+- Unit tests: `./gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.frames.DocumentStatusBarTest" --console=plain` — passed on `0757c4b47`.
 - Candidate includes master merges `dcd2f89db` (PR #1184) and `96bc3da4d` (PR #1173). Hosted checks pending push.
