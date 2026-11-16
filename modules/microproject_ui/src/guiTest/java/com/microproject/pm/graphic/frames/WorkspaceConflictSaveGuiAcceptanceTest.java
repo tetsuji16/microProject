@@ -45,6 +45,7 @@ import com.microproject.job.JobQueue;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.views.GanttView;
+import com.microproject.pm.task.ProjectFactory;
 import com.microproject.workspace.SavableToWorkspace;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.renderer.NameCellComponent;
@@ -88,7 +89,7 @@ class WorkspaceConflictSaveGuiAcceptanceTest {
 		assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		captureEnvironment(tempDirectory);
 		Path mpo = tempDirectory.resolve("workspace-conflict.mpo");
-		writeMpo(mpo);
+		writeMpo(mpo, "Workspace conflict fixture");
 		createWindow("microProject — workspace conflict save acceptance");
 		installOpenChooser(mpo);
 		Robot robot = new GuiRobot();
@@ -135,7 +136,7 @@ class WorkspaceConflictSaveGuiAcceptanceTest {
 		assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		captureEnvironment(tempDirectory);
 		Path mpo = tempDirectory.resolve("divider-reopen.mpo");
-		writeMpo(mpo);
+		writeMpo(mpo, "Workspace divider fixture");
 		createWindow("microProject — divider restore acceptance");
 		installOpenChooser(mpo);
 		Robot robot = new GuiRobot();
@@ -148,9 +149,12 @@ class WorkspaceConflictSaveGuiAcceptanceTest {
 		GanttView.Workspace ganttWorkspace = (GanttView.Workspace) workspace.getViews().get(viewName);
 		assertNotNull(ganttWorkspace);
 		ganttWorkspace.setDividerLocation(10000);
+		long initialProjectId = project.getUniqueId();
 		SwingUtilities.invokeAndWait(() -> manager.closeDocumentWindow(initial));
 		GuiAcceptanceSupport.await(() -> onEdtUnchecked(() -> manager.findFrameForProjectFile(mpo.toString()) == null),
 			"the first document did not close");
+		GuiAcceptanceSupport.await(() -> onEdtUnchecked(() -> ProjectFactory.getInstance().findFromId(initialProjectId) == null),
+			"the first project did not leave the shared portfolio before the MPO reopen");
 		project = null;
 		peerSession = new CollaborationSession(null, mpo.toString(), CollaborationUserIdentity.currentUserKey());
 		peerSession.loadWorkspace();
@@ -186,9 +190,19 @@ class WorkspaceConflictSaveGuiAcceptanceTest {
 
 	@AfterEach
 	void restoreEnvironment() throws Exception {
-		if (project != null && project.getCollaborationSession() != null) {
-			project.getCollaborationSession().stop();
-			project.setCollaborationSession(null);
+		if (project != null) {
+			long projectId = project.getUniqueId();
+			DocumentFrame openFrame = manager == null ? null : onEdt(() -> manager.getFrameForProject(project));
+			if (openFrame != null) {
+				SwingUtilities.invokeAndWait(() -> manager.closeDocumentWindow(openFrame));
+				GuiAcceptanceSupport.await(() -> onEdtUnchecked(() -> ProjectFactory.getInstance().findFromId(projectId) == null),
+					"the GUI acceptance project did not leave the shared portfolio during cleanup");
+			}
+			if (project.getCollaborationSession() != null) {
+				project.getCollaborationSession().stop();
+				project.setCollaborationSession(null);
+			}
+			project = null;
 		}
 		if (peerSession != null) peerSession.stop();
 		if (manager != null) SwingUtilities.invokeAndWait(manager::cleanUp);
@@ -407,11 +421,11 @@ class WorkspaceConflictSaveGuiAcceptanceTest {
 		return task.get(5, TimeUnit.SECONDS);
 	}
 
-	private static void writeMpo(Path target) throws Exception {
+	private static void writeMpo(Path target, String projectName) throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project source = Project.createProject(ResourcePool.createRourcePool("workspace-conflict-pool", undo), undo);
 		source.initialize(false, false);
-		source.setName("Workspace conflict fixture");
+		source.setName(projectName);
 		NormalTask task = source.createScriptedTask();
 		task.setName("workspace conflict task");
 		source.recalculate();
