@@ -7,9 +7,11 @@ import java.util.Locale;
 import java.util.ResourceBundle;
 import java.util.Calendar;
 import java.text.MessageFormat;
+import java.util.Arrays;
 
 import org.junit.jupiter.api.Test;
 import com.microproject.strings.Messages;
+import com.microproject.configuration.Configuration;
 import com.microproject.timescale.TimeScale;
 
 /**
@@ -59,10 +61,68 @@ class DocumentStatusBarTest {
 		TimeScale scale = new TimeScale();
 		scale.setCalendarField1(Calendar.DAY_OF_MONTH);
 		scale.setNumber1(3);
+		scale.setCalendarField2(Calendar.MONTH);
+		scale.setNumber2(1);
 		String label = DocumentStatusBar.formatScaleChoice("Timescale", 3, 9, scale);
-		assertTrue(label.contains("Timescale"));
-		assertTrue(label.contains(MessageFormat.format(Messages.getString("StatusBar.Interval.Days"), 3)));
-		assertTrue(label.contains("4/9"));
+		assertEquals(MessageFormat.format(Messages.getString("StatusBar.ScaleHierarchy"),
+				Messages.getString("StatusBar.Interval.Month"),
+				MessageFormat.format(Messages.getString("StatusBar.Interval.Days"), 3)), label);
+	}
+
+	@Test
+	void timescaleChoiceWithoutScaleUsesStableFallback() {
+		assertEquals("Timescale 9", DocumentStatusBar.formatScaleChoice("Timescale", 20, 9, null));
+	}
+
+	@Test
+	void configuredNineScaleChoicesShowOnlyTheirParentAndChildIntervals() {
+		var scales = Configuration.getInstance().getTimeScales();
+		assertEquals(9, scales.getScaleCount());
+		String[] actual = DocumentStatusBar.formatScaleChoices("Timescale", scales.getScaleCount(), scales::getScale);
+		String[][] intervals = {
+			{"Day", "Hours", "2"},
+			{"Day", "Hours", "6"},
+			{"Week", "Day", null},
+			{"Month", "Days", "3"},
+			{"Month", "Week", null},
+			{"Quarter", "Month", null},
+			{"HalfYear", "Month", null},
+			{"Year", "Quarter", null},
+			{"Year", "HalfYear", null}
+		};
+		String[] expected = Arrays.stream(intervals).map(parts -> {
+			String parent = Messages.getString("StatusBar.Interval." + parts[0]);
+			String child = Messages.getString("StatusBar.Interval." + parts[1]);
+			if (parts[2] != null) child = MessageFormat.format(child, Integer.parseInt(parts[2]));
+			return MessageFormat.format(Messages.getString("StatusBar.ScaleHierarchy"), parent, child);
+		}).toArray(String[]::new);
+		assertEquals(Arrays.asList(expected), Arrays.asList(actual));
+	}
+
+	@Test
+	void timescaleHierarchyShowsConfiguredParentAndChildIntervals() {
+		TimeScale scale = new TimeScale();
+		scale.setCalendarField1(Calendar.MONTH);
+		scale.setNumber1(3);
+		scale.setCalendarField2(Calendar.YEAR);
+		scale.setNumber2(1);
+		assertTrue(DocumentStatusBar.formatZoom(7, 9, scale).contains(
+				MessageFormat.format(Messages.getString("StatusBar.ScaleHierarchy"),
+						Messages.getString("StatusBar.Interval.Year"),
+						Messages.getString("StatusBar.Interval.Quarter"))));
+	}
+
+	@Test
+	void hourHierarchyUsesReadablePluralLabel() {
+		TimeScale scale = new TimeScale();
+		scale.setCalendarField1(Calendar.HOUR_OF_DAY);
+		scale.setNumber1(6);
+		scale.setCalendarField2(Calendar.DAY_OF_MONTH);
+		scale.setNumber2(1);
+		String expected = MessageFormat.format(Messages.getString("StatusBar.ScaleHierarchy"),
+				Messages.getString("StatusBar.Interval.Day"),
+				MessageFormat.format(Messages.getString("StatusBar.Interval.Hours"), 6));
+		assertTrue(DocumentStatusBar.formatScaleChoice("Timescale", 1, 9, scale).contains(expected));
 	}
 
 	@Test
@@ -108,7 +168,7 @@ class DocumentStatusBarTest {
 		ResourceBundle japanese = ResourceBundle.getBundle("com.microproject.strings.client", Locale.JAPANESE);
 		assertEquals("選択中のタスク数: {0}", japanese.getString("StatusBar.SelectedTasks"));
 		assertEquals("ズーム: {0} ({1}/{2} 段階)", japanese.getString("StatusBar.ZoomSemantic"));
-		assertEquals("{0}: {1} ({2}/{3})", japanese.getString("StatusBar.ScaleChoice"));
+		assertEquals("{0} ＞ {1}", japanese.getString("StatusBar.ScaleHierarchy"));
 		assertEquals("{0}分", japanese.getString("StatusBar.Interval.Minute"));
 		assertEquals("{0}時間", japanese.getString("StatusBar.Interval.Hour"));
 		assertEquals("{0}日", japanese.getString("StatusBar.Interval.Days"));
