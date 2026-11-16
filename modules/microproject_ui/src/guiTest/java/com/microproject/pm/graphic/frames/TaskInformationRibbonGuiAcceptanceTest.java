@@ -1897,12 +1897,24 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertNotNull(formatTab, "The contextual Gantt Format tab was not rendered");
 		clickAndAwaitSelected(robot, formatTab, "Robot click did not select the Gantt Chart Format ribbon tab");
 		click(robot, findShowingButtonByCommand("RibbonTimescale"));
-		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
-			.anyMatch(candidate -> candidate.isShowing() && UiComponentWalker.flatten(candidate).stream()
-				.anyMatch(JComboBox.class::isInstance)), "the physical Timescale ribbon command did not open its chooser");
-		var scales = com.microproject.configuration.Configuration.getInstance().getTimeScales();
-		String[] expected = DocumentStatusBar.formatScaleChoices(
-			manager.getMenuManager().getString("RibbonTimescale.text"), scales.getScaleCount(), scales::getScale);
+		AtomicBoolean chooserVisible = new AtomicBoolean();
+		GuiAcceptanceSupport.await(() -> {
+			try {
+				SwingUtilities.invokeAndWait(() -> chooserVisible.set(java.util.Arrays.stream(Window.getWindows())
+					.anyMatch(candidate -> candidate.isShowing() && UiComponentWalker.flatten(candidate).stream()
+						.anyMatch(JComboBox.class::isInstance))));
+			} catch (Exception exception) {
+				throw new AssertionError("Unable to inspect the Timescale chooser on the EDT", exception);
+			}
+			return chooserVisible.get();
+		}, "the physical Timescale ribbon command did not open its chooser");
+		AtomicReference<String[]> expectedReference = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			var scales = com.microproject.configuration.Configuration.getInstance().getTimeScales();
+			expectedReference.set(DocumentStatusBar.formatScaleChoices(
+				manager.getMenuManager().getString("RibbonTimescale.text"), scales.getScaleCount(), scales::getScale));
+		});
+		String[] expected = expectedReference.get();
 		AtomicReference<JComboBox<?>> comboReference = new AtomicReference<>();
 		List<String> renderedLabels = new ArrayList<>();
 		SwingUtilities.invokeAndWait(() -> {
