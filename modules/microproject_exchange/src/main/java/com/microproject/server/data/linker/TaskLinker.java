@@ -48,22 +48,22 @@ public abstract class TaskLinker extends Linker {
 
 	public NodeHierarchy getHierarchy(){return ((Project)getParent()).getTaskOutline().getHierarchy();}
 
-	protected Collection flatAssignments;
+	protected Collection<?> flatAssignments;
 
-	public Collection getFlatAssignments() {
+	public Collection<?> getFlatAssignments() {
 		return flatAssignments;
 	}
-	public void setFlatAssignments(Collection flatAssignments) {
+	public void setFlatAssignments(Collection<?> flatAssignments) {
 		this.flatAssignments = flatAssignments;
 	}
 	// Legacy data holder retained for compatibility with TaskLinker subclasses.
 	protected class PreparedAttributes{
 		protected SerializedDataObject data;
 		protected Object obj;
-		protected Collection extrafields; //extra fields
-		protected List fieldArray;
+		protected Collection<?> extrafields; //extra fields
+		protected List<?> fieldArray;
 		protected NodeModel model;
-		public PreparedAttributes(SerializedDataObject data, Object obj, Collection extrafields, List fieldArray, NodeModel model) {
+		public PreparedAttributes(SerializedDataObject data, Object obj, Collection<?> extrafields, List<?> fieldArray, NodeModel model) {
 			super();
 			this.data = data;
 			this.obj = obj;
@@ -77,16 +77,16 @@ public abstract class TaskLinker extends Linker {
 		public void setData(SerializedDataObject data) {
 			this.data = data;
 		}
-		public Collection getExtrafields() {
+		public Collection<?> getExtrafields() {
 			return extrafields;
 		}
-		public void setExtrafields(Collection extrafields) {
+		public void setExtrafields(Collection<?> extrafields) {
 			this.extrafields = extrafields;
 		}
-		public List getFieldArray() {
+		public List<?> getFieldArray() {
 			return fieldArray;
 		}
-		public void setFieldArray(List fieldArray) {
+		public void setFieldArray(List<?> fieldArray) {
 			this.fieldArray = fieldArray;
 		}
 		public NodeModel getModel() {

@@ -91,6 +91,12 @@ public final class FieldAliasDialog extends AbstractDialog {
 
 	}
 
+	/** The field/column alias editor is one bounded form; #724 keeps it packed. */
+	@Override
+	protected boolean isFixedSizeForm() {
+		return true;
+	}
+
 	// Component Creation and Initialization **********************************
 
 	/**

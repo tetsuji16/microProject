@@ -26,6 +26,9 @@ package com.microproject.pm.scheduling;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
@@ -40,6 +43,7 @@ import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.BulkScheduleBuilder;
 import com.microproject.undo.DataFactoryUndoController;
 
 /**
@@ -47,7 +51,7 @@ import com.microproject.undo.DataFactoryUndoController;
  * Run with {@code -Dmicroproject.profile=true}; skipped in the normal test task.
  * Optional: {@code -Dmicroproject.profile.scales=1000,2000,5000},
  * {@code -Dmicroproject.profile.phaseSize=100}, and
- * {@code -Dmicroproject.profile.mode=bulk|production-batch|sequential}. See
+ * {@code -Dmicroproject.profile.mode=bulk|production-batch|sequential|builder}. See
  * docs/performance/scheduler-large-project-profile.md.
  */
 @EnabledIfSystemProperty(named = "microproject.profile", matches = "true")
@@ -59,12 +63,11 @@ class LargeProjectSchedulingProfile {
 		int phaseSize = Integer.getInteger("microproject.profile.phaseSize", 100);
 		String[] scales = System.getProperty("microproject.profile.scales", "1000,2000,5000").split(",");
 		String mode = System.getProperty("microproject.profile.mode", "bulk");
+		boolean builderMode = "builder".equalsIgnoreCase(mode);
 		boolean bulkApis = !"sequential".equalsIgnoreCase(mode);
 		boolean wholeBuildTransaction = "bulk".equalsIgnoreCase(mode);
-		if (!bulkApis && !"sequential".equalsIgnoreCase(mode)
-				|| !wholeBuildTransaction && !"production-batch".equalsIgnoreCase(mode)
-				&& !"sequential".equalsIgnoreCase(mode))
-			throw new IllegalArgumentException("microproject.profile.mode must be bulk, production-batch or sequential");
+		if (!List.of("bulk", "production-batch", "sequential", "builder").contains(mode.toLowerCase(java.util.Locale.ROOT)))
+			throw new IllegalArgumentException("microproject.profile.mode must be bulk, production-batch, sequential or builder");
 		// warm up the JIT on a small project so the first scale is not dominated by class loading
 		run(300, 50, false, mode);
 		System.out.println("PROFILE mode,tasks,phases,nodesMs,depsMs,assignMs,buildMs,fullRecalcMs,editMs,undoMs,nodePasses,dependencyPasses,assignmentPasses,fullRecalcPasses,editPasses,undoPasses");
@@ -72,13 +75,14 @@ class LargeProjectSchedulingProfile {
 	}
 
 	private void run(int taskCount, int phaseSize, boolean report, String mode) throws Exception {
+		boolean builderMode = "builder".equalsIgnoreCase(mode);
 		boolean bulkApis = !"sequential".equalsIgnoreCase(mode);
 		boolean wholeBuildTransaction = "bulk".equalsIgnoreCase(mode);
 		long day = CalendarOption.getInstance().getMillisPerDay();
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		ResourcePool pool = ResourcePool.createRourcePool("profile", undo);
 		Project project = Project.createProject(pool, undo);
-		project.initialize(false, false);
+		if (!builderMode) project.initialize(false, false);
 		long t0 = System.nanoTime();
 		List<ResourceImpl> resources = new ArrayList<>();
 		for (int i = 0; i < RESOURCES; i++) { ResourceImpl r = pool.newResourceInstance(); r.setName("R" + i); resources.add(r); }
@@ -102,13 +106,14 @@ class LargeProjectSchedulingProfile {
 					NormalTask task = new NormalTask(project);
 					project.connectTask(task);
 					task.setName("T" + tasks.size());
-					task.setDuration((1 + tasks.size() % 5) * day);
+					if (builderMode) task.setRawDuration((1 + tasks.size() % 5) * day);
+					else task.setDuration((1 + tasks.size() % 5) * day);
 					tasks.add(task);
 					taskNodes.add(NodeFactory.getInstance().createNode(task));
 				}
 				project.getTaskModel().add(phaseNode, taskNodes, NodeModel.NORMAL);
 			}
-			project.getSchedulingAlgorithm().initialize(project);
+			if (!builderMode) project.getSchedulingAlgorithm().initialize(project);
 		} else {
 			for (int p = 0; p < phases; p++) {
 				var phaseNode = project.createLocalTaskNode(null);
@@ -144,7 +149,8 @@ class LargeProjectSchedulingProfile {
 			for (int i = 0; i < tasks.size(); i++)
 				AssignmentService.getInstance().newAssignment(tasks.get(i), resources.get(i % RESOURCES), 1D, 0L, this);
 		}
-		if (wholeBuildTransaction) project.fireMultipleTransaction(schedulingTransaction, false);
+		if (builderMode) BulkScheduleBuilder.initialize(project, false, false);
+		else if (wholeBuildTransaction) project.fireMultipleTransaction(schedulingTransaction, false);
 		long t1 = System.nanoTime();
 		int calculationPassesAfterAssignments = project.getSchedulingAlgorithm().getCalculationStateCount();
 		project.recalculate();
@@ -160,9 +166,13 @@ class LargeProjectSchedulingProfile {
 		long t3 = System.nanoTime();
 		int calculationPassesAfterEdit = project.getSchedulingAlgorithm().getCalculationStateCount();
 		long lastFinishAfter = tasks.get(tasks.size() - 1).getEnd();
+		if (report && !builderMode) assertTrue(lastFinishAfter > lastFinishBefore,
+			"The schedule edit should move the last task finish in " + mode + " mode at " + taskCount + " tasks");
 		undo.undo();
 		long t4 = System.nanoTime();
 		int calculationPassesAfterUndo = project.getSchedulingAlgorithm().getCalculationStateCount();
+		if (report) assertEquals(lastFinishBefore, tasks.get(tasks.size() - 1).getEnd(),
+			"Undo should restore the last task finish in " + mode + " mode at " + taskCount + " tasks");
 		if (report) {
 			System.out.printf("PROFILE %s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d (last finish moved: %b, restored: %b)%n", mode, tasks.size(), phases,
 				(tNodes - t0) / 1_000_000, (tDeps - tNodes) / 1_000_000, (t1 - tDeps) / 1_000_000, (t1 - t0) / 1_000_000, (t2 - t1) / 1_000_000, (t3 - t2) / 1_000_000, (t4 - t3) / 1_000_000,

@@ -34,10 +34,8 @@ import java.util.Collections;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Set;
-import java.util.Iterator;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -81,6 +79,7 @@ import com.microproject.pm.criticalpath.PredecessorTaskList;
 import com.microproject.pm.criticalpath.ScheduleWindow;
 import com.microproject.pm.criticalpath.TaskSchedule;
 import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.dependency.DependencyGraph;
 import com.microproject.pm.dependency.DependencyFormat;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
@@ -672,69 +671,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	}
 	public boolean dependsOn(HasDependencies other) {
 		Task task = (Task)other;
-		if (isAncestorOrDescendent(task))
-			return true;
-		return dependsOnIteratively(task);
-	}
-
-	private boolean dependsOnIteratively(Task other) {
-		Set<Task> visited = new HashSet<>();
-		ArrayDeque<DependsOnFrame> stack = new ArrayDeque<>();
-		visited.add(this);
-		stack.push(new DependsOnFrame(this, "", dependencyCandidates(this, other)));
-		while (!stack.isEmpty()) {
-			DependsOnFrame frame = stack.peek();
-			if (frame.task == other) {
-				StringBuilder message = new StringBuilder("Circular: \n");
-				for (var item : stack.reversed())
-					message.append(item.edgeLabel).append(item.task.getId()).append(": ")
-						.append(item.task.getName()).append('\n');
-				logger.warning(message.toString());
-				return true;
-			}
-			if (!frame.candidates.hasNext()) {
-				stack.pop();
-				continue;
-			}
-			DependsOnCandidate candidate = frame.candidates.next();
-			if (visited.add(candidate.task))
-				stack.push(new DependsOnFrame(candidate.task, candidate.edgeLabel,
-					dependencyCandidates(candidate.task, other)));
-		}
-		return false;
-	}
-
-	private static Iterator<DependsOnCandidate> dependencyCandidates(Task task, Task other) {
-		List<DependsOnCandidate> candidates = new ArrayList<>();
-		for (Association association : task.getPredecessorList()) {
-			Dependency dependency = (Dependency) association;
-			if (!dependency.isDisabled()) candidates.add(new DependsOnCandidate((Task) dependency.getPredecessor(), "Pred-"));
-		}
-		Task parent = task.getWbsParentTask();
-		if (other.getWbsParentTask() != parent && parent != null)
-			candidates.add(new DependsOnCandidate(parent, "Parent- "));
-		Collection<?> children = task.getWbsChildrenNodes();
-		if (children != null) for (Object childNode : children) {
-			Object current = ((Node) childNode).getImpl();
-			if (!(current instanceof Task child)) continue;
-			for (Association association : child.getPredecessorList()) {
-				Dependency dependency = (Dependency) association;
-				if (dependency.isDisabled()) continue;
-				Task predecessor = (Task) dependency.getPredecessor();
-				if (!predecessor.wbsDescendentOf(task))
-					candidates.add(new DependsOnCandidate(predecessor, "pred-child " + child.getId()));
-			}
-		}
-		return candidates.iterator();
-	}
-	private record DependsOnCandidate(Task task, String edgeLabel) { }
-	private static final class DependsOnFrame {
-		private final Task task;
-		private final String edgeLabel;
-		private final Iterator<DependsOnCandidate> candidates;
-		private DependsOnFrame(Task task, String edgeLabel, Iterator<DependsOnCandidate> candidates) {
-			this.task = task; this.edgeLabel = edgeLabel; this.candidates = candidates;
-		}
+		return DependencyGraph.dependsOn(this, task);
 	}
 
 	/**

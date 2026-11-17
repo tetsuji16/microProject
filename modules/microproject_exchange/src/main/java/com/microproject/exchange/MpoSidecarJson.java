@@ -203,6 +203,7 @@ final class MpoSidecarJson {
 				}
 				writeTaskSplitIntervals(taskNode.putArray("manualIntervals"), normalTask == null ? java.util.List.of() : normalTask.getManualTaskSplitIntervals());
 				writeTaskSplitIntervals(taskNode.putArray("levelingIntervals"), normalTask == null ? java.util.List.of() : normalTask.getLevelingTaskSplitIntervals());
+				writeTaskSplitIntervals(taskNode.putArray("importedIntervals"), normalTask == null ? java.util.List.of() : normalTask.getImportedTaskSplitIntervals());
 				if (manualDates != null) {
 					ObjectNode dates = taskNode.putObject("manualLevelingDates");
 					dates.put("originalStart", manualDates.originalStart());
@@ -411,20 +412,24 @@ final class MpoSidecarJson {
 			}
 			java.util.ArrayList<TaskSplitInterval> manualIntervals = new java.util.ArrayList<>();
 			java.util.ArrayList<TaskSplitInterval> levelingIntervals = new java.util.ArrayList<>();
+			java.util.ArrayList<TaskSplitInterval> importedIntervals = new java.util.ArrayList<>();
 			JsonNode manualNodes = taskNode.get("manualIntervals");
 			JsonNode levelingNodes = taskNode.get("levelingIntervals");
+			JsonNode importedNodes = taskNode.get("importedIntervals");
 			if (normalTask == null) {
-				if ((manualNodes != null && !manualNodes.isArray()) || (levelingNodes != null && !levelingNodes.isArray()))
+				if ((manualNodes != null && !manualNodes.isArray()) || (levelingNodes != null && !levelingNodes.isArray())
+						|| (importedNodes != null && !importedNodes.isArray()))
 					throw new IOException("Invalid MPO task split provenance");
-			} else if (manualNodes == null && levelingNodes == null) {
+			} else if (manualNodes == null && levelingNodes == null && importedNodes == null) {
 				manualIntervals.addAll(intervals);
 			} else {
-				readTaskSplitIntervals(manualNodes, manualIntervals, "manualIntervals");
-				readTaskSplitIntervals(levelingNodes, levelingIntervals, "levelingIntervals");
-				if (!NormalTask.unionTaskSplitIntervals(manualIntervals, levelingIntervals).equals(intervals))
+				if (manualNodes != null) readTaskSplitIntervals(manualNodes, manualIntervals, "manualIntervals");
+				if (levelingNodes != null) readTaskSplitIntervals(levelingNodes, levelingIntervals, "levelingIntervals");
+				if (importedNodes != null) readTaskSplitIntervals(importedNodes, importedIntervals, "importedIntervals");
+				if (!NormalTask.unionTaskSplitIntervals(manualIntervals, levelingIntervals, importedIntervals).equals(intervals))
 					throw new IOException("MPO task split provenance does not match task split intervals");
 			}
-			if (normalTask != null) normalTask.restoreTaskSplitProvenance(manualIntervals, levelingIntervals);
+			if (normalTask != null) normalTask.restoreTaskSplitProvenance(manualIntervals, levelingIntervals, importedIntervals);
 			JsonNode dates = taskNode.get("manualLevelingDates");
 			if (dates != null) {
 				long originalStart = integralLong(dates.path("originalStart"), "originalStart");

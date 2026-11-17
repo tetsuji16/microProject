@@ -24,6 +24,8 @@
 package com.microproject.core.pm.exchange.converters.mpx;
 
 import java.util.Date;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.microproject.core.pm.exchange.converters.mpx.type.MpxAccrueTypeConverter;
 import com.microproject.core.pm.exchange.converters.mpx.type.MpxPriorityConverter;
@@ -34,6 +36,7 @@ import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.task.TaskSplitInterval;
 
 import org.mpxj.Duration;
 import org.mpxj.TaskMode;
@@ -150,6 +153,36 @@ public class MpxTaskConverter {
 		task.setIgnoreWarnings(Boolean.TRUE.equals(mpxTask.get(org.mpxj.TaskField.IGNORE_WARNINGS)));
 		task.setManuallyScheduled(mpxTask.getTaskMode() == TaskMode.MANUALLY_SCHEDULED);
 
+	}
+
+	/**
+	 * Imports task gaps exposed by MPXJ as gaps in the union of assignment work
+	 * periods. Calendar nonworking time between those periods is excluded by
+	 * moving the gap start to the next working instant.
+	 */
+	public static void importWorkSplits(org.mpxj.Task source, NormalTask target, MpxImportState state) {
+		List<org.mpxj.LocalDateTimeRange> workPeriods = source.getWorkSplits();
+		if (workPeriods == null || workPeriods.size() < 2)
+			return;
+		long taskStart = target.getStart();
+		long sourceFinish = toLong(source.getFinish());
+		WorkCalendar calendar = target.getEffectiveWorkCalendar();
+		List<TaskSplitInterval> gaps = new ArrayList<>();
+		for (int index = 1; index < workPeriods.size(); index++) {
+			long previousFinish = toLong(workPeriods.get(index - 1).getEnd());
+			long nextStart = toLong(workPeriods.get(index).getStart());
+			long gapStart = calendar.adjustInsideCalendar(previousFinish, false);
+			if (nextStart > gapStart)
+				gaps.add(new TaskSplitInterval(gapStart - taskStart, nextStart - taskStart));
+		}
+		if (!gaps.isEmpty()) {
+			target.restoreImportedTaskSplitIntervals(gaps);
+			long sourceStart = taskStart;
+			state.addPostScheduleValidation(() -> {
+				target.getCurrentSchedule().setStart(sourceStart);
+				target.getCurrentSchedule().setFinish(sourceFinish);
+			});
+		}
 	}
 
 	private static long toLong(java.time.LocalDateTime d) {
