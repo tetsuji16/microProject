@@ -21,6 +21,7 @@ import java.awt.Robot;
 import java.awt.Toolkit;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.awt.Window;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -57,6 +58,9 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.microproject.dialog.PreferencesDialogBox;
+import com.microproject.dialog.UsabilityStrings;
+import com.microproject.preference.GlobalPreferences;
 import com.microproject.menu.MenuActionMapSupport;
 import com.microproject.menu.MenuManager;
 import com.microproject.ribbon.RibbonControlKind;
@@ -818,6 +822,68 @@ class RibbonTabGuiAcceptanceTest {
 		assertTrue(restoredTask.isSelected(), "Closing Backstage did not restore the previously selected ribbon tab");
 		GuiAcceptanceSupport.await(restoredTask::isFocusOwner,
 			"Focus did not return to the previously active ribbon tab after the modal command");
+	}
+
+	@Test
+	void applyingPreferencesPreservesRibbonSurfaceAndTaskTableInteraction() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI coverage.");
+		try (RibbonCommandGuiFixture fixture = RibbonCommandGuiFixture.open(3)) {
+			frame = fixture.window;
+			Robot robot = fixture.robot;
+			JPanel host = fixture.window.getRibbonPanel();
+			String taskTitle = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString("TaskRibbonTask.title");
+			fixture.activateWindow();
+			click(robot, findButton(host, taskTitle));
+			GuiAcceptanceSupport.await(() -> findButton(host, taskTitle).isSelected(),
+				"The Task ribbon tab was not active before opening preferences");
+			fixture.clickRow(1);
+			int beforeHeight = host.getHeight();
+			GlobalPreferences prefs = new GlobalPreferences();
+			SwingUtilities.invokeLater(() -> PreferencesDialogBox.showDialog(null, prefs));
+			java.util.concurrent.atomic.AtomicReference<PreferencesDialogBox> dialogRef = new java.util.concurrent.atomic.AtomicReference<>();
+			GuiAcceptanceSupport.await(() -> {
+				for (Window window : Window.getWindows())
+					if (window instanceof PreferencesDialogBox && window.isShowing()) {
+						dialogRef.set((PreferencesDialogBox) window);
+						return true;
+					}
+				return false;
+			}, "Preferences dialog did not open");
+			PreferencesDialogBox dialog = dialogRef.get();
+			SwingUtilities.invokeAndWait(() -> {
+				dialog.setAlwaysOnTop(true);
+				dialog.toFront();
+				dialog.requestFocus();
+			});
+			robot.waitForIdle();
+			AbstractButton apply = UiComponentWalker.flatten(dialog).stream()
+				.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+				.filter(button -> UsabilityStrings.text("preferences.apply").equals(button.getText()))
+				.findFirst().orElse(null);
+			assertTrue(apply != null, "Preferences dialog did not expose its Apply button");
+			Point[] applyCenter = new Point[1];
+			SwingUtilities.invokeAndWait(() -> {
+				Point location = apply.getLocationOnScreen();
+				applyCenter[0] = new Point(location.x + apply.getWidth() / 2, location.y + apply.getHeight() / 2);
+			});
+			robot.mouseMove(applyCenter[0].x, applyCenter[0].y);
+			robot.waitForIdle();
+			robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+			robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+			GuiAcceptanceSupport.await(() -> !dialog.isVisible(), "Preferences dialog did not close after Apply");
+			robot.waitForIdle();
+
+			assertTrue(namedComponent(frame.getRootPane(), "officeBackstageOverlay") == null,
+				"Applying preferences left the Backstage overlay on the frame");
+			assertTrue(findButton(host, taskTitle).isSelected(),
+				"Applying preferences did not preserve the selected ribbon tab");
+			GuiAcceptanceSupport.await(() -> host.getHeight() == beforeHeight,
+				"Applying preferences changed the ribbon height from " + beforeHeight + " to " + host.getHeight());
+			fixture.clickRow(2);
+			assertEquals(2, fixture.activeSheet().getSelectedRow(),
+				"Applying preferences left the task table unresponsive to a physical row click");
+			captureVisibleRibbon(robot, "preferences-apply-preserved-ribbon.png");
+		}
 	}
 
 	private static Component namedComponent(Component root, String name) {
