@@ -39,6 +39,7 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.imageio.ImageIO;
@@ -59,6 +60,15 @@ public class IconManager {
 	protected static final HashMap<String, ImageIcon> icons = new HashMap<>(128);
 	private static final Map<RibbonIconKey, ImageIcon> ribbonIcons = new ConcurrentHashMap<>(64);
 	private record RibbonIconKey(String name, int width, int height) { }
+
+	/**
+	 * Fluent icons whose SVG ink is the light-surface colour {@code #212121}. On a dark
+	 * ribbon that ink has almost no contrast, so it is remapped to the ribbon icon ink.
+	 */
+	private static final Set<String> FIXED_LIGHT_INK_RIBBON_ICONS = Set.of(
+		"fluent-info", "fluent-info-16", "fluent-info-20", "fluent-info-32",
+		"fluent-grid-dots", "fluent-grid-dots-16", "fluent-grid-dots-20", "fluent-grid-dots-32");
+	private static final int FIXED_LIGHT_INK = 0x212121;
 
 	/** Drops cached icons so theme-dependent rendering is rebuilt after a theme switch. */
 	public static void clearCaches() {
@@ -354,12 +364,49 @@ public class IconManager {
 			URL fallbackUrl = getIconResourceWithExtension(iconName, null);
 			ImageIcon vectorIcon = createScalableIcon(preferredUrl, width, height);
 			if (vectorIcon != null)
-				return vectorIcon;
+				return applyRibbonInk(vectorIcon, preferredUrl);
 			BufferedImage image = createRibbonImage(preferredUrl, width, height);
 			if (image == null)
 				image = createRibbonImage(fallbackUrl, width, height);
-			return image == null ? null : new ImageIcon(image);
+			return image == null ? null : applyRibbonInk(new ImageIcon(image), preferredUrl != null ? preferredUrl : fallbackUrl);
 		});
+	}
+
+	/** Maps the light-only ink of the monochrome Fluent icons to the dark ribbon icon ink. */
+	private static ImageIcon applyRibbonInk(ImageIcon icon, URL resource) {
+		if (!FlatUiSupport.isDarkTheme() || !usesFixedLightInk(resource))
+			return icon;
+		// Both glyphs are monochrome; keep their neutral ink instead of introducing a hue.
+		Color ribbonInk = FlatUiSupport.ribbonIconColor();
+		int gray = (int) Math.round(0.2126 * ribbonInk.getRed() + 0.7152 * ribbonInk.getGreen()
+			+ 0.0722 * ribbonInk.getBlue());
+		Color ink = new Color(gray, gray, gray);
+		if (icon instanceof FlatSVGIcon svgIcon) {
+			svgIcon.setColorFilter(new FlatSVGIcon.ColorFilter(source -> isFixedLightInk(source) ? ink : source));
+			return svgIcon;
+		}
+		BufferedImage image = toBufferedImage(icon.getImage());
+		for (int y = 0; y < image.getHeight(); y++) {
+			for (int x = 0; x < image.getWidth(); x++) {
+				int argb = image.getRGB(x, y);
+				if (isFixedLightInk(new Color(argb)))
+					image.setRGB(x, y, (argb & 0xFF000000) | (ink.getRGB() & 0xFFFFFF));
+			}
+		}
+		return new ImageIcon(image);
+	}
+
+	private static boolean usesFixedLightInk(URL resource) {
+		if (resource == null || resource.getPath() == null)
+			return false;
+		String path = resource.getPath();
+		String name = path.substring(path.lastIndexOf('/') + 1);
+		int dot = name.lastIndexOf('.');
+		return FIXED_LIGHT_INK_RIBBON_ICONS.contains(dot >= 0 ? name.substring(0, dot) : name);
+	}
+
+	private static boolean isFixedLightInk(Color color) {
+		return color != null && (color.getRGB() & 0xFFFFFF) == FIXED_LIGHT_INK;
 	}
 
 	/** Creates a themed state variant while preserving the source alpha. */
