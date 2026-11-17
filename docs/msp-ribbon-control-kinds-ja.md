@@ -77,9 +77,11 @@ RibbonMarkOnTrack.keytip=U
 
 `MspRibbonControlKindDiffTest` はモデルの種別と CSV を比べます。未対応の差分は同テストの `KNOWN_GAPS` に「現在の種別」と共に列挙します。対応を実装すると、エントリを削除するまでテストが失敗するので、一覧は減る方向にしか動きません。回帰を通すためにエントリを足してはいけません。
 
-## 現時点の種別差分（1 件）
+## 自動照合と Microsoft コントロールとの未解決差分
 
-`KNOWN_GAPS` は `RibbonTaskInspector`（現在 `BUTTON`、`ProjectControls.xlsx` の `InspectTasksMenu` は `splitButton`）のみです。並べ替えは `GALLERY`、フィルターとグループは `COMBO_BOX` として実装済みです。
+自動照合テストの `KNOWN_GAPS` は空で、既知のモデル差分はありません。これは `ProjectControls.xlsx` との照合完了を意味しません。#1162 の照合では、同資料で `gallery` とされる `FontFillBackColorPicker` と `FontColorPicker` が未実装で、CSV では `BUTTON` / `DIALOG`、実 UI でもダイアログを開くため `PENDING_VERIFY` です。両方をギャラリーとして実装し、選択値の dispatch、Undo、保存・再読込を確認するまで Microsoft との種別・挙動の一致は未完了です。
+
+`RibbonTaskInspector` は `ProjectControls.xlsx` の `InspectTasksMenu` に合わせて分割ボタンとして実装済みです。並べ替えは `GALLERY`、フィルターとグループは `COMBO_BOX` として実装済みです。
 
 `ProjectControls.xlsx` と種別が食い違うが扱い未決定の行（`BASELINE` のまま、`popupItems` に `xlsx:` として記録）: `RibbonToggleProgressLine`（xlsx は `button`）、`RibbonRecentProjects` / `RibbonBackstageProjectInformation` / `RibbonPrint`（xlsx は Backstage の `tab`）、`RibbonPDF`（xlsx は `task`）。
 
