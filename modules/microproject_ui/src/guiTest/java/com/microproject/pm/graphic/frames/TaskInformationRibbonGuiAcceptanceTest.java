@@ -565,6 +565,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertTrue(command instanceof JMenu, commandId + " must expose Escape dismissal from the keyboard");
 		openGalleryWithKeyboard(robot, (JMenu) command, popup, commandId + " Escape");
 		JPopupMenu escapePopup = popup;
+		JPopupMenu ribbonOverflow = (JPopupMenu) command.getParent();
+		assertTrue(ribbonOverflow.isShowing(), commandId + " Escape test requires the outer ribbon overflow popup to be visible");
 		JToggleButton focusSwatch = UiComponentWalker.flatten(escapePopup).stream()
 			.filter(JToggleButton.class::isInstance).map(JToggleButton.class::cast).findFirst()
 			.orElseThrow(() -> new AssertionError(commandId + " Escape gallery has no focus target"));
@@ -574,14 +576,60 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			Component focus = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
 			return focus != null && SwingUtilities.isDescendingFrom(focus, escapePopup);
 			}, commandId + " gallery Tab navigation did not move focus within the popup");
-		robot.keyPress(KeyEvent.VK_ESCAPE);
-		robot.keyRelease(KeyEvent.VK_ESCAPE);
-		robot.waitForIdle();
-		GuiAcceptanceSupport.await(() -> !escapePopup.isShowing(), commandId + " gallery Escape did not dismiss the popup");
+		ConcurrentLinkedQueue<String> escapeDispatch = new ConcurrentLinkedQueue<>();
+		java.awt.KeyEventDispatcher escapeProbe = event -> {
+			if (event.getKeyCode() == KeyEvent.VK_ESCAPE) {
+				escapeDispatch.add("id=" + event.getID() + ", source=" + event.getSource().getClass().getName()
+					+ ", focus=" + KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner()
+					+ ", selected=" + java.util.Arrays.stream(MenuSelectionManager.defaultManager().getSelectedPath())
+						.map(element -> element.getComponent().getClass().getSimpleName()).toList());
+			}
+			return false;
+		};
+		KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(escapeProbe);
+		try {
+			robot.keyPress(KeyEvent.VK_ESCAPE);
+			robot.keyRelease(KeyEvent.VK_ESCAPE);
+			robot.waitForIdle();
+			GuiAcceptanceSupport.await(() -> !escapePopup.isShowing(), commandId + " gallery Escape did not dismiss the popup");
+			GuiAcceptanceSupport.await(() -> {
+				KeyboardFocusManager focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+				return focusManager.getActiveWindow() == window;
+			}, commandId + " gallery dismissal did not restore keyboard focus to its ribbon menu item");
+			assertTrue(ribbonOverflow.isShowing(), commandId + " first Escape should dismiss only the nested gallery; the outer ribbon popup must remain visible");
+			press(robot, KeyEvent.VK_ESCAPE);
+			GuiAcceptanceSupport.await(() -> !ribbonOverflow.isShowing(), commandId + " second Escape did not dismiss the visible outer ribbon overflow popup; dispatch=" + escapeDispatch);
+			assertTrue(escapeDispatch.stream().anyMatch(event -> event.contains("id=401")
+				&& event.contains("source=com.microproject.ui.ribbon.RibbonControlPopups$ExistingPopupMenu")),
+				commandId + " second Escape did not dispatch to the focused ribbon menu item: " + escapeDispatch);
+		} finally {
+			KeyboardFocusManager.getCurrentKeyboardFocusManager().removeKeyEventDispatcher(escapeProbe);
+		}
 		GuiAcceptanceSupport.await(() -> {
 			KeyboardFocusManager focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
 			return focusManager.getFocusedWindow() == window && focusManager.getActiveWindow() == window;
-			}, commandId + " gallery dismissal did not return keyboard focus to its ribbon window");
+			}, commandId + " outer ribbon popup dismissal did not return focus to its window");
+		String outerEscapeAction = "microproject.dismissRibbonOverflow." + escapePopup.getName();
+		assertNotEquals(outerEscapeAction, command.getInputMap(JComponent.WHEN_FOCUSED)
+			.get(javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0)),
+			commandId + " outer popup dismissal must restore the menu item's original Escape binding");
+		SwingUtilities.invokeAndWait(() -> window.setExtendedState(JFrame.MAXIMIZED_BOTH));
+		robot.waitForIdle();
+		AbstractButton directCommand = findVisibleOrOverflowButton(robot, commandId);
+		assertFalse(directCommand instanceof JMenu, commandId + " maximized ribbon should expose a direct non-overflow command for Escape coverage");
+		JPopupMenu directPopup = galleryPopup(directCommand);
+		click(robot, directCommand);
+		GuiAcceptanceSupport.await(directPopup::isShowing, commandId + " direct ribbon command did not open its gallery");
+		Component directSwatch = UiComponentWalker.flatten(directPopup).stream().filter(JToggleButton.class::isInstance)
+			.map(JToggleButton.class::cast).findFirst()
+			.orElseThrow(() -> new AssertionError(commandId + " direct gallery has no keyboard focus target"));
+		assertTrue(requestFocus(directSwatch), commandId + " direct gallery swatch did not accept keyboard focus");
+		GuiAcceptanceSupport.await(() -> KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner() == directSwatch,
+			commandId + " direct gallery did not deliver keyboard focus to its swatch");
+		press(robot, KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> !directPopup.isShowing(), commandId + " direct gallery Escape did not dismiss its popup");
+		GuiAcceptanceSupport.await(() -> KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusedWindow() == window,
+			commandId + " direct gallery Escape did not restore focus to the ribbon window");
 	}
 
 	private void openGalleryWithKeyboard(Robot robot, JMenu command, JPopupMenu popup, String diagnosticName)
