@@ -23,72 +23,38 @@
  *******************************************************************************/
 package com.microproject.dialog;
 
+import static com.microproject.testsupport.ResourceIntervalTableFixture.click;
+import static com.microproject.testsupport.ResourceIntervalTableFixture.find;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.Component;
-import java.awt.Container;
 import java.awt.GraphicsEnvironment;
-import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.Robot;
 import java.awt.Toolkit;
-import java.awt.Window;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.Transferable;
 import java.awt.event.InputEvent;
-import java.util.Calendar;
 
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
-import javax.swing.JTabbedPane;
-import javax.swing.SwingUtilities;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.menu.MenuActionConstants;
-import com.microproject.options.GeneralOption;
 import com.microproject.interval.ValueObjectForIntervalTable;
-import com.microproject.pm.graphic.frames.GraphicManager;
-import com.microproject.pm.graphic.frames.MainRibbonFrame;
+import com.microproject.menu.MenuActionConstants;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetPopupMenu;
-import com.microproject.pm.resource.ResourceImpl;
-import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
 import com.microproject.strings.Messages;
 import com.microproject.testsupport.GuiAcceptanceSupport;
-import com.microproject.undo.DataFactoryUndoController;
-import com.microproject.util.DateTime;
-import com.microproject.util.Alert;
-import com.microproject.util.Environment;
-import com.microproject.ui.util.SwingAlertPresenter;
+import com.microproject.testsupport.ResourceIntervalTableFixture;
 
 /** Removes an availability row by physical right-click, then requires the project to prompt for saving (#987). */
 class ResourceAvailabilityRowDeleteGuiAcceptanceTest {
-	private MainRibbonFrame frame;
-	private ResourceInformationDialog dialog;
-	private boolean confirmDeletes;
-	private boolean previousClientSide;
-
-	@AfterEach
-	void closeWindows() throws Exception {
-		SwingUtilities.invokeAndWait(() -> {
-			if (dialog != null)
-				dialog.dispose();
-			if (frame != null)
-				frame.dispose();
-		});
-		GeneralOption.getInstance().setConfirmDeletes(confirmDeletes);
-		Environment.setClientSide(previousClientSide);
-		Alert.setPresenter(null);
-	}
-
 	@Test
 	void physicalPopupDeleteOfAvailabilityRowMarksProjectForSaving() throws Exception {
 		runIntervalRowScenario(false);
@@ -100,156 +66,53 @@ class ResourceAvailabilityRowDeleteGuiAcceptanceTest {
 	}
 
 	private void runIntervalRowScenario(boolean costRate) throws Exception {
-		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
-		previousClientSide = Environment.isClientSide();
-		Environment.setClientSide(true);
-		Alert.setPresenter(new SwingAlertPresenter());
-		confirmDeletes = GeneralOption.getInstance().isConfirmDeletes();
-		GeneralOption.getInstance().setConfirmDeletes(false);
-		DataFactoryUndoController undo = new DataFactoryUndoController();
-		ResourcePool pool = ResourcePool.createRourcePool("resource-availability-delete", undo);
-		pool.setLocal(true);
-		Project project = Project.createProject(pool, undo);
-		project.initialize(false, false);
-		pool.addProject(project);
-		project.setName("Resource availability delete");
-		ResourceImpl resource = pool.newResourceInstance();
-		resource.setName("Availability GUI resource");
-		ValueObjectForIntervalTable table = costRate ? resource.getCostRateTable(0) : resource.getAvailabilityTable();
-		table.newValueObject(DateTime.calendarInstance(2030, Calendar.JANUARY, 1).getTimeInMillis());
-		assertEquals(2, table.getList().size());
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
+				"A desktop session is required for Robot acceptance coverage.");
+		try (ResourceIntervalTableFixture fixture = ResourceIntervalTableFixture.open(costRate)) {
+			SpreadSheet sheet = fixture.sheet;
+			ValueObjectForIntervalTable table = fixture.table;
+			Project project = fixture.project;
 
-		SwingUtilities.invokeAndWait(() -> {
-			frame = new MainRibbonFrame("resource-availability-delete", null);
-			GraphicManager manager = new GraphicManager(frame);
-			frame.setGraphicManager(manager);
-			manager.initView();
-			manager.addProjectFrame(project);
-			frame.setSize(1280, 760);
-			frame.setLocationByPlatform(true);
-			frame.setVisible(true);
-			dialog = ResourceInformationDialog.getInstance(frame, resource);
-			dialog.setAlwaysOnTop(true);
-			dialog.pack();
-			dialog.setLocationRelativeTo(frame);
-		});
-		SwingUtilities.invokeLater(() -> dialog.setVisible(true));
-		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isShowing(), "Resource Information dialog did not open");
+			fixture.rightClickCell(1, 1);
+			SpreadSheetPopupMenu popup = sheet.getPopup();
+			assertEquals(1, popup.getRow(), "Popup context must resolve the clicked row");
 
-		Robot robot = new com.microproject.testsupport.GuiRobot();
-		robot.setAutoDelay(40);
-		JTabbedPane tabs = find(dialog, JTabbedPane.class, c -> true);
-		assertNotNull(tabs, "Resource Information must expose its tabs");
-		int availabilityTab = tabs.indexOfTab(Messages.getString(costRate ? "ResourceInformationDialog.Costs" : "ResourceInformationDialog.ResourceAvailability")); //$NON-NLS-1$
-		assertTrue(availabilityTab >= 0, "Resource Information must expose the Resource Availability tab");
-		Rectangle tabBounds = tabs.getBoundsAt(availabilityTab);
-		click(robot, tabs, tabBounds, InputEvent.BUTTON1_DOWN_MASK);
-		GuiAcceptanceSupport.await(() -> tabs.getSelectedIndex() == availabilityTab,
-				"Robot click did not select the Resource Availability tab");
+			JMenuItem delete = find(popup, JMenuItem.class,
+					c -> ("popup." + MenuActionConstants.ACTION_DELETE).equals(c.getName())); //$NON-NLS-1$
+			assertNotNull(delete, "The interval popup must offer Delete");
+			click(fixture.robot, delete, new Rectangle(delete.getSize()), InputEvent.BUTTON1_DOWN_MASK);
 
-		SpreadSheet sheet = find(dialog, SpreadSheet.class,
-				c -> (costRate ? "costRates" : "availabilitySpreadsheet").equals(c.getSpreadSheetCategory()) && c.isShowing()); //$NON-NLS-1$
-		assertNotNull(sheet, "The availability table must be showing");
-		GuiAcceptanceSupport.awaitInputAndEventQueueIdle(robot, "availability table painted");
-		project.markSaved();
-		assertFalse(project.needsSaving(), "Opening the dialog must not count as an edit");
+			GuiAcceptanceSupport.await(() -> table.getList().size() == 1, "Popup Delete did not remove the interval row");
+			GuiAcceptanceSupport.await(() -> sheet.getRowCount() == 2, "The table must render one data row and the void row");
+			assertTrue(project.needsSaving(), "Removing an interval row must prompt to save");
 
-		Rectangle[] secondRow = new Rectangle[1];
-		SwingUtilities.invokeAndWait(() -> secondRow[0] = sheet.getCellRect(1, 1, true));
-		click(robot, sheet, secondRow[0], InputEvent.BUTTON3_DOWN_MASK);
-		GuiAcceptanceSupport.await(() -> popupVisible(sheet),
-				"Physical right-click did not open the availability row popup");
-		SpreadSheetPopupMenu popup = sheet.getPopup();
-		assertEquals(1, popup.getRow(), "Popup context must resolve the clicked row");
-
-		JMenuItem delete = find(popup, JMenuItem.class,
-				c -> ("popup." + MenuActionConstants.ACTION_DELETE).equals(c.getName())); //$NON-NLS-1$
-		assertNotNull(delete, "The availability popup must offer Delete");
-		click(robot, delete, new Rectangle(delete.getSize()), InputEvent.BUTTON1_DOWN_MASK);
-
-		GuiAcceptanceSupport.await(() -> table.getList().size() == 1, "Popup Delete did not remove the availability row");
-		GuiAcceptanceSupport.await(() -> sheet.getRowCount() == 2, "The table must render one data row and the void row");
-		assertTrue(project.needsSaving(), "Removing an availability row must prompt to save");
-
-		// The first interval is protected. Exercise the actual row-header popup
-		// cut route and verify that its rejection does not replace the clipboard.
-		var clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-		Transferable previous = clipboard.getContents(null);
-		try {
-			String marker = "availability-cut-clipboard-marker";
-			clipboard.setContents(new StringSelection(marker), null);
-			project.markSaved();
-			var header = sheet.getRowHeader();
-			Rectangle[] firstRow = new Rectangle[1];
-			SwingUtilities.invokeAndWait(() -> firstRow[0] = header.getCellRect(0, 0, true));
-			click(robot, header, firstRow[0], InputEvent.BUTTON1_DOWN_MASK);
-			click(robot, header, firstRow[0], InputEvent.BUTTON3_DOWN_MASK);
-			GuiAcceptanceSupport.await(() -> popupVisible(sheet), "Row-header popup did not open");
-			JMenuItem cut = find(sheet.getPopup(), JMenuItem.class,
-					c -> ("popup." + MenuActionConstants.ACTION_CUT).equals(c.getName()));
-			assertNotNull(cut, "The row popup must offer Cut");
-			click(robot, cut, new Rectangle(cut.getSize()), InputEvent.BUTTON1_DOWN_MASK);
-			GuiAcceptanceSupport.await(() -> visibleError() != null, "Protected row cut must report the refusal");
-			JOptionPane error = visibleError();
-			assertEquals(Messages.getString("ValueObjectForIntervalTable.YouCannotRemoveTheFirst"), error.getMessage());
-			robot.keyPress(java.awt.event.KeyEvent.VK_ENTER);
-			robot.keyRelease(java.awt.event.KeyEvent.VK_ENTER);
-			GuiAcceptanceSupport.await(() -> visibleError() == null, "Refusal dialog did not close");
-			assertEquals(marker, clipboard.getData(DataFlavor.stringFlavor));
-			assertEquals(1, table.getList().size());
-			assertEquals(2, sheet.getRowCount());
-			assertFalse(project.needsSaving(), "A refused cut must not dirty the project");
-		} finally {
-			if (previous != null) clipboard.setContents(previous, null);
-		}
-	}
-
-	private static JOptionPane visibleError() {
-		JOptionPane[] found = new JOptionPane[1];
-		try {
-			SwingUtilities.invokeAndWait(() -> {
-				for (Window window : Window.getWindows()) {
-					if (window.isShowing()) {
-						found[0] = find(window, JOptionPane.class,
-								p -> p.getMessageType() == JOptionPane.ERROR_MESSAGE);
-						if (found[0] != null) break;
-					}
-				}
-			});
-		} catch (Exception e) {
-			throw new IllegalStateException(e);
-		}
-		return found[0];
-	}
-
-	private static boolean popupVisible(SpreadSheet sheet) {
-		boolean[] visible = new boolean[1];
-		try {
-			SwingUtilities.invokeAndWait(() -> visible[0] = sheet.getPopup() != null && sheet.getPopup().isVisible());
-		} catch (Exception e) {
-			throw new IllegalStateException(e);
-		}
-		return visible[0];
-	}
-
-	private static void click(Robot robot, Component component, Rectangle area, int button) throws Exception {
-		Point[] origin = new Point[1];
-		SwingUtilities.invokeAndWait(() -> origin[0] = component.getLocationOnScreen());
-		robot.mouseMove(origin[0].x + area.x + area.width / 2, origin[0].y + area.y + area.height / 2);
-		robot.mousePress(button);
-		robot.mouseRelease(button);
-		robot.waitForIdle();
-	}
-
-	private static <T extends Component> T find(Component root, Class<T> type, java.util.function.Predicate<T> accept) {
-		if (type.isInstance(root) && accept.test(type.cast(root)))
-			return type.cast(root);
-		if (root instanceof Container container)
-			for (Component child : container.getComponents()) {
-				T found = find(child, type, accept);
-				if (found != null)
-					return found;
+			// The first interval is protected. Exercise the actual row-header popup
+			// cut route and verify that its rejection does not replace the clipboard.
+			var clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+			Transferable previous = clipboard.getContents(null);
+			try {
+				String marker = "interval-cut-clipboard-marker";
+				clipboard.setContents(new StringSelection(marker), null);
+				project.markSaved();
+				fixture.selectRowHeader(0);
+				fixture.rightClickCell(0, 1);
+				JMenuItem cut = find(sheet.getPopup(), JMenuItem.class,
+						c -> ("popup." + MenuActionConstants.ACTION_CUT).equals(c.getName())); //$NON-NLS-1$
+				assertNotNull(cut, "The row popup must offer Cut");
+				click(fixture.robot, cut, new Rectangle(cut.getSize()), InputEvent.BUTTON1_DOWN_MASK);
+				GuiAcceptanceSupport.await(() -> ResourceIntervalTableFixture.visibleError() != null,
+						"Protected row cut must report the refusal");
+				JOptionPane error = ResourceIntervalTableFixture.visibleError();
+				assertEquals(Messages.getString("ValueObjectForIntervalTable.YouCannotRemoveTheFirst"),
+						error.getMessage());
+				fixture.dismissError();
+				assertEquals(marker, clipboard.getData(DataFlavor.stringFlavor));
+				assertEquals(1, table.getList().size());
+				assertEquals(2, sheet.getRowCount());
+				assertFalse(project.needsSaving(), "A refused cut must not dirty the project");
+			} finally {
+				if (previous != null) clipboard.setContents(previous, null);
 			}
-		return null;
+		}
 	}
 }
