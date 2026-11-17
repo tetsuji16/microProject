@@ -1708,7 +1708,8 @@ class GanttBarDateDragGuiAcceptanceTest {
 	private void capture(Robot robot, String fileName) throws Exception {
 		Rectangle[] bounds = new Rectangle[1];
 		SwingUtilities.invokeAndWait(() -> {
-			javax.swing.JRootPane rootPane = projectWindow == null ? frame.getRootPane() : projectWindow.getRootPane();
+			javax.swing.JRootPane rootPane = projectWindow != null && projectWindow.isShowing()
+				? projectWindow.getRootPane() : frame.getRootPane();
 			bounds[0] = new Rectangle(rootPane.getLocationOnScreen(), rootPane.getSize());
 		});
 		BufferedImage image = robot.createScreenCapture(bounds[0]);
