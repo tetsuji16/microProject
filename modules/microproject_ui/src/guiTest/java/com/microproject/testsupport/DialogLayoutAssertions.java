@@ -5,10 +5,14 @@
  ******************************************************************************/
 package com.microproject.testsupport;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.Dialog;
+import java.awt.Dimension;
+import java.awt.Frame;
 import java.awt.GraphicsConfiguration;
 import java.awt.Insets;
 import java.awt.Point;
@@ -263,6 +267,32 @@ public final class DialogLayoutAssertions {
 		return a.x == b.x && a.width == b.width && intersection.width == a.width
 				&& intersection.height == 1
 				&& (a.y + a.height == b.y + 1 || b.y + b.height == a.y + 1);
+	}
+
+	/**
+	 * Asserts the #724 fixed-size form contract: the dialog cannot be resized by
+	 * the user, keeps its packed minimum, keeps text controls at their preferred
+	 * height, and stays inside the usable screen. Data views that must grow use
+	 * {@link #assertResizeKeepsTextControls(Window, Container, int, int, String)}.
+	 */
+	public static void assertFixedSizeForm(Window window, Container content, String context) throws Exception {
+		final boolean[] resizable = new boolean[1];
+		final Dimension[] minimum = new Dimension[1];
+		final Dimension[] size = new Dimension[1];
+		SwingUtilities.invokeAndWait(() -> {
+			if (window instanceof Dialog dialog) resizable[0] = dialog.isResizable();
+			else if (window instanceof Frame frame) resizable[0] = frame.isResizable();
+			else resizable[0] = true;
+			minimum[0] = window.getMinimumSize();
+			size[0] = window.getSize();
+		});
+		assertFalse(resizable[0], context + " must declare a fixed-size form (no user resize)");
+		assertTrue(minimum[0].width > 0 && minimum[0].height > 0,
+			context + " must lock its packed minimum size, minimum=" + minimum[0]);
+		assertTrue(size[0].width >= minimum[0].width && size[0].height >= minimum[0].height,
+			context + " must not be smaller than its packed minimum, size=" + size[0] + " minimum=" + minimum[0]);
+		assertTextControlsAtPreferredHeight(content, context);
+		assertWithinUsableScreen(window, context);
 	}
 
 	/** Grows a visible top-level dialog/window and checks its content and usable-screen bounds. */
