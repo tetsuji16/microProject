@@ -12,6 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.microproject.testsupport.GuiJourney;
 import com.microproject.testsupport.GuiJourney.InputMechanism;
 import java.awt.Cursor;
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
 import java.awt.KeyboardFocusManager;
@@ -32,6 +34,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.swing.JMenuItem;
+import javax.swing.JToolTip;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.MenuElement;
@@ -537,7 +540,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(DependencyType.FS, true, false,
 			DateTime.calendarInstance(2026, java.util.Calendar.JUNE, 10).getTimeInMillis());
-		dragBarAndAssertSuccessor(fixture);
+		dragBarAndAssertSuccessor(fixture, true);
 	}
 
 	@Test
@@ -974,6 +977,10 @@ class GanttBarDateDragGuiAcceptanceTest {
 	}
 
 	private void dragBarAndAssertSuccessor(Fixture fixture) throws Exception {
+		dragBarAndAssertSuccessor(fixture, false);
+	}
+
+	private void dragBarAndAssertSuccessor(Fixture fixture, boolean verifyDragFeedback) throws Exception {
 		long oldStart = fixture.predecessor.getStart();
 		long oldEnd = fixture.predecessor.getEnd();
 		long oldSuccessorStart = fixture.successor.getStart();
@@ -1004,9 +1011,17 @@ class GanttBarDateDragGuiAcceptanceTest {
 		int targetX = bar.x + Math.max(2, bar.width / 2) + delta;
 		int targetY = bar.y + bar.height / 2;
 		int startX = bar.x + Math.max(2, bar.width / 2);
-		for (int step = 1; step <= 8; step++)
-			robot.mouseMove(startX + (targetX - startX) * step / 8, targetY);
-		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		try {
+			for (int step = 1; step <= 8; step++) {
+				robot.mouseMove(startX + (targetX - startX) * step / 8, targetY);
+				if (verifyDragFeedback && step == 4)
+					GuiAcceptanceSupport.await(GanttBarDateDragGuiAcceptanceTest::hasVisibleDragFeedback,
+						"moving a Gantt bar while pressed must show its localized start/finish tooltip");
+			}
+		} finally {
+			robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+			robot.waitForIdle();
+		}
 		GuiAcceptanceSupport.await(() -> fixture.predecessor.getStart() > oldStart,
 			"Gantt bar drag did not move the predecessor: oldStart=" + oldStart
 				+ " actual=" + fixture.predecessor.getStart() + " delta=" + delta
@@ -1345,6 +1360,35 @@ class GanttBarDateDragGuiAcceptanceTest {
 				start.y + (end.y - start.y) * step / 8);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		robot.waitForIdle();
+	}
+
+	private static boolean hasVisibleDragFeedback() {
+		AtomicReference<Boolean> visible = new AtomicReference<>(false);
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				for (Window window : Window.getWindows()) {
+					if (window.isVisible() && containsDragFeedback(window)) {
+						visible.set(true);
+						return;
+					}
+				}
+			});
+		} catch (Exception failure) {
+			throw new AssertionError("Could not inspect the visible Gantt drag tooltip", failure);
+		}
+		return visible.get();
+	}
+
+	private static boolean containsDragFeedback(Component component) {
+		if (component instanceof JToolTip tooltip && tooltip.getTipText() != null
+				&& tooltip.getTipText().contains(Messages.getString("Field.start"))
+				&& tooltip.getTipText().contains(Messages.getString("Field.finish")))
+			return true;
+		if (component instanceof Container container) {
+			for (Component child : container.getComponents())
+				if (containsDragFeedback(child)) return true;
+		}
+		return false;
 	}
 
 	private void click(Robot robot, Point point) {
