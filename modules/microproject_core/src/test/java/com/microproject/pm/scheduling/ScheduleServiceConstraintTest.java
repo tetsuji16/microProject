@@ -33,7 +33,9 @@ import org.junit.jupiter.api.Test;
 import com.microproject.document.ObjectEvent;
 
 import com.microproject.options.CalendarOption;
+import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
@@ -215,6 +217,62 @@ class ScheduleServiceConstraintTest {
 		assertEquals(start, task.getStart());
 		assertEquals(movedEnd, task.getEnd());
 		assertTrue(task.getDuration() > 0L);
+	}
+
+	@Test
+	void movingStartOfAssignmentlessTaskPreservesRequestedFinish() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+		task.setDuration(3L * CalendarOption.getInstance().getMillisPerDay());
+		project.recalculate();
+
+		long originalStart = task.getStart();
+		long originalEnd = task.getEnd();
+		long requestedStart = task.getEffectiveWorkCalendar().add(originalStart,
+			-CalendarOption.getInstance().getMillisPerDay(), false);
+		ScheduleInterval originalInterval = new ScheduleInterval(originalStart, originalEnd);
+
+		ScheduleService.getInstance().setInterval(this, task, requestedStart, originalEnd, originalInterval,
+			undoController.getEditSupport());
+
+		assertFalse(task.hasRealAssignments());
+		assertEquals(requestedStart, task.getStart());
+		assertEquals(originalEnd, task.getEnd(), "assignmentless interval update keeps the requested finish");
+	}
+
+	@Test
+	void movingStartOfAssignedTaskShiftsTaskAndKeepsDuration() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+		task.setDuration(3L * CalendarOption.getInstance().getMillisPerDay());
+		project.recalculate();
+		ResourceImpl resource = resourcePool.newResourceInstance();
+		AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		project.recalculate();
+
+		long originalStart = task.getStart();
+		long originalEnd = task.getEnd();
+		long originalDuration = task.getDurationMillis();
+		long requestedStart = task.getEffectiveWorkCalendar().add(originalStart,
+			-CalendarOption.getInstance().getMillisPerDay(), false);
+		long assignmentStart = task.getEarliestAssignmentStart();
+		long assignmentEnd = task.getEnd();
+
+		ScheduleService.getInstance().setInterval(this, task, requestedStart, assignmentEnd,
+			new ScheduleInterval(assignmentStart, assignmentEnd), undoController.getEditSupport());
+
+		assertTrue(task.hasRealAssignments());
+		assertEquals(requestedStart, task.getStart());
+		assertEquals(task.getEffectiveWorkCalendar().add(originalEnd,
+			-CalendarOption.getInstance().getMillisPerDay(), false), task.getEnd(),
+			"the first assignment-driven bar interval moves the task schedule as a whole");
+		assertEquals(originalDuration, task.getDurationMillis());
 	}
 
 	@Test

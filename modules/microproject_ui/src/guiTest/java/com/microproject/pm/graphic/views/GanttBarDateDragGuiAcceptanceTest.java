@@ -841,6 +841,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		assertEquals(resizedStart, fixture.predecessor.getConstraintDate(),
 			"start resize must retain its constraint date after Redo");
 
+		long resizedFinishBeforeEndDrag = fixture.predecessor.getEnd();
 		int startConstraintType = fixture.predecessor.getConstraintType();
 		long startConstraintDate = fixture.predecessor.getConstraintDate();
 		Point endHandle = findResizeHandle(robot, fixture, false, Cursor.E_RESIZE_CURSOR, "finish resize");
@@ -872,7 +873,8 @@ class GanttBarDateDragGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
 		logScheduleState("after-finish-undo", fixture);
 		capture(robot, "gantt-resize-after-finish-undo.png");
-		assertEquals(originalEnd, fixture.predecessor.getEnd(), "one Undo must restore the original finish");
+		assertEquals(resizedFinishBeforeEndDrag, fixture.predecessor.getEnd(),
+			"one Undo must restore the finish from immediately before the finish drag");
 		assertEquals(startConstraintType, fixture.predecessor.getConstraintType(),
 			"one Undo must preserve the start constraint after finish resize");
 		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
