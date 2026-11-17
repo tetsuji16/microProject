@@ -92,6 +92,25 @@ optimization. The latest `production-batch` run took 1.431s / 10.877s for 1k / 2
 its node setup alone was 0.793s / 8.610s (10.86x). Sequential build took 14.873s / 72.619s (4.88x). Both remain
 strongly nonlinear; these results do not establish A3.
 
+### Assignment transaction closure follow-up (2026-11-17)
+
+The actual assignment dialog calls `AssignmentService.newAssignments` once for its selected task/resource sets. `AssignmentService` already batches those inserts under an inner project transaction, but that transaction previously ended before the surrounding `runAtomicModelCommand` published its deferred object-event batch. This allowed the scheduler to calculate once at inner transaction close and again while handling the subsequent event publication. The call now keeps an outer project scheduling transaction open through the atomic command and event publication, then closes it in `finally`. A focused one-task/one-resource regression measured a calculation-state delta of 6 before and 3 after the change; for this forward-only fixture that corresponds to two `fastCalc` invocations before, one after. The test also checks one-step undo. Existing attach-after-mutation failure coverage verifies complete model/event/revision rollback, and now checks that the nested transaction depth returns to its previous value.
+
+This improves each real `newAssignments` call, but does not merge independent API calls into one transaction. In `production-batch`, the synthetic round-robin assignment shape uses 50 independent calls (one per resource), so the 1k and 2k runs each show 150 calculation-state increments (50 calls × 3), down from 300 before the transaction closure change. They still represent 50 recalculation boundaries, not one for the entire build.
+
+Latest no-JFR single-run profile after this change:
+
+| Mode | Tasks | Node setup | Add links | Add assignments | Build total | Assignment state-count delta | Full recalc | Edit | Undo |
+|------|------:|-----------:|----------:|----------------:|------------:|------------------------------:|------------:|-----:|-----:|
+| bulk | 1,000 | 127 | 11 | 51 | 190 | 3 | 10 | 8 | 7 |
+| bulk | 2,000 | 209 | 10 | 65 | 285 | 3 | 13 | 10 | 10 |
+| production-batch | 1,000 | 120 | 18 | 166 | 304 | 150 | 4 | 4 | 3 |
+| production-batch | 2,000 | 204 | 20 | 412 | 637 | 150 | 18 | 17 | 17 |
+| sequential | 1,000 | 95 | 2,887 | 5,635 | 8,617 | 3,000 | 8 | 9 | 9 |
+| sequential | 2,000 | 1,113 | 15,980 | 25,198 | 42,292 | 6,000 | 19 | 19 | 16 |
+
+All rows reported that the last task finish moved after the schedule edit and returned after undo. The sequential mode remains the original single-item workflow and grows 4.91x from 1k to 2k; A3 remains open. State-count deltas are observable scheduling calculation-state counter increments, not counts of inner `TaskSchedule` operations. The synthetic `bulk` whole-build transaction is not a verified production workflow and does not satisfy A3.
+
 ### Duration setup and snapshot ownership
 
 Every synthetic task is assigned a varying 1–5 day duration after it is connected to the project. Each

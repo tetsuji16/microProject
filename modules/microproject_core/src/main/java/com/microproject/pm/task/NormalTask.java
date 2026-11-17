@@ -329,6 +329,10 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			applyDuration(duration);
 			return;
 		}
+		if (canUseTaskLocalDurationRollback(project)) {
+			setDurationWithTaskLocalRollback(project, duration);
+			return;
+		}
 		ProjectTaskSnapshot taskSnapshot = ProjectTaskSnapshot.capture(project);
 		Map<Task, Integer> calculationStates = new IdentityHashMap<>();
 		for (Task task : project.getTaskList())
@@ -357,6 +361,53 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 			}
 			return null;
 		}, ignored -> project.getTasks().contains(this), ignored -> null);
+	}
+
+	private boolean canUseTaskLocalDurationRollback(Project project) {
+		return project.isInitialized() && getOwningProject() == project && !isReadOnly() && !isExternal()
+			&& !isSubproject() && getWbsParentTask() == null && !isWbsParent() && !hasRealAssignments()
+			&& project.getSchedulingAlgorithm() != null
+			&& project.getSchedulingAlgorithm().hasOnlySentinelDependencies(this);
+	}
+
+	private void setDurationWithTaskLocalRollback(Project project, long duration) {
+		Object priorDetail = backupDetail();
+		boolean priorEstimated = estimated;
+		int priorDisplayUnit = durationDisplayUnit;
+		int priorSnapshotDisplayUnit = ((TaskSnapshot) getCurrentSnapshot()).getDurationDisplayUnit();
+		Long priorImportedUnassignedWork = importedUnassignedWork;
+		boolean priorDirty = isDirty();
+		int priorCalculationState = getCalculationStateCount();
+		Project.DirtyState priorProjectDirtyState = project.captureDirtyState();
+		project.runAtomicModelCommand(markApplied -> {
+			markApplied.run();
+			try {
+				applyDuration(duration);
+			} catch (RuntimeException | Error failure) {
+				try { restoreDetail(this, priorDetail, true); }
+				catch (Throwable rollbackFailure) { addRollbackFailure(failure, rollbackFailure); }
+				try { estimated = priorEstimated; }
+				catch (Throwable rollbackFailure) { addRollbackFailure(failure, rollbackFailure); }
+				try { durationDisplayUnit = priorDisplayUnit; }
+				catch (Throwable rollbackFailure) { addRollbackFailure(failure, rollbackFailure); }
+				try { ((TaskSnapshot) getCurrentSnapshot()).setDurationDisplayUnit(priorSnapshotDisplayUnit); }
+				catch (Throwable rollbackFailure) { addRollbackFailure(failure, rollbackFailure); }
+				try { importedUnassignedWork = priorImportedUnassignedWork; }
+				catch (Throwable rollbackFailure) { addRollbackFailure(failure, rollbackFailure); }
+				try { setDirty(priorDirty); }
+				catch (Throwable rollbackFailure) { addRollbackFailure(failure, rollbackFailure); }
+				try { setCalculationStateCount(priorCalculationState); }
+				catch (Throwable rollbackFailure) { addRollbackFailure(failure, rollbackFailure); }
+				try { project.restoreDirtyState(priorProjectDirtyState); }
+				catch (Throwable rollbackFailure) { addRollbackFailure(failure, rollbackFailure); }
+				throw failure;
+			}
+			return null;
+		}, ignored -> getOwningProject() == project, ignored -> null);
+	}
+
+	private static void addRollbackFailure(Throwable failure, Throwable rollbackFailure) {
+		if (failure != rollbackFailure) failure.addSuppressed(rollbackFailure);
 	}
 
 	private void applyDuration(long duration) {

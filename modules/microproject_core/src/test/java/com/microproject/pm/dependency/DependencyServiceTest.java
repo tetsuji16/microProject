@@ -940,6 +940,49 @@ class DependencyServiceTest {
 	}
 
 	@Test
+	void boundaryDependencyLookupIndexTracksRollbackDeletionAndReinitialization() throws InvalidAssociationException {
+		Project project = createProject("boundary-dependency-index-rollback");
+		NormalTask predecessor = new NormalTask(project);
+		FailingStartSentinelTask successor = new FailingStartSentinelTask(project);
+		project.connectTask(predecessor);
+		project.connectTask(successor);
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		predecessor.setDuration(2L * day);
+		successor.setDuration(day);
+		successor.getCurrentSchedule().setStart(project.getWorkCalendar().add(project.getStart(), 10L * day, false));
+		project.recalculate();
+		long expectedStart = predecessor.getStart();
+		long expectedEnd = successor.getEnd();
+		successor.failNextStartSentinelUpdate();
+
+		assertThrows(IllegalStateException.class, () -> DependencyService.getInstance()
+			.newDependency(predecessor, successor, DependencyType.FS, 0L, this));
+
+		assertTrue(predecessor.getSuccessorList().isEmpty());
+		assertTrue(successor.getPredecessorList().isEmpty());
+		project.recalculate();
+		assertEquals(expectedStart, predecessor.getStart());
+		assertEquals(expectedEnd, successor.getEnd());
+
+		Dependency dependency = DependencyService.getInstance()
+			.newDependency(predecessor, successor, DependencyType.FS, 0L, this);
+		project.recalculate();
+		assertTrue(successor.getStart() >= predecessor.getEnd());
+		DependencyService.getInstance().remove(dependency, this, false);
+		project.recalculate();
+		assertEquals(expectedStart, predecessor.getStart());
+		assertEquals(expectedEnd, successor.getEnd());
+
+		project.getSchedulingAlgorithm().initialize(project);
+		project.recalculate();
+		long initializedEnd = project.getEnd();
+		project.recalculate();
+		assertEquals(initializedEnd, project.getEnd());
+		assertTrue(project.getEnd() >= predecessor.getEnd());
+		assertTrue(project.getEnd() >= successor.getEnd());
+	}
+
+	@Test
 	void failedDependencyInitializationRestoresEndpointsGraphEventsAndUndoState() {
 		Project project = createProject("atomic-dependency-initialization");
 		NormalTask oldPredecessor = new NormalTask(project);
@@ -1497,6 +1540,22 @@ class DependencyServiceTest {
 				throw new IllegalStateException("injected sentinel update failure");
 			}
 			super.updateEndSentinel();
+		}
+	}
+
+	private static final class FailingStartSentinelTask extends NormalTask {
+		private boolean failNextStartSentinelUpdate;
+
+		private FailingStartSentinelTask(Project project) { super(project); }
+
+		private void failNextStartSentinelUpdate() { failNextStartSentinelUpdate = true; }
+
+		@Override public void updateStartSentinel() {
+			super.updateStartSentinel();
+			if (failNextStartSentinelUpdate) {
+				failNextStartSentinelUpdate = false;
+				throw new IllegalStateException("injected start sentinel update failure after partial mutation");
+			}
 		}
 	}
 

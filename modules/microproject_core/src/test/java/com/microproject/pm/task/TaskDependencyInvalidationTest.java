@@ -26,12 +26,18 @@ package com.microproject.pm.task;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.NodeFactory;
+import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.undo.DataFactoryUndoController;
 
 class TaskDependencyInvalidationTest {
@@ -81,6 +87,75 @@ class TaskDependencyInvalidationTest {
 		assertTrue(successor.getCalculationStateCount() > 0);
 		assertTrue(downstream.getCalculationStateCount() > 0);
 		assertEquals(0, unrelated.getCalculationStateCount());
+	}
+
+	@Test
+	void outlineInsertionAndRemovalStillInvalidateProjectBoundaryTasks() throws Exception {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("bounds invalidation", undoController), undoController);
+		project.initialize(false, false);
+		NormalTask boundaryTask = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		boundaryTask.setDuration(2L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		project.recalculate();
+		Node inserted = project.createLocalTaskNode(null);
+		NormalTask insertedTask = (NormalTask) inserted.getImpl();
+		insertedTask.setDuration(com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		DependencyService.getInstance().newDependency(boundaryTask, insertedTask, DependencyType.FS, 0L, this);
+		project.recalculate();
+		long expandedProjectEnd = project.getEnd();
+		assertTrue(expandedProjectEnd > boundaryTask.getEnd(),
+			"an inserted outline task must be included in the project boundary calculation");
+
+		project.getTaskModel().remove(inserted, NodeModel.NORMAL);
+		project.recalculate();
+		assertTrue(project.getEnd() < expandedProjectEnd,
+			"removing an outline task must remove it from the project boundary calculation");
+		assertEquals(boundaryTask.getEnd(), project.getEnd(),
+			"after removal, the surviving boundary task must determine the project end");
+	}
+
+	@Test
+	void appendedLeafBatchesRenumberOnlyTheOutlineSuffixWithoutChangingIds() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("incremental numbering", undoController), undoController);
+		project.initialize(false, false);
+		List<Node> phases = new ArrayList<>();
+		for (int phaseIndex = 0; phaseIndex < 3; phaseIndex++) {
+			NormalTask phase = new NormalTask(project);
+			project.connectTask(phase);
+			phases.add(NodeFactory.getInstance().createNode(phase));
+		}
+		project.getTaskModel().add(null, phases, NodeModel.NORMAL);
+		for (Node phase : phases) {
+			List<Node> tasks = new ArrayList<>();
+			for (int taskIndex = 0; taskIndex < 3; taskIndex++) {
+				NormalTask task = new NormalTask(project);
+				project.connectTask(task);
+				tasks.add(NodeFactory.getInstance().createNode(task));
+			}
+			project.getTaskModel().add(phase, tasks, NodeModel.NORMAL);
+		}
+		assertSequentialTaskIds(project, 12);
+
+		NormalTask insertedTask = new NormalTask(project);
+		project.connectTask(insertedTask);
+		Node inserted = NodeFactory.getInstance().createNode(insertedTask);
+		project.getTaskModel().add(phases.get(0), inserted, 0, NodeModel.NORMAL);
+		assertSequentialTaskIds(project, 13);
+
+		project.getTaskModel().remove(inserted, NodeModel.NORMAL);
+		assertSequentialTaskIds(project, 12);
+	}
+
+	private void assertSequentialTaskIds(Project project, int count) {
+		List<Long> actualIds = new ArrayList<>();
+		project.getTaskModel().getHierarchy().visitAll(object -> {
+			if (object instanceof Node node && node.hasNumber())
+				actualIds.add(((Task) node.getImpl()).getId());
+		});
+		List<Long> expectedIds = new ArrayList<>(count);
+		for (long id = 1; id <= count; id++) expectedIds.add(id);
+		assertEquals(expectedIds, actualIds);
 	}
 
 	private NormalTask task(Project project) {

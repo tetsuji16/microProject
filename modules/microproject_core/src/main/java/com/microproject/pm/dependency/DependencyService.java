@@ -25,10 +25,12 @@ package com.microproject.pm.dependency;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.function.Predicate;
 import java.util.Collection;
 import java.util.List;
 import java.util.IdentityHashMap;
+import java.util.Set;
 import java.util.Comparator;
 import java.util.Map;
 
@@ -674,9 +676,13 @@ public class DependencyService {
 	private static final class DependencyGraphSnapshot {
 		private final Map<AssociationList, List<Association>> lists = new IdentityHashMap<>();
 		private final Map<Dependency, Boolean> dirtyStates = new IdentityHashMap<>();
+		private final Set<Project> affectedProjects = Collections.newSetFromMap(new IdentityHashMap<>());
+		private final Set<Task> endpoints = Collections.newSetFromMap(new IdentityHashMap<>());
 
 		private DependencyGraphSnapshot(List<Dependency> dependencies, List<Task> endpoints) {
 			for (Task task : endpoints) {
+				this.endpoints.add(task);
+				if (task.getProject() != null) affectedProjects.add(task.getProject());
 				snapshot(task.getPredecessorList());
 				snapshot(task.getSuccessorList());
 			}
@@ -713,6 +719,11 @@ public class DependencyService {
 			for (Map.Entry<AssociationList, List<Association>> entry : lists.entrySet()) {
 				entry.getKey().clear();
 				entry.getKey().addAll(entry.getValue());
+			}
+			for (Task task : endpoints) refreshTaskSentinels(task);
+			for (Project project : affectedProjects) {
+				if (project.getSchedulingAlgorithm() != null)
+					project.getSchedulingAlgorithm().rebuildBoundaryDependencyIndexes();
 			}
 			for (Map.Entry<Dependency, Boolean> entry : dirtyStates.entrySet())
 				entry.getKey().setDirty(entry.getValue());

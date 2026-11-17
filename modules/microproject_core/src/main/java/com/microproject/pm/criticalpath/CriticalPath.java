@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Set;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 import java.util.ListIterator;
 
@@ -44,6 +45,7 @@ import com.microproject.pm.calendar.CalendarDefinition;
 import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.scheduling.ConstraintType;
 import com.microproject.pm.scheduling.ScheduleEvent;
 import com.microproject.pm.task.BelongsToDocument;
@@ -69,6 +71,9 @@ public class CriticalPath implements SchedulingAlgorithm {
 	boolean needsReset = false; // flag to indicate that a reset is pending during suspended updates
 	private final List<Task> deferredTaskOrderRebuild = new ArrayList<>();
 	private final Set<Task> deferredTaskOrderSet = Collections.newSetFromMap(new IdentityHashMap<>());
+	private final Set<Task> deferredDependencyInvalidationSeeds = Collections.newSetFromMap(new IdentityHashMap<>());
+	private final Map<Task, Dependency> startSentinelDependencyIndex = new IdentityHashMap<>();
+	private final Map<Task, Dependency> finishSentinelDependencyIndex = new IdentityHashMap<>();
 	long earliestStart;
 	long latestFinish;
 	private boolean criticalPathJustChanged = false;
@@ -119,6 +124,7 @@ public class CriticalPath implements SchedulingAlgorithm {
 		project = (Project) object;
 		predecessorTaskList.getList().clear(); // get rid of sentinels that are in lis
 		predecessorTaskList.addAll(project.getTaskList());
+		rebuildBoundaryDependencyIndexes();
 		initSentinelsFromTasks();
 		setProjectBoundaries(); // put back sentinels
 		
@@ -193,6 +199,7 @@ public class CriticalPath implements SchedulingAlgorithm {
 		context.forward = isForward();
 		context.boundary = firstBoundary;
 		context.sentinel = endSentinel;
+		context.sentinelDependencyIndex = sentinelDependencyIndex(endSentinel);
 		context.earlyOnly = false;
 		context.assign = false;
 		context.scheduleType = isForward() ? TaskSchedule.Kind.EARLY : TaskSchedule.Kind.LATE;
@@ -212,6 +219,7 @@ public class CriticalPath implements SchedulingAlgorithm {
 			long secondBoundary = -endSentinel.getSchedule(context.scheduleType).getBegin(); // sent bounds of end sentinel for backward pass
 			context.boundary = secondBoundary;
 			context.sentinel = beginSentinel;
+			context.sentinelDependencyIndex = sentinelDependencyIndex(beginSentinel);
 			context.forward = !context.forward;
 			context.assign = false;
 			context.scheduleType = context.scheduleType.opposite();
@@ -227,6 +235,7 @@ public class CriticalPath implements SchedulingAlgorithm {
 				context.forward = !context.forward;
 				context.boundary = firstBoundary;
 				context.sentinel = endSentinel;
+				context.sentinelDependencyIndex = sentinelDependencyIndex(endSentinel);
 				context.earlyOnly = false;
 				context.assign = true;
 			context.scheduleType = context.scheduleType.opposite();
@@ -392,17 +401,27 @@ public class CriticalPath implements SchedulingAlgorithm {
 			}
 			task = (Task)dependency.getPredecessor();
 			Task successor = (Task) dependency.getSuccessor(); // the successor needs to be scheduled
-			
+			if (suspendUpdates) {
+				task.invalidateSchedules();
+				successor.invalidateSchedules();
+				deferredDependencyInvalidationSeeds.add(task);
+				deferredDependencyInvalidationSeeds.add(successor);
+				if (successor.isSubproject()) {
+					SubProj sub = (SubProj) successor;
+					if (sub.isSubprojectOpen()) sub.getSubproject().markAllTasksAsNeedingRecalculation(true);
+				}
+				return;
+			}
+
 			// Invalidate the changed link and only the dependency/WBS closure it can affect.
 			task.invalidateSchedules();
-			task.markAllDependentTasksAsNeedingRecalculation(true);
 			if (successor.isSubproject()) { // special case for subprojects - need to reset all
 				SubProj sub = (SubProj)successor;
 				if (sub.isSubprojectOpen())
 					sub.getSubproject().markAllTasksAsNeedingRecalculation(true);
 			} 
 			successor.invalidateSchedules();
-			successor.markAllDependentTasksAsNeedingRecalculation(true);
+			Task.markDependentClosureAsNeedingRecalculation(List.of(task, successor));
 			calculate(true,null); // Run both passes, since the CP might be modified and it's hard to tell if so
 		} else if (changedObject == project) { // if whole project changed, such
 											   // as hierarchy event
@@ -441,22 +460,54 @@ public class CriticalPath implements SchedulingAlgorithm {
 	}
 
 	public void addEndSentinelDependency(Task task) {
-		if (task.getOwningProject() == project && !task.isExternal())
-			DependencyService.getInstance().addEndSentinelDependency(finishSentinel,task);
+		if (task.getOwningProject() == project && !task.isExternal() && !finishSentinelDependencyIndex.containsKey(task)) {
+			Dependency dependency = Dependency.getInstance(task, finishSentinel, DependencyType.Kind.FS, 0L);
+			finishSentinel.getPredecessorList().getList().add(dependency);
+			finishSentinelDependencyIndex.put(task, dependency);
+		}
 	}
 	public boolean removeEndSentinelDependency(Task task) {
-		if (task.getOwningProject() == project && !task.isExternal())
+		if (task.getOwningProject() == project && !task.isExternal()) {
+			Dependency dependency = finishSentinelDependencyIndex.remove(task);
+			if (dependency != null) return finishSentinel.getPredecessorList().remove(dependency);
 			return DependencyService.getInstance().removeEndSentinel(finishSentinel,task);
+		}
 		return false;
 	}
 	public void addStartSentinelDependency(Task task) {
-		if (task.getOwningProject() == project && !task.isExternal())
-			DependencyService.getInstance().addStartSentinelDependency(startSentinel,task);
+		if (task.getOwningProject() == project && !task.isExternal() && !startSentinelDependencyIndex.containsKey(task)) {
+			Dependency dependency = Dependency.getInstance(startSentinel, task, DependencyType.Kind.SS, 0L);
+			startSentinel.getSuccessorList().getList().add(dependency);
+			startSentinelDependencyIndex.put(task, dependency);
+		}
 	}
 	public boolean removeStartSentinelDependency(Task task) {
-		if (task.getOwningProject() == project && !task.isExternal())
+		if (task.getOwningProject() == project && !task.isExternal()) {
+			Dependency dependency = startSentinelDependencyIndex.remove(task);
+			if (dependency != null) return startSentinel.getSuccessorList().remove(dependency);
 			return DependencyService.getInstance().removeStartSentinel(startSentinel,task);
+		}
 		return false;
+	}
+
+	private Map<Task, Dependency> sentinelDependencyIndex(Task sentinel) {
+		if (sentinel == startSentinel) return startSentinelDependencyIndex;
+		if (sentinel == finishSentinel) return finishSentinelDependencyIndex;
+		return Map.of();
+	}
+
+	@Override
+	public void rebuildBoundaryDependencyIndexes() {
+		startSentinelDependencyIndex.clear();
+		for (Association association : startSentinel.getSuccessorList()) {
+			Dependency dependency = (Dependency) association;
+			startSentinelDependencyIndex.put((Task) dependency.getSuccessor(), dependency);
+		}
+		finishSentinelDependencyIndex.clear();
+		for (Association association : finishSentinel.getPredecessorList()) {
+			Dependency dependency = (Dependency) association;
+			finishSentinelDependencyIndex.put((Task) dependency.getPredecessor(), dependency);
+		}
 	}
 	
 	public long getStartConstraint() {
@@ -490,6 +541,26 @@ public class CriticalPath implements SchedulingAlgorithm {
 		}
 		
 	}
+	/**
+	 * Marks only boundary sentinels after a task mutation has already dirtied its
+	 * dependent and WBS closure. The full boundary scan is reserved for structural
+	 * changes and explicit project-boundary edits.
+	 */
+	@Override
+	public void markDependentBoundsAsDirty() {
+		startSentinel.markTaskAsNeedingRecalculation();
+		finishSentinel.markTaskAsNeedingRecalculation();
+	}
+	@Override
+	public boolean hasOnlySentinelDependencies(Task task) {
+		for (Association association : task.getPredecessorList())
+			if (((Dependency) association).getPredecessor() != startSentinel
+					&& ((Dependency) association).getPredecessor() != finishSentinel) return false;
+		for (Association association : task.getSuccessorList())
+			if (((Dependency) association).getSuccessor() != startSentinel
+					&& ((Dependency) association).getSuccessor() != finishSentinel) return false;
+		return true;
+	}
 	public boolean isForward() {
 		return project.isForward();
 	}
@@ -517,6 +588,11 @@ public class CriticalPath implements SchedulingAlgorithm {
 				needsReset = false;
 			} else if (needsReset) {
 				reset();
+			}
+			if (!deferredDependencyInvalidationSeeds.isEmpty()) {
+				List<Task> seeds = List.copyOf(deferredDependencyInvalidationSeeds);
+				deferredDependencyInvalidationSeeds.clear();
+				Task.markDependentClosureAsNeedingRecalculation(seeds);
 			}
 			calculate(true,null);
 		} else {

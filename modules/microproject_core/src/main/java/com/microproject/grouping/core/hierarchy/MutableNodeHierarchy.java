@@ -53,6 +53,7 @@ import com.microproject.grouping.core.model.NodeModelUtil;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.key.HasKey;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
@@ -119,6 +120,13 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     private void addCoordinated(Node parent,List<Node> children,int position,int actionType){
     	Node p=(parent==null)?root:parent;
 		if (children.size()==0) return;
+		int childCount=p.getChildCount();
+		boolean append = position == -1 || position == childCount;
+		boolean appendedDetachedLeaves = append && children.stream().allMatch(node ->
+			node.getParent() == null && node.getChildCount() == 0);
+		boolean appendedNumberedLeaves = appendedDetachedLeaves && children.stream().allMatch(Node::hasNumber);
+		boolean appendedUnnumberedLeaves = appendedDetachedLeaves && children.stream().noneMatch(Node::hasNumber);
+		int precedingNumber = appendedNumberedLeaves ? lastNumberBeforeAppend(p) : 0;
 		Map<Object, Object[]> previousParentChildren = new java.util.IdentityHashMap<>();
 		if (isEvent(actionType)) for (Node child : children) {
 			Node previousParent = getParent(child);
@@ -127,7 +135,6 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 
     	int subprojectLevel=getChildrenSubprojectLevel(parent);
 
-		int childCount=p.getChildCount();
     	if (position>childCount){
     		NodeFactory nodeFactory=NodeFactory.getInstance();
     		for (int i=childCount;i<position;i++){
@@ -144,10 +151,53 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 			else p.insert(node,j++);
        	}
     	if (isEvent(actionType)){
-    		renumber();
+	    	if (appendedNumberedLeaves) renumberFromSuffix(children.get(0), precedingNumber);
+	    	else if (!appendedUnnumberedLeaves) renumber();
 			fireNodesInserted(this,addDescendants(children/*trees*/), null, actionType, previousParentChildren);
     	}
     }
+
+	/** Finds the last numbered node before children appended to {@code parent}. */
+	private int lastNumberBeforeAppend(Node parent) {
+		Node current = parent.getChildCount() == 0 ? parent : (Node) parent.getChildAt(parent.getChildCount() - 1);
+		while (current.getChildCount() > 0)
+			current = (Node) current.getChildAt(current.getChildCount() - 1);
+		while (current != null && current != root) {
+			if (current.hasNumber()) return Math.toIntExact(((HasKey) current.getImpl()).getId());
+			current = previousPreorderNode(current);
+		}
+		return 0;
+	}
+
+	private Node previousPreorderNode(Node current) {
+		Node previousSibling = (Node) current.getPreviousSibling();
+		if (previousSibling == null) return (Node) current.getParent();
+		while (previousSibling.getChildCount() > 0)
+			previousSibling = (Node) previousSibling.getChildAt(previousSibling.getChildCount() - 1);
+		return previousSibling;
+	}
+
+	/** Reassigns IDs only from an appended leaf batch through the remaining outline suffix. */
+	private void renumberFromSuffix(Node first, int precedingNumber) {
+		int[] number = { precedingNumber };
+		Node branch = first;
+		while (branch != null && branch != root) {
+			visitAll(branch, object -> {
+				Node node = (Node) object;
+				if (node.hasNumber()) ((HasKey) node.getImpl()).setId(++number[0]);
+			});
+			Node current = branch;
+			while (current != null && current != root) {
+				Node nextSibling = (Node) current.getNextSibling();
+				if (nextSibling != null) {
+					branch = nextSibling;
+					break;
+				}
+				current = (Node) current.getParent();
+			}
+			if (current == null || current == root) branch = null;
+		}
+	}
 
     /** Compensation record for one paste: everything attached or registered before a failure can be undone. */
     private static final class PasteJournal {

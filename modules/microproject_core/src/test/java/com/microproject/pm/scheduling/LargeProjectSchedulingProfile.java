@@ -67,7 +67,7 @@ class LargeProjectSchedulingProfile {
 			throw new IllegalArgumentException("microproject.profile.mode must be bulk, production-batch or sequential");
 		// warm up the JIT on a small project so the first scale is not dominated by class loading
 		run(300, 50, false, mode);
-		System.out.println("PROFILE mode,tasks,phases,nodesMs,depsMs,assignMs,buildMs,fullRecalcMs,editMs,undoMs");
+		System.out.println("PROFILE mode,tasks,phases,nodesMs,depsMs,assignMs,buildMs,fullRecalcMs,editMs,undoMs,nodePasses,dependencyPasses,assignmentPasses,fullRecalcPasses,editPasses,undoPasses");
 		for (String scale : scales) run(Integer.parseInt(scale.trim()), phaseSize, true, mode);
 	}
 
@@ -85,6 +85,7 @@ class LargeProjectSchedulingProfile {
 		List<NormalTask> tasks = new ArrayList<>();
 		int phases = (taskCount + phaseSize - 1) / phaseSize;
 		int schedulingTransaction = wholeBuildTransaction ? project.fireMultipleTransaction(0, true) : 0;
+		int calculationPassesAtStart = project.getSchedulingAlgorithm().getCalculationStateCount();
 		if (bulkApis) {
 			List<Node> phaseNodes = new ArrayList<>();
 			for (int p = 0; p < phases; p++) {
@@ -121,6 +122,7 @@ class LargeProjectSchedulingProfile {
 			}
 		}
 		long tNodes = System.nanoTime();
+		int calculationPassesAfterNodes = project.getSchedulingAlgorithm().getCalculationStateCount();
 		if (bulkApis) {
 			// This is the bulk sequential-link operation used by the task-link workflow.
 			DependencyService.getInstance().connect(new ArrayList<>(tasks), this, null);
@@ -129,6 +131,7 @@ class LargeProjectSchedulingProfile {
 				DependencyService.getInstance().newDependency(tasks.get(i - 1), tasks.get(i), DependencyType.FS, 0L, this);
 		}
 		long tDeps = System.nanoTime();
+		int calculationPassesAfterDependencies = project.getSchedulingAlgorithm().getCalculationStateCount();
 		if (bulkApis) {
 			for (int resourceIndex = 0; resourceIndex < resources.size(); resourceIndex++) {
 				List<NormalTask> resourceTasks = new ArrayList<>();
@@ -143,8 +146,10 @@ class LargeProjectSchedulingProfile {
 		}
 		if (wholeBuildTransaction) project.fireMultipleTransaction(schedulingTransaction, false);
 		long t1 = System.nanoTime();
+		int calculationPassesAfterAssignments = project.getSchedulingAlgorithm().getCalculationStateCount();
 		project.recalculate();
 		long t2 = System.nanoTime();
+		int calculationPassesAfterFullRecalc = project.getSchedulingAlgorithm().getCalculationStateCount();
 		NormalTask early = tasks.get(5);
 		long start = early.getStart(); long end = early.getEnd();
 		long lastFinishBefore = tasks.get(tasks.size() - 1).getEnd();
@@ -153,12 +158,20 @@ class LargeProjectSchedulingProfile {
 			new ScheduleInterval(start, end), undo.getEditSupport());
 		undo.endUpdate();
 		long t3 = System.nanoTime();
+		int calculationPassesAfterEdit = project.getSchedulingAlgorithm().getCalculationStateCount();
 		long lastFinishAfter = tasks.get(tasks.size() - 1).getEnd();
 		undo.undo();
 		long t4 = System.nanoTime();
+		int calculationPassesAfterUndo = project.getSchedulingAlgorithm().getCalculationStateCount();
 		if (report) {
-			System.out.printf("PROFILE %s,%d,%d,%d,%d,%d,%d,%d,%d,%d (last finish moved: %b, restored: %b)%n", mode, tasks.size(), phases,
+			System.out.printf("PROFILE %s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d (last finish moved: %b, restored: %b)%n", mode, tasks.size(), phases,
 				(tNodes - t0) / 1_000_000, (tDeps - tNodes) / 1_000_000, (t1 - tDeps) / 1_000_000, (t1 - t0) / 1_000_000, (t2 - t1) / 1_000_000, (t3 - t2) / 1_000_000, (t4 - t3) / 1_000_000,
+				calculationPassesAfterNodes - calculationPassesAtStart,
+				calculationPassesAfterDependencies - calculationPassesAfterNodes,
+				calculationPassesAfterAssignments - calculationPassesAfterDependencies,
+				calculationPassesAfterFullRecalc - calculationPassesAfterAssignments,
+				calculationPassesAfterEdit - calculationPassesAfterFullRecalc,
+				calculationPassesAfterUndo - calculationPassesAfterEdit,
 				lastFinishAfter != lastFinishBefore, tasks.get(tasks.size() - 1).getEnd() == lastFinishBefore);
 		}
 	}
