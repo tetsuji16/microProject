@@ -100,6 +100,11 @@ public class MspImporter {
 	protected org.mpxj.Task mpxRootTask=null;
 	private MspdiProjectBoundary.Declarations rawProjectBoundary = MspdiProjectBoundary.Declarations.NONE;
 	private final List<ImportedAssignmentScheduleDelays> importedAssignmentScheduleDelays = new ArrayList<>();
+	private boolean importTaskWorkSplits = true;
+
+	public void setImportTaskWorkSplits(boolean importTaskWorkSplits) {
+		this.importTaskWorkSplits = importTaskWorkSplits;
+	}
 
 	private record ImportedAssignmentScheduleDelays(ResourceAssignment source, Assignment target) {}
 	
@@ -843,7 +848,7 @@ public class MspImporter {
 		updateEarliestTaskStart(task, com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(mpxTask.getStart()));
 		state.mapTask(mpxTask, task);
 		importTaskSnapshots(mpxTask, task);
-		if (task instanceof NormalTask normalTask)
+		if (importTaskWorkSplits && task instanceof NormalTask normalTask)
 			MpxTaskConverter.importWorkSplits(mpxTask, normalTask, state);
 		importAssignments(mpxTask, task);
 		// MS Project stores task % complete separately from assignment % work
