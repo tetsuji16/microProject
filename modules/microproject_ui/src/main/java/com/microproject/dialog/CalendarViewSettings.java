@@ -7,6 +7,7 @@ package com.microproject.dialog;
 
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.Properties;
 
 import com.microproject.pm.task.Task;
 
@@ -14,7 +15,7 @@ import com.microproject.pm.task.Task;
  * Per-view choices of the Calendar Format tab: bar colour per task type, text styles, week height
  * and the layout options, with the pure decisions the calendar canvas takes from them.
  */
-public final class CalendarViewSettings {
+public final class CalendarViewSettings implements ViewSettingsState {
 	public enum BarType { NORMAL, CRITICAL, MILESTONE }
 	public enum TextItem { BAR_TEXT, DAY_NUMBERS }
 
@@ -25,6 +26,8 @@ public final class CalendarViewSettings {
 
 	public static final int DEFAULT_ROW_HEIGHT = 105;
 	public static final int MIN_ROW_HEIGHT = 60;
+	/** Largest font size the Calendar Format dialog can choose. */
+	public static final int MAX_TEXT_SIZE = 36;
 	/** Height of one task bar plus the gap below it. */
 	public static final int BAR_PITCH = 23;
 	private static final int BAR_GAP = 4;
@@ -60,6 +63,59 @@ public final class CalendarViewSettings {
 	public void setAutomaticLayout(boolean value) { automaticLayout = value; }
 	public boolean isTaskListVisible() { return taskListVisible; }
 	public void setTaskListVisible(boolean value) { taskListVisible = value; }
+
+	@Override
+	public String saveSettings() {
+		Properties p = new Properties();
+		if (rowHeight != DEFAULT_ROW_HEIGHT) p.setProperty("rowHeight", Integer.toString(rowHeight));
+		if (fitAsManyTasksAsPossible) p.setProperty("fitMany", "true");
+		if (!automaticLayout) p.setProperty("automaticLayout", "false");
+		if (taskListVisible) p.setProperty("taskListVisible", "true");
+		for (Map.Entry<BarType, Integer> entry : barColors.entrySet())
+			p.setProperty("bar." + entry.getKey().name(), Integer.toString(entry.getValue()));
+		for (Map.Entry<TextItem, TextStyle> entry : textStyles.entrySet())
+			p.setProperty("text." + entry.getKey().name(), entry.getValue().size() + "," + entry.getValue().bold());
+		return Codec.write(p);
+	}
+
+	@Override
+	public void restoreSettings(String state) {
+		Properties p = Codec.read(state);
+		rowHeight = DEFAULT_ROW_HEIGHT;
+		fitAsManyTasksAsPossible = false;
+		automaticLayout = true;
+		taskListVisible = false;
+		barColors.clear();
+		textStyles.clear();
+		setRowHeight(Codec.integer(p, "rowHeight", DEFAULT_ROW_HEIGHT));
+		fitAsManyTasksAsPossible = Codec.bool(p, "fitMany", false);
+		automaticLayout = Codec.bool(p, "automaticLayout", true);
+		taskListVisible = Codec.bool(p, "taskListVisible", false);
+		for (BarType type : BarType.values()) {
+			String value = p.getProperty("bar." + type.name());
+			if (value == null) continue;
+			try {
+				int rgb = Integer.parseInt(value.trim());
+				if (rgb >= 0 && rgb <= 0xFFFFFF) barColors.put(type, rgb);
+			} catch (NumberFormatException malformed) {
+				// keep the theme colour
+			}
+		}
+		for (TextItem item : TextItem.values()) {
+			String value = p.getProperty("text." + item.name());
+			if (value == null) continue;
+			String[] parts = value.split(",");
+			try {
+				if (parts.length == 2) {
+					int size = Integer.parseInt(parts[0].trim());
+					setTextStyle(item, new TextStyle(Math.max(0, Math.min(MAX_TEXT_SIZE, size)),
+						Boolean.parseBoolean(parts[1].trim())));
+				}
+			} catch (NumberFormatException malformed) {
+				// keep the default style
+			}
+		}
+	}
 
 	/** The bar type a task is drawn as. */
 	public static BarType barType(Task task) {
