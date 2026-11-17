@@ -101,6 +101,11 @@ public class MspImporter {
 	protected org.mpxj.Task mpxRootTask=null;
 	private MspdiProjectBoundary.Declarations rawProjectBoundary = MspdiProjectBoundary.Declarations.NONE;
 	private final List<ImportedAssignmentScheduleDelays> importedAssignmentScheduleDelays = new ArrayList<>();
+	private boolean importTaskWorkSplits = true;
+
+	public void setImportTaskWorkSplits(boolean importTaskWorkSplits) {
+		this.importTaskWorkSplits = importTaskWorkSplits;
+	}
 
 	private record ImportedAssignmentScheduleDelays(ResourceAssignment source, Assignment target) {}
 	
@@ -843,6 +848,8 @@ public class MspImporter {
 		updateEarliestTaskStart(task, com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(mpxTask.getStart()));
 		state.mapTask(mpxTask, task);
 		importTaskSnapshots(mpxTask, task);
+		if (importTaskWorkSplits && task instanceof NormalTask normalTask)
+			MpxTaskConverter.importWorkSplits(mpxTask, normalTask, state);
 		importAssignments(mpxTask, task);
 		// MS Project stores task % complete separately from assignment % work
 		// complete. Restore it after assignments have been imported.
@@ -989,13 +996,23 @@ public class MspImporter {
 	
 	protected void importAssignments(org.mpxj.Task mpxTask, Task task) {
 		for (org.mpxj.ResourceAssignment mpxAssignment : mpxTask.getResourceAssignments()) {
-			if (isUnassignedAssignment(mpxAssignment))
+			boolean unassigned = isUnassignedAssignment(mpxAssignment);
+			if (unassigned && !com.microproject.exchange.mpxj.MpxjApi.hasCustomWorkContour(mpxAssignment))
 				continue;
 			MpxAssignmentConverter converter = new MpxAssignmentConverter();
-			Assignment assignment = Assignment.getInstance(task, ResourceImpl.getUnassignedInstance(), 0, 0);
-			converter.from(mpxAssignment, assignment, state, task, 0);
-			((NormalTask) task).addAssignment(assignment);
-			assignment.getResource().addAssignment(assignment);
+			Assignment assignment;
+			if (unassigned) {
+				assignment = ((NormalTask) task).findAssignment(ResourceImpl.getUnassignedInstance());
+				if (assignment == null)
+					throw new IllegalStateException("Task is missing its default assignment before source work import");
+				assignment.setWork(0L, null);
+				converter.from(mpxAssignment, assignment, state, task, 0);
+			} else {
+				assignment = Assignment.getInstance(task, ResourceImpl.getUnassignedInstance(), 0, 0);
+				converter.from(mpxAssignment, assignment, state, task, 0);
+				((NormalTask) task).addAssignment(assignment);
+				assignment.getResource().addAssignment(assignment);
+			}
 			// Attaching a non-default assignment can copy the default assignment's
 			// detail object and erase this imported value.
 			converter.restoreScheduleDelays(mpxAssignment, assignment, state);

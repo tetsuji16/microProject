@@ -2203,6 +2203,96 @@ class MpxExportTrackingTest {
 	}
 
 	@Test
+	void customAssignmentWorkWithTwoGapsRestoresTaskGapIntervals() throws Exception {
+		String xml = threeDaySplitContourXml();
+		org.mpxj.ProjectFile source = new org.mpxj.mspdi.MSPDIReader().read(
+			new ByteArrayInputStream(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		org.mpxj.Task sourceTask = source.getTaskByUniqueID(Integer.valueOf(1));
+		assertEquals(3, sourceTask.getWorkSplits().size(), "three disjoint assignment work ranges are observed");
+
+		Project imported = importMspdi(xml);
+		NormalTask task = taskNamed(imported, "Assignment baseline task");
+		assertEquals(2, task.getTaskSplitIntervals().size(), "the union of source work ranges has two task gaps");
+		assertTrue(task.getManualTaskSplitIntervals().isEmpty(),
+			"MSPDI-imported gaps must retain import provenance instead of appearing as manual edits");
+		assertEquals(24L * 60L * 60L * 1000L, task.getWork(null));
+		assertEquals(0L, task.getActualWork(null));
+		assertEquals(24L * 60L * 60L * 1000L, task.getRemainingWork());
+		assertEquals(DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(sourceTask.getFinish())),
+			task.getEnd(), "source finish survives scheduling after split restoration");
+		NormalTask mpoReload = taskNamed(roundTripMpo(imported), "Assignment baseline task");
+		assertEquals(task.getTaskSplitIntervals(), mpoReload.getTaskSplitIntervals(), "MPO retains imported gap intervals");
+		assertEquals(task.getWork(null), mpoReload.getWork(null));
+		ByteArrayOutputStream exportedXml = new ByteArrayOutputStream();
+		MicrosoftImporter exporter = new MicrosoftImporter();
+		exporter.setFileName("two-gap-split.xml");
+		assertTrue(exporter.saveProject(imported, exportedXml));
+		org.mpxj.ProjectFile exported = new org.mpxj.mspdi.MSPDIReader()
+			.read(new ByteArrayInputStream(exportedXml.toByteArray()));
+		assertEquals(3, exported.getTaskByUniqueID(Integer.valueOf(1)).getWorkSplits().size(),
+			"assignment contour gaps survive MSPDI export and MPXJ readback");
+
+		String unassignedXml = xml.replace("<ResourceUID>1</ResourceUID>", "<ResourceUID>0</ResourceUID>");
+		Project unassignedImported = importMspdi(unassignedXml);
+		NormalTask unassignedTask = taskNamed(unassignedImported, "Assignment baseline task");
+		Assignment unassigned = (Assignment) unassignedTask.getAssignments().iterator().next();
+		assertTrue(unassigned.isDefault(), "unassigned source contour updates the existing default assignment");
+		assertEquals(2, unassignedTask.getTaskSplitIntervals().size());
+		assertEquals(24L * 60L * 60L * 1000L, unassignedTask.getWork(null));
+		assertEquals(24L * 60L * 60L * 1000L, unassigned.getWork(null));
+		assertEquals(0L, unassigned.getActualWork(null));
+		assertEquals(24L * 60L * 60L * 1000L, unassigned.getRemainingWork());
+	}
+
+	@Test
+	void taskWorkSplitUsesUnionAcrossAssignments() throws Exception {
+		String xml = multiResourceFilledGapsXml();
+		org.mpxj.ProjectFile source = new org.mpxj.mspdi.MSPDIReader().read(
+			new ByteArrayInputStream(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		org.mpxj.Task sourceTask = source.getTaskByUniqueID(Integer.valueOf(1));
+		assertEquals(3, sourceTask.getResourceAssignments().get(0).getWorkSplits().size());
+		assertEquals(2, sourceTask.getResourceAssignments().get(1).getWorkSplits().size());
+		assertEquals(1, sourceTask.getWorkSplits().size(),
+			"gaps in individual resource contours are not task gaps when another resource works then");
+
+		Project imported = importMspdi(xml);
+		NormalTask task = taskNamed(imported, "Assignment baseline task");
+		assertTrue(task.getTaskSplitIntervals().isEmpty());
+		assertEquals(40L * 60L * 60L * 1000L, task.getWork(null));
+	}
+
+	private String threeDaySplitContourXml() throws Exception {
+		Path fixture = Path.of("modules", "microproject_exchange", "testdata", "Assignment Baseline Scalars.xml");
+		if (!Files.isRegularFile(fixture)) fixture = Path.of("testdata", "Assignment Baseline Scalars.xml");
+		String xml = Files.readString(fixture)
+			.replace("2026-10-12T17:00:00", "2026-10-16T17:00:00")
+			.replace("<Duration>PT8H0M0S</Duration><DurationFormat>7", "<Duration>PT40H0M0S</Duration><DurationFormat>7")
+			.replace("<Work>PT8H0M0S</Work>", "<Work>PT24H0M0S</Work>");
+		int assignmentStart = xml.indexOf("<Assignment>");
+		int assignmentEnd = xml.indexOf("</Assignment>", assignmentStart);
+		String assignmentXml = xml.substring(assignmentStart, assignmentEnd);
+		String rows = "<WorkContour>8</WorkContour>"
+			+ "<TimephasedData><Type>1</Type><UID>1</UID><Start>2026-10-12T08:00:00</Start><Finish>2026-10-12T17:00:00</Finish><Unit>2</Unit><Value>PT8H0M0S</Value></TimephasedData>"
+			+ "<TimephasedData><Type>1</Type><UID>2</UID><Start>2026-10-14T08:00:00</Start><Finish>2026-10-14T17:00:00</Finish><Unit>2</Unit><Value>PT8H0M0S</Value></TimephasedData>"
+			+ "<TimephasedData><Type>1</Type><UID>3</UID><Start>2026-10-16T08:00:00</Start><Finish>2026-10-16T17:00:00</Finish><Unit>2</Unit><Value>PT8H0M0S</Value></TimephasedData>";
+		assignmentXml = assignmentXml.replace("<Units>1</Units>", "<Units>1</Units>" + rows);
+		return xml.substring(0, assignmentStart) + assignmentXml + xml.substring(assignmentEnd);
+	}
+
+	private String multiResourceFilledGapsXml() throws Exception {
+		String xml = threeDaySplitContourXml().replaceFirst("<Work>PT24H0M0S</Work>", "<Work>PT40H0M0S</Work>");
+		String resource = "<Resource><UID>2</UID><ID>2</ID><Name>Second split test resource</Name>"
+			+ "<IsNull>0</IsNull><MaxUnits>1</MaxUnits><PeakUnits>1</PeakUnits><CanLevel>1</CanLevel><AccrueAt>3</AccrueAt></Resource>";
+		xml = xml.replace("</Resources>", resource + "</Resources>");
+		String secondAssignment = "<Assignment><UID>2</UID><TaskUID>1</TaskUID><ResourceUID>2</ResourceUID>"
+			+ "<Start>2026-10-13T08:00:00</Start><Finish>2026-10-15T17:00:00</Finish>"
+			+ "<Work>PT16H0M0S</Work><Units>1</Units><WorkContour>8</WorkContour>"
+			+ "<TimephasedData><Type>1</Type><UID>1</UID><Start>2026-10-13T08:00:00</Start><Finish>2026-10-13T17:00:00</Finish><Unit>2</Unit><Value>PT8H0M0S</Value></TimephasedData>"
+			+ "<TimephasedData><Type>1</Type><UID>2</UID><Start>2026-10-15T08:00:00</Start><Finish>2026-10-15T17:00:00</Finish><Unit>2</Unit><Value>PT8H0M0S</Value></TimephasedData></Assignment>";
+		return xml.replace("</Assignments>", secondAssignment + "</Assignments>");
+	}
+
+	@Test
 	void customContourImportCombinesActualAndRemainingIntervalsOnDifferentBounds() throws Exception {
 		String progress = "<ActualWork>PT2H0M0S</ActualWork><RemainingWork>PT6H0M0S</RemainingWork>"
 			+ "<PercentWorkComplete>25</PercentWorkComplete>";
