@@ -33,6 +33,29 @@ public final class ResourceGraphData {
 				events.add(new UnitChange(interval.end(), -interval.units()));
 			}
 		}
+		return peakFromEvents(starts, ends, events);
+	}
+
+	/** Highest positive load above actual availability at any instant in each display period. */
+	static double[] peakOverallocatedUnits(long[] starts, long[] ends, List<AllocationInterval> allocations,
+			List<AllocationInterval> availability) {
+		List<UnitChange> events = new ArrayList<>((allocations.size() + availability.size()) * 2);
+		addEvents(events, allocations, 1D);
+		addEvents(events, availability, -1D);
+		return peakFromEvents(starts, ends, events);
+	}
+
+	private static void addEvents(List<UnitChange> events, List<AllocationInterval> intervals, double sign) {
+		for (AllocationInterval interval : intervals) {
+			if (interval.end() > interval.start() && interval.units() > 0D) {
+				double units = sign * interval.units();
+				events.add(new UnitChange(interval.start(), units));
+				events.add(new UnitChange(interval.end(), -units));
+			}
+		}
+	}
+
+	private static double[] peakFromEvents(long[] starts, long[] ends, List<UnitChange> events) {
 		events.sort(Comparator.comparingLong(UnitChange::time));
 		List<UnitChange> changes = new ArrayList<>(events.size());
 		for (int i = 0; i < events.size();) {
@@ -146,6 +169,14 @@ public final class ResourceGraphData {
 	/** Computes graph data with exact peak allocation fractions when supplied. */
 	static ResourceGraphData compute(GraphType type, long[] dates, double[] total, double[] selected, double[] availability,
 			double[] totalCost, double[] selectedCost, double unitScale, boolean stackSelected, double[] peakTotal, double[] peakSelected) {
+		return compute(type, dates, total, selected, availability, totalCost, selectedCost, unitScale, stackSelected,
+			peakTotal, peakSelected, null);
+	}
+
+	/** Computes graph data with exact peak allocation and overload values when supplied. */
+	static ResourceGraphData compute(GraphType type, long[] dates, double[] total, double[] selected, double[] availability,
+			double[] totalCost, double[] selectedCost, double unitScale, boolean stackSelected, double[] peakTotal,
+			double[] peakSelected, double[] peakOverallocated) {
 		int n = dates == null ? 0 : dates.length;
 		double scale = unitScale > 0D ? unitScale : 1D;
 		double[] t = fit(total, n);
@@ -153,6 +184,7 @@ public final class ResourceGraphData {
 		double[] a = fit(availability, n);
 		double[] tc = fit(totalCost, n);
 		double[] sc = fit(selectedCost, n);
+		double[] exactOverallocated = peakOverallocated == null ? null : fit(peakOverallocated, n);
 		double[] excess = new double[n];
 		double[] excessSelected = new double[n];
 		for (int i = 0; i < n; i++) {
@@ -240,7 +272,9 @@ public final class ResourceGraphData {
 				overFiltered = new double[n];
 				overResource = new double[n];
 				for (int i = 0; i < n; i++) {
-					double over = Math.max(0D, filtered[i] - a[i] / scale);
+					double over = exactOverallocated == null
+						? Math.max(0D, filtered[i] - a[i] / scale)
+						: Math.max(0D, exactOverallocated[i]);
 					overFiltered[i] = over;
 					overResource[i] = Math.min(over, resource[i]);
 				}

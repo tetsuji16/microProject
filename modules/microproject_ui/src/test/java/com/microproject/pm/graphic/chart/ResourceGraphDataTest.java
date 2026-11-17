@@ -22,12 +22,14 @@ import org.jfree.data.xy.IntervalXYDataset;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.options.CalendarOption;
+import com.microproject.pm.availability.Availability;
 import com.microproject.pm.graphic.chart.ResourceGraphData.ValueKind;
 import com.microproject.pm.graphic.chart.ResourceGraphSettings.GraphType;
 import com.microproject.pm.graphic.chart.ResourceGraphSettings.Item;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.resource.Resource;
+import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
@@ -54,6 +56,24 @@ class ResourceGraphDataTest {
 			new double[] { 0, 0 }, new double[] { 0, 0 }, new double[] { 10, 10 }, null, null, 10, false,
 			new double[] { 1.25D, 1D }, new double[] { 0.5D, 0.25D });
 		assertY(new double[] { 1.25D, 1D }, graph, Item.ALLOCATED_FILTERED);
+	}
+
+	@Test
+	void peakOverallocationComparesLoadWithCapacityAtTheSameInstantNotThePeriodAverage() {
+		List<ResourceGraphData.AllocationInterval> loads = List.of(
+			new ResourceGraphData.AllocationInterval(5, 10, 1D),
+			new ResourceGraphData.AllocationInterval(10, 15, 1D));
+		List<ResourceGraphData.AllocationInterval> capacity = List.of(
+			new ResourceGraphData.AllocationInterval(0, 5, 0.5D),
+			new ResourceGraphData.AllocationInterval(5, 10, 1D),
+			new ResourceGraphData.AllocationInterval(10, 15, 0.5D),
+			new ResourceGraphData.AllocationInterval(15, 20, 1D));
+		double[] overload = ResourceGraphData.peakOverallocatedUnits(new long[] { 0, 10 }, new long[] { 10, 20 }, loads, capacity);
+		assertArrayEquals(new double[] { 0D, 0.5D }, overload, DELTA);
+		ResourceGraphData graph = ResourceGraphData.compute(GraphType.PEAK_UNITS, new long[] { 0, 10 },
+			new double[] { 0D, 0D }, new double[] { 0D, 0D }, new double[] { 7.5D, 7.5D }, null, null, 10D,
+			false, new double[] { 1D, 1D }, new double[] { 0D, 0D }, overload);
+		assertY(new double[] { 0D, 0.5D }, graph, Item.OVERALLOCATED_FILTERED);
 	}
 
 	@Test
@@ -91,7 +111,7 @@ class ResourceGraphDataTest {
 		ResourcePool pool = ResourcePool.createRourcePool("resource-graph-peak-test", undo);
 		Project project = Project.createProject(pool, undo);
 		project.initialize(false, false);
-		Resource resource = pool.createScriptedResource();
+		ResourceImpl resource = (ResourceImpl) pool.createScriptedResource();
 		resource.setName("Peak test resource");
 		for (int i = 0; i < 2; i++) {
 			NormalTask task = project.createScriptedTask();
@@ -118,6 +138,34 @@ class ResourceGraphDataTest {
 		for (int i = 0; i < bars.getItemCount(0); i++)
 			plottedPeak = Math.max(plottedPeak, bars.getEndYValue(0, i));
 		assertEquals(2D, plottedPeak, DELTA, "the chart renderer must receive the exact Peak Units result");
+	}
+
+	@Test
+	void projectAssignmentAtFullAvailabilityIsNotOverallocatedByThePeriodsLowerAverage() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("resource-graph-availability-test", undo);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		ResourceImpl resource = (ResourceImpl) pool.createScriptedResource();
+		resource.setName("Changing availability");
+		resource.setMaximumUnits(0.5D);
+		NormalTask task = project.createScriptedTask();
+		task.setName("Assignment during full availability");
+		task.setDuration(CalendarOption.getInstance().getMillisPerDay());
+		var assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		assignment.setDelay(3L * CalendarOption.getInstance().getMillisPerDay());
+		project.recalculate();
+		long switchTime = assignment.getStart();
+		Availability highAvailability = (Availability) resource.getAvailabilityTable().newValueObject(switchTime);
+		highAvailability.setMaximumUnits(1D);
+		project.recalculate();
+		assertEquals(switchTime, assignment.getStart(), "fixture assignment must start after the availability change");
+		long periodEnd = resource.getEffectiveWorkCalendar().add(task.getEnd(),
+			CalendarOption.getInstance().getMillisPerDay(), true);
+		double[] overload = ChartModel.exactPeakOverallocatedUnits(project, List.of(resource),
+			new long[] { project.getStart() }, new long[] { periodEnd });
+		assertArrayEquals(new double[] { 0D }, overload, DELTA,
+			"availability changes earlier in the period must not make a fully covered assignment appear overallocated");
 	}
 
 	@Test
