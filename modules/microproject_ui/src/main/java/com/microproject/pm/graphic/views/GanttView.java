@@ -276,7 +276,18 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	protected int preferredLeftPaneWidth() {
 		if (spreadSheet == null || leftScrollPane == null)
 			return -1;
-		return equalPaneDividerLocation(getWidth(), getInsets(), getDividerSize());
+		int equalSplit = equalPaneDividerLocation(getWidth(), getInsets(), getDividerSize());
+		if (equalSplit < 0)
+			return -1;
+		int viewportWidth = leftScrollPane.getViewport().getExtentSize().width;
+		int paneChrome = Math.max(0, leftScrollPane.getWidth() - viewportWidth);
+		int readableColumnsWidth = spreadSheet.getPreferredSize().width + paneChrome;
+		// The task table must be able to show its default readable columns through
+		// Finish (#432).  An even split is only a starting point: on narrower windows
+		// it leaves the sheet viewport short of the Finish column and clips the value.
+		// SplittedView still reserves the Gantt's font-scaled minimum below, so a wide
+		// content-driven table never starves the timeline.
+		return Math.max(equalSplit, readableColumnsWidth);
 	}
 
 	static int equalPaneDividerLocation(int width, Insets insets, int dividerSize) {
