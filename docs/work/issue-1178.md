@@ -20,8 +20,8 @@ Blockers: the current 1k-to-2k profile remains materially superlinear.
 | ID | Required result/evidence | State | Evidence (SHA + link) |
 |---|---|---|---|
 | A1 | Iterative, stack-safe dependency search; build cycle text only on a cycle | pass | Candidate diff; 6,000-task chain test passes |
-| A2 | Bulk object-event mutations cause one critical-path pass | pass | `CriticalPath` transaction suspend/resume; profile reports 14ms at 1k and 23ms at 2k in latest run |
-| A3 | Opt-in large-project build profile scales near-linearly | open | Latest `-Dmicroproject.profile=true -Dmicroproject.profile.scales=1000,2000`: build 1.894s / 9.734s; not near-linear |
+| A2 | Bulk object-event mutations cause one critical-path pass | pass | Candidate `1e79d96`; `CriticalPath` transaction suspend/resume; full recalc 18ms / 21ms |
+| A3 | Opt-in large-project build profile scales near-linearly | open | Candidate `1e79d96`; `-Dmicroproject.profile=true -Dmicroproject.profile.scales=1000,2000`: build 1.863s / 9.344s; not near-linear |
 
 ## Current slice
 
@@ -37,6 +37,6 @@ schedule movement/undo checks, and the focused core tests pass.
 
 ## Latest evidence
 
-- Tests/build: `:microproject_core:test --tests "*TaskDependencyInvalidationTest*" --tests "*DependencyServiceTest*"` passed before the latest transaction coalescing changes; rerun required.
-- Profile: opt-in 1k/2k passed functional last-finish movement and undo restoration, but total build time remains superlinear.
+- Tests/build: Candidate `1e79d96`; `:microproject_core:test --tests "*TaskDependencyInvalidationTest*" --tests "*DependencyServiceTest*"` passed.
+- Profile: Candidate `1e79d96`; opt-in 1k/2k passed last-finish movement and undo restoration, but total build time remains superlinear.
 - CI: not yet run; no PR created while A3 remains unmet.
