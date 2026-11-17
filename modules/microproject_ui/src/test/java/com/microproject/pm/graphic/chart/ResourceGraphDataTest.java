@@ -18,9 +18,17 @@ import org.jfree.chart.renderer.xy.XYBarRenderer;
 import org.jfree.data.xy.IntervalXYDataset;
 import org.junit.jupiter.api.Test;
 
+import com.microproject.options.CalendarOption;
 import com.microproject.pm.graphic.chart.ResourceGraphData.ValueKind;
 import com.microproject.pm.graphic.chart.ResourceGraphSettings.GraphType;
 import com.microproject.pm.graphic.chart.ResourceGraphSettings.Item;
+import com.microproject.pm.graphic.timescale.CoordinatesConverter;
+import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.resource.Resource;
+import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.Project;
+import com.microproject.undo.DataFactoryUndoController;
 
 /** The series each Graph option of the Resource Graph Format tab plots, on three intervals of plain numbers. */
 class ResourceGraphDataTest {
@@ -36,6 +44,35 @@ class ResourceGraphDataTest {
 			new double[] { 0, 0 }, new double[] { 0, 0 }, new double[] { 10, 10 }, null, null, 10, false,
 			new double[] { 1.25D, 1D }, new double[] { 0.5D, 0.25D });
 		assertY(new double[] { 1.25D, 1D }, graph, Item.ALLOCATED_FILTERED);
+	}
+
+	@Test
+	void projectAssignmentsFlowThroughChartModelIntoPeakSeries() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("resource-graph-peak-test", undo);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		Resource resource = pool.createScriptedResource();
+		resource.setName("Peak test resource");
+		for (int i = 0; i < 2; i++) {
+			NormalTask task = project.createScriptedTask();
+			task.setName("Peak task " + i);
+			task.setDuration(CalendarOption.getInstance().getMillisPerDay());
+			AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		}
+		project.recalculate();
+		ChartModel model = new ChartModel(new CoordinatesConverter(project));
+		model.computeResourceGraph(project, null, List.of(resource), new ResourceGraphSettings(), false);
+		ResourceGraphData.Series plotted = model.getResourceGraph().getSeries(Item.ALLOCATED_FILTERED);
+		assertNotNull(plotted);
+		assertEquals(2D, java.util.Arrays.stream(plotted.y()).max().orElseThrow(), DELTA,
+			"the Resource Graph peak must include both simultaneous project assignments");
+		XYPlot rendered = ResourceGraphChart.build(model.getResourceGraph(), new ResourceGraphSettings()).getXYPlot();
+		IntervalXYDataset bars = (IntervalXYDataset) rendered.getDataset(datasetIndex(rendered, Item.ALLOCATED_FILTERED));
+		double plottedPeak = 0D;
+		for (int i = 0; i < bars.getItemCount(0); i++)
+			plottedPeak = Math.max(plottedPeak, bars.getEndYValue(0, i));
+		assertEquals(2D, plottedPeak, DELTA, "the chart renderer must receive the exact Peak Units result");
 	}
 	private static final double H = 3_600_000D;
 	private static final double DELTA = 1e-9;

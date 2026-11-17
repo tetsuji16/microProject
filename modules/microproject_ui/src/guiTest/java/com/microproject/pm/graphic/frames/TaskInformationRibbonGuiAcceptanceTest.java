@@ -65,6 +65,7 @@ import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JComboBox;
 import javax.swing.JTextField;
+import javax.swing.JSpinner;
 import javax.swing.UIManager;
 import javax.swing.JFrame;
 import javax.swing.JTabbedPane;
@@ -74,6 +75,9 @@ import javax.swing.JMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JPopupMenu;
+import javax.swing.JDialog;
+import org.jfree.chart.plot.XYPlot;
+import org.jfree.data.xy.IntervalXYDataset;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
@@ -102,6 +106,7 @@ import com.microproject.dialog.DependencyDialog;
 import com.microproject.dialog.assignment.TimesheetDialog;
 import com.microproject.dialog.assignment.TimesheetEntryPane;
 import com.microproject.menu.MenuManager;
+import com.microproject.menu.MenuActionConstants;
 import com.microproject.ui.ribbon.RibbonDisplayMode;
 import com.microproject.ui.ribbon.RibbonDisplayPreferences;
 import com.microproject.ui.ribbon.RibbonController;
@@ -136,6 +141,9 @@ import com.microproject.pm.graphic.spreadsheet.SpreadSheetModel;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetPopupMenu;
 import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetModel;
 import com.microproject.pm.graphic.views.GanttView;
+import com.microproject.pm.graphic.views.ChartView;
+import com.microproject.pm.graphic.chart.ResourceGraphSettings.Item;
+import com.microproject.pm.graphic.chart.TimeChartPanel;
 import com.microproject.pm.graphic.views.UsageDetailView;
 import com.microproject.pm.graphic.views.PertView;
 import com.microproject.pm.graphic.views.TreeView;
@@ -6214,6 +6222,95 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertTrue(taskNamed(reloaded, "Outline first child").getWbsParentTask() == null,
 				"MPO reload retained the parent removed by Alt+Shift+Left");
 
+	}
+
+	@Test
+	@GuiJourney(InputMechanism.RIBBON_CLICK)
+	void robotResourceGraphBarOverlapRendersAndSurvivesWorkspaceReload() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask task = createTask();
+		Project project = task.getOwningProject();
+		task.setDuration(60L * CalendarOption.getInstance().getMillisPerDay());
+		Resource resource = project.getResourcePool().createScriptedResource();
+		resource.setName("Resource Graph overlap fixture");
+		AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		project.recalculate();
+		showProject(project);
+		DocumentFrame frame = manager.getCurrentFrame();
+		SwingUtilities.invokeAndWait(() -> {
+			window.setSize(1600, 800);
+			frame.activateView(MenuActionConstants.ACTION_HISTOGRAM);
+		});
+		ChartView graph = frame.getHistogramView();
+		GuiAcceptanceSupport.await(() -> frame.getActiveResourceGraphView() == graph && graph.isShowing(),
+			"Resource Graph pane did not become active");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		AbstractButton formatTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("ResourceGraphFormat.contextualTitle"));
+		clickAndAwaitSelected(robot, formatTab, "Robot did not activate the Resource Graph Format contextual tab");
+		AbstractButton barStyles = findShowingButtonByCommand("ResourceGraphBarStyles");
+		GuiAcceptanceSupport.await(barStyles::isEnabled, "Resource Graph Bar Styles remained disabled");
+		click(robot, barStyles);
+		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
+			.anyMatch(candidate -> candidate instanceof JDialog dialog && dialog.isShowing()
+				&& ResourceBundle.getBundle("com.microproject.menu.menu").getString("ResourceGraph.title.barStyles").equals(dialog.getTitle())),
+			"Resource Graph Bar Styles dialog did not open");
+		JDialog dialog = java.util.Arrays.stream(Window.getWindows()).filter(JDialog.class::isInstance).map(JDialog.class::cast)
+			.filter(candidate -> candidate.isShowing()
+				&& ResourceBundle.getBundle("com.microproject.menu.menu").getString("ResourceGraph.title.barStyles").equals(candidate.getTitle()))
+			.findFirst().orElseThrow();
+		JSpinner overlap = UiComponentWalker.flatten(dialog).stream().filter(JSpinner.class::isInstance).map(JSpinner.class::cast)
+			.filter(candidate -> ResourceBundle.getBundle("com.microproject.menu.menu").getString("ResourceGraph.dialog.percentBarOverlap")
+				.equals(candidate.getAccessibleContext().getAccessibleName()))
+			.findFirst().orElseThrow(() -> new AssertionError("Bar overlap spinner is missing from the real dialog"));
+		JTextField overlapEditor = ((JSpinner.DefaultEditor) overlap.getEditor()).getTextField();
+		click(robot, overlapEditor);
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_A);
+		typeAscii(robot, "0");
+		press(robot, KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> Integer.valueOf(0).equals(overlap.getValue()),
+			"Physical typing did not set Bar overlap to zero");
+		click(robot, findShowingButtonByText(dialog, Messages.getString("ButtonText.OK")));
+		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "Bar Styles dialog did not close after applying overlap");
+		assertEquals(0, graph.getResourceGraphSettings().getPercentBarOverlap(), "the dialog must apply the physical spinner value");
+
+		TimeChartPanel panel = UiComponentWalker.flatten(graph).stream().filter(TimeChartPanel.class::isInstance)
+			.map(TimeChartPanel.class::cast).findFirst().orElseThrow();
+		XYPlot renderedPlot = panel.getChart().getXYPlot();
+		int resourceSeries = -1;
+		for (int i = 0; i < renderedPlot.getDatasetCount(); i++)
+			if (renderedPlot.getDataset(i) != null && Item.ALLOCATED_RESOURCE.name().equals(renderedPlot.getDataset(i).getSeriesKey(0)))
+				resourceSeries = i;
+		assertTrue(resourceSeries >= 0, "the rendered graph must include the allocated resource bar dataset");
+		IntervalXYDataset renderedBars = (IntervalXYDataset) renderedPlot.getDataset(resourceSeries);
+		assertTrue(renderedBars.getItemCount(0) > 1, "the graph fixture must span multiple timescale periods");
+		double periodWidth = renderedBars.getXValue(0, 1) - renderedBars.getXValue(0, 0);
+		assertEquals(periodWidth / 2D, renderedBars.getEndXValue(0, 0) - renderedBars.getStartXValue(0, 0), 1D,
+			"zero overlap must render separate half-width bars in a period");
+
+		java.util.concurrent.atomic.AtomicReference<DocumentFrame.Workspace> savedWorkspace = new java.util.concurrent.atomic.AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> savedWorkspace.set((DocumentFrame.Workspace) frame.createWorkspace(0)));
+		SwingUtilities.invokeAndWait(() -> {
+			graph.getResourceGraphSettings().setPercentBarOverlap(80);
+			graph.resourceGraphSettingsChanged();
+			frame.restoreWorkspace(savedWorkspace.get(), 0);
+		});
+		assertEquals(0, graph.getResourceGraphSettings().getPercentBarOverlap(), "workspace reload must restore Bar overlap");
+		XYPlot restoredPlot = panel.getChart().getXYPlot();
+		int restoredIndex = -1;
+		for (int i = 0; i < restoredPlot.getDatasetCount(); i++)
+			if (restoredPlot.getDataset(i) != null && Item.ALLOCATED_RESOURCE.name().equals(restoredPlot.getDataset(i).getSeriesKey(0)))
+				restoredIndex = i;
+		assertTrue(restoredIndex >= 0, "workspace reload must rebuild the allocated resource bar dataset");
+		IntervalXYDataset restoredBars = (IntervalXYDataset) restoredPlot.getDataset(restoredIndex);
+		assertEquals(periodWidth / 2D, restoredBars.getEndXValue(0, 0) - restoredBars.getStartXValue(0, 0), 1D,
+			"workspace reload must redraw the saved zero-overlap bar widths");
 	}
 
 	@Test
