@@ -103,6 +103,7 @@ class TaskDependencyInvalidationTest {
 		successor.setDuration(day);
 		project.recalculate();
 
+		long projectEndBefore = project.getEnd();
 		long independentLateFinishBefore = independent.getLateFinish();
 		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.FS, 0L, this);
 		long incrementalLateFinish = independent.getLateFinish();
@@ -117,6 +118,10 @@ class TaskDependencyInvalidationTest {
 		assertEquals(expectedProjectEnd, project.getEnd(), "a full recalculation must agree with the incremental project boundary");
 		assertEquals(incrementalLateFinish, independent.getLateFinish(),
 			"the incremental update must refresh unrelated tasks' late dates to the full-recalculation result");
+
+		project.getUndoController().undo();
+		assertEquals(projectEndBefore, project.getEnd(), "undo must restore the project boundary before the link");
+		assertEquals(independentLateFinishBefore, independent.getLateFinish(), "undo must restore the independent task's late date");
 	}
 
 	@Test
