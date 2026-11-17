@@ -2588,8 +2588,10 @@ class MpoFileImporterTest {
 	void assignmentNotesSurviveMpoRoundTripWithoutChangingOtherAssignments() throws Exception {
 		Project original = projectForRoundTrip();
 		NormalTask task = (NormalTask) firstTask(original);
+		task.setUniqueId(780101L);
 		Resource resource = original.getResourcePool().newResourceInstance();
 		resource.setName("Notes resource");
+		((com.microproject.pm.resource.ResourceImpl) resource).setUniqueId(780102L);
 		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
 		assignment.setNotes("割り当てメモ\nSecond line & details");
 		Object savedDetail = assignment.backupDetail();
@@ -2598,6 +2600,7 @@ class MpoFileImporterTest {
 		assertEquals("割り当てメモ\nSecond line & details", assignment.getNotes());
 		Resource other = original.getResourcePool().newResourceInstance();
 		other.setName("Other resource");
+		((com.microproject.pm.resource.ResourceImpl) other).setUniqueId(780103L);
 		AssignmentService.getInstance().newAssignment(task, other, 1D, 0L, this);
 		long resourceId = resource.getUniqueId();
 		long otherId = other.getUniqueId();
