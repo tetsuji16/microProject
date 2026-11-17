@@ -90,6 +90,36 @@ class TaskDependencyInvalidationTest {
 	}
 
 	@Test
+	void extendingCriticalPathRefreshesLateDatesOutsideTheChangedDependencyClosure() throws Exception {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("late date boundary", undoController), undoController);
+		project.initialize(false, false);
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		NormalTask independent = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		NormalTask predecessor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		independent.setDuration(day);
+		predecessor.setDuration(day);
+		successor.setDuration(day);
+		project.recalculate();
+
+		long independentLateFinishBefore = independent.getLateFinish();
+		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.FS, 0L, this);
+		long incrementalLateFinish = independent.getLateFinish();
+		assertTrue(project.getEnd() > independent.getEarlyFinish(),
+			"the project boundary should expand beyond the independent one-task path");
+		assertTrue(incrementalLateFinish != independentLateFinishBefore,
+			"extending the critical path changes late dates even for a task outside the dependency closure: before="
+					+ independentLateFinishBefore + ", after=" + incrementalLateFinish + ", projectEnd=" + project.getEnd());
+
+		long expectedProjectEnd = project.getEnd();
+		project.recalculate();
+		assertEquals(expectedProjectEnd, project.getEnd(), "a full recalculation must agree with the incremental project boundary");
+		assertEquals(incrementalLateFinish, independent.getLateFinish(),
+			"the incremental update must refresh unrelated tasks' late dates to the full-recalculation result");
+	}
+
+	@Test
 	void outlineInsertionAndRemovalStillInvalidateProjectBoundaryTasks() throws Exception {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("bounds invalidation", undoController), undoController);
