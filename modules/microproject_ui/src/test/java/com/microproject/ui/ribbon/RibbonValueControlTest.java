@@ -105,6 +105,26 @@ class RibbonValueControlTest {
 	}
 
 	@Test
+	void inputValueReachesTheRealSharedDispatcher() throws Exception {
+		Action command = new AbstractAction() {
+			@Override public void actionPerformed(ActionEvent event) { committed.add(event.getActionCommand()); }
+		};
+		com.microproject.menu.ProjectMenuActionMap actions = new com.microproject.menu.ProjectMenuActionMap() {
+			@Override public Action getAction(String key) { return command; }
+			@Override public String getStringFromAction(Action action) { return "RibbonValue"; }
+		};
+		RibbonCommandSource actual = new com.microproject.menu.MenuRibbonCommandSource(
+			new com.microproject.menu.ExtToolBarFactory(actions));
+		SwingUtilities.invokeAndWait(() -> {
+			JTextField field = (JTextField) RibbonControlPopups.createInputControl(
+				spec(RibbonControlKind.EDIT_BOX), actual, key -> null);
+			field.setText("chosen value");
+			field.postActionEvent();
+		});
+		assertEquals(List.of("chosen value"), committed);
+	}
+
+	@Test
 	void buttonKindsAreNotInputControls() {
 		assertThrows(IllegalArgumentException.class, () ->
 			RibbonControlPopups.createInputControl(spec(RibbonControlKind.BUTTON), source(), key -> null));
@@ -138,6 +158,11 @@ class RibbonValueControlTest {
 			new Class<?>[] { RibbonCommandSource.class }, (proxy, method, args) -> {
 				if (method.getName().equals("createAction")) {
 					return action;
+				}
+				if (method.getName().equals("dispatch")) {
+					var invocation = (com.microproject.ribbon.RibbonCommandInvocation) args[0];
+					action.actionPerformed(new ActionEvent(invocation.source(), ActionEvent.ACTION_PERFORMED, invocation.value()));
+					return com.microproject.ribbon.RibbonCommandResult.dispatched(invocation.commandId());
 				}
 				throw new UnsupportedOperationException(method.getName());
 			});
