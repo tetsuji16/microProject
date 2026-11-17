@@ -1514,8 +1514,13 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		bandConstraints.anchor = GridBagConstraints.NORTHWEST;
 		// A ribbon is a left-to-right sequence of groups.  Do not give each group
 		// elastic width: that was the source of the centred single-launcher cheat.
-		bandConstraints.fill = GridBagConstraints.NONE;
+		// Height, however, belongs to the whole command surface: every band must
+		// stretch to the common row height so its caption (BorderLayout.SOUTH)
+		// lands on the same baseline in every tab, including after a responsive
+		// rebuild that made this tab's bands shorter than another tab's.
+		bandConstraints.fill = GridBagConstraints.VERTICAL;
 		bandConstraints.weightx = 0.0;
+		bandConstraints.weighty = 1.0;
 		bandConstraints.insets = new Insets(0, 0, 0, BAND_GAP);
 		List<RibbonDensity> presentations = uniformPresentation(tab.getBands().size(), RibbonDensity.FULL);
 		List<RibbonBandPanel> bandPanels = addBands(bandRow, bandConstraints, tab.getBands(), presentations);
@@ -1648,6 +1653,10 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		// the Office-style left origin as the window grows.
 		GridBagConstraints glueConstraints = (GridBagConstraints)constraints.clone();
 		glueConstraints.weightx = 1.0;
+		// The glue owns only horizontal slack.  If it inherited weighty from the
+		// band constraints it would absorb the vertical slack instead, leaving
+		// the groups short and their captions above the common baseline.
+		glueConstraints.weighty = 0.0;
 		glueConstraints.fill = GridBagConstraints.HORIZONTAL;
 		glueConstraints.insets = new Insets(0, 0, 0, 0);
 		row.add(Box.createHorizontalGlue(), glueConstraints);
@@ -1724,14 +1733,23 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			content.add(Box.createRigidArea(new Dimension(8, theme.largeButtonHeight())), contentConstraints);
 		}
 
+		JComponent titleRow = createBandTitleRow(band, createBandTitle(band));
+		panel.bind(content, titleRow, computeBandWidth(content, titleRow));
+		return panel;
+	}
+
+	/**
+	 * Creates a band caption with the one canonical top inset.  Every presentation
+	 * (full, custom and collapsed proxy) must use this so captions share a single
+	 * height inside the same command surface.
+	 */
+	private JLabel createBandTitle(SwingRibbonModel.RibbonBand band) {
 		JLabel title = new JLabel(band.getTitle(), SwingConstants.CENTER);
 		title.setOpaque(false);
 		title.setForeground(theme.bandTitleForeground());
 		title.setFont(theme.bandTitleFont());
 		title.setBorder(BorderFactory.createEmptyBorder(1, 0, 0, 0));
-		JComponent titleRow = createBandTitleRow(band, title);
-		panel.bind(content, titleRow, computeBandWidth(content, titleRow));
-		return panel;
+		return title;
 	}
 
 	/**
@@ -1834,11 +1852,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			content.add(Box.createRigidArea(new Dimension(8, 42)), BorderLayout.CENTER);
 		}
 
-		JLabel title = new JLabel(band.getTitle(), SwingConstants.CENTER);
-		title.setOpaque(false);
-		title.setForeground(theme.bandTitleForeground());
-		title.setFont(theme.bandTitleFont());
-		title.setBorder(BorderFactory.createEmptyBorder(1, 0, 0, 0));
+		JLabel title = createBandTitle(band);
 
 		int preferredWidth = content.getPreferredSize().width;
 		if (band.getPreferredWidthHint() > 0) {
@@ -1896,9 +1910,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		JPanel content = new JPanel(new FlowLayout(FlowLayout.LEADING, 0, 0));
 		content.setOpaque(false);
 		content.add(trigger);
-		JLabel title = new JLabel(band.getTitle(), SwingConstants.CENTER);
-		title.setForeground(theme.bandTitleForeground());
-		title.setFont(theme.bandTitleFont());
+		JLabel title = createBandTitle(band);
 		panel.bind(content, title, Math.max(BAND_MIN_WIDTH,
 			Math.max(content.getPreferredSize().width, title.getPreferredSize().width) + BAND_HORIZONTAL_INSETS));
 		return panel;
