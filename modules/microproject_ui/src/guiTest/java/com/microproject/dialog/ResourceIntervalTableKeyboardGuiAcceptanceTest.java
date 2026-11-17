@@ -42,6 +42,7 @@ import com.microproject.interval.ValueObjectForIntervalTable;
 import com.microproject.pm.task.Project;
 import com.microproject.strings.Messages;
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.testsupport.GuiJourney;
 import com.microproject.testsupport.ResourceIntervalTableFixture;
 
 /**
@@ -52,11 +53,13 @@ import com.microproject.testsupport.ResourceIntervalTableFixture;
  */
 class ResourceIntervalTableKeyboardGuiAcceptanceTest {
 	@Test
+	@GuiJourney(GuiJourney.InputMechanism.KEYBOARD_SHORTCUT)
 	void physicalKeyboardRefusesTheFirstAvailabilityRow() throws Exception {
 		runKeyboardScenario(false);
 	}
 
 	@Test
+	@GuiJourney(GuiJourney.InputMechanism.KEYBOARD_SHORTCUT)
 	void physicalKeyboardRefusesTheFirstCostRateRow() throws Exception {
 		runKeyboardScenario(true);
 	}

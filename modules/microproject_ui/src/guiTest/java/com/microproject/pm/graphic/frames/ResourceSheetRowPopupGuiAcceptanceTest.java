@@ -53,6 +53,7 @@ import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.testsupport.GuiJourney;
 import com.microproject.testsupport.GuiRobot;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Alert;
@@ -81,6 +82,7 @@ class ResourceSheetRowPopupGuiAcceptanceTest {
 	}
 
 	@Test
+	@GuiJourney(GuiJourney.InputMechanism.CONTEXT_MENU)
 	void physicalRightClickOnAResourceRowDeletesIt() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
 				"A desktop session is required for Robot acceptance coverage.");
