@@ -6293,8 +6293,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_A);
 		typeAscii(robot, "0");
 		assertEquals(100, overlap.getValue(), "typing without Enter must leave the spinner model uncommitted");
+		System.out.println("RESOURCE_GRAPH_VALID_BEFORE_OK text=" + overlapEditor.getText() + " model=" + overlap.getValue());
 		click(robot, findShowingButtonByText(dialog, Messages.getString("ButtonText.OK")));
 		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "Bar Styles dialog did not close after applying overlap");
+		System.out.println("RESOURCE_GRAPH_VALID_AFTER_OK setting=" + graph.getResourceGraphSettings().getPercentBarOverlap()
+			+ " showing=" + dialog.isShowing());
 		assertEquals(0, graph.getResourceGraphSettings().getPercentBarOverlap(),
 			"the OK route must commit the physically typed value before applying it");
 
@@ -6316,7 +6319,15 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_A);
 		typeAscii(robot, "101");
 		assertEquals(0, invalidOverlap.getValue(), "typing an out-of-range value must not change the committed model value");
+		System.out.println("RESOURCE_GRAPH_INVALID_BEFORE_FOCUS_LOST text=" + invalidEditor.getText() + " model=" + invalidOverlap.getValue());
+		press(robot, KeyEvent.VK_TAB);
+		System.out.println("RESOURCE_GRAPH_INVALID_AFTER_FOCUS_LOST text=" + invalidEditor.getText() + " model=" + invalidOverlap.getValue()
+			+ " dialogShowing=" + invalidDialog.isShowing());
 		click(robot, findShowingButtonByText(invalidDialog, Messages.getString("ButtonText.OK")));
+		System.out.println("RESOURCE_GRAPH_INVALID_AFTER_OK text=" + invalidEditor.getText() + " model=" + invalidOverlap.getValue()
+			+ " setting=" + graph.getResourceGraphSettings().getPercentBarOverlap() + " dialogShowing=" + invalidDialog.isShowing()
+			+ " visibleDialogs=" + java.util.Arrays.stream(Window.getWindows()).filter(JDialog.class::isInstance)
+				.map(JDialog.class::cast).filter(Window::isShowing).map(JDialog::getTitle).toList());
 		String invalidOverlapMessage = ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ResourceGraph.dialog.invalidBarOverlap");
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows()).filter(JDialog.class::isInstance)
