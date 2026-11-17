@@ -54,6 +54,25 @@ class GanttInteractorDragTest {
 	}
 
 	@Test
+	void splitModeUsesDragLifecycleInsteadOfDirectClickAction() {
+		onEdt(() -> {
+			DataFactoryUndoController undoController = new DataFactoryUndoController();
+			Project project = Project.createProject(
+				ResourcePool.createRourcePool("split-drag-lifecycle-test", undoController), undoController);
+			TestGantt gantt = new TestGantt(project);
+			try {
+				GanttInteractor interactor = gantt.installTestUI(new GraphicDependency(null, null, null),
+					new AtomicInteger()).testInteractor;
+				assertTrue(interactor.setSplitMode());
+				assertTrue(interactor.isMove(), "Split mode must retain the press point for the drag origin");
+				assertFalse(interactor.isDirectAction(), "Split mode must wait for release after a drag to the resume date");
+			} finally {
+				gantt.cleanUp();
+			}
+		});
+	}
+
+	@Test
 	void splitModeCannotStartForReadOnlyProject() {
 		onEdt(() -> {
 			DataFactoryUndoController undoController = new DataFactoryUndoController();
@@ -192,6 +211,11 @@ class GanttInteractorDragTest {
 			super(gantt);
 			this.dependency = dependency;
 			testInteractor = new GanttInteractor(this) {
+				@Override
+				public java.awt.Cursor selectCursor() {
+					return null;
+				}
+
 				@Override
 				public boolean isReadOnly() {
 					return super.isReadOnly();
