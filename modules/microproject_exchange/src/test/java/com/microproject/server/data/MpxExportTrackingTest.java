@@ -1049,12 +1049,29 @@ class MpxExportTrackingTest {
 
 		Project assignments = importMppFixture(fixtureDirectory.resolve("assignment-assignments-project2019-mpp14.mpp"));
 		assertProject2019Assignments(assignments);
+		org.mpxj.ProjectFile rawAssignmentMpp = new org.mpxj.mpp.MPPReader()
+			.read(fixtureDirectory.resolve("assignment-assignments-project2019-mpp14.mpp").toFile());
+		assertProject2019TaskProgressBoundary(rawAssignmentMpp, assignments, "MPP", true);
 		assertProject2019Assignments(roundTripMpo(assignments));
 
-		Project assignmentMspdi = importMspdi(Files.readString(
-			fixtureDirectory.resolve("assignment-assignments-project2019-mspdi.xml")));
+		byte[] assignmentMspdiBytes = Files.readAllBytes(
+			fixtureDirectory.resolve("assignment-assignments-project2019-mspdi.xml"));
+		Project assignmentMspdi = importMspdi(new String(assignmentMspdiBytes, java.nio.charset.StandardCharsets.UTF_8));
 		assertProject2019Assignments(assignmentMspdi);
+		org.mpxj.ProjectFile rawAssignmentMspdi = new org.mpxj.mspdi.MSPDIReader()
+			.read(new ByteArrayInputStream(assignmentMspdiBytes));
+		assertProject2019TaskProgressBoundary(rawAssignmentMspdi, assignmentMspdi, "MSPDI", true);
 		assertProject2019Assignments(roundTripMpo(assignmentMspdi));
+
+		ProjectFile serializedMspdi = new MSPDISerializer().serializeProject(assignments);
+		ByteArrayOutputStream serializedMspdiBytes = new ByteArrayOutputStream();
+		new org.mpxj.mspdi.MSPDIWriter().write(serializedMspdi, serializedMspdiBytes);
+		org.mpxj.ProjectFile serializedSource = new org.mpxj.mspdi.MSPDIReader()
+			.read(new ByteArrayInputStream(serializedMspdiBytes.toByteArray()));
+		Project serializedReimport = importMspdi(new String(serializedMspdiBytes.toByteArray(),
+			java.nio.charset.StandardCharsets.UTF_8));
+		assertProject2019TaskProgressBoundary(serializedSource, serializedReimport,
+			"microProject MSPDI roundtrip", false);
 
 		Project calendars = importMppFixture(fixtureDirectory.resolve("calendar-calendars-project2019-mpp14.mpp"));
 		String calendarSource = Files.readString(fixtureDirectory.resolve("calendar-calendars-project2019-mspdi.xml"));
@@ -1069,6 +1086,29 @@ class MpxExportTrackingTest {
 		assertProject2019CalendarInheritanceTracksBaseChange(calendars);
 		assertProject2019Calendars(calendars);
 		assertProject2019Calendars(roundTripMpo(calendars));
+	}
+
+	private void assertProject2019TaskProgressBoundary(org.mpxj.ProjectFile source, Project imported, String format,
+			boolean sourceHasFixtureWorkRange) {
+		// Microsoft defines Task Stop/Resume as the end of actual work and the
+		// scheduled restart of remaining work, not as an arbitrary task-gap list.
+		// This fixture's Task 3 has a Friday-to-Monday progress boundary while
+		// MPXJ reports one continuous work range and the model has no task split.
+		// https://learn.microsoft.com/en-us/office-project/xml-data-interchange/task-element?view=project-client-odc
+		org.mpxj.Task sourceTask = source.getTaskByUniqueID(Integer.valueOf(3));
+		assertNotNull(sourceTask, format + " fixture Task 3");
+		assertNotNull(sourceTask.getStop(), format + " source Stop");
+		assertNotNull(sourceTask.getResume(), format + " source Resume");
+		if (sourceHasFixtureWorkRange)
+			assertEquals(1, sourceTask.getWorkSplits().size(), format + " work-time ranges are not task gap records");
+		NormalTask task = taskNamed(imported, "Task 3");
+		assertEquals(DateUTCConverter.toModelTime(MpxDates.toDate(sourceTask.getStop())), task.getStop(),
+			format + " actual-progress stop boundary");
+		assertEquals(DateUTCConverter.toModelTime(MpxDates.toDate(sourceTask.getResume())), task.getResume(),
+			format + " remaining-work resume boundary");
+		assertEquals(0.5d, task.getPercentComplete(), 0.00001d, format + " task remains 50% complete");
+		assertTrue(task.getTaskSplitIntervals().isEmpty(),
+			format + " progress boundaries alone do not create manual task split gaps");
 	}
 
 	@Test
