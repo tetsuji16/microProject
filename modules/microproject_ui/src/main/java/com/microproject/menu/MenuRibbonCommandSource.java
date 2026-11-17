@@ -172,7 +172,7 @@ public final class MenuRibbonCommandSource implements RibbonCommandSource {
 		try {
 			action.actionPerformed(new ActionEvent(invocation.source() == null ? action : invocation.source(),
 				ActionEvent.ACTION_PERFORMED,
-				invocation.commandId()));
+				invocation.value() == null ? invocation.commandId() : invocation.value()));
 			RibbonCommandResult result = resultFromAction(invocation.commandId(), action);
 			binding.publishResult(result);
 			return result;

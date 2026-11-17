@@ -404,7 +404,8 @@ final class RibbonControlPopups {
 	private static void commit(RibbonCommandSource commandSource, String commandId, Object source, String value) {
 		Action action = commandSource.createAction(commandId);
 		if (action != null && action.isEnabled()) {
-			action.actionPerformed(new java.awt.event.ActionEvent(source, java.awt.event.ActionEvent.ACTION_PERFORMED, value));
+			commandSource.dispatch(new com.microproject.ribbon.RibbonCommandInvocation(commandId,
+				com.microproject.ribbon.RibbonCommandInvocation.Origin.INPUT_CONTROL, source, value));
 		}
 	}
 
