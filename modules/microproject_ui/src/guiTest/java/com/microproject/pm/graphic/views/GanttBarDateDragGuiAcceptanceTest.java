@@ -81,6 +81,8 @@ import com.microproject.util.Environment;
 
 /** Robot coverage for moving a task bar and propagating an FS successor date. */
 class GanttBarDateDragGuiAcceptanceTest {
+	// GraphInteractor.scrollToVisible expands every drag point by 100 px in each direction.
+	private static final int GRAPH_DRAG_SCROLL_RECT_MARGIN = 100;
 	private JFrame frame;
 	private Gantt gantt;
 	private MainRibbonFrame projectWindow;
@@ -943,6 +945,8 @@ class GanttBarDateDragGuiAcceptanceTest {
 		assertRenderedDateMapping(fixture, resumeAt, resumePoint, "resume point");
 		assertScreenPointInGanttViewport(fixture, splitPoint, "split point");
 		assertScreenPointInGanttViewport(fixture, resumePoint, "resume point");
+		assertNoHorizontalDragAutoScroll(splitPoint, "split point before mode entry");
+		assertNoHorizontalDragAutoScroll(resumePoint, "resume point before mode entry");
 		assertTaskBarHit(fixture, splitPoint);
 		capture(robot, "gantt-ribbon-split-before.png");
 		RibbonGuiSupport.clickSplitPrimary(robot,
@@ -962,9 +966,23 @@ class GanttBarDateDragGuiAcceptanceTest {
 		assertRenderedDateMapping(fixture, resumeAt, resumePoint, "resume point after Split mode entry");
 		assertScreenPointInGanttViewport(fixture, splitPoint, "split point after Split mode entry");
 		assertScreenPointInGanttViewport(fixture, resumePoint, "resume point after Split mode entry");
+		assertNoHorizontalDragAutoScroll(splitPoint, "split point after mode entry");
+		assertNoHorizontalDragAutoScroll(resumePoint, "resume point after mode entry");
 		assertTaskBarHit(fixture, splitPoint);
 		capture(robot, "gantt-ribbon-split-mode-entry.png");
+		Point splitOrigin = splitPoint;
+		Point resumeDestination = resumePoint;
+		javax.swing.JViewport splitViewport = (javax.swing.JViewport) SwingUtilities.getAncestorOfClass(
+			javax.swing.JViewport.class, gantt);
+		Point initialViewPosition = viewportViewPosition(splitViewport);
 		drag(robot, splitPoint, resumePoint);
+		System.out.println("[GANTT_SPLIT_DRAG_COMPLETE] viewport=" + viewportScreenBounds(splitViewport)
+			+ " viewPositionBefore=" + initialViewPosition + " viewPositionAfter="
+			+ viewportViewPosition(splitViewport) + " splitPoint=" + splitOrigin
+			+ " resumePoint=" + resumeDestination + " mappedSplit=" + taskDateAt(splitOrigin)
+			+ " mappedResume=" + taskDateAt(resumeDestination));
+		assertEquals(initialViewPosition, viewportViewPosition(splitViewport),
+			"the split drag must stay outside GraphInteractor's horizontal auto-scroll region");
 		try {
 			GuiAcceptanceSupport.await(() -> !originalSplits.equals(fixture.predecessor.getTaskSplitIntervals()),
 				"the Ribbon Split command did not create a task split");
@@ -1426,8 +1444,10 @@ class GanttBarDateDragGuiAcceptanceTest {
 				throw new AssertionError("the gesture date range is wider than the visible Gantt viewport: start="
 					+ contentStart + " end=" + contentEnd + " width=" + visibleWidth);
 			javax.swing.JScrollBar horizontal = scrollPane.getHorizontalScrollBar();
+			int gestureCenter = (int)Math.round(gantt.getCoord().toX(requiredStart));
+			int centeredViewStart = gestureCenter - visibleWidth / 2;
 			horizontal.setValue(Math.max(horizontal.getMinimum(), Math.min(horizontal.getMaximum()
-				- horizontal.getVisibleAmount(), contentStart - 2)));
+				- horizontal.getVisibleAmount(), centeredViewStart)));
 		});
 		GuiAcceptanceSupport.await(() -> isTaskAndGestureRangeVisible(viewport, fixture, requiredStart, requiredEnd),
 			"the full task bar and requested gesture date range must fit in the Gantt viewport");
@@ -1453,6 +1473,23 @@ class GanttBarDateDragGuiAcceptanceTest {
 		assertTrue(viewportBounds.contains(point), gesture
 			+ " must be inside the visible Gantt viewport to avoid edge auto-scroll: point=" + point
 			+ " viewport=" + viewportBounds);
+	}
+
+	private void assertNoHorizontalDragAutoScroll(Point screenPoint, String gesture) throws Exception {
+		javax.swing.JViewport viewport = (javax.swing.JViewport) SwingUtilities.getAncestorOfClass(
+			javax.swing.JViewport.class, gantt);
+		assertTrue(viewport != null, "the ribbon Gantt must use a viewport");
+		SwingUtilities.invokeAndWait(() -> {
+			Point local = new Point(screenPoint);
+			SwingUtilities.convertPointFromScreen(local, gantt);
+			Rectangle view = viewport.getViewRect();
+			int requestLeft = local.x - GRAPH_DRAG_SCROLL_RECT_MARGIN;
+			int requestRight = local.x + GRAPH_DRAG_SCROLL_RECT_MARGIN;
+			if (requestLeft < view.x || requestRight > view.x + view.width)
+				throw new AssertionError(gesture + " GraphInteractor.scrollRectToVisible request would move the horizontal viewport: "
+					+ "point=" + screenPoint + " localX=" + local.x + " scrollRequestX=" + requestLeft
+					+ ".." + requestRight + " viewRect=" + view + " margin=" + GRAPH_DRAG_SCROLL_RECT_MARGIN);
+		});
 	}
 
 	private Rectangle taskBarScreenBounds(Fixture fixture) throws Exception {
