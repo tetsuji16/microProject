@@ -1,7 +1,8 @@
 # Core scheduler profile on large synthetic projects
 
 Issue #1105 item: measure the core scheduler on a large project and identify bottlenecks.
-This document records measurements and hypotheses only; no optimization was implemented.
+The baseline sections record measurements and hypotheses; the later issue #1178 section tracks candidate work
+and explicitly separates measured results from unresolved hypotheses.
 
 ## How to run
 
@@ -26,12 +27,21 @@ finish-to-start chain through every task, an extra cross link `i-20 -> i` on eve
 per task spread over 50 resources. "Edit" is a +3 day change of the finish of task #5 through
 `ScheduleService.setInterval` (undo-aware), followed by `undo`. A 300-task warm-up run precedes the measurements.
 
-For issue #1178, the candidate harness measures the production bulk paths: task nodes are added in phase-sized
-`NodeModel.add(parent, children, NORMAL)` calls and the scheduler is initialized once; sequential links use
-`DependencyService.connect`; assignments are added under one `MultipleTransaction`. This differs from the
-original per-link/per-assignment baseline below and avoids measuring a synthetic sequence of independent UI
-commands as though it were one bulk build. The candidate build uses the simple sequential chain (without the
-extra cross links) so the bulk sequential-link workflow is measured directly.
+For issue #1178, the harness supports `-Dmicroproject.profile.mode=bulk|sequential`. Bulk mode measures
+phase-sized `NodeModel.add(parent, children, NORMAL)` calls followed by one scheduler initialization,
+`DependencyService.connect` for the sequential links, and grouped `AssignmentService.newAssignments` by resource.
+Sequential mode measures repeated `Project.createLocalTaskNode`, `DependencyService.newDependency`, and
+`AssignmentService.newAssignment` calls. Both modes use the simple sequential chain (without the extra cross links)
+so the link-building paths can be compared directly.
+
+Scope limitation: bulk mode deliberately opens an outer `Project.fireMultipleTransaction` before creating any
+nodes and closes it after links and assignments. Production call sites found during issue work use
+`MultipleTransaction` at smaller boundaries: hierarchy mutations in `MutableNodeHierarchy`/`DefaultNodeModel`,
+event publication in `Project.publishEventBatchNow`, and grouped resource assignment in
+`AssignmentDialog` → `AssignmentService.newAssignments`. No ordinary user workflow was found that wraps an
+entire project build in one outer transaction. Thus bulk-mode timings below describe a candidate orchestration
+that uses production batch APIs, not an established end-to-end user workflow; sequential mode is the repeated
+single-item comparison. Do not use the bulk results to claim production build near-linearity.
 
 ## Environment
 
@@ -51,15 +61,29 @@ the chain in every run (last task finish moved, then restored).
 
 ### Issue #1178 candidate (2026-11-17)
 
-The opt-in profile was rerun without JFR with `-Dmicroproject.profile.scales=1000,2000` after batching the
-critical-path updates. The profile passed the last-finish movement and undo-restoration checks, and explicit
-full recalculation remained 14 ms / 23 ms. Build time is still superlinear, so this evidence does not satisfy
+Opt-in, no JFR, same harness and environment, separate runs for each mode. Both report successful last-task finish
+movement after an edit and restoration after undo. The doubling ratios are far above 2x, so neither mode satisfies
 issue #1178's near-linear acceptance criterion.
 
-| Tasks | Create nodes | Add links | Add assignments | Build total | Full recalc | Edit | Undo |
-|------:|-------------:|----------:|----------------:|------------:|------------:|-----:|-----:|
-| 1,000 | 1,549 | 164 | 149 | 1,863 | 18 | 12 | 10 |
-| 2,000 | 8,428 | 617 | 298 | 9,344 | 21 | 21 | 21 |
+| Mode | Tasks | Create nodes | Add links | Add assignments | Build total | Full recalc | Edit | Undo |
+|------|------:|-------------:|----------:|----------------:|------------:|------------:|-----:|-----:|
+| bulk | 1,000 | 2,197 | 213 | 154 | 2,564 | 25 | 24 | 17 |
+| bulk | 2,000 | 8,563 | 778 | 427 | 9,770 | 25 | 25 | 23 |
+| sequential | 1,000 | 394 | 7,359 | 6,024 | 13,778 | 9 | 10 | 8 |
+| sequential | 2,000 | 4,947 | 43,477 | 26,678 | 75,103 | 20 | 18 | 17 |
+
+Commands (quote `-D` options in PowerShell so they are passed to Gradle as JVM system properties):
+
+```
+.\gradlew.bat "-Dmicroproject.profile=true" "-Dmicroproject.profile.mode=bulk" "-Dmicroproject.profile.scales=1000,2000" :microproject_core:test --rerun --tests "*LargeProjectSchedulingProfile*" -i
+.\gradlew.bat "-Dmicroproject.profile=true" "-Dmicroproject.profile.mode=sequential" "-Dmicroproject.profile.scales=1000,2000" :microproject_core:test --rerun --tests "*LargeProjectSchedulingProfile*" -i
+```
+
+A 4k bulk JFR exploratory run (with a temporary, uncommitted recording argument and a sentinel-refresh experiment
+that was later removed because it did not improve measured link time) sampled `Task.markDependentTasks` at 19.44%,
+`AbstractContour.clone` at 14.16%, hierarchy `visitAll` at 8.16%, and `AssociationList.findAssociation` at 3.52%.
+These samples are pointers for further investigation, not proof of the exact nonlinear cause or of a successful
+optimization. A3 remains open.
 
 ### Growth order
 

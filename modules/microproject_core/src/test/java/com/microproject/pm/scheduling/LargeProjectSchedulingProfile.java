@@ -35,6 +35,7 @@ import com.microproject.grouping.core.NodeFactory;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
@@ -44,8 +45,9 @@ import com.microproject.undo.DataFactoryUndoController;
 /**
  * Opt-in profiling harness for the core scheduler on large synthetic projects.
  * Run with {@code -Dmicroproject.profile=true}; skipped in the normal test task.
- * Optional: {@code -Dmicroproject.profile.scales=1000,2000,5000} and
- * {@code -Dmicroproject.profile.phaseSize=100}. See
+	 * Optional: {@code -Dmicroproject.profile.scales=1000,2000,5000},
+	 * {@code -Dmicroproject.profile.phaseSize=100}, and
+	 * {@code -Dmicroproject.profile.mode=bulk|sequential}. See
  * docs/performance/scheduler-large-project-profile.md.
  */
 @EnabledIfSystemProperty(named = "microproject.profile", matches = "true")
@@ -56,13 +58,17 @@ class LargeProjectSchedulingProfile {
 	void profileScales() throws Exception {
 		int phaseSize = Integer.getInteger("microproject.profile.phaseSize", 100);
 		String[] scales = System.getProperty("microproject.profile.scales", "1000,2000,5000").split(",");
+		String mode = System.getProperty("microproject.profile.mode", "bulk");
+		boolean bulk = "bulk".equalsIgnoreCase(mode);
+		if (!bulk && !"sequential".equalsIgnoreCase(mode))
+			throw new IllegalArgumentException("microproject.profile.mode must be bulk or sequential");
 		// warm up the JIT on a small project so the first scale is not dominated by class loading
-		run(300, 50, false);
-		System.out.println("PROFILE tasks,phases,nodesMs,depsMs,assignMs,buildMs,fullRecalcMs,editMs,undoMs");
-		for (String scale : scales) run(Integer.parseInt(scale.trim()), phaseSize, true);
+		run(300, 50, false, bulk);
+		System.out.println("PROFILE mode,tasks,phases,nodesMs,depsMs,assignMs,buildMs,fullRecalcMs,editMs,undoMs");
+		for (String scale : scales) run(Integer.parseInt(scale.trim()), phaseSize, true, bulk);
 	}
 
-	private void run(int taskCount, int phaseSize, boolean report) throws Exception {
+	private void run(int taskCount, int phaseSize, boolean report, boolean bulk) throws Exception {
 		long day = CalendarOption.getInstance().getMillisPerDay();
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		ResourcePool pool = ResourcePool.createRourcePool("profile", undo);
@@ -73,36 +79,64 @@ class LargeProjectSchedulingProfile {
 		for (int i = 0; i < RESOURCES; i++) { ResourceImpl r = pool.newResourceInstance(); r.setName("R" + i); resources.add(r); }
 		List<NormalTask> tasks = new ArrayList<>();
 		int phases = (taskCount + phaseSize - 1) / phaseSize;
-		List<Node> phaseNodes = new ArrayList<>();
-		for (int p = 0; p < phases; p++) {
-			NormalTask phase = new NormalTask(project);
-			phase.setName("Phase " + p);
-			project.connectTask(phase);
-			phaseNodes.add(NodeFactory.getInstance().createNode(phase));
-		}
-		project.getTaskModel().add(null, phaseNodes, NodeModel.NORMAL);
-		for (int p = 0; p < phases; p++) {
-			Node phaseNode = phaseNodes.get(p);
-			List<Node> taskNodes = new ArrayList<>();
-			for (int i = 0; i < phaseSize && tasks.size() < taskCount; i++) {
-				NormalTask task = new NormalTask(project);
-				project.connectTask(task);
-				task.setName("T" + tasks.size());
-				task.setDuration((1 + tasks.size() % 5) * day);
-				tasks.add(task);
-				taskNodes.add(NodeFactory.getInstance().createNode(task));
+		int schedulingTransaction = bulk ? project.fireMultipleTransaction(0, true) : 0;
+		if (bulk) {
+			List<Node> phaseNodes = new ArrayList<>();
+			for (int p = 0; p < phases; p++) {
+				NormalTask phase = new NormalTask(project);
+				phase.setName("Phase " + p);
+				project.connectTask(phase);
+				phaseNodes.add(NodeFactory.getInstance().createNode(phase));
 			}
-			project.getTaskModel().add(phaseNode, taskNodes, NodeModel.NORMAL);
+			project.getTaskModel().add(null, phaseNodes, NodeModel.NORMAL);
+			for (int p = 0; p < phases; p++) {
+				Node phaseNode = phaseNodes.get(p);
+				List<Node> taskNodes = new ArrayList<>();
+				for (int i = 0; i < phaseSize && tasks.size() < taskCount; i++) {
+					NormalTask task = new NormalTask(project);
+					project.connectTask(task);
+					task.setName("T" + tasks.size());
+					task.setDuration((1 + tasks.size() % 5) * day);
+					tasks.add(task);
+					taskNodes.add(NodeFactory.getInstance().createNode(task));
+				}
+				project.getTaskModel().add(phaseNode, taskNodes, NodeModel.NORMAL);
+			}
+			project.getSchedulingAlgorithm().initialize(project);
+		} else {
+			for (int p = 0; p < phases; p++) {
+				var phaseNode = project.createLocalTaskNode(null);
+				((NormalTask) phaseNode.getImpl()).setName("Phase " + p);
+				for (int i = 0; i < phaseSize && tasks.size() < taskCount; i++) {
+					NormalTask task = (NormalTask) project.createLocalTaskNode(phaseNode).getImpl();
+					task.setName("T" + tasks.size());
+					task.setDuration((1 + tasks.size() % 5) * day);
+					tasks.add(task);
+				}
+			}
 		}
-		project.getSchedulingAlgorithm().initialize(project);
 		long tNodes = System.nanoTime();
-		int schedulingTransaction = project.fireMultipleTransaction(0, true);
-		// This is the bulk sequential-link operation used by the task-link workflow.
-		DependencyService.getInstance().connect(new ArrayList<>(tasks), this, null);
+		if (bulk) {
+			// This is the bulk sequential-link operation used by the task-link workflow.
+			DependencyService.getInstance().connect(new ArrayList<>(tasks), this, null);
+		} else {
+			for (int i = 1; i < tasks.size(); i++)
+				DependencyService.getInstance().newDependency(tasks.get(i - 1), tasks.get(i), DependencyType.FS, 0L, this);
+		}
 		long tDeps = System.nanoTime();
-		for (int i = 0; i < tasks.size(); i++)
-			AssignmentService.getInstance().newAssignment(tasks.get(i), resources.get(i % RESOURCES), 1D, 0L, this);
-		project.fireMultipleTransaction(schedulingTransaction, false);
+		if (bulk) {
+			for (int resourceIndex = 0; resourceIndex < resources.size(); resourceIndex++) {
+				List<NormalTask> resourceTasks = new ArrayList<>();
+				for (int i = resourceIndex; i < tasks.size(); i += resources.size())
+					resourceTasks.add(tasks.get(i));
+				AssignmentService.getInstance().newAssignments(resourceTasks, List.of(resources.get(resourceIndex)),
+					1D, 0L, this, true);
+			}
+		} else {
+			for (int i = 0; i < tasks.size(); i++)
+				AssignmentService.getInstance().newAssignment(tasks.get(i), resources.get(i % RESOURCES), 1D, 0L, this);
+		}
+		if (bulk) project.fireMultipleTransaction(schedulingTransaction, false);
 		long t1 = System.nanoTime();
 		project.recalculate();
 		long t2 = System.nanoTime();
@@ -118,7 +152,7 @@ class LargeProjectSchedulingProfile {
 		undo.undo();
 		long t4 = System.nanoTime();
 		if (report) {
-			System.out.printf("PROFILE %d,%d,%d,%d,%d,%d,%d,%d,%d (last finish moved: %b, restored: %b)%n", tasks.size(), phases,
+			System.out.printf("PROFILE %s,%d,%d,%d,%d,%d,%d,%d,%d,%d (last finish moved: %b, restored: %b)%n", bulk ? "bulk" : "sequential", tasks.size(), phases,
 				(tNodes - t0) / 1_000_000, (tDeps - tNodes) / 1_000_000, (t1 - tDeps) / 1_000_000, (t1 - t0) / 1_000_000, (t2 - t1) / 1_000_000, (t3 - t2) / 1_000_000, (t4 - t3) / 1_000_000,
 				lastFinishAfter != lastFinishBefore, tasks.get(tasks.size() - 1).getEnd() == lastFinishBefore);
 		}
