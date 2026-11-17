@@ -122,21 +122,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		Environment.setNewLook(true);
 		Fixture fixture = createFixture(DependencyType.FS, false);
 		fixture.project.setReadOnly(true);
-		DocumentFrame[] document = new DocumentFrame[1];
-		SwingUtilities.invokeAndWait(() -> {
-			projectWindow = new MainRibbonFrame("Read-only Gantt split GUI acceptance", null);
-			projectManager = new GraphicManager(projectWindow);
-			projectWindow.setGraphicManager(projectManager);
-			projectManager.initView();
-			document[0] = projectManager.addProjectFrame(fixture.project);
-			projectWindow.setSize(1050, 650);
-			projectWindow.setLocationByPlatform(true);
-			projectWindow.setAlwaysOnTop(true);
-			projectWindow.setVisible(true);
-			document[0].activateGanttView();
-		});
-		GuiAcceptanceSupport.await(() -> projectWindow.isShowing() && document[0].isShowing(),
-			"read-only Gantt project window did not become visible");
+		DocumentFrame document = showRibbonFixture(fixture, "Read-only Gantt split GUI acceptance");
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		projectWindow.toFront();
@@ -155,8 +141,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		boolean[] modeStarted = { true };
 		SwingUtilities.invokeAndWait(() -> {
 			buttonEnabled[0] = splitButton.isEnabled();
-			modeStarted[0] = ((GanttView) document[0].getActiveTopView()).getGantt()
-				.getInteractor().setSplitMode();
+			modeStarted[0] = ((GanttView) document.getActiveTopView()).getGantt().getInteractor().setSplitMode();
 		});
 		assertFalse(buttonEnabled[0], "the user-visible Task Split ribbon control must be disabled");
 		assertFalse(modeStarted[0], "the Gantt mode entry must reject read-only projects");
@@ -791,8 +776,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 	void robotResizeProgressAndSplitUseTypedScheduleGatewayWithUndoAndPersistence() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(DependencyType.FS, false, true);
-		showFixture(fixture);
-		prepareOutcomeDocument(fixture);
+		showRibbonFixture(fixture, "Gantt schedule gestures GUI acceptance");
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateGantt(robot);
@@ -1265,7 +1249,8 @@ class GanttBarDateDragGuiAcceptanceTest {
 	}
 
 	private void activateWindow(Robot robot) throws Exception {
-		Rectangle bounds = new Rectangle(frame.getLocationOnScreen(), frame.getSize());
+		java.awt.Window activeWindow = projectWindow == null ? frame : projectWindow;
+		Rectangle bounds = new Rectangle(activeWindow.getLocationOnScreen(), activeWindow.getSize());
 		robot.mouseMove(bounds.x + Math.min(40, bounds.width / 2), bounds.y + 12);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
@@ -1287,6 +1272,28 @@ class GanttBarDateDragGuiAcceptanceTest {
 			frame.setAlwaysOnTop(true);
 			frame.setVisible(true);
 		});
+	}
+
+	private DocumentFrame showRibbonFixture(Fixture fixture, String title) throws Exception {
+		DocumentFrame[] document = new DocumentFrame[1];
+		SwingUtilities.invokeAndWait(() -> {
+			if (gantt != null)
+				gantt.cleanUp();
+			projectWindow = new MainRibbonFrame(title, null);
+			projectManager = new GraphicManager(projectWindow);
+			projectWindow.setGraphicManager(projectManager);
+			projectManager.initView();
+			document[0] = projectManager.addProjectFrame(fixture.project);
+			projectWindow.setSize(1050, 650);
+			projectWindow.setLocationByPlatform(true);
+			projectWindow.setAlwaysOnTop(true);
+			projectWindow.setVisible(true);
+			document[0].activateGanttView();
+			gantt = ((GanttView) document[0].getActiveTopView()).getGantt();
+		});
+		GuiAcceptanceSupport.await(() -> projectWindow.isShowing() && document[0].isShowing(),
+			title + " window did not become visible");
+		return document[0];
 	}
 
 	private void prepareOutcomeDocument(Fixture fixture) throws Exception {
@@ -1405,8 +1412,13 @@ class GanttBarDateDragGuiAcceptanceTest {
 
 	private void activateGantt(Robot robot) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
-			frame.toFront();
-			frame.requestFocus();
+			if (projectWindow != null) {
+				projectWindow.toFront();
+				projectWindow.requestFocus();
+			} else if (frame != null) {
+				frame.toFront();
+				frame.requestFocus();
+			}
 			gantt.requestFocusInWindow();
 		});
 		GuiAcceptanceSupport.await(gantt::isShowing, "Gantt was not visible");
