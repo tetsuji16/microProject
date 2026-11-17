@@ -233,6 +233,8 @@ public final class TaskCommandGateway {
 		if (node == null || node.isVoid() || !(node.getImpl() instanceof Task task)
 				|| !(node.getImpl() instanceof Schedule schedule))
 			return new TaskCommandResult(TaskCommandResult.Status.MISSING_TASK, "task-not-editable");
+		if (task.isReadOnly())
+			return new TaskCommandResult(TaskCommandResult.Status.REJECTED, "task-read-only");
 		if (schedule.getStart() != intent.expectedScheduleStart()
 				|| schedule.getEnd() != intent.expectedScheduleEnd()
 				|| schedule.getCompletedThrough() != intent.expectedCompletedThrough()
