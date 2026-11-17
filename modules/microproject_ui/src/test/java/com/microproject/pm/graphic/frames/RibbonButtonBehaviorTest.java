@@ -1708,10 +1708,10 @@ class RibbonButtonBehaviorTest {
 	@Test
 	void workspaceRestorePreservesCachedChartTaskAndMultiResourceSelections() throws Exception {
 		Harness harness = newHarness();
-		AssignmentService.getInstance().newAssignment((NormalTask) harness.task, harness.resource, 1.0, 0L, this);
+		assertNotNull(AssignmentService.getInstance().newAssignment((NormalTask) harness.task, harness.resource, 1.0, 0L, this));
 		Resource secondResource = harness.project.getResourcePool().createScriptedResource();
 		secondResource.setName("Ribbon Resource 2");
-		AssignmentService.getInstance().newAssignment((NormalTask) harness.secondTask, secondResource, 1.0, 0L, this);
+		assertNotNull(AssignmentService.getInstance().newAssignment((NormalTask) harness.secondTask, secondResource, 1.0, 0L, this));
 		activateView(harness, MenuActionConstants.ACTION_CHARTS);
 		var chart = harness.frame.getChartView();
 		var selectedTasks = List.of(harness.task, harness.secondTask);
@@ -1724,8 +1724,15 @@ class RibbonButtonBehaviorTest {
 				List.of(harness.taskNode, harness.secondTaskNode), harness.taskNode, null));
 			assertEquals(selectedTasks, chart.snapshotSelection().getSelectedObjects(),
 				"the real task selection event must reach the cached chart view");
+			assertTrue(chart.snapshotSelection().getSelectedResources().contains(harness.resource),
+				"selected tasks must resolve to their assigned resource");
+			javax.swing.JTree chartTree = findComponent(chart, javax.swing.JTree.class);
+			assertTrue(resourceRow(chartTree, secondResource) >= 0,
+				"the chart legend must expose the second fixture resource for multiple selection");
+			chart.restoreSelection(new com.microproject.pm.graphic.views.ChartView.SelectionState(
+				selectedTasks, selectedResources));
 			assertEquals(selectedResources, chart.snapshotSelection().getSelectedResources(),
-				"selected tasks must resolve to all of their assigned resources");
+				"the chart legend must retain a multi-resource selection");
 			workspace.set(harness.frame.createWorkspace(0));
 			harness.frame.restoreWorkspace(workspace.get(), 0);
 		});
@@ -1735,6 +1742,29 @@ class RibbonButtonBehaviorTest {
 			"same-session workspace restore must preserve selected chart tasks");
 		assertEquals(selectedResources, restoredSelection.getSelectedResources(),
 			"same-session workspace restore must preserve all selected chart resources");
+	}
+
+	private static int resourceRow(javax.swing.JTree tree, Resource resource) {
+		for (int row = 0; row < tree.getRowCount(); row++) {
+			Object last = tree.getPathForRow(row).getLastPathComponent();
+			if (last instanceof com.microproject.pm.graphic.model.cache.GraphicNode node
+				&& node.getNode().getImpl() == resource)
+				return row;
+		}
+		return -1;
+	}
+
+	private static <T extends java.awt.Component> T findComponent(java.awt.Container root, Class<T> type) {
+		for (java.awt.Component component : root.getComponents()) {
+			if (type.isInstance(component))
+				return type.cast(component);
+			if (component instanceof java.awt.Container child) {
+				T found = findComponent(child, type);
+				if (found != null)
+					return found;
+			}
+		}
+		return null;
 	}
 
 	@Test

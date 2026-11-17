@@ -159,6 +159,9 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 //		tree = new JTree(chartInfo.getNodeModel());
 		tree = new JTree(chartInfo.getCache());
 		tree.setExpandsSelectedPaths(true);
+		tree.getSelectionModel().setSelectionMode(simple
+				? DefaultTreeSelectionModel.SINGLE_TREE_SELECTION
+				: DefaultTreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION);
 		final JTree finalTree = tree;
 		tree.addTreeSelectionListener(new TreeSelectionListener() {
 			public void valueChanged(TreeSelectionEvent evt) {
@@ -493,7 +496,9 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 		Object topResource = null;
 		for (int i = 0; i < selectedResourcesOnTree.size(); i++) {
 			resource = selectedResourcesOnTree.get(i);
-			int row = nodeModel.getHierarchy().getIndexOfNode(nodeModel.search(resource),false);
+			int row = getTreeRowForResource(resource);
+			if (row < 0)
+				row = nodeModel.getHierarchy().getIndexOfNode(nodeModel.search(resource),false);
 			sel[i] = row;
 			if (row < topRow) {
 				topRow = row;
@@ -514,6 +519,15 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 		selecting = false;
 	}
 
+	private int getTreeRowForResource(Object resource) {
+		for (int row = 0; row < tree.getRowCount(); row++) {
+			Object value = tree.getPathForRow(row).getLastPathComponent();
+			if (value instanceof GraphicNode graphicNode && graphicNode.getNode().getImpl() == resource)
+				return row;
+		}
+		return -1;
+	}
+
 	/** Restores chart selections after a same-session workspace reload. */
 	public void restoreSelection(List<?> objects, List<Resource> resources) {
 		selectedObjects = objects == null ? null : new ArrayList<>(objects);
@@ -527,7 +541,7 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 	}
 
 	public List<Resource> getSelectedResources() {
-		return new ArrayList<>(selectedResourcesOnTree);
+		return pathsToList(tree.getSelectionPaths());
 	}
 
 	public WorkspaceSetting createWorkspace(int context) {

@@ -13,15 +13,18 @@ Microsoft documents the `PercentBarOverlap` property as an integer from 0 to 100
 
 ## Scope and baseline
 
-- Scope: issue #1179 only; no physical Robot run because another agent is using the shared desktop.
+- Scope: issue #1179 only; GUI Robot validation runs hosted because another agent is using the shared desktop.
 - Worktree: isolated `codex/issue-1179-resource-graph`; baseline `a1add999f289676c5f50148a240ea7445694eb3d`.
 - Baseline status: clean.
 - No acceptance criteria deferred.
+
+The hosted GUI route found that cached-view workspace restore introduced a regression: the new `DocumentFrame.restoreWorkspace` pass re-applied an existing `ChartView` after main-view restore had cleared its legend selection. The test recorded `selectedRow=false` and no plot datasets after restore. `DocumentFrame` now snapshots each existing chart's `ChartLegend.selectedObjects` and the resources selected in the actual legend tree before changing the main view, then reapplies both after restoring the cached chart. The regular chart legend now explicitly allows discontiguous selection; Resource Graph keeps its intentional single-resource mode. A unit regression drives a real task selection event and then a two-resource legend selection, verifying task and multi-resource selection survive workspace restore on the non-Resource-Graph chart. The Resource Graph hosted route verifies its physically selected legend row and rendered dataset after restore.
 
 ## Current verification / next action
 
 - Core scheduling regressions passed: `:microproject_core:test`.
 - Targeted Resource Graph Gradle tests passed: `:microproject_ui:test --tests "com.microproject.pm.graphic.chart.ResourceGraphDataTest" --tests "com.microproject.pm.graphic.chart.ResourceGraphSettingsTest" --console=plain`.
 - Test-task inventory and GUI source compilation passed: `verifyTestTasksEnabled :microproject_ui:compileGuiTestJava --console=plain`.
-- Hosted Robot journey added for the real Bar Styles ribbon route, physical spinner entry, rendered interval widths, and workspace save/restore. GUI source compiles with `:microproject_ui:compileGuiTestJava --console=plain`; hosted GUI acceptance is pending on the updated PR head.
+- `:microproject_ui:test --tests 'com.microproject.pm.graphic.frames.RibbonButtonBehaviorTest' --console=plain` passed, including task plus multiple resource selection restore.
+- Hosted GUI smoke passed on head `6d47355e3`. Focused Resource Graph run `44025010114` failed on pre-fix head `692830cdc` after confirming the warning was visible and dismissed; post-restore diagnostics showed `selectedRow=false`, `datasets=[]`. Native diagnostics showed the app foreground and no foreign-window overlap. Root cause was a stale selection list for direct tree input and single-selection mode on the regular chart. The current candidate fixes both and is being reverified.
 - PR: https://github.com/tetsuji16/microProject/pull/1191. Never run local physical Robot coverage while the shared desktop is occupied.
