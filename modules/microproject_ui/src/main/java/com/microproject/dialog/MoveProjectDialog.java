@@ -32,6 +32,12 @@ public final class MoveProjectDialog extends AbstractDialog {
 		this.project = project;
 	}
 
+	/** The start-date editor is one bounded form; #724 keeps it at its packed size. */
+	@Override
+	protected boolean isFixedSizeForm() {
+		return true;
+	}
+
 	@Override public JComponent createContentPanel() {
 		startDate = ComponentFactory.createDateField();
 		startDate.setValue(new Date(project.getStartDate()));

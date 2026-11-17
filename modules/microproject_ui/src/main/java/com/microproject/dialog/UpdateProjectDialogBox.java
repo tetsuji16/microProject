@@ -118,6 +118,12 @@ public class UpdateProjectDialogBox extends AbstractDialog {
 		else
 			this.form = new Form();
 	}
+
+	/** The update-options editor is one bounded form; #724 keeps it at its packed size. */
+	@Override
+	protected boolean isFixedSizeForm() {
+		return true;
+	}
 	
 	protected void initControls() {
 	    entireProject = new JRadioButton(Messages.getString("UpdateProjectDialogBox.EntireProject")); //$NON-NLS-1$

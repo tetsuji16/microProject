@@ -2969,7 +2969,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		StatusDateDialog statusDialog = java.util.Arrays.stream(Window.getWindows())
 			.filter(candidate -> candidate instanceof StatusDateDialog && candidate.isShowing())
 			.map(StatusDateDialog.class::cast).findFirst().orElseThrow();
-		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(statusDialog, "Issue #592 Status Date dialog");
+		DialogLayoutAssertions.assertFixedSizeForm(statusDialog, statusDialog, "Issue #592 Status Date dialog (#724)");
+		DialogScreenshotArtifacts.capture(statusDialog, "issue-724-status-date");
 		click(robot, findShowingButtonByText(statusDialog, Messages.getString("ButtonText.Cancel")));
 		GuiAcceptanceSupport.await(() -> !statusDialog.isShowing(), "Status Date visual dialog did not cancel");
 		assertEquals(originalStatusDate, project.getStatusDate(), "visual inspection must not change Status Date");
@@ -2982,7 +2983,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		UpdateProjectDialogBox updateDialog = java.util.Arrays.stream(Window.getWindows())
 			.filter(candidate -> candidate instanceof UpdateProjectDialogBox && candidate.isShowing())
 			.map(UpdateProjectDialogBox.class::cast).findFirst().orElseThrow();
-		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(updateDialog, "Issue #592 Update Project dialog");
+		DialogLayoutAssertions.assertFixedSizeForm(updateDialog, updateDialog,
+			"Issue #592 Update Project dialog (#724)");
+		DialogScreenshotArtifacts.capture(updateDialog, "issue-724-update-project");
 		click(robot, findShowingButtonByText(updateDialog, Messages.getString("ButtonText.Cancel")));
 		GuiAcceptanceSupport.await(() -> !updateDialog.isShowing(), "Update Project visual dialog did not cancel");
 		assertEquals(originalStatusDate, project.getStatusDate(), "visual inspection must not alter Status Date");
@@ -4121,7 +4124,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			StatusDateDialog cancelled = java.util.Arrays.stream(Window.getWindows())
 					.filter(candidate -> candidate instanceof StatusDateDialog && candidate.isShowing())
 					.map(StatusDateDialog.class::cast).findFirst().orElseThrow();
-			DialogLayoutAssertions.assertTextControlsAtPreferredHeight(cancelled, "Status Date dialog");
+			DialogLayoutAssertions.assertFixedSizeForm(cancelled, cancelled, "Status Date dialog (#724)");
 			assertTrue(UiComponentWalker.flatten(cancelled).stream()
 					.filter(com.microproject.dialog.util.ExtDateField.class::isInstance)
 					.map(com.microproject.dialog.util.ExtDateField.class::cast)
