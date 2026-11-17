@@ -79,12 +79,20 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     public static int DEFAULT_NB_MULTIPROJECT_END_VOID_NODES=1;
 
     private final Node root=NodeFactory.getInstance().createRootNode();
+    /** True only after a full renumber or suffix append over a known-sequential prefix. */
+    private boolean numberingKnownSequential;
 
 
 
     protected int nbEndVoidNodes = DEFAULT_NB_END_VOID_NODES;
     protected int nbMultiprojectEndVoidNodes = DEFAULT_NB_MULTIPROJECT_END_VOID_NODES;
     public MutableNodeHierarchy() {
+    }
+
+    @Override
+    public void renumber() {
+		super.renumber();
+		numberingKnownSequential = true;
     }
 
 
@@ -126,7 +134,8 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 			node.getParent() == null && node.getChildCount() == 0);
 		boolean appendedNumberedLeaves = appendedDetachedLeaves && children.stream().allMatch(Node::hasNumber);
 		boolean appendedUnnumberedLeaves = appendedDetachedLeaves && children.stream().noneMatch(Node::hasNumber);
-		int precedingNumber = appendedNumberedLeaves ? lastNumberBeforeAppend(p) : 0;
+		boolean useSuffixRenumber = appendedNumberedLeaves && numberingKnownSequential;
+		int precedingNumber = useSuffixRenumber ? lastNumberBeforeAppend(p) : 0;
 		Map<Object, Object[]> previousParentChildren = new java.util.IdentityHashMap<>();
 		if (isEvent(actionType)) for (Node child : children) {
 			Node previousParent = getParent(child);
@@ -151,10 +160,14 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 			else p.insert(node,j++);
        	}
     	if (isEvent(actionType)){
-	    	if (appendedNumberedLeaves) renumberFromSuffix(children.get(0), precedingNumber);
+	    	if (useSuffixRenumber) renumberFromSuffix(children.get(0), precedingNumber);
 	    	else if (!appendedUnnumberedLeaves) renumber();
 			fireNodesInserted(this,addDescendants(children/*trees*/), null, actionType, previousParentChildren);
-    	}
+	    	} else {
+			// LOAD/SILENT additions can leave arbitrary IDs in the prefix. The next
+			// event append must use the legacy full renumber until validity is restored.
+			numberingKnownSequential = false;
+	    	}
     }
 
 	/** Finds the last numbered node before children appended to {@code parent}. */
@@ -467,6 +480,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 				dependency.fireCreateEvent(this);
        		}
        	}
+		else numberingKnownSequential = false;
     }
 
     private Node getParentSubproject(Node node){
@@ -544,7 +558,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 	    	if (isEvent(actionType)){
 	    		renumber();
 	    		fireNodesRemoved(this,removed.toArray());
-	    	}
+	    	} else numberingKnownSequential = false;
 	        if (doTransaction)
 	        	model.getDocument().fireMultipleTransaction(transactionId,false);
         }
@@ -585,6 +599,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     }
 
     private void moveCoordinated(Node node,Node newParent,int actionType){
+		numberingKnownSequential = false;
 		setSubprojectLevel(node,getChildrenSubprojectLevel(newParent));
     	newParent.add(node);
 			ArrayList<Node> change = new ArrayList<>(1);
@@ -628,7 +643,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 		if (isEvent(actionType)){
 			renumber();
 			fireNodesChanged(this,addDescendants(branches), null, actionType, previousParentChildren);
-		}
+		} else numberingKnownSequential = false;
 		return true;
 	}
 
@@ -654,6 +669,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     	if (doTransaction)
     		transactionId = model.getDocument().fireMultipleTransaction(0,true);
         List<Node> changedParents=internalIndent(nodes,deltaLevel,actionType,previousParentChildren);
+		if (!isEvent(actionType)) numberingKnownSequential = false;
        	if (doTransaction)
     		model.getDocument().fireMultipleTransaction(transactionId,false);
 		if (model.getUndoableEditSupport()!=null&isUndo(actionType)&&changedParents!=null&&changedParents.size()>0){

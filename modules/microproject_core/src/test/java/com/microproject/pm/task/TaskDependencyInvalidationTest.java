@@ -147,6 +147,23 @@ class TaskDependencyInvalidationTest {
 		assertSequentialTaskIds(project, 12);
 	}
 
+	@Test
+	void eventAppendAfterSilentNumberedAdditionFallsBackToFullRenumber() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("silent numbering prefix", undoController), undoController);
+		project.initialize(false, false);
+		NormalTask silentlyAdded = task(project);
+		silentlyAdded.setId(40L);
+		project.getTaskModel().add(null, NodeFactory.getInstance().createNode(silentlyAdded), NodeModel.SILENT);
+		assertEquals(40L, silentlyAdded.getId(), "silent loading preserves the incoming ID until a normal event mutation");
+
+		NormalTask eventAppended = task(project);
+		eventAppended.setId(90L);
+		project.getTaskModel().add(null, NodeFactory.getInstance().createNode(eventAppended), NodeModel.NORMAL);
+
+		assertSequentialTaskIds(project, 2);
+	}
+
 	private void assertSequentialTaskIds(Project project, int count) {
 		List<Long> actualIds = new ArrayList<>();
 		project.getTaskModel().getHierarchy().visitAll(object -> {
