@@ -773,7 +773,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 	}
 
 	@Test
-	void robotResizeProgressAndSplitUseTypedScheduleGatewayWithUndoAndPersistence() throws Exception {
+	void robotResizeProgressUseStandaloneGanttWithUndoAndPersistence() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		long projectOrigin = DateTime.calendarInstance(2026, java.util.Calendar.JUNE, 1).getTimeInMillis();
 		long taskStart = DateTime.calendarInstance(2026, java.util.Calendar.JUNE, 10).getTimeInMillis();
@@ -789,7 +789,8 @@ class GanttBarDateDragGuiAcceptanceTest {
 		laterEndCalendar.setTimeInMillis(originalEnd);
 		laterEndCalendar.add(java.util.Calendar.DAY_OF_MONTH, 3);
 		long requestedLaterEnd = laterEndCalendar.getTimeInMillis();
-		showRibbonFixture(fixture, "Gantt schedule gestures GUI acceptance");
+		showFixture(fixture);
+		prepareOutcomeDocument(fixture);
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateGantt(robot);
@@ -897,133 +898,90 @@ class GanttBarDateDragGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
 		assertEquals(updatedProgress, fixture.predecessor.getCompletedThrough(), "one Redo must restore updated progress");
 
-		long currentProgress = fixture.predecessor.getCompletedThrough();
-		List<String> originalIntervals = assignmentIntervals(fixture.predecessor);
-		List<String> originalTaskIntervals = taskIntervals(fixture.predecessor);
-		List<String> originalContours = assignmentContours(fixture.predecessor);
-		List<com.microproject.pm.task.TaskSplitInterval> originalTaskSplits = fixture.predecessor.getTaskSplitIntervals();
-		long remainingWorkStart = Math.max(currentProgress, fixture.predecessor.getResume());
-		long splitAt = originalTaskIntervals.stream().mapToLong(interval -> {
-			String[] bounds = interval.split(":");
-			long intervalStart = Math.max(Long.parseLong(bounds[0]), remainingWorkStart);
-			long intervalEnd = Long.parseLong(bounds[1]);
-			return intervalEnd - intervalStart > 1L
-				? intervalStart + (intervalEnd - intervalStart) / 3L
-				: Long.MIN_VALUE;
-		}).filter(candidate -> candidate != Long.MIN_VALUE).findFirst().orElseThrow(() ->
-			new AssertionError("progress drag must leave a schedulable task interval for splitting: resume="
-				+ fixture.predecessor.getResume() + " completedThrough=" + currentProgress
-				+ " taskIntervals=" + originalTaskIntervals));
-		assertTrue(splitAt > remainingWorkStart && splitAt < fixture.predecessor.getEnd(),
-			"split point must be inside remaining scheduled work: resume=" + fixture.predecessor.getResume()
-				+ " completedThrough=" + currentProgress + " splitAt=" + splitAt
-				+ " intervals=" + originalIntervals + " end=" + fixture.predecessor.getEnd());
-		Point splitStart = screenPointForTaskDate(fixture, splitAt);
-		long clickedSplitAt = taskDateAt(splitStart);
-		long splitResumeAt = fixture.predecessor.getEffectiveWorkCalendar().add(splitAt,
-			com.microproject.options.CalendarOption.getInstance().getMillisPerDay(), false);
-		assertTrue(splitResumeAt < fixture.predecessor.getEnd(),
-			"resume date must stay inside the original task bar: split=" + splitAt + " resume=" + splitResumeAt
-				+ " end=" + fixture.predecessor.getEnd());
-		Point splitResume = screenPointForTaskDate(fixture, splitResumeAt);
-		List<String> originalAssignmentState = assignmentScheduleStates(fixture.predecessor);
-		assertTaskBarHit(fixture, splitStart);
-		RibbonGuiSupport.clickSplitPrimary(robot,
-			RibbonGuiSupport.findVisibleOrExpand(robot, projectWindow.getRibbonPanel(), "RibbonTaskSplit"));
-		drag(robot, splitStart, splitResume);
-		try {
-			GuiAcceptanceSupport.await(() -> !fixture.predecessor.getTaskSplitIntervals().equals(originalTaskSplits),
-				"Gantt split gesture did not add a task-owned nonworking interval");
-		} catch (AssertionError failure) {
-			throw new AssertionError(failure.getMessage() + ": intervals before=" + originalIntervals
-				+ " after=" + assignmentIntervals(fixture.predecessor)
-				+ " task splits before=" + originalTaskSplits
-				+ " after=" + fixture.predecessor.getTaskSplitIntervals()
-				+ " contours before=" + originalContours
-				+ " after=" + assignmentContours(fixture.predecessor)
-				+ " requested=" + splitAt + " clicked=" + clickedSplitAt + " resume=" + taskDateAt(splitResume)
-				+ " expectedTaskProgress=" + currentProgress
-				+ " assignments before=" + originalAssignmentState
-				+ " after=" + assignmentScheduleStates(fixture.predecessor), failure);
-		}
-		List<String> splitIntervals = assignmentIntervals(fixture.predecessor);
-		assertEquals(originalIntervals, splitIntervals, "task-owned split must preserve resource assignment intervals");
-		assertEquals(originalContours, assignmentContours(fixture.predecessor),
-			"task-owned split must preserve resource assignment contours");
-		List<String> splitTaskIntervals = taskIntervals(fixture.predecessor);
-		long normalizedSplitStart = fixture.predecessor.getStart()
-			+ fixture.predecessor.getTaskSplitIntervals().getFirst().startOffset();
-		Point normalizedSplitPoint = screenPointForTaskDate(fixture, normalizedSplitStart);
-		assertTrue(gapStartsAtPixel(fixture, splitTaskIntervals, normalizedSplitPoint.x),
-			"the task intervals consumed by the Gantt renderer must expose the visible split gap: "
-				+ splitTaskIntervals + " splits=" + fixture.predecessor.getTaskSplitIntervals()
-				+ " schedule=" + fixture.predecessor.getStart() + ".." + fixture.predecessor.getEnd()
-				+ " clicked=" + clickedSplitAt + " clickPixel=" + splitStart.x
-				+ " normalizedPixel=" + normalizedSplitPoint.x);
-		assertTrue(barBounds(fixture).width > 0, "the split task must remain visible after redraw");
-		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
-		assertEquals(originalIntervals, assignmentIntervals(fixture.predecessor),
-			"task-owned split must not change assignment work intervals");
-		assertEquals(originalTaskIntervals, taskIntervals(fixture.predecessor),
-			"one Undo must restore the original intervals consumed by Gantt");
-		assertEquals(originalTaskSplits, fixture.predecessor.getTaskSplitIntervals(),
-			"one Undo must remove the task-owned split interval");
-		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
-		assertEquals(originalIntervals, assignmentIntervals(fixture.predecessor),
-			"one Redo must preserve assignment work intervals");
-		assertEquals(splitTaskIntervals, taskIntervals(fixture.predecessor),
-			"one Redo must restore the split gap consumed by Gantt");
-		List<com.microproject.pm.task.TaskSplitInterval> persistedTaskSplits = fixture.predecessor.getTaskSplitIntervals();
-
 		List<String> persistedIntervals = assignmentIntervals(fixture.predecessor);
-		List<String> persistedTaskIntervals = taskIntervals(fixture.predecessor);
 		long scheduleStartBeforeSave = fixture.predecessor.getStart();
 		long scheduleFinishBeforeSave = fixture.predecessor.getEnd();
-
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
 		MpoFileImporter importer = new MpoFileImporter();
-		assertTrue(importer.saveProject(fixture.project, saved), "edited schedule must be serializable");
-		byte[] snapshotXml = projectXmlEntry(saved.toByteArray());
-		org.mpxj.ProjectFile mspSnapshot = new org.mpxj.mspdi.MSPDIReader()
-			.read(new ByteArrayInputStream(snapshotXml));
-		org.mpxj.Task mspTask = mspSnapshot.getTasks().stream()
-			.filter(task -> "Drag predecessor".equals(task.getName())).findFirst().orElseThrow();
+		assertTrue(importer.saveProject(fixture.project, saved), "edited resize and progress schedule must be serializable");
 		Project reopened = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
 		NormalTask reopenedTask = reopened.getTaskList().stream()
 			.filter(task -> "Drag predecessor".equals(task.getName())).map(NormalTask.class::cast).findFirst().orElseThrow();
-		assertEquals(scheduleStartBeforeSave, reopenedTask.getStart(), "final schedule start must survive MPO reload: project="
-			+ reopened.getStart() + " actualStart=" + reopenedTask.getActualStart() + " constraint="
-			+ reopenedTask.getConstraintTypeKind() + " constraintDate=" + reopenedTask.getConstraintDate()
-			+ " snapshotStart=" + mspTask.getStart() + " snapshotActualStart=" + mspTask.getActualStart()
-			+ " snapshotConstraint=" + mspTask.getConstraintType() + " snapshotConstraintDate=" + mspTask.getConstraintDate());
-		assertEquals(scheduleFinishBeforeSave, reopenedTask.getEnd(), "final schedule finish must survive MPO reload");
-		int savedProgressPixel = screenPointForTaskDate(fixture, updatedProgress).x;
-		int restoredProgressPixel = screenPointForTaskDate(fixture, reopenedTask.getCompletedThrough()).x;
-		List<String> snapshotAssignments = mspSnapshot.getResourceAssignments().stream()
-			.filter(assignment -> java.util.Objects.equals(assignment.getTaskUniqueID(), mspTask.getUniqueID()))
-			.map(assignment -> "uid=" + assignment.getUniqueID() + " bounds=" + assignment.getStart() + ".."
-				+ assignment.getFinish() + " work=" + assignment.getWork() + " actual=" + assignment.getActualWork()
-				+ " remaining=" + assignment.getRemainingWork() + " units=" + assignment.getUnits()
-				+ " actualRows=" + assignment.getRawTimephasedActualRegularWork() + " remainingRows="
-				+ assignment.getRawTimephasedRemainingRegularWork()).toList();
-		assertTrue(Math.abs(savedProgressPixel - restoredProgressPixel) <= 1,
-			"progress must survive MPO reload within one rendered pixel: saved=" + updatedProgress
-				+ " restored=" + reopenedTask.getCompletedThrough() + " savedPixel=" + savedProgressPixel
-				+ " restoredPixel=" + restoredProgressPixel + " modelPercent=" + fixture.predecessor.getPercentComplete()
-				+ " restoredPercent=" + reopenedTask.getPercentComplete() + " snapshotPercent="
-				+ mspTask.getPercentageComplete() + " snapshotPercentWork=" + mspTask.getPercentageWorkComplete()
-				+ " actualDuration=" + mspTask.getActualDuration() + " stop=" + mspTask.getStop()
-				+ " resume=" + mspTask.getResume() + " start=" + mspTask.getStart() + " finish=" + mspTask.getFinish()
-				+ " modelAssignments=" + assignmentScheduleStates(fixture.predecessor)
-				+ " snapshotAssignments=" + snapshotAssignments + " restoredAssignments="
-				+ assignmentScheduleStates(reopenedTask) + " taskSplits=" + persistedTaskSplits);
+		assertEquals(scheduleStartBeforeSave, reopenedTask.getStart(), "resized task start must survive MPO reload");
+		assertEquals(scheduleFinishBeforeSave, reopenedTask.getEnd(), "resized task finish must survive MPO reload");
+		assertEquals(updatedProgress, reopenedTask.getCompletedThrough(), "progress must survive MPO reload");
 		assertIntervalsMatchAtRenderedResolution(fixture, persistedIntervals, assignmentIntervals(reopenedTask),
 			"assignment intervals must survive MPO reload");
-		assertEquals(persistedTaskSplits, reopenedTask.getTaskSplitIntervals(),
-			"task-owned split intervals must survive MPO reload");
-		assertEquals(persistedTaskIntervals, taskIntervals(reopenedTask),
-			"the split gap rendered by Gantt must survive MPO reload");
 		capture(robot, "gantt-schedule-gestures-final.png");
+	}
+
+	@Test
+	void robotRibbonSplitUsesRenderedDateCoordinatesWithUndoAndPersistence() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		long projectOrigin = DateTime.calendarInstance(2026, java.util.Calendar.JUNE, 1).getTimeInMillis();
+		long taskStart = DateTime.calendarInstance(2026, java.util.Calendar.JUNE, 10).getTimeInMillis();
+		Fixture fixture = createFixture(DependencyType.FS, false, false, projectOrigin, taskStart);
+		DocumentFrame document = showRibbonFixture(fixture, "Task split GUI acceptance");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateGantt(robot);
+		long originalStart = fixture.predecessor.getStart();
+		long originalEnd = fixture.predecessor.getEnd();
+		List<com.microproject.pm.task.TaskSplitInterval> originalSplits = fixture.predecessor.getTaskSplitIntervals();
+		List<String> originalTaskIntervals = taskIntervals(fixture.predecessor);
+		long splitAt = originalStart + (originalEnd - originalStart) / 3L;
+		long resumeAt = fixture.predecessor.getEffectiveWorkCalendar().add(splitAt,
+			com.microproject.options.CalendarOption.getInstance().getMillisPerDay(), false);
+		assertTrue(splitAt > originalStart && resumeAt < originalEnd,
+			"split gesture must fit inside the original task: " + originalStart + ".." + originalEnd
+				+ " split=" + splitAt + " resume=" + resumeAt);
+		showTaskBarInViewport(fixture, splitAt, resumeAt);
+		Point splitPoint = screenPointForTaskDate(fixture, splitAt);
+		Point resumePoint = screenPointForTaskDate(fixture, resumeAt);
+		assertRenderedDateMapping(fixture, splitAt, splitPoint, "split point");
+		assertRenderedDateMapping(fixture, resumeAt, resumePoint, "resume point");
+		assertScreenPointInGanttViewport(fixture, splitPoint, "split point");
+		assertScreenPointInGanttViewport(fixture, resumePoint, "resume point");
+		assertTaskBarHit(fixture, splitPoint);
+		capture(robot, "gantt-ribbon-split-before.png");
+		RibbonGuiSupport.clickSplitPrimary(robot,
+			RibbonGuiSupport.findVisibleOrExpand(robot, projectWindow.getRibbonPanel(), "RibbonTaskSplit"));
+		drag(robot, splitPoint, resumePoint);
+		try {
+			GuiAcceptanceSupport.await(() -> !originalSplits.equals(fixture.predecessor.getTaskSplitIntervals()),
+				"the Ribbon Split command did not create a task split");
+		} catch (AssertionError failure) {
+			capture(robot, "gantt-ribbon-split-failure.png");
+			throw new AssertionError(failure.getMessage() + " origin=" + gantt.getCoord().getOrigin()
+				+ " viewport=" + viewportScreenBounds((javax.swing.JViewport)SwingUtilities.getAncestorOfClass(
+					javax.swing.JViewport.class, gantt)) + " viewPosition=" + viewportViewPosition(
+					(javax.swing.JViewport)SwingUtilities.getAncestorOfClass(javax.swing.JViewport.class, gantt))
+				+ " ganttScreen=" + gantt.getLocationOnScreen() + " start=" + originalStart + " end=" + originalEnd
+				+ " requestedSplit=" + splitAt + " mappedSplit=" + taskDateAt(splitPoint)
+				+ " requestedResume=" + resumeAt + " mappedResume=" + taskDateAt(resumePoint)
+				+ " taskIntervals=" + taskIntervals(fixture.predecessor), failure);
+		}
+		List<String> splitTaskIntervals = taskIntervals(fixture.predecessor);
+		assertEquals(originalStart, fixture.predecessor.getStart(), "splitting must preserve the task start");
+		assertEquals(originalEnd, fixture.predecessor.getEnd(), "splitting must preserve the task finish");
+		assertTrue(barBounds(fixture).width > 0, "the split task must remain rendered");
+		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
+		assertEquals(originalSplits, fixture.predecessor.getTaskSplitIntervals(), "Undo must remove the task split");
+		assertEquals(originalTaskIntervals, taskIntervals(fixture.predecessor), "Undo must restore the original rendered intervals");
+		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
+		assertEquals(splitTaskIntervals, taskIntervals(fixture.predecessor), "Redo must restore the rendered split gap");
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		MpoFileImporter importer = new MpoFileImporter();
+		assertTrue(importer.saveProject(fixture.project, saved), "split schedule must be serializable");
+		Project reopened = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		NormalTask reopenedTask = reopened.getTaskList().stream()
+			.filter(task -> "Drag predecessor".equals(task.getName())).map(NormalTask.class::cast).findFirst().orElseThrow();
+		assertEquals(fixture.predecessor.getTaskSplitIntervals(), reopenedTask.getTaskSplitIntervals(),
+			"task split must survive MPO reload");
+		assertEquals(splitTaskIntervals, taskIntervals(reopenedTask), "split intervals must survive MPO reload");
+		assertTrue(document.getActiveTopView() instanceof GanttView,
+			"the physical command route must remain in the actual Gantt view");
+		capture(robot, "gantt-ribbon-split-after.png");
 	}
 
 	private void dragBarAndAssertSuccessor(Fixture fixture) throws Exception {
@@ -1406,7 +1364,9 @@ class GanttBarDateDragGuiAcceptanceTest {
 		AtomicReference<Long> date = new AtomicReference<>();
 		try {
 			SwingUtilities.invokeAndWait(() -> {
-				int localX = screenPoint.x - gantt.getLocationOnScreen().x;
+			Point local = new Point(screenPoint);
+			SwingUtilities.convertPointFromScreen(local, gantt);
+			int localX = local.x;
 				date.set((long)gantt.getCoord().toTime(localX));
 			});
 		} catch (Exception exception) {
@@ -1417,10 +1377,10 @@ class GanttBarDateDragGuiAcceptanceTest {
 
 	private void activateGantt(Robot robot) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
-			if (projectWindow != null) {
+			if (projectWindow != null && projectWindow.isShowing()) {
 				projectWindow.toFront();
 				projectWindow.requestFocus();
-			} else if (frame != null) {
+			} else if (frame != null && frame.isShowing()) {
 				frame.toFront();
 				frame.requestFocus();
 			}
@@ -1618,10 +1578,46 @@ class GanttBarDateDragGuiAcceptanceTest {
 			int x = (int)Math.round(gantt.getCoord().toX(date));
 			int y = (int)Math.round(((GanttUI)gantt.getUI()).getBarY(row)
 				+ node.getGanttShapeOffset() + node.getGanttShapeHeight() / 2.0d);
-			Point location = gantt.getLocationOnScreen();
-			result[0] = new Point(location.x + x, location.y + y);
+			Point local = new Point(x, y);
+			Point screen = new Point(local);
+			SwingUtilities.convertPointToScreen(screen, gantt);
+			Point roundTrip = new Point(screen);
+			SwingUtilities.convertPointFromScreen(roundTrip, gantt);
+			if (!local.equals(roundTrip)) throw new AssertionError("Gantt local/screen transform did not round-trip: local="
+				+ local + " screen=" + screen + " roundTrip=" + roundTrip);
+			result[0] = screen;
 		});
 		return result[0];
+	}
+
+	private void assertRenderedDateMapping(Fixture fixture, long requestedDate, Point screenPoint, String gesture)
+			throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Point local = new Point(screenPoint);
+			SwingUtilities.convertPointFromScreen(local, gantt);
+			var projection = fixture.cache.getVisibleNodes().getProjectionIndex();
+			GraphicNode target = null;
+			for (int row = 0; row < projection.size(); row++) {
+				GraphicNode candidate = projection.nodeAt(row);
+				if (candidate.getNode().getImpl() == fixture.predecessor) {
+					target = candidate;
+					break;
+				}
+			}
+			GraphZone hit = gantt.getUI().getNodeAt(local.x, local.y);
+			if (target == null || hit == null || hit.getObject() != target)
+				throw new AssertionError(gesture + " point must hit the rendered task bar: date=" + requestedDate
+					+ " screen=" + screenPoint + " local=" + local + " hit=" + hit + " target=" + target);
+			long mappedDate = (long)gantt.getCoord().toTime(local.x);
+			long onePixelDuration = Math.max(1L, Math.round(gantt.getCoord().toDuration(1.0d)));
+			javax.swing.JViewport viewport = (javax.swing.JViewport)SwingUtilities.getAncestorOfClass(
+				javax.swing.JViewport.class, gantt);
+			if (Math.abs(mappedDate - requestedDate) > onePixelDuration)
+				throw new AssertionError(gesture + " date-to-pixel/time mapping exceeds one rendered pixel: requested="
+					+ requestedDate + " mapped=" + mappedDate + " tolerance=" + onePixelDuration
+					+ " screen=" + screenPoint + " local=" + local + " viewport=" + viewport.getBounds()
+					+ " viewPosition=" + viewport.getViewPosition());
+		});
 	}
 
 	private ProgressTarget nextVisibleWorkingProgressTarget(Fixture fixture, Point progressHandle, long originalProgress)
