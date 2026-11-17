@@ -643,6 +643,13 @@ public class ProjectMergeService {
 			if (localTask == null) {
 				continue;
 			}
+			// A SubProj row is a read-only link placeholder, not editable task content
+			// of the target.  MPO round-trips include the linked child's own reference
+			// row; matching it to the in-memory placeholder must not route into the
+			// duration batch (the placeholder is neither writable nor snapshot-owned).
+			if (externalTask.isSubproject() || localTask.isSubproject()) {
+				continue;
+			}
 			if (isLocked(localTask, lockedTaskIds)) {
 				result.skippedLockedTaskIds.add(Long.valueOf(localTask.getUniqueId()));
 				continue;
