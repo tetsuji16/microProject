@@ -11,6 +11,7 @@ import java.util.function.Function;
 
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
+import javax.swing.JFormattedTextField;
 import javax.swing.JLabel;
 import javax.swing.JSpinner;
 import javax.swing.SpinnerNumberModel;
@@ -68,13 +69,30 @@ final class ResourceGraphFormatDialogs {
 			NetworkCalendarFormatDialogs.row(panel, row++, new JLabel(name), shape, color, pattern);
 		}
 		JCheckBox availability = new JCheckBox(text.apply("ResourceGraph.dialog.availabilityLine"), settings.isShowAvailabilityLine());
+		String overlapLabel = text.apply("ResourceGraph.dialog.percentBarOverlap");
+		JSpinner overlap = new JSpinner(new SpinnerNumberModel(settings.getPercentBarOverlap(), 0, 100, 10));
+		((JSpinner.DefaultEditor) overlap.getEditor()).getTextField()
+			.setFocusLostBehavior(JFormattedTextField.PERSIST);
+		overlap.getAccessibleContext().setAccessibleName(overlapLabel);
 		JCheckBox reset = new JCheckBox(text.apply("ResourceGraph.dialog.reset"), false);
+		NetworkCalendarFormatDialogs.row(panel, row++, new JLabel(overlapLabel), overlap);
 		NetworkCalendarFormatDialogs.row(panel, row++, availability);
 		NetworkCalendarFormatDialogs.row(panel, row, reset);
+		panel.validator = () -> {
+			try {
+				overlap.commitEdit();
+				return true;
+			} catch (java.text.ParseException | IllegalArgumentException invalid) {
+				return false;
+			}
+		};
+		panel.validationMessage = text.apply("ResourceGraph.dialog.invalidBarOverlap");
 		panel.applier = () -> {
 			settings.setShowAvailabilityLine(availability.isSelected());
+			settings.setPercentBarOverlap((Integer) overlap.getValue());
 			if (reset.isSelected()) {
 				settings.resetBarStyles();
+				settings.setPercentBarOverlap(100);
 				return;
 			}
 			for (Item item : Item.values()) {

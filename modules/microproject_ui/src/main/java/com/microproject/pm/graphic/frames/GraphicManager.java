@@ -3188,6 +3188,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				int answer = PopupDialogSupport.showConfirmDialog(getFrame(), panel, formatText(titleKey),
 					JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
 				if (answer != JOptionPane.OK_OPTION) return;
+				if (!panel.validateInput()) {
+					Alert.warn(panel.validationMessage, getFrame());
+					return;
+				}
 				panel.apply();
 				after.accept(dialog);
 				syncGanttViewRibbonState();
