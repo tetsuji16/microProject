@@ -90,6 +90,24 @@ class AssignmentServiceTest {
 	}
 
 	@Test
+	void appendingAssignmentsLeavesResourceNumberingStable() {
+		Project project = createProject();
+		ResourcePool pool = project.getResourcePool();
+		ResourceImpl firstResource = pool.newResourceInstance();
+		ResourceImpl secondResource = pool.newResourceInstance();
+		long firstResourceId = firstResource.getId();
+		long secondResourceId = secondResource.getId();
+		NormalTask firstTask = createTask(project);
+		NormalTask secondTask = createTask(project);
+
+		AssignmentService.getInstance().newAssignment(firstTask, firstResource, 1.0D, 0L, this);
+		AssignmentService.getInstance().newAssignment(secondTask, firstResource, 1.0D, 0L, this);
+
+		assertEquals(firstResourceId, firstResource.getId());
+		assertEquals(secondResourceId, secondResource.getId());
+	}
+
+	@Test
 	void collectionRemovalIsOneProjectAndPoolCommandWithOneUndoGroup() {
 		Project project = createProject();
 		NormalTask task = createTask(project);
@@ -908,6 +926,21 @@ class AssignmentServiceTest {
 	}
 
 	@Test
+	void oneNewAssignmentsCommandRunsOneSchedulingCalculationAcrossEventPublication() {
+		Project project = createProject();
+		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		int before = project.getSchedulingAlgorithm().getCalculationStateCount();
+
+		AssignmentService.getInstance().newAssignments(List.of(task), List.of(resource), 1.0D, 0L, this, true);
+
+		assertEquals(3, project.getSchedulingAlgorithm().getCalculationStateCount() - before,
+			"one assignment command should publish its facts inside the scheduling transaction");
+		project.getUndoController().undo();
+		assertNull(task.findAssignment(resource), "the grouped command must retain one-step undo");
+	}
+
+	@Test
 	void newAssignmentsFailureAfterResourceAttachRestoresModelAndDiscardsPublication() {
 		Project project = createProject();
 		NormalTask task = createTask(project);
@@ -926,6 +959,7 @@ class AssignmentServiceTest {
 		project.getUndoController().clear();
 		long projectRevision = project.getMutationState().revision();
 		long poolRevision = pool.getCoordinationRevision();
+		int transactionDepth = MultipleTransactionManager.depth;
 		long duration = task.getDuration();
 		int schedulingType = task.getSchedulingType();
 		boolean effortDriven = task.isEffortDriven();
@@ -951,6 +985,8 @@ class AssignmentServiceTest {
 		assertFalse(project.getUndoController().canUndo());
 		assertEquals(projectRevision, project.getMutationState().revision());
 		assertEquals(poolRevision, pool.getCoordinationRevision());
+		assertEquals(transactionDepth, MultipleTransactionManager.depth,
+			"failed assignment command must release both scheduling transaction boundaries");
 		assertTrue(projectEvents.isEmpty());
 		assertTrue(poolEvents.isEmpty());
 	}

@@ -7,6 +7,7 @@ package com.microproject.collaboration;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 import com.microproject.pm.task.Project;
@@ -31,8 +32,42 @@ public final class MpoTaskOperationService {
 		if (project == null) throw new IOException("Missing project for mpo operations");
 		if (alreadyAppliedOperationIds == null) throw new IOException("Missing applied mpo operation generation");
 		java.util.Set<String> appliedIds = java.util.Set.copyOf(alreadyAppliedOperationIds);
-		for (OperationLog.Operation operation : new OperationLog().merge(operations).ready()) {
-			if (appliedIds.contains(operation.id())) continue;
+		List<OperationLog.Operation> ready = new OperationLog().merge(operations).ready();
+		List<OperationLog.Operation> pending = ready.stream()
+			.filter(operation -> !appliedIds.contains(operation.id())).toList();
+		if (pending.isEmpty()) return;
+		// Dependency validation reads the current graph, not calculated dates. Keep
+		// other operation kinds on their original per-operation scheduling boundary:
+		// summary progress and other mutations may consume intermediate schedule values.
+		if (!pending.stream().allMatch(MpoTaskOperationService::isDependencyOperation)) {
+			applyReady(project, pending);
+			return;
+		}
+		int schedulingTransaction = project.fireMultipleTransaction(0, true);
+		Throwable replayFailure = null;
+		try {
+			applyReady(project, pending);
+		} catch (IOException | RuntimeException | Error failure) {
+			replayFailure = failure;
+			throw failure;
+		} finally {
+			// Replay preserves its per-operation partial-apply behavior. Recalculate the
+			// retained model once whether the operation stream succeeds or stops early.
+			try {
+				project.fireMultipleTransaction(schedulingTransaction, false);
+			} catch (RuntimeException | Error cleanupFailure) {
+				if (replayFailure == null) throw cleanupFailure;
+				if (cleanupFailure != replayFailure) replayFailure.addSuppressed(cleanupFailure);
+			}
+		}
+	}
+
+	private static boolean isDependencyOperation(OperationLog.Operation operation) {
+		return "dependency.add".equals(operation.kind()) || "dependency.delete".equals(operation.kind());
+	}
+
+	private static void applyReady(Project project, List<OperationLog.Operation> operations) throws IOException {
+		for (OperationLog.Operation operation : operations) {
 			switch (operation.kind()) {
 				case "task.create" -> applyCreate(project, operation.payload());
 				case "task.update" -> applyUpdate(project, operation.payload());

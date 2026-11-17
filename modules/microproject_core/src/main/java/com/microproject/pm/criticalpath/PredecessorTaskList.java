@@ -171,6 +171,8 @@ public class PredecessorTaskList {
 	boolean addAll(Collection<? extends Task> tasks) {
 		list.clear();
 		toggleMarkerStatus();
+		for (Task task : tasks)
+			task.setMarkerStatus(!markerStatus);
 		for (Task task : tasks) {
 			task.arrangeTask(list,markerStatus,0);
 	    	if (task.isReverseScheduled())

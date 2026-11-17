@@ -53,6 +53,7 @@ import com.microproject.grouping.core.model.NodeModelUtil;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.key.HasKey;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
@@ -78,12 +79,20 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     public static int DEFAULT_NB_MULTIPROJECT_END_VOID_NODES=1;
 
     private final Node root=NodeFactory.getInstance().createRootNode();
+    /** True only after a full renumber or suffix append over a known-sequential prefix. */
+    private boolean numberingKnownSequential;
 
 
 
     protected int nbEndVoidNodes = DEFAULT_NB_END_VOID_NODES;
     protected int nbMultiprojectEndVoidNodes = DEFAULT_NB_MULTIPROJECT_END_VOID_NODES;
     public MutableNodeHierarchy() {
+    }
+
+    @Override
+    public void renumber() {
+		super.renumber();
+		numberingKnownSequential = true;
     }
 
 
@@ -119,6 +128,14 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     private void addCoordinated(Node parent,List<Node> children,int position,int actionType){
     	Node p=(parent==null)?root:parent;
 		if (children.size()==0) return;
+		int childCount=p.getChildCount();
+		boolean append = position == -1 || position == childCount;
+		boolean appendedDetachedLeaves = append && children.stream().allMatch(node ->
+			node.getParent() == null && node.getChildCount() == 0);
+		boolean appendedNumberedLeaves = appendedDetachedLeaves && children.stream().allMatch(Node::hasNumber);
+		boolean appendedUnnumberedLeaves = appendedDetachedLeaves && children.stream().noneMatch(Node::hasNumber);
+		boolean useSuffixRenumber = appendedNumberedLeaves && numberingKnownSequential;
+		int precedingNumber = useSuffixRenumber ? lastNumberBeforeAppend(p) : 0;
 		Map<Object, Object[]> previousParentChildren = new java.util.IdentityHashMap<>();
 		if (isEvent(actionType)) for (Node child : children) {
 			Node previousParent = getParent(child);
@@ -127,7 +144,6 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 
     	int subprojectLevel=getChildrenSubprojectLevel(parent);
 
-		int childCount=p.getChildCount();
     	if (position>childCount){
     		NodeFactory nodeFactory=NodeFactory.getInstance();
     		for (int i=childCount;i<position;i++){
@@ -143,11 +159,58 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     		if (position==-1) p.add(node);
 			else p.insert(node,j++);
        	}
-    	if (isEvent(actionType)){
-    		renumber();
-			fireNodesInserted(this,addDescendants(children/*trees*/), null, actionType, previousParentChildren);
-    	}
+        if (isEvent(actionType)) {
+            if (useSuffixRenumber) renumberFromSuffix(children.get(0), precedingNumber);
+            else if (!appendedUnnumberedLeaves) renumber();
+            fireNodesInserted(this, addDescendants(children/*trees*/), null, actionType, previousParentChildren);
+        } else {
+            // LOAD/SILENT additions can leave arbitrary IDs in the prefix. The next
+            // event append must use the legacy full renumber until validity is restored.
+            numberingKnownSequential = false;
+        }
     }
+
+	/** Finds the last numbered node before children appended to {@code parent}. */
+	private int lastNumberBeforeAppend(Node parent) {
+		Node current = parent.getChildCount() == 0 ? parent : (Node) parent.getChildAt(parent.getChildCount() - 1);
+		while (current.getChildCount() > 0)
+			current = (Node) current.getChildAt(current.getChildCount() - 1);
+		while (current != null && current != root) {
+			if (current.hasNumber()) return Math.toIntExact(((HasKey) current.getImpl()).getId());
+			current = previousPreorderNode(current);
+		}
+		return 0;
+	}
+
+	private Node previousPreorderNode(Node current) {
+		Node previousSibling = (Node) current.getPreviousSibling();
+		if (previousSibling == null) return (Node) current.getParent();
+		while (previousSibling.getChildCount() > 0)
+			previousSibling = (Node) previousSibling.getChildAt(previousSibling.getChildCount() - 1);
+		return previousSibling;
+	}
+
+	/** Reassigns IDs only from an appended leaf batch through the remaining outline suffix. */
+	private void renumberFromSuffix(Node first, int precedingNumber) {
+		int[] number = { precedingNumber };
+		Node branch = first;
+		while (branch != null && branch != root) {
+			visitAll(branch, object -> {
+				Node node = (Node) object;
+				if (node.hasNumber()) ((HasKey) node.getImpl()).setId(++number[0]);
+			});
+			Node current = branch;
+			while (current != null && current != root) {
+				Node nextSibling = (Node) current.getNextSibling();
+				if (nextSibling != null) {
+					branch = nextSibling;
+					break;
+				}
+				current = (Node) current.getParent();
+			}
+			if (current == null || current == root) branch = null;
+		}
+	}
 
     /** Compensation record for one paste: everything attached or registered before a failure can be undone. */
     private static final class PasteJournal {
@@ -417,6 +480,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 				dependency.fireCreateEvent(this);
        		}
        	}
+		else numberingKnownSequential = false;
     }
 
     private Node getParentSubproject(Node node){
@@ -491,10 +555,10 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 				removeSubTree(node, model, toRemove, actionType, removeDependencies);
 				removed.addAll(toRemove);
 	        }
-	    	if (isEvent(actionType)){
-	    		renumber();
-	    		fireNodesRemoved(this,removed.toArray());
-	    	}
+            if (isEvent(actionType)) {
+                renumber();
+                fireNodesRemoved(this, removed.toArray());
+            } else numberingKnownSequential = false;
 	        if (doTransaction)
 	        	model.getDocument().fireMultipleTransaction(transactionId,false);
         }
@@ -535,6 +599,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     }
 
     private void moveCoordinated(Node node,Node newParent,int actionType){
+		numberingKnownSequential = false;
 		setSubprojectLevel(node,getChildrenSubprojectLevel(newParent));
     	newParent.add(node);
 			ArrayList<Node> change = new ArrayList<>(1);
@@ -578,7 +643,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 		if (isEvent(actionType)){
 			renumber();
 			fireNodesChanged(this,addDescendants(branches), null, actionType, previousParentChildren);
-		}
+		} else numberingKnownSequential = false;
 		return true;
 	}
 
@@ -604,6 +669,7 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     	if (doTransaction)
     		transactionId = model.getDocument().fireMultipleTransaction(0,true);
         List<Node> changedParents=internalIndent(nodes,deltaLevel,actionType,previousParentChildren);
+		if (!isEvent(actionType)) numberingKnownSequential = false;
        	if (doTransaction)
     		model.getDocument().fireMultipleTransaction(transactionId,false);
 		if (model.getUndoableEditSupport()!=null&isUndo(actionType)&&changedParents!=null&&changedParents.size()>0){

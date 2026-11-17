@@ -83,10 +83,26 @@ public class AssignmentService {
 		Project commandProject = firstTask.getProject();
 		ResourcePool commandPool = commandProject.getResourcePool();
 		if (commandProject != null && commandPool != null) {
-			commandProject.runAtomicModelCommand(markApplied -> newAssignmentsInternal(taskSnapshot, resourceSnapshot,
-				units, delay, eventSource, undo, markApplied), Boolean.TRUE::equals, ignored -> Boolean.TRUE,
-				List.of(new Project.AdditionalObjectEventManager(commandPool.getObjectEventManager(), commandPool, commandPool,
-					resourceRefreshObjects(resourceSnapshot))));
+			int schedulingTransaction = commandProject.fireMultipleTransaction(0, true);
+			Throwable commandFailure = null;
+			try {
+				commandProject.runAtomicModelCommand(markApplied -> newAssignmentsInternal(taskSnapshot, resourceSnapshot,
+					units, delay, eventSource, undo, markApplied), Boolean.TRUE::equals, ignored -> Boolean.TRUE,
+					List.of(new Project.AdditionalObjectEventManager(commandPool.getObjectEventManager(), commandPool, commandPool,
+						resourceRefreshObjects(resourceSnapshot))));
+			} catch (RuntimeException | Error failure) {
+				commandFailure = failure;
+				throw failure;
+			} finally {
+				// Keep the scheduler suspended through publication of the atomic command's
+				// event batch. BatchUpdate's inner transaction closes before that publication.
+				try {
+					commandProject.fireMultipleTransaction(schedulingTransaction, false);
+				} catch (RuntimeException | Error cleanupFailure) {
+					if (commandFailure == null) throw cleanupFailure;
+					if (cleanupFailure != commandFailure) commandFailure.addSuppressed(cleanupFailure);
+				}
+			}
 			return;
 		}
 		newAssignmentsInternal(taskSnapshot, resourceSnapshot, units, delay, eventSource, undo, null);
