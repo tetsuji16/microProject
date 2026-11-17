@@ -27,21 +27,23 @@ finish-to-start chain through every task, an extra cross link `i-20 -> i` on eve
 per task spread over 50 resources. "Edit" is a +3 day change of the finish of task #5 through
 `ScheduleService.setInterval` (undo-aware), followed by `undo`. A 300-task warm-up run precedes the measurements.
 
-For issue #1178, the harness supports `-Dmicroproject.profile.mode=bulk|sequential`. Bulk mode measures
-phase-sized `NodeModel.add(parent, children, NORMAL)` calls followed by one scheduler initialization,
-`DependencyService.connect` for the sequential links, and grouped `AssignmentService.newAssignments` by resource.
-Sequential mode measures repeated `Project.createLocalTaskNode`, `DependencyService.newDependency`, and
-`AssignmentService.newAssignment` calls. Both modes use the simple sequential chain (without the extra cross links)
-so the link-building paths can be compared directly.
+For issue #1178, the harness supports `-Dmicroproject.profile.mode=bulk|production-batch|sequential`. Bulk and
+production-batch modes measure phase-sized `NodeModel.add(parent, children, NORMAL)` calls followed by one
+scheduler initialization, `DependencyService.connect` for the sequential links, and grouped
+`AssignmentService.newAssignments` by resource. `bulk` adds one explicit `Project.fireMultipleTransaction` around
+the whole synthetic build; `production-batch` omits that unverified whole-build wrapper so each production API
+controls its own transaction boundary. Sequential mode measures repeated `Project.createLocalTaskNode`,
+`DependencyService.newDependency`, and `AssignmentService.newAssignment` calls. All modes use the simple sequential
+chain (without the extra cross links) so the link-building paths can be compared directly.
 
-Scope limitation: bulk mode deliberately opens an outer `Project.fireMultipleTransaction` before creating any
-nodes and closes it after links and assignments. Production call sites found during issue work use
+Scope limitation: only `bulk` opens an outer `Project.fireMultipleTransaction` before creating any nodes and
+closes it after links and assignments. Production call sites found during issue work use
 `MultipleTransaction` at smaller boundaries: hierarchy mutations in `MutableNodeHierarchy`/`DefaultNodeModel`,
 event publication in `Project.publishEventBatchNow`, and grouped resource assignment in
 `AssignmentDialog` → `AssignmentService.newAssignments`. No ordinary user workflow was found that wraps an
-entire project build in one outer transaction. Thus bulk-mode timings below describe a candidate orchestration
-that uses production batch APIs, not an established end-to-end user workflow; sequential mode is the repeated
-single-item comparison. Do not use the bulk results to claim production build near-linearity.
+entire project build in one outer transaction. Thus `bulk` timings below describe an unverified orchestration;
+`production-batch` measures the APIs at their individual boundaries, and sequential mode is the repeated
+single-item comparison. Do not use the `bulk` results to claim production build near-linearity.
 
 ## Environment
 
@@ -69,6 +71,8 @@ issue #1178's near-linear acceptance criterion.
 |------|------:|-------------:|----------:|----------------:|------------:|------------:|-----:|-----:|
 | bulk | 1,000 | 2,197 | 213 | 154 | 2,564 | 25 | 24 | 17 |
 | bulk | 2,000 | 8,563 | 778 | 427 | 9,770 | 25 | 25 | 23 |
+| production-batch | 1,000 | 2,385 | 209 | 710 | 3,306 | 9 | 8 | 7 |
+| production-batch | 2,000 | 9,283 | 778 | 1,596 | 11,658 | 20 | 18 | 17 |
 | sequential | 1,000 | 394 | 7,359 | 6,024 | 13,778 | 9 | 10 | 8 |
 | sequential | 2,000 | 4,947 | 43,477 | 26,678 | 75,103 | 20 | 18 | 17 |
 
@@ -76,6 +80,7 @@ Commands (quote `-D` options in PowerShell so they are passed to Gradle as JVM s
 
 ```
 .\gradlew.bat "-Dmicroproject.profile=true" "-Dmicroproject.profile.mode=bulk" "-Dmicroproject.profile.scales=1000,2000" :microproject_core:test --rerun --tests "*LargeProjectSchedulingProfile*" -i
+.\gradlew.bat "-Dmicroproject.profile=true" "-Dmicroproject.profile.mode=production-batch" "-Dmicroproject.profile.scales=1000,2000" :microproject_core:test --rerun --tests "*LargeProjectSchedulingProfile*" -i
 .\gradlew.bat "-Dmicroproject.profile=true" "-Dmicroproject.profile.mode=sequential" "-Dmicroproject.profile.scales=1000,2000" :microproject_core:test --rerun --tests "*LargeProjectSchedulingProfile*" -i
 ```
 
@@ -83,7 +88,26 @@ A 4k bulk JFR exploratory run (with a temporary, uncommitted recording argument 
 that was later removed because it did not improve measured link time) sampled `Task.markDependentTasks` at 19.44%,
 `AbstractContour.clone` at 14.16%, hierarchy `visitAll` at 8.16%, and `AssociationList.findAssociation` at 3.52%.
 These samples are pointers for further investigation, not proof of the exact nonlinear cause or of a successful
-optimization. A3 remains open.
+optimization. The new `production-batch` profile took 3.306s / 11.658s for 1k / 2k tasks (3.52x total growth);
+its node setup alone was 2.385s / 9.283s (3.89x). This matches the project-wide per-call duration rollback snapshot
+cost described below. A3 remains open.
+
+### Duration setup and snapshot ownership
+
+Every synthetic task is assigned a varying 1–5 day duration after it is connected to the project. Each
+`NormalTask.setDuration` call captures a `ProjectTaskSnapshot` over the entire current task list and a calculation
+state map before applying the change. In this method, the snapshot is command-local failure compensation: it is
+restored if `applyDuration` throws, and is otherwise discarded. It is not the user's undo record. The task-sheet
+workflow separately captures the before state and `ScheduleEdit.postProjectSnapshotEdit` creates/owns the after
+state for undo/redo. Thus profile node setup includes an O(N) rollback snapshot on each of N duration updates,
+which can create O(N²) work independently of the critical-path pass.
+
+An outer scheduling `MultipleTransaction` only suspends critical-path updates; it does not make independent
+`setDuration` commands share an atomic snapshot. Safe snapshot reuse would require an actual batch duration command
+with one whole-batch rollback snapshot and one before/after undo edit, including a defined all-or-nothing failure
+contract. That API is not part of this candidate. Keep the existing varying-duration profile as baseline evidence;
+the `production-batch` mode separately quantifies confirmed bulk API boundaries without the synthetic whole-build
+transaction.
 
 ### Growth order
 

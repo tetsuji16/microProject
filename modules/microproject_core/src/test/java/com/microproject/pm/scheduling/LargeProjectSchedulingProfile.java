@@ -45,9 +45,9 @@ import com.microproject.undo.DataFactoryUndoController;
 /**
  * Opt-in profiling harness for the core scheduler on large synthetic projects.
  * Run with {@code -Dmicroproject.profile=true}; skipped in the normal test task.
-	 * Optional: {@code -Dmicroproject.profile.scales=1000,2000,5000},
-	 * {@code -Dmicroproject.profile.phaseSize=100}, and
-	 * {@code -Dmicroproject.profile.mode=bulk|sequential}. See
+ * Optional: {@code -Dmicroproject.profile.scales=1000,2000,5000},
+ * {@code -Dmicroproject.profile.phaseSize=100}, and
+ * {@code -Dmicroproject.profile.mode=bulk|production-batch|sequential}. See
  * docs/performance/scheduler-large-project-profile.md.
  */
 @EnabledIfSystemProperty(named = "microproject.profile", matches = "true")
@@ -59,16 +59,21 @@ class LargeProjectSchedulingProfile {
 		int phaseSize = Integer.getInteger("microproject.profile.phaseSize", 100);
 		String[] scales = System.getProperty("microproject.profile.scales", "1000,2000,5000").split(",");
 		String mode = System.getProperty("microproject.profile.mode", "bulk");
-		boolean bulk = "bulk".equalsIgnoreCase(mode);
-		if (!bulk && !"sequential".equalsIgnoreCase(mode))
-			throw new IllegalArgumentException("microproject.profile.mode must be bulk or sequential");
+		boolean bulkApis = !"sequential".equalsIgnoreCase(mode);
+		boolean wholeBuildTransaction = "bulk".equalsIgnoreCase(mode);
+		if (!bulkApis && !"sequential".equalsIgnoreCase(mode)
+				|| !wholeBuildTransaction && !"production-batch".equalsIgnoreCase(mode)
+				&& !"sequential".equalsIgnoreCase(mode))
+			throw new IllegalArgumentException("microproject.profile.mode must be bulk, production-batch or sequential");
 		// warm up the JIT on a small project so the first scale is not dominated by class loading
-		run(300, 50, false, bulk);
+		run(300, 50, false, mode);
 		System.out.println("PROFILE mode,tasks,phases,nodesMs,depsMs,assignMs,buildMs,fullRecalcMs,editMs,undoMs");
-		for (String scale : scales) run(Integer.parseInt(scale.trim()), phaseSize, true, bulk);
+		for (String scale : scales) run(Integer.parseInt(scale.trim()), phaseSize, true, mode);
 	}
 
-	private void run(int taskCount, int phaseSize, boolean report, boolean bulk) throws Exception {
+	private void run(int taskCount, int phaseSize, boolean report, String mode) throws Exception {
+		boolean bulkApis = !"sequential".equalsIgnoreCase(mode);
+		boolean wholeBuildTransaction = "bulk".equalsIgnoreCase(mode);
 		long day = CalendarOption.getInstance().getMillisPerDay();
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		ResourcePool pool = ResourcePool.createRourcePool("profile", undo);
@@ -79,8 +84,8 @@ class LargeProjectSchedulingProfile {
 		for (int i = 0; i < RESOURCES; i++) { ResourceImpl r = pool.newResourceInstance(); r.setName("R" + i); resources.add(r); }
 		List<NormalTask> tasks = new ArrayList<>();
 		int phases = (taskCount + phaseSize - 1) / phaseSize;
-		int schedulingTransaction = bulk ? project.fireMultipleTransaction(0, true) : 0;
-		if (bulk) {
+		int schedulingTransaction = wholeBuildTransaction ? project.fireMultipleTransaction(0, true) : 0;
+		if (bulkApis) {
 			List<Node> phaseNodes = new ArrayList<>();
 			for (int p = 0; p < phases; p++) {
 				NormalTask phase = new NormalTask(project);
@@ -116,7 +121,7 @@ class LargeProjectSchedulingProfile {
 			}
 		}
 		long tNodes = System.nanoTime();
-		if (bulk) {
+		if (bulkApis) {
 			// This is the bulk sequential-link operation used by the task-link workflow.
 			DependencyService.getInstance().connect(new ArrayList<>(tasks), this, null);
 		} else {
@@ -124,7 +129,7 @@ class LargeProjectSchedulingProfile {
 				DependencyService.getInstance().newDependency(tasks.get(i - 1), tasks.get(i), DependencyType.FS, 0L, this);
 		}
 		long tDeps = System.nanoTime();
-		if (bulk) {
+		if (bulkApis) {
 			for (int resourceIndex = 0; resourceIndex < resources.size(); resourceIndex++) {
 				List<NormalTask> resourceTasks = new ArrayList<>();
 				for (int i = resourceIndex; i < tasks.size(); i += resources.size())
@@ -136,7 +141,7 @@ class LargeProjectSchedulingProfile {
 			for (int i = 0; i < tasks.size(); i++)
 				AssignmentService.getInstance().newAssignment(tasks.get(i), resources.get(i % RESOURCES), 1D, 0L, this);
 		}
-		if (bulk) project.fireMultipleTransaction(schedulingTransaction, false);
+		if (wholeBuildTransaction) project.fireMultipleTransaction(schedulingTransaction, false);
 		long t1 = System.nanoTime();
 		project.recalculate();
 		long t2 = System.nanoTime();
@@ -152,7 +157,7 @@ class LargeProjectSchedulingProfile {
 		undo.undo();
 		long t4 = System.nanoTime();
 		if (report) {
-			System.out.printf("PROFILE %s,%d,%d,%d,%d,%d,%d,%d,%d,%d (last finish moved: %b, restored: %b)%n", bulk ? "bulk" : "sequential", tasks.size(), phases,
+			System.out.printf("PROFILE %s,%d,%d,%d,%d,%d,%d,%d,%d,%d (last finish moved: %b, restored: %b)%n", mode, tasks.size(), phases,
 				(tNodes - t0) / 1_000_000, (tDeps - tNodes) / 1_000_000, (t1 - tDeps) / 1_000_000, (t1 - t0) / 1_000_000, (t2 - t1) / 1_000_000, (t3 - t2) / 1_000_000, (t4 - t3) / 1_000_000,
 				lastFinishAfter != lastFinishBefore, tasks.get(tasks.size() - 1).getEnd() == lastFinishBefore);
 		}
