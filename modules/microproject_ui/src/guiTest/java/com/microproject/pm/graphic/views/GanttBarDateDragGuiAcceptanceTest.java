@@ -819,13 +819,18 @@ class GanttBarDateDragGuiAcceptanceTest {
 		}
 		assertTrue(barBounds(fixture).width > 0, "the resized bar must remain visible after redraw");
 		long resizedStart = fixture.predecessor.getStart();
+		logScheduleState("after-start-resize", fixture);
+		capture(robot, "gantt-resize-after-start.png");
 		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
+		logScheduleState("after-start-undo", fixture);
 		assertEquals(originalStart, fixture.predecessor.getStart(), "one Undo must restore the original start");
 		assertEquals(originalConstraintType, fixture.predecessor.getConstraintType(),
 			"one Undo must restore the original start constraint");
 		assertEquals(originalConstraintDate, fixture.predecessor.getConstraintDate(),
 			"one Undo must restore the original constraint date");
 		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
+		logScheduleState("after-start-redo", fixture);
+		capture(robot, "gantt-resize-after-start-redo.png");
 		assertEquals(resizedStart, fixture.predecessor.getStart(), "one Redo must restore the resized start");
 		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, fixture.predecessor.getConstraintTypeKind(),
 			"start resize must retain its start constraint after Redo");
@@ -851,6 +856,8 @@ class GanttBarDateDragGuiAcceptanceTest {
 				+ " dragPoint=" + laterDate + " bar=" + barBounds(fixture), failure);
 		}
 		long resizedEnd = fixture.predecessor.getEnd();
+		logScheduleState("after-finish-resize", fixture);
+		capture(robot, "gantt-resize-after-finish.png");
 		assertEquals(resizedStart, fixture.predecessor.getStart(),
 			"finish resize must retain the task start");
 		assertEquals(startConstraintType, fixture.predecessor.getConstraintType(),
@@ -858,6 +865,8 @@ class GanttBarDateDragGuiAcceptanceTest {
 		assertEquals(startConstraintDate, fixture.predecessor.getConstraintDate(),
 			"finish resize must preserve the existing constraint date");
 		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
+		logScheduleState("after-finish-undo", fixture);
+		capture(robot, "gantt-resize-after-finish-undo.png");
 		assertEquals(originalEnd, fixture.predecessor.getEnd(), "one Undo must restore the original finish");
 		assertEquals(startConstraintType, fixture.predecessor.getConstraintType(),
 			"one Undo must preserve the start constraint after finish resize");
@@ -1357,6 +1366,14 @@ class GanttBarDateDragGuiAcceptanceTest {
 			throw new AssertionError("Could not snapshot rendered task intervals on the EDT", exception);
 		}
 		return snapshot.get();
+	}
+
+	private void logScheduleState(String stage, Fixture fixture) {
+		NormalTask task = fixture.predecessor;
+		System.out.println("[GANTT_SCHEDULE_STATE] stage=" + stage + " start=" + task.getStart()
+			+ " end=" + task.getEnd() + " duration=" + task.getDurationMillis()
+			+ " constraintType=" + task.getConstraintType() + " constraintDate=" + task.getConstraintDate()
+			+ " intervals=" + taskIntervals(task) + " splits=" + task.getTaskSplitIntervals());
 	}
 
 	private long totalSplitMillis(List<com.microproject.pm.task.TaskSplitInterval> intervals) {
