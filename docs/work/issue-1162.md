@@ -1,6 +1,6 @@
 # Issue #1162 — ribbon control kinds and activation
 
-Baseline: `a60b3e9df` (master after #1197; #1194 input-value dispatcher is included). Original contract: both kind and activation gap lists empty, #1154 reconciliation complete, and JA/EN 100/125/150% visual evidence. All listed children are closed; their closure does not itself prove the parent criteria.
+Baseline: `093307e` (master after #1198; #1197 and #1194 are included). Original contract: both kind and activation gap lists empty, #1154 reconciliation complete, and JA/EN 100/125/150% visual evidence. All listed children are closed; their closure does not itself prove the parent criteria.
 
 | Criterion | State and evidence |
 |---|---|
