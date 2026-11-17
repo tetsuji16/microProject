@@ -433,7 +433,7 @@ public class GanttInteractor extends GraphInteractor{
 		if (state == SPLIT)
 			LOGGER.info(() -> "Gantt split point dispatched: selected=" + selected + " x=" + x + " x0=" + x0
 				+ " interval=" + selectedInterval);
-		if (selected==null || !hasMeaningfulAction(state == LINK_CREATION, state == SPLIT, dragStartX(), x)) return false;
+		if (selected==null || !hasMeaningfulAction(state == LINK_CREATION, dragStartX(), x)) return false;
     	if (state==BAR_MOVE||state==BAR_MOVE_START||state==BAR_MOVE_END||state==PROGRESS_BAR_MOVE||state==SPLIT){
     		if (!(selected instanceof GraphicNode)) return false;
     		sourceNode=(GraphicNode)selected;
@@ -492,6 +492,8 @@ public class GanttInteractor extends GraphInteractor{
 			break;
 		case SPLIT:
 			operation = TaskScheduleEditIntent.Operation.SPLIT;
+			requestedStart = (long)getCoord().toTime(dragStartX());
+			requestedEnd = (long)getCoord().toTime(x);
 			requestedValue = (long)getCoord().toTime(x);
 			break;
 		default:
@@ -519,8 +521,8 @@ public class GanttInteractor extends GraphInteractor{
 			case PROGRESS:
 				return applyProgressDrag(committedRequestedValue, undoSupport);
 			case SPLIT:
-				return ScheduleService.getInstance().split(this, committedSchedule, committedRequestedValue,
-					committedRequestedValue, undoSupport);
+				return ScheduleService.getInstance().split(this, committedSchedule, intent.requestedStart(),
+					intent.requestedEnd(), undoSupport);
 			default:
 				return false;
 			}
@@ -692,14 +694,12 @@ public class GanttInteractor extends GraphInteractor{
 
 	static boolean hasMeaningfulDrag(boolean linkCreation, double startX, double endX) {
 		// Link creation can be a vertical drag between bars on the same date.
-		return hasMeaningfulAction(linkCreation, false, startX, endX);
+		return hasMeaningfulAction(linkCreation, startX, endX);
 	}
 
-	static boolean hasMeaningfulAction(boolean linkCreation, boolean directPointAction, double startX, double endX) {
-		// Split mode is executed at the clicked date, not dragged from the previous
-		// pointer position.  Its action must not depend on a stale x0 from a prior drag.
+	static boolean hasMeaningfulAction(boolean linkCreation, double startX, double endX) {
 		// A press that barely moves is a click (selection only), never a date edit.
-		return linkCreation || directPointAction || Math.abs(endX - startX) >= dragThresholdPixels();
+		return linkCreation || Math.abs(endX - startX) >= dragThresholdPixels();
 	}
 
 	private boolean createDependencyLink() {

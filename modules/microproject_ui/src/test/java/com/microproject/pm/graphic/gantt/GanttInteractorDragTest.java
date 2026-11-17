@@ -48,19 +48,19 @@ class GanttInteractorDragTest {
 	}
 
 	@Test
-	void splitPointActionIsMeaningfulWithoutPointerMovement() {
-		assertTrue(GanttInteractor.hasMeaningfulAction(false, true, 120.0d, 120.0d));
-		assertFalse(GanttInteractor.hasMeaningfulAction(false, false, 120.0d, 120.0d));
+	void splitActionRequiresDraggingToAResumeDate() {
+		assertFalse(GanttInteractor.hasMeaningfulAction(false, 120.0d, 120.0d),
+			"a click without a resume-date drag must not create a guessed one-day gap");
 	}
 
 	@Test
 	void subThresholdPointerMovementIsAClickAndNeverAnEdit() {
 		int threshold = GanttInteractor.dragThresholdPixels();
 		assertTrue(threshold > 0);
-		assertFalse(GanttInteractor.hasMeaningfulAction(false, false, 120.0d, 120.0d + threshold - 1));
-		assertFalse(GanttInteractor.hasMeaningfulAction(false, false, 120.0d, 120.0d - (threshold - 1)));
-		assertTrue(GanttInteractor.hasMeaningfulAction(false, false, 120.0d, 120.0d + threshold));
-		assertTrue(GanttInteractor.hasMeaningfulAction(false, false, 120.0d, 120.0d - threshold));
+		assertFalse(GanttInteractor.hasMeaningfulAction(false, 120.0d, 120.0d + threshold - 1));
+		assertFalse(GanttInteractor.hasMeaningfulAction(false, 120.0d, 120.0d - (threshold - 1)));
+		assertTrue(GanttInteractor.hasMeaningfulAction(false, 120.0d, 120.0d + threshold));
+		assertTrue(GanttInteractor.hasMeaningfulAction(false, 120.0d, 120.0d - threshold));
 	}
 
 	@Test

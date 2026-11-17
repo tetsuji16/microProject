@@ -878,11 +878,17 @@ class GanttBarDateDragGuiAcceptanceTest {
 				+ " intervals=" + originalIntervals + " end=" + fixture.predecessor.getEnd());
 		Point splitStart = screenPointForTaskDate(fixture, splitAt);
 		long clickedSplitAt = taskDateAt(splitStart);
+		long splitResumeAt = fixture.predecessor.getEffectiveWorkCalendar().add(splitAt,
+			com.microproject.options.CalendarOption.getInstance().getMillisPerDay(), false);
+		assertTrue(splitResumeAt < fixture.predecessor.getEnd(),
+			"resume date must stay inside the original task bar: split=" + splitAt + " resume=" + splitResumeAt
+				+ " end=" + fixture.predecessor.getEnd());
+		Point splitResume = screenPointForTaskDate(fixture, splitResumeAt);
 		List<String> originalAssignmentState = assignmentScheduleStates(fixture.predecessor);
 		assertTaskBarHit(fixture, splitStart);
 		RibbonGuiSupport.clickSplitPrimary(robot,
 			RibbonGuiSupport.findVisibleOrExpand(robot, projectWindow.getRibbonPanel(), "RibbonTaskSplit"));
-		click(robot, splitStart);
+		drag(robot, splitStart, splitResume);
 		try {
 			GuiAcceptanceSupport.await(() -> !fixture.predecessor.getTaskSplitIntervals().equals(originalTaskSplits),
 				"Gantt split gesture did not add a task-owned nonworking interval");
@@ -893,7 +899,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 				+ " after=" + fixture.predecessor.getTaskSplitIntervals()
 				+ " contours before=" + originalContours
 				+ " after=" + assignmentContours(fixture.predecessor)
-				+ " requested=" + splitAt + " clicked=" + clickedSplitAt
+				+ " requested=" + splitAt + " clicked=" + clickedSplitAt + " resume=" + taskDateAt(splitResume)
 				+ " expectedTaskProgress=" + currentProgress
 				+ " assignments before=" + originalAssignmentState
 				+ " after=" + assignmentScheduleStates(fixture.predecessor), failure);
