@@ -96,16 +96,56 @@ class GanttProgressTest {
 			new ProgressLineSettings(false, ProgressLineSettings.ReferenceDate.STATUS_DATE,
 				true, 1, ProgressLineSettings.IntervalUnit.WEEK)));
 
-		expectedCalendar = (java.util.Calendar) startCalendar.clone();
 		java.util.List<Long> expectedMonths = new java.util.ArrayList<>();
 		for (int i = 0; i < 5; i++) {
-			expectedMonths.add(Long.valueOf(expectedCalendar.getTimeInMillis()));
-			expectedCalendar.add(java.util.Calendar.MONTH, 1);
+			java.util.Calendar monthDate = (java.util.Calendar) startCalendar.clone();
+			monthDate.add(java.util.Calendar.MONTH, i);
+			expectedMonths.add(Long.valueOf(monthDate.getTimeInMillis()));
 		}
 		assertEquals(expectedMonths, GanttProgress.progressLineReferenceDates(start,
 			expectedMonths.getLast().longValue(), -1L,
 			new ProgressLineSettings(false, ProgressLineSettings.ReferenceDate.STATUS_DATE,
 				true, 1, ProgressLineSettings.IntervalUnit.MONTH)));
+	}
+
+	@Test
+	void recurringProgressLinesHaveNoTenThousandDateCapAndRespectVisibleBounds() {
+		java.util.Calendar startCalendar = DateTime.calendarInstance();
+		startCalendar.clear();
+		startCalendar.set(2000, java.util.Calendar.JANUARY, 1);
+		long projectStart = startCalendar.getTimeInMillis();
+		java.util.Calendar endCalendar = (java.util.Calendar) startCalendar.clone();
+		endCalendar.add(java.util.Calendar.DAY_OF_MONTH, 10_001);
+		long projectEnd = endCalendar.getTimeInMillis();
+		ProgressLineSettings recurringDaily = new ProgressLineSettings(false,
+			ProgressLineSettings.ReferenceDate.STATUS_DATE, true, 1, ProgressLineSettings.IntervalUnit.DAY);
+		assertEquals(10_002, GanttProgress.progressLineReferenceDates(projectStart, projectEnd, 0L, recurringDaily).size(),
+			"long projects must not silently lose recurring lines after an arbitrary count");
+
+		java.util.Calendar visibleStartCalendar = (java.util.Calendar) startCalendar.clone();
+		visibleStartCalendar.add(java.util.Calendar.DAY_OF_MONTH, 10_000);
+		long visibleStart = visibleStartCalendar.getTimeInMillis();
+		java.util.Calendar visibleEndCalendar = (java.util.Calendar) visibleStartCalendar.clone();
+		visibleEndCalendar.add(java.util.Calendar.DAY_OF_MONTH, 4);
+		long visibleEnd = visibleEndCalendar.getTimeInMillis();
+		assertEquals(java.util.List.of(visibleStart, visibleStart + 86_400_000L),
+			GanttProgress.progressLineReferenceDates(projectStart, projectEnd, 0L, recurringDaily, visibleStart, visibleEnd));
+	}
+
+	@Test
+	void dailyProgressLinesStayCalendarAlignedAcrossDstTransitionDates() {
+		java.util.Calendar startCalendar = DateTime.calendarInstance(); // Project dates use GMT, so local DST cannot shift the interval.
+		startCalendar.clear();
+		startCalendar.set(2026, java.util.Calendar.MARCH, 7);
+		long start = startCalendar.getTimeInMillis();
+		java.util.Calendar endCalendar = (java.util.Calendar) startCalendar.clone();
+		endCalendar.add(java.util.Calendar.DAY_OF_MONTH, 4);
+		var dates = GanttProgress.progressLineReferenceDates(start, endCalendar.getTimeInMillis(), 0L,
+			new ProgressLineSettings(false, ProgressLineSettings.ReferenceDate.STATUS_DATE,
+				true, 1, ProgressLineSettings.IntervalUnit.DAY));
+		assertEquals(5, dates.size());
+		for (int index = 0; index < dates.size(); index++)
+			assertEquals(start + index * 86_400_000L, dates.get(index).longValue(), "GMT daily cadence must remain 24 hours");
 	}
 
 	private static Schedule taskSpecificSchedule(final double percentComplete, final double percentWorkComplete, final boolean wbsParent) {

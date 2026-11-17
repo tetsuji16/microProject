@@ -67,14 +67,37 @@ public final class GanttProgress {
 		return progressLineReferenceDates(project.getStart(), project.getEnd(), currentDate, settings);
 	}
 
+	/** Resolves reference lines that intersect the visible Gantt timescale interval. */
+	public static List<Long> progressLineReferenceDates(Project project, ProgressLineSettings settings,
+		long visibleStart, long visibleEnd) {
+		if (project == null || settings == null)
+			return List.of();
+		long currentDate = settings.referenceDate() == ProgressLineSettings.ReferenceDate.STATUS_DATE
+			? project.getStatusDate() : project.getCurrentDate();
+		if (currentDate <= 0L)
+			currentDate = DateTime.midnightTomorrow() - 1L;
+		return progressLineReferenceDates(project.getStart(), project.getEnd(), currentDate, settings,
+			visibleStart, visibleEnd);
+	}
+
 	static List<Long> progressLineReferenceDates(long projectStart, long projectEnd, long currentDate,
 			ProgressLineSettings settings) {
+		return progressLineReferenceDates(projectStart, projectEnd, currentDate, settings,
+			Long.MIN_VALUE, Long.MAX_VALUE);
+	}
+
+	static List<Long> progressLineReferenceDates(long projectStart, long projectEnd, long currentDate,
+		ProgressLineSettings settings, long visibleStart, long visibleEnd) {
 		if (settings == null)
 			return List.of();
 		LinkedHashSet<Long> dates = new LinkedHashSet<>();
 		if (settings.showCurrentLine() && currentDate > 0L)
 			dates.add(Long.valueOf(currentDate));
 		if (settings.showRecurringLines() && projectStart > 0L && projectEnd >= projectStart) {
+			long rangeStart = Math.max(projectStart, visibleStart);
+			long rangeEnd = Math.min(projectEnd, visibleEnd);
+			if (rangeEnd < rangeStart)
+				return List.copyOf(dates);
 			Calendar date = DateTime.calendarInstance();
 			date.setTimeInMillis(projectStart);
 			int calendarField = switch (settings.recurringIntervalUnit()) {
@@ -82,13 +105,47 @@ public final class GanttProgress {
 				case WEEK -> Calendar.WEEK_OF_YEAR;
 				case MONTH -> Calendar.MONTH;
 			};
-			int count = 0;
-			while (date.getTimeInMillis() <= projectEnd && count++ < 10_000) {
-				dates.add(Long.valueOf(date.getTimeInMillis()));
-				date.add(calendarField, settings.recurringInterval());
+			long unitMillis = switch (settings.recurringIntervalUnit()) {
+				case DAY -> 86_400_000L;
+				case WEEK -> 604_800_000L;
+				case MONTH -> 2_629_746_000L;
+			};
+			long approximateStep = unitMillis * settings.recurringInterval();
+			long index = approximateStep <= 0L ? 0L : Math.max(0L, (rangeStart - projectStart) / approximateStep);
+			long dateMillis = recurringDateAt(projectStart, calendarField, settings.recurringInterval(), index);
+			while (dateMillis < rangeStart) {
+				index++;
+				dateMillis = recurringDateAt(projectStart, calendarField, settings.recurringInterval(), index);
+			}
+			while (index > 0L && dateMillis > rangeStart) {
+				index--;
+				long earlierDate = recurringDateAt(projectStart, calendarField, settings.recurringInterval(), index);
+				if (earlierDate < rangeStart)
+					break;
+				dateMillis = earlierDate;
+			}
+			while (dateMillis <= rangeEnd) {
+				dates.add(Long.valueOf(dateMillis));
+				index++;
+				long nextDate = recurringDateAt(projectStart, calendarField, settings.recurringInterval(), index);
+				if (nextDate <= dateMillis)
+					break;
+				dateMillis = nextDate;
 			}
 		}
 		return List.copyOf(dates);
+	}
+
+	private static long recurringDateAt(long projectStart, int calendarField, int interval, long index) {
+		Calendar date = DateTime.calendarInstance();
+		date.setTimeInMillis(projectStart);
+		long units = index * (long) interval;
+		while (units > Integer.MAX_VALUE) {
+			date.add(calendarField, Integer.MAX_VALUE);
+			units -= Integer.MAX_VALUE;
+		}
+		date.add(calendarField, (int) units);
+		return date.getTimeInMillis();
 	}
 
 	public static long progressLineDate(Schedule schedule, long referenceDate) {

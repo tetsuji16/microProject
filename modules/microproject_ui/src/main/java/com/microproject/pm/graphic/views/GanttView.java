@@ -256,6 +256,9 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		gantt.setDefaultTaskBarColor(documentFrame.getGraphicManager().getPreferences().getDefaultGanttBarColor());
 		gantt.setDefaultMilestoneShape(documentFrame.getGraphicManager().getPreferences().getDefaultMilestoneShape());
 		gantt.setTrackingView(tracking);
+		com.microproject.pm.task.ProgressLineSettings progressLineSettings = project.getProgressLineSettings();
+		if (progressLineSettings != null)
+			setProgressLineEnabled(progressLineSettings.showCurrentLine() || progressLineSettings.showRecurringLines());
 		gantt.setBarStyles((BarStyles) Dictionary.get(BarStyles.category, DEFAULT_GANTT_BAR_STYLE));
 		ganttScrollPane = new ScaledScrollPane(gantt, coord, documentFrame, spreadSheet.getRowHeight());
 		ganttScrollPane.preserveCenterDateOnWidthResize();
@@ -647,11 +650,16 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		applyBarFormat(gantt, ws);
 		setOutlineNumbersVisible(ws.outlineNumbersVisible != null && ws.outlineNumbersVisible.booleanValue());
 		setSummaryTasksVisible(ws.summaryTasksVisible == null || ws.summaryTasksVisible.booleanValue());
-		gantt.setProgressLineEnabled(ws.progressLineEnabled);
+		com.microproject.pm.task.ProgressLineSettings progressLineSettings = project == null
+			? null : project.getProgressLineSettings();
+		boolean progressLineVisible = progressLineSettings == null
+			? ws.progressLineEnabled
+			: progressLineSettings.showCurrentLine() || progressLineSettings.showRecurringLines();
+		gantt.setProgressLineEnabled(progressLineVisible);
 		if (tracking)
-			trackingProgressLineEnabled = ws.progressLineEnabled;
+			trackingProgressLineEnabled = progressLineVisible;
 		else
-			standardProgressLineEnabled = ws.progressLineEnabled;
+			standardProgressLineEnabled = progressLineVisible;
 		ganttScrollPane.restoreWorkspace(ws.scrollPane, context);
 		restoreDividerLocation(ws.dividerLocation);
 	}

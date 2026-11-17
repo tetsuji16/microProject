@@ -1260,10 +1260,14 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			return;
 		Project project = coord.getProject();
 		com.microproject.pm.task.ProgressLineSettings settings = project.getProgressLineSettings();
+		java.awt.Rectangle visibleChart = gantt.getVisibleRect();
+		long visibleStart = visibleChart.width > 0 ? (long) coord.toTime(visibleChart.x) : coord.getOrigin();
+		long visibleEnd = visibleChart.width > 0
+			? (long) coord.toTime(visibleChart.x + visibleChart.width) : coord.getEnd();
 		java.util.List<Long> referenceDates = !gantt.isProgressLineEnabled()
 			? java.util.List.of()
 			: settings == null ? java.util.List.of(Long.valueOf(project.getStatusDate()))
-				: GanttProgress.progressLineReferenceDates(project, settings);
+				: GanttProgress.progressLineReferenceDates(project, settings, visibleStart, visibleEnd);
 		if (referenceDates.isEmpty())
 			return;
 

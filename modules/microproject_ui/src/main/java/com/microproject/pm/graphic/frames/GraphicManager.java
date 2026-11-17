@@ -5564,7 +5564,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		Project project = getCurrentFrame().getProject();
 		com.microproject.pm.task.ProgressLineSettings current = project.getProgressLineSettings();
 		if (current == null)
-			current = com.microproject.pm.task.ProgressLineSettings.defaults();
+			current = new com.microproject.pm.task.ProgressLineSettings(ganttView.isProgressLineEnabled(),
+				com.microproject.pm.task.ProgressLineSettings.ReferenceDate.STATUS_DATE,
+				false, 1, com.microproject.pm.task.ProgressLineSettings.IntervalUnit.WEEK);
 		MenuManager manager = getMenuManager();
 		JCheckBox showReference = new JCheckBox(manager.getString("ProgressLines.showCurrent"), current.showCurrentLine());
 		JRadioButton statusDate = new JRadioButton(manager.getString("ProgressLines.statusDate"),
@@ -5589,10 +5591,45 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		panel.add(new JLabel(manager.getString("ProgressLines.interval")));
 		panel.add(interval);
 		panel.add(unit);
-		int choice = PopupDialogSupport.showConfirmDialog(getFrame(), panel,
-			manager.getString("RibbonToggleProgressLine.text"), JOptionPane.OK_CANCEL_OPTION,
-			JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
-		if (choice != JOptionPane.OK_OPTION)
+		JButton ok = new JButton(UsabilityStrings.text("dialog.ok", "OK"));
+		JButton cancel = new JButton(UsabilityStrings.text("dialog.cancel", "Cancel"));
+		ok.setName("progress-lines-ok");
+		cancel.setName("progress-lines-cancel");
+		JPanel content = new JPanel(new BorderLayout(0, 8));
+		content.setBorder(new EmptyBorder(8, 8, 8, 8));
+		content.add(panel, BorderLayout.CENTER);
+		JPanel buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.TRAILING));
+		buttons.add(ok);
+		buttons.add(cancel);
+		content.add(buttons, BorderLayout.SOUTH);
+		javax.swing.JOptionPane optionPane = new javax.swing.JOptionPane(content,
+			JOptionPane.PLAIN_MESSAGE, JOptionPane.DEFAULT_OPTION);
+		JDialog dialog = optionPane.createDialog(getFrame(), manager.getString("RibbonToggleProgressLine.text"));
+		PopupDialogSupport.bindEscapeToDispose(dialog);
+		dialog.getRootPane().setDefaultButton(ok);
+		int[] choice = { JOptionPane.CANCEL_OPTION };
+		ok.addActionListener(event -> {
+			try {
+				interval.commitEdit();
+			} catch (java.text.ParseException invalidInterval) {
+				PopupDialogSupport.showMessageDialog(dialog, manager.getString("ProgressLines.invalidInterval"),
+					manager.getString("RibbonToggleProgressLine.text"), JOptionPane.ERROR_MESSAGE);
+				interval.requestFocusInWindow();
+				return;
+			}
+			choice[0] = JOptionPane.OK_OPTION;
+			dialog.setVisible(false);
+			dialog.dispose();
+		});
+		cancel.addActionListener(event -> {
+			choice[0] = JOptionPane.CANCEL_OPTION;
+			dialog.setVisible(false);
+			dialog.dispose();
+		});
+		dialog.setAlwaysOnTop(true);
+		dialog.setVisible(true);
+		dialog.setAlwaysOnTop(false);
+		if (choice[0] != JOptionPane.OK_OPTION)
 			return;
 		var updated = new com.microproject.pm.task.ProgressLineSettings(showReference.isSelected(),
 			statusDate.isSelected()
@@ -5609,20 +5646,21 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			return false;
 		com.microproject.pm.task.ProgressLineSettings previous = project.getProgressLineSettings();
 		com.microproject.pm.task.ProgressLineSettings effectivePrevious = previous == null
-			? com.microproject.pm.task.ProgressLineSettings.defaults() : previous;
+			? new com.microproject.pm.task.ProgressLineSettings(ganttView.getGantt().isProgressLineEnabled(),
+				com.microproject.pm.task.ProgressLineSettings.ReferenceDate.STATUS_DATE,
+				false, 1, com.microproject.pm.task.ProgressLineSettings.IntervalUnit.WEEK)
+			: previous;
 		if (effectivePrevious.equals(updated))
 			return false;
 		boolean previousEnabled = ganttView.getGantt().isProgressLineEnabled();
-		project.setProgressLineSettings(updated);
-		project.setDirty(true);
+		mutateProgressLineSettings(project, updated);
 		ganttView.getGantt().setProgressLineEnabled(updated.showCurrentLine() || updated.showRecurringLines());
 		ganttView.getGantt().repaint();
 		if (postUndo && project.getUndoController() != null) {
 			project.getUndoController().getEditSupport().postEdit(new AbstractUndoableEdit() {
 				private static final long serialVersionUID = 1L;
 				private void restore(com.microproject.pm.task.ProgressLineSettings settings, boolean enabled) {
-					project.setProgressLineSettings(settings);
-					project.setDirty(true);
+					mutateProgressLineSettings(project, settings);
 					ganttView.getGantt().setProgressLineEnabled(enabled);
 					ganttView.getGantt().repaint();
 				}
@@ -5636,6 +5674,16 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getCurrentFrame().refreshUndoButtons();
 		syncGanttViewRibbonState();
 		return true;
+	}
+
+	private static void mutateProgressLineSettings(Project project,
+		com.microproject.pm.task.ProgressLineSettings settings) {
+		project.runModelMutation(markApplied -> {
+			markApplied.run();
+			project.setProgressLineSettings(settings);
+			project.setDirty(true);
+			return true;
+		});
 	}
 
 
