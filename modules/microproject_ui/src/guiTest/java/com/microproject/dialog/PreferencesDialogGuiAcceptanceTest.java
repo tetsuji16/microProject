@@ -8,12 +8,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.awt.event.KeyEvent;
+import java.awt.GraphicsConfiguration;
+import java.awt.GraphicsDevice;
 import java.awt.GraphicsEnvironment;
 import java.awt.Component;
+import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
+import java.awt.Toolkit;
 import java.awt.Window;
+import java.awt.geom.AffineTransform;
+import java.awt.image.ColorModel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -76,6 +82,21 @@ class PreferencesDialogGuiAcceptanceTest {
 			if (originalLanguages != null) Settings.LANGUAGES = originalLanguages;
 		});
 		testPreferences = null;
+	}
+
+	@Test
+	void initialSizeUsesTheOwnerMonitorInsteadOfThePrimaryOne() {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GraphicsConfiguration coverage.");
+		GraphicsConfiguration secondary = new SecondaryScreen();
+		Component owner = new Component() {
+			@Override public GraphicsConfiguration getGraphicsConfiguration() { return secondary; }
+		};
+		Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(secondary);
+
+		Rectangle usable = DialogSizing.usableBounds(owner, null);
+
+		assertEquals(new Rectangle(1000 + insets.left, 80 + insets.top,
+			1280 - insets.left - insets.right, 720 - insets.top - insets.bottom), usable);
 	}
 
 	@Test
@@ -453,5 +474,15 @@ class PreferencesDialogGuiAcceptanceTest {
 		Files.createDirectories(directory);
 		javax.imageio.ImageIO.write(robot.createScreenCapture(bounds[0]), "png",
 			directory.resolve(fileName).toFile());
+	}
+
+	/** A second monitor, offset from the primary one, used to prove owner-based sizing. */
+	private static final class SecondaryScreen extends GraphicsConfiguration {
+		@Override public GraphicsDevice getDevice() { return null; }
+		@Override public ColorModel getColorModel() { return ColorModel.getRGBdefault(); }
+		@Override public ColorModel getColorModel(int transparency) { return getColorModel(); }
+		@Override public Rectangle getBounds() { return new Rectangle(1000, 80, 1280, 720); }
+		@Override public AffineTransform getDefaultTransform() { return new AffineTransform(); }
+		@Override public AffineTransform getNormalizingTransform() { return new AffineTransform(); }
 	}
 }

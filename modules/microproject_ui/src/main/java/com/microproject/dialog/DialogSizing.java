@@ -49,7 +49,8 @@ public final class DialogSizing {
 		return new Dimension(Math.min(requested.width, maxWidth), Math.min(requested.height, maxHeight));
 	}
 
-	private static Rectangle usableBounds(Component owner, Window window) {
+	/** Usable bounds of the monitor that owns {@code owner} (falls back to the dialog's monitor). */
+	static Rectangle usableBounds(Component owner, Window window) {
 		GraphicsConfiguration configuration = owner == null ? null : owner.getGraphicsConfiguration();
 		if (configuration == null)
 			configuration = window.getGraphicsConfiguration();

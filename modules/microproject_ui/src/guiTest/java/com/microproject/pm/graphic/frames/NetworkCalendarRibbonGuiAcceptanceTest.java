@@ -142,6 +142,17 @@ class NetworkCalendarRibbonGuiAcceptanceTest {
 		clickCommand(robot, "RibbonCalendarTaskList");
 		GuiAcceptanceSupport.await(() -> onEdt(() -> calendar.getSettings().isTaskListVisible() && !calendar.getTaskListEntries().isEmpty()),
 			"Task List did not show the tasks of the month");
+		onEdt(() -> {
+			com.microproject.pm.graphic.views.DockableProjectToolView view = manager.getCurrentFrame().getCalendarView();
+			javax.swing.JComponent embedded = (javax.swing.JComponent) view.getComponent(0);
+			org.junit.jupiter.api.Assertions.assertSame(calendar.getSettings(),
+				embedded.getClientProperty(com.microproject.dialog.ViewSettingsState.PROPERTY),
+				"the Calendar panel must expose its settings to the workspace");
+			org.junit.jupiter.api.Assertions.assertNotNull(
+				embedded.getClientProperty(com.microproject.dialog.ViewSettingsState.REFRESH_PROPERTY),
+				"restored Calendar settings must be re-applied to the view");
+			return null;
+		});
 	}
 
 	private static <T extends Component> java.util.List<T> find(Container container, Class<T> type) {

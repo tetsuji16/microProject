@@ -12,8 +12,6 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.GraphicsEnvironment;
-import java.awt.Rectangle;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -213,10 +211,9 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		setLayout(new BorderLayout());
 		add(tabs, BorderLayout.CENTER); add(buttons, BorderLayout.SOUTH);
 		pack();
-		Rectangle usableBounds = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
-		Dimension packedSize = getSize();
-		setSize(Math.min(packedSize.width, usableBounds.width), Math.min(packedSize.height, usableBounds.height));
-		setLocationRelativeTo(owner);
+		// The packed size is only an upper bound: clamp it to the owner's monitor
+		// with the same margin and screen insets every other large tool dialog uses.
+		DialogSizing.applyInitialSize(this, new Dimension(), getSize(), owner);
 	}
 
 	private static void addRow(JPanel form, String label, java.awt.Component field) {

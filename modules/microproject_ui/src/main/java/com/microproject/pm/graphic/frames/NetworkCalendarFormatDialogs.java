@@ -189,7 +189,8 @@ final class NetworkCalendarFormatDialogs {
 		for (CalendarViewSettings.TextItem item : CalendarViewSettings.TextItem.values()) {
 			CalendarViewSettings.TextStyle style = settings.getTextStyle(item);
 			String itemText = text.apply("FormatDialog.text." + item.name());
-			JSpinner size = new JSpinner(new SpinnerNumberModel(style.size(), 0, 36, 1));
+			JSpinner size = new JSpinner(new SpinnerNumberModel(style.size(), 0,
+				CalendarViewSettings.MAX_TEXT_SIZE, 1));
 			size.getAccessibleContext().setAccessibleName(itemText + " " + text.apply("FormatDialog.fontSize"));
 			JCheckBox bold = new JCheckBox(text.apply("FormatDialog.bold"), style.bold());
 			bold.getAccessibleContext().setAccessibleName(itemText + " " + text.apply("FormatDialog.bold"));

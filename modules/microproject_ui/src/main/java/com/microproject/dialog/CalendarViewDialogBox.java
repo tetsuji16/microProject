@@ -116,6 +116,8 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 		CalendarViewDialogBox dialog = new CalendarViewDialogBox(owner, project);
 		javax.swing.JPanel panel = PopupDialogSupport.detachContentPanel(dialog, "Calendar view");
 		panel.putClientProperty(DIALOG_PROPERTY, dialog);
+		panel.putClientProperty(ViewSettingsState.PROPERTY, dialog.settings);
+		panel.putClientProperty(ViewSettingsState.REFRESH_PROPERTY, (Runnable) dialog::settingsChanged);
 		return panel;
 	}
 
