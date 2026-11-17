@@ -159,15 +159,15 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
     		if (position==-1) p.add(node);
 			else p.insert(node,j++);
        	}
-    	if (isEvent(actionType)){
-	    	if (useSuffixRenumber) renumberFromSuffix(children.get(0), precedingNumber);
-	    	else if (!appendedUnnumberedLeaves) renumber();
-			fireNodesInserted(this,addDescendants(children/*trees*/), null, actionType, previousParentChildren);
-	    	} else {
-			// LOAD/SILENT additions can leave arbitrary IDs in the prefix. The next
-			// event append must use the legacy full renumber until validity is restored.
-			numberingKnownSequential = false;
-	    	}
+        if (isEvent(actionType)) {
+            if (useSuffixRenumber) renumberFromSuffix(children.get(0), precedingNumber);
+            else if (!appendedUnnumberedLeaves) renumber();
+            fireNodesInserted(this, addDescendants(children/*trees*/), null, actionType, previousParentChildren);
+        } else {
+            // LOAD/SILENT additions can leave arbitrary IDs in the prefix. The next
+            // event append must use the legacy full renumber until validity is restored.
+            numberingKnownSequential = false;
+        }
     }
 
 	/** Finds the last numbered node before children appended to {@code parent}. */
@@ -555,10 +555,10 @@ public class MutableNodeHierarchy extends AbstractMutableNodeHierarchy{
 				removeSubTree(node, model, toRemove, actionType, removeDependencies);
 				removed.addAll(toRemove);
 	        }
-	    	if (isEvent(actionType)){
-	    		renumber();
-	    		fireNodesRemoved(this,removed.toArray());
-	    	} else numberingKnownSequential = false;
+            if (isEvent(actionType)) {
+                renumber();
+                fireNodesRemoved(this, removed.toArray());
+            } else numberingKnownSequential = false;
 	        if (doTransaction)
 	        	model.getDocument().fireMultipleTransaction(transactionId,false);
         }
