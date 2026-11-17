@@ -11,6 +11,7 @@ import java.util.function.Function;
 
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
+import javax.swing.JFormattedTextField;
 import javax.swing.JLabel;
 import javax.swing.JSpinner;
 import javax.swing.SpinnerNumberModel;
@@ -70,6 +71,8 @@ final class ResourceGraphFormatDialogs {
 		JCheckBox availability = new JCheckBox(text.apply("ResourceGraph.dialog.availabilityLine"), settings.isShowAvailabilityLine());
 		String overlapLabel = text.apply("ResourceGraph.dialog.percentBarOverlap");
 		JSpinner overlap = new JSpinner(new SpinnerNumberModel(settings.getPercentBarOverlap(), 0, 100, 10));
+		((JSpinner.DefaultEditor) overlap.getEditor()).getTextField()
+			.setFocusLostBehavior(JFormattedTextField.PERSIST);
 		overlap.getAccessibleContext().setAccessibleName(overlapLabel);
 		JCheckBox reset = new JCheckBox(text.apply("ResourceGraph.dialog.reset"), false);
 		NetworkCalendarFormatDialogs.row(panel, row++, new JLabel(overlapLabel), overlap);
