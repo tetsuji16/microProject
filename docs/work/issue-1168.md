@@ -37,16 +37,16 @@ Draft PR #1203 CI run `44034676132` on clean baseline `c15b635ef` completed 412 
 
 The baseline passed both. The initial #1203 implementation added imported interval provenance to task snapshots and MPO sidecar, but its follow-up `3b9330d34` was initially missed when constructing #1210. That commit disables inferred task gaps when reading MPO's embedded `content.xml` (the native task-split sidecar remains authoritative) and removes the scalar-work clearing that destroyed custom contour bounds. Both fixes are now integrated as `174759b74`.
 
-PR #1210 GUI run `44087707462` failed twice at `U26SpreadsheetInputTransactionGuiAcceptanceTest.robotTypesDurationAndPercentAsOneInputTransaction`: reload returned 16h for the physically entered 10h duration. The preceding master GUI run on `d6ef9b530` passed. The failure was traced to the omitted #1203 follow-up above; the new candidate is being verified. Do not count the earlier GUI failure as cleared until the new run finishes.
+PR #1210 GUI run `44087707462` failed twice at `U26SpreadsheetInputTransactionGuiAcceptanceTest.robotTypesDurationAndPercentAsOneInputTransaction`: reload returned 16h for the physically entered 10h duration. The preceding master GUI run on `d6ef9b530` passed. This was traced to the omitted #1203 follow-up above. On updated head `697c056a49bdd61a6e38756e92e053507e0b7f5b`, GUI acceptance `44091903700` passed, including U-26; Build `44091903710` passed Windows/Linux/macOS.
 
 ## Latest local verification
 
 - `:microproject_core:test --console=plain`: PASS (1,409 tests; 2 skipped) before the exchange-only follow-up; core source is unchanged.
 - `:microproject_exchange:test --console=plain`: PASS (413 tests) before `174759b74`; focused recheck and a full exchange rerun pass after it, including both original regressions, imported/manual/leveling MPO provenance roundtrip, generated two-gap MSPDI import, and cross-assignment union.
 - `build test --console=plain`: PASS on the working tree with `174759b74` (57 tasks; 2m16s).
-- Hosted PR CI before the follow-up: cross-platform Build passed; GUI acceptance failed twice at U-26 10h→16h MPO reload. This candidate is pending a fresh Build/GUI run after the follow-up.
+- Hosted PR CI at head `697c056a49bdd61a6e38756e92e053507e0b7f5b`: Build `44091903710` passed Windows/Linux/macOS; GUI acceptance `44091903700` passed. The earlier U-26 10h→16h failure on `e6997d80c` is resolved by the included #1203 follow-up.
 - Source docs: Microsoft [Task element](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/task-element?view=project-client-odc), [Stop element](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/stop-element?view=project-client-2016), [Tasks schema](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/xml-schema-for-the-tasks-element?view=project-client-2016), [TimephasedData](https://learn.microsoft.com/en-us/office-project/xml-data-interchange/timephaseddata-element?view=project-client-2016), [Task.Split](https://learn.microsoft.com/en-us/office/vba/api/project.task.split). Compatibility conclusions about undocumented encodings remain open/document-derived, not measured MSP behavior.
 
 ## Integration
 
-Push follow-up commit `174759b74` after focused and full local exchange checks, then monitor replacement PR #1210 CI. Keep `Refs #1168` while A3 remains open. Do not close issue #1168 until A3 acceptance is evidenced.
+Replacement PR #1210 is open with `Refs #1168`; #1203 is closed with transfer note. A3 remains open for the stated MSPDI/MPP acceptance. Do not close issue #1168 until A3 is evidenced.
