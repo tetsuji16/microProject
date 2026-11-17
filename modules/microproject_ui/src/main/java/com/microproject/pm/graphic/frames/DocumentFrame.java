@@ -2110,6 +2110,12 @@ public class DocumentFrame extends NamedFrame implements
 			teamPlannerView = new DockableProjectToolView(project, ACTION_DELEGATE_TASKS,
 				TeamPlannerDialogBox.createEmbeddedPanel(getGraphicManager().getFrame(), project));
 			restoreWorkspaceFor(teamPlannerView);
+			TeamPlannerDialogBox planner = getEmbeddedTeamPlannerDialog();
+			if (planner != null)
+				planner.setSelectionListener(() -> {
+					getGraphicManager().syncGanttViewRibbonState();
+					getGraphicManager().setButtonState(getSelectedImpl(), project);
+				});
 		}
 		return teamPlannerView;
 	}

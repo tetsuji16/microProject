@@ -130,6 +130,40 @@ class TimelineTeamPlannerRibbonGuiAcceptanceTest {
 		click(robot, screenBounds(plannerTab));
 		GuiAcceptanceSupport.await(() -> onEdt(plannerTab::isSelected), "Team Planner Format tab click did not select the tab");
 
+		// Microsoft documents individual bar formatting; the selection requirement is a
+		// document-derived rule from https://support.microsoft.com/en-us/project/view-your-team-s-work-with-team-planner.
+		String fillAction = com.microproject.menu.MenuActionConstants.ACTION_TEAM_PLANNER_SELECTED_FILL;
+		String borderAction = com.microproject.menu.MenuActionConstants.ACTION_TEAM_PLANNER_SELECTED_BORDER;
+		GuiAcceptanceSupport.await(() -> onEdt(() -> !manager.getAction(fillAction).isEnabled()
+			&& !manager.getAction(borderAction).isEnabled()), "selected-bar commands must be disabled without a selection");
+		Component canvas = onEdt(() -> find(window, javax.swing.JComponent.class).stream()
+			.filter(component -> component.getClass().getSimpleName().equals("TeamPlannerCanvas"))
+			.findFirst().orElseThrow());
+		java.awt.Point slot = onEdt(() -> {
+			javax.swing.JComponent component = (javax.swing.JComponent) canvas;
+			java.awt.Rectangle visible = component.getVisibleRect();
+			for (int y = visible.y; y < visible.y + visible.height; y += 3)
+				for (int x = visible.x; x < visible.x + visible.width; x += 3) {
+					String tip = component.getToolTipText(new java.awt.event.MouseEvent(component,
+						java.awt.event.MouseEvent.MOUSE_MOVED, System.currentTimeMillis(), 0, x, y, 0, false));
+					if (tip != null && tip.contains("Usage task")) {
+						java.awt.Point location = component.getLocationOnScreen();
+						return new java.awt.Point(location.x + x, location.y + y);
+					}
+				}
+			return null;
+		});
+		org.junit.jupiter.api.Assertions.assertNotNull(slot, "a visible Team Planner task bar is required");
+		robot.mouseMove(slot.x, slot.y);
+		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		GuiAcceptanceSupport.await(() -> onEdt(() -> !planner.getSelectedTasks().isEmpty()
+			&& manager.getAction(fillAction).isEnabled() && manager.getAction(borderAction).isEnabled()),
+			"physically selecting a task bar must enable both selected-bar commands");
+		onEdt(() -> { planner.selectTasks(java.util.List.of()); return null; });
+		GuiAcceptanceSupport.await(() -> onEdt(() -> !manager.getAction(fillAction).isEnabled()
+			&& !manager.getAction(borderAction).isEnabled()), "clearing the selection must disable selected-bar commands");
+
 		boolean grid = onEdt(() -> planner.getSettings().isGridlines());
 		clickCommand(robot, "RibbonTeamPlannerGridlines");
 		GuiAcceptanceSupport.await(() -> onEdt(() -> planner.getSettings().isGridlines() != grid), "Gridlines did not toggle");

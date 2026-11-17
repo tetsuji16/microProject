@@ -74,6 +74,7 @@ import com.microproject.util.MarkupEscape;
 public final class TeamPlannerDialogBox extends FlatLafDialog {
 	private static final long serialVersionUID = 1L;
 	private final Project project;
+	private Runnable selectionListener = () -> { };
 	private final TeamPlannerCanvas canvas;
 	private final TeamPlannerViewSettings settings = new TeamPlannerViewSettings();
 	private final DefaultListModel<String> unassignedModel = new DefaultListModel<>();
@@ -94,7 +95,7 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 		getAccessibleContext().setAccessibleDescription(UsabilityStrings.text("team.hint"));
 		PopupDialogSupport.bindEscapeToDispose(this);
 		this.project = project;
-		this.canvas = new TeamPlannerCanvas(project, settings);
+		this.canvas = new TeamPlannerCanvas(project, settings, () -> selectionListener.run());
 		buildUi();
 	}
 
@@ -161,6 +162,9 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 	/** Tasks whose bars the user has selected on the planner. */
 	public List<Task> getSelectedTasks() { return canvas.selectedTasks(); }
 
+	/** Receives selection changes from the embedded planner. */
+	public void setSelectionListener(Runnable listener) { selectionListener = listener == null ? () -> { } : listener; }
+
 	/** Selects the bars of the given tasks. */
 	public void selectTasks(List<Task> tasks) { canvas.select(tasks); }
 
@@ -199,6 +203,7 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 		private static final long DAY = 24L * 60L * 60L * 1000L;
 		private final Project project;
 		private final TeamPlannerViewSettings settings;
+		private final Runnable selectionListener;
 		private final Set<Task> selection = Collections.newSetFromMap(new IdentityHashMap<>());
 		private int[] rowTops = new int[0];
 		private int[] rowHeights = new int[0];
@@ -216,9 +221,10 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 		private Point dragOrigin;
 		private Point dragPoint;
 
-		TeamPlannerCanvas(Project project, TeamPlannerViewSettings settings) {
+		TeamPlannerCanvas(Project project, TeamPlannerViewSettings settings, Runnable selectionListener) {
 			this.project = project;
 			this.settings = settings;
+			this.selectionListener = selectionListener;
 			setOpaque(true);
 		setBackground(FlatUiSupport.dataSurfaceBackground());
 			setToolTipText("");
@@ -232,6 +238,7 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 					} else if (!event.isControlDown()) {
 						selection.clear();
 					}
+					selectionListener.run();
 					repaint();
 					dragOrigin = event.getPoint();
 					dragPoint = event.getPoint();
@@ -297,6 +304,7 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 		void select(List<Task> tasks) {
 			selection.clear();
 			selection.addAll(tasks);
+			selectionListener.run();
 			repaint();
 		}
 
