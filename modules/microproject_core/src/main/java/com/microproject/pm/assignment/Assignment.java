@@ -203,6 +203,13 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	public boolean isReadOnly() {
 		return getTask().isReadOnly();
 	}
+
+	/** Assignment-specific notes; copied with the assignment detail for undo. */
+	public String getNotes() { return detail.getNotes(); }
+
+	public void setNotes(String notes) {
+		if (!java.util.Objects.equals(detail.getNotes(), notes)) newDetail().setNotes(notes);
+	}
 	public boolean isExternal() {
 		return getTask().isExternal();
 	}

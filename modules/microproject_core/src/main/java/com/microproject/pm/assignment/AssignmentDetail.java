@@ -95,6 +95,11 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 	private WorkingCalendar baselineCalendar = null; // only applies if this is a baseline
 	// Kept out of Java serialization so the frozen POD object descriptor/wire remains unchanged.
 	private transient AssignmentLevelingSplitState levelingSplitState;
+	// POD is a frozen legacy format; assignment notes are persisted via MPO/MSPDI.
+	private transient String notes;
+
+	String getNotes() { return notes; }
+	void setNotes(String notes) { this.notes = notes; }
 	/**
 	 * @return Returns the percentComplete.
 	 */
@@ -1142,6 +1147,7 @@ public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable,
 		target.requestDemandType = requestDemandType;
 		target.costRateIndex = costRateIndex;
 		target.overtimeWork = overtimeWork;
+		target.notes = notes;
 		target.baselineCalendar = baselineCalendar == null ? null : baselineCalendar.copyForBaselineSnapshot();
 		target.levelingSplitState = levelingSplitState == null ? null : new AssignmentLevelingSplitState(
 			levelingSplitState.beforeContourCopy(), levelingSplitState.beforeDuration(),
