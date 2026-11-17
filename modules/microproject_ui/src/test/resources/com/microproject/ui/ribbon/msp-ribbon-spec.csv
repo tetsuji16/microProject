@@ -52,6 +52,7 @@ Task,Schedule,Mark on Track,RibbonMarkOnTrack,REQUIRED,S3
 Task,Schedule,Update Tasks,RibbonUpdateTasks,REQUIRED,S3
 Task,Schedule,Link Tasks,RibbonLink,REQUIRED,S6
 Task,Schedule,Unlink Tasks,RibbonUnlink,REQUIRED,S6
+Task,Schedule,Split Task,RibbonTaskSplit,REQUIRED,S6
 Task,Schedule,Respect Links,RibbonRespectLinks,REQUIRED,S7
 Task,Schedule,Indent,RibbonIndent,REQUIRED,S27
 Task,Schedule,Outdent,RibbonOutdent,REQUIRED,S27

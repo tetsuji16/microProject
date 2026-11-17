@@ -2145,7 +2145,7 @@ class RibbonButtonBehaviorTest {
 			"RibbonCollapse",
 			"RibbonLink",
 			"RibbonUnlink",
-			"RibbonRespectLinks");
+			"RibbonRespectLinks", "RibbonTaskSplit");
 		add(map, Strategy.STRUCTURAL_ONLY, "RibbonFormatPainter");
 		// Ribbon remaining groups (#1166): behavior asserted in SpreadSheetFillPlanTest / TaskFormatPainterServiceTest.
 		add(map, Strategy.STRUCTURAL_ONLY,

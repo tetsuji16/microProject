@@ -229,7 +229,6 @@ class MspRibbonOrderDiffTest {
 		Map.entry("TabNetworkDiagramFormat/NetworkDiagramAlignMenu", NO_FREE_PLACEMENT),
 		Map.entry("TabResourceGraphFormat/GraphLabel",
 			"static caption of the Graph gallery; the Graph menu button carries its own caption"),
-		Map.entry("TabTask/TaskSplit", "requires task split model; tracked separately"),
 		Map.entry("TabTask/DeliverablesMenu", ONLINE + " (deliverables)"),
 		Map.entry("TabResource/AddEngagement", "scope exclusion: " + ONLINE + " (engagements)"),
 		Map.entry("TabReportOverview/CreateNewReportMenu",
