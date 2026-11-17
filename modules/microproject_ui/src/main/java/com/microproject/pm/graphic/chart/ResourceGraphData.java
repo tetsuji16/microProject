@@ -21,8 +21,13 @@ public final class ResourceGraphData {
 	/** Milliseconds in one hour: work is held in milliseconds. */
 	static final double HOUR = 3_600_000D;
 	/** One constant-units segment from an assignment's timephased contour. */
-	static record AllocationInterval(long start, long end, double units) { }
+	static record AllocationInterval(long start, long end, double units, Object group) {
+		AllocationInterval(long start, long end, double units) { this(start, end, units, null); }
+	}
 	private record UnitChange(long time, double delta) { }
+	private record OverallocationChange(long time, Object group, double loadDelta, double selectedDelta, double availabilityDelta) { }
+	private record GroupLoad(double load, double selected, double capacity) { }
+	static record PeakOverallocated(double[] total, double[] selected) { }
 
 	/** Highest simultaneous units in each half-open display period. */
 	static double[] peakUnits(long[] starts, long[] ends, List<AllocationInterval> intervals) {
@@ -39,20 +44,88 @@ public final class ResourceGraphData {
 	/** Highest positive load above actual availability at any instant in each display period. */
 	static double[] peakOverallocatedUnits(long[] starts, long[] ends, List<AllocationInterval> allocations,
 			List<AllocationInterval> availability) {
-		List<UnitChange> events = new ArrayList<>((allocations.size() + availability.size()) * 2);
-		addEvents(events, allocations, 1D);
-		addEvents(events, availability, -1D);
-		return peakFromEvents(starts, ends, events);
+		return peakOverallocatedUnits(starts, ends, allocations, List.of(), availability).total();
 	}
 
-	private static void addEvents(List<UnitChange> events, List<AllocationInterval> intervals, double sign) {
-		for (AllocationInterval interval : intervals) {
-			if (interval.end() > interval.start() && interval.units() > 0D) {
-				double units = sign * interval.units();
-				events.add(new UnitChange(interval.start(), units));
-				events.add(new UnitChange(interval.end(), -units));
+	/** Computes total overload and selected-task overload from the same simultaneous load/capacity sweep. */
+	static PeakOverallocated peakOverallocatedUnits(long[] starts, long[] ends, List<AllocationInterval> allocations,
+			List<AllocationInterval> selectedAllocations, List<AllocationInterval> availability) {
+		List<OverallocationChange> events = new ArrayList<>((allocations.size() + selectedAllocations.size() + availability.size()) * 2);
+		addOverallocationEvents(events, allocations, 1);
+		addOverallocationEvents(events, selectedAllocations, 2);
+		addOverallocationEvents(events, availability, 3);
+		events.sort(Comparator.comparingLong(OverallocationChange::time));
+		events.sort(Comparator.comparingLong(OverallocationChange::time));
+		List<Long> times = new ArrayList<>();
+		List<Double> totalAtChange = new ArrayList<>();
+		List<Double> selectedAtChange = new ArrayList<>();
+		java.util.Map<Object, GroupLoad> current = new java.util.HashMap<>();
+		double total = 0D;
+		double selectedTotal = 0D;
+		for (int i = 0; i < events.size();) {
+			long time = events.get(i).time();
+			java.util.Map<Object, double[]> deltas = new java.util.HashMap<>();
+			while (i < events.size() && events.get(i).time() == time) {
+				OverallocationChange event = events.get(i++);
+				double[] delta = deltas.computeIfAbsent(event.group(), ignored -> new double[3]);
+				delta[0] += event.loadDelta();
+				delta[1] += event.selectedDelta();
+				delta[2] += event.availabilityDelta();
+			}
+			for (var entry : deltas.entrySet()) {
+				Object group = entry.getKey();
+				GroupLoad before = current.getOrDefault(group, new GroupLoad(0D, 0D, 0D));
+				double beforeExcess = Math.max(0D, before.load() - before.capacity());
+				total -= beforeExcess;
+				selectedTotal -= Math.min(beforeExcess, Math.max(0D, before.selected()));
+				double[] delta = entry.getValue();
+				GroupLoad after = new GroupLoad(before.load() + delta[0], before.selected() + delta[1], before.capacity() + delta[2]);
+				current.put(group, after);
+				double afterExcess = Math.max(0D, after.load() - after.capacity());
+				total += afterExcess;
+				selectedTotal += Math.min(afterExcess, Math.max(0D, after.selected()));
+			}
+			times.add(time);
+			totalAtChange.add(total);
+			selectedAtChange.add(selectedTotal);
+		}
+		double[] totalPeaks = new double[starts.length];
+		double[] selectedPeaks = new double[starts.length];
+		for (int p = 0; p < starts.length; p++) {
+			int first = upperBoundTimes(times, starts[p]);
+			int previous = first - 1;
+			totalPeaks[p] = previous < 0 ? 0D : totalAtChange.get(previous);
+			selectedPeaks[p] = previous < 0 ? 0D : selectedAtChange.get(previous);
+			for (int i = first; i < times.size() && times.get(i) < ends[p]; i++) {
+				totalPeaks[p] = Math.max(totalPeaks[p], totalAtChange.get(i));
+				selectedPeaks[p] = Math.max(selectedPeaks[p], selectedAtChange.get(i));
 			}
 		}
+		return new PeakOverallocated(totalPeaks, selectedPeaks);
+	}
+
+	private static void addOverallocationEvents(List<OverallocationChange> events, List<AllocationInterval> intervals, int kind) {
+		for (AllocationInterval interval : intervals) {
+			if (interval.end() > interval.start() && interval.units() > 0D) {
+				double units = interval.units();
+				double loadDelta = kind == 1 ? units : 0D;
+				double selectedDelta = kind == 2 ? units : 0D;
+				double availabilityDelta = kind == 3 ? units : 0D;
+				events.add(new OverallocationChange(interval.start(), interval.group(), loadDelta, selectedDelta, availabilityDelta));
+				events.add(new OverallocationChange(interval.end(), interval.group(), -loadDelta, -selectedDelta, -availabilityDelta));
+			}
+		}
+	}
+
+	private static int upperBoundTimes(List<Long> changes, long time) {
+		int low = 0;
+		int high = changes.size();
+		while (low < high) {
+			int middle = (low + high) >>> 1;
+			if (changes.get(middle) <= time) low = middle + 1;
+			else high = middle;
+		}
+		return low;
 	}
 
 	private static double[] peakFromEvents(long[] starts, long[] ends, List<UnitChange> events) {
@@ -177,6 +250,14 @@ public final class ResourceGraphData {
 	static ResourceGraphData compute(GraphType type, long[] dates, double[] total, double[] selected, double[] availability,
 			double[] totalCost, double[] selectedCost, double unitScale, boolean stackSelected, double[] peakTotal,
 			double[] peakSelected, double[] peakOverallocated) {
+		return compute(type, dates, total, selected, availability, totalCost, selectedCost, unitScale, stackSelected,
+			peakTotal, peakSelected, peakOverallocated, null);
+	}
+
+	/** Computes graph data with exact total and selected overload values when supplied. */
+	static ResourceGraphData compute(GraphType type, long[] dates, double[] total, double[] selected, double[] availability,
+			double[] totalCost, double[] selectedCost, double unitScale, boolean stackSelected, double[] peakTotal,
+			double[] peakSelected, double[] peakOverallocated, double[] peakSelectedOverallocated) {
 		int n = dates == null ? 0 : dates.length;
 		double scale = unitScale > 0D ? unitScale : 1D;
 		double[] t = fit(total, n);
@@ -185,6 +266,7 @@ public final class ResourceGraphData {
 		double[] tc = fit(totalCost, n);
 		double[] sc = fit(selectedCost, n);
 		double[] exactOverallocated = peakOverallocated == null ? null : fit(peakOverallocated, n);
+		double[] exactSelectedOverallocated = peakSelectedOverallocated == null ? null : fit(peakSelectedOverallocated, n);
 		double[] excess = new double[n];
 		double[] excessSelected = new double[n];
 		for (int i = 0; i < n; i++) {
@@ -276,7 +358,8 @@ public final class ResourceGraphData {
 						? Math.max(0D, filtered[i] - a[i] / scale)
 						: Math.max(0D, exactOverallocated[i]);
 					overFiltered[i] = over;
-					overResource[i] = Math.min(over, resource[i]);
+					overResource[i] = exactSelectedOverallocated == null ? Math.min(over, resource[i])
+						: Math.max(0D, exactSelectedOverallocated[i]);
 				}
 				line = divide(a, scale);
 			}

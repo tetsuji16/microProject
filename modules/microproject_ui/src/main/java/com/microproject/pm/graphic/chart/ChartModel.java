@@ -265,15 +265,18 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 		double[] peakTotal = null;
 		double[] peakSelected = null;
 		double[] peakOverallocated = null;
+		double[] peakSelectedOverallocated = null;
 		if (!cost && type == ResourceGraphSettings.GraphType.PEAK_UNITS) {
 			long[] ends = periodEnds(coord.getProjectTimeIterator(), n);
 			peakTotal = exactPeakUnits(project.getTaskOutlineIterator(), resources, dates, ends);
 			peakSelected = exactPeakUnits(tasks == null ? null : tasks.iterator(), resources, dates, ends);
-			peakOverallocated = exactPeakOverallocatedUnits(project, resources, dates, ends);
+			ResourceGraphData.PeakOverallocated overload = exactPeakOverallocatedUnits(project, tasks, resources, dates, ends);
+			peakOverallocated = overload.total();
+			peakSelectedOverallocated = overload.selected();
 		}
 		resourceGraph = ResourceGraphData.compute(type, dates, cost ? null : totalValues, cost ? null : selectedValues,
 			availabilityValues, cost ? totalValues : null, cost ? selectedValues : null, getScaleFactor(WORK), selectedOnTop,
-			peakTotal, peakSelected, peakOverallocated);
+			peakTotal, peakSelected, peakOverallocated, peakSelectedOverallocated);
 	}
 
 	/** Computes the exact simultaneous assignment units in each graph period from the work contours. */
@@ -303,7 +306,7 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 					double units = Math.max(0D, bucket.getEffectiveUnits(assignment.getUnits()));
 					if (units > 0D && generator.currentStart() < generator.currentEnd())
 						addWorkingIntervals(intervals, assignment.getEffectiveWorkCalendar(), generator.currentStart(),
-							generator.currentEnd(), units);
+							generator.currentEnd(), units, assignment.getResource());
 				}
 			}
 		}
@@ -312,14 +315,20 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 
 	/** Computes the exact peak load above resource capacity at matching work instants in each period. */
 	static double[] exactPeakOverallocatedUnits(Project project, List<Resource> resources, long[] starts, long[] ends) {
+		return exactPeakOverallocatedUnits(project, null, resources, starts, ends).total();
+	}
+
+	static ResourceGraphData.PeakOverallocated exactPeakOverallocatedUnits(Project project, List<?> tasks,
+			List<Resource> resources, long[] starts, long[] ends) {
 		if (starts.length == 0 || ends.length == 0)
-			return new double[starts.length];
+			return new ResourceGraphData.PeakOverallocated(new double[starts.length], new double[starts.length]);
 		List<ResourceGraphData.AllocationInterval> loads = allocationIntervals(project.getTaskOutlineIterator(), resources);
+		List<ResourceGraphData.AllocationInterval> selectedLoads = allocationIntervals(tasks == null ? null : tasks.iterator(), resources);
 		List<ResourceGraphData.AllocationInterval> capacities = new ArrayList<>();
 		List<Resource> capacityResources = resources == null ? project.getResourcePool().getResourceList() : resources;
 		for (Resource resource : capacityResources)
 			addResourceCapacityIntervals(capacities, project, resource, starts[0], ends[ends.length - 1]);
-		return ResourceGraphData.peakOverallocatedUnits(starts, ends, loads, capacities);
+		return ResourceGraphData.peakOverallocatedUnits(starts, ends, loads, selectedLoads, capacities);
 	}
 
 	private static void addResourceCapacityIntervals(List<ResourceGraphData.AllocationInterval> target, Project project,
@@ -357,7 +366,7 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 					double units = value instanceof Availability availability
 						? availability.getMaximumUnits() : resource.getMaximumUnits();
 					if (units > 0D)
-						target.add(new ResourceGraphData.AllocationInterval(segmentStart, segmentEnd, units));
+						target.add(new ResourceGraphData.AllocationInterval(segmentStart, segmentEnd, units, resource));
 				}
 			}
 		}
@@ -373,7 +382,7 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 
 	/** Intersects a contour bucket's wall-clock span with the assignment's effective working calendar. */
 	private static void addWorkingIntervals(List<ResourceGraphData.AllocationInterval> target, WorkCalendar calendar,
-			long from, long to, double units) {
+			long from, long to, double units, Resource resource) {
 		if (calendar == null || from >= to)
 			return;
 		com.microproject.pm.calendar.CalendarDefinition definition = calendar.getConcreteInstance();
@@ -389,7 +398,7 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 				long activeStart = Math.max(from, workingStart);
 				long activeEnd = Math.min(to, workingEnd);
 				if (activeEnd > activeStart)
-					target.add(new ResourceGraphData.AllocationInterval(activeStart, activeEnd, units));
+					target.add(new ResourceGraphData.AllocationInterval(activeStart, activeEnd, units, resource));
 			}
 		}
 	}

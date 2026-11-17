@@ -77,6 +77,32 @@ class ResourceGraphDataTest {
 	}
 
 	@Test
+	void selectedOverloadUsesTheSameInstantAndResourceWithoutCrossResourceCapacityCancellation() {
+		List<ResourceGraphData.AllocationInterval> loads = List.of(
+			new ResourceGraphData.AllocationInterval(0, 5, 2D, "A"),
+			new ResourceGraphData.AllocationInterval(5, 10, 0.5D, "B"));
+		List<ResourceGraphData.AllocationInterval> selected = List.of(
+			new ResourceGraphData.AllocationInterval(5, 10, 0.5D, "B"));
+		List<ResourceGraphData.AllocationInterval> capacities = List.of(
+			new ResourceGraphData.AllocationInterval(0, 10, 1D, "A"),
+			new ResourceGraphData.AllocationInterval(0, 10, 1D, "B"));
+		var peaks = ResourceGraphData.peakOverallocatedUnits(new long[] { 0 }, new long[] { 10 }, loads, selected, capacities);
+		assertArrayEquals(new double[] { 1D }, peaks.total(), DELTA,
+			"resource B's unused capacity cannot cancel resource A's overload");
+		assertArrayEquals(new double[] { 0D }, peaks.selected(), DELTA,
+			"selected load is active only after the unselected overload has ended");
+
+		List<ResourceGraphData.AllocationInterval> simultaneousLoads = List.of(
+			new ResourceGraphData.AllocationInterval(0, 10, 1.5D, "A"),
+			new ResourceGraphData.AllocationInterval(0, 10, 1.5D, "B"));
+		var simultaneous = ResourceGraphData.peakOverallocatedUnits(new long[] { 0 }, new long[] { 10 },
+			simultaneousLoads, simultaneousLoads, capacities);
+		assertArrayEquals(new double[] { 1D }, simultaneous.total(), DELTA,
+			"simultaneous individual overloads add across resources");
+		assertArrayEquals(new double[] { 1D }, simultaneous.selected(), DELTA);
+	}
+
+	@Test
 	void finalPeakPeriodUsesTheNextRealMonthBoundaryAcrossMarchClockChangeDate() {
 		TimeScale monthly = new TimeScale();
 		monthly.setCalendarField1(Calendar.MONTH);
@@ -138,6 +164,39 @@ class ResourceGraphDataTest {
 		for (int i = 0; i < bars.getItemCount(0); i++)
 			plottedPeak = Math.max(plottedPeak, bars.getEndYValue(0, i));
 		assertEquals(2D, plottedPeak, DELTA, "the chart renderer must receive the exact Peak Units result");
+	}
+
+	@Test
+	void selectedResourceGraphOverloadDoesNotCombinePeaksFromDifferentResourcesOrTimes() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("resource-graph-selected-overload-test", undo);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		ResourceImpl overloadedResource = (ResourceImpl) pool.createScriptedResource();
+		overloadedResource.setName("Overloaded earlier");
+		overloadedResource.setMaximumUnits(0.5D);
+		ResourceImpl selectedResource = (ResourceImpl) pool.createScriptedResource();
+		selectedResource.setName("Selected later");
+		for (int i = 0; i < 2; i++) {
+			NormalTask task = project.createScriptedTask();
+			task.setName("Concurrent overload " + i);
+			task.setDuration(CalendarOption.getInstance().getMillisPerDay());
+			AssignmentService.getInstance().newAssignment(task, overloadedResource, 1D, 0L, this);
+		}
+		NormalTask selectedTask = project.createScriptedTask();
+		selectedTask.setName("Selected allocation without overload");
+		selectedTask.setDuration(CalendarOption.getInstance().getMillisPerDay());
+		var selectedAssignment = AssignmentService.getInstance().newAssignment(selectedTask, selectedResource, 0.5D, 0L, this);
+		selectedAssignment.setDelay(4L * CalendarOption.getInstance().getMillisPerDay());
+		project.recalculate();
+		ChartModel model = new ChartModel(new CoordinatesConverter(project));
+		model.computeResourceGraph(project, List.of(selectedTask), List.of(overloadedResource, selectedResource),
+			new ResourceGraphSettings(), false);
+		ResourceGraphData graph = model.getResourceGraph();
+		assertTrue(java.util.Arrays.stream(graph.getSeries(Item.OVERALLOCATED_FILTERED).y()).max().orElse(0D) > 0D,
+			"the earlier resource's true overload must remain visible");
+		assertEquals(0D, java.util.Arrays.stream(graph.getSeries(Item.OVERALLOCATED_RESOURCE).y()).max().orElse(0D), DELTA,
+			"the selected resource/task has no overload, even though another resource peaks in the same display period");
 	}
 
 	@Test
