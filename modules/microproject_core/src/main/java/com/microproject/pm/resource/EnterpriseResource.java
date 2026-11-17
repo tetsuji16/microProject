@@ -1162,14 +1162,14 @@ public class EnterpriseResource implements Resource {
 	public void setAuthorizedRoles(Set<Integer> authorizedRoles) {
 		this.authorizedRoles = authorizedRoles;
 	}
-	public void filterRoles(List keys,List values){
+	public <T> void filterRoles(List<T> keys,List<?> values){
 		if (authorizedRoles==null) return;
-		Iterator<Object> keyIterator = keys.iterator();
-		Iterator<Integer> roleIterator = ((List<Integer>) values).iterator();
-		Object inactiveKey=null;
+		Iterator<T> keyIterator = keys.iterator();
+		Iterator<?> roleIterator = values.iterator();
+		T inactiveKey=null;
 		while (roleIterator.hasNext()) {
-			Object key = keyIterator.next();
-			int r = roleIterator.next();
+			T key = keyIterator.next();
+			int r = (Integer) roleIterator.next();
 			if (r==ApplicationUser.INACTIVE) inactiveKey=key;
 			if ((r==ApplicationUser.INACTIVE&&getAssignments().size()>0)||
 					!authorizedRoles.contains(r)) keyIterator.remove();

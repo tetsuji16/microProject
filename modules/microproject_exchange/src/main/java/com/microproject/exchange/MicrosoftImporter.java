@@ -397,7 +397,7 @@ public class MicrosoftImporter extends FileImporter {
 		return true;
 	}
 
-	protected void retrieveResourcesForMerge(List existingResources) throws Exception{
+	protected void retrieveResourcesForMerge(List<?> existingResources) throws Exception{
 
 	}
 

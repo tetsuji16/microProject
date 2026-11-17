@@ -936,7 +936,7 @@ public class ResourceImpl implements Resource, HasAvailability, HasResourceIndic
 	public void setAuthorizedRoles(Set<Integer> authorizedRoles) {
 		globalResource.setAuthorizedRoles(authorizedRoles);
 	}
-	public void filterRoles(List keys,List values){
+	public <T> void filterRoles(List<T> keys,List<?> values){
 		globalResource.filterRoles(keys, values);
 	}
 
