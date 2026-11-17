@@ -6231,6 +6231,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		previousNewLook = Environment.isNewLook();
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
+		Environment.setClientSide(true);
+		Environment.setBatchMode(false);
+		Alert.setPresenter(new SwingAlertPresenter());
 		NormalTask task = createTask();
 		Project project = task.getOwningProject();
 		task.setDuration(60L * CalendarOption.getInstance().getMillisPerDay());
