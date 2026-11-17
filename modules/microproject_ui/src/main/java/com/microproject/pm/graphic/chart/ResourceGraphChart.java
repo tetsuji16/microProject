@@ -61,21 +61,28 @@ public final class ResourceGraphChart {
 		// filled shapes first, then line-only shapes, so a fill cannot paint over a line drawn before it
 		java.util.List<ResourceGraphData.Series> ordered = new java.util.ArrayList<>(data.getSeries());
 		ordered.sort(java.util.Comparator.comparing(series -> isLineOnly(settings.getStyle(series.item()).showAs())));
+		java.util.List<ResourceGraphData.Series> bars = ordered.stream()
+			.filter(series -> settings.getStyle(series.item()).showAs() == ShowAs.BAR && !series.isEmpty()).toList();
 		for (ResourceGraphData.Series series : ordered) {
 			BarStyle style = settings.getStyle(series.item());
 			if (style.showAs() == ShowAs.DO_NOT_SHOW || series.isEmpty())
 				continue;
 			XYItemRenderer renderer;
-			if (series.base() != null && style.showAs() == ShowAs.BAR) {
+			if (style.showAs() == ShowAs.BAR) {
 				// a stacked bar spans its own lower and upper bound, so hiding another item cannot expose it;
 				// other shapes trace the stacked upper bound with their own renderer
 				XYIntervalSeries values = new XYIntervalSeries(series.item().name(), false, true);
+				int barIndex = bars.indexOf(series);
+				int barCount = bars.size();
+				double overlap = settings.getPercentBarOverlap() / 100D;
 				for (int i = 0; i < series.x().length; i++)
-					values.add(series.x()[i], series.x()[i], intervalEnd(series.x(), i), series.y()[i], series.base()[i], series.y()[i]);
+					values.add(series.x()[i], barStart(series.x(), i, barIndex, barCount, overlap),
+						barEnd(series.x(), i, barIndex, barCount, overlap), series.y()[i],
+						series.base() == null ? 0D : series.base()[i], series.y()[i]);
 				XYIntervalSeriesCollection collection = new XYIntervalSeriesCollection();
 				collection.addSeries(values);
 				plot.setDataset(index, collection);
-				renderer = stackedRenderer();
+				renderer = barRenderer();
 			} else {
 				XYSeries values = new XYSeries(series.item().name(), false, true);
 				for (int i = 0; i < series.x().length; i++)
@@ -122,13 +129,35 @@ public final class ResourceGraphChart {
 		return i > 0 ? starts[i] + (starts[i] - starts[i - 1]) : starts[i] + DEFAULT_INTERVAL;
 	}
 
-	private static XYItemRenderer stackedRenderer() {
+	private static XYItemRenderer barRenderer() {
 		XYBarRenderer renderer = new XYBarRenderer(0D);
 		renderer.setUseYInterval(true);
 		renderer.setShadowVisible(false);
 		renderer.setDrawBarOutline(false);
 		renderer.setBarPainter(new StandardXYBarPainter());
 		return renderer;
+	}
+
+	private static double barStart(double[] starts, int i, int series, int count, double overlap) {
+		double left = starts[i];
+		double right = intervalEnd(starts, i);
+		double width = right - left;
+		double center = left + width / 2D;
+		double slotCenter = left + width * (series + 0.5D) / Math.max(1, count);
+		double barCenter = slotCenter + (center - slotCenter) * overlap;
+		double barWidth = width * (1D / Math.max(1, count) + (1D - 1D / Math.max(1, count)) * overlap);
+		return barCenter - barWidth / 2D;
+	}
+
+	private static double barEnd(double[] starts, int i, int series, int count, double overlap) {
+		double left = starts[i];
+		double right = intervalEnd(starts, i);
+		double width = right - left;
+		double center = left + width / 2D;
+		double slotCenter = left + width * (series + 0.5D) / Math.max(1, count);
+		double barCenter = slotCenter + (center - slotCenter) * overlap;
+		double barWidth = width * (1D / Math.max(1, count) + (1D - 1D / Math.max(1, count)) * overlap);
+		return barCenter + barWidth / 2D;
 	}
 
 	static boolean isLineOnly(ShowAs showAs) {

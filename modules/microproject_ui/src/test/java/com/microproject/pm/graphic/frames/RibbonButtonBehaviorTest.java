@@ -1691,11 +1691,80 @@ class RibbonButtonBehaviorTest {
 		assertBottomView(harness, MenuActionConstants.ACTION_TASK_USAGE, harness.frame.getTaskUsageView());
 		assertTrue((Boolean) harness.manager.getAction(MenuActionConstants.ACTION_DETAILS)
 			.getValue(Action.SELECTED_KEY));
+		var cachedResourceGraph = harness.frame.getHistogramView();
+		cachedResourceGraph.getResourceGraphSettings().setPercentBarOverlap(0);
+		cachedResourceGraph.resourceGraphSettingsChanged();
 		WorkspaceSetting workspace = harness.frame.createWorkspace(0);
 		assertEquals(MenuActionConstants.ACTION_TASK_USAGE,
 			((DocumentFrame.Workspace) workspace).getBottomViewName());
+		cachedResourceGraph.getResourceGraphSettings().setPercentBarOverlap(80);
+		cachedResourceGraph.resourceGraphSettingsChanged();
 		harness.frame.restoreWorkspace(workspace, 0);
 		assertBottomView(harness, MenuActionConstants.ACTION_TASK_USAGE, harness.frame.getTaskUsageView());
+		assertEquals(0, cachedResourceGraph.getResourceGraphSettings().getPercentBarOverlap(),
+			"workspace restore must restore an initialized but inactive Resource Graph view");
+	}
+
+	@Test
+	void workspaceRestorePreservesCachedChartTaskAndMultiResourceSelections() throws Exception {
+		Harness harness = newHarness();
+		assertNotNull(AssignmentService.getInstance().newAssignment((NormalTask) harness.task, harness.resource, 1.0, 0L, this));
+		Resource secondResource = harness.project.getResourcePool().createScriptedResource();
+		secondResource.setName("Ribbon Resource 2");
+		assertNotNull(AssignmentService.getInstance().newAssignment((NormalTask) harness.secondTask, secondResource, 1.0, 0L, this));
+		activateView(harness, MenuActionConstants.ACTION_CHARTS);
+		var chart = harness.frame.getChartView();
+		var selectedTasks = List.of(harness.task, harness.secondTask);
+		var selectedResources = List.of(harness.resource, secondResource);
+		AtomicReference<WorkspaceSetting> workspace = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			chart.selectionChanged(new com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeEvent(
+				chart,
+				com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeEvent.SELECTION_CHANGED,
+				List.of(harness.taskNode, harness.secondTaskNode), harness.taskNode, null));
+			assertEquals(selectedTasks, chart.snapshotSelection().getSelectedObjects(),
+				"the real task selection event must reach the cached chart view");
+			assertTrue(chart.snapshotSelection().getSelectedResources().contains(harness.resource),
+				"selected tasks must resolve to their assigned resource");
+			javax.swing.JTree chartTree = findComponent(chart, javax.swing.JTree.class);
+			assertTrue(resourceRow(chartTree, secondResource) >= 0,
+				"the chart legend must expose the second fixture resource for multiple selection");
+			chart.restoreSelection(new com.microproject.pm.graphic.views.ChartView.SelectionState(
+				selectedTasks, selectedResources));
+			assertEquals(selectedResources, chart.snapshotSelection().getSelectedResources(),
+				"the chart legend must retain a multi-resource selection");
+			workspace.set(harness.frame.createWorkspace(0));
+			harness.frame.restoreWorkspace(workspace.get(), 0);
+		});
+
+		var restoredSelection = chart.snapshotSelection();
+		assertEquals(selectedTasks, restoredSelection.getSelectedObjects(),
+			"same-session workspace restore must preserve selected chart tasks");
+		assertEquals(selectedResources, restoredSelection.getSelectedResources(),
+			"same-session workspace restore must preserve all selected chart resources");
+	}
+
+	private static int resourceRow(javax.swing.JTree tree, Resource resource) {
+		for (int row = 0; row < tree.getRowCount(); row++) {
+			Object last = tree.getPathForRow(row).getLastPathComponent();
+			if (last instanceof com.microproject.pm.graphic.model.cache.GraphicNode node
+				&& node.getNode().getImpl() == resource)
+				return row;
+		}
+		return -1;
+	}
+
+	private static <T extends java.awt.Component> T findComponent(java.awt.Container root, Class<T> type) {
+		for (java.awt.Component component : root.getComponents()) {
+			if (type.isInstance(component))
+				return type.cast(component);
+			if (component instanceof java.awt.Container child) {
+				T found = findComponent(child, type);
+				if (found != null)
+					return found;
+			}
+		}
+		return null;
 	}
 
 	@Test

@@ -24,6 +24,7 @@
 package com.microproject.pm.graphic.chart;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.function.Consumer;
 import java.util.List;
@@ -42,11 +43,19 @@ import com.microproject.algorithm.buffer.GroupedCalculatedValues;
 import com.microproject.algorithm.buffer.NonGroupedCalculatedValues;
 import com.microproject.algorithm.buffer.SeriesCallback;
 import com.microproject.field.Field;
+import com.microproject.interval.ValueObjectForInterval;
 import com.microproject.options.CalendarOption;
+import com.microproject.pm.availability.Availability;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.HasAssignments;
 import com.microproject.pm.assignment.HasTimeDistributedData;
 import com.microproject.pm.assignment.TimeDistributedConstants;
+import com.microproject.pm.assignment.contour.AbstractContourBucket;
+import com.microproject.pm.assignment.contour.ContourBucketIntervalGenerator;
+import com.microproject.pm.calendar.WorkCalendar;
+import com.microproject.pm.calendar.WorkDay;
+import com.microproject.pm.calendar.WorkRange;
+import com.microproject.util.DateTime;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.Project;
@@ -253,8 +262,160 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 			totalValues[i] = total == null ? 0D : total.getUnscaledValue(i);
 			selectedValues[i] = selected == null ? 0D : selected.getUnscaledValue(i);
 		}
+		double[] peakTotal = null;
+		double[] peakSelected = null;
+		double[] peakOverallocated = null;
+		double[] peakSelectedOverallocated = null;
+		if (!cost && type == ResourceGraphSettings.GraphType.PEAK_UNITS) {
+			long[] ends = periodEnds(coord.getProjectTimeIterator(), n);
+			peakTotal = exactPeakUnits(project.getTaskOutlineIterator(), resources, dates, ends);
+			peakSelected = exactPeakUnits(tasks == null ? null : tasks.iterator(), resources, dates, ends);
+			ResourceGraphData.PeakOverallocated overload = exactPeakOverallocatedUnits(project, tasks, resources, dates, ends);
+			peakOverallocated = overload.total();
+			peakSelectedOverallocated = overload.selected();
+		}
 		resourceGraph = ResourceGraphData.compute(type, dates, cost ? null : totalValues, cost ? null : selectedValues,
-			availabilityValues, cost ? totalValues : null, cost ? selectedValues : null, getScaleFactor(WORK), selectedOnTop);
+			availabilityValues, cost ? totalValues : null, cost ? selectedValues : null, getScaleFactor(WORK), selectedOnTop,
+			peakTotal, peakSelected, peakOverallocated, peakSelectedOverallocated);
+	}
+
+	/** Computes the exact simultaneous assignment units in each graph period from the work contours. */
+	static double[] exactPeakUnits(Iterator<?> tasks, List<Resource> resources, long[] starts, long[] ends) {
+		List<ResourceGraphData.AllocationInterval> intervals = allocationIntervals(tasks, resources);
+		return ResourceGraphData.peakUnits(starts, ends, intervals);
+	}
+
+	private static List<ResourceGraphData.AllocationInterval> allocationIntervals(Iterator<?> tasks, List<Resource> resources) {
+		List<ResourceGraphData.AllocationInterval> intervals = new ArrayList<>();
+		if (tasks == null)
+			return intervals;
+		while (tasks.hasNext()) {
+			Object task = tasks.next();
+			if (!(task instanceof HasAssignments hasAssignments))
+				continue;
+			for (Association association : hasAssignments.getAssignments()) {
+				if (!(association instanceof Assignment assignment)
+						|| assignment.isDefault()
+						|| resources != null && !resources.contains(assignment.getResource()))
+					continue;
+				ContourBucketIntervalGenerator generator = assignment.contourGeneratorInstance(WORK);
+				while (generator.hasNext() && generator.test(null)) {
+					AbstractContourBucket bucket = (AbstractContourBucket) generator.current();
+					if (bucket == null)
+						continue;
+					double units = Math.max(0D, bucket.getEffectiveUnits(assignment.getUnits()));
+					if (units > 0D && generator.currentStart() < generator.currentEnd())
+						addWorkingIntervals(intervals, assignment.getEffectiveWorkCalendar(), generator.currentStart(),
+							generator.currentEnd(), units, assignment.getResource());
+				}
+			}
+		}
+		return intervals;
+	}
+
+	/** Computes the exact peak load above resource capacity at matching work instants in each period. */
+	static double[] exactPeakOverallocatedUnits(Project project, List<Resource> resources, long[] starts, long[] ends) {
+		return exactPeakOverallocatedUnits(project, null, resources, starts, ends).total();
+	}
+
+	static ResourceGraphData.PeakOverallocated exactPeakOverallocatedUnits(Project project, List<?> tasks,
+			List<Resource> resources, long[] starts, long[] ends) {
+		if (starts.length == 0 || ends.length == 0)
+			return new ResourceGraphData.PeakOverallocated(new double[starts.length], new double[starts.length]);
+		List<ResourceGraphData.AllocationInterval> loads = allocationIntervals(project.getTaskOutlineIterator(), resources);
+		List<ResourceGraphData.AllocationInterval> selectedLoads = allocationIntervals(tasks == null ? null : tasks.iterator(), resources);
+		List<ResourceGraphData.AllocationInterval> capacities = new ArrayList<>();
+		List<Resource> capacityResources = resources == null ? project.getResourcePool().getResourceList() : resources;
+		for (Resource resource : capacityResources)
+			addResourceCapacityIntervals(capacities, project, resource, starts[0], ends[ends.length - 1]);
+		return ResourceGraphData.peakOverallocatedUnits(starts, ends, loads, selectedLoads, capacities);
+	}
+
+	private static void addResourceCapacityIntervals(List<ResourceGraphData.AllocationInterval> target, Project project,
+			Resource resource, long from, long to) {
+		if (resource == null || from >= to)
+			return;
+		WorkCalendar calendar = resource.getEffectiveWorkCalendar();
+		if (calendar == null) calendar = project.getEffectiveWorkCalendar();
+		if (calendar == null)
+			return;
+		var availabilityTable = resource.getAvailabilityTable();
+		List<ValueObjectForInterval> availabilityValues = availabilityTable.getList();
+		com.microproject.pm.calendar.CalendarDefinition definition = calendar.getConcreteInstance();
+		for (long day = DateTime.dayFloor(from); day < to; day = DateTime.nextDay(day)) {
+			WorkDay workDay = definition.getWorkDay(day);
+			if (workDay == null) workDay = WorkDay.getDefaultWorkDay();
+			for (WorkRange range : workDay.getWorkingHours().getIntervals()) {
+				if (range == null) continue;
+				long workingStart = Math.max(from, timeOnDay(day, range.getStart(), range.getStart()));
+				long workingEnd = Math.min(to, timeOnDay(day, range.getEnd(), range.getStart()));
+				if (workingEnd <= workingStart) continue;
+				List<Long> boundaries = new ArrayList<>();
+				boundaries.add(workingStart);
+				for (ValueObjectForInterval value : availabilityValues) {
+					if (value.getStart() > workingStart && value.getStart() < workingEnd) boundaries.add(value.getStart());
+					if (value.getEnd() > workingStart && value.getEnd() < workingEnd) boundaries.add(value.getEnd());
+				}
+				boundaries.add(workingEnd);
+				boundaries.sort(Long::compare);
+				for (int i = 1; i < boundaries.size(); i++) {
+					long segmentStart = boundaries.get(i - 1);
+					long segmentEnd = boundaries.get(i);
+					if (segmentEnd <= segmentStart) continue;
+					Object value = availabilityTable.findActive(segmentStart);
+					double units = value instanceof Availability availability
+						? availability.getMaximumUnits() : resource.getMaximumUnits();
+					if (units > 0D)
+						target.add(new ResourceGraphData.AllocationInterval(segmentStart, segmentEnd, units, resource));
+				}
+			}
+		}
+	}
+
+	/** Returns the actual timescale boundary after each plotted interval, including the final interval. */
+	static long[] periodEnds(com.microproject.timescale.TimeIterator periods, int count) {
+		long[] ends = new long[count];
+		for (int i = 0; i < count && periods.hasNext(); i++)
+			ends[i] = periods.next().getEnd();
+		return ends;
+	}
+
+	/** Intersects a contour bucket's wall-clock span with the assignment's effective working calendar. */
+	private static void addWorkingIntervals(List<ResourceGraphData.AllocationInterval> target, WorkCalendar calendar,
+			long from, long to, double units, Resource resource) {
+		if (calendar == null || from >= to)
+			return;
+		com.microproject.pm.calendar.CalendarDefinition definition = calendar.getConcreteInstance();
+		for (long day = DateTime.dayFloor(from); day < to; day = DateTime.nextDay(day)) {
+			WorkDay workDay = definition.getWorkDay(day);
+			if (workDay == null)
+				workDay = WorkDay.getDefaultWorkDay();
+			for (WorkRange range : workDay.getWorkingHours().getIntervals()) {
+				if (range == null)
+					continue;
+				long workingStart = timeOnDay(day, range.getStart(), range.getStart());
+				long workingEnd = timeOnDay(day, range.getEnd(), range.getStart());
+				long activeStart = Math.max(from, workingStart);
+				long activeEnd = Math.min(to, workingEnd);
+				if (activeEnd > activeStart)
+					target.add(new ResourceGraphData.AllocationInterval(activeStart, activeEnd, units, resource));
+			}
+		}
+	}
+
+	/** Applies the hour/minute fields from a calendar work range to a concrete local date (DST-safe). */
+	private static long timeOnDay(long day, long rangeTime, long rangeStart) {
+		java.util.Calendar range = DateTime.calendarInstance();
+		range.setTimeInMillis(rangeTime);
+		java.util.Calendar result = DateTime.calendarInstance();
+		result.setTimeInMillis(day);
+		if (DateTime.dayFloor(rangeTime) > DateTime.dayFloor(rangeStart))
+			result.add(java.util.Calendar.DAY_OF_MONTH, 1);
+		result.set(java.util.Calendar.HOUR_OF_DAY, range.get(java.util.Calendar.HOUR_OF_DAY));
+		result.set(java.util.Calendar.MINUTE, range.get(java.util.Calendar.MINUTE));
+		result.set(java.util.Calendar.SECOND, range.get(java.util.Calendar.SECOND));
+		result.set(java.util.Calendar.MILLISECOND, range.get(java.util.Calendar.MILLISECOND));
+		return result.getTimeInMillis();
 	}
 
 	/** The series computed by the last {@link #computeResourceGraph}, or null before the first one. */

@@ -38,6 +38,7 @@ import com.microproject.pm.availability.Availability;
 import com.microproject.pm.assignment.contour.ContourFactory;
 import com.microproject.pm.assignment.contour.ContourTypes;
 import com.microproject.pm.assignment.contour.ContourBucketIntervalGenerator;
+import com.microproject.pm.assignment.contour.AbstractContourBucket;
 import com.microproject.pm.assignment.contour.PersonalContourBucket;
 import com.microproject.pm.assignment.functor.ResourceAvailabilityFunctor;
 import com.microproject.pm.scheduling.ScheduleInterval;
@@ -424,6 +425,41 @@ class AssignmentContourBehaviorTest {
 		assertTrue(generator.test(generator));
 		assertTrue(generator.current() != null);
 		assertTrue(generator.getEnd() != initialEnd);
+	}
+
+	@Test
+	void dependencySplitPreservesEffectiveUnitsForHalfUnitStandardContour() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		task.setDuration(2L * CalendarOption.getInstance().getMillisPerDay());
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 0.5D, 0L, this);
+		assignment.setWorkContourTypeKind(ContourTypes.Kind.FLAT);
+		assignment.setPercentComplete(0.5D);
+		long actualDuration = assignment.getActualDuration();
+		assertTrue(actualDuration > 0L, "fixture needs a completed portion to trigger dependency splitting");
+		long delayedStart = assignment.getEffectiveWorkCalendar().add(assignment.getStart(),
+			actualDuration + CalendarOption.getInstance().getMillisPerDay() / 2L, true);
+		task.setDependencyStart(delayedStart);
+
+		ContourBucketIntervalGenerator generator = assignment.contourGeneratorInstance(HasTimeDistributedData.WORK);
+		boolean sawSplitBucket = false;
+		long generatedWork = 0L;
+		while (generator.hasNext() && generator.test(null)) {
+			if (!(generator.current() instanceof AbstractContourBucket bucket)
+					|| bucket.isFiller())
+				continue;
+			double effectiveUnits = bucket.getEffectiveUnits(assignment.getUnits());
+			if (bucket instanceof PersonalContourBucket && effectiveUnits > 0D) {
+				sawSplitBucket = true;
+				assertEquals(0.5D, effectiveUnits, 0.000001D,
+					"split personal buckets must retain the effective allocation from the standard contour");
+			}
+			generatedWork += Math.round(effectiveUnits * bucket.getBucketDuration(assignment.getDurationMillis()));
+		}
+		assertTrue(sawSplitBucket, "dependency delay should split a standard contour bucket into a personal bucket");
+		assertEquals(assignment.getWork(null), generatedWork,
+			"splitting a standard contour must preserve the assignment's calculated work");
 	}
 
 	private Project createProject() {

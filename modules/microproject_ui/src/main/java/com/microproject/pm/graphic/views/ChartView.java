@@ -27,6 +27,8 @@ import java.util.function.Consumer;
 
 import java.awt.Dimension;
 import java.awt.Point;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.JScrollPane;
 
@@ -36,6 +38,7 @@ import com.microproject.menu.MenuManager;
 import com.microproject.pm.graphic.chart.ChartInfo;
 import com.microproject.pm.graphic.chart.ChartLegend;
 import com.microproject.pm.graphic.chart.ChartMode;
+import com.microproject.pm.resource.Resource;
 import com.microproject.pm.graphic.chart.TimeChartPanel;
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
@@ -230,6 +233,37 @@ public class ChartView extends SplittedView implements SelectionNodeListener, Ba
 		getRightScrollPane().getViewport().setViewPosition(ws.chartViewPosition);
 		chartInfo.setRestoring(false);
 		chartInfo.replotRestoredResourceGraph();
+	}
+
+	/** Captures chart selections before a workspace reload resets the main view selection. */
+	public SelectionState snapshotSelection() {
+		List<Object> selectedObjects = chartLegend.getSelectedObjects();
+		List<Resource> selectedResources = chartLegend.getSelectedResources();
+		return new SelectionState(selectedObjects, selectedResources);
+	}
+
+	/** Reapplies selected objects and resources after the chart workspace state is restored. */
+	public void restoreSelection(SelectionState selection) {
+		if (selection != null)
+			chartLegend.restoreSelection(selection.selectedObjects, selection.selectedResources);
+	}
+
+	public static final class SelectionState {
+		private final List<Object> selectedObjects;
+		private final List<Resource> selectedResources;
+
+		public SelectionState(List<?> selectedObjects, List<Resource> selectedResources) {
+			this.selectedObjects = selectedObjects == null ? null : new ArrayList<>(selectedObjects);
+			this.selectedResources = selectedResources == null ? List.of() : new ArrayList<>(selectedResources);
+		}
+
+		public List<Object> getSelectedObjects() {
+			return selectedObjects == null ? null : List.copyOf(selectedObjects);
+		}
+
+		public List<Resource> getSelectedResources() {
+			return List.copyOf(selectedResources);
+		}
 	}
 	public WorkspaceSetting createWorkspace(int context) {
 		Workspace ws = new Workspace();

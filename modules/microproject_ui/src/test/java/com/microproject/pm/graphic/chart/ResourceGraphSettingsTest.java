@@ -57,6 +57,7 @@ class ResourceGraphSettingsTest {
 		s.setStyle(Item.OVERALLOCATED_FILTERED, new BarStyle(ShowAs.STEP_LINE, 0x123456, Pattern.CROSS_HATCH));
 		s.setStyle(Item.ALLOCATED_RESOURCE, new BarStyle(ShowAs.AREA, 0xABCDEF, Pattern.DOTS));
 		s.setShowValues(true);
+		s.setPercentBarOverlap(40);
 		s.setShowAvailabilityLine(false);
 		s.setHorizontalGridlines(false);
 		s.setVerticalGridlines(true);
@@ -74,6 +75,7 @@ class ResourceGraphSettingsTest {
 		assertEquals(new BarStyle(ShowAs.AREA, 0xABCDEF, Pattern.DOTS), copy.getStyle(Item.ALLOCATED_RESOURCE));
 		assertEquals(Item.ALLOCATED_FILTERED.defaultStyle(), copy.getStyle(Item.ALLOCATED_FILTERED));
 		assertTrue(copy.isShowValues());
+		assertEquals(40, copy.getPercentBarOverlap());
 		assertFalse(copy.isShowAvailabilityLine());
 		assertFalse(copy.isHorizontalGridlines());
 		assertTrue(copy.isVerticalGridlines());
@@ -100,6 +102,17 @@ class ResourceGraphSettingsTest {
 		s.restoreSettings("text=-5,true");
 		assertEquals(0, s.getTextStyle().size());
 		assertTrue(s.getTextStyle().bold());
+	}
+
+	@Test
+	void barOverlapIsClampedAndPersisted() {
+		ResourceGraphSettings settings = new ResourceGraphSettings();
+		settings.setPercentBarOverlap(140);
+		assertEquals(100, settings.getPercentBarOverlap());
+		settings.restoreSettings("percentBarOverlap=-3");
+		assertEquals(0, settings.getPercentBarOverlap());
+		settings.restoreSettings("percentBarOverlap=bad");
+		assertEquals(100, settings.getPercentBarOverlap());
 	}
 
 	@Test
