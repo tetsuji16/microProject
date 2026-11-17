@@ -6292,12 +6292,46 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, overlapEditor);
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_A);
 		typeAscii(robot, "0");
-		press(robot, KeyEvent.VK_ENTER);
-		GuiAcceptanceSupport.await(() -> Integer.valueOf(0).equals(overlap.getValue()),
-			"Physical typing did not set Bar overlap to zero");
+		assertEquals(100, overlap.getValue(), "typing without Enter must leave the spinner model uncommitted");
 		click(robot, findShowingButtonByText(dialog, Messages.getString("ButtonText.OK")));
 		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "Bar Styles dialog did not close after applying overlap");
-		assertEquals(0, graph.getResourceGraphSettings().getPercentBarOverlap(), "the dialog must apply the physical spinner value");
+		assertEquals(0, graph.getResourceGraphSettings().getPercentBarOverlap(),
+			"the OK route must commit the physically typed value before applying it");
+
+		click(robot, barStyles);
+		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
+			.anyMatch(candidate -> candidate instanceof JDialog current && current.isShowing()
+				&& ResourceBundle.getBundle("com.microproject.menu.menu").getString("ResourceGraph.title.barStyles").equals(current.getTitle())),
+			"the second Bar Styles dialog did not open");
+		JDialog invalidDialog = java.util.Arrays.stream(Window.getWindows()).filter(JDialog.class::isInstance).map(JDialog.class::cast)
+			.filter(candidate -> candidate.isShowing()
+				&& ResourceBundle.getBundle("com.microproject.menu.menu").getString("ResourceGraph.title.barStyles").equals(candidate.getTitle()))
+			.findFirst().orElseThrow();
+		JSpinner invalidOverlap = UiComponentWalker.flatten(invalidDialog).stream().filter(JSpinner.class::isInstance)
+			.map(JSpinner.class::cast).filter(candidate -> ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("ResourceGraph.dialog.percentBarOverlap").equals(candidate.getAccessibleContext().getAccessibleName()))
+			.findFirst().orElseThrow();
+		JTextField invalidEditor = ((JSpinner.DefaultEditor) invalidOverlap.getEditor()).getTextField();
+		click(robot, invalidEditor);
+		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_A);
+		typeAscii(robot, "101");
+		assertEquals(0, invalidOverlap.getValue(), "typing an out-of-range value must not change the committed model value");
+		click(robot, findShowingButtonByText(invalidDialog, Messages.getString("ButtonText.OK")));
+		String invalidOverlapMessage = ResourceBundle.getBundle("com.microproject.menu.menu")
+			.getString("ResourceGraph.dialog.invalidBarOverlap");
+		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows()).filter(JDialog.class::isInstance)
+			.map(JDialog.class::cast).anyMatch(candidate -> candidate.isShowing()
+				&& UiComponentWalker.flatten(candidate).stream().filter(JLabel.class::isInstance).map(JLabel.class::cast)
+					.anyMatch(label -> invalidOverlapMessage.equals(label.getText()))),
+			"the OK route must report an invalid overlap value");
+		JDialog invalidWarning = java.util.Arrays.stream(Window.getWindows()).filter(JDialog.class::isInstance).map(JDialog.class::cast)
+			.filter(candidate -> candidate.isShowing()
+				&& UiComponentWalker.flatten(candidate).stream().filter(JLabel.class::isInstance).map(JLabel.class::cast)
+					.anyMatch(label -> invalidOverlapMessage.equals(label.getText())))
+			.findFirst().orElseThrow();
+		assertEquals(0, graph.getResourceGraphSettings().getPercentBarOverlap(),
+			"rejecting an out-of-range value through OK must preserve the prior setting");
+		click(robot, findShowingButtonByText(invalidWarning, Messages.getString("ButtonText.OK")));
 
 		TimeChartPanel panel = UiComponentWalker.flatten(graph).stream().filter(TimeChartPanel.class::isInstance)
 			.map(TimeChartPanel.class::cast).findFirst().orElseThrow();

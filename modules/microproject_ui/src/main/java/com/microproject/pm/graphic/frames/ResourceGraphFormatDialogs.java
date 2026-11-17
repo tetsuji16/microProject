@@ -75,6 +75,15 @@ final class ResourceGraphFormatDialogs {
 		NetworkCalendarFormatDialogs.row(panel, row++, new JLabel(overlapLabel), overlap);
 		NetworkCalendarFormatDialogs.row(panel, row++, availability);
 		NetworkCalendarFormatDialogs.row(panel, row, reset);
+		panel.validator = () -> {
+			try {
+				overlap.commitEdit();
+				return true;
+			} catch (java.text.ParseException | IllegalArgumentException invalid) {
+				return false;
+			}
+		};
+		panel.validationMessage = text.apply("ResourceGraph.dialog.invalidBarOverlap");
 		panel.applier = () -> {
 			settings.setShowAvailabilityLine(availability.isSelected());
 			settings.setPercentBarOverlap((Integer) overlap.getValue());
