@@ -25,6 +25,9 @@ package com.microproject.pm.graphic.views;
 
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Insets;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.SortedSet;
@@ -109,6 +112,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	private TaskSelectionController taskSelectionController;
 	private boolean synchronizingRowGeometry;
 	private Runnable columnHeaderHeightBinding;
+	private ComponentAdapter initialProjectFitListener;
 	private final TableColumnModelListener dividerColumnListener = new TableColumnModelListener() {
 		@Override public void columnAdded(TableColumnModelEvent event) { requestDividerBoundsEnforcement(); }
 		@Override public void columnRemoved(TableColumnModelEvent event) { requestDividerBoundsEnforcement(); }
@@ -181,6 +185,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		columnHeaderHeightBinding = ganttScrollPane.followColumnHeaderHeight(spreadSheet);
 	}
 	public void cleanUp() {
+		removeInitialProjectFitListener();
 		if (columnHeaderHeightBinding != null) {
 			columnHeaderHeightBinding.run();
 			columnHeaderHeightBinding = null;
@@ -268,9 +273,34 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	protected int preferredLeftPaneWidth() {
 		if (spreadSheet == null || leftScrollPane == null)
 			return -1;
-		int viewportWidth = leftScrollPane.getViewport().getExtentSize().width;
-		int paneChrome = Math.max(0, leftScrollPane.getWidth() - viewportWidth);
-		return spreadSheet.getPreferredSize().width + paneChrome;
+		return equalPaneDividerLocation(getWidth(), getInsets(), getDividerSize());
+	}
+
+	static int equalPaneDividerLocation(int width, Insets insets, int dividerSize) {
+		int availableWidth = width - insets.left - insets.right - dividerSize;
+		return availableWidth <= 0 ? -1 : availableWidth / 2;
+	}
+
+	/** Fits the initial Gantt range after the split pane has received its first layout. */
+	public void fitProjectRangeOnInitialDisplay() {
+		if (ganttScrollPane == null)
+			return;
+		initialProjectFitListener = new ComponentAdapter() {
+			@Override public void componentResized(ComponentEvent event) { tryInitialProjectFit(); }
+		};
+		ganttScrollPane.addComponentListener(initialProjectFitListener);
+		SwingUtilities.invokeLater(this::tryInitialProjectFit);
+	}
+
+	private void tryInitialProjectFit() {
+		if (ganttScrollPane != null && SelectedTasksTimescaleZoom.zoomProject(project, coord, ganttScrollPane))
+			removeInitialProjectFitListener();
+	}
+
+	private void removeInitialProjectFitListener() {
+		if (ganttScrollPane != null && initialProjectFitListener != null)
+			ganttScrollPane.removeComponentListener(initialProjectFitListener);
+		initialProjectFitListener = null;
 	}
 
 	@Override
