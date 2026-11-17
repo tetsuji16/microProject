@@ -1706,6 +1706,30 @@ class RibbonButtonBehaviorTest {
 	}
 
 	@Test
+	void workspaceRestorePreservesCachedChartTaskAndMultiResourceSelections() throws Exception {
+		Harness harness = newHarness();
+		Resource secondResource = harness.project.getResourcePool().createScriptedResource();
+		secondResource.setName("Ribbon Resource 2");
+		activateView(harness, MenuActionConstants.ACTION_CHARTS);
+		var chart = harness.frame.getChartView();
+		var selectedTasks = List.of(harness.task, harness.secondTask);
+		var selectedResources = List.of(harness.resource, secondResource);
+		var selection = new com.microproject.pm.graphic.views.ChartView.SelectionState(selectedTasks, selectedResources);
+		AtomicReference<WorkspaceSetting> workspace = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			chart.restoreSelection(selection);
+			workspace.set(harness.frame.createWorkspace(0));
+			harness.frame.restoreWorkspace(workspace.get(), 0);
+		});
+
+		var restoredSelection = chart.snapshotSelection();
+		assertEquals(selectedTasks, restoredSelection.getSelectedObjects(),
+			"same-session workspace restore must preserve selected chart tasks");
+		assertEquals(selectedResources, restoredSelection.getSelectedResources(),
+			"same-session workspace restore must preserve all selected chart resources");
+	}
+
+	@Test
 	void detailsSelectionClearsWhenTheDocumentLosesCommandFocus() throws Exception {
 		Harness harness = newHarness();
 		activateView(harness, MenuActionConstants.ACTION_TASK_USAGE);

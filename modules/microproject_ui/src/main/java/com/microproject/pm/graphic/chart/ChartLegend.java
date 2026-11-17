@@ -522,6 +522,14 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 		chartInfo.updateChart(selectedObjects, selectedResourcesOnTree);
 	}
 
+	public List<Object> getSelectedObjects() {
+		return selectedObjects == null ? null : new ArrayList<>(selectedObjects);
+	}
+
+	public List<Resource> getSelectedResources() {
+		return new ArrayList<>(selectedResourcesOnTree);
+	}
+
 	public WorkspaceSetting createWorkspace(int context) {
 		Workspace ws = new Workspace();
 		ws.treeViewPosition = treeScrollPane.getViewport().getViewPosition();

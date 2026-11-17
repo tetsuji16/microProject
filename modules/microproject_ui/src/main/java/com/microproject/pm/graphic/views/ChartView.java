@@ -237,10 +237,8 @@ public class ChartView extends SplittedView implements SelectionNodeListener, Ba
 
 	/** Captures chart selections before a workspace reload resets the main view selection. */
 	public SelectionState snapshotSelection() {
-		List<Object> selectedObjects = chartInfo.getSelectedObjects() == null
-				? null : new ArrayList<>(chartInfo.getSelectedObjects());
-		List<Resource> selectedResources = chartInfo.getResources() == null
-				? List.of() : new ArrayList<>(chartInfo.getResources());
+		List<Object> selectedObjects = chartLegend.getSelectedObjects();
+		List<Resource> selectedResources = chartLegend.getSelectedResources();
 		return new SelectionState(selectedObjects, selectedResources);
 	}
 
@@ -254,9 +252,17 @@ public class ChartView extends SplittedView implements SelectionNodeListener, Ba
 		private final List<Object> selectedObjects;
 		private final List<Resource> selectedResources;
 
-		private SelectionState(List<Object> selectedObjects, List<Resource> selectedResources) {
-			this.selectedObjects = selectedObjects;
-			this.selectedResources = selectedResources;
+		public SelectionState(List<?> selectedObjects, List<Resource> selectedResources) {
+			this.selectedObjects = selectedObjects == null ? null : new ArrayList<>(selectedObjects);
+			this.selectedResources = selectedResources == null ? List.of() : new ArrayList<>(selectedResources);
+		}
+
+		public List<Object> getSelectedObjects() {
+			return selectedObjects == null ? null : List.copyOf(selectedObjects);
+		}
+
+		public List<Resource> getSelectedResources() {
+			return List.copyOf(selectedResources);
 		}
 	}
 	public WorkspaceSetting createWorkspace(int context) {
