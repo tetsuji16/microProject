@@ -775,11 +775,13 @@ class GanttBarDateDragGuiAcceptanceTest {
 	@Test
 	void robotResizeProgressAndSplitUseTypedScheduleGatewayWithUndoAndPersistence() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
-		Fixture fixture = createFixture(DependencyType.FS, false, true);
+		long fixtureStart = DateTime.calendarInstance(2026, java.util.Calendar.JUNE, 8).getTimeInMillis();
+		Fixture fixture = createFixture(DependencyType.FS, false, true, fixtureStart);
 		showRibbonFixture(fixture, "Gantt schedule gestures GUI acceptance");
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateGantt(robot);
+		showTaskBarInViewport(fixture);
 		capture(robot, "gantt-schedule-gestures-initial.png");
 
 		long originalStart = fixture.predecessor.getStart();
@@ -1423,6 +1425,60 @@ class GanttBarDateDragGuiAcceptanceTest {
 		});
 		GuiAcceptanceSupport.await(gantt::isShowing, "Gantt was not visible");
 		activateWindow(robot);
+	}
+
+	private void showTaskBarInViewport(Fixture fixture) throws Exception {
+		javax.swing.JViewport viewport = (javax.swing.JViewport) SwingUtilities.getAncestorOfClass(
+			javax.swing.JViewport.class, gantt);
+		javax.swing.JScrollPane scrollPane = (javax.swing.JScrollPane) SwingUtilities.getAncestorOfClass(
+			javax.swing.JScrollPane.class, gantt);
+		assertTrue(viewport != null && scrollPane != null, "the ribbon Gantt must use its normal scroll pane");
+		GuiAcceptanceSupport.await(() -> gantt.getWidth() > 0 && viewport.getExtentSize().width > 0,
+			"the ribbon Gantt viewport did not finish layout");
+		SwingUtilities.invokeAndWait(() -> {
+			int barStart = (int)Math.round(gantt.getCoord().toX(fixture.predecessor.getStart()));
+			int barEnd = (int)Math.round(gantt.getCoord().toX(fixture.predecessor.getEnd()));
+			int viewStart = viewport.getViewPosition().x;
+			int viewEnd = viewStart + viewport.getExtentSize().width;
+			int targetViewStart = viewStart;
+			if (barStart < viewStart + 2) targetViewStart = barStart - 2;
+			else if (barEnd > viewEnd - 2) targetViewStart = barEnd - viewport.getExtentSize().width + 2;
+			javax.swing.JScrollBar horizontal = scrollPane.getHorizontalScrollBar();
+			horizontal.setValue(Math.max(horizontal.getMinimum(), Math.min(horizontal.getMaximum()
+				- horizontal.getVisibleAmount(), targetViewStart)));
+		});
+		GuiAcceptanceSupport.await(() -> isTaskBarFullyVisible(viewport, fixture),
+			"the target task bar must be fully visible in the Gantt viewport before the gesture");
+	}
+
+	private boolean isTaskBarFullyVisible(javax.swing.JViewport viewport, Fixture fixture) {
+		try {
+			return viewportScreenBounds(viewport).contains(taskBarScreenBounds(fixture));
+		} catch (Exception exception) {
+			throw new AssertionError("Could not verify that the target task bar is visible", exception);
+		}
+	}
+
+	private Rectangle taskBarScreenBounds(Fixture fixture) throws Exception {
+		Rectangle[] result = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> {
+			var projection = fixture.cache.getVisibleNodes().getProjectionIndex();
+			for (int row = 0; row < projection.size(); row++) {
+				GraphicNode node = projection.nodeAt(row);
+				if (node.getNode().getImpl() != fixture.predecessor) continue;
+				int left = (int)Math.round(gantt.getCoord().toX(fixture.predecessor.getStart()));
+				int right = (int)Math.round(gantt.getCoord().toX(fixture.predecessor.getEnd()));
+				int top = (int)Math.floor(((GanttUI)gantt.getUI()).getBarY(row)
+					+ node.getGanttShapeOffset());
+				int height = (int)Math.ceil(node.getGanttShapeHeight());
+				Point location = gantt.getLocationOnScreen();
+				result[0] = new Rectangle(location.x + left, location.y + top,
+					Math.max(1, right - left), Math.max(1, height));
+				return;
+			}
+			throw new AssertionError("the target task is absent from the Gantt projection");
+		});
+		return result[0];
 	}
 
 	private void drag(Robot robot, Point start, Point end) {
