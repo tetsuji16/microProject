@@ -820,18 +820,30 @@ class GanttBarDateDragGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> fixture.predecessor.setPercentComplete(0.4d));
 		SwingUtilities.invokeAndWait(fixture.project::recalculate);
 		long originalProgress = fixture.predecessor.getCompletedThrough();
+		List<String> progressModes = new ArrayList<>();
+		gantt.getInteractor().setModeListener(progressModes::add);
 		Point progressHandle = screenPointForTaskDate(fixture, originalProgress);
 		assertProgressBarHit(fixture, progressHandle);
-		long progressTarget = originalProgress + (fixture.predecessor.getEnd() - originalProgress) / 6L;
+		ProgressTarget laterProgressTarget = nextVisibleWorkingProgressTarget(fixture, progressHandle, originalProgress);
+		long progressTarget = laterProgressTarget.mappedTime();
+		Point laterProgress = laterProgressTarget.point();
 		assertTrue(progressTarget > originalProgress && progressTarget < fixture.predecessor.getEnd(),
-			"progress target must remain inside the scheduled interval: progress=" + originalProgress
+			"progress target must advance within the scheduled interval using working time: progress=" + originalProgress
 				+ " end=" + fixture.predecessor.getEnd() + " target=" + progressTarget);
-		Point laterProgress = screenPointForTaskDate(fixture, progressTarget);
+		assertTrue(laterProgress.x - progressHandle.x >= desktopDragThresholdPixels(),
+			"progress gesture must exceed the desktop drag threshold: from=" + progressHandle + " to=" + laterProgress);
 		drag(robot, progressHandle, laterProgress);
-		GuiAcceptanceSupport.await(() -> fixture.predecessor.getCompletedThrough() > originalProgress,
-			"dragging the progress handle did not update task progress: before=" + originalProgress
-				+ " requested=" + progressTarget + " actual=" + fixture.predecessor.getCompletedThrough()
-				+ " end=" + fixture.predecessor.getEnd() + " origin=" + progressHandle + " target=" + laterProgress);
+		try {
+			GuiAcceptanceSupport.await(() -> fixture.predecessor.getCompletedThrough() > originalProgress,
+				"dragging the progress handle did not update task progress: before=" + originalProgress
+					+ " requested=" + progressTarget + " actual=" + fixture.predecessor.getCompletedThrough()
+					+ " end=" + fixture.predecessor.getEnd() + " origin=" + progressHandle + " target=" + laterProgress);
+		} catch (AssertionError failure) {
+			capture(robot, "gantt-schedule-progress-drag-failure.png");
+			throw new AssertionError(failure.getMessage() + " modes=" + progressModes
+				+ " schedule=" + assignmentScheduleStates(fixture.predecessor)
+				+ " taskIntervals=" + taskIntervals(fixture.predecessor), failure);
+		}
 		long updatedProgress = fixture.predecessor.getCompletedThrough();
 		assertTrue(barBounds(fixture).width > 0, "the updated progress bar must be visible after redraw");
 		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
@@ -1419,6 +1431,43 @@ class GanttBarDateDragGuiAcceptanceTest {
 			result[0] = new Point(location.x + x, location.y + y);
 		});
 		return result[0];
+	}
+
+	private ProgressTarget nextVisibleWorkingProgressTarget(Fixture fixture, Point progressHandle, long originalProgress)
+			throws Exception {
+		ProgressTarget[] result = new ProgressTarget[1];
+		SwingUtilities.invokeAndWait(() -> {
+			var calendar = fixture.predecessor.getEffectiveWorkCalendar();
+			long start = fixture.predecessor.getStart();
+			long originalWork = calendar.compare(originalProgress, start, false);
+			int originX = progressHandle.x - gantt.getLocationOnScreen().x;
+			int endX = (int)Math.round(gantt.getCoord().toX(fixture.predecessor.getEnd()));
+			int threshold = desktopDragThresholdPixels();
+			int y = progressHandle.y;
+			for (int x = originX + threshold; x <= endX; x++) {
+				long mappedTime = (long)gantt.getCoord().toTime(x);
+				if (mappedTime < fixture.predecessor.getEnd()
+						&& calendar.compare(mappedTime, start, false) > originalWork) {
+					Point location = gantt.getLocationOnScreen();
+					result[0] = new ProgressTarget(new Point(location.x + x, y), mappedTime);
+					return;
+				}
+			}
+		});
+		if (result[0] == null)
+			throw new AssertionError("No visible progress target advances completed working time before task end");
+		return result[0];
+	}
+
+	private record ProgressTarget(Point point, long mappedTime) { }
+
+	private static int desktopDragThresholdPixels() {
+		try {
+			int threshold = java.awt.dnd.DragSource.getDragThreshold();
+			return threshold > 0 ? threshold : 4;
+		} catch (RuntimeException | LinkageError unavailable) {
+			return 4;
+		}
 	}
 
 	private Point findResizeHandle(Robot robot, Fixture fixture, boolean leading, int expectedCursor, String gesture)
