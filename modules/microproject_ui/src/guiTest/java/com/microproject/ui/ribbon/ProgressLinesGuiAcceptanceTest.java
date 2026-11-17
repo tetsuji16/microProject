@@ -90,6 +90,7 @@ class ProgressLinesGuiAcceptanceTest {
 				true, 1, ProgressLineSettings.IntervalUnit.WEEK);
 			var project = fixture.manager.getCurrentFrame().getProject();
 			assertEquals(expected, project.getProgressLineSettings(), "physical choices update the project display model");
+			assertFalse(command.isSelected(), "the dialog-opening ribbon button must not retain toggle selection");
 			assertTrue(fixture.manager.getCurrentFrame().getGanttView().getGantt().isProgressLineEnabled(),
 				"the Gantt must enable the configured reference/recurring lines");
 			BufferedImage afterRender = captureGantt(fixture);

@@ -1566,7 +1566,7 @@ class RibbonButtonBehaviorTest {
 
 		assertDoesNotThrow(() -> harness.invoke("RibbonZoomIn"));
 		assertDoesNotThrow(() -> harness.invoke("RibbonZoomOut"));
-		assertToggle(harness, "RibbonToggleProgressLine", true);
+		assertDialogButton(harness, "RibbonToggleProgressLine");
 		assertToggle(harness, "RibbonLabelResourceNames", true);
 		assertToggle(harness, "RibbonLabelTaskName", true);
 		assertChooser(harness, "RibbonGridlines", MenuActionConstants.ACTION_GRIDLINES);
@@ -2016,6 +2016,17 @@ class RibbonButtonBehaviorTest {
 		assertCall(harness, "view", viewId);
 	}
 
+	private static void assertDialogButton(Harness harness, String buttonId) throws Exception {
+		AbstractButton button = harness.manager.getMenuManager().getToolButtonsFromId(buttonId).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast).findFirst()
+			.orElseThrow(() -> new AssertionError(buttonId + " has no rendered command button"));
+		assertFalse(button.isSelected(), "dialog commands must not retain toggle selection");
+		harness.resetCalls();
+		harness.invoke(buttonId);
+		assertTrue(harness.hasCall("toggle"), "dialog command must route through its guarded document action");
+		assertFalse(button.isSelected(), "invoking the dialog command must not leave it selected");
+	}
+
 	private static void assertToggle(Harness harness, String buttonId, boolean hookPresent) throws Exception {
 		harness.resetCalls();
 		harness.invoke(buttonId);
@@ -2144,11 +2155,12 @@ class RibbonButtonBehaviorTest {
 			"RibbonBarStyles",
 			"RibbonTextStyles",
 				"RibbonLayout", "RibbonGridlines");
+		add(map, Strategy.ROUTE_DIALOG,
+			"RibbonToggleProgressLine");
 		add(map, Strategy.STATE_TOGGLE,
 			"RibbonZoomIn",
 			"RibbonZoomOut",
 			"RibbonInactivateTask",
-			"RibbonToggleProgressLine",
 			"RibbonLabelResourceNames",
 			"RibbonLabelTaskName",
 				"RibbonToggleCriticalChain",
