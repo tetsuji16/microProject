@@ -120,8 +120,10 @@ public final class GanttProgress {
 			while (index > 0L && dateMillis > rangeStart) {
 				index--;
 				long earlierDate = recurringDateAt(projectStart, calendarField, settings.recurringInterval(), index);
-				if (earlierDate < rangeStart)
+				if (earlierDate < rangeStart) {
+					index++;
 					break;
+				}
 				dateMillis = earlierDate;
 			}
 			while (dateMillis <= rangeEnd) {

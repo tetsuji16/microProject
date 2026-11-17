@@ -109,6 +109,52 @@ class GanttProgressTest {
 	}
 
 	@Test
+	void recurringViewportStartingBetweenIntervalsDoesNotDiscardFollowingWeekOrMonthDates() {
+		java.util.Calendar startCalendar = DateTime.calendarInstance();
+		startCalendar.clear();
+		startCalendar.set(2026, java.util.Calendar.JANUARY, 31);
+		long start = startCalendar.getTimeInMillis();
+		java.util.Calendar weekVisibleStartCalendar = (java.util.Calendar) startCalendar.clone();
+		weekVisibleStartCalendar.add(java.util.Calendar.DAY_OF_MONTH, 2);
+		long weekVisibleStart = weekVisibleStartCalendar.getTimeInMillis();
+		java.util.Calendar weekVisibleEndCalendar = (java.util.Calendar) startCalendar.clone();
+		weekVisibleEndCalendar.add(java.util.Calendar.DAY_OF_MONTH, 22);
+		java.util.List<Long> expectedWeeks = new java.util.ArrayList<>();
+		java.util.Calendar expectedWeek = (java.util.Calendar) startCalendar.clone();
+		for (int index = 0; index < 4; index++) {
+			expectedWeek.add(java.util.Calendar.WEEK_OF_YEAR, 1);
+			if (expectedWeek.getTimeInMillis() >= weekVisibleStart
+				&& expectedWeek.getTimeInMillis() <= weekVisibleEndCalendar.getTimeInMillis())
+				expectedWeeks.add(Long.valueOf(expectedWeek.getTimeInMillis()));
+		}
+		var weekly = new ProgressLineSettings(false, ProgressLineSettings.ReferenceDate.STATUS_DATE,
+			true, 1, ProgressLineSettings.IntervalUnit.WEEK);
+		assertEquals(expectedWeeks, GanttProgress.progressLineReferenceDates(start,
+			weekVisibleEndCalendar.getTimeInMillis(), -1L, weekly, weekVisibleStart,
+			weekVisibleEndCalendar.getTimeInMillis()));
+
+		java.util.Calendar monthVisibleStartCalendar = (java.util.Calendar) startCalendar.clone();
+		monthVisibleStartCalendar.set(java.util.Calendar.MONTH, java.util.Calendar.FEBRUARY);
+		monthVisibleStartCalendar.set(java.util.Calendar.DAY_OF_MONTH, 1);
+		java.util.Calendar monthVisibleEndCalendar = (java.util.Calendar) startCalendar.clone();
+		monthVisibleEndCalendar.set(java.util.Calendar.MONTH, java.util.Calendar.APRIL);
+		monthVisibleEndCalendar.set(java.util.Calendar.DAY_OF_MONTH, 30);
+		java.util.List<Long> expectedMonths = new java.util.ArrayList<>();
+		for (int index = 1; index <= 3; index++) {
+			java.util.Calendar monthDate = (java.util.Calendar) startCalendar.clone();
+			monthDate.add(java.util.Calendar.MONTH, index);
+			if (monthDate.getTimeInMillis() >= monthVisibleStartCalendar.getTimeInMillis()
+				&& monthDate.getTimeInMillis() <= monthVisibleEndCalendar.getTimeInMillis())
+				expectedMonths.add(Long.valueOf(monthDate.getTimeInMillis()));
+		}
+		var monthly = new ProgressLineSettings(false, ProgressLineSettings.ReferenceDate.STATUS_DATE,
+			true, 1, ProgressLineSettings.IntervalUnit.MONTH);
+		assertEquals(expectedMonths, GanttProgress.progressLineReferenceDates(start,
+			monthVisibleEndCalendar.getTimeInMillis(), -1L, monthly,
+			monthVisibleStartCalendar.getTimeInMillis(), monthVisibleEndCalendar.getTimeInMillis()));
+	}
+
+	@Test
 	void recurringProgressLinesHaveNoTenThousandDateCapAndRespectVisibleBounds() {
 		java.util.Calendar startCalendar = DateTime.calendarInstance();
 		startCalendar.clear();

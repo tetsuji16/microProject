@@ -5611,7 +5611,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		ok.addActionListener(event -> {
 			try {
 				interval.commitEdit();
-			} catch (java.text.ParseException invalidInterval) {
+			} catch (java.text.ParseException | IllegalArgumentException invalidInterval) {
 				PopupDialogSupport.showMessageDialog(dialog, manager.getString("ProgressLines.invalidInterval"),
 					manager.getString("RibbonToggleProgressLine.text"), JOptionPane.ERROR_MESSAGE);
 				interval.requestFocusInWindow();
