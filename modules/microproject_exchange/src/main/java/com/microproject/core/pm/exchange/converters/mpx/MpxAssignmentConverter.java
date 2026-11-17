@@ -78,6 +78,7 @@ public class MpxAssignmentConverter {
 		CustomWorkPlan customWorkPlan = customWorkContour
 			? customWorkPlan(mpxAssignment, sourceWork, sourceActualWork, sourceRemainingWork, rawWork, state) : null;
 		assignment.setTaskAndResource(task, resource);
+		assignment.setNotes(mpxAssignment.getNotes());
 		// Import current schedule values here; scalar baseline slots are imported
 		// separately by importBaselines after this current assignment is attached.
 		long assignmentStart = rawWork != null && rawWork.start() != null ? rawWork.start().longValue()
