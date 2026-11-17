@@ -30,6 +30,7 @@ public class TaskBackup {
 	ArrayList<TaskSplitInterval> taskSplitIntervals;
 	ArrayList<TaskSplitInterval> manualTaskSplitIntervals;
 	ArrayList<TaskSplitInterval> levelingTaskSplitIntervals;
+	ArrayList<TaskSplitInterval> importedTaskSplitIntervals;
 	long windowEarlyStart,windowEarlyFinish,windowLateStart,windowLateFinish,actualStart;
 	
 }

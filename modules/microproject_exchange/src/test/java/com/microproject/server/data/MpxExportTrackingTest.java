@@ -2213,6 +2213,8 @@ class MpxExportTrackingTest {
 		Project imported = importMspdi(xml);
 		NormalTask task = taskNamed(imported, "Assignment baseline task");
 		assertEquals(2, task.getTaskSplitIntervals().size(), "the union of source work ranges has two task gaps");
+		assertTrue(task.getManualTaskSplitIntervals().isEmpty(),
+			"MSPDI-imported gaps must retain import provenance instead of appearing as manual edits");
 		assertEquals(24L * 60L * 60L * 1000L, task.getWork(null));
 		assertEquals(0L, task.getActualWork(null));
 		assertEquals(24L * 60L * 60L * 1000L, task.getRemainingWork());

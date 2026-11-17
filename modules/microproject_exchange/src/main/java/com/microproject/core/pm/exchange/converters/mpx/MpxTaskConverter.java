@@ -176,7 +176,7 @@ public class MpxTaskConverter {
 				gaps.add(new TaskSplitInterval(gapStart - taskStart, nextStart - taskStart));
 		}
 		if (!gaps.isEmpty()) {
-			target.restoreTaskSplitIntervals(source, gaps);
+			target.restoreImportedTaskSplitIntervals(gaps);
 			long sourceStart = taskStart;
 			state.addPostScheduleValidation(() -> {
 				target.getCurrentSchedule().setStart(sourceStart);
