@@ -938,6 +938,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		showTaskBarInViewport(fixture, splitAt, resumeAt);
 		Point splitPoint = screenPointForTaskDate(fixture, splitAt);
 		Point resumePoint = screenPointForTaskDate(fixture, resumeAt);
+		capture(robot, "gantt-ribbon-split-coordinate-preflight.png");
 		assertRenderedDateMapping(fixture, splitAt, splitPoint, "split point");
 		assertRenderedDateMapping(fixture, resumeAt, resumePoint, "resume point");
 		assertScreenPointInGanttViewport(fixture, splitPoint, "split point");
@@ -1562,11 +1563,12 @@ class GanttBarDateDragGuiAcceptanceTest {
 	private Point screenPointForTaskDate(Fixture fixture, long date) throws Exception {
 		Point[] result = new Point[1];
 		SwingUtilities.invokeAndWait(() -> {
-			var projection = fixture.cache.getVisibleNodes().getProjectionIndex();
 			GraphicNode node = null;
 			int row = -1;
-			for (int candidate = 0; candidate < projection.size(); candidate++) {
-				GraphicNode visible = projection.nodeAt(candidate);
+			var cache = gantt.getModel().getCache();
+			for (int candidate = 0; candidate < cache.getSize(); candidate++) {
+				Object entry = cache.getElementAt(candidate);
+				if (!(entry instanceof GraphicNode visible)) continue;
 				if (visible.getNode().getImpl() == fixture.predecessor) {
 					node = visible;
 					row = candidate;
@@ -1595,19 +1597,35 @@ class GanttBarDateDragGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> {
 			Point local = new Point(screenPoint);
 			SwingUtilities.convertPointFromScreen(local, gantt);
-			var projection = fixture.cache.getVisibleNodes().getProjectionIndex();
+			var cache = gantt.getModel().getCache();
 			GraphicNode target = null;
-			for (int row = 0; row < projection.size(); row++) {
-				GraphicNode candidate = projection.nodeAt(row);
+			int row = -1;
+			for (int candidateRow = 0; candidateRow < cache.getSize(); candidateRow++) {
+				Object entry = cache.getElementAt(candidateRow);
+				if (!(entry instanceof GraphicNode candidate)) continue;
 				if (candidate.getNode().getImpl() == fixture.predecessor) {
 					target = candidate;
+					row = candidateRow;
 					break;
 				}
 			}
 			GraphZone hit = gantt.getUI().getNodeAt(local.x, local.y);
-			if (target == null || hit == null || hit.getObject() != target)
-				throw new AssertionError(gesture + " point must hit the rendered task bar: date=" + requestedDate
-					+ " screen=" + screenPoint + " local=" + local + " hit=" + hit + " target=" + target);
+			GraphicNode hitNode = hit != null && hit.getObject() instanceof GraphicNode node ? node : null;
+			int left = target == null ? -1 : (int)Math.round(gantt.getCoord().toX(fixture.predecessor.getStart()));
+			int right = target == null ? -1 : (int)Math.round(gantt.getCoord().toX(fixture.predecessor.getEnd()));
+			int top = target == null ? -1 : (int)Math.floor(((GanttUI)gantt.getUI()).getBarY(row)
+				+ target.getGanttShapeOffset());
+			int height = target == null ? 0 : (int)Math.ceil(target.getGanttShapeHeight());
+			Rectangle renderedBounds = target == null ? new Rectangle() : new Rectangle(left, top,
+				Math.max(1, right - left), Math.max(1, height));
+			boolean expectedTaskHit = hitNode != null && hitNode.getNode().getImpl() == fixture.predecessor;
+		if (target == null || !expectedTaskHit || !renderedBounds.contains(local))
+				throw new AssertionError(gesture + " point must hit the rendered target task bar: date=" + requestedDate
+					+ " screen=" + screenPoint + " local=" + local + " hit=" + hit + " hitObject="
+					+ (hit == null ? null : hit.getObject()) + " hitTaskId="
+					+ (hitNode == null ? null : ((com.microproject.pm.task.Task)hitNode.getNode().getImpl()).getUniqueId())
+					+ " expectedTaskId=" + fixture.predecessor.getUniqueId() + " row=" + row
+					+ " renderedBounds=" + renderedBounds);
 			long mappedDate = (long)gantt.getCoord().toTime(local.x);
 			long onePixelDuration = Math.max(1L, Math.round(gantt.getCoord().toDuration(1.0d)));
 			javax.swing.JViewport viewport = (javax.swing.JViewport)SwingUtilities.getAncestorOfClass(
