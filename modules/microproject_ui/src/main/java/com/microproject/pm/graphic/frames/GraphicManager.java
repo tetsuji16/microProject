@@ -1920,6 +1920,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_TASK_MODE_AUTOMATIC, new TaskModeAction(false));
 		actionsMap.addHandler(ACTION_INACTIVATE_TASK, new InactivateTaskAction());
 		actionsMap.addHandler(CommandId.RESPECT_LINKS.actionId(), new RespectLinksAction());
+		actionsMap.addHandler("TaskSplit", new SplitTaskRibbonAction());
 		actionsMap.addHandler(ACTION_STATUS_DATE, new StatusDateAction());
 		actionsMap.addHandler(ACTION_MARK_ON_TRACK, new MarkOnTrackAction());
 		actionsMap.addHandler(ACTION_PERCENT_COMPLETE_0, new PercentCompleteAction(CommandId.PERCENT_COMPLETE_0));
@@ -3553,6 +3554,24 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			publishTaskCommandOutcome(this,
 				dispatchTaskCommand(manual ? CommandId.TASK_MODE_MANUAL : CommandId.TASK_MODE_AUTOMATIC));
 		}
+	}
+	/** Starts the existing interactive Gantt split mode from the Task ribbon. */
+	private final class SplitTaskRibbonAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			GanttView ganttView = getActiveGanttView();
+			if (ganttView != null && ganttView.getGantt() != null)
+				ganttView.getGantt().getInteractor().setSplitMode();
+		}
+		@Override protected boolean allowed(boolean enable) {
+			return !enable || (isActiveGanttView() && canStartSplitOnActiveGantt());
+		}
+	}
+	private boolean canStartSplitOnActiveGantt() {
+		GanttView ganttView = getActiveGanttView();
+		return ganttView != null && ganttView.getGantt() != null
+			&& ganttView.getGantt().getInteractor().canStartSplitMode();
 	}
 	private final class RespectLinksAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
@@ -5911,6 +5930,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	void syncGanttViewRibbonState() {
 		boolean ganttActive = isActiveGanttView();
+		getMenuManager().setActionEnabled("TaskSplit", ganttActive && canStartSplitOnActiveGantt());
 		BaseView sheetView = getActiveSheetView();
 		boolean sheetActive = sheetView != null;
 		getMenuManager().setActionEnabled(ACTION_TOGGLE_PROGRESS_LINE, ganttActive);

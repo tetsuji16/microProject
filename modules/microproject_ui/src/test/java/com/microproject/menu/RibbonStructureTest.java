@@ -138,7 +138,7 @@ class RibbonStructureTest {
 			"the screen tip key comes from the registered binding (#973), not the bundle");
 		assertEquals(List.of(
 			"RibbonPercentComplete0", "RibbonPercentComplete25", "RibbonPercentComplete50", "RibbonPercentComplete75", "RibbonPercentComplete100",
-			"RibbonOutdent", "RibbonIndent", "RibbonLink", "RibbonUnlink", "RibbonMarkOnTrack", "RibbonUpdateTasks",
+			"RibbonOutdent", "RibbonIndent", "RibbonTaskSplit", "RibbonLink", "RibbonUnlink", "RibbonMarkOnTrack", "RibbonUpdateTasks",
 			"RibbonRespectLinks", "RibbonInactivateTask"),
 			ribbonButtonIds("TaskTrackingRibbonBand"));
 		assertEquals(List.of("RibbonProjectInformation", "RibbonCustomFields", "RibbonChangeWorkingTime", "RibbonCalendarOptions", "RibbonProjectsDialog"),
