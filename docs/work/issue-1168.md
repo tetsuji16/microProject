@@ -32,7 +32,7 @@ Blockers: none identified.
 ## Remaining blockers
 
 - A3 remains an implementation and fixture gap: multi-segment MPP/MSPDI import/export has not been proven or implemented.
-- A4/A5 hosted Robot run is pending. The first targeted run on `0748c0029` failed before interaction because the GUI journey had not initialized a ribbon window (`projectWindow` null). The fixture now initializes both its visible Gantt frame and ribbon document; rerun on the next candidate. Local Robot is not used because another user is using the desktop; use hosted Windows GUI acceptance.
+- A4/A5 hosted split Robot run is pending. The first targeted run on `0748c0029` failed before interaction because the GUI journey had not initialized a ribbon window (`projectWindow` null). The fixture also originally placed the ribbon action and gesture on distinct Gantt instances; the journey now uses the visible ribbon document's Gantt for both. The read-only disabled-state Robot passed on `3424bd3a8` (run `44007573699`). Local Robot is not used because another user is using the desktop; use hosted Windows GUI acceptance.
 
 ## Latest evidence
 
@@ -40,7 +40,7 @@ Blockers: none identified.
 - Microsoft interaction source: https://support.microsoft.com/en-us/project/split-a-task — Task > Schedule > Split Task; click task bar at split point and drag second segment to resume date; sections may be joined by dragging together. Treat as document-derived compatibility behavior.
 - Tests/build: `./gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.IconManagerRibbonIconTest" --tests "com.microproject.ui.ribbon.MspRibbonOrderDiffTest" --tests "com.microproject.ui.ribbon.RibbonCommandCatalogTest" --tests "com.microproject.ui.ribbon.MspRibbonSpecDiffTest" --tests "com.microproject.menu.RibbonStructureTest" --tests "com.microproject.pm.graphic.frames.RibbonButtonBehaviorTest" --tests "com.microproject.pm.graphic.gantt.GanttInteractorDragTest" --console=plain` — PASS; `./gradlew.bat :microproject_ui:compileGuiTestJava --console=plain` — PASS; `./gradlew.bat :microproject_core:test --tests "com.microproject.pm.scheduling.ScheduleServiceSplitTest" :microproject_exchange:test --tests "com.microproject.exchange.MpoHistoricalFixtureTest" --tests "com.microproject.exchange.MpoFileImporterTest" --console=plain` — PASS.
 - Microsoft source: https://learn.microsoft.com/en-us/office-project/xml-data-interchange/task-element?view=project-client-odc and https://learn.microsoft.com/en-us/office-project/xml-data-interchange/xml-schema-for-the-tasks-element?view=project-client-2016; schemas expose task Stop/Resume fields, not a repeated split interval list. This is evidence for a compatibility limit, not proof that task split data can never be represented through assignment contours.
-- CI: initial Build run `44004084267` failed due to the ribbon registrations and missing icon sizes fixed in this candidate; rerun on the exact candidate SHA pending.
-- Hosted physical GUI: targeted run `44005862276` on `0748c0029` failed pre-gesture with the `projectWindow` setup error above; candidate setup fix and read-only contract coverage are in progress.
+- CI: initial Build run `44004084267` failed due to ribbon registration and icon-size omissions. Those fixes passed all OS Build on `0748c0029` (run `44005858379`); the read-only gateway changes have not yet passed CI on an exact candidate SHA.
+- Hosted physical GUI: `44005862276` on `0748c0029` failed pre-gesture with the missing `projectWindow` setup; read-only target `44007573699` passed on `3424bd3a8`; split-target run `44007903963` is pending.
 - Physical GUI/manual: pending hosted GUI workflow; local desktop intentionally not used due contention.
 - CI: pending exact candidate SHA.
