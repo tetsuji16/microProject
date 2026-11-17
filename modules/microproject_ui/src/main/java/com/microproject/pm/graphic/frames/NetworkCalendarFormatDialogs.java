@@ -13,6 +13,7 @@ import java.awt.Insets;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 
 import javax.swing.DefaultListCellRenderer;
@@ -46,6 +47,8 @@ final class NetworkCalendarFormatDialogs {
 	static final class OptionPanel extends JPanel {
 		private static final long serialVersionUID = 1L;
 		transient Runnable applier = () -> { };
+		transient BooleanSupplier validator = () -> true;
+		transient String validationMessage;
 
 		OptionPanel() {
 			super(new GridBagLayout());
@@ -53,6 +56,10 @@ final class NetworkCalendarFormatDialogs {
 
 		void apply() {
 			applier.run();
+		}
+
+		boolean validateInput() {
+			return validator.getAsBoolean();
 		}
 	}
 

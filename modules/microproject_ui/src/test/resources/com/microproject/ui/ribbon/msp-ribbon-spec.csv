@@ -52,6 +52,7 @@ Task,Schedule,Mark on Track,RibbonMarkOnTrack,REQUIRED,S3
 Task,Schedule,Update Tasks,RibbonUpdateTasks,REQUIRED,S3
 Task,Schedule,Link Tasks,RibbonLink,REQUIRED,S6
 Task,Schedule,Unlink Tasks,RibbonUnlink,REQUIRED,S6
+Task,Schedule,Split Task,RibbonTaskSplit,REQUIRED,S6
 Task,Schedule,Respect Links,RibbonRespectLinks,REQUIRED,S7
 Task,Schedule,Indent,RibbonIndent,REQUIRED,S27
 Task,Schedule,Outdent,RibbonOutdent,REQUIRED,S27
@@ -103,7 +104,7 @@ Report,Reports,Charts,RibbonCharts,REQUIRED,S25
 Report,Analysis,Task Usage,RibbonTaskUsage,REQUIRED,S32
 Report,Analysis,Resource Usage,RibbonResourceUsage,REQUIRED,S32
 Report,Analysis,CCPM Buffer Status,RibbonCCPMBufferStatus,EXTENSION,CCPM is a product feature (#453 section 5)
-Report,Reports,Visual Reports,RibbonVisualReports,EXCLUDED,requires external Excel/Visio; see Visual Reports row in MSP_STANDARD_COMMAND_INVENTORY.md
+Report,Reports,Visual Reports,RibbonVisualReports,REQUIRED,S25
 Project,Properties,Project Information,RibbonProjectInformation,REQUIRED,S17
 Project,Properties,Change Working Time,RibbonChangeWorkingTime,REQUIRED,S17
 Project,Properties,Calendar Options,RibbonCalendarOptions,REQUIRED,S17
@@ -155,8 +156,8 @@ View,Zoom,Zoom In,RibbonZoomIn,REQUIRED,S20
 View,Zoom,Zoom Out,RibbonZoomOut,REQUIRED,S20
 View,Zoom,Entire Project,RibbonZoomEntireProject,REQUIRED,S20
 View,Zoom,Selected Tasks,RibbonZoomSelectedTasks,REQUIRED,S20
-View,Macros,Macros,RibbonMacros,EXCLUDED,VBA/macros excluded by the 2026-10-12 scope decision (#797)
-View,Macros,Visual Basic,RibbonVisualBasic,EXCLUDED,VBA/macros excluded by the 2026-10-12 scope decision (#797)
+View,Macros,Macros,RibbonMacros,REQUIRED,S40
+View,Macros,Visual Basic,RibbonVisualBasic,REQUIRED,S40
 Help,Help,Documentation,RibbonMicroProjectDocumentation,REQUIRED,S37
 Help,Help,About,RibbonAboutMicroProject,EXTENSION,product About dialog
 Format,Gantt Chart Format,Progress Line,RibbonToggleProgressLine,REQUIRED,S38

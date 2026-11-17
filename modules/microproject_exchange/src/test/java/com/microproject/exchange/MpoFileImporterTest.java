@@ -2555,6 +2555,29 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void mpoRoundTripPreservesImportedAndLevelingSplitOriginsIndependently() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(original);
+		TaskSplitInterval leveling = new TaskSplitInterval(4L * 60L * 60L * 1000L,
+			5L * 60L * 60L * 1000L);
+		TaskSplitInterval imported = new TaskSplitInterval(8L * 60L * 60L * 1000L,
+			9L * 60L * 60L * 1000L);
+		task.restoreTaskSplitProvenance(List.of(), List.of(leveling), List.of(imported));
+
+		Project reopened = loadFromBytes(saveProjectBytes(original));
+		NormalTask restored = (NormalTask) firstTask(reopened);
+		assertTrue(restored.getManualTaskSplitIntervals().isEmpty());
+		assertEquals(List.of(leveling), restored.getLevelingTaskSplitIntervals());
+		assertEquals(List.of(imported), restored.getImportedTaskSplitIntervals());
+		assertEquals(List.of(leveling, imported), restored.getTaskSplitIntervals());
+
+		assertTrue(restored.clearLevelingGeneratedSplits(this));
+		assertTrue(restored.getLevelingTaskSplitIntervals().isEmpty());
+		assertEquals(List.of(imported), restored.getImportedTaskSplitIntervals());
+		assertEquals(List.of(imported), restored.getTaskSplitIntervals());
+	}
+
+	@Test
 	void savingOverAnExistingFileKeepsTheTaskDataMspdiCannotHold(@org.junit.jupiter.api.io.TempDir Path folder) throws Exception {
 		Project original = projectForRoundTrip();
 		NormalTask task = (NormalTask) firstTask(original);
@@ -2582,6 +2605,45 @@ class MpoFileImporterTest {
 			() -> assertTrue(reopened.isHiddenTask(), "hidden flag"),
 			() -> assertEquals(start, reopened.getStart()),
 			() -> assertEquals(finish, reopened.getEnd()));
+	}
+
+	@Test
+	void assignmentNotesSurviveMpoRoundTripWithoutChangingOtherAssignments() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(original);
+		task.setUniqueId(780101L);
+		Resource resource = original.getResourcePool().newResourceInstance();
+		resource.setName("Notes resource");
+		((com.microproject.pm.resource.ResourceImpl) resource).setUniqueId(780102L);
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		assignment.setNotes("割り当てメモ\nSecond line & details");
+		Object savedDetail = assignment.backupDetail();
+		assignment.setNotes("Changed");
+		assignment.restoreDetail(savedDetail);
+		assertEquals("割り当てメモ\nSecond line & details", assignment.getNotes());
+		Resource other = original.getResourcePool().newResourceInstance();
+		other.setName("Other resource");
+		((com.microproject.pm.resource.ResourceImpl) other).setUniqueId(780103L);
+		AssignmentService.getInstance().newAssignment(task, other, 1D, 0L, this);
+		long resourceId = resource.getUniqueId();
+		long otherId = other.getUniqueId();
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(original, archive));
+		NormalTask reopened = (NormalTask) firstTask(loadFromBytes(archive.toByteArray()));
+		assertEquals(task.getUniqueId(), reopened.getUniqueId());
+		Assignment restored = null;
+		Assignment restoredOther = null;
+		for (Object value : reopened.getAssignments()) {
+			Assignment candidate = (Assignment) value;
+			if (candidate.getResource() != null && resourceId == candidate.getResource().getUniqueId())
+				restored = candidate;
+			if (candidate.getResource() != null && otherId == candidate.getResource().getUniqueId())
+				restoredOther = candidate;
+		}
+		assertNotNull(restored);
+		assertEquals("割り当てメモ\nSecond line & details", restored.getNotes());
+		assertNotNull(restoredOther);
+		assertTrue(restoredOther.getNotes() == null || restoredOther.getNotes().isEmpty());
 	}
 
 	@Test
@@ -2958,7 +3020,7 @@ class MpoFileImporterTest {
 			mapper.readTree(entries.get(MpoFileImporter.TASK_SPLITS_ENTRY));
 		for (com.fasterxml.jackson.databind.JsonNode node : root.path("tasks")) {
 			((com.fasterxml.jackson.databind.node.ObjectNode) node).remove(
-				List.of("manualIntervals", "levelingIntervals", "manualLevelingDates"));
+				List.of("manualIntervals", "levelingIntervals", "importedIntervals", "manualLevelingDates"));
 		}
 		byte[] legacySplits = mapper.writeValueAsBytes(root);
 		entries.put(MpoFileImporter.TASK_SPLITS_ENTRY, legacySplits);

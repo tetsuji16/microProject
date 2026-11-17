@@ -53,6 +53,16 @@ public interface SchedulingAlgorithm extends ObjectEvent.Listener, HasSentinels,
 	public void addObject(Object task);
 	Document getMasterDocument();
 	void markBoundsAsDirty();
+	/** Marks project-boundary tasks dirty after the affected dependency/WBS closure was already marked. */
+	default void markDependentBoundsAsDirty() {
+		markBoundsAsDirty();
+	}
+	/** True only when the task is linked to no other task beyond project sentinels. */
+	default boolean hasOnlySentinelDependencies(Task task) {
+		return false;
+	}
+	/** Rebuilds runtime indexes after a dependency graph snapshot has been restored. */
+	default void rebuildBoundaryDependencyIndexes() { }
 	public void objectChanged(ObjectEvent objectEvent);
 	public void addSubproject(Task subproject);
 	public void initEarliestAndLatest();

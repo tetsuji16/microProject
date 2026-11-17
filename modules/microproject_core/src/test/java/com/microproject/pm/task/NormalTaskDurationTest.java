@@ -24,6 +24,7 @@
 package com.microproject.pm.task;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -301,6 +302,136 @@ class NormalTaskDurationTest {
 		assertEquals(start, task.getStart());
 		assertEquals(expectedEnd, task.getEnd());
 		assertEquals(duration, task.getDuration());
+	}
+
+	@Test
+	void durationChangeDoesNotInvalidateIndependentTaskSchedules() {
+		Project project = createProject();
+		NormalTask changed = createTask(project);
+		NormalTask independent = createTask(project);
+		changed.getCurrentSchedule().setStart(project.getWorkCalendar().add(project.getStart(), day(), false));
+		independent.getCurrentSchedule().setStart(project.getWorkCalendar().add(project.getStart(), 10L * day(), false));
+		changed.setDuration(day());
+		independent.setDuration(day());
+		project.recalculate();
+		long independentStart = independent.getStart();
+		long independentEnd = independent.getEnd();
+		int independentCalculationState = independent.getCalculationStateCount();
+
+		changed.setDuration(3L * day());
+
+		assertEquals(independentStart, independent.getStart());
+		assertEquals(independentEnd, independent.getEnd());
+		assertEquals(independentCalculationState, independent.getCalculationStateCount(),
+			"a duration edit should invalidate its dependency/WBS closure without dirtying every project boundary task");
+	}
+
+	@Test
+	void isolatedTaskDurationDoesNotSnapshotUnrelatedProjectTasks() {
+		Project project = createProject();
+		class SnapshotProbeTask extends NormalTask {
+			int snapshots;
+			SnapshotProbeTask(Project owner) { super(owner); }
+			@Override public Object backupDetail() {
+				snapshots++;
+				return super.backupDetail();
+			}
+		}
+		SnapshotProbeTask existing = new SnapshotProbeTask(project);
+		project.connectTask(existing);
+		project.getSchedulingAlgorithm().addObject(existing);
+		existing.setDuration(day());
+		existing.snapshots = 0;
+		NormalTask newTask = new NormalTask(project);
+		project.connectTask(newTask);
+		project.getSchedulingAlgorithm().addObject(newTask);
+
+		newTask.setDuration(3L * day());
+
+		assertEquals(0, existing.snapshots,
+			"isolated task setup must not take an O(project task count) rollback snapshot");
+	}
+
+	@Test
+	void projectReferenceAloneDoesNotMakeDetachedTaskEligibleForLocalRollback() {
+		Project project = createProject();
+		class SnapshotProbeTask extends NormalTask {
+			int snapshots;
+			SnapshotProbeTask(Project owner) { super(owner); }
+			@Override public Object backupDetail() {
+				snapshots++;
+				return super.backupDetail();
+			}
+		}
+		SnapshotProbeTask attached = new SnapshotProbeTask(project);
+		project.connectTask(attached);
+		project.getSchedulingAlgorithm().addObject(attached);
+		attached.setDuration(day());
+		attached.snapshots = 0;
+		NormalTask detached = project.newStandaloneNormalTaskInstance();
+		long revision = project.getMutationState().revision();
+		List<String> undoHistory = List.copyOf(project.getUndoController().getEditNames());
+
+		detached.setDuration(2L * day());
+
+		assertSame(project, detached.getProject());
+		assertNull(detached.getOwningProject());
+		assertTrue(project.getTasks().stream().noneMatch(task -> task == detached));
+		assertTrue(attached.snapshots > 0,
+			"an ownerless task must use the conservative project rollback path, even when it references the project");
+		assertEquals(revision, project.getMutationState().revision());
+		assertEquals(undoHistory, project.getUndoController().getEditNames());
+	}
+
+	@Test
+	void isolatedTaskDurationFailureRestoresTheLocalStateAndPublicationBoundary() {
+		Project project = createProject();
+		AtomicBoolean injectFailure = new AtomicBoolean();
+		RuntimeException injected = new IllegalStateException("isolated duration failure after partial mutation");
+		class FailingTask extends NormalTask {
+			FailingTask(Project owner) { super(owner); }
+			@Override public void markAllDependentTasksAsNeedingRecalculation(boolean doSelf) {
+				super.markAllDependentTasksAsNeedingRecalculation(doSelf);
+				if (injectFailure.compareAndSet(true, false)) throw injected;
+			}
+		}
+		FailingTask task = new FailingTask(project);
+		project.connectTask(task);
+		project.getSchedulingAlgorithm().addObject(task);
+		task.setDuration(2L * day());
+		project.recalculate();
+		boolean estimated = task.isEstimated();
+		int displayUnit = task.getDurationDisplayUnit();
+		long duration = task.getDuration();
+		long start = task.getStart();
+		long end = task.getEnd();
+		int calculationState = task.getCalculationStateCount();
+		boolean dirty = task.isDirty();
+		Project.DirtyState projectDirty = project.captureDirtyState();
+		long revision = project.getMutationState().revision();
+		List<String> undoHistory = List.copyOf(project.getUndoController().getEditNames());
+		AtomicInteger objectEvents = new AtomicInteger();
+		AtomicInteger scheduleEvents = new AtomicInteger();
+		project.addObjectListener(event -> objectEvents.incrementAndGet());
+		project.addScheduleListener(event -> scheduleEvents.incrementAndGet());
+		injectFailure.set(true);
+
+		RuntimeException thrown = assertThrows(RuntimeException.class, () -> task.setDuration(3L * day()));
+
+		assertSame(injected, thrown);
+		assertEquals(duration, task.getDuration());
+		assertEquals(start, task.getStart());
+		assertEquals(end, task.getEnd());
+		assertEquals(estimated, task.isEstimated());
+		assertEquals(displayUnit, task.getDurationDisplayUnit());
+		assertEquals(calculationState, task.getCalculationStateCount());
+		assertEquals(dirty, task.isDirty());
+		assertEquals(projectDirty, project.captureDirtyState());
+		assertEquals(revision, project.getMutationState().revision());
+		assertEquals(undoHistory, project.getUndoController().getEditNames());
+		assertEquals(0, objectEvents.get());
+		assertEquals(0, scheduleEvents.get());
+		assertFalse(project.getMutationState().isHeldByCurrentThread());
 	}
 
 	@Test

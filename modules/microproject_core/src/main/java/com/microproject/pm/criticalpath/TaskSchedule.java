@@ -28,6 +28,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Collection;
 import java.util.Date;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import org.apache.commons.lang3.builder.ToStringBuilder;
@@ -384,7 +385,9 @@ public final class TaskSchedule implements Cloneable {
 		
 		if (list.isEmpty()) {
 			if (!task.isExternal() && task != context.sentinel) { // When the task is the sentinel, do nothing, otherwise find dependency and update it
-				dependency = (Dependency) context.sentinel.getDependencyList(forward).find(forward,task); // find sentinel's dependency concerning this task
+				dependency = context.sentinelDependencyIndex == null
+						? (Dependency) context.sentinel.getDependencyList(forward).find(forward,task)
+						: context.sentinelDependencyIndex.get(task);
 				
 				if (dependency != null) { // tasks in a subproject won't have a sentinel dependency
 					dependency.calcDependencyDate(forward,newBegin,newEnd,false); // calculate it to store off value
@@ -744,6 +747,7 @@ public final class TaskSchedule implements Cloneable {
 		boolean forward;
 		boolean honorRequiredDates;
 		Task sentinel;
+		Map<Task, Dependency> sentinelDependencyIndex;
 		PredecessorTaskList.TaskReference.Kind taskReferenceKind;
 		long boundary;
 		boolean earlyOnly;

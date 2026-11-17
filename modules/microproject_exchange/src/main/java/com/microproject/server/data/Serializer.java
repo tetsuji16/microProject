@@ -224,7 +224,8 @@ public class Serializer {
 
 
             //assignments
-            final Collection<AssignmentData> assignments=(flatAssignments==null)?new ArrayList<>(task.getAssignments().size()):flatAssignments;
+            @SuppressWarnings("unchecked")
+            final Collection<AssignmentData> assignments=(flatAssignments==null)?new ArrayList<>(task.getAssignments().size()):(Collection<AssignmentData>) flatAssignments;
             if (taskDirty)
             forAssignments(task, (assignment, s) -> {
 						ResourceImpl r=(ResourceImpl)assignment.getResource();

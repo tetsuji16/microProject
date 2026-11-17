@@ -701,6 +701,27 @@ class TaskCommandGatewayTest {
 	}
 
 	@Test
+	void ganttScheduleIntentRejectsReadOnlyTaskTargetWithoutMutationOrUndoChange() throws Exception {
+		Fixture fixture = createFixture();
+		fixture.task().setDuration(com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
+		fixture.task().setExternal(true);
+		TaskScheduleEditIntent intent = currentProgressIntent(fixture);
+		String undoNameBefore = fixture.project().getUndoController().getUndoPresentationName();
+		long[] scheduleBefore = scheduleState(fixture.task());
+		AtomicReference<Boolean> mutationCalled = new AtomicReference<>(false);
+		AtomicReference<TaskCommandResult> result = new AtomicReference<>();
+
+		SwingUtilities.invokeAndWait(() -> result.set(TaskCommandGateway.executeScheduleEdit(fixture.cache(), intent,
+			fixture.sheet(), () -> { mutationCalled.set(true); return true; })));
+
+		assertEquals(TaskCommandResult.Status.REJECTED, result.get().status());
+		assertEquals("task-read-only", result.get().reason());
+		assertFalse(mutationCalled.get(), "read-only target rejection must happen before the mutation callback");
+		assertArrayEquals(scheduleBefore, scheduleState(fixture.task()), "read-only target must retain its schedule");
+		assertEquals(undoNameBefore, fixture.project().getUndoController().getUndoPresentationName());
+	}
+
+	@Test
 	void ganttScheduleIntentRejectsCollaborationLockWithoutMutationOrUndoChange() throws Exception {
 		Fixture fixture = createFixture();
 		fixture.task().setDuration(com.microproject.options.CalendarOption.getInstance().getMillisPerDay());

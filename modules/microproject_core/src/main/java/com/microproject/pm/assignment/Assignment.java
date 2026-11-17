@@ -203,6 +203,13 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	public boolean isReadOnly() {
 		return getTask().isReadOnly();
 	}
+
+	/** Assignment-specific notes; copied with the assignment detail for undo. */
+	public String getNotes() { return detail.getNotes(); }
+
+	public void setNotes(String notes) {
+		if (!java.util.Objects.equals(detail.getNotes(), notes)) newDetail().setNotes(notes);
+	}
 	public boolean isExternal() {
 		return getTask().isExternal();
 	}
@@ -254,6 +261,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 			detail.setDuration(duration);
 		}
 	}
+
 
 	/** @deprecated use {@link #getRequestDemandKind()} for domain logic. */
 	@Deprecated
@@ -2306,11 +2314,12 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		return isTimesheetStatusNot(TimesheetStatus.Kind.REJECTED);
 	}
 
-	public boolean copyFieldsFromTimesheet(Collection fieldArray) {
+	@SuppressWarnings("unchecked")
+	public boolean copyFieldsFromTimesheet(Collection<?> fieldArray) {
 		Assignment ts = getTimesheetAssignment();
 		if (!isValidatedTimesheetAssignment(ts)) // only incorporate validated data
 			return false;
-		Field.copyData(fieldArray,this,ts);
+		Field.copyData((Collection<Field>) fieldArray,this,ts);
 		return true;
 	}
 

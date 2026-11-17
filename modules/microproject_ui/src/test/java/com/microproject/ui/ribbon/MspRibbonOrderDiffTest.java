@@ -203,7 +203,7 @@ class MspRibbonOrderDiffTest {
 	private static final Map<String, String> MISSING_GROUPS = Map.ofEntries(
 		Map.entry("TabReportOverview/GroupCompareProject", "Compare Projects; " + PHASE_1B),
 		Map.entry("TabReportOverview/GroupVisualReports",
-			"scope exclusion: Visual Reports require external Excel/Visio (EXCLUDED in msp-ribbon-spec.csv)"),
+			"desktop Visual Reports and local Excel/Visio integration remain unverified"),
 		Map.entry("TabProject/GroupOfficeExtension",
 			OFFICE_ADDIN),
 		Map.entry("TabProject/GroupProofing", "Spelling; " + PHASE_1B),
@@ -214,7 +214,7 @@ class MspRibbonOrderDiffTest {
 		Map.entry("TabTaskUsageViewFormat/GroupAssignmentProperties", ASSIGNMENT_PROPERTIES),
 		Map.entry("TabResourceUsageViewFormat/GroupAssignmentProperties", ASSIGNMENT_PROPERTIES),
 		Map.entry("TabView/GroupMacros",
-			"scope exclusion: " + "VBA/macros excluded by the #797 scope decision (EXCLUDED in msp-ribbon-spec.csv)"));
+			"Microsoft Project-compatible VBA/macros remain unresolved"));
 
 	/** Controls Microsoft lists in two groups of one tab; one command implements both and sits in the first group; the second listing is exempt only while the command is mapped somewhere in the tab. */
 	private static final Set<String> MSP_LISTS_TWICE = Set.of("TabNetworkDiagramFormat/NetworkDiagramLayout");
@@ -229,7 +229,6 @@ class MspRibbonOrderDiffTest {
 		Map.entry("TabNetworkDiagramFormat/NetworkDiagramAlignMenu", NO_FREE_PLACEMENT),
 		Map.entry("TabResourceGraphFormat/GraphLabel",
 			"static caption of the Graph gallery; the Graph menu button carries its own caption"),
-		Map.entry("TabTask/TaskSplit", "requires task split model; tracked separately"),
 		Map.entry("TabTask/DeliverablesMenu", ONLINE + " (deliverables)"),
 		Map.entry("TabResource/AddEngagement", "scope exclusion: " + ONLINE + " (engagements)"),
 		Map.entry("TabReportOverview/CreateNewReportMenu",

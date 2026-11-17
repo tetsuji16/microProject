@@ -80,6 +80,15 @@ public final class AutoFilterDialog extends AbstractDialog {
 		setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 	}
 
+	/**
+	 * The value list is a fixed popup surface (#724): long value sets scroll
+	 * inside the packed dialog instead of stretching the window.
+	 */
+	@Override
+	protected boolean isFixedSizeForm() {
+		return true;
+	}
+
 	public static void open(Frame owner, CommonSpreadSheet spreadSheet, Field field) {
 		AutoFilterDialog dialog = new AutoFilterDialog(owner, spreadSheet, field);
 		// AbstractDialog builds its content and buttons during pack().  Calling

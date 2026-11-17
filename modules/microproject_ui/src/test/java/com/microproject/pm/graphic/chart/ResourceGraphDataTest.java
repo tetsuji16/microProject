@@ -11,17 +11,265 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
+import java.util.TimeZone;
+
 import org.jfree.chart.plot.XYPlot;
 import org.jfree.chart.renderer.xy.XYBarRenderer;
 import org.jfree.data.xy.IntervalXYDataset;
 import org.junit.jupiter.api.Test;
 
+import com.microproject.options.CalendarOption;
+import com.microproject.pm.availability.Availability;
 import com.microproject.pm.graphic.chart.ResourceGraphData.ValueKind;
 import com.microproject.pm.graphic.chart.ResourceGraphSettings.GraphType;
 import com.microproject.pm.graphic.chart.ResourceGraphSettings.Item;
+import com.microproject.pm.graphic.timescale.CoordinatesConverter;
+import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.resource.Resource;
+import com.microproject.pm.resource.ResourceImpl;
+import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.Project;
+import com.microproject.pm.calendar.WorkDay;
+import com.microproject.pm.calendar.WorkingCalendar;
+import com.microproject.pm.calendar.WorkingHours;
+import com.microproject.pm.calendar.WorkRangeException;
+import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.util.DateTime;
+import com.microproject.timescale.TimeIterator;
+import com.microproject.timescale.TimeScale;
 
 /** The series each Graph option of the Resource Graph Format tab plots, on three intervals of plain numbers. */
 class ResourceGraphDataTest {
+	@Test
+	void peakUnitsUseTheHighestSimultaneousContourUnitsInsideEachPeriod() {
+		List<ResourceGraphData.AllocationInterval> intervals = List.of(
+			new ResourceGraphData.AllocationInterval(0, 6, 0.75D),
+			new ResourceGraphData.AllocationInterval(4, 10, 0.5D),
+			new ResourceGraphData.AllocationInterval(10, 14, 1D));
+		assertArrayEquals(new double[] { 1.25D, 1D },
+			ResourceGraphData.peakUnits(new long[] { 0, 10 }, new long[] { 10, 20 }, intervals), DELTA);
+		ResourceGraphData graph = ResourceGraphData.compute(GraphType.PEAK_UNITS, new long[] { 0, 10 },
+			new double[] { 0, 0 }, new double[] { 0, 0 }, new double[] { 10, 10 }, null, null, 10, false,
+			new double[] { 1.25D, 1D }, new double[] { 0.5D, 0.25D });
+		assertY(new double[] { 1.25D, 1D }, graph, Item.ALLOCATED_FILTERED);
+	}
+
+	@Test
+	void peakOverallocationComparesLoadWithCapacityAtTheSameInstantNotThePeriodAverage() {
+		List<ResourceGraphData.AllocationInterval> loads = List.of(
+			new ResourceGraphData.AllocationInterval(5, 10, 1D),
+			new ResourceGraphData.AllocationInterval(10, 15, 1D));
+		List<ResourceGraphData.AllocationInterval> capacity = List.of(
+			new ResourceGraphData.AllocationInterval(0, 5, 0.5D),
+			new ResourceGraphData.AllocationInterval(5, 10, 1D),
+			new ResourceGraphData.AllocationInterval(10, 15, 0.5D),
+			new ResourceGraphData.AllocationInterval(15, 20, 1D));
+		double[] overload = ResourceGraphData.peakOverallocatedUnits(new long[] { 0, 10 }, new long[] { 10, 20 }, loads, capacity);
+		assertArrayEquals(new double[] { 0D, 0.5D }, overload, DELTA);
+		ResourceGraphData graph = ResourceGraphData.compute(GraphType.PEAK_UNITS, new long[] { 0, 10 },
+			new double[] { 0D, 0D }, new double[] { 0D, 0D }, new double[] { 7.5D, 7.5D }, null, null, 10D,
+			false, new double[] { 1D, 1D }, new double[] { 0D, 0D }, overload);
+		assertY(new double[] { 0D, 0.5D }, graph, Item.OVERALLOCATED_FILTERED);
+	}
+
+	@Test
+	void selectedOverloadUsesTheSameInstantAndResourceWithoutCrossResourceCapacityCancellation() {
+		List<ResourceGraphData.AllocationInterval> loads = List.of(
+			new ResourceGraphData.AllocationInterval(0, 5, 2D, "A"),
+			new ResourceGraphData.AllocationInterval(5, 10, 0.5D, "B"));
+		List<ResourceGraphData.AllocationInterval> selected = List.of(
+			new ResourceGraphData.AllocationInterval(5, 10, 0.5D, "B"));
+		List<ResourceGraphData.AllocationInterval> capacities = List.of(
+			new ResourceGraphData.AllocationInterval(0, 10, 1D, "A"),
+			new ResourceGraphData.AllocationInterval(0, 10, 1D, "B"));
+		var peaks = ResourceGraphData.peakOverallocatedUnits(new long[] { 0 }, new long[] { 10 }, loads, selected, capacities);
+		assertArrayEquals(new double[] { 1D }, peaks.total(), DELTA,
+			"resource B's unused capacity cannot cancel resource A's overload");
+		assertArrayEquals(new double[] { 0D }, peaks.selected(), DELTA,
+			"selected load is active only after the unselected overload has ended");
+
+		List<ResourceGraphData.AllocationInterval> simultaneousLoads = List.of(
+			new ResourceGraphData.AllocationInterval(0, 10, 1.5D, "A"),
+			new ResourceGraphData.AllocationInterval(0, 10, 1.5D, "B"));
+		var simultaneous = ResourceGraphData.peakOverallocatedUnits(new long[] { 0 }, new long[] { 10 },
+			simultaneousLoads, simultaneousLoads, capacities);
+		assertArrayEquals(new double[] { 1D }, simultaneous.total(), DELTA,
+			"simultaneous individual overloads add across resources");
+		assertArrayEquals(new double[] { 1D }, simultaneous.selected(), DELTA);
+	}
+
+	@Test
+	void finalPeakPeriodUsesTheNextRealMonthBoundaryAcrossMarchClockChangeDate() {
+		TimeScale monthly = new TimeScale();
+		monthly.setCalendarField1(Calendar.MONTH);
+		monthly.setNumber1(1);
+		monthly.setCalendarField2(Calendar.YEAR);
+		monthly.setNumber2(1);
+		monthly.setPattern1("MMM");
+		monthly.setPattern2("yyyy");
+		TimeZone previousZone = TimeZone.getDefault();
+		try {
+			TimeZone.setDefault(TimeZone.getTimeZone("America/New_York"));
+			GregorianCalendar local = new GregorianCalendar(TimeZone.getDefault());
+			local.clear();
+			local.set(2024, Calendar.FEBRUARY, 15, 0, 0);
+			long start = local.getTimeInMillis();
+			local.set(2024, Calendar.APRIL, 10, 0, 0);
+			long end = local.getTimeInMillis();
+			long[] periodEnds = ChartModel.periodEnds(new TimeIterator(start, end, monthly, -1L), 3);
+			assertArrayEquals(new long[] {
+				DateTime.calendarInstance(2024, Calendar.MARCH, 1).getTimeInMillis(),
+				DateTime.calendarInstance(2024, Calendar.APRIL, 1).getTimeInMillis(),
+				DateTime.calendarInstance(2024, Calendar.MAY, 1).getTimeInMillis()
+			}, periodEnds);
+		} finally {
+			TimeZone.setDefault(previousZone);
+		}
+	}
+
+	@Test
+	void projectAssignmentsFlowThroughChartModelIntoPeakSeries() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("resource-graph-peak-test", undo);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		ResourceImpl resource = (ResourceImpl) pool.createScriptedResource();
+		resource.setName("Peak test resource");
+		for (int i = 0; i < 2; i++) {
+			NormalTask task = project.createScriptedTask();
+			task.setName("Peak task " + i);
+			task.setDuration(CalendarOption.getInstance().getMillisPerDay());
+			AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		}
+		NormalTask unassigned = project.createScriptedTask();
+		unassigned.setName("Unassigned task must not contribute a dummy allocation");
+		unassigned.setDuration(CalendarOption.getInstance().getMillisPerDay());
+		project.recalculate();
+		ChartModel model = new ChartModel(new CoordinatesConverter(project));
+		model.computeResourceGraph(project, null, List.of(resource), new ResourceGraphSettings(), false);
+		ResourceGraphData.Series plotted = model.getResourceGraph().getSeries(Item.ALLOCATED_FILTERED);
+		assertNotNull(plotted);
+		assertEquals(2D, java.util.Arrays.stream(plotted.y()).max().orElseThrow(), DELTA,
+			"the Resource Graph peak must include both simultaneous project assignments");
+		assertEquals(2D, java.util.Arrays.stream(ChartModel.exactPeakUnits(project.getTaskOutlineIterator(), null,
+			new long[] { project.getStart() }, new long[] { project.getEnd() })).max().orElseThrow(), DELTA,
+			"an unassigned task's dummy assignment must not inflate an all-resources peak");
+		XYPlot rendered = ResourceGraphChart.build(model.getResourceGraph(), new ResourceGraphSettings()).getXYPlot();
+		IntervalXYDataset bars = (IntervalXYDataset) rendered.getDataset(datasetIndex(rendered, Item.ALLOCATED_FILTERED));
+		double plottedPeak = 0D;
+		for (int i = 0; i < bars.getItemCount(0); i++)
+			plottedPeak = Math.max(plottedPeak, bars.getEndYValue(0, i));
+		assertEquals(2D, plottedPeak, DELTA, "the chart renderer must receive the exact Peak Units result");
+	}
+
+	@Test
+	void selectedResourceGraphOverloadDoesNotCombinePeaksFromDifferentResourcesOrTimes() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("resource-graph-selected-overload-test", undo);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		ResourceImpl overloadedResource = (ResourceImpl) pool.createScriptedResource();
+		overloadedResource.setName("Overloaded earlier");
+		overloadedResource.setMaximumUnits(0.5D);
+		ResourceImpl selectedResource = (ResourceImpl) pool.createScriptedResource();
+		selectedResource.setName("Selected later");
+		for (int i = 0; i < 2; i++) {
+			NormalTask task = project.createScriptedTask();
+			task.setName("Concurrent overload " + i);
+			task.setDuration(CalendarOption.getInstance().getMillisPerDay());
+			AssignmentService.getInstance().newAssignment(task, overloadedResource, 1D, 0L, this);
+		}
+		NormalTask selectedTask = project.createScriptedTask();
+		selectedTask.setName("Selected allocation without overload");
+		selectedTask.setDuration(CalendarOption.getInstance().getMillisPerDay());
+		var selectedAssignment = AssignmentService.getInstance().newAssignment(selectedTask, selectedResource, 0.5D, 0L, this);
+		selectedAssignment.setDelay(4L * CalendarOption.getInstance().getMillisPerDay());
+		project.recalculate();
+		ChartModel model = new ChartModel(new CoordinatesConverter(project));
+		model.computeResourceGraph(project, List.of(selectedTask), List.of(overloadedResource, selectedResource),
+			new ResourceGraphSettings(), false);
+		ResourceGraphData graph = model.getResourceGraph();
+		assertTrue(java.util.Arrays.stream(graph.getSeries(Item.OVERALLOCATED_FILTERED).y()).max().orElse(0D) > 0D,
+			"the earlier resource's true overload must remain visible");
+		assertEquals(0D, java.util.Arrays.stream(graph.getSeries(Item.OVERALLOCATED_RESOURCE).y()).max().orElse(0D), DELTA,
+			"the selected resource/task has no overload, even though another resource peaks in the same display period");
+	}
+
+	@Test
+	void projectAssignmentAtFullAvailabilityIsNotOverallocatedByThePeriodsLowerAverage() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("resource-graph-availability-test", undo);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		ResourceImpl resource = (ResourceImpl) pool.createScriptedResource();
+		resource.setName("Changing availability");
+		resource.setMaximumUnits(0.5D);
+		NormalTask task = project.createScriptedTask();
+		task.setName("Assignment during full availability");
+		task.setDuration(CalendarOption.getInstance().getMillisPerDay());
+		var assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		assignment.setDelay(3L * CalendarOption.getInstance().getMillisPerDay());
+		project.recalculate();
+		long switchTime = assignment.getStart();
+		Availability highAvailability = (Availability) resource.getAvailabilityTable().newValueObject(switchTime);
+		highAvailability.setMaximumUnits(1D);
+		project.recalculate();
+		assertEquals(switchTime, assignment.getStart(), "fixture assignment must start after the availability change");
+		long periodEnd = resource.getEffectiveWorkCalendar().add(task.getEnd(),
+			CalendarOption.getInstance().getMillisPerDay(), true);
+		double[] overload = ChartModel.exactPeakOverallocatedUnits(project, List.of(resource),
+			new long[] { project.getStart() }, new long[] { periodEnd });
+		assertArrayEquals(new double[] { 0D }, overload, DELTA,
+			"availability changes earlier in the period must not make a fully covered assignment appear overallocated");
+	}
+
+	@Test
+	void assignmentsOnNonoverlappingShiftsAndAcrossAHolidayDoNotCreateFalsePeaks() throws WorkRangeException {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("resource-graph-shift-test", undo);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		long holidayDate = DateTime.nextDay(DateTime.dayFloor(project.getStart()) + 2L * com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_DAY);
+		WorkingCalendar early = shiftCalendar(project, 8, 12, holidayDate);
+		WorkingCalendar late = shiftCalendar(project, 13, 17, holidayDate);
+		Resource earlyResource = pool.createScriptedResource();
+		earlyResource.setName("Early shift");
+		earlyResource.setWorkCalendar(early);
+		Resource lateResource = pool.createScriptedResource();
+		lateResource.setName("Late shift");
+		lateResource.setWorkCalendar(late);
+		for (Resource resource : List.of(earlyResource, lateResource)) {
+			NormalTask task = project.createScriptedTask();
+			task.setName(resource.getName() + " assignment");
+			task.setWorkCalendar(resource.getWorkCalendar());
+			task.setDuration((long) (40D * H));
+			AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		}
+		project.recalculate();
+		ChartModel model = new ChartModel(new CoordinatesConverter(project));
+		model.computeResourceGraph(project, null, List.of(earlyResource, lateResource), new ResourceGraphSettings(), false);
+		ResourceGraphData.Series peak = model.getResourceGraph().getSeries(Item.ALLOCATED_FILTERED);
+		assertEquals(1D, java.util.Arrays.stream(peak.y()).max().orElseThrow(), DELTA,
+			"adjacent shifts must not overlap in the midday gap, overnight gaps, or the holiday");
+	}
+
+	private static WorkingCalendar shiftCalendar(Project project, int startHour, int endHour, long holidayDate)
+			throws WorkRangeException {
+		WorkingCalendar calendar = WorkingCalendar.getInstanceBasedOn(project.getWorkCalendar());
+		WorkingHours hours = new WorkingHours();
+		hours.setInterval(0, WorkingHours.hourTime(startHour), WorkingHours.hourTime(endHour));
+		WorkDay weekdays = new WorkDay();
+		weekdays.setWorkingHours(hours);
+		for (int day = Calendar.MONDAY - 1; day <= Calendar.FRIDAY - 1; day++)
+			calendar.setWeekDay(day, weekdays.clone());
+		calendar.addOrReplaceException(new WorkDay(holidayDate, holidayDate, "Resource Graph test holiday"));
+		calendar.invalidate();
+		return calendar;
+	}
 	private static final double H = 3_600_000D;
 	private static final double DELTA = 1e-9;
 	private static final long[] DATES = { 0L, 1L, 2L };
@@ -163,6 +411,27 @@ class ResourceGraphDataTest {
 		assertTrue(!(line.getRenderer(index) instanceof XYBarRenderer), "a stacked item shown as a line must not draw bars");
 		assertEquals(12D, line.getDataset(index).getYValue(0, 1), DELTA);
 		assertTrue(index > datasetIndex(line, Item.ALLOCATED_FILTERED), "the descending stacked line must be drawn after the filtered fill");
+	}
+
+	@Test
+	void barOverlapControlsPerPeriodBarWidths() {
+		ResourceGraphData data = compute(GraphType.WORK, false);
+		ResourceGraphSettings settings = new ResourceGraphSettings();
+		XYPlot plot = ResourceGraphChart.build(data, settings).getXYPlot();
+		IntervalXYDataset overlap = (IntervalXYDataset) plot.getDataset(datasetIndex(plot, Item.ALLOCATED_RESOURCE));
+		assertEquals(0D, overlap.getStartXValue(0, 0), DELTA);
+		assertEquals(1D, overlap.getEndXValue(0, 0), DELTA);
+		settings.setPercentBarOverlap(0);
+		plot = ResourceGraphChart.build(data, settings).getXYPlot();
+		IntervalXYDataset sideBySide = (IntervalXYDataset) plot.getDataset(datasetIndex(plot, Item.ALLOCATED_RESOURCE));
+		assertEquals(0.5D, sideBySide.getStartXValue(0, 0), DELTA);
+		assertEquals(1D, sideBySide.getEndXValue(0, 0), DELTA);
+		settings.setPercentBarOverlap(40);
+		plot = ResourceGraphChart.build(data, settings).getXYPlot();
+		IntervalXYDataset partialOverlap = (IntervalXYDataset) plot.getDataset(datasetIndex(plot, Item.ALLOCATED_RESOURCE));
+		assertEquals(0.3D, partialOverlap.getStartXValue(0, 0), DELTA);
+		assertEquals(1D, partialOverlap.getEndXValue(0, 0), DELTA,
+			"40 percent overlap must interpolate to 70 percent width between half-width and full-width bars");
 	}
 
 	private static int datasetIndex(XYPlot plot, Item item) {

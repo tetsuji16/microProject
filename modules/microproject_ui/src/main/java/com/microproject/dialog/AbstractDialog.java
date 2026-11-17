@@ -214,6 +214,9 @@ public abstract class AbstractDialog extends FlatLafDialog {
 	}
 
 	protected void initComponents() {
+		// #724 size contract: a single bounded form keeps its packed size.
+		// Data views (tables, lists, tabbed editors) stay user-resizable.
+		setResizable(!isFixedSizeForm());
 		// pack() can be requested again after a dialog is reused or resized.  Do
 		// not leave the previous content/button panels installed: duplicate
 		// BorderLayout children are silently replaced or collapsed by Swing, which
@@ -380,6 +383,17 @@ public abstract class AbstractDialog extends FlatLafDialog {
 	}
 
 	protected boolean hasCloseButton() {
+		return false;
+	}
+
+	/**
+	 * Declares the #724 size contract for dialogs whose content is a single
+	 * bounded form. These forms keep their packed size; a dialog that hosts a
+	 * table, list, or tabbed editor returns {@code false} so its data view can
+	 * grow. Subclasses with a fixed form also get a packed minimum size from
+	 * {@link #lockMinimumSizeToCurrentPack()}.
+	 */
+	protected boolean isFixedSizeForm() {
 		return false;
 	}
 

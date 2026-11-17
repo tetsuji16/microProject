@@ -584,6 +584,26 @@ class RibbonAndToolbarButtonTest {
 	}
 
 	@Test
+	void ribbonDispatcherPreservesCommittedInputValue() throws Exception {
+		java.util.concurrent.atomic.AtomicReference<String> received = new java.util.concurrent.atomic.AtomicReference<>();
+		AbstractAction command = new AbstractAction("LinkAction") {
+			@Override public void actionPerformed(java.awt.event.ActionEvent event) { received.set(event.getActionCommand()); }
+		};
+		ProjectMenuActionMap actions = new ProjectMenuActionMap() {
+			@Override public Action getAction(String key) { return command; }
+			@Override public String getStringFromAction(Action action) { return "LinkAction"; }
+		};
+		MenuRibbonCommandSource source = new MenuRibbonCommandSource(
+			new ExtToolBarFactory(actions, ribbonBundles(Locale.ROOT)));
+		SwingUtilities.invokeAndWait(() -> {
+			source.createAction("RibbonLink");
+			source.dispatch(new RibbonCommandInvocation("RibbonLink",
+				RibbonCommandInvocation.Origin.INPUT_CONTROL, this, "chosen-value"));
+		});
+		assertEquals("chosen-value", received.get(), "the shared dispatcher must preserve committed input");
+	}
+
+	@Test
 	void ribbonCanCreateOneSharedDispatcherWithoutRegisteringAButton() throws Exception {
 		java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
 		AbstractAction command = new AbstractAction("LinkAction") {

@@ -78,6 +78,7 @@ public class MpxAssignmentConverter {
 		CustomWorkPlan customWorkPlan = customWorkContour
 			? customWorkPlan(mpxAssignment, sourceWork, sourceActualWork, sourceRemainingWork, rawWork, state) : null;
 		assignment.setTaskAndResource(task, resource);
+		assignment.setNotes(mpxAssignment.getNotes());
 		// Import current schedule values here; scalar baseline slots are imported
 		// separately by importBaselines after this current assignment is attached.
 		long assignmentStart = rawWork != null && rawWork.start() != null ? rawWork.start().longValue()
@@ -249,7 +250,7 @@ public class MpxAssignmentConverter {
 				+ mappedRemaining + "/" + sourceRemainingWork
 				+ ", segments=" + segments);
 
-		// Clear the initial scalar/flat profile first so source gaps become zero-work buckets.
+		// Rebuild the source contour in place so zero-work buckets and bounds remain intact.
 		target.setInterval(Assignment.WORK, plan.start(), plan.finish(), 0L);
 		for (WorkSegment segment : segments) {
 			target.setInterval(Assignment.WORK, segment.start(), segment.end(), segment.totalWork());

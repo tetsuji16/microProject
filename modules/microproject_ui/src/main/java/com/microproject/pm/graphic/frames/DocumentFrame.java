@@ -36,6 +36,8 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.IdentityHashMap;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -1946,7 +1948,8 @@ public class DocumentFrame extends NamedFrame implements
 			Gantt gantt = ganttView.getGantt();
 			if (gantt != null)
 				gantt.getInteractor().setModeListener(statusBar::setMode);
-			restoreWorkspaceFor(ganttView);
+			if (restoreWorkspaceFor(ganttView) == null)
+				ganttView.fitProjectRangeOnInitialDisplay();
 		}
 		return ganttView;
 	}
@@ -2110,6 +2113,12 @@ public class DocumentFrame extends NamedFrame implements
 			teamPlannerView = new DockableProjectToolView(project, ACTION_DELEGATE_TASKS,
 				TeamPlannerDialogBox.createEmbeddedPanel(getGraphicManager().getFrame(), project));
 			restoreWorkspaceFor(teamPlannerView);
+			TeamPlannerDialogBox planner = getEmbeddedTeamPlannerDialog();
+			if (planner != null)
+				planner.setSelectionListener(() -> {
+					getGraphicManager().syncGanttViewRibbonState();
+					getGraphicManager().setButtonState(getSelectedImpl(), project);
+				});
 		}
 		return teamPlannerView;
 	}
@@ -2695,8 +2704,12 @@ public class DocumentFrame extends NamedFrame implements
 			Messages.getString("TaskInformationDialog.FontColor"), current == null ? java.awt.Color.BLACK : new java.awt.Color(current));
 		if (chosen != null) {
 			Integer rgb = chosen.getRGB() & 0xFFFFFF;
-			applyToSelectedTaskText(format -> format.withColor(rgb), "task-font-color");
+			applySelectedTaskFontColor(rgb);
 		}
+	}
+
+	void applySelectedTaskFontColor(Integer rgb) {
+		applyToSelectedTaskText(format -> format.withColor(rgb), "task-font-color");
 	}
 
 	/** True when every selected task is underlined (the pressed state of the Underline button). */
@@ -2727,8 +2740,12 @@ public class DocumentFrame extends NamedFrame implements
 			Messages.getString("TaskFill.title"), current == null ? java.awt.Color.WHITE : new java.awt.Color(current));
 		if (chosen != null) {
 			Integer rgb = chosen.getRGB() & 0xFFFFFF;
-			applyToSelectedTaskText(format -> format.withBackground(rgb), "task-font-fill");
+			applySelectedTaskBackground(rgb);
 		}
+	}
+
+	void applySelectedTaskBackground(Integer rgb) {
+		applyToSelectedTaskText(format -> format.withBackground(rgb), "task-font-fill");
 	}
 
 	/** Font family of the lead selected task, or null without a formattable selection. */
@@ -3230,6 +3247,16 @@ public class DocumentFrame extends NamedFrame implements
 
 	public void restoreWorkspace(WorkspaceSetting w, int context) {
 		Workspace ws = (Workspace)w;
+		List<BaseView> existingViews = new ArrayList<>();
+		forAllViews(view -> {
+			if (view instanceof BaseView baseView)
+				existingViews.add(baseView);
+		});
+		Map<ChartView, ChartView.SelectionState> chartSelections = new IdentityHashMap<>();
+		for (BaseView view : existingViews) {
+			if (view instanceof ChartView chartView)
+				chartSelections.put(chartView, chartView.snapshotSelection());
+		}
 		workspace = ws;
 		setMainView(false);
 		if (project == null) {
@@ -3249,6 +3276,14 @@ public class DocumentFrame extends NamedFrame implements
 			activateGanttView();
 		}
 		mainView.restoreWorkspace(ws.mainView, context);
+		// Lazy view construction restores its workspace in the getter. Reapply only to views
+		// that existed before this restore, once each, so a same-session workspace reload also
+		// updates cached views without restoring newly-created views twice.
+		for (BaseView view : existingViews) {
+			restoreWorkspaceFor(view);
+			if (view instanceof ChartView chartView)
+				chartView.restoreSelection(chartSelections.get(chartView));
+		}
 
 	}
 

@@ -270,21 +270,45 @@ class IconManagerRibbonIconTest {
 	}
 
 	@Test
-	void taskTreeExpandersPreserveTheirNinePixelRasterShapeAndScaleAsVectors() throws IOException {
-		for (String[] fixture : List.of(new String[] {"spreadsheet.collapsed.icon", "plus.png"},
-				new String[] {"spreadsheet.expanded.icon", "moins.png"})) {
-			String key = fixture[0];
-			assertTrue(IconManager.hasSvgResource(key), key + " must resolve its faithful SVG companion");
-			var icon = IconManager.getIcon(key);
-			assertNotNull(icon);
-			assertEquals(9, icon.getIconWidth(), key + " keeps the source logical width");
-			assertEquals(9, icon.getIconHeight(), key + " keeps the source logical height");
-			BufferedImage original = ImageIO.read(IconManager.class.getResource("images/" + fixture[1]));
-			assertEquals(0, differingPixelCount(original, paint(icon, 9, 9)),
-				key + " vector art must match every opaque and transparent source pixel at 100%");
-			for (double scale : new double[] {1.25, 1.5}) {
-				assertScaleSpecificRendering(icon, scale, key);
+	void taskTreeExpandersPreserveTheirNinePixelRasterShapeAndScaleAsVectors() throws Exception {
+		boolean wasDark = com.microproject.ui.theme.ThemeManager.isDark();
+		javax.swing.SwingUtilities.invokeAndWait(com.microproject.ui.theme.MicroProjectTheme::installLight);
+		try {
+			for (String[] fixture : List.of(new String[] {"spreadsheet.collapsed.icon", "plus.png"},
+					new String[] {"spreadsheet.expanded.icon", "moins.png"})) {
+				String key = fixture[0];
+				assertTrue(IconManager.hasSvgResource(key), key + " must resolve its faithful SVG companion");
+				var icon = IconManager.getIcon(key);
+				assertNotNull(icon);
+				assertEquals(9, icon.getIconWidth(), key + " keeps the source logical width");
+				assertEquals(9, icon.getIconHeight(), key + " keeps the source logical height");
+				BufferedImage original = ImageIO.read(IconManager.class.getResource("images/" + fixture[1]));
+				assertEquals(0, differingPixelCount(original, paint(icon, 9, 9)),
+					key + " vector art must match every opaque and transparent source pixel at 100%");
+				for (double scale : new double[] {1.25, 1.5}) {
+					assertScaleSpecificRendering(icon, scale, key);
+				}
 			}
+		} finally {
+			javax.swing.SwingUtilities.invokeAndWait(() -> {
+				if (wasDark) com.microproject.ui.theme.MicroProjectTheme.installDark();
+				else com.microproject.ui.theme.MicroProjectTheme.installLight();
+			});
+		}
+	}
+
+	@Test
+	void rasterFixtureWorksWhenTheCurrentThemeIsDark() throws Exception {
+		boolean previousDark = com.microproject.ui.theme.ThemeManager.isDark();
+		javax.swing.SwingUtilities.invokeAndWait(com.microproject.ui.theme.MicroProjectTheme::installDark);
+		try {
+			taskTreeExpandersPreserveTheirNinePixelRasterShapeAndScaleAsVectors();
+			assertTrue(com.microproject.ui.theme.ThemeManager.isDark(), "the raster fixture must restore the prior dark theme");
+		} finally {
+			javax.swing.SwingUtilities.invokeAndWait(() -> {
+				if (previousDark) com.microproject.ui.theme.MicroProjectTheme.installDark();
+				else com.microproject.ui.theme.MicroProjectTheme.installLight();
+			});
 		}
 	}
 

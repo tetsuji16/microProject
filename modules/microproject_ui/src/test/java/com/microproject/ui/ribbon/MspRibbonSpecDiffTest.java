@@ -43,6 +43,9 @@ class MspRibbonSpecDiffTest {
 
 	/** REQUIRED commands that the ribbon does not yet expose, each with the reason it is open. */
 	private static final Map<String, String> KNOWN_GAPS = Map.ofEntries(
+		Map.entry("RibbonVisualReports", "desktop Visual Reports route and local Excel/Visio interoperability are unverified"),
+		Map.entry("RibbonMacros", "Microsoft Project-compatible macro recording and execution are unresolved"),
+		Map.entry("RibbonVisualBasic", "Microsoft Project-compatible VBA editor and object model are unresolved"),
 		Map.entry("RibbonLinksBetweenProjects", "no Links Between Projects dialog exists"),
 		Map.entry("RibbonDefineWbs", "WBS code definition is deliberately not exposed until implemented (RibbonStructureTest)"),
 		Map.entry("RibbonSpelling", "no spell checker (F7) exists"),
@@ -50,6 +53,15 @@ class MspRibbonSpecDiffTest {
 		Map.entry("RibbonOutline", "View > Data > Outline levels not wired to a ribbon command"),
 		Map.entry("RibbonTables", "View > Data > Tables not wired to a ribbon command"),
 		Map.entry("RibbonHighlight", "View > Data > Highlight filter not wired to a ribbon command"));
+
+	@Test
+	void localDesktopInteropRemainsInTheRequiredInventory() throws IOException {
+		Map<String, Status> statuses = new LinkedHashMap<>();
+		for (Row row : spec()) statuses.put(row.ribbonId(), row.status());
+		assertEquals(Status.REQUIRED, statuses.get("RibbonMacros"));
+		assertEquals(Status.REQUIRED, statuses.get("RibbonVisualBasic"));
+		assertEquals(Status.REQUIRED, statuses.get("RibbonVisualReports"));
+	}
 
 	@Test
 	void everyRequiredCommandIsPresentUnlessAnExplicitKnownGapSaysOtherwise() throws IOException {

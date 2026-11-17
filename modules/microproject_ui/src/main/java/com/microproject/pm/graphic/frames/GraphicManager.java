@@ -1920,6 +1920,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_TASK_MODE_AUTOMATIC, new TaskModeAction(false));
 		actionsMap.addHandler(ACTION_INACTIVATE_TASK, new InactivateTaskAction());
 		actionsMap.addHandler(CommandId.RESPECT_LINKS.actionId(), new RespectLinksAction());
+		actionsMap.addHandler("TaskSplit", new SplitTaskRibbonAction());
 		actionsMap.addHandler(ACTION_STATUS_DATE, new StatusDateAction());
 		actionsMap.addHandler(ACTION_MARK_ON_TRACK, new MarkOnTrackAction());
 		actionsMap.addHandler(ACTION_PERCENT_COMPLETE_0, new PercentCompleteAction(CommandId.PERCENT_COMPLETE_0));
@@ -3187,6 +3188,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				int answer = PopupDialogSupport.showConfirmDialog(getFrame(), panel, formatText(titleKey),
 					JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
 				if (answer != JOptionPane.OK_OPTION) return;
+				if (!panel.validateInput()) {
+					Alert.warn(panel.validationMessage, getFrame());
+					return;
+				}
 				panel.apply();
 				after.accept(dialog);
 				syncGanttViewRibbonState();
@@ -3553,6 +3558,24 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			publishTaskCommandOutcome(this,
 				dispatchTaskCommand(manual ? CommandId.TASK_MODE_MANUAL : CommandId.TASK_MODE_AUTOMATIC));
 		}
+	}
+	/** Starts the existing interactive Gantt split mode from the Task ribbon. */
+	private final class SplitTaskRibbonAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			GanttView ganttView = getActiveGanttView();
+			if (ganttView != null && ganttView.getGantt() != null)
+				ganttView.getGantt().getInteractor().setSplitMode();
+		}
+		@Override protected boolean allowed(boolean enable) {
+			return !enable || (isActiveGanttView() && canStartSplitOnActiveGantt());
+		}
+	}
+	private boolean canStartSplitOnActiveGantt() {
+		GanttView ganttView = getActiveGanttView();
+		return ganttView != null && ganttView.getGantt() != null
+			&& ganttView.getGantt().getInteractor().canStartSplitMode();
 	}
 	private final class RespectLinksAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
@@ -3939,13 +3962,37 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			case ACTION_BOLD -> frame.toggleSelectedTaskBold();
 			case ACTION_ITALIC -> frame.toggleSelectedTaskItalic();
 			case ACTION_UNDERLINE -> frame.toggleSelectedTaskUnderline();
-			case ACTION_BACKGROUND_COLOR -> frame.chooseSelectedTaskBackground();
+			case ACTION_BACKGROUND_COLOR -> applyTaskBackground(frame, event);
+			case ACTION_FONT_COLOR -> applyTaskFontColor(frame, event);
 			case ACTION_FONT_NAME, ACTION_FONT_SIZE -> { }
 			default -> frame.chooseSelectedTaskFontColor();
 			}
 			getMenuManager().setActionSelected(ACTION_BOLD, frame.isSelectedTaskTextBold());
 			getMenuManager().setActionSelected(ACTION_ITALIC, frame.isSelectedTaskTextItalic());
 			getMenuManager().setActionSelected(ACTION_UNDERLINE, frame.isSelectedTaskTextUnderline());
+		}
+		private void applyTaskBackground(DocumentFrame frame, ActionEvent event) {
+			String value = event.getActionCommand();
+			if ("__automatic__".equals(value)) {
+				frame.applySelectedTaskBackground(null);
+			} else if (isColorValue(value)) {
+				frame.applySelectedTaskBackground(Integer.parseInt(value.substring(1), 16));
+			} else {
+				frame.chooseSelectedTaskBackground();
+			}
+		}
+		private void applyTaskFontColor(DocumentFrame frame, ActionEvent event) {
+			String value = event.getActionCommand();
+			if ("__automatic__".equals(value)) {
+				frame.applySelectedTaskFontColor(null);
+			} else if (isColorValue(value)) {
+				frame.applySelectedTaskFontColor(Integer.parseInt(value.substring(1), 16));
+			} else {
+				frame.chooseSelectedTaskFontColor();
+			}
+		}
+		private boolean isColorValue(String value) {
+			return value != null && value.matches("#[0-9A-Fa-f]{6}");
 		}
 		@Override protected boolean allowed(boolean enable) {
 			return !enable || isDocumentActive() && getCurrentFrame() != null
@@ -5202,8 +5249,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				ACTION_TEAM_PLANNER_OUTLINE_LEVEL2, ACTION_TEAM_PLANNER_OUTLINE_LEVEL3, ACTION_TEAM_PLANNER_OUTLINE_LEVEL4,
 				ACTION_TEAM_PLANNER_OUTLINE_LEVEL5, ACTION_TEAM_PLANNER_OUTLINE_LEVEL6, ACTION_TEAM_PLANNER_OUTLINE_LEVEL7,
 				ACTION_TEAM_PLANNER_OUTLINE_LEVEL8, ACTION_TEAM_PLANNER_OUTLINE_LEVEL9, ACTION_TEAM_PLANNER_GRIDLINES,
-				ACTION_TEAM_PLANNER_TEXT_STYLES, ACTION_TEAM_PLANNER_TEXT_LINES, ACTION_TEAM_PLANNER_SELECTED_FILL,
-				ACTION_TEAM_PLANNER_SELECTED_BORDER, ACTION_TEAM_PLANNER_AUTO_BORDER, ACTION_TEAM_PLANNER_AUTO_FILL,
+				ACTION_TEAM_PLANNER_TEXT_STYLES, ACTION_TEAM_PLANNER_TEXT_LINES, ACTION_TEAM_PLANNER_AUTO_BORDER, ACTION_TEAM_PLANNER_AUTO_FILL,
 				ACTION_TEAM_PLANNER_AUTO_RESET, ACTION_TEAM_PLANNER_MANUAL_BORDER, ACTION_TEAM_PLANNER_MANUAL_FILL,
 				ACTION_TEAM_PLANNER_MANUAL_RESET, ACTION_TEAM_PLANNER_ACTUAL_BORDER, ACTION_TEAM_PLANNER_ACTUAL_FILL,
 				ACTION_TEAM_PLANNER_ACTUAL_RESET, ACTION_TEAM_PLANNER_EXTERNAL_BORDER, ACTION_TEAM_PLANNER_EXTERNAL_FILL,
@@ -5211,6 +5257,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				ACTION_TEAM_PLANNER_LATE_RESET, ACTION_TEAM_PLANNER_PREVENT_OVERALLOCATION, ACTION_TEAM_PLANNER_EXPAND_ROWS,
 				ACTION_TEAM_PLANNER_UNASSIGNED_TASKS_SHOW, ACTION_TEAM_PLANNER_UNSCHEDULED_TASKS_SHOW })
 			getMenuManager().setActionEnabled(action, planner != null);
+		boolean plannerSelection = planner != null && !planner.getSelectedTasks().isEmpty();
+		getMenuManager().setActionEnabled(ACTION_TEAM_PLANNER_SELECTED_FILL, plannerSelection);
+		getMenuManager().setActionEnabled(ACTION_TEAM_PLANNER_SELECTED_BORDER, plannerSelection);
 		com.microproject.dialog.TeamPlannerViewSettings plannerSettings = planner == null ? null : planner.getSettings();
 		getMenuManager().setActionSelected(ACTION_TEAM_PLANNER_GRIDLINES, plannerSettings != null && plannerSettings.isGridlines());
 		getMenuManager().setActionSelected(ACTION_TEAM_PLANNER_PREVENT_OVERALLOCATION, plannerSettings != null && plannerSettings.isPreventOverallocation());
@@ -5885,6 +5934,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	void syncGanttViewRibbonState() {
 		boolean ganttActive = isActiveGanttView();
+		getMenuManager().setActionEnabled("TaskSplit", ganttActive && canStartSplitOnActiveGantt());
 		BaseView sheetView = getActiveSheetView();
 		boolean sheetActive = sheetView != null;
 		getMenuManager().setActionEnabled(ACTION_TOGGLE_PROGRESS_LINE, ganttActive);

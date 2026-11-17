@@ -136,6 +136,8 @@ public final class ResourceGraphSettings implements ViewSettingsState {
 	public static final int MAX_TEXT_SIZE = 36;
 
 	private boolean showValues;
+	/** Percentage by which bar-style items overlap within a timescale interval. */
+	private int percentBarOverlap = 100;
 	private boolean showAvailabilityLine = true;
 	private boolean horizontalGridlines = true;
 	private boolean verticalGridlines;
@@ -163,6 +165,8 @@ public final class ResourceGraphSettings implements ViewSettingsState {
 
 	public boolean isShowValues() { return showValues; }
 	public void setShowValues(boolean value) { showValues = value; }
+	public int getPercentBarOverlap() { return percentBarOverlap; }
+	public void setPercentBarOverlap(int value) { percentBarOverlap = Math.max(0, Math.min(100, value)); }
 	public boolean isShowAvailabilityLine() { return showAvailabilityLine; }
 	public void setShowAvailabilityLine(boolean value) { showAvailabilityLine = value; }
 	public boolean isHorizontalGridlines() { return horizontalGridlines; }
@@ -182,6 +186,7 @@ public final class ResourceGraphSettings implements ViewSettingsState {
 			p.setProperty("style." + e.getKey().name(), s.showAs().name() + "," + s.rgb() + "," + s.pattern().name());
 		}
 		if (showValues) p.setProperty("showValues", "true");
+		if (percentBarOverlap != 100) p.setProperty("percentBarOverlap", Integer.toString(percentBarOverlap));
 		if (!showAvailabilityLine) p.setProperty("availabilityLine", "false");
 		if (!horizontalGridlines) p.setProperty("horizontalGridlines", "false");
 		if (verticalGridlines) p.setProperty("verticalGridlines", "true");
@@ -214,6 +219,11 @@ public final class ResourceGraphSettings implements ViewSettingsState {
 			}
 		}
 		showValues = Codec.bool(p, "showValues", false);
+		try {
+			percentBarOverlap = Math.max(0, Math.min(100, Integer.parseInt(p.getProperty("percentBarOverlap", "100").trim())));
+		} catch (RuntimeException malformed) {
+			percentBarOverlap = 100;
+		}
 		showAvailabilityLine = Codec.bool(p, "availabilityLine", true);
 		horizontalGridlines = Codec.bool(p, "horizontalGridlines", true);
 		verticalGridlines = Codec.bool(p, "verticalGridlines", false);

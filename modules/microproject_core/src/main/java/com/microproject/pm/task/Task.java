@@ -28,12 +28,14 @@ import com.microproject.util.DataUtils;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.Collection;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.Date;
-import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.Set;
-import java.util.Iterator;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -77,6 +79,7 @@ import com.microproject.pm.criticalpath.PredecessorTaskList;
 import com.microproject.pm.criticalpath.ScheduleWindow;
 import com.microproject.pm.criticalpath.TaskSchedule;
 import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.dependency.DependencyGraph;
 import com.microproject.pm.dependency.DependencyFormat;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
@@ -663,104 +666,12 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 
 
 
-	/**
- * This rather complex function determines whether one task depends on another.  Because of the rules for parent tasks,
- * the algorithm is rather complicated.  Basically:
- * - A (parent) task depends on its childrens predecessors, as these are potentially equivalent
- * - A task depends on its parents predecessors - in the case of a link to its parent task, the links applies to this task too
- * - A task depends on its parent, of course
- * - A task depends on its predecessors (obviously)
- * - A task depends on its predecessors children
- *
- * @param other Task to compare to
- * @param set - A set used to prevent treating same task twice
- * @return true if linking to other would cause a circular link
- */
-	private boolean dependsOn(Task other, Task me, Set<Task> set, String taskNames) {
-		// To avoid infinite loops which can occur under certain circumstances, use a set to prevent looking up twice
-		if (set.contains(this))
-			return false;
-		set.add(this);
-
-
-
-
-		// Here is the primary exit point.  We have arrived back at the other node, so it is circular
-		if (this == other) {
-			if (taskNames != null)
-				logger.warning("Circular: \n" + taskNames);
-			return true;
-		}
-
-
-
-		if (taskNames != null)
-			taskNames += (getId() +": " + getName() + '\n');
-
-
-		Task predecessor;
-		Dependency dep;
-
-		Collection<?> children;
-
-		for (Association association : getPredecessorList()) {
-			dep = (Dependency) association;
-			if (dep.isDisabled())
-				continue;
-			predecessor = (Task)dep.getPredecessor(); // I depend on my predecessors
-			if (predecessor.dependsOn(other,me,set,taskNames == null ? null : taskNames + "Pred-"))
-				return true;
-		}
-
-
-		//parent
-		Task parent = getWbsParentTask();
-		if (other.getWbsParentTask() != parent) { // only do parents if they are different
-			if (parent != null) {
-				if (parent.dependsOn(other,me,set,taskNames == null? null: taskNames + "Parent- " ))
-					return true;
-			}
-		}
-
-		children = getWbsChildrenNodes();
-		// I depend on my children's preds
-		if (children != null) {
-			for (Object childNode : children) {
-				Object current = ((Node) childNode).getImpl();
-				if (!(current instanceof Task child))
-					continue;
-
-				for (Association association : child.getPredecessorList()) {
-					dep = (Dependency) association;
-					if (dep.isDisabled())
-						continue;
-					predecessor = (Task)dep.getPredecessor(); // I depend on my predecessors
-					if (predecessor.wbsDescendentOf(this)) {// skip if already belongs to parent thru an ancestry relation
-						continue;
-					}
-
-					if (predecessor.dependsOn(other,me,set,taskNames == null ? null : taskNames + "pred-child " + child.getId()))
-						return true;
-				}
-
-			}
-
-		}
-
-
-		return false;
-	}
 	public boolean isAncestorOrDescendent(Task other) {
 		return (wbsDescendentOf(other) || other.wbsDescendentOf(this));
 	}
 	public boolean dependsOn(HasDependencies other) {
 		Task task = (Task)other;
-		if (isAncestorOrDescendent(task))
-			return true;
-
-
-		Set<Task> set = new HashSet<>();
-		return dependsOn((Task)other,this,set,"");
+		return DependencyGraph.dependsOn(this, task);
 	}
 
 	/**
@@ -929,37 +840,39 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		 * @param doSelf include this task in the recalculation
 		 */
 		public void markAllDependentTasksAsNeedingRecalculation(boolean doSelf) {
-			markDependentTasks(new HashSet<>(), doSelf);
+			markDependentClosureAsNeedingRecalculation(List.of(this), doSelf);
 		}
 
-		private void markDependentTasks(HashSet<Task> visited, boolean includeSelf) {
-			if (!visited.add(this))
-				return;
-			if (includeSelf)
-				markTaskAsNeedingRecalculation();
+		/** Marks the union of multiple dependency/WBS closures with one identity-based walk. */
+		public static void markDependentClosureAsNeedingRecalculation(Collection<? extends Task> roots) {
+			markDependentClosureAsNeedingRecalculation(roots, true);
+		}
 
-			AssociationList successors = getSuccessorList();
-			if (successors.isEmpty()) {
-				getProject().getSchedulingAlgorithm().markBoundsAsDirty();
-			} else {
-				for (Association association : successors) {
-					Task successor = (Task) ((Dependency) association).getSuccessor();
-					successor.markDependentTasks(visited, true);
+		private static void markDependentClosureAsNeedingRecalculation(Collection<? extends Task> roots,
+				boolean includeRoots) {
+			Set<Task> rootSet = Collections.newSetFromMap(new IdentityHashMap<>());
+			ArrayDeque<Task> pending = new ArrayDeque<>();
+			for (Task root : roots) {
+				if (root != null && rootSet.add(root)) pending.addLast(root);
+			}
+			Set<Task> visited = Collections.newSetFromMap(new IdentityHashMap<>());
+			while (!pending.isEmpty()) {
+				Task task = pending.removeFirst();
+				if (!visited.add(task)) continue;
+				if (includeRoots || !rootSet.contains(task)) task.markTaskAsNeedingRecalculation();
+				AssociationList successors = task.getSuccessorList();
+				if (successors.isEmpty()) {
+					task.getProject().getSchedulingAlgorithm().markDependentBoundsAsDirty();
+				} else {
+					for (Association association : successors)
+						pending.addLast((Task) ((Dependency) association).getSuccessor());
 				}
-			}
-
-			Task parent = getWbsParentTask();
-			while (parent != null) {
-				parent.markDependentTasks(visited, true);
-				parent = parent.getWbsParentTask();
-			}
-
-			Collection<Node> children = getWbsChildrenNodes();
-			if (children != null) {
-				for (Node childNode : children) {
-					if (childNode.getImpl() instanceof Task child) {
-						child.markDependentTasks(visited, true);
-					}
+				for (Task parent = task.getWbsParentTask(); parent != null; parent = parent.getWbsParentTask())
+					pending.addLast(parent);
+				Collection<Node> children = task.getWbsChildrenNodes();
+				if (children != null) {
+					for (Node childNode : children)
+						if (childNode.getImpl() instanceof Task child) pending.addLast(child);
 				}
 			}
 		}

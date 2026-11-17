@@ -54,6 +54,10 @@ public abstract class InformationDialog extends FieldDialog {
 	private JButton assignResourceButton = null;
   	protected InformationDialog(final Frame owner, String title) {
 		super(owner, title, false, false);
+		// Information dialogs host spreadsheet tables (availability, cost rates,
+		// dependencies). Microsoft Project edits those rows with the keyboard, so the
+		// dialog root pane owns Delete/Ctrl+X/Ctrl+C/Ctrl+V for its own table.
+		com.microproject.pm.graphic.spreadsheet.DialogSpreadSheetShortcuts.install(this);
 	}
   	
   	protected JButton getChangeWorkingTimeButton() {

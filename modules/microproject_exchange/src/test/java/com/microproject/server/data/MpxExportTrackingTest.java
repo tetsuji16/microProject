@@ -1049,12 +1049,29 @@ class MpxExportTrackingTest {
 
 		Project assignments = importMppFixture(fixtureDirectory.resolve("assignment-assignments-project2019-mpp14.mpp"));
 		assertProject2019Assignments(assignments);
+		org.mpxj.ProjectFile rawAssignmentMpp = new org.mpxj.mpp.MPPReader()
+			.read(fixtureDirectory.resolve("assignment-assignments-project2019-mpp14.mpp").toFile());
+		assertProject2019TaskProgressBoundary(rawAssignmentMpp, assignments, "MPP", true);
 		assertProject2019Assignments(roundTripMpo(assignments));
 
-		Project assignmentMspdi = importMspdi(Files.readString(
-			fixtureDirectory.resolve("assignment-assignments-project2019-mspdi.xml")));
+		byte[] assignmentMspdiBytes = Files.readAllBytes(
+			fixtureDirectory.resolve("assignment-assignments-project2019-mspdi.xml"));
+		Project assignmentMspdi = importMspdi(new String(assignmentMspdiBytes, java.nio.charset.StandardCharsets.UTF_8));
 		assertProject2019Assignments(assignmentMspdi);
+		org.mpxj.ProjectFile rawAssignmentMspdi = new org.mpxj.mspdi.MSPDIReader()
+			.read(new ByteArrayInputStream(assignmentMspdiBytes));
+		assertProject2019TaskProgressBoundary(rawAssignmentMspdi, assignmentMspdi, "MSPDI", true);
 		assertProject2019Assignments(roundTripMpo(assignmentMspdi));
+
+		ProjectFile serializedMspdi = new MSPDISerializer().serializeProject(assignments);
+		ByteArrayOutputStream serializedMspdiBytes = new ByteArrayOutputStream();
+		new org.mpxj.mspdi.MSPDIWriter().write(serializedMspdi, serializedMspdiBytes);
+		org.mpxj.ProjectFile serializedSource = new org.mpxj.mspdi.MSPDIReader()
+			.read(new ByteArrayInputStream(serializedMspdiBytes.toByteArray()));
+		Project serializedReimport = importMspdi(new String(serializedMspdiBytes.toByteArray(),
+			java.nio.charset.StandardCharsets.UTF_8));
+		assertProject2019TaskProgressBoundary(serializedSource, serializedReimport,
+			"microProject MSPDI roundtrip", false);
 
 		Project calendars = importMppFixture(fixtureDirectory.resolve("calendar-calendars-project2019-mpp14.mpp"));
 		String calendarSource = Files.readString(fixtureDirectory.resolve("calendar-calendars-project2019-mspdi.xml"));
@@ -1069,6 +1086,29 @@ class MpxExportTrackingTest {
 		assertProject2019CalendarInheritanceTracksBaseChange(calendars);
 		assertProject2019Calendars(calendars);
 		assertProject2019Calendars(roundTripMpo(calendars));
+	}
+
+	private void assertProject2019TaskProgressBoundary(org.mpxj.ProjectFile source, Project imported, String format,
+			boolean sourceHasFixtureWorkRange) {
+		// Microsoft defines Task Stop/Resume as the end of actual work and the
+		// scheduled restart of remaining work, not as an arbitrary task-gap list.
+		// This fixture's Task 3 has a Friday-to-Monday progress boundary while
+		// MPXJ reports one continuous work range and the model has no task split.
+		// https://learn.microsoft.com/en-us/office-project/xml-data-interchange/task-element?view=project-client-odc
+		org.mpxj.Task sourceTask = source.getTaskByUniqueID(Integer.valueOf(3));
+		assertNotNull(sourceTask, format + " fixture Task 3");
+		assertNotNull(sourceTask.getStop(), format + " source Stop");
+		assertNotNull(sourceTask.getResume(), format + " source Resume");
+		if (sourceHasFixtureWorkRange)
+			assertEquals(1, sourceTask.getWorkSplits().size(), format + " work-time ranges are not task gap records");
+		NormalTask task = taskNamed(imported, "Task 3");
+		assertEquals(DateUTCConverter.toModelTime(MpxDates.toDate(sourceTask.getStop())), task.getStop(),
+			format + " actual-progress stop boundary");
+		assertEquals(DateUTCConverter.toModelTime(MpxDates.toDate(sourceTask.getResume())), task.getResume(),
+			format + " remaining-work resume boundary");
+		assertEquals(0.5d, task.getPercentComplete(), 0.00001d, format + " task remains 50% complete");
+		assertTrue(task.getTaskSplitIntervals().isEmpty(),
+			format + " progress boundaries alone do not create manual task split gaps");
 	}
 
 	@Test
@@ -2160,6 +2200,96 @@ class MpxExportTrackingTest {
 		assertEquals(2L * 60L * 60L * 1000L, restored.actualWork(firstAfternoon, firstFinish));
 		assertEquals(2L * 60L * 60L * 1000L, restored.remainingWork(firstMorning, firstLunch));
 		assertEquals(0L, restored.remainingWork(firstAfternoon, firstFinish));
+	}
+
+	@Test
+	void customAssignmentWorkWithTwoGapsRestoresTaskGapIntervals() throws Exception {
+		String xml = threeDaySplitContourXml();
+		org.mpxj.ProjectFile source = new org.mpxj.mspdi.MSPDIReader().read(
+			new ByteArrayInputStream(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		org.mpxj.Task sourceTask = source.getTaskByUniqueID(Integer.valueOf(1));
+		assertEquals(3, sourceTask.getWorkSplits().size(), "three disjoint assignment work ranges are observed");
+
+		Project imported = importMspdi(xml);
+		NormalTask task = taskNamed(imported, "Assignment baseline task");
+		assertEquals(2, task.getTaskSplitIntervals().size(), "the union of source work ranges has two task gaps");
+		assertTrue(task.getManualTaskSplitIntervals().isEmpty(),
+			"MSPDI-imported gaps must retain import provenance instead of appearing as manual edits");
+		assertEquals(24L * 60L * 60L * 1000L, task.getWork(null));
+		assertEquals(0L, task.getActualWork(null));
+		assertEquals(24L * 60L * 60L * 1000L, task.getRemainingWork());
+		assertEquals(DateUTCConverter.toModelTime(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toDate(sourceTask.getFinish())),
+			task.getEnd(), "source finish survives scheduling after split restoration");
+		NormalTask mpoReload = taskNamed(roundTripMpo(imported), "Assignment baseline task");
+		assertEquals(task.getTaskSplitIntervals(), mpoReload.getTaskSplitIntervals(), "MPO retains imported gap intervals");
+		assertEquals(task.getWork(null), mpoReload.getWork(null));
+		ByteArrayOutputStream exportedXml = new ByteArrayOutputStream();
+		MicrosoftImporter exporter = new MicrosoftImporter();
+		exporter.setFileName("two-gap-split.xml");
+		assertTrue(exporter.saveProject(imported, exportedXml));
+		org.mpxj.ProjectFile exported = new org.mpxj.mspdi.MSPDIReader()
+			.read(new ByteArrayInputStream(exportedXml.toByteArray()));
+		assertEquals(3, exported.getTaskByUniqueID(Integer.valueOf(1)).getWorkSplits().size(),
+			"assignment contour gaps survive MSPDI export and MPXJ readback");
+
+		String unassignedXml = xml.replace("<ResourceUID>1</ResourceUID>", "<ResourceUID>0</ResourceUID>");
+		Project unassignedImported = importMspdi(unassignedXml);
+		NormalTask unassignedTask = taskNamed(unassignedImported, "Assignment baseline task");
+		Assignment unassigned = (Assignment) unassignedTask.getAssignments().iterator().next();
+		assertTrue(unassigned.isDefault(), "unassigned source contour updates the existing default assignment");
+		assertEquals(2, unassignedTask.getTaskSplitIntervals().size());
+		assertEquals(24L * 60L * 60L * 1000L, unassignedTask.getWork(null));
+		assertEquals(24L * 60L * 60L * 1000L, unassigned.getWork(null));
+		assertEquals(0L, unassigned.getActualWork(null));
+		assertEquals(24L * 60L * 60L * 1000L, unassigned.getRemainingWork());
+	}
+
+	@Test
+	void taskWorkSplitUsesUnionAcrossAssignments() throws Exception {
+		String xml = multiResourceFilledGapsXml();
+		org.mpxj.ProjectFile source = new org.mpxj.mspdi.MSPDIReader().read(
+			new ByteArrayInputStream(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		org.mpxj.Task sourceTask = source.getTaskByUniqueID(Integer.valueOf(1));
+		assertEquals(3, sourceTask.getResourceAssignments().get(0).getWorkSplits().size());
+		assertEquals(2, sourceTask.getResourceAssignments().get(1).getWorkSplits().size());
+		assertEquals(1, sourceTask.getWorkSplits().size(),
+			"gaps in individual resource contours are not task gaps when another resource works then");
+
+		Project imported = importMspdi(xml);
+		NormalTask task = taskNamed(imported, "Assignment baseline task");
+		assertTrue(task.getTaskSplitIntervals().isEmpty());
+		assertEquals(40L * 60L * 60L * 1000L, task.getWork(null));
+	}
+
+	private String threeDaySplitContourXml() throws Exception {
+		Path fixture = Path.of("modules", "microproject_exchange", "testdata", "Assignment Baseline Scalars.xml");
+		if (!Files.isRegularFile(fixture)) fixture = Path.of("testdata", "Assignment Baseline Scalars.xml");
+		String xml = Files.readString(fixture)
+			.replace("2026-10-12T17:00:00", "2026-10-16T17:00:00")
+			.replace("<Duration>PT8H0M0S</Duration><DurationFormat>7", "<Duration>PT40H0M0S</Duration><DurationFormat>7")
+			.replace("<Work>PT8H0M0S</Work>", "<Work>PT24H0M0S</Work>");
+		int assignmentStart = xml.indexOf("<Assignment>");
+		int assignmentEnd = xml.indexOf("</Assignment>", assignmentStart);
+		String assignmentXml = xml.substring(assignmentStart, assignmentEnd);
+		String rows = "<WorkContour>8</WorkContour>"
+			+ "<TimephasedData><Type>1</Type><UID>1</UID><Start>2026-10-12T08:00:00</Start><Finish>2026-10-12T17:00:00</Finish><Unit>2</Unit><Value>PT8H0M0S</Value></TimephasedData>"
+			+ "<TimephasedData><Type>1</Type><UID>2</UID><Start>2026-10-14T08:00:00</Start><Finish>2026-10-14T17:00:00</Finish><Unit>2</Unit><Value>PT8H0M0S</Value></TimephasedData>"
+			+ "<TimephasedData><Type>1</Type><UID>3</UID><Start>2026-10-16T08:00:00</Start><Finish>2026-10-16T17:00:00</Finish><Unit>2</Unit><Value>PT8H0M0S</Value></TimephasedData>";
+		assignmentXml = assignmentXml.replace("<Units>1</Units>", "<Units>1</Units>" + rows);
+		return xml.substring(0, assignmentStart) + assignmentXml + xml.substring(assignmentEnd);
+	}
+
+	private String multiResourceFilledGapsXml() throws Exception {
+		String xml = threeDaySplitContourXml().replaceFirst("<Work>PT24H0M0S</Work>", "<Work>PT40H0M0S</Work>");
+		String resource = "<Resource><UID>2</UID><ID>2</ID><Name>Second split test resource</Name>"
+			+ "<IsNull>0</IsNull><MaxUnits>1</MaxUnits><PeakUnits>1</PeakUnits><CanLevel>1</CanLevel><AccrueAt>3</AccrueAt></Resource>";
+		xml = xml.replace("</Resources>", resource + "</Resources>");
+		String secondAssignment = "<Assignment><UID>2</UID><TaskUID>1</TaskUID><ResourceUID>2</ResourceUID>"
+			+ "<Start>2026-10-13T08:00:00</Start><Finish>2026-10-15T17:00:00</Finish>"
+			+ "<Work>PT16H0M0S</Work><Units>1</Units><WorkContour>8</WorkContour>"
+			+ "<TimephasedData><Type>1</Type><UID>1</UID><Start>2026-10-13T08:00:00</Start><Finish>2026-10-13T17:00:00</Finish><Unit>2</Unit><Value>PT8H0M0S</Value></TimephasedData>"
+			+ "<TimephasedData><Type>1</Type><UID>2</UID><Start>2026-10-15T08:00:00</Start><Finish>2026-10-15T17:00:00</Finish><Unit>2</Unit><Value>PT8H0M0S</Value></TimephasedData></Assignment>";
+		return xml.replace("</Assignments>", secondAssignment + "</Assignments>");
 	}
 
 	@Test

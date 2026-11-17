@@ -21,6 +21,7 @@ import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JTextField;
@@ -105,6 +106,64 @@ class RibbonValueControlTest {
 	}
 
 	@Test
+	void inputValueReachesTheRealSharedDispatcher() throws Exception {
+		Action command = new AbstractAction() {
+			@Override public void actionPerformed(ActionEvent event) { committed.add(event.getActionCommand()); }
+		};
+		com.microproject.menu.ProjectMenuActionMap actions = new com.microproject.menu.ProjectMenuActionMap() {
+			@Override public Action getAction(String key) { return command; }
+			@Override public String getStringFromAction(Action action) { return "RibbonValue"; }
+		};
+		RibbonCommandSource actual = new com.microproject.menu.MenuRibbonCommandSource(
+			new com.microproject.menu.ExtToolBarFactory(actions));
+		SwingUtilities.invokeAndWait(() -> {
+			JTextField field = (JTextField) RibbonControlPopups.createInputControl(
+				spec(RibbonControlKind.EDIT_BOX), actual, key -> null);
+			field.setText("chosen value");
+			field.postActionEvent();
+		});
+		assertEquals(List.of("chosen value"), committed);
+	}
+
+	@Test
+	void taskColorGalleryCommitsRgbThroughTheSharedDispatcher() throws Exception {
+		java.util.concurrent.atomic.AtomicReference<String> received = new java.util.concurrent.atomic.AtomicReference<>();
+		Action command = new AbstractAction("BackgroundColor") {
+			@Override public void actionPerformed(ActionEvent event) { received.set(event.getActionCommand()); }
+		};
+		com.microproject.menu.ProjectMenuActionMap actions = new com.microproject.menu.ProjectMenuActionMap() {
+			@Override public Action getAction(String key) { return command; }
+			@Override public String getStringFromAction(Action action) { return "BackgroundColor"; }
+		};
+		RibbonCommandSource actual = new com.microproject.menu.MenuRibbonCommandSource(
+			new com.microproject.menu.ExtToolBarFactory(actions,
+				com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonBundles(java.util.Locale.ROOT)));
+		java.util.ResourceBundle japaneseText = java.util.ResourceBundle.getBundle(
+			"com.microproject.menu.menu", java.util.Locale.JAPAN);
+		SwingUtilities.invokeAndWait(() -> {
+			String commandId = "RibbonFillColor";
+			JButton owner = new JButton(actual.createAction(commandId));
+			var specification = new SwingRibbonModel.RibbonButton(commandId,
+				SwingRibbonModel.ButtonPriority.MEDIUM).withControl(RibbonControlKind.GALLERY, List.of(), null);
+			RibbonControlPopups.install(owner, specification, actual, japaneseText::getString);
+			JPopupMenu popup = assertInstanceOf(JPopupMenu.class,
+				owner.getClientProperty(RibbonControlPopups.POPUP_PROPERTY));
+			JPanel grid = assertInstanceOf(JPanel.class,
+				popup.getClientProperty(RibbonControlPopups.GALLERY_GRID_PROPERTY));
+			assertEquals(10, ((GridLayout) grid.getLayout()).getColumns());
+			assertEquals(60, grid.getComponentCount(), "the Theme gallery includes the six documented palette rows");
+			JToggleButton accent = java.util.Arrays.stream(grid.getComponents())
+				.filter(JToggleButton.class::isInstance).map(JToggleButton.class::cast)
+				.filter(button -> button.getActionCommand().equals("#5B9BD5"))
+				.findFirst().orElseThrow();
+			assertEquals("アクセント 1 #5B9BD5", accent.getAccessibleContext().getAccessibleName());
+			assertEquals(accent.getAccessibleContext().getAccessibleName(), accent.getToolTipText());
+			accent.doClick(0);
+		});
+		assertEquals("#5B9BD5", received.get(), "the selected RGB value must arrive at the legacy action through shared dispatch");
+	}
+
+	@Test
 	void buttonKindsAreNotInputControls() {
 		assertThrows(IllegalArgumentException.class, () ->
 			RibbonControlPopups.createInputControl(spec(RibbonControlKind.BUTTON), source(), key -> null));
@@ -138,6 +197,11 @@ class RibbonValueControlTest {
 			new Class<?>[] { RibbonCommandSource.class }, (proxy, method, args) -> {
 				if (method.getName().equals("createAction")) {
 					return action;
+				}
+				if (method.getName().equals("dispatch")) {
+					var invocation = (com.microproject.ribbon.RibbonCommandInvocation) args[0];
+					action.actionPerformed(new ActionEvent(invocation.source(), ActionEvent.ACTION_PERFORMED, invocation.value()));
+					return com.microproject.ribbon.RibbonCommandResult.dispatched(invocation.commandId());
 				}
 				throw new UnsupportedOperationException(method.getName());
 			});

@@ -26,6 +26,7 @@ package com.microproject.pm.criticalpath;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.ListIterator;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
@@ -33,6 +34,8 @@ import java.util.logging.Logger;
 
 import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.dependency.DependencyGraph;
+import com.microproject.configuration.CircularDependencyException;
 
 /**
 * This class implements a task list in predecessor/parent order.  That is, the successors of any given
@@ -171,7 +174,19 @@ public class PredecessorTaskList {
 	boolean addAll(Collection<? extends Task> tasks) {
 		list.clear();
 		toggleMarkerStatus();
-		for (Task task : tasks) {
+		for (Task task : tasks)
+			task.setMarkerStatus(!markerStatus);
+		List<Task> orderedTasks;
+		try {
+			orderedTasks = DependencyGraph.topologicalOrder(tasks);
+		} catch (CircularDependencyException cycle) {
+			// Existing projects can carry unresolved cross-project links that are
+			// intentionally repaired or disabled later. Keep their legacy ordering
+			// until resolution rather than rejecting the project during initialization.
+			logger.log(Level.WARNING, "Using persisted task order for a cyclic dependency graph", cycle);
+			orderedTasks = new LinkedList<>(tasks);
+		}
+		for (Task task : orderedTasks) {
 			task.arrangeTask(list,markerStatus,0);
 	    	if (task.isReverseScheduled())
 				numberOfReverseScheduledTasks++;

@@ -158,7 +158,9 @@ public class GanttPopupMenu extends GraphPopupMenu{
 			});
 			addSeparator();
 		}
-    	add(new SplitModeMenuAction());
+			JMenuItem splitMode = add(new SplitModeMenuAction());
+			if (interactor instanceof GanttInteractor ganttInteractor)
+				splitMode.setEnabled(ganttInteractor.canStartSplitMode());
     	add(new AssignmentsMenuAction());
     	add(new ProgressLineMenuAction());
         final JMenu bars=new JMenu(Messages.getString("Gantt.Popup.barStylesMenu"));

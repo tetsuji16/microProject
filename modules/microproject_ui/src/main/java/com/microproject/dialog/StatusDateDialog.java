@@ -33,6 +33,12 @@ public final class StatusDateDialog extends AbstractDialog {
 		this.project = project;
 	}
 
+	/** The status-date editor is one bounded form; #724 keeps it at its packed size. */
+	@Override
+	protected boolean isFixedSizeForm() {
+		return true;
+	}
+
 	@Override public JComponent createContentPanel() {
 		dateField = ComponentFactory.createDateField();
 		if (project.isStatusDateSet()) dateField.setValue(new Date(project.getStatusDate()));

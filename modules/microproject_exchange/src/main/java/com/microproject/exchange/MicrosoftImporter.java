@@ -89,6 +89,11 @@ public class MicrosoftImporter extends FileImporter {
 	private String errorDescription = null;
 	private Exception lastException = null;
 	private JobRunnable jobRunnable = null;
+	private boolean importTaskWorkSplits = true;
+
+	public void setImportTaskWorkSplits(boolean importTaskWorkSplits) {
+		this.importTaskWorkSplits = importTaskWorkSplits;
+	}
 
 	protected Context context = new Context();
 	public MicrosoftImporter() {
@@ -187,6 +192,7 @@ public class MicrosoftImporter extends FileImporter {
 		
 		
 		MspImporter plImporter=new MspImporter();
+		plImporter.setImportTaskWorkSplits(importTaskWorkSplits && !MpoFileImporter.PROJECT_ENTRY.equalsIgnoreCase(fileName));
 		if ("xlsx".equalsIgnoreCase(extension)) {
 			byte[] data;
 			try (InputStream source = in) {
@@ -238,6 +244,7 @@ public class MicrosoftImporter extends FileImporter {
 		
 		
 		MspImporter plImporter=new MspImporter();
+		plImporter.setImportTaskWorkSplits(importTaskWorkSplits && !MpoFileImporter.PROJECT_ENTRY.equalsIgnoreCase(fileName));
 		MspImporter.ProgressClosure progress =
 			(value, label) -> setProgress(value * 0.1f);
 		if (fileInputStream == null && "xlsx".equals(getFileExtension())) {
@@ -397,7 +404,7 @@ public class MicrosoftImporter extends FileImporter {
 		return true;
 	}
 
-	protected void retrieveResourcesForMerge(List existingResources) throws Exception{
+	protected void retrieveResourcesForMerge(List<?> existingResources) throws Exception{
 
 	}
 
