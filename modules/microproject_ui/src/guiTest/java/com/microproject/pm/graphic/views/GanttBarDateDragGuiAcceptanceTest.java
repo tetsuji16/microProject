@@ -113,6 +113,58 @@ class GanttBarDateDragGuiAcceptanceTest {
 	}
 
 	@Test
+	void robotReadOnlyProjectDisablesTaskSplitCommand() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		environmentCaptured = true;
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		Fixture fixture = createFixture(DependencyType.FS, false);
+		fixture.project.setReadOnly(true);
+		DocumentFrame[] document = new DocumentFrame[1];
+		SwingUtilities.invokeAndWait(() -> {
+			projectWindow = new MainRibbonFrame("Read-only Gantt split GUI acceptance", null);
+			projectManager = new GraphicManager(projectWindow);
+			projectWindow.setGraphicManager(projectManager);
+			projectManager.initView();
+			document[0] = projectManager.addProjectFrame(fixture.project);
+			projectWindow.setSize(1050, 650);
+			projectWindow.setLocationByPlatform(true);
+			projectWindow.setAlwaysOnTop(true);
+			projectWindow.setVisible(true);
+			document[0].activateGanttView();
+		});
+		GuiAcceptanceSupport.await(() -> projectWindow.isShowing() && document[0].isShowing(),
+			"read-only Gantt project window did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		projectWindow.toFront();
+		projectWindow.requestFocus();
+		com.microproject.testsupport.RibbonGuiSupport.findVisibleOrExpand(robot,
+			projectWindow.getRibbonPanel(), "RibbonTaskSplit");
+		boolean[] splitEnabled = { true };
+		GuiAcceptanceSupport.await(() -> {
+			splitEnabled[0] = projectManager.getAction("TaskSplit").isEnabled();
+			return !splitEnabled[0];
+		},
+			"read-only project must disable the Task Split ribbon command");
+		javax.swing.AbstractButton splitButton = com.microproject.testsupport.RibbonGuiSupport.findVisibleOrExpand(robot,
+			projectWindow.getRibbonPanel(), "RibbonTaskSplit");
+		boolean[] buttonEnabled = { true };
+		boolean[] modeStarted = { true };
+		SwingUtilities.invokeAndWait(() -> {
+			buttonEnabled[0] = splitButton.isEnabled();
+			modeStarted[0] = ((GanttView) document[0].getActiveTopView()).getGantt()
+				.getInteractor().setSplitMode();
+		});
+		assertFalse(buttonEnabled[0], "the user-visible Task Split ribbon control must be disabled");
+		assertFalse(modeStarted[0], "the Gantt mode entry must reject read-only projects");
+		assertEquals(List.of(), fixture.predecessor.getTaskSplitIntervals(),
+			"disabled mode entry must not mutate split intervals");
+	}
+
+	@Test
 	void robotCtrlNumpadDivideAndMultiplyZoomActiveGanttFromGanttAndSpreadsheetFocus() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
@@ -740,6 +792,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture(DependencyType.FS, false, true);
 		showFixture(fixture);
+		prepareOutcomeDocument(fixture);
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateGantt(robot);

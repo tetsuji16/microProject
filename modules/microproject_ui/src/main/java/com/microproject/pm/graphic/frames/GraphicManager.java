@@ -3565,8 +3565,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				ganttView.getGantt().getInteractor().setSplitMode();
 		}
 		@Override protected boolean allowed(boolean enable) {
-			return !enable || isActiveGanttView();
+			return !enable || (isActiveGanttView() && canStartSplitOnActiveGantt());
 		}
+	}
+	private boolean canStartSplitOnActiveGantt() {
+		GanttView ganttView = getActiveGanttView();
+		return ganttView != null && ganttView.getGantt() != null
+			&& ganttView.getGantt().getInteractor().canStartSplitMode();
 	}
 	private final class RespectLinksAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
@@ -5901,7 +5906,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 	void syncGanttViewRibbonState() {
 		boolean ganttActive = isActiveGanttView();
-		getMenuManager().setActionEnabled("TaskSplit", ganttActive);
+		getMenuManager().setActionEnabled("TaskSplit", ganttActive && canStartSplitOnActiveGantt());
 		BaseView sheetView = getActiveSheetView();
 		boolean sheetActive = sheetView != null;
 		getMenuManager().setActionEnabled(ACTION_TOGGLE_PROGRESS_LINE, ganttActive);

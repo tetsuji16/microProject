@@ -927,9 +927,19 @@ public class GanttInteractor extends GraphInteractor{
     	return true;
     }
 
-    public void setSplitMode(){
+	public boolean canStartSplitMode() {
+		if (isReadOnly() || getGraph() == null || getGraph().getProject() == null
+				|| getGraph().getProject().isReadOnly())
+			return false;
+		return true;
+	}
+
+	public boolean setSplitMode(){
+		if (!canStartSplitMode())
+			return false;
     	state=SPLIT;
     	selectCursor();
+		return true;
     }
 
     private void startPan(MouseEvent e) {

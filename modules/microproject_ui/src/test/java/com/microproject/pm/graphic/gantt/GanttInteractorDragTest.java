@@ -54,6 +54,25 @@ class GanttInteractorDragTest {
 	}
 
 	@Test
+	void splitModeCannotStartForReadOnlyProject() {
+		onEdt(() -> {
+			DataFactoryUndoController undoController = new DataFactoryUndoController();
+			Project project = Project.createProject(
+				ResourcePool.createRourcePool("readonly-split-mode-test", undoController), undoController);
+			project.setReadOnly(true);
+			TestGantt gantt = new TestGantt(project);
+			try {
+				GanttInteractor interactor = gantt.installTestUI(new GraphicDependency(null, null, null),
+					new AtomicInteger()).testInteractor;
+				assertFalse(interactor.canStartSplitMode());
+				assertFalse(interactor.setSplitMode(), "read-only project must reject split mode entry");
+			} finally {
+				gantt.cleanUp();
+			}
+		});
+	}
+
+	@Test
 	void subThresholdPointerMovementIsAClickAndNeverAnEdit() {
 		int threshold = GanttInteractor.dragThresholdPixels();
 		assertTrue(threshold > 0);
@@ -175,7 +194,7 @@ class GanttInteractorDragTest {
 			testInteractor = new GanttInteractor(this) {
 				@Override
 				public boolean isReadOnly() {
-					return false;
+					return super.isReadOnly();
 				}
 
 				@Override
