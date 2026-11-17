@@ -24,6 +24,7 @@
 package com.microproject.pm.graphic.chart;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.function.Consumer;
 import java.util.List;
@@ -47,6 +48,8 @@ import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.HasAssignments;
 import com.microproject.pm.assignment.HasTimeDistributedData;
 import com.microproject.pm.assignment.TimeDistributedConstants;
+import com.microproject.pm.assignment.contour.AbstractContourBucket;
+import com.microproject.pm.assignment.contour.ContourBucketIntervalGenerator;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.Project;
@@ -253,8 +256,45 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 			totalValues[i] = total == null ? 0D : total.getUnscaledValue(i);
 			selectedValues[i] = selected == null ? 0D : selected.getUnscaledValue(i);
 		}
+		double[] peakTotal = null;
+		double[] peakSelected = null;
+		if (!cost && type == ResourceGraphSettings.GraphType.PEAK_UNITS) {
+			long[] ends = new long[n];
+			for (int i = 0; i < n; i++)
+				ends[i] = i + 1 < n ? dates[i + 1] : dates[i] + coord.getIntervalDuration();
+			peakTotal = exactPeakUnits(project.getTaskOutlineIterator(), resources, dates, ends);
+			peakSelected = exactPeakUnits(tasks == null ? null : tasks.iterator(), resources, dates, ends);
+		}
 		resourceGraph = ResourceGraphData.compute(type, dates, cost ? null : totalValues, cost ? null : selectedValues,
-			availabilityValues, cost ? totalValues : null, cost ? selectedValues : null, getScaleFactor(WORK), selectedOnTop);
+			availabilityValues, cost ? totalValues : null, cost ? selectedValues : null, getScaleFactor(WORK), selectedOnTop,
+			peakTotal, peakSelected);
+	}
+
+	/** Computes the exact simultaneous assignment units in each graph period from the work contours. */
+	private static double[] exactPeakUnits(Iterator<?> tasks, List<Resource> resources, long[] starts, long[] ends) {
+		List<ResourceGraphData.AllocationInterval> intervals = new ArrayList<>();
+		if (tasks == null)
+			return ResourceGraphData.peakUnits(starts, ends, intervals);
+		while (tasks.hasNext()) {
+			Object task = tasks.next();
+			if (!(task instanceof HasAssignments hasAssignments))
+				continue;
+			for (Association association : hasAssignments.getAssignments()) {
+				if (!(association instanceof Assignment assignment)
+						|| resources != null && !resources.contains(assignment.getResource()))
+					continue;
+				ContourBucketIntervalGenerator generator = assignment.contourGeneratorInstance(WORK);
+				while (generator.hasNext() && generator.test(null)) {
+					AbstractContourBucket bucket = (AbstractContourBucket) generator.current();
+					if (bucket == null)
+						continue;
+					double units = Math.max(0D, bucket.getEffectiveUnits(assignment.getUnits()));
+					if (units > 0D && generator.currentStart() < generator.currentEnd())
+						intervals.add(new ResourceGraphData.AllocationInterval(generator.currentStart(), generator.currentEnd(), units));
+				}
+			}
+		}
+		return ResourceGraphData.peakUnits(starts, ends, intervals);
 	}
 
 	/** The series computed by the last {@link #computeResourceGraph}, or null before the first one. */

@@ -7,6 +7,7 @@ package com.microproject.pm.graphic.chart;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Comparator;
 
 import com.microproject.pm.graphic.chart.ResourceGraphSettings.GraphType;
 import com.microproject.pm.graphic.chart.ResourceGraphSettings.Item;
@@ -19,6 +20,32 @@ import com.microproject.pm.graphic.chart.ResourceGraphSettings.Item;
 public final class ResourceGraphData {
 	/** Milliseconds in one hour: work is held in milliseconds. */
 	static final double HOUR = 3_600_000D;
+	/** One constant-units segment from an assignment's timephased contour. */
+	static record AllocationInterval(long start, long end, double units) { }
+	private record UnitChange(long time, double delta) { }
+
+	/** Highest simultaneous units in each half-open display period. */
+	static double[] peakUnits(long[] starts, long[] ends, List<AllocationInterval> intervals) {
+		double[] peaks = new double[starts.length];
+		for (int p = 0; p < starts.length; p++) {
+			List<UnitChange> changes = new ArrayList<>();
+			for (AllocationInterval interval : intervals) {
+				long from = Math.max(starts[p], interval.start());
+				long to = Math.min(ends[p], interval.end());
+				if (to > from && interval.units() > 0D) {
+					changes.add(new UnitChange(from, interval.units()));
+					changes.add(new UnitChange(to, -interval.units()));
+				}
+			}
+			changes.sort(Comparator.comparingLong(UnitChange::time).thenComparingDouble(UnitChange::delta));
+			double current = 0D;
+			for (UnitChange change : changes) {
+				current += change.delta();
+				peaks[p] = Math.max(peaks[p], current);
+			}
+		}
+		return peaks;
+	}
 
 	/** The unit of the plotted values. */
 	public enum ValueKind {
@@ -88,6 +115,12 @@ public final class ResourceGraphData {
 	 */
 	public static ResourceGraphData compute(GraphType type, long[] dates, double[] total, double[] selected, double[] availability,
 			double[] totalCost, double[] selectedCost, double unitScale, boolean stackSelected) {
+		return compute(type, dates, total, selected, availability, totalCost, selectedCost, unitScale, stackSelected, null, null);
+	}
+
+	/** Computes graph data with exact peak allocation fractions when supplied. */
+	static ResourceGraphData compute(GraphType type, long[] dates, double[] total, double[] selected, double[] availability,
+			double[] totalCost, double[] selectedCost, double unitScale, boolean stackSelected, double[] peakTotal, double[] peakSelected) {
 		int n = dates == null ? 0 : dates.length;
 		double scale = unitScale > 0D ? unitScale : 1D;
 		double[] t = fit(total, n);
@@ -177,10 +210,15 @@ public final class ResourceGraphData {
 				resource = new double[n];
 			}
 			default -> { // PEAK_UNITS: the units each interval needs, against the units available
-				filtered = divide(t, scale);
-				resource = divide(s, scale);
-				overFiltered = divide(excess, scale);
-				overResource = divide(excessSelected, scale);
+				filtered = peakTotal == null ? divide(t, scale) : fit(peakTotal, n);
+				resource = peakSelected == null ? divide(s, scale) : fit(peakSelected, n);
+				overFiltered = new double[n];
+				overResource = new double[n];
+				for (int i = 0; i < n; i++) {
+					double over = Math.max(0D, filtered[i] - a[i] / scale);
+					overFiltered[i] = over;
+					overResource[i] = Math.min(over, resource[i]);
+				}
 				line = divide(a, scale);
 			}
 		}

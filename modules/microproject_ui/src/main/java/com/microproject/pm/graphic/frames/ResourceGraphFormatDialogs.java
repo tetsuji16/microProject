@@ -68,13 +68,19 @@ final class ResourceGraphFormatDialogs {
 			NetworkCalendarFormatDialogs.row(panel, row++, new JLabel(name), shape, color, pattern);
 		}
 		JCheckBox availability = new JCheckBox(text.apply("ResourceGraph.dialog.availabilityLine"), settings.isShowAvailabilityLine());
+		String overlapLabel = text.apply("ResourceGraph.dialog.percentBarOverlap");
+		JSpinner overlap = new JSpinner(new SpinnerNumberModel(settings.getPercentBarOverlap(), 0, 100, 10));
+		overlap.getAccessibleContext().setAccessibleName(overlapLabel);
 		JCheckBox reset = new JCheckBox(text.apply("ResourceGraph.dialog.reset"), false);
+		NetworkCalendarFormatDialogs.row(panel, row++, new JLabel(overlapLabel), overlap);
 		NetworkCalendarFormatDialogs.row(panel, row++, availability);
 		NetworkCalendarFormatDialogs.row(panel, row, reset);
 		panel.applier = () -> {
 			settings.setShowAvailabilityLine(availability.isSelected());
+			settings.setPercentBarOverlap((Integer) overlap.getValue());
 			if (reset.isSelected()) {
 				settings.resetBarStyles();
+				settings.setPercentBarOverlap(100);
 				return;
 			}
 			for (Item item : Item.values()) {

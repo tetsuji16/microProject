@@ -11,6 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
+
 import org.jfree.chart.plot.XYPlot;
 import org.jfree.chart.renderer.xy.XYBarRenderer;
 import org.jfree.data.xy.IntervalXYDataset;
@@ -22,6 +24,19 @@ import com.microproject.pm.graphic.chart.ResourceGraphSettings.Item;
 
 /** The series each Graph option of the Resource Graph Format tab plots, on three intervals of plain numbers. */
 class ResourceGraphDataTest {
+	@Test
+	void peakUnitsUseTheHighestSimultaneousContourUnitsInsideEachPeriod() {
+		List<ResourceGraphData.AllocationInterval> intervals = List.of(
+			new ResourceGraphData.AllocationInterval(0, 6, 0.75D),
+			new ResourceGraphData.AllocationInterval(4, 10, 0.5D),
+			new ResourceGraphData.AllocationInterval(10, 14, 1D));
+		assertArrayEquals(new double[] { 1.25D, 1D },
+			ResourceGraphData.peakUnits(new long[] { 0, 10 }, new long[] { 10, 20 }, intervals), DELTA);
+		ResourceGraphData graph = ResourceGraphData.compute(GraphType.PEAK_UNITS, new long[] { 0, 10 },
+			new double[] { 0, 0 }, new double[] { 0, 0 }, new double[] { 10, 10 }, null, null, 10, false,
+			new double[] { 1.25D, 1D }, new double[] { 0.5D, 0.25D });
+		assertY(new double[] { 1.25D, 1D }, graph, Item.ALLOCATED_FILTERED);
+	}
 	private static final double H = 3_600_000D;
 	private static final double DELTA = 1e-9;
 	private static final long[] DATES = { 0L, 1L, 2L };
@@ -163,6 +178,21 @@ class ResourceGraphDataTest {
 		assertTrue(!(line.getRenderer(index) instanceof XYBarRenderer), "a stacked item shown as a line must not draw bars");
 		assertEquals(12D, line.getDataset(index).getYValue(0, 1), DELTA);
 		assertTrue(index > datasetIndex(line, Item.ALLOCATED_FILTERED), "the descending stacked line must be drawn after the filtered fill");
+	}
+
+	@Test
+	void barOverlapControlsPerPeriodBarWidths() {
+		ResourceGraphData data = compute(GraphType.WORK, false);
+		ResourceGraphSettings settings = new ResourceGraphSettings();
+		XYPlot plot = ResourceGraphChart.build(data, settings).getXYPlot();
+		IntervalXYDataset overlap = (IntervalXYDataset) plot.getDataset(datasetIndex(plot, Item.ALLOCATED_RESOURCE));
+		assertEquals(0D, overlap.getStartXValue(0, 0), DELTA);
+		assertEquals(1D, overlap.getEndXValue(0, 0), DELTA);
+		settings.setPercentBarOverlap(0);
+		plot = ResourceGraphChart.build(data, settings).getXYPlot();
+		IntervalXYDataset sideBySide = (IntervalXYDataset) plot.getDataset(datasetIndex(plot, Item.ALLOCATED_RESOURCE));
+		assertEquals(0.5D, sideBySide.getStartXValue(0, 0), DELTA);
+		assertEquals(1D, sideBySide.getEndXValue(0, 0), DELTA);
 	}
 
 	private static int datasetIndex(XYPlot plot, Item item) {
