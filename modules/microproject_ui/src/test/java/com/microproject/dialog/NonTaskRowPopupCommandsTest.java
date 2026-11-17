@@ -119,6 +119,8 @@ class NonTaskRowPopupCommandsTest {
 		try {
 			SwingUtilities.invokeAndWait(() -> {
 				assertEquals(2, fixture.pool.getResourceList().size());
+				fixture.project.markSaved();
+				assertFalse(fixture.project.needsSaving(), "the fixture must start from a saved project");
 				fixture.sheet.setRowSelectionInterval(0, 0);
 				JMenuItem delete = command(fixture.sheet.getPopup(), MenuActionConstants.ACTION_DELETE);
 				assertNotNull(delete, "the resource popup must offer Delete");

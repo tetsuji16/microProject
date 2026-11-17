@@ -123,7 +123,9 @@ public final class DialogSpreadSheetShortcuts {
 
 	private static SpreadSheet firstVisibleSheet(Container container) {
 		for (Component child : container.getComponents()) {
-			if (child instanceof SpreadSheet sheet && sheet.isVisible())
+			if (!child.isVisible())
+				continue;
+			if (child instanceof SpreadSheet sheet)
 				return sheet;
 			if (child instanceof Container nested) {
 				SpreadSheet found = firstVisibleSheet(nested);
