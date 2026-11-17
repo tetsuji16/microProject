@@ -6253,7 +6253,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton formatTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ResourceGraphFormat.contextualTitle"));
 		clickAndAwaitSelected(robot, formatTab, "Robot did not activate the Resource Graph Format contextual tab");
-		AbstractButton barStyles = findShowingButtonByCommand("ResourceGraphBarStyles");
+		AbstractButton barStyles = findShowingButtonByCommand("RibbonResourceGraphBarStyles");
 		GuiAcceptanceSupport.await(barStyles::isEnabled, "Resource Graph Bar Styles remained disabled");
 		click(robot, barStyles);
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())

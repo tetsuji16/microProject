@@ -26,25 +26,50 @@ public final class ResourceGraphData {
 
 	/** Highest simultaneous units in each half-open display period. */
 	static double[] peakUnits(long[] starts, long[] ends, List<AllocationInterval> intervals) {
+		List<UnitChange> events = new ArrayList<>(intervals.size() * 2);
+		for (AllocationInterval interval : intervals) {
+			if (interval.end() > interval.start() && interval.units() > 0D) {
+				events.add(new UnitChange(interval.start(), interval.units()));
+				events.add(new UnitChange(interval.end(), -interval.units()));
+			}
+		}
+		events.sort(Comparator.comparingLong(UnitChange::time));
+		List<UnitChange> changes = new ArrayList<>(events.size());
+		for (int i = 0; i < events.size();) {
+			long time = events.get(i).time();
+			double delta = 0D;
+			do {
+				delta += events.get(i++).delta();
+			} while (i < events.size() && events.get(i).time() == time);
+			changes.add(new UnitChange(time, delta));
+		}
+		double[] cumulative = new double[changes.size()];
+		double total = 0D;
+		for (int i = 0; i < changes.size(); i++)
+			cumulative[i] = total += changes.get(i).delta();
+
 		double[] peaks = new double[starts.length];
 		for (int p = 0; p < starts.length; p++) {
-			List<UnitChange> changes = new ArrayList<>();
-			for (AllocationInterval interval : intervals) {
-				long from = Math.max(starts[p], interval.start());
-				long to = Math.min(ends[p], interval.end());
-				if (to > from && interval.units() > 0D) {
-					changes.add(new UnitChange(from, interval.units()));
-					changes.add(new UnitChange(to, -interval.units()));
-				}
-			}
-			changes.sort(Comparator.comparingLong(UnitChange::time).thenComparingDouble(UnitChange::delta));
-			double current = 0D;
-			for (UnitChange change : changes) {
-				current += change.delta();
+			int first = upperBound(changes, starts[p]); // Changes at start are active immediately after the boundary.
+			double current = first == 0 ? 0D : cumulative[first - 1];
+			peaks[p] = Math.max(0D, current);
+			for (int i = first; i < changes.size() && changes.get(i).time() < ends[p]; i++) {
+				current += changes.get(i).delta();
 				peaks[p] = Math.max(peaks[p], current);
 			}
 		}
 		return peaks;
+	}
+
+	private static int upperBound(List<UnitChange> changes, long time) {
+		int low = 0;
+		int high = changes.size();
+		while (low < high) {
+			int middle = (low + high) >>> 1;
+			if (changes.get(middle).time() <= time) low = middle + 1;
+			else high = middle;
+		}
+		return low;
 	}
 
 	/** The unit of the plotted values. */

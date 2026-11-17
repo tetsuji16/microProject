@@ -273,7 +273,7 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 	}
 
 	/** Computes the exact simultaneous assignment units in each graph period from the work contours. */
-	private static double[] exactPeakUnits(Iterator<?> tasks, List<Resource> resources, long[] starts, long[] ends) {
+	static double[] exactPeakUnits(Iterator<?> tasks, List<Resource> resources, long[] starts, long[] ends) {
 		List<ResourceGraphData.AllocationInterval> intervals = new ArrayList<>();
 		if (tasks == null)
 			return ResourceGraphData.peakUnits(starts, ends, intervals);
@@ -283,6 +283,7 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 				continue;
 			for (Association association : hasAssignments.getAssignments()) {
 				if (!(association instanceof Assignment assignment)
+						|| assignment.isDefault()
 						|| resources != null && !resources.contains(assignment.getResource()))
 					continue;
 				ContourBucketIntervalGenerator generator = assignment.contourGeneratorInstance(WORK);

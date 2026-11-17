@@ -39,6 +39,7 @@ public class ContourBucketIntervalGenerator implements IntervalGenerator {
 	long end;
 	long assignmentDuration;
 	long assignmentActualDuration=0;
+	double assignmentUnits;
 	private AbstractContourBucket[] contourBuckets = null;
 	WorkCalendar workCalendar;
 	long splitAtDuration = Long.MAX_VALUE;
@@ -52,6 +53,7 @@ public class ContourBucketIntervalGenerator implements IntervalGenerator {
 	
 	protected ContourBucketIntervalGenerator(Assignment assignment, Object type) {
 		workCalendar = assignment.getEffectiveWorkCalendar();
+		assignmentUnits = assignment.getUnits();
 		contourBuckets = assignment.getContour(type);
 
 		assignmentDuration = assignment.getDurationMillis();
@@ -112,7 +114,8 @@ public class ContourBucketIntervalGenerator implements IntervalGenerator {
 			
 			bucketDuration -= remainingSplitBucketDuration;
 			if (bucketDuration > 0) {
-				specialBucket = PersonalContourBucket.getInstance(bucketDuration,contourBuckets[index].getUnits());
+				specialBucket = PersonalContourBucket.getInstance(bucketDuration,
+					contourBuckets[index].getEffectiveUnits(assignmentUnits));
 				index--; // need to repeat the last bucket
 			}
 			splitAtDuration = Long.MAX_VALUE;// we don't want to treat the start split or this again
@@ -127,7 +130,7 @@ public class ContourBucketIntervalGenerator implements IntervalGenerator {
 				didSplit = true;
 			} else {
 				bucketDuration = remainingSplitBucketDuration;
-				double units =contourBuckets[index].getUnits();
+				double units = contourBuckets[index].getEffectiveUnits(assignmentUnits);
 
 				if (bucketDuration > 0)	
 					specialBucket = PersonalContourBucket.getInstance(remainingSplitBucketDuration,units);

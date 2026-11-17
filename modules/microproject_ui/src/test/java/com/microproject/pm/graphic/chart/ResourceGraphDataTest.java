@@ -99,6 +99,9 @@ class ResourceGraphDataTest {
 			task.setDuration(CalendarOption.getInstance().getMillisPerDay());
 			AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
 		}
+		NormalTask unassigned = project.createScriptedTask();
+		unassigned.setName("Unassigned task must not contribute a dummy allocation");
+		unassigned.setDuration(CalendarOption.getInstance().getMillisPerDay());
 		project.recalculate();
 		ChartModel model = new ChartModel(new CoordinatesConverter(project));
 		model.computeResourceGraph(project, null, List.of(resource), new ResourceGraphSettings(), false);
@@ -106,6 +109,9 @@ class ResourceGraphDataTest {
 		assertNotNull(plotted);
 		assertEquals(2D, java.util.Arrays.stream(plotted.y()).max().orElseThrow(), DELTA,
 			"the Resource Graph peak must include both simultaneous project assignments");
+		assertEquals(2D, java.util.Arrays.stream(ChartModel.exactPeakUnits(project.getTaskOutlineIterator(), null,
+			new long[] { project.getStart() }, new long[] { project.getEnd() })).max().orElseThrow(), DELTA,
+			"an unassigned task's dummy assignment must not inflate an all-resources peak");
 		XYPlot rendered = ResourceGraphChart.build(model.getResourceGraph(), new ResourceGraphSettings()).getXYPlot();
 		IntervalXYDataset bars = (IntervalXYDataset) rendered.getDataset(datasetIndex(rendered, Item.ALLOCATED_FILTERED));
 		double plottedPeak = 0D;
