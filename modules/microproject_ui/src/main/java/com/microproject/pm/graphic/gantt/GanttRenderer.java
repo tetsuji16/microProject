@@ -1255,18 +1255,32 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			return;
 
 		Gantt gantt = (Gantt) graphInfo;
-		if (!gantt.isProgressLineEnabled())
+		CoordinatesConverter coord = ((GanttParams) graphInfo).getCoord();
+		if (coord == null)
 			return;
-
-		GeneralPath path = createProgressLinePath(projection);
-		if (path == null)
+		Project project = coord.getProject();
+		com.microproject.pm.task.ProgressLineSettings settings = project.getProgressLineSettings();
+		java.awt.Rectangle visibleChart = gantt.getVisibleRect();
+		long visibleStart = visibleChart.width > 0 ? (long) coord.toTime(visibleChart.x) : coord.getOrigin();
+		long visibleEnd = visibleChart.width > 0
+			? (long) coord.toTime(visibleChart.x + visibleChart.width) : coord.getEnd();
+		java.util.List<Long> referenceDates = !gantt.isProgressLineEnabled()
+			? java.util.List.of()
+			: settings == null ? java.util.List.of(Long.valueOf(project.getStatusDate()))
+				: GanttProgress.progressLineReferenceDates(project, settings, visibleStart, visibleEnd);
+		if (referenceDates.isEmpty())
 			return;
 
 		Color oldColor = g2.getColor();
 		Stroke oldStroke = g2.getStroke();
-		paintProgressLinePath(g2, path, getProgressLineHaloColor(), PROGRESS_LINE_HALO_STROKE);
-		paintProgressLinePath(g2, path, getProgressLineColor(), PROGRESS_LINE_STROKE);
-		paintProgressLinePoints(g2, projection);
+		for (Long referenceDate : referenceDates) {
+			GeneralPath path = createProgressLinePath(projection, referenceDate.longValue());
+			if (path == null)
+				continue;
+			paintProgressLinePath(g2, path, getProgressLineHaloColor(), PROGRESS_LINE_HALO_STROKE);
+			paintProgressLinePath(g2, path, getProgressLineColor(), PROGRESS_LINE_STROKE);
+			paintProgressLinePoints(g2, projection, referenceDate.longValue());
+		}
 		if (oldColor != null)
 			g2.setColor(oldColor);
 		if (oldStroke != null)
@@ -1280,7 +1294,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		g2.draw(path);
 	}
 
-	private void paintProgressLinePoints(Graphics2D g2, RevisionedProjectionIndex projection) {
+	private void paintProgressLinePoints(Graphics2D g2, RevisionedProjectionIndex projection, long referenceDate) {
 		CoordinatesConverter coord=((GanttParams)graphInfo).getCoord();
 		if (coord == null)
 			return;
@@ -1291,7 +1305,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			if (!shouldIncludeInProgressLine(node))
 				continue;
 			Task task = (Task)node.getNode().getImpl();
-			int x = (int)Math.round(getProgressLineX(coord, task));
+			int x = (int)Math.round(getProgressLineX(coord, task, referenceDate));
 			int y = (int)Math.round(getProgressLineY(node, projection));
 			g2.setColor(getProgressLineHaloColor());
 			g2.fillOval(x - half - 1, y - half - 1, size + 2, size + 2);
@@ -1301,6 +1315,11 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	}
 
 	private GeneralPath createProgressLinePath(RevisionedProjectionIndex projection) {
+		CoordinatesConverter coord = ((GanttParams) graphInfo).getCoord();
+		return createProgressLinePath(projection, coord.getProject().getStatusDate());
+	}
+
+	private GeneralPath createProgressLinePath(RevisionedProjectionIndex projection, long referenceDate) {
 		CoordinatesConverter coord=((GanttParams)graphInfo).getCoord();
 		if (coord == null)
 			return null;
@@ -1314,11 +1333,11 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 				continue;
 
 			Task task = (Task)node.getNode().getImpl();
-			double progressX = getProgressLineX(coord, task);
+			double progressX = getProgressLineX(coord, task, referenceDate);
 			double y = getProgressLineY(node, projection);
 			if (path == null) {
 				path = new GeneralPath();
-				referenceX = coord.toX(getProgressReferenceDate(task));
+				referenceX = coord.toX(referenceDate);
 				path.moveTo((float)referenceX, (float)(y - ((GanttParams)graphInfo).getRowHeight() / 2.0d));
 			}
 			path.lineTo((float)progressX, (float)y);
@@ -1349,8 +1368,11 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	}
 
 	double getProgressLineX(CoordinatesConverter coord, Task task) {
-		long today = getProgressReferenceDate(task);
-		long progressDate = GanttProgress.progressLineDate(task, today);
+		return getProgressLineX(coord, task, getProgressReferenceDate(task));
+	}
+
+	double getProgressLineX(CoordinatesConverter coord, Task task, long referenceDate) {
+		long progressDate = GanttProgress.progressLineDate(task, referenceDate);
 		return coord.toX(progressDate);
 	}
 

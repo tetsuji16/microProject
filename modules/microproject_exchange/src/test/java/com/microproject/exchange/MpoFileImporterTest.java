@@ -6345,6 +6345,24 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void progressLineSettingsSurviveMpoRoundTrip() throws Exception {
+		Project original = projectForRoundTrip();
+		var expected = new com.microproject.pm.task.ProgressLineSettings(true,
+			com.microproject.pm.task.ProgressLineSettings.ReferenceDate.CURRENT_DATE,
+			true, 3, com.microproject.pm.task.ProgressLineSettings.IntervalUnit.MONTH);
+		original.setProgressLineSettings(expected);
+		Project restored = load(writeTempMpo(original));
+		assertEquals(expected, restored.getProgressLineSettings());
+	}
+
+	@Test
+	void olderMpoWithoutProgressLineSettingsRetainsLegacyDefault() throws Exception {
+		Project restored = load(writeTempMpo(projectForRoundTrip()));
+		assertNull(restored.getProgressLineSettings(),
+			"older documents without the optional progressLines setting must retain the renderer's legacy default");
+	}
+
+	@Test
 	void markOnTrackPreservesIndependentAssignmentProgressAndWorkAcrossMpoRoundTrip() throws Exception {
 		Project original = projectForRoundTrip();
 		NormalTask task = (NormalTask) firstTask(original);

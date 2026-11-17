@@ -244,13 +244,14 @@ class RibbonAndToolbarButtonTest {
 		SwingUtilities.invokeAndWait(() -> {
 			JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 			AbstractButton saveButton = firstButton(manager.getToolButtonsFromId("RibbonSaveProject"));
-			AbstractButton toggle = firstButton(manager.getToolButtonsFromId("RibbonToggleProgressLine"));
+			AbstractButton progressLines = firstButton(manager.getToolButtonsFromId("RibbonToggleProgressLine"));
 			assertNotNull(saveButton);
-			assertNotNull(toggle);
+			assertNotNull(progressLines);
 			assertTrue(hasRibbonCommandRole(saveButton));
-			assertTrue(hasRibbonCommandRole(toggle));
+			assertTrue(hasRibbonCommandRole(progressLines));
 			assertFalse(saveButton instanceof JToggleButton);
-			assertTrue(toggle instanceof JToggleButton);
+			assertFalse(progressLines instanceof JToggleButton,
+				"Progress Lines opens a dialog and must not retain toggle selection state");
 			assertNotNull(findFirstRibbonTabButton(host));
 			assertEquals(
 				FlatUiSupport.BUTTON_STYLE_ROLE_RIBBON_TAB,
@@ -362,19 +363,19 @@ class RibbonAndToolbarButtonTest {
 		SwingUtilities.invokeAndWait(() -> {
 			MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 			manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
-			AbstractButton toggle = firstButton(manager.getToolButtonsFromId("RibbonToggleProgressLine"));
-			assertNotNull(toggle);
-			assertTrue(toggle instanceof JToggleButton);
-			assertFalse(toggle.isSelected());
+			AbstractButton progressLines = firstButton(manager.getToolButtonsFromId("RibbonToggleProgressLine"));
+			assertNotNull(progressLines);
+			assertFalse(progressLines instanceof JToggleButton);
+			assertFalse(progressLines.isSelected());
 
 			org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> {
-				manager.setActionSelected("ToggleProgressLine", true);
 				manager.setActionSelected("Projects", true);
 				manager.setActionSelected("Report", true);
 				manager.setActionEnabled("Projects", true);
 				manager.setActionVisible("Report", true);
 			});
-			assertTrue(toggle.isSelected());
+			assertFalse(progressLines.isSelected(),
+				"a dialog command has no persistent selected state after generic action-state updates");
 		});
 	}
 
@@ -535,7 +536,6 @@ class RibbonAndToolbarButtonTest {
 			MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 			manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 			for (var entry : java.util.Map.of(
-				"RibbonToggleProgressLine", "ToggleProgressLine",
 				"RibbonLabelResourceNames", "LabelResourceNames",
 				"RibbonLabelTaskName", "LabelTaskName",
 					"RibbonToggleCriticalChain", "ToggleCriticalChain").entrySet()) {

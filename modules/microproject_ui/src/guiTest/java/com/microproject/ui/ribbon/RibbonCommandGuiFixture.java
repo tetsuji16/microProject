@@ -365,6 +365,32 @@ final class RibbonCommandGuiFixture implements AutoCloseable {
 		saveProject(project, path);
 	}
 
+	Path reserveSavePath(String fileName) throws Exception {
+		ensureSavedDirectory();
+		return savedFixtureDirectory.resolve(fileName);
+	}
+
+	void routeSaveChooserTo(Path savePath) {
+		UiServices.setFileChooserProvider(new UiServices.FileChooserProvider() {
+			@Override public String chooseFileName(boolean save, String selectedFileName, Object parent) {
+				chooserFileNameCalls.incrementAndGet();
+				return save ? savePath.toString() : previousFileChooser.chooseFileName(save, selectedFileName, parent);
+			}
+			@Override public List<String> chooseFileNames(boolean save, String selectedFileName, Object parent) {
+				chooserFileNamesCalls.incrementAndGet();
+				return previousFileChooser.chooseFileNames(save, selectedFileName, parent);
+			}
+		});
+	}
+
+	Project loadProject(Path path) throws Exception {
+		try (InputStream in = Files.newInputStream(path)) {
+			Project loaded = new MpoFileImporter().loadProject(in);
+			loaded.setFileName(path.toString());
+			return loaded;
+		}
+	}
+
 	private void ensureSavedDirectory() throws Exception {
 		if (savedFixtureDirectory == null) savedFixtureDirectory = Files.createTempDirectory("microproject-ribbon-pool-");
 	}

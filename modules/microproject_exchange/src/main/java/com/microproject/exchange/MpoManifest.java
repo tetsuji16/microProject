@@ -267,8 +267,16 @@ final class MpoManifest {
 		} catch (IOException exception) { throw exception; }
 		catch (Exception exception) { throw new IOException("Invalid meta.xml", exception); }
 	}
-	static String settingsXml(CriticalChainService.Settings settings, CriticalChainService.Baseline baseline) {
+	static String settingsXml(CriticalChainService.Settings settings, CriticalChainService.Baseline baseline, Project project) {
 		StringBuilder xml = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<settings schemaVersion=\"1\">");
+		com.microproject.pm.task.ProgressLineSettings progress = project == null ? null : project.getProgressLineSettings();
+		if (progress != null) {
+			xml.append("<progressLines showCurrentLine=\"").append(progress.showCurrentLine())
+				.append("\" referenceDate=\"").append(progress.referenceDate())
+				.append("\" showRecurringLines=\"").append(progress.showRecurringLines())
+				.append("\" recurringInterval=\"").append(progress.recurringInterval())
+				.append("\" recurringIntervalUnit=\"").append(progress.recurringIntervalUnit()).append("\"/>");
+		}
 		if (settings != null) {
 			xml.append("<ccpm enabled=\"").append(settings.isEnabled()).append("\" bufferFraction=\"").append(settings.getBufferFraction())
 				.append("\" levelingOrder=\"").append(settings.getLevelingOrder()).append("\" onlyWithinAvailableSlack=\"").append(settings.isOnlyWithinAvailableSlack())
@@ -309,6 +317,17 @@ final class MpoManifest {
 			javax.xml.parsers.DocumentBuilderFactory factory = MpoFileImporter.secureDocumentBuilderFactory();
 			org.w3c.dom.Element root = factory.newDocumentBuilder().parse(new ByteArrayInputStream(xmlBytes)).getDocumentElement();
 			if (!"settings".equals(root.getTagName()) || !"1".equals(root.getAttribute("schemaVersion"))) throw new IOException("Unsupported settings.xml schemaVersion");
+			org.w3c.dom.NodeList progressNodes = root.getElementsByTagName("progressLines");
+			if (progressNodes.getLength() > 1) throw new IOException("Duplicate progressLines setting");
+			if (progressNodes.getLength() == 1) {
+				org.w3c.dom.Element progress = (org.w3c.dom.Element) progressNodes.item(0);
+				project.setProgressLineSettings(new com.microproject.pm.task.ProgressLineSettings(
+					Boolean.parseBoolean(MpoFileImporter.requiredAttribute(progress, "showCurrentLine")),
+					com.microproject.pm.task.ProgressLineSettings.ReferenceDate.valueOf(MpoFileImporter.requiredAttribute(progress, "referenceDate")),
+					Boolean.parseBoolean(MpoFileImporter.requiredAttribute(progress, "showRecurringLines")),
+					Integer.parseInt(MpoFileImporter.requiredAttribute(progress, "recurringInterval")),
+					com.microproject.pm.task.ProgressLineSettings.IntervalUnit.valueOf(MpoFileImporter.requiredAttribute(progress, "recurringIntervalUnit"))));
+			}
 			org.w3c.dom.NodeList nodes = root.getElementsByTagName("ccpm");
 			if (nodes.getLength() == 0) return;
 			org.w3c.dom.Element value = (org.w3c.dom.Element) nodes.item(0);

@@ -1566,10 +1566,59 @@ class RibbonButtonBehaviorTest {
 
 		assertDoesNotThrow(() -> harness.invoke("RibbonZoomIn"));
 		assertDoesNotThrow(() -> harness.invoke("RibbonZoomOut"));
-		assertToggle(harness, "RibbonToggleProgressLine", true);
+		assertDialogButton(harness, "RibbonToggleProgressLine");
 		assertToggle(harness, "RibbonLabelResourceNames", true);
 		assertToggle(harness, "RibbonLabelTaskName", true);
 		assertChooser(harness, "RibbonGridlines", MenuActionConstants.ACTION_GRIDLINES);
+	}
+
+	@Test
+	void progressLineSettingsRespectReadOnlyAndParticipateInUndoRedo() throws Exception {
+		Harness harness = newHarness();
+		var settings = new com.microproject.pm.task.ProgressLineSettings(true,
+			com.microproject.pm.task.ProgressLineSettings.ReferenceDate.CURRENT_DATE,
+			true, 2, com.microproject.pm.task.ProgressLineSettings.IntervalUnit.WEEK);
+		SwingUtilities.invokeAndWait(() -> {
+			harness.undoController.clear();
+			harness.frame.getGanttView().getGantt().setProgressLineEnabled(true);
+			harness.project.markSaved();
+			long initialRevision = harness.project.getMutationState().revision();
+			assertTrue(harness.manager.applyProgressLineSettings(harness.project, harness.frame.getGanttView(), settings, true));
+			assertEquals(settings, harness.project.getProgressLineSettings());
+			assertTrue(harness.project.getMutationState().revision() > initialRevision,
+				"settings changes publish a committed project revision");
+			assertTrue(harness.undoController.canUndo());
+			harness.project.markSaved();
+			DataFactoryUndoController otherUndo = new DataFactoryUndoController();
+			Project otherProject = Project.createProject(ResourcePool.createRourcePool("Other Ribbon Test Pool", otherUndo), otherUndo);
+			boolean previousNewLook = Environment.isNewLook();
+			Environment.setNewLook(true);
+			TestDocumentFrame otherFrame = new TestDocumentFrame(harness.manager, otherProject);
+			Environment.setNewLook(previousNewLook);
+			harness.manager.setCurrentFrame(otherFrame);
+			harness.manager.doUndoRedo(true);
+			assertEquals(settings, harness.project.getProgressLineSettings(),
+				"undo in another document must not consume this project's settings edit");
+			harness.manager.setCurrentFrame(harness.frame);
+			harness.frame.setActive(true);
+			long savedRevision = harness.project.getMutationState().revision();
+			harness.manager.doUndoRedo(true);
+			assertNull(harness.project.getProgressLineSettings(), "undo restores the pre-settings legacy default");
+			assertTrue(harness.frame.getGanttView().getGantt().isProgressLineEnabled(),
+				"undo restores the legacy visible status-date line when no settings object existed yet");
+			assertTrue(harness.project.isDirty(), "undo after save must mark the document dirty again");
+			assertTrue(harness.project.getMutationState().revision() > savedRevision,
+				"undo publishes a new committed project revision");
+			assertTrue(harness.undoController.canRedo());
+			harness.manager.doUndoRedo(false);
+			assertEquals(settings, harness.project.getProgressLineSettings());
+			harness.project.setReadOnly(true);
+			var different = new com.microproject.pm.task.ProgressLineSettings(false,
+				com.microproject.pm.task.ProgressLineSettings.ReferenceDate.STATUS_DATE,
+				false, 1, com.microproject.pm.task.ProgressLineSettings.IntervalUnit.DAY);
+			assertFalse(harness.manager.applyProgressLineSettings(harness.project, harness.frame.getGanttView(), different, true));
+			assertEquals(settings, harness.project.getProgressLineSettings(), "read-only projects must keep their settings");
+		});
 	}
 
 	@Test
@@ -1967,6 +2016,17 @@ class RibbonButtonBehaviorTest {
 		assertCall(harness, "view", viewId);
 	}
 
+	private static void assertDialogButton(Harness harness, String buttonId) throws Exception {
+		AbstractButton button = harness.manager.getMenuManager().getToolButtonsFromId(buttonId).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast).findFirst()
+			.orElseThrow(() -> new AssertionError(buttonId + " has no rendered command button"));
+		assertFalse(button.isSelected(), "dialog commands must not retain toggle selection");
+		harness.resetCalls();
+		harness.invoke(buttonId);
+		assertTrue(harness.hasCall("toggle"), "dialog command must route through its guarded document action");
+		assertFalse(button.isSelected(), "invoking the dialog command must not leave it selected");
+	}
+
 	private static void assertToggle(Harness harness, String buttonId, boolean hookPresent) throws Exception {
 		harness.resetCalls();
 		harness.invoke(buttonId);
@@ -2095,11 +2155,12 @@ class RibbonButtonBehaviorTest {
 			"RibbonBarStyles",
 			"RibbonTextStyles",
 				"RibbonLayout", "RibbonGridlines");
+		add(map, Strategy.ROUTE_DIALOG,
+			"RibbonToggleProgressLine");
 		add(map, Strategy.STATE_TOGGLE,
 			"RibbonZoomIn",
 			"RibbonZoomOut",
 			"RibbonInactivateTask",
-			"RibbonToggleProgressLine",
 			"RibbonLabelResourceNames",
 			"RibbonLabelTaskName",
 				"RibbonToggleCriticalChain",
