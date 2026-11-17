@@ -3236,6 +3236,11 @@ public class DocumentFrame extends NamedFrame implements
 
 	public void restoreWorkspace(WorkspaceSetting w, int context) {
 		Workspace ws = (Workspace)w;
+		List<BaseView> existingViews = new ArrayList<>();
+		forAllViews(view -> {
+			if (view instanceof BaseView baseView)
+				existingViews.add(baseView);
+		});
 		workspace = ws;
 		setMainView(false);
 		if (project == null) {
@@ -3255,6 +3260,11 @@ public class DocumentFrame extends NamedFrame implements
 			activateGanttView();
 		}
 		mainView.restoreWorkspace(ws.mainView, context);
+		// Lazy view construction restores its workspace in the getter. Reapply only to views
+		// that existed before this restore, once each, so a same-session workspace reload also
+		// updates cached views without restoring newly-created views twice.
+		for (BaseView view : existingViews)
+			restoreWorkspaceFor(view);
 
 	}
 

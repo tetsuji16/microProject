@@ -1691,11 +1691,18 @@ class RibbonButtonBehaviorTest {
 		assertBottomView(harness, MenuActionConstants.ACTION_TASK_USAGE, harness.frame.getTaskUsageView());
 		assertTrue((Boolean) harness.manager.getAction(MenuActionConstants.ACTION_DETAILS)
 			.getValue(Action.SELECTED_KEY));
+		var cachedResourceGraph = harness.frame.getHistogramView();
+		cachedResourceGraph.getResourceGraphSettings().setPercentBarOverlap(0);
+		cachedResourceGraph.resourceGraphSettingsChanged();
 		WorkspaceSetting workspace = harness.frame.createWorkspace(0);
 		assertEquals(MenuActionConstants.ACTION_TASK_USAGE,
 			((DocumentFrame.Workspace) workspace).getBottomViewName());
+		cachedResourceGraph.getResourceGraphSettings().setPercentBarOverlap(80);
+		cachedResourceGraph.resourceGraphSettingsChanged();
 		harness.frame.restoreWorkspace(workspace, 0);
 		assertBottomView(harness, MenuActionConstants.ACTION_TASK_USAGE, harness.frame.getTaskUsageView());
+		assertEquals(0, cachedResourceGraph.getResourceGraphSettings().getPercentBarOverlap(),
+			"workspace restore must restore an initialized but inactive Resource Graph view");
 	}
 
 	@Test

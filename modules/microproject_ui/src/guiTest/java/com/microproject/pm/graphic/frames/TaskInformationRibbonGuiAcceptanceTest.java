@@ -6315,13 +6315,23 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 		java.util.concurrent.atomic.AtomicReference<DocumentFrame.Workspace> savedWorkspace = new java.util.concurrent.atomic.AtomicReference<>();
 		SwingUtilities.invokeAndWait(() -> savedWorkspace.set((DocumentFrame.Workspace) frame.createWorkspace(0)));
+		int savedMainDivider = ((com.microproject.pm.graphic.views.MainView.Workspace)
+			savedWorkspace.get().getMainView()).getDividerLocation();
 		SwingUtilities.invokeAndWait(() -> {
 			graph.getResourceGraphSettings().setPercentBarOverlap(80);
 			graph.resourceGraphSettingsChanged();
+			frame.getMainView().setDividerLocation(savedMainDivider == 100 ? 200 : 100);
 			frame.restoreWorkspace(savedWorkspace.get(), 0);
 		});
-		assertEquals(0, graph.getResourceGraphSettings().getPercentBarOverlap(), "workspace reload must restore Bar overlap");
-		XYPlot restoredPlot = panel.getChart().getXYPlot();
+		ChartView restoredGraph = frame.getActiveResourceGraphView();
+		assertSame(graph, restoredGraph, "workspace restore must keep the active Resource Graph view attached");
+		assertEquals(0, restoredGraph.getResourceGraphSettings().getPercentBarOverlap(),
+			"workspace reload must restore Bar overlap on an already initialized view");
+		assertEquals(savedMainDivider, frame.getMainView().getDividerLocation(),
+			"restoring an existing view must retain the saved main split divider");
+		TimeChartPanel restoredPanel = UiComponentWalker.flatten(restoredGraph).stream()
+			.filter(TimeChartPanel.class::isInstance).map(TimeChartPanel.class::cast).findFirst().orElseThrow();
+		XYPlot restoredPlot = restoredPanel.getChart().getXYPlot();
 		int restoredIndex = -1;
 		for (int i = 0; i < restoredPlot.getDatasetCount(); i++)
 			if (restoredPlot.getDataset(i) != null && Item.ALLOCATED_RESOURCE.name().equals(restoredPlot.getDataset(i).getSeriesKey(0)))
