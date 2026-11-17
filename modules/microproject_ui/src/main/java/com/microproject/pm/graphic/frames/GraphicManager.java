@@ -1690,6 +1690,21 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		executeInformation(resolveInformationTarget(false, false, true), notes);
 	}
 
+	private void showAssignmentInformationForSelection(Action action) {
+		InformationSelection selection = informationSelectionSnapshot();
+		Assignment assignment = selection.kind() == InformationSelectionKind.ASSIGNMENT
+			? selection.assignment() : null;
+		if (assignment == null) return;
+		finishAnyOperations();
+		try {
+			informationDialogCoordinator.showAssignment(getFrame(), getCurrentFrame(), assignment);
+			action.putValue(RibbonCommandResult.STATUS_ACTION_PROPERTY, RibbonCommandResult.Status.DISPATCHED);
+		} catch (RuntimeException | Error failure) {
+			action.putValue(RibbonCommandResult.STATUS_ACTION_PROPERTY, RibbonCommandResult.Status.FAILED);
+			throw failure;
+		}
+	}
+
 	protected boolean beforeActionRoute(String actionId) {
 		return false;
 	}
@@ -1913,6 +1928,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_SHOW_TASK_SUGGESTIONS, new ShowTaskSuggestionsAction());
 		actionsMap.addHandler(ACTION_SHOW_IGNORED_PROBLEMS, new ShowIgnoredProblemsAction());
 		actionsMap.addHandler("RibbonResourceInformation", new RibbonResourceInformationAction());
+		actionsMap.addHandler("RibbonAssignmentInformation", new RibbonAssignmentInformationAction());
 		actionsMap.addHandler(ACTION_NOTES, new NotesAction());
 		actionsMap.addHandler(ACTION_ASSIGN_RESOURCES, new AssignResourcesAction());
 		actionsMap.addHandler(ACTION_TIMESHEET, new TimesheetAction());
@@ -2468,6 +2484,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
 			showResourceInformationForSelection(false);
+		}
+	}
+	public class RibbonAssignmentInformationAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			showAssignmentInformationForSelection(this);
 		}
 	}
 	public class NotesAction extends MenuActionsMap.DocumentMenuAction {
@@ -5886,6 +5909,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		boolean infoEnabled = informationSelection.targetFor(true, true, true, taskType, resourceType) != null;
 		boolean taskInfoEnabled = informationSelection.targetFor(false, true, false, taskType, resourceType) != null;
 		boolean resourceInfoEnabled = informationSelection.targetFor(false, false, true, taskType, resourceType) != null;
+		boolean assignmentInfoEnabled = informationSelection.kind() == InformationSelectionKind.ASSIGNMENT
+			&& getCurrentFrame() != null && (ACTION_TASK_USAGE_DETAIL.equals(getCurrentFrame().getTopViewId())
+				|| ACTION_RESOURCE_USAGE_DETAIL.equals(getCurrentFrame().getTopViewId()));
 		DocumentFrame editFrame = getCurrentFrame();
 		SpreadSheet editSheet = editFrame == null ? null : editFrame.getActiveSpreadSheet();
 		boolean hasClipboardSelection = editSheet != null && !editSheet.getSelectedNodes().isEmpty();
@@ -5903,6 +5929,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_SHOW_IGNORED_PROBLEMS, isDocumentWritable());
 		syncTaskDiagnosticToggles();
 		getMenuManager().setActionEnabled("RibbonResourceInformation", resourceInfoEnabled);
+		getMenuManager().setActionEnabled("RibbonAssignmentInformation", assignmentInfoEnabled);
 		getMenuManager().setActionEnabled(ACTION_NOTES,infoEnabled);
 		getMenuManager().setActionEnabled(ACTION_INSERT_TASK, !readOnly && (taskType || resourceType)&&(actions==null||actions.contains(ACTION_INSERT_TASK)));
 		getMenuManager().setActionEnabled(ACTION_INSERT_RESOURCE, !readOnly && resourceType && (actions==null||actions.contains(ACTION_INSERT_RESOURCE)));

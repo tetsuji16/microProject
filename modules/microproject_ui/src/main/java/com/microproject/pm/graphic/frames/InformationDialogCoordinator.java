@@ -10,6 +10,8 @@ import com.microproject.document.ObjectEvent;
 import com.microproject.dialog.ProjectInformationDialog;
 import com.microproject.dialog.ResourceInformationDialog;
 import com.microproject.dialog.TaskInformationDialog;
+import com.microproject.dialog.AssignmentInformationDialog;
+import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
@@ -20,6 +22,15 @@ final class InformationDialogCoordinator {
 	private ProjectInformationDialog projectDialog;
 	private TaskInformationDialog taskDialog;
 	private ResourceInformationDialog resourceDialog;
+
+	void showAssignment(Frame owner, DocumentFrame documentFrame, Assignment assignment) {
+		AssignmentInformationDialog dialog = new AssignmentInformationDialog(owner, assignment);
+		dialog.pack();
+		dialog.setModal(true);
+		dialog.setLocationRelativeTo(documentFrame);
+		dialog.setVisible(true);
+		dialog.dispose();
+	}
 
 	void showProject(Frame owner, DocumentFrame documentFrame, Project project) {
 		if (projectDialog == null) {

@@ -72,6 +72,9 @@ public final class AssignmentDetailStateEdit extends AbstractUndoableEdit {
 				// task. Recalculating while restoring this final replacement detail
 				// would redistribute its remaining work again.
 				assignment.restoreDetail(entry.getValue());
+			if (assignment.getTask() instanceof NormalTask
+					&& ((NormalTask) assignment.getTask()).findAssignment(assignment.getResource()) == assignment)
+				assignment.doUpdateService(this);
 		}
 	}
 

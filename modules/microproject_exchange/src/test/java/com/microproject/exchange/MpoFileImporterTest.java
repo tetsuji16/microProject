@@ -2647,6 +2647,60 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void formattedAssignmentNotesRemainRtfThroughMspdiXmlRoundTrip() throws Exception {
+		Project project = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(project);
+		task.setUniqueId(780111L);
+		Resource resource = project.getResourcePool().newResourceInstance();
+		resource.setName("Formatted notes resource");
+		((com.microproject.pm.resource.ResourceImpl) resource).setUniqueId(780112L);
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		String rtf = "{\\rtf1\\ansi\\deff0 {\\fonttbl {\\f0 Arial;}}\\f0\\b Bold note\\b0  \\u26085?}";
+		assignment.setNotes(rtf);
+
+		org.mpxj.ProjectFile serialized = new com.microproject.server.data.MSPDISerializer().serializeProject(project);
+		org.mpxj.ResourceAssignment serializedAssignment = serialized.getResourceAssignments().stream()
+			.filter(value -> Integer.valueOf((int) task.getUniqueId()).equals(value.getTaskUniqueID())
+				&& Integer.valueOf((int) resource.getUniqueId()).equals(value.getResourceUniqueID()))
+			.findFirst().orElseThrow();
+		assertEquals(rtf, serializedAssignment.getNotes(), "MSPDI serializer must preserve RTF notes verbatim");
+
+		ByteArrayOutputStream xml = new ByteArrayOutputStream();
+		new org.mpxj.mspdi.MSPDIWriter().write(serialized, xml);
+		org.mpxj.ProjectFile parsed = new org.mpxj.mspdi.MSPDIReader()
+			.read(new java.io.ByteArrayInputStream(xml.toByteArray()));
+		org.mpxj.ResourceAssignment parsedAssignment = parsed.getResourceAssignments().stream()
+			.filter(value -> Integer.valueOf((int) task.getUniqueId()).equals(value.getTaskUniqueID())
+				&& Integer.valueOf((int) resource.getUniqueId()).equals(value.getResourceUniqueID()))
+			.findFirst().orElseThrow();
+		assertEquals(rtf, parsedAssignment.getNotes(), "MSPDI XML Notes must retain the RTF payload");
+	}
+
+	@Test
+	void formattedAssignmentNotesSurviveMpoSaveAndReload() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(original);
+		task.setUniqueId(780121L);
+		Resource resource = original.getResourcePool().newResourceInstance();
+		resource.setName("RTF MPO resource");
+		((com.microproject.pm.resource.ResourceImpl) resource).setUniqueId(780122L);
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		String rtf = "{\\rtf1\\ansi\\b Formatted MPO note\\b0}";
+		assignment.setNotes(rtf);
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(original, archive));
+		NormalTask reopened = (NormalTask) firstTask(loadFromBytes(archive.toByteArray()));
+		Assignment restored = null;
+		for (Object value : reopened.getAssignments()) {
+			Assignment candidate = (Assignment) value;
+			if (candidate.getResource() != null && resource.getUniqueId() == candidate.getResource().getUniqueId())
+				restored = candidate;
+		}
+		assertNotNull(restored);
+		assertEquals(rtf, restored.getNotes());
+	}
+
+	@Test
 	void assignmentLevelingSplitStateSurvivesMpoSaveReloadAndClear() throws Exception {
 		Project original = projectForRoundTrip();
 		NormalTask task = (NormalTask) firstTask(original);

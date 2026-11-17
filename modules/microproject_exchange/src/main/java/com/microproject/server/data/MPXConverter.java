@@ -394,6 +394,7 @@ public class MPXConverter {
 	}
 
 	public static void toMPXAssignment(Assignment assignment, ResourceAssignment mpxAssignment) {
+		mpxAssignment.setNotes(com.microproject.exchange.mpxj.AssignmentNotesInterop.toMspdiText(assignment.getNotes()));
 		mpxAssignment.setNotes(assignment.getNotes());
 //		long work = assignment.isDefault() ? 0 : assignment.getWork(null); // microsoft considers no work on default assignments
 		long work = assignment.getWork(null); // microsoft considers no work on default assignments
