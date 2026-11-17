@@ -286,6 +286,7 @@ public class MpoFileImporter extends FileImporter {
 			projectXml = MpoManifest.migrateLegacyAssignmentBaselineCosts(projectXml);
 		MicrosoftImporter delegate = new MicrosoftImporter();
 		delegate.setFileName(PROJECT_ENTRY);
+		delegate.setImportTaskWorkSplits(false);
 		delegate.setProjectFactory(projectFactory);
 		project = delegate.loadProject(new ByteArrayInputStream(projectXml));
 		if (manifestData.documentId() != null) try {
@@ -724,6 +725,7 @@ public class MpoFileImporter extends FileImporter {
 	private Project copyProjectForTransaction(Project source, byte[] xml) throws IOException {
 		MicrosoftImporter delegate = new MicrosoftImporter();
 		delegate.setFileName(PROJECT_ENTRY);
+		delegate.setImportTaskWorkSplits(false);
 		delegate.setProjectFactory(projectFactory == null ? ProjectFactory.getInstance() : projectFactory);
 		try (InputStream in = new ByteArrayInputStream(xml)) {
 			Project copy = delegate.loadProject(in);
