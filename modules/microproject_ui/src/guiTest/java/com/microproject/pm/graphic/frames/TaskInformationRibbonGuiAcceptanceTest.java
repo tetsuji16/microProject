@@ -6225,7 +6225,6 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
-	@GuiJourney(InputMechanism.RIBBON_CLICK)
 	void robotResourceGraphBarOverlapRendersAndSurvivesWorkspaceReload() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();
