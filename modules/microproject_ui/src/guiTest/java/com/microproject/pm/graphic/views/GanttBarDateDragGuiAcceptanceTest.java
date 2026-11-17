@@ -775,7 +775,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 	@Test
 	void robotResizeProgressAndSplitUseTypedScheduleGatewayWithUndoAndPersistence() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
-		long fixtureStart = DateTime.calendarInstance(2026, java.util.Calendar.JUNE, 8).getTimeInMillis();
+		long fixtureStart = DateTime.calendarInstance(2026, java.util.Calendar.JUNE, 10).getTimeInMillis();
 		Fixture fixture = createFixture(DependencyType.FS, false, true, fixtureStart);
 		showRibbonFixture(fixture, "Gantt schedule gestures GUI acceptance");
 		Robot robot = new com.microproject.testsupport.GuiRobot();
@@ -799,6 +799,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		assertTrue(normalizedEarlierStart < originalStart,
 			"the resize destination must normalize to a working time before the original start");
 		Point earlierDate = screenPointForTaskDate(fixture, normalizedEarlierStart);
+		assertScreenPointInGanttViewport(fixture, earlierDate, "start-resize destination");
 		drag(robot, startHandle, earlierDate);
 		try {
 			GuiAcceptanceSupport.await(() -> fixture.predecessor.getStart() < originalStart,
@@ -833,6 +834,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		laterEndCalendar.setTimeInMillis(originalEnd);
 		laterEndCalendar.add(java.util.Calendar.DAY_OF_MONTH, 3);
 		Point laterDate = screenPointForTaskDate(fixture, laterEndCalendar.getTimeInMillis());
+		assertScreenPointInGanttViewport(fixture, laterDate, "finish-resize destination");
 		assertTrue(laterDate.x - endHandle.x >= java.awt.dnd.DragSource.getDragThreshold(),
 			"finish-resize gesture must exceed the desktop drag threshold: from=" + endHandle + " to=" + laterDate);
 		drag(robot, endHandle, laterDate);
@@ -1449,6 +1451,15 @@ class GanttBarDateDragGuiAcceptanceTest {
 		});
 		GuiAcceptanceSupport.await(() -> isTaskBarFullyVisible(viewport, fixture),
 			"the target task bar must be fully visible in the Gantt viewport before the gesture");
+	}
+
+	private void assertScreenPointInGanttViewport(Fixture fixture, Point point, String gesture) throws Exception {
+		javax.swing.JViewport viewport = (javax.swing.JViewport) SwingUtilities.getAncestorOfClass(
+			javax.swing.JViewport.class, gantt);
+		assertTrue(viewport != null, "the ribbon Gantt must use a viewport");
+		assertTrue(viewportScreenBounds(viewport).contains(point),
+			gesture + " must be inside the visible Gantt viewport to avoid edge auto-scroll: point=" + point
+				+ " viewport=" + viewportScreenBounds(viewport));
 	}
 
 	private boolean isTaskBarFullyVisible(javax.swing.JViewport viewport, Fixture fixture) {
