@@ -89,7 +89,6 @@ import com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeList
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.graphic.views.BaseView;
 import com.microproject.pm.graphic.views.ChartView;
-import com.microproject.pm.resource.Resource;
 import com.microproject.pm.graphic.chart.ChartMode;
 import com.microproject.pm.graphic.views.DockableProjectToolView;
 import com.microproject.pm.graphic.gantt.Gantt;
@@ -3244,10 +3243,10 @@ public class DocumentFrame extends NamedFrame implements
 			if (view instanceof BaseView baseView)
 				existingViews.add(baseView);
 		});
-		Map<ChartView, List<Resource>> chartSelections = new IdentityHashMap<>();
+		Map<ChartView, ChartView.SelectionState> chartSelections = new IdentityHashMap<>();
 		for (BaseView view : existingViews) {
 			if (view instanceof ChartView chartView)
-				chartSelections.put(chartView, chartView.snapshotResourceSelection());
+				chartSelections.put(chartView, chartView.snapshotSelection());
 		}
 		workspace = ws;
 		setMainView(false);
@@ -3274,7 +3273,7 @@ public class DocumentFrame extends NamedFrame implements
 		for (BaseView view : existingViews) {
 			restoreWorkspaceFor(view);
 			if (view instanceof ChartView chartView)
-				chartView.restoreResourceSelection(chartSelections.get(chartView));
+				chartView.restoreSelection(chartSelections.get(chartView));
 		}
 
 	}

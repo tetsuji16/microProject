@@ -514,8 +514,10 @@ public class ChartLegend  implements SelectionNodeListener, Serializable , Savab
 		selecting = false;
 	}
 
-	/** Restores the chart's resource selection after a same-session workspace reload. */
-	public void restoreResourceSelection(List<Resource> resources) {
+	/** Restores chart selections after a same-session workspace reload. */
+	public void restoreSelection(List<?> objects, List<Resource> resources) {
+		selectedObjects = objects == null ? null : new ArrayList<>(objects);
+		selectedResourcesFromTasks = resources == null ? new ArrayList<>() : new ArrayList<>(resources);
 		setTreeSelection(resources == null ? java.util.Collections.emptyList() : resources);
 		chartInfo.updateChart(selectedObjects, selectedResourcesOnTree);
 	}

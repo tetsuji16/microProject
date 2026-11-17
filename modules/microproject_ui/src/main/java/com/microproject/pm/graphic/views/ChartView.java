@@ -235,14 +235,29 @@ public class ChartView extends SplittedView implements SelectionNodeListener, Ba
 		chartInfo.replotRestoredResourceGraph();
 	}
 
-	/** Captures selected resources before a workspace reload resets the main view selection. */
-	public List<Resource> snapshotResourceSelection() {
-		return chartInfo.getResources() == null ? List.of() : new ArrayList<>(chartInfo.getResources());
+	/** Captures chart selections before a workspace reload resets the main view selection. */
+	public SelectionState snapshotSelection() {
+		List<Object> selectedObjects = chartInfo.getSelectedObjects() == null
+				? null : new ArrayList<>(chartInfo.getSelectedObjects());
+		List<Resource> selectedResources = chartInfo.getResources() == null
+				? List.of() : new ArrayList<>(chartInfo.getResources());
+		return new SelectionState(selectedObjects, selectedResources);
 	}
 
-	/** Reapplies selected resources after the chart's workspace state has been restored. */
-	public void restoreResourceSelection(List<Resource> resources) {
-		chartLegend.restoreResourceSelection(resources);
+	/** Reapplies selected objects and resources after the chart workspace state is restored. */
+	public void restoreSelection(SelectionState selection) {
+		if (selection != null)
+			chartLegend.restoreSelection(selection.selectedObjects, selection.selectedResources);
+	}
+
+	public static final class SelectionState {
+		private final List<Object> selectedObjects;
+		private final List<Resource> selectedResources;
+
+		private SelectionState(List<Object> selectedObjects, List<Resource> selectedResources) {
+			this.selectedObjects = selectedObjects;
+			this.selectedResources = selectedResources;
+		}
 	}
 	public WorkspaceSetting createWorkspace(int context) {
 		Workspace ws = new Workspace();
