@@ -6324,19 +6324,16 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, findShowingButtonByText(invalidDialog, Messages.getString("ButtonText.OK")));
 		String invalidOverlapMessage = ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ResourceGraph.dialog.invalidBarOverlap");
-		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows()).filter(JDialog.class::isInstance)
-			.map(JDialog.class::cast).anyMatch(candidate -> candidate.isShowing()
-				&& UiComponentWalker.flatten(candidate).stream().filter(JLabel.class::isInstance).map(JLabel.class::cast)
-					.anyMatch(label -> invalidOverlapMessage.equals(label.getText()))),
-			"the OK route must report an invalid overlap value");
-		JDialog invalidWarning = java.util.Arrays.stream(Window.getWindows()).filter(JDialog.class::isInstance).map(JDialog.class::cast)
-			.filter(candidate -> candidate.isShowing()
-				&& UiComponentWalker.flatten(candidate).stream().filter(JLabel.class::isInstance).map(JLabel.class::cast)
-					.anyMatch(label -> invalidOverlapMessage.equals(label.getText())))
-			.findFirst().orElseThrow();
+		GuiAcceptanceSupport.await(() -> findDialogContainingText(invalidOverlapMessage) != null,
+			"the OK route must show an invalid overlap warning with the localized message: " + invalidOverlapMessage);
+		Dialog invalidWarning = findDialogContainingText(invalidOverlapMessage);
+		DialogScreenshotArtifacts.capture(invalidWarning, "issue-1179-invalid-resource-graph-overlap-warning");
 		assertEquals(0, graph.getResourceGraphSettings().getPercentBarOverlap(),
 			"rejecting an out-of-range value through OK must preserve the prior setting");
 		click(robot, findShowingButtonByText(invalidWarning, Messages.getString("ButtonText.OK")));
+		GuiAcceptanceSupport.await(() -> !invalidWarning.isShowing(), "the overlap warning did not dismiss after physical OK");
+		assertEquals(0, graph.getResourceGraphSettings().getPercentBarOverlap(),
+			"dismissing the invalid-input warning must keep the prior overlap setting");
 
 		TimeChartPanel panel = UiComponentWalker.flatten(graph).stream().filter(TimeChartPanel.class::isInstance)
 			.map(TimeChartPanel.class::cast).findFirst().orElseThrow();
