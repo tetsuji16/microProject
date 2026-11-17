@@ -360,12 +360,15 @@ final class RibbonControlPopups {
 		// drop-down; the editable JComboBox form is only built by createInputControl.
 		boolean dropDown = kind == RibbonControlKind.DROP_DOWN || kind == RibbonControlKind.COMBO_BOX;
 		boolean dynamic = DYNAMIC_ENTRY_COMMANDS.contains(specification.getId());
-		if (!kind.hasPopup() || (specification.getItemIds().isEmpty() && !dropDown && !dynamic)) {
+		boolean taskColorGallery = TaskColorGallery.supports(specification.getId());
+		if (!kind.hasPopup() || (specification.getItemIds().isEmpty() && !dropDown && !dynamic && !taskColorGallery)) {
 			return;
 		}
 		// A gallery on a ribbon button lists commands that run their own actions (for example
 		// Sort), so it is built like a menu; createInputControl keeps the value-committing grid.
-		JPopupMenu popup = createPopup(specification, commandSource, text);
+		JPopupMenu popup = taskColorGallery
+			? TaskColorGallery.createPopup(specification, commandSource, text)
+			: createPopup(specification, commandSource, text);
 		button.putClientProperty(POPUP_PROPERTY, popup);
 		trackPopupOpen(button, popup);
 		if (dropDown) {
@@ -393,7 +396,9 @@ final class RibbonControlPopups {
 	static JComponent createInputControl(SwingRibbonModel.RibbonButton specification,
 		RibbonCommandSource commandSource, UnaryOperator<String> text) {
 		return switch (specification.getControlKind()) {
-			case GALLERY -> createGalleryPopup(null, specification, commandSource, text);
+			case GALLERY -> TaskColorGallery.supports(specification.getId())
+				? TaskColorGallery.createPopup(specification, commandSource, text)
+				: createGalleryPopup(null, specification, commandSource, text);
 			case COMBO_BOX -> createComboBox(specification, commandSource, text);
 			case EDIT_BOX -> createEditBox(specification, commandSource);
 			default -> throw new IllegalArgumentException(specification.getControlKind() + " is not an input control");

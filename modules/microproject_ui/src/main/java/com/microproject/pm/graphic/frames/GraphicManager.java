@@ -3943,13 +3943,37 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			case ACTION_BOLD -> frame.toggleSelectedTaskBold();
 			case ACTION_ITALIC -> frame.toggleSelectedTaskItalic();
 			case ACTION_UNDERLINE -> frame.toggleSelectedTaskUnderline();
-			case ACTION_BACKGROUND_COLOR -> frame.chooseSelectedTaskBackground();
+			case ACTION_BACKGROUND_COLOR -> applyTaskBackground(frame, event);
+			case ACTION_FONT_COLOR -> applyTaskFontColor(frame, event);
 			case ACTION_FONT_NAME, ACTION_FONT_SIZE -> { }
 			default -> frame.chooseSelectedTaskFontColor();
 			}
 			getMenuManager().setActionSelected(ACTION_BOLD, frame.isSelectedTaskTextBold());
 			getMenuManager().setActionSelected(ACTION_ITALIC, frame.isSelectedTaskTextItalic());
 			getMenuManager().setActionSelected(ACTION_UNDERLINE, frame.isSelectedTaskTextUnderline());
+		}
+		private void applyTaskBackground(DocumentFrame frame, ActionEvent event) {
+			String value = event.getActionCommand();
+			if ("__automatic__".equals(value)) {
+				frame.applySelectedTaskBackground(null);
+			} else if (isColorValue(value)) {
+				frame.applySelectedTaskBackground(Integer.parseInt(value.substring(1), 16));
+			} else {
+				frame.chooseSelectedTaskBackground();
+			}
+		}
+		private void applyTaskFontColor(DocumentFrame frame, ActionEvent event) {
+			String value = event.getActionCommand();
+			if ("__automatic__".equals(value)) {
+				frame.applySelectedTaskFontColor(null);
+			} else if (isColorValue(value)) {
+				frame.applySelectedTaskFontColor(Integer.parseInt(value.substring(1), 16));
+			} else {
+				frame.chooseSelectedTaskFontColor();
+			}
+		}
+		private boolean isColorValue(String value) {
+			return value != null && value.matches("#[0-9A-Fa-f]{6}");
 		}
 		@Override protected boolean allowed(boolean enable) {
 			return !enable || isDocumentActive() && getCurrentFrame() != null
