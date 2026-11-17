@@ -775,27 +775,32 @@ class GanttBarDateDragGuiAcceptanceTest {
 	@Test
 	void robotResizeProgressAndSplitUseTypedScheduleGatewayWithUndoAndPersistence() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
-		long fixtureStart = DateTime.calendarInstance(2026, java.util.Calendar.JUNE, 10).getTimeInMillis();
-		Fixture fixture = createFixture(DependencyType.FS, false, true, fixtureStart);
+		long projectOrigin = DateTime.calendarInstance(2026, java.util.Calendar.JUNE, 1).getTimeInMillis();
+		long taskStart = DateTime.calendarInstance(2026, java.util.Calendar.JUNE, 10).getTimeInMillis();
+		Fixture fixture = createFixture(DependencyType.FS, false, true, projectOrigin, taskStart);
+		long originalStart = fixture.predecessor.getStart();
+		long originalEnd = fixture.predecessor.getEnd();
+		java.util.Calendar earlierStartCalendar = java.util.Calendar.getInstance();
+		earlierStartCalendar.setTimeInMillis(originalStart);
+		earlierStartCalendar.add(java.util.Calendar.DAY_OF_MONTH, -3);
+		long normalizedEarlierStart = fixture.predecessor.getEffectiveWorkCalendar()
+			.adjustInsideCalendar(earlierStartCalendar.getTimeInMillis(), false);
+		java.util.Calendar laterEndCalendar = java.util.Calendar.getInstance();
+		laterEndCalendar.setTimeInMillis(originalEnd);
+		laterEndCalendar.add(java.util.Calendar.DAY_OF_MONTH, 3);
+		long requestedLaterEnd = laterEndCalendar.getTimeInMillis();
 		showRibbonFixture(fixture, "Gantt schedule gestures GUI acceptance");
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateGantt(robot);
-		showTaskBarInViewport(fixture);
+		showTaskBarInViewport(fixture, normalizedEarlierStart, requestedLaterEnd);
 		capture(robot, "gantt-schedule-gestures-initial.png");
 
-		long originalStart = fixture.predecessor.getStart();
 		int originalConstraintType = fixture.predecessor.getConstraintType();
 		long originalConstraintDate = fixture.predecessor.getConstraintDate();
 		Point startHandle = findResizeHandle(robot, fixture, true, Cursor.W_RESIZE_CURSOR, "start resize");
 		assertTaskBarHit(fixture, startHandle);
 		assertResizeCursor(robot, startHandle, Cursor.W_RESIZE_CURSOR, "start resize");
-		java.util.Calendar earlierStartCalendar = java.util.Calendar.getInstance();
-		earlierStartCalendar.setTimeInMillis(originalStart);
-		earlierStartCalendar.add(java.util.Calendar.DAY_OF_MONTH, -3);
-		long earlierRequestedStart = earlierStartCalendar.getTimeInMillis();
-		long normalizedEarlierStart = fixture.predecessor.getEffectiveWorkCalendar()
-			.adjustInsideCalendar(earlierRequestedStart, false);
 		assertTrue(normalizedEarlierStart < originalStart,
 			"the resize destination must normalize to a working time before the original start");
 		Point earlierDate = screenPointForTaskDate(fixture, normalizedEarlierStart);
@@ -824,16 +829,12 @@ class GanttBarDateDragGuiAcceptanceTest {
 		assertEquals(resizedStart, fixture.predecessor.getConstraintDate(),
 			"start resize must retain its constraint date after Redo");
 
-		long originalEnd = fixture.predecessor.getEnd();
 		int startConstraintType = fixture.predecessor.getConstraintType();
 		long startConstraintDate = fixture.predecessor.getConstraintDate();
 		Point endHandle = findResizeHandle(robot, fixture, false, Cursor.E_RESIZE_CURSOR, "finish resize");
 		assertTaskBarHit(fixture, endHandle);
 		assertResizeCursor(robot, endHandle, Cursor.E_RESIZE_CURSOR, "finish resize");
-		java.util.Calendar laterEndCalendar = java.util.Calendar.getInstance();
-		laterEndCalendar.setTimeInMillis(originalEnd);
-		laterEndCalendar.add(java.util.Calendar.DAY_OF_MONTH, 3);
-		Point laterDate = screenPointForTaskDate(fixture, laterEndCalendar.getTimeInMillis());
+		Point laterDate = screenPointForTaskDate(fixture, requestedLaterEnd);
 		assertScreenPointInGanttViewport(fixture, laterDate, "finish-resize destination");
 		assertTrue(laterDate.x - endHandle.x >= java.awt.dnd.DragSource.getDragThreshold(),
 			"finish-resize gesture must exceed the desktop drag threshold: from=" + endHandle + " to=" + laterDate);
@@ -1429,7 +1430,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		activateWindow(robot);
 	}
 
-	private void showTaskBarInViewport(Fixture fixture) throws Exception {
+	private void showTaskBarInViewport(Fixture fixture, long requiredStart, long requiredEnd) throws Exception {
 		javax.swing.JViewport viewport = (javax.swing.JViewport) SwingUtilities.getAncestorOfClass(
 			javax.swing.JViewport.class, gantt);
 		javax.swing.JScrollPane scrollPane = (javax.swing.JScrollPane) SwingUtilities.getAncestorOfClass(
@@ -1438,36 +1439,42 @@ class GanttBarDateDragGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> gantt.getWidth() > 0 && viewport.getExtentSize().width > 0,
 			"the ribbon Gantt viewport did not finish layout");
 		SwingUtilities.invokeAndWait(() -> {
-			int barStart = (int)Math.round(gantt.getCoord().toX(fixture.predecessor.getStart()));
-			int barEnd = (int)Math.round(gantt.getCoord().toX(fixture.predecessor.getEnd()));
-			int viewStart = viewport.getViewPosition().x;
-			int viewEnd = viewStart + viewport.getExtentSize().width;
-			int targetViewStart = viewStart;
-			if (barStart < viewStart + 2) targetViewStart = barStart - 2;
-			else if (barEnd > viewEnd - 2) targetViewStart = barEnd - viewport.getExtentSize().width + 2;
+			int contentStart = Math.min((int)Math.round(gantt.getCoord().toX(fixture.predecessor.getStart())),
+				(int)Math.round(gantt.getCoord().toX(requiredStart)));
+			int contentEnd = Math.max((int)Math.round(gantt.getCoord().toX(fixture.predecessor.getEnd())),
+				(int)Math.round(gantt.getCoord().toX(requiredEnd)));
+			int visibleWidth = viewport.getExtentSize().width;
+			if (contentEnd - contentStart > visibleWidth - 4)
+				throw new AssertionError("the gesture date range is wider than the visible Gantt viewport: start="
+					+ contentStart + " end=" + contentEnd + " width=" + visibleWidth);
 			javax.swing.JScrollBar horizontal = scrollPane.getHorizontalScrollBar();
 			horizontal.setValue(Math.max(horizontal.getMinimum(), Math.min(horizontal.getMaximum()
-				- horizontal.getVisibleAmount(), targetViewStart)));
+				- horizontal.getVisibleAmount(), contentStart - 2)));
 		});
-		GuiAcceptanceSupport.await(() -> isTaskBarFullyVisible(viewport, fixture),
-			"the target task bar must be fully visible in the Gantt viewport before the gesture");
+		GuiAcceptanceSupport.await(() -> isTaskAndGestureRangeVisible(viewport, fixture, requiredStart, requiredEnd),
+			"the full task bar and requested gesture date range must fit in the Gantt viewport");
+	}
+
+	private boolean isTaskAndGestureRangeVisible(javax.swing.JViewport viewport, Fixture fixture,
+			long requiredStart, long requiredEnd) {
+		try {
+			Rectangle viewportBounds = viewportScreenBounds(viewport);
+			return viewportBounds.contains(taskBarScreenBounds(fixture))
+				&& viewportBounds.contains(screenPointForTaskDate(fixture, requiredStart))
+				&& viewportBounds.contains(screenPointForTaskDate(fixture, requiredEnd));
+		} catch (Exception exception) {
+			throw new AssertionError("Could not verify that the task and gesture date range are visible", exception);
+		}
 	}
 
 	private void assertScreenPointInGanttViewport(Fixture fixture, Point point, String gesture) throws Exception {
 		javax.swing.JViewport viewport = (javax.swing.JViewport) SwingUtilities.getAncestorOfClass(
 			javax.swing.JViewport.class, gantt);
 		assertTrue(viewport != null, "the ribbon Gantt must use a viewport");
-		assertTrue(viewportScreenBounds(viewport).contains(point),
-			gesture + " must be inside the visible Gantt viewport to avoid edge auto-scroll: point=" + point
-				+ " viewport=" + viewportScreenBounds(viewport));
-	}
-
-	private boolean isTaskBarFullyVisible(javax.swing.JViewport viewport, Fixture fixture) {
-		try {
-			return viewportScreenBounds(viewport).contains(taskBarScreenBounds(fixture));
-		} catch (Exception exception) {
-			throw new AssertionError("Could not verify that the target task bar is visible", exception);
-		}
+		Rectangle viewportBounds = viewportScreenBounds(viewport);
+		assertTrue(viewportBounds.contains(point), gesture
+			+ " must be inside the visible Gantt viewport to avoid edge auto-scroll: point=" + point
+			+ " viewport=" + viewportBounds);
 	}
 
 	private Rectangle taskBarScreenBounds(Fixture fixture) throws Exception {
@@ -1800,6 +1807,11 @@ class GanttBarDateDragGuiAcceptanceTest {
 
 	private Fixture createFixture(int dependencyType, boolean includeDependency, boolean assignPredecessor,
 			Long projectStart) throws Exception {
+		return createFixture(dependencyType, includeDependency, assignPredecessor, projectStart, projectStart);
+	}
+
+	private Fixture createFixture(int dependencyType, boolean includeDependency, boolean assignPredecessor,
+			Long projectStart, Long predecessorStartOverride) throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		ResourcePool pool = ResourcePool.createRourcePool("gui-gantt-date-drag", undo);
 		Project project = Project.createProject(pool, undo);
@@ -1810,10 +1822,10 @@ class GanttBarDateDragGuiAcceptanceTest {
 		}
 		NormalTask predecessor = task(project, "Drag predecessor", 3L);
 		NormalTask successor = task(project, "Drag successor", 1L);
-		long predecessorStart = projectStart != null ? projectStart
+		long predecessorStart = predecessorStartOverride != null ? predecessorStartOverride
 			: DateTime.calendarInstance(2026, java.util.Calendar.JUNE, 8).getTimeInMillis();
 		predecessor.getCurrentSchedule().setStart(predecessorStart);
-		if (projectStart != null) predecessor.setScheduleConstraint(
+		if (predecessorStartOverride != null) predecessor.setScheduleConstraint(
 			com.microproject.pm.scheduling.ConstraintType.Kind.SNET, predecessorStart);
 		predecessor.setDuration(3L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
 		if (assignPredecessor) {
