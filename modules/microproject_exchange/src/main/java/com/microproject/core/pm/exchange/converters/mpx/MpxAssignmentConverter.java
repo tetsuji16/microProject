@@ -251,6 +251,9 @@ public class MpxAssignmentConverter {
 				+ ", segments=" + segments);
 
 		// Clear the initial scalar/flat profile first so source gaps become zero-work buckets.
+		target.setActualWork(0L, null);
+		target.setWork(0L, null);
+		target.initializeImportedBounds(plan.start(), plan.finish());
 		target.setInterval(Assignment.WORK, plan.start(), plan.finish(), 0L);
 		for (WorkSegment segment : segments) {
 			target.setInterval(Assignment.WORK, segment.start(), segment.end(), segment.totalWork());
