@@ -12,6 +12,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
+import java.util.TimeZone;
 
 import org.jfree.chart.plot.XYPlot;
 import org.jfree.chart.renderer.xy.XYBarRenderer;
@@ -28,7 +31,14 @@ import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.calendar.WorkDay;
+import com.microproject.pm.calendar.WorkingCalendar;
+import com.microproject.pm.calendar.WorkingHours;
+import com.microproject.pm.calendar.WorkRangeException;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.util.DateTime;
+import com.microproject.timescale.TimeIterator;
+import com.microproject.timescale.TimeScale;
 
 /** The series each Graph option of the Resource Graph Format tab plots, on three intervals of plain numbers. */
 class ResourceGraphDataTest {
@@ -44,6 +54,35 @@ class ResourceGraphDataTest {
 			new double[] { 0, 0 }, new double[] { 0, 0 }, new double[] { 10, 10 }, null, null, 10, false,
 			new double[] { 1.25D, 1D }, new double[] { 0.5D, 0.25D });
 		assertY(new double[] { 1.25D, 1D }, graph, Item.ALLOCATED_FILTERED);
+	}
+
+	@Test
+	void finalPeakPeriodUsesTheNextRealMonthBoundaryAcrossMarchClockChangeDate() {
+		TimeScale monthly = new TimeScale();
+		monthly.setCalendarField1(Calendar.MONTH);
+		monthly.setNumber1(1);
+		monthly.setCalendarField2(Calendar.YEAR);
+		monthly.setNumber2(1);
+		monthly.setPattern1("MMM");
+		monthly.setPattern2("yyyy");
+		TimeZone previousZone = TimeZone.getDefault();
+		try {
+			TimeZone.setDefault(TimeZone.getTimeZone("America/New_York"));
+			GregorianCalendar local = new GregorianCalendar(TimeZone.getDefault());
+			local.clear();
+			local.set(2024, Calendar.FEBRUARY, 15, 0, 0);
+			long start = local.getTimeInMillis();
+			local.set(2024, Calendar.APRIL, 10, 0, 0);
+			long end = local.getTimeInMillis();
+			long[] periodEnds = ChartModel.periodEnds(new TimeIterator(start, end, monthly, -1L), 3);
+			assertArrayEquals(new long[] {
+				DateTime.calendarInstance(2024, Calendar.MARCH, 1).getTimeInMillis(),
+				DateTime.calendarInstance(2024, Calendar.APRIL, 1).getTimeInMillis(),
+				DateTime.calendarInstance(2024, Calendar.MAY, 1).getTimeInMillis()
+			}, periodEnds);
+		} finally {
+			TimeZone.setDefault(previousZone);
+		}
 	}
 
 	@Test
@@ -73,6 +112,50 @@ class ResourceGraphDataTest {
 		for (int i = 0; i < bars.getItemCount(0); i++)
 			plottedPeak = Math.max(plottedPeak, bars.getEndYValue(0, i));
 		assertEquals(2D, plottedPeak, DELTA, "the chart renderer must receive the exact Peak Units result");
+	}
+
+	@Test
+	void assignmentsOnNonoverlappingShiftsAndAcrossAHolidayDoNotCreateFalsePeaks() throws WorkRangeException {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("resource-graph-shift-test", undo);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		long holidayDate = DateTime.nextDay(DateTime.dayFloor(project.getStart()) + 2L * com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_DAY);
+		WorkingCalendar early = shiftCalendar(project, 8, 12, holidayDate);
+		WorkingCalendar late = shiftCalendar(project, 13, 17, holidayDate);
+		Resource earlyResource = pool.createScriptedResource();
+		earlyResource.setName("Early shift");
+		earlyResource.setWorkCalendar(early);
+		Resource lateResource = pool.createScriptedResource();
+		lateResource.setName("Late shift");
+		lateResource.setWorkCalendar(late);
+		for (Resource resource : List.of(earlyResource, lateResource)) {
+			NormalTask task = project.createScriptedTask();
+			task.setName(resource.getName() + " assignment");
+			task.setWorkCalendar(resource.getWorkCalendar());
+			task.setDuration((long) (40D * H));
+			AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		}
+		project.recalculate();
+		ChartModel model = new ChartModel(new CoordinatesConverter(project));
+		model.computeResourceGraph(project, null, List.of(earlyResource, lateResource), new ResourceGraphSettings(), false);
+		ResourceGraphData.Series peak = model.getResourceGraph().getSeries(Item.ALLOCATED_FILTERED);
+		assertEquals(1D, java.util.Arrays.stream(peak.y()).max().orElseThrow(), DELTA,
+			"adjacent shifts must not overlap in the midday gap, overnight gaps, or the holiday");
+	}
+
+	private static WorkingCalendar shiftCalendar(Project project, int startHour, int endHour, long holidayDate)
+			throws WorkRangeException {
+		WorkingCalendar calendar = WorkingCalendar.getInstanceBasedOn(project.getWorkCalendar());
+		WorkingHours hours = new WorkingHours();
+		hours.setInterval(0, WorkingHours.hourTime(startHour), WorkingHours.hourTime(endHour));
+		WorkDay weekdays = new WorkDay();
+		weekdays.setWorkingHours(hours);
+		for (int day = Calendar.MONDAY - 1; day <= Calendar.FRIDAY - 1; day++)
+			calendar.setWeekDay(day, weekdays.clone());
+		calendar.addOrReplaceException(new WorkDay(holidayDate, holidayDate, "Resource Graph test holiday"));
+		calendar.invalidate();
+		return calendar;
 	}
 	private static final double H = 3_600_000D;
 	private static final double DELTA = 1e-9;

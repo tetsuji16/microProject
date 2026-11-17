@@ -50,6 +50,10 @@ import com.microproject.pm.assignment.HasTimeDistributedData;
 import com.microproject.pm.assignment.TimeDistributedConstants;
 import com.microproject.pm.assignment.contour.AbstractContourBucket;
 import com.microproject.pm.assignment.contour.ContourBucketIntervalGenerator;
+import com.microproject.pm.calendar.WorkCalendar;
+import com.microproject.pm.calendar.WorkDay;
+import com.microproject.pm.calendar.WorkRange;
+import com.microproject.util.DateTime;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.Project;
@@ -259,9 +263,7 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 		double[] peakTotal = null;
 		double[] peakSelected = null;
 		if (!cost && type == ResourceGraphSettings.GraphType.PEAK_UNITS) {
-			long[] ends = new long[n];
-			for (int i = 0; i < n; i++)
-				ends[i] = i + 1 < n ? dates[i + 1] : dates[i] + coord.getIntervalDuration();
+			long[] ends = periodEnds(coord.getProjectTimeIterator(), n);
 			peakTotal = exactPeakUnits(project.getTaskOutlineIterator(), resources, dates, ends);
 			peakSelected = exactPeakUnits(tasks == null ? null : tasks.iterator(), resources, dates, ends);
 		}
@@ -290,11 +292,58 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 						continue;
 					double units = Math.max(0D, bucket.getEffectiveUnits(assignment.getUnits()));
 					if (units > 0D && generator.currentStart() < generator.currentEnd())
-						intervals.add(new ResourceGraphData.AllocationInterval(generator.currentStart(), generator.currentEnd(), units));
+						addWorkingIntervals(intervals, assignment.getEffectiveWorkCalendar(), generator.currentStart(),
+							generator.currentEnd(), units);
 				}
 			}
 		}
 		return ResourceGraphData.peakUnits(starts, ends, intervals);
+	}
+
+	/** Returns the actual timescale boundary after each plotted interval, including the final interval. */
+	static long[] periodEnds(com.microproject.timescale.TimeIterator periods, int count) {
+		long[] ends = new long[count];
+		for (int i = 0; i < count && periods.hasNext(); i++)
+			ends[i] = periods.next().getEnd();
+		return ends;
+	}
+
+	/** Intersects a contour bucket's wall-clock span with the assignment's effective working calendar. */
+	private static void addWorkingIntervals(List<ResourceGraphData.AllocationInterval> target, WorkCalendar calendar,
+			long from, long to, double units) {
+		if (calendar == null || from >= to)
+			return;
+		com.microproject.pm.calendar.CalendarDefinition definition = calendar.getConcreteInstance();
+		for (long day = DateTime.dayFloor(from); day < to; day = DateTime.nextDay(day)) {
+			WorkDay workDay = definition.getWorkDay(day);
+			if (workDay == null)
+				workDay = WorkDay.getDefaultWorkDay();
+			for (WorkRange range : workDay.getWorkingHours().getIntervals()) {
+				if (range == null)
+					continue;
+				long workingStart = timeOnDay(day, range.getStart(), range.getStart());
+				long workingEnd = timeOnDay(day, range.getEnd(), range.getStart());
+				long activeStart = Math.max(from, workingStart);
+				long activeEnd = Math.min(to, workingEnd);
+				if (activeEnd > activeStart)
+					target.add(new ResourceGraphData.AllocationInterval(activeStart, activeEnd, units));
+			}
+		}
+	}
+
+	/** Applies the hour/minute fields from a calendar work range to a concrete local date (DST-safe). */
+	private static long timeOnDay(long day, long rangeTime, long rangeStart) {
+		java.util.Calendar range = DateTime.calendarInstance();
+		range.setTimeInMillis(rangeTime);
+		java.util.Calendar result = DateTime.calendarInstance();
+		result.setTimeInMillis(day);
+		if (DateTime.dayFloor(rangeTime) > DateTime.dayFloor(rangeStart))
+			result.add(java.util.Calendar.DAY_OF_MONTH, 1);
+		result.set(java.util.Calendar.HOUR_OF_DAY, range.get(java.util.Calendar.HOUR_OF_DAY));
+		result.set(java.util.Calendar.MINUTE, range.get(java.util.Calendar.MINUTE));
+		result.set(java.util.Calendar.SECOND, range.get(java.util.Calendar.SECOND));
+		result.set(java.util.Calendar.MILLISECOND, range.get(java.util.Calendar.MILLISECOND));
+		return result.getTimeInMillis();
 	}
 
 	/** The series computed by the last {@link #computeResourceGraph}, or null before the first one. */
