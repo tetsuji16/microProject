@@ -25,6 +25,7 @@ import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.KeyEventDispatcher;
 import java.awt.image.BufferedImage;
+import java.lang.reflect.Field;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
@@ -57,7 +58,9 @@ import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.pm.graphic.gantt.Gantt;
+import com.microproject.pm.graphic.gantt.GanttInteractor;
 import com.microproject.pm.graphic.gantt.GanttUI;
+import com.microproject.pm.graphic.graph.GraphInteractor;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.frames.MainRibbonFrame;
 import com.microproject.pm.graphic.frames.DocumentFrame;
@@ -804,6 +807,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		Point startHandle = findResizeHandle(robot, fixture, true, Cursor.W_RESIZE_CURSOR, "start resize");
 		assertTaskBarHit(fixture, startHandle);
 		assertResizeCursor(robot, startHandle, Cursor.W_RESIZE_CURSOR, "start resize");
+		logResizeHit("start", startHandle);
 		assertTrue(normalizedEarlierStart < originalStart,
 			"the resize destination must normalize to a working time before the original start");
 		Point earlierDate = screenPointForTaskDate(fixture, normalizedEarlierStart);
@@ -842,6 +846,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		Point endHandle = findResizeHandle(robot, fixture, false, Cursor.E_RESIZE_CURSOR, "finish resize");
 		assertTaskBarHit(fixture, endHandle);
 		assertResizeCursor(robot, endHandle, Cursor.E_RESIZE_CURSOR, "finish resize");
+		logResizeHit("finish", endHandle);
 		Point laterDate = screenPointForTaskDate(fixture, requestedLaterEnd);
 		assertScreenPointInGanttViewport(fixture, laterDate, "finish-resize destination");
 		assertTrue(laterDate.x - endHandle.x >= java.awt.dnd.DragSource.getDragThreshold(),
@@ -1374,6 +1379,32 @@ class GanttBarDateDragGuiAcceptanceTest {
 			+ " end=" + task.getEnd() + " duration=" + task.getDurationMillis()
 			+ " constraintType=" + task.getConstraintType() + " constraintDate=" + task.getConstraintDate()
 			+ " intervals=" + taskIntervals(task) + " splits=" + task.getTaskSplitIntervals());
+	}
+
+	private void logResizeHit(String edge, Point screenPoint) throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			try {
+				Field stateField = GraphInteractor.class.getDeclaredField("state");
+				stateField.setAccessible(true);
+				int state = stateField.getInt(gantt.getInteractor());
+				Field startStateField = ganttInteractorStateField("BAR_MOVE_START");
+				Field endStateField = ganttInteractorStateField("BAR_MOVE_END");
+				Field selectedIntervalField = GanttInteractor.class.getDeclaredField("selectedInterval");
+				selectedIntervalField.setAccessible(true);
+				Object interval = selectedIntervalField.get(gantt.getInteractor());
+				System.out.println("[GANTT_RESIZE_HIT] edge=" + edge + " point=" + screenPoint + " state=" + state
+					+ " startState=" + startStateField.getInt(null) + " endState=" + endStateField.getInt(null)
+					+ " interval=" + interval + " cursor=" + gantt.getCursor().getType());
+			} catch (ReflectiveOperationException failure) {
+				throw new AssertionError("Could not inspect Gantt resize hit state", failure);
+			}
+		});
+	}
+
+	private static Field ganttInteractorStateField(String name) throws NoSuchFieldException {
+		Field field = GanttInteractor.class.getDeclaredField(name);
+		field.setAccessible(true);
+		return field;
 	}
 
 	private long totalSplitMillis(List<com.microproject.pm.task.TaskSplitInterval> intervals) {
