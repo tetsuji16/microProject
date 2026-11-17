@@ -22,7 +22,11 @@ import java.awt.Component;
 import java.awt.KeyboardFocusManager;
 import java.awt.Dialog;
 import java.awt.Frame;
+import java.awt.Toolkit;
 import java.awt.Window;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.Transferable;
 import java.awt.event.KeyEvent;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -148,6 +152,23 @@ class AssignmentDialogGuiAcceptanceTest {
 		click(robot, cellBounds(resourceSheet, resourceRow, nameColumn(resourceSheet)));
 		GuiAcceptanceSupport.await(() -> dialog.getSelectedResources().contains(resource),
 			"Robot click did not select the replacement resource in Assign Resources");
+		var clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+		Transferable previousClipboard = clipboard.getContents(null);
+		try {
+			clipboard.setContents(new StringSelection("assignment-dialog-clipboard-marker"), null);
+			press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_C);
+			GuiAcceptanceSupport.await(() -> {
+				try {
+					Object copied = clipboard.getData(DataFlavor.stringFlavor);
+					return copied instanceof String text && text.contains(resource.getName());
+				} catch (Exception unavailable) {
+					return false;
+				}
+			}, "Ctrl+C in Assign Resources did not copy the selected resource row");
+		} finally {
+			if (previousClipboard != null)
+				clipboard.setContents(previousClipboard, null);
+		}
 
 		Alert.setPresenter(new SwingAlertPresenter());
 		Environment.setClientSide(true);

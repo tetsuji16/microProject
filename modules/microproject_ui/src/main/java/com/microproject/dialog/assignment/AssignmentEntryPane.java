@@ -247,8 +247,8 @@ public class AssignmentEntryPane extends JScrollPane implements HierarchyListene
 		if (spreadSheet==null){
 			spreadSheet = new AssignmentSpreadSheet(resourceAssigner);
 			spreadSheet.setSpreadSheetCategory(spreadsheetCategory);  // for columns.  Must do first
-			spreadSheet.setActions(new String[]{});
-
+			// Keep ActionList.assignmentEntry (Copy only); overriding it with no
+			// actions would hide the configured row command and its Ctrl+C route.
 		}
 		
 		

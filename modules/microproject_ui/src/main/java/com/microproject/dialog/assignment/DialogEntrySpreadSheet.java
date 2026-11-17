@@ -9,6 +9,7 @@ import java.awt.Component;
 import javax.swing.event.ChangeEvent;
 import javax.swing.table.TableCellEditor;
 
+import com.microproject.pm.graphic.spreadsheet.DialogSpreadSheetShortcuts;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 
 /** A spreadsheet inside an assignment dialog that shows the dialog's editor buttons only while a cell is edited. */
@@ -18,6 +19,9 @@ abstract class DialogEntrySpreadSheet extends SpreadSheet {
 
 	DialogEntrySpreadSheet(CommonAssignmentDialog dialog) {
 		this.dialog = dialog;
+		// The document shortcuts belong to the document window, so the table shown in
+		// this dialog needs the same keys registered on the dialog's own root pane.
+		DialogSpreadSheetShortcuts.install(dialog.getRootPane());
 	}
 
 	@Override
