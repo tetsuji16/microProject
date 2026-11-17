@@ -35,7 +35,9 @@ import java.awt.Rectangle;
 import java.awt.Window;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import javax.swing.JMenuItem;
 import javax.swing.SwingUtilities;
@@ -153,7 +155,30 @@ class ResourceSheetRowPopupGuiAcceptanceTest {
 
 		GuiAcceptanceSupport.await(() -> pool.getResourceList().size() == 1,
 				"Popup Delete did not remove the resource");
+		assertEquals(List.of("Bravo"), pool.getResourceList().stream().map(Resource::getName).toList(),
+				"Popup Delete must remove exactly the clicked resource");
+		GuiAcceptanceSupport.await(() -> List.of("Bravo").equals(sheetResourceNames(sheet)),
+				"the Resource Sheet must drop the deleted resource and keep the other one");
 		assertTrue(project.needsSaving(), "Removing a resource must prompt to save");
+	}
+
+	private static List<String> sheetResourceNames(SpreadSheet sheet) {
+		List<String>[] names = new List[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				SpreadSheetModel model = (SpreadSheetModel) sheet.getModel();
+				names[0] = new ArrayList<>();
+				for (int row = 0; row < sheet.getRowCount(); row++) {
+					var graphicNode = model.getNode(row);
+					if (graphicNode != null && graphicNode.getNode() != null
+							&& graphicNode.getNode().getImpl() instanceof Resource resource)
+						names[0].add(resource.getName());
+				}
+			});
+		} catch (Exception e) {
+			throw new IllegalStateException(e);
+		}
+		return names[0];
 	}
 
 	private static int rowForResource(SpreadSheet sheet, String name) {

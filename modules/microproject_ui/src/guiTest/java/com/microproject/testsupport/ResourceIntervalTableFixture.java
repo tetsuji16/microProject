@@ -82,10 +82,23 @@ public final class ResourceIntervalTableFixture implements AutoCloseable {
 	/** Opens the dialog on the requested table and waits until it is painted. */
 	public static ResourceIntervalTableFixture open(boolean costRate) throws Exception {
 		boolean previousClientSide = Environment.isClientSide();
-		Environment.setClientSide(true);
-		Alert.setPresenter(new SwingAlertPresenter());
 		boolean confirmDeletes = GeneralOption.getInstance().isConfirmDeletes();
-		GeneralOption.getInstance().setConfirmDeletes(false);
+		MainRibbonFrame[] frame = new MainRibbonFrame[1];
+		ResourceInformationDialog[] dialog = new ResourceInformationDialog[1];
+		try {
+			Environment.setClientSide(true);
+			Alert.setPresenter(new SwingAlertPresenter());
+			GeneralOption.getInstance().setConfirmDeletes(false);
+			return build(costRate, frame, dialog, previousClientSide, confirmDeletes);
+		} catch (Exception | Error failure) {
+			disposeQuietly(dialog[0], frame[0]);
+			restoreSettings(previousClientSide, confirmDeletes);
+			throw failure;
+		}
+	}
+
+	private static ResourceIntervalTableFixture build(boolean costRate, MainRibbonFrame[] frame,
+			ResourceInformationDialog[] dialog, boolean previousClientSide, boolean confirmDeletes) throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		ResourcePool pool = ResourcePool.createRourcePool("resource-interval-table", undo);
 		pool.setLocal(true);
@@ -100,8 +113,6 @@ public final class ResourceIntervalTableFixture implements AutoCloseable {
 		if (table.getList().size() != 2)
 			throw new IllegalStateException("the fixture needs two effective-dated rows");
 
-		MainRibbonFrame[] frame = new MainRibbonFrame[1];
-		ResourceInformationDialog[] dialog = new ResourceInformationDialog[1];
 		SwingUtilities.invokeAndWait(() -> {
 			frame[0] = new MainRibbonFrame("resource-interval-table", null);
 			GraphicManager manager = new GraphicManager(frame[0]);
@@ -225,7 +236,24 @@ public final class ResourceIntervalTableFixture implements AutoCloseable {
 			});
 		} catch (Exception e) {
 			throw new IllegalStateException(e);
+		} finally {
+			restoreSettings(previousClientSide, confirmDeletes);
 		}
+	}
+
+	private static void disposeQuietly(Window... windows) {
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				for (Window window : windows)
+					if (window != null)
+						window.dispose();
+			});
+		} catch (Exception | Error ignored) {
+			// Disposal must not hide the failure that is already propagating.
+		}
+	}
+
+	private static void restoreSettings(boolean previousClientSide, boolean confirmDeletes) {
 		GeneralOption.getInstance().setConfirmDeletes(confirmDeletes);
 		Environment.setClientSide(previousClientSide);
 		Alert.setPresenter(null);
