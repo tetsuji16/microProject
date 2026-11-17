@@ -65,8 +65,9 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 	        //setLabel("");
 	        final SpreadSheet sp=spreadSheet;
 			String[] actions=spreadSheet.getActionList();
-			if (SpreadSheetCategories.taskSpreadsheetCategory
-					.equals(spreadSheet.getSpreadSheetCategory())) {
+			final boolean taskSheet = SpreadSheetCategories.taskSpreadsheetCategory
+					.equals(spreadSheet.getSpreadSheetCategory());
+			if (taskSheet) {
 				add(new AbstractAction(Messages.getString("TaskInformationDialog.TaskInformation")) {
 					private static final long serialVersionUID = 1L;
 
@@ -172,27 +173,27 @@ public class SpreadSheetPopupMenu extends JPopupMenu {
 				// selection snapshot, collaboration lock, Undo refresh, and diagnostics.
 				// Keep the local action only for standalone spreadsheet fixtures which
 				// deliberately have no GraphicManager.
-				if (SpreadSheetCategories.taskSpreadsheetCategory.equals(spreadSheet.getSpreadSheetCategory())
-						&& addGraphicManagerAction(actionId, getMenuAction(actionId)))
-				{
+				if (taskSheet && addGraphicManagerAction(actionId, getMenuAction(actionId))) {
 					if (MenuActionConstants.ACTION_PASTE.equals(actionId)) {
 						addGraphicManagerAction(MenuActionConstants.ACTION_PASTE_INSERT, getInsertPasteMenuIcon());
 						pasteInsertAdded = true;
 					}
 					continue;
 				}
+				// Insert Task is the task table's insert command. The resource tables
+				// carry it only because they share ActionList.resource with their own
+				// Insert Resource command, and offering both made the row popup show
+				// two identical "New" items (#997).
+				if (!taskSheet && MenuActionConstants.ACTION_INSERT_TASK.equals(actionId))
+					continue;
 				add(spreadSheet.prepareAction(actionId), getMenuAction(actionId), actionId);
-				if (MenuActionConstants.ACTION_PASTE.equals(actionId)) {
-					add(spreadSheet.prepareAction(MenuActionConstants.ACTION_PASTE_INSERT), getInsertPasteMenuIcon(),
-						MenuActionConstants.ACTION_PASTE_INSERT);
-					pasteInsertAdded = true;
-				}
 			}
+			// Paste Insert is an MSP task command: it inserts pasted rows as tasks.
+			// A resource, assignment, project or dependency table must not offer it.
 			// Some task-sheet models expose only the clipboard transfer action through
 			// their capability list. Keep the MSP Paste Insert variant physically
 			// reachable whenever the task popup is present.
-			if (SpreadSheetCategories.taskSpreadsheetCategory.equals(spreadSheet.getSpreadSheetCategory())
-					&& !pasteInsertAdded) {
+			if (taskSheet && !pasteInsertAdded) {
 				if (!addGraphicManagerAction(MenuActionConstants.ACTION_PASTE_INSERT, getInsertPasteMenuIcon()))
 					add(spreadSheet.prepareAction(MenuActionConstants.ACTION_PASTE_INSERT), getInsertPasteMenuIcon(),
 						MenuActionConstants.ACTION_PASTE_INSERT);
