@@ -21,6 +21,7 @@ import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JTextField;
@@ -122,6 +123,40 @@ class RibbonValueControlTest {
 			field.postActionEvent();
 		});
 		assertEquals(List.of("chosen value"), committed);
+	}
+
+	@Test
+	void taskColorGalleryCommitsRgbThroughTheSharedDispatcher() throws Exception {
+		java.util.concurrent.atomic.AtomicReference<String> received = new java.util.concurrent.atomic.AtomicReference<>();
+		Action command = new AbstractAction("BackgroundColor") {
+			@Override public void actionPerformed(ActionEvent event) { received.set(event.getActionCommand()); }
+		};
+		com.microproject.menu.ProjectMenuActionMap actions = new com.microproject.menu.ProjectMenuActionMap() {
+			@Override public Action getAction(String key) { return command; }
+			@Override public String getStringFromAction(Action action) { return "BackgroundColor"; }
+		};
+		RibbonCommandSource actual = new com.microproject.menu.MenuRibbonCommandSource(
+			new com.microproject.menu.ExtToolBarFactory(actions,
+				com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonBundles(java.util.Locale.ROOT)));
+		SwingUtilities.invokeAndWait(() -> {
+			String commandId = "RibbonFillColor";
+			JButton owner = new JButton(actual.createAction(commandId));
+			var specification = new SwingRibbonModel.RibbonButton(commandId,
+				SwingRibbonModel.ButtonPriority.MEDIUM).withControl(RibbonControlKind.GALLERY, List.of(), null);
+			RibbonControlPopups.install(owner, specification, actual, key -> key);
+			JPopupMenu popup = assertInstanceOf(JPopupMenu.class,
+				owner.getClientProperty(RibbonControlPopups.POPUP_PROPERTY));
+			JPanel grid = assertInstanceOf(JPanel.class,
+				popup.getClientProperty(RibbonControlPopups.GALLERY_GRID_PROPERTY));
+			assertEquals(10, ((GridLayout) grid.getLayout()).getColumns());
+			assertEquals(60, grid.getComponentCount(), "the Theme gallery includes the six documented palette rows");
+			JToggleButton accent = java.util.Arrays.stream(grid.getComponents())
+				.filter(JToggleButton.class::isInstance).map(JToggleButton.class::cast)
+				.filter(button -> button.getActionCommand().equals("#5B9BD5"))
+				.findFirst().orElseThrow();
+			accent.doClick(0);
+		});
+		assertEquals("#5B9BD5", received.get(), "the selected RGB value must arrive at the legacy action through shared dispatch");
 	}
 
 	@Test

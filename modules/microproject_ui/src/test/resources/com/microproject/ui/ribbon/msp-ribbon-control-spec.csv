@@ -175,8 +175,8 @@ RibbonFontSize,FontSize,COMBO_BOX,POPUP,DOCUMENTED,TaskRibbonTask/TaskFontRibbon
 RibbonBold,Bold,TOGGLE_BUTTON,TOGGLE_STATE,DOCUMENTED,TaskRibbonTask/TaskFontRibbonBand,Pressed when every selected task is bold
 RibbonItalic,Italic,TOGGLE_BUTTON,TOGGLE_STATE,DOCUMENTED,TaskRibbonTask/TaskFontRibbonBand,Pressed when every selected task is italic
 RibbonUnderline,Underline,TOGGLE_BUTTON,TOGGLE_STATE,DOCUMENTED,TaskRibbonTask/TaskFontRibbonBand,Pressed when every selected task is underlined
-RibbonFillColor,FontFillBackColorPicker,BUTTON,DIALOG,PENDING_VERIFY,TaskRibbonTask/TaskFontRibbonBand,Microsoft shows a color gallery; this opens the color chooser
-RibbonFontColor,FontColorPicker,BUTTON,DIALOG,PENDING_VERIFY,TaskRibbonTask/TaskFontRibbonBand,Microsoft shows a color gallery; this opens the color chooser
+RibbonFillColor,FontFillBackColorPicker,GALLERY,POPUP,DOCUMENTED,TaskRibbonTask/TaskFontRibbonBand,Current Channel ProjectControls.xlsx specifies gallery; task selection accepts Theme/Standard/More Colors and Automatic reset
+RibbonFontColor,FontColorPicker,GALLERY,POPUP,DOCUMENTED,TaskRibbonTask/TaskFontRibbonBand,Current Channel ProjectControls.xlsx specifies gallery; task selection accepts Theme/Standard/More Colors and Automatic reset
 RibbonFont,FontDialog,BUTTON,DIALOG,DOCUMENTED,TaskRibbonTask/TaskFontRibbonBand,Opens the Text Styles dialog
 RibbonFill,EditFillMenu,MENU,POPUP,DOCUMENTED,TaskRibbonTask/TaskEditingRibbonBand,Down / Left / Right / Up
 RibbonResourceNotes,ResourceNotes,BUTTON,DIALOG,DOCUMENTED,ResourceRibbonTask/ResourcePropertiesRibbonBand,

@@ -2701,8 +2701,12 @@ public class DocumentFrame extends NamedFrame implements
 			Messages.getString("TaskInformationDialog.FontColor"), current == null ? java.awt.Color.BLACK : new java.awt.Color(current));
 		if (chosen != null) {
 			Integer rgb = chosen.getRGB() & 0xFFFFFF;
-			applyToSelectedTaskText(format -> format.withColor(rgb), "task-font-color");
+			applySelectedTaskFontColor(rgb);
 		}
+	}
+
+	void applySelectedTaskFontColor(Integer rgb) {
+		applyToSelectedTaskText(format -> format.withColor(rgb), "task-font-color");
 	}
 
 	/** True when every selected task is underlined (the pressed state of the Underline button). */
@@ -2733,8 +2737,12 @@ public class DocumentFrame extends NamedFrame implements
 			Messages.getString("TaskFill.title"), current == null ? java.awt.Color.WHITE : new java.awt.Color(current));
 		if (chosen != null) {
 			Integer rgb = chosen.getRGB() & 0xFFFFFF;
-			applyToSelectedTaskText(format -> format.withBackground(rgb), "task-font-fill");
+			applySelectedTaskBackground(rgb);
 		}
+	}
+
+	void applySelectedTaskBackground(Integer rgb) {
+		applyToSelectedTaskText(format -> format.withBackground(rgb), "task-font-fill");
 	}
 
 	/** Font family of the lead selected task, or null without a formattable selection. */

@@ -148,7 +148,8 @@ class MspRibbonControlKindDiffTest {
 		for (SpecRow row : spec.values()) {
 			SwingRibbonModel.RibbonButton button = buttons.get(row.ribbonId());
 			if (button == null || KNOWN_GAPS.containsKey(row.ribbonId())
-				|| RibbonControlPopups.DYNAMIC_ENTRY_COMMANDS.contains(row.ribbonId())) {
+				|| RibbonControlPopups.DYNAMIC_ENTRY_COMMANDS.contains(row.ribbonId())
+				|| TaskColorGallery.supports(row.ribbonId())) {
 				continue;
 			}
 			if (button.getControlKind().hasPopup() && button.getItemIds().isEmpty()) {
