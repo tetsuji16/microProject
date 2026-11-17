@@ -86,3 +86,8 @@ Anything that still carries the `projectLibre` / `ProjectLibre`
 - Never push directly to `master`. Create a work branch from `master` and open a pull request; the required checks are `build` and `GUI acceptance`, and both must succeed before the merge. Do not use administrator rights to bypass branch protection, even when the account allows it. When a pull request is stacked on another pull request's branch, change its base to `master` once the underlying pull request is merged, before continuing. One pull request addresses one issue and says `Closes #N` (or `Refs #N` when part of the issue remains).
 - An issue body is the specification for its implementer. Write issues so that someone who has not seen the surrounding discussion can finish them: required sections, checkable completion criteria, and labels are defined in `docs/issue-authoring.md`. If an issue's steps do not match the current code, comment on the issue instead of guessing.
 - Do not name the tools or models used for the work in commits, pull requests, issues, or comments.
+
+## Git / PR workflow
+
+- Never push directly to `master` or force-push. Use one `issue/<number>-<summary>` branch and one PR per issue; use exactly one of `Closes #N` or `Refs #N` in the PR body. Keep incomplete work in draft, and merge only after required checks pass and review requirements are met.
+- Do not bypass branch protection, including with administrator rights. For a stacked PR, retarget it to `master` after its base PR merges before continuing. Use the repository's commit message convention: `<type>: <imperative summary>` (for example, `docs: document PR workflow`).

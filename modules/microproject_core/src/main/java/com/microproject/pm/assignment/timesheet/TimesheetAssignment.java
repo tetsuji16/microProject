@@ -50,7 +50,7 @@ public class TimesheetAssignment implements Schedule, AssignmentSpecificFields, 
 	long taskUniqueId;
 	long resourceUniqueId;
 	boolean alreadyTimesheet = false;
-	Collection parentsNames = null;
+	Collection<?> parentsNames = null;
 	transient boolean dirty = false;
 	
 	transient String description;  //used when sending data to partner
@@ -356,11 +356,11 @@ public class TimesheetAssignment implements Schedule, AssignmentSpecificFields, 
 		return getTimesheetStatusName();
 	}
 
-	public void setHierarchy(Collection parentsNames) {
+	public void setHierarchy(Collection<?> parentsNames) {
 		this.parentsNames = parentsNames;
 	}
 
-	public Collection getHierarchy() {
+	public Collection<?> getHierarchy() {
 		return parentsNames;
 	}
 	public boolean isIntegratedOrComplete() {
