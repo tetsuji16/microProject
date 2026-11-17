@@ -138,12 +138,14 @@ class RibbonValueControlTest {
 		RibbonCommandSource actual = new com.microproject.menu.MenuRibbonCommandSource(
 			new com.microproject.menu.ExtToolBarFactory(actions,
 				com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonBundles(java.util.Locale.ROOT)));
+		java.util.ResourceBundle japaneseText = java.util.ResourceBundle.getBundle(
+			"com.microproject.menu.menu", java.util.Locale.JAPAN);
 		SwingUtilities.invokeAndWait(() -> {
 			String commandId = "RibbonFillColor";
 			JButton owner = new JButton(actual.createAction(commandId));
 			var specification = new SwingRibbonModel.RibbonButton(commandId,
 				SwingRibbonModel.ButtonPriority.MEDIUM).withControl(RibbonControlKind.GALLERY, List.of(), null);
-			RibbonControlPopups.install(owner, specification, actual, key -> key);
+			RibbonControlPopups.install(owner, specification, actual, japaneseText::getString);
 			JPopupMenu popup = assertInstanceOf(JPopupMenu.class,
 				owner.getClientProperty(RibbonControlPopups.POPUP_PROPERTY));
 			JPanel grid = assertInstanceOf(JPanel.class,
@@ -154,6 +156,8 @@ class RibbonValueControlTest {
 				.filter(JToggleButton.class::isInstance).map(JToggleButton.class::cast)
 				.filter(button -> button.getActionCommand().equals("#5B9BD5"))
 				.findFirst().orElseThrow();
+			assertEquals("アクセント 1 #5B9BD5", accent.getAccessibleContext().getAccessibleName());
+			assertEquals(accent.getAccessibleContext().getAccessibleName(), accent.getToolTipText());
 			accent.doClick(0);
 		});
 		assertEquals("#5B9BD5", received.get(), "the selected RGB value must arrive at the legacy action through shared dispatch");

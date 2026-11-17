@@ -333,11 +333,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		return total;
 	}
 
-	@Test
 	// Project's Current Channel control inventory specifies both color controls as galleries.
 	// Microsoft documents the Background Color gallery for selected sheet cells; this app retains
 	// its persisted selected-task text-style contract and routes each chosen value through the
 	// common task-format transaction, Undo stack and MPO serializer.
+	@Test
 	void taskColorGalleriesApplySelectedTasksWithUndoRedoAndMpoReload() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for color-gallery Robot acceptance.");
 		previousRibbonUi = Environment.isRibbonUI();
@@ -683,6 +683,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	// Microsoft documents one-shot formatting, double-click to continue, and Escape to stop; the exact
+	@Test
 	void physicalReportPrintPreviewShowsEveryPageThroughTheSharedGraphPageableRoute() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot report preview coverage.");
 		previousRibbonUi = Environment.isRibbonUI();

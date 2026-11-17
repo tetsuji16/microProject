@@ -44,15 +44,27 @@ final class TaskColorGallery {
 		0xFFFFFF, 0x000000, 0xE7E6E6, 0x44546A, 0x5B9BD5,
 		0xED7D31, 0xA5A5A5, 0xFFC000, 0x4472C4, 0x70AD47
 	};
-	private static final String[] THEME_NAMES = {
-		"Light 1", "Dark 1", "Light 2", "Dark 2", "Accent 1",
-		"Accent 2", "Accent 3", "Accent 4", "Accent 5", "Accent 6"
+	private static final String[] THEME_NAME_KEYS = {
+		"RibbonColorGallery.Color.Light1.text", "RibbonColorGallery.Color.Dark1.text",
+		"RibbonColorGallery.Color.Light2.text", "RibbonColorGallery.Color.Dark2.text",
+		"RibbonColorGallery.Color.Accent1.text", "RibbonColorGallery.Color.Accent2.text",
+		"RibbonColorGallery.Color.Accent3.text", "RibbonColorGallery.Color.Accent4.text",
+		"RibbonColorGallery.Color.Accent5.text", "RibbonColorGallery.Color.Accent6.text"
 	};
+	private static final String[] SHADE_NAME_KEYS = { null, "RibbonColorGallery.Shade.Light20.text",
+		"RibbonColorGallery.Shade.Light40.text", "RibbonColorGallery.Shade.Light60.text",
+		"RibbonColorGallery.Shade.Light80.text", "RibbonColorGallery.Shade.Dark25.text" };
 	private static final Swatch[] STANDARD_COLORS = {
-		new Swatch("Red", 0xFF0000), new Swatch("Orange", 0xED7D31), new Swatch("Yellow", 0xFFC000),
-		new Swatch("Light Green", 0x92D050), new Swatch("Green", 0x00B050), new Swatch("Light Blue", 0x00B0F0),
-		new Swatch("Blue", 0x0070C0), new Swatch("Dark Blue", 0x002060), new Swatch("Purple", 0x7030A0),
-		new Swatch("Pink", 0xE3008C)
+		new Swatch("RibbonColorGallery.Color.Red.text", 0xFF0000, 0),
+		new Swatch("RibbonColorGallery.Color.Orange.text", 0xED7D31, 0),
+		new Swatch("RibbonColorGallery.Color.Yellow.text", 0xFFC000, 0),
+		new Swatch("RibbonColorGallery.Color.LightGreen.text", 0x92D050, 0),
+		new Swatch("RibbonColorGallery.Color.Green.text", 0x00B050, 0),
+		new Swatch("RibbonColorGallery.Color.LightBlue.text", 0x00B0F0, 0),
+		new Swatch("RibbonColorGallery.Color.Blue.text", 0x0070C0, 0),
+		new Swatch("RibbonColorGallery.Color.DarkBlue.text", 0x002060, 0),
+		new Swatch("RibbonColorGallery.Color.Purple.text", 0x7030A0, 0),
+		new Swatch("RibbonColorGallery.Color.Pink.text", 0xE3008C, 0)
 	};
 	private static final List<Swatch> THEME_SWATCHES = buildThemeSwatches();
 
@@ -152,7 +164,7 @@ final class TaskColorGallery {
 		ButtonGroup selection = new ButtonGroup();
 		for (Swatch swatch : swatches) {
 			String value = String.format(java.util.Locale.ROOT, "#%06X", swatch.rgb());
-			String accessible = swatch.name() + " " + value;
+			String accessible = localizedName(swatch, text) + " " + value;
 			JToggleButton button = new JToggleButton(new ColorIcon(new Color(swatch.rgb())));
 			button.setName(popup.getName() + ".color." + value.substring(1));
 			button.setActionCommand(value);
@@ -189,12 +201,7 @@ final class TaskColorGallery {
 			for (int column = 0; column < THEME_COLORS.length; column++) {
 				int base = THEME_COLORS[column];
 				int rgb = row == 0 ? base : row < 5 ? blend(base, 0xFFFFFF, 0.20 * row) : blend(base, 0x000000, 0.25);
-				String shade = switch (row) {
-					case 0 -> "";
-					case 5 -> " 25% darker";
-					default -> " " + (row * 20) + "% lighter";
-				};
-				swatches.add(new Swatch(THEME_NAMES[column] + shade, rgb));
+				swatches.add(new Swatch(THEME_NAME_KEYS[column], rgb, row));
 			}
 		}
 		return List.copyOf(swatches);
@@ -210,7 +217,13 @@ final class TaskColorGallery {
 		return (red << 16) | (green << 8) | blue;
 	}
 
-	private record Swatch(String name, int rgb) { }
+	private static String localizedName(Swatch swatch, UnaryOperator<String> text) {
+		String name = text.apply(swatch.nameKey());
+		int shade = swatch.shadeRow();
+		return shade == 0 ? name : name + " " + text.apply(SHADE_NAME_KEYS[shade]);
+	}
+
+	private record Swatch(String nameKey, int rgb, int shadeRow) { }
 
 	private record ColorIcon(Color color) implements Icon {
 		@Override public int getIconWidth() { return 16; }
