@@ -1708,16 +1708,24 @@ class RibbonButtonBehaviorTest {
 	@Test
 	void workspaceRestorePreservesCachedChartTaskAndMultiResourceSelections() throws Exception {
 		Harness harness = newHarness();
+		AssignmentService.getInstance().newAssignment((NormalTask) harness.task, harness.resource, 1.0, 0L, this);
 		Resource secondResource = harness.project.getResourcePool().createScriptedResource();
 		secondResource.setName("Ribbon Resource 2");
+		AssignmentService.getInstance().newAssignment((NormalTask) harness.secondTask, secondResource, 1.0, 0L, this);
 		activateView(harness, MenuActionConstants.ACTION_CHARTS);
 		var chart = harness.frame.getChartView();
 		var selectedTasks = List.of(harness.task, harness.secondTask);
 		var selectedResources = List.of(harness.resource, secondResource);
-		var selection = new com.microproject.pm.graphic.views.ChartView.SelectionState(selectedTasks, selectedResources);
 		AtomicReference<WorkspaceSetting> workspace = new AtomicReference<>();
 		SwingUtilities.invokeAndWait(() -> {
-			chart.restoreSelection(selection);
+			chart.selectionChanged(new com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeEvent(
+				chart,
+				com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeEvent.SELECTION_CHANGED,
+				List.of(harness.taskNode, harness.secondTaskNode), harness.taskNode, null));
+			assertEquals(selectedTasks, chart.snapshotSelection().getSelectedObjects(),
+				"the real task selection event must reach the cached chart view");
+			assertEquals(selectedResources, chart.snapshotSelection().getSelectedResources(),
+				"selected tasks must resolve to all of their assigned resources");
 			workspace.set(harness.frame.createWorkspace(0));
 			harness.frame.restoreWorkspace(workspace.get(), 0);
 		});
