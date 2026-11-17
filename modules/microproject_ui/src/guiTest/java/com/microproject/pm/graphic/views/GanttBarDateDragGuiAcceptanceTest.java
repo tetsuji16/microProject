@@ -1707,7 +1707,10 @@ class GanttBarDateDragGuiAcceptanceTest {
 
 	private void capture(Robot robot, String fileName) throws Exception {
 		Rectangle[] bounds = new Rectangle[1];
-		SwingUtilities.invokeAndWait(() -> bounds[0] = new Rectangle(frame.getRootPane().getLocationOnScreen(), frame.getRootPane().getSize()));
+		SwingUtilities.invokeAndWait(() -> {
+			javax.swing.JRootPane rootPane = projectWindow == null ? frame.getRootPane() : projectWindow.getRootPane();
+			bounds[0] = new Rectangle(rootPane.getLocationOnScreen(), rootPane.getSize());
+		});
 		BufferedImage image = robot.createScreenCapture(bounds[0]);
 		Path directory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"));
 		Files.createDirectories(directory);
