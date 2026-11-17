@@ -17,8 +17,8 @@ It is skipped by the normal `test` task and runs only with `-Dmicroproject.profi
 Optional properties: `-Dmicroproject.profile.scales=1000,2000,5000` (task counts; this is the default) and
 `-Dmicroproject.profile.phaseSize=100`. Results are printed as `PROFILE ...` lines in the test output (use `-i`).
 
-The 5,000-task scale needs a deeper thread stack than the default (see hypothesis 3): run the test JVM with
-`-Xss256m` (for example a temporary `jvmArgs("-Xss256m")` in the core `tasks.test` block). For a JFR recording add
+The current 5,000-task bulk builder runs with the default thread stack; do not increase `-Xss` to work around
+recursive graph traversal. For a JFR recording add
 `-XX:StartFlightRecording=filename=sched.jfr,settings=profile` to the same `jvmArgs`, then analyze with
 `jfr print --events jdk.ExecutionSample --stack-depth 2000 sched.jfr`.
 
@@ -27,7 +27,7 @@ finish-to-start chain through every task, an extra cross link `i-20 -> i` on eve
 per task spread over 50 resources. "Edit" is a +3 day change of the finish of task #5 through
 `ScheduleService.setInterval` (undo-aware), followed by `undo`. A 300-task warm-up run precedes the measurements.
 
-For issue #1178, the harness supports `-Dmicroproject.profile.mode=bulk|production-batch|sequential`. Bulk and
+For issue #1178, the harness supports `-Dmicroproject.profile.mode=bulk|production-batch|sequential|builder`. Bulk and
 production-batch modes measure phase-sized `NodeModel.add(parent, children, NORMAL)` calls followed by one
 scheduler initialization, `DependencyService.connect` for the sequential links, and grouped
 `AssignmentService.newAssignments` by resource. `bulk` adds one explicit `Project.fireMultipleTransaction` around
@@ -35,6 +35,11 @@ the whole synthetic build; `production-batch` omits that unverified whole-build 
 controls its own transaction boundary. Sequential mode measures repeated `Project.createLocalTaskNode`,
 `DependencyService.newDependency`, and `AssignmentService.newAssignment` calls. All modes use the simple sequential
 chain (without the extra cross links) so the link-building paths can be compared directly.
+
+`builder` mode exercises `BulkScheduleBuilder.beginBulkUpdate` around node creation, link insertion, grouped
+assignment creation, scheduler-order rebuild, and one final calculation. It uses `setRawDuration`, matching the
+MSPDI converter's import-style duration assignment. This is a synthetic bulk-import-shaped path; it does not claim
+linear performance for repeated single-item edits.
 
 Scope limitation: only `bulk` opens an outer `Project.fireMultipleTransaction` before creating any nodes and
 closes it after links and assignments. Production call sites found during issue work use
@@ -82,7 +87,27 @@ Commands (quote `-D` options in PowerShell so they are passed to Gradle as JVM s
 .\gradlew.bat "-Dmicroproject.profile=true" "-Dmicroproject.profile.mode=bulk" "-Dmicroproject.profile.scales=1000,2000" :microproject_core:test --rerun --tests "*LargeProjectSchedulingProfile*" -i
 .\gradlew.bat "-Dmicroproject.profile=true" "-Dmicroproject.profile.mode=production-batch" "-Dmicroproject.profile.scales=1000,2000" :microproject_core:test --rerun --tests "*LargeProjectSchedulingProfile*" -i
 .\gradlew.bat "-Dmicroproject.profile=true" "-Dmicroproject.profile.mode=sequential" "-Dmicroproject.profile.scales=1000,2000" :microproject_core:test --rerun --tests "*LargeProjectSchedulingProfile*" -i
+.\gradlew.bat "-Dmicroproject.profile=true" "-Dmicroproject.profile.mode=builder" "-Dmicroproject.profile.scales=5000,10000" :microproject_core:test --rerun --tests "*LargeProjectSchedulingProfile*" -i
 ```
+
+### Bulk builder profile (2026-11-17)
+
+No-JFR results on the same Windows machine. The profile creates the project without initializing its scheduler,
+stages raw-duration tasks, dependency links and grouped assignments, then measures `BulkScheduleBuilder.initialize`.
+This follows the importer's deferred-scheduling shape; it is not a single-item editing benchmark. The profile edit
+does not move the last task in builder mode, so edit propagation is covered by the existing sequential profile and
+the focused scheduling/edit tests rather than claimed by this table. Doubling 5k to 10k tasks took 1.17x as long.
+
+| Tasks | Create nodes | Add links | Add assignments | Build total | Full recalc | Edit | Undo |
+|------:|-------------:|----------:|----------------:|------------:|------------:|-----:|-----:|
+| 5,000 | 173 | 78 | 370 | 622 | 28 | 0 | 5 |
+| 10,000 | 202 | 127 | 396 | 726 | 52 | 0 | 2 |
+
+The same candidate's unchanged single-item `sequential` mode measured 9,801ms / 43,177ms at 1k / 2k (4.41x for
+2x tasks), so that path remains materially nonlinear. Against the earlier 5k JFR build measurement (1,253,975ms),
+the candidate 5k import-shaped build is 622ms; this is indicative, not a controlled before/after, because the old
+run included JFR and the previous per-item initialization path while the candidate defers initialization. The
+original single-item sequential-profile criterion therefore remains open.
 
 A 4k bulk JFR exploratory run (with a temporary, uncommitted recording argument and a sentinel-refresh experiment
 that was later removed because it did not improve measured link time) sampled `Task.markDependentTasks` at 19.44%,

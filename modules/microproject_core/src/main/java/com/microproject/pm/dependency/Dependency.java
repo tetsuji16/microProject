@@ -26,6 +26,7 @@ package com.microproject.pm.dependency;
 import com.microproject.association.Association;
 import com.microproject.association.AssociationList;
 import com.microproject.association.InvalidAssociationException;
+import com.microproject.configuration.CircularDependencyException;
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.DurationFormat;
 import com.microproject.document.Document;
@@ -166,10 +167,6 @@ public class Dependency implements Association, BelongsToDocument, DataObject {
 		setDependencyType(java.util.Objects.requireNonNull(dependencyType, "dependencyType").code());
 	}
 
-	boolean isCircular() {
-		return predecessor.dependsOn(successor);
-	}
-
 	boolean isLinkToParent() {
 		return ((Task)successor).wbsDescendentOf((Task) predecessor);
 	}
@@ -182,8 +179,11 @@ public class Dependency implements Association, BelongsToDocument, DataObject {
     	if (isLinkToParent() || isLinkToChild())
     		throw new InvalidAssociationException(Messages.getString("Message.cannotLinkToSummary"));
 
-    	if (isCircular())
-    		throw new InvalidAssociationException(Messages.getString("Message.circularDependency"));
+	try {
+		DependencyGraph.wouldCreateCycle((Task) predecessor, (Task) successor);
+	} catch (CircularDependencyException e) {
+		throw new InvalidAssociationException(Messages.getString("Message.circularDependency"));
+	}
 
 
     	if (!allowDuplicate && predecessor.getSuccessorList().findRight(successor) != null)

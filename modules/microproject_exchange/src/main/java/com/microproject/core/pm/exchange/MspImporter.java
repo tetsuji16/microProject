@@ -76,6 +76,7 @@ import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.task.Project;
+import com.microproject.pm.task.BulkScheduleBuilder;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.TaskSnapshot;
 import com.microproject.pm.task.NormalTask;
@@ -155,8 +156,7 @@ public class MspImporter {
 		// incremental scheduling callbacks are intentionally suppressed.  Restore
 		// the same initialized, calculated state as a persisted native project
 		// before exposing this imported project to a Gantt view.
-		project.initialize(false, false);
-		project.recalculate();
+		BulkScheduleBuilder.initialize(project, false, false);
 		captureImportedBaselineFixedCostProfiles(project);
 		restoreImportedAssignmentScheduleDelays();
 		state.validatePostSchedule();

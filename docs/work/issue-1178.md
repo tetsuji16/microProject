@@ -1,60 +1,46 @@
 # Issue #1178 — Stack-safe scheduler dependency checks
 
-State: IN PROGRESS
+State: implementation slice complete; A3 remains open pending PR review/CI.
 Issue: https://github.com/tetsuji16/microProject/issues/1178
-Contract frozen at: 2026-11-17 (issue body fetched from GitHub)
-Baseline HEAD: `a1add999f289676c5f50148a240ea7445694eb3d`
-Baseline working tree: clean isolated worktree `microProject-issue1178`
+Branch: `issue/1178-scheduler-iterative-depends-on`
+Baseline: master `5271fb2d5a46542c4b0adabc5c77074603db1b5e` (#1023 PR merge).
 
-## Goal and scope
+## Frozen acceptance
 
-Make `Task.dependsOn` stack-safe with lazy cycle-message construction, defer
-critical-path work across bulk mutations, and demonstrate near-linear build
-time using the opt-in scheduler profile.
+| ID | Contract | State / evidence |
+|---|---|---|
+| A1 | Stack-safe `dependsOn`; defer cycle text to cycle path. | Pass: iterative `DependencyGraph` traversal, identity visited set; 5k/50k chain tests. |
+| A2 | Batch object-event scheduling to one critical-path pass. | Pass: existing batching plus bulk importer initialization; core suite green. |
+| A3 | Opt-in large-project build profile scales near-linearly. | Partial: import-shaped builder 5k/10k = 622/726 ms (1.17x); original single-item profile 1k/2k = 9,801/43,177 ms (4.41x), so A3 remains open. |
+| P1 | `DependencyGraph` iterative traversal in both dependency and successor directions. | Pass: 5k/50k chain test. |
+| P2 | Centralized cycle check; iterative Kahn order throws for cycle. | Pass: self-link, 3-node cycle, diamond order, explicit cycle test. |
+| P3 | MPP/MSPDI/CSV and MPO load use one bulk builder. | Partial: Microsoft MPP/MSPDI import and MPO's MSPDI snapshot route through `MspImporter` and the builder. No CSV task importer exists. |
+| P4 | 5k bulk build timeout and 10k near-linear benchmark. | Pass: 5k initialization under 30s; 10k import-shaped builder profile is 1.17x the 5k time. |
+| P5 | Preserve and report the original A3 sequential profile. | Evidence retained; unmet as above. |
 
-Out of scope: cloud Project services; unrelated scheduler changes.
-Blockers: the current 1k-to-2k profile remains materially superlinear.
+## Implementation summary
 
-## Acceptance
+- Added `DependencyGraph` with iterative identity-based traversal, `wouldCreateCycle`, and Kahn topological ordering.
+- Routed `Task.dependsOn` and dependency registration through the shared graph behavior. The critical-path predecessor list seeds its arrangement in topological order; cyclic legacy/external placeholder graphs retain persisted order during initialization.
+- Added `BulkScheduleBuilder.initialize` to suspend scheduling around project initialization and publish one final calculation. `MspImporter` uses it; MPP/MSPDI imports and MPO's embedded MSPDI snapshot share that path.
+- No CSV task importer was found in `microproject_exchange`; no new CSV format/import contract was invented.
+- Single-item schedule mutation propagation remains outside this slice. No `-Xss` workaround was added.
 
-| ID | Required result/evidence | State | Evidence (SHA + link) |
-|---|---|---|---|
-| A1 | Iterative, stack-safe dependency search; build cycle text only on a cycle | pass | Candidate diff; 6,000-task chain test passes |
-| A2 | Bulk object-event mutations cause one critical-path pass | pass | Candidate `1e79d96`; `CriticalPath` transaction suspend/resume; full recalc 18ms / 21ms |
-| A3 | Opt-in large-project build profile scales near-linearly | open | Latest candidate profile, 1k/2k: production-batch 304ms / 637ms; ordinary single-item workflow 8.617s / 42.292s (4.91x for 2x tasks); the required original path remains materially superlinear |
+## Verification
 
-## Current slice
+- `.\gradlew.bat :microproject_core:test --console=plain` — passed.
+- `.\gradlew.bat :microproject_exchange:test --console=plain` — passed, including MPO/MSPDI interoperability and round-trip coverage.
+- Focused graph, builder, and dependency service tests — passed (5k builder under 30s; 50k chain stack safety).
+- Builder profile command: `.\gradlew.bat "-Dmicroproject.profile=true" "-Dmicroproject.profile.mode=builder" "-Dmicroproject.profile.scales=5000,10000" :microproject_core:test --rerun --tests "*LargeProjectSchedulingProfile*" --console=plain -i` — passed; 622ms / 726ms; one final calculation each. The profile edit does not move the last task in builder mode; edit/Undo propagation remains covered in sequential mode and focused tests.
+- Sequential profile: 1k/2k = 9,801ms / 43,177ms (4.41x); last task moves and Undo restores. This does not satisfy A3.
+- `git diff --check` — pending final review.
 
-**Next slice:** Find and remove the remaining superlinear work in task creation,
-dependency linking, and assignment paths without weakening cycle or schedule
-correctness.
-**Done when:** 1k and 2k profile runs on a verified production workflow show
-near-linear build time, preserve schedule movement/undo checks, and the focused
-core tests pass.
-**Current PR:** #1193 was merged to master at `c15b635` as a finite verified
-slice. It does not satisfy A3. No performance optimization PR is currently
-ready for review.
+## PR decision
 
-## Remaining blockers
+Use `Refs #1178`, not `Closes #1178`: the import/bulk path is near-linear, but the issue's original single-item profile remains materially superlinear. PR body must list this remaining A3 criterion. Draft #1204's useful profile/status findings were carried in commit `acebd98eb`; after replacement PR exists, comment on #1204 that it was carried forward and close it.
 
-- A3: Identify and fix the remaining nonlinear cost; repeat profile on the exact candidate SHA.
+## Compatibility and remaining work
 
-## Latest evidence
-
-- Current packet updated on master `255a822` (after #1193 and #1201). Issue #1178 remains open because A3 is unmet.
-
-- Tests/build: Focused core invalidation/dependency/assignment rollback and Undo tests, MPO replay boundary tests, and exchange MPO dependency/assignment replay and linked-project refresh tests passed. PR CI for the updated head is pending.
-- Profile: Latest opt-in 1k/2k run passed last-finish movement and undo restoration for all modes, but build time remains strongly superlinear. `production-batch` measures 304ms / 637ms, ordinary single-item `sequential` measures 8.617s / 42.292s (4.91x for 2x tasks), and synthetic whole-build `bulk` measures 190ms / 285ms. The assignment state-count delta is 150 / 150 for production-batch, 3,000 / 6,000 for sequential, and 3 / 3 for synthetic bulk. State-count increments are not direct counts of inner scheduling operations. The verified original sequential workflow remains materially superlinear; A3 is unmet. See the performance report for exact timings and caveats.
-- Likely nonlinear source: every synthetic task gets its 1–5 day duration after attachment. `NormalTask.setDuration` captures a whole-project `ProjectTaskSnapshot` and calculation-state map before each command; that snapshot is used only for command-local exception compensation and discarded on success. UI schedule editing separately owns before/after snapshots for undo/redo. Per-task duration setup therefore adds repeated O(N) copying, about O(N²) overall, independently of critical-path event batching. An outer scheduling transaction does not safely share this rollback snapshot. A scoped batch API is now used only by linked-project refresh, with explicit outer rollback ownership; the original profile's setter-per-task path is unchanged.
-- Linked-project refresh is a real bulk caller: `GraphicManager` invokes `ProjectMergeService.applyExternalTaskUpdates`. That path now passes its existing whole-project rollback snapshot and calculation-state map to `TaskDurationBatchService`, applies durations without per-task rollback snapshots and dependent invalidation, then recalculates once after all external task values are staged. The caller owns failure restoration; a regression test injects a failure after the first changed task and verifies schedules, calculation counters, task/project dirty state, metadata, revision, Undo history, and lock release. Successful refresh keeps its existing no-new-Undo behavior. This change does not change the original profile's direct per-task `setDuration` path, so A3 remains open until that profile itself meets its criterion.
-- Candidate task-creation caller check: recurring-task insertion uses detached `newStandaloneNormalTaskInstance()` objects; they are not in the project task list while duration setters run, so that path does not incur the profile's per-task whole-project snapshots. A local Undo/Redo probe also exposed an existing null-`owningProject` failure when undoing the inserted subtree. It was excluded as an optimization target; a detached bulk API would not improve the measured build path and would obscure that failure.
-- Transaction/schedule checks: the profile reports that the last task finish moves on edit and restores on undo. `Project.publishEventBatchNow` closes object-event scheduling transactions in `finally`; batch assignment closes project/resource-pool transactions in `finally`; focused failure-path tests for assignment cleanup and dependency graph rollback passed.
-- Assignment caller boundary: `AssignmentDialog` invokes `AssignmentService.newAssignments` once for the selected tasks and resources. That API already owns one project/resource-pool `BatchUpdate`, but it closed its inner project `MultipleTransaction` before `runAtomicModelCommand` published the queued event batch. A one-task/one-resource regression measured a calculation-state delta of 6 before the change (two scheduler calculations), then 3 after an outer scheduling transaction was kept around the complete atomic command and publication (one `fastCalc`, with state counters advancing by 3). The undo remains one step; attach-after-mutation failure restores task/resource attachments, discards events and revisions, and releases transaction depth. The `production-batch` profile maps one resource per task with 50 independent `newAssignments` calls, so its assignment phase now records 150 state increments at both 1k and 2k (50 calls × one calculation each), down from 300; it does not establish a single calculation across the full build or satisfy A3.
-- Latest profile rerun (no JFR, same 1k/2k scales): `production-batch` build 304ms / 637ms, with 150 assignment-state increments at both sizes; `sequential` build 8.617s / 42.292s (4.91x for 2x tasks), with 3,000 / 6,000 assignment-state increments; synthetic whole-build `bulk` build 190ms / 285ms with one calculation at each size. Each mode still reports final-task movement and undo restoration. `bulk` is not a verified user workflow; the original sequential acceptance remains materially superlinear and A3 stays open. These values are single-run indicative measurements; calculation-state increments are a counter, not a direct count of every scheduling loop pass.
-- MPO replay caller: `MpoTaskOperationService.apply` now keeps one scheduler transaction around a ready batch only when all unapplied operations are `dependency.add` or `dependency.delete`. Graph validation reads the dependency graph, not calculated dates. Every other operation kind retains its original per-operation scheduler boundary; this avoids stale schedule reads in summary progress updates (which call `NormalTask.setPercentComplete`, read schedule dates, and update descendant stops), as well as unverified interactions in assignment/task/hierarchy edits. Core regression tests verify ordered dependency replay in one calculation, partial failure preserving earlier successful operations and recalculating before throwing, balanced transaction depth, and a dependency change followed by summary progress producing the same dates as direct sequential application. No MPO replay performance number is claimed; the original profile remains unchanged.
-- Hierarchy renumber fast path safety: suffix renumbering is used only while the hierarchy knows its numbered prefix is sequential. Full renumber establishes that state; suffix appends preserve it; non-event additions/removals, moves, relocation, and indentation invalidate it. A normal append after a LOAD/SILENT numbered prefix therefore falls back to legacy full renumber. Regression coverage adds a silent task with ID 40 followed by an event append with ID 90 and verifies the final row IDs are 1 and 2.
-- Critical-path localization investigation: dependency object changes currently invalidate the dependent/WBS closure from both endpoints and call `calculate(true, null)`, because adding/removing a link can change the project finish and the backward dates of tasks outside that closure. The merged core regression builds three one-day tasks, adds a link between two, confirms the critical path extends and an independent task's late finish changes, then compares the incremental result with a full project recalculation and undoes the link to verify the original boundary/date return. The test passed with the default work calendar. This rules out simply narrowing forward invalidation or skipping the reverse pass; a safe optimization would need a calendar-aware incremental late-date/boundary algorithm (or a real mutation batch) and must preserve link ordering, undo, and partial-failure semantics.
-- Assignment critical-boundary check (local, against `c15b635`, before any source change): `AssignmentServiceTest.assignmentToUnchangedCriticalTaskPreservesAllEarlyAndLateDates` added an assignment to a critical fixed-duration task and verified all project/task early and late dates remained unchanged and Undo removed the assignment. It passed together with `TaskDependencyInvalidationTest.extendingCriticalPathRefreshesLateDatesOutsideTheChangedDependencyClosure`. Exact command: `.\gradlew.bat :microproject_core:test --tests "*AssignmentServiceTest.assignmentToUnchangedCriticalTaskPreservesAllEarlyAndLateDates" --tests "*TaskDependencyInvalidationTest.extendingCriticalPathRefreshesLateDatesOutsideTheChangedDependencyClosure" --console=plain --no-daemon`. This establishes a possible no-boundary-change case but does not prove that reverse calculation can be skipped across other task structures, calendars, reverse-scheduled tasks, summaries, or assignment edits.
-- A local uncommitted experiment in separate worktree `microProject-issue1178-a3` / branch `codex/issue1178-a3-cp` compares a previously-critical task's old and recomputed dates before deciding whether to request the reverse pass. It has not been verified against the requested multiple-calendar, reverse-scheduling, summary, assignment-edit, full-project recalc, and failure/Undo matrix; it is intentionally excluded from this documentation PR and is not evidence of an accepted fix. The experimental worktree is preserved for review; do not merge it as-is.
-- Performance remains unchanged from the recorded profile: sequential 1k/2k build 8.617s / 42.292s (4.91x); no new profile was run for this status update. A3 is still open and near-linear scaling is not claimed.
-- CI: #1193 was merged as a finite slice. Focused local tests listed above passed; this docs-only update does not assert that A3 is satisfied.
+- MPO is native and its load path is covered through MSPDI import; MPP remains interoperability-only. Existing exchange round-trip suite passed. No wire format was changed.
+- CSV has no task importer in the repository, so CSV cannot be routed without a separate product-format decision.
+- A3 remains the blocker for issue closure. Do not claim sequential workflow performance improved based on the builder profile.
