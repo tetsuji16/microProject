@@ -193,10 +193,6 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	private java.beans.PropertyChangeListener autoHideFocusListener;
 	private boolean autoHideDismissalRegistered;
 	private RibbonBackstageHost backstageHost;
-	/** The destination kept at the bottom of the Backstage navigation, as in Microsoft Project. */
-	private static final String BACKSTAGE_PINNED_PAGE = "options";
-	/** A separator follows this destination (New and Open form the first group). */
-	private static final String BACKSTAGE_SEPARATOR_AFTER_PAGE = "open";
 	private JComponent backstageView;
 	private final Map<String, JComponent> backstageDetailPages = new LinkedHashMap<>();
 	private String tabBeforeBackstage;
@@ -624,6 +620,8 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		pinned.setBorder(BorderFactory.createEmptyBorder(0, 0, 12, 0));
 		navigation.add(pinned, BorderLayout.SOUTH);
 		java.util.List<BackstagePage> pages = backstagePages();
+		BackstageLayout layout = BackstageLayout.read(pages.stream().map(BackstagePage::id).toList(),
+			localized("FileBackstagePages.pinned"), localized("FileBackstagePages.separatorAfter"));
 		ButtonGroup group = new ButtonGroup();
 		JPanel details = new JPanel(new BorderLayout(0, 18));
 		details.setName("officeBackstageDetails");
@@ -635,7 +633,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		String disabledText = String.format("#%06x",
 			ColorLuminance.mix(navigationForeground, navigationBackground, 0.45f).getRGB() & 0xFFFFFF);
 		for (BackstagePage page : pages) {
-			boolean pinnedPage = BACKSTAGE_PINNED_PAGE.equals(page.id());
+			boolean pinnedPage = page.id().equals(layout.pinnedPage());
 			BackstageNavigationButton nav = new BackstageNavigationButton(localized(page.labelKey()), tokens);
 			nav.setName("officeBackstageNav-" + page.id());
 			nav.putClientProperty(FlatClientProperties.STYLE, "disabledText: " + disabledText);
@@ -654,7 +652,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 				pinned.add(nav);
 			} else {
 				destinations.add(nav);
-				if (BACKSTAGE_SEPARATOR_AFTER_PAGE.equals(page.id()))
+				if (page.id().equals(layout.separatorAfterPage()))
 					destinations.add(backstageNavigationSeparator(navigationForeground));
 			}
 			nav.addActionListener(event -> {
@@ -925,6 +923,26 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 
 	private record BackstagePage(String id, String labelKey, String immediateCommand,
 		List<SwingRibbonModel.RibbonButton> commands) { }
+
+	/** Navigation placement declared next to the page order, so changing a page id cannot silently drop it. */
+	record BackstageLayout(String pinnedPage, String separatorAfterPage) {
+		static BackstageLayout read(List<String> pageIds, String pinned, String separatorAfter) {
+			String pinnedPage = trim(pinned);
+			String separator = trim(separatorAfter);
+			if (pinnedPage != null && !pageIds.contains(pinnedPage))
+				throw new IllegalStateException("Backstage pinned page is not in FileBackstagePages: " + pinnedPage);
+			if (separator != null && !pageIds.contains(separator))
+				throw new IllegalStateException("Backstage separator page is not in FileBackstagePages: " + separator);
+			if (pinnedPage != null && pinnedPage.equals(separator))
+				throw new IllegalStateException("Backstage separator cannot follow the pinned page: " + separator);
+			return new BackstageLayout(pinnedPage, separator);
+		}
+
+		private static String trim(String value) {
+			if (value == null || value.isBlank()) return null;
+			return value.trim();
+		}
+	}
 
 	private void startAutoHideDismissal() {
 		if (!isDisplayable() || SwingUtilities.getWindowAncestor(this) == null || autoHideDismissalRegistered) return;

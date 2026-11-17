@@ -10,12 +10,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -61,6 +63,23 @@ class ModernRibbonBackstageNavigationTest {
 			else
 				MicroProjectTheme.installLight();
 		});
+	}
+
+	@Test
+	void backstagePlacementComesFromTheBundleAndRejectsUnknownPages() {
+		java.util.ResourceBundle internal = MenuDefinitionSupport.ribbonBundles(Locale.ROOT)[0];
+		List<String> pages = Arrays.stream(internal.getString("FileBackstagePages").split("\\s+")).toList();
+		ModernRibbonPanel.BackstageLayout layout = ModernRibbonPanel.BackstageLayout.read(pages,
+			internal.getString("FileBackstagePages.pinned"), internal.getString("FileBackstagePages.separatorAfter"));
+		assertEquals("options", layout.pinnedPage());
+		assertEquals("open", layout.separatorAfterPage());
+
+		assertThrows(IllegalStateException.class,
+			() -> ModernRibbonPanel.BackstageLayout.read(pages, "missing", "open"));
+		assertThrows(IllegalStateException.class,
+			() -> ModernRibbonPanel.BackstageLayout.read(pages, "options", "missing"));
+		assertThrows(IllegalStateException.class,
+			() -> ModernRibbonPanel.BackstageLayout.read(pages, "options", "options"));
 	}
 
 	@Test

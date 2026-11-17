@@ -114,7 +114,7 @@ public final class CalendarViewDialogBox extends FlatLafDialog {
 	/** Creates the same calendar UI for embedding in a document view. */
 	public static javax.swing.JPanel createEmbeddedPanel(java.awt.Frame owner, Project project) {
 		CalendarViewDialogBox dialog = new CalendarViewDialogBox(owner, project);
-		javax.swing.		JPanel panel = PopupDialogSupport.detachContentPanel(dialog, "Calendar view");
+		javax.swing.JPanel panel = PopupDialogSupport.detachContentPanel(dialog, "Calendar view");
 		panel.putClientProperty(DIALOG_PROPERTY, dialog);
 		panel.putClientProperty(ViewSettingsState.PROPERTY, dialog.settings);
 		panel.putClientProperty(ViewSettingsState.REFRESH_PROPERTY, (Runnable) dialog::settingsChanged);
