@@ -2555,6 +2555,29 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void mpoRoundTripPreservesImportedAndLevelingSplitOriginsIndependently() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(original);
+		TaskSplitInterval leveling = new TaskSplitInterval(4L * 60L * 60L * 1000L,
+			5L * 60L * 60L * 1000L);
+		TaskSplitInterval imported = new TaskSplitInterval(8L * 60L * 60L * 1000L,
+			9L * 60L * 60L * 1000L);
+		task.restoreTaskSplitProvenance(List.of(), List.of(leveling), List.of(imported));
+
+		Project reopened = loadFromBytes(saveProjectBytes(original));
+		NormalTask restored = (NormalTask) firstTask(reopened);
+		assertTrue(restored.getManualTaskSplitIntervals().isEmpty());
+		assertEquals(List.of(leveling), restored.getLevelingTaskSplitIntervals());
+		assertEquals(List.of(imported), restored.getImportedTaskSplitIntervals());
+		assertEquals(List.of(leveling, imported), restored.getTaskSplitIntervals());
+
+		assertTrue(restored.clearLevelingGeneratedSplits(this));
+		assertTrue(restored.getLevelingTaskSplitIntervals().isEmpty());
+		assertEquals(List.of(imported), restored.getImportedTaskSplitIntervals());
+		assertEquals(List.of(imported), restored.getTaskSplitIntervals());
+	}
+
+	@Test
 	void savingOverAnExistingFileKeepsTheTaskDataMspdiCannotHold(@org.junit.jupiter.api.io.TempDir Path folder) throws Exception {
 		Project original = projectForRoundTrip();
 		NormalTask task = (NormalTask) firstTask(original);
@@ -2997,7 +3020,7 @@ class MpoFileImporterTest {
 			mapper.readTree(entries.get(MpoFileImporter.TASK_SPLITS_ENTRY));
 		for (com.fasterxml.jackson.databind.JsonNode node : root.path("tasks")) {
 			((com.fasterxml.jackson.databind.node.ObjectNode) node).remove(
-				List.of("manualIntervals", "levelingIntervals", "manualLevelingDates"));
+				List.of("manualIntervals", "levelingIntervals", "importedIntervals", "manualLevelingDates"));
 		}
 		byte[] legacySplits = mapper.writeValueAsBytes(root);
 		entries.put(MpoFileImporter.TASK_SPLITS_ENTRY, legacySplits);
