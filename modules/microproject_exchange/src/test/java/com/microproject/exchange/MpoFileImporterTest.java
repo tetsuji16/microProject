@@ -2585,6 +2585,42 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void assignmentNotesSurviveMpoRoundTripWithoutChangingOtherAssignments() throws Exception {
+		Project original = projectForRoundTrip();
+		NormalTask task = (NormalTask) firstTask(original);
+		Resource resource = original.getResourcePool().newResourceInstance();
+		resource.setName("Notes resource");
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		assignment.setNotes("割り当てメモ\nSecond line & details");
+		Object savedDetail = assignment.backupDetail();
+		assignment.setNotes("Changed");
+		assignment.restoreDetail(savedDetail);
+		assertEquals("割り当てメモ\nSecond line & details", assignment.getNotes());
+		Resource other = original.getResourcePool().newResourceInstance();
+		other.setName("Other resource");
+		AssignmentService.getInstance().newAssignment(task, other, 1D, 0L, this);
+		long resourceId = resource.getUniqueId();
+		long otherId = other.getUniqueId();
+		ByteArrayOutputStream archive = new ByteArrayOutputStream();
+		assertTrue(new MpoFileImporter().saveProject(original, archive));
+		NormalTask reopened = (NormalTask) firstTask(loadFromBytes(archive.toByteArray()));
+		assertEquals(task.getUniqueId(), reopened.getUniqueId());
+		Assignment restored = null;
+		Assignment restoredOther = null;
+		for (Object value : reopened.getAssignments()) {
+			Assignment candidate = (Assignment) value;
+			if (candidate.getResource() != null && resourceId == candidate.getResource().getUniqueId())
+				restored = candidate;
+			if (candidate.getResource() != null && otherId == candidate.getResource().getUniqueId())
+				restoredOther = candidate;
+		}
+		assertNotNull(restored);
+		assertEquals("割り当てメモ\nSecond line & details", restored.getNotes());
+		assertNotNull(restoredOther);
+		assertTrue(restoredOther.getNotes() == null || restoredOther.getNotes().isEmpty());
+	}
+
+	@Test
 	void assignmentLevelingSplitStateSurvivesMpoSaveReloadAndClear() throws Exception {
 		Project original = projectForRoundTrip();
 		NormalTask task = (NormalTask) firstTask(original);
