@@ -929,6 +929,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		activateGantt(robot);
 		long originalStart = fixture.predecessor.getStart();
 		long originalEnd = fixture.predecessor.getEnd();
+		long originalDuration = fixture.predecessor.getDurationMillis();
 		List<com.microproject.pm.task.TaskSplitInterval> originalSplits = fixture.predecessor.getTaskSplitIntervals();
 		List<String> originalTaskIntervals = taskIntervals(fixture.predecessor);
 		long splitAt = originalStart + (originalEnd - originalStart) / 3L;
@@ -998,14 +999,26 @@ class GanttBarDateDragGuiAcceptanceTest {
 				+ " taskIntervals=" + taskIntervals(fixture.predecessor), failure);
 		}
 		List<String> splitTaskIntervals = taskIntervals(fixture.predecessor);
+		long splitGapIncrease = totalSplitMillis(fixture.predecessor.getTaskSplitIntervals())
+			- totalSplitMillis(originalSplits);
+		long expectedSplitFinish = originalEnd + splitGapIncrease;
 		assertEquals(originalStart, fixture.predecessor.getStart(), "splitting must preserve the task start");
-		assertEquals(originalEnd, fixture.predecessor.getEnd(), "splitting must preserve the task finish");
+		assertEquals(originalDuration, fixture.predecessor.getDurationMillis(),
+			"splitting must preserve active task duration");
+		assertEquals(expectedSplitFinish, fixture.predecessor.getEnd(),
+			"the task finish must extend by the added nonworking split gap");
 		assertTrue(barBounds(fixture).width > 0, "the split task must remain rendered");
 		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().undo());
 		assertEquals(originalSplits, fixture.predecessor.getTaskSplitIntervals(), "Undo must remove the task split");
 		assertEquals(originalTaskIntervals, taskIntervals(fixture.predecessor), "Undo must restore the original rendered intervals");
+		assertEquals(originalStart, fixture.predecessor.getStart(), "Undo must restore the original task start");
+		assertEquals(originalEnd, fixture.predecessor.getEnd(), "Undo must restore the original task finish");
+		assertEquals(originalDuration, fixture.predecessor.getDurationMillis(), "Undo must restore the original active duration");
 		SwingUtilities.invokeAndWait(() -> fixture.project.getUndoController().redo());
 		assertEquals(splitTaskIntervals, taskIntervals(fixture.predecessor), "Redo must restore the rendered split gap");
+		assertEquals(originalStart, fixture.predecessor.getStart(), "Redo must preserve the task start");
+		assertEquals(expectedSplitFinish, fixture.predecessor.getEnd(), "Redo must restore the split finish");
+		assertEquals(originalDuration, fixture.predecessor.getDurationMillis(), "Redo must preserve active duration");
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
 		MpoFileImporter importer = new MpoFileImporter();
 		assertTrue(importer.saveProject(fixture.project, saved), "split schedule must be serializable");
@@ -1015,6 +1028,9 @@ class GanttBarDateDragGuiAcceptanceTest {
 		assertEquals(fixture.predecessor.getTaskSplitIntervals(), reopenedTask.getTaskSplitIntervals(),
 			"task split must survive MPO reload");
 		assertEquals(splitTaskIntervals, taskIntervals(reopenedTask), "split intervals must survive MPO reload");
+		assertEquals(originalStart, reopenedTask.getStart(), "MPO reload must preserve the split task start");
+		assertEquals(expectedSplitFinish, reopenedTask.getEnd(), "MPO reload must preserve the split task finish");
+		assertEquals(originalDuration, reopenedTask.getDurationMillis(), "MPO reload must preserve active duration");
 		assertTrue(document.getActiveTopView() instanceof GanttView,
 			"the physical command route must remain in the actual Gantt view");
 		capture(robot, "gantt-ribbon-split-after.png");
@@ -1341,6 +1357,10 @@ class GanttBarDateDragGuiAcceptanceTest {
 			throw new AssertionError("Could not snapshot rendered task intervals on the EDT", exception);
 		}
 		return snapshot.get();
+	}
+
+	private long totalSplitMillis(List<com.microproject.pm.task.TaskSplitInterval> intervals) {
+		return intervals.stream().mapToLong(interval -> interval.endOffset() - interval.startOffset()).sum();
 	}
 
 	private boolean gapStartsAtPixel(Fixture fixture, List<String> intervals, int screenX) throws Exception {
