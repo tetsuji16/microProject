@@ -140,7 +140,10 @@ class ProjectInformationDialogGuiAcceptanceTest {
 		robot.waitForIdle();
 		GuiAcceptanceSupport.await(() -> visibleDialog(MoveProjectDialog.class) != null,
 			"Move Project dialog did not open from Project Information");
-		SwingUtilities.invokeAndWait(() -> visibleDialog(MoveProjectDialog.class).dispose());
+		MoveProjectDialog moveDialog = visibleDialog(MoveProjectDialog.class);
+		DialogLayoutAssertions.assertFixedSizeForm(moveDialog, moveDialog, "Move Project dialog (#724)");
+		DialogScreenshotArtifacts.capture(moveDialog, "issue-724-move-project");
+		SwingUtilities.invokeAndWait(moveDialog::dispose);
 		DialogLayoutAssertions.assertResizeWithinUsableScreen(dialog, 180, 80,
 			"Project Information dialog (#724)");
 		assertTrue(tabs.isShowing() && tabs.getWidth() > 0 && tabs.getHeight() > 0,

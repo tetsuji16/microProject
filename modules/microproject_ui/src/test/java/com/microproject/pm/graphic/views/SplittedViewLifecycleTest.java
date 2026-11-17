@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Field;
 import java.util.List;
+import java.awt.Insets;
 
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -42,6 +43,13 @@ import com.microproject.pm.graphic.views.synchro.Synchronizer;
 import com.microproject.strings.Messages;
 
 class SplittedViewLifecycleTest {
+	@Test
+	void ganttInitialDividerSplitsAvailableWidthEqually() {
+		assertEquals(499, GanttView.equalPaneDividerLocation(1000, new Insets(0, 0, 0, 0), 2));
+		assertEquals(449, GanttView.equalPaneDividerLocation(920, new Insets(5, 10, 5, 10), 2));
+		assertEquals(-1, GanttView.equalPaneDividerLocation(2, new Insets(0, 0, 0, 0), 2));
+	}
+
 	@Test
 	void reinitializeReplacesBothPanesAndLeavesOneSynchronizer() throws ReflectiveOperationException {
 		Synchronizer synchronizer = new Synchronizer();
