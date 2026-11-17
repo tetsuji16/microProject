@@ -262,6 +262,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		}
 	}
 
+
 	/** @deprecated use {@link #getRequestDemandKind()} for domain logic. */
 	@Deprecated
 	public int getRequestDemandType() {
