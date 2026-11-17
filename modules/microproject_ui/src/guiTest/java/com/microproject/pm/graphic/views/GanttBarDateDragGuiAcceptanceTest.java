@@ -74,6 +74,7 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.strings.Messages;
 import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.testsupport.RibbonGuiSupport;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.DateTime;
 import com.microproject.util.Environment;
@@ -879,7 +880,8 @@ class GanttBarDateDragGuiAcceptanceTest {
 		long clickedSplitAt = taskDateAt(splitStart);
 		List<String> originalAssignmentState = assignmentScheduleStates(fixture.predecessor);
 		assertTaskBarHit(fixture, splitStart);
-		openPopupAndChoose(robot, splitStart, Messages.getString("Gantt.Popup.splitMode"));
+		RibbonGuiSupport.clickSplitPrimary(robot,
+			RibbonGuiSupport.findVisibleOrExpand(robot, projectWindow.getRibbonPanel(), "RibbonTaskSplit"));
 		click(robot, splitStart);
 		try {
 			GuiAcceptanceSupport.await(() -> !fixture.predecessor.getTaskSplitIntervals().equals(originalTaskSplits),

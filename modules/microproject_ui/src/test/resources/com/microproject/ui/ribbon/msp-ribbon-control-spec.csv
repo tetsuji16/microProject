@@ -26,6 +26,7 @@ RibbonInsertRecurring,RecurringTaskInsert,BUTTON,DIALOG,DOCUMENTED,TaskRibbonTas
 RibbonInsertProject,SubprojectInsert,BUTTON,DIALOG,DOCUMENTED,ProjectRibbonTask/ProjectInsertRibbonBand,
 RibbonMoveTask,MoveTaskMenu,MENU,POPUP,DOCUMENTED,TaskRibbonTask/TaskTasksRibbonBand,Forward and back by 1 day / 1 week / 4 weeks / custom working days
 RibbonScheduleMode,ScheduleModeMenu,MENU,POPUP,DOCUMENTED,TaskRibbonTask/TaskTasksRibbonBand,Manually Schedule / Auto Schedule
+RibbonTaskSplit,TaskSplit,BUTTON,COMMAND,DOCUMENTED,TaskRibbonTask/TaskTrackingRibbonBand,Click task bar at split point; drag second segment to resume date
 RibbonMoveTaskUp,,BUTTON,COMMAND,BASELINE,TaskRibbonTask/TaskTasksRibbonBand,product-only
 RibbonMoveTaskDown,,BUTTON,COMMAND,BASELINE,TaskRibbonTask/TaskTasksRibbonBand,product-only
 RibbonExpand,OutlineSubtasksShow,BUTTON,COMMAND,DOCUMENTED,ViewRibbonTask/ViewDataRibbonBand,
