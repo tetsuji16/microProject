@@ -2313,11 +2313,12 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		return isTimesheetStatusNot(TimesheetStatus.Kind.REJECTED);
 	}
 
-	public boolean copyFieldsFromTimesheet(Collection fieldArray) {
+	@SuppressWarnings("unchecked")
+	public boolean copyFieldsFromTimesheet(Collection<?> fieldArray) {
 		Assignment ts = getTimesheetAssignment();
 		if (!isValidatedTimesheetAssignment(ts)) // only incorporate validated data
 			return false;
-		Field.copyData(fieldArray,this,ts);
+		Field.copyData((Collection<Field>) fieldArray,this,ts);
 		return true;
 	}
 

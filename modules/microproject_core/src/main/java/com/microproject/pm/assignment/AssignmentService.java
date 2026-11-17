@@ -935,9 +935,9 @@ public class AssignmentService {
 	}
 	
 	//fix
-	public void remove(Collection assignmentList, Collection toRemove) {
+	public void remove(Collection<?> assignmentList, Collection<? super Assignment> toRemove) {
 		for (Object assignment : assignmentList)
-			toRemove.add(assignment);
+			toRemove.add((Assignment) assignment);
 	}
 	
 	
