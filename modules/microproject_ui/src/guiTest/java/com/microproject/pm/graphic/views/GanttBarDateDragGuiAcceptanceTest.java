@@ -1249,7 +1249,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 	}
 
 	private void activateWindow(Robot robot) throws Exception {
-		java.awt.Window activeWindow = projectWindow == null ? frame : projectWindow;
+		java.awt.Window activeWindow = projectWindow != null && projectWindow.isShowing() ? projectWindow : frame;
 		Rectangle bounds = new Rectangle(activeWindow.getLocationOnScreen(), activeWindow.getSize());
 		robot.mouseMove(bounds.x + Math.min(40, bounds.width / 2), bounds.y + 12);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
