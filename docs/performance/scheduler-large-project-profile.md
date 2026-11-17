@@ -98,6 +98,8 @@ The actual assignment dialog calls `AssignmentService.newAssignments` once for i
 
 This improves each real `newAssignments` call, but does not merge independent API calls into one transaction. In `production-batch`, the synthetic round-robin assignment shape uses 50 independent calls (one per resource), so the 1k and 2k runs each show 150 calculation-state increments (50 calls × 3), down from 300 before the transaction closure change. They still represent 50 recalculation boundaries, not one for the entire build.
 
+`MpoTaskOperationService.apply` is another real bulk caller. Its replay now holds one scheduler transaction only when the ready unapplied operation sequence consists entirely of `dependency.add` / `dependency.delete`; those operations validate/update the dependency graph without reading calculated dates. Task and assignment operations keep their former per-operation boundaries. In particular, summary progress updates call `NormalTask.setPercentComplete`, which reads scheduled dates and propagates stop dates to descendants. A test replays a dependency change followed by summary progress and compares the summary and child schedule fields with direct sequential application. Ordered dependency-only replay now calculates once; injected failure after an earlier valid link keeps that link, recalculates retained state, and releases the transaction. This production replay improvement has no corresponding profile timing claim, and the original sequential profile remains unchanged.
+
 Latest no-JFR single-run profile after this change:
 
 | Mode | Tasks | Node setup | Add links | Add assignments | Build total | Assignment state-count delta | Full recalc | Edit | Undo |
