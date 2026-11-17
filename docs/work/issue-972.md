@@ -34,6 +34,8 @@ Stable run [43979686367](https://github.com/tetsuji16/microProject/actions/runs/
 
 The test now scans visible chart pixels and chooses the first target before task end whose mapped timestamp advances completed working duration. It retains the physical drag, rendered-state, Undo/Redo, and MPO reload assertions. Failure diagnostics include interactor mode plus assignment/task schedule state.
 
+PR review caught a second target-selection constraint: `GanttInteractor.executeAction` requires horizontal movement at least `DragSource.getDragThreshold()` pixels (fallback 4) before it dispatches a drag edit. The scan now starts at that threshold and asserts the resulting gesture exceeds it.
+
 Focused verification passed on candidate `a5f6cdf03` plus this test change:
 `./gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotResizeProgressAndSplitUseTypedScheduleGatewayWithUndoAndPersistence" --max-workers=1 --console=plain`.
 

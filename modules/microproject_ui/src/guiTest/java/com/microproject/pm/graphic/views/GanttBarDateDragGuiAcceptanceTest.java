@@ -830,6 +830,8 @@ class GanttBarDateDragGuiAcceptanceTest {
 		assertTrue(progressTarget > originalProgress && progressTarget < fixture.predecessor.getEnd(),
 			"progress target must advance within the scheduled interval using working time: progress=" + originalProgress
 				+ " end=" + fixture.predecessor.getEnd() + " target=" + progressTarget);
+		assertTrue(laterProgress.x - progressHandle.x >= desktopDragThresholdPixels(),
+			"progress gesture must exceed the desktop drag threshold: from=" + progressHandle + " to=" + laterProgress);
 		drag(robot, progressHandle, laterProgress);
 		try {
 			GuiAcceptanceSupport.await(() -> fixture.predecessor.getCompletedThrough() > originalProgress,
@@ -1440,8 +1442,9 @@ class GanttBarDateDragGuiAcceptanceTest {
 			long originalWork = calendar.compare(originalProgress, start, false);
 			int originX = progressHandle.x - gantt.getLocationOnScreen().x;
 			int endX = (int)Math.round(gantt.getCoord().toX(fixture.predecessor.getEnd()));
+			int threshold = desktopDragThresholdPixels();
 			int y = progressHandle.y;
-			for (int x = originX + 1; x <= endX; x++) {
+			for (int x = originX + threshold; x <= endX; x++) {
 				long mappedTime = (long)gantt.getCoord().toTime(x);
 				if (mappedTime < fixture.predecessor.getEnd()
 						&& calendar.compare(mappedTime, start, false) > originalWork) {
@@ -1457,6 +1460,15 @@ class GanttBarDateDragGuiAcceptanceTest {
 	}
 
 	private record ProgressTarget(Point point, long mappedTime) { }
+
+	private static int desktopDragThresholdPixels() {
+		try {
+			int threshold = java.awt.dnd.DragSource.getDragThreshold();
+			return threshold > 0 ? threshold : 4;
+		} catch (RuntimeException | LinkageError unavailable) {
+			return 4;
+		}
+	}
 
 	private Point findResizeHandle(Robot robot, Fixture fixture, boolean leading, int expectedCursor, String gesture)
 			throws Exception {
