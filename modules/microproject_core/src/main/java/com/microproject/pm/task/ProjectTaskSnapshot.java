@@ -4,17 +4,19 @@
  ******************************************************************************/
 package com.microproject.pm.task;
 
-import java.util.LinkedHashMap;
+import java.util.IdentityHashMap;
 import java.util.Collections;
 import java.util.Map;
 
 /** Captures the project-wide task state needed to roll back a schedule mutation. */
 public final class ProjectTaskSnapshot {
+	private final Project project;
 	private final Map<Task, TaskState> tasks;
 	private final Project.DirtyState projectDirtyState;
 
 	private ProjectTaskSnapshot(Project project) {
-		Map<Task, TaskState> result = new LinkedHashMap<>();
+		this.project = project;
+		Map<Task, TaskState> result = new IdentityHashMap<>();
 		for (Task task : project.getTaskList()) {
 			Double override = task instanceof NormalTask normal
 				? normal.getImportedPercentCompleteOverride() : null;
@@ -51,6 +53,16 @@ public final class ProjectTaskSnapshot {
 	}
 
 	public Map<Task, TaskState> taskStates() { return tasks; }
+
+	/** Whether this snapshot belongs to the specified project. */
+	public boolean belongsTo(Project owner) {
+		return project == owner;
+	}
+
+	/** Whether this snapshot can roll back the supplied task in the specified project. */
+	public boolean owns(Project owner, Task task) {
+		return project == owner && tasks.containsKey(task);
+	}
 
 	public record TaskState(Object detail, Double importedPercentCompleteOverride, boolean inactiveTask, boolean dirty,
 		boolean manuallyScheduled, long manualStart, long manualFinish, long levelingDelay,

@@ -71,10 +71,10 @@ issue #1178's near-linear acceptance criterion.
 |------|------:|-------------:|----------:|----------------:|------------:|------------:|-----:|-----:|
 | bulk | 1,000 | 2,197 | 213 | 154 | 2,564 | 25 | 24 | 17 |
 | bulk | 2,000 | 8,563 | 778 | 427 | 9,770 | 25 | 25 | 23 |
-| production-batch | 1,000 | 2,385 | 209 | 710 | 3,306 | 9 | 8 | 7 |
-| production-batch | 2,000 | 9,283 | 778 | 1,596 | 11,658 | 20 | 18 | 17 |
-| sequential | 1,000 | 394 | 7,359 | 6,024 | 13,778 | 9 | 10 | 8 |
-| sequential | 2,000 | 4,947 | 43,477 | 26,678 | 75,103 | 20 | 18 | 17 |
+| production-batch | 1,000 | 793 | 59 | 578 | 1,431 | 8 | 9 | 8 |
+| production-batch | 2,000 | 8,610 | 772 | 1,494 | 10,877 | 13 | 16 | 16 |
+| sequential | 1,000 | 1,446 | 7,556 | 5,870 | 14,873 | 9 | 9 | 7 |
+| sequential | 2,000 | 5,016 | 40,960 | 26,641 | 72,619 | 18 | 18 | 17 |
 
 Commands (quote `-D` options in PowerShell so they are passed to Gradle as JVM system properties):
 
@@ -88,9 +88,9 @@ A 4k bulk JFR exploratory run (with a temporary, uncommitted recording argument 
 that was later removed because it did not improve measured link time) sampled `Task.markDependentTasks` at 19.44%,
 `AbstractContour.clone` at 14.16%, hierarchy `visitAll` at 8.16%, and `AssociationList.findAssociation` at 3.52%.
 These samples are pointers for further investigation, not proof of the exact nonlinear cause or of a successful
-optimization. The new `production-batch` profile took 3.306s / 11.658s for 1k / 2k tasks (3.52x total growth);
-its node setup alone was 2.385s / 9.283s (3.89x). This matches the project-wide per-call duration rollback snapshot
-cost described below. A3 remains open.
+optimization. The latest `production-batch` run took 1.431s / 10.877s for 1k / 2k tasks (7.60x total growth);
+its node setup alone was 0.793s / 8.610s (10.86x). Sequential build took 14.873s / 72.619s (4.88x). Both remain
+strongly nonlinear; these results do not establish A3.
 
 ### Duration setup and snapshot ownership
 
@@ -103,11 +103,15 @@ state for undo/redo. Thus profile node setup includes an O(N) rollback snapshot 
 which can create O(N²) work independently of the critical-path pass.
 
 An outer scheduling `MultipleTransaction` only suspends critical-path updates; it does not make independent
-`setDuration` commands share an atomic snapshot. Safe snapshot reuse would require an actual batch duration command
-with one whole-batch rollback snapshot and one before/after undo edit, including a defined all-or-nothing failure
-contract. That API is not part of this candidate. Keep the existing varying-duration profile as baseline evidence;
-the `production-batch` mode separately quantifies confirmed bulk API boundaries without the synthetic whole-build
-transaction.
+`setDuration` commands share an atomic snapshot. The existing linked-project refresh path is now connected to
+`TaskDurationBatchService`: `ProjectMergeService` owns a `ProjectTaskSnapshot` and calculation-state map for the
+entire atomic refresh, the batch service verifies that the project mutation scope and snapshot own each task,
+applies durations without per-task rollback snapshots or repeated dependent invalidation, then marks all tasks
+dirty and recalculates at the batch boundary. On failure, `ProjectMergeService` restores the snapshot, calculation
+states, task metadata, and the pending event batch. This background refresh does not create a user Undo edit, as
+confirmed by the integration test. Other duration-edit paths still use their own task-level rollback and any
+applicable before/after Undo ownership. Keep the varying-duration profile's direct `setDuration` setup as the
+original acceptance baseline; the profile has not been switched to this refresh-specific API.
 
 ### Growth order
 

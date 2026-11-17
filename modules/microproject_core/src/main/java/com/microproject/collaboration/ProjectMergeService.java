@@ -56,6 +56,7 @@ import com.microproject.pm.resource.ResourcePoolFactory;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.ProjectTaskSnapshot;
+import com.microproject.pm.task.TaskDurationBatchService;
 import com.microproject.pm.task.Task;
 import com.microproject.session.FileHelper;
 import com.microproject.session.LocalSession;
@@ -576,13 +577,17 @@ public class ProjectMergeService {
 			if (!updates.isEmpty()) {
 				ProjectTaskSnapshot projectSnapshot = ProjectTaskSnapshot.capture(target);
 				// ProjectTaskSnapshot owns scheduling snapshots and dirty flags; it intentionally omits task identity metadata.
+				Map<Task, Integer> calculationStateSnapshots = new java.util.IdentityHashMap<>();
+				for (Task task : target.getTaskList())
+					calculationStateSnapshots.put(task, Integer.valueOf(task.getCalculationStateCount()));
 				List<ExternalTaskMetadata> valueSnapshots = captureExternalTaskMetadata(updates);
 				target.runAtomicModelCommand(markApplied -> {
+					TaskDurationBatchService durationBatch = new TaskDurationBatchService(target, projectSnapshot);
 					try {
 						for (int i = 0; i < updates.size(); i++) {
 							ExternalTaskUpdate update = updates.get(i);
 							TaskState before = TaskState.capture(update.localTask());
-							applyExternalTaskValues(update.localTask(), update.values());
+							applyExternalTaskValues(update.localTask(), update.values(), durationBatch);
 							TaskState after = TaskState.capture(update.localTask());
 							if (!before.matches(after)) {
 								result.updatedTaskCount++;
@@ -591,13 +596,20 @@ public class ProjectMergeService {
 							}
 							afterExternalTaskUpdateApplied(i + 1);
 						}
+						durationBatch.finish();
 					} catch (RuntimeException | Error failure) {
-						try {
-							for (ExternalTaskMetadata values : valueSnapshots) values.restore();
-							projectSnapshot.restore(target, this);
-						} catch (Throwable rollbackFailure) {
-							failure.addSuppressed(rollbackFailure);
+						Throwable rollbackFailure = null;
+						for (ExternalTaskMetadata values : valueSnapshots) {
+							try { values.restore(); }
+							catch (Throwable current) { rollbackFailure = appendRollbackFailure(rollbackFailure, current); }
 						}
+						try { projectSnapshot.restore(target, this); }
+						catch (Throwable current) { rollbackFailure = appendRollbackFailure(rollbackFailure, current); }
+						for (Map.Entry<Task, Integer> entry : calculationStateSnapshots.entrySet()) {
+							try { entry.getKey().setCalculationStateCount(entry.getValue().intValue()); }
+							catch (Throwable current) { rollbackFailure = appendRollbackFailure(rollbackFailure, current); }
+						}
+						if (rollbackFailure != null && rollbackFailure != failure) failure.addSuppressed(rollbackFailure);
 						throw failure;
 					}
 					return Boolean.valueOf(result.updatedTaskCount > 0);
@@ -611,6 +623,12 @@ public class ProjectMergeService {
 		}
 		fireTaskUpdates(target, changedNodes);
 		return result;
+	}
+
+	private static Throwable appendRollbackFailure(Throwable current, Throwable next) {
+		if (current == null) return next;
+		if (current != next) current.addSuppressed(next);
+		return current;
 	}
 
 	private List<ExternalTaskUpdate> stageExternalTaskUpdates(Project target, Project external, Set<Long> lockedTaskIds, ApplyResult result) {
@@ -681,12 +699,13 @@ public class ProjectMergeService {
 		return target == null || target.getTaskOutline() == null ? null : target.getTaskOutline().search(task);
 	}
 
-	private void applyExternalTaskValues(Task localTask, ExternalTaskValues values) {
+	private void applyExternalTaskValues(Task localTask, ExternalTaskValues values,
+			TaskDurationBatchService durationBatch) {
 		localTask.setName(values.name());
 		localTask.setNotes(values.notes());
 		if (localTask instanceof NormalTask && values.normalTask()) {
 			NormalTask localNormal = (NormalTask) localTask;
-			localNormal.setDuration(values.duration());
+			durationBatch.apply(localNormal, values.duration());
 			localNormal.setEnd(values.end());
 			localNormal.setPercentComplete(values.percentComplete());
 		}

@@ -37,6 +37,13 @@ public final class ProjectMutationState {
 		return COORDINATOR.isHeldByCurrentThread();
 	}
 
+	/** Returns whether the current thread owns an active mutation scope for this project. */
+	public boolean hasActiveScopeForCurrentThread() {
+		if (!COORDINATOR.isHeldByCurrentThread()) return false;
+		Scope current = scopes.peek();
+		return current != null && current.owner == Thread.currentThread();
+	}
+
 	/** Returns whether the current thread holds the process-wide coordinator for any project. */
 	public static boolean isCoordinatorHeldByCurrentThread() {
 		return COORDINATOR.isHeldByCurrentThread();

@@ -360,6 +360,14 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 	}
 
 	private void applyDuration(long duration) {
+		applyDuration(duration, true);
+	}
+
+	void applyDurationForBatch(long duration) {
+		applyDuration(duration, false);
+	}
+
+	private void applyDuration(long duration, boolean invalidateDependents) {
 		importedUnassignedWork = null;
 		rememberDurationDisplayUnit(duration);
 		estimated = Duration.isEstimated(duration);
@@ -376,7 +384,7 @@ public class NormalTask extends Task implements Allocation, TaskSpecificFields,
 		long remainingDuration = duration - actualDurationMillis;
 		getSchedulingRule().adjustRemainingDuration(this, remainingDuration, true);
 		applyDurationToCurrentDates(duration);
-		if (isInitialized())
+		if (isInitialized() && invalidateDependents)
 			markAllDependentTasksAsNeedingRecalculation(true);
 	}
 	public void setDuration(long duration, FieldContext fieldContext) {

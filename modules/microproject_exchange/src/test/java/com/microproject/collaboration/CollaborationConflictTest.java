@@ -439,11 +439,13 @@ class CollaborationConflictTest {
 	@Test
 	void backgroundRefreshPublishesOnlyAfterAllMatchedTasksAreUpdated() throws Exception {
 		File original = createProjectFile("xlsx", "Baseline Task", "Unchanged Task");
-		File changed = createProjectFile("xlsx", "Renamed Task", "Externally Changed Task");
+		File changed = createWorkbookWithDurations("Renamed Task", "Externally Changed Task", 4.0, 5.0);
 		ProjectMergeService mergeService = new ProjectMergeService();
 		Project target = mergeService.loadExternalProject(original.getAbsolutePath());
 		com.microproject.pm.task.Task first = (com.microproject.pm.task.Task) target.getTasks().get(0);
 		com.microproject.pm.task.Task second = (com.microproject.pm.task.Task) target.getTasks().get(1);
+		target.getUndoController().discardAllEdits();
+		List<String> undoHistory = List.copyOf(target.getUndoController().getEditNames());
 		AtomicInteger publications = new AtomicInteger();
 		AtomicBoolean observerSawCompleteState = new AtomicBoolean(true);
 		target.addScheduleListener(event -> {
@@ -456,7 +458,11 @@ class CollaborationConflictTest {
 		ProjectMergeService.ApplyResult result = mergeService.applyExternalTaskUpdates(target, changed.getAbsolutePath(), Set.of());
 
 		assertEquals(2, result.getUpdatedTaskCount());
+		assertEquals(4L * day(), first.getDuration());
+		assertEquals(5L * day(), second.getDuration());
 		assertEquals(revision + 1, target.getMutationState().revision());
+		assertEquals(undoHistory, target.getUndoController().getEditNames(),
+			"a background refresh is one atomic collaboration update, not a user Undo edit");
 		assertTrue(publications.get() > 0);
 		assertTrue(observerSawCompleteState.get(), "Observers must see all matched tasks after the single commit");
 	}
@@ -464,7 +470,7 @@ class CollaborationConflictTest {
 	@Test
 	void backgroundRefreshFailureRestoresTasksAndSuppressesPublication() throws Exception {
 		File original = createProjectFile("xlsx", "Baseline Task", "Unchanged Task");
-		File changed = createProjectFile("xlsx", "Renamed Task", "Externally Changed Task");
+		File changed = createWorkbookWithDurations("Renamed Task", "Externally Changed Task", 4.0, 5.0);
 		ProjectMergeService mergeService = new ProjectMergeService() {
 			@Override void afterExternalTaskUpdateApplied(int appliedCount) {
 				if (appliedCount == 1) throw new IllegalStateException("injected external refresh failure");
@@ -486,10 +492,15 @@ class CollaborationConflictTest {
 		long start = first.getStart();
 		long end = first.getEnd();
 		long duration = first.getDuration();
+		int firstCalculationState = first.getCalculationStateCount();
+		int secondCalculationState = second.getCalculationStateCount();
 		double percentComplete = first.getPercentComplete();
 		long baselineStart = baseline.getCurrentSchedule().getStart();
 		long baselineEnd = baseline.getCurrentSchedule().getEnd();
 		String secondName = second.getName();
+		long secondDuration = second.getDuration();
+		long secondStart = second.getStart();
+		long secondEnd = second.getEnd();
 		first.setDirty(false);
 		second.setDirty(false);
 		target.setDirty(false);
@@ -498,6 +509,7 @@ class CollaborationConflictTest {
 		boolean dirty = target.isDirty();
 		boolean groupDirty = target.isGroupDirty();
 		boolean canUndo = target.getUndoController().canUndo();
+		boolean canRedo = target.getUndoController().canRedo();
 		AtomicInteger publications = new AtomicInteger();
 		AtomicInteger objectPublications = new AtomicInteger();
 		target.addScheduleListener(event -> publications.incrementAndGet());
@@ -513,18 +525,25 @@ class CollaborationConflictTest {
 		assertEquals(start, first.getStart());
 		assertEquals(end, first.getEnd());
 		assertEquals(duration, first.getDuration());
+		assertEquals(firstCalculationState, first.getCalculationStateCount());
 		assertEquals(percentComplete, first.getPercentComplete());
 		TaskSnapshot restoredBaseline = (TaskSnapshot) first.getSnapshot(Integer.valueOf(0));
 		assertEquals(baselineStart, restoredBaseline.getCurrentSchedule().getStart());
 		assertEquals(baselineEnd, restoredBaseline.getCurrentSchedule().getEnd());
 		assertEquals(secondName, second.getName());
+		assertEquals(secondDuration, second.getDuration());
+		assertEquals(secondStart, second.getStart());
+		assertEquals(secondEnd, second.getEnd());
+		assertEquals(secondCalculationState, second.getCalculationStateCount());
 		assertFalse(first.isDirty());
 		assertFalse(second.isDirty());
 		assertEquals(dirty, target.isDirty());
 		assertEquals(groupDirty, target.isGroupDirty());
 		assertEquals(canUndo, target.getUndoController().canUndo());
+		assertEquals(canRedo, target.getUndoController().canRedo());
 		assertFalse(canUndo, "The rollback fixture starts without undo history");
 		assertEquals(revision, target.getMutationState().revision());
+		assertFalse(target.getMutationState().isHeldByCurrentThread());
 		assertEquals(0, publications.get());
 		assertEquals(0, objectPublications.get());
 	}
@@ -690,6 +709,17 @@ class CollaborationConflictTest {
 	}
 
 	private File createWorkbook(String firstTaskName, String secondTaskName) throws Exception {
+		return createWorkbook(firstTaskName, secondTaskName, null, null);
+	}
+
+	private File createWorkbookWithDurations(String firstTaskName, String secondTaskName,
+			double firstDurationDays, double secondDurationDays) throws Exception {
+		return createWorkbook(firstTaskName, secondTaskName, Double.valueOf(firstDurationDays),
+			Double.valueOf(secondDurationDays));
+	}
+
+	private File createWorkbook(String firstTaskName, String secondTaskName,
+			Double firstDurationDays, Double secondDurationDays) throws Exception {
 		File file = Files.createTempFile(tempDir, "collaboration", ".xlsx").toFile();
 
 		ProjectFile project = new ProjectFile();
@@ -704,11 +734,15 @@ class CollaborationConflictTest {
 		first.setUniqueID(Integer.valueOf(1));
 		first.setStart(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(monday));
 		first.setNotes("Locked notes");
+		if (firstDurationDays != null)
+			first.setDuration(org.mpxj.Duration.getInstance(firstDurationDays.doubleValue(), org.mpxj.TimeUnit.DAYS));
 
 		Task second = project.addTask();
 		second.setName(secondTaskName);
 		second.setUniqueID(Integer.valueOf(2));
 		second.setStart(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(monday));
+		if (secondDurationDays != null)
+			second.setDuration(org.mpxj.Duration.getInstance(secondDurationDays.doubleValue(), org.mpxj.TimeUnit.DAYS));
 
 		ProjectWriter writer = ProjectWriterFactory.forFile(file.getAbsolutePath());
 		writer.write(project, file);
@@ -751,5 +785,9 @@ class CollaborationConflictTest {
 		private TestWorkspaceSetting(String viewName) {
 			this.viewName = viewName;
 		}
+	}
+
+	private long day() {
+		return com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
 	}
 }
