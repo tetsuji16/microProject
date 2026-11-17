@@ -60,6 +60,7 @@ import java.util.logging.Logger;
 
 import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
+import javax.swing.JButton;
 import javax.swing.Action;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
@@ -74,6 +75,10 @@ import javax.swing.JMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JPopupMenu;
+import javax.swing.JToggleButton;
+import javax.swing.JColorChooser;
+import javax.swing.MenuElement;
+import javax.swing.MenuSelectionManager;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
@@ -328,6 +333,440 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		return total;
 	}
 
+	// Project's Current Channel control inventory specifies both color controls as galleries.
+	// Microsoft documents the Background Color gallery for selected sheet cells; this app retains
+	// its persisted selected-task text-style contract and routes each chosen value through the
+	// common task-format transaction, Undo stack and MPO serializer.
+	@Test
+	void taskColorGalleriesApplySelectedTasksWithUndoRedoAndMpoReload() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for color-gallery Robot acceptance.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("task-color-gallery-acceptance", undo), undo);
+		project.initialize(false, false);
+		NormalTask first = project.createScriptedTask();
+		first.setName("Color gallery first");
+		first.setFontFamily("Serif");
+		first.setFontSize(14);
+		first.setFontBold(true);
+		first.setFontColor(0x123456);
+		first.setFontBackground(0xF0F0F0);
+		NormalTask second = project.createScriptedTask();
+		second.setName("Color gallery second");
+		second.setFontItalic(true);
+		second.setFontColor(0x654321);
+		second.setFontBackground(0xE0E0E0);
+		NormalTask untouched = project.createScriptedTask();
+		untouched.setName("Color gallery untouched");
+		untouched.setFontColor(0x228844);
+		untouched.setFontBackground(0xEEEEEE);
+		project.recalculate();
+		undo.clear();
+		long firstId = first.getUniqueId();
+		long secondId = second.getUniqueId();
+		long untouchedId = untouched.getUniqueId();
+		long[] scheduleBefore = { first.getStart(), first.getEnd(), second.getStart(), second.getEnd() };
+
+		showProject(project);
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+			&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"color-gallery project did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		clickUntilSelected(robot, window, sheet, rowForTask(sheet, first), nameColumn(sheet));
+		robot.keyPress(KeyEvent.VK_SHIFT);
+		click(robot, cellOnScreen(sheet, rowForTask(sheet, second), nameColumn(sheet)));
+		robot.keyRelease(KeyEvent.VK_SHIFT);
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).size() == 2
+			&& manager.getCurrentFrame().getSelectedImpls(false).containsAll(List.of(first, second)),
+			"physical Shift-click did not establish the two-task color-format selection");
+		assertTrue(undo.canUndo() == false, "selection alone must not create an Undo edit");
+		verifyColorGalleryKeyboardAndAccessibility(robot, "RibbonFillColor");
+
+		applyPhysicalGalleryColor(robot, "RibbonFillColor", "#00B050");
+		GuiAcceptanceSupport.await(() -> Integer.valueOf(0x00B050).equals(first.getFontBackground())
+			&& Integer.valueOf(0x00B050).equals(second.getFontBackground()),
+			"Background Color gallery did not format both selected tasks");
+		assertEquals(Integer.valueOf(0x00B050), first.getFontBackground(), "the selected green fill should be committed");
+		assertEquals(Integer.valueOf(0x123456), first.getFontColor(), "fill selection must preserve first task font color");
+		assertEquals(Integer.valueOf(0x654321), second.getFontColor(), "fill selection must preserve second task font color");
+		assertEquals(Integer.valueOf(0x228844), untouched.getFontColor(), "fill selection must preserve an unselected task");
+		assertEquals(Integer.valueOf(0xEEEEEE), untouched.getFontBackground(), "fill selection must not format an unselected task");
+		assertTrue(undo.canUndo(), "a palette selection must post one undoable formatting mutation");
+		assertEquals(new Color(0x00B050), renderedTaskNameCell(sheet, first).getBackground(),
+			"the spreadsheet renderer must show the selected fill color");
+		click(robot, findVisibleOrOverflowButton(robot, "RibbonTopBarUndo"));
+		GuiAcceptanceSupport.await(() -> Integer.valueOf(0xF0F0F0).equals(first.getFontBackground())
+			&& Integer.valueOf(0xE0E0E0).equals(second.getFontBackground()),
+			"one Undo must restore both selected tasks' distinct original fills");
+		click(robot, findVisibleOrOverflowButton(robot, "RibbonTopBarRedo"));
+		GuiAcceptanceSupport.await(() -> Integer.valueOf(0x00B050).equals(first.getFontBackground())
+			&& Integer.valueOf(0x00B050).equals(second.getFontBackground()),
+			"one Redo must reapply both selected-task fills");
+
+		applyPhysicalGalleryColor(robot, "RibbonFontColor", "#5B9BD5");
+		GuiAcceptanceSupport.await(() -> Integer.valueOf(0x5B9BD5).equals(first.getFontColor())
+			&& Integer.valueOf(0x5B9BD5).equals(second.getFontColor()),
+			"Font Color gallery did not format both selected tasks");
+		assertEquals(Integer.valueOf(0x00B050), first.getFontBackground(), "font color selection must preserve first task fill");
+		assertEquals(Integer.valueOf(0x00B050), second.getFontBackground(), "font color selection must preserve second task fill");
+		assertEquals(Integer.valueOf(0x228844), untouched.getFontColor(), "font gallery must preserve unselected task data");
+		assertEquals(new Color(0x5B9BD5), renderedTaskNameCell(sheet, first).getForeground(),
+			"the spreadsheet renderer must show the selected font color");
+		click(robot, findVisibleOrOverflowButton(robot, "RibbonTopBarUndo"));
+		GuiAcceptanceSupport.await(() -> Integer.valueOf(0x123456).equals(first.getFontColor())
+			&& Integer.valueOf(0x654321).equals(second.getFontColor()),
+			"one Undo must restore each selected task's original font color");
+		click(robot, findVisibleOrOverflowButton(robot, "RibbonTopBarRedo"));
+		GuiAcceptanceSupport.await(() -> Integer.valueOf(0x5B9BD5).equals(first.getFontColor())
+			&& Integer.valueOf(0x5B9BD5).equals(second.getFontColor()),
+			"one Redo must reapply the selected font color");
+
+		applyPhysicalMoreColors(robot, "RibbonFillColor", 0x123ABC);
+		GuiAcceptanceSupport.await(() -> Integer.valueOf(0x123ABC).equals(first.getFontBackground())
+			&& Integer.valueOf(0x123ABC).equals(second.getFontBackground()),
+			"More Colors chooser selection did not reach the common fill-format command");
+		click(robot, findVisibleOrOverflowButton(robot, "RibbonTopBarUndo"));
+		GuiAcceptanceSupport.await(() -> Integer.valueOf(0x00B050).equals(first.getFontBackground())
+			&& Integer.valueOf(0x00B050).equals(second.getFontBackground()),
+			"Undo after More Colors must restore the preceding gallery fill");
+		click(robot, findVisibleOrOverflowButton(robot, "RibbonTopBarRedo"));
+		GuiAcceptanceSupport.await(() -> Integer.valueOf(0x123ABC).equals(first.getFontBackground())
+			&& Integer.valueOf(0x123ABC).equals(second.getFontBackground()),
+			"Redo after More Colors must restore its custom fill");
+		assertArrayEquals(scheduleBefore, new long[] { first.getStart(), first.getEnd(), second.getStart(), second.getEnd() },
+			"task formatting must preserve scheduled dates");
+
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		MpoFileImporter importer = new MpoFileImporter();
+		assertTrue(importer.saveProject(project, saved), "MPO save rejected the formatted task-color project");
+		Project reloaded = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		Task reloadedFirst = taskWithUniqueId(reloaded, firstId);
+		Task reloadedSecond = taskWithUniqueId(reloaded, secondId);
+		Task reloadedUntouched = taskWithUniqueId(reloaded, untouchedId);
+		assertEquals(Integer.valueOf(0x5B9BD5), reloadedFirst.getFontColor());
+		assertEquals(Integer.valueOf(0x5B9BD5), reloadedSecond.getFontColor());
+		assertEquals(Integer.valueOf(0x123ABC), reloadedFirst.getFontBackground());
+		assertEquals(Integer.valueOf(0x123ABC), reloadedSecond.getFontBackground());
+		assertEquals(Integer.valueOf(0x228844), reloadedUntouched.getFontColor());
+		assertEquals(Integer.valueOf(0xEEEEEE), reloadedUntouched.getFontBackground());
+
+		SwingUtilities.invokeAndWait(() -> {
+			sheet.clearSelection();
+			manager.setButtonState(null, project);
+		});
+		AbstractButton noSelectionButton = findVisibleOrOverflowButton(robot, "RibbonFillColor");
+		assertFalse(noSelectionButton.isEnabled(), "color galleries must disable without a selected task");
+		clickDisabled(robot, noSelectionButton);
+		GuiAcceptanceSupport.await(() -> !galleryPopup(noSelectionButton).isVisible(),
+			"an unselected gallery must not open or mutate the project");
+		assertEquals(Integer.valueOf(0x123ABC), first.getFontBackground(), "no-selection activation must leave formatting unchanged");
+
+		clickUntilSelected(robot, window, sheet, rowForTask(sheet, first), nameColumn(sheet));
+		project.setReadOnly(true);
+		SwingUtilities.invokeAndWait(() -> manager.setButtonState(null, project));
+		AbstractButton readOnlyButton = findVisibleOrOverflowButton(robot, "RibbonFontColor");
+		assertFalse(readOnlyButton.isEnabled(), "color galleries must disable for a read-only project");
+		clickDisabled(robot, readOnlyButton);
+		GuiAcceptanceSupport.await(() -> !galleryPopup(readOnlyButton).isVisible(),
+			"read-only activation must not open the gallery");
+		assertEquals(Integer.valueOf(0x5B9BD5), first.getFontColor(), "read-only activation must leave task formatting unchanged");
+		project.setReadOnly(false);
+	}
+
+	private void applyPhysicalGalleryColor(Robot robot, String commandId, String rgb) throws Exception {
+		AbstractButton command = findVisibleOrOverflowButton(robot, commandId);
+		JPopupMenu popup = galleryPopup(command);
+		click(robot, command);
+		GuiAcceptanceSupport.await(popup::isShowing, commandId + " color gallery did not open");
+		assertGalleryWithinVisibleDisplay(popup, commandId);
+		JToggleButton swatch = UiComponentWalker.flatten(popup).stream()
+			.filter(JToggleButton.class::isInstance).map(JToggleButton.class::cast)
+			.filter(button -> rgb.equals(button.getActionCommand())).findFirst()
+			.orElseThrow(() -> new AssertionError(commandId + " is missing palette color " + rgb));
+		click(robot, swatch);
+		GuiAcceptanceSupport.await(() -> !popup.isShowing(), commandId + " gallery did not close after selection");
+	}
+
+	private void verifyColorGalleryKeyboardAndAccessibility(Robot robot, String commandId) throws Exception {
+		AbstractButton command = findVisibleOrOverflowButton(robot, commandId);
+		JPopupMenu popup = galleryPopup(command);
+		assertTrue(command instanceof JMenu, commandId + " must expose a keyboard-operable submenu host");
+		openGalleryWithKeyboard(robot, (JMenu) command, popup, commandId);
+		assertGalleryWithinVisibleDisplay(popup, commandId);
+		JToggleButton firstSwatch = UiComponentWalker.flatten(popup).stream()
+			.filter(JToggleButton.class::isInstance).map(JToggleButton.class::cast)
+			.filter(button -> "#00B050".equals(button.getActionCommand())).findFirst()
+			.orElseThrow(() -> new AssertionError(commandId + " gallery has no keyboard-selectable green swatch"));
+		assertTrue(firstSwatch.isFocusable(), "gallery swatches must be keyboard focusable");
+		assertTrue(firstSwatch.getAccessibleContext().getAccessibleName() != null
+			&& !firstSwatch.getAccessibleContext().getAccessibleName().isBlank(),
+			"gallery swatches must expose their color name and value");
+		JButton moreColors = UiComponentWalker.flatten(popup).stream().filter(JButton.class::isInstance)
+			.map(JButton.class::cast).filter(button -> "__more_colors__".equals(button.getActionCommand()))
+			.findFirst().orElseThrow(() -> new AssertionError(commandId + " gallery has no More Colors action"));
+		assertTrue(moreColors.isFocusable(), "gallery actions must be keyboard focusable");
+		assertTrue(moreColors.getAccessibleContext().getAccessibleName() != null
+			&& !moreColors.getAccessibleContext().getAccessibleName().isBlank(),
+			"gallery actions must expose an accessible name");
+		assertTrue(requestFocus(firstSwatch), commandId + " gallery swatch did not accept keyboard focus");
+		GuiAcceptanceSupport.await(() -> KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner() == firstSwatch,
+			commandId + " gallery did not deliver actual focus to the keyboard swatch");
+		press(robot, KeyEvent.VK_SPACE);
+		GuiAcceptanceSupport.await(() -> Integer.valueOf(0x00B050).equals(
+			manager.getCurrentFrame().getSelectedImpls(false).stream().filter(Task.class::isInstance)
+				.map(Task.class::cast).findFirst().map(Task::getFontBackground).orElse(null)),
+			commandId + " gallery Space did not select the focused swatch");
+		assertTrue(!popup.isShowing(), commandId + " keyboard color selection must close the gallery");
+		click(robot, findVisibleOrOverflowButton(robot, "RibbonTopBarUndo"));
+		GuiAcceptanceSupport.await(() -> Integer.valueOf(0xF0F0F0).equals(
+			((Task) manager.getCurrentFrame().getSelectedImpls(false).getFirst()).getFontBackground()),
+			commandId + " keyboard-selected color was not undoable");
+
+		command = findVisibleOrOverflowButton(robot, commandId);
+		popup = galleryPopup(command);
+		assertTrue(command instanceof JMenu, commandId + " must expose More Colors to keyboard navigation");
+		openGalleryWithKeyboard(robot, (JMenu) command, popup, commandId + " More Colors");
+		JButton keyboardMoreColors = UiComponentWalker.flatten(popup).stream().filter(JButton.class::isInstance)
+			.map(JButton.class::cast).filter(button -> "__more_colors__".equals(button.getActionCommand()))
+			.findFirst().orElseThrow(() -> new AssertionError(commandId + " gallery has no keyboard More Colors action"));
+		assertTrue(requestFocus(keyboardMoreColors), "More Colors row did not accept keyboard focus");
+		GuiAcceptanceSupport.await(() -> KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner() == keyboardMoreColors,
+			"More Colors row did not receive keyboard focus before Enter");
+		press(robot, KeyEvent.VK_ENTER);
+		GuiAcceptanceSupport.await(() -> findColorChooserDialog() != null,
+			"keyboard Enter on More Colors did not open the color chooser");
+		Dialog chooserDialog = findColorChooserDialog();
+		JColorChooser chooser = UiComponentWalker.flatten(chooserDialog).stream()
+			.filter(JColorChooser.class::isInstance).map(JColorChooser.class::cast).findFirst()
+			.orElseThrow(() -> new AssertionError("keyboard More Colors dialog has no color chooser"));
+		SwingUtilities.invokeAndWait(() -> chooser.setColor(new Color(0x123ABC)));
+		String okText = javax.swing.UIManager.getString("ColorChooser.okText");
+		AbstractButton ok = UiComponentWalker.flatten(chooserDialog).stream().filter(AbstractButton.class::isInstance)
+			.map(AbstractButton.class::cast)
+			.filter(button -> okText == null ? "OK".equalsIgnoreCase(button.getText()) : okText.equals(button.getText()))
+			.findFirst().orElseThrow(() -> new AssertionError("keyboard More Colors dialog has no OK button"));
+		click(robot, ok);
+		GuiAcceptanceSupport.await(() -> Integer.valueOf(0x123ABC).equals(
+			((Task) manager.getCurrentFrame().getSelectedImpls(false).getFirst()).getFontBackground()),
+			"keyboard More Colors confirmation did not apply its color");
+		click(robot, findVisibleOrOverflowButton(robot, "RibbonTopBarUndo"));
+		GuiAcceptanceSupport.await(() -> Integer.valueOf(0xF0F0F0).equals(
+			((Task) manager.getCurrentFrame().getSelectedImpls(false).getFirst()).getFontBackground()),
+			"keyboard More Colors change was not undoable");
+
+		command = findVisibleOrOverflowButton(robot, commandId);
+		popup = galleryPopup(command);
+		assertTrue(command instanceof JMenu, commandId + " must expose Escape dismissal from the keyboard");
+		boolean originallyFocusable = command.isFocusable();
+		openGalleryWithKeyboard(robot, (JMenu) command, popup, commandId + " Escape");
+		JPopupMenu escapePopup = popup;
+		JPopupMenu ribbonOverflow = (JPopupMenu) command.getParent();
+		assertTrue(ribbonOverflow.isShowing(), commandId + " Escape test requires the outer ribbon overflow popup to be visible");
+		JToggleButton focusSwatch = UiComponentWalker.flatten(escapePopup).stream()
+			.filter(JToggleButton.class::isInstance).map(JToggleButton.class::cast).findFirst()
+			.orElseThrow(() -> new AssertionError(commandId + " Escape gallery has no focus target"));
+		assertTrue(requestFocus(focusSwatch), commandId + " Escape gallery could not focus a swatch");
+		press(robot, KeyEvent.VK_TAB);
+		GuiAcceptanceSupport.await(() -> {
+			Component focus = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+			return focus != null && SwingUtilities.isDescendingFrom(focus, escapePopup);
+			}, commandId + " gallery Tab navigation did not move focus within the popup");
+		ConcurrentLinkedQueue<String> escapeDispatch = new ConcurrentLinkedQueue<>();
+		java.awt.KeyEventDispatcher escapeProbe = event -> {
+			if (event.getKeyCode() == KeyEvent.VK_ESCAPE) {
+				escapeDispatch.add("id=" + event.getID() + ", source=" + event.getSource().getClass().getName()
+					+ ", focus=" + KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner()
+					+ ", selected=" + java.util.Arrays.stream(MenuSelectionManager.defaultManager().getSelectedPath())
+						.map(element -> element.getComponent().getClass().getSimpleName()).toList());
+			}
+			return false;
+		};
+		KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(escapeProbe);
+		try {
+			robot.keyPress(KeyEvent.VK_ESCAPE);
+			robot.keyRelease(KeyEvent.VK_ESCAPE);
+			robot.waitForIdle();
+			GuiAcceptanceSupport.await(() -> !escapePopup.isShowing(), commandId + " gallery Escape did not dismiss the popup");
+			GuiAcceptanceSupport.await(() -> {
+				KeyboardFocusManager focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+				return focusManager.getActiveWindow() == window;
+			}, commandId + " gallery dismissal did not restore keyboard focus to its ribbon menu item");
+		System.out.println("[COLOR_GALLERY_ESCAPE_TRACE] afterGalleryEscape focusOwner="
+			+ KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner()
+			+ ", selectedPath=" + java.util.Arrays.stream(MenuSelectionManager.defaultManager().getSelectedPath())
+				.map(element -> element.getComponent().getClass().getSimpleName()).toList());
+			assertTrue(ribbonOverflow.isShowing(), commandId + " first Escape should dismiss only the nested gallery; the outer ribbon popup must remain visible");
+			press(robot, KeyEvent.VK_ESCAPE);
+			GuiAcceptanceSupport.await(() -> !ribbonOverflow.isShowing(), commandId + " second Escape did not dismiss the visible outer ribbon overflow popup; dispatch=" + escapeDispatch);
+		System.out.println("[COLOR_GALLERY_ESCAPE_TRACE] outerDismissed=true, keyDispatch=" + escapeDispatch);
+			assertTrue(escapeDispatch.stream().anyMatch(event -> event.contains("id=" + KeyEvent.KEY_PRESSED)
+				&& event.contains("source=com.microproject.ui.ribbon.RibbonControlPopups$ExistingPopupMenu")),
+				commandId + " second Escape did not dispatch to the focused ribbon menu item: " + escapeDispatch);
+		} finally {
+			KeyboardFocusManager.getCurrentKeyboardFocusManager().removeKeyEventDispatcher(escapeProbe);
+		}
+		GuiAcceptanceSupport.await(() -> {
+			KeyboardFocusManager focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+			return focusManager.getFocusedWindow() == window && focusManager.getActiveWindow() == window;
+			}, commandId + " outer ribbon popup dismissal did not return focus to its window");
+		String outerEscapeAction = "microproject.dismissRibbonOverflow." + escapePopup.getName();
+		assertEquals(originallyFocusable, command.isFocusable(),
+			commandId + " outer popup dismissal must restore the menu item's original focusability");
+		assertNotEquals(outerEscapeAction, command.getInputMap(JComponent.WHEN_FOCUSED)
+			.get(javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0)),
+			commandId + " outer popup dismissal must restore the menu item's original Escape binding");
+	}
+
+	@Test
+	void taskColorGalleryEscapeFromDirectRibbonButton() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for direct color-gallery Escape acceptance.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("task-color-gallery-direct-escape", undo), undo);
+		project.initialize(false, false);
+		NormalTask task = project.createScriptedTask();
+		task.setName("Direct color gallery target");
+		project.recalculate();
+		undo.clear();
+		showProject(project);
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+			&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"direct color-gallery project did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		clickUntilSelected(robot, window, sheet, rowForTask(sheet, task), nameColumn(sheet));
+		SwingUtilities.invokeAndWait(() -> window.setExtendedState(JFrame.MAXIMIZED_BOTH));
+		robot.waitForIdle();
+		AbstractButton directCommand = findVisibleOrOverflowButton(robot, "RibbonFillColor");
+		Assumptions.assumeFalse(directCommand instanceof JMenu,
+			"Display bounds " + Toolkit.getDefaultToolkit().getScreenSize()
+				+ "; Direct ribbon color gallery requires full-width desktop; overflow coverage is provided by "
+				+ "taskColorGalleriesApplySelectedTasksWithUndoRedoAndMpoReload");
+		JPopupMenu popup = galleryPopup(directCommand);
+		click(robot, directCommand);
+		GuiAcceptanceSupport.await(popup::isShowing, "direct ribbon color command did not open the gallery");
+		JToggleButton swatch = UiComponentWalker.flatten(popup).stream().filter(JToggleButton.class::isInstance)
+			.map(JToggleButton.class::cast).findFirst()
+			.orElseThrow(() -> new AssertionError("direct color gallery has no keyboard focus target"));
+		assertTrue(requestFocus(swatch), "direct gallery swatch did not accept keyboard focus");
+		GuiAcceptanceSupport.await(() -> KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner() == swatch,
+			"direct gallery did not deliver keyboard focus to its swatch");
+		press(robot, KeyEvent.VK_ESCAPE);
+		GuiAcceptanceSupport.await(() -> !popup.isShowing(), "direct gallery Escape did not dismiss its popup");
+		GuiAcceptanceSupport.await(() -> KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusedWindow() == window,
+			"direct gallery Escape did not restore focus to the ribbon window");
+	}
+
+	private void openGalleryWithKeyboard(Robot robot, JMenu command, JPopupMenu popup, String diagnosticName)
+		throws Exception {
+		assertTrue(command.getParent() instanceof JPopupMenu,
+			diagnosticName + " keyboard host is not inside the parent popup");
+		JPopupMenu parent = (JPopupMenu) command.getParent();
+		GuiAcceptanceSupport.await(parent::isShowing, diagnosticName + " parent popup is not visible");
+		press(robot, KeyEvent.VK_HOME);
+		robot.waitForIdle();
+		int limit = parent.getComponentCount() + 2;
+		for (int attempt = 0; attempt < limit && !isMenuPathSelected(command); attempt++) {
+			press(robot, KeyEvent.VK_DOWN);
+			robot.waitForIdle();
+		}
+		assertTrue(isMenuPathSelected(command), diagnosticName + " keyboard navigation did not select the color menu");
+		press(robot, KeyEvent.VK_RIGHT);
+		GuiAcceptanceSupport.await(popup::isShowing, diagnosticName + " color gallery did not open with the keyboard");
+	}
+
+	private static boolean isMenuPathSelected(JMenu command) {
+		for (MenuElement element : MenuSelectionManager.defaultManager().getSelectedPath()) {
+			if (element.getComponent() == command) return true;
+		}
+		return false;
+	}
+
+	private static boolean requestFocus(Component component) throws Exception {
+		boolean[] focused = new boolean[1];
+		SwingUtilities.invokeAndWait(() -> focused[0] = component.requestFocusInWindow());
+		return focused[0];
+	}
+
+	private static void assertGalleryWithinVisibleDisplay(JPopupMenu popup, String commandId) throws Exception {
+		Rectangle[] popupBounds = new Rectangle[1];
+		Rectangle[] displayBounds = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Point origin = popup.getLocationOnScreen();
+			popupBounds[0] = new Rectangle(origin.x, origin.y, popup.getWidth(), popup.getHeight());
+			GraphicsConfiguration configuration = popup.getGraphicsConfiguration();
+			displayBounds[0] = configuration == null ? null : configuration.getBounds();
+		});
+		assertNotNull(displayBounds[0], commandId + " gallery has no display configuration");
+		assertTrue(displayBounds[0].contains(popupBounds[0]),
+			commandId + " gallery popup must stay within visible display bounds: " + popupBounds[0]);
+	}
+
+	private void applyPhysicalMoreColors(Robot robot, String commandId, int rgb) throws Exception {
+		AbstractButton command = findVisibleOrOverflowButton(robot, commandId);
+		JPopupMenu popup = galleryPopup(command);
+		click(robot, command);
+		GuiAcceptanceSupport.await(popup::isShowing, commandId + " gallery did not open before More Colors");
+		JButton moreColors = UiComponentWalker.flatten(popup).stream()
+			.filter(JButton.class::isInstance).map(JButton.class::cast)
+			.filter(item -> "__more_colors__".equals(item.getActionCommand())).findFirst()
+			.orElseThrow(() -> new AssertionError(commandId + " gallery is missing More Colors"));
+		click(robot, moreColors);
+		Dialog chooserDialog = null;
+		try {
+			GuiAcceptanceSupport.await(() -> findColorChooserDialog() != null,
+				"More Colors did not open the color chooser dialog");
+			chooserDialog = findColorChooserDialog();
+			JColorChooser chooser = UiComponentWalker.flatten(chooserDialog).stream()
+				.filter(JColorChooser.class::isInstance).map(JColorChooser.class::cast).findFirst()
+				.orElseThrow(() -> new AssertionError("More Colors dialog has no color chooser"));
+			SwingUtilities.invokeAndWait(() -> chooser.setColor(new Color(rgb)));
+			String okText = javax.swing.UIManager.getString("ColorChooser.okText");
+			AbstractButton ok = UiComponentWalker.flatten(chooserDialog).stream()
+				.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+				.filter(button -> okText == null ? "OK".equalsIgnoreCase(button.getText()) : okText.equals(button.getText()))
+				.findFirst().orElseThrow(() -> new AssertionError("More Colors dialog has no visible OK button"));
+			click(robot, ok);
+			Dialog confirmedDialog = chooserDialog;
+			GuiAcceptanceSupport.await(() -> !confirmedDialog.isShowing(), "More Colors dialog did not close after confirmation");
+		} finally {
+			if (chooserDialog != null && chooserDialog.isShowing()) {
+				Dialog opened = chooserDialog;
+				SwingUtilities.invokeAndWait(opened::dispose);
+			}
+		}
+	}
+
+	private static Dialog findColorChooserDialog() {
+		for (Window candidate : Window.getWindows()) {
+			if (candidate instanceof Dialog dialog && dialog.isShowing()
+				&& UiComponentWalker.flatten(dialog).stream().anyMatch(JColorChooser.class::isInstance))
+				return dialog;
+		}
+		return null;
+	}
+
+	private static JPopupMenu galleryPopup(AbstractButton button) {
+		return (JPopupMenu) button.getClientProperty("MicroProject.ribbon.controlMenu");
+	}
+
+	private static Task taskWithUniqueId(Project project, long uniqueId) {
+		return project.getTasks().stream().filter(task -> task.getUniqueId() == uniqueId).findFirst()
+			.orElseThrow(() -> new AssertionError("MPO reload is missing task UID " + uniqueId));
+	}
+
+	// Microsoft documents one-shot formatting, double-click to continue, and Escape to stop; the exact
 	@Test
 	void physicalReportPrintPreviewShowsEveryPageThroughTheSharedGraphPageableRoute() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot report preview coverage.");

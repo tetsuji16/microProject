@@ -48,19 +48,57 @@ class GanttInteractorDragTest {
 	}
 
 	@Test
-	void splitPointActionIsMeaningfulWithoutPointerMovement() {
-		assertTrue(GanttInteractor.hasMeaningfulAction(false, true, 120.0d, 120.0d));
-		assertFalse(GanttInteractor.hasMeaningfulAction(false, false, 120.0d, 120.0d));
+	void splitActionRequiresDraggingToAResumeDate() {
+		assertFalse(GanttInteractor.hasMeaningfulAction(false, 120.0d, 120.0d),
+			"a click without a resume-date drag must not create a guessed one-day gap");
+	}
+
+	@Test
+	void splitModeUsesDragLifecycleInsteadOfDirectClickAction() {
+		onEdt(() -> {
+			DataFactoryUndoController undoController = new DataFactoryUndoController();
+			Project project = Project.createProject(
+				ResourcePool.createRourcePool("split-drag-lifecycle-test", undoController), undoController);
+			TestGantt gantt = new TestGantt(project);
+			try {
+				GanttInteractor interactor = gantt.installTestUI(new GraphicDependency(null, null, null),
+					new AtomicInteger()).testInteractor;
+				assertTrue(interactor.setSplitMode());
+				assertTrue(interactor.isMove(), "Split mode must retain the press point for the drag origin");
+				assertFalse(interactor.isDirectAction(), "Split mode must wait for release after a drag to the resume date");
+			} finally {
+				gantt.cleanUp();
+			}
+		});
+	}
+
+	@Test
+	void splitModeCannotStartForReadOnlyProject() {
+		onEdt(() -> {
+			DataFactoryUndoController undoController = new DataFactoryUndoController();
+			Project project = Project.createProject(
+				ResourcePool.createRourcePool("readonly-split-mode-test", undoController), undoController);
+			project.setReadOnly(true);
+			TestGantt gantt = new TestGantt(project);
+			try {
+				GanttInteractor interactor = gantt.installTestUI(new GraphicDependency(null, null, null),
+					new AtomicInteger()).testInteractor;
+				assertFalse(interactor.canStartSplitMode());
+				assertFalse(interactor.setSplitMode(), "read-only project must reject split mode entry");
+			} finally {
+				gantt.cleanUp();
+			}
+		});
 	}
 
 	@Test
 	void subThresholdPointerMovementIsAClickAndNeverAnEdit() {
 		int threshold = GanttInteractor.dragThresholdPixels();
 		assertTrue(threshold > 0);
-		assertFalse(GanttInteractor.hasMeaningfulAction(false, false, 120.0d, 120.0d + threshold - 1));
-		assertFalse(GanttInteractor.hasMeaningfulAction(false, false, 120.0d, 120.0d - (threshold - 1)));
-		assertTrue(GanttInteractor.hasMeaningfulAction(false, false, 120.0d, 120.0d + threshold));
-		assertTrue(GanttInteractor.hasMeaningfulAction(false, false, 120.0d, 120.0d - threshold));
+		assertFalse(GanttInteractor.hasMeaningfulAction(false, 120.0d, 120.0d + threshold - 1));
+		assertFalse(GanttInteractor.hasMeaningfulAction(false, 120.0d, 120.0d - (threshold - 1)));
+		assertTrue(GanttInteractor.hasMeaningfulAction(false, 120.0d, 120.0d + threshold));
+		assertTrue(GanttInteractor.hasMeaningfulAction(false, 120.0d, 120.0d - threshold));
 	}
 
 	@Test
@@ -174,8 +212,13 @@ class GanttInteractorDragTest {
 			this.dependency = dependency;
 			testInteractor = new GanttInteractor(this) {
 				@Override
+				public java.awt.Cursor selectCursor() {
+					return null;
+				}
+
+				@Override
 				public boolean isReadOnly() {
-					return false;
+					return super.isReadOnly();
 				}
 
 				@Override
