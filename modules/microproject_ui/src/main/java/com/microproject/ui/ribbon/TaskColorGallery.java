@@ -16,19 +16,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.UnaryOperator;
 
-import javax.swing.Action;
-import javax.swing.ButtonGroup;
 import javax.swing.AbstractAction;
+import javax.swing.Action;
+import javax.swing.ActionMap;
+import javax.swing.ButtonGroup;
 import javax.swing.JButton;
-import javax.swing.JComponent;
 import javax.swing.Icon;
 import javax.swing.InputMap;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JComponent;
 import javax.swing.JPopupMenu;
 import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
-import javax.swing.ActionMap;
 import javax.swing.MenuElement;
 import javax.swing.MenuSelectionManager;
 import javax.swing.SwingUtilities;
@@ -166,28 +166,35 @@ final class TaskColorGallery {
 					java.awt.Window window = SwingUtilities.getWindowAncestor(invoker);
 					while (window != null && window.getOwner() != null) window = window.getOwner();
 					if (window != null) window.requestFocus();
-					invoker.setFocusable(true);
-					invoker.requestFocus();
-					if (parentMenuPath.length > 0) {
+					if (parentMenuPath.length > 0 && parentMenuPath[0].getComponent() instanceof JPopupMenu outerPopup
+						&& invoker instanceof JComponent focusTarget) {
+						boolean previouslyFocusable = invoker.isFocusable();
+						invoker.setFocusable(true);
+						invoker.requestFocus();
 						MenuSelectionManager.defaultManager().setSelectedPath(parentMenuPath);
-						if (parentMenuPath[0].getComponent() instanceof JPopupMenu outerPopup
-							&& invoker instanceof JComponent focusTarget) {
-							installOuterPopupEscape(focusTarget, outerPopup, popup);
-						}
+						installOuterPopupEscape(focusTarget, outerPopup, popup, previouslyFocusable);
+					} else if (parentMenuPath.length > 0) {
+						MenuSelectionManager.defaultManager().setSelectedPath(parentMenuPath);
+						if (invoker.isFocusable()) invoker.requestFocus();
+					} else if (invoker.isFocusable()) {
+						invoker.requestFocus();
 					}
 				}
 			});
 		}
 	}
 
-	private static void installOuterPopupEscape(JComponent focusTarget, JPopupMenu outerPopup, JPopupMenu gallery) {
+	private static void installOuterPopupEscape(JComponent focusTarget, JPopupMenu outerPopup, JPopupMenu gallery,
+		boolean previouslyFocusable) {
 		if (focusTarget.getClientProperty(OUTER_ESCAPE_POPUP_PROPERTY) == outerPopup) return;
 		KeyStroke escape = KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0);
 		InputMap inputMap = focusTarget.getInputMap(JComponent.WHEN_FOCUSED);
 		ActionMap actionMap = focusTarget.getActionMap();
-		Object previousBinding = inputMap.get(escape);
+		boolean hadLocalBinding = hasLocalKey(inputMap, escape);
+		Object previousBinding = hadLocalBinding ? inputMap.get(escape) : null;
 		String actionKey = "microproject.dismissRibbonOverflow." + gallery.getName();
-		Action previousAction = actionMap.get(actionKey);
+		boolean hadLocalAction = hasLocalKey(actionMap, actionKey);
+		Action previousAction = hadLocalAction ? actionMap.get(actionKey) : null;
 		focusTarget.putClientProperty(OUTER_ESCAPE_POPUP_PROPERTY, outerPopup);
 		inputMap.put(escape, actionKey);
 		actionMap.put(actionKey, new AbstractAction() {
@@ -203,9 +210,10 @@ final class TaskColorGallery {
 				if (focusTarget.getClientProperty(OUTER_ESCAPE_POPUP_PROPERTY) == outerPopup) {
 					focusTarget.putClientProperty(OUTER_ESCAPE_POPUP_PROPERTY, null);
 				}
-				if (previousBinding == null) inputMap.remove(escape);
+				if (!previouslyFocusable) focusTarget.setFocusable(false);
+				if (!hadLocalBinding) inputMap.remove(escape);
 				else inputMap.put(escape, previousBinding);
-				if (previousAction == null) actionMap.remove(actionKey);
+				if (!hadLocalAction) actionMap.remove(actionKey);
 				else actionMap.put(actionKey, previousAction);
 				outerPopup.removePopupMenuListener(this);
 			}
@@ -213,6 +221,16 @@ final class TaskColorGallery {
 			@Override public void popupMenuWillBecomeInvisible(PopupMenuEvent event) { restore(); }
 			@Override public void popupMenuCanceled(PopupMenuEvent event) { restore(); }
 		});
+	}
+
+	private static boolean hasLocalKey(InputMap inputMap, KeyStroke key) {
+		KeyStroke[] keys = inputMap.keys();
+		return keys != null && java.util.Arrays.asList(keys).contains(key);
+	}
+
+	private static boolean hasLocalKey(ActionMap actionMap, Object key) {
+		Object[] keys = actionMap.keys();
+		return keys != null && java.util.Arrays.asList(keys).contains(key);
 	}
 
 	private static JLabel sectionTitle(String title) {

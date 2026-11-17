@@ -596,10 +596,15 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				KeyboardFocusManager focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
 				return focusManager.getActiveWindow() == window;
 			}, commandId + " gallery dismissal did not restore keyboard focus to its ribbon menu item");
+		System.out.println("[COLOR_GALLERY_ESCAPE_TRACE] afterGalleryEscape focusOwner="
+			+ KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner()
+			+ ", selectedPath=" + java.util.Arrays.stream(MenuSelectionManager.defaultManager().getSelectedPath())
+				.map(element -> element.getComponent().getClass().getSimpleName()).toList());
 			assertTrue(ribbonOverflow.isShowing(), commandId + " first Escape should dismiss only the nested gallery; the outer ribbon popup must remain visible");
 			press(robot, KeyEvent.VK_ESCAPE);
 			GuiAcceptanceSupport.await(() -> !ribbonOverflow.isShowing(), commandId + " second Escape did not dismiss the visible outer ribbon overflow popup; dispatch=" + escapeDispatch);
-			assertTrue(escapeDispatch.stream().anyMatch(event -> event.contains("id=401")
+		System.out.println("[COLOR_GALLERY_ESCAPE_TRACE] outerDismissed=true, keyDispatch=" + escapeDispatch);
+			assertTrue(escapeDispatch.stream().anyMatch(event -> event.contains("id=" + KeyEvent.KEY_PRESSED)
 				&& event.contains("source=com.microproject.ui.ribbon.RibbonControlPopups$ExistingPopupMenu")),
 				commandId + " second Escape did not dispatch to the focused ribbon menu item: " + escapeDispatch);
 		} finally {
@@ -613,23 +618,50 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertNotEquals(outerEscapeAction, command.getInputMap(JComponent.WHEN_FOCUSED)
 			.get(javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0)),
 			commandId + " outer popup dismissal must restore the menu item's original Escape binding");
+	}
+
+	@Test
+	void taskColorGalleryEscapeFromDirectRibbonButton() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for direct color-gallery Escape acceptance.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("task-color-gallery-direct-escape", undo), undo);
+		project.initialize(false, false);
+		NormalTask task = project.createScriptedTask();
+		task.setName("Direct color gallery target");
+		project.recalculate();
+		undo.clear();
+		showProject(project);
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() != null
+			&& manager.getCurrentFrame().getActiveSpreadSheet() != null,
+			"direct color-gallery project did not become visible");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
+		clickUntilSelected(robot, window, sheet, rowForTask(sheet, task), nameColumn(sheet));
 		SwingUtilities.invokeAndWait(() -> window.setExtendedState(JFrame.MAXIMIZED_BOTH));
 		robot.waitForIdle();
-		AbstractButton directCommand = findVisibleOrOverflowButton(robot, commandId);
-		assertFalse(directCommand instanceof JMenu, commandId + " maximized ribbon should expose a direct non-overflow command for Escape coverage");
-		JPopupMenu directPopup = galleryPopup(directCommand);
+		AbstractButton directCommand = findVisibleOrOverflowButton(robot, "RibbonFillColor");
+		Assumptions.assumeFalse(directCommand instanceof JMenu,
+			"Direct ribbon button unavailable at display bounds " + Toolkit.getDefaultToolkit().getScreenSize()
+				+ "; collapsed overflow is covered by taskColorGalleriesApplySelectedTasksWithUndoRedoAndMpoReload");
+		JPopupMenu popup = galleryPopup(directCommand);
 		click(robot, directCommand);
-		GuiAcceptanceSupport.await(directPopup::isShowing, commandId + " direct ribbon command did not open its gallery");
-		Component directSwatch = UiComponentWalker.flatten(directPopup).stream().filter(JToggleButton.class::isInstance)
+		GuiAcceptanceSupport.await(popup::isShowing, "direct ribbon color command did not open the gallery");
+		JToggleButton swatch = UiComponentWalker.flatten(popup).stream().filter(JToggleButton.class::isInstance)
 			.map(JToggleButton.class::cast).findFirst()
-			.orElseThrow(() -> new AssertionError(commandId + " direct gallery has no keyboard focus target"));
-		assertTrue(requestFocus(directSwatch), commandId + " direct gallery swatch did not accept keyboard focus");
-		GuiAcceptanceSupport.await(() -> KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner() == directSwatch,
-			commandId + " direct gallery did not deliver keyboard focus to its swatch");
+			.orElseThrow(() -> new AssertionError("direct color gallery has no keyboard focus target"));
+		assertTrue(requestFocus(swatch), "direct gallery swatch did not accept keyboard focus");
+		GuiAcceptanceSupport.await(() -> KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner() == swatch,
+			"direct gallery did not deliver keyboard focus to its swatch");
 		press(robot, KeyEvent.VK_ESCAPE);
-		GuiAcceptanceSupport.await(() -> !directPopup.isShowing(), commandId + " direct gallery Escape did not dismiss its popup");
+		GuiAcceptanceSupport.await(() -> !popup.isShowing(), "direct gallery Escape did not dismiss its popup");
 		GuiAcceptanceSupport.await(() -> KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusedWindow() == window,
-			commandId + " direct gallery Escape did not restore focus to the ribbon window");
+			"direct gallery Escape did not restore focus to the ribbon window");
 	}
 
 	private void openGalleryWithKeyboard(Robot robot, JMenu command, JPopupMenu popup, String diagnosticName)
