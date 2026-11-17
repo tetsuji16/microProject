@@ -124,7 +124,9 @@ final class TaskColorGallery {
 		content.add(javax.swing.Box.createVerticalStrut(5));
 		JButton automatic = actionRow(popup, "automatic", text.apply("RibbonColorGallery.Automatic.text"));
 		automatic.setName(popup.getName() + ".automatic");
-		automatic.setActionCommand(AUTOMATIC_VALUE);
+		// Address the row by its owning gallery command so it is a routable,
+		// actionable popup item; the value it commits is still explicit below.
+		automatic.setActionCommand(specification.getId());
 		automatic.addActionListener(event -> {
 			popup.putClientProperty(RibbonControlPopups.GALLERY_SELECTION_PROPERTY, AUTOMATIC_VALUE);
 			popup.setVisible(false);
@@ -133,7 +135,9 @@ final class TaskColorGallery {
 		content.add(automatic);
 		JButton moreColors = actionRow(popup, "more-colors", text.apply("RibbonColorGallery.MoreColors.text"));
 		moreColors.setName(popup.getName() + ".more-colors");
-		moreColors.setActionCommand(MORE_COLORS_VALUE);
+		// Same command-addressable routing as Automatic; the chooser value is
+		// still committed explicitly by the listener below.
+		moreColors.setActionCommand(specification.getId());
 		moreColors.addActionListener(event -> {
 			popup.setVisible(false);
 			commit(commandSource, specification.getId(), moreColors, MORE_COLORS_VALUE);

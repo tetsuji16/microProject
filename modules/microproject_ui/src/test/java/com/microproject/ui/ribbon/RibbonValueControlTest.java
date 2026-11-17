@@ -164,6 +164,46 @@ class RibbonValueControlTest {
 	}
 
 	@Test
+	void colorGalleryExposesItsCommandRowsAsActionablePopupItems() throws Exception {
+		java.util.concurrent.atomic.AtomicInteger dispatches = new java.util.concurrent.atomic.AtomicInteger();
+		Action command = new AbstractAction("BackgroundColor") {
+			@Override public void actionPerformed(ActionEvent event) { dispatches.incrementAndGet(); }
+		};
+		com.microproject.menu.ProjectMenuActionMap actions = new com.microproject.menu.ProjectMenuActionMap() {
+			@Override public Action getAction(String key) { return command; }
+			@Override public String getStringFromAction(Action action) { return "BackgroundColor"; }
+		};
+		com.microproject.menu.ExtToolBarFactory factory = new com.microproject.menu.ExtToolBarFactory(actions,
+			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonBundles(java.util.Locale.ROOT));
+		RibbonCommandSource actual = new com.microproject.menu.MenuRibbonCommandSource(factory);
+		java.util.ResourceBundle english = java.util.ResourceBundle.getBundle(
+			"com.microproject.menu.menu", java.util.Locale.ROOT);
+		SwingUtilities.invokeAndWait(() -> {
+			String commandId = "RibbonFillColor";
+			JButton owner = new JButton(actual.createAction(commandId));
+			var specification = new SwingRibbonModel.RibbonButton(commandId,
+				SwingRibbonModel.ButtonPriority.MEDIUM).withControl(RibbonControlKind.GALLERY, List.of(), null);
+			RibbonControlPopups.install(owner, specification, actual, english::getString);
+			JPopupMenu popup = assertInstanceOf(JPopupMenu.class,
+				owner.getClientProperty(RibbonControlPopups.POPUP_PROPERTY));
+			List<String> actionable = com.microproject.menu.testsupport.UiComponentWalker.flatten(popup).stream()
+				.filter(javax.swing.AbstractButton.class::isInstance)
+				.map(javax.swing.AbstractButton.class::cast)
+				.map(javax.swing.AbstractButton::getActionCommand)
+				.filter(id -> id != null && factory.getActionStringFromId(id) != null)
+				.distinct().toList();
+			assertEquals(List.of(commandId), actionable,
+				"the gallery must expose command-addressable items so its popup is not inert");
+			com.microproject.menu.testsupport.UiComponentWalker.flatten(popup).stream()
+				.filter(javax.swing.AbstractButton.class::isInstance)
+				.map(javax.swing.AbstractButton.class::cast)
+				.filter(button -> commandId.equals(button.getActionCommand()))
+				.findFirst().orElseThrow().doClick(0);
+		});
+		assertEquals(1, dispatches.get(), "clicking a gallery command row must dispatch the mapped action");
+	}
+
+	@Test
 	void buttonKindsAreNotInputControls() {
 		assertThrows(IllegalArgumentException.class, () ->
 			RibbonControlPopups.createInputControl(spec(RibbonControlKind.BUTTON), source(), key -> null));
