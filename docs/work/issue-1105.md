@@ -1,0 +1,18 @@
+# Issue 1105: GUI review follow-up
+
+Reviewed against latest master base `d27a2f6a619b14f0362619106ad5d016f2a8c63a`; the tooltip acceptance change is PR [#1195](https://github.com/tetsuji16/microProject/pull/1195). Original scope includes duration pin undo, first assigned Gantt bar movement, Gantt/theme GUI suite, dark-theme critical-chain buffer visual check, physical IME input, drag-time tooltip, dark ribbon, Japanese bundle parity, and large-project scheduler profiling.
+
+| Criterion | State and evidence |
+|---|---|
+| Duration pin undo and first-bar movement | Implemented by [#1177](https://github.com/tetsuji16/microProject/pull/1177). |
+| Japanese bundle parity | Implemented by [#1139](https://github.com/tetsuji16/microProject/pull/1139); focused test passed at baseline. |
+| Scheduler profile | [Profile](../performance/scheduler-large-project-profile.md); remaining bottleneck tracked by #1178. |
+| Gantt/theme GUI acceptance | Hosted GUI run [43999020531](https://github.com/tetsuji16/microProject/actions/runs/43999020531) completed successfully at `a1add999f289676c5f50148a240ea7445694eb3d`. The later master change #1190 touched Team Planner selection only, outside this Gantt/theme scope. |
+| Dark-theme critical-chain buffer bands | Visually reviewed on Windows 11 at 100%, JDK 25.0.4.101, in a current `installDist` build using an unsaved temporary project and isolated `user.home`. Applied dark theme, opened CCPM, applied CCPM, and inspected Buffer Consumption: green/amber/muted-red bands and the legend were distinguishable against the dark surface. |
+| Dark-theme ribbon | Visually reviewed after live theme switching in the same temporary session; Task and Reports ribbons remained legible. |
+| Physical IME input | Passed the IME reconversion GUI route. A diagnostic run of `CanonicalProjectWindowGuiAcceptanceTest.robotConvertReconvertsOrReportsUnsupportedImeOnBothSpreadsheetRoutes` recorded `ISSUE1105_JAPANESE_IME_ACTIVE=true`. Separately, an exact-head run without that diagnostic produced XML with `tests=1`, `skipped=0`, `failures=0`, `errors=0` (case time 14.002s) at `7aa4e995b2379e8a1d60a31852cdd7bf02b9417c`. The diagnostic and exact-head XML are distinct runs; the exact-head pass verifies the test, while the explicit active-IME observation is from the diagnostic run. |
+| Physical multichar input transaction | U-26 `U26SpreadsheetInputTransactionGuiAcceptanceTest.robotTypesDurationAndPercentAsOneInputTransaction` passed on Windows at `a1add999f289676c5f50148a240ea7445694eb3d`. |
+| Drag-time tooltip | Added an in-gesture assertion in [#1195](https://github.com/tetsuji16/microProject/pull/1195). During stage 4 of the physical FS bar drag, while the mouse button remains pressed, the Robot test finds the visible `JToolTip` containing localized start and finish labels. The drag press is protected by `try/finally`, so assertion/await failure always releases the mouse and waits for idle. Exact local command passed (1 test): `./gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotDragMovesBarAndRecalculatesFsSuccessor" --console=plain`. Hosted PR checks are pending as of this packet update. |
+
+The original hosted Gantt/theme gate is complete and physical IME, theme, and tooltip evidence is recorded. PR #1195 is a focused test-only slice and has not yet completed hosted CI; this packet does not claim #1105 is fully closed until that CI finishes and the issue's overall completion decision is reviewed. No application project was saved; temporary bar-coordinate discovery edits were undone.
+
