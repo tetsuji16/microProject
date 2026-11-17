@@ -23,6 +23,11 @@
  *******************************************************************************/
 package com.microproject.pm.criticalpath;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
+import java.util.List;
 import java.util.logging.Logger;
 import java.util.ListIterator;
 
@@ -62,6 +67,8 @@ public class CriticalPath implements SchedulingAlgorithm {
 	Project project;
 	boolean suspendUpdates = false; // flag to suspend updates when multiple objects are treated
 	boolean needsReset = false; // flag to indicate that a reset is pending during suspended updates
+	private final List<Task> deferredTaskOrderRebuild = new ArrayList<>();
+	private final Set<Task> deferredTaskOrderSet = Collections.newSetFromMap(new IdentityHashMap<>());
 	long earliestStart;
 	long latestFinish;
 	private boolean criticalPathJustChanged = false;
@@ -353,6 +360,10 @@ public class CriticalPath implements SchedulingAlgorithm {
 		Task task = null;
 		if (changedObject instanceof Task changedTask) {
 			if (objectEvent.isCreate()) {
+				if (suspendUpdates) {
+					deferTaskOrderRebuild(changedTask);
+					return;
+				}
 				predecessorTaskList
 						.arrangeTask(changedTask);
 				return; // let the hierarchy event that follow run the CP
@@ -498,8 +509,15 @@ public class CriticalPath implements SchedulingAlgorithm {
 	public void multipleTransaction(MultipleTransaction objectEvent) {
 		if (objectEvent.isFinalEnd()) {
 			suspendUpdates = false;
-			if (needsReset)
+			if (!deferredTaskOrderRebuild.isEmpty()) {
+				predecessorTaskList.addAll(project.getTaskList());
+				setProjectBoundaries();
+				deferredTaskOrderRebuild.clear();
+				deferredTaskOrderSet.clear();
+				needsReset = false;
+			} else if (needsReset) {
 				reset();
+			}
 			calculate(true,null);
 		} else {
 			suspendUpdates = true;
@@ -524,7 +542,14 @@ public class CriticalPath implements SchedulingAlgorithm {
 		
 		
 		newTask.markTaskAsNeedingRecalculation();
-		predecessorTaskList.arrangeTask(newTask);
+		if (suspendUpdates)
+			deferTaskOrderRebuild(newTask);
+		else
+			predecessorTaskList.arrangeTask(newTask);
+	}
+
+	private void deferTaskOrderRebuild(Task task) {
+		if (deferredTaskOrderSet.add(task)) deferredTaskOrderRebuild.add(task);
 	}
 	
 	public void addSubproject(Task subproject) {

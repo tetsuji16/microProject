@@ -28,6 +28,8 @@ import com.microproject.util.DataUtils;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.Collection;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.Date;
@@ -663,93 +665,6 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 
 
 
-	/**
- * This rather complex function determines whether one task depends on another.  Because of the rules for parent tasks,
- * the algorithm is rather complicated.  Basically:
- * - A (parent) task depends on its childrens predecessors, as these are potentially equivalent
- * - A task depends on its parents predecessors - in the case of a link to its parent task, the links applies to this task too
- * - A task depends on its parent, of course
- * - A task depends on its predecessors (obviously)
- * - A task depends on its predecessors children
- *
- * @param other Task to compare to
- * @param set - A set used to prevent treating same task twice
- * @return true if linking to other would cause a circular link
- */
-	private boolean dependsOn(Task other, Task me, Set<Task> set, String taskNames) {
-		// To avoid infinite loops which can occur under certain circumstances, use a set to prevent looking up twice
-		if (set.contains(this))
-			return false;
-		set.add(this);
-
-
-
-
-		// Here is the primary exit point.  We have arrived back at the other node, so it is circular
-		if (this == other) {
-			if (taskNames != null)
-				logger.warning("Circular: \n" + taskNames);
-			return true;
-		}
-
-
-
-		if (taskNames != null)
-			taskNames += (getId() +": " + getName() + '\n');
-
-
-		Task predecessor;
-		Dependency dep;
-
-		Collection<?> children;
-
-		for (Association association : getPredecessorList()) {
-			dep = (Dependency) association;
-			if (dep.isDisabled())
-				continue;
-			predecessor = (Task)dep.getPredecessor(); // I depend on my predecessors
-			if (predecessor.dependsOn(other,me,set,taskNames == null ? null : taskNames + "Pred-"))
-				return true;
-		}
-
-
-		//parent
-		Task parent = getWbsParentTask();
-		if (other.getWbsParentTask() != parent) { // only do parents if they are different
-			if (parent != null) {
-				if (parent.dependsOn(other,me,set,taskNames == null? null: taskNames + "Parent- " ))
-					return true;
-			}
-		}
-
-		children = getWbsChildrenNodes();
-		// I depend on my children's preds
-		if (children != null) {
-			for (Object childNode : children) {
-				Object current = ((Node) childNode).getImpl();
-				if (!(current instanceof Task child))
-					continue;
-
-				for (Association association : child.getPredecessorList()) {
-					dep = (Dependency) association;
-					if (dep.isDisabled())
-						continue;
-					predecessor = (Task)dep.getPredecessor(); // I depend on my predecessors
-					if (predecessor.wbsDescendentOf(this)) {// skip if already belongs to parent thru an ancestry relation
-						continue;
-					}
-
-					if (predecessor.dependsOn(other,me,set,taskNames == null ? null : taskNames + "pred-child " + child.getId()))
-						return true;
-				}
-
-			}
-
-		}
-
-
-		return false;
-	}
 	public boolean isAncestorOrDescendent(Task other) {
 		return (wbsDescendentOf(other) || other.wbsDescendentOf(this));
 	}
@@ -757,10 +672,67 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		Task task = (Task)other;
 		if (isAncestorOrDescendent(task))
 			return true;
+		return dependsOnIteratively(task);
+	}
 
+	private boolean dependsOnIteratively(Task other) {
+		Set<Task> visited = new HashSet<>();
+		ArrayDeque<DependsOnFrame> stack = new ArrayDeque<>();
+		visited.add(this);
+		stack.push(new DependsOnFrame(this, "", dependencyCandidates(this, other)));
+		while (!stack.isEmpty()) {
+			DependsOnFrame frame = stack.peek();
+			if (frame.task == other) {
+				StringBuilder message = new StringBuilder("Circular: \n");
+				for (var item : stack.reversed())
+					message.append(item.edgeLabel).append(item.task.getId()).append(": ")
+						.append(item.task.getName()).append('\n');
+				logger.warning(message.toString());
+				return true;
+			}
+			if (!frame.candidates.hasNext()) {
+				stack.pop();
+				continue;
+			}
+			DependsOnCandidate candidate = frame.candidates.next();
+			if (visited.add(candidate.task))
+				stack.push(new DependsOnFrame(candidate.task, candidate.edgeLabel,
+					dependencyCandidates(candidate.task, other)));
+		}
+		return false;
+	}
 
-		Set<Task> set = new HashSet<>();
-		return dependsOn((Task)other,this,set,"");
+	private static Iterator<DependsOnCandidate> dependencyCandidates(Task task, Task other) {
+		List<DependsOnCandidate> candidates = new ArrayList<>();
+		for (Association association : task.getPredecessorList()) {
+			Dependency dependency = (Dependency) association;
+			if (!dependency.isDisabled()) candidates.add(new DependsOnCandidate((Task) dependency.getPredecessor(), "Pred-"));
+		}
+		Task parent = task.getWbsParentTask();
+		if (other.getWbsParentTask() != parent && parent != null)
+			candidates.add(new DependsOnCandidate(parent, "Parent- "));
+		Collection<?> children = task.getWbsChildrenNodes();
+		if (children != null) for (Object childNode : children) {
+			Object current = ((Node) childNode).getImpl();
+			if (!(current instanceof Task child)) continue;
+			for (Association association : child.getPredecessorList()) {
+				Dependency dependency = (Dependency) association;
+				if (dependency.isDisabled()) continue;
+				Task predecessor = (Task) dependency.getPredecessor();
+				if (!predecessor.wbsDescendentOf(task))
+					candidates.add(new DependsOnCandidate(predecessor, "pred-child " + child.getId()));
+			}
+		}
+		return candidates.iterator();
+	}
+	private record DependsOnCandidate(Task task, String edgeLabel) { }
+	private static final class DependsOnFrame {
+		private final Task task;
+		private final String edgeLabel;
+		private final Iterator<DependsOnCandidate> candidates;
+		private DependsOnFrame(Task task, String edgeLabel, Iterator<DependsOnCandidate> candidates) {
+			this.task = task; this.edgeLabel = edgeLabel; this.candidates = candidates;
+		}
 	}
 
 	/**

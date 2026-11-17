@@ -603,19 +603,16 @@ public class DependencyService {
 		runDependencyMutation(connectableTasks.stream().map(Task.class::cast).toList(), eventSource,
 				(context, mutationSource) -> {
 			ArrayList<Dependency> newDependencies = new ArrayList<>(Math.max(0, connectableTasks.size() - 1));
-			// try making dependencies between earlier and later items to check all possible circularities
-			for (int i = 0; i < connectableTasks.size()-1; i++) {
-				HasDependencies pred = connectableTasks.get(i);
-				for (int j = i+1; j < connectableTasks.size(); j++) {
-					HasDependencies succ = connectableTasks.get(j);
-					if (canBeSuccessorCondition != null && !canBeSuccessorCondition.test(succ))
-						continue;
-					if (succ.getPredecessorList().findLeft(pred) != null)
-						continue;
-					Dependency test = Dependency.getInstance(pred, succ, DependencyType.Kind.FS, 0);
-					test.testValid(false);
-					if (j == i+1) newDependencies.add(test);
-				}
+			for (int i = 0; i < connectableTasks.size() - 1; i++) {
+				HasDependencies predecessorTask = connectableTasks.get(i);
+				HasDependencies successorTask = connectableTasks.get(i + 1);
+				if (canBeSuccessorCondition != null && !canBeSuccessorCondition.test(successorTask))
+					continue;
+				if (successorTask.getPredecessorList().findLeft(predecessorTask) != null)
+					continue;
+				Dependency dependency = Dependency.getInstance(predecessorTask, successorTask, DependencyType.Kind.FS, 0);
+				dependency.testValid(false);
+				newDependencies.add(dependency);
 			}
 			DependencyGraphSnapshot snapshot = new DependencyGraphSnapshot(newDependencies,
 				connectableTasks.stream().map(Task.class::cast).toList());

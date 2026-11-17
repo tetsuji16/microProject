@@ -36,6 +36,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.EventListener;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -171,6 +172,8 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	private transient boolean initialized = false;
 	private transient ScheduleEventManager scheduleEventManager = new ScheduleEventManager();
 	private transient MultipleTransactionManager multipleTransactionManager = new MultipleTransactionManager();
+	private transient int multipleTransactionDepth;
+	private transient Map<Task, HierarchyParentUpdate> deferredHierarchyParentUpdates = new IdentityHashMap<>();
 	private transient ObjectEventManager objectEventManager = new ObjectEventManager();
 	private transient ObjectSelectionEventManager objectSelectionEventManager = new ObjectSelectionEventManager();
 	private transient int eventBatchDepth;
@@ -1795,10 +1798,24 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			: support.activatePublication(batch.undoGroup());
 		Throwable failure = null;
 		try {
+			int schedulingTransaction = 0;
+			boolean schedulingTransactionStarted = false;
 			try {
+				if (batch.objectEvents() != null && batch.objectEvents().hasEvents()) {
+					schedulingTransaction = fireMultipleTransaction(0, true);
+					schedulingTransactionStarted = true;
+				}
 				objectEventManager.publishBatch(batch.objectEvents(), batch.revision());
 			} catch (Throwable current) {
 				failure = current;
+			} finally {
+				if (schedulingTransactionStarted) {
+					try { fireMultipleTransaction(schedulingTransaction, false); }
+					catch (Throwable current) {
+						if (failure == null) failure = current;
+						else failure.addSuppressed(current);
+					}
+				}
 			}
 			try {
 				scheduleEventManager.publishBatch(batch.scheduleEvents(), batch.revision());
@@ -2090,6 +2107,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		Node node, previousParentNode, newParentNode;
 		Task previousParentTask, newParentTask;
 		ArrayList<LeafScheduleTransition> transitionedToLeaf = new ArrayList<>();
+		Map<Task, Node> changedChildrenByParent = new IdentityHashMap<>();
 		int count=e.getNodes().length;
 		if (count==0) return;
 		for (int i=0;i<count;i++){
@@ -2124,21 +2142,17 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			newParentTask = null;
 			if (newParentNode!=hierarchy.getRoot()) {
 				newParentTask=(Task)newParentNode.getImpl();
-				newParentTask.setWbsChildrenNodes(taskOutlines.getDefaultOutline().getHierarchy().getChildren(newParentNode));
-				newParentTask.restrictToValidConstraintType();
-				newParentTask.markAllDependentTasksAsNeedingRecalculation(true); // flag this and dependent tasks as dirty
 			}
 
 			task.setWbsParent(newParentTask);
-
-			final Task _newParentTask = newParentTask;
-			final Object eventSource = e.getSource();
-
-			taskOutlines.getDefaultOutline().getHierarchy().visitAll(newParentNode, arg -> {
-				Node visitedNode=(Node)arg;
-				if (!(visitedNode.getImpl() instanceof Task visitedTask)) return;
-				DependencyService.getInstance().removeAnyDependencies(visitedTask, _newParentTask,eventSource);
-			});
+			if (newParentTask != null)
+				changedChildrenByParent.put(newParentTask, newParentNode);
+		}
+		if (multipleTransactionDepth > 0) {
+			for (Map.Entry<Task, Node> entry : changedChildrenByParent.entrySet())
+				deferredHierarchyParentUpdates.put(entry.getKey(), new HierarchyParentUpdate(entry.getValue(), e.getSource()));
+		} else {
+			applyHierarchyParentUpdates(changedChildrenByParent, e.getSource());
 		}
 		if (!e.isVoid()) { // if the event was not the promotion of a void node
 			e.consume();
@@ -2229,6 +2243,8 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		undoBatchActivation = null;
 		undoBatchCheckpoints = new ArrayList<>();
 		multipleTransactionManager = new MultipleTransactionManager();
+		multipleTransactionDepth = 0;
+		deferredHierarchyParentUpdates = new IdentityHashMap<>();
 		projectListenerList=new CopyOnWriteArrayList<>();
 	    taskOutlines=new OutlineCollectionImpl(Settings.numHierarchies(),this);
 	    barClosureInstance = new BarClosure();
@@ -2345,8 +2361,55 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		return multipleTransactionManager;
 	}
 	public int fireMultipleTransaction(int id, boolean begin) {
-		return multipleTransactionManager.fire(this,id,begin);
+		if (begin) {
+			int transactionId = multipleTransactionManager.fire(this, id, true);
+			multipleTransactionDepth++;
+			return transactionId;
+		}
+		Throwable failure = null;
+		if (multipleTransactionDepth == 1) {
+			try { flushDeferredHierarchyParentUpdates(); }
+			catch (Throwable current) { failure = current; }
+		}
+		try { multipleTransactionManager.fire(this, id, false); }
+		catch (Throwable current) {
+			if (failure == null) failure = current;
+			else failure.addSuppressed(current);
+		} finally {
+			if (multipleTransactionDepth > 0) multipleTransactionDepth--;
+		}
+		if (failure instanceof Error error) throw error;
+		if (failure instanceof RuntimeException runtime) throw runtime;
+		if (failure != null) throw new IllegalStateException("Project transaction completion failed", failure);
+		return id;
 	}
+
+	private void flushDeferredHierarchyParentUpdates() {
+		if (deferredHierarchyParentUpdates.isEmpty()) return;
+		Map<Task, HierarchyParentUpdate> updates = new IdentityHashMap<>(deferredHierarchyParentUpdates);
+		deferredHierarchyParentUpdates.clear();
+		for (Map.Entry<Task, HierarchyParentUpdate> entry : updates.entrySet())
+			applyHierarchyParentUpdate(entry.getKey(), entry.getValue());
+	}
+
+	private void applyHierarchyParentUpdates(Map<Task, Node> changedParents, Object eventSource) {
+		for (Map.Entry<Task, Node> entry : changedParents.entrySet())
+			applyHierarchyParentUpdate(entry.getKey(), new HierarchyParentUpdate(entry.getValue(), eventSource));
+	}
+
+	private void applyHierarchyParentUpdate(Task parentTask, HierarchyParentUpdate update) {
+		Node parentNode = update.node();
+		parentTask.setWbsChildrenNodes(taskOutlines.getDefaultOutline().getHierarchy().getChildren(parentNode));
+		parentTask.restrictToValidConstraintType();
+		parentTask.markAllDependentTasksAsNeedingRecalculation(true);
+		taskOutlines.getDefaultOutline().getHierarchy().visitAll(parentNode, arg -> {
+			Node visitedNode = (Node) arg;
+			if (visitedNode.getImpl() instanceof Task visitedTask)
+				DependencyService.getInstance().removeAnyDependencies(visitedTask, parentTask, update.eventSource());
+		});
+	}
+
+	private record HierarchyParentUpdate(Node node, Object eventSource) { }
 
 
 	private void repairTasks() {

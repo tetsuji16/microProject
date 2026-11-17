@@ -26,6 +26,13 @@ finish-to-start chain through every task, an extra cross link `i-20 -> i` on eve
 per task spread over 50 resources. "Edit" is a +3 day change of the finish of task #5 through
 `ScheduleService.setInterval` (undo-aware), followed by `undo`. A 300-task warm-up run precedes the measurements.
 
+For issue #1178, the candidate harness measures the production bulk paths: task nodes are added in phase-sized
+`NodeModel.add(parent, children, NORMAL)` calls and the scheduler is initialized once; sequential links use
+`DependencyService.connect`; assignments are added under one `MultipleTransaction`. This differs from the
+original per-link/per-assignment baseline below and avoids measuring a synthetic sequence of independent UI
+commands as though it were one bulk build. The candidate build uses the simple sequential chain (without the
+extra cross links) so the bulk sequential-link workflow is measured directly.
+
 ## Environment
 
 Windows 11, Intel Core Ultra X7 358H, 63 GB RAM, Temurin OpenJDK 25.0.4.1+1, Gradle 9.9.0, single JVM test worker.
@@ -41,6 +48,18 @@ The machine was shared with other builds, so absolute numbers are indicative.
 
 All rows come from one run with JFR enabled (which adds some overhead). Edit and undo propagated to the end of
 the chain in every run (last task finish moved, then restored).
+
+### Issue #1178 candidate (2026-11-17)
+
+The opt-in profile was rerun without JFR with `-Dmicroproject.profile.scales=1000,2000` after batching the
+critical-path updates. The profile passed the last-finish movement and undo-restoration checks, and explicit
+full recalculation remained 14 ms / 23 ms. Build time is still superlinear, so this evidence does not satisfy
+issue #1178's near-linear acceptance criterion.
+
+| Tasks | Create nodes | Add links | Add assignments | Build total | Full recalc | Edit | Undo |
+|------:|-------------:|----------:|----------------:|------------:|------------:|-----:|-----:|
+| 1,000 | 1,561 | 187 | 144 | 1,894 | 14 | 13 | 12 |
+| 2,000 | 8,684 | 757 | 292 | 9,734 | 23 | 20 | 21 |
 
 ### Growth order
 

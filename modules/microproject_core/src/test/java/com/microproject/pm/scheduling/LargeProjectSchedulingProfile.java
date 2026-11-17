@@ -30,9 +30,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 import com.microproject.options.CalendarOption;
+import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.NodeFactory;
+import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.dependency.DependencyService;
-import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
@@ -71,25 +73,36 @@ class LargeProjectSchedulingProfile {
 		for (int i = 0; i < RESOURCES; i++) { ResourceImpl r = pool.newResourceInstance(); r.setName("R" + i); resources.add(r); }
 		List<NormalTask> tasks = new ArrayList<>();
 		int phases = (taskCount + phaseSize - 1) / phaseSize;
+		List<Node> phaseNodes = new ArrayList<>();
 		for (int p = 0; p < phases; p++) {
-			var phaseNode = project.createLocalTaskNode(null);
-			((NormalTask) phaseNode.getImpl()).setName("Phase " + p);
+			NormalTask phase = new NormalTask(project);
+			phase.setName("Phase " + p);
+			project.connectTask(phase);
+			phaseNodes.add(NodeFactory.getInstance().createNode(phase));
+		}
+		project.getTaskModel().add(null, phaseNodes, NodeModel.NORMAL);
+		for (int p = 0; p < phases; p++) {
+			Node phaseNode = phaseNodes.get(p);
+			List<Node> taskNodes = new ArrayList<>();
 			for (int i = 0; i < phaseSize && tasks.size() < taskCount; i++) {
-				NormalTask task = (NormalTask) project.createLocalTaskNode(phaseNode).getImpl();
+				NormalTask task = new NormalTask(project);
+				project.connectTask(task);
 				task.setName("T" + tasks.size());
 				task.setDuration((1 + tasks.size() % 5) * day);
 				tasks.add(task);
+				taskNodes.add(NodeFactory.getInstance().createNode(task));
 			}
+			project.getTaskModel().add(phaseNode, taskNodes, NodeModel.NORMAL);
 		}
+		project.getSchedulingAlgorithm().initialize(project);
 		long tNodes = System.nanoTime();
-		// finish-to-start chain across everything, plus cross links every 7th task jumping back 20 tasks
-		for (int i = 1; i < tasks.size(); i++) {
-			DependencyService.getInstance().newDependency(tasks.get(i - 1), tasks.get(i), DependencyType.FS, 0L, this);
-			if (i % 7 == 0 && i >= 20) DependencyService.getInstance().newDependency(tasks.get(i - 20), tasks.get(i), DependencyType.FS, 0L, this);
-		}
+		int schedulingTransaction = project.fireMultipleTransaction(0, true);
+		// This is the bulk sequential-link operation used by the task-link workflow.
+		DependencyService.getInstance().connect(new ArrayList<>(tasks), this, null);
 		long tDeps = System.nanoTime();
 		for (int i = 0; i < tasks.size(); i++)
 			AssignmentService.getInstance().newAssignment(tasks.get(i), resources.get(i % RESOURCES), 1D, 0L, this);
+		project.fireMultipleTransaction(schedulingTransaction, false);
 		long t1 = System.nanoTime();
 		project.recalculate();
 		long t2 = System.nanoTime();

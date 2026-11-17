@@ -29,11 +29,29 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.undo.DataFactoryUndoController;
 
 class TaskDependencyInvalidationTest {
+	@Test
+	void dependsOnHandlesLongDependencyChainsWithoutRecursion() throws Exception {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("test", undoController), undoController);
+		project.initialize(false, false);
+		NormalTask first = task(project);
+		NormalTask previous = first;
+		for (int i = 1; i < 6000; i++) {
+			NormalTask current = task(project);
+			Dependency dependency = Dependency.getInstance(previous, current, DependencyType.FS, 0L);
+			current.getPredecessorList().add(dependency);
+			previous = current;
+		}
+
+		assertTrue(previous.dependsOn(first));
+	}
+
 	@Test
 	void dependencyInvalidationReachesOnlyTheAffectedClosure() throws Exception {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
