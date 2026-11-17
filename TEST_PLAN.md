@@ -54,6 +54,7 @@ MS Project 互換性に関する形式テストでは read と write を独立�
 | 子 modal を閉じた後のモデルレス親への Escape | AssignmentDialogGuiAcceptanceTest。active window と focus owner の復帰を先に検証 |
 | ベータ起動が安定版 feed を取得せず、ファイル引数を保持 | BootstrapUpdateTest の loopback feed hit=0 契約、AppImage launcher config 検査 |
 | ダイアログの実際の重なり・文字欠け | 既存共有 assertion。FlatLaf JSpinner の縦 stepper 同士が共有する1px境界だけ除外 |
+| リボンのグループ名が全タブで同じ基準線に載る（#1214） | ModernRibbonPanelBandBaselineTest。幅 1100 / 1300 / 1450 / 1920 で全タブを表示し、グループ名の下端が一致することを確認。幅対応の再構築でタブのグループが低くなっても、コマンド面の高さは変わらない |
 
 ## 1.3 issue に書く試験条件
 

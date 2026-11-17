@@ -1514,8 +1514,14 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		bandConstraints.anchor = GridBagConstraints.NORTHWEST;
 		// A ribbon is a left-to-right sequence of groups.  Do not give each group
 		// elastic width: that was the source of the centred single-launcher cheat.
-		bandConstraints.fill = GridBagConstraints.NONE;
+		bandConstraints.fill = GridBagConstraints.VERTICAL;
 		bandConstraints.weightx = 0.0;
+		// A group caption is a row of the command surface, not of its own content.
+		// The surface height is the tallest group of any tab, so a group whose
+		// content is shorter (a compacted presentation, or a group without a large
+		// command) must still fill the row.  Otherwise its caption is lifted above
+		// the captions of the other tabs instead of sharing their baseline.
+		bandConstraints.weighty = 1.0;
 		bandConstraints.insets = new Insets(0, 0, 0, BAND_GAP);
 		List<RibbonDensity> presentations = uniformPresentation(tab.getBands().size(), RibbonDensity.FULL);
 		List<RibbonBandPanel> bandPanels = addBands(bandRow, bandConstraints, tab.getBands(), presentations);
@@ -1645,9 +1651,11 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		}
 		// GridBagLayout centres a grid with no weighted column.  A trailing glue
 		// column consumes the unused width and keeps the complete band sequence at
-		// the Office-style left origin as the window grows.
+		// the Office-style left origin as the window grows.  It must not claim the
+		// vertical weight that stretches the bands to the surface height.
 		GridBagConstraints glueConstraints = (GridBagConstraints)constraints.clone();
 		glueConstraints.weightx = 1.0;
+		glueConstraints.weighty = 0.0;
 		glueConstraints.fill = GridBagConstraints.HORIZONTAL;
 		glueConstraints.insets = new Insets(0, 0, 0, 0);
 		row.add(Box.createHorizontalGlue(), glueConstraints);
@@ -1724,14 +1732,23 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			content.add(Box.createRigidArea(new Dimension(8, theme.largeButtonHeight())), contentConstraints);
 		}
 
+		JComponent titleRow = createBandTitleRow(band, createBandTitle(band));
+		panel.bind(content, titleRow, computeBandWidth(content, titleRow));
+		return panel;
+	}
+
+	/**
+	 * The caption label of a group. Every representation of a group - direct
+	 * commands, a custom band, or a collapsed proxy - uses this one caption so the
+	 * caption row has one height and the captions of all groups share a baseline.
+	 */
+	private JLabel createBandTitle(SwingRibbonModel.RibbonBand band) {
 		JLabel title = new JLabel(band.getTitle(), SwingConstants.CENTER);
 		title.setOpaque(false);
 		title.setForeground(theme.bandTitleForeground());
 		title.setFont(theme.bandTitleFont());
 		title.setBorder(BorderFactory.createEmptyBorder(1, 0, 0, 0));
-		JComponent titleRow = createBandTitleRow(band, title);
-		panel.bind(content, titleRow, computeBandWidth(content, titleRow));
-		return panel;
+		return title;
 	}
 
 	/**
@@ -1834,11 +1851,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			content.add(Box.createRigidArea(new Dimension(8, 42)), BorderLayout.CENTER);
 		}
 
-		JLabel title = new JLabel(band.getTitle(), SwingConstants.CENTER);
-		title.setOpaque(false);
-		title.setForeground(theme.bandTitleForeground());
-		title.setFont(theme.bandTitleFont());
-		title.setBorder(BorderFactory.createEmptyBorder(1, 0, 0, 0));
+		JLabel title = createBandTitle(band);
 
 		int preferredWidth = content.getPreferredSize().width;
 		if (band.getPreferredWidthHint() > 0) {
@@ -1896,9 +1909,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		JPanel content = new JPanel(new FlowLayout(FlowLayout.LEADING, 0, 0));
 		content.setOpaque(false);
 		content.add(trigger);
-		JLabel title = new JLabel(band.getTitle(), SwingConstants.CENTER);
-		title.setForeground(theme.bandTitleForeground());
-		title.setFont(theme.bandTitleFont());
+		JLabel title = createBandTitle(band);
 		panel.bind(content, title, Math.max(BAND_MIN_WIDTH,
 			Math.max(content.getPreferredSize().width, title.getPreferredSize().width) + BAND_HORIZONTAL_INSETS));
 		return panel;
