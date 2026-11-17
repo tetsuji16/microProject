@@ -1573,6 +1573,32 @@ class RibbonButtonBehaviorTest {
 	}
 
 	@Test
+	void progressLineSettingsRespectReadOnlyAndParticipateInUndoRedo() throws Exception {
+		Harness harness = newHarness();
+		var settings = new com.microproject.pm.task.ProgressLineSettings(true,
+			com.microproject.pm.task.ProgressLineSettings.ReferenceDate.CURRENT_DATE,
+			true, 2, com.microproject.pm.task.ProgressLineSettings.IntervalUnit.WEEK);
+		SwingUtilities.invokeAndWait(() -> {
+			harness.undoController.clear();
+			assertTrue(harness.manager.applyProgressLineSettings(harness.project, harness.frame.getGanttView(), settings, true));
+			assertEquals(settings, harness.project.getProgressLineSettings());
+			assertTrue(harness.undoController.canUndo());
+			harness.undoController.undo();
+			assertNull(harness.project.getProgressLineSettings(), "undo restores the pre-settings legacy default");
+			assertFalse(harness.frame.getGanttView().getGantt().isProgressLineEnabled());
+			assertTrue(harness.undoController.canRedo());
+			harness.undoController.redo();
+			assertEquals(settings, harness.project.getProgressLineSettings());
+			harness.project.setReadOnly(true);
+			var different = new com.microproject.pm.task.ProgressLineSettings(false,
+				com.microproject.pm.task.ProgressLineSettings.ReferenceDate.STATUS_DATE,
+				false, 1, com.microproject.pm.task.ProgressLineSettings.IntervalUnit.DAY);
+			assertFalse(harness.manager.applyProgressLineSettings(harness.project, harness.frame.getGanttView(), different, true));
+			assertEquals(settings, harness.project.getProgressLineSettings(), "read-only projects must keep their settings");
+		});
+	}
+
+	@Test
 	void levelResourceOffersAllResourcesAndDoesNothingWhenNoneChosen() throws Exception {
 		Harness harness = newHarness();
 		harness.selectNone();

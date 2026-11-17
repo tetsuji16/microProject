@@ -25,6 +25,13 @@ package com.microproject.util;
 
 import com.microproject.pm.scheduling.Schedule;
 import com.microproject.pm.task.TaskSpecificFields;
+import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProgressLineSettings;
+import com.microproject.util.DateTime;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.LinkedHashSet;
+import java.util.List;
 
 public final class GanttProgress {
 	private GanttProgress() {
@@ -49,6 +56,41 @@ public final class GanttProgress {
 	 * lines. Task progress is duration based (% Complete), while the schedule
 	 * supplies the calendar-aware completion date.
 	 */
+	/** Resolves the configured current and recurring progress-line dates for a project. */
+	public static List<Long> progressLineReferenceDates(Project project, ProgressLineSettings settings) {
+		if (project == null || settings == null)
+			return List.of();
+		long currentDate = settings.referenceDate() == ProgressLineSettings.ReferenceDate.STATUS_DATE
+			? project.getStatusDate() : project.getCurrentDate();
+		if (currentDate <= 0L)
+			currentDate = DateTime.midnightTomorrow() - 1L;
+		return progressLineReferenceDates(project.getStart(), project.getEnd(), currentDate, settings);
+	}
+
+	static List<Long> progressLineReferenceDates(long projectStart, long projectEnd, long currentDate,
+			ProgressLineSettings settings) {
+		if (settings == null)
+			return List.of();
+		LinkedHashSet<Long> dates = new LinkedHashSet<>();
+		if (settings.showCurrentLine() && currentDate > 0L)
+			dates.add(Long.valueOf(currentDate));
+		if (settings.showRecurringLines() && projectStart > 0L && projectEnd >= projectStart) {
+			Calendar date = DateTime.calendarInstance();
+			date.setTimeInMillis(projectStart);
+			int calendarField = switch (settings.recurringIntervalUnit()) {
+				case DAY -> Calendar.DAY_OF_MONTH;
+				case WEEK -> Calendar.WEEK_OF_YEAR;
+				case MONTH -> Calendar.MONTH;
+			};
+			int count = 0;
+			while (date.getTimeInMillis() <= projectEnd && count++ < 10_000) {
+				dates.add(Long.valueOf(date.getTimeInMillis()));
+				date.add(calendarField, settings.recurringInterval());
+			}
+		}
+		return List.copyOf(dates);
+	}
+
 	public static long progressLineDate(Schedule schedule, long referenceDate) {
 		if (schedule == null)
 			return referenceDate;

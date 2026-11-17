@@ -131,7 +131,7 @@ RibbonZoomEntireProject,ZoomEntireProject,BUTTON,COMMAND,DOCUMENTED,ViewRibbonTa
 RibbonZoomSelectedTasks,ZoomSelectedTasks,BUTTON,COMMAND,DOCUMENTED,ViewRibbonTask/ViewZoomRibbonBand,
 RibbonMicroProjectDocumentation,Help,BUTTON,DIALOG,DOCUMENTED,HelpRibbonTask/HelpRibbonBand,Opens the local product help
 RibbonAboutMicroProject,,BUTTON,DIALOG,BASELINE,HelpRibbonTask/HelpRibbonBand,product-only
-RibbonToggleProgressLine,ProgressLines,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,FormatRibbonTask/GanttFormatRibbonBand,xlsx: button - kind pending decision
+RibbonToggleProgressLine,ProgressLines,BUTTON,DIALOG,DOCUMENTED,FormatRibbonTask/GanttFormatRibbonBand,Microsoft Learn Application.ProgressLines method
 RibbonLabelResourceNames,,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,FormatRibbonTask/GanttFormatExtrasRibbonBand,product-only
 RibbonLabelTaskName,,TOGGLE_BUTTON,TOGGLE_STATE,BASELINE,FormatRibbonTask/GanttFormatExtrasRibbonBand,product-only
 RibbonGridlines,GridlinesMenu,MENU,POPUP,DOCUMENTED,FormatRibbonTask/GanttFormatRibbonBand,Gridlines / Progress Lines

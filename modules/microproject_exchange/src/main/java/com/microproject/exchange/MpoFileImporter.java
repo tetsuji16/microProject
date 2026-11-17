@@ -657,7 +657,7 @@ public class MpoFileImporter extends FileImporter {
 		byte[] projectXml = serialized.xml();
 		java.util.LinkedHashMap<String, byte[]> entries = new java.util.LinkedHashMap<>();
 		CriticalChainService.Settings ccpm = existingCcpm(project);
-		entries.put(SETTINGS_ENTRY, MpoManifest.settingsXml(ccpm, ccpm == null ? null : new CriticalChainService().findBaseline(project)).getBytes(StandardCharsets.UTF_8));
+		entries.put(SETTINGS_ENTRY, MpoManifest.settingsXml(ccpm, ccpm == null ? null : new CriticalChainService().findBaseline(project), project).getBytes(StandardCharsets.UTF_8));
 		byte[] layout = MpoSidecarJson.layoutJson(project);
 		if (layout != null) entries.put(LAYOUT_ENTRY, layout);
 		// Filled from the operation plan when written; the journal is not model content.

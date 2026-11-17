@@ -79,11 +79,11 @@ RibbonMarkOnTrack.keytip=U
 
 ## 自動照合と Microsoft コントロールとの未解決差分
 
-自動照合テストの `KNOWN_GAPS` は空で、既知のモデル差分はありません。これは `ProjectControls.xlsx` との照合完了を意味しません。#1162 の照合では、同資料で `gallery` とされる `FontFillBackColorPicker` と `FontColorPicker` が未実装で、CSV では `BUTTON` / `DIALOG`、実 UI でもダイアログを開くため `PENDING_VERIFY` です。両方をギャラリーとして実装し、選択値の dispatch、Undo、保存・再読込を確認するまで Microsoft との種別・挙動の一致は未完了です。
+自動照合テストの `KNOWN_GAPS` は空で、既知のモデル差分はありません。これは `ProjectControls.xlsx` との全行照合完了を意味しません。色ギャラリーは PR #1197 で実装済みですが、動的テーマ色とセル単位の書式は未対応です。Progress Lines はこのスライスで公式 workbook の `button` と Microsoft Learn のダイアログ挙動に合わせ、current/status date と定期間隔を設定・描画・MPO 保存します。
 
 `RibbonTaskInspector` は `ProjectControls.xlsx` の `InspectTasksMenu` に合わせて分割ボタンとして実装済みです。並べ替えは `GALLERY`、フィルターとグループは `COMBO_BOX` として実装済みです。
 
-`ProjectControls.xlsx` と種別が食い違うが扱い未決定の行（`BASELINE` のまま、`popupItems` に `xlsx:` として記録）: `RibbonToggleProgressLine`（xlsx は `button`）、`RibbonRecentProjects` / `RibbonBackstageProjectInformation` / `RibbonPrint`（xlsx は Backstage の `tab`）、`RibbonPDF`（xlsx は `task`）。
+残る workbook 照合は 48 `BASELINE` 行です。うち 44 行は `mspControlId` が空で、44 件すべての製品専用性は未立証です。残る4件の分類差は `RibbonRecentProjects` / `RibbonBackstageProjectInformation` / `RibbonPrint`（xlsx は Backstage の `tab`）と `RibbonPDF`（xlsx は `task`）です。Progress Lines の行は `DOCUMENTED` とし、Current Channel workbook と Microsoft Learn `Application.ProgressLines` method を照合根拠に記録しました。`PENDING_VERIFY` は引き続き 0 件です。
 
 種別は契約どおりでも、次の点は未対応です。
 

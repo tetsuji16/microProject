@@ -80,6 +80,10 @@ import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JRadioButtonMenuItem;
+import javax.swing.JRadioButton;
+import javax.swing.ButtonGroup;
+import javax.swing.JSpinner;
+import javax.swing.SpinnerNumberModel;
 import javax.swing.JTabbedPane;
 import javax.swing.JToolBar;
 import javax.swing.JTextField;
@@ -3510,9 +3514,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			if (!beforeToggleRoute(ACTION_TOGGLE_PROGRESS_LINE)) return;
 			if (!isActiveGanttView())
 				return;
-			var ganttView = getCurrentFrame().getGanttView();
-			ganttView.setProgressLineEnabled(!ganttView.isProgressLineEnabled());
-			syncGanttViewRibbonState();
+			showProgressLinesDialog();
+		}
+		protected boolean allowed(boolean enable) {
+			return !enable || isDocumentWritable();
 		}
 	}
 
@@ -5525,7 +5530,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			manager.getString("RibbonLabelTaskName.text")
 		});
 		labelCombo.setSelectedIndex(ganttView.isTaskNameAnnotationSelected() ? 1 : 0);
-		JCheckBox progressLine = new JCheckBox(manager.getString("RibbonToggleProgressLine.text"), ganttView.isProgressLineEnabled());
 		JCheckBox gridlines = new JCheckBox(manager.getString("RibbonGridlines.text"), ganttView.isSpreadsheetGridVisible());
 
 		JPanel panel = new JPanel(new GridLayout(0, 1, 0, 8));
@@ -5536,7 +5540,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		panel.add(barStyleCombo);
 		panel.add(new JLabel(manager.getString("RibbonTextStyles.text")));
 		panel.add(labelCombo);
-		panel.add(progressLine);
 		panel.add(gridlines);
 
 		int choice = PopupDialogSupport.showConfirmDialog(getFrame(), panel,
@@ -5547,12 +5550,92 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			ganttView.setCurrentAnnotationFieldId(labelCombo.getSelectedIndex() == 1
 				? GanttView.ANNOTATION_FIELD_TASK_NAME
 				: GanttView.ANNOTATION_FIELD_RESOURCE_NAMES);
-			ganttView.setProgressLineEnabled(progressLine.isSelected());
 			ganttView.setSpreadsheetGridVisible(gridlines.isSelected());
 			ganttView.getGantt().repaint();
 			setZoomButtons();
 			syncGanttViewRibbonState();
 		}
+	}
+
+	private void showProgressLinesDialog() {
+		GanttView ganttView = getActiveGanttView();
+		if (ganttView == null || getCurrentFrame() == null || getCurrentFrame().getProject() == null)
+			return;
+		Project project = getCurrentFrame().getProject();
+		com.microproject.pm.task.ProgressLineSettings current = project.getProgressLineSettings();
+		if (current == null)
+			current = com.microproject.pm.task.ProgressLineSettings.defaults();
+		MenuManager manager = getMenuManager();
+		JCheckBox showReference = new JCheckBox(manager.getString("ProgressLines.showCurrent"), current.showCurrentLine());
+		JRadioButton statusDate = new JRadioButton(manager.getString("ProgressLines.statusDate"),
+			current.referenceDate() == com.microproject.pm.task.ProgressLineSettings.ReferenceDate.STATUS_DATE);
+		JRadioButton currentDate = new JRadioButton(manager.getString("ProgressLines.currentDate"),
+			current.referenceDate() == com.microproject.pm.task.ProgressLineSettings.ReferenceDate.CURRENT_DATE);
+		ButtonGroup referenceDates = new ButtonGroup();
+		referenceDates.add(statusDate);
+		referenceDates.add(currentDate);
+		JCheckBox showRecurring = new JCheckBox(manager.getString("ProgressLines.showRecurring"), current.showRecurringLines());
+		JSpinner interval = new JSpinner(new SpinnerNumberModel(current.recurringInterval(), 1,
+			com.microproject.pm.task.ProgressLineSettings.MAX_RECURRING_INTERVAL, 1));
+		JComboBox<String> unit = new JComboBox<>(new String[] { manager.getString("ProgressLines.day"),
+			manager.getString("ProgressLines.week"), manager.getString("ProgressLines.month") });
+		unit.setSelectedIndex(current.recurringIntervalUnit().ordinal());
+		JPanel panel = new JPanel(new GridLayout(0, 1, 0, 6));
+		panel.setBorder(new EmptyBorder(8, 8, 8, 8));
+		panel.add(showReference);
+		panel.add(statusDate);
+		panel.add(currentDate);
+		panel.add(showRecurring);
+		panel.add(new JLabel(manager.getString("ProgressLines.interval")));
+		panel.add(interval);
+		panel.add(unit);
+		int choice = PopupDialogSupport.showConfirmDialog(getFrame(), panel,
+			manager.getString("RibbonToggleProgressLine.text"), JOptionPane.OK_CANCEL_OPTION,
+			JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+		if (choice != JOptionPane.OK_OPTION)
+			return;
+		var updated = new com.microproject.pm.task.ProgressLineSettings(showReference.isSelected(),
+			statusDate.isSelected()
+				? com.microproject.pm.task.ProgressLineSettings.ReferenceDate.STATUS_DATE
+				: com.microproject.pm.task.ProgressLineSettings.ReferenceDate.CURRENT_DATE,
+			showRecurring.isSelected(), ((Number) interval.getValue()).intValue(),
+			com.microproject.pm.task.ProgressLineSettings.IntervalUnit.values()[unit.getSelectedIndex()]);
+		applyProgressLineSettings(project, ganttView, updated, true);
+	}
+
+	boolean applyProgressLineSettings(Project project, GanttView ganttView,
+		com.microproject.pm.task.ProgressLineSettings updated, boolean postUndo) {
+		if (project == null || ganttView == null || project.isReadOnly())
+			return false;
+		com.microproject.pm.task.ProgressLineSettings previous = project.getProgressLineSettings();
+		com.microproject.pm.task.ProgressLineSettings effectivePrevious = previous == null
+			? com.microproject.pm.task.ProgressLineSettings.defaults() : previous;
+		if (effectivePrevious.equals(updated))
+			return false;
+		boolean previousEnabled = ganttView.getGantt().isProgressLineEnabled();
+		project.setProgressLineSettings(updated);
+		project.setDirty(true);
+		ganttView.getGantt().setProgressLineEnabled(updated.showCurrentLine() || updated.showRecurringLines());
+		ganttView.getGantt().repaint();
+		if (postUndo && project.getUndoController() != null) {
+			project.getUndoController().getEditSupport().postEdit(new AbstractUndoableEdit() {
+				private static final long serialVersionUID = 1L;
+				private void restore(com.microproject.pm.task.ProgressLineSettings settings, boolean enabled) {
+					project.setProgressLineSettings(settings);
+					project.setDirty(true);
+					ganttView.getGantt().setProgressLineEnabled(enabled);
+					ganttView.getGantt().repaint();
+				}
+				@Override public void undo() throws CannotUndoException { super.undo(); restore(previous, previousEnabled); }
+				@Override public void redo() throws CannotRedoException {
+					super.redo(); restore(updated, updated.showCurrentLine() || updated.showRecurringLines());
+				}
+				@Override public String getPresentationName() { return "Progress Lines"; }
+			});
+		}
+		getCurrentFrame().refreshUndoButtons();
+		syncGanttViewRibbonState();
+		return true;
 	}
 
 
@@ -5991,16 +6074,13 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		BaseView summaryView = getActiveSummaryTasksView();
 		getMenuManager().setActionEnabled(ACTION_GFMT_SUMMARY_TASKS, summaryView != null && summaryView.supportsSummaryTasksToggle());
 
-		boolean progressSelected = false;
 		boolean resourceLabelSelected = false;
 		boolean taskLabelSelected = false;
 		if (ganttActive) {
 			GanttView ganttView = getCurrentFrame().getGanttView();
-			progressSelected = ganttView.isProgressLineEnabled();
 			resourceLabelSelected = ganttView.isResourceNameAnnotationSelected();
 			taskLabelSelected = ganttView.isTaskNameAnnotationSelected();
 		}
-		getMenuManager().setActionSelected(ACTION_TOGGLE_PROGRESS_LINE, progressSelected);
 		getMenuManager().setActionSelected(ACTION_LABEL_RESOURCE_NAMES, resourceLabelSelected);
 		getMenuManager().setActionSelected(ACTION_LABEL_TASK_NAME, taskLabelSelected);
 		getMenuManager().setActionSelected(ACTION_GFMT_CRITICAL_TASKS, ganttActive && getCurrentFrame().getGanttView().isCriticalTasksVisible());

@@ -34,6 +34,7 @@ import java.lang.reflect.Proxy;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.scheduling.Schedule;
+import com.microproject.pm.task.ProgressLineSettings;
 import com.microproject.pm.task.TaskSpecificFields;
 
 class GanttProgressTest {
@@ -65,6 +66,46 @@ class GanttProgressTest {
 				taskSpecificSchedule(0.0d, 0.0d, false, 60L, 60L, 90L), 50L));
 		assertEquals(50L, GanttProgress.progressLineDate(
 				taskSpecificSchedule(1.0d, 1.0d, false, 40L, 10L, 40L), 50L));
+	}
+
+	@Test
+	void recurringProgressLinesUseConfiguredCalendarIntervalAndIncludeReferenceLine() {
+		ProgressLineSettings settings = new ProgressLineSettings(true,
+			ProgressLineSettings.ReferenceDate.CURRENT_DATE, true, 2, ProgressLineSettings.IntervalUnit.DAY);
+		long start = 86_400_000L * 10L;
+		long end = start + 5L * 86_400_000L;
+		var dates = GanttProgress.progressLineReferenceDates(start, end, start + 86_400_000L, settings);
+		assertEquals(java.util.List.of(start + 86_400_000L, start, start + 2L * 86_400_000L,
+			start + 4L * 86_400_000L), dates);
+	}
+
+	@Test
+	void recurringProgressLinesUseCalendarWeekAndMonthIntervals() {
+		java.util.Calendar startCalendar = DateTime.calendarInstance();
+		startCalendar.clear();
+		startCalendar.set(2026, java.util.Calendar.JANUARY, 31);
+		long start = startCalendar.getTimeInMillis();
+		java.util.Calendar expectedCalendar = (java.util.Calendar) startCalendar.clone();
+		java.util.List<Long> expectedWeeks = new java.util.ArrayList<>();
+		for (int i = 0; i < 5; i++) {
+			expectedWeeks.add(Long.valueOf(expectedCalendar.getTimeInMillis()));
+			expectedCalendar.add(java.util.Calendar.WEEK_OF_YEAR, 1);
+		}
+		assertEquals(expectedWeeks, GanttProgress.progressLineReferenceDates(start,
+			expectedWeeks.getLast().longValue(), -1L,
+			new ProgressLineSettings(false, ProgressLineSettings.ReferenceDate.STATUS_DATE,
+				true, 1, ProgressLineSettings.IntervalUnit.WEEK)));
+
+		expectedCalendar = (java.util.Calendar) startCalendar.clone();
+		java.util.List<Long> expectedMonths = new java.util.ArrayList<>();
+		for (int i = 0; i < 5; i++) {
+			expectedMonths.add(Long.valueOf(expectedCalendar.getTimeInMillis()));
+			expectedCalendar.add(java.util.Calendar.MONTH, 1);
+		}
+		assertEquals(expectedMonths, GanttProgress.progressLineReferenceDates(start,
+			expectedMonths.getLast().longValue(), -1L,
+			new ProgressLineSettings(false, ProgressLineSettings.ReferenceDate.STATUS_DATE,
+				true, 1, ProgressLineSettings.IntervalUnit.MONTH)));
 	}
 
 	private static Schedule taskSpecificSchedule(final double percentComplete, final double percentWorkComplete, final boolean wbsParent) {

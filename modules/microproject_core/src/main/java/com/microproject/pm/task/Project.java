@@ -163,6 +163,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	static final long serialVersionUID = 17283790404932L;
 	private static final Logger logger = Logger.getLogger(Project.class.getName());
 	private long statusDate = 0;
+	private transient ProgressLineSettings progressLineSettings;
 	private String manager="";
 	private transient HasKeyImpl hasKey;
 	private String notes="";
@@ -713,6 +714,15 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	public boolean isStatusDateSet() {
 		return statusDate != 0;
+	}
+
+	/** Project-level Gantt progress-line display options, persisted by MPO sidecar settings. */
+	public ProgressLineSettings getProgressLineSettings() {
+		return progressLineSettings;
+	}
+
+	public void setProgressLineSettings(ProgressLineSettings settings) {
+		progressLineSettings = settings;
 	}
 
 	/** Clears an explicitly configured status date (used by undo). */
