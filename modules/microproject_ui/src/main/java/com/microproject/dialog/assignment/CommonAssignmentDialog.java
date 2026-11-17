@@ -23,11 +23,16 @@
  *******************************************************************************/
 package com.microproject.dialog.assignment;
 
+import javax.swing.JRootPane;
+
 /**
  *
  */
 public interface CommonAssignmentDialog {
 	public void setEditorButtonsVisible(boolean visible);
+
+	/** The dialog window whose root pane owns the table editing keys. */
+	public JRootPane getRootPane();
 
 }
 
