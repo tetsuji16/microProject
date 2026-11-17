@@ -368,7 +368,8 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments, [int]$timeoutSecon
   }
   $allowedSkipReasons = @(
     'Direct command sweep requires a full-width desktop; high-DPI layout is covered by the dedicated visual matrix.',
-    'This visual-matrix case is the high-DPI counterpart of the 100% command sweep.'
+    'This visual-matrix case is the high-DPI counterpart of the 100% command sweep.',
+    'Direct ribbon color gallery requires full-width desktop; overflow coverage is provided by taskColorGalleriesApplySelectedTasksWithUndoRedoAndMpoReload'
   )
   $unexpectedSkips = @()
   foreach ($resultFile in $resultFiles) {

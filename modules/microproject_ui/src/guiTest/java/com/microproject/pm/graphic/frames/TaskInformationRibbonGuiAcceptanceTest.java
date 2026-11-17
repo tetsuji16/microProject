@@ -650,8 +650,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		robot.waitForIdle();
 		AbstractButton directCommand = findVisibleOrOverflowButton(robot, "RibbonFillColor");
 		Assumptions.assumeFalse(directCommand instanceof JMenu,
-			"Direct ribbon button unavailable at display bounds " + Toolkit.getDefaultToolkit().getScreenSize()
-				+ "; collapsed overflow is covered by taskColorGalleriesApplySelectedTasksWithUndoRedoAndMpoReload");
+			"Display bounds " + Toolkit.getDefaultToolkit().getScreenSize()
+				+ "; Direct ribbon color gallery requires full-width desktop; overflow coverage is provided by "
+				+ "taskColorGalleriesApplySelectedTasksWithUndoRedoAndMpoReload");
 		JPopupMenu popup = galleryPopup(directCommand);
 		click(robot, directCommand);
 		GuiAcceptanceSupport.await(popup::isShowing, "direct ribbon color command did not open the gallery");
