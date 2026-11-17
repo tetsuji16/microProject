@@ -15,6 +15,21 @@ import com.microproject.graphic.configuration.BarFormat;
 
 class MicrosoftProjectGanttPaletteTest {
 	private final MicrosoftProjectGanttPalette palette = new MicrosoftProjectGanttPalette();
+	private boolean previousDark;
+
+	@org.junit.jupiter.api.BeforeEach
+	void useLightPalette() throws Exception {
+		previousDark = com.microproject.ui.theme.ThemeManager.isDark();
+		javax.swing.SwingUtilities.invokeAndWait(com.microproject.ui.theme.MicroProjectTheme::installLight);
+	}
+
+	@org.junit.jupiter.api.AfterEach
+	void restorePalette() throws Exception {
+		javax.swing.SwingUtilities.invokeAndWait(() -> {
+			if (previousDark) com.microproject.ui.theme.MicroProjectTheme.installDark();
+			else com.microproject.ui.theme.MicroProjectTheme.installLight();
+		});
+	}
 
 	@Test
 	void usesMicrosoftProjectColorsForTheGanttSurfaceAndTaskBars() {
