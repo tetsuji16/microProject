@@ -563,6 +563,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		command = findVisibleOrOverflowButton(robot, commandId);
 		popup = galleryPopup(command);
 		assertTrue(command instanceof JMenu, commandId + " must expose Escape dismissal from the keyboard");
+		boolean originallyFocusable = command.isFocusable();
 		openGalleryWithKeyboard(robot, (JMenu) command, popup, commandId + " Escape");
 		JPopupMenu escapePopup = popup;
 		JPopupMenu ribbonOverflow = (JPopupMenu) command.getParent();
@@ -615,6 +616,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			return focusManager.getFocusedWindow() == window && focusManager.getActiveWindow() == window;
 			}, commandId + " outer ribbon popup dismissal did not return focus to its window");
 		String outerEscapeAction = "microproject.dismissRibbonOverflow." + escapePopup.getName();
+		assertEquals(originallyFocusable, command.isFocusable(),
+			commandId + " outer popup dismissal must restore the menu item's original focusability");
 		assertNotEquals(outerEscapeAction, command.getInputMap(JComponent.WHEN_FOCUSED)
 			.get(javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0)),
 			commandId + " outer popup dismissal must restore the menu item's original Escape binding");
