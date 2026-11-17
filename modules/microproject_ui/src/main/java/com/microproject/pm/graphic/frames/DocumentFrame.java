@@ -1948,7 +1948,8 @@ public class DocumentFrame extends NamedFrame implements
 			Gantt gantt = ganttView.getGantt();
 			if (gantt != null)
 				gantt.getInteractor().setModeListener(statusBar::setMode);
-			restoreWorkspaceFor(ganttView);
+			if (restoreWorkspaceFor(ganttView) == null)
+				ganttView.fitProjectRangeOnInitialDisplay();
 		}
 		return ganttView;
 	}
