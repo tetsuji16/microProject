@@ -27,6 +27,8 @@ import java.util.function.Consumer;
 
 import java.awt.Dimension;
 import java.awt.Point;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.JScrollPane;
 
@@ -36,6 +38,7 @@ import com.microproject.menu.MenuManager;
 import com.microproject.pm.graphic.chart.ChartInfo;
 import com.microproject.pm.graphic.chart.ChartLegend;
 import com.microproject.pm.graphic.chart.ChartMode;
+import com.microproject.pm.resource.Resource;
 import com.microproject.pm.graphic.chart.TimeChartPanel;
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
@@ -230,6 +233,16 @@ public class ChartView extends SplittedView implements SelectionNodeListener, Ba
 		getRightScrollPane().getViewport().setViewPosition(ws.chartViewPosition);
 		chartInfo.setRestoring(false);
 		chartInfo.replotRestoredResourceGraph();
+	}
+
+	/** Captures selected resources before a workspace reload resets the main view selection. */
+	public List<Resource> snapshotResourceSelection() {
+		return chartInfo.getResources() == null ? List.of() : new ArrayList<>(chartInfo.getResources());
+	}
+
+	/** Reapplies selected resources after the chart's workspace state has been restored. */
+	public void restoreResourceSelection(List<Resource> resources) {
+		chartLegend.restoreResourceSelection(resources);
 	}
 	public WorkspaceSetting createWorkspace(int context) {
 		Workspace ws = new Workspace();

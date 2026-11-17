@@ -36,6 +36,8 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.IdentityHashMap;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -87,6 +89,7 @@ import com.microproject.pm.graphic.spreadsheet.selection.event.SelectionNodeList
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.graphic.views.BaseView;
 import com.microproject.pm.graphic.views.ChartView;
+import com.microproject.pm.resource.Resource;
 import com.microproject.pm.graphic.chart.ChartMode;
 import com.microproject.pm.graphic.views.DockableProjectToolView;
 import com.microproject.pm.graphic.gantt.Gantt;
@@ -3241,6 +3244,11 @@ public class DocumentFrame extends NamedFrame implements
 			if (view instanceof BaseView baseView)
 				existingViews.add(baseView);
 		});
+		Map<ChartView, List<Resource>> chartSelections = new IdentityHashMap<>();
+		for (BaseView view : existingViews) {
+			if (view instanceof ChartView chartView)
+				chartSelections.put(chartView, chartView.snapshotResourceSelection());
+		}
 		workspace = ws;
 		setMainView(false);
 		if (project == null) {
@@ -3263,8 +3271,11 @@ public class DocumentFrame extends NamedFrame implements
 		// Lazy view construction restores its workspace in the getter. Reapply only to views
 		// that existed before this restore, once each, so a same-session workspace reload also
 		// updates cached views without restoring newly-created views twice.
-		for (BaseView view : existingViews)
+		for (BaseView view : existingViews) {
 			restoreWorkspaceFor(view);
+			if (view instanceof ChartView chartView)
+				chartView.restoreResourceSelection(chartSelections.get(chartView));
+		}
 
 	}
 
