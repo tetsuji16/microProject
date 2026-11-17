@@ -6250,6 +6250,26 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new com.microproject.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
+		javax.swing.JTree resourceTree = UiComponentWalker.flatten(graph).stream()
+			.filter(javax.swing.JTree.class::isInstance).map(javax.swing.JTree.class::cast).findFirst()
+			.orElseThrow(() -> new AssertionError("Resource Graph legend tree is missing"));
+		int resourceRow = -1;
+		for (int row = 0; row < resourceTree.getRowCount(); row++) {
+			Object value = resourceTree.getPathForRow(row).getLastPathComponent();
+			if (value instanceof com.microproject.pm.graphic.model.cache.GraphicNode graphicNode
+				&& graphicNode.getNode().getImpl() == resource) {
+				resourceRow = row;
+				break;
+			}
+		}
+		assertTrue(resourceRow >= 0, "the Resource Graph legend must contain the allocated resource");
+		java.awt.Rectangle rowBounds = resourceTree.getRowBounds(resourceRow);
+		java.awt.Point treeLocation = resourceTree.getLocationOnScreen();
+		click(robot, new java.awt.Rectangle(treeLocation.x + rowBounds.x, treeLocation.y + rowBounds.y,
+			rowBounds.width, rowBounds.height));
+		int selectedResourceRow = resourceRow;
+		GuiAcceptanceSupport.await(() -> resourceTree.isRowSelected(selectedResourceRow),
+			"Robot did not select the allocated resource in the Resource Graph legend");
 		AbstractButton formatTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
 			.getString("ResourceGraphFormat.contextualTitle"));
 		clickAndAwaitSelected(robot, formatTab, "Robot did not activate the Resource Graph Format contextual tab");
