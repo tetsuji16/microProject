@@ -56,6 +56,7 @@ MS Project 互換性に関する形式テストでは read と write を独立�
 | ダイアログの実際の重なり・文字欠け | 既存共有 assertion。FlatLaf JSpinner の縦 stepper 同士が共有する1px境界だけ除外 |
 | リボンの幅対応再構築後のグループ名基準線 | ModernRibbonPanelBandBaselineTest: 幅1100/1300/1450/1920で全タブのバンド名下端を比較し、幅による再構築で特定タブだけ高さがズレないことを確認 |
 | Calendar 書式設定のワークスペース往復 | CalendarViewSettingsTest: 行高さ・バー色・文字書式・レイアウト・タスク一覧の保存復元と、共有 DockableProjectToolView によるワークスペース往復を確認 |
+| ダイアログのサイズ制限がオーナーのモニター基準 | DialogSizingTest と PreferencesDialogGuiAcceptanceTest.initialSizeUsesTheOwnerMonitorInsteadOfThePrimaryOne: 共通クランプとセカンダリ モニターの作業領域を確認 |
 
 ## 1.3 issue に書く試験条件
 
