@@ -6337,6 +6337,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> !invalidWarning.isShowing(), "the overlap warning did not dismiss after physical OK");
 		assertEquals(0, graph.getResourceGraphSettings().getPercentBarOverlap(),
 			"dismissing the invalid-input warning must keep the prior overlap setting");
+		assertTrue(resourceTree.isRowSelected(selectedResourceRow),
+			"dismissing an invalid overlap warning must keep the selected Resource Graph resource");
 
 		TimeChartPanel panel = UiComponentWalker.flatten(graph).stream().filter(TimeChartPanel.class::isInstance)
 			.map(TimeChartPanel.class::cast).findFirst().orElseThrow();
@@ -6371,11 +6373,16 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		TimeChartPanel restoredPanel = UiComponentWalker.flatten(restoredGraph).stream()
 			.filter(TimeChartPanel.class::isInstance).map(TimeChartPanel.class::cast).findFirst().orElseThrow();
 		XYPlot restoredPlot = restoredPanel.getChart().getXYPlot();
+		GuiAcceptanceSupport.await(() -> hasDatasetSeries(restoredPlot, Item.ALLOCATED_RESOURCE.name()),
+			"workspace restore did not rebuild the selected resource dataset; selectedRow="
+				+ resourceTree.isRowSelected(selectedResourceRow) + ", visible=" + restoredGraph.isShowing()
+				+ ", datasets=" + datasetSeries(restoredPlot));
 		int restoredIndex = -1;
 		for (int i = 0; i < restoredPlot.getDatasetCount(); i++)
 			if (restoredPlot.getDataset(i) != null && Item.ALLOCATED_RESOURCE.name().equals(restoredPlot.getDataset(i).getSeriesKey(0)))
 				restoredIndex = i;
-		assertTrue(restoredIndex >= 0, "workspace reload must rebuild the allocated resource bar dataset");
+		assertTrue(restoredIndex >= 0, "workspace reload must rebuild the allocated resource bar dataset; selectedRow="
+			+ resourceTree.isRowSelected(selectedResourceRow) + ", datasets=" + datasetSeries(restoredPlot));
 		IntervalXYDataset restoredBars = (IntervalXYDataset) restoredPlot.getDataset(restoredIndex);
 		assertEquals(periodWidth / 2D, restoredBars.getEndXValue(0, 0) - restoredBars.getStartXValue(0, 0), 1D,
 			"workspace reload must redraw the saved zero-overlap bar widths");
@@ -9118,6 +9125,20 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		}
 		return text.toString().replaceAll("(?i)<br\\s*/?>", " ")
 				.replaceAll("<[^>]+>", " ").replaceAll("\\s+", " ");
+	}
+
+	private static boolean hasDatasetSeries(XYPlot plot, String seriesName) {
+		return datasetSeries(plot).contains(seriesName);
+	}
+
+	private static List<String> datasetSeries(XYPlot plot) {
+		List<String> series = new ArrayList<>();
+		for (int datasetIndex = 0; datasetIndex < plot.getDatasetCount(); datasetIndex++) {
+			if (plot.getDataset(datasetIndex) == null) continue;
+			for (int seriesIndex = 0; seriesIndex < plot.getDataset(datasetIndex).getSeriesCount(); seriesIndex++)
+				series.add(String.valueOf(plot.getDataset(datasetIndex).getSeriesKey(seriesIndex)));
+		}
+		return series;
 	}
 
 	private static boolean isActiveDialogOwnedBy(Window expectedOwner, String expectedTitle) {
