@@ -1011,13 +1011,17 @@ class GanttBarDateDragGuiAcceptanceTest {
 		int targetX = bar.x + Math.max(2, bar.width / 2) + delta;
 		int targetY = bar.y + bar.height / 2;
 		int startX = bar.x + Math.max(2, bar.width / 2);
-		for (int step = 1; step <= 8; step++) {
-			robot.mouseMove(startX + (targetX - startX) * step / 8, targetY);
-			if (verifyDragFeedback && step == 4)
-				GuiAcceptanceSupport.await(GanttBarDateDragGuiAcceptanceTest::hasVisibleDragFeedback,
-					"moving a Gantt bar while pressed must show its localized start/finish tooltip");
+		try {
+			for (int step = 1; step <= 8; step++) {
+				robot.mouseMove(startX + (targetX - startX) * step / 8, targetY);
+				if (verifyDragFeedback && step == 4)
+					GuiAcceptanceSupport.await(GanttBarDateDragGuiAcceptanceTest::hasVisibleDragFeedback,
+						"moving a Gantt bar while pressed must show its localized start/finish tooltip");
+			}
+		} finally {
+			robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+			robot.waitForIdle();
 		}
-		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
 		GuiAcceptanceSupport.await(() -> fixture.predecessor.getStart() > oldStart,
 			"Gantt bar drag did not move the predecessor: oldStart=" + oldStart
 				+ " actual=" + fixture.predecessor.getStart() + " delta=" + delta
