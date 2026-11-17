@@ -947,6 +947,23 @@ class GanttBarDateDragGuiAcceptanceTest {
 		capture(robot, "gantt-ribbon-split-before.png");
 		RibbonGuiSupport.clickSplitPrimary(robot,
 			RibbonGuiSupport.findVisibleOrExpand(robot, projectWindow.getRibbonPanel(), "RibbonTaskSplit"));
+		robot.waitForIdle();
+		capture(robot, "gantt-ribbon-split-mode-entry.png");
+		System.out.println("[GANTT_SPLIT_MODE_ENTRY] origin=" + gantt.getCoord().getOrigin()
+			+ " viewport=" + viewportScreenBounds((javax.swing.JViewport)SwingUtilities.getAncestorOfClass(
+				javax.swing.JViewport.class, gantt))
+			+ " viewPosition=" + viewportViewPosition((javax.swing.JViewport)SwingUtilities.getAncestorOfClass(
+				javax.swing.JViewport.class, gantt))
+			+ " ganttScreen=" + gantt.getLocationOnScreen()
+			+ " staleSplitDate=" + taskDateAt(splitPoint) + " staleResumeDate=" + taskDateAt(resumePoint));
+		splitPoint = screenPointForTaskDate(fixture, splitAt);
+		resumePoint = screenPointForTaskDate(fixture, resumeAt);
+		assertRenderedDateMapping(fixture, splitAt, splitPoint, "split point after Split mode entry");
+		assertRenderedDateMapping(fixture, resumeAt, resumePoint, "resume point after Split mode entry");
+		assertScreenPointInGanttViewport(fixture, splitPoint, "split point after Split mode entry");
+		assertScreenPointInGanttViewport(fixture, resumePoint, "resume point after Split mode entry");
+		assertTaskBarHit(fixture, splitPoint);
+		capture(robot, "gantt-ribbon-split-mode-entry.png");
 		drag(robot, splitPoint, resumePoint);
 		try {
 			GuiAcceptanceSupport.await(() -> !originalSplits.equals(fixture.predecessor.getTaskSplitIntervals()),
