@@ -90,12 +90,7 @@ public class DocumentStatusBar extends JPanel {
 	}
 	static String formatZoom(int scaleIndex, int scaleCount, TimeScale scale) {
 		if (scale == null) return formatZoom(scaleIndex, scaleCount);
-		int clampedCount = Math.max(1, scaleCount);
-		int clampedIndex = Math.min(Math.max(0, scaleIndex), clampedCount - 1);
-		int position = clampedIndex + 1;
-		String label = formatScaleDescription(scale);
-		return MessageFormat.format(Messages.getString("StatusBar.ZoomSemantic"),
-				label, position, clampedCount);
+		return MessageFormat.format(Messages.getString("StatusBar.ZoomSemantic"), formatScaleDescription(scale));
 	}
 
 	static String formatScaleChoice(String timescaleLabel, int scaleIndex, int scaleCount, TimeScale scale) {

@@ -43,7 +43,7 @@ class DocumentStatusBarTest {
 		scale.setNumber1(3);
 		String text = DocumentStatusBar.formatZoom(7, 9, scale);
 		assertTrue(text.contains(Messages.getString("StatusBar.Interval.Quarter")));
-		assertTrue(text.contains("8/9"));
+		assertTrue(!text.contains("8/9"));
 	}
 
 	@Test
@@ -53,7 +53,7 @@ class DocumentStatusBarTest {
 		scale.setNumber1(6);
 		String text = DocumentStatusBar.formatZoom(5, 9, scale);
 		assertTrue(text.contains(Messages.getString("StatusBar.Interval.HalfYear")));
-		assertTrue(text.contains("6/9"));
+		assertTrue(!text.contains("6/9"));
 	}
 
 	@Test
@@ -100,6 +100,15 @@ class DocumentStatusBarTest {
 	}
 
 	@Test
+	void englishHierarchyUsesRequestedTitleCaseWithoutStatusPosition() {
+		ResourceBundle english = ResourceBundle.getBundle("com.microproject.strings.client", Locale.ENGLISH);
+		String[] keys = {"Day", "Hours", "Week", "Days", "Month", "Quarter", "HalfYear", "Year"};
+		String[] values = {"Day", "{0} Hours", "Week", "{0} Days", "Month", "Quarter", "Half Year", "Year"};
+		for (int i = 0; i < keys.length; i++) assertEquals(values[i], english.getString("StatusBar.Interval." + keys[i]));
+		assertEquals("Zoom: {0}", english.getString("StatusBar.ZoomSemantic"));
+	}
+
+	@Test
 	void timescaleHierarchyShowsConfiguredParentAndChildIntervals() {
 		TimeScale scale = new TimeScale();
 		scale.setCalendarField1(Calendar.MONTH);
@@ -131,7 +140,7 @@ class DocumentStatusBarTest {
 		scale.setCalendarField1(Calendar.HOUR_OF_DAY);
 		scale.setNumber1(0);
 		String text = DocumentStatusBar.formatZoom(10, 0, scale);
-		assertTrue(text.contains("1/1"), "empty scale collection must remain displayable: " + text);
+		assertTrue(!text.contains("1/1"), "semantic zoom must omit the position: " + text);
 		assertTrue(text.contains(MessageFormat.format(Messages.getString("StatusBar.Interval.Hour"), 1)),
 				"non-positive interval must be clamped: " + text);
 	}
@@ -167,7 +176,7 @@ class DocumentStatusBarTest {
 	void japaneseStatusLabelsDescribeCountsAndZoomLevels() {
 		ResourceBundle japanese = ResourceBundle.getBundle("com.microproject.strings.client", Locale.JAPANESE);
 		assertEquals("選択中のタスク数: {0}", japanese.getString("StatusBar.SelectedTasks"));
-		assertEquals("ズーム: {0} ({1}/{2} 段階)", japanese.getString("StatusBar.ZoomSemantic"));
+		assertEquals("ズーム: {0}", japanese.getString("StatusBar.ZoomSemantic"));
 		assertEquals("{0} ＞ {1}", japanese.getString("StatusBar.ScaleHierarchy"));
 		assertEquals("{0}分", japanese.getString("StatusBar.Interval.Minute"));
 		assertEquals("{0}時間", japanese.getString("StatusBar.Interval.Hour"));
