@@ -55,7 +55,6 @@ public final class ResourceGraphData {
 		addOverallocationEvents(events, selectedAllocations, 2);
 		addOverallocationEvents(events, availability, 3);
 		events.sort(Comparator.comparingLong(OverallocationChange::time));
-		events.sort(Comparator.comparingLong(OverallocationChange::time));
 		List<Long> times = new ArrayList<>();
 		List<Double> totalAtChange = new ArrayList<>();
 		List<Double> selectedAtChange = new ArrayList<>();
