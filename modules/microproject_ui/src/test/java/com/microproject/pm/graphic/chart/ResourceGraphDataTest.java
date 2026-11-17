@@ -426,6 +426,12 @@ class ResourceGraphDataTest {
 		IntervalXYDataset sideBySide = (IntervalXYDataset) plot.getDataset(datasetIndex(plot, Item.ALLOCATED_RESOURCE));
 		assertEquals(0.5D, sideBySide.getStartXValue(0, 0), DELTA);
 		assertEquals(1D, sideBySide.getEndXValue(0, 0), DELTA);
+		settings.setPercentBarOverlap(40);
+		plot = ResourceGraphChart.build(data, settings).getXYPlot();
+		IntervalXYDataset partialOverlap = (IntervalXYDataset) plot.getDataset(datasetIndex(plot, Item.ALLOCATED_RESOURCE));
+		assertEquals(0.3D, partialOverlap.getStartXValue(0, 0), DELTA);
+		assertEquals(1D, partialOverlap.getEndXValue(0, 0), DELTA,
+			"40 percent overlap must interpolate to 70 percent width between half-width and full-width bars");
 	}
 
 	private static int datasetIndex(XYPlot plot, Item item) {
