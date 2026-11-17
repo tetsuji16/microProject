@@ -1896,6 +1896,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AbstractButton formatTab = formatTabReference.get();
 		assertNotNull(formatTab, "The contextual Gantt Format tab was not rendered");
 		clickAndAwaitSelected(robot, formatTab, "Robot click did not select the Gantt Chart Format ribbon tab");
+		SwingUtilities.invokeAndWait(() -> {
+			DocumentStatusBar status = UiComponentWalker.flatten(window).stream()
+				.filter(DocumentStatusBar.class::isInstance).map(DocumentStatusBar.class::cast)
+				.filter(DocumentStatusBar::isShowing).findFirst().orElseThrow();
+			String zoom = ((javax.swing.JLabel) status.getComponent(0)).getText();
+			assertTrue(zoom.contains(">") || zoom.contains("＞"), "status must show the hierarchy: " + zoom);
+			assertFalse(zoom.matches(".*\\([0-9]+/[0-9]+.*"), "status must omit the position: " + zoom);
+		});
 		click(robot, findShowingButtonByCommand("RibbonTimescale"));
 		AtomicBoolean chooserVisible = new AtomicBoolean();
 		GuiAcceptanceSupport.await(() -> {
