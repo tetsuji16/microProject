@@ -63,9 +63,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import com.microproject.menu.testsupport.RibbonInventory;
+import com.microproject.util.ColorLuminance;
 
 class IconManagerRibbonIconTest {
 	private record VectorIconFixture(String key, String rasterName, int primaryRgb, int accentRgb) { }
+	private static final List<String> FORMAT_ICON_KEYS = List.of("ribbon.bold", "ribbon.italic", "ribbon.underline");
 
 	@Test
 	void informationIconsRenderScaleSpecificDetailAtCommonScaleFactors() throws Exception {
@@ -423,6 +425,68 @@ class IconManagerRibbonIconTest {
 	void customFieldsRibbonIconUsesTheSharedFluentMonochromeGlyph() {
 		assertEquals("fluent-grid-dots.svg", IconManager.getConfiguredIconName("ribbon.customFields"));
 		assertMonochromeGlyph("ribbon.customFields");
+	}
+
+	/**
+	 * The format glyphs deliberately use the brand navy on a light ribbon. A dark ribbon needs
+	 * the light ribbon ink instead, and every size variant must follow the same rule (#1221).
+	 */
+	@Test
+	void formatRibbonIconsKeepTheBrandInkOnlyOnLightRibbons() throws Exception {
+		boolean wasDark = com.microproject.ui.theme.ThemeManager.isDark();
+		Color navy = new Color(0x1F3B73);
+		try {
+			installTheme(false);
+			for (String key : FORMAT_ICON_KEYS) {
+				for (int size : new int[] {16, 20, 32}) {
+					BufferedImage image = paint(IconManager.getRibbonIcon(key, size, size), size, size);
+					assertTrue(containsRgbWithin(image, navy.getRGB(), 4),
+						key + " at " + size + " px must keep the light-theme brand ink");
+				}
+			}
+
+			installTheme(true);
+			Color surface = com.microproject.ui.theme.MicroProjectTheme.tokens().ribbonSurfaceBackground();
+			for (String key : FORMAT_ICON_KEYS) {
+				for (int size : new int[] {16, 20, 32}) {
+					BufferedImage image = paint(IconManager.getRibbonIcon(key, size, size), size, size);
+					double contrast = contrastRatio(dominantOpaqueRgb(image), surface);
+					assertTrue(contrast >= 3.0, key + " at " + size + " px contrast " + contrast
+						+ " against " + surface + " is below 3.0");
+					assertFalse(containsRgbWithin(image, navy.getRGB(), 8),
+						key + " at " + size + " px must not paint the light-theme navy on a dark ribbon");
+				}
+			}
+		} finally {
+			installTheme(wasDark);
+		}
+	}
+
+	private static void installTheme(boolean dark) throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			if (dark) com.microproject.ui.theme.MicroProjectTheme.installDark();
+			else com.microproject.ui.theme.MicroProjectTheme.installLight();
+		});
+		IconManager.clearCaches();
+	}
+
+	private static Color dominantOpaqueRgb(BufferedImage image) {
+		java.util.Map<Integer, Integer> counts = new java.util.HashMap<>();
+		for (int y = 0; y < image.getHeight(); y++) {
+			for (int x = 0; x < image.getWidth(); x++) {
+				int argb = image.getRGB(x, y);
+				if (((argb >>> 24) & 0xff) < 200) continue;
+				counts.merge(argb & 0xffffff, 1, Integer::sum);
+			}
+		}
+		assertFalse(counts.isEmpty(), "a rendered glyph must have opaque ink pixels");
+		return new Color(counts.entrySet().stream().max(java.util.Map.Entry.comparingByValue()).orElseThrow().getKey());
+	}
+
+	private static double contrastRatio(Color first, Color second) {
+		double lighter = ColorLuminance.relativeLuminance(first) + 0.05;
+		double darker = ColorLuminance.relativeLuminance(second) + 0.05;
+		return Math.max(lighter, darker) / Math.min(lighter, darker);
 	}
 
 	private static void assertMonochromeGlyph(String key) {
