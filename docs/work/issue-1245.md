@@ -1,6 +1,6 @@
 # Issue #1245 — 残りの単色リボン アイコン（71 素材）と単色判定の一般化
 
-State: IN PROGRESS（PR #1248、CI 確認中）
+State: IN PROGRESS（PR #1248、CI 確認済み）
 Issue: https://github.com/tetsuji16/microProject/issues/1245
 Contract frozen at: 2026-11-19 issue body（#1221 のチェックリスト 4 と 5）
 Baseline HEAD: `e0e365594`（#1243 のブランチ上。master は `074e85e52`）
@@ -46,4 +46,4 @@ Blockers: none（PR #1248 は master を base にする。#1243 の変更は #12
 - 監査（2026-11-19、リポジトリの SVG 391 ファイルを静的走査）: 単色 104、複数色 287。単色の内訳は `#5b6573` 31、`#0f6cbd` 18、`#2f6b53` 12、`#1f3b73` 12、`#217346` 10、`#2563a7` 8、`#212121` 8、`#4472c4` 4、`#4b83bd` 1。`#4b83bd`（`recalculate.svg`）だけは 3.54:1 で基準内。
 - 注意: `recalculate` はベース素材が `#4b83bd`、16/20/32 px のサイズ別素材が `#0f6cbd` と色が違う。テストはサイズ別素材を解決して期待インクを決める。
 - GUI: ローカルは `GUI_ENVIRONMENT_CONTENDED`（前面 pid 2216 `OpenCode`）で 2 回停止。CI の dispatch では PASSED。
-- CI: base を master に変えたため、PR #1248 で `build` / `GUI acceptance` / `verify` を確認する。積み直す前のブランチでは手動 dispatch で `Build`（run 44357232677）と `GUI acceptance`（run 44357238326、対象テストを ja/1.0 で実行）が success。
+- CI: PR #1248（コード SHA `c0c04667c`）で `GUI acceptance` pass（4m40s）、`build` pass、`verify` ubuntu / windows / macos pass、CodeRabbit pass。積み直す前のブランチでも手動 dispatch で `Build`（run 44357232677）と `GUI acceptance`（run 44357238326）が success。
