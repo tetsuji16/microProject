@@ -1951,6 +1951,13 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		boolean constrainWidth) {
 		for (SwingRibbonModel.RibbonButton specification : specifications) {
 			AbstractButton command = createButton(specification, false);
+			if (popup instanceof JPopupMenu responsivePopup) {
+				// Buttons inside a collapsed responsive group do not get JMenuItem's
+				// automatic dismissal behavior. Close the group after the command has
+				// dispatched, including commands that enter a nested modal event loop.
+				command.addActionListener(event -> javax.swing.SwingUtilities.invokeLater(
+					() -> responsivePopup.setVisible(false)));
+			}
 			buttonStyler.styleActionButton(command, "small");
 			if (constrainWidth) {
 				command.setMaximumSize(new Dimension(260, command.getPreferredSize().height));
