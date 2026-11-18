@@ -6946,10 +6946,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		press(robot, KeyEvent.VK_ENTER);
 		GuiAcceptanceSupport.await(() -> !lockWarning.isShowing(), "the Ribbon Link lock warning did not close after Enter");
 		project.setCollaborationSession(null);
-		AbstractButton retryLink = RibbonGuiSupport.findVisibleOrExpand(robot, window, "RibbonLink");
-		GuiAcceptanceSupport.await(retryLink::isEnabled, "Link stayed disabled after dismissing the lock rejection");
+		GuiAcceptanceSupport.await(link::isEnabled, "Link stayed disabled after dismissing the lock rejection");
 		previousLinkOutcome = manager.getLastRibbonCommandResult();
-		click(robot, retryLink);
+		click(robot, link);
 		GuiAcceptanceSupport.await(() -> successor.getPredecessorList().size() == 1,
 				"Link did not create a dependency between the selected tasks");
 		GuiAcceptanceSupport.await(() -> gantt.getModel().getCache().getEdgesSize() == 1,

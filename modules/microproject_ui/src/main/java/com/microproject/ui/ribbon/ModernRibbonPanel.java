@@ -1951,12 +1951,16 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		boolean constrainWidth) {
 		for (SwingRibbonModel.RibbonButton specification : specifications) {
 			AbstractButton command = createButton(specification, false);
-			if (popup instanceof JPopupMenu responsivePopup) {
-				// Buttons inside a collapsed responsive group do not get JMenuItem's
-				// automatic dismissal behavior. Close the group after the command has
-				// dispatched, including commands that enter a nested modal event loop.
-				command.addActionListener(event -> javax.swing.SwingUtilities.invokeLater(
-					() -> responsivePopup.setVisible(false)));
+			if (popup instanceof JPopupMenu responsivePopup
+					&& command.getClientProperty(RibbonControlPopups.POPUP_PROPERTY) instanceof JPopupMenu commandPopup) {
+				// A selected gallery item closes its own popup, but Swing keeps the
+				// containing responsive group open. Dismiss that group only after a
+				// gallery item commits, not when the user first opens the gallery.
+				commandPopup.addPropertyChangeListener(RibbonControlPopups.GALLERY_SELECTION_PROPERTY, event -> {
+					if (event.getNewValue() != null) {
+						javax.swing.SwingUtilities.invokeLater(() -> responsivePopup.setVisible(false));
+					}
+				});
 			}
 			buttonStyler.styleActionButton(command, "small");
 			if (constrainWidth) {
