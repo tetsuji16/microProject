@@ -78,6 +78,8 @@ import com.microproject.pm.task.Project;
 import com.microproject.strings.Messages;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.testsupport.RibbonGuiSupport;
+import com.microproject.ui.ribbon.RibbonDisplayMode;
+import com.microproject.ui.ribbon.RibbonDisplayPreferences;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.DateTime;
 import com.microproject.util.Environment;
@@ -93,6 +95,8 @@ class GanttBarDateDragGuiAcceptanceTest {
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
 	private boolean environmentCaptured;
+	private RibbonDisplayMode previousRibbonDisplayMode;
+	private boolean ribbonDisplayModeCaptured;
 	private KeyEventDispatcher activeKeyObserver;
 
 	@AfterEach
@@ -111,6 +115,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		}
 		if (projectManager != null) SwingUtilities.invokeAndWait(() -> projectManager.cleanUp());
 		if (projectWindow != null) SwingUtilities.invokeAndWait(() -> projectWindow.dispose());
+		if (ribbonDisplayModeCaptured) RibbonDisplayPreferences.save(previousRibbonDisplayMode);
 		if (environmentCaptured) {
 			Environment.setRibbonUI(previousRibbonUi);
 			Environment.setNewLook(previousNewLook);
@@ -1306,6 +1311,11 @@ class GanttBarDateDragGuiAcceptanceTest {
 	}
 
 	private DocumentFrame showRibbonFixture(Fixture fixture, String title) throws Exception {
+		if (!ribbonDisplayModeCaptured) {
+			previousRibbonDisplayMode = RibbonDisplayPreferences.load();
+			ribbonDisplayModeCaptured = true;
+		}
+		RibbonDisplayPreferences.save(RibbonDisplayMode.ALWAYS_SHOW);
 		DocumentFrame[] document = new DocumentFrame[1];
 		SwingUtilities.invokeAndWait(() -> {
 			if (gantt != null)
