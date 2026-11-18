@@ -47,4 +47,4 @@ Blockers: none（`status: ready`）。
   - `git diff --check` → exit 0
 - Physical GUI/manual: ダーク/ライトのフォント グループを実ウィンドウでキャプチャ（`ribbon-icon-contrast-{dark,light}-font-group.png`、日本語 100%）。ダークは B / I / U が明るいグレーで読め、ライトは従来の濃紺のまま。タスク 1 行を選択した状態（ステータス バー「選択中のタスク: 1」）。
 - 注意: 上記 GUI 実行の後、`%TEMP%\mp997\app\microProject.exe` のウィンドウが前面を占め、再実行は `GUI_ENVIRONMENT_CONTENDED` で 2 回停止した。GUI テストのソースは上記実行から変えておらず、その後の差分は `IconManager` のコメントと `IconManagerRibbonIconTest` の定数位置だけなので、上記の結果をそのまま使う。次の GUI 実行は前面を空けてから行う。
-- CI: pending（PR 作成後）
+- CI: PR #1241 の必須チェックがすべて成功（`GUI acceptance` 5m8s、`verify (ubuntu-latest)` 4m51s、`verify (windows-latest)` 5m50s、`verify (macos-latest)` 4m40s、CodeRabbit pass）。候補 SHA は `0b423d9e1`。
