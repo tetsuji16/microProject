@@ -1,9 +1,9 @@
 # Issue #1245 — 残りの単色リボン アイコン（71 素材）と単色判定の一般化
 
-State: IN PROGRESS（PR #1248、CI 確認済み）
+State: IN PROGRESS（PR #1248、CI 確認中）
 Issue: https://github.com/tetsuji16/microProject/issues/1245
 Contract frozen at: 2026-11-19 issue body（#1221 のチェックリスト 4 と 5）
-Baseline HEAD: `ec0a648c6`（#1243 のブランチ上。master は `62dc73b23` 系）
+Baseline HEAD: `e0e365594`（#1243 のブランチ上。master は `074e85e52`）
 Baseline working tree: `samples/CCPM path comparison 日本語.mpo` の変更と `.workbuddy-ai/` / `.worktrees/` のみ未追跡
 
 ## Goal and scope
@@ -11,7 +11,7 @@ Baseline working tree: `samples/CCPM path comparison 日本語.mpo` の変更と
 ダークのリボンに残る固定インクの単色アイコン 71 ファイル（`#5b6573` 31、`#0f6cbd` 18、`#217346` 10、`#2563a7` 8、`#4472c4` 4）を 3:1 以上にする。あわせて、素材名の列挙（`RIBBON_ICON_INKS`）をやめ、素材の色から単色を判定する経路へ一般化する（#1221 の 4 と 5 をまとめて行う）。
 
 Out of scope: 複数色のイラスト 287 ファイル、GUI のコマンド単位の全件監査と allowlist（#1221 の 6）、ライトの意匠変更、クイック アクセス ツールバー、Gantt の意味色。
-Blockers: #1241 / #1244 が未マージのため、このブランチは #1244 の上に積む。
+Blockers: none（PR #1248 は master を base にする。#1243 の変更は #1249 のマージまで差分に含まれる）。
 
 ## Acceptance
 
@@ -46,7 +46,4 @@ Blockers: #1241 / #1244 が未マージのため、このブランチは #1244 �
 - 監査（2026-11-19、リポジトリの SVG 391 ファイルを静的走査）: 単色 104、複数色 287。単色の内訳は `#5b6573` 31、`#0f6cbd` 18、`#2f6b53` 12、`#1f3b73` 12、`#217346` 10、`#2563a7` 8、`#212121` 8、`#4472c4` 4、`#4b83bd` 1。`#4b83bd`（`recalculate.svg`）だけは 3.54:1 で基準内。
 - 注意: `recalculate` はベース素材が `#4b83bd`、16/20/32 px のサイズ別素材が `#0f6cbd` と色が違う。テストはサイズ別素材を解決して期待インクを決める。
 - GUI: ローカルは `GUI_ENVIRONMENT_CONTENDED`（前面 pid 2216 `OpenCode`）で 2 回停止。CI の dispatch では PASSED。
-- CI: base が `issue/1243-dark-align-icons` のため PR の `pull_request` ワークフローは走らない。ブランチに対して手動で dispatch して確認した。
-  - `Build`（`-f runner_os=ubuntu-latest`）→ run 44357232677 success。
-  - `GUI acceptance`（`-f gui_test_filter=com.microproject.ui.ribbon.RibbonIconThemeContrastGuiAcceptanceTest -f gui_test_locale=ja -f gui_test_scale=1.0`）→ run 44357238326 success。
-  - #1241 / #1244 がマージされて base が master に変わると、通常の必須チェックも走る。
+- CI: base を master に変えたため、PR #1248 で `build` / `GUI acceptance` / `verify` を確認する。積み直す前のブランチでは手動 dispatch で `Build`（run 44357232677）と `GUI acceptance`（run 44357238326、対象テストを ja/1.0 で実行）が success。
