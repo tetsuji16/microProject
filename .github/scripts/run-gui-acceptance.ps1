@@ -18,7 +18,7 @@ $gateLogs = 'modules/microproject_ui/build/reports/guiTest-artifacts'
 $gateFailures = [System.Collections.Generic.List[string]]::new()
 $hostedWarningWatcher = $null
 $isGitHubActions = $env:GITHUB_ACTIONS -eq 'true'
-$hostedNotificationPolicySnapshot = $null
+$hostedPolicySnapshots = [System.Collections.Generic.List[object]]::new()
 New-Item -ItemType Directory -Force -Path $gateLogs | Out-Null
 
 $primaryDisplay = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
@@ -50,9 +50,8 @@ function Stop-HostedWarningWatcher {
   $script:hostedWarningWatcher = $null
 }
 
-function Start-HostedNotificationCenterPolicy([string]$path = 'Software\Policies\Microsoft\Windows\Explorer') {
+function Start-HostedPolicyValue([string]$path, [string]$name, [string]$description) {
   if (-not $script:isGitHubActions) { return }
-  $name = 'DisableNotificationCenter'
   $createdKeyPaths = [System.Collections.Generic.List[string]]::new()
   $currentPath = ''
   foreach ($part in $path.Split('\')) {
@@ -64,9 +63,10 @@ function Start-HostedNotificationCenterPolicy([string]$path = 'Software\Policies
       $probe.Dispose()
     }
   }
-  $script:hostedNotificationPolicySnapshot = @{
+  $snapshot = @{
     Path = $path
     Name = $name
+    Description = $description
     KeyExisted = $createdKeyPaths.Count -eq 0
     CreatedKeyPaths = @($createdKeyPaths.ToArray())
     ValueStateCaptured = $false
@@ -74,6 +74,7 @@ function Start-HostedNotificationCenterPolicy([string]$path = 'Software\Policies
     Value = $null
     Kind = $null
   }
+  $script:hostedPolicySnapshots.Add($snapshot)
   $key = $null
   try {
     $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey($path)
@@ -81,28 +82,27 @@ function Start-HostedNotificationCenterPolicy([string]$path = 'Software\Policies
     $exists = $key.GetValueNames() -contains $name
     $value = if ($exists) { $key.GetValue($name) } else { $null }
     $kind = if ($exists) { $key.GetValueKind($name) } else { $null }
-    $script:hostedNotificationPolicySnapshot.ValueExists = $exists
-    $script:hostedNotificationPolicySnapshot.Value = $value
-    $script:hostedNotificationPolicySnapshot.Kind = $kind
-    $script:hostedNotificationPolicySnapshot.ValueStateCaptured = $true
+    $snapshot.ValueExists = $exists
+    $snapshot.Value = $value
+    $snapshot.Kind = $kind
+    $snapshot.ValueStateCaptured = $true
     if ($exists -and $kind -ne [Microsoft.Win32.RegistryValueKind]::DWord) { throw "Hosted GUI policy has unsupported existing value type: $kind" }
     $key.SetValue($name, 1, [Microsoft.Win32.RegistryValueKind]::DWord)
     $key.Flush()
     if ([int]$key.GetValue($name) -ne 1 -or $key.GetValueKind($name) -ne [Microsoft.Win32.RegistryValueKind]::DWord) {
-      throw 'Hosted GUI notification-center policy did not read back as DWORD 1'
+      throw "Hosted GUI policy $name did not read back as DWORD 1"
     }
-    Write-Host 'Temporarily enabled DisableNotificationCenter for hosted GUI acceptance; the original value will be restored in finally.'
+    Write-Host "Temporarily enabled $name for $description; the original value will be restored in finally."
     if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {
-      Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value '- Hosted GUI notification-center policy: temporarily set and read back as DWORD 1; original value will be restored after the gate.'
+      Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value "- Hosted GUI policy ``$name`` ($description): temporarily set and read back as DWORD 1; original value will be restored after the gate."
     }
   } catch {
     $setupError = $_.Exception.Message
     if ($null -ne $key) { $key.Dispose(); $key = $null }
     try {
-      Stop-HostedNotificationCenterPolicy
+      Stop-HostedPolicyValues
     } catch {
       $rollbackError = $_.Exception.Message
-      $script:hostedNotificationPolicySnapshot = $null
       throw "Hosted GUI policy setup failed ($setupError); rollback also failed ($rollbackError)"
     }
     throw
@@ -111,9 +111,80 @@ function Start-HostedNotificationCenterPolicy([string]$path = 'Software\Policies
   }
 }
 
-function Stop-HostedNotificationCenterPolicy {
-  if ($null -eq $script:hostedNotificationPolicySnapshot) { return }
-  $snapshot = $script:hostedNotificationPolicySnapshot
+function Start-HostedPolicies {
+  Start-HostedPolicyValue 'Software\Policies\Microsoft\Windows\Explorer' 'DisableNotificationCenter' 'hosted GUI notification center'
+  Start-HostedPolicyValue 'Software\Microsoft\Windows\CurrentVersion\Policies\Explorer' 'NoWinKeys' 'hosted GUI Windows-key hotkeys'
+}
+
+function Test-HostedWindowsKeyHotkeysDisabled {
+  if (-not $script:isGitHubActions) { return }
+  if (-not ('HostedGuiHotkeyProbe' -as [type])) {
+    Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+
+public static class HostedGuiHotkeyProbe {
+  private const byte VkLWin = 0x5B;
+  private const byte VkA = 0x41;
+  private const byte VkEscape = 0x1B;
+  private const uint KeyUp = 0x0002;
+
+  [DllImport("user32.dll", CharSet = CharSet.Auto)]
+  private static extern IntPtr FindWindow(string className, string windowName);
+
+  [DllImport("user32.dll")]
+  private static extern bool IsWindowVisible(IntPtr handle);
+
+  [DllImport("user32.dll")]
+  private static extern void keybd_event(byte virtualKey, byte scanCode, uint flags, UIntPtr extraInfo);
+
+  public static bool IsQuickSettingsVisible() {
+    IntPtr handle = FindWindow("ControlCenterWindow", null);
+    return handle != IntPtr.Zero && IsWindowVisible(handle);
+  }
+
+  public static void PressWindowsA() {
+    keybd_event(VkLWin, 0, 0, UIntPtr.Zero);
+    try {
+      keybd_event(VkA, 0, 0, UIntPtr.Zero);
+      keybd_event(VkA, 0, KeyUp, UIntPtr.Zero);
+    } finally {
+      keybd_event(VkLWin, 0, KeyUp, UIntPtr.Zero);
+    }
+  }
+
+  public static void PressEscape() {
+    keybd_event(VkEscape, 0, 0, UIntPtr.Zero);
+    keybd_event(VkEscape, 0, KeyUp, UIntPtr.Zero);
+  }
+}
+'@
+  }
+
+  if ([HostedGuiHotkeyProbe]::IsQuickSettingsVisible()) {
+    Save-GuiFailureScreenshot 'hosted-hotkey-preflight-started-contended'
+    throw 'Hosted GUI desktop was already showing Windows Quick Settings before the Windows-key policy preflight.'
+  }
+
+  [HostedGuiHotkeyProbe]::PressWindowsA()
+  Start-Sleep -Milliseconds 400
+  if ([HostedGuiHotkeyProbe]::IsQuickSettingsVisible()) {
+    Save-GuiFailureScreenshot 'hosted-no-win-keys-preflight'
+    [HostedGuiHotkeyProbe]::PressEscape()
+    $deadline = [DateTime]::UtcNow.AddSeconds(3)
+    while ([HostedGuiHotkeyProbe]::IsQuickSettingsVisible() -and [DateTime]::UtcNow -lt $deadline) {
+      Start-Sleep -Milliseconds 100
+    }
+    throw 'Hosted NoWinKeys policy did not block Win+A; Quick Settings opened during the preflight. The GUI suite was not started.'
+  }
+
+  Write-Host 'Hosted NoWinKeys policy preflight passed: Win+A did not open Quick Settings.'
+  if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {
+    Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value '- Hosted NoWinKeys preflight passed: Win+A did not open the Windows Quick Settings window.'
+  }
+}
+
+function Restore-HostedPolicyValue($snapshot) {
   $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($snapshot.Path, $true)
   if ($null -eq $key -and $snapshot.KeyExisted) { throw "Could not reopen hosted GUI policy key for restoration: HKCU:\$($snapshot.Path)" }
   try {
@@ -128,13 +199,13 @@ function Stop-HostedNotificationCenterPolicy {
         $exists = $key.GetValueNames() -contains $snapshot.Name
         if ($snapshot.ValueExists) {
           if (-not $exists -or $key.GetValue($snapshot.Name) -ne $snapshot.Value -or $key.GetValueKind($snapshot.Name) -ne $snapshot.Kind) {
-            throw 'Original hosted GUI notification-center policy was not restored exactly'
+            throw "Original hosted GUI policy $($snapshot.Name) was not restored exactly"
           }
         } elseif ($exists) {
-          throw 'Temporary hosted GUI notification-center policy remains after restoration'
+          throw "Temporary hosted GUI policy $($snapshot.Name) remains after restoration"
         }
       } elseif ($snapshot.ValueExists) {
-        throw 'Original hosted GUI notification-center policy key is missing during restoration'
+        throw "Original hosted GUI policy key for $($snapshot.Name) is missing during restoration"
       }
     }
 
@@ -176,19 +247,26 @@ function Stop-HostedNotificationCenterPolicy {
         throw "Original absent hosted GUI policy key remains after restoration: HKCU:\$($snapshot.Path)"
       }
     }
-    Write-Host 'Restored and verified the original hosted GUI notification-center policy state.'
-    if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {
-      Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value '- Hosted GUI notification-center policy: original value restored and verified (or temporary value verified absent).'
-    }
-    $script:hostedNotificationPolicySnapshot = $null
+    Write-Host "Restored and verified the original hosted GUI policy state for $($snapshot.Name)."
   } finally {
     if ($null -ne $key) { $key.Dispose() }
   }
 }
 
+function Stop-HostedPolicyValues {
+  for ($index = $script:hostedPolicySnapshots.Count - 1; $index -ge 0; $index--) {
+    $snapshot = $script:hostedPolicySnapshots[$index]
+    Restore-HostedPolicyValue $snapshot
+    $script:hostedPolicySnapshots.RemoveAt($index)
+    if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {
+      Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value "- Hosted GUI policy ``$($snapshot.Name)``: original value restored and verified (or temporary value verified absent)."
+    }
+  }
+}
+
 function Complete-GuiAcceptanceCleanup {
   try {
-    Stop-HostedNotificationCenterPolicy
+    Stop-HostedPolicyValues
   } finally {
     Stop-HostedWarningWatcher
   }
@@ -463,7 +541,8 @@ foreach ($testSelector in $visualTests) {
 }
 
 try {
-  Start-HostedNotificationCenterPolicy
+  Start-HostedPolicies
+  Test-HostedWindowsKeyHotkeysDisabled
   if (-not [string]::IsNullOrWhiteSpace($TestFilter)) {
     $safeFilter = ($TestFilter -replace '[^A-Za-z0-9_.-]', '_')
     $safeScale = $Scale.Replace('.', '-')

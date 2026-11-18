@@ -135,10 +135,8 @@ jobs:
     needs: unix-packages
     if: ${{ always() && !cancelled() && (needs.unix-packages.result == 'success' || needs.unix-packages.result == 'skipped') }}
     name: Build and publish Windows release
-    runs-on: windows-2022
-    # Keep the stable full GUI gate on the 2022 shell: Windows 2025 runners have
-    # repeatedly opened Quick Settings over Robot windows during long suites.
-    # Build and PR GUI acceptance still cover windows-latest independently.
+    runs-on: windows-latest
+    # Stable full GUI acceptance stays on the native desktop image used by PR smoke.
     # Stable candidates run the full GUI locale/DPI matrix once, at publication.
     timeout-minutes: 180
     outputs:
