@@ -93,3 +93,12 @@ symptom in that package remains.
 - Red check: the keyboard journey fails for both tables with the `InformationDialog` wiring removed, so the new journey covers the fix.
 - Table verification before the popup fix: the resource sheet showed two identically labelled "New" items (`InsertTask` and `InsertResource`) and a task-only "Paste Inserted Tasks"; the assignment table showed the same task-only items.
 - The timesheet table (`TimesheetEntryPane`) sets an empty action list on purpose, so it opens no row popup; that is the intended contract, not a missing menu.
+
+## Packaged desktop check
+
+Published `v0.1.0.1324` (app-image package, built from `c6fb9ad0b`):
+
+- Opened `samples/CCPM path comparison English.mpo`, switched to the resource view, created a resource and opened Resource Information. The dialog and its `リソース利用性` tab rendered the effective-dated row.
+- Right-clicking that first row opened a real row popup. For this file the pool is neither local nor master, so `ActionList.availability` resolves to `Copy` and the popup showed Copy only - the declared command set, nothing task-only, no dead item.
+- The reported symptom (Delete/Cut offered on the protected first row) needs a local or master resource pool, and no bundled sample carries one. That path therefore stays verified by the Robot journeys at the same commit (`ResourceAvailabilityRowDeleteGuiAcceptanceTest`, `ResourceIntervalTableKeyboardGuiAcceptanceTest`) rather than by this manual pass. It is not claimed as manually confirmed.
+- The sample was left unmodified: the close prompt was answered "No" and `git status` stayed clean.
