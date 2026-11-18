@@ -2191,7 +2191,22 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			executeExternalRibbonCommand("openProject", GraphicManager.this::doRecentProjectsDialog);
+			String requested = arg0 == null ? null : arg0.getActionCommand();
+			if (isRecentProjectPath(requested)) {
+				String path = requested;
+				executeExternalRibbonCommand("openProject", () -> loadLocalDocument(path, false));
+			} else {
+				executeExternalRibbonCommand("openProject", GraphicManager.this::doRecentProjectsDialog);
+			}
+		}
+		/** A Backstage row passes the project path as the command value; a normal click does not. */
+		private boolean isRecentProjectPath(String value) {
+			if (value == null || value.isBlank()) return false;
+			try {
+				return java.nio.file.Path.of(value).isAbsolute();
+			} catch (RuntimeException invalidPath) {
+				return false;
+			}
 		}
 		protected boolean allowed(boolean enable){
 			DocumentFrame dframe = getCurrentFrame();
