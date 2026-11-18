@@ -18,7 +18,6 @@ $gateLogs = 'modules/microproject_ui/build/reports/guiTest-artifacts'
 $gateFailures = [System.Collections.Generic.List[string]]::new()
 $hostedWarningWatcher = $null
 $isGitHubActions = $env:GITHUB_ACTIONS -eq 'true'
-$hostedPolicySnapshots = [System.Collections.Generic.List[object]]::new()
 New-Item -ItemType Directory -Force -Path $gateLogs | Out-Null
 
 $primaryDisplay = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
@@ -31,14 +30,19 @@ function Start-HostedWarningWatcher {
   if ($null -ne $script:hostedWarningWatcher -and -not $script:hostedWarningWatcher.HasExited) { return }
   $watcherScript = Join-Path $PWD '.github/scripts/dismiss-hosted-windows-performance-dialogs.ps1'
   $watcherLog = Join-Path $script:gateLogs 'hosted-windows-dialog-watcher.log'
+  $script:hostedWarningWatcherLog = $watcherLog
   $argumentLine = '-NoProfile -NonInteractive -File "{0}" -LogFile "{1}"' -f $watcherScript, $watcherLog
   $script:hostedWarningWatcher = Start-Process -FilePath (Join-Path $PSHOME 'pwsh.exe') `
     -ArgumentList $argumentLine -PassThru -WindowStyle Hidden
-  Start-Sleep -Milliseconds 300
-  if ($script:hostedWarningWatcher.HasExited) {
-    throw 'Could not start the bounded hosted paging-file warning watcher.'
+  $startupDeadline = [DateTime]::UtcNow.AddSeconds(10)
+  while ([DateTime]::UtcNow -lt $startupDeadline -and -not $script:hostedWarningWatcher.HasExited) {
+    if ((Test-Path -LiteralPath $watcherLog -PathType Leaf) -and (Get-Content -LiteralPath $watcherLog -Raw) -match 'hosted Win\+A keyboard guard installed') { break }
+    Start-Sleep -Milliseconds 100
   }
-  Write-Host "Started strict hosted paging-file warning watcher (PID $($script:hostedWarningWatcher.Id)); log=$watcherLog"
+  if ($script:hostedWarningWatcher.HasExited -or -not (Test-Path -LiteralPath $watcherLog -PathType Leaf) -or (Get-Content -LiteralPath $watcherLog -Raw) -notmatch 'hosted Win\+A keyboard guard installed') {
+    throw 'Could not start the bounded hosted dialog and Win+A guard watcher.'
+  }
+  Write-Host "Started hosted dialog and Win+A guard watcher (PID $($script:hostedWarningWatcher.Id)); log=$watcherLog"
 }
 
 function Stop-HostedWarningWatcher {
@@ -50,71 +54,8 @@ function Stop-HostedWarningWatcher {
   $script:hostedWarningWatcher = $null
 }
 
-function Start-HostedPolicyValue([string]$path, [string]$name, [string]$description) {
-  if (-not $script:isGitHubActions) { return }
-  $createdKeyPaths = [System.Collections.Generic.List[string]]::new()
-  $currentPath = ''
-  foreach ($part in $path.Split('\')) {
-    $currentPath = if ([string]::IsNullOrEmpty($currentPath)) { $part } else { "$currentPath\$part" }
-    $probe = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($currentPath, $false)
-    if ($null -eq $probe) {
-      $createdKeyPaths.Add($currentPath)
-    } else {
-      $probe.Dispose()
-    }
-  }
-  $snapshot = @{
-    Path = $path
-    Name = $name
-    Description = $description
-    KeyExisted = $createdKeyPaths.Count -eq 0
-    CreatedKeyPaths = @($createdKeyPaths.ToArray())
-    ValueStateCaptured = $false
-    ValueExists = $false
-    Value = $null
-    Kind = $null
-  }
-  $script:hostedPolicySnapshots.Add($snapshot)
-  $key = $null
-  try {
-    $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey($path)
-    if ($null -eq $key) { throw "Could not create or open hosted GUI policy key: HKCU:\$path" }
-    $exists = $key.GetValueNames() -contains $name
-    $value = if ($exists) { $key.GetValue($name) } else { $null }
-    $kind = if ($exists) { $key.GetValueKind($name) } else { $null }
-    $snapshot.ValueExists = $exists
-    $snapshot.Value = $value
-    $snapshot.Kind = $kind
-    $snapshot.ValueStateCaptured = $true
-    if ($exists -and $kind -ne [Microsoft.Win32.RegistryValueKind]::DWord) { throw "Hosted GUI policy has unsupported existing value type: $kind" }
-    $key.SetValue($name, 1, [Microsoft.Win32.RegistryValueKind]::DWord)
-    $key.Flush()
-    if ([int]$key.GetValue($name) -ne 1 -or $key.GetValueKind($name) -ne [Microsoft.Win32.RegistryValueKind]::DWord) {
-      throw "Hosted GUI policy $name did not read back as DWORD 1"
-    }
-    Write-Host "Temporarily enabled $name for $description; the original value will be restored in finally."
-    if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {
-      Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value "- Hosted GUI policy ``$name`` ($description): temporarily set and read back as DWORD 1; original value will be restored after the gate."
-    }
-  } catch {
-    $setupError = $_.Exception.Message
-    if ($null -ne $key) { $key.Dispose(); $key = $null }
-    try {
-      Stop-HostedPolicyValues
-    } catch {
-      $rollbackError = $_.Exception.Message
-      throw "Hosted GUI policy setup failed ($setupError); rollback also failed ($rollbackError)"
-    }
-    throw
-  } finally {
-    if ($null -ne $key) { $key.Dispose() }
-  }
-}
-
 function Start-HostedPolicies {
-  Start-HostedPolicyValue 'Software\Policies\Microsoft\Windows\Explorer' 'DisableNotificationCenter' 'hosted GUI notification center'
-  Start-HostedPolicyValue 'Software\Policies\Microsoft\Windows\Explorer' 'DisableControlCenter' 'hosted GUI Quick Settings'
-  Restart-HostedExplorerShell
+  if ($script:isGitHubActions) { Start-HostedWarningWatcher }
 }
 
 function Initialize-HostedGuiHotkeyProbe {
@@ -166,152 +107,36 @@ public static class HostedGuiHotkeyProbe {
 '@
 }
 
-function Restart-HostedExplorerShell {
-  if (-not $script:isGitHubActions) { return }
-  Initialize-HostedGuiHotkeyProbe
-  if ([HostedGuiHotkeyProbe]::IsQuickSettingsVisible()) {
-    Save-GuiFailureScreenshot 'hosted-shell-restart-started-contended'
-    throw 'Hosted GUI desktop was already showing Windows Quick Settings before the policy refresh; Explorer was not restarted.'
-  }
-
-  $existingExplorer = @(Get-Process -Name explorer -ErrorAction SilentlyContinue)
-  if ($existingExplorer.Count -eq 0) { throw 'Hosted Explorer shell process was missing before the hosted GUI policy refresh.' }
-  $existingExplorerIds = @($existingExplorer | ForEach-Object { $_.Id })
-  $existingExplorer | Stop-Process -Force
-  $stopDeadline = [DateTime]::UtcNow.AddSeconds(5)
-  while (@(Get-Process -Name explorer -ErrorAction SilentlyContinue | Where-Object { $_.Id -in $existingExplorerIds }).Count -gt 0 -and [DateTime]::UtcNow -lt $stopDeadline) {
-    Start-Sleep -Milliseconds 100
-  }
-  if (@(Get-Process -Name explorer -ErrorAction SilentlyContinue | Where-Object { $_.Id -in $existingExplorerIds }).Count -gt 0) {
-    throw 'Hosted Explorer shell did not stop for the hosted GUI policy refresh.'
-  }
-  if (@(Get-Process -Name explorer -ErrorAction SilentlyContinue).Count -eq 0) {
-    Start-Process -FilePath (Join-Path $env:SystemRoot 'explorer.exe')
-  }
-  $shellDeadline = [DateTime]::UtcNow.AddSeconds(15)
-  while (-not [HostedGuiHotkeyProbe]::IsTaskbarVisible() -and [DateTime]::UtcNow -lt $shellDeadline) {
-    Start-Sleep -Milliseconds 100
-  }
-  if (-not [HostedGuiHotkeyProbe]::IsTaskbarVisible()) {
-    throw 'Hosted Explorer shell did not restore the taskbar after the hosted GUI policy refresh.'
-  }
-  Write-Host 'Restarted the hosted Explorer shell so the temporary user policies take effect.'
-}
-
 function Test-HostedQuickSettingsDisabled {
   if (-not $script:isGitHubActions) { return }
   Initialize-HostedGuiHotkeyProbe
   if ([HostedGuiHotkeyProbe]::IsQuickSettingsVisible()) {
     Save-GuiFailureScreenshot 'hosted-quick-settings-preflight-started-contended'
-    throw 'Hosted GUI desktop was already showing Windows Quick Settings before the Quick Settings policy preflight.'
+    throw 'Hosted GUI desktop was already showing Windows Quick Settings before the Win+A guard preflight.'
   }
 
   [HostedGuiHotkeyProbe]::PressWindowsA()
   Start-Sleep -Milliseconds 400
   if ([HostedGuiHotkeyProbe]::IsQuickSettingsVisible()) {
-    Save-GuiFailureScreenshot 'hosted-disable-control-center-preflight'
+    Save-GuiFailureScreenshot 'hosted-win-a-guard-preflight'
     [HostedGuiHotkeyProbe]::PressEscape()
     $deadline = [DateTime]::UtcNow.AddSeconds(3)
     while ([HostedGuiHotkeyProbe]::IsQuickSettingsVisible() -and [DateTime]::UtcNow -lt $deadline) {
       Start-Sleep -Milliseconds 100
     }
-    throw 'Hosted DisableControlCenter policy did not block Win+A; Quick Settings opened during the preflight. The GUI suite was not started.'
+    throw 'Hosted Win+A guard did not block the Windows shortcut; Quick Settings opened during the preflight. The GUI suite was not started.'
   }
 
-  Write-Host 'Hosted DisableControlCenter policy preflight passed: Win+A did not open Quick Settings.'
+  $guardLog = Get-Content -LiteralPath $script:hostedWarningWatcherLog -Raw
+  if ($guardLog -notmatch 'blocked Win\+A') { throw 'Hosted Win+A guard did not record blocking the preflight shortcut.' }
+  Write-Host 'Hosted Win+A guard preflight passed: the shortcut was blocked and Quick Settings stayed closed.'
   if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {
-    Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value '- Hosted DisableControlCenter preflight passed: Win+A did not open the Windows Quick Settings window.'
+    Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value '- Hosted Win+A guard preflight passed: the shortcut was blocked and Quick Settings stayed closed.'
   }
-}
-
-function Restore-HostedPolicyValue($snapshot) {
-  $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($snapshot.Path, $true)
-  if ($null -eq $key -and $snapshot.KeyExisted) { throw "Could not reopen hosted GUI policy key for restoration: HKCU:\$($snapshot.Path)" }
-  try {
-    if ($snapshot.ValueStateCaptured) {
-      if ($null -ne $key) {
-        if ($snapshot.ValueExists) {
-          $key.SetValue($snapshot.Name, $snapshot.Value, $snapshot.Kind)
-        } else {
-          $key.DeleteValue($snapshot.Name, $false)
-        }
-        $key.Flush()
-        $exists = $key.GetValueNames() -contains $snapshot.Name
-        if ($snapshot.ValueExists) {
-          if (-not $exists -or $key.GetValue($snapshot.Name) -ne $snapshot.Value -or $key.GetValueKind($snapshot.Name) -ne $snapshot.Kind) {
-            throw "Original hosted GUI policy $($snapshot.Name) was not restored exactly"
-          }
-        } elseif ($exists) {
-          throw "Temporary hosted GUI policy $($snapshot.Name) remains after restoration"
-        }
-      } elseif ($snapshot.ValueExists) {
-        throw "Original hosted GUI policy key for $($snapshot.Name) is missing during restoration"
-      }
-    }
-
-    if ($null -ne $key) {
-      $key.Dispose()
-      $key = $null
-    }
-
-    if (-not $snapshot.KeyExisted) {
-      foreach ($createdPath in @($snapshot.CreatedKeyPaths | Sort-Object { $_.Length } -Descending)) {
-        $createdKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($createdPath, $true)
-        if ($null -eq $createdKey) { continue }
-        try {
-          if ($createdKey.GetValueNames().Count -gt 0 -or $createdKey.GetSubKeyNames().Count -gt 0) {
-            throw "Refusing to remove temporary policy key containing unrelated data: HKCU:\$createdPath"
-          }
-        } finally {
-          $createdKey.Dispose()
-        }
-        $separator = $createdPath.LastIndexOf('\')
-        $parentPath = if ($separator -ge 0) { $createdPath.Substring(0, $separator) } else { '' }
-        $childName = if ($separator -ge 0) { $createdPath.Substring($separator + 1) } else { $createdPath }
-        $parentKey = if ([string]::IsNullOrEmpty($parentPath)) { [Microsoft.Win32.Registry]::CurrentUser } else { [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($parentPath, $true) }
-        if ($null -eq $parentKey) { throw "Could not open temporary policy parent for cleanup: HKCU:\$parentPath" }
-        try {
-          $parentKey.DeleteSubKey($childName, $false)
-        } finally {
-          if (-not [string]::IsNullOrEmpty($parentPath)) { $parentKey.Dispose() }
-        }
-        $verifyCreatedKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($createdPath, $false)
-        if ($null -ne $verifyCreatedKey) {
-          $verifyCreatedKey.Dispose()
-          throw "Temporary policy key remains after cleanup: HKCU:\$createdPath"
-        }
-      }
-      $verifyOriginalPath = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($snapshot.Path, $false)
-      if ($null -ne $verifyOriginalPath) {
-        $verifyOriginalPath.Dispose()
-        throw "Original absent hosted GUI policy key remains after restoration: HKCU:\$($snapshot.Path)"
-      }
-    }
-    Write-Host "Restored and verified the original hosted GUI policy state for $($snapshot.Name)."
-  } finally {
-    if ($null -ne $key) { $key.Dispose() }
-  }
-}
-
-function Stop-HostedPolicyValues {
-  $restartShell = @($script:hostedPolicySnapshots | Where-Object { $_.Name -eq 'DisableControlCenter' }).Count -gt 0
-  for ($index = $script:hostedPolicySnapshots.Count - 1; $index -ge 0; $index--) {
-    $snapshot = $script:hostedPolicySnapshots[$index]
-    Restore-HostedPolicyValue $snapshot
-    $script:hostedPolicySnapshots.RemoveAt($index)
-    if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {
-      Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value "- Hosted GUI policy ``$($snapshot.Name)``: original value restored and verified (or temporary value verified absent)."
-    }
-  }
-  if ($restartShell) { Restart-HostedExplorerShell }
 }
 
 function Complete-GuiAcceptanceCleanup {
-  try {
-    Stop-HostedPolicyValues
-  } finally {
-    Stop-HostedWarningWatcher
-  }
+  Stop-HostedWarningWatcher
 }
 
 function Save-GuiFailureScreenshot([string]$label) {
