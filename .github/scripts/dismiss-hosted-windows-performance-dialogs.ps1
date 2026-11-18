@@ -5,6 +5,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Windows.Forms
 
 if (-not ('MicroProject.HostedDialogWatcher' -as [type])) {
   Add-Type -TypeDefinition @'
@@ -12,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.IO;
 
 namespace MicroProject {
   public static class HostedDialogWatcher {
@@ -76,16 +78,85 @@ namespace MicroProject {
     }
   }
 }
+
+public static class HostedWindowsHotkeyGuard {
+  private const int WhKeyboardLl = 13;
+  private const int WmKeyDown = 0x0100;
+  private const int WmKeyUp = 0x0101;
+  private const int WmSysKeyDown = 0x0104;
+  private const int WmSysKeyUp = 0x0105;
+  private const int VkA = 0x41;
+  private const int VkLWin = 0x5B;
+  private const int VkRWin = 0x5C;
+
+  private delegate IntPtr LowLevelKeyboardProc(int code, IntPtr message, IntPtr data);
+  private static readonly LowLevelKeyboardProc CallbackRoot = HandleKeyboard;
+  private static IntPtr hook;
+  private static string logFile;
+  private static bool windowsKeyDown;
+
+  [DllImport("user32.dll", SetLastError = true)]
+  private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc callback, IntPtr module, uint threadId);
+  [DllImport("user32.dll", SetLastError = true)]
+  private static extern bool UnhookWindowsHookEx(IntPtr hookHandle);
+  [DllImport("user32.dll")]
+  private static extern IntPtr CallNextHookEx(IntPtr hookHandle, int code, IntPtr message, IntPtr data);
+  [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+  private static extern IntPtr GetModuleHandle(string moduleName);
+
+  public static void Start(string path) {
+    logFile = path;
+    hook = SetWindowsHookEx(WhKeyboardLl, CallbackRoot, GetModuleHandle(null), 0);
+    if (hook == IntPtr.Zero) throw new InvalidOperationException("Could not install the hosted Win+A keyboard guard; Win32 error " + Marshal.GetLastWin32Error());
+    WriteLog("hosted Win+A keyboard guard installed");
+  }
+
+  public static void Stop() {
+    if (hook != IntPtr.Zero) {
+      if (!UnhookWindowsHookEx(hook)) throw new InvalidOperationException("Could not remove the hosted Win+A keyboard guard; Win32 error " + Marshal.GetLastWin32Error());
+      hook = IntPtr.Zero;
+    }
+  }
+
+  private static IntPtr HandleKeyboard(int code, IntPtr message, IntPtr data) {
+    if (code >= 0) {
+      int msg = message.ToInt32();
+      int key = Marshal.ReadInt32(data);
+      bool down = msg == WmKeyDown || msg == WmSysKeyDown;
+      bool up = msg == WmKeyUp || msg == WmSysKeyUp;
+      if ((key == VkLWin || key == VkRWin) && (down || up)) {
+        windowsKeyDown = down;
+        if (down) WriteLog("blocked Windows key to keep hosted shell panels off the GUI desktop");
+        return (IntPtr)1;
+      }
+      if (key == VkA && windowsKeyDown && (down || up)) {
+        if (down) WriteLog("blocked Win+A to keep Windows Quick Settings off the hosted GUI desktop");
+        return (IntPtr)1;
+      }
+    }
+    return CallNextHookEx(hook, code, message, data);
+  }
+
+  private static void WriteLog(string message) {
+    try { File.AppendAllText(logFile, DateTimeOffset.Now.ToString("o") + " " + message + Environment.NewLine); } catch { }
+  }
+}
 '@
 }
 
 $deadline = [DateTimeOffset]::Now.AddMinutes($MaximumMinutes)
 $logDirectory = Split-Path -Parent $LogFile
 New-Item -ItemType Directory -Force -Path $logDirectory | Out-Null
-"$(Get-Date -Format o) watcher started; strict System Properties or Performance Options title and diagnostic match only" |
+"$(Get-Date -Format o) watcher started; strict hosted-dialog matching and temporary Win+A hotkey guard enabled" |
   Add-Content -LiteralPath $LogFile -Encoding utf8
 
+[HostedWindowsHotkeyGuard]::Start($LogFile)
+$messagePump = [Windows.Forms.Timer]::new()
+$messagePump.Interval = 100
+$messagePump.Start()
+
 while ([DateTimeOffset]::Now -lt $deadline) {
+  [Windows.Forms.Application]::DoEvents()
   try {
     $dismissedDialog = [MicroProject.HostedDialogWatcher]::DismissKnownHostedConfigurationDialog()
     if ($null -ne $dismissedDialog) {
@@ -95,8 +166,12 @@ while ([DateTimeOffset]::Now -lt $deadline) {
   } catch {
     "$(Get-Date -Format o) watcher error: $_" | Add-Content -LiteralPath $LogFile -Encoding utf8
   }
-  Start-Sleep -Milliseconds 250
+  Start-Sleep -Milliseconds 50
 }
+
+$messagePump.Stop()
+$messagePump.Dispose()
+[HostedWindowsHotkeyGuard]::Stop()
 
 "$(Get-Date -Format o) watcher reached its bounded lifetime" |
   Add-Content -LiteralPath $LogFile -Encoding utf8

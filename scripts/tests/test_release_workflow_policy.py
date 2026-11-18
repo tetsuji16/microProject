@@ -1,7 +1,4 @@
-import os
 import re
-import shutil
-import subprocess
 import unittest
 from pathlib import Path
 
@@ -14,34 +11,6 @@ class ReleaseWorkflowPolicyTest(unittest.TestCase):
 		cls.gui = (REPO_ROOT / ".github" / "workflows" / "gui-acceptance.yml").read_text(encoding="utf-8")
 		cls.build = (REPO_ROOT / ".github" / "workflows" / "build.yml").read_text(encoding="utf-8")
 		cls.release = (REPO_ROOT / ".github" / "workflows" / "release-and-pages.yml").read_text(encoding="utf-8")
-
-	def run_hosted_policy_probe(self, body):
-		powershell = shutil.which("pwsh") or shutil.which("powershell")
-		if powershell is None or os.name != "nt":
-			self.skipTest("Windows PowerShell is required for registry state probes")
-		runner = (REPO_ROOT / ".github" / "scripts" / "run-gui-acceptance.ps1").read_text(encoding="utf-8")
-		start = re.search(r"(?ms)^function Start-HostedNotificationCenterPolicy\b.*?^\}", runner).group(0)
-		stop = re.search(r"(?ms)^function Stop-HostedNotificationCenterPolicy \{.*?^\}", runner).group(0)
-		probe = r"""
-$ErrorActionPreference = 'Stop'
-$script:isGitHubActions = $true
-$script:hostedNotificationPolicySnapshot = $null
-$testRoot = 'Software\GuiAcceptancePolicyTest_' + [Guid]::NewGuid().ToString('N')
-""" + start + "\n" + stop + r"""
-try {
-""" + body + r"""
-} finally {
-  $script:hostedNotificationPolicySnapshot = $null
-  [Microsoft.Win32.Registry]::CurrentUser.DeleteSubKeyTree($testRoot, $false)
-}
-"""
-		result = subprocess.run(
-			[powershell, "-NoProfile", "-NonInteractive", "-Command", probe],
-			capture_output=True,
-			text=True,
-			check=False,
-		)
-		self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
 	def test_build_tests_every_release_os_and_keeps_test_reports(self):
 		self.assertRegex(self.build, r"(?ms)^  workflow_dispatch:\n    inputs:\n      runner_os:.*?default: ubuntu-latest\n        type: choice\n        options:\n          - ubuntu-latest\n          - windows-latest\n          - macos-latest")
@@ -152,113 +121,27 @@ try {
 			self.assertRegex(source, rf"(?m)^\s*@Test\s*(?:\r?\n\s*@[^\r\n]+\s*)*(?:\r?\n\s*)+void\s+{re.escape(method)}\s*\(")
 		self.assertIn("Visual GUI test method must map to exactly one @Test source method", runner)
 
-	def test_policy_restore_failure_still_stops_the_hosted_warning_watcher(self):
+	def test_hosted_gui_watcher_blocks_win_a_and_is_cleaned_up(self):
 		runner = (REPO_ROOT / ".github" / "scripts" / "run-gui-acceptance.ps1").read_text(encoding="utf-8")
-		cleanup_match = re.search(r"(?ms)^function Complete-GuiAcceptanceCleanup \{.*?^\}", runner)
-		cleanup = cleanup_match.group(0)
-		self.assertRegex(cleanup, r"(?s)try\s*\{\s*Stop-HostedNotificationCenterPolicy\s*\}\s*finally\s*\{\s*Stop-HostedWarningWatcher\s*\}")
-		self.assertIn("Complete-GuiAcceptanceCleanup", runner[runner.rfind("} finally {"):])
-		restore = re.search(r"(?ms)^function Stop-HostedNotificationCenterPolicy \{(.*?)^\}", runner).group(1)
-		self.assertIn("throw 'Original hosted GUI notification-center policy was not restored exactly'", restore)
-		self.assertIn("throw 'Temporary hosted GUI notification-center policy remains after restoration'", restore)
-		powershell = shutil.which("pwsh") or shutil.which("powershell")
-		if powershell is None or os.name != "nt":
-			self.skipTest("Windows PowerShell is required for the cleanup failure-path probe")
-		probe = r"""
-$ErrorActionPreference = 'Stop'
-$script:watcherStopped = $false
-function Stop-HostedNotificationCenterPolicy { throw 'RESTORE_FAILURE_SENTINEL' }
-function Stop-HostedWarningWatcher { $script:watcherStopped = $true }
-""" + cleanup + r"""
-$restoreFailurePropagated = $false
-try { Complete-GuiAcceptanceCleanup } catch {
-  if ($_.Exception.Message -ne 'RESTORE_FAILURE_SENTINEL') { throw }
-  $restoreFailurePropagated = $true
-}
-if (-not $script:watcherStopped) { throw 'Watcher cleanup was skipped after policy restoration failed' }
-if (-not $restoreFailurePropagated) { throw 'Policy restoration failure was hidden' }
-"""
-		result = subprocess.run(
-			[powershell, "-NoProfile", "-NonInteractive", "-Command", probe],
-			capture_output=True,
-			text=True,
-			check=False,
-		)
-		self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+		watcher = (REPO_ROOT / ".github" / "scripts" / "dismiss-hosted-windows-performance-dialogs.ps1").read_text(encoding="utf-8")
+		self.assertIn("Start-HostedPolicies\n  Test-HostedQuickSettingsDisabled", runner)
+		self.assertIn("hosted Win\\+A keyboard guard installed", runner)
+		self.assertIn("blocked Win\\+A", runner)
+		self.assertIn("function Complete-GuiAcceptanceCleanup {\n  Stop-HostedWarningWatcher\n}", runner)
+		self.assertIn("SetWindowsHookEx(WhKeyboardLl", watcher)
+		self.assertIn("UnhookWindowsHookEx(hook)", watcher)
+		self.assertIn("if ((key == VkLWin || key == VkRWin) && (down || up))", watcher)
+		self.assertIn("key == VkA && windowsKeyDown", watcher)
+		self.assertIn("[Windows.Forms.Application]::DoEvents()", watcher)
+		self.assertIn("IsStartSearchVisible", runner)
+		self.assertNotIn("DisableControlCenter", runner + watcher)
+		self.assertNotIn("NoWinKeys", runner + watcher)
 
-	def test_hosted_notification_center_policy_is_temporary_and_exactly_restored(self):
+	def test_hosted_warning_watcher_starts_before_preflight_and_stops_in_finally(self):
 		runner = (REPO_ROOT / ".github" / "scripts" / "run-gui-acceptance.ps1").read_text(encoding="utf-8")
-		self.assertIn("function Start-HostedNotificationCenterPolicy", runner)
-		self.assertIn("if (-not $script:isGitHubActions) { return }", runner)
-		self.assertIn("function Stop-HostedNotificationCenterPolicy", runner)
-		self.assertIn("Start-HostedNotificationCenterPolicy", runner)
-		self.assertIn("Stop-HostedNotificationCenterPolicy", runner)
-		self.assertIn("CreateSubKey($path)", runner)
-		self.assertIn("$snapshot.CreatedKeyPaths", runner)
-		self.assertIn("Refusing to remove temporary policy key containing unrelated data", runner)
-		self.assertIn("$key.SetValue($name, 1, [Microsoft.Win32.RegistryValueKind]::DWord)", runner)
-		self.assertIn("Original hosted GUI notification-center policy was not restored exactly", runner)
-		self.assertIn("Temporary hosted GUI notification-center policy remains after restoration", runner)
+		self.assertIn("function Start-HostedPolicies {\n  if ($script:isGitHubActions) { Start-HostedWarningWatcher }\n}", runner)
 		self.assertIn("finally {\n  Complete-GuiAcceptanceCleanup", runner)
-		self.assertNotIn("ToastEnabled", runner)
-
-	def test_notification_policy_key_creation_restores_existing_and_missing_paths(self):
-		self.run_hosted_policy_probe(r"""
-$existingPath = "$testRoot\Existing"
-$existing = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey($existingPath)
-$existing.SetValue('DisableNotificationCenter', 0, [Microsoft.Win32.RegistryValueKind]::DWord)
-$existing.SetValue('KeepMe', 'preserve', [Microsoft.Win32.RegistryValueKind]::String)
-$child = $existing.CreateSubKey('UnrelatedChild')
-$child.SetValue('KeepMe', 29, [Microsoft.Win32.RegistryValueKind]::DWord)
-$child.Dispose()
-$existing.Dispose()
-Start-HostedNotificationCenterPolicy $existingPath
-$active = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($existingPath, $false)
-if ([int]$active.GetValue('DisableNotificationCenter') -ne 1 -or $active.GetValue('KeepMe') -ne 'preserve' -or $active.GetSubKeyNames() -notcontains 'UnrelatedChild') { throw 'Existing key setup changed unrelated data' }
-$active.Dispose()
-Stop-HostedNotificationCenterPolicy
-$restored = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($existingPath, $false)
-if ([int]$restored.GetValue('DisableNotificationCenter') -ne 0 -or $restored.GetValueKind('DisableNotificationCenter') -ne [Microsoft.Win32.RegistryValueKind]::DWord -or $restored.GetValue('KeepMe') -ne 'preserve' -or $restored.GetSubKeyNames() -notcontains 'UnrelatedChild') { throw 'Existing key was not restored exactly' }
-$restored.Dispose()
-
-$missingPath = "$testRoot\Missing\Explorer"
-if ($null -ne [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($missingPath, $false)) { throw 'Missing-path fixture unexpectedly exists' }
-Start-HostedNotificationCenterPolicy $missingPath
-$created = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($missingPath, $false)
-if ($null -eq $created -or [int]$created.GetValue('DisableNotificationCenter') -ne 1) { throw 'Missing policy path was not created and set' }
-$created.Dispose()
-Stop-HostedNotificationCenterPolicy
-$missingAfterRestore = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($missingPath, $false)
-$missingParentAfterRestore = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey("$testRoot\Missing", $false)
-if ($null -ne $missingAfterRestore -or $null -ne $missingParentAfterRestore) { throw 'New policy path was not removed after restoration' }
-
-$failurePath = "$testRoot\Failure"
-$failureKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey($failurePath)
-$failureKey.SetValue('DisableNotificationCenter', 'keep-original', [Microsoft.Win32.RegistryValueKind]::String)
-$failureKey.SetValue('KeepMe', 'preserve', [Microsoft.Win32.RegistryValueKind]::String)
-$failureKey.Dispose()
-$setupFailed = $false
-try { Start-HostedNotificationCenterPolicy $failurePath } catch { if ($_.Exception.Message -notmatch 'unsupported existing value type') { throw }; $setupFailed = $true }
-if (-not $setupFailed) { throw 'Unsupported existing policy type did not fail setup' }
-$failureRestored = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($failurePath, $false)
-if ($failureRestored.GetValue('DisableNotificationCenter') -ne 'keep-original' -or $failureRestored.GetValueKind('DisableNotificationCenter') -ne [Microsoft.Win32.RegistryValueKind]::String -or $failureRestored.GetValue('KeepMe') -ne 'preserve') { throw 'Failed setup did not preserve original values' }
-$failureRestored.Dispose()
-""")
-
-	def test_missing_policy_path_cleanup_refuses_to_delete_unrelated_data(self):
-		self.run_hosted_policy_probe(r"""
-$missingPath = "$testRoot\Conflict\Explorer"
-Start-HostedNotificationCenterPolicy $missingPath
-$created = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($missingPath, $true)
-$created.SetValue('ArrivedLater', 73, [Microsoft.Win32.RegistryValueKind]::DWord)
-$created.Dispose()
-$restoreFailed = $false
-try { Stop-HostedNotificationCenterPolicy } catch { if ($_.Exception.Message -notmatch 'unrelated data') { throw }; $restoreFailed = $true }
-if (-not $restoreFailed) { throw 'Cleanup removed a created key containing unrelated data' }
-$remaining = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($missingPath, $false)
-if ($null -eq $remaining -or $remaining.GetValue('ArrivedLater') -ne 73 -or $remaining.GetValueNames() -contains 'DisableNotificationCenter') { throw 'Cleanup failure removed unrelated data or kept the temporary policy value' }
-$remaining.Dispose()
-""")
+		self.assertIn("function Complete-GuiAcceptanceCleanup {\n  Stop-HostedWarningWatcher\n}", runner)
 
 	def test_gui_runner_diagnostics_are_isolated_and_restore_registry_values(self):
 		diagnostics = (REPO_ROOT / ".github" / "workflows" / "gui-runner-desktop-diagnostics.yml").read_text(encoding="utf-8")
