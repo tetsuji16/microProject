@@ -45,6 +45,9 @@ class RibbonIconThemeContrastGuiAcceptanceTest {
 	private record CommandIcon(String commandId, int lightInk, boolean needsSelectedTask) { }
 	private static final int LIGHT_SURFACE_INK = 0x212121;
 	private static final int BRAND_NAVY_INK = 0x1F3B73;
+	private static final int BRAND_GREEN_INK = 0x2F6B53;
+	/** An icon key and the ink its asset deliberately uses on a light ribbon. */
+	private record InkIconKey(String iconKey, int lightInk) { }
 	private static final List<CommandIcon> RIBBON_COMMANDS = List.of(
 		new CommandIcon("RibbonTaskInformation", LIGHT_SURFACE_INK, false),
 		new CommandIcon("RibbonResourceInformation", LIGHT_SURFACE_INK, false),
@@ -52,8 +55,17 @@ class RibbonIconThemeContrastGuiAcceptanceTest {
 		new CommandIcon("RibbonCustomFields", LIGHT_SURFACE_INK, false),
 		new CommandIcon("RibbonBold", BRAND_NAVY_INK, true),
 		new CommandIcon("RibbonItalic", BRAND_NAVY_INK, true),
-		new CommandIcon("RibbonUnderline", BRAND_NAVY_INK, true));
-	private static final List<String> FORMAT_ICON_KEYS = List.of("ribbon.bold", "ribbon.italic", "ribbon.underline");
+		new CommandIcon("RibbonUnderline", BRAND_NAVY_INK, true),
+		new CommandIcon("RibbonAlignLeft", BRAND_GREEN_INK, false),
+		new CommandIcon("RibbonAlignCenter", BRAND_GREEN_INK, false),
+		new CommandIcon("RibbonAlignRight", BRAND_GREEN_INK, false));
+	private static final List<InkIconKey> SIZED_ICON_KEYS = List.of(
+		new InkIconKey("ribbon.bold", BRAND_NAVY_INK),
+		new InkIconKey("ribbon.italic", BRAND_NAVY_INK),
+		new InkIconKey("ribbon.underline", BRAND_NAVY_INK),
+		new InkIconKey("ribbon.alignLeft", BRAND_GREEN_INK),
+		new InkIconKey("ribbon.alignCenter", BRAND_GREEN_INK),
+		new InkIconKey("ribbon.alignRight", BRAND_GREEN_INK));
 
 	@Test
 	void fixedInkRibbonIconsStayLegibleInBothThemes() throws Exception {
@@ -96,15 +108,19 @@ class RibbonIconThemeContrastGuiAcceptanceTest {
 		}
 		capture(fixture, theme + "-font-group");
 
-		// Each format asset also ships 16/20/32 px variants; every size must carry the same ink.
-		for (String iconKey : FORMAT_ICON_KEYS) {
+				capture(fixture, theme + "-align-group");
+
+		// Each format and alignment asset also ships 16/20/32 px variants; every size must
+		// carry the ink the light theme declares.
+		for (InkIconKey entry : SIZED_ICON_KEYS) {
+			String iconKey = entry.iconKey();
 			for (int size : new int[] {16, 20, 32}) {
 				Icon sizedIcon = IconManager.getRibbonIcon(iconKey, size, size);
 				assertNotNull(sizedIcon, theme + " " + iconKey + " at " + size + " px must resolve");
 				Color sizedInk = dominantInk(sizedIcon);
 				if (!dark)
-					assertEquals(new Color(BRAND_NAVY_INK), sizedInk,
-						theme + " " + iconKey + " at " + size + " px must keep its light ink");
+					assertEquals(new Color(entry.lightInk()), sizedInk,
+							theme + " " + iconKey + " at " + size + " px must keep its light ink");
 				double sizedContrast = contrast(sizedInk, surface);
 				assertTrue(sizedContrast >= MINIMUM_CONTRAST, theme + " " + iconKey + " at " + size
 					+ " px contrast " + sizedContrast + " against " + surface + " is below " + MINIMUM_CONTRAST);
@@ -137,7 +153,9 @@ class RibbonIconThemeContrastGuiAcceptanceTest {
 		for (int y = 0; y < image.getHeight(); y++) {
 			for (int x = 0; x < image.getWidth(); x++) {
 				int argb = image.getRGB(x, y);
-				if ((argb >>> 24) >= 200) colors.merge(argb & 0xFFFFFF, 1, Integer::sum);
+				// Alignment glyphs are hairlines at 16 px and antialiasing keeps them below full
+				// alpha; the covered pixels still carry the unblended ink.
+				if ((argb >>> 24) >= 64) colors.merge(argb & 0xFFFFFF, 1, Integer::sum);
 			}
 		}
 		assertTrue(!colors.isEmpty(), "a ribbon icon must have opaque ink pixels");
