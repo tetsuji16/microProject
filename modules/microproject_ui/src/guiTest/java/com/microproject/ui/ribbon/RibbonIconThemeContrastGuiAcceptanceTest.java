@@ -45,6 +45,7 @@ class RibbonIconThemeContrastGuiAcceptanceTest {
 	private record CommandIcon(String commandId, int lightInk, boolean needsSelectedTask) { }
 	private static final int LIGHT_SURFACE_INK = 0x212121;
 	private static final int BRAND_NAVY_INK = 0x1F3B73;
+	private static final int BRAND_GREEN_INK = 0x2F6B53;
 	private static final List<CommandIcon> RIBBON_COMMANDS = List.of(
 		new CommandIcon("RibbonTaskInformation", LIGHT_SURFACE_INK, false),
 		new CommandIcon("RibbonResourceInformation", LIGHT_SURFACE_INK, false),
@@ -53,7 +54,13 @@ class RibbonIconThemeContrastGuiAcceptanceTest {
 		new CommandIcon("RibbonBold", BRAND_NAVY_INK, true),
 		new CommandIcon("RibbonItalic", BRAND_NAVY_INK, true),
 		new CommandIcon("RibbonUnderline", BRAND_NAVY_INK, true));
+	/** The alignment group lives on the Format tab, so it is measured and captured separately. */
+	private static final List<CommandIcon> ALIGN_COMMANDS = List.of(
+		new CommandIcon("RibbonAlignLeft", BRAND_GREEN_INK, true),
+		new CommandIcon("RibbonAlignCenter", BRAND_GREEN_INK, true),
+		new CommandIcon("RibbonAlignRight", BRAND_GREEN_INK, true));
 	private static final List<String> FORMAT_ICON_KEYS = List.of("ribbon.bold", "ribbon.italic", "ribbon.underline");
+	private static final List<String> ALIGN_ICON_KEYS = List.of("ribbon.alignLeft", "ribbon.alignCenter", "ribbon.alignRight");
 
 	@Test
 	void fixedInkRibbonIconsStayLegibleInBothThemes() throws Exception {
@@ -78,38 +85,15 @@ class RibbonIconThemeContrastGuiAcceptanceTest {
 		// enabled state the user reads rather than the disabled variant.
 		fixture.clickRow(0);
 
-		for (CommandIcon command : RIBBON_COMMANDS) {
-			String commandId = command.commandId();
-			AbstractButton button = fixture.showCommand(commandId);
-			assertNotNull(button, theme + " " + commandId + " must be visible in the ribbon");
-			if (command.needsSelectedTask())
-				assertTrue(fixture.onEdt(button::isEnabled),
-					theme + " " + commandId + " must be enabled while a task is selected");
-			Icon icon = fixture.onEdt(button::getIcon);
-			assertNotNull(icon, theme + " " + commandId + " must have a ribbon icon");
-			Color ink = dominantInk(icon);
-			if (!dark)
-				assertEquals(new Color(command.lightInk()), ink, theme + " " + commandId + " must keep its light ink");
-			double contrast = contrast(ink, surface);
-			assertTrue(contrast >= MINIMUM_CONTRAST, theme + " " + commandId + " icon contrast " + contrast
-				+ " against " + surface + " is below " + MINIMUM_CONTRAST);
-		}
+		assertCommands(fixture, dark, theme, surface, RIBBON_COMMANDS);
 		capture(fixture, theme + "-font-group");
 
-		// Each format asset also ships 16/20/32 px variants; every size must carry the same ink.
-		for (String iconKey : FORMAT_ICON_KEYS) {
-			for (int size : new int[] {16, 20, 32}) {
-				Icon sizedIcon = IconManager.getRibbonIcon(iconKey, size, size);
-				assertNotNull(sizedIcon, theme + " " + iconKey + " at " + size + " px must resolve");
-				Color sizedInk = dominantInk(sizedIcon);
-				if (!dark)
-					assertEquals(new Color(BRAND_NAVY_INK), sizedInk,
-						theme + " " + iconKey + " at " + size + " px must keep its light ink");
-				double sizedContrast = contrast(sizedInk, surface);
-				assertTrue(sizedContrast >= MINIMUM_CONTRAST, theme + " " + iconKey + " at " + size
-					+ " px contrast " + sizedContrast + " against " + surface + " is below " + MINIMUM_CONTRAST);
-			}
-		}
+		assertCommands(fixture, dark, theme, surface, ALIGN_COMMANDS);
+		capture(fixture, theme + "-align-group");
+
+		// Each fixed-ink asset also ships 16/20/32 px variants; every size must carry the same ink.
+		assertSizedInk(theme, dark, surface, FORMAT_ICON_KEYS, BRAND_NAVY_INK);
+		assertSizedInk(theme, dark, surface, ALIGN_ICON_KEYS, BRAND_GREEN_INK);
 
 		// The spreadsheet row menu and the Backstage information card both resolve the same
 		// icon resource through IconManager.getRibbonIcon; check those resolutions as well.
@@ -125,6 +109,42 @@ class RibbonIconThemeContrastGuiAcceptanceTest {
 			+ " is below " + MINIMUM_CONTRAST);
 	}
 
+	private static void assertCommands(RibbonCommandGuiFixture fixture, boolean dark, String theme, Color surface,
+			List<CommandIcon> commands) throws Exception {
+		for (CommandIcon command : commands) {
+			String commandId = command.commandId();
+			AbstractButton button = fixture.showCommand(commandId);
+			assertNotNull(button, theme + " " + commandId + " must be visible in the ribbon");
+			if (command.needsSelectedTask())
+				assertTrue(fixture.onEdt(button::isEnabled),
+					theme + " " + commandId + " must be enabled while a task is selected");
+			Icon icon = fixture.onEdt(button::getIcon);
+			assertNotNull(icon, theme + " " + commandId + " must have a ribbon icon");
+			Color ink = dominantInk(icon);
+			if (!dark)
+				assertEquals(new Color(command.lightInk()), ink, theme + " " + commandId + " must keep its light ink");
+			double contrast = contrast(ink, surface);
+			assertTrue(contrast >= MINIMUM_CONTRAST, theme + " " + commandId + " icon contrast " + contrast
+				+ " against " + surface + " is below " + MINIMUM_CONTRAST);
+		}
+	}
+
+	private static void assertSizedInk(String theme, boolean dark, Color surface, List<String> iconKeys, int lightInk) {
+		for (String iconKey : iconKeys) {
+			for (int size : new int[] {16, 20, 32}) {
+				Icon sizedIcon = IconManager.getRibbonIcon(iconKey, size, size);
+				assertNotNull(sizedIcon, theme + " " + iconKey + " at " + size + " px must resolve");
+				Color sizedInk = dominantInk(sizedIcon);
+				if (!dark)
+					assertEquals(new Color(lightInk), sizedInk,
+						theme + " " + iconKey + " at " + size + " px must keep its light ink");
+				double sizedContrast = contrast(sizedInk, surface);
+				assertTrue(sizedContrast >= MINIMUM_CONTRAST, theme + " " + iconKey + " at " + size
+					+ " px contrast " + sizedContrast + " against " + surface + " is below " + MINIMUM_CONTRAST);
+			}
+		}
+	}
+
 	private static Color dominantInk(Icon icon) {
 		BufferedImage image = new BufferedImage(icon.getIconWidth(), icon.getIconHeight(), BufferedImage.TYPE_INT_ARGB);
 		java.awt.Graphics2D graphics = image.createGraphics();
@@ -137,10 +157,12 @@ class RibbonIconThemeContrastGuiAcceptanceTest {
 		for (int y = 0; y < image.getHeight(); y++) {
 			for (int x = 0; x < image.getWidth(); x++) {
 				int argb = image.getRGB(x, y);
-				if ((argb >>> 24) >= 200) colors.merge(argb & 0xFFFFFF, 1, Integer::sum);
+				// Thin 16 px strokes (the alignment bars) never reach full opacity, so half-opaque
+				// coverage still counts as the glyph ink; antialiasing keeps the source colour.
+				if ((argb >>> 24) >= 128) colors.merge(argb & 0xFFFFFF, 1, Integer::sum);
 			}
 		}
-		assertTrue(!colors.isEmpty(), "a ribbon icon must have opaque ink pixels");
+		assertTrue(!colors.isEmpty(), "a ribbon icon must have ink pixels");
 		int ink = colors.entrySet().stream().max(Map.Entry.comparingByValue()).get().getKey();
 		return new Color(ink);
 	}
