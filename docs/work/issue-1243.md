@@ -1,6 +1,6 @@
 # Issue #1243 — ダークモードの配置アイコン（左・中央・右揃え）
 
-State: IN PROGRESS（PR #1249、CI 確認中）
+State: IN PROGRESS（PR #1249、CI 確認済み）
 Issue: https://github.com/tetsuji16/microProject/issues/1243
 Contract frozen at: 2026-11-19 issue body（#1221 のチェックリスト 3 の子）
 Baseline HEAD: `074e85e52`（#1241 のマージ後 master）
@@ -49,4 +49,4 @@ Blockers: none（#1241 はマージ済み。PR #1249 は master を base にす�
 - 計測メモ: 配置素材のストロークは viewBox 64 に対して 5 なので、16 px では 1.25 px 幅になり alpha 200 以上の画素が出ない。`IconManagerRibbonIconTest` の `dominantInk(image, minimumAlpha)` と GUI テストの `dominantInk` は alpha 128 以上をインクとして数える（アンチエイリアスの色は元のインク色のまま）。
 - CI: #1241 のマージで base ブランチが削除され、PR #1244 は close された（未マージ）。master の上に積み直して PR #1249 を作り直した。
   - 積み直す前のブランチに対する手動 dispatch では `Build`（run 44353285793）と `GUI acceptance`（run 44353291538、対象テストを ja/1.0 で実行）が success。1 回目は hosted Windows-key guard の preflight で停止したが、テスト開始前のインフラ要因で再実行すると success。
-  - 積み直した後の必須チェックは PR #1249 で確認する。
+  - 積み直した後の PR #1249（コード SHA `e4d92e78a`）で `GUI acceptance` pass（4m28s）、`build` pass、`verify` ubuntu / windows / macos pass、CodeRabbit pass。1 回目の `GUI acceptance` は hosted Windows-key guard の preflight で停止したため、ジョブを再実行して pass を確認した。
