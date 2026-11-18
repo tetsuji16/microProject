@@ -511,7 +511,9 @@ class IconManagerRibbonIconTest {
 	/**
 	 * Every monochrome ribbon asset must keep its declared ink on a light ribbon and reach the
 	 * 3:1 glyph contrast on a dark one (#1221). The ink is read from the asset, so a new glyph
-	 * is covered without registering it anywhere.
+	 * is covered without registering it anywhere. The sweep covers the image keys and every
+	 * standard ribbon command icon, so a command that reuses an asset outside the ribbon.*
+	 * namespace is measured too; multi-colour illustrations keep their colours by design.
 	 */
 	@Test
 	void everyMonochromeRibbonIconKeepsItsInkOnlyOnLightRibbons() throws Exception {
@@ -519,7 +521,10 @@ class IconManagerRibbonIconTest {
 		try {
 			installTheme(false);
 			List<SizedIcon> monochromeIcons = new ArrayList<>();
-			for (String key : ribbonIconKeys()) {
+			for (String key : standardRibbonKeys())
+				assertNotNull(IconManager.getRibbonIcon(key, 32, 32),
+					key + " is used by a standard ribbon command and must resolve");
+			for (String key : sweepKeys()) {
 				for (int size : new int[] {16, 20, 32}) {
 					Integer ink = assetInk(key, size);
 					if (ink == null)
@@ -582,6 +587,13 @@ class IconManagerRibbonIconTest {
 	}
 
 	private record SizedIcon(String key, int size, int ink) { }
+
+	/** The image keys plus every icon key a standard ribbon command uses. */
+	private static Set<String> sweepKeys() {
+		Set<String> keys = new java.util.TreeSet<>(ribbonIconKeys());
+		keys.addAll(standardRibbonKeys());
+		return keys;
+	}
 
 	/** The ribbon icon keys declared by {@code images.properties}. */
 	private static Set<String> ribbonIconKeys() {
