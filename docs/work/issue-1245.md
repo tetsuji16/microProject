@@ -3,7 +3,7 @@
 State: IN PROGRESS（PR #1248、CI 確認済み）
 Issue: https://github.com/tetsuji16/microProject/issues/1245
 Contract frozen at: 2026-11-19 issue body（#1221 のチェックリスト 4 と 5）
-Baseline HEAD: `e0e365594`（#1243 のブランチ上。master は `074e85e52`）
+Baseline HEAD: `0ac245a4f`（master。#1243 の修正は #1252 としてマージ済み）
 Baseline working tree: `samples/CCPM path comparison 日本語.mpo` の変更と `.workbuddy-ai/` / `.worktrees/` のみ未追跡
 
 ## Goal and scope
@@ -11,7 +11,7 @@ Baseline working tree: `samples/CCPM path comparison 日本語.mpo` の変更と
 ダークのリボンに残る固定インクの単色アイコン 71 ファイル（`#5b6573` 31、`#0f6cbd` 18、`#217346` 10、`#2563a7` 8、`#4472c4` 4）を 3:1 以上にする。あわせて、素材名の列挙（`RIBBON_ICON_INKS`）をやめ、素材の色から単色を判定する経路へ一般化する（#1221 の 4 と 5 をまとめて行う）。
 
 Out of scope: 複数色のイラスト 287 ファイル、GUI のコマンド単位の全件監査と allowlist（#1221 の 6）、ライトの意匠変更、クイック アクセス ツールバー、Gantt の意味色。
-Blockers: none（PR #1248 は master を base にする。#1243 の変更は #1249 のマージまで差分に含まれる）。
+Blockers: none（#1243 の修正は #1252 として master にマージ済み。重複した #1249 は close した）
 
 ## Acceptance
 
@@ -47,3 +47,11 @@ Blockers: none（PR #1248 は master を base にする。#1243 の変更は #12
 - 注意: `recalculate` はベース素材が `#4b83bd`、16/20/32 px のサイズ別素材が `#0f6cbd` と色が違う。テストはサイズ別素材を解決して期待インクを決める。
 - GUI: ローカルは `GUI_ENVIRONMENT_CONTENDED`（前面 pid 2216 `OpenCode`）で 2 回停止。CI の dispatch では PASSED。
 - CI: PR #1248（コード SHA `c0c04667c`）で `GUI acceptance` pass（4m40s）、`build` pass、`verify` ubuntu / windows / macos pass、CodeRabbit pass。積み直す前のブランチでも手動 dispatch で `Build`（run 44357232677）と `GUI acceptance`（run 44357238326）が success。
+
+## Rebase onto master after #1252 (2026-11-19)
+
+- master は `0ac245a4f`（`ui: keep the align ribbon icons legible on the dark ribbon (#1243) (#1252)`）。#1243 の内容は #1252 として取り込まれたため、PR #1249 は重複として close した。
+- `issue/1245-dark-ribbon-icons` を `origin/master` に積み直し、#1243 のコード コミット（`e4d92e78a`）とその CI 記録は落とした。単色判定（#1245）と standard ribbon の全コマンド走査（#1251）だけが差分に残る。
+- 競合は `IconManager` の `RIBBON_ICON_INKS` 表だけだった。master 側の表（情報・書式・配置の 32 資産）を削除し、`monochromeInkOf` による判定へ置き換えた。
+- `IconManagerRibbonIconTest` の `dominantInk(image, 128)` は master の `dominantOpaqueRgb(image)`（alpha 64 以上）へ寄せた（`64b277bd3`）。
+- 積み直し後のローカル確認: `:microproject_ui:test --tests "com.microproject.pm.graphic.IconManagerRibbonIconTest"` → BUILD SUCCESSFUL、`git diff --check` → 空。
