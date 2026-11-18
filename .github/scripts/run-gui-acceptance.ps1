@@ -77,6 +77,9 @@ public static class HostedGuiHotkeyProbe {
   private static extern bool IsWindowVisible(IntPtr handle);
 
   [DllImport("user32.dll")]
+  private static extern IntPtr GetForegroundWindow();
+
+  [DllImport("user32.dll")]
   private static extern void keybd_event(byte virtualKey, byte scanCode, uint flags, UIntPtr extraInfo);
 
   public static bool IsQuickSettingsVisible() {
@@ -86,7 +89,7 @@ public static class HostedGuiHotkeyProbe {
 
   public static bool IsStartSearchVisible() {
     IntPtr handle = FindWindow("Windows.UI.Core.CoreWindow", "Search");
-    return handle != IntPtr.Zero && IsWindowVisible(handle);
+    return handle != IntPtr.Zero && IsWindowVisible(handle) && GetForegroundWindow() == handle;
   }
 
   public static bool IsTaskbarVisible() {
