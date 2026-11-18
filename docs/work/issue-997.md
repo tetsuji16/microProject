@@ -29,7 +29,7 @@ Blockers: none.
 | A5 | The resource sheet popup offers its own commands once, no task-only command, and Delete removes the row | Pass | `NonTaskRowPopupCommandsTest.resourceSheetPopupOffersItsOwnCommandsOnce`, `resourceSheetPopupDeleteRemovesTheSelectedResource` |
 | A6 | The Task Information dependency table offers Delete and it removes the link | Pass | `NonTaskRowPopupCommandsTest.dependencyTablePopupDeleteRemovesThePredecessor` |
 | A7 | Delete and Ctrl+X reach a table shown in a dialog, as they do in Microsoft Project, and refuse the first row exactly like the popup | Pass | `ResourceIntervalTableKeyboardGuiAcceptanceTest` (physical Robot, both tables), `DialogTableKeyboardRouteTest` |
-| A8 | The project table, the Resource Usage assignment table and the timesheet table offer the commands their configuration declares, with no task-only command and no duplicate | Pass | `NonTaskRowPopupCommandsTest.projectTablePopupOffersItsCopyCommandOnly`, `resourceAssignmentTablePopupOffersItsOwnCommandsOnce`, `timesheetTableHasNoRowPopup` |
+| A8 | The project table, both assignment tables and the timesheet table offer the commands their configuration declares, with no task-only command and no duplicate | Pass | `NonTaskRowPopupCommandsTest.projectTablePopupOffersItsCopyCommandOnly`, `resourceAssignmentTablePopupOffersItsOwnCommandsOnce`, `taskAssignmentTablePopupDropsTheTaskOnlyCommands`, `timesheetTableHasNoRowPopup` |
 | A9 | The Resource Sheet row popup opens and deletes the clicked resource through the physical right-click | Pass | `ResourceSheetRowPopupGuiAcceptanceTest` (physical Robot) |
 | A10 | The assignment entry table in Assign Resources and Replace keeps the Copy command its configuration declares, Ctrl+C copies the selected resource row, and the timesheet table keeps no row command | Pass | `AssignmentDialogTableRouteTest`, `AssignmentDialogGuiAcceptanceTest.robotAssignRouteRejectsLockedTaskThenAssignsAndUndoes` (physical Robot Ctrl+C) |
 
@@ -73,14 +73,19 @@ Rules this fork applies, consistent with Office selection and Undo behaviour:
 
 ## Current slice
 
-**Next slice:** none. The assignment dialogs now own the editing keys and keep
-their configured Copy command; the pull request's required `build` and
-`GUI acceptance` checks remain.
+**Next slice:** none. Every non-task table category now has row-popup evidence:
+resource, project, dependency, Resource Usage assignment, Task Usage assignment,
+timesheet, assignment entry, and the two interval tables. The assignment dialogs
+own the editing keys and keep their configured Copy command.
 **Done when:** the pull request's required `build` and `GUI acceptance` checks pass.
 **Then:** close after the reported symptom is confirmed on the packaged desktop build.
+The published `v0.1.0.1324` package is built from `c6fb9ad0b`, which already
+contains #1205, #1209 and #1219; only the manual confirmation of the reported
+symptom in that package remains.
 
 ## Latest evidence
 
+- `.\gradlew.bat :microproject_ui:test --tests "com.microproject.dialog.NonTaskRowPopupCommandsTest" --console=plain` - passed (7 tests, none skipped). The Task Usage assignment table (the last non-task table without popup coverage) resolves `ActionList.default`, so its popup publishes Indent/Outdent/Delete/Copy/Cut/Paste/Expand/Collapse and the shared popup filter removes the task-only `InsertTask`. No production code change was needed; the missing piece was the case itself.
 - `.\gradlew.bat :microproject_ui:test --tests "com.microproject.dialog.assignment.AssignmentDialogTableRouteTest" --console=plain` - failed before the wiring (the assignment entry table had no configured Copy command or popup and neither assignment dialog bound the editing keys) and passed after.
 - `.\gradlew.bat :microproject_ui:test --console=plain` - passed.
 - `.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.dialog.assignment.AssignmentDialogGuiAcceptanceTest.robotAssignRouteRejectsLockedTaskThenAssignsAndUndoes" --console=plain` - passed on a Windows desktop session (1 journey, none skipped); the Robot journey now presses Ctrl+C in Assign Resources and requires the selected resource row on the clipboard.
@@ -88,3 +93,12 @@ their configured Copy command; the pull request's required `build` and
 - Red check: the keyboard journey fails for both tables with the `InformationDialog` wiring removed, so the new journey covers the fix.
 - Table verification before the popup fix: the resource sheet showed two identically labelled "New" items (`InsertTask` and `InsertResource`) and a task-only "Paste Inserted Tasks"; the assignment table showed the same task-only items.
 - The timesheet table (`TimesheetEntryPane`) sets an empty action list on purpose, so it opens no row popup; that is the intended contract, not a missing menu.
+
+## Packaged desktop check
+
+Published `v0.1.0.1324` (app-image package, built from `c6fb9ad0b`):
+
+- Opened `samples/CCPM path comparison English.mpo`, switched to the resource view, created a resource and opened Resource Information. The dialog and its `リソース利用性` tab rendered the effective-dated row.
+- Right-clicking that first row opened a real row popup. For this file the pool is neither local nor master, so `ActionList.availability` resolves to `Copy` and the popup showed Copy only - the declared command set, nothing task-only, no dead item.
+- The reported symptom (Delete/Cut offered on the protected first row) needs a local or master resource pool, and no bundled sample carries one. That path therefore stays verified by the Robot journeys at the same commit (`ResourceAvailabilityRowDeleteGuiAcceptanceTest`, `ResourceIntervalTableKeyboardGuiAcceptanceTest`) rather than by this manual pass. It is not claimed as manually confirmed.
+- The sample was left unmodified: the close prompt was answered "No" and `git status` stayed clean.

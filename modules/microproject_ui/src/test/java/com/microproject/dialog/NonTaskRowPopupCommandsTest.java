@@ -217,6 +217,43 @@ class NonTaskRowPopupCommandsTest {
 		});
 	}
 
+	/**
+	 * The Task Usage assignment table has no explicit action list, so it falls back to
+	 * {@code ActionList.default}.  Its popup must publish the table's own commands and
+	 * drop the task-only ones the default list carries (#997).
+	 */
+	@Test
+	void taskAssignmentTablePopupDropsTheTaskOnlyCommands() throws Exception {
+		Dictionary.getInstance();
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("task-assignment-popup", undo);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		pool.addProject(project);
+		pool.setLocal(true);
+		SwingUtilities.invokeAndWait(() -> {
+			ReferenceNodeModelCache reference = NodeModelCacheFactory.createTaskNodeModelCache(project,
+					project.getTaskModel());
+			try {
+				NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(reference,
+						"View.TaskUsage", null);
+				SpreadSheet sheet = new SpreadSheet();
+				sheet.setSpreadSheetCategory(SpreadSheetCategories.taskAssignmentSpreadsheetCategory);
+				SpreadSheetUtils.setFieldsAndContext(sheet, cache,
+						SpreadSheetCategories.taskAssignmentSpreadsheetCategory,
+						"Spreadsheet.Assignment.taskUsage", true);
+				cache.update();
+				assertPopupCommands(sheet, List.of(MenuActionConstants.ACTION_INDENT,
+						MenuActionConstants.ACTION_OUTDENT, MenuActionConstants.ACTION_DELETE,
+						MenuActionConstants.ACTION_COPY, MenuActionConstants.ACTION_CUT,
+						MenuActionConstants.ACTION_PASTE, MenuActionConstants.ACTION_EXPAND,
+						MenuActionConstants.ACTION_COLLAPSE));
+			} finally {
+				reference.close();
+			}
+		});
+	}
+
 	/** The timesheet table runs without row commands, so it must not open a row popup. */
 	@Test
 	void timesheetTableHasNoRowPopup() throws Exception {
