@@ -76,6 +76,19 @@ namespace MicroProject {
 
       return dismissed;
     }
+
+    public static string DismissHostedQuickSettingsPanel() {
+      string dismissed = null;
+      EnumWindows((window, parameter) => {
+        if (!IsWindowVisible(window)
+            || !String.Equals(ReadClass(window), "ControlCenterWindow", StringComparison.Ordinal)
+            || !String.Equals(ReadText(window), "Quick settings", StringComparison.Ordinal)) return true;
+        SendMessage(window, 0x0010, IntPtr.Zero, IntPtr.Zero); // WM_CLOSE the exact hosted shell panel
+        dismissed = "class=ControlCenterWindow; title=Quick settings";
+        return false;
+      }, IntPtr.Zero);
+      return dismissed;
+    }
   }
 }
 
@@ -158,6 +171,11 @@ $messagePump.Start()
 while ([DateTimeOffset]::Now -lt $deadline) {
   [Windows.Forms.Application]::DoEvents()
   try {
+    $dismissedShellPanel = [MicroProject.HostedDialogWatcher]::DismissHostedQuickSettingsPanel()
+    if ($null -ne $dismissedShellPanel) {
+      "$(Get-Date -Format o) dismissed exact hosted shell panel; $dismissedShellPanel" |
+        Add-Content -LiteralPath $LogFile -Encoding utf8
+    }
     $dismissedDialog = [MicroProject.HostedDialogWatcher]::DismissKnownHostedConfigurationDialog()
     if ($null -ne $dismissedDialog) {
       "$(Get-Date -Format o) dismissed exact hosted configuration dialog; $dismissedDialog" |
