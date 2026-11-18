@@ -75,7 +75,12 @@ public class IconManager {
 		// The format glyphs (bold, italic, underline) use the brand navy #1f3b73.
 		new RibbonIconInk(0x1F3B73, Set.of("format-bold", "format-bold-16", "format-bold-20", "format-bold-32",
 			"format-italic", "format-italic-16", "format-italic-20", "format-italic-32",
-			"format-underline", "format-underline-16", "format-underline-20", "format-underline-32")));
+			"format-underline", "format-underline-16", "format-underline-20", "format-underline-32")),
+		// The alignment glyphs use the brand green #2f6b53.
+		new RibbonIconInk(0x2F6B53, Set.of("align-left-ribbon", "align-left-ribbon-16", "align-left-ribbon-20",
+			"align-left-ribbon-32", "align-center-ribbon", "align-center-ribbon-16", "align-center-ribbon-20",
+			"align-center-ribbon-32", "align-right-ribbon", "align-right-ribbon-16", "align-right-ribbon-20",
+			"align-right-ribbon-32")));
 
 	/** Drops cached icons so theme-dependent rendering is rebuilt after a theme switch. */
 	public static void clearCaches() {
