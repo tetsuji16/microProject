@@ -54,4 +54,4 @@ issue の表の 7 行は、いずれも master で実装済みだった。行ご
 - `.\gradlew.bat :microproject_ui:cleanTest :microproject_ui:test --tests "com.microproject.main.MainFirstRunPreferencesTest" --tests "com.microproject.util.SwingFileChooserProviderTest" --console=plain` → BUILD SUCCESSFUL。
 - `.\gradlew.bat :microproject_core:cleanTest :microproject_core:test --tests "com.microproject.collaboration.CollaborationSidecarIgnoreTest" --console=plain` → BUILD SUCCESSFUL（2 tests / 0 failures）。`.gitignore` の変更を外すと `repositoryIgnoresTheCurrentAndLegacySidecarNames` が失敗する（red 確認済み）。
 - `git check-ignore -v "samples/CCPM sample English.microproject-sync.json"` → 修正前は `.git/info/exclude`（ローカル限定）が唯一の一致。修正後はコミット済み `.gitignore` が一致する。
-- CI（PR #1253、コード SHA `0bcbb0e8b` / `2b30bc142`）: `build` pass、`GUI acceptance` pass（4m58s）、`verify` ubuntu / windows / macos pass、CodeRabbit pass。`mergeStateStatus` は CLEAN。
+- CI（PR #1253、コード SHA `0fcbb0e8b` / ドキュメント SHA `2b30bc142`）: `build` pass、`GUI acceptance` pass（4m58s）、`verify` ubuntu / windows / macos pass、CodeRabbit pass。`mergeStateStatus` は CLEAN。
