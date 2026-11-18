@@ -94,8 +94,10 @@ import com.microproject.ribbon.RibbonCommandInvocation;
 import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.ribbon.SwingRibbonModel;
 import com.microproject.ribbon.RibbonTheme;
+import com.microproject.application.RecentProjectStore;
 import com.microproject.dialog.UsabilityStrings;
 import com.microproject.ui.input.PopupTriggerController;
+import com.microproject.ui.ribbon.backstage.BackstageOpenPage;
 import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.ui.theme.MicroProjectThemeTokens;
 import com.microproject.util.ColorLuminance;
@@ -851,6 +853,10 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		JLabel title = new JLabel(localized(page.labelKey()));
 		title.setFont(theme.tabFont().deriveFont(java.awt.Font.PLAIN, 30f));
 		content.add(title, BorderLayout.NORTH);
+		if ("open".equals(page.id())) {
+			content.add(createBackstageOpenPage(page), BorderLayout.CENTER);
+			return content;
+		}
 		JPanel commands = new JPanel(new java.awt.GridBagLayout());
 		commands.setOpaque(false);
 		java.awt.GridBagConstraints constraints = new java.awt.GridBagConstraints();
@@ -900,6 +906,39 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		commands.add(Box.createVerticalGlue(), constraints);
 		content.add(commands, BorderLayout.CENTER);
 		return content;
+	}
+
+	/** Builds the Office-style Open page: location actions left, recent files right. */
+	private JComponent createBackstageOpenPage(BackstagePage page) {
+		AbstractButton recentItems = backstageCommandButton(page, "RibbonRecentProjects", "FileBackstage.open.recentItems");
+		AbstractButton browse = backstageCommandButton(page, "RibbonOpenProject", "FileBackstage.open.browse");
+		return new BackstageOpenPage(new RecentProjectStore().entries(), recentItems, browse,
+				this::openRecentFromBackstage, this::localized);
+	}
+
+	/** Reuses an existing File command as a Backstage location action. */
+	private AbstractButton backstageCommandButton(BackstagePage page, String commandId, String textKey) {
+		SwingRibbonModel.RibbonButton specification = page.commands().stream()
+				.filter(command -> commandId.equals(command.getId())).findFirst()
+				.orElseThrow(() -> new IllegalStateException("Open page is missing command: " + commandId));
+		AbstractButton button = createButton(specification, true);
+		button.setName("officeBackstageCommand-" + commandId);
+		button.setText(localized(textKey));
+		closeBackstageBeforeCommand(button);
+		return button;
+	}
+
+	/** Opens the chosen recent file through the existing Recent Projects command. */
+	private void openRecentFromBackstage(RecentProjectStore.Entry entry) {
+		String restoreTab = closeBackstage(false);
+		SwingUtilities.invokeLater(() -> {
+			try {
+				commandSource.dispatch(new RibbonCommandInvocation("RibbonRecentProjects",
+						RibbonCommandInvocation.Origin.INPUT_CONTROL, this, entry.path().toString()));
+			} finally {
+				requestTabFocusAfterBackstage(restoreTab);
+			}
+		});
 	}
 
 	private String localized(String key) {
