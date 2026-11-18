@@ -1,6 +1,6 @@
 # Issue #1245 — 残りの単色リボン アイコン（71 素材）と単色判定の一般化
 
-State: IN PROGRESS（PR 作成前）
+State: IN PROGRESS（PR #1248、CI 確認済み）
 Issue: https://github.com/tetsuji16/microProject/issues/1245
 Contract frozen at: 2026-11-19 issue body（#1221 のチェックリスト 4 と 5）
 Baseline HEAD: `ec0a648c6`（#1243 のブランチ上。master は `62dc73b23` 系）
@@ -45,5 +45,8 @@ Blockers: #1241 / #1244 が未マージのため、このブランチは #1244 �
   - `git diff --check` → exit 0
 - 監査（2026-11-19、リポジトリの SVG 391 ファイルを静的走査）: 単色 104、複数色 287。単色の内訳は `#5b6573` 31、`#0f6cbd` 18、`#2f6b53` 12、`#1f3b73` 12、`#217346` 10、`#2563a7` 8、`#212121` 8、`#4472c4` 4、`#4b83bd` 1。`#4b83bd`（`recalculate.svg`）だけは 3.54:1 で基準内。
 - 注意: `recalculate` はベース素材が `#4b83bd`、16/20/32 px のサイズ別素材が `#0f6cbd` と色が違う。テストはサイズ別素材を解決して期待インクを決める。
-- GUI: ローカルは `GUI_ENVIRONMENT_CONTENDED`（前面 pid 2216 `OpenCode`）で 2 回停止。CI で確認する。
-- CI: 未取得（PR 作成後）
+- GUI: ローカルは `GUI_ENVIRONMENT_CONTENDED`（前面 pid 2216 `OpenCode`）で 2 回停止。CI の dispatch では PASSED。
+- CI: base が `issue/1243-dark-align-icons` のため PR の `pull_request` ワークフローは走らない。ブランチに対して手動で dispatch して確認した。
+  - `Build`（`-f runner_os=ubuntu-latest`）→ run 44357232677 success。
+  - `GUI acceptance`（`-f gui_test_filter=com.microproject.ui.ribbon.RibbonIconThemeContrastGuiAcceptanceTest -f gui_test_locale=ja -f gui_test_scale=1.0`）→ run 44357238326 success。
+  - #1241 / #1244 がマージされて base が master に変わると、通常の必須チェックも走る。
