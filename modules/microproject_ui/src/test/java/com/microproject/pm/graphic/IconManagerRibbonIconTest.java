@@ -68,6 +68,7 @@ import com.microproject.util.ColorLuminance;
 class IconManagerRibbonIconTest {
 	private record VectorIconFixture(String key, String rasterName, int primaryRgb, int accentRgb) { }
 	private static final List<String> FORMAT_ICON_KEYS = List.of("ribbon.bold", "ribbon.italic", "ribbon.underline");
+	private static final List<String> ALIGN_ICON_KEYS = List.of("ribbon.alignLeft", "ribbon.alignCenter", "ribbon.alignRight");
 
 	@Test
 	void informationIconsRenderScaleSpecificDetailAtCommonScaleFactors() throws Exception {
@@ -462,6 +463,41 @@ class IconManagerRibbonIconTest {
 		}
 	}
 
+	/**
+	 * The alignment glyphs deliberately use the brand green on a light ribbon. A dark ribbon
+	 * needs the light ribbon ink instead, and every size variant must follow the same rule (#1221).
+	 */
+	@Test
+	void alignRibbonIconsKeepTheBrandInkOnlyOnLightRibbons() throws Exception {
+		boolean wasDark = com.microproject.ui.theme.ThemeManager.isDark();
+		Color green = new Color(0x2F6B53);
+		try {
+			installTheme(false);
+			for (String key : ALIGN_ICON_KEYS) {
+				for (int size : new int[] {16, 20, 32}) {
+					BufferedImage image = paint(IconManager.getRibbonIcon(key, size, size), size, size);
+					assertTrue(containsRgbWithin(image, green.getRGB(), 4),
+						key + " at " + size + " px must keep the light-theme brand ink");
+				}
+			}
+
+			installTheme(true);
+			Color surface = com.microproject.ui.theme.MicroProjectTheme.tokens().ribbonSurfaceBackground();
+			for (String key : ALIGN_ICON_KEYS) {
+				for (int size : new int[] {16, 20, 32}) {
+					BufferedImage image = paint(IconManager.getRibbonIcon(key, size, size), size, size);
+					double contrast = contrastRatio(dominantInk(image, 128), surface);
+					assertTrue(contrast >= 3.0, key + " at " + size + " px contrast " + contrast
+						+ " against " + surface + " is below 3.0");
+					assertFalse(containsRgbWithin(image, green.getRGB(), 8),
+						key + " at " + size + " px must not paint the light-theme green on a dark ribbon");
+				}
+			}
+		} finally {
+			installTheme(wasDark);
+		}
+	}
+
 	private static void installTheme(boolean dark) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			if (dark) com.microproject.ui.theme.MicroProjectTheme.installDark();
@@ -471,15 +507,23 @@ class IconManagerRibbonIconTest {
 	}
 
 	private static Color dominantOpaqueRgb(BufferedImage image) {
+		return dominantInk(image, 200);
+	}
+
+	/**
+	 * Thin stroke glyphs (the alignment bars are 5/64 of the view box) never reach full opacity at
+	 * 16 px, so callers that measure their ink accept half-opaque coverage.
+	 */
+	private static Color dominantInk(BufferedImage image, int minimumAlpha) {
 		java.util.Map<Integer, Integer> counts = new java.util.HashMap<>();
 		for (int y = 0; y < image.getHeight(); y++) {
 			for (int x = 0; x < image.getWidth(); x++) {
 				int argb = image.getRGB(x, y);
-				if (((argb >>> 24) & 0xff) < 200) continue;
+				if (((argb >>> 24) & 0xff) < minimumAlpha) continue;
 				counts.merge(argb & 0xffffff, 1, Integer::sum);
 			}
 		}
-		assertFalse(counts.isEmpty(), "a rendered glyph must have opaque ink pixels");
+		assertFalse(counts.isEmpty(), "a rendered glyph must have ink pixels at alpha " + minimumAlpha);
 		return new Color(counts.entrySet().stream().max(java.util.Map.Entry.comparingByValue()).orElseThrow().getKey());
 	}
 
