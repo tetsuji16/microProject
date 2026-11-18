@@ -96,7 +96,12 @@ import com.microproject.ribbon.SwingRibbonModel;
 import com.microproject.ribbon.RibbonTheme;
 import com.microproject.application.RecentProjectStore;
 import com.microproject.dialog.UsabilityStrings;
+import com.microproject.pm.calendar.WorkCalendar;
+import com.microproject.pm.graphic.frames.DocumentFrame;
+import com.microproject.pm.graphic.frames.GraphicManager;
+import com.microproject.pm.task.Project;
 import com.microproject.ui.input.PopupTriggerController;
+import com.microproject.ui.ribbon.backstage.BackstageInfoPage;
 import com.microproject.ui.ribbon.backstage.BackstageOpenPage;
 import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.ui.theme.MicroProjectThemeTokens;
@@ -857,6 +862,10 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			content.add(createBackstageOpenPage(page), BorderLayout.CENTER);
 			return content;
 		}
+		if ("info".equals(page.id())) {
+			content.add(createBackstageInfoPage(page), BorderLayout.CENTER);
+			return content;
+		}
 		JPanel commands = new JPanel(new java.awt.GridBagLayout());
 		commands.setOpaque(false);
 		java.awt.GridBagConstraints constraints = new java.awt.GridBagConstraints();
@@ -867,24 +876,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		constraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
 		constraints.insets = new Insets(0, 0, 12, 16);
 		for (SwingRibbonModel.RibbonButton specification : page.commands()) {
-			AbstractButton button = createButton(specification, true);
-			button.setName("officeBackstageCommand-" + specification.getId());
-			buttonStyler.styleActionButton(button, "large");
-			button.setHorizontalTextPosition(SwingConstants.CENTER);
-			button.setVerticalTextPosition(SwingConstants.BOTTOM);
-			button.setFont(theme.buttonFont().deriveFont(14f));
-			button.setOpaque(true);
-			button.setContentAreaFilled(true);
-			button.setBackground(theme.chromeBackground());
-			button.setBorder(new com.formdev.flatlaf.ui.FlatLineBorder(
-				new Insets(12, 12, 12, 12), theme.surfaceBorderColor(), 1f, 8));
-			button.setPreferredSize(new Dimension(220, 132));
-			button.setMinimumSize(new Dimension(220, 132));
-			button.putClientProperty(FlatClientProperties.STYLE,
-				"arc: 8; borderWidth: 1; borderColor: " + colorHex(theme.surfaceBorderColor())
-					+ "; background: " + colorHex(theme.surfaceColor()) + "; hoverBackground: " + colorHex(theme.chromeBackground()));
-			closeBackstageBeforeCommand(button);
-			commands.add(button, constraints);
+			commands.add(createLargeBackstageButton(specification), constraints);
 			constraints.gridx++;
 			if (constraints.gridx == 2) {
 				constraints.gridx = 0;
@@ -914,6 +906,100 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		AbstractButton browse = backstageCommandButton(page, "RibbonOpenProject", "FileBackstage.open.browse");
 		return new BackstageOpenPage(new RecentProjectStore().entries(), recentItems, browse,
 				this::openRecentFromBackstage, this::localized);
+	}
+
+	/** Shared large Backstage card button, used by the card grid and the Info page. */
+	private AbstractButton createLargeBackstageButton(SwingRibbonModel.RibbonButton specification) {
+		AbstractButton button = createButton(specification, true);
+		button.setName("officeBackstageCommand-" + specification.getId());
+		buttonStyler.styleActionButton(button, "large");
+		button.setHorizontalTextPosition(SwingConstants.CENTER);
+		button.setVerticalTextPosition(SwingConstants.BOTTOM);
+		button.setFont(theme.buttonFont().deriveFont(14f));
+		button.setOpaque(true);
+		button.setContentAreaFilled(true);
+		button.setBackground(theme.chromeBackground());
+		button.setBorder(new com.formdev.flatlaf.ui.FlatLineBorder(
+			new Insets(12, 12, 12, 12), theme.surfaceBorderColor(), 1f, 8));
+		button.setPreferredSize(new Dimension(220, 132));
+		button.setMinimumSize(new Dimension(220, 132));
+		button.putClientProperty(FlatClientProperties.STYLE,
+			"arc: 8; borderWidth: 1; borderColor: " + colorHex(theme.surfaceBorderColor())
+				+ "; background: " + colorHex(theme.surfaceColor()) + "; hoverBackground: " + colorHex(theme.chromeBackground()));
+		closeBackstageBeforeCommand(button);
+		return button;
+	}
+
+	/** Builds the Office-style Info page: assigned commands left, read-only properties right. */
+	private JComponent createBackstageInfoPage(BackstagePage page) {
+		Project project = currentBackstageProject();
+		String projectName = project == null || project.getName() == null || project.getName().isBlank()
+				? localized("FileBackstage.info.untitled") : project.getName();
+		String projectPath = project == null || project.getFileName() == null ? "" : project.getFileName();
+		List<BackstageInfoPage.Command> commands = new ArrayList<>();
+		for (SwingRibbonModel.RibbonButton specification : page.commands()) {
+			commands.add(new BackstageInfoPage.Command(createLargeBackstageButton(specification),
+					localized("FileBackstage.info.description." + specification.getId())));
+		}
+		return new BackstageInfoPage(projectName, projectPath, commands,
+				currentBackstageProperties(project), this::openProjectInformationFromBackstage, this::localized);
+	}
+
+	/** Reads the active document's fields without changing the model. */
+	private static Project currentBackstageProject() {
+		DocumentFrame frame = GraphicManager.getDocumentFrameInstance();
+		return frame == null ? null : frame.getProject();
+	}
+
+	private List<BackstageInfoPage.Property> currentBackstageProperties(Project project) {
+		String dash = localized("FileBackstage.info.dash");
+		List<BackstageInfoPage.Property> values = new ArrayList<>();
+		if (project == null) {
+			for (String key : List.of("startDate", "finishDate", "baseline", "currentDate",
+					"statusDate", "calendar", "author", "lastModified"))
+				values.add(infoProperty(key, dash));
+			return values;
+		}
+		values.add(infoProperty("startDate", infoDate(project.getStartDate(), dash)));
+		values.add(infoProperty("finishDate", infoDate(project.getFinishDate(), dash)));
+		long baselineStart = project.getBaselineStart(0);
+		long baselineFinish = project.getBaselineFinish(0);
+		String baseline = baselineStart == 0 && baselineFinish == 0 ? dash
+				: infoDate(baselineStart, dash) + " – " + infoDate(baselineFinish, dash);
+		values.add(infoProperty("baseline", baseline));
+		values.add(infoProperty("currentDate", infoDate(project.getCurrentDate(), dash)));
+		values.add(infoProperty("statusDate", infoDate(project.getStatusDate(), dash)));
+		WorkCalendar calendar = project.getBaseCalendar();
+		values.add(infoProperty("calendar", calendar == null || calendar.getName() == null
+				|| calendar.getName().isBlank() ? dash : calendar.getName()));
+		String author = project.getManager();
+		values.add(infoProperty("author", author == null || author.isBlank() ? dash : author));
+		java.util.Date modified = project.getLastModificationDate();
+		boolean unsaved = project.getFileName() == null || project.getFileName().isBlank();
+		values.add(infoProperty("lastModified", unsaved || modified == null ? dash
+				: new java.text.SimpleDateFormat("yyyy/MM/dd HH:mm").format(modified)));
+		return values;
+	}
+
+	private BackstageInfoPage.Property infoProperty(String key, String value) {
+		return new BackstageInfoPage.Property(localized("FileBackstage.info." + key), value);
+	}
+
+	private static String infoDate(long millis, String dash) {
+		return millis == 0 ? dash : new java.text.SimpleDateFormat("yyyy/MM/dd").format(new java.util.Date(millis));
+	}
+
+	/** Runs the existing Project Information command from the Info page heading link. */
+	private void openProjectInformationFromBackstage() {
+		String restoreTab = closeBackstage(false);
+		SwingUtilities.invokeLater(() -> {
+			try {
+				commandSource.dispatch(new RibbonCommandInvocation("RibbonBackstageProjectInformation",
+						RibbonCommandInvocation.Origin.INPUT_CONTROL, this));
+			} finally {
+				requestTabFocusAfterBackstage(restoreTab);
+			}
+		});
 	}
 
 	/** Reuses an existing File command as a Backstage location action. */
