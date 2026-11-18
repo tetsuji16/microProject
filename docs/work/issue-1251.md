@@ -1,6 +1,6 @@
 # Issue #1251 — リボン コントラスト回帰を standard ribbon 全コマンドへ拡張
 
-State: IN PROGRESS（PR #1248 に同梱、CI 確認中）
+State: IN PROGRESS（PR #1248 に同梱、CI 確認済み）
 Issue: https://github.com/tetsuji16/microProject/issues/1251
 Contract frozen at: 2026-11-19 issue body（#1221 のチェックリスト 6）
 Baseline HEAD: `2ac37d742`（#1245 のブランチ上）
@@ -30,4 +30,4 @@ Blockers: none（#1248 のブランチに 1 コミット足す。スタックを
 - `.\gradlew.bat build --console=plain` → exit 0（21s）
 - `python scripts/test_source_inventory.py --check --output build/audit/test-source-inventory.json` → exit 0
 - `git diff --check` → exit 0
-- CI: PR #1248 の追加コミットで確認する。
+- CI: PR #1248 の追加コミット（コード SHA `df9272707`）で `GUI acceptance` pass（5m2s）、`build` pass、`verify` ubuntu / windows / macos pass、CodeRabbit pass。
