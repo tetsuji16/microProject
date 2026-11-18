@@ -373,9 +373,6 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		untouched.setFontBackground(0xEEEEEE);
 		project.recalculate();
 		undo.clear();
-		long firstId = first.getUniqueId();
-		long secondId = second.getUniqueId();
-		long untouchedId = untouched.getUniqueId();
 		long[] scheduleBefore = { first.getStart(), first.getEnd(), second.getStart(), second.getEnd() };
 
 		showProject(project);
@@ -456,9 +453,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		MpoFileImporter importer = new MpoFileImporter();
 		assertTrue(importer.saveProject(project, saved), "MPO save rejected the formatted task-color project");
 		Project reloaded = importer.loadProject(new ByteArrayInputStream(saved.toByteArray()));
-		Task reloadedFirst = taskWithUniqueId(reloaded, firstId);
-		Task reloadedSecond = taskWithUniqueId(reloaded, secondId);
-		Task reloadedUntouched = taskWithUniqueId(reloaded, untouchedId);
+		Task reloadedFirst = taskNamed(reloaded, "Color gallery first");
+		Task reloadedSecond = taskNamed(reloaded, "Color gallery second");
+		Task reloadedUntouched = taskNamed(reloaded, "Color gallery untouched");
 		assertEquals(Integer.valueOf(0x5B9BD5), reloadedFirst.getFontColor());
 		assertEquals(Integer.valueOf(0x5B9BD5), reloadedSecond.getFontColor());
 		assertEquals(Integer.valueOf(0x123ABC), reloadedFirst.getFontBackground());
@@ -790,11 +787,6 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 	private static JPopupMenu galleryPopup(AbstractButton button) {
 		return (JPopupMenu) button.getClientProperty("MicroProject.ribbon.controlMenu");
-	}
-
-	private static Task taskWithUniqueId(Project project, long uniqueId) {
-		return project.getTasks().stream().filter(task -> task.getUniqueId() == uniqueId).findFirst()
-			.orElseThrow(() -> new AssertionError("MPO reload is missing task UID " + uniqueId));
 	}
 
 	// Microsoft documents one-shot formatting, double-click to continue, and Escape to stop; the exact
