@@ -20,14 +20,25 @@ class ReleaseWorkflowPolicyTest(unittest.TestCase):
 		if powershell is None or os.name != "nt":
 			self.skipTest("Windows PowerShell is required for registry state probes")
 		runner = (REPO_ROOT / ".github" / "scripts" / "run-gui-acceptance.ps1").read_text(encoding="utf-8")
-		start = re.search(r"(?ms)^function Start-HostedNotificationCenterPolicy\b.*?^\}", runner).group(0)
-		stop = re.search(r"(?ms)^function Stop-HostedNotificationCenterPolicy \{.*?^\}", runner).group(0)
+		start = re.search(r"(?ms)^function Start-HostedPolicyValue\(.*?^\}", runner).group(0)
+		restore = re.search(r"(?ms)^function Restore-HostedPolicyValue\(.*?^\}", runner).group(0)
 		probe = r"""
 $ErrorActionPreference = 'Stop'
 $script:isGitHubActions = $true
-$script:hostedNotificationPolicySnapshot = $null
+$script:hostedPolicySnapshots = [System.Collections.Generic.List[object]]::new()
 $testRoot = 'Software\GuiAcceptancePolicyTest_' + [Guid]::NewGuid().ToString('N')
-""" + start + "\n" + stop + r"""
+""" + start + "\n" + restore + r"""
+function Stop-HostedPolicyValues {
+  for ($index = $script:hostedPolicySnapshots.Count - 1; $index -ge 0; $index--) {
+    $snapshot = $script:hostedPolicySnapshots[$index]
+    Restore-HostedPolicyValue $snapshot
+    $script:hostedPolicySnapshots.RemoveAt($index)
+  }
+}
+function Start-HostedNotificationCenterPolicy([string]$path) {
+  Start-HostedPolicyValue $path 'DisableNotificationCenter' 'test notification center'
+}
+function Stop-HostedNotificationCenterPolicy { Stop-HostedPolicyValues }
 try {
 """ + body + r"""
 } finally {
@@ -156,18 +167,18 @@ try {
 		runner = (REPO_ROOT / ".github" / "scripts" / "run-gui-acceptance.ps1").read_text(encoding="utf-8")
 		cleanup_match = re.search(r"(?ms)^function Complete-GuiAcceptanceCleanup \{.*?^\}", runner)
 		cleanup = cleanup_match.group(0)
-		self.assertRegex(cleanup, r"(?s)try\s*\{\s*Stop-HostedNotificationCenterPolicy\s*\}\s*finally\s*\{\s*Stop-HostedWarningWatcher\s*\}")
+		self.assertRegex(cleanup, r"(?s)try\s*\{\s*Stop-HostedPolicyValues\s*\}\s*finally\s*\{\s*Stop-HostedWarningWatcher\s*\}")
 		self.assertIn("Complete-GuiAcceptanceCleanup", runner[runner.rfind("} finally {"):])
-		restore = re.search(r"(?ms)^function Stop-HostedNotificationCenterPolicy \{(.*?)^\}", runner).group(1)
-		self.assertIn("throw 'Original hosted GUI notification-center policy was not restored exactly'", restore)
-		self.assertIn("throw 'Temporary hosted GUI notification-center policy remains after restoration'", restore)
+		restore = re.search(r"(?ms)^function Restore-HostedPolicyValue\(.*?^\}", runner).group(0)
+		self.assertIn('"Original hosted GUI policy $($snapshot.Name) was not restored exactly"', restore)
+		self.assertIn('"Temporary hosted GUI policy $($snapshot.Name) remains after restoration"', restore)
 		powershell = shutil.which("pwsh") or shutil.which("powershell")
 		if powershell is None or os.name != "nt":
 			self.skipTest("Windows PowerShell is required for the cleanup failure-path probe")
 		probe = r"""
 $ErrorActionPreference = 'Stop'
 $script:watcherStopped = $false
-function Stop-HostedNotificationCenterPolicy { throw 'RESTORE_FAILURE_SENTINEL' }
+function Stop-HostedPolicyValues { throw 'RESTORE_FAILURE_SENTINEL' }
 function Stop-HostedWarningWatcher { $script:watcherStopped = $true }
 """ + cleanup + r"""
 $restoreFailurePropagated = $false
@@ -188,17 +199,17 @@ if (-not $restoreFailurePropagated) { throw 'Policy restoration failure was hidd
 
 	def test_hosted_notification_center_policy_is_temporary_and_exactly_restored(self):
 		runner = (REPO_ROOT / ".github" / "scripts" / "run-gui-acceptance.ps1").read_text(encoding="utf-8")
-		self.assertIn("function Start-HostedNotificationCenterPolicy", runner)
+		self.assertIn("function Start-HostedPolicyValue", runner)
 		self.assertIn("if (-not $script:isGitHubActions) { return }", runner)
-		self.assertIn("function Stop-HostedNotificationCenterPolicy", runner)
-		self.assertIn("Start-HostedNotificationCenterPolicy", runner)
-		self.assertIn("Stop-HostedNotificationCenterPolicy", runner)
+		self.assertIn("function Stop-HostedPolicyValues", runner)
+		self.assertIn("Start-HostedPolicyValue", runner)
+		self.assertIn("Stop-HostedPolicyValues", runner)
 		self.assertIn("CreateSubKey($path)", runner)
 		self.assertIn("$snapshot.CreatedKeyPaths", runner)
 		self.assertIn("Refusing to remove temporary policy key containing unrelated data", runner)
 		self.assertIn("$key.SetValue($name, 1, [Microsoft.Win32.RegistryValueKind]::DWord)", runner)
-		self.assertIn("Original hosted GUI notification-center policy was not restored exactly", runner)
-		self.assertIn("Temporary hosted GUI notification-center policy remains after restoration", runner)
+		self.assertIn('"Original hosted GUI policy $($snapshot.Name) was not restored exactly"', runner)
+		self.assertIn('"Temporary hosted GUI policy $($snapshot.Name) remains after restoration"', runner)
 		self.assertIn("finally {\n  Complete-GuiAcceptanceCleanup", runner)
 		self.assertNotIn("ToastEnabled", runner)
 
