@@ -6725,8 +6725,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertTrue(resourceRow >= 0, "the Resource Graph legend must contain the allocated resource");
 		java.awt.Rectangle rowBounds = resourceTree.getRowBounds(resourceRow);
 		java.awt.Point treeLocation = resourceTree.getLocationOnScreen();
-		click(robot, new java.awt.Rectangle(treeLocation.x + rowBounds.x, treeLocation.y + rowBounds.y,
-			rowBounds.width, rowBounds.height));
+		java.awt.Rectangle resourceCellBounds = new java.awt.Rectangle(treeLocation.x + rowBounds.x,
+			treeLocation.y + rowBounds.y, rowBounds.width, rowBounds.height);
+		java.awt.Point robotTarget = WindowAcceptanceAssertions.robotPointFor(resourceCellBounds);
+		robot.mouseMove(robotTarget.x, robotTarget.y);
+		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		robot.delay(150);
 		int selectedResourceRow = resourceRow;
 		GuiAcceptanceSupport.await(() -> resourceTree.isRowSelected(selectedResourceRow),
 			"Robot did not select the allocated resource in the Resource Graph legend");
