@@ -1,9 +1,9 @@
 # Issue #1243 — ダークモードの配置アイコン（左・中央・右揃え）
 
-State: IN PROGRESS（PR #1244、CI 確認済み）
+State: IN PROGRESS（PR #1249、CI 確認中）
 Issue: https://github.com/tetsuji16/microProject/issues/1243
 Contract frozen at: 2026-11-19 issue body（#1221 のチェックリスト 3 の子）
-Baseline HEAD: `0650c924e`（#1241 のブランチ上。master は `62dc73b23` 系）
+Baseline HEAD: `074e85e52`（#1241 のマージ後 master）
 Baseline working tree: `samples/CCPM path comparison 日本語.mpo` の変更と `.workbuddy-ai/` / `.worktrees/` のみ未追跡
 
 ## Goal and scope
@@ -11,7 +11,7 @@ Baseline working tree: `samples/CCPM path comparison 日本語.mpo` の変更と
 ダークテーマで固定インク `#2f6b53` のため沈む `ribbon.alignLeft` / `ribbon.alignCenter` / `ribbon.alignRight` を、16 / 20 / 32 px のすべてで背景に対して 3:1 以上にする。ライトの意図した深緑は維持する。
 
 Out of scope: ビュー切り替え（`view.*`）・進捗率（`ribbon.percent*`）・その他の単色素材（#1221 の 4）、単色判定の一般化（同 5）、情報・カスタムフィールド（#1218）、書式（#1240）、クイック アクセス ツールバー（`getRibbonIconTinted` 経由）、ライトの意匠変更。
-Blockers: #1241 が未マージのため、このブランチは #1241 の上に積む（PR は #1241 のブランチを base にする）。
+Blockers: none（#1241 はマージ済み。PR #1249 は master を base にする）。
 
 ## Acceptance
 
@@ -47,7 +47,6 @@ Blockers: #1241 が未マージのため、このブランチは #1241 の上に
   - `git diff --check` → exit 0
 - Physical GUI/manual: ダーク/ライトの書式タブ（配置グループ）を実ウィンドウでキャプチャ（`ribbon-icon-contrast-{dark,light}-align-group.png`、日本語 100%）。ダークは 3 アイコンが明るいグレーで読め、ライトは従来の深緑のまま。タスク 1 行を選択した状態（ステータス バー「選択中のタスク: 1」）。
 - 計測メモ: 配置素材のストロークは viewBox 64 に対して 5 なので、16 px では 1.25 px 幅になり alpha 200 以上の画素が出ない。`IconManagerRibbonIconTest` の `dominantInk(image, minimumAlpha)` と GUI テストの `dominantInk` は alpha 128 以上をインクとして数える（アンチエイリアスの色は元のインク色のまま）。
-- CI: base が `issue/1221-dark-format-icons` のため PR の `pull_request` ワークフローは走らない（`build.yml` / `gui-acceptance.yml` は base `master` のみ）。ブランチに対して手動で dispatch して確認した。
-  - `Build`（`gh workflow run build.yml --ref issue/1243-dark-align-icons -f runner_os=ubuntu-latest`）→ run 44353285793 success。
-  - `GUI acceptance`（`-f gui_test_filter=com.microproject.ui.ribbon.RibbonIconThemeContrastGuiAcceptanceTest -f gui_test_locale=ja -f gui_test_scale=1.0`）→ run 44353291538。1 回目は hosted Windows-key guard の preflight で停止（テスト開始前のインフラ要因）、再実行で success。
-  - #1241 がマージされて base が master に変わると、通常の必須チェックも走る。
+- CI: #1241 のマージで base ブランチが削除され、PR #1244 は close された（未マージ）。master の上に積み直して PR #1249 を作り直した。
+  - 積み直す前のブランチに対する手動 dispatch では `Build`（run 44353285793）と `GUI acceptance`（run 44353291538、対象テストを ja/1.0 で実行）が success。1 回目は hosted Windows-key guard の preflight で停止したが、テスト開始前のインフラ要因で再実行すると success。
+  - 積み直した後の必須チェックは PR #1249 で確認する。
