@@ -84,6 +84,11 @@ public static class HostedGuiHotkeyProbe {
     return handle != IntPtr.Zero && IsWindowVisible(handle);
   }
 
+  public static bool IsStartSearchVisible() {
+    IntPtr handle = FindWindow("Windows.UI.Core.CoreWindow", "Search");
+    return handle != IntPtr.Zero && IsWindowVisible(handle);
+  }
+
   public static bool IsTaskbarVisible() {
     IntPtr handle = FindWindow("Shell_TrayWnd", null);
     return handle != IntPtr.Zero && IsWindowVisible(handle);
@@ -110,28 +115,28 @@ public static class HostedGuiHotkeyProbe {
 function Test-HostedQuickSettingsDisabled {
   if (-not $script:isGitHubActions) { return }
   Initialize-HostedGuiHotkeyProbe
-  if ([HostedGuiHotkeyProbe]::IsQuickSettingsVisible()) {
-    Save-GuiFailureScreenshot 'hosted-quick-settings-preflight-started-contended'
-    throw 'Hosted GUI desktop was already showing Windows Quick Settings before the Win+A guard preflight.'
+  if ([HostedGuiHotkeyProbe]::IsQuickSettingsVisible() -or [HostedGuiHotkeyProbe]::IsStartSearchVisible()) {
+    Save-GuiFailureScreenshot 'hosted-shell-panel-preflight-started-contended'
+    throw 'Hosted GUI desktop was already showing Quick Settings or Start/Search before the Windows-key guard preflight.'
   }
 
   [HostedGuiHotkeyProbe]::PressWindowsA()
   Start-Sleep -Milliseconds 400
-  if ([HostedGuiHotkeyProbe]::IsQuickSettingsVisible()) {
-    Save-GuiFailureScreenshot 'hosted-win-a-guard-preflight'
+  if ([HostedGuiHotkeyProbe]::IsQuickSettingsVisible() -or [HostedGuiHotkeyProbe]::IsStartSearchVisible()) {
+    Save-GuiFailureScreenshot 'hosted-windows-key-guard-preflight'
     [HostedGuiHotkeyProbe]::PressEscape()
     $deadline = [DateTime]::UtcNow.AddSeconds(3)
-    while ([HostedGuiHotkeyProbe]::IsQuickSettingsVisible() -and [DateTime]::UtcNow -lt $deadline) {
+    while (([HostedGuiHotkeyProbe]::IsQuickSettingsVisible() -or [HostedGuiHotkeyProbe]::IsStartSearchVisible()) -and [DateTime]::UtcNow -lt $deadline) {
       Start-Sleep -Milliseconds 100
     }
-    throw 'Hosted Win+A guard did not block the Windows shortcut; Quick Settings opened during the preflight. The GUI suite was not started.'
+    throw 'Hosted Windows-key guard did not keep Quick Settings and Start/Search closed during the preflight. The GUI suite was not started.'
   }
 
   $guardLog = Get-Content -LiteralPath $script:hostedWarningWatcherLog -Raw
   if ($guardLog -notmatch 'blocked Win\+A') { throw 'Hosted Win+A guard did not record blocking the preflight shortcut.' }
-  Write-Host 'Hosted Win+A guard preflight passed: the shortcut was blocked and Quick Settings stayed closed.'
+  Write-Host 'Hosted Windows-key guard preflight passed: Win+A was blocked and Quick Settings and Start/Search stayed closed.'
   if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {
-    Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value '- Hosted Win+A guard preflight passed: the shortcut was blocked and Quick Settings stayed closed.'
+    Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value '- Hosted Windows-key guard preflight passed: Win+A was blocked and Quick Settings and Start/Search stayed closed.'
   }
 }
 

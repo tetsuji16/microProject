@@ -130,8 +130,10 @@ class ReleaseWorkflowPolicyTest(unittest.TestCase):
 		self.assertIn("function Complete-GuiAcceptanceCleanup {\n  Stop-HostedWarningWatcher\n}", runner)
 		self.assertIn("SetWindowsHookEx(WhKeyboardLl", watcher)
 		self.assertIn("UnhookWindowsHookEx(hook)", watcher)
+		self.assertIn("if ((key == VkLWin || key == VkRWin) && (down || up))", watcher)
 		self.assertIn("key == VkA && windowsKeyDown", watcher)
 		self.assertIn("[Windows.Forms.Application]::DoEvents()", watcher)
+		self.assertIn("IsStartSearchVisible", runner)
 		self.assertNotIn("DisableControlCenter", runner + watcher)
 		self.assertNotIn("NoWinKeys", runner + watcher)
 

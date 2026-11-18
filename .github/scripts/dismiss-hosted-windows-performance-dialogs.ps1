@@ -124,7 +124,11 @@ public static class HostedWindowsHotkeyGuard {
       int key = Marshal.ReadInt32(data);
       bool down = msg == WmKeyDown || msg == WmSysKeyDown;
       bool up = msg == WmKeyUp || msg == WmSysKeyUp;
-      if ((key == VkLWin || key == VkRWin) && (down || up)) windowsKeyDown = down;
+      if ((key == VkLWin || key == VkRWin) && (down || up)) {
+        windowsKeyDown = down;
+        if (down) WriteLog("blocked Windows key to keep hosted shell panels off the GUI desktop");
+        return (IntPtr)1;
+      }
       if (key == VkA && windowsKeyDown && (down || up)) {
         if (down) WriteLog("blocked Win+A to keep Windows Quick Settings off the hosted GUI desktop");
         return (IntPtr)1;
