@@ -66,6 +66,8 @@ import com.microproject.util.FlatUiSupport;
 public final class ThemeManager {
 	private static final Logger logger = Logger.getLogger(ThemeManager.class.getName());
 	private static final List<Runnable> listeners = new CopyOnWriteArrayList<>();
+	private static int themeRevision;
+	private static Map<Integer, Color> detachedRemap = Collections.emptyMap();
 
 	private ThemeManager() {
 	}
@@ -104,6 +106,31 @@ public final class ThemeManager {
 		return FlatUiSupport.isDarkTheme();
 	}
 
+	/**
+	 * Monotonic counter bumped on every switch. Components that are cached outside
+	 * the window trees (row popups, for instance) compare it to refresh themselves
+	 * lazily, because no window traversal ever reaches them.
+	 */
+	public static int getThemeRevision() {
+		return themeRevision;
+	}
+
+	/**
+	 * Refreshes a component that lives outside every window tree, such as a row
+	 * popup cached on its table. {@link SwingUtilities#updateComponentTreeUI} alone
+	 * is not enough: the current theme sets some surfaces as plain colors rather
+	 * than {@code UIResource} ones, so they survive a UI update. This re-applies the
+	 * color mapping of the last switch, which is what {@link #remapTree} does for
+	 * the components the window traversal reaches.
+	 */
+	public static void refreshComponentOutsideWindowTree(JComponent component) {
+		if (component == null)
+			return;
+		SwingUtilities.updateComponentTreeUI(component);
+		remapTree(component, detachedRemap);
+		component.repaint();
+	}
+
 
 	/** Applies the theme to the whole application. Safe to call from any thread. */
 	public static void applyTheme(boolean dark) {
@@ -121,10 +148,12 @@ public final class ThemeManager {
 	}
 
 	private static void doApply(boolean dark) {
+		themeRevision++;
 		Map<Object, Color> before = snapshotColors();
 		FlatLafSupport.reapplyLookAndFeel(dark);
 		IconManager.clearCaches();
 		Map<Integer, Color> remap = buildRemap(before);
+		detachedRemap = remap;
 		FlatUiSupport.updateAllWindowTrees();
 		Window[] windows = Window.getWindows();
 		for (Window window : windows)
