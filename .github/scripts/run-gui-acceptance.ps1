@@ -114,12 +114,12 @@ function Start-HostedPolicyValue([string]$path, [string]$name, [string]$descript
 function Start-HostedPolicies {
   Start-HostedPolicyValue 'Software\Policies\Microsoft\Windows\Explorer' 'DisableNotificationCenter' 'hosted GUI notification center'
   Start-HostedPolicyValue 'Software\Microsoft\Windows\CurrentVersion\Policies\Explorer' 'NoWinKeys' 'hosted GUI Windows-key hotkeys'
+  Restart-HostedExplorerShell
 }
 
-function Test-HostedWindowsKeyHotkeysDisabled {
-  if (-not $script:isGitHubActions) { return }
-  if (-not ('HostedGuiHotkeyProbe' -as [type])) {
-    Add-Type @'
+function Initialize-HostedGuiHotkeyProbe {
+  if ('HostedGuiHotkeyProbe' -as [type]) { return }
+  Add-Type @'
 using System;
 using System.Runtime.InteropServices;
 
@@ -143,6 +143,11 @@ public static class HostedGuiHotkeyProbe {
     return handle != IntPtr.Zero && IsWindowVisible(handle);
   }
 
+  public static bool IsTaskbarVisible() {
+    IntPtr handle = FindWindow("Shell_TrayWnd", null);
+    return handle != IntPtr.Zero && IsWindowVisible(handle);
+  }
+
   public static void PressWindowsA() {
     keybd_event(VkLWin, 0, 0, UIntPtr.Zero);
     try {
@@ -159,8 +164,43 @@ public static class HostedGuiHotkeyProbe {
   }
 }
 '@
+}
+
+function Restart-HostedExplorerShell {
+  if (-not $script:isGitHubActions) { return }
+  Initialize-HostedGuiHotkeyProbe
+  if ([HostedGuiHotkeyProbe]::IsQuickSettingsVisible()) {
+    Save-GuiFailureScreenshot 'hosted-shell-restart-started-contended'
+    throw 'Hosted GUI desktop was already showing Windows Quick Settings before the policy refresh; Explorer was not restarted.'
   }
 
+  $existingExplorer = @(Get-Process -Name explorer -ErrorAction SilentlyContinue)
+  if ($existingExplorer.Count -eq 0) { throw 'Hosted Explorer shell process was missing before the NoWinKeys policy refresh.' }
+  $existingExplorerIds = @($existingExplorer | ForEach-Object { $_.Id })
+  $existingExplorer | Stop-Process -Force
+  $stopDeadline = [DateTime]::UtcNow.AddSeconds(5)
+  while (@(Get-Process -Name explorer -ErrorAction SilentlyContinue | Where-Object { $_.Id -in $existingExplorerIds }).Count -gt 0 -and [DateTime]::UtcNow -lt $stopDeadline) {
+    Start-Sleep -Milliseconds 100
+  }
+  if (@(Get-Process -Name explorer -ErrorAction SilentlyContinue | Where-Object { $_.Id -in $existingExplorerIds }).Count -gt 0) {
+    throw 'Hosted Explorer shell did not stop for the NoWinKeys policy refresh.'
+  }
+  if (@(Get-Process -Name explorer -ErrorAction SilentlyContinue).Count -eq 0) {
+    Start-Process -FilePath (Join-Path $env:SystemRoot 'explorer.exe')
+  }
+  $shellDeadline = [DateTime]::UtcNow.AddSeconds(15)
+  while (-not [HostedGuiHotkeyProbe]::IsTaskbarVisible() -and [DateTime]::UtcNow -lt $shellDeadline) {
+    Start-Sleep -Milliseconds 100
+  }
+  if (-not [HostedGuiHotkeyProbe]::IsTaskbarVisible()) {
+    throw 'Hosted Explorer shell did not restore the taskbar after the NoWinKeys policy refresh.'
+  }
+  Write-Host 'Restarted the hosted Explorer shell so the temporary user policies take effect.'
+}
+
+function Test-HostedWindowsKeyHotkeysDisabled {
+  if (-not $script:isGitHubActions) { return }
+  Initialize-HostedGuiHotkeyProbe
   if ([HostedGuiHotkeyProbe]::IsQuickSettingsVisible()) {
     Save-GuiFailureScreenshot 'hosted-hotkey-preflight-started-contended'
     throw 'Hosted GUI desktop was already showing Windows Quick Settings before the Windows-key policy preflight.'
@@ -254,6 +294,7 @@ function Restore-HostedPolicyValue($snapshot) {
 }
 
 function Stop-HostedPolicyValues {
+  $restartShell = @($script:hostedPolicySnapshots | Where-Object { $_.Name -eq 'NoWinKeys' }).Count -gt 0
   for ($index = $script:hostedPolicySnapshots.Count - 1; $index -ge 0; $index--) {
     $snapshot = $script:hostedPolicySnapshots[$index]
     Restore-HostedPolicyValue $snapshot
@@ -262,6 +303,7 @@ function Stop-HostedPolicyValues {
       Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value "- Hosted GUI policy ``$($snapshot.Name)``: original value restored and verified (or temporary value verified absent)."
     }
   }
+  if ($restartShell) { Restart-HostedExplorerShell }
 }
 
 function Complete-GuiAcceptanceCleanup {
