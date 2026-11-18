@@ -1,6 +1,6 @@
 # Issue #1243 — ダークモードの配置アイコン（左・中央・右揃え）
 
-State: IN PROGRESS（PR 作成前）
+State: IN PROGRESS（PR #1244、CI 確認済み）
 Issue: https://github.com/tetsuji16/microProject/issues/1243
 Contract frozen at: 2026-11-19 issue body（#1221 のチェックリスト 3 の子）
 Baseline HEAD: `0650c924e`（#1241 のブランチ上。master は `62dc73b23` 系）
@@ -47,4 +47,7 @@ Blockers: #1241 が未マージのため、このブランチは #1241 の上に
   - `git diff --check` → exit 0
 - Physical GUI/manual: ダーク/ライトの書式タブ（配置グループ）を実ウィンドウでキャプチャ（`ribbon-icon-contrast-{dark,light}-align-group.png`、日本語 100%）。ダークは 3 アイコンが明るいグレーで読め、ライトは従来の深緑のまま。タスク 1 行を選択した状態（ステータス バー「選択中のタスク: 1」）。
 - 計測メモ: 配置素材のストロークは viewBox 64 に対して 5 なので、16 px では 1.25 px 幅になり alpha 200 以上の画素が出ない。`IconManagerRibbonIconTest` の `dominantInk(image, minimumAlpha)` と GUI テストの `dominantInk` は alpha 128 以上をインクとして数える（アンチエイリアスの色は元のインク色のまま）。
-- CI: 未取得（PR 作成後）
+- CI: base が `issue/1221-dark-format-icons` のため PR の `pull_request` ワークフローは走らない（`build.yml` / `gui-acceptance.yml` は base `master` のみ）。ブランチに対して手動で dispatch して確認した。
+  - `Build`（`gh workflow run build.yml --ref issue/1243-dark-align-icons -f runner_os=ubuntu-latest`）→ run 44353285793 success。
+  - `GUI acceptance`（`-f gui_test_filter=com.microproject.ui.ribbon.RibbonIconThemeContrastGuiAcceptanceTest -f gui_test_locale=ja -f gui_test_scale=1.0`）→ run 44353291538。1 回目は hosted Windows-key guard の preflight で停止（テスト開始前のインフラ要因）、再実行で success。
+  - #1241 がマージされて base が master に変わると、通常の必須チェックも走る。
