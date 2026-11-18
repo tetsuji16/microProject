@@ -82,7 +82,7 @@ namespace MicroProject {
       EnumWindows((window, parameter) => {
         if (!IsWindowVisible(window)
             || !String.Equals(ReadClass(window), "ControlCenterWindow", StringComparison.Ordinal)
-            || !String.Equals(ReadText(window), "Quick settings", StringComparison.Ordinal)) return true;
+            || !String.Equals(ReadText(window), "Quick Settings", StringComparison.OrdinalIgnoreCase)) return true;
         SendMessage(window, 0x0010, IntPtr.Zero, IntPtr.Zero); // WM_CLOSE the exact hosted shell panel
         dismissed = "class=ControlCenterWindow; title=Quick settings";
         return false;
