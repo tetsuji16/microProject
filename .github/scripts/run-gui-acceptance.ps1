@@ -113,7 +113,7 @@ function Start-HostedPolicyValue([string]$path, [string]$name, [string]$descript
 
 function Start-HostedPolicies {
   Start-HostedPolicyValue 'Software\Policies\Microsoft\Windows\Explorer' 'DisableNotificationCenter' 'hosted GUI notification center'
-  Start-HostedPolicyValue 'Software\Microsoft\Windows\CurrentVersion\Policies\Explorer' 'NoWinKeys' 'hosted GUI Windows-key hotkeys'
+  Start-HostedPolicyValue 'Software\Policies\Microsoft\Windows\Explorer' 'DisableControlCenter' 'hosted GUI Quick Settings'
   Restart-HostedExplorerShell
 }
 
@@ -175,7 +175,7 @@ function Restart-HostedExplorerShell {
   }
 
   $existingExplorer = @(Get-Process -Name explorer -ErrorAction SilentlyContinue)
-  if ($existingExplorer.Count -eq 0) { throw 'Hosted Explorer shell process was missing before the NoWinKeys policy refresh.' }
+  if ($existingExplorer.Count -eq 0) { throw 'Hosted Explorer shell process was missing before the hosted GUI policy refresh.' }
   $existingExplorerIds = @($existingExplorer | ForEach-Object { $_.Id })
   $existingExplorer | Stop-Process -Force
   $stopDeadline = [DateTime]::UtcNow.AddSeconds(5)
@@ -183,7 +183,7 @@ function Restart-HostedExplorerShell {
     Start-Sleep -Milliseconds 100
   }
   if (@(Get-Process -Name explorer -ErrorAction SilentlyContinue | Where-Object { $_.Id -in $existingExplorerIds }).Count -gt 0) {
-    throw 'Hosted Explorer shell did not stop for the NoWinKeys policy refresh.'
+    throw 'Hosted Explorer shell did not stop for the hosted GUI policy refresh.'
   }
   if (@(Get-Process -Name explorer -ErrorAction SilentlyContinue).Count -eq 0) {
     Start-Process -FilePath (Join-Path $env:SystemRoot 'explorer.exe')
@@ -193,34 +193,34 @@ function Restart-HostedExplorerShell {
     Start-Sleep -Milliseconds 100
   }
   if (-not [HostedGuiHotkeyProbe]::IsTaskbarVisible()) {
-    throw 'Hosted Explorer shell did not restore the taskbar after the NoWinKeys policy refresh.'
+    throw 'Hosted Explorer shell did not restore the taskbar after the hosted GUI policy refresh.'
   }
   Write-Host 'Restarted the hosted Explorer shell so the temporary user policies take effect.'
 }
 
-function Test-HostedWindowsKeyHotkeysDisabled {
+function Test-HostedQuickSettingsDisabled {
   if (-not $script:isGitHubActions) { return }
   Initialize-HostedGuiHotkeyProbe
   if ([HostedGuiHotkeyProbe]::IsQuickSettingsVisible()) {
-    Save-GuiFailureScreenshot 'hosted-hotkey-preflight-started-contended'
-    throw 'Hosted GUI desktop was already showing Windows Quick Settings before the Windows-key policy preflight.'
+    Save-GuiFailureScreenshot 'hosted-quick-settings-preflight-started-contended'
+    throw 'Hosted GUI desktop was already showing Windows Quick Settings before the Quick Settings policy preflight.'
   }
 
   [HostedGuiHotkeyProbe]::PressWindowsA()
   Start-Sleep -Milliseconds 400
   if ([HostedGuiHotkeyProbe]::IsQuickSettingsVisible()) {
-    Save-GuiFailureScreenshot 'hosted-no-win-keys-preflight'
+    Save-GuiFailureScreenshot 'hosted-disable-control-center-preflight'
     [HostedGuiHotkeyProbe]::PressEscape()
     $deadline = [DateTime]::UtcNow.AddSeconds(3)
     while ([HostedGuiHotkeyProbe]::IsQuickSettingsVisible() -and [DateTime]::UtcNow -lt $deadline) {
       Start-Sleep -Milliseconds 100
     }
-    throw 'Hosted NoWinKeys policy did not block Win+A; Quick Settings opened during the preflight. The GUI suite was not started.'
+    throw 'Hosted DisableControlCenter policy did not block Win+A; Quick Settings opened during the preflight. The GUI suite was not started.'
   }
 
-  Write-Host 'Hosted NoWinKeys policy preflight passed: Win+A did not open Quick Settings.'
+  Write-Host 'Hosted DisableControlCenter policy preflight passed: Win+A did not open Quick Settings.'
   if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {
-    Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value '- Hosted NoWinKeys preflight passed: Win+A did not open the Windows Quick Settings window.'
+    Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value '- Hosted DisableControlCenter preflight passed: Win+A did not open the Windows Quick Settings window.'
   }
 }
 
@@ -294,7 +294,7 @@ function Restore-HostedPolicyValue($snapshot) {
 }
 
 function Stop-HostedPolicyValues {
-  $restartShell = @($script:hostedPolicySnapshots | Where-Object { $_.Name -eq 'NoWinKeys' }).Count -gt 0
+  $restartShell = @($script:hostedPolicySnapshots | Where-Object { $_.Name -eq 'DisableControlCenter' }).Count -gt 0
   for ($index = $script:hostedPolicySnapshots.Count - 1; $index -ge 0; $index--) {
     $snapshot = $script:hostedPolicySnapshots[$index]
     Restore-HostedPolicyValue $snapshot
@@ -584,7 +584,7 @@ foreach ($testSelector in $visualTests) {
 
 try {
   Start-HostedPolicies
-  Test-HostedWindowsKeyHotkeysDisabled
+  Test-HostedQuickSettingsDisabled
   if (-not [string]::IsNullOrWhiteSpace($TestFilter)) {
     $safeFilter = ($TestFilter -replace '[^A-Za-z0-9_.-]', '_')
     $safeScale = $Scale.Replace('.', '-')

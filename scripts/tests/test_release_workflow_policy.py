@@ -197,13 +197,16 @@ if (-not $restoreFailurePropagated) { throw 'Policy restoration failure was hidd
 		)
 		self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
-	def test_hosted_notification_center_policy_is_temporary_and_exactly_restored(self):
+	def test_hosted_shell_policies_are_temporary_and_exactly_restored(self):
 		runner = (REPO_ROOT / ".github" / "scripts" / "run-gui-acceptance.ps1").read_text(encoding="utf-8")
 		self.assertIn("function Start-HostedPolicyValue", runner)
 		self.assertIn("if (-not $script:isGitHubActions) { return }", runner)
 		self.assertIn("function Stop-HostedPolicyValues", runner)
 		self.assertIn("Start-HostedPolicyValue", runner)
 		self.assertIn("Stop-HostedPolicyValues", runner)
+		self.assertIn("Start-HostedPolicyValue 'Software\\Policies\\Microsoft\\Windows\\Explorer' 'DisableControlCenter'", runner)
+		self.assertIn("$_.Name -eq 'DisableControlCenter'", runner)
+		self.assertIn("Test-HostedQuickSettingsDisabled", runner)
 		self.assertIn("CreateSubKey($path)", runner)
 		self.assertIn("$snapshot.CreatedKeyPaths", runner)
 		self.assertIn("Refusing to remove temporary policy key containing unrelated data", runner)
