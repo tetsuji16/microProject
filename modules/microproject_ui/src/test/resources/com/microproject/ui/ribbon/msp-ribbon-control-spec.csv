@@ -34,7 +34,7 @@ RibbonCollapse,OutlineSubtasksHide,BUTTON,COMMAND,DOCUMENTED,ViewRibbonTask/View
 RibbonAssignResources,ResourcesAssign,BUTTON,DIALOG,DOCUMENTED,ResourceRibbonTask/ResourceAssignmentsRibbonBand,
 RibbonDelegateTasks,,BUTTON,DIALOG,BASELINE,TaskRibbonTask/TaskTasksRibbonBand,product-only
 RibbonTaskInformation,TaskInformation,BUTTON,DIALOG,DOCUMENTED,TaskRibbonTask/TaskPropertiesRibbonBand,
-RibbonTaskInspector,InspectTasksMenu,SPLIT_BUTTON,COMMAND,DOCUMENTED,TaskRibbonTask/TaskTasksRibbonBand,Inspect Task / Show Warnings / Show Suggestions / Show Ignored Problems
+RibbonTaskInspector,InspectTasksMenu,BUTTON,DIALOG,DOCUMENTED,TaskRibbonTask/TaskTasksRibbonBand,Inspect Task / Show Warnings / Show Suggestions / Show Ignored Problems
 RibbonNotes,TaskNotes,BUTTON,DIALOG,DOCUMENTED,TaskRibbonTask/TaskPropertiesRibbonBand,
 RibbonAddToTimeline,TaskAddToTimeline,TOGGLE_BUTTON,TOGGLE_STATE,DOCUMENTED,TaskRibbonTask/TaskPropertiesRibbonBand,Pressed when every selected task is on the timeline
 RibbonTaskDetails,TaskDetailsDisplay,TOGGLE_BUTTON,TOGGLE_STATE,DOCUMENTED,TaskRibbonTask/TaskPropertiesRibbonBand,
