@@ -32,16 +32,31 @@ import com.microproject.pm.graphic.IconManager;
 import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.ui.theme.MicroProjectThemeTokens;
 import com.microproject.ui.theme.ThemeManager;
+import com.microproject.util.ColorLuminance;
 import com.microproject.util.FlatUiSupport;
 
-/** Fixed-ink information and custom-fields icons must stay legible in both themes (#1218). */
+/**
+ * Fixed-ink ribbon icons must stay legible in both themes. The light theme keeps the intended
+ * ink of each asset; the dark theme remaps it to the ribbon icon ink (#1218, #1221).
+ */
 class RibbonIconThemeContrastGuiAcceptanceTest {
 	private static final double MINIMUM_CONTRAST = 3.0;
-	private static final List<String> RIBBON_COMMANDS = List.of(
-		"RibbonTaskInformation", "RibbonResourceInformation", "RibbonProjectInformation", "RibbonCustomFields");
+	/** A command, the light-theme ink its asset deliberately uses, and whether a task must be selected. */
+	private record CommandIcon(String commandId, int lightInk, boolean needsSelectedTask) { }
+	private static final int LIGHT_SURFACE_INK = 0x212121;
+	private static final int BRAND_NAVY_INK = 0x1F3B73;
+	private static final List<CommandIcon> RIBBON_COMMANDS = List.of(
+		new CommandIcon("RibbonTaskInformation", LIGHT_SURFACE_INK, false),
+		new CommandIcon("RibbonResourceInformation", LIGHT_SURFACE_INK, false),
+		new CommandIcon("RibbonProjectInformation", LIGHT_SURFACE_INK, false),
+		new CommandIcon("RibbonCustomFields", LIGHT_SURFACE_INK, false),
+		new CommandIcon("RibbonBold", BRAND_NAVY_INK, true),
+		new CommandIcon("RibbonItalic", BRAND_NAVY_INK, true),
+		new CommandIcon("RibbonUnderline", BRAND_NAVY_INK, true));
+	private static final List<String> FORMAT_ICON_KEYS = List.of("ribbon.bold", "ribbon.italic", "ribbon.underline");
 
 	@Test
-	void informationAndCustomFieldsIconsStayLegibleInBothThemes() throws Exception {
+	void fixedInkRibbonIconsStayLegibleInBothThemes() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		boolean originalDark = FlatUiSupport.isDarkTheme();
 		try (RibbonCommandGuiFixture fixture = RibbonCommandGuiFixture.open(3)) {
@@ -59,18 +74,41 @@ class RibbonIconThemeContrastGuiAcceptanceTest {
 		Color surface = tokens.ribbonSurfaceBackground();
 		assertTrue(FlatUiSupport.isDarkTheme() == dark, "the " + theme + " theme must be active");
 		capture(fixture, theme);
+		// The report describes the font group with a task selected, so the measured icon is the
+		// enabled state the user reads rather than the disabled variant.
+		fixture.clickRow(0);
 
-		for (String commandId : RIBBON_COMMANDS) {
+		for (CommandIcon command : RIBBON_COMMANDS) {
+			String commandId = command.commandId();
 			AbstractButton button = fixture.showCommand(commandId);
 			assertNotNull(button, theme + " " + commandId + " must be visible in the ribbon");
+			if (command.needsSelectedTask())
+				assertTrue(fixture.onEdt(button::isEnabled),
+					theme + " " + commandId + " must be enabled while a task is selected");
 			Icon icon = fixture.onEdt(button::getIcon);
 			assertNotNull(icon, theme + " " + commandId + " must have a ribbon icon");
 			Color ink = dominantInk(icon);
 			if (!dark)
-				assertEquals(new Color(0x212121), ink, theme + " " + commandId + " must keep its light ink");
+				assertEquals(new Color(command.lightInk()), ink, theme + " " + commandId + " must keep its light ink");
 			double contrast = contrast(ink, surface);
 			assertTrue(contrast >= MINIMUM_CONTRAST, theme + " " + commandId + " icon contrast " + contrast
 				+ " against " + surface + " is below " + MINIMUM_CONTRAST);
+		}
+		capture(fixture, theme + "-font-group");
+
+		// Each format asset also ships 16/20/32 px variants; every size must carry the same ink.
+		for (String iconKey : FORMAT_ICON_KEYS) {
+			for (int size : new int[] {16, 20, 32}) {
+				Icon sizedIcon = IconManager.getRibbonIcon(iconKey, size, size);
+				assertNotNull(sizedIcon, theme + " " + iconKey + " at " + size + " px must resolve");
+				Color sizedInk = dominantInk(sizedIcon);
+				if (!dark)
+					assertEquals(new Color(BRAND_NAVY_INK), sizedInk,
+						theme + " " + iconKey + " at " + size + " px must keep its light ink");
+				double sizedContrast = contrast(sizedInk, surface);
+				assertTrue(sizedContrast >= MINIMUM_CONTRAST, theme + " " + iconKey + " at " + size
+					+ " px contrast " + sizedContrast + " against " + surface + " is below " + MINIMUM_CONTRAST);
+			}
 		}
 
 		// The spreadsheet row menu and the Backstage information card both resolve the same
@@ -108,31 +146,17 @@ class RibbonIconThemeContrastGuiAcceptanceTest {
 	}
 
 	private static double contrast(Color ink, Color background) {
-		double first = luminance(ink);
-		double second = luminance(background);
-		if (first < second) {
-			double swap = first;
-			first = second;
-			second = swap;
-		}
-		return (first + 0.05) / (second + 0.05);
+		double first = ColorLuminance.relativeLuminance(ink) + 0.05;
+		double second = ColorLuminance.relativeLuminance(background) + 0.05;
+		return Math.max(first, second) / Math.min(first, second);
 	}
 
-	private static double luminance(Color color) {
-		return 0.2126 * linear(color.getRed()) + 0.7152 * linear(color.getGreen()) + 0.0722 * linear(color.getBlue());
-	}
-
-	private static double linear(int value) {
-		double channel = value / 255.0;
-		return channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
-	}
-
-	private static void capture(RibbonCommandGuiFixture fixture, String theme) throws Exception {
+	private static void capture(RibbonCommandGuiFixture fixture, String artifactName) throws Exception {
 		Rectangle bounds = fixture.onEdt(() -> new Rectangle(fixture.window.getLocationOnScreen(), fixture.window.getSize()));
 		Robot robot = fixture.robot;
 		BufferedImage image = robot.createScreenCapture(bounds);
 		Path output = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/reports/guiTest-artifacts"),
-			"issue-1218-" + theme + "-ribbon.png");
+			"ribbon-icon-contrast-" + artifactName + ".png");
 		Files.createDirectories(output.getParent());
 		ImageIO.write(image, "png", output.toFile());
 	}
