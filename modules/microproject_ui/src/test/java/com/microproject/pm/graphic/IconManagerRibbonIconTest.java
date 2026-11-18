@@ -544,7 +544,7 @@ class IconManagerRibbonIconTest {
 			for (SizedIcon icon : monochromeIcons) {
 				BufferedImage image = paint(IconManager.getRibbonIcon(icon.key(), icon.size(), icon.size()),
 					icon.size(), icon.size());
-				double contrast = contrastRatio(dominantInk(image, 128), surface);
+				double contrast = contrastRatio(dominantOpaqueRgb(image), surface);
 				if (contrast < 3.0)
 					failures.add(icon.key() + " at " + icon.size() + " px contrast " + contrast);
 				if (contrastRatio(new Color(icon.ink()), surface) < 3.0)
