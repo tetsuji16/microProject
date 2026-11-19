@@ -1073,7 +1073,8 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 				preview.repaint();
 			}
 		};
-		BackstagePrintPage printPage = new BackstagePrintPage(settings, printButton, preview, actions, this::localized);
+		BackstagePrintPage printPage = new BackstagePrintPage(settings, printButton, preview, actions,
+				key -> localized("FileBackstage.print." + key));
 		if (document == null) {
 			// Without an active document there are no print settings to evaluate.
 			// Keep the canonical command enabled so it stays physically routable;
