@@ -33,15 +33,17 @@ import java.awt.Color;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.awt.image.BufferedImageOp;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.ResourceBundle;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
@@ -63,24 +65,15 @@ public class IconManager {
 	private record RibbonIconKey(String name, int width, int height) { }
 
 	/**
-	 * Monochrome ribbon glyphs whose SVG ink is a fixed light-surface colour, grouped by that
-	 * ink. On a dark ribbon those inks have too little contrast, so they are remapped to the
-	 * ribbon icon ink; the light theme keeps the intended colour of every asset.
+	 * Monochrome ribbon glyphs carry a fixed light-surface ink (for example the brand navy
+	 * {@code #1f3b73} or the neutral {@code #5b6573}). On a dark ribbon those inks have too
+	 * little contrast, so they are remapped to the ribbon icon ink; the light theme keeps the
+	 * intended colour of every asset. The ink is read from the asset itself, so a new glyph
+	 * needs no registration here.
 	 */
-	private record RibbonIconInk(int sourceInk, Set<String> iconNames) { }
-	private static final List<RibbonIconInk> RIBBON_ICON_INKS = List.of(
-		// Fluent UI System Icons draw with the light-surface ink #212121.
-		new RibbonIconInk(0x212121, Set.of("fluent-info", "fluent-info-16", "fluent-info-20", "fluent-info-32",
-			"fluent-grid-dots", "fluent-grid-dots-16", "fluent-grid-dots-20", "fluent-grid-dots-32")),
-		// The format glyphs (bold, italic, underline) use the brand navy #1f3b73.
-		new RibbonIconInk(0x1F3B73, Set.of("format-bold", "format-bold-16", "format-bold-20", "format-bold-32",
-			"format-italic", "format-italic-16", "format-italic-20", "format-italic-32",
-			"format-underline", "format-underline-16", "format-underline-20", "format-underline-32")),
-		// The alignment glyphs use the brand green #2f6b53.
-		new RibbonIconInk(0x2F6B53, Set.of("align-left-ribbon", "align-left-ribbon-16", "align-left-ribbon-20",
-			"align-left-ribbon-32", "align-center-ribbon", "align-center-ribbon-16", "align-center-ribbon-20",
-			"align-center-ribbon-32", "align-right-ribbon", "align-right-ribbon-16", "align-right-ribbon-20",
-			"align-right-ribbon-32")));
+	private static final double MINIMUM_RIBBON_INK_CONTRAST = 3.0;
+	private static final Pattern SVG_COLOUR = Pattern.compile("#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\\b");
+	private static final Map<String, Integer> MONOCHROME_INKS = new ConcurrentHashMap<>(256);
 
 	/** Drops cached icons so theme-dependent rendering is rebuilt after a theme switch. */
 	public static void clearCaches() {
@@ -386,8 +379,10 @@ public class IconManager {
 
 	/** Maps the light-only ink of a monochrome glyph to the dark ribbon icon ink. */
 	private static ImageIcon applyRibbonInk(ImageIcon icon, URL resource) {
-		int sourceInk = fixedLightInkOf(resource);
-		if (!FlatUiSupport.isDarkTheme() || sourceInk < 0)
+		if (!FlatUiSupport.isDarkTheme())
+			return icon;
+		int sourceInk = monochromeInkOf(resource);
+		if (sourceInk < 0 || ribbonContrast(sourceInk) >= MINIMUM_RIBBON_INK_CONTRAST)
 			return icon;
 		// These glyphs are monochrome; keep their neutral ink instead of introducing a hue.
 		Color ribbonInk = FlatUiSupport.ribbonIconColor();
@@ -409,19 +404,80 @@ public class IconManager {
 		return new ImageIcon(image);
 	}
 
-	/** The fixed light-theme ink of the asset behind {@code resource}, or -1 when it keeps its colours. */
-	private static int fixedLightInkOf(URL resource) {
-		if (resource == null || resource.getPath() == null)
+	/**
+	 * The single ink of the asset behind {@code resource}, or -1 when the asset uses several
+	 * colours (an illustration) or cannot be read. Raster assets count as monochrome only when
+	 * every opaque pixel shares one colour.
+	 */
+	private static int monochromeInkOf(URL resource) {
+		if (resource == null)
 			return -1;
+		return MONOCHROME_INKS.computeIfAbsent(resource.toExternalForm(),
+			key -> detectMonochromeInk(resource));
+	}
+
+	private static int detectMonochromeInk(URL resource) {
 		String path = resource.getPath();
-		String name = path.substring(path.lastIndexOf('/') + 1);
-		int dot = name.lastIndexOf('.');
-		String baseName = dot >= 0 ? name.substring(0, dot) : name;
-		for (RibbonIconInk replacement : RIBBON_ICON_INKS) {
-			if (replacement.iconNames().contains(baseName))
-				return replacement.sourceInk();
+		if (path == null)
+			return -1;
+		try {
+			if (path.toLowerCase(Locale.ROOT).endsWith(".svg")) {
+				try (InputStream stream = resource.openStream()) {
+					return singleInk(new String(stream.readAllBytes(), StandardCharsets.UTF_8));
+				}
+			}
+			return singleInk(ImageIO.read(resource));
+		} catch (IOException | RuntimeException failure) {
+			return -1;
 		}
-		return -1;
+	}
+
+	private static int singleInk(String svg) {
+		Matcher matcher = SVG_COLOUR.matcher(svg);
+		int ink = -1;
+		while (matcher.find()) {
+			int colour = svgColour(matcher.group(1));
+			if (ink < 0)
+				ink = colour;
+			else if (ink != colour)
+				return -1;
+		}
+		return ink;
+	}
+
+	private static int singleInk(BufferedImage image) {
+		if (image == null)
+			return -1;
+		int ink = -1;
+		for (int y = 0; y < image.getHeight(); y++) {
+			for (int x = 0; x < image.getWidth(); x++) {
+				int argb = image.getRGB(x, y);
+				if ((argb >>> 24) < 128)
+					continue;
+				int colour = argb & 0xFFFFFF;
+				if (ink < 0)
+					ink = colour;
+				else if (ink != colour)
+					return -1;
+			}
+		}
+		return ink;
+	}
+
+	private static int svgColour(String value) {
+		if (value.length() == 3) {
+			StringBuilder expanded = new StringBuilder(6);
+			for (int index = 0; index < 3; index++)
+				expanded.append(value.charAt(index)).append(value.charAt(index));
+			value = expanded.toString();
+		}
+		return Integer.parseInt(value, 16);
+	}
+
+	private static double ribbonContrast(int rgb) {
+		double ink = ColorLuminance.relativeLuminance(new Color(rgb));
+		double surface = ColorLuminance.relativeLuminance(FlatUiSupport.ribbonSurfaceColor());
+		return (Math.max(ink, surface) + 0.05) / (Math.min(ink, surface) + 0.05);
 	}
 
 	private static boolean isInk(Color color, int ink) {
