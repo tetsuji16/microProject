@@ -91,10 +91,14 @@ class RibbonStructureTest {
 			ribbonButtonIds("FileRibbonBand"));
 		assertEquals("RecentProjectsAction",
 			menuInternalBundle().getString("RibbonRecentProjects.action"));
-		assertEquals(List.of("new", "open", "info", "save", "saveAs", "print", "export", "close", "options"),
+		assertEquals(List.of("home", "new", "open", "info", "save", "saveAs", "print", "export", "close", "account", "options"),
 			List.of(menuInternalBundle().getString("FileBackstagePages").split("\\s+")));
 		assertEquals("options", menuInternalBundle().getString("FileBackstagePages.pinned"));
 		assertEquals("open", menuInternalBundle().getString("FileBackstagePages.separatorAfter"));
+		assertFalse(menuInternalBundle().containsKey("RibbonHome.backstagePage"),
+			"Home is a product destination, not a File-tab command page");
+		assertFalse(menuInternalBundle().containsKey("RibbonAccount.backstagePage"),
+			"Account is a product destination, not a File-tab command page");
 		assertEquals("open", menuInternalBundle().getString("RibbonOpenProject.backstagePage"));
 		assertEquals("info", menuInternalBundle().getString("RibbonBackstageProjectInformation.backstagePage"));
 		assertEquals("options", menuInternalBundle().getString("RibbonBackstageOptions.backstagePage"));
