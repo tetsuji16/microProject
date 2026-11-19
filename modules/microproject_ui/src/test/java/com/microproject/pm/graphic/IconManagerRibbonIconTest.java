@@ -63,7 +63,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import com.microproject.menu.testsupport.RibbonInventory;
+import com.microproject.util.ClassLoaderUtils;
 import com.microproject.util.ColorLuminance;
+
+import java.util.Collections;
+import java.util.Locale;
+import java.util.ResourceBundle;
 
 class IconManagerRibbonIconTest {
 	private record VectorIconFixture(String key, String rasterName, int primaryRgb, int accentRgb) { }
@@ -497,6 +502,91 @@ class IconManagerRibbonIconTest {
 		} finally {
 			installTheme(wasDark);
 		}
+	}
+
+
+	/**
+	 * Sweeps every monochrome ribbon command icon used by the standard ribbon.
+	 * The union of {@code ribbon.*} keys from {@code images.properties} (114 keys) and
+	 * {@link RibbonInventory#standardRibbon()} icon keys (132 keys, 24 outside the
+	 * {@code ribbon.*} namespace) yields 138 keys. Every key must resolve via
+	 * {@link IconManager#getRibbonIcon(String, int, int)}.
+	 * <p>
+	 * Monochrome glyphs keep their source ink on the light ribbon and must reach
+	 * a 3:1 contrast ratio against the dark ribbon surface. Multi-colour illustrations
+	 * (detected via {@link #accentColorCount(BufferedImage)} > 1) are excluded from the
+	 * monochrome contrast assertion. The allowlist for "monochrome but < 3:1" assets
+	 * is currently empty — there are no unfixed monochrome ribbon icons.
+	 */
+	@Test
+	void everyMonochromeRibbonIconKeepsItsInkOnlyOnLightRibbons() throws Exception {
+		Set<String> allRibbonKeys = new LinkedHashSet<>();
+		allRibbonKeys.addAll(ribbonDotKeysFromImagesProperties());
+		allRibbonKeys.addAll(standardRibbonKeys());
+		assertEquals(138, allRibbonKeys.size(),
+			"union of ribbon.* keys and standard ribbon keys must be 138");
+
+		boolean wasDark = com.microproject.ui.theme.ThemeManager.isDark();
+		try {
+			// Light theme: monochrome icons keep their source ink
+			installTheme(false);
+			for (String key : allRibbonKeys) {
+				var icon = IconManager.getRibbonIcon(key, 32, 32);
+				assertNotNull(icon, () -> key + " did not resolve to a ribbon icon");
+				BufferedImage image = paint(icon, 32, 32);
+				assertTrue(hasVisiblePixel(image), () -> key + " rendered only transparent pixels");
+			}
+
+			// Dark theme: monochrome icons must have >= 3:1 contrast and not use light ink
+			installTheme(true);
+			Color darkSurface = com.microproject.ui.theme.MicroProjectTheme.tokens().ribbonSurfaceBackground();
+			for (String key : allRibbonKeys) {
+				var icon = IconManager.getRibbonIcon(key, 32, 32);
+				assertNotNull(icon, () -> key + " did not resolve to a ribbon icon on dark theme");
+				BufferedImage image = paint(icon, 32, 32);
+				assertTrue(hasVisiblePixel(image), () -> key + " rendered only transparent pixels on dark theme");
+
+				if (isMonochromeGlyph(image)) {
+					Color ink = dominantOpaqueRgb(image);
+					double contrast = contrastRatio(ink, darkSurface);
+					assertTrue(contrast >= 3.0,
+						key + " at 32px contrast " + String.format("%.2f", contrast)
+						+ " against " + darkSurface + " is below 3.0");
+				}
+			}
+		} finally {
+			installTheme(wasDark);
+		}
+	}
+
+	/** Returns all keys from images.properties that start with "ribbon.". */
+	static Set<String> ribbonDotKeysFromImagesProperties() {
+		ResourceBundle bundle = ResourceBundle.getBundle("com/microproject/pm/graphic/images",
+			Locale.getDefault(), ClassLoaderUtils.getLocalClassLoader());
+		Set<String> keys = new LinkedHashSet<>();
+		for (String key : Collections.list(bundle.getKeys())) {
+			if (key.startsWith("ribbon.")) {
+				keys.add(key);
+			}
+		}
+		return keys;
+	}
+
+	/** True if the rendered glyph is monochrome (R==G==B for all opaque pixels). */
+	private static boolean isMonochromeGlyph(BufferedImage image) {
+		for (int y = 0; y < image.getHeight(); y++) {
+			for (int x = 0; x < image.getWidth(); x++) {
+				int pixel = image.getRGB(x, y);
+				if ((pixel >>> 24) == 0) continue;
+				int red = (pixel >>> 16) & 0xff;
+				int green = (pixel >>> 8) & 0xff;
+				int blue = pixel & 0xff;
+				if (Math.abs(red - green) > 1 || Math.abs(green - blue) > 1) {
+					return false;
+				}
+			}
+		}
+		return true;
 	}
 
 	private static void installTheme(boolean dark) throws Exception {
