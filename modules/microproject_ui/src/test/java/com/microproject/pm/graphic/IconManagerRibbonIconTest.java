@@ -40,12 +40,21 @@ import java.awt.image.ImageObserver;
 import java.awt.image.BufferedImage;
 import java.awt.image.PixelGrabber;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.ResourceBundle;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -63,12 +72,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import com.microproject.menu.testsupport.RibbonInventory;
-import com.microproject.util.ClassLoaderUtils;
 import com.microproject.util.ColorLuminance;
-
-import java.util.Collections;
-import java.util.Locale;
-import java.util.ResourceBundle;
 
 class IconManagerRibbonIconTest {
 	private record VectorIconFixture(String key, String rasterName, int primaryRgb, int accentRgb) { }
@@ -504,89 +508,147 @@ class IconManagerRibbonIconTest {
 		}
 	}
 
-
 	/**
-	 * Sweeps every monochrome ribbon command icon used by the standard ribbon.
-	 * The union of {@code ribbon.*} keys from {@code images.properties} (114 keys) and
-	 * {@link RibbonInventory#standardRibbon()} icon keys (132 keys, 24 outside the
-	 * {@code ribbon.*} namespace) yields 138 keys. Every key must resolve via
-	 * {@link IconManager#getRibbonIcon(String, int, int)}.
-	 * <p>
-	 * Monochrome glyphs keep their source ink on the light ribbon and must reach
-	 * a 3:1 contrast ratio against the dark ribbon surface. Multi-colour illustrations
-	 * (detected via {@link #accentColorCount(BufferedImage)} > 1) are excluded from the
-	 * monochrome contrast assertion. The allowlist for "monochrome but < 3:1" assets
-	 * is currently empty — there are no unfixed monochrome ribbon icons.
+	 * Every monochrome ribbon asset must keep its declared ink on a light ribbon and reach the
+	 * 3:1 glyph contrast on a dark one (#1221). The ink is read from the asset, so a new glyph
+	 * is covered without registering it anywhere. The sweep covers the image keys and every
+	 * standard ribbon command icon, so a command that reuses an asset outside the ribbon.*
+	 * namespace is measured too; multi-colour illustrations keep their colours by design.
 	 */
 	@Test
 	void everyMonochromeRibbonIconKeepsItsInkOnlyOnLightRibbons() throws Exception {
-		Set<String> allRibbonKeys = new LinkedHashSet<>();
-		allRibbonKeys.addAll(ribbonDotKeysFromImagesProperties());
-		allRibbonKeys.addAll(standardRibbonKeys());
-		assertEquals(138, allRibbonKeys.size(),
-			"union of ribbon.* keys and standard ribbon keys must be 138");
-
 		boolean wasDark = com.microproject.ui.theme.ThemeManager.isDark();
 		try {
-			// Light theme: monochrome icons keep their source ink
 			installTheme(false);
-			for (String key : allRibbonKeys) {
-				var icon = IconManager.getRibbonIcon(key, 32, 32);
-				assertNotNull(icon, () -> key + " did not resolve to a ribbon icon");
-				BufferedImage image = paint(icon, 32, 32);
-				assertTrue(hasVisiblePixel(image), () -> key + " rendered only transparent pixels");
+			List<SizedIcon> monochromeIcons = new ArrayList<>();
+			for (String key : standardRibbonKeys())
+				assertNotNull(IconManager.getRibbonIcon(key, 32, 32),
+					key + " is used by a standard ribbon command and must resolve");
+			for (String key : sweepKeys()) {
+				for (int size : new int[] {16, 20, 32}) {
+					Integer ink = assetInk(key, size);
+					if (ink == null)
+						continue;
+					monochromeIcons.add(new SizedIcon(key, size, ink));
+					BufferedImage image = paint(IconManager.getRibbonIcon(key, size, size), size, size);
+					assertTrue(containsRgbWithin(image, ink, 4),
+						key + " at " + size + " px must keep the light-theme ink " + hex(ink));
+				}
+			}
+			assertTrue(monochromeIcons.size() >= 90,
+				"the sweep must cover the monochrome ribbon assets, found " + monochromeIcons.size());
+
+			installTheme(true);
+			Color surface = com.microproject.ui.theme.MicroProjectTheme.tokens().ribbonSurfaceBackground();
+			List<String> failures = new ArrayList<>();
+			for (SizedIcon icon : monochromeIcons) {
+				BufferedImage image = paint(IconManager.getRibbonIcon(icon.key(), icon.size(), icon.size()),
+					icon.size(), icon.size());
+				double contrast = contrastRatio(dominantOpaqueRgb(image), surface);
+				if (contrast < 3.0)
+					failures.add(icon.key() + " at " + icon.size() + " px contrast " + contrast);
+				if (contrastRatio(new Color(icon.ink()), surface) < 3.0)
+					assertFalse(containsRgbWithin(image, icon.ink(), 8), icon.key() + " at " + icon.size()
+						+ " px must not paint " + hex(icon.ink()) + " on a dark ribbon");
+			}
+			assertTrue(failures.isEmpty(), "dark ribbon glyphs below 3:1: " + failures);
+		} finally {
+			installTheme(wasDark);
+		}
+	}
+
+	/** Multi-colour illustrations are not monochrome ink, so the dark theme must not touch them. */
+	@Test
+	void multiColourRibbonIllustrationsKeepTheirPixelsOnADarkRibbon() throws Exception {
+		boolean wasDark = com.microproject.ui.theme.ThemeManager.isDark();
+		List<String> keys = List.of("ribbon.paste", "ribbon.ccpmSettings", "ribbon.bar");
+		try {
+			installTheme(false);
+			Map<String, BufferedImage> light = new LinkedHashMap<>();
+			for (String key : keys) {
+				for (int size : new int[] {16, 32}) {
+					BufferedImage image = paint(IconManager.getRibbonIcon(key, size, size), size, size);
+					assertTrue(hasVisiblePixel(image), key + " at " + size + " px must render");
+					light.put(key + "@" + size, image);
+				}
 			}
 
-			// Dark theme: monochrome icons must have >= 3:1 contrast and not use light ink
 			installTheme(true);
-			Color darkSurface = com.microproject.ui.theme.MicroProjectTheme.tokens().ribbonSurfaceBackground();
-			for (String key : allRibbonKeys) {
-				var icon = IconManager.getRibbonIcon(key, 32, 32);
-				assertNotNull(icon, () -> key + " did not resolve to a ribbon icon on dark theme");
-				BufferedImage image = paint(icon, 32, 32);
-				assertTrue(hasVisiblePixel(image), () -> key + " rendered only transparent pixels on dark theme");
-
-				if (isMonochromeGlyph(image)) {
-					Color ink = dominantOpaqueRgb(image);
-					double contrast = contrastRatio(ink, darkSurface);
-					assertTrue(contrast >= 3.0,
-						key + " at 32px contrast " + String.format("%.2f", contrast)
-						+ " against " + darkSurface + " is below 3.0");
-				}
+			for (Map.Entry<String, BufferedImage> entry : light.entrySet()) {
+				String key = entry.getKey().substring(0, entry.getKey().indexOf('@'));
+				int size = Integer.parseInt(entry.getKey().substring(entry.getKey().indexOf('@') + 1));
+				BufferedImage dark = paint(IconManager.getRibbonIcon(key, size, size), size, size);
+				assertEquals(0, differingPixelCount(entry.getValue(), dark),
+					key + " at " + size + " px is a multi-colour illustration and must keep its pixels");
 			}
 		} finally {
 			installTheme(wasDark);
 		}
 	}
 
-	/** Returns all keys from images.properties that start with "ribbon.". */
-	static Set<String> ribbonDotKeysFromImagesProperties() {
-		ResourceBundle bundle = ResourceBundle.getBundle("com/microproject/pm/graphic/images",
-			Locale.getDefault(), ClassLoaderUtils.getLocalClassLoader());
-		Set<String> keys = new LinkedHashSet<>();
-		for (String key : Collections.list(bundle.getKeys())) {
-			if (key.startsWith("ribbon.")) {
-				keys.add(key);
-			}
-		}
+	private record SizedIcon(String key, int size, int ink) { }
+
+	/** The image keys plus every icon key a standard ribbon command uses. */
+	private static Set<String> sweepKeys() {
+		Set<String> keys = new java.util.TreeSet<>(ribbonIconKeys());
+		keys.addAll(standardRibbonKeys());
 		return keys;
 	}
 
-	/** True if the rendered glyph is monochrome (R==G==B for all opaque pixels). */
-	private static boolean isMonochromeGlyph(BufferedImage image) {
-		for (int y = 0; y < image.getHeight(); y++) {
-			for (int x = 0; x < image.getWidth(); x++) {
-				int pixel = image.getRGB(x, y);
-				if ((pixel >>> 24) == 0) continue;
-				int red = (pixel >>> 16) & 0xff;
-				int green = (pixel >>> 8) & 0xff;
-				int blue = pixel & 0xff;
-				if (Math.abs(red - green) > 1 || Math.abs(green - blue) > 1) {
-					return false;
-				}
-			}
+	/** The ribbon icon keys declared by {@code images.properties}. */
+	private static Set<String> ribbonIconKeys() {
+		ResourceBundle bundle = ResourceBundle.getBundle("com.microproject.pm.graphic.images", Locale.getDefault());
+		return bundle.keySet().stream().filter(key -> key.startsWith("ribbon.")).collect(
+			java.util.stream.Collectors.toCollection(java.util.TreeSet::new));
+	}
+
+	/**
+	 * The single ink the asset rendered for {@code key} at {@code size} declares, or {@code null}
+	 * when that asset is a multi-colour illustration or not an SVG.
+	 */
+	private static Integer assetInk(String key, int size) throws IOException {
+		URL resource = sizeResource(key, size);
+		if (resource == null || resource.getPath() == null
+				|| !resource.getPath().toLowerCase(Locale.ROOT).endsWith(".svg"))
+			return null;
+		String svg;
+		try (InputStream stream = resource.openStream()) {
+			svg = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
 		}
-		return true;
+		Matcher matcher = Pattern.compile("#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\\b").matcher(svg);
+		Integer ink = null;
+		while (matcher.find()) {
+			String value = matcher.group(1);
+			if (value.length() == 3) {
+				StringBuilder expanded = new StringBuilder(6);
+				for (int index = 0; index < 3; index++)
+					expanded.append(value.charAt(index)).append(value.charAt(index));
+				value = expanded.toString();
+			}
+			int colour = Integer.parseInt(value, 16);
+			if (ink == null)
+				ink = colour;
+			else if (ink != colour)
+				return null;
+		}
+		return ink;
+	}
+
+	/** The asset {@link IconManager#getRibbonIcon(String, int, int)} renders for the key and size. */
+	private static URL sizeResource(String key, int size) {
+		String iconName = IconManager.getConfiguredIconName(key);
+		if (iconName == null)
+			return null;
+		if (IconManager.hasSizeSpecificRibbonResource(key, size)) {
+			int dot = iconName.lastIndexOf('.');
+			String baseName = dot >= 0 ? iconName.substring(0, dot) : iconName;
+			return IconManager.resolveIconResourceByName(baseName + "-" + size + ".svg");
+		}
+		return IconManager.resolveIconResource(key);
+	}
+
+	private static String hex(int rgb) {
+		return String.format("#%06x", rgb);
 	}
 
 	private static void installTheme(boolean dark) throws Exception {

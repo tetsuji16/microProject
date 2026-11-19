@@ -39,3 +39,22 @@ Blockers: none known.
 - PR checks on PR code SHA: [Build run 40346566646](https://github.com/tetsuji16/microProject/actions/runs/40346566646) and [GUI smoke run 40346566071](https://github.com/tetsuji16/microProject/actions/runs/40346566071) passed. The Build's initial attempt stalled during hosted runner font installation and was cancelled; rerun completed successfully.
 - Local verification on code SHA `0be6535bfce1f3ad9b5c36bced1b8777e1946914` (packet-only changes followed): `./gradlew.bat verifyArchitectureBoundaries verifyArchitectureBoundaryFixtures verifyNamingConventions build installDist --console=plain` — `BUILD SUCCESSFUL` (57 actionable tasks).
 - Current branch is based on `master` commit `5e3a665d3`. All acceptance rows pass; no implementation blockers remain. PR #949 is ready for review/merge, after which #943 can be closed.
+
+## Known-value regression added on master (2026-11-19)
+
+`EarnedValueProjectValuesTest` (microproject_ui test source) fixes the A2/A3 claims with exact numbers instead of "> 0" checks. Fixture: a 10-day task at the default 8-hour day (80 hours) with a $60/h resource, saved as Baseline; the work then doubles to 20 days and 5 days (40 hours) are completed, so the task is 25% complete.
+
+| Value | Hand calculation | Observed |
+|---|---|---|
+| BAC | 60 × 80 h | 1.728e10 (costs are stored as rate per hour × work in ms) |
+| ACWP at the finish | 60 × 40 h | 8.64e9 |
+| BCWS at the finish | the whole baseline | 1.728e10 |
+| BCWP at the finish | 25% × BAC | 4.32e9 |
+| CV / SV / CPI / SPI | BCWP−ACWP / BCWP−BCWS / BCWP÷ACWP / BCWP÷BCWS | asserted at a mid-plan status date and at the finish |
+
+- The status date drives all three time-phased values: with the status date three days after the start, 16 hours of the plan have elapsed, so BCWS is 16 hours of baseline, BCWP is 8 hours and ACWP is 16 hours (SPI = CPI = 0.5). Moving the status date to the finish schedules the whole baseline and earns the completed share.
+- A task without a baseline reports BAC, BCWS, BCWP and SPI as 0.
+- An MPO round trip reproduces the status date and all seven values, which confirms the values are re-derived from the saved inputs rather than persisted.
+- Aggregation is `sum="Sum"` per `configuration.xml`; the currency comes from `GlobalPreferences.getCurrencyCode()` (locale currency when empty), which is why the assertions compare internal units.
+
+Commands: `.\gradlew.bat :microproject_ui:cleanTest :microproject_ui:test --tests "com.microproject.pm.costing.EarnedValueProjectValuesTest" --console=plain` → BUILD SUCCESSFUL (2 tests, 0 failures).
