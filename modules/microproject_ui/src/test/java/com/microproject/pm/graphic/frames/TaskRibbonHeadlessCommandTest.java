@@ -22,8 +22,13 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.collaboration.CollaborationSession;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.options.CalendarOption;
+import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.resource.Resource;
+import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
@@ -338,6 +343,353 @@ class TaskRibbonHeadlessCommandTest {
 			Project milestoneReload = saveAndReload(project);
 			assertTrue(taskNamed(milestoneReload, "Insert task 3").getWbsParentTask() == null,
 				"MPO reload must keep the unselected task at top level after undoing the milestone");
+		}
+	}
+
+	@Test
+	void percentCompleteSetsSelectedTasksAndRoundTripsUndoRedoLockAndMpo() throws Exception {
+		try (HeadlessDocumentFixture fx = new HeadlessDocumentFixture("Percent task 1", "Percent task 2",
+				"Percent task 3")) {
+			NormalTask first = fx.task(0);
+			NormalTask second = fx.task(1);
+			NormalTask third = fx.task(2);
+			Project project = fx.project;
+			HeadlessDocumentFixture.onEdt(() -> {
+				for (NormalTask task : fx.tasks) {
+					task.setDuration(4L * CalendarOption.getInstance().getMillisPerDay());
+					task.setPercentComplete(0.1D);
+				}
+				project.recalculate();
+				fx.sheet().clearSelection();
+				fx.undo.clear();
+			});
+
+			// No selection: the command refuses instead of changing every task.
+			RibbonCommandResult noSelection = fx.run(CommandId.PERCENT_COMPLETE_50);
+			assertEquals(RibbonCommandResult.Status.REJECTED, noSelection.status(),
+				"no-selection result: " + noSelection);
+			assertEquals("no-selection", noSelection.reason(), "no-selection reason");
+			assertEquals(0.1D, first.getPercentComplete(), 0.00001D, "a rejected % Complete changed a task");
+			assertEquals(0.1D, second.getPercentComplete(), 0.00001D, "a rejected % Complete changed a task");
+			assertFalse(fx.undo.canUndo(), "a rejected % Complete must not post an Undo edit");
+
+			fx.select(first, second);
+			RibbonCommandResult result = fx.run(CommandId.PERCENT_COMPLETE_50);
+			assertEquals(RibbonCommandResult.Status.CHANGED, result.status(), "% Complete result: " + result);
+			assertEquals(List.of(first.getUniqueId(), second.getUniqueId()), result.affectedTaskIds(),
+				"% Complete affected task IDs");
+			assertEquals(0.5D, first.getPercentComplete(), 0D, "50% Complete must set the first selected task");
+			assertEquals(0.5D, second.getPercentComplete(), 0D, "50% Complete must set the second selected task");
+			assertEquals(0.1D, third.getPercentComplete(), 0.00001D, "50% Complete changed an unselected task");
+			assertEquals(rowOf(fx, first), ganttRowOf(fx, first),
+				"the Gantt progress row must stay aligned with the first task row");
+			assertEquals(rowOf(fx, second), ganttRowOf(fx, second),
+				"the Gantt progress row must stay aligned with the second task row");
+
+			fx.undo();
+			assertEquals(0.1D, first.getPercentComplete(), 0.00001D, "one Undo must restore the first task");
+			assertEquals(0.1D, second.getPercentComplete(), 0.00001D, "one Undo must restore the second task");
+			fx.redo();
+			assertEquals(0.5D, first.getPercentComplete(), 0D, "Redo must re-apply 50% Complete");
+			assertEquals(0.5D, second.getPercentComplete(), 0D, "Redo must re-apply 50% Complete to both tasks");
+			assertEquals(0.1D, third.getPercentComplete(), 0.00001D, "Redo changed an unselected task");
+
+			Project reloaded = saveAndReload(project);
+			assertEquals(0.5D, taskNamed(reloaded, "Percent task 1").getPercentComplete(), 0D,
+				"MPO reload lost 50% (first)");
+			assertEquals(0.5D, taskNamed(reloaded, "Percent task 2").getPercentComplete(), 0D,
+				"MPO reload lost 50% (second)");
+			assertEquals(0.1D, taskNamed(reloaded, "Percent task 3").getPercentComplete(), 0.00001D,
+				"MPO reload changed the unselected task");
+
+			// A collaborator lock on the target rejects the command without mutation or Undo.
+			fx.select(third);
+			fx.undo.clear();
+			HeadlessDocumentFixture.onEdt(() -> project.setCollaborationSession(new CollaborationSession(project,
+					System.getProperty("java.io.tmpdir") + "/microproject-headless-percent-lock.mpo", "percent-lock-test") {
+				@Override
+				public Task tryAcquireTasks(Iterable<Task> tasks) {
+					if (tasks == null)
+						return null;
+					java.util.Iterator<Task> iterator = tasks.iterator();
+					return iterator.hasNext() ? iterator.next() : null;
+				}
+
+				@Override
+				public String describeLockOwner(Task task) {
+					return "percent lock test";
+				}
+			}));
+			try {
+				RibbonCommandResult locked = fx.run(CommandId.PERCENT_COMPLETE_100);
+				assertEquals(RibbonCommandResult.Status.REJECTED, locked.status(), "locked % Complete result: " + locked);
+				assertEquals("collaboration-lock-denied", locked.reason(), "locked % Complete reason");
+				assertEquals(0.1D, third.getPercentComplete(), 0.00001D, "a lock-rejected % Complete changed the task");
+				assertFalse(fx.undo.canUndo(), "a lock-rejected % Complete must not post an Undo edit");
+			} finally {
+				HeadlessDocumentFixture.onEdt(() -> project.setCollaborationSession(null));
+			}
+
+			RibbonCommandResult completed = fx.run(CommandId.PERCENT_COMPLETE_100);
+			assertEquals(RibbonCommandResult.Status.CHANGED, completed.status(), "100% result: " + completed);
+			assertEquals(1D, third.getPercentComplete(), 0D, "100% Complete must complete the selected task");
+			assertEquals(0.5D, first.getPercentComplete(), 0D, "100% Complete changed an unselected task");
+		}
+	}
+
+	@Test
+	void deleteRemovesTheSelectedRowAndRoundTripsUndoRedoAndMpo() throws Exception {
+		try (HeadlessDocumentFixture fx = new HeadlessDocumentFixture("Delete target", "Delete survivor")) {
+			NormalTask target = fx.task(0);
+			NormalTask survivor = fx.task(1);
+			Project project = fx.project;
+			HeadlessDocumentFixture.onEdt(fx.undo::clear);
+			assertTrue(rowOf(fx, target) >= 0, "the deleted task must start visible in the task table");
+
+			fx.select(target);
+			RibbonCommandResult result = fx.run(CommandId.DELETE);
+			assertEquals(RibbonCommandResult.Status.CHANGED, result.status(), "Delete result: " + result);
+			assertEquals(List.of(target.getUniqueId()), result.affectedTaskIds(), "Delete affected task IDs");
+			assertFalse(project.getTaskList().contains(target), "Delete must remove the task record");
+			assertEquals(-1, rowOf(fx, target), "Delete must remove the task table row");
+			assertEquals(-1, ganttRowOf(fx, target), "Delete must remove the Gantt row");
+			assertTrue(rowOf(fx, survivor) >= 0, "Delete must keep an unselected task");
+
+			Project deletedReload = saveAndReload(project);
+			assertTrue(deletedReload.getTaskList().stream().noneMatch(task -> "Delete target".equals(task.getName())),
+				"MPO reload retained a task deleted through the command route");
+
+			fx.undo();
+			assertTrue(project.getTaskList().contains(target), "Undo must restore the task record");
+			assertTrue(rowOf(fx, target) >= 0, "Undo must restore the deleted row");
+			assertTrue(ganttRowOf(fx, target) >= 0, "Undo must restore the deleted Gantt row");
+			fx.redo();
+			assertFalse(project.getTaskList().contains(target), "Redo must delete the task again");
+			assertEquals(-1, rowOf(fx, target), "Redo must remove the restored row again");
+		}
+	}
+
+	@Test
+	void indentAndOutdentRoundTripHierarchyProjectionAndMpo() throws Exception {
+		try (HeadlessDocumentFixture fx = new HeadlessDocumentFixture("Outline first", "Outline second",
+				"Outline external")) {
+			NormalTask first = fx.task(0);
+			NormalTask second = fx.task(1);
+			NormalTask external = fx.task(2);
+			Project project = fx.project;
+			assertNull(second.getWbsParentTask(), "the fixture target must start at the top level");
+			assertEquals(0, second.getOutlineLevel(), "the fixture target must start at outline level 0");
+			assertEquals(rowOf(fx, first) + 1, rowOf(fx, second), "the fixture must keep the sibling order");
+			HeadlessDocumentFixture.onEdt(fx.undo::clear);
+
+			fx.select(second);
+			RibbonCommandResult indent = fx.run(CommandId.INDENT);
+			assertEquals(RibbonCommandResult.Status.CHANGED, indent.status(), "Indent result: " + indent);
+			assertEquals(List.of(second.getUniqueId()), indent.affectedTaskIds(), "Indent affected task IDs");
+			assertSame(first, second.getWbsParentTask(), "Indent must make the target a child of its predecessor");
+			assertEquals(0, first.getOutlineLevel(), "Indent must keep the parent at outline level 0");
+			assertEquals(1, second.getOutlineLevel(), "Indent must deepen the target outline level");
+			assertEquals(rowOf(fx, first) + 1, rowOf(fx, second),
+				"Indent must render the child directly below its parent");
+			assertEquals(rowOf(fx, second), ganttRowOf(fx, second),
+				"Indent must keep the Gantt row aligned with the task row");
+
+			fx.undo();
+			assertNull(second.getWbsParentTask(), "Undo must restore the top level");
+			assertEquals(0, second.getOutlineLevel(), "Undo must restore the outline level");
+			fx.redo();
+			assertSame(first, second.getWbsParentTask(), "Redo must re-apply the indent");
+			assertEquals(1, second.getOutlineLevel(), "Redo must re-apply the outline level");
+
+			// The hierarchy refresh after Undo/Redo rebuilds the rows, so the table no
+			// longer holds the row the user still sees selected; reselect that row.
+			fx.select(second);
+			RibbonCommandResult outdent = fx.run(CommandId.OUTDENT);
+			assertEquals(RibbonCommandResult.Status.CHANGED, outdent.status(), "Outdent result: " + outdent);
+			assertEquals(List.of(second.getUniqueId()), outdent.affectedTaskIds(), "Outdent affected task IDs");
+			assertNull(second.getWbsParentTask(), "Outdent must restore the target to the top level");
+			assertEquals(0, second.getOutlineLevel(), "Outdent must restore outline level 0");
+			assertEquals(rowOf(fx, first) + 1, rowOf(fx, second),
+				"Outdent must render the siblings in project order");
+			assertEquals(rowOf(fx, second), ganttRowOf(fx, second),
+				"Outdent must keep the Gantt row aligned with the task row");
+
+			fx.undo();
+			assertSame(first, second.getWbsParentTask(), "Undo must restore the outdented child");
+			fx.redo();
+			assertNull(second.getWbsParentTask(), "Redo must re-apply the outdent");
+
+			Project reloaded = saveAndReload(project);
+			NormalTask reloadedSecond = taskNamed(reloaded, "Outline second");
+			assertNull(reloadedSecond.getWbsParentTask(), "MPO reload retained a parent after Outdent");
+			assertEquals(0, reloadedSecond.getOutlineLevel(), "MPO reload changed the Outdent target outline level");
+			assertEquals(0, taskNamed(reloaded, "Outline first").getOutlineLevel(),
+				"MPO reload changed the predecessor outline level");
+			assertTrue(reloaded.getTaskList().indexOf(taskNamed(reloaded, "Outline first")) < reloaded.getTaskList()
+					.indexOf(reloadedSecond), "MPO reload changed the visible task ordering after Outdent");
+
+			// An external task is individually read-only inside an editable project.
+			HeadlessDocumentFixture.onEdt(() -> external.setExternal(true));
+			assertTrue(external.isExternal(), "the designated task must model an external task");
+			assertTrue(external.isReadOnly(), "an external task must be individually read-only");
+			assertFalse(project.isReadOnly(), "the containing project must remain editable");
+			fx.undo.clear();
+			int externalRow = rowOf(fx, external);
+			assertTrue(externalRow >= 0, "the external task must stay in the task table");
+			fx.select(external);
+			RibbonCommandResult readOnly = fx.run(CommandId.INDENT);
+			assertEquals(RibbonCommandResult.Status.REJECTED, readOnly.status(), "read-only Indent result: " + readOnly);
+			assertEquals("task-read-only", readOnly.reason(), "read-only Indent reason");
+			assertEquals(List.of(external.getUniqueId()), readOnly.selectedTaskIds(),
+				"the rejection must retain the selected task identity");
+			assertEquals(List.of(), readOnly.affectedTaskIds(), "the rejection must report no affected tasks");
+			assertNull(external.getWbsParentTask(), "read-only Indent changed the task hierarchy");
+			assertEquals(0, external.getOutlineLevel(), "read-only Indent changed the outline level");
+			assertEquals(externalRow, rowOf(fx, external), "read-only Indent changed the visible row");
+			assertFalse(fx.undo.canUndo(), "read-only Indent created an Undo edit");
+		}
+	}
+
+	@Test
+	void levelSelectionDelaysTheSelectedAssignmentAndRoundTripsUndoRedoAndMpo() throws Exception {
+		try (HeadlessDocumentFixture fx = new HeadlessDocumentFixture("Unselected capacity anchor",
+				"Selected leveling target")) {
+			Project project = fx.project;
+			NormalTask fixed = fx.task(0);
+			NormalTask selected = fx.task(1);
+			ResourcePool pool = project.getResourcePool();
+			Assignment[] assignments = new Assignment[2];
+			HeadlessDocumentFixture.onEdt(() -> {
+				pool.setLocal(true);
+				Resource shared = pool.newResourceInstance();
+				shared.setName("Leveling resource");
+				assignments[0] = AssignmentService.getInstance().newAssignment(fixed, shared, 1.0D, 0L, getClass());
+				assignments[1] = AssignmentService.getInstance().newAssignment(selected, shared, 1.0D, 0L, getClass());
+				project.recalculate();
+				fx.undo.clear();
+			});
+			Assignment selectedAssignment = assignments[1];
+			long originalStart = selected.getStart();
+			long originalAssignmentStart = selectedAssignment.getStart();
+			assertEquals(0L, selectedAssignment.getLevelingDelay(), "the fixture must start unleveled");
+
+			fx.select(selected);
+			RibbonCommandResult result = fx.run(CommandId.RESOURCE_LEVEL_SELECTION);
+			assertEquals(RibbonCommandResult.Status.CHANGED, result.status(), "Level Selection result: " + result);
+			assertEquals(List.of(selected.getUniqueId()), result.affectedTaskIds(),
+				"Level Selection affected task IDs");
+			assertTrue(selectedAssignment.getLevelingDelay() > 0L,
+				"Level Selection must delay the selected task's assignment");
+			assertTrue(selectedAssignment.getStart() > originalAssignmentStart,
+				"the selected assignment's scheduled start must reflect the leveling change");
+			assertEquals(originalStart, selected.getStart(),
+				"assignment-level leveling must preserve the selected task start");
+			assertEquals(0L, selected.getLevelingDelay(),
+				"assignment-level leveling must preserve the task-wide leveling delay");
+			assertEquals(0L, fixed.getLevelingDelay(), "the unselected task must remain a fixed leveling anchor");
+			assertEquals(List.of(selected.getUniqueId()), result.selectedTaskIds(),
+					"Level Selection must report the preserved task selection");
+			assertTrue(rowOf(fx, selected) >= 0, "Level Selection must keep the leveled task in the task table");
+
+			Project reloaded = saveAndReload(project);
+			NormalTask reloadedSelected = taskNamed(reloaded, "Selected leveling target");
+			Assignment reloadedAssignment = (Assignment) reloadedSelected.getAssignments().iterator().next();
+			assertTrue(reloadedAssignment.getLevelingDelay() > 0L, "MPO reload lost the assignment leveling delay");
+			assertEquals(0L, reloadedSelected.getLevelingDelay(),
+				"MPO reload must preserve the task-wide leveling delay");
+
+			fx.undo();
+			assertEquals(0L, selectedAssignment.getLevelingDelay(), "one Undo must clear the assignment delay");
+			assertEquals(originalAssignmentStart, selectedAssignment.getStart(),
+				"one Undo must restore the assignment start");
+			assertEquals(originalStart, selected.getStart(), "Undo must preserve the selected task start");
+			assertEquals(0L, selected.getLevelingDelay(), "Undo must preserve the task-wide leveling delay");
+			assertEquals(0L, fixed.getLevelingDelay(), "Undo must not mutate the unselected anchor");
+			fx.redo();
+			assertTrue(selectedAssignment.getLevelingDelay() > 0L, "one Redo must restore the assignment delay");
+			assertTrue(selectedAssignment.getStart() > originalAssignmentStart, "one Redo must restore the assignment start");
+			assertEquals(originalStart, selected.getStart(), "Redo must preserve the selected task start");
+			assertEquals(0L, selected.getLevelingDelay(), "Redo must preserve the task-wide leveling delay");
+		}
+	}
+
+	@Test
+	void levelAllDelaysEveryResourceAssignmentAndRoundTripsUndoRedoAndMpo() throws Exception {
+		try (HeadlessDocumentFixture fx = new HeadlessDocumentFixture("Level All resource one anchor",
+				"Level All resource one target", "Level All resource two anchor", "Level All resource two target")) {
+			Project project = fx.project;
+			NormalTask anchorOne = fx.task(0);
+			NormalTask targetOne = fx.task(1);
+			NormalTask anchorTwo = fx.task(2);
+			NormalTask targetTwo = fx.task(3);
+			ResourcePool pool = project.getResourcePool();
+			Assignment[] assignments = new Assignment[2];
+			HeadlessDocumentFixture.onEdt(() -> {
+				pool.setLocal(true);
+				Resource resourceOne = pool.newResourceInstance();
+				resourceOne.setName("Level All resource one");
+				Resource resourceTwo = pool.newResourceInstance();
+				resourceTwo.setName("Level All resource two");
+				AssignmentService.getInstance().newAssignment(anchorOne, resourceOne, 1.0D, 0L, getClass());
+				assignments[0] = AssignmentService.getInstance().newAssignment(targetOne, resourceOne, 1.0D, 0L, getClass());
+				AssignmentService.getInstance().newAssignment(anchorTwo, resourceTwo, 1.0D, 0L, getClass());
+				assignments[1] = AssignmentService.getInstance().newAssignment(targetTwo, resourceTwo, 1.0D, 0L, getClass());
+				project.recalculate();
+				fx.undo.clear();
+			});
+			Assignment targetOneAssignment = assignments[0];
+			Assignment targetTwoAssignment = assignments[1];
+			assertEquals(0L, targetOne.getLevelingDelay(), "the first target must start unleveled");
+			assertEquals(0L, targetTwo.getLevelingDelay(), "the second target must start unleveled");
+			long targetOneStart = targetOne.getStart();
+			long targetTwoStart = targetTwo.getStart();
+			long targetOneAssignmentStart = targetOneAssignment.getStart();
+			long targetTwoAssignmentStart = targetTwoAssignment.getStart();
+
+			fx.select(anchorOne);
+			RibbonCommandResult result = fx.run(CommandId.RESOURCE_LEVEL_ALL);
+			assertEquals(RibbonCommandResult.Status.CHANGED, result.status(), "Level All result: " + result);
+			assertTrue(targetOneAssignment.getLevelingDelay() > 0L,
+				"Level All must level an eligible assignment on the first project resource");
+			assertTrue(targetTwoAssignment.getLevelingDelay() > 0L,
+				"Level All must level an eligible assignment on the second project resource");
+			assertTrue(targetOneAssignment.getStart() > targetOneAssignmentStart,
+				"Level All must move the first eligible assignment start");
+			assertTrue(targetTwoAssignment.getStart() > targetTwoAssignmentStart,
+				"Level All must move the second eligible assignment start");
+			assertEquals(targetOneStart, targetOne.getStart(), "Level All must preserve the first target task start");
+			assertEquals(targetTwoStart, targetTwo.getStart(), "Level All must preserve the second target task start");
+			assertEquals(0L, targetOne.getLevelingDelay(), "Level All must preserve the first task-wide delay");
+			assertEquals(0L, targetTwo.getLevelingDelay(), "Level All must preserve the second task-wide delay");
+			assertEquals(0L, anchorOne.getLevelingDelay(), "Level All must retain the first resource's anchor");
+			assertEquals(0L, anchorTwo.getLevelingDelay(), "Level All must retain the second resource's anchor");
+			assertEquals(List.of(anchorOne.getUniqueId()), result.selectedTaskIds(),
+					"Level All must report the preserved task selection");
+
+			Project reloaded = saveAndReload(project);
+			NormalTask reloadedTargetOne = taskNamed(reloaded, "Level All resource one target");
+			NormalTask reloadedTargetTwo = taskNamed(reloaded, "Level All resource two target");
+			assertTrue(((Assignment) reloadedTargetOne.getAssignments().iterator().next()).getLevelingDelay() > 0L,
+				"MPO reload lost Level All's first assignment delay");
+			assertTrue(((Assignment) reloadedTargetTwo.getAssignments().iterator().next()).getLevelingDelay() > 0L,
+				"MPO reload lost Level All's second assignment delay");
+			assertEquals(0L, reloadedTargetOne.getLevelingDelay(), "MPO reload must preserve the first task-wide delay");
+			assertEquals(0L, reloadedTargetTwo.getLevelingDelay(), "MPO reload must preserve the second task-wide delay");
+
+			fx.undo();
+			assertEquals(0L, targetOneAssignment.getLevelingDelay(), "one Undo must clear the first assignment delay");
+			assertEquals(0L, targetTwoAssignment.getLevelingDelay(), "one Undo must clear the second assignment delay");
+			assertEquals(targetOneAssignmentStart, targetOneAssignment.getStart(),
+				"one Undo must restore the first assignment start");
+			assertEquals(targetTwoAssignmentStart, targetTwoAssignment.getStart(),
+				"one Undo must restore the second assignment start");
+			assertEquals(targetOneStart, targetOne.getStart(), "Undo must preserve the first target task start");
+			assertEquals(targetTwoStart, targetTwo.getStart(), "Undo must preserve the second target task start");
+			fx.redo();
+			assertTrue(targetOneAssignment.getLevelingDelay() > 0L, "one Redo must restore the first assignment delay");
+			assertTrue(targetTwoAssignment.getLevelingDelay() > 0L, "one Redo must restore the second assignment delay");
+			assertTrue(targetOneAssignment.getStart() > targetOneAssignmentStart, "one Redo must restore the first start");
+			assertTrue(targetTwoAssignment.getStart() > targetTwoAssignmentStart, "one Redo must restore the second start");
 		}
 	}
 
