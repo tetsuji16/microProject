@@ -37,6 +37,7 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Point;
+import java.nio.file.Path;
 import java.awt.RenderingHints;
 import java.awt.Toolkit;
 import java.awt.KeyboardFocusManager;
@@ -71,6 +72,7 @@ import javax.swing.Box;
 import javax.swing.ButtonGroup;
 import javax.swing.Icon;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
@@ -85,6 +87,7 @@ import javax.swing.JToggleButton;
 import javax.swing.InputMap;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.print.PrintService;
 import javax.swing.SwingConstants;
 import javax.swing.border.Border;
 
@@ -94,11 +97,34 @@ import com.microproject.ribbon.RibbonCommandInvocation;
 import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.ribbon.SwingRibbonModel;
 import com.microproject.ribbon.RibbonTheme;
+import com.microproject.application.RecentProjectStore;
+import com.microproject.dialog.PageSetupDialog;
+import com.microproject.dialog.UpdateChecker;
 import com.microproject.dialog.UsabilityStrings;
+import com.microproject.preference.GlobalPreferences;
+import com.microproject.print.GraphPageable;
+import com.microproject.print.PDFPrintService;
+import com.microproject.print.PageSetup;
+import com.microproject.print.PrintDocumentFactory;
+import com.microproject.pm.calendar.WorkCalendar;
+import com.microproject.pm.graphic.frames.DocumentFrame;
+import com.microproject.pm.graphic.frames.GraphicManager;
+import com.microproject.pm.task.Project;
+import com.microproject.strings.Messages;
 import com.microproject.ui.input.PopupTriggerController;
+import com.microproject.ui.ribbon.backstage.BackstageAccountPage;
+import com.microproject.ui.ribbon.backstage.BackstageExportPage;
+import com.microproject.ui.ribbon.backstage.BackstageInfoPage;
+import com.microproject.ui.ribbon.backstage.BackstageOpenPage;
+import com.microproject.ui.ribbon.backstage.BackstageSaveAsPage;
+import com.microproject.ui.ribbon.backstage.BackstagePrintPage;
+import com.microproject.ui.ribbon.backstage.BackstageHomePage;
 import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.ui.theme.MicroProjectThemeTokens;
+import com.microproject.ui.theme.ThemeManager;
 import com.microproject.util.ColorLuminance;
+import com.microproject.util.FlatUiSupport;
+import com.microproject.util.VersionUtils;
 
 public final class ModernRibbonPanel extends JPanel implements RibbonController {
 	/** @deprecated Use {@link RibbonController#CONTEXTUAL_TABS_PROPERTY}. */
@@ -804,9 +830,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	}
 
 	private java.util.List<BackstagePage> backstagePages() {
-		SwingRibbonModel.RibbonTab fileTab = model.getTabs().stream()
-			.filter(tab -> isBackstageTab(tab.getId())).findFirst()
-			.orElseThrow(() -> new IllegalStateException("The ribbon model has no File/Backstage tab"));
+		SwingRibbonModel.RibbonTab fileTab = fileTab();
 		Map<String, List<SwingRibbonModel.RibbonButton>> buttonsByPage = new LinkedHashMap<>();
 		int declaredCommandCount = 0;
 		for (SwingRibbonModel.RibbonBand band : fileTab.getBands()) {
@@ -817,10 +841,10 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 				}
 			}
 		}
+		List<String> pageIds = resolveList("FileBackstagePages");
 		List<BackstagePage> pages = new ArrayList<>();
-		for (String pageId : resolveList("FileBackstagePages")) {
+		for (String pageId : pageIds) {
 			List<SwingRibbonModel.RibbonButton> commands = buttonsByPage.getOrDefault(pageId, List.of());
-			if (commands.isEmpty()) throw new IllegalStateException("Backstage page has no commands: " + pageId);
 			List<SwingRibbonModel.RibbonButton> immediate = commands.stream()
 				.filter(SwingRibbonModel.RibbonButton::isBackstageImmediate).toList();
 			if (immediate.size() > 1 || (!immediate.isEmpty() && commands.size() != 1)) {
@@ -830,7 +854,10 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 				immediate.isEmpty() ? null : immediate.getFirst().getId(), commands));
 		}
 		int backstageCommandCount = buttonsByPage.values().stream().mapToInt(List::size).sum();
-		if (backstageCommandCount != declaredCommandCount || pages.size() != buttonsByPage.size()) {
+		// Home and Account are product destinations rendered from application state,
+		// not from File-tab command metadata. Every declared command must still have
+		// a declared page, and no page may reference commands outside the File tab.
+		if (backstageCommandCount != declaredCommandCount || !pageIds.containsAll(buttonsByPage.keySet())) {
 			throw new IllegalStateException("File/Backstage command metadata has pages outside FileBackstagePages order");
 		}
 		return List.copyOf(pages);
@@ -851,6 +878,34 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		JLabel title = new JLabel(localized(page.labelKey()));
 		title.setFont(theme.tabFont().deriveFont(java.awt.Font.PLAIN, 30f));
 		content.add(title, BorderLayout.NORTH);
+		if ("open".equals(page.id())) {
+			content.add(createBackstageOpenPage(page), BorderLayout.CENTER);
+			return content;
+		}
+		if ("home".equals(page.id())) {
+			content.add(createBackstageHomePage(page), BorderLayout.CENTER);
+			return content;
+		}
+		if ("account".equals(page.id())) {
+			content.add(createBackstageAccountPage(page), BorderLayout.CENTER);
+			return content;
+		}
+		if ("info".equals(page.id())) {
+			content.add(createBackstageInfoPage(page), BorderLayout.CENTER);
+			return content;
+		}
+		if ("print".equals(page.id())) {
+			content.add(createBackstagePrintPage(page), BorderLayout.CENTER);
+			return content;
+		}
+		if ("saveAs".equals(page.id())) {
+			content.add(createBackstageSaveAsPage(page), BorderLayout.CENTER);
+			return content;
+		}
+		if ("export".equals(page.id())) {
+			content.add(createBackstageExportPage(page), BorderLayout.CENTER);
+			return content;
+		}
 		JPanel commands = new JPanel(new java.awt.GridBagLayout());
 		commands.setOpaque(false);
 		java.awt.GridBagConstraints constraints = new java.awt.GridBagConstraints();
@@ -861,24 +916,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		constraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
 		constraints.insets = new Insets(0, 0, 12, 16);
 		for (SwingRibbonModel.RibbonButton specification : page.commands()) {
-			AbstractButton button = createButton(specification, true);
-			button.setName("officeBackstageCommand-" + specification.getId());
-			buttonStyler.styleActionButton(button, "large");
-			button.setHorizontalTextPosition(SwingConstants.CENTER);
-			button.setVerticalTextPosition(SwingConstants.BOTTOM);
-			button.setFont(theme.buttonFont().deriveFont(14f));
-			button.setOpaque(true);
-			button.setContentAreaFilled(true);
-			button.setBackground(theme.chromeBackground());
-			button.setBorder(new com.formdev.flatlaf.ui.FlatLineBorder(
-				new Insets(12, 12, 12, 12), theme.surfaceBorderColor(), 1f, 8));
-			button.setPreferredSize(new Dimension(220, 132));
-			button.setMinimumSize(new Dimension(220, 132));
-			button.putClientProperty(FlatClientProperties.STYLE,
-				"arc: 8; borderWidth: 1; borderColor: " + colorHex(theme.surfaceBorderColor())
-					+ "; background: " + colorHex(theme.surfaceColor()) + "; hoverBackground: " + colorHex(theme.chromeBackground()));
-			closeBackstageBeforeCommand(button);
-			commands.add(button, constraints);
+			commands.add(createLargeBackstageButton(specification), constraints);
 			constraints.gridx++;
 			if (constraints.gridx == 2) {
 				constraints.gridx = 0;
@@ -900,6 +938,439 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		commands.add(Box.createVerticalGlue(), constraints);
 		content.add(commands, BorderLayout.CENTER);
 		return content;
+	}
+
+	/** Builds the Office-style Open page: location actions left, recent files right. */
+	private JComponent createBackstageOpenPage(BackstagePage page) {
+		AbstractButton recentItems = backstageCommandButton(page, "RibbonRecentProjects", "FileBackstage.open.recentItems");
+		AbstractButton browse = backstageCommandButton(page, "RibbonOpenProject", "FileBackstage.open.browse");
+		return new BackstageOpenPage(new RecentProjectStore().entries(), recentItems, browse,
+				this::openRecentFromBackstage, this::localized);
+	}
+
+	/**
+	 * Builds the Home page: the existing New project command above the same
+	 * recent-files component the Open page uses. Home deliberately has no online
+	 * templates or recommendations.
+	 */
+	private JComponent createBackstageHomePage(BackstagePage page) {
+		AbstractButton newProject = backstageFileCommandButton("RibbonNewProject", "FileBackstage.home.newProject");
+		return new BackstageHomePage(newProject, new RecentProjectStore().entries(),
+				this::openRecentFromBackstage, this::localized);
+	}
+
+	/**
+	 * Builds the sign-in-free Account page: product facts, the existing update and
+	 * About actions and the application's theme switch. No account or cloud
+	 * service control is created.
+	 */
+	private JComponent createBackstageAccountPage(BackstagePage page) {
+		String version = VersionUtils.getVersion();
+		BackstageAccountPage.ProductInfo product = new BackstageAccountPage.ProductInfo(
+				Messages.getContextString("Text.ShortTitle"),
+				version == null || version.isBlank() ? localized("FileBackstage.account.unknownVersion") : version,
+				localized("FileBackstage.account.licenseValue"));
+		Runnable checkForUpdates = () -> UpdateChecker.checkInBackground(new GlobalPreferences());
+		Runnable about = () -> closeBackstageAndDispatch("RibbonAboutMicroProject");
+		return new BackstageAccountPage(product, FlatUiSupport.isDarkTheme(), checkForUpdates, about,
+				ThemeManager::applyTheme, this::localized);
+	}
+
+	/** Creates a fresh Backstage-safe control for an existing File-tab command. */
+	private AbstractButton backstageFileCommandButton(String commandId, String textKey) {
+		AbstractButton button = createLargeBackstageButton(fileCommand(commandId));
+		button.setName("officeBackstageCommand-" + commandId);
+		button.setText(localized(textKey));
+		return button;
+	}
+
+	private SwingRibbonModel.RibbonButton fileCommand(String commandId) {
+		return fileTab().getBands().stream().flatMap(band -> band.getButtons().stream())
+				.filter(command -> commandId.equals(command.getId())).findFirst()
+				.orElseThrow(() -> new IllegalStateException("File tab is missing command: " + commandId));
+	}
+
+	private SwingRibbonModel.RibbonTab fileTab() {
+		return model.getTabs().stream().filter(tab -> isBackstageTab(tab.getId())).findFirst()
+				.orElseThrow(() -> new IllegalStateException("The ribbon model has no File/Backstage tab"));
+	}
+
+	private void closeBackstageAndDispatch(String commandId) {
+		String restoreTab = closeBackstage(false);
+		SwingUtilities.invokeLater(() -> {
+			try {
+				commandSource.dispatch(new RibbonCommandInvocation(commandId,
+						RibbonCommandInvocation.Origin.INPUT_CONTROL, this, null));
+			} finally {
+				requestTabFocusAfterBackstage(restoreTab);
+			}
+		});
+	}
+
+	/** Builds the Office-style Save As page from existing Save As commands and recent folders. */
+	private JComponent createBackstageSaveAsPage(BackstagePage page) {
+		Map<String, AbstractButton> commands = backstageCommands(page);
+		AbstractButton mpo = backstageCommand(commands, "RibbonSaveMpoAs", "Save As page");
+		AbstractButton other = backstageCommand(commands, "RibbonSaveProjectAs", "Save As page");
+		Project project = currentBackstageProject();
+		String fileName = project == null ? null : project.getFileName();
+		String currentFolder = null;
+		if (fileName != null && !fileName.isBlank()) {
+			try {
+				Path parent = Path.of(fileName).toAbsolutePath().getParent();
+				if (parent != null) currentFolder = parent.toString();
+			} catch (RuntimeException ignored) {
+				// An unparseable location is treated like an unsaved project.
+			}
+		}
+		List<Path> recentFolders = new RecentProjectStore().entries().stream()
+				.map(entry -> entry.path().getParent()).filter(Objects::nonNull).distinct().toList();
+		return new BackstageSaveAsPage(currentFolder, recentFolders, mpo, other,
+				this::openSaveAsFromBackstage, this::localized);
+	}
+
+	/** Builds the Office-style Export page from the commands currently assigned to it. */
+	private JComponent createBackstageExportPage(BackstagePage page) {
+		Map<String, AbstractButton> commands = backstageCommands(page);
+		AbstractButton pdf = backstageCommand(commands, "RibbonPDF", "Export page");
+		AbstractButton export = backstageCommand(commands, "RibbonExportProject", "Export page");
+		AbstractButton imported = backstageCommand(commands, "RibbonImportProject", "Export page");
+		pdf.setText(localized("FileBackstage.export.pdfAction"));
+		export.setText(localized("FileBackstage.export.exportAction"));
+		imported.setText(localized("FileBackstage.export.importAction"));
+		return new BackstageExportPage(pdf, export, imported, this::localized);
+	}
+
+	/** Creates one canonical, Backstage-safe control per command assigned to a page. */
+	private Map<String, AbstractButton> backstageCommands(BackstagePage page) {
+		Map<String, AbstractButton> commands = new LinkedHashMap<>();
+		for (SwingRibbonModel.RibbonButton specification : page.commands()) {
+			AbstractButton button = createButton(specification, true);
+			button.setName("officeBackstageCommand-" + specification.getId());
+			button.setHorizontalAlignment(SwingConstants.LEFT);
+			button.setOpaque(true);
+			button.setContentAreaFilled(true);
+			button.setBorder(new com.formdev.flatlaf.ui.FlatLineBorder(
+					new Insets(8, 12, 8, 12), theme.surfaceBorderColor(), 1f, 8));
+			button.setPreferredSize(new Dimension(280, 38));
+			closeBackstageBeforeCommand(button);
+			commands.put(specification.getId(), button);
+		}
+		return commands;
+	}
+
+	private static AbstractButton backstageCommand(Map<String, AbstractButton> commands, String id, String page) {
+		AbstractButton button = commands.get(id);
+		if (button == null) throw new IllegalStateException(page + " is missing command " + id);
+		return button;
+	}
+
+	/** Opens the existing Save As command, starting in the chosen folder when one was picked. */
+	private void openSaveAsFromBackstage(Path folder) {
+		String restoreTab = closeBackstage(false);
+		SwingUtilities.invokeLater(() -> {
+			try {
+				commandSource.dispatch(new RibbonCommandInvocation("RibbonSaveProjectAs",
+						RibbonCommandInvocation.Origin.INPUT_CONTROL, this,
+						folder == null ? null : folder.toString()));
+			} finally {
+				requestTabFocusAfterBackstage(restoreTab);
+			}
+		});
+	}
+
+	/**
+	 * Builds the Office-style Print page. The caller supplies every value and action;
+	 * neither opening the page nor changing a setting creates a print job or mutates
+	 * project data. The preview reuses the existing {@link GraphPageable} rendering.
+	 */
+	private JComponent createBackstagePrintPage(BackstagePage page) {
+		DocumentFrame frame = GraphicManager.getDocumentFrameInstance();
+		final GraphPageable document = createBackstagePrintDocument(frame);
+
+		List<String> printers = new ArrayList<>();
+		String activePrinter = "";
+		if (document != null) {
+			for (PrintService service : document.getPrintServices()) {
+				if (!(service instanceof PDFPrintService)) printers.add(service.getName());
+			}
+			PrintService selected = document.getPrintService();
+			if (selected != null && !(selected instanceof PDFPrintService)) activePrinter = selected.getName();
+		}
+
+		java.awt.print.PageFormat format = document == null ? null : document.getPageFormat();
+		String portrait = localized("FileBackstage.print.portrait");
+		String landscape = localized("FileBackstage.print.landscape");
+		String orientation = format != null && format.getOrientation() == java.awt.print.PageFormat.LANDSCAPE
+				? landscape : portrait;
+		List<String> paperSizes = List.of(localized("FileBackstage.print.paperA4"),
+				localized("FileBackstage.print.paperLetter"), localized("FileBackstage.print.paperLegal"));
+		String paperSize = paperSizes.getFirst();
+		BackstagePrintPage.Settings settings = new BackstagePrintPage.Settings(1, printers, activePrinter,
+				List.of(localized("FileBackstage.print.all"), localized("FileBackstage.print.currentPage"),
+						localized("FileBackstage.print.selection")),
+				localized("FileBackstage.print.all"),
+				List.of(portrait, landscape), orientation, paperSizes, paperSize);
+
+		Map<String, AbstractButton> commands = new LinkedHashMap<>();
+		for (SwingRibbonModel.RibbonButton specification : page.commands())
+			commands.put(specification.getId(), createButton(specification, true));
+		AbstractButton printButton = commands.get("RibbonPrint");
+		if (printButton == null) throw new IllegalStateException("Print page is missing RibbonPrint command");
+		printButton.setName("officeBackstageCommand-RibbonPrint");
+		printButton.setText(localized("FileBackstage.print.print"));
+		printButton.setPreferredSize(new Dimension(300, 34));
+		printButton.setHorizontalAlignment(SwingConstants.LEFT);
+		closeBackstageBeforeCommand(printButton);
+
+		AbstractButton previewButton = commands.get("RibbonPrintPreview");
+		if (previewButton == null) throw new IllegalStateException("Print page is missing RibbonPrintPreview command");
+		previewButton.setName("officeBackstageCommand-RibbonPrintPreview");
+		closeBackstageBeforeCommand(previewButton);
+
+		JComponent preview = createBackstagePrintPreview(document, previewButton);
+
+		BackstagePrintPage.Actions actions = new BackstagePrintPage.Actions() {
+			@Override public void openPageSetup() {
+				if (document == null) return;
+				try {
+					GraphicManager manager = GraphicManager.getInstance();
+					java.awt.Frame owner = manager == null ? null : manager.getFrame();
+					PageSetupDialog.getInstance(owner, PageSetup.getInstance(document)).setVisible(true);
+				} catch (RuntimeException ignored) {
+					// A preview-only settings failure must not surface as an error dialog.
+				}
+			}
+			@Override public void settingsChanged() {
+				if (document != null) {
+					try { document.update(); } catch (RuntimeException ignored) { }
+				}
+				preview.revalidate();
+				preview.repaint();
+			}
+		};
+		BackstagePrintPage printPage = new BackstagePrintPage(settings, printButton, preview, actions,
+				key -> localized("FileBackstage.print." + key));
+		if (document == null) {
+			// Without an active document there are no print settings to evaluate.
+			// Keep the canonical command enabled so it stays physically routable;
+			// the existing print command itself is a no-op without a document.
+			printButton.setEnabled(true);
+		}
+		return printPage;
+	}
+
+	/** Creates a preview-only pageable without a print job; null when no document is available. */
+	private static GraphPageable createBackstagePrintDocument(DocumentFrame frame) {
+		if (frame == null) return null;
+		try {
+			return PrintDocumentFactory.getInstance().createDocument(frame, false, false);
+		} catch (RuntimeException ignored) {
+			return null; // show an empty preview instead of an error dialog
+		}
+	}
+
+	/** Wraps the existing GraphPageable page renderer with Backstage page/zoom controls. */
+	private JComponent createBackstagePrintPreview(GraphPageable document, AbstractButton previewButton) {
+		JPanel root = new JPanel(new BorderLayout());
+		root.setName("officeBackstagePrintPreview");
+		JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
+		JButton previous = new JButton("<");
+		JButton next = new JButton(">");
+		JLabel pageLabel = new JLabel();
+		JComboBox<String> zoom = new JComboBox<>(new String[] { "50%", "75%", "100%", "125%", "150%" });
+		zoom.setSelectedItem("75%");
+		previous.setName("officeBackstagePrintPreviousPage");
+		next.setName("officeBackstagePrintNextPage");
+		pageLabel.setName("officeBackstagePrintPageNumber");
+		zoom.setName("officeBackstagePrintZoom");
+		BackstagePrintPreviewPanel panel = document == null ? null : new BackstagePrintPreviewPanel(document, pageLabel);
+		previous.addActionListener(event -> { if (panel != null) panel.previousPage(); });
+		next.addActionListener(event -> { if (panel != null) panel.nextPage(); });
+		zoom.addActionListener(event -> {
+			if (panel == null) return;
+			String value = String.valueOf(zoom.getSelectedItem());
+			try { panel.setZoom(Integer.parseInt(value.replace("%", "")) / 100.0); }
+			catch (NumberFormatException ignored) { }
+		});
+		controls.add(previous);
+		controls.add(next);
+		controls.add(pageLabel);
+		controls.add(zoom);
+		controls.add(previewButton);
+		root.add(controls, BorderLayout.NORTH);
+		root.add(panel == null
+				? new JLabel(localized("FileBackstage.print.previewUnavailable"))
+				: new JScrollPane(panel), BorderLayout.CENTER);
+		return root;
+	}
+
+	/** Renders the current GraphPageable page through the existing print pipeline. */
+	private static final class BackstagePrintPreviewPanel extends JPanel {
+		private static final long serialVersionUID = 1L;
+		private final GraphPageable document;
+		private final JLabel pageLabel;
+		private int pageIndex;
+		private double zoom = 0.75;
+
+		BackstagePrintPreviewPanel(GraphPageable document, JLabel pageLabel) {
+			this.document = document;
+			this.pageLabel = pageLabel;
+			setName("officeBackstagePrintPreviewCanvas");
+			setPreferredSize(new Dimension(560, 720));
+			updatePageLabel();
+		}
+		void previousPage() {
+			if (pageIndex > 0) { pageIndex--; updatePageLabel(); repaint(); }
+		}
+		void nextPage() {
+			if (pageIndex < Math.max(0, document.getNumberOfPages() - 1)) {
+				pageIndex++; updatePageLabel(); repaint();
+			}
+		}
+		void setZoom(double value) { zoom = value; revalidate(); repaint(); }
+		private void updatePageLabel() {
+			pageLabel.setText((pageIndex + 1) + " / " + Math.max(1, document.getNumberOfPages()));
+		}
+		@Override protected void paintComponent(Graphics graphics) {
+			super.paintComponent(graphics);
+			Graphics2D g2 = (Graphics2D) graphics.create();
+			try {
+				g2.setColor(Color.WHITE);
+				g2.fillRect(0, 0, getWidth(), getHeight());
+				double pageWidth = document.getPageFormat().getWidth();
+				double pageHeight = document.getPageFormat().getHeight();
+				double scale = Math.min((getWidth() - 24) / pageWidth, (getHeight() - 24) / pageHeight) * zoom;
+				g2.translate((getWidth() - pageWidth * scale) / 2, (getHeight() - pageHeight * scale) / 2);
+				g2.scale(scale, scale);
+				g2.setColor(Color.WHITE);
+				g2.fillRect(0, 0, (int) pageWidth, (int) pageHeight);
+				document.printWithDefault(g2, pageIndex);
+			} catch (Exception ignored) {
+				// A failed render leaves the empty page visible; no error dialog is shown.
+			} finally {
+				g2.dispose();
+			}
+		}
+	}
+
+	/** Shared large Backstage card button, used by the card grid and the Info page. */
+	private AbstractButton createLargeBackstageButton(SwingRibbonModel.RibbonButton specification) {
+		AbstractButton button = createButton(specification, true);
+		button.setName("officeBackstageCommand-" + specification.getId());
+		buttonStyler.styleActionButton(button, "large");
+		button.setHorizontalTextPosition(SwingConstants.CENTER);
+		button.setVerticalTextPosition(SwingConstants.BOTTOM);
+		button.setFont(theme.buttonFont().deriveFont(14f));
+		button.setOpaque(true);
+		button.setContentAreaFilled(true);
+		button.setBackground(theme.chromeBackground());
+		button.setBorder(new com.formdev.flatlaf.ui.FlatLineBorder(
+			new Insets(12, 12, 12, 12), theme.surfaceBorderColor(), 1f, 8));
+		button.setPreferredSize(new Dimension(220, 132));
+		button.setMinimumSize(new Dimension(220, 132));
+		button.putClientProperty(FlatClientProperties.STYLE,
+			"arc: 8; borderWidth: 1; borderColor: " + colorHex(theme.surfaceBorderColor())
+				+ "; background: " + colorHex(theme.surfaceColor()) + "; hoverBackground: " + colorHex(theme.chromeBackground()));
+		closeBackstageBeforeCommand(button);
+		return button;
+	}
+
+	/** Builds the Office-style Info page: assigned commands left, read-only properties right. */
+	private JComponent createBackstageInfoPage(BackstagePage page) {
+		Project project = currentBackstageProject();
+		String projectName = project == null || project.getName() == null || project.getName().isBlank()
+				? localized("FileBackstage.info.untitled") : project.getName();
+		String projectPath = project == null || project.getFileName() == null ? "" : project.getFileName();
+		List<BackstageInfoPage.Command> commands = new ArrayList<>();
+		for (SwingRibbonModel.RibbonButton specification : page.commands()) {
+			commands.add(new BackstageInfoPage.Command(createLargeBackstageButton(specification),
+					localized("FileBackstage.info.description." + specification.getId())));
+		}
+		return new BackstageInfoPage(projectName, projectPath, commands,
+				currentBackstageProperties(project), this::openProjectInformationFromBackstage, this::localized);
+	}
+
+	/** Reads the active document's fields without changing the model. */
+	private static Project currentBackstageProject() {
+		DocumentFrame frame = GraphicManager.getDocumentFrameInstance();
+		return frame == null ? null : frame.getProject();
+	}
+
+	private List<BackstageInfoPage.Property> currentBackstageProperties(Project project) {
+		String dash = localized("FileBackstage.info.dash");
+		List<BackstageInfoPage.Property> values = new ArrayList<>();
+		if (project == null) {
+			for (String key : List.of("startDate", "finishDate", "baseline", "currentDate",
+					"statusDate", "calendar", "author", "lastModified"))
+				values.add(infoProperty(key, dash));
+			return values;
+		}
+		values.add(infoProperty("startDate", infoDate(project.getStartDate(), dash)));
+		values.add(infoProperty("finishDate", infoDate(project.getFinishDate(), dash)));
+		long baselineStart = project.getBaselineStart(0);
+		long baselineFinish = project.getBaselineFinish(0);
+		String baseline = baselineStart == 0 && baselineFinish == 0 ? dash
+				: infoDate(baselineStart, dash) + " – " + infoDate(baselineFinish, dash);
+		values.add(infoProperty("baseline", baseline));
+		values.add(infoProperty("currentDate", infoDate(project.getCurrentDate(), dash)));
+		values.add(infoProperty("statusDate", infoDate(project.getStatusDate(), dash)));
+		WorkCalendar calendar = project.getBaseCalendar();
+		values.add(infoProperty("calendar", calendar == null || calendar.getName() == null
+				|| calendar.getName().isBlank() ? dash : calendar.getName()));
+		String author = project.getManager();
+		values.add(infoProperty("author", author == null || author.isBlank() ? dash : author));
+		java.util.Date modified = project.getLastModificationDate();
+		boolean unsaved = project.getFileName() == null || project.getFileName().isBlank();
+		values.add(infoProperty("lastModified", unsaved || modified == null ? dash
+				: new java.text.SimpleDateFormat("yyyy/MM/dd HH:mm").format(modified)));
+		return values;
+	}
+
+	private BackstageInfoPage.Property infoProperty(String key, String value) {
+		return new BackstageInfoPage.Property(localized("FileBackstage.info." + key), value);
+	}
+
+	private static String infoDate(long millis, String dash) {
+		return millis == 0 ? dash : new java.text.SimpleDateFormat("yyyy/MM/dd").format(new java.util.Date(millis));
+	}
+
+	/** Runs the existing Project Information command from the Info page heading link. */
+	private void openProjectInformationFromBackstage() {
+		String restoreTab = closeBackstage(false);
+		SwingUtilities.invokeLater(() -> {
+			try {
+				commandSource.dispatch(new RibbonCommandInvocation("RibbonBackstageProjectInformation",
+						RibbonCommandInvocation.Origin.INPUT_CONTROL, this));
+			} finally {
+				requestTabFocusAfterBackstage(restoreTab);
+			}
+		});
+	}
+
+	/** Reuses an existing File command as a Backstage location action. */
+	private AbstractButton backstageCommandButton(BackstagePage page, String commandId, String textKey) {
+		SwingRibbonModel.RibbonButton specification = page.commands().stream()
+				.filter(command -> commandId.equals(command.getId())).findFirst()
+				.orElseThrow(() -> new IllegalStateException("Open page is missing command: " + commandId));
+		AbstractButton button = createButton(specification, true);
+		button.setName("officeBackstageCommand-" + commandId);
+		button.setText(localized(textKey));
+		closeBackstageBeforeCommand(button);
+		return button;
+	}
+
+	/** Opens the chosen recent file through the existing Recent Projects command. */
+	private void openRecentFromBackstage(RecentProjectStore.Entry entry) {
+		String restoreTab = closeBackstage(false);
+		SwingUtilities.invokeLater(() -> {
+			try {
+				commandSource.dispatch(new RibbonCommandInvocation("RibbonRecentProjects",
+						RibbonCommandInvocation.Origin.INPUT_CONTROL, this, entry.path().toString()));
+			} finally {
+				requestTabFocusAfterBackstage(restoreTab);
+			}
+		});
 	}
 
 	private String localized(String key) {

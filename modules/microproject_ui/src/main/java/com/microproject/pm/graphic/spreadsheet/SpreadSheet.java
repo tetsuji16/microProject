@@ -81,6 +81,7 @@ import com.microproject.pm.graphic.IconManager;
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.ui.input.PopupTriggerController;
+import com.microproject.ui.theme.ThemeManager;
 import com.microproject.ui.util.SwingUiDispatcher;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
@@ -137,6 +138,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	private static final long serialVersionUID = 5958334223191182318L;
 	private static final String CLIPBOARD_PASTE_VALUES_ACTION = "spreadsheet.clipboardPasteValues";
 	protected SpreadSheetPopupMenu popup=null;
+	/** Theme revision the cached row popup was last refreshed for. */
+	private int popupThemeRevision=-1;
 	private boolean hierarchyActionInProgress;
 	private boolean tableMouseHandlerInstalled;
 	private final PopupTriggerController popupTriggerController = new PopupTriggerController();
@@ -1535,7 +1538,25 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 				|| SpreadSheetCategories.taskSpreadsheetCategory.equals(getSpreadSheetCategory()))) {
 			popup = new SpreadSheetPopupMenu(this);
 		}
+		refreshPopupTheme();
 		return popup;
+	}
+
+	/**
+	 * A row popup is cached on the table and is not part of any window tree, so a
+	 * theme switch never repaints it: the window traversal in
+	 * {@code ThemeManager} and {@code FlatUiSupport} cannot reach a popup that is
+	 * not shown. Refresh the cached popup the first time it is read after a switch,
+	 * which is also the moment just before it is shown.
+	 */
+	private void refreshPopupTheme() {
+		if (popup == null)
+			return;
+		int revision = ThemeManager.getThemeRevision();
+		if (popupThemeRevision == revision)
+			return;
+		popupThemeRevision = revision;
+		ThemeManager.refreshComponentOutsideWindowTree(popup);
 	}
 	
 	

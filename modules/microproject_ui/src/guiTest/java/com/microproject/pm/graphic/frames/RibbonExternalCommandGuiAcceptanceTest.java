@@ -2285,8 +2285,8 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			case "RibbonBackstageOptions", "RibbonLocale" -> "options";
 			case "RibbonSaveProject" -> null;
 			case "RibbonSaveProjectAs", "RibbonSaveMpoAs" -> "saveAs";
-			case "RibbonPrint", "RibbonPrintPreview", "RibbonPDF" -> "print";
-			case "RibbonImportProject", "RibbonExportProject" -> "export";
+			case "RibbonPrint", "RibbonPrintPreview" -> "print";
+			case "RibbonPDF", "RibbonImportProject", "RibbonExportProject" -> "export";
 			case "RibbonCloseProject" -> null;
 			default -> throw new IllegalArgumentException("Not a Backstage command: " + commandId);
 		};

@@ -36,6 +36,7 @@ import java.awt.image.BufferedImageOp;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.ResourceBundle;
@@ -62,13 +63,24 @@ public class IconManager {
 	private record RibbonIconKey(String name, int width, int height) { }
 
 	/**
-	 * Fluent icons whose SVG ink is the light-surface colour {@code #212121}. On a dark
-	 * ribbon that ink has almost no contrast, so it is remapped to the ribbon icon ink.
+	 * Monochrome ribbon glyphs whose SVG ink is a fixed light-surface colour, grouped by that
+	 * ink. On a dark ribbon those inks have too little contrast, so they are remapped to the
+	 * ribbon icon ink; the light theme keeps the intended colour of every asset.
 	 */
-	private static final Set<String> FIXED_LIGHT_INK_RIBBON_ICONS = Set.of(
-		"fluent-info", "fluent-info-16", "fluent-info-20", "fluent-info-32",
-		"fluent-grid-dots", "fluent-grid-dots-16", "fluent-grid-dots-20", "fluent-grid-dots-32");
-	private static final int FIXED_LIGHT_INK = 0x212121;
+	private record RibbonIconInk(int sourceInk, Set<String> iconNames) { }
+	private static final List<RibbonIconInk> RIBBON_ICON_INKS = List.of(
+		// Fluent UI System Icons draw with the light-surface ink #212121.
+		new RibbonIconInk(0x212121, Set.of("fluent-info", "fluent-info-16", "fluent-info-20", "fluent-info-32",
+			"fluent-grid-dots", "fluent-grid-dots-16", "fluent-grid-dots-20", "fluent-grid-dots-32")),
+		// The format glyphs (bold, italic, underline) use the brand navy #1f3b73.
+		new RibbonIconInk(0x1F3B73, Set.of("format-bold", "format-bold-16", "format-bold-20", "format-bold-32",
+			"format-italic", "format-italic-16", "format-italic-20", "format-italic-32",
+			"format-underline", "format-underline-16", "format-underline-20", "format-underline-32")),
+		// The alignment glyphs use the brand green #2f6b53.
+		new RibbonIconInk(0x2F6B53, Set.of("align-left-ribbon", "align-left-ribbon-16", "align-left-ribbon-20",
+			"align-left-ribbon-32", "align-center-ribbon", "align-center-ribbon-16", "align-center-ribbon-20",
+			"align-center-ribbon-32", "align-right-ribbon", "align-right-ribbon-16", "align-right-ribbon-20",
+			"align-right-ribbon-32")));
 
 	/** Drops cached icons so theme-dependent rendering is rebuilt after a theme switch. */
 	public static void clearCaches() {
@@ -372,41 +384,48 @@ public class IconManager {
 		});
 	}
 
-	/** Maps the light-only ink of the monochrome Fluent icons to the dark ribbon icon ink. */
+	/** Maps the light-only ink of a monochrome glyph to the dark ribbon icon ink. */
 	private static ImageIcon applyRibbonInk(ImageIcon icon, URL resource) {
-		if (!FlatUiSupport.isDarkTheme() || !usesFixedLightInk(resource))
+		int sourceInk = fixedLightInkOf(resource);
+		if (!FlatUiSupport.isDarkTheme() || sourceInk < 0)
 			return icon;
-		// Both glyphs are monochrome; keep their neutral ink instead of introducing a hue.
+		// These glyphs are monochrome; keep their neutral ink instead of introducing a hue.
 		Color ribbonInk = FlatUiSupport.ribbonIconColor();
 		int gray = (int) Math.round(0.2126 * ribbonInk.getRed() + 0.7152 * ribbonInk.getGreen()
 			+ 0.0722 * ribbonInk.getBlue());
 		Color ink = new Color(gray, gray, gray);
 		if (icon instanceof FlatSVGIcon svgIcon) {
-			svgIcon.setColorFilter(new FlatSVGIcon.ColorFilter(source -> isFixedLightInk(source) ? ink : source));
+			svgIcon.setColorFilter(new FlatSVGIcon.ColorFilter(source -> isInk(source, sourceInk) ? ink : source));
 			return svgIcon;
 		}
 		BufferedImage image = toBufferedImage(icon.getImage());
 		for (int y = 0; y < image.getHeight(); y++) {
 			for (int x = 0; x < image.getWidth(); x++) {
 				int argb = image.getRGB(x, y);
-				if (isFixedLightInk(new Color(argb)))
+				if (isInk(new Color(argb), sourceInk))
 					image.setRGB(x, y, (argb & 0xFF000000) | (ink.getRGB() & 0xFFFFFF));
 			}
 		}
 		return new ImageIcon(image);
 	}
 
-	private static boolean usesFixedLightInk(URL resource) {
+	/** The fixed light-theme ink of the asset behind {@code resource}, or -1 when it keeps its colours. */
+	private static int fixedLightInkOf(URL resource) {
 		if (resource == null || resource.getPath() == null)
-			return false;
+			return -1;
 		String path = resource.getPath();
 		String name = path.substring(path.lastIndexOf('/') + 1);
 		int dot = name.lastIndexOf('.');
-		return FIXED_LIGHT_INK_RIBBON_ICONS.contains(dot >= 0 ? name.substring(0, dot) : name);
+		String baseName = dot >= 0 ? name.substring(0, dot) : name;
+		for (RibbonIconInk replacement : RIBBON_ICON_INKS) {
+			if (replacement.iconNames().contains(baseName))
+				return replacement.sourceInk();
+		}
+		return -1;
 	}
 
-	private static boolean isFixedLightInk(Color color) {
-		return color != null && (color.getRGB() & 0xFFFFFF) == FIXED_LIGHT_INK;
+	private static boolean isInk(Color color, int ink) {
+		return color != null && (color.getRGB() & 0xFFFFFF) == ink;
 	}
 
 	/** Creates a themed state variant while preserving the source alpha. */

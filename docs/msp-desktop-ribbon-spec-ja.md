@@ -24,9 +24,14 @@ MSP のリボンはライセンス、接続先、表示中のビュー、選択�
 2. タブの通常順は `File, Task, Resource, Report, Project, View, Help`。開いているビューに
    応じてその右側にコンテキスト・タブを追加する。MSP 互換のベース面に独自コマンドを混在
    させない。
-3. `File` は通常のリボン・バンドではなく Backstage である。New / Open / Info / Save /
-   Save As / Print / Share (条件付き) / Export / Close / Account / Options を左ナビゲーション
-   と詳細ペインで提供する。ローカル版で提供しない Share は無効なダミーを置かず、表示しない。
+3. `File` は通常のリボン・バンドではなく Backstage である。Home / New / Open / Info / Save /
+   Save As / Print / Export / Close / Account / Options を左ナビゲーションと詳細ペインで提供する。
+   Share (条件付き) はローカル版で提供しないため無効なダミーを置かず、表示しない。Backstage を
+   開いた直後は Home が選ばれ、上に既存の新規コマンド、下に #1116 と同じ最近使ったファイルの
+   一覧を出す（オンラインのテンプレート検索やおすすめは出さない）。Account はサインインを
+   持たず、製品名・バージョン・ライセンス・更新の確認・バージョン情報と、既存のテーマ適用
+   API を使うライト／ダークの選択だけを提供する。ユーザー情報、接続済みサービス、
+   Microsoft 365 は表示しない。Options は一番下に固定する。
    したがって、通常タブ向けの幅縮退処理で `File` を一個の「ファイル …」ランチャーに
    置き換えてはならない。
 4. 一つの論理コマンドは一つの Action ID に対応させる。Quick Access、リボン、右クリック、
