@@ -37,6 +37,7 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Point;
+import java.nio.file.Path;
 import java.awt.RenderingHints;
 import java.awt.Toolkit;
 import java.awt.KeyboardFocusManager;
@@ -108,8 +109,10 @@ import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.task.Project;
 import com.microproject.ui.input.PopupTriggerController;
+import com.microproject.ui.ribbon.backstage.BackstageExportPage;
 import com.microproject.ui.ribbon.backstage.BackstageInfoPage;
 import com.microproject.ui.ribbon.backstage.BackstageOpenPage;
+import com.microproject.ui.ribbon.backstage.BackstageSaveAsPage;
 import com.microproject.ui.ribbon.backstage.BackstagePrintPage;
 import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.ui.theme.MicroProjectThemeTokens;
@@ -878,6 +881,14 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			content.add(createBackstagePrintPage(page), BorderLayout.CENTER);
 			return content;
 		}
+		if ("saveAs".equals(page.id())) {
+			content.add(createBackstageSaveAsPage(page), BorderLayout.CENTER);
+			return content;
+		}
+		if ("export".equals(page.id())) {
+			content.add(createBackstageExportPage(page), BorderLayout.CENTER);
+			return content;
+		}
 		JPanel commands = new JPanel(new java.awt.GridBagLayout());
 		commands.setOpaque(false);
 		java.awt.GridBagConstraints constraints = new java.awt.GridBagConstraints();
@@ -918,6 +929,78 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		AbstractButton browse = backstageCommandButton(page, "RibbonOpenProject", "FileBackstage.open.browse");
 		return new BackstageOpenPage(new RecentProjectStore().entries(), recentItems, browse,
 				this::openRecentFromBackstage, this::localized);
+	}
+
+	/** Builds the Office-style Save As page from existing Save As commands and recent folders. */
+	private JComponent createBackstageSaveAsPage(BackstagePage page) {
+		Map<String, AbstractButton> commands = backstageCommands(page);
+		AbstractButton mpo = backstageCommand(commands, "RibbonSaveMpoAs", "Save As page");
+		AbstractButton other = backstageCommand(commands, "RibbonSaveProjectAs", "Save As page");
+		Project project = currentBackstageProject();
+		String fileName = project == null ? null : project.getFileName();
+		String currentFolder = null;
+		if (fileName != null && !fileName.isBlank()) {
+			try {
+				Path parent = Path.of(fileName).toAbsolutePath().getParent();
+				if (parent != null) currentFolder = parent.toString();
+			} catch (RuntimeException ignored) {
+				// An unparseable location is treated like an unsaved project.
+			}
+		}
+		List<Path> recentFolders = new RecentProjectStore().entries().stream()
+				.map(entry -> entry.path().getParent()).filter(Objects::nonNull).distinct().toList();
+		return new BackstageSaveAsPage(currentFolder, recentFolders, mpo, other,
+				this::openSaveAsFromBackstage, this::localized);
+	}
+
+	/** Builds the Office-style Export page from the commands currently assigned to it. */
+	private JComponent createBackstageExportPage(BackstagePage page) {
+		Map<String, AbstractButton> commands = backstageCommands(page);
+		AbstractButton pdf = backstageCommand(commands, "RibbonPDF", "Export page");
+		AbstractButton export = backstageCommand(commands, "RibbonExportProject", "Export page");
+		AbstractButton imported = backstageCommand(commands, "RibbonImportProject", "Export page");
+		pdf.setText(localized("FileBackstage.export.pdfAction"));
+		export.setText(localized("FileBackstage.export.exportAction"));
+		imported.setText(localized("FileBackstage.export.importAction"));
+		return new BackstageExportPage(pdf, export, imported, this::localized);
+	}
+
+	/** Creates one canonical, Backstage-safe control per command assigned to a page. */
+	private Map<String, AbstractButton> backstageCommands(BackstagePage page) {
+		Map<String, AbstractButton> commands = new LinkedHashMap<>();
+		for (SwingRibbonModel.RibbonButton specification : page.commands()) {
+			AbstractButton button = createButton(specification, true);
+			button.setName("officeBackstageCommand-" + specification.getId());
+			button.setHorizontalAlignment(SwingConstants.LEFT);
+			button.setOpaque(true);
+			button.setContentAreaFilled(true);
+			button.setBorder(new com.formdev.flatlaf.ui.FlatLineBorder(
+					new Insets(8, 12, 8, 12), theme.surfaceBorderColor(), 1f, 8));
+			button.setPreferredSize(new Dimension(280, 38));
+			closeBackstageBeforeCommand(button);
+			commands.put(specification.getId(), button);
+		}
+		return commands;
+	}
+
+	private static AbstractButton backstageCommand(Map<String, AbstractButton> commands, String id, String page) {
+		AbstractButton button = commands.get(id);
+		if (button == null) throw new IllegalStateException(page + " is missing command " + id);
+		return button;
+	}
+
+	/** Opens the existing Save As command, starting in the chosen folder when one was picked. */
+	private void openSaveAsFromBackstage(Path folder) {
+		String restoreTab = closeBackstage(false);
+		SwingUtilities.invokeLater(() -> {
+			try {
+				commandSource.dispatch(new RibbonCommandInvocation("RibbonSaveProjectAs",
+						RibbonCommandInvocation.Origin.INPUT_CONTROL, this,
+						folder == null ? null : folder.toString()));
+			} finally {
+				requestTabFocusAfterBackstage(restoreTab);
+			}
+		});
 	}
 
 	/**
@@ -969,12 +1052,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		previewButton.setName("officeBackstageCommand-RibbonPrintPreview");
 		closeBackstageBeforeCommand(previewButton);
 
-		AbstractButton pdfButton = commands.get("RibbonPDF");
-		if (pdfButton == null) throw new IllegalStateException("Print page is missing RibbonPDF command");
-		pdfButton.setName("officeBackstageCommand-RibbonPDF");
-		closeBackstageBeforeCommand(pdfButton);
-
-		JComponent preview = createBackstagePrintPreview(document, previewButton, pdfButton);
+		JComponent preview = createBackstagePrintPreview(document, previewButton);
 
 		BackstagePrintPage.Actions actions = new BackstagePrintPage.Actions() {
 			@Override public void openPageSetup() {
@@ -1016,8 +1094,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	}
 
 	/** Wraps the existing GraphPageable page renderer with Backstage page/zoom controls. */
-	private JComponent createBackstagePrintPreview(GraphPageable document, AbstractButton previewButton,
-			AbstractButton pdfButton) {
+	private JComponent createBackstagePrintPreview(GraphPageable document, AbstractButton previewButton) {
 		JPanel root = new JPanel(new BorderLayout());
 		root.setName("officeBackstagePrintPreview");
 		JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
@@ -1044,7 +1121,6 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		controls.add(pageLabel);
 		controls.add(zoom);
 		controls.add(previewButton);
-		controls.add(pdfButton);
 		root.add(controls, BorderLayout.NORTH);
 		root.add(panel == null
 				? new JLabel(localized("FileBackstage.print.previewUnavailable"))

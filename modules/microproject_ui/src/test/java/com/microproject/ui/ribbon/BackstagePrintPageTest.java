@@ -182,7 +182,9 @@ class BackstagePrintPageTest {
 			assertNotNull(named(backstage, "officeBackstagePrintPreviewPane"));
 			assertNotNull(named(backstage, "officeBackstageCommand-RibbonPrint"));
 			assertNotNull(named(backstage, "officeBackstageCommand-RibbonPrintPreview"));
-			assertNotNull(named(backstage, "officeBackstageCommand-RibbonPDF"));
+			assertTrue(UiComponentWalker.flatten(backstage).stream()
+					.noneMatch(component -> "officeBackstageCommand-RibbonPDF".equals(component.getName())),
+					"PDF export moved to the Export page and must not appear on Print");
 			assertNotNull(named(backstage, "officeBackstagePrintPageSetup"));
 
 			((AbstractButton) named(backstage, "officeBackstageNav-open")).doClick(0);

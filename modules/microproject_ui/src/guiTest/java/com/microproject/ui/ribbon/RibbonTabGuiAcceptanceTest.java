@@ -886,6 +886,61 @@ class RibbonTabGuiAcceptanceTest {
 		}
 	}
 
+	/** Issue #1119: PDF export belongs to Export, not Print, and stays physically runnable there. */
+	@Test
+	void exportPageDispatchesPdfAndPrintPageOmitsPdf() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
+				"A desktop session is required for Backstage page coverage.");
+		RecordingActionMap actions = new RecordingActionMap();
+		MenuManager manager = MenuManager.getInstance(actions);
+		MainRibbonFrame applicationFrame = new MainRibbonFrame("Backstage export page", "");
+		MicroProjectShell.installRibbonShell(applicationFrame, manager, null);
+		frame = applicationFrame;
+		JPanel host = applicationFrame.getRibbonPanel();
+		SwingUtilities.invokeAndWait(() -> {
+			frame.setSize(1100, 700);
+			frame.setLocation(0, 0);
+			frame.setVisible(true);
+		});
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		String fileTitle = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString("FileRibbonTask.title");
+
+		click(robot, findButton(host, fileTitle));
+		GuiAcceptanceSupport.await(() -> findShowingComponent(frame, "officeBackstageOverlay") != null,
+				"File tab did not open Backstage");
+		clickCommand(robot, (AbstractButton) findShowingComponent(frame, "officeBackstageNav-export"));
+		GuiAcceptanceSupport.await(() -> findShowingComponent(frame, "officeBackstageExportPage") != null,
+				"Export page did not open");
+		robot.waitForIdle();
+		captureVisibleRibbon(robot, "ribbon-file-backstage-export.png");
+		AbstractButton pdf = (AbstractButton) findShowingComponent(frame, "officeBackstageCommand-RibbonPDF");
+		assertTrue(pdf != null && pdf.isEnabled(), "Export page must expose an enabled PDF export command");
+		String actionId = manager.getToolBarFactory().getActionStringFromId("RibbonPDF");
+		int before = actions.count(actionId);
+		clickCommand(robot, pdf);
+		GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
+				"Robot click did not dispatch PDF export from the Export page");
+		GuiAcceptanceSupport.await(() -> findShowingComponent(frame, "officeBackstageOverlay") == null,
+				"Backstage stayed open after PDF export");
+
+		click(robot, findButton(host, fileTitle));
+		GuiAcceptanceSupport.await(() -> findShowingComponent(frame, "officeBackstageOverlay") != null,
+				"File tab did not reopen Backstage");
+		clickCommand(robot, (AbstractButton) findShowingComponent(frame, "officeBackstageNav-saveAs"));
+		GuiAcceptanceSupport.await(() -> findShowingComponent(frame, "officeBackstageSaveAsPage") != null,
+				"Save As page did not open");
+		robot.waitForIdle();
+		captureVisibleRibbon(robot, "ribbon-file-backstage-saveas.png");
+		clickCommand(robot, (AbstractButton) findShowingComponent(frame, "officeBackstageNav-print"));
+		GuiAcceptanceSupport.await(() -> findShowingComponent(frame, "officeBackstagePrintPage") != null,
+				"Print page did not open");
+		assertTrue(findShowingComponent(frame, "officeBackstageCommand-RibbonPDF") == null,
+				"Print page must not show PDF export after it moved to Export");
+		robot.waitForIdle();
+		captureVisibleRibbon(robot, "ribbon-file-backstage-print-no-pdf.png");
+	}
+
 	private static Component namedComponent(Component root, String name) {
 		if (name.equals(root.getName())) return root;
 		if (root instanceof Container container) {
