@@ -18,7 +18,7 @@ Blockers: none known.
 | ID | Required result/evidence | State | Evidence (SHA + link) |
 |---|---|---|---|
 | A1 | User-facing paths for PV/EV/AC and status date found or absent items grounded in code | pass | `configuration.xml` editable percent/actual-work and read-only actual-cost fields; task/project EVM spreadsheet presets; Status Date dialog and EVM fields now selectable in Custom Report |
-| A2 | Known-value SV/CV/SPI/CPI formulas, aggregation, currency, and status-date relationship verified | pass | known formulas and MPO project aggregation/round-trip pass; early-vs-late status dates show BCWS increase and BCWP/ACWP nondecrease; mixed-source currency behavior documented |
+| A2 | Known-value SV/CV/SPI/CPI formulas, aggregation, currency, and status-date relationship verified | pass | `EarnedValueProjectValuesTest` pins BAC, ACWP, BCWS, BCWP, CV, SV, CPI and SPI to hand calculations at two status dates, plus the MPO round trip and the no-baseline case (single task, internal units). Aggregation and currency rest on the report-level evidence below, not on that test: no summary rollup of EVM values is asserted anywhere. |
 | A3 | MPO save/reload values and presentation confirmed; implemented routes have focused regressions | pass | MPO seven-value round trip + report-column availability tests pass; Windows Robot selected all seven EVM columns, asserted preview values, exported CSV, and asserted exported values (run `40341421912`) |
 | A4 | Book/user-guide explainable operation scope defined from evidence | pass | Japanese chapters 5/10/12 describe tested calculation/input scope, status date, report fields, MPO persistence, and currency caveat; Windows Robot evidence is recorded below |
 
@@ -40,21 +40,25 @@ Blockers: none known.
 - Local verification on code SHA `0be6535bfce1f3ad9b5c36bced1b8777e1946914` (packet-only changes followed): `./gradlew.bat verifyArchitectureBoundaries verifyArchitectureBoundaryFixtures verifyNamingConventions build installDist --console=plain` — `BUILD SUCCESSFUL` (57 actionable tasks).
 - Current branch is based on `master` commit `5e3a665d3`. All acceptance rows pass; no implementation blockers remain. PR #949 is ready for review/merge, after which #943 can be closed.
 
-## Known-value regression added on master (2026-11-19)
+## Known-value regression for A2/A3 (branch `issue/943-evm-known-values`, PR #1263)
 
-`EarnedValueProjectValuesTest` (microproject_ui test source) fixes the A2/A3 claims with exact numbers instead of "> 0" checks. Fixture: a 10-day task at the default 8-hour day (80 hours) with a $60/h resource, saved as Baseline; the work then doubles to 20 days and 5 days (40 hours) are completed, so the task is 25% complete.
+`EarnedValueProjectValuesTest` (`microproject_ui` test source) replaces the "> 0" checks with a fixture whose dates, budget and actuals are fixed. The project start is pinned to Monday 2026-11-16 08:00 JST **before** `initialize`, because a project without a start lets `initialize` schedule a background `recalculate()`/`setStart()` from the current clock; without that pin the elapsed part of the baseline — and therefore BCWS, BCWP and ACWP — changes with the run date.
 
-| Value | Hand calculation | Observed |
+Fixture: 10 working days at the default 8-hour day (80 h) at $60/h, saved as Baseline; the work then doubles to 20 days and 40 h are reported as actual (5 of 20 days, 25% complete).
+
+| Value | Hand calculation | Asserted |
 |---|---|---|
-| BAC | 60 × 80 h | 1.728e10 (costs are stored as rate per hour × work in ms) |
+| BAC | 60 × 80 h | 1.728e10 |
 | ACWP at the finish | 60 × 40 h | 8.64e9 |
 | BCWS at the finish | the whole baseline | 1.728e10 |
 | BCWP at the finish | 25% × BAC | 4.32e9 |
-| CV / SV / CPI / SPI | BCWP−ACWP / BCWP−BCWS / BCWP÷ACWP / BCWP÷BCWS | asserted at a mid-plan status date and at the finish |
+| Status date = end of the third working day (Mon–Wed) | 24 h elapsed | BCWS 24 h, ACWP 24 h, BCWP 12 h (efficiency 80 h ÷ 160 h), CV = SV = −12 h, SPI = CPI = 0.5 |
 
-- The status date drives all three time-phased values: with the status date three days after the start, 16 hours of the plan have elapsed, so BCWS is 16 hours of baseline, BCWP is 8 hours and ACWP is 16 hours (SPI = CPI = 0.5). Moving the status date to the finish schedules the whole baseline and earns the completed share.
-- A task without a baseline reports BAC, BCWS, BCWP and SPI as 0.
-- An MPO round trip reproduces the status date and all seven values, which confirms the values are re-derived from the saved inputs rather than persisted.
-- Aggregation is `sum="Sum"` per `configuration.xml`; the currency comes from `GlobalPreferences.getCurrencyCode()` (locale currency when empty), which is why the assertions compare internal units.
+- The three time-phased values follow the status date: after three working days 24 h of the baseline is scheduled, 24 h has been spent and 12 h earned; at the finish the whole baseline is scheduled and the completed quarter is earned. SPI is 0.25 at the finish because the baseline was frozen at 80 h while the work doubled.
+- Without a baseline BAC, BCWS and BCWP are 0, but ACWP still reports the cost of the work performed (24 h → 5.184e9), so CV is −5.184e9 and SV is 0. CPI is 0; SPI returns the divide-by-zero policy value (`CalculationPreference`, default 0).
+- An MPO round trip reproduces the status date and all seven values, and moving the status date *after* the reload changes them as expected, which is what shows they are re-derived from the saved inputs rather than persisted.
+- Assertions compare internal units (rate per hour × work in ms), so they do not depend on `GlobalPreferences.getCurrencyCode()`.
 
-Commands: `.\gradlew.bat :microproject_ui:cleanTest :microproject_ui:test --tests "com.microproject.pm.costing.EarnedValueProjectValuesTest" --console=plain` → BUILD SUCCESSFUL (2 tests, 0 failures).
+Not covered by this test and still standing on the earlier report-level evidence: aggregation of EVM values into a summary/project row (`configuration.xml` declares `sum="Sum"`) and currency handling for mixed-source costs. The test lives in `microproject_ui` because the round trip needs `MpoFileImporter` from `microproject_exchange`, which `microproject_core`'s test source cannot see.
+
+Commands: `.\gradlew.bat :microproject_ui:cleanTest :microproject_ui:test --tests "com.microproject.pm.costing.EarnedValueProjectValuesTest" --console=plain` → BUILD SUCCESSFUL (2 tests, 0 failures). Mutation check: replacing `efficiency() * cost` with `cost` in `Assignment.bcwp` fails both tests (`BCWP is the earned half of those three days … expected 2.592E9 but was 5.184E9`), so the assertions do gate the calculation rather than restating it.
