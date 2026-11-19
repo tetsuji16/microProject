@@ -1,6 +1,6 @@
 # Issue #941 — Format Painter
 
-State: In progress; existing implementation is present, acceptance evidence is incomplete.
+State: COMPLETE; the physical journey and focused unit tests passed on master `38e50bef0`, and the inventory rows are VERIFIED.
 Issue: https://github.com/tetsuji16/microProject/issues/941
 Contract frozen at: 2026-10-26, open issue body.
 Turn baseline HEAD: `e695b33ac2e8453774d13eca134b59e207bc71f5` (2026-10-27).
@@ -11,7 +11,7 @@ Turn baseline working tree: existing changes in `docs/MSP_STANDARD_COMMAND_INVEN
 Reconcile the current task text Format Painter implementation with every original #941 acceptance criterion and provide focused model and physical GUI evidence. The six copied attributes are font family, size, text color, bold, italic, and strikethrough; background and cell-specific formatting are outside the current product contract. Microsoft source S14 describes copying format to one or multiple targets but does not define Project task-field scope; this bounded attribute list is a document-derived product decision.
 
 Out of scope: Gantt bar, Timeline, and Report-object formatting; cloud services; broad parity claims.
-Blockers: exact-candidate GUI acceptance evidence is still required for closure.
+Blockers: none.
 
 ## Acceptance
 
@@ -25,19 +25,26 @@ Blockers: exact-candidate GUI acceptance evidence is still required for closure.
 
 ## Current slice
 
-**Current slice:** Root cause was test selection leakage: after multi-target apply and Undo/Redo, `clickUntilSelected` could skip its click because the lead row was already the source while several rows remained selected. Replaced the helper call with a physical source-row click and an explicit single-selection assertion. The complete targeted GUI journey and focused unit tests now pass.
-**Next slice:** Reconcile this worktree evidence against the exact committed candidate/release SHA before issue closure.
-**Done when:** the changed physical multi-row route, focus transfer, model/view state, atomic Undo/Redo, and MPO reload pass on the exact candidate SHA.
-**Then:** reconcile exact-candidate GUI evidence before closure.
+**Current slice:** Exact-candidate evidence on master `38e50bef0` (2026-11-19). The journey that previously needed a lead-row click fix is now on master, so the remaining acceptance work was execution and reconciliation, not production code.
+**Next slice:** none.
+**Done when:** done.
+**Then:** closed with the evidence below.
 
 ## Remaining blockers
 
-- GitHub checks for the submitted PR head.
+- None.
 
 ## Latest evidence
 
+- Exact-candidate unit tests on master `38e50bef0` (2026-11-19): `:microproject_ui:test --tests "com.microproject.pm.graphic.frames.TaskFormatPainterServiceTest" --tests "com.microproject.pm.graphic.frames.ActiveTaskSelectionResolverTest" --console=plain` — BUILD SUCCESSFUL.
+- Exact-candidate physical GUI on master `38e50bef0` (2026-11-19, ja / UI scale 1.0, Windows): `:microproject_ui:guiTest --tests "com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.formatPainterCopiesTaskTextStyleOnceOrContinuouslyWithUndoAndMpoReload" "-PguiTestLocale=ja" "-PguiTestUiScale=1.0" --console=plain` — 1 test, 0 failures, 0 errors, 0 skipped, 12.029 s. The journey exercised the one-shot multi-target application, the mixed-selection rejection, focus transfer while armed, atomic Undo/Redo, MPO save/reload, continuous mode, and Escape both after cancelling a cell editor and for stopping the mode.
+- CI GUI acceptance run [44353282374](https://github.com/tetsuji16/microProject/actions/runs/44353282374) on the same master SHA `38e50bef0` — success.
+- Inventory: `docs/MSP_STANDARD_COMMAND_INVENTORY.md` rows `Format Painter` and `Task > Clipboard: Format Painter` are now VERIFIED.
 - Baseline inspection: `TaskFormatPainterServiceTest` covered style/value preservation, single-target Undo/Redo, no-op/read-only, and failure rollback. The existing Robot journey covered one row per operation, Escape, Undo/Redo, and MPO reload.
+
+## Earlier evidence (kept for history)
+
 - Tests: `:microproject_ui:test --tests "com.microproject.pm.graphic.frames.TaskFormatPainterServiceTest" --tests "com.microproject.pm.graphic.frames.ActiveTaskSelectionResolverTest" --console=plain` passed. A preceding `--rerun-tasks` run also passed for `TaskFormatPainterServiceTest` (20 tasks executed).
 - Physical GUI: desktop check showed only ChatGPT and Chrome windows. After replacing the lead-row-only helper with a physical unmodified source-row click and exact single-selection assertion, `:microproject_ui:guiTest --tests "com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.formatPainterCopiesTaskTextStyleOnceOrContinuouslyWithUndoAndMpoReload" --max-workers=1 --console=plain` passed, including multi-target formatting, Undo/Redo, MPO reload, continuous applications, Escape, and visible armed/disarmed state.
 - Tested revision before PR preparation: original worktree HEAD `293b43fa03bb7e02970664ad81a692539a21433f` plus the then-uncommitted scoped GUI-test changes. During PR preparation, the scoped diff was replayed onto `origin/codex/issue-943-evm` without the unrelated #945 dark-theme commit.
-- Exact PR-candidate tests: `:microproject_ui:test --tests "com.microproject.pm.graphic.frames.TaskFormatPainterServiceTest" --tests "com.microproject.pm.graphic.frames.ActiveTaskSelectionResolverTest" --console=plain` passed; physical `:microproject_ui:guiTest --tests "com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.formatPainterCopiesTaskTextStyleOnceOrContinuouslyWithUndoAndMpoReload" --max-workers=1 --console=plain` passed on commit `48435261e322474e75a8f12eb30bf90e07d88a42`. The GitHub GUI run [40243663362](https://github.com/tetsuji16/microProject/actions/runs/40243663362) predates this test diff and is not evidence for the new assertions.
+- Exact PR-candidate tests: `:microproject_ui:test --tests "com.microproject.pm.graphic.frames.TaskFormatPainterServiceTest" --tests "com.microproject.pm.graphic.frames.ActiveTaskSelectionResolverTest" --console=plain` passed; physical `:microproject_ui:guiTest --tests "com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.formatPainterCopiesTaskTextStyleOnceOrContinuouslyWithUndoAndMpoReload" --max-workers=1 --console=plain` passed on commit `48435261e322474e75a8f12eb30bf90e07d88a42`.
