@@ -17,13 +17,17 @@ import java.io.ByteArrayOutputStream;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+
+import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Test;
 
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.options.CalendarOption;
+import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
@@ -338,6 +342,46 @@ class TaskRibbonHeadlessCommandTest {
 			Project milestoneReload = saveAndReload(project);
 			assertTrue(taskNamed(milestoneReload, "Insert task 3").getWbsParentTask() == null,
 				"MPO reload must keep the unselected task at top level after undoing the milestone");
+		}
+	}
+
+	@Test
+	void percentCompleteRibbonRoutesSetSelectedTasksWithUndoRedoAndMpo() throws Exception {
+		// Test each percent complete command independently
+		// Use 12.5% as initial value (not equal to any of 0%, 25%, 50%, 75%, 100%)
+		double initialPercent = 0.125D;
+		for (var entry : Map.of(
+				CommandId.PERCENT_COMPLETE_0, 0.0D,
+				CommandId.PERCENT_COMPLETE_25, 0.25D,
+				CommandId.PERCENT_COMPLETE_50, 0.50D,
+				CommandId.PERCENT_COMPLETE_75, 0.75D,
+				CommandId.PERCENT_COMPLETE_100, 1.0D).entrySet()) {
+			CommandId command = entry.getKey();
+			double expectedPercent = entry.getValue();
+
+			try (HeadlessDocumentFixture fx = new HeadlessDocumentFixture("Percent complete " + command.name())) {
+				NormalTask task = fx.task(0);
+				Project project = fx.project;
+				task.setDuration(2L * CalendarOption.getInstance().getMillisPerDay());
+				task.setPercentComplete(initialPercent);
+				project.recalculate();
+
+				fx.select(task);
+				fx.undo.clear();
+				RibbonCommandResult result = fx.run(command);
+				assertEquals(RibbonCommandResult.Status.CHANGED, result.status(), command + " result: " + result);
+				assertEquals(List.of(task.getUniqueId()), result.affectedTaskIds(), command + " affected task IDs");
+				assertEquals(expectedPercent, task.getPercentComplete(), 0D, command + " must set percent complete to " + expectedPercent);
+
+				fx.undo();
+				assertEquals(initialPercent, task.getPercentComplete(), 0D, command + " Undo must restore " + (initialPercent * 100) + "% complete");
+				fx.redo();
+				assertEquals(expectedPercent, task.getPercentComplete(), 0D, command + " Redo must restore " + expectedPercent + " percent complete");
+
+				Project reloaded = saveAndReload(project);
+				assertEquals(expectedPercent, taskNamed(reloaded, "Percent complete " + command.name()).getPercentComplete(), 0D,
+					command + " MPO reload must preserve percent complete");
+			}
 		}
 	}
 
