@@ -50,6 +50,7 @@ import javax.swing.JComponent;
 import javax.swing.JToggleButton;
 import javax.swing.JLabel;
 import javax.swing.JList;
+import javax.swing.JMenu;
 import javax.swing.JPanel;
 import javax.swing.JDialog;
 import javax.swing.JButton;
@@ -1046,33 +1047,112 @@ public final class FlatUiSupport {
 	}
 
 	public static void applyDataSurface(JComponent component) {
-		if (component == null)
-			return;
-		component.setOpaque(true);
-		component.setBackground(dataSurfaceBackground());
+		applyThemedBackground(component, DATA_SURFACE_TOKEN);
 	}
 
 	public static void applyPanelSurface(JComponent component) {
-		if (component == null)
-			return;
-		component.setOpaque(true);
-		component.setBackground(panelBackground());
-		component.setForeground(labelForeground());
+		applyThemedBackground(component, PANEL_BACKGROUND_TOKEN);
+		applyThemedForeground(component, LABEL_FOREGROUND_TOKEN);
 	}
 
 	public static void applyWorkspaceSurface(JComponent component) {
-		if (component == null)
-			return;
-		component.setOpaque(true);
-		component.setBackground(workspaceBackground());
-		component.setForeground(labelForeground());
+		applyThemedBackground(component, WORKSPACE_BACKGROUND_TOKEN);
+		applyThemedForeground(component, LABEL_FOREGROUND_TOKEN);
 	}
 
 	public static void applyViewportSurface(JViewport viewport) {
-		if (viewport == null)
+		applyThemedBackground(viewport, VIEWPORT_BACKGROUND_TOKEN);
+	}
+
+	private static final String DATA_SURFACE_TOKEN = "dataSurface";
+	private static final String PANEL_BACKGROUND_TOKEN = "panel";
+	private static final String WORKSPACE_BACKGROUND_TOKEN = "workspace";
+	private static final String VIEWPORT_BACKGROUND_TOKEN = "viewport";
+	private static final String TABLE_HEADER_BACKGROUND_TOKEN = "spreadsheetHeader";
+	private static final String HEADER_FOREGROUND_TOKEN = "headerForeground";
+	private static final String LABEL_FOREGROUND_TOKEN = "labelForeground";
+
+	/**
+	 * Client properties that record which theme token painted a component. The
+	 * window-tree colour remap in {@code ThemeManager} can only match colours, and
+	 * several tokens are white in the light theme, so a colour match alone cannot
+	 * tell a viewport from a dialog surface once the theme switches. A component
+	 * painted from a token records the token and is re-resolved from it instead.
+	 */
+	private static final String BACKGROUND_TOKEN_PROPERTY = "MicroProject.themeBackgroundToken";
+	private static final String FOREGROUND_TOKEN_PROPERTY = "MicroProject.themeForegroundToken";
+
+	private static void applyThemedBackground(JComponent component, String token) {
+		if (component == null)
 			return;
-		viewport.setOpaque(true);
-		viewport.setBackground(viewportBackground());
+		Color color = themeTokenColor(token);
+		if (color == null)
+			return;
+		component.putClientProperty(BACKGROUND_TOKEN_PROPERTY, token);
+		component.setOpaque(true);
+		component.setBackground(color);
+	}
+
+	private static void applyThemedForeground(JComponent component, String token) {
+		if (component == null)
+			return;
+		Color color = themeTokenColor(token);
+		if (color == null)
+			return;
+		component.putClientProperty(FOREGROUND_TOKEN_PROPERTY, token);
+		component.setForeground(color);
+	}
+
+	/** Resolves a token recorded by {@link #applyViewportSurface} and friends. */
+	public static Color themeTokenColor(String token) {
+		if (token == null)
+			return null;
+		return switch (token) {
+			case DATA_SURFACE_TOKEN -> dataSurfaceBackground();
+			case PANEL_BACKGROUND_TOKEN -> panelBackground();
+			case WORKSPACE_BACKGROUND_TOKEN -> workspaceBackground();
+			case VIEWPORT_BACKGROUND_TOKEN -> viewportBackground();
+			case TABLE_HEADER_BACKGROUND_TOKEN -> spreadsheetHeaderBackground();
+			case HEADER_FOREGROUND_TOKEN -> headerForeground();
+			case LABEL_FOREGROUND_TOKEN -> labelForeground();
+			default -> null;
+		};
+	}
+
+	/**
+	 * Re-resolves the token-painted colours of a component tree after the theme
+	 * switched. Ambiguous light values (several surfaces are white) are resolved
+	 * from each component's own token instead of from its previous colour.
+	 */
+	public static void refreshThemeColors(Component root) {
+		if (root == null)
+			return;
+		if (root instanceof JComponent component) {
+			Object background = component.getClientProperty(BACKGROUND_TOKEN_PROPERTY);
+			if (background != null) {
+				Color color = themeTokenColor(background.toString());
+				if (color != null) {
+					component.setOpaque(true);
+					component.setBackground(color);
+				}
+			}
+			Object foreground = component.getClientProperty(FOREGROUND_TOKEN_PROPERTY);
+			if (foreground != null) {
+				Color color = themeTokenColor(foreground.toString());
+				if (color != null)
+					component.setForeground(color);
+			}
+		}
+		if (root instanceof JMenu menu)
+			refreshThemeColors(menu.getPopupMenu());
+		if (root instanceof Container container) {
+			for (Component child : container.getComponents())
+				refreshThemeColors(child);
+		}
+		if (root instanceof Window window) {
+			for (Window owned : window.getOwnedWindows())
+				refreshThemeColors(owned);
+		}
 	}
 
 	public static void styleDialogRoot(JRootPane rootPane) {
@@ -1299,9 +1379,8 @@ public final class FlatUiSupport {
 	public static void applyTableHeaderStyle(JComponent component) {
 		if (component == null)
 			return;
-		component.setOpaque(true);
-		component.setForeground(headerForeground());
-		component.setBackground(spreadsheetHeaderBackground());
+		applyThemedBackground(component, TABLE_HEADER_BACKGROUND_TOKEN);
+		applyThemedForeground(component, HEADER_FOREGROUND_TOKEN);
 		component.setFont(ganttHeaderFont());
 		component.setBorder(tableHeaderBorder());
 	}

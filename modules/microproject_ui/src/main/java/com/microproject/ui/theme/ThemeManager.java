@@ -128,6 +128,7 @@ public final class ThemeManager {
 			return;
 		SwingUtilities.updateComponentTreeUI(component);
 		remapTree(component, detachedRemap);
+		FlatUiSupport.refreshThemeColors(component);
 		component.repaint();
 	}
 
@@ -156,8 +157,11 @@ public final class ThemeManager {
 		detachedRemap = remap;
 		FlatUiSupport.updateAllWindowTrees();
 		Window[] windows = Window.getWindows();
-		for (Window window : windows)
+		for (Window window : windows) {
 			remapTree(window, remap);
+			// Ambiguous light values are resolved from each component's own token.
+			FlatUiSupport.refreshThemeColors(window);
+		}
 		for (Runnable listener : new ArrayList<>(listeners)) {
 			try {
 				listener.run();
