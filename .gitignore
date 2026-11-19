@@ -40,6 +40,8 @@ docs/downloads/
 isolated-build/
 *.part
 *.part*
+/samples/*.microproject-sync.json
+/samples/*.microproject-sync.lock
 /samples/*.projectlibre-sync.json
 /samples/*.projectlibre-sync.lock
 
