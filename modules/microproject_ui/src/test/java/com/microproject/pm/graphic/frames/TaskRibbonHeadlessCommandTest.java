@@ -21,14 +21,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
-import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Test;
 
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.options.CalendarOption;
-import com.microproject.pm.snapshot.Snapshottable;
-import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
@@ -385,6 +382,37 @@ class TaskRibbonHeadlessCommandTest {
 			}
 		}
 	}
+
+
+	@Test
+	void deleteThroughRibbonUsesTheSharedEditPipelineAndUndoRestoresTheRow() throws Exception {
+		try (HeadlessDocumentFixture fx = new HeadlessDocumentFixture("Delete acceptance")) {
+			NormalTask task = fx.task(0);
+			Project project = fx.project;
+
+			fx.select(task);
+			fx.undo.clear();
+			RibbonCommandResult deleteResult = fx.run(CommandId.DELETE);
+			assertEquals(RibbonCommandResult.Status.CHANGED, deleteResult.status(), "Delete result: " + deleteResult);
+			assertEquals(List.of(task.getUniqueId()), deleteResult.affectedTaskIds(), "Delete affected task IDs");
+			assertFalse(project.getTaskList().contains(task), "Delete must remove the task from the project");
+
+			fx.undo();
+			assertTrue(project.getTaskList().contains(task), "Undo must restore the deleted task");
+			assertEquals("Delete acceptance", task.getName(), "Undo must restore the task name");
+
+			fx.redo();
+			assertFalse(project.getTaskList().contains(task), "Redo must delete the task again");
+
+			Project reloaded = saveAndReload(project);
+			assertTrue(reloaded.getTaskList().stream().noneMatch(candidate -> "Delete acceptance".equals(candidate.getName())),
+				"MPO reload must not contain the deleted task");
+		}
+	}
+
+
+
+
 
 	/** Row of the task in the active spreadsheet projection, or -1 when the table does not project it. */
 	private static int rowOf(HeadlessDocumentFixture fx, NormalTask task) throws Exception {
