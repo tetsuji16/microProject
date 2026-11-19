@@ -67,6 +67,7 @@ public final class BackstageOpenPage extends JPanel {
 	private static final int LOCATION_WIDTH = 200;
 	private static final int FOLDER_MAX_CHARS = 58;
 	private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm");
+	static final String NAME_PREFIX = "officeBackstageOpen";
 
 	private final JList<RecentProjectStore.Entry> recentList;
 	private final JLabel emptyMessage;
@@ -89,9 +90,9 @@ public final class BackstageOpenPage extends JPanel {
 		Objects.requireNonNull(label, "label");
 
 		JPanel locations = createLocations(recentItemsButton, browseButton, label);
-		JPanel recent = createRecentPanel(entries, openAction, label);
+		JPanel recent = recentProjectsPanel(entries, openAction, label, NAME_PREFIX, label.apply("recentItems"));
 		this.recentList = findRecentList(recent);
-		this.emptyMessage = findEmptyMessage(recent);
+		this.emptyMessage = findEmptyMessage(recent, NAME_PREFIX);
 
 		GridBagConstraints left = new GridBagConstraints();
 		left.gridx = 0;
@@ -148,23 +149,30 @@ public final class BackstageOpenPage extends JPanel {
 		return locations;
 	}
 
-	private static JPanel createRecentPanel(List<RecentProjectStore.Entry> entries,
-			Consumer<RecentProjectStore.Entry> openAction, Function<String, String> label) {
+	/**
+	 * Builds the recent-projects column shared by the Open and Home pages.
+	 * The renderer, click/Enter dispatch and empty state live here once so the
+	 * two pages cannot drift apart. {@code namePrefix} gives each page its own
+	 * stable component names for tests and diagnostics.
+	 */
+	static JPanel recentProjectsPanel(List<RecentProjectStore.Entry> entries,
+			Consumer<RecentProjectStore.Entry> openAction, Function<String, String> label, String namePrefix,
+			String headingText) {
 		JPanel recent = new JPanel(new BorderLayout(0, 8));
-		recent.setName("officeBackstageOpenRecent");
+		recent.setName(namePrefix + "Recent");
 		recent.setOpaque(false);
-		JLabel heading = new JLabel(label.apply("recentItems"));
-		heading.setName("officeBackstageOpenRecentHeading");
+		JLabel heading = new JLabel(headingText);
+		heading.setName(namePrefix + "RecentHeading");
 		heading.setBorder(BorderFactory.createEmptyBorder(0, 0, 4, 0));
 		recent.add(heading, BorderLayout.NORTH);
 		if (entries.isEmpty()) {
 			JLabel empty = new JLabel(label.apply("empty"));
-			empty.setName("officeBackstageOpenEmpty");
+			empty.setName(namePrefix + "Empty");
 			empty.setBorder(BorderFactory.createEmptyBorder(24, 0, 0, 0));
 			recent.add(empty, BorderLayout.CENTER);
 		} else {
 			JList<RecentProjectStore.Entry> list = new JList<>(entries.toArray(RecentProjectStore.Entry[]::new));
-			list.setName("officeBackstageOpenRecentList");
+			list.setName(namePrefix + "RecentList");
 			list.setCellRenderer(new RecentEntryRenderer(label));
 			list.setVisibleRowCount(12);
 			list.setFixedCellHeight(52);
@@ -196,7 +204,7 @@ public final class BackstageOpenPage extends JPanel {
 		if (entry != null) openAction.accept(entry);
 	}
 
-	private static JList<RecentProjectStore.Entry> findRecentList(JPanel recent) {
+	static JList<RecentProjectStore.Entry> findRecentList(JPanel recent) {
 		JList<RecentProjectStore.Entry> found = null;
 		for (Component component : recent.getComponents()) {
 			if (component instanceof JScrollPane scroll && scroll.getViewport().getView() instanceof JList<?> list) {
@@ -208,9 +216,9 @@ public final class BackstageOpenPage extends JPanel {
 		return found;
 	}
 
-	private static JLabel findEmptyMessage(JPanel recent) {
+	private static JLabel findEmptyMessage(JPanel recent, String namePrefix) {
 		for (Component component : recent.getComponents())
-			if (component instanceof JLabel label && "officeBackstageOpenEmpty".equals(label.getName()))
+			if (component instanceof JLabel label && (namePrefix + "Empty").equals(label.getName()))
 				return label;
 		return null;
 	}

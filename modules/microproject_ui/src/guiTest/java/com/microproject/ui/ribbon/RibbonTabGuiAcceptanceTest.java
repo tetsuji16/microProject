@@ -700,10 +700,15 @@ class RibbonTabGuiAcceptanceTest {
 			assertTrue(namedComponent(backstage, "officeBackstageNavigation") != null, "Backstage navigation pane is missing");
 			assertTrue(namedComponent(backstage, "officeBackstageDetails") != null, "Backstage detail pane is missing");
 			assertTrue(namedComponent(backstage, "officeBackstageNav-share") == null, "Unsupported Share destination must not be exposed");
+			assertTrue(namedComponent(backstage, "officeBackstageNav-home") != null, "Home destination is missing");
+			assertTrue(((AbstractButton) namedComponent(backstage, "officeBackstageNav-home")).isSelected(),
+				"Opening Backstage must select Home first");
+			assertTrue(namedComponent(backstage, "officeBackstagePage-home") != null, "Home page is not rendered first");
 			assertTrue(namedComponent(backstage, "officeBackstageNav-info") != null, "Project Info destination is missing");
 			assertTrue(namedComponent(backstage, "officeBackstageNav-options") != null, "Options destination is missing");
-			assertTrue(namedComponent(backstage, "officeBackstageNav-account") == null,
-				"Account destination must be absent without an account/licensing service");
+			AbstractButton account = (AbstractButton) namedComponent(backstage, "officeBackstageNav-account");
+			assertTrue(account != null && account.isShowing(),
+				"Account destination must exist as a product-information page without a sign-in service");
 			AbstractButton newProject = (AbstractButton)namedComponent(backstage, "officeBackstageCommand-RibbonNewProject");
 			assertTrue(newProject != null && newProject.isShowing(), "New must be available in Backstage details");
 			assertTrue(newProject.isEnabled(), "New must be enabled on the File ribbon without a document");
@@ -712,7 +717,7 @@ class RibbonTabGuiAcceptanceTest {
 			assertEquals(com.microproject.ui.theme.MicroProjectTheme.tokens().backstageNavigationBackground(),
 				navigation.getBackground(), "Backstage navigation must use the theme's accent navigation colour");
 			int previousY = namedComponent(backstage, "officeBackstageBack").getLocationOnScreen().y;
-			for (String page : new String[] { "new", "open", "info", "save", "saveAs", "print", "export", "close", "options" }) {
+			for (String page : new String[] { "home", "new", "open", "info", "save", "saveAs", "print", "export", "close", "account", "options" }) {
 				Component destination = namedComponent(backstage, "officeBackstageNav-" + page);
 				assertTrue(destination != null && destination.isShowing(), "Backstage destination is not visible: " + page);
 				int y = destination.getLocationOnScreen().y;
@@ -768,6 +773,21 @@ class RibbonTabGuiAcceptanceTest {
 		assertTrue(namedComponent(frame.getRootPane(), "officeBackstageCommand-RibbonBackstageOptions") != null,
 			"Options destination omitted the existing General Options action");
 		captureVisibleRibbon(robot, "ribbon-file-backstage-options.png");
+		clickCommand(robot, (AbstractButton)namedComponent(frame.getRootPane(), "officeBackstageNav-account"));
+		JComponent accountPage = (JComponent) namedComponent(frame.getRootPane(), "officeBackstageAccountPage");
+		assertTrue(accountPage != null && accountPage.isShowing(),
+			"Account page must render product information without a sign-in service");
+		assertTrue(namedComponent(frame.getRootPane(), "officeBackstageAccountTheme") instanceof javax.swing.JComboBox<?> theme
+			&& theme.getItemCount() == 2, "Account must expose the light/dark theme selector");
+		StringBuilder accountText = new StringBuilder();
+		for (Component component : UiComponentWalker.flatten(accountPage)) {
+			if (component instanceof JLabel label && label.getText() != null) accountText.append(label.getText()).append(' ');
+			if (component instanceof AbstractButton button && button.getText() != null) accountText.append(button.getText()).append(' ');
+		}
+		String accountCopy = accountText.toString().toLowerCase(Locale.ROOT);
+		assertTrue(!accountCopy.contains("sign in") && !accountCopy.contains("microsoft 365")
+			&& !accountCopy.contains("connected"), "Account must not offer sign-in or connected services: " + accountCopy);
+		captureVisibleRibbon(robot, "ribbon-file-backstage-account.png");
 		clickCommand(robot, (AbstractButton)namedComponent(frame.getRootPane(), "officeBackstageNav-new"));
 		String actionId = manager.getToolBarFactory().getActionStringFromId("RibbonNewProject");
 		int before = actions.count(actionId);

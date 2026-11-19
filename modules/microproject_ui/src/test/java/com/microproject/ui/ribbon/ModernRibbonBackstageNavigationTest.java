@@ -46,7 +46,7 @@ import com.microproject.util.FlatUiSupport;
 /** Issue #1115: the File/Backstage navigation follows the Microsoft Project layout and the accent colour. */
 class ModernRibbonBackstageNavigationTest {
 	private static final List<String> SCROLLING_DESTINATIONS =
-		List.of("new", "open", "info", "save", "saveAs", "print", "export", "close");
+		List.of("home", "new", "open", "info", "save", "saveAs", "print", "export", "close", "account");
 
 	private boolean originalDark;
 
@@ -90,6 +90,8 @@ class ModernRibbonBackstageNavigationTest {
 
 			JComponent destinations = named(backstage, "officeBackstageDestinations");
 			assertEquals(SCROLLING_DESTINATIONS, navigationIds(destinations));
+			assertTrue(((AbstractButton) named(backstage, "officeBackstageNav-home")).isSelected(),
+				"the Home destination is selected when Backstage opens");
 			assertTrue(SwingUtilities.getAncestorOfClass(JScrollPane.class, destinations) != null,
 				"the destinations scroll when the window is short");
 			JComponent pinned = named(backstage, "officeBackstagePinned");

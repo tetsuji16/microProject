@@ -99,7 +99,9 @@ import com.microproject.ribbon.SwingRibbonModel;
 import com.microproject.ribbon.RibbonTheme;
 import com.microproject.application.RecentProjectStore;
 import com.microproject.dialog.PageSetupDialog;
+import com.microproject.dialog.UpdateChecker;
 import com.microproject.dialog.UsabilityStrings;
+import com.microproject.preference.GlobalPreferences;
 import com.microproject.print.GraphPageable;
 import com.microproject.print.PDFPrintService;
 import com.microproject.print.PageSetup;
@@ -108,15 +110,21 @@ import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.task.Project;
+import com.microproject.strings.Messages;
 import com.microproject.ui.input.PopupTriggerController;
+import com.microproject.ui.ribbon.backstage.BackstageAccountPage;
 import com.microproject.ui.ribbon.backstage.BackstageExportPage;
 import com.microproject.ui.ribbon.backstage.BackstageInfoPage;
 import com.microproject.ui.ribbon.backstage.BackstageOpenPage;
 import com.microproject.ui.ribbon.backstage.BackstageSaveAsPage;
 import com.microproject.ui.ribbon.backstage.BackstagePrintPage;
+import com.microproject.ui.ribbon.backstage.BackstageHomePage;
 import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.ui.theme.MicroProjectThemeTokens;
+import com.microproject.ui.theme.ThemeManager;
 import com.microproject.util.ColorLuminance;
+import com.microproject.util.FlatUiSupport;
+import com.microproject.util.VersionUtils;
 
 public final class ModernRibbonPanel extends JPanel implements RibbonController {
 	/** @deprecated Use {@link RibbonController#CONTEXTUAL_TABS_PROPERTY}. */
@@ -822,9 +830,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	}
 
 	private java.util.List<BackstagePage> backstagePages() {
-		SwingRibbonModel.RibbonTab fileTab = model.getTabs().stream()
-			.filter(tab -> isBackstageTab(tab.getId())).findFirst()
-			.orElseThrow(() -> new IllegalStateException("The ribbon model has no File/Backstage tab"));
+		SwingRibbonModel.RibbonTab fileTab = fileTab();
 		Map<String, List<SwingRibbonModel.RibbonButton>> buttonsByPage = new LinkedHashMap<>();
 		int declaredCommandCount = 0;
 		for (SwingRibbonModel.RibbonBand band : fileTab.getBands()) {
@@ -835,10 +841,10 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 				}
 			}
 		}
+		List<String> pageIds = resolveList("FileBackstagePages");
 		List<BackstagePage> pages = new ArrayList<>();
-		for (String pageId : resolveList("FileBackstagePages")) {
+		for (String pageId : pageIds) {
 			List<SwingRibbonModel.RibbonButton> commands = buttonsByPage.getOrDefault(pageId, List.of());
-			if (commands.isEmpty()) throw new IllegalStateException("Backstage page has no commands: " + pageId);
 			List<SwingRibbonModel.RibbonButton> immediate = commands.stream()
 				.filter(SwingRibbonModel.RibbonButton::isBackstageImmediate).toList();
 			if (immediate.size() > 1 || (!immediate.isEmpty() && commands.size() != 1)) {
@@ -848,7 +854,10 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 				immediate.isEmpty() ? null : immediate.getFirst().getId(), commands));
 		}
 		int backstageCommandCount = buttonsByPage.values().stream().mapToInt(List::size).sum();
-		if (backstageCommandCount != declaredCommandCount || pages.size() != buttonsByPage.size()) {
+		// Home and Account are product destinations rendered from application state,
+		// not from File-tab command metadata. Every declared command must still have
+		// a declared page, and no page may reference commands outside the File tab.
+		if (backstageCommandCount != declaredCommandCount || !pageIds.containsAll(buttonsByPage.keySet())) {
 			throw new IllegalStateException("File/Backstage command metadata has pages outside FileBackstagePages order");
 		}
 		return List.copyOf(pages);
@@ -871,6 +880,14 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		content.add(title, BorderLayout.NORTH);
 		if ("open".equals(page.id())) {
 			content.add(createBackstageOpenPage(page), BorderLayout.CENTER);
+			return content;
+		}
+		if ("home".equals(page.id())) {
+			content.add(createBackstageHomePage(page), BorderLayout.CENTER);
+			return content;
+		}
+		if ("account".equals(page.id())) {
+			content.add(createBackstageAccountPage(page), BorderLayout.CENTER);
 			return content;
 		}
 		if ("info".equals(page.id())) {
@@ -929,6 +946,65 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		AbstractButton browse = backstageCommandButton(page, "RibbonOpenProject", "FileBackstage.open.browse");
 		return new BackstageOpenPage(new RecentProjectStore().entries(), recentItems, browse,
 				this::openRecentFromBackstage, this::localized);
+	}
+
+	/**
+	 * Builds the Home page: the existing New project command above the same
+	 * recent-files component the Open page uses. Home deliberately has no online
+	 * templates or recommendations.
+	 */
+	private JComponent createBackstageHomePage(BackstagePage page) {
+		AbstractButton newProject = backstageFileCommandButton("RibbonNewProject", "FileBackstage.home.newProject");
+		return new BackstageHomePage(newProject, new RecentProjectStore().entries(),
+				this::openRecentFromBackstage, this::localized);
+	}
+
+	/**
+	 * Builds the sign-in-free Account page: product facts, the existing update and
+	 * About actions and the application's theme switch. No account or cloud
+	 * service control is created.
+	 */
+	private JComponent createBackstageAccountPage(BackstagePage page) {
+		String version = VersionUtils.getVersion();
+		BackstageAccountPage.ProductInfo product = new BackstageAccountPage.ProductInfo(
+				Messages.getContextString("Text.ShortTitle"),
+				version == null || version.isBlank() ? localized("FileBackstage.account.unknownVersion") : version,
+				localized("FileBackstage.account.licenseValue"));
+		Runnable checkForUpdates = () -> UpdateChecker.checkInBackground(new GlobalPreferences());
+		Runnable about = () -> closeBackstageAndDispatch("RibbonAboutMicroProject");
+		return new BackstageAccountPage(product, FlatUiSupport.isDarkTheme(), checkForUpdates, about,
+				ThemeManager::applyTheme, this::localized);
+	}
+
+	/** Creates a fresh Backstage-safe control for an existing File-tab command. */
+	private AbstractButton backstageFileCommandButton(String commandId, String textKey) {
+		AbstractButton button = createLargeBackstageButton(fileCommand(commandId));
+		button.setName("officeBackstageCommand-" + commandId);
+		button.setText(localized(textKey));
+		return button;
+	}
+
+	private SwingRibbonModel.RibbonButton fileCommand(String commandId) {
+		return fileTab().getBands().stream().flatMap(band -> band.getButtons().stream())
+				.filter(command -> commandId.equals(command.getId())).findFirst()
+				.orElseThrow(() -> new IllegalStateException("File tab is missing command: " + commandId));
+	}
+
+	private SwingRibbonModel.RibbonTab fileTab() {
+		return model.getTabs().stream().filter(tab -> isBackstageTab(tab.getId())).findFirst()
+				.orElseThrow(() -> new IllegalStateException("The ribbon model has no File/Backstage tab"));
+	}
+
+	private void closeBackstageAndDispatch(String commandId) {
+		String restoreTab = closeBackstage(false);
+		SwingUtilities.invokeLater(() -> {
+			try {
+				commandSource.dispatch(new RibbonCommandInvocation(commandId,
+						RibbonCommandInvocation.Origin.INPUT_CONTROL, this, null));
+			} finally {
+				requestTabFocusAfterBackstage(restoreTab);
+			}
+		});
 	}
 
 	/** Builds the Office-style Save As page from existing Save As commands and recent folders. */
