@@ -37,6 +37,12 @@ class EarnedValueProjectValuesTest {
 	private static final long HOUR_MILLIS = 3_600_000L;
 	private static final double BUDGET = RATE_PER_HOUR * 80L * HOUR_MILLIS;
 	private static final double ACTUAL_COST = RATE_PER_HOUR * 40L * HOUR_MILLIS;
+	// Three calendar days after the start, 16 of the 80 baseline hours have elapsed and the
+	// fixture's 40 actual hours have spent the same 16 hours; the status date earns 8 hours
+	// because the task is a quarter complete over its longer 20-day duration.
+	private static final double BCWS_AT_STATUS_DATE = RATE_PER_HOUR * 16L * HOUR_MILLIS;
+	private static final double BCWP_AT_STATUS_DATE = RATE_PER_HOUR * 8L * HOUR_MILLIS;
+	private static final double ACWP_AT_STATUS_DATE = RATE_PER_HOUR * 16L * HOUR_MILLIS;
 
 	@Test
 	void indicatorsFollowTheStatusDateAndSurviveAnMpoRoundTrip() throws Exception {
@@ -58,18 +64,16 @@ class EarnedValueProjectValuesTest {
 		assertEquals(ACTUAL_COST, task.getActualCost(null), 1.0D, "40 actual hours cost the full actual cost");
 
 		// Part way through the plan the three values are the elapsed, earned and spent parts of it.
-		double bcwsMid = task.getBcws(null);
-		double bcwpMid = task.getBcwp(null);
-		double acwpMid = task.getAcwp(null);
-		assertTrue(bcwsMid > 0.0D && bcwsMid < BUDGET, "BCWS covers only the elapsed baseline: " + bcwsMid);
-		assertTrue(bcwpMid > 0.0D && bcwpMid < bcwsMid,
-			"BCWP earns half of the scheduled value in this fixture: " + bcwpMid + " against " + bcwsMid);
-		assertTrue(acwpMid > 0.0D && acwpMid < ACTUAL_COST,
-			"ACWP covers only the cost incurred by the status date: " + acwpMid);
-		assertEquals(bcwpMid - acwpMid, task.getCv(null), 1.0D, "CV = BCWP - ACWP");
-		assertEquals(bcwpMid - bcwsMid, task.getSv(null), 1.0D, "SV = BCWP - BCWS");
-		assertEquals(bcwpMid / acwpMid, task.getCpi(null), 0.0001D, "CPI = BCWP / ACWP");
-		assertEquals(bcwpMid / bcwsMid, task.getSpi(null), 0.0001D, "SPI = BCWP / BCWS");
+		assertEquals(BCWS_AT_STATUS_DATE, task.getBcws(null), 1.0D,
+			"BCWS is the 16 elapsed hours of the 80-hour baseline");
+		assertEquals(BCWP_AT_STATUS_DATE, task.getBcwp(null), 1.0D,
+			"BCWP is the 8 hours earned at the status date");
+		assertEquals(ACWP_AT_STATUS_DATE, task.getAcwp(null), 1.0D,
+			"ACWP is the 16 hours already spent at the status date");
+		assertEquals(BCWP_AT_STATUS_DATE - ACWP_AT_STATUS_DATE, task.getCv(null), 1.0D, "CV = BCWP - ACWP");
+		assertEquals(BCWP_AT_STATUS_DATE - BCWS_AT_STATUS_DATE, task.getSv(null), 1.0D, "SV = BCWP - BCWS");
+		assertEquals(0.5D, task.getCpi(null), 0.0001D, "CPI = BCWP / ACWP");
+		assertEquals(0.5D, task.getSpi(null), 0.0001D, "SPI = BCWP / BCWS");
 
 		// A status date at the finish schedules the whole baseline; the earned value is then the
 		// completed share of it and the spent value is the full actual cost.
@@ -89,9 +93,9 @@ class EarnedValueProjectValuesTest {
 		assertEquals(project.getStatusDate(), reloaded.getStatusDate(), "the status date survives the round trip");
 		assertEquals(BUDGET, reloadedTask.getBac(null), 1.0D);
 		assertEquals(ACTUAL_COST, reloadedTask.getActualCost(null), 1.0D);
-		assertEquals(bcwsMid, reloadedTask.getBcws(null), 1.0D);
-		assertEquals(bcwpMid, reloadedTask.getBcwp(null), 1.0D);
-		assertEquals(acwpMid, reloadedTask.getAcwp(null), 1.0D);
+		assertEquals(BCWS_AT_STATUS_DATE, reloadedTask.getBcws(null), 1.0D);
+		assertEquals(BCWP_AT_STATUS_DATE, reloadedTask.getBcwp(null), 1.0D);
+		assertEquals(ACWP_AT_STATUS_DATE, reloadedTask.getAcwp(null), 1.0D);
 		assertEquals(task.getCv(null), reloadedTask.getCv(null), 1.0D);
 		assertEquals(task.getSv(null), reloadedTask.getSv(null), 1.0D);
 		assertEquals(task.getCpi(null), reloadedTask.getCpi(null), 0.0001D);
