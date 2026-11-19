@@ -71,6 +71,7 @@ import javax.swing.Box;
 import javax.swing.ButtonGroup;
 import javax.swing.Icon;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
@@ -85,6 +86,7 @@ import javax.swing.JToggleButton;
 import javax.swing.InputMap;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.print.PrintService;
 import javax.swing.SwingConstants;
 import javax.swing.border.Border;
 
@@ -95,7 +97,12 @@ import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.ribbon.SwingRibbonModel;
 import com.microproject.ribbon.RibbonTheme;
 import com.microproject.application.RecentProjectStore;
+import com.microproject.dialog.PageSetupDialog;
 import com.microproject.dialog.UsabilityStrings;
+import com.microproject.print.GraphPageable;
+import com.microproject.print.PDFPrintService;
+import com.microproject.print.PageSetup;
+import com.microproject.print.PrintDocumentFactory;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.GraphicManager;
@@ -103,6 +110,7 @@ import com.microproject.pm.task.Project;
 import com.microproject.ui.input.PopupTriggerController;
 import com.microproject.ui.ribbon.backstage.BackstageInfoPage;
 import com.microproject.ui.ribbon.backstage.BackstageOpenPage;
+import com.microproject.ui.ribbon.backstage.BackstagePrintPage;
 import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.ui.theme.MicroProjectThemeTokens;
 import com.microproject.util.ColorLuminance;
@@ -866,6 +874,10 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			content.add(createBackstageInfoPage(page), BorderLayout.CENTER);
 			return content;
 		}
+		if ("print".equals(page.id())) {
+			content.add(createBackstagePrintPage(page), BorderLayout.CENTER);
+			return content;
+		}
 		JPanel commands = new JPanel(new java.awt.GridBagLayout());
 		commands.setOpaque(false);
 		java.awt.GridBagConstraints constraints = new java.awt.GridBagConstraints();
@@ -906,6 +918,187 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		AbstractButton browse = backstageCommandButton(page, "RibbonOpenProject", "FileBackstage.open.browse");
 		return new BackstageOpenPage(new RecentProjectStore().entries(), recentItems, browse,
 				this::openRecentFromBackstage, this::localized);
+	}
+
+	/**
+	 * Builds the Office-style Print page. The caller supplies every value and action;
+	 * neither opening the page nor changing a setting creates a print job or mutates
+	 * project data. The preview reuses the existing {@link GraphPageable} rendering.
+	 */
+	private JComponent createBackstagePrintPage(BackstagePage page) {
+		DocumentFrame frame = GraphicManager.getDocumentFrameInstance();
+		final GraphPageable document = createBackstagePrintDocument(frame);
+
+		List<String> printers = new ArrayList<>();
+		String activePrinter = "";
+		if (document != null) {
+			for (PrintService service : document.getPrintServices()) {
+				if (!(service instanceof PDFPrintService)) printers.add(service.getName());
+			}
+			PrintService selected = document.getPrintService();
+			if (selected != null && !(selected instanceof PDFPrintService)) activePrinter = selected.getName();
+		}
+
+		java.awt.print.PageFormat format = document == null ? null : document.getPageFormat();
+		String portrait = localized("FileBackstage.print.portrait");
+		String landscape = localized("FileBackstage.print.landscape");
+		String orientation = format != null && format.getOrientation() == java.awt.print.PageFormat.LANDSCAPE
+				? landscape : portrait;
+		List<String> paperSizes = List.of(localized("FileBackstage.print.paperA4"),
+				localized("FileBackstage.print.paperLetter"), localized("FileBackstage.print.paperLegal"));
+		String paperSize = paperSizes.getFirst();
+		BackstagePrintPage.Settings settings = new BackstagePrintPage.Settings(1, printers, activePrinter,
+				List.of(localized("FileBackstage.print.all"), localized("FileBackstage.print.currentPage"),
+						localized("FileBackstage.print.selection")),
+				localized("FileBackstage.print.all"),
+				List.of(portrait, landscape), orientation, paperSizes, paperSize);
+
+		Map<String, AbstractButton> commands = new LinkedHashMap<>();
+		for (SwingRibbonModel.RibbonButton specification : page.commands())
+			commands.put(specification.getId(), createButton(specification, true));
+		AbstractButton printButton = commands.get("RibbonPrint");
+		if (printButton == null) throw new IllegalStateException("Print page is missing RibbonPrint command");
+		printButton.setName("officeBackstageCommand-RibbonPrint");
+		printButton.setText(localized("FileBackstage.print.print"));
+		printButton.setPreferredSize(new Dimension(300, 34));
+		printButton.setHorizontalAlignment(SwingConstants.LEFT);
+		closeBackstageBeforeCommand(printButton);
+
+		AbstractButton previewButton = commands.get("RibbonPrintPreview");
+		if (previewButton == null) throw new IllegalStateException("Print page is missing RibbonPrintPreview command");
+		previewButton.setName("officeBackstageCommand-RibbonPrintPreview");
+		closeBackstageBeforeCommand(previewButton);
+
+		AbstractButton pdfButton = commands.get("RibbonPDF");
+		if (pdfButton == null) throw new IllegalStateException("Print page is missing RibbonPDF command");
+		pdfButton.setName("officeBackstageCommand-RibbonPDF");
+		closeBackstageBeforeCommand(pdfButton);
+
+		JComponent preview = createBackstagePrintPreview(document, previewButton, pdfButton);
+
+		BackstagePrintPage.Actions actions = new BackstagePrintPage.Actions() {
+			@Override public void openPageSetup() {
+				if (document == null) return;
+				try {
+					GraphicManager manager = GraphicManager.getInstance();
+					java.awt.Frame owner = manager == null ? null : manager.getFrame();
+					PageSetupDialog.getInstance(owner, PageSetup.getInstance(document)).setVisible(true);
+				} catch (RuntimeException ignored) {
+					// A preview-only settings failure must not surface as an error dialog.
+				}
+			}
+			@Override public void settingsChanged() {
+				if (document != null) {
+					try { document.update(); } catch (RuntimeException ignored) { }
+				}
+				preview.revalidate();
+				preview.repaint();
+			}
+		};
+		BackstagePrintPage printPage = new BackstagePrintPage(settings, printButton, preview, actions, this::localized);
+		if (document == null) {
+			// Without an active document there are no print settings to evaluate.
+			// Keep the canonical command enabled so it stays physically routable;
+			// the existing print command itself is a no-op without a document.
+			printButton.setEnabled(true);
+		}
+		return printPage;
+	}
+
+	/** Creates a preview-only pageable without a print job; null when no document is available. */
+	private static GraphPageable createBackstagePrintDocument(DocumentFrame frame) {
+		if (frame == null) return null;
+		try {
+			return PrintDocumentFactory.getInstance().createDocument(frame, false, false);
+		} catch (RuntimeException ignored) {
+			return null; // show an empty preview instead of an error dialog
+		}
+	}
+
+	/** Wraps the existing GraphPageable page renderer with Backstage page/zoom controls. */
+	private JComponent createBackstagePrintPreview(GraphPageable document, AbstractButton previewButton,
+			AbstractButton pdfButton) {
+		JPanel root = new JPanel(new BorderLayout());
+		root.setName("officeBackstagePrintPreview");
+		JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
+		JButton previous = new JButton("<");
+		JButton next = new JButton(">");
+		JLabel pageLabel = new JLabel();
+		JComboBox<String> zoom = new JComboBox<>(new String[] { "50%", "75%", "100%", "125%", "150%" });
+		zoom.setSelectedItem("75%");
+		previous.setName("officeBackstagePrintPreviousPage");
+		next.setName("officeBackstagePrintNextPage");
+		pageLabel.setName("officeBackstagePrintPageNumber");
+		zoom.setName("officeBackstagePrintZoom");
+		BackstagePrintPreviewPanel panel = document == null ? null : new BackstagePrintPreviewPanel(document, pageLabel);
+		previous.addActionListener(event -> { if (panel != null) panel.previousPage(); });
+		next.addActionListener(event -> { if (panel != null) panel.nextPage(); });
+		zoom.addActionListener(event -> {
+			if (panel == null) return;
+			String value = String.valueOf(zoom.getSelectedItem());
+			try { panel.setZoom(Integer.parseInt(value.replace("%", "")) / 100.0); }
+			catch (NumberFormatException ignored) { }
+		});
+		controls.add(previous);
+		controls.add(next);
+		controls.add(pageLabel);
+		controls.add(zoom);
+		controls.add(previewButton);
+		controls.add(pdfButton);
+		root.add(controls, BorderLayout.NORTH);
+		root.add(panel == null
+				? new JLabel(localized("FileBackstage.print.previewUnavailable"))
+				: new JScrollPane(panel), BorderLayout.CENTER);
+		return root;
+	}
+
+	/** Renders the current GraphPageable page through the existing print pipeline. */
+	private static final class BackstagePrintPreviewPanel extends JPanel {
+		private static final long serialVersionUID = 1L;
+		private final GraphPageable document;
+		private final JLabel pageLabel;
+		private int pageIndex;
+		private double zoom = 0.75;
+
+		BackstagePrintPreviewPanel(GraphPageable document, JLabel pageLabel) {
+			this.document = document;
+			this.pageLabel = pageLabel;
+			setName("officeBackstagePrintPreviewCanvas");
+			setPreferredSize(new Dimension(560, 720));
+			updatePageLabel();
+		}
+		void previousPage() {
+			if (pageIndex > 0) { pageIndex--; updatePageLabel(); repaint(); }
+		}
+		void nextPage() {
+			if (pageIndex < Math.max(0, document.getNumberOfPages() - 1)) {
+				pageIndex++; updatePageLabel(); repaint();
+			}
+		}
+		void setZoom(double value) { zoom = value; revalidate(); repaint(); }
+		private void updatePageLabel() {
+			pageLabel.setText((pageIndex + 1) + " / " + Math.max(1, document.getNumberOfPages()));
+		}
+		@Override protected void paintComponent(Graphics graphics) {
+			super.paintComponent(graphics);
+			Graphics2D g2 = (Graphics2D) graphics.create();
+			try {
+				g2.setColor(Color.WHITE);
+				g2.fillRect(0, 0, getWidth(), getHeight());
+				double pageWidth = document.getPageFormat().getWidth();
+				double pageHeight = document.getPageFormat().getHeight();
+				double scale = Math.min((getWidth() - 24) / pageWidth, (getHeight() - 24) / pageHeight) * zoom;
+				g2.translate((getWidth() - pageWidth * scale) / 2, (getHeight() - pageHeight * scale) / 2);
+				g2.scale(scale, scale);
+				g2.setColor(Color.WHITE);
+				g2.fillRect(0, 0, (int) pageWidth, (int) pageHeight);
+				document.printWithDefault(g2, pageIndex);
+			} catch (Exception ignored) {
+				// A failed render leaves the empty page visible; no error dialog is shown.
+			} finally {
+				g2.dispose();
+			}
+		}
 	}
 
 	/** Shared large Backstage card button, used by the card grid and the Info page. */
