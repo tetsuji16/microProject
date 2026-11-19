@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.snapshot.Snapshottable;
+import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
