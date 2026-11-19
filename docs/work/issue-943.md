@@ -40,11 +40,13 @@ Blockers: none known.
 - Local verification on code SHA `0be6535bfce1f3ad9b5c36bced1b8777e1946914` (packet-only changes followed): `./gradlew.bat verifyArchitectureBoundaries verifyArchitectureBoundaryFixtures verifyNamingConventions build installDist --console=plain` — `BUILD SUCCESSFUL` (57 actionable tasks).
 - Current branch is based on `master` commit `5e3a665d3`. All acceptance rows pass; no implementation blockers remain. PR #949 is ready for review/merge, after which #943 can be closed.
 
-## Known-value regression for A2/A3 (branch `issue/943-evm-known-values`, PR #1263)
+## Known-value regression for A2/A3 (PR #1269, follow-up to the merged PR #1263)
 
 `EarnedValueProjectValuesTest` (`microproject_ui` test source) replaces the "> 0" checks with a fixture whose dates, budget and actuals are fixed. The project start is pinned to Monday 2026-11-16 08:00 JST **before** `initialize`, because a project without a start lets `initialize` schedule a background `recalculate()`/`setStart()` from the current clock; without that pin the elapsed part of the baseline — and therefore BCWS, BCWP and ACWP — changes with the run date.
 
 Fixture: 10 working days at the default 8-hour day (80 h) at $60/h, saved as Baseline; the work then doubles to 20 days and 40 h are reported as actual (5 of 20 days, 25% complete).
+
+The merged version of this test (#1263) pinned the mid-plan values to 16 h while still letting the clock choose the start. A run on a weekend snaps the start to Friday 17:00, the 24-hour status-date window then covers one working day, and BCWS comes out as 8 h — measured — so those dates failed. The fixed start removes the dependency instead of widening the tolerance.
 
 | Value | Hand calculation | Asserted |
 |---|---|---|
