@@ -33,6 +33,7 @@ import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.contour.ContourTypes;
 import com.microproject.strings.Messages;
+import com.microproject.ui.util.PopupDialogSupport;
 
 /** Assignment-scoped editing surface for usage views. Values are committed together on OK. */
 public final class AssignmentInformationDialog extends AbstractDialog {
@@ -143,9 +144,9 @@ public final class AssignmentInformationDialog extends AbstractDialog {
 			AssignmentInformationEditService.apply(assignment, selectedUnits, selectedContour, selectedNotes, this);
 			super.onOk();
 		} catch (Exception failure) {
-			javax.swing.JOptionPane.showMessageDialog(this, failure.getMessage(),
-				Messages.getString("AssignmentInformationDialog.title"), JOptionPane.ERROR_MESSAGE);
-		}
+					PopupDialogSupport.showMessageDialog(this, failure.getMessage(),
+						Messages.getString("AssignmentInformationDialog.title"), JOptionPane.ERROR_MESSAGE);
+				}
 	}
 
 	static void readNotes(JTextPane pane, String value) {
