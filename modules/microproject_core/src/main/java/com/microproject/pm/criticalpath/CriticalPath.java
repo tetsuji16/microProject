@@ -72,6 +72,14 @@ public class CriticalPath implements SchedulingAlgorithm {
 	private final List<Task> deferredTaskOrderRebuild = new ArrayList<>();
 	private final Set<Task> deferredTaskOrderSet = Collections.newSetFromMap(new IdentityHashMap<>());
 	private final Set<Task> deferredDependencyInvalidationSeeds = Collections.newSetFromMap(new IdentityHashMap<>());
+	/**
+	 * The single start task named by every calculation request deferred while updates
+	 * are suspended, or null.  {@link #deferredFullCalculation} is set as soon as a
+	 * request names no task or a different task, so the batch falls back to a pass
+	 * from the boundary sentinel.
+	 */
+	private Task deferredCalculationTask = null;
+	private boolean deferredFullCalculation = false;
 	private final Map<Task, Dependency> startSentinelDependencyIndex = new IdentityHashMap<>();
 	private final Map<Task, Dependency> finishSentinelDependencyIndex = new IdentityHashMap<>();
 	long earliestStart;
@@ -315,8 +323,13 @@ public class CriticalPath implements SchedulingAlgorithm {
 			fireScheduleChanged();
 	}
 	private void calculate(final boolean update, final Task task) {
-		if (suspendUpdates)
+		if (suspendUpdates) {
+			if (task == null || (deferredCalculationTask != null && deferredCalculationTask != task))
+				deferredFullCalculation = true;
+			else
+				deferredCalculationTask = task;
 			return;
+		}
 		_calculate(update,task);
 		// Keep scheduling synchronous because callers require immediate updates (bug 225).
 	}
@@ -580,6 +593,12 @@ public class CriticalPath implements SchedulingAlgorithm {
 	public void multipleTransaction(MultipleTransaction objectEvent) {
 		if (objectEvent.isFinalEnd()) {
 			suspendUpdates = false;
+			// A batch whose deferred requests all named one task, with no structural
+			// change pending, is recalculated from that task as an unbatched event would be.
+			Task startTask = deferredFullCalculation || needsReset || !deferredTaskOrderRebuild.isEmpty()
+					|| !deferredDependencyInvalidationSeeds.isEmpty() ? null : deferredCalculationTask;
+			deferredCalculationTask = null;
+			deferredFullCalculation = false;
 			if (!deferredTaskOrderRebuild.isEmpty()) {
 				predecessorTaskList.addAll(project.getTaskList());
 				setProjectBoundaries();
@@ -594,8 +613,12 @@ public class CriticalPath implements SchedulingAlgorithm {
 				deferredDependencyInvalidationSeeds.clear();
 				Task.markDependentClosureAsNeedingRecalculation(seeds);
 			}
-			calculate(true,null);
+			calculate(true,startTask);
 		} else {
+			if (!suspendUpdates) {
+				deferredCalculationTask = null;
+				deferredFullCalculation = false;
+			}
 			suspendUpdates = true;
 		}
 		

@@ -85,6 +85,12 @@ public final class TaskSchedule implements Cloneable {
 	private transient boolean forward = true;
 	private transient long dependencyDate = Dependency.NEEDS_CALCULATION;
 	private transient long remainingDependencyDate = 0;
+	/**
+	 * The summary bound most recently pushed to this summary's children, or 0 when
+	 * the children must be flagged again.  It stays valid only while
+	 * {@link #dependencyDate} still holds that bound, so any other write clears it.
+	 */
+	private transient long childBound = 0L;
 	
 	public TaskSchedule() {
 		
@@ -105,6 +111,7 @@ public final class TaskSchedule implements Cloneable {
 		this.type = type;
 		updateForwardFromType();
 		dependencyDate = Dependency.NEEDS_CALCULATION;
+		childBound = 0L;
 		invalidate();
 	}
 	
@@ -200,14 +207,17 @@ public final class TaskSchedule implements Cloneable {
 		start = 0;
 		finish = 0;
 		dependencyDate = Dependency.NEEDS_CALCULATION;
+		childBound = 0L;
 	}
 	public void copyDatesAfterClone(TaskSchedule from) {
 		start = from.start;
 		finish = from.finish;
 		dependencyDate = from.dependencyDate;
+		childBound = 0L;
 	}
 	final void invalidateDependencyDate() {
 		dependencyDate = Dependency.NEEDS_CALCULATION;
+		childBound = 0L;
 	}
 	/**
 	 * @return Returns the percentComplete.
@@ -242,6 +252,8 @@ public final class TaskSchedule implements Cloneable {
 		return dependencyDate;
 	}
 	public final void setDependencyDate(long dependencyDate) {
+		if (dependencyDate != childBound)
+			childBound = 0L;
 		this.dependencyDate = dependencyDate;
 	}
 	public final long getFinish() {
@@ -370,8 +382,14 @@ public final class TaskSchedule implements Cloneable {
 		if (context.taskReferenceKind == PredecessorTaskList.TaskReference.Kind.PARENT_BEGIN) {
 			if (oldBegin != newBegin) { // if parent start (finish) changed, then all of its children need to me marked
 				
-				flagChildren();
+				// The begin stored here is usually the date aggregated from the children,
+				// so it differs from the summary's own bound on most visits.  The children
+				// only need recalculation when the bound pushed to them changes.
+				if (childBound == 0L || childBound != newBegin) {
+					flagChildren();
+				}
 				setDependencyDate(newBegin); //This fixes a problem in incorrect propagation of constraints to children hk 16/8/05
+				childBound = newBegin;
 
 				if (parentEnd == oldEnd)
 					setEnd(needsCalculation);
@@ -698,6 +716,7 @@ public final class TaskSchedule implements Cloneable {
 		forward = true;
 		dependencyDate = Dependency.NEEDS_CALCULATION;
 		remainingDependencyDate = 0;
+		childBound = 0L;
 	}
 
 	private void updateForwardFromType() {
@@ -716,6 +735,7 @@ public final class TaskSchedule implements Cloneable {
 	private void flipDependencyDates() {
 		dependencyDate = -dependencyDate;
 		remainingDependencyDate = -remainingDependencyDate;
+		childBound = 0L;
 	}
 
 	private void assignToCurrentSchedule(TaskSchedule currentSchedule, long newBegin, long newEnd) {
