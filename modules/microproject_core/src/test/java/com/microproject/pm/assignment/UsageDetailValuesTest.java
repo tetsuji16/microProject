@@ -68,7 +68,9 @@ class UsageDetailValuesTest {
 		resource.setWorkCalendar(null);
 		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
 		long start = assignment.getStart();
-		long end = start + 7L * DAY;
+		// seven calendar days (not seven working days of DAY) always contain the excluded Wednesday and
+		// Thursday, whatever weekday the test runs on (#1273)
+		long end = start + java.util.concurrent.TimeUnit.DAYS.toMillis(7L);
 		double units = ((Availability) resource.getAvailabilityTable().getList().iterator().next()).getMaximumUnits();
 
 		long projectWork = Math.round(project.getEffectiveWorkCalendar().compare(end, start, false) * units);
