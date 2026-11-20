@@ -35,6 +35,16 @@ import javax.swing.SwingUtilities;
 /** Shared visual invariants for text-bearing controls in dialogs. */
 public final class DialogLayoutAssertions {
 	private static final int MAX_SCROLL_ATTEMPTS = 40;
+	/**
+	 * Pixels of slack allowed between a visible descendant and its owning content
+	 * edge. Layout managers keep their own border insets, which are added to this
+	 * value, so only an unexplained band wider than a font line is a failure.
+	 */
+	private static final int DEAD_BAND_TOLERANCE = 16;
+	/** Pixels of slack inside a scroll viewport, where the view edge is exact. */
+	private static final int VIEWPORT_BAND_TOLERANCE = 8;
+	/** Share of a window growth the declared work surface must absorb, in percent. */
+	private static final int GROWTH_ABSORPTION_PERCENT = 50;
 
 	private DialogLayoutAssertions() {
 	}
@@ -280,9 +290,7 @@ public final class DialogLayoutAssertions {
 		final Dimension[] minimum = new Dimension[1];
 		final Dimension[] size = new Dimension[1];
 		SwingUtilities.invokeAndWait(() -> {
-			if (window instanceof Dialog dialog) resizable[0] = dialog.isResizable();
-			else if (window instanceof Frame frame) resizable[0] = frame.isResizable();
-			else resizable[0] = true;
+			resizable[0] = isUserResizable(window);
 			minimum[0] = window.getMinimumSize();
 			size[0] = window.getSize();
 		});
@@ -292,7 +300,260 @@ public final class DialogLayoutAssertions {
 		assertTrue(size[0].width >= minimum[0].width && size[0].height >= minimum[0].height,
 			context + " must not be smaller than its packed minimum, size=" + size[0] + " minimum=" + minimum[0]);
 		assertTextControlsAtPreferredHeight(content, context);
+		assertNoDeadBand(content, context);
 		assertWithinUsableScreen(window, context);
+	}
+
+	/**
+	 * Asserts the size contract a window declares for itself (#863): a window the
+	 * user cannot resize must keep its packed form, and a resizable window must
+	 * spend growth on its work surface instead of leaving an empty band.
+	 */
+	public static void assertWindowSizeContract(Window window, Container content, String context) throws Exception {
+		final boolean[] resizable = new boolean[1];
+		SwingUtilities.invokeAndWait(() -> resizable[0] = isUserResizable(window));
+		if (!resizable[0]) {
+			assertFixedSizeForm(window, content, context);
+			return;
+		}
+		assertResizeKeepsWorkArea(window, content, context);
+	}
+
+	/**
+	 * Grows a resizable window, checks that no text control is clipped and that the
+	 * declared work surface takes the growth, then returns to the packed minimum
+	 * and checks the same layout invariants there.
+	 */
+	public static void assertResizeKeepsWorkArea(Window window, Container content, String context) throws Exception {
+		final Dimension[] packed = new Dimension[1];
+		final Rectangle[] usable = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> {
+			packed[0] = window.getSize();
+			usable[0] = usableScreen(window);
+		});
+		int widthGrowth = Math.max(0, Math.min(200, usable[0].width - packed[0].width - DEAD_BAND_TOLERANCE));
+		int heightGrowth = Math.max(0, Math.min(140, usable[0].height - packed[0].height - DEAD_BAND_TOLERANCE));
+		assertTrue(widthGrowth > 0 || heightGrowth > 0, context + " must have room to grow inside the usable screen; size="
+			+ packed[0] + " usable=" + usable[0]);
+		Component surface = workSurface(content);
+		Rectangle surfaceBefore = boundsWithin(content, surface);
+		resizeWindow(window, packed[0].width + widthGrowth, packed[0].height + heightGrowth);
+		assertTextControlsAtPreferredHeight(content, context + " after growth");
+		assertNoDeadBand(content, context + " after growth");
+		Rectangle surfaceAfter = boundsWithin(content, surface);
+		assertWorkSurfaceAbsorbsGrowth(context, surface, surfaceBefore, surfaceAfter, widthGrowth, heightGrowth);
+		resizeWindow(window, packed[0].width, packed[0].height);
+		assertTextControlsAtPreferredHeight(content, context + " back at its packed minimum");
+		assertNoDeadBand(content, context + " back at its packed minimum");
+		if (surface != null) {
+			Rectangle surfaceAtMinimum = boundsWithin(content, surface);
+			assertTrue(surfaceAtMinimum.width > 0 && surfaceAtMinimum.height > 0,
+				() -> context + " work surface must remain usable at the packed minimum: surface="
+					+ describeSurface(surface) + " bounds=" + surfaceAtMinimum + " content=" + content.getSize());
+		}
+		assertWithinUsableScreen(window, context);
+	}
+
+	/**
+	 * Fails when a visible descendant stops short of its content edge by more than
+	 * the owning border inset plus a font line, or when a scroll viewport shows an
+	 * unexplained band around a view that could have filled it. Those two bands are
+	 * what "the window is mostly empty" looks like to a user.
+	 */
+	public static void assertNoDeadBand(Container content, String context) throws Exception {
+		final String[] band = new String[1];
+		SwingUtilities.invokeAndWait(() -> band[0] = deadBandDiagnostic(content));
+		assertTrue(band[0] == null, () -> context + " leaves an unexplained empty band: " + band[0]);
+	}
+
+	/** Returns the widest bottom/right band diagnostic, or null when the content is filled. */
+	public static String deadBandDiagnostic(Container content) {
+		if (content.getWidth() <= 0 || content.getHeight() <= 0) return null;
+		int[] extent = new int[2];
+		collectExtent(content, content, extent);
+		Insets insets = content.getInsets();
+		int rightGap = content.getWidth() - extent[0];
+		int bottomGap = content.getHeight() - extent[1];
+		if (rightGap > insets.right + DEAD_BAND_TOLERANCE || bottomGap > insets.bottom + DEAD_BAND_TOLERANCE)
+			return "rightGap=" + rightGap + " bottomGap=" + bottomGap + " content=" + content.getSize()
+				+ " insets=" + insets + " filled=" + extent[0] + "x" + extent[1]
+				+ " owner=" + content.getClass().getSimpleName();
+		return viewportBandDiagnostic(content);
+	}
+
+	private static String viewportBandDiagnostic(Container container) {
+		for (Component child : container.getComponents()) {
+			if (!child.isVisible()) continue;
+			if (child instanceof JViewport viewport) {
+				Component view = viewport.getView();
+				if (view == null || !view.isShowing()) continue;
+				String band = viewportBand(viewport, view);
+				if (band != null) return band;
+			}
+			if (child instanceof Container nested) {
+				String band = viewportBandDiagnostic(nested);
+				if (band != null) return band;
+			}
+		}
+		return null;
+	}
+
+	private static String viewportBand(JViewport viewport, Component view) {
+		if (fillsViewport(view)) return null;
+		int bottomGap = tracksViewportHeight(view) ? 0 : viewport.getHeight() - view.getHeight();
+		int rightGap = tracksViewportWidth(view) ? 0 : viewport.getWidth() - view.getWidth();
+		if (bottomGap > VIEWPORT_BAND_TOLERANCE || rightGap > VIEWPORT_BAND_TOLERANCE)
+			return "viewportBand rightGap=" + rightGap + " bottomGap=" + bottomGap + " viewport=" + viewport.getSize()
+				+ " view=" + view.getClass().getSimpleName() + " viewSize=" + view.getSize();
+		return null;
+	}
+
+	private static boolean tracksViewportHeight(Component view) {
+		return view instanceof javax.swing.Scrollable scrollable && scrollable.getScrollableTracksViewportHeight();
+	}
+
+	private static boolean tracksViewportWidth(Component view) {
+		return view instanceof javax.swing.Scrollable scrollable && scrollable.getScrollableTracksViewportWidth();
+	}
+
+	/**
+	 * A data view paints its own viewport area: an empty spreadsheet, list, or text
+	 * canvas is the intended work area (#724 A10), not an unexplained band.
+	 */
+	private static boolean fillsViewport(Component view) {
+		return isDataView(view) || view instanceof javax.swing.JScrollPane;
+	}
+
+	/** Compact scroll-viewport state used in the #863 cross-window report. */
+	public static String layoutDiagnostic(Container content) {
+		StringBuilder state = new StringBuilder("content=").append(content.getSize());
+		appendViewports(content, state);
+		return state.toString();
+	}
+
+	private static void appendViewports(Container container, StringBuilder state) {
+		for (Component child : container.getComponents()) {
+			if (!child.isVisible()) continue;
+			if (child instanceof JViewport viewport) {
+				Component view = viewport.getView();
+				state.append("; viewport=").append(viewport.getSize()).append(" view=")
+					.append(view == null ? "null" : view.getClass().getSimpleName() + view.getSize());
+			}
+			if (child instanceof Container nested) appendViewports(nested, state);
+		}
+	}
+
+	private static void collectExtent(Container content, Container container, int[] extent) {
+		for (Component child : container.getComponents()) {
+			if (!child.isVisible() || child.getWidth() <= 0 || child.getHeight() <= 0) continue;
+			Rectangle bounds = SwingUtilities.convertRectangle(container, child.getBounds(), content);
+			extent[0] = Math.max(extent[0], Math.min(content.getWidth(), bounds.x + bounds.width));
+			extent[1] = Math.max(extent[1], Math.min(content.getHeight(), bounds.y + bounds.height));
+			if (child instanceof Container nested) collectExtent(content, nested, extent);
+		}
+	}
+
+	/**
+	 * Resolves the surface that must absorb window growth: a tabbed pane, or the
+	 * largest scrollable data view, or the largest scroll pane. Bounded forms
+	 * return null and are expected to declare a fixed size instead.
+	 */
+	public static Component workSurface(Container content) throws Exception {
+		final Component[] surface = new Component[1];
+		SwingUtilities.invokeAndWait(() -> surface[0] = findWorkSurface(content));
+		return surface[0];
+	}
+
+	private static Component findWorkSurface(Container content) {
+		List<Component> candidates = new ArrayList<>();
+		collectWorkSurfaces(content, candidates);
+		Component largest = null;
+		for (Component candidate : candidates) {
+			Rectangle bounds = boundsWithin(content, candidate);
+			if (largest == null) largest = candidate;
+			else {
+				Rectangle current = boundsWithin(content, largest);
+				if ((long) bounds.width * bounds.height > (long) current.width * current.height) largest = candidate;
+			}
+		}
+		return largest;
+	}
+
+	private static void collectWorkSurfaces(Container container, List<Component> candidates) {
+		for (Component child : container.getComponents()) {
+			if (!child.isVisible()) continue;
+			if (child instanceof javax.swing.JTabbedPane) candidates.add(child);
+			else if (child instanceof JScrollPane scrollPane) {
+				java.awt.Component view = scrollPane.getViewport().getView();
+				// Measure the scroll pane: a table or canvas view keeps its own
+				// preferred size, and the viewport is what the user sees grow.
+				if (isDataView(view) || isPaintCanvas(view)) {
+					candidates.add(scrollPane);
+					continue;
+				}
+			} else if (isDataView(child)) candidates.add(child);
+			if (child instanceof Container nested) collectWorkSurfaces(nested, candidates);
+		}
+	}
+
+	/** A scrollable leaf component that paints its own area, such as a Gantt or calendar canvas. */
+	private static boolean isPaintCanvas(Component view) {
+		if (view == null || view instanceof javax.swing.table.JTableHeader) return false;
+		return !(view instanceof Container container) || container.getComponentCount() == 0;
+	}
+
+	private static boolean isDataView(Component component) {
+		return component instanceof javax.swing.JTable || component instanceof javax.swing.JTree
+			|| component instanceof javax.swing.JList || component instanceof javax.swing.JTextArea
+			|| component instanceof javax.swing.JEditorPane || component instanceof javax.swing.JTextPane;
+	}
+
+	private static Rectangle boundsWithin(Container content, Component component) {
+		if (component == null || !component.isShowing()) return new Rectangle();
+		return SwingUtilities.convertRectangle(component.getParent(), component.getBounds(), content);
+	}
+
+	private static void assertWorkSurfaceAbsorbsGrowth(String context, Component surface, Rectangle before,
+			Rectangle after, int widthGrowth, int heightGrowth) {
+		if (surface == null) return;
+		int widthDelta = after.width - before.width;
+		int heightDelta = after.height - before.height;
+		int requiredWidth = widthGrowth * GROWTH_ABSORPTION_PERCENT / 100;
+		int requiredHeight = heightGrowth * GROWTH_ABSORPTION_PERCENT / 100;
+		assertTrue(widthDelta >= requiredWidth || heightDelta >= requiredHeight,
+			() -> context + " wastes its growth outside the work surface: surface=" + describeSurface(surface)
+				+ " before=" + before + " after=" + after
+				+ " windowGrowth=" + widthGrowth + "x" + heightGrowth);
+	}
+
+	private static String describeSurface(Component surface) {
+		if (surface == null) return "none";
+		return surface.getClass().getSimpleName() + "[name=" + surface.getName() + ",showing=" + surface.isShowing() + "]";
+	}
+
+	private static void resizeWindow(Window window, int width, int height) throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			window.setSize(width, height);
+			window.validate();
+			window.repaint();
+		});
+	}
+
+	private static boolean isUserResizable(Window window) {
+		if (window instanceof Dialog dialog) return dialog.isResizable();
+		if (window instanceof Frame frame) return frame.isResizable();
+		return true;
+	}
+
+	private static Rectangle usableScreen(Window window) {
+		GraphicsConfiguration configuration = window.getGraphicsConfiguration();
+		Rectangle screen = new Rectangle(configuration.getBounds());
+		Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(configuration);
+		screen.x += insets.left;
+		screen.y += insets.top;
+		screen.width -= insets.left + insets.right;
+		screen.height -= insets.top + insets.bottom;
+		return screen;
 	}
 
 	/** Grows a visible top-level dialog/window and checks its content and usable-screen bounds. */
@@ -322,15 +583,8 @@ public final class DialogLayoutAssertions {
 		final Rectangle[] bounds = new Rectangle[1];
 		final Rectangle[] usable = new Rectangle[1];
 		Runnable inspect = () -> {
-			GraphicsConfiguration configuration = window.getGraphicsConfiguration();
-			Rectangle screen = new Rectangle(configuration.getBounds());
-			Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(configuration);
-			screen.x += insets.left;
-			screen.y += insets.top;
-			screen.width -= insets.left + insets.right;
-			screen.height -= insets.top + insets.bottom;
 			bounds[0] = window.getBounds();
-			usable[0] = screen;
+			usable[0] = usableScreen(window);
 		};
 		long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
 		boolean contained = false;
