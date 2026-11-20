@@ -65,19 +65,22 @@ public final class UsageDetailValues {
 	}
 
 	/** The calendar of the resource; a resource without its own calendar works on the project calendar. */
-	private static WorkCalendar calendarOf(Resource resource) {
-		WorkCalendar calendar = resource.getEffectiveWorkCalendar();
-		if (calendar != null || resource.getAssignments() == null)
-			return calendar;
-		for (Object assignment : resource.getAssignments()) {
-			if (assignment instanceof Assignment own && own.getTask() != null && own.getTask().getProject() != null) {
-				WorkCalendar projectCalendar = own.getTask().getProject().getEffectiveWorkCalendar();
-				if (projectCalendar != null)
-					return projectCalendar;
+		private static WorkCalendar calendarOf(Resource resource) {
+			// Use getWorkCalendar() to check if the resource has its OWN calendar.
+			// getEffectiveWorkCalendar() resolves through assignment calendar logic,
+			// which falls back to the task calendar when the resource has no calendar.
+			WorkCalendar calendar = resource.getWorkCalendar();
+			if (calendar != null || resource.getAssignments() == null)
+				return calendar;
+			for (Object assignment : resource.getAssignments()) {
+				if (assignment instanceof Assignment own && own.getTask() != null && own.getTask().getProject() != null) {
+					WorkCalendar projectCalendar = own.getTask().getProject().getEffectiveWorkCalendar();
+					if (projectCalendar != null)
+						return projectCalendar;
+				}
 			}
+			return null;
 		}
-		return null;
-	}
 
 	/** Work above the availability of the period. */
 	public static long overallocation(long work, long availableWork) {

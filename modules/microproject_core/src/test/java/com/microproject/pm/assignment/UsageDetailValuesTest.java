@@ -56,27 +56,34 @@ class UsageDetailValuesTest {
 	}
 
 	@Test
-	void resourceWithoutCalendarUsesTheProjectCalendarNotTheTaskCalendar() {
-		Project project = createProject();
-		NormalTask task = createTask(project);
-		task.setDuration(2L * DAY);
-		WorkingCalendar taskCalendar = WorkingCalendar.getStandardBasedInstance();
-		taskCalendar.setWeekDay(java.util.Calendar.WEDNESDAY - 1, new WorkDay());
-		taskCalendar.setWeekDay(java.util.Calendar.THURSDAY - 1, new WorkDay());
-		task.setWorkCalendar(taskCalendar);
-		ResourceImpl resource = project.getResourcePool().newResourceInstance();
-		resource.setWorkCalendar(null);
-		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
-		long start = assignment.getStart();
-		long end = start + 7L * DAY;
-		double units = ((Availability) resource.getAvailabilityTable().getList().iterator().next()).getMaximumUnits();
+		void resourceWithoutCalendarUsesTheProjectCalendarNotTheTaskCalendar() {
+			Project project = createProject();
+			// Set project start to a fixed Monday (2026-11-23) to ensure the test period
+			// spans multiple working days where the project calendar (Mon-Fri) and task
+			// calendar (Mon, Tue, Fri; Wed/Thu non-working) differ.
+			long mondayStart = 1795430400000L; // Mon Nov 23 2026 00:00:00 UTC
+			project.setStart(mondayStart);
+			project.recalculate();
 
-		long projectWork = Math.round(project.getEffectiveWorkCalendar().compare(end, start, false) * units);
-		long taskWork = Math.round(taskCalendar.compare(end, start, false) * units);
+			NormalTask task = createTask(project);
+			task.setDuration(2L * DAY);
+			WorkingCalendar taskCalendar = WorkingCalendar.getStandardBasedInstance();
+			taskCalendar.setWeekDay(java.util.Calendar.WEDNESDAY - 1, new WorkDay());
+			taskCalendar.setWeekDay(java.util.Calendar.THURSDAY - 1, new WorkDay());
+			task.setWorkCalendar(taskCalendar);
+			ResourceImpl resource = project.getResourcePool().newResourceInstance();
+			resource.setWorkCalendar(null);
+			Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+			long start = assignment.getStart();
+			long end = start + 7L * DAY;
+			double units = ((Availability) resource.getAvailabilityTable().getList().iterator().next()).getMaximumUnits();
 
-		assertTrue(projectWork > 0L && projectWork != taskWork, "the task calendar must differ from the project calendar");
-		assertEquals(projectWork, UsageDetailValues.availableWork(resource, start, end));
-	}
+			long projectWork = Math.round(project.getEffectiveWorkCalendar().compare(end, start, false) * units);
+			long taskWork = Math.round(taskCalendar.compare(end, start, false) * units);
+
+			assertTrue(projectWork > 0L && projectWork != taskWork, "the task calendar must differ from the project calendar");
+			assertEquals(projectWork, UsageDetailValues.availableWork(resource, start, end));
+		}
 
 	@Test
 	void cumulativeWorkIsTheRunningTotalThroughEachPeriod() {
