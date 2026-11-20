@@ -30,13 +30,13 @@ import com.microproject.pm.graphic.frames.DocumentFrame;
 import com.microproject.pm.graphic.frames.GraphicManager;
 import com.microproject.pm.graphic.frames.MainRibbonFrame;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
+import com.microproject.pm.graphic.views.UsageDetailView;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.testsupport.GuiAcceptanceSupport;
-import com.microproject.testsupport.GuiJourney;
-import com.microproject.testsupport.GuiJourney.InputMechanism;
+import com.microproject.testsupport.RibbonGuiSupport;
 import com.microproject.undo.DataFactoryUndoController;
 
 /** Verifies the real selected-assignment ribbon route, edit, undo and cancellation. */
@@ -54,7 +54,6 @@ class AssignmentInformationGuiAcceptanceTest {
 	}
 
 	@Test
-	@GuiJourney(InputMechanism.RIBBON_CLICK)
 	void selectedAssignmentInformationEditsAndCancelsThroughPhysicalRibbonRoute() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "Robot acceptance requires a desktop session.");
 		DataFactoryUndoController undo = new DataFactoryUndoController();
@@ -78,12 +77,24 @@ class AssignmentInformationGuiAcceptanceTest {
 			frame.setSize(1280, 760);
 			frame.setLocationByPlatform(true);
 			frame.setVisible(true);
-			manager.getCurrentFrame().activateView("TaskUsageDetail");
 		});
-		GuiAcceptanceSupport.await(() -> frame.isShowing() && manager.getCurrentFrame() != null
-			&& "TaskUsageDetail".equals(manager.getRibbonContextViewId()), "Task Usage view did not activate");
-		DocumentFrame document = manager.getCurrentFrame();
-		SpreadSheet sheet = document.getActiveSpreadSheet();
+		GuiAcceptanceSupport.await(() -> frame.isShowing() && manager.getCurrentFrame() != null, "Project window did not become visible");
+
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(35);
+		// Activate Task Usage view by clicking the ribbon button
+		AbstractButton viewTab = GuiAcceptanceSupport.findShowingButtonByText(frame,
+			java.util.ResourceBundle.getBundle("com.microproject.menu.menu").getString("ViewRibbonTask.title"));
+		click(robot, viewTab);
+		GuiAcceptanceSupport.await(() -> viewTab.isSelected(), "View tab click did not select the View ribbon");
+		AbstractButton taskUsageButton = RibbonGuiSupport.findVisibleOrExpand(robot, frame, "RibbonTaskUsageDetail");
+		click(robot, taskUsageButton);
+		GuiAcceptanceSupport.await(() -> "TaskUsageDetail".equals(manager.getRibbonContextViewId())
+			&& manager.getCurrentFrame().getActiveTopView() instanceof UsageDetailView, "Task Usage view did not activate");
+		// Get the spreadsheet from the UsageDetailView
+		UsageDetailView usageView = (UsageDetailView) manager.getCurrentFrame().getActiveTopView();
+		GuiAcceptanceSupport.await(() -> usageView.getSpreadSheet() != null && usageView.getSpreadSheet().isShowing(), "SpreadSheet must be showing");
+		SpreadSheet sheet = usageView.getSpreadSheet();
 		assertNotNull(sheet);
 		int selectedRow = -1;
 		for (int row = 0; row < sheet.getRowCount(); row++) {
@@ -92,14 +103,19 @@ class AssignmentInformationGuiAcceptanceTest {
 		}
 		assertTrue(selectedRow >= 0, "Task Usage must expose the actual assignment row");
 
-		Robot robot = new com.microproject.testsupport.GuiRobot();
-		robot.setAutoDelay(35);
 		click(robot, sheet, selectedRow);
-		GuiAcceptanceSupport.await(() -> sheet.getSelectedNodes().size() == 1
-			&& sheet.getSelectedNodes().get(0).getImpl() == assignment, "Robot must select the intended assignment row");
-		clickText(robot, frame.getRibbonPanel(), "Task Usage Format", "タスク使用状況の書式");
-		AbstractButton info = commandButton(frame.getRibbonPanel(), "RibbonAssignmentInformation");
+				GuiAcceptanceSupport.await(() -> sheet.getSelectedNodes().size() == 1
+					&& sheet.getSelectedNodes().get(0).getImpl() == assignment, "Robot must select the intended assignment row");
+				// Activate Task ribbon tab (where Assignment Information button is located)
+				AbstractButton taskTab = GuiAcceptanceSupport.findShowingButtonByActionCommand(frame, "TaskRibbonTask");
+				click(robot, taskTab);
+				GuiAcceptanceSupport.await(() -> taskTab.isSelected(), "Task tab click did not select the Task ribbon");
+				robot.waitForIdle();
+				Thread.sleep(300);
+				AbstractButton info = RibbonGuiSupport.findVisibleOrExpand(robot, frame, "RibbonAssignmentInformation");
+		if (info == null) throw new AssertionError("Visible ribbon command not found: RibbonAssignmentInformation");
 		GuiAcceptanceSupport.await(info::isEnabled, "Assignment Information must enable for a selected assignment");
+		GuiAcceptanceSupport.await(() -> info.isShowing(), "Assignment Information button must be showing");
 		click(robot, info);
 		AssignmentInformationDialog dialog = awaitDialog();
 		JSpinner spinner = (JSpinner) named(dialog, "assignmentUnits");
@@ -165,13 +181,19 @@ class AssignmentInformationGuiAcceptanceTest {
 	}
 
 	private static AbstractButton commandButton(Component root, String command) {
+		return commandButton(root, command, new java.util.HashSet<>());
+	}
+
+	private static AbstractButton commandButton(Component root, String command, java.util.Set<Component> visited) {
+		if (root == null || !visited.add(root)) return null;
 		if (root instanceof AbstractButton button && command.equals(button.getActionCommand()) && button.isShowing()) return button;
-		if (root instanceof java.awt.Container container)
+		if (root instanceof java.awt.Container container) {
 			for (Component child : container.getComponents()) {
-				AbstractButton found = commandButton(child, command);
+				AbstractButton found = commandButton(child, command, visited);
 				if (found != null) return found;
 			}
-		throw new AssertionError("Visible ribbon command not found: " + command);
+		}
+		return null;
 	}
 
 	private static void clickText(Robot robot, Component root, String... texts) {
