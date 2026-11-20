@@ -1,3 +1,4 @@
+/* MIT License — Copyright (c) 2026 microProject */
 package com.microproject.pm.costing;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -5,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 import org.junit.jupiter.api.Test;
 
@@ -27,96 +30,132 @@ import com.microproject.undo.DataFactoryUndoController;
  * and fixes how they follow the status date and survive an MPO round trip (#943).
  *
  * <p>Costs are stored as {@code rate per hour × work in milliseconds}, so a 10-day task at the
- * default 8-hour day has a budget of {@code 60 × 80 × 3_600_000} and its 40 actual hours cost
- * {@code 60 × 40 × 3_600_000}. The status date is the only time input: BCWS covers the part of
- * the baseline that has elapsed, BCWP the part of the work earned by then, ACWP the cost
- * incurred by then.
+ * default 8-hour day has a budget of {@code 60 × 80 × 3_600_000}. The project start is a fixed
+ * Monday rather than the wall clock, so the elapsed part of the baseline is a constant of the
+ * fixture and every value below is asserted against its hand calculation.
  */
 class EarnedValueProjectValuesTest {
-	private static final double RATE_PER_HOUR = 60.0D;
 	private static final long HOUR_MILLIS = 3_600_000L;
-	private static final double BUDGET = RATE_PER_HOUR * 80L * HOUR_MILLIS;
-	private static final double ACTUAL_COST = RATE_PER_HOUR * 40L * HOUR_MILLIS;
-	// Three calendar days after the start, 16 of the 80 baseline hours have elapsed and the
-	// fixture's 40 actual hours have spent the same 16 hours; the status date earns 8 hours
-	// because the task is a quarter complete over its longer 20-day duration.
-	private static final double BCWS_AT_STATUS_DATE = RATE_PER_HOUR * 16L * HOUR_MILLIS;
-	private static final double BCWP_AT_STATUS_DATE = RATE_PER_HOUR * 8L * HOUR_MILLIS;
-	private static final double ACWP_AT_STATUS_DATE = RATE_PER_HOUR * 16L * HOUR_MILLIS;
+	private static final long CALENDAR_DAY = 24L * HOUR_MILLIS;
+	private static final double RATE_PER_HOUR = 60.0D;
+	private static final long DAY = CalendarOption.getInstance().getMillisPerDay();
+	/** 10 days of work at the default 8-hour day. */
+	private static final long PLANNED_HOURS = 10L * DAY / HOUR_MILLIS;
+	/** 40 hours reported as actual work: five of the ten planned days. */
+	private static final long ACTUAL_HOURS = PLANNED_HOURS / 2;
+	/** Three working days have elapsed at the status date: Monday, Tuesday and Wednesday. */
+	private static final long ELAPSED_HOURS = 3L * DAY / HOUR_MILLIS;
+	/**
+	 * Monday 2026-11-16 08:00 JST. A fixed week keeps the fixture independent of the run date;
+	 * {@link Project#initialize} would otherwise derive the schedule from the current clock.
+	 */
+	private static final long START = LocalDateTime.of(2026, 11, 16, 8, 0)
+		.atZone(ZoneId.of("Asia/Tokyo")).toInstant().toEpochMilli();
 
 	@Test
 	void indicatorsFollowTheStatusDateAndSurviveAnMpoRoundTrip() throws Exception {
 		Project project = newProject();
 		NormalTask task = newTask(project, "EVM known values");
-		long day = CalendarOption.getInstance().getMillisPerDay();
-		task.setDuration(10L * day);
-		Assignment assignment = assign(task, 10L * day);
+		task.setDuration(10L * DAY);
+		Assignment assignment = assign(task, 10L * DAY);
 		project.saveCurrentToSnapshot(Snapshottable.BASELINE, true, null);
 		// The work doubles and five of the twenty days are done, so the task is 25% complete.
-		assignment.setWork(20L * day, null);
-		assignment.setActualWork(5L * day, null);
-		project.setStatusDate(task.getStart() + 3L * day);
+		assignment.setWork(20L * DAY, null);
+		assignment.setActualWork(5L * DAY, null);
 
-		assertEquals(0.25D, task.getPercentComplete(), 0.0001D);
-		assertEquals(BUDGET, task.getBaselineCost(Snapshottable.BASELINE), 1.0D,
+		assertEquals(START, task.getStart(), "the fixture starts on the pinned Monday");
+		assertEquals(0.25D, task.getPercentComplete(), 1.0e-9D);
+		assertCost(cost(PLANNED_HOURS), task.getBaselineCost(Snapshottable.BASELINE),
 			"the baseline of 80 hours is the budget at completion");
-		assertEquals(BUDGET, task.getBac(null), 1.0D);
-		assertEquals(ACTUAL_COST, task.getActualCost(null), 1.0D, "40 actual hours cost the full actual cost");
+		assertCost(cost(PLANNED_HOURS), task.getBac(null), "BAC is the baseline cost");
+		assertCost(cost(ACTUAL_HOURS), task.getActualCost(null), "40 actual hours cost the full actual cost");
 
-		// Part way through the plan the three values are the elapsed, earned and spent parts of it.
-		assertEquals(BCWS_AT_STATUS_DATE, task.getBcws(null), 1.0D,
-			"BCWS is the 16 elapsed hours of the 80-hour baseline");
-		assertEquals(BCWP_AT_STATUS_DATE, task.getBcwp(null), 1.0D,
-			"BCWP is the 8 hours earned at the status date");
-		assertEquals(ACWP_AT_STATUS_DATE, task.getAcwp(null), 1.0D,
-			"ACWP is the 16 hours already spent at the status date");
-		assertEquals(BCWP_AT_STATUS_DATE - ACWP_AT_STATUS_DATE, task.getCv(null), 1.0D, "CV = BCWP - ACWP");
-		assertEquals(BCWP_AT_STATUS_DATE - BCWS_AT_STATUS_DATE, task.getSv(null), 1.0D, "SV = BCWP - BCWS");
-		assertEquals(0.5D, task.getCpi(null), 0.0001D, "CPI = BCWP / ACWP");
-		assertEquals(0.5D, task.getSpi(null), 0.0001D, "SPI = BCWP / BCWS");
+		// Three working days in, the plan has spent three days of the baseline, the resource has
+		// reported three days of work, and the efficiency (80 h baseline ÷ 160 h work) earns half.
+		project.setStatusDate(task.getStart() + 3L * CALENDAR_DAY);
+		double bcwsMid = task.getBcws(null);
+		double bcwpMid = task.getBcwp(null);
+		double acwpMid = task.getAcwp(null);
+		assertCost(cost(ELAPSED_HOURS), bcwsMid, "BCWS is the three elapsed days of the baseline");
+		assertCost(cost(ELAPSED_HOURS / 2), bcwpMid, "BCWP is the earned half of those three days");
+		assertCost(cost(ELAPSED_HOURS), acwpMid, "ACWP is the cost reported through the status date");
+		assertCost(-cost(ELAPSED_HOURS / 2), task.getCv(null), "CV = BCWP − ACWP");
+		assertCost(-cost(ELAPSED_HOURS / 2), task.getSv(null), "SV = BCWP − BCWS");
+		assertEquals(0.5D, task.getCpi(null), 1.0e-9D, "CPI = BCWP ÷ ACWP");
+		assertEquals(0.5D, task.getSpi(null), 1.0e-9D, "SPI = BCWP ÷ BCWS");
 
 		// A status date at the finish schedules the whole baseline; the earned value is then the
 		// completed share of it and the spent value is the full actual cost.
 		project.setStatusDate(task.getEnd());
-		assertEquals(BUDGET, task.getBcws(null), 1.0D, "the finished baseline is fully scheduled");
-		assertEquals(0.25D * BUDGET, task.getBcwp(null), 1.0D, "BCWP is the completed share at the finish");
-		assertEquals(ACTUAL_COST, task.getAcwp(null), 1.0D, "all actual cost is spent at the finish");
-		assertEquals(task.getBcwp(null) - task.getAcwp(null), task.getCv(null), 1.0D);
-		assertEquals(task.getBcwp(null) - task.getBcws(null), task.getSv(null), 1.0D);
-		assertEquals(task.getBcwp(null) / task.getAcwp(null), task.getCpi(null), 0.0001D);
-		assertEquals(task.getBcwp(null) / task.getBcws(null), task.getSpi(null), 0.0001D);
+		assertCost(cost(PLANNED_HOURS), task.getBcws(null), "the finished baseline is fully scheduled");
+		assertCost(cost(PLANNED_HOURS / 4), task.getBcwp(null), "BCWP is the completed quarter of BAC");
+		assertCost(cost(ACTUAL_HOURS), task.getAcwp(null), "all actual cost is spent at the finish");
+		assertCost(cost(PLANNED_HOURS / 4) - cost(ACTUAL_HOURS), task.getCv(null), "CV = BCWP − ACWP");
+		assertCost(cost(PLANNED_HOURS / 4) - cost(PLANNED_HOURS), task.getSv(null), "SV = BCWP − BCWS");
+		assertEquals(0.5D, task.getCpi(null), 1.0e-9D);
+		assertEquals(0.25D, task.getSpi(null), 1.0e-9D, "the work doubled but the baseline did not");
 
 		// The indicators are derived state, so an MPO round trip must reproduce them exactly.
-		project.setStatusDate(task.getStart() + 3L * day);
+		project.setStatusDate(task.getStart() + 3L * CALENDAR_DAY);
 		Project reloaded = saveAndReload(project);
 		NormalTask reloadedTask = taskNamed(reloaded, "EVM known values");
 		assertEquals(project.getStatusDate(), reloaded.getStatusDate(), "the status date survives the round trip");
-		assertEquals(BUDGET, reloadedTask.getBac(null), 1.0D);
-		assertEquals(ACTUAL_COST, reloadedTask.getActualCost(null), 1.0D);
-		assertEquals(BCWS_AT_STATUS_DATE, reloadedTask.getBcws(null), 1.0D);
-		assertEquals(BCWP_AT_STATUS_DATE, reloadedTask.getBcwp(null), 1.0D);
-		assertEquals(ACWP_AT_STATUS_DATE, reloadedTask.getAcwp(null), 1.0D);
-		assertEquals(task.getCv(null), reloadedTask.getCv(null), 1.0D);
-		assertEquals(task.getSv(null), reloadedTask.getSv(null), 1.0D);
-		assertEquals(task.getCpi(null), reloadedTask.getCpi(null), 0.0001D);
-		assertEquals(task.getSpi(null), reloadedTask.getSpi(null), 0.0001D);
+		assertCost(cost(PLANNED_HOURS), reloadedTask.getBac(null), "BAC");
+		assertCost(cost(ACTUAL_HOURS), reloadedTask.getActualCost(null), "actual cost");
+		assertCost(bcwsMid, reloadedTask.getBcws(null), "BCWS");
+		assertCost(bcwpMid, reloadedTask.getBcwp(null), "BCWP");
+		assertCost(acwpMid, reloadedTask.getAcwp(null), "ACWP");
+		assertCost(task.getCv(null), reloadedTask.getCv(null), "CV");
+		assertCost(task.getSv(null), reloadedTask.getSv(null), "SV");
+		assertEquals(task.getCpi(null), reloadedTask.getCpi(null), 1.0e-9D, "CPI");
+		assertEquals(task.getSpi(null), reloadedTask.getSpi(null), 1.0e-9D, "SPI");
+
+		// Moving the status date after the reload proves the values come from the saved inputs
+		// rather than from a copy persisted with the file.
+		reloaded.setStatusDate(reloadedTask.getEnd());
+		assertCost(cost(PLANNED_HOURS), reloadedTask.getBcws(null), "the reloaded baseline is fully scheduled");
+		assertCost(cost(PLANNED_HOURS / 4), reloadedTask.getBcwp(null), "the reloaded task earned a quarter");
+		assertCost(cost(ACTUAL_HOURS), reloadedTask.getAcwp(null), "the reloaded actual cost is unchanged");
+		assertEquals(0.25D, reloadedTask.getSpi(null), 1.0e-9D);
 	}
 
 	@Test
-	void aPlanWithoutABaselineReportsNoEarnedValue() throws Exception {
+	void aPlanWithoutABaselineReportsNoEarnedValue() {
 		Project project = newProject();
 		NormalTask task = newTask(project, "EVM without baseline");
-		assign(task, 5L * CalendarOption.getInstance().getMillisPerDay());
+		task.setDuration(10L * DAY);
+		Assignment assignment = assign(task, 10L * DAY);
+		assignment.setActualWork(5L * DAY, null);
+		// A status date is set so the zeros below cannot come from a missing status date.
+		project.setStatusDate(task.getStart() + 3L * CALENDAR_DAY);
 
-		assertEquals(0.0D, task.getBac(null), 0.0001D, "a task without a baseline has no budget at completion");
-		assertEquals(0.0D, task.getBcws(null), 0.0001D);
-		assertEquals(0.0D, task.getBcwp(null), 0.0001D);
-		assertEquals(0.0D, task.getSpi(null), 0.0001D, "a plan without a baseline has no schedule index");
+		assertCost(0.0D, task.getBac(null), "a task without a baseline has no budget at completion");
+		assertCost(0.0D, task.getBcws(null), "nothing was scheduled without a baseline");
+		assertCost(0.0D, task.getBcwp(null), "nothing can be earned without a baseline");
+		// Actual cost does not need a baseline: the three days of reported work still cost money,
+		// so CV is negative and SV is zero rather than both being zero.
+		assertCost(cost(ELAPSED_HOURS), task.getAcwp(null), "ACWP reports the cost of the work performed");
+		assertCost(-cost(ELAPSED_HOURS), task.getCv(null), "CV = BCWP − ACWP with no earned value");
+		assertCost(0.0D, task.getSv(null), "SV = BCWP − BCWS with neither side earned");
+		assertEquals(0.0D, task.getCpi(null), 1.0e-9D, "CPI is BCWP ÷ ACWP, so it is zero without earned value");
+		assertEquals(0.0D, task.getSpi(null), 1.0e-9D, "SPI divides by a zero BCWS and reports the policy value");
+	}
+
+	/** Asserts a cost in internal units, where the stored value is a rate × work product. */
+	private static void assertCost(double expected, double actual, String message) {
+		assertEquals(expected, actual, Math.max(Math.abs(expected), 1.0D) * 1.0e-9D, message);
+	}
+
+	private static double cost(long hours) {
+		return RATE_PER_HOUR * hours * HOUR_MILLIS;
 	}
 
 	private static Project newProject() {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("evm-values", undo), undo);
+		// Pin the start before initializing: with a start already set, initialize() does not
+		// schedule a background recalculation from the current clock.
+		project.setStart(START);
 		project.initialize(false, false);
 		return project;
 	}
