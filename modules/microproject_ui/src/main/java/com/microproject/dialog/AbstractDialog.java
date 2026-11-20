@@ -226,9 +226,9 @@ public abstract class AbstractDialog extends FlatLafDialog {
 		contentPanel = createContentPanel();
 		buttonPanel = createButtonPanel();
         getContentPane().setLayout(new BorderLayout());
-		if (getContentPane() instanceof JComponent content) {
-			FlatUiSupport.styleDialogContent(content);
-		}
+        		if (getContentPane() instanceof JComponent content) {
+        			FlatUiSupport.styleDialogComponents(content);
+        		}
 		if (contentPanel != null) {
 			contentViewport = contentPanel instanceof JScrollPane scrollPane
 				? scrollPane : createContentViewport(contentPanel);
