@@ -82,6 +82,30 @@ public final class GuiAcceptanceSupport {
 	}
 
 	/** Finds a visible button by its semantic label, including the LAF mnemonic suffix. */
+	public static AbstractButton findShowingButtonByActionCommand(Component root, String actionCommand) throws Exception {
+			if (root == null || actionCommand == null)
+				throw new IllegalArgumentException("A component root and action command are required");
+			AbstractButton[] result = new AbstractButton[1];
+			Runnable lookup = () -> result[0] = findShowingButtonByActionCommandRecursive(root, actionCommand);
+			if (EventQueue.isDispatchThread()) lookup.run();
+			else SwingUtilities.invokeAndWait(lookup);
+			if (result[0] == null)
+				throw new AssertionError("Showing button not found for action command: " + actionCommand);
+			return result[0];
+		}
+
+		private static AbstractButton findShowingButtonByActionCommandRecursive(Component component, String actionCommand) {
+				if (component instanceof AbstractButton button && button.isShowing()
+					&& actionCommand.equals(button.getActionCommand())) return button;
+				if (component instanceof Container container) {
+					for (Component child : container.getComponents()) {
+						AbstractButton found = findShowingButtonByActionCommandRecursive(child, actionCommand);
+						if (found != null) return found;
+					}
+				}
+				return null;
+			}
+
 	public static AbstractButton findShowingButtonByText(Component root, String expectedText) throws Exception {
 		if (root == null || expectedText == null)
 			throw new IllegalArgumentException("A component root and expected button label are required");
