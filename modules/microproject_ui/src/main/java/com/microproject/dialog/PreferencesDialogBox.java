@@ -27,6 +27,8 @@ import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 
+import com.microproject.ui.util.PopupDialogSupport;
+
 import com.microproject.preference.GlobalPreferences;
 import com.microproject.pm.graphic.gantt.MilestoneShapeChoice;
 import com.microproject.ui.shell.AutoSaveControl;
@@ -157,13 +159,13 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 
 		JButton apply = new JButton(UsabilityStrings.text("preferences.apply"));
 		apply.addActionListener(event -> {
-			if (!GlobalPreferences.isValidDatePattern(datePattern.getText())
-					|| !GlobalPreferences.isValidDatePattern(dateTimePattern.getText())
-					|| !GlobalPreferences.isValidCurrencyCode(currencyCode.getText())) {
-				JOptionPane.showMessageDialog(this, UsabilityStrings.text("preferences.invalidFormat"),
-					UsabilityStrings.text("preferences.title"), JOptionPane.ERROR_MESSAGE);
-				return;
-			}
+					if (!GlobalPreferences.isValidDatePattern(datePattern.getText())
+						|| !GlobalPreferences.isValidDatePattern(dateTimePattern.getText())
+						|| !GlobalPreferences.isValidCurrencyCode(currencyCode.getText())) {
+						PopupDialogSupport.showMessageDialog(this, UsabilityStrings.text("preferences.invalidFormat"),
+							UsabilityStrings.text("preferences.title"), JOptionPane.ERROR_MESSAGE);
+						return;
+					}
 			if (!localeSettings.savePreferencesContent()) return;
 			applied = true;
 			preferences.setUserName(userName.getText());
