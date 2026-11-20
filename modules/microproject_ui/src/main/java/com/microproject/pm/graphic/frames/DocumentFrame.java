@@ -67,6 +67,7 @@ import com.microproject.dialog.TaskInspectorPanel;
 import com.microproject.dialog.UpdateProjectDialogBox;
 import com.microproject.dialog.UpdateTaskDialog;
 import com.microproject.dialog.calendar.ChangeWorkingTimeDialogBox;
+import com.microproject.ui.util.PopupDialogSupport;
 import com.microproject.menu.MenuActionConstants;
 import com.microproject.menu.MenuActionsMap;
 import com.microproject.menu.MenuManager;
@@ -954,8 +955,8 @@ public class DocumentFrame extends NamedFrame implements
 	private RibbonCommandResult applyCustomTaskMove(CommandId command, int direction) {
 		if (project == null || project.isReadOnly())
 			return RibbonCommandResult.rejected(command.actionId(), project == null ? "no-active-document" : "document-read-only");
-		Object answer = javax.swing.JOptionPane.showInputDialog(this, Messages.getString("TaskMove.customPrompt"),
-			Messages.getString("TaskMove.customTitle"), javax.swing.JOptionPane.QUESTION_MESSAGE, null, null, "1");
+		Object answer = PopupDialogSupport.showInputDialog(this, Messages.getString("TaskMove.customPrompt"),
+					Messages.getString("TaskMove.customTitle"), JOptionPane.QUESTION_MESSAGE);
 		if (answer == null)
 			return RibbonCommandResult.noChange(command.actionId(), getSelectedTaskIds()).withActiveView("task");
 		int days;
@@ -1040,13 +1041,13 @@ public class DocumentFrame extends NamedFrame implements
 				visibleCandidates.add(new OverallocatedTaskRow(viewRow, task));
 		}
 		if (visibleCandidates.isEmpty()) {
-			JOptionPane.showMessageDialog(getGraphicManager().getFrame(),
-				com.microproject.dialog.UsabilityStrings.text("resource.nextOverallocation.noneVisible"),
-				com.microproject.dialog.UsabilityStrings.text("resource.nextOverallocation.title"),
-				JOptionPane.INFORMATION_MESSAGE);
-			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.NO_CHANGE,
-				"no-visible-overallocation", selectedIds, List.of(), getTopViewId());
-		}
+					PopupDialogSupport.showMessageDialog(getGraphicManager().getFrame(),
+						com.microproject.dialog.UsabilityStrings.text("resource.nextOverallocation.noneVisible"),
+						com.microproject.dialog.UsabilityStrings.text("resource.nextOverallocation.title"),
+						JOptionPane.INFORMATION_MESSAGE);
+					return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.NO_CHANGE,
+						"no-visible-overallocation", selectedIds, List.of(), getTopViewId());
+				}
 
 		int[] selectedRows = sheet.getSelectedRows();
 		int currentViewRow = selectedRows.length == 0 ? -1
@@ -1139,8 +1140,8 @@ public class DocumentFrame extends NamedFrame implements
 		javax.swing.JPanel panel = new javax.swing.JPanel(new java.awt.BorderLayout(0, 6));
 		panel.add(new javax.swing.JLabel(Messages.getString("LevelResource.prompt")), java.awt.BorderLayout.NORTH);
 		panel.add(new javax.swing.JScrollPane(list), java.awt.BorderLayout.CENTER);
-		int answer = JOptionPane.showConfirmDialog(this, panel, Messages.getString("LevelResource.title"),
-			JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+		int answer = PopupDialogSupport.showConfirmDialog(this, panel, Messages.getString("LevelResource.title"),
+					JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 		if (answer != JOptionPane.OK_OPTION) return List.of();
 		List<com.microproject.pm.resource.Resource> chosen = new ArrayList<>();
 		for (int index : list.getSelectedIndices()) chosen.add(all.get(index));
@@ -1188,11 +1189,11 @@ public class DocumentFrame extends NamedFrame implements
 				"unresolved-overallocation", selectedIds, List.of(), getTopViewId());
 		}
 		if (!plan.isComplete()) {
-			int answer = JOptionPane.showConfirmDialog(this,
-				com.microproject.dialog.UsabilityStrings.text("leveling.partial"),
-				com.microproject.dialog.UsabilityStrings.text("leveling.title"),
-				JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-			if (answer != JOptionPane.YES_OPTION)
+					int answer = PopupDialogSupport.showConfirmDialog(this,
+						com.microproject.dialog.UsabilityStrings.text("leveling.partial"),
+						com.microproject.dialog.UsabilityStrings.text("leveling.title"),
+						JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+					if (answer != JOptionPane.YES_OPTION)
 				return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
 					"partial-leveling-cancelled", selectedIds, List.of(), getTopViewId());
 		}
@@ -1247,13 +1248,13 @@ public class DocumentFrame extends NamedFrame implements
 			return RibbonCommandResult.rejected(command.actionId(), "undo-unavailable").withSelectedTaskIds(selectedIds);
 
 		String scope = selectedOnly
-			? com.microproject.dialog.UsabilityStrings.text("leveling.clear.scopeSelection")
-			: com.microproject.dialog.UsabilityStrings.text("leveling.clear.scopeAll");
-		String prompt = java.text.MessageFormat.format(
-			com.microproject.dialog.UsabilityStrings.text("leveling.clear.confirm"), scope, changedTasks.size());
-		int answer = JOptionPane.showConfirmDialog(this, prompt,
-			com.microproject.dialog.UsabilityStrings.text("leveling.title"), JOptionPane.YES_NO_OPTION,
-			JOptionPane.WARNING_MESSAGE);
+					? com.microproject.dialog.UsabilityStrings.text("leveling.clear.scopeSelection")
+					: com.microproject.dialog.UsabilityStrings.text("leveling.clear.scopeAll");
+				String prompt = java.text.MessageFormat.format(
+					com.microproject.dialog.UsabilityStrings.text("leveling.clear.confirm"), scope, changedTasks.size());
+				int answer = PopupDialogSupport.showConfirmDialog(this, prompt,
+					com.microproject.dialog.UsabilityStrings.text("leveling.title"), JOptionPane.YES_NO_OPTION,
+					JOptionPane.WARNING_MESSAGE);
 		if (answer != JOptionPane.YES_OPTION)
 			return RibbonCommandResult.rejected(command.actionId(), "clear-leveling-cancelled").withSelectedTaskIds(selectedIds);
 		if (!CollaborationHelper.tryLockNodes(project, changedTasks, this,

@@ -401,17 +401,17 @@ public final class CustomReportDialogBox extends FlatLafDialog implements Schedu
 	private String safeText(Field field, Task task) { try { String value = field.getText(task, null); return value == null ? "" : value; } catch (RuntimeException error) { return ""; } }
 
 	private void savePreset() {
-		String name = JOptionPane.showInputDialog(this, t("report.presetName"), t("report.savePreset"), JOptionPane.PLAIN_MESSAGE);
+			String name = PopupDialogSupport.showInputDialog(this, t("report.presetName"), t("report.savePreset"), JOptionPane.PLAIN_MESSAGE);
 		if (name == null || name.isBlank()) return;
 		String displayName = name.trim();
 		project.getCustomReportPresets().put(displayName, encodePreset(currentPresetValues()));
 		refreshPresetNames(); presets.setSelectedItem(displayName);
 	}
 	private void createTemplatePreset() {
-		ReportTemplate template = (ReportTemplate) JOptionPane.showInputDialog(this, t("report.templatePrompt"),
-			t("report.new"), JOptionPane.PLAIN_MESSAGE, null, ReportTemplate.values(), ReportTemplate.TABLE);
-		if (template == null) return;
-		String name = JOptionPane.showInputDialog(this, t("report.presetName"), t("report.new"), JOptionPane.PLAIN_MESSAGE);
+			ReportTemplate template = (ReportTemplate) JOptionPane.showInputDialog(this, t("report.templatePrompt"),
+				t("report.new"), JOptionPane.PLAIN_MESSAGE, null, ReportTemplate.values(), ReportTemplate.TABLE);
+			if (template == null) return;
+			String name = PopupDialogSupport.showInputDialog(this, t("report.presetName"), t("report.new"), JOptionPane.PLAIN_MESSAGE);
 		if (name == null || name.isBlank()) return;
 		applyTemplate(template);
 		String displayName = name.trim();
