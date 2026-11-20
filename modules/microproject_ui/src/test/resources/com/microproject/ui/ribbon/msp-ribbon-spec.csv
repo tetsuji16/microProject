@@ -43,6 +43,7 @@ Task,Schedule,Collapse,RibbonCollapse,REQUIRED,S27
 Task,Tasks,Assign Resources,RibbonAssignResources,REQUIRED,S16
 Task,Tasks,Delegate Tasks,RibbonDelegateTasks,EXTENSION,delegation needs Project Server/Online in MSP; local product feature
 Task,Properties,Information,RibbonTaskInformation,REQUIRED,S12
+Task,Properties,Assignment Information,RibbonAssignmentInformation,EXTENSION,microProject extension; opens Assignment Information for selected assignment
 Task,Tasks,Inspect,RibbonTaskInspector,REQUIRED,S19
 Task,Properties,Notes,RibbonNotes,REQUIRED,S30
 Task,Properties,Details,RibbonTaskDetails,REQUIRED,S32
