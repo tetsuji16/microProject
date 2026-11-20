@@ -7,6 +7,9 @@ package com.microproject.pm.assignment;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+
 import org.junit.jupiter.api.Test;
 
 import com.microproject.field.FieldContext;
@@ -23,6 +26,14 @@ import com.microproject.undo.DataFactoryUndoController;
 
 class UsageDetailValuesTest {
 	private static final long DAY = CalendarOption.getInstance().getMillisPerDay();
+	private static final long CALENDAR_DAY = 24L * 60L * 60L * 1000L;
+	/**
+	 * Monday 2026-11-16 08:00 JST. Pinning the start keeps the fixture independent of the
+	 * run date: {@link Project#initialize} would otherwise schedule from the current clock,
+	 * and a Friday or weekend start moves the compared window off the excluded weekdays.
+	 */
+	private static final long START = LocalDateTime.of(2026, 11, 16, 8, 0)
+		.atZone(ZoneId.of("Asia/Tokyo")).toInstant().toEpochMilli();
 
 	@Test
 	void overallocationIsWorkAboveAvailabilityAndNeverNegative() {
@@ -68,7 +79,11 @@ class UsageDetailValuesTest {
 		resource.setWorkCalendar(null);
 		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
 		long start = assignment.getStart();
-		long end = start + 7L * DAY;
+		assertEquals(START, start, "the pinned project start is the assignment start");
+		// The window must hold whole excluded days. Measuring it in working-day millis
+		// ended it inside Wednesday, and both calendars then reported the same whole
+		// days, so the comparison passed or failed with the run date (#1273).
+		long end = START + 4L * CALENDAR_DAY; // Monday 08:00 to Friday 08:00 of the pinned week
 		double units = ((Availability) resource.getAvailabilityTable().getList().iterator().next()).getMaximumUnits();
 
 		long projectWork = Math.round(project.getEffectiveWorkCalendar().compare(end, start, false) * units);
@@ -179,6 +194,9 @@ class UsageDetailValuesTest {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("usage-detail-values", undoController);
 		Project project = Project.createProject(resourcePool, undoController);
+		// A start set before initialize() stops it from scheduling the project from the
+		// current clock, which made every window in this class depend on the run date.
+		project.setStart(START);
 		project.initialize(false, false);
 		return project;
 	}
