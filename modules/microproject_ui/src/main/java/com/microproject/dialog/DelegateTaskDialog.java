@@ -62,6 +62,15 @@ public final class DelegateTaskDialog extends FieldDialog {
 	}
 	
 	
+	/**
+	 * #863: the content is one bounded form, so the dialog keeps its packed size
+	 * instead of showing an empty band when the user grows the window.
+	 */
+	@Override
+	protected boolean isFixedSizeForm() {
+		return true;
+	}
+
 	public JComponent createContentPanel() {
 		taskNames = new JLabel();
 		String names = DataUtils.stringListWithMaxAndMessage(getCollection(),Settings.STRING_LIST_LIMIT,Messages.getString("Message.tooManyTasksSelectedToList.mf")); //$NON-NLS-1$

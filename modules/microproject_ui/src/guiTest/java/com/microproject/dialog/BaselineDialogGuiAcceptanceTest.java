@@ -142,14 +142,15 @@ class BaselineDialogGuiAcceptanceTest {
 		assertControlInsideDialog(dialog, selected, "Selected Tasks option");
 		assertControlInsideDialog(dialog, cancel, "Cancel button");
 		assertControlInsideDialog(dialog, ok, "OK button");
-		DialogLayoutAssertions.assertWithinUsableScreen(dialog, "Clear Baseline dialog (#724)");
-		DialogLayoutAssertions.assertResizeWithinUsableScreen(dialog, 100, 40, "Clear Baseline dialog (#724)");
+		// #863: the selector is one bounded form, so it keeps its packed size instead
+		// of growing into an empty band.
+		DialogLayoutAssertions.assertFixedSizeForm(dialog, dialog, "Clear Baseline dialog (#724/#863)");
 		DialogScreenshotArtifacts.capture(dialog, "issue-460-clear-baseline");
-		assertControlInsideDialog(dialog, baseline, "resized baseline selector");
-		assertControlInsideDialog(dialog, entire, "resized Entire Project option");
-		assertControlInsideDialog(dialog, selected, "resized Selected Tasks option");
-		assertControlInsideDialog(dialog, cancel, "resized Cancel button");
-		assertControlInsideDialog(dialog, ok, "resized OK button");
+		assertControlInsideDialog(dialog, baseline, "baseline selector");
+		assertControlInsideDialog(dialog, entire, "Entire Project option");
+		assertControlInsideDialog(dialog, selected, "Selected Tasks option");
+		assertControlInsideDialog(dialog, cancel, "Cancel button");
+		assertControlInsideDialog(dialog, ok, "OK button");
 
 		click(robot, selected);
 		if (selected.isEnabled()) {

@@ -80,6 +80,15 @@ public final class AboutDialog extends AbstractDialog {
 	// Building *************************************************************
 
 	/**
+	 * #863: the content is one bounded form, so the dialog keeps its packed size
+	 * instead of showing an empty band when the user grows the window.
+	 */
+	@Override
+	protected boolean isFixedSizeForm() {
+		return true;
+	}
+
+	/**
 	 * Builds the panel. Initializes and configures components first, then
 	 * creates a FormLayout, configures the layout, creates a builder, sets a
 	 * border, and finally adds the components.
