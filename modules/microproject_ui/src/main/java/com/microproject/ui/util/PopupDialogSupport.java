@@ -36,6 +36,7 @@ import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JOptionPane;
 import javax.swing.JRootPane;
+import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 
 import com.microproject.dialog.UsabilityStrings;
@@ -202,16 +203,36 @@ public final class PopupDialogSupport {
 		dialog.dispose();
 	}
 
-	public static void bindRootPaneAction(JRootPane rootPane, KeyStroke keyStroke, String actionKey,
-			ActionListener listener) {
-		rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(keyStroke, actionKey);
-		rootPane.getActionMap().put(actionKey, new AbstractAction() {
-			private static final long serialVersionUID = 1L;
+	public static String showInputDialog(Component parentComponent, Object message, String title, int messageType) {
+		JTextField inputField = new JTextField(20);
+		JButton ok = new JButton(localized("dialog.ok", "OK"));
+		JButton cancel = new JButton(localized("dialog.cancel", "Cancel"));
+		Object[] options = { ok, cancel };
+		JOptionPane optionPane = new JOptionPane(message, messageType, JOptionPane.DEFAULT_OPTION, null, options, ok);
+		optionPane.setWantsInput(true);
+		optionPane.setInputValue(inputField.getText());
+		JDialog dialog = optionPane.createDialog(parentComponent, title);
+		bindOptionButtons(optionPane, options);
+		dialog.getRootPane().setDefaultButton(ok);
+		bindEscapeToOptionPane(dialog, optionPane, JOptionPane.CLOSED_OPTION);
+		dialog.setAlwaysOnTop(true);
+		dialog.setVisible(true);
+		dialog.setAlwaysOnTop(false);
+		dialog.dispose();
+		Object value = optionPane.getInputValue();
+		return value == null || value == JOptionPane.UNINITIALIZED_VALUE ? null : value.toString();
+	}
 
-			public void actionPerformed(ActionEvent e) {
-				listener.actionPerformed(e);
-			}
-		});
+	public static void bindRootPaneAction(JRootPane rootPane, KeyStroke keyStroke, String actionKey,
+	ActionListener listener) {
+	rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(keyStroke, actionKey);
+	rootPane.getActionMap().put(actionKey, new AbstractAction() {
+	private static final long serialVersionUID = 1L;
+
+	public void actionPerformed(ActionEvent e) {
+		listener.actionPerformed(e);
+	}
+	});
 	}
 
 	static int normalizeOptionPaneValue(Object value, Object[] options, int escapeResult) {
