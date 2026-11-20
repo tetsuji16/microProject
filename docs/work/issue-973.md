@@ -24,7 +24,7 @@ Blockers: none.
 | A1 | Every ribbon command with a shortcut shows the key in its screen tip; a test walks the built ribbon and detects a missing or stale hint | Pass | `MicrosoftShortcutsRootPaneTest.ribbonScreenTipsShowTheRegisteredShortcutOfEveryCommandThatHasOne` (PR #1096, master `4b876a66e`) |
 | A2 | The advertised key is derived from the root-pane binding, so changing the binding changes the tip | Pass | Same test resolves each hint through `MenuRibbonCommandSource.getShortcut` / `ShortcutHints.primary` against the InputMap `GraphicManager.applyMicrosoftShortcuts` writes; `ShortcutHintsTest` pins the formatting |
 | A3 | English and Japanese tips keep the one-line `name (key)` shape | Pass | `MicrosoftShortcutsRootPaneTest.japaneseRibbonScreenTipsKeepTheShortcutAfterTheTranslatedName` (PR #1271): Japanese bundle names plus the same keys, no unregistered key advertised |
-| A4 | `GUI acceptance` passes | Pending | CI on PR #1271 |
+| A4 | `GUI acceptance` passes | Pass | PR #1271 run `44758854750`: `GUI acceptance` pass (4m42s). `build`/`verify` are red only on the pre-existing `UsageDetailValuesTest` failure tracked in #1273 |
 
 ## Current slice
 
@@ -36,13 +36,18 @@ the closing evidence.
 
 ## Remaining blockers
 
-- A4 needs CI on the PR #1271 head.
+- `build` and `verify` stay red until the pre-existing `:microproject_core:test`
+  failure (`UsageDetailValuesTest`, #1273) is fixed; that failure reproduces on
+  origin/master `fb4bffbc9` without this change.
 
 ## Latest evidence
 
 - Tests/build: `.\gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.frames.MicrosoftShortcutsRootPaneTest" --console=plain` → BUILD SUCCESSFUL (14 tests, 0 failures); `.\gradlew.bat :microproject_ui:test --console=plain` → see PR.
 - Physical GUI/manual: not run locally; the changed file is a headless test, and the tooltip route itself is unchanged. `GUI acceptance` covers the rendered ribbon.
-- CI: pending on the PR #1271 head (`4fc6ebdc8`).
+- CI: PR #1271 `4fc6ebdc8` — `GUI acceptance` pass, CodeRabbit pass; `verify` on
+  ubuntu/windows/macos and the `build` aggregator fail on
+  `UsageDetailValuesTest.resourceWithoutCalendarUsesTheProjectCalendarNotTheTaskCalendar`
+  (baseline, #1273).
 
 ## Notes
 
