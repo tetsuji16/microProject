@@ -18,6 +18,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.JTextField;
 import javax.swing.JComponent;
 import javax.swing.KeyStroke;
+import javax.swing.JOptionPane;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.GridLayout;
@@ -249,9 +250,9 @@ public final class CriticalChainStatusDialogBox extends FlatLafDialog {
 		if (history != null) latest = history.points().stream().max(java.util.Comparator.comparing(CriticalChainBufferHistory.Point::observedAt))
 			.map(value -> value.observationId().equals(point.observationId())).orElse(false);
 		String message = latest ? UsabilityStrings.text("ccpm.retractLatestWarning") : UsabilityStrings.text("ccpm.retractPrompt");
-		int choice = javax.swing.JOptionPane.showConfirmDialog(this, new Object[] { message, form },
-			UsabilityStrings.text("ccpm.retractTitle"), javax.swing.JOptionPane.OK_CANCEL_OPTION,
-			javax.swing.JOptionPane.WARNING_MESSAGE);
+		int choice = PopupDialogSupport.showConfirmDialog(this, new Object[] { message, form },
+					UsabilityStrings.text("ccpm.retractTitle"), JOptionPane.OK_CANCEL_OPTION,
+					JOptionPane.WARNING_MESSAGE);
 		if (choice != javax.swing.JOptionPane.OK_OPTION) return;
 		CriticalChainBufferHistoryService.Outcome outcome = new CriticalChainBufferHistoryService().retract(project,
 			point.observationId(), reason.getText(), "local", "Local user");
@@ -293,7 +294,7 @@ public final class CriticalChainStatusDialogBox extends FlatLafDialog {
 			if (html) reports.writeHtml(java.nio.file.Path.of(selectedFile), project.getName(), history);
 			else reports.writeCsv(java.nio.file.Path.of(selectedFile), history);
 		} catch (java.io.IOException exception) {
-			javax.swing.JOptionPane.showMessageDialog(this, exception.getMessage(), "CCPM report", javax.swing.JOptionPane.ERROR_MESSAGE);
-		}
+					PopupDialogSupport.showMessageDialog(this, exception.getMessage(), "CCPM report", JOptionPane.ERROR_MESSAGE);
+				}
 	}
 }
