@@ -30,8 +30,12 @@ public final class PodFormatIdentifiers {
 		return false;
 	}
 
+	/**
+	 * Maps a class name read from a persisted stream to the current class name:
+	 * the legacy package prefix first, then the class-level moves in {@link ClassRelocations}.
+	 */
 	public static String remapClassName(String name) {
-		return name.replace(LEGACY_PACKAGE, "com.microproject.");
+		return ClassRelocations.relocate(name.replace(LEGACY_PACKAGE, "com.microproject."));
 	}
 
 	private PodFormatIdentifiers() {

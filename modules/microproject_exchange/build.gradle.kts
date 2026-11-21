@@ -20,6 +20,8 @@ tasks.test {
     enabled = true
     useJUnitPlatform()
     systemProperty("java.awt.headless", "true")
+    // Regenerates testdata/persisted-classes.txt: .\gradlew.bat :microproject_exchange:test --tests "*PersistedClassInventoryTest" -Dmicroproject.updatePersistedClasses=true
+    providers.systemProperty("microproject.updatePersistedClasses").orNull?.let { systemProperty("microproject.updatePersistedClasses", it) }
     // Force commons-logging to the JDK logger. Auto-discovery of log4j2 / logback
     // triggers a StackWalker recursion (StackOverflowError) on modern JDKs and breaks
     // Configuration.getInstance() (Digester config parse) -> .pod loading. See issue #154.
