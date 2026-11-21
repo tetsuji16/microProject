@@ -38,6 +38,8 @@ import com.microproject.grouping.core.model.NodeModel;
  *
  */
 public class NodePasteEdit extends AbstractUndoableEdit{
+	private static final long serialVersionUID = 4672206097736825472L;
+
 	protected NodeModel model;
 	protected Node parent;
 	protected List<?> children;

@@ -34,6 +34,8 @@ import com.microproject.grouping.core.Node;
  *
  */
 public class HierarchyEvent extends EventObject {
+	private static final long serialVersionUID = 4012304159814639765L;
+
 	public static final int NODES_CHANGED=0;
 	public static final int NODES_INSERTED=1;
 	public static final int NODES_REMOVED=2;

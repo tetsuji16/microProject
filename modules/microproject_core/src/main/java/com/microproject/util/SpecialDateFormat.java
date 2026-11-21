@@ -37,6 +37,8 @@ import com.microproject.strings.Messages;
  *
  */
 public class SpecialDateFormat extends SimpleDateFormat {
+	private static final long serialVersionUID = -840488840311383862L;
+
 	private static final String NO_END=Messages.getString("Date.NoEnd");
 	private static final String NO_START=Messages.getString("Date.NoStart");
 	

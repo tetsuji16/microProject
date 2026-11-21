@@ -35,6 +35,8 @@ import com.microproject.pm.task.Portfolio;
 import com.microproject.strings.Messages;
 
 public class ProjectsDialog extends AbstractDialog{
+	private static final long serialVersionUID = 1234142818258607810L;
+
 	private static ProjectsDialog instance = null;
 	private GraphicManager graphicManager =null;
 	private ProjectView projectView;

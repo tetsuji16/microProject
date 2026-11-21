@@ -50,6 +50,8 @@ import com.microproject.util.FlatUiSupport;
  *
  */
 public abstract class InformationDialog extends FieldDialog {
+	private static final long serialVersionUID = -787191572811883955L;
+
 	private JButton changeWorkingTimeButton = null;
 	private JButton assignResourceButton = null;
   	protected InformationDialog(final Frame owner, String title) {

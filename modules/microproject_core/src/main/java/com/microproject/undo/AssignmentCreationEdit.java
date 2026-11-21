@@ -35,6 +35,8 @@ import com.microproject.pm.assignment.AssignmentService;
  *
  */
 public class AssignmentCreationEdit extends AbstractUndoableEdit{
+	private static final long serialVersionUID = -5932164426012042178L;
+
 	protected Node assignment;
 	protected Assignment detachedAssignment;
 	

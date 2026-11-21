@@ -27,6 +27,8 @@ import com.microproject.datatype.Duration;
 import com.microproject.util.ErrorLogger;
 
 public class DelayableImpl implements Delayable, Cloneable {
+	private static final long serialVersionUID = -7232636743385341302L;
+
 	private long delay = 0L;
 	private long levelingDelay = 0L;
 	

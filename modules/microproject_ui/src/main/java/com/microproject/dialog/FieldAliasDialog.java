@@ -41,6 +41,8 @@ import com.microproject.util.FlatUiSupport;
 import com.microproject.util.Alert;
 
 public final class FieldAliasDialog extends AbstractDialog {
+	private static final long serialVersionUID = 9053422594771339498L;
+
 	JLabel defaultName;
 	JLabel oldName;
 	JTextField newName;

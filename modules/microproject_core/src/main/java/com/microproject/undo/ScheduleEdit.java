@@ -40,6 +40,8 @@ import com.microproject.pm.scheduling.ScheduleService;
  *
  */
 public class ScheduleEdit extends AbstractUndoableEdit{
+	private static final long serialVersionUID = -251395343673336047L;
+
 	protected Schedule schedule;
 	protected ScheduleInterval interval;
 	protected long start,end;
@@ -83,6 +85,8 @@ public class ScheduleEdit extends AbstractUndoableEdit{
 	}
 
 	private static final class ProjectTaskSnapshotEdit extends AbstractUndoableEdit {
+		private static final long serialVersionUID = -421733110395251983L;
+
 		private final Project project;
 		private final ProjectTaskSnapshot before;
 		private final Map<Task, Integer> beforeCalculationStates;

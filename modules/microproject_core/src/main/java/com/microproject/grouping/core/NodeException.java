@@ -27,6 +27,7 @@ package com.microproject.grouping.core;
  *
  */
 public class NodeException extends Exception {
+	private static final long serialVersionUID = -6917053022658570410L;
 
 	/**
 	 * 

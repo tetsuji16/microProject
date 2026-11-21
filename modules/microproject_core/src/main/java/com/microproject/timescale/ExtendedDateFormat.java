@@ -35,6 +35,8 @@ import java.util.Locale;
 import com.microproject.strings.Messages;
 
 public class ExtendedDateFormat extends SimpleDateFormat {
+	private static final long serialVersionUID = -4920293891910018650L;
+
 	protected boolean quarter,half,normal;
 	protected String text;
 

@@ -39,6 +39,8 @@ import com.microproject.timescale.TimeScaleListener;
  *
  */
 public class TimeSpreadSheetColumnModel extends DefaultTableColumnModel implements TimeScaleListener {
+	private static final long serialVersionUID = -5800780113535906097L;
+
 	protected CoordinatesConverter coord;
 	protected TimeSpreadSheet spreadSheet;
 

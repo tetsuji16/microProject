@@ -43,6 +43,8 @@ import java.text.Format;
  * there is no object churn and fewer function calls.
  */
 public class DurationFormat extends Format {
+	private static final long serialVersionUID = -8392586729099010800L;
+
 	private final boolean showPlusSign;
 	private final boolean isWork;
 	private final boolean canBeNonTemporal;

@@ -27,6 +27,8 @@ package com.microproject.field;
  * 
  */
 public class FieldParseException extends Exception {
+	private static final long serialVersionUID = 5124167353392756020L;
+
 	/**
 	 * 
 	 */

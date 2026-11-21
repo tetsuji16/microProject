@@ -32,6 +32,8 @@ import com.microproject.field.Field;
  *
  */
 public class FieldArrayEvent extends EventObject {
+	private static final long serialVersionUID = -350753386868352539L;
+
 	protected ArrayList<Field> fieldArray;
 	
 	/**

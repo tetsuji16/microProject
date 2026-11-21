@@ -39,6 +39,8 @@ import com.microproject.grouping.core.model.NodeModel;
  *
  */
 public class ModelFieldEdit extends AbstractUndoableEdit{
+	private static final long serialVersionUID = -2232501896415606557L;
+
 	private static final Logger logger = Logger.getLogger(ModelFieldEdit.class.getName());
 	protected NodeModel model;
 	protected Field field;

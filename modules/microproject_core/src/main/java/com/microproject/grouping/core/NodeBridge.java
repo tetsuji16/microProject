@@ -41,6 +41,8 @@ import com.microproject.server.data.DataObject;
  * Bridge of the bridge pattern
  */
 public class NodeBridge extends DefaultMutableTreeNode implements Node{
+	private static final long serialVersionUID = -1772673634118457225L;
+
 	//protected Object impl;
 	protected boolean virtual = false;
 	protected boolean voidNode=false;

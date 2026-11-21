@@ -64,6 +64,8 @@ import com.microproject.util.Alert;
  *
  */
 public class NodeListTransferHandler extends TransferHandler {
+	private static final long serialVersionUID = 3839489819011260564L;
+
 	    private static final Logger logger = Logger.getLogger(NodeListTransferHandler.class.getName());
 	    public NodeListTransferHandler(SpreadSheet spreadSheet){
 	    	super();

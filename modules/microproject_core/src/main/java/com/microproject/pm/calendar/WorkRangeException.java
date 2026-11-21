@@ -27,6 +27,7 @@ package com.microproject.pm.calendar;
  * 
  */
 public class WorkRangeException extends Exception {
+	private static final long serialVersionUID = 6736666073323363123L;
 
 	/**
 	 * @param arg0

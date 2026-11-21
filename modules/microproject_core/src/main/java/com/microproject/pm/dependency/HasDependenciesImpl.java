@@ -41,6 +41,8 @@ import com.microproject.pm.calendar.HasCalendar;
 
 
 public class HasDependenciesImpl implements HasDependencies, Serializable {
+	private static final long serialVersionUID = -2275636832165730458L;
+
 	private static final Logger logger = Logger.getLogger(HasDependenciesImpl.class.getName());
 	private HasCalendar hasCalendar;
 	public HasDependenciesImpl(HasCalendar hasCalendar) {

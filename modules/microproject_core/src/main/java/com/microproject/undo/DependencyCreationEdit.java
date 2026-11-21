@@ -34,6 +34,8 @@ import com.microproject.pm.dependency.DependencyService;
  *
  */
 public class DependencyCreationEdit extends AbstractUndoableEdit{
+	private static final long serialVersionUID = 3294442103271847378L;
+
 	protected Dependency dependency;
 	protected Object source;
 	

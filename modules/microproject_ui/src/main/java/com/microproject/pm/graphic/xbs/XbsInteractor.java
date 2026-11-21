@@ -44,6 +44,7 @@ import com.microproject.grouping.core.model.NodeModel;
  *
  */
 public class XbsInteractor extends NetworkInteractor {
+	private static final long serialVersionUID = 2326936180056289592L;
 
 	/**
 	 * @param ui

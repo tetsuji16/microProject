@@ -63,6 +63,8 @@ import com.microproject.util.DataUtils;
  */
 @SuppressWarnings("deprecation")
 public abstract class FieldDialog extends AbstractDialog  implements ObjectEvent.Listener,ScheduleEventListener,SelectionNodeListener, DocumentSelectedEvent.Listener {
+	private static final long serialVersionUID = -17895260647383345L;
+
 	private static final Logger logger = Logger.getLogger(FieldDialog.class.getName());
 	private boolean multipleObjects;
 	private Class objectClass;

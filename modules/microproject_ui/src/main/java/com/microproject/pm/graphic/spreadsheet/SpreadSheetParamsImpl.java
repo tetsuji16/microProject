@@ -44,6 +44,8 @@ import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.strings.Messages;
 
 public class SpreadSheetParamsImpl extends GanttParamsImpl implements SpreadSheetParams {
+	private static final long serialVersionUID = -2753662832778898847L;
+
 	private static final Logger logger = Logger.getLogger(SpreadSheetParamsImpl.class.getName());
 	protected String spreadsheetCategory;
 	protected SpreadSheetFieldArray fieldArray;

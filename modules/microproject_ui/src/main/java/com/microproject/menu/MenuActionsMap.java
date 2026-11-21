@@ -39,12 +39,16 @@ import com.microproject.menu.resource.MissingListenerException;
  */
 public class MenuActionsMap {
 	public static abstract class DocumentMenuAction extends GlobalMenuAction {
+		private static final long serialVersionUID = 4893887112172693064L;
+
 		protected boolean needsDocument() {
 			return true;
 		}
 	}
 
 	public static abstract class GlobalMenuAction extends AbstractAction {
+		private static final long serialVersionUID = 1373635174523670947L;
+
 		protected boolean needsDocument() {
 			return false;
 		}
