@@ -135,7 +135,18 @@ function Test-HostedQuickSettingsDisabled {
     throw 'Hosted Windows-key guard did not keep Quick Settings and Start/Search closed during the preflight. The GUI suite was not started.'
   }
 
-  $guardLog = Get-Content -LiteralPath $script:hostedWarningWatcherLog -Raw
+  # The guard writes hook events from its own log thread, so give the line a short bounded wait.
+  $guardLogDeadline = [DateTime]::UtcNow.AddSeconds(3)
+  while ($true) {
+    $guardLog = Get-Content -LiteralPath $script:hostedWarningWatcherLog -Raw
+    if ($guardLog -match 'blocked Win\+A') { break }
+    if ([DateTime]::UtcNow -ge $guardLogDeadline) {
+      # The guard can write the line after the read above, so read the log once more before failing.
+      $guardLog = Get-Content -LiteralPath $script:hostedWarningWatcherLog -Raw
+      break
+    }
+    Start-Sleep -Milliseconds 100
+  }
   if ($guardLog -notmatch 'blocked Win\+A') { throw 'Hosted Win+A guard did not record blocking the preflight shortcut.' }
   Write-Host 'Hosted Windows-key guard preflight passed: Win+A was blocked and Quick Settings and Start/Search stayed closed.'
   if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {
