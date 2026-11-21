@@ -73,6 +73,7 @@ class PreferencesDialogGuiAcceptanceTest {
 				preferences.setCurrencyCode(originalCurrencyCode);
 				preferences.setDefaultMilestoneShape(originalMilestoneShape);
 				FlatLafSupport.initialize();
+				preferences.applyFormatPreferences();
 			}
 			if (localePreferences != null) {
 				if (originalLocalePreference == null) localePreferences.remove("locale");
@@ -581,6 +582,8 @@ class PreferencesDialogGuiAcceptanceTest {
 		assertEquals("", testPreferences.getDatePattern(), "A rejected Apply must not store a date pattern");
 		assertEquals("", testPreferences.getCurrencyCode(), "A rejected Apply must not store a currency code");
 		javax.swing.JOptionPane error = com.microproject.testsupport.ResourceIntervalTableFixture.visibleError();
+		assertEquals(UsabilityStrings.text("preferences.invalidFormat"), String.valueOf(error.getMessage()),
+			"The rejection must show the invalid-format message");
 		SwingUtilities.invokeAndWait(() -> {
 			AbstractButton ok = findAnyButton(error);
 			if (ok != null)
