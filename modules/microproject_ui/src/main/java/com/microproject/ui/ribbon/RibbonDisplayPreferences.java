@@ -15,6 +15,7 @@ public final class RibbonDisplayPreferences {
 	private static final String DISPLAY_MODE_KEY = "ribbonDisplayMode";
 	private static final String QUICK_ACCESS_VISIBLE_KEY = "ribbonQuickAccessVisible";
 	private static final String QUICK_ACCESS_COMMANDS_KEY = "ribbonQuickAccessCommands";
+	private static final String CUSTOMIZATION_KEY = "ribbonCustomization";
 	private static final List<String> DEFAULT_QUICK_ACCESS_COMMANDS = List.of(
 		"RibbonTopBarSaveProject", "RibbonTopBarUndo", "RibbonTopBarRedo");
 
@@ -86,5 +87,31 @@ public final class RibbonDisplayPreferences {
 
 	public static void resetQuickAccessCommands() {
 		saveQuickAccessCommands(DEFAULT_QUICK_ACCESS_COMMANDS);
+	}
+
+	public static RibbonCustomization loadRibbonCustomization() {
+		return RibbonCustomization.parse(Preferences.userNodeForPackage(RibbonDisplayPreferences.class)
+			.get(CUSTOMIZATION_KEY, null));
+	}
+
+	public static void saveRibbonCustomization(RibbonCustomization customization) {
+		Preferences node = Preferences.userNodeForPackage(RibbonDisplayPreferences.class);
+		if (customization.isEmpty()) node.remove(CUSTOMIZATION_KEY);
+		else {
+			String text = customization.serialize();
+			if (text.length() > Preferences.MAX_VALUE_LENGTH) {
+				throw new IllegalArgumentException("Ribbon customization is too large to store ("
+					+ text.length() + " > " + Preferences.MAX_VALUE_LENGTH + " characters)");
+			}
+			node.put(CUSTOMIZATION_KEY, text);
+		}
+	}
+
+	public static void resetRibbonCustomization() {
+		Preferences.userNodeForPackage(RibbonDisplayPreferences.class).remove(CUSTOMIZATION_KEY);
+	}
+
+	public static void resetRibbonTab(String tabId) {
+		saveRibbonCustomization(loadRibbonCustomization().withoutTab(tabId));
 	}
 }
