@@ -38,13 +38,17 @@ class OfficeChromeRebuildLeakTest {
 			OfficeChromePanel previous = new OfficeChromePanel(manager, first, () -> { });
 			int registered = manager.getRibbonFactory().getRibbonControlsFromId(COMMAND).size();
 			assertTrue(registered >= 1, "the Quick Access control must be registered for its command");
-			for (int rebuild = 0; rebuild < 2; rebuild++) {
-				JPanel ribbon = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
-				OfficeChromePanel next = new OfficeChromePanel(manager, ribbon, () -> { });
+			try {
+				for (int rebuild = 0; rebuild < 2; rebuild++) {
+					JPanel ribbon = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+					OfficeChromePanel next = new OfficeChromePanel(manager, ribbon, () -> { });
+					MicroProjectShell.releaseRibbonShell(previous);
+					previous = next;
+					assertEquals(registered, manager.getRibbonFactory().getRibbonControlsFromId(COMMAND).size(),
+						"only the new shell's controls stay registered after rebuild " + (rebuild + 1));
+				}
+			} finally {
 				MicroProjectShell.releaseRibbonShell(previous);
-				previous = next;
-				assertEquals(registered, manager.getRibbonFactory().getRibbonControlsFromId(COMMAND).size(),
-					"only the new shell's controls stay registered after rebuild " + (rebuild + 1));
 			}
 		});
 	}

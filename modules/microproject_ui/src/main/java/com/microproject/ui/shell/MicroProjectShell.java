@@ -121,7 +121,7 @@ public final class MicroProjectShell {
 	public static void rebuildOpenRibbons() {
 		if (SwingUtilities.isEventDispatchThread()) {
 			for (Window window : Window.getWindows()) {
-				if (window instanceof MainRibbonFrame ribbonFrame) ribbonFrame.rebuildRibbon();
+				if (window instanceof MainRibbonFrame ribbonFrame && ribbonFrame.isDisplayable()) ribbonFrame.rebuildRibbon();
 			}
 		} else {
 			SwingUtilities.invokeLater(MicroProjectShell::rebuildOpenRibbons);
