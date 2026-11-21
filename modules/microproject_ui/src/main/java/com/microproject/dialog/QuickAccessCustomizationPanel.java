@@ -39,6 +39,7 @@ final class QuickAccessCustomizationPanel extends JPanel {
 	private final JButton up;
 	private final JButton down;
 	private final JButton reset;
+	private JPanel transferRow;
 
 	QuickAccessCustomizationPanel() {
 		super(new GridBagLayout());
@@ -78,7 +79,28 @@ final class QuickAccessCustomizationPanel extends JPanel {
 		place(CustomizeSupport.buttonColumn(up, down), 3, 1, 0, 1);
 		JPanel resetRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 0, 0));
 		resetRow.add(reset);
+		transferRow = resetRow;
 		place(resetRow, 2, 2, 0, 0);
+	}
+
+	/** Adds the Import/Export dropdown shared with the Customize Ribbon page. */
+	void attachTransfer(CustomizationTransfer transfer) {
+		transferRow.add(transfer.createButton("quickAccess"));
+		transferRow.revalidate();
+	}
+
+	/** The working toolbar commands as they would be stored on Apply. */
+	List<String> workingCommands() {
+		return chosenIds();
+	}
+
+	/** Replaces the working toolbar commands, for example with an imported file. */
+	void replaceWorking(List<String> commandIds) {
+		chosen.clear();
+		for (String id : commandIds) {
+			chosen.addElement(new RibbonCustomizationCatalog.Command(id, RibbonCustomizationCatalog.commandName(id)));
+		}
+		updateButtons();
 	}
 
 	private void place(java.awt.Component component, int x, int y, double weightx, double weighty) {

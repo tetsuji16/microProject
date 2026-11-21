@@ -79,6 +79,7 @@ final class RibbonCustomizationPanel extends JPanel {
 	private final JMenuItem resetTabItem;
 	private final JMenuItem resetAllItem;
 	private boolean rebuilding;
+	private JPanel transferRow;
 
 	RibbonCustomizationPanel() {
 		super(new GridBagLayout());
@@ -158,7 +159,25 @@ final class RibbonCustomizationPanel extends JPanel {
 		row.add(newGroup);
 		row.add(rename);
 		row.add(reset);
+		transferRow = row;
 		place(row, 2, 2, 0, 0, 2);
+	}
+
+	/** Adds the Import/Export dropdown shared with the Quick Access Toolbar page. */
+	void attachTransfer(CustomizationTransfer transfer) {
+		transferRow.add(transfer.createButton("ribbonCustomize"));
+		transferRow.revalidate();
+	}
+
+	/** The working copy as it would be stored on Apply. */
+	RibbonCustomization workingCustomization() {
+		return draft.toCustomization();
+	}
+
+	/** Replaces the working copy, for example with an imported file. */
+	void replaceWorking(RibbonCustomization customization) {
+		draft.replaceWith(customization);
+		rebuild(null);
 	}
 
 	private void place(Component component, int x, int y, double weightx, double weighty, int width) {

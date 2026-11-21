@@ -263,6 +263,50 @@ class PreferencesCustomizeGuiAcceptanceTest {
 			"the rebuilt Quick Access Toolbar does not show the new order: " + toolbarOrder(expected));
 	}
 
+	@Test
+	void exportResetImportAndApplyRestoreTheCustomization() throws Exception {
+		RibbonCustomization original = new RibbonCustomization(List.of(), Set.of("HelpRibbonTask"),
+			List.of(new RibbonCustomization.CustomTab("gui-tab-x", "Tab X", List.of(
+				new RibbonCustomization.CustomGroup("gui-group-x", "Group X", List.of("RibbonFind"))))),
+			java.util.Map.of());
+		List<String> toolbar = List.of("RibbonFind", RibbonDisplayPreferences.defaultQuickAccessCommands().get(0));
+		RibbonDisplayPreferences.saveRibbonCustomization(original);
+		RibbonDisplayPreferences.saveQuickAccessCommands(toolbar);
+		java.nio.file.Path directory = java.nio.file.Files.createTempDirectory("mpui-gui");
+		java.nio.file.Path file = directory.resolve("shared.mpui");
+		CustomizationTransfer.FileChoice previousChoice = CustomizationTransfer.fileChoice;
+		CustomizationTransfer.fileChoice = (parent, forSave) -> file;
+		try {
+			PreferencesDialogBox dialog = openDialog(PreferencesDialogBox.CATEGORY_CUSTOMIZE_RIBBON);
+			awaitShowing("ribbonCustomizeTree", JTree.class);
+			click(button("ribbonCustomizeImportExport"));
+			click(menuItem("ribbonCustomizeExport"));
+			GuiAcceptanceSupport.await(() -> java.nio.file.Files.exists(file), "Export did not write the file");
+			click(findButton(dialog, UsabilityStrings.text("preferences.cancel")));
+			GuiAcceptanceSupport.await(() -> findDialog() == null, "Preferences dialog did not close after Cancel");
+
+			// Reset the stored settings, then bring them back from the file.
+			RibbonDisplayPreferences.saveRibbonCustomization(RibbonCustomization.none());
+			RibbonDisplayPreferences.resetQuickAccessCommands();
+			PreferencesDialogBox second = openDialog(PreferencesDialogBox.CATEGORY_CUSTOMIZE_RIBBON);
+			JTree tree = awaitShowing("ribbonCustomizeTree", JTree.class);
+			assertFalse(tabLabels(tree).contains("Tab X"));
+			click(button("ribbonCustomizeImportExport"));
+			click(menuItem("ribbonCustomizeImport"));
+			GuiAcceptanceSupport.await(() -> tabLabels(tree).contains("Tab X"), "Import did not restore the custom tab");
+			assertEquals(RibbonCustomization.none(), RibbonDisplayPreferences.loadRibbonCustomization(),
+				"Import must not store anything before Apply");
+			click(findButton(second, UsabilityStrings.text("preferences.apply")));
+			GuiAcceptanceSupport.await(() -> findDialog() == null, "Preferences dialog did not close after Apply");
+			assertEquals(original, RibbonDisplayPreferences.loadRibbonCustomization());
+			assertEquals(toolbar, RibbonDisplayPreferences.loadQuickAccessCommands());
+		} finally {
+			CustomizationTransfer.fileChoice = previousChoice;
+			java.nio.file.Files.deleteIfExists(file);
+			java.nio.file.Files.deleteIfExists(directory);
+		}
+	}
+
 	// ----- fixture -----
 
 	private static java.util.prefs.Preferences node() {

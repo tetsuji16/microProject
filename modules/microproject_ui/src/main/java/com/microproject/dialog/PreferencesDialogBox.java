@@ -171,6 +171,13 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		JPanel cardPanel = new JPanel(cards);
 		RibbonCustomizationPanel ribbonPage = new RibbonCustomizationPanel();
 		QuickAccessCustomizationPanel quickAccessPage = new QuickAccessCustomizationPanel();
+		CustomizationTransfer transfer = new CustomizationTransfer(ribbonPage::workingCustomization,
+			quickAccessPage::workingCommands, (customization, commands) -> {
+				ribbonPage.replaceWorking(customization);
+				quickAccessPage.replaceWorking(commands);
+			});
+		ribbonPage.attachTransfer(transfer);
+		quickAccessPage.attachTransfer(transfer);
 		addCategory(cardPanel, categoryNames, UsabilityStrings.text("preferences.general"), general);
 		categoryIds.add(CATEGORY_GENERAL);
 		addCategory(cardPanel, categoryNames, UsabilityStrings.text("preferences.display"), display);

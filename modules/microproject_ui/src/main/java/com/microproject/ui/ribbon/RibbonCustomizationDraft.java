@@ -215,7 +215,8 @@ public final class RibbonCustomizationDraft {
 		return new RibbonCustomization(order, Set.copyOf(hiddenDefaultTabs), tabs, groups);
 	}
 
-	private void replaceWith(RibbonCustomization source) {
+	/** Discards the working copy and starts over from the given customization. */
+	public void replaceWith(RibbonCustomization source) {
 		defaultTabOrder.clear();
 		hiddenDefaultTabs.clear();
 		customTabs.clear();
