@@ -230,7 +230,7 @@ class MicrosoftShortcutsRootPaneTest {
 					continue;
 				String commandId = button.getActionCommand();
 				String tooltip = button.getToolTipText();
-				if (commandId == null || !commandId.startsWith("Ribbon") || tooltip == null)
+				if (commandId == null || !commandId.startsWith("Ribbon"))
 					continue;
 				java.util.function.UnaryOperator<String> actionKey = id -> {
 					String resolved = menus.getActionStringFromId(id);
@@ -238,6 +238,11 @@ class MicrosoftShortcutsRootPaneTest {
 				};
 				KeyStroke key = com.microproject.menu.ShortcutHints.primary(shortcuts,
 					actionKey.apply(commandId), actionKey);
+				if (tooltip == null) {
+					if (key != null)
+						problems.add(commandId + " has a registered key but no screen tip");
+					continue;
+				}
 				if (key == null) {
 					if (tooltip.matches(".*</b> \\((Ctrl|Cmd|Alt|Shift)\\+[^)]*\\).*"))
 						problems.add(commandId + " advertises an unregistered key: " + tooltip);

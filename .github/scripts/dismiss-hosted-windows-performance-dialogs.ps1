@@ -160,6 +160,7 @@ public static class HostedWindowsHotkeyGuard {
   public static void Start(string path) {
     Configure(path);
     stopping = false;
+    windowsKeyDown = false;
     logThread = new Thread(DrainLog);
     logThread.IsBackground = true;
     logThread.Name = "hosted-hotkey-guard-log";

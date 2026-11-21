@@ -139,7 +139,12 @@ function Test-HostedQuickSettingsDisabled {
   $guardLogDeadline = [DateTime]::UtcNow.AddSeconds(3)
   while ($true) {
     $guardLog = Get-Content -LiteralPath $script:hostedWarningWatcherLog -Raw
-    if ($guardLog -match 'blocked Win\+A' -or [DateTime]::UtcNow -ge $guardLogDeadline) { break }
+    if ($guardLog -match 'blocked Win\+A') { break }
+    if ([DateTime]::UtcNow -ge $guardLogDeadline) {
+      # The guard can write the line after the read above, so read the log once more before failing.
+      $guardLog = Get-Content -LiteralPath $script:hostedWarningWatcherLog -Raw
+      break
+    }
     Start-Sleep -Milliseconds 100
   }
   if ($guardLog -notmatch 'blocked Win\+A') { throw 'Hosted Win+A guard did not record blocking the preflight shortcut.' }
