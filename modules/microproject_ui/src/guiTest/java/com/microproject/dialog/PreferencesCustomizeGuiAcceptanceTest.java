@@ -89,10 +89,17 @@ class PreferencesCustomizeGuiAcceptanceTest {
 	@AfterEach
 	void restore() throws Exception {
 		if (robot == null) return;
+		// A test must not leave input state behind: release the modifiers and the space key, close popups,
+		// and dispose every window it opened, so the next test starts with a clean desktop.
+		for (int key : new int[] { KeyEvent.VK_CONTROL, KeyEvent.VK_ALT, KeyEvent.VK_SHIFT, KeyEvent.VK_SPACE })
+			robot.keyRelease(key);
 		SwingUtilities.invokeAndWait(() -> {
+			javax.swing.MenuSelectionManager.defaultManager().clearSelectedPath();
 			for (Window window : Window.getWindows())
 				if (window instanceof PreferencesDialogBox) window.dispose();
 			if (ribbonFrame != null) ribbonFrame.dispose();
+			for (Window window : Window.getWindows())
+				if (window.isShowing()) window.dispose();
 		});
 		java.util.prefs.Preferences node = node();
 		if (originalCustomization == null) node.remove(CUSTOMIZATION_KEY);
@@ -353,19 +360,29 @@ class PreferencesCustomizeGuiAcceptanceTest {
 		// Narrow width: the tab strip overflows into a menu that lists the custom tab and omits the hidden one.
 		SwingUtilities.invokeAndWait(() -> ribbonFrame.setSize(320, 300));
 		bringToFront(ribbonFrame);
-		AbstractButton overflow = UiComponentWalker.flatten(ribbonFrame.getRibbonPanel()).stream()
-			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
-			.filter(button -> Boolean.TRUE.equals(button.getClientProperty(ModernRibbonPanel.TAB_OVERFLOW_PROPERTY)))
-			.findFirst().orElseThrow(() -> new AssertionError("the narrow ribbon has no tab overflow control"));
+		AbstractButton overflow = tabOverflowButton();
 		GuiAcceptanceSupport.await(overflow::isShowing, "the tab overflow control is not showing at narrow width");
 		DialogScreenshotArtifacts.captureScreen(frameBounds(), "ribbon-customization-ribbon-narrow");
-		click(overflow);
-		GuiAcceptanceSupport.await(() -> overflow.getClientProperty(ModernRibbonPanel.TAB_OVERFLOW_POPUP_PROPERTY) instanceof JPopupMenu popup
+		// The active tab is pinned to the tab strip, so select a default tab to make the custom tab overflow.
+		assertTrue(onEdt(() -> ribbonPanel.selectTab("TaskRibbonTask")), "the Home tab must be selectable");
+		GuiAcceptanceSupport.await(() -> tabOverflowButton().isShowing(), "the tab overflow control is not showing after selecting Home");
+		// Wait for the strip to relayout: the custom tab leaves the strip once Home is the pinned active tab.
+		GuiAcceptanceSupport.await(() -> UiComponentWalker.flatten(ribbonFrame.getRibbonPanel()).stream()
+			.noneMatch(c -> ("microProjectRibbonTab-" + RibbonGuiEnvironment.FIXTURE_CUSTOM_TAB_ID).equals(c.getName()) && c.isShowing()),
+			"the custom tab did not move into the overflow menu");
+		robot.waitForIdle();
+		AbstractButton overflowAfter = tabOverflowButton();
+		// Open the overflow menu from the keyboard: focus the control and press Space.
+		SwingUtilities.invokeAndWait(overflowAfter::requestFocusInWindow);
+		GuiAcceptanceSupport.await(overflowAfter::isFocusOwner, "the tab overflow control did not take the keyboard focus");
+		tap(KeyEvent.VK_SPACE);
+		GuiAcceptanceSupport.await(() -> overflowAfter.getClientProperty(ModernRibbonPanel.TAB_OVERFLOW_POPUP_PROPERTY) instanceof JPopupMenu popup
 			&& popup.isShowing(), "the tab overflow menu did not open");
-		JPopupMenu popup = (JPopupMenu) overflow.getClientProperty(ModernRibbonPanel.TAB_OVERFLOW_POPUP_PROPERTY);
+		JPopupMenu popup = (JPopupMenu) overflowAfter.getClientProperty(ModernRibbonPanel.TAB_OVERFLOW_POPUP_PROPERTY);
 		List<String> items = new ArrayList<>();
 		for (Component component : popup.getComponents())
 			if (component instanceof AbstractButton item) items.add(item.getText());
+		assertTrue(items.contains("Evidence Tab"), "the custom tab must be listed in the overflow menu: " + items);
 		assertFalse(items.contains(RibbonCustomizationCatalog.tabTitle(RibbonGuiEnvironment.FIXTURE_HIDDEN_TAB_ID)),
 			"the hidden default tab must not appear in the overflow menu: " + items);
 		Rectangle[] area = new Rectangle[1];
@@ -464,6 +481,13 @@ class PreferencesCustomizeGuiAcceptanceTest {
 		});
 		assertTrue(checked[0] >= minimumControls, panelName + " exposed only " + checked[0] + " controls");
 		assertTrue(unnamed.isEmpty(), panelName + " controls without an accessible name: " + unnamed);
+	}
+
+	private AbstractButton tabOverflowButton() {
+		return UiComponentWalker.flatten(ribbonFrame.getRibbonPanel()).stream()
+			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(button -> Boolean.TRUE.equals(button.getClientProperty(ModernRibbonPanel.TAB_OVERFLOW_PROPERTY)))
+			.findFirst().orElseThrow(() -> new AssertionError("the narrow ribbon has no tab overflow control"));
 	}
 
 	private Rectangle frameBounds() {
@@ -721,7 +745,14 @@ class PreferencesCustomizeGuiAcceptanceTest {
 			Point origin = categories.getLocationOnScreen();
 			row[0] = new Point(origin.x + cell.x + cell.width / 2, origin.y + cell.y + cell.height / 2);
 		});
-		clickAt(row[0]);
+		// The first click on a window that is not yet the foreground window can be used up by the activation,
+		// so wait for the dialog to be active and click again, after the multi-click interval, if the row stayed unselected.
+		GuiAcceptanceSupport.await(dialog::isActive, "Preferences dialog did not become the active window");
+		for (int attempt = 0; attempt < 3 && !onEdt(() -> name.equals(categories.getSelectedValue())); attempt++) {
+			GuiAcceptanceSupport.awaitMultiClickIntervalElapsed(robot);
+			clickAt(row[0]);
+			for (int wait = 0; wait < 10 && !onEdt(() -> name.equals(categories.getSelectedValue())); wait++) robot.delay(100);
+		}
 		GuiAcceptanceSupport.await(() -> name.equals(categories.getSelectedValue()), "Category " + name + " was not selected");
 	}
 
