@@ -89,6 +89,16 @@ public final class RibbonDisplayPreferences {
 		saveQuickAccessCommands(DEFAULT_QUICK_ACCESS_COMMANDS);
 	}
 
+	/** The Quick Access Toolbar commands a reset restores. */
+	public static List<String> defaultQuickAccessCommands() {
+		return DEFAULT_QUICK_ACCESS_COMMANDS;
+	}
+
+	/** Whether {@link #saveRibbonCustomization} can store the customization; the stored text has a size limit. */
+	public static boolean isStorable(RibbonCustomization customization) {
+		return customization.isEmpty() || customization.serialize().length() <= Preferences.MAX_VALUE_LENGTH;
+	}
+
 	public static RibbonCustomization loadRibbonCustomization() {
 		return RibbonCustomization.parse(Preferences.userNodeForPackage(RibbonDisplayPreferences.class)
 			.get(CUSTOMIZATION_KEY, null));
