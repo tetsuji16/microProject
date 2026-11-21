@@ -193,4 +193,27 @@ class RibbonCustomizationFileTest {
 		assertEquals(quickAccess, preferences.get(QAT_KEY, null));
 		assertEquals(sample(), RibbonDisplayPreferences.loadRibbonCustomization());
 	}
+
+	@Test
+	void overwriteReplacesTheFileAndLeavesNoTempFile() throws Exception {
+		Path path = directory.resolve("out.mpui");
+		Files.writeString(path, "old", StandardCharsets.UTF_8);
+		RibbonCustomizationFile.write(path, sample(), List.of("RibbonFind"));
+		assertEquals(sample(), RibbonCustomizationFile.read(path).customization());
+		try (var names = Files.list(directory)) {
+			assertEquals(List.of("out.mpui"), names.map(p -> p.getFileName().toString()).toList());
+		}
+	}
+
+	@Test
+	void aFailedWriteKeepsTheExistingFileIntact() throws Exception {
+		Path target = directory.resolve("taken.mpui");
+		Files.createDirectory(target);
+		Files.writeString(target.resolve("keep.txt"), "keep", StandardCharsets.UTF_8);
+		assertThrows(IOException.class, () -> RibbonCustomizationFile.write(target, sample(), List.of()));
+		assertEquals("keep", Files.readString(target.resolve("keep.txt"), StandardCharsets.UTF_8));
+		try (var names = Files.list(directory)) {
+			assertEquals(List.of("taken.mpui"), names.map(p -> p.getFileName().toString()).toList());
+		}
+	}
 }

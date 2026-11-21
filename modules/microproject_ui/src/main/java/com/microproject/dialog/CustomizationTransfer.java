@@ -24,6 +24,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 
 import com.microproject.ui.ribbon.RibbonCustomization;
 import com.microproject.ui.ribbon.RibbonCustomizationFile;
+import com.microproject.ui.ribbon.RibbonDisplayPreferences;
 
 /**
  * The Import/Export dropdown shared by the Customize Ribbon and Quick Access Toolbar pages. The file always holds both
@@ -38,6 +39,11 @@ final class CustomizationTransfer {
 
 	/** The file dialog. Tests replace it so that no native chooser opens. */
 	static volatile FileChoice fileChoice = CustomizationTransfer::chooseWithDialog;
+
+	/** Shows why an import was refused. Tests replace it so that no modal dialog opens. */
+	static volatile java.util.function.BiConsumer<Component, String> importRefusal = (parent, message) ->
+		JOptionPane.showMessageDialog(parent, message, UsabilityStrings.text("ribbonTransfer.title"),
+			JOptionPane.ERROR_MESSAGE);
 
 	private final Supplier<RibbonCustomization> ribbon;
 	private final Supplier<List<String>> quickAccess;
@@ -101,9 +107,13 @@ final class CustomizationTransfer {
 		} catch (RibbonCustomizationFile.RejectedException rejected) {
 			String reason = UsabilityStrings.text("ribbonTransfer.reject." + rejected.reason().name(),
 				rejected.getMessage());
-			JOptionPane.showMessageDialog(parent,
-				MessageFormat.format(UsabilityStrings.text("ribbonTransfer.importFailed"), reason),
-				UsabilityStrings.text("ribbonTransfer.title"), JOptionPane.ERROR_MESSAGE);
+			importRefusal.accept(parent,
+				MessageFormat.format(UsabilityStrings.text("ribbonTransfer.importFailed"), reason));
+			return;
+		}
+		// Apply refuses a customization that cannot be stored, so refuse it here before any draft changes.
+		if (!RibbonDisplayPreferences.isStorable(content.customization())) {
+			importRefusal.accept(parent, UsabilityStrings.text("ribbonCustomize.tooLarge"));
 			return;
 		}
 		replace.accept(content.customization(), content.quickAccess());

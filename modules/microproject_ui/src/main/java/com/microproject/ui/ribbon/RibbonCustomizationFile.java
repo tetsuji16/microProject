@@ -10,8 +10,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -110,9 +112,25 @@ public final class RibbonCustomizationFile {
 			transformer.setOutputProperty(OutputKeys.INDENT, "yes");
 			StringWriter text = new StringWriter();
 			transformer.transform(new DOMSource(document), new StreamResult(text));
-			Files.writeString(path, text.toString(), StandardCharsets.UTF_8);
+			replaceFile(path, text.toString());
 		} catch (ParserConfigurationException | TransformerException failure) {
 			throw new IOException("Cannot write the ribbon customization: " + failure.getMessage(), failure);
+		}
+	}
+
+	/** Writes next to the destination and moves the result over it, so a failure keeps an existing file intact. */
+	private static void replaceFile(Path path, String text) throws IOException {
+		Path absolute = path.toAbsolutePath();
+		Path temp = Files.createTempFile(absolute.getParent(), absolute.getFileName().toString(), ".tmp");
+		try {
+			Files.writeString(temp, text, StandardCharsets.UTF_8);
+			try {
+				Files.move(temp, absolute, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+			} catch (AtomicMoveNotSupportedException unsupported) {
+				Files.move(temp, absolute, StandardCopyOption.REPLACE_EXISTING);
+			}
+		} finally {
+			Files.deleteIfExists(temp);
 		}
 	}
 

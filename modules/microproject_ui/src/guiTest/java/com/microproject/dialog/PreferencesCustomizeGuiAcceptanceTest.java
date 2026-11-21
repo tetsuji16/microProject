@@ -296,6 +296,8 @@ class PreferencesCustomizeGuiAcceptanceTest {
 			GuiAcceptanceSupport.await(() -> tabLabels(tree).contains("Tab X"), "Import did not restore the custom tab");
 			assertEquals(RibbonCustomization.none(), RibbonDisplayPreferences.loadRibbonCustomization(),
 				"Import must not store anything before Apply");
+			assertEquals(RibbonDisplayPreferences.defaultQuickAccessCommands(), RibbonDisplayPreferences.loadQuickAccessCommands(),
+				"Import must not store the toolbar before Apply");
 			click(findButton(second, UsabilityStrings.text("preferences.apply")));
 			GuiAcceptanceSupport.await(() -> findDialog() == null, "Preferences dialog did not close after Apply");
 			assertEquals(original, RibbonDisplayPreferences.loadRibbonCustomization());
