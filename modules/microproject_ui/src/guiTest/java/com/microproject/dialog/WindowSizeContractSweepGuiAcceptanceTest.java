@@ -207,7 +207,12 @@ class WindowSizeContractSweepGuiAcceptanceTest {
 				if (window instanceof Dialog dialog) dialog.pack();
 				else if (window instanceof Frame frame) frame.pack();
 			}
-			window.setLocationByPlatform(true);
+			// Platform cascading offsets each window, so on a small screen a large dialog
+			// would start past the usable right/bottom edge; anchor it at the usable origin.
+			java.awt.GraphicsConfiguration configuration = owner.getGraphicsConfiguration();
+			java.awt.Insets insets = java.awt.Toolkit.getDefaultToolkit().getScreenInsets(configuration);
+			Rectangle screen = configuration.getBounds();
+			window.setLocation(screen.x + insets.left, screen.y + insets.top);
 			window.setAlwaysOnTop(true);
 			window.setVisible(true);
 			window.toFront();
@@ -239,7 +244,8 @@ class WindowSizeContractSweepGuiAcceptanceTest {
 			owner.setGraphicManager(manager);
 			manager.initView();
 			owner.setAlwaysOnTop(true);
-			owner.setSize(1200, 720);
+			// Start below the usable area (1024x720 on the CI runner) so the sweep has room to grow it.
+			owner.setSize(900, 560);
 			owner.setLocationByPlatform(true);
 			owner.setVisible(true);
 			manager.addProjectFrame(project);
