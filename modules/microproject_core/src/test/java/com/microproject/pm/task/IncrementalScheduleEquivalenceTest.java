@@ -235,6 +235,49 @@ class IncrementalScheduleEquivalenceTest {
 	}
 
 	@Test
+	void shorteningAssignmentOnLatestFinishingTaskRefreshesScheduleExtrema() throws Exception {
+		Fixture f = new Fixture(true);
+		NormalTask last = f.b[2];
+		AssignmentService.getInstance().newAssignment(last, resource(f.project), 1.0d, 0L, this);
+		f.project.recalculate();
+		long latestBefore = f.project.getLatestFinishingTask();
+		long durationBefore = last.getDuration();
+
+		AssignmentService.getInstance().newAssignment(last, resource(f.project), 1.0d, 0L, this);
+		assertNotEquals(durationBefore, last.getDuration(), "second resource must shorten the effort-driven task");
+		long latestIncremental = f.project.getLatestFinishingTask();
+		long earliestIncremental = f.project.getEarliestStartingTask();
+		assertNotEquals(latestBefore, latestIncremental, "latest finish must move");
+
+		f.project.recalculate();
+		assertEquals(f.project.getLatestFinishingTask(), latestIncremental, "latest finish differs from full recalculation");
+		assertEquals(f.project.getEarliestStartingTask(), earliestIncremental, "earliest start differs from full recalculation");
+	}
+
+	@Test
+	void batchedShorteningAssignmentOnLatestFinishingTaskRefreshesScheduleExtrema() throws Exception {
+		Fixture f = new Fixture(true);
+		NormalTask last = f.b[2];
+		AssignmentService.getInstance().newAssignment(last, resource(f.project), 1.0d, 0L, this);
+		f.project.recalculate();
+		long durationBefore = last.getDuration();
+
+		int transaction = f.project.fireMultipleTransaction(0, true);
+		try {
+			AssignmentService.getInstance().newAssignment(last, resource(f.project), 1.0d, 0L, this);
+		} finally {
+			f.project.fireMultipleTransaction(transaction, false);
+		}
+		assertNotEquals(durationBefore, last.getDuration(), "second resource must shorten the effort-driven task");
+		long latestIncremental = f.project.getLatestFinishingTask();
+		long earliestIncremental = f.project.getEarliestStartingTask();
+
+		f.project.recalculate();
+		assertEquals(f.project.getLatestFinishingTask(), latestIncremental, "latest finish differs from full recalculation");
+		assertEquals(f.project.getEarliestStartingTask(), earliestIncremental, "earliest start differs from full recalculation");
+	}
+
+	@Test
 	void durationPreservingAssignmentKeepsAllDatesAndMatchesFullRecalculation() throws Exception {
 		Fixture f = new Fixture(true);
 		List<Long> before = f.snapshot();

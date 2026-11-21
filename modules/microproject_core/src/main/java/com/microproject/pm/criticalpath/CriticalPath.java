@@ -210,7 +210,8 @@ public class CriticalPath implements SchedulingAlgorithm {
 		context.sentinelDependencyIndex = sentinelDependencyIndex(endSentinel);
 		context.earlyOnly = false;
 		context.assign = false;
-		context.scheduleType = isForward() ? TaskSchedule.Kind.EARLY : TaskSchedule.Kind.LATE;
+		TaskSchedule.Kind assignedScheduleType = isForward() ? TaskSchedule.Kind.EARLY : TaskSchedule.Kind.LATE;
+		context.scheduleType = assignedScheduleType;
 		context.pass = 0;
 		boolean affectsCriticalPath = (startTask == beginSentinel) || startTask.getSchedule(context.scheduleType).affectsCriticalPath(context);
 		
@@ -253,7 +254,27 @@ public class CriticalPath implements SchedulingAlgorithm {
 			}
 			
 		}
+		if (startTask != beginSentinel)
+			refreshEarliestAndLatest(assignedScheduleType); // a localized pass only widens the extrema
 		getFreshCalculationStateCount(); // For next time;
+	}
+	/**
+	 * Recomputes the project extrema from the current schedules of every task, exactly as a
+	 * full pass would, so that a localized pass whose task finishes earlier shrinks them.
+	 */
+	private void refreshEarliestAndLatest(TaskSchedule.Kind kind) {
+		initEarliestAndLatest();
+		boolean projectForward = project.isForward();
+		for (PredecessorTaskList.TaskReference taskReference : predecessorTaskList.getList()) {
+			Task task = taskReference.getTask();
+			if (isSentinel(task) || !(projectForward || !task.isWbsParent()))
+				continue;
+			TaskSchedule schedule = task.getSchedule(kind);
+			if (schedule.getBegin() != 0L)
+				earliestStart = Math.min(earliestStart, schedule.getStart());
+			if (schedule.getEnd() != 0)
+				latestFinish = Math.max(latestFinish, schedule.getFinish());
+		}
 	}
 	
 	private void doPass(Task startTask, TaskSchedule.CalculationContext context) {
