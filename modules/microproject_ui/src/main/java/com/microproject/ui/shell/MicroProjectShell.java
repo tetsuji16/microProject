@@ -128,6 +128,11 @@ public final class MicroProjectShell {
 		}
 	}
 
+	/** Releases the command registrations of a shell panel built by {@link #installRibbonShell}. */
+	public static void releaseRibbonShell(JPanel shell) {
+		if (shell instanceof OfficeChromePanel chrome) chrome.releaseCommandControls();
+	}
+
 	public static ShellHandles installNewLookShell(
 		Container contentPane,
 		MenuManager menuManager,

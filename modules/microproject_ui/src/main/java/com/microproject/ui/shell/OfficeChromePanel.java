@@ -519,7 +519,8 @@ final class OfficeChromePanel extends JPanel {
 		refreshQuickAccessCommands();
 	}
 
-	private void refreshQuickAccessCommands() {
+	/** Unregisters the Quick Access controls from their commands before this chrome is replaced. */
+	void releaseCommandControls() {
 		java.util.List<JComponent> previousControls = java.util.Arrays.stream(quickAccessCommands.getComponents())
 			.filter(JComponent.class::isInstance).map(JComponent.class::cast).toList();
 		if (menuManager != null && menuManager.getRibbonFactory() != null) {
@@ -528,6 +529,10 @@ final class OfficeChromePanel extends JPanel {
 		previousControls.stream().filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
 			.forEach(button -> button.setAction(null));
 		quickAccessCommands.removeAll();
+	}
+
+	private void refreshQuickAccessCommands() {
+		releaseCommandControls();
 		java.util.List<String> visibleCommands = RibbonDisplayPreferences.loadQuickAccessCommands().stream()
 			.filter(id -> menuManager != null && menuManager.getActionFromId(id) != null).toList();
 		if (!visibleCommands.isEmpty()) quickAccessCommands.add(new VerticalDivider());

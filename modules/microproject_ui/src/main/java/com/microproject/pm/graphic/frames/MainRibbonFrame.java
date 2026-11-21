@@ -113,10 +113,12 @@ public class MainRibbonFrame extends FlatLafFrame implements FrameHolder{
 	 */
 	public void rebuildRibbon() {
 		if (ribbonInstaller == null || ribbonPanel == null) return;
+		JPanel previousShell = ribbonPanel;
 		RibbonController previous = ribbonController(ribbonPanel);
 		String selected = previous == null ? null : previous.getSelectedTabId();
 		ribbonInstaller.run();
 		if (previous != null) previous.releaseCommandControls();
+		com.microproject.ui.shell.MicroProjectShell.releaseRibbonShell(previousShell);
 		RibbonController rebuilt = ribbonController(ribbonPanel);
 		if (rebuilt == null) return;
 		if (selected == null || !rebuilt.selectTab(selected)) rebuilt.selectTab(RibbonController.TASK_TAB_ID);
