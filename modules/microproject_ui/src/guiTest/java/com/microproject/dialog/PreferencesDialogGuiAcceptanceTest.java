@@ -299,7 +299,17 @@ class PreferencesDialogGuiAcceptanceTest {
 		assertTrue(findNamedComponent(reopened, javax.swing.JRadioButton.class, "preferencesDatePatternCustom").isSelected(),
 			"A stored pattern must reopen as custom");
 		assertEquals("dd.MM.yyyy", reopenedDate.getText());
-		click(robot, findNamedComponent(reopened, javax.swing.JRadioButton.class, "preferencesDatePatternFollowOs"));
+		enterText(robot, reopenedDate, "yyyy/MM/dd");
+		javax.swing.JRadioButton reopenedCustom = findNamedComponent(reopened, javax.swing.JRadioButton.class, "preferencesDatePatternCustom");
+		click(robot, reopenedCustom);
+		assertEquals("yyyy/MM/dd", reopenedDate.getText(), "Clicking the selected Custom radio must keep the edited text");
+		javax.swing.JRadioButton reopenedOs = findNamedComponent(reopened, javax.swing.JRadioButton.class, "preferencesDatePatternFollowOs");
+		click(robot, reopenedOs);
+		assertEquals(PreferencesDialogBox.osDatePattern(false), reopenedDate.getText());
+		click(robot, reopenedOs);
+		click(robot, reopenedCustom);
+		assertEquals("yyyy/MM/dd", reopenedDate.getText(), "Custom -> Follow OS -> Custom must restore the custom text");
+		click(robot, reopenedOs);
 		assertTrue(!reopenedDate.isEnabled(), "Follow-the-OS must disable the input field");
 		click(robot, findButton(reopened, UsabilityStrings.text("preferences.apply")));
 		GuiAcceptanceSupport.await(() -> !reopened.isVisible(), "Preferences dialog did not close after Apply");

@@ -399,20 +399,22 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		}
 	}
 
-	/** The operating system's short date pattern, or date-time pattern, for the default locale. */
+	/**
+	 * The pattern used when the stored value is empty. It comes from the same factories as
+	 * {@code GlobalPreferences.applyFormatPreferences()}, so the preview matches the runtime.
+	 */
 	static String osDatePattern(boolean withTime) {
 		java.text.DateFormat format = withTime
-			? java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT,
-				java.util.Locale.getDefault())
-			: java.text.DateFormat.getDateInstance(java.text.DateFormat.SHORT, java.util.Locale.getDefault());
+			? com.microproject.util.DateTime.utcDateFormatInstance()
+			: com.microproject.util.DateTime.utcShortDateFormatInstance();
 		return format instanceof java.text.SimpleDateFormat simple ? simple.toPattern() : "";
 	}
 
-	/** The currency code of the default locale, or empty when the locale has none. */
+	/** The currency code used when the stored value is empty: the one of {@code Money}'s currency format. */
 	static String osCurrencyCode() {
 		try {
-			return java.util.Currency.getInstance(java.util.Locale.getDefault()).getCurrencyCode();
-		} catch (IllegalArgumentException | NullPointerException noCurrency) {
+			return java.text.NumberFormat.getCurrencyInstance().getCurrency().getCurrencyCode();
+		} catch (RuntimeException noCurrency) {
 			return "";
 		}
 	}
@@ -429,6 +431,7 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		private final java.util.function.Supplier<String> osDefault;
 		private final java.util.function.Predicate<String> validator;
 		private String customText;
+		private boolean showingCustom;
 
 		FormatChoice(String name, String label, int columns, String stored, String help,
 				java.util.function.Supplier<String> osDefault, java.util.function.Predicate<String> validator) {
@@ -462,10 +465,14 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 			input.gridx = 0; input.gridy = 1; input.anchor = GridBagConstraints.WEST;
 			input.insets = new Insets(2, 0, 0, 0);
 			controls.add(field, input);
+			showingCustom = isCustom;
 			applyMode();
 		}
 
 		private void refresh() {
+			// A radio button fires again when it is clicked while selected; only a real mode change moves text.
+			if (custom.isSelected() == showingCustom) return;
+			showingCustom = custom.isSelected();
 			if (custom.isSelected()) {
 				field.setText(customText);
 			} else {
