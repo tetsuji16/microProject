@@ -30,6 +30,8 @@ import javax.swing.SpinnerNumberModel;
 import javax.swing.ListSelectionModel;
 import javax.swing.event.ListSelectionEvent;
 
+import com.microproject.ui.util.PopupDialogSupport;
+
 import com.microproject.pm.calendar.CalendarRecurrence;
 import com.microproject.pm.calendar.RecurringCalendarException;
 import com.microproject.pm.calendar.WorkDay;
@@ -105,53 +107,53 @@ final class ExceptionEditorPanel extends JPanel {
 	}
 
 	private void addException() {
-		long[] selectedRange = owner.getSelectedCalendarDateRange();
-		AddEditor editor = new AddEditor(selectedRange[0], selectedRange[1]);
-		while (true) {
-			int choice = JOptionPane.showConfirmDialog(this, editor.panel,
-				Messages.getString("ChangeWorkingTimeDialogBox.ExceptionAddTitle"),
-				JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-			if (choice != JOptionPane.OK_OPTION) return;
-			try {
-				WorkDay day = editor.toException();
-				WorkingCalendar calendar = owner.getScratchCalendar();
-				calendar.addOrReplaceException(day);
-				owner.markCalendarEdited();
-				owner.updateView();
-				return;
-			} catch (RuntimeException invalid) {
-				JOptionPane.showMessageDialog(this, invalid.getMessage(),
-					Messages.getString("ChangeWorkingTimeDialogBox.ExceptionAddTitle"), JOptionPane.ERROR_MESSAGE);
+			long[] selectedRange = owner.getSelectedCalendarDateRange();
+			AddEditor editor = new AddEditor(selectedRange[0], selectedRange[1]);
+			while (true) {
+				int choice = PopupDialogSupport.showConfirmDialog(this, editor.panel,
+					Messages.getString("ChangeWorkingTimeDialogBox.ExceptionAddTitle"),
+					JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+				if (choice != JOptionPane.OK_OPTION) return;
+				try {
+					WorkDay day = editor.toException();
+					WorkingCalendar calendar = owner.getScratchCalendar();
+					calendar.addOrReplaceException(day);
+					owner.markCalendarEdited();
+					owner.updateView();
+					return;
+				} catch (RuntimeException invalid) {
+					PopupDialogSupport.showMessageDialog(this, invalid.getMessage(),
+						Messages.getString("ChangeWorkingTimeDialogBox.ExceptionAddTitle"), JOptionPane.ERROR_MESSAGE);
+				}
 			}
 		}
-	}
 
 	private void editException(Entry source) {
-		if (source == null) return;
-		DetailsEditor editor = new DetailsEditor(source);
-		JScrollPane detailsPane = CalendarEditorViewport.createScrollPane(editor.panel,
-			CalendarEditorViewport.usableScreenSize(this));
-		while (true) {
-			int choice = JOptionPane.showConfirmDialog(this, detailsPane,
-				Messages.getString("ChangeWorkingTimeDialogBox.ExceptionDetailsTitle"),
-				JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-			if (choice != JOptionPane.OK_OPTION) return;
-			try {
-				Entry updated = editor.toEntry();
-				WorkingCalendar calendar = owner.getScratchCalendar();
-				if (source.day != null) calendar.removeException(source.day);
-				else calendar.removeRecurringException(source.recurring);
-				if (updated.day != null) calendar.addOrReplaceException(updated.day);
-				else calendar.addOrReplaceRecurringException(updated.recurring);
-				owner.markCalendarEdited();
-				owner.updateView();
-				return;
-			} catch (RuntimeException invalid) {
-				JOptionPane.showMessageDialog(this, invalid.getMessage(),
-					Messages.getString("ChangeWorkingTimeDialogBox.ExceptionDetailsTitle"), JOptionPane.ERROR_MESSAGE);
+			if (source == null) return;
+			DetailsEditor editor = new DetailsEditor(source);
+			JScrollPane detailsPane = CalendarEditorViewport.createScrollPane(editor.panel,
+				CalendarEditorViewport.usableScreenSize(this));
+			while (true) {
+				int choice = PopupDialogSupport.showConfirmDialog(this, detailsPane,
+					Messages.getString("ChangeWorkingTimeDialogBox.ExceptionDetailsTitle"),
+					JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+				if (choice != JOptionPane.OK_OPTION) return;
+				try {
+					Entry updated = editor.toEntry();
+					WorkingCalendar calendar = owner.getScratchCalendar();
+					if (source.day != null) calendar.removeException(source.day);
+					else calendar.removeRecurringException(source.recurring);
+					if (updated.day != null) calendar.addOrReplaceException(updated.day);
+					else calendar.addOrReplaceRecurringException(updated.recurring);
+					owner.markCalendarEdited();
+					owner.updateView();
+					return;
+				} catch (RuntimeException invalid) {
+					PopupDialogSupport.showMessageDialog(this, invalid.getMessage(),
+						Messages.getString("ChangeWorkingTimeDialogBox.ExceptionDetailsTitle"), JOptionPane.ERROR_MESSAGE);
+				}
 			}
 		}
-	}
 
 	private void removeException() {
 		Entry selected = entries.getSelectedValue();
