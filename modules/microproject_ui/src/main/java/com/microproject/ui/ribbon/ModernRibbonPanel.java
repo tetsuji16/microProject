@@ -208,6 +208,9 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	private final RibbonTheme theme;
 	private final Map<String, Integer> bandHeights;
 	private final List<Consumer<RibbonDisplayMode>> displayModeListeners = new ArrayList<>();
+	private final List<AbstractButton> taskBarProxies = new ArrayList<>();
+	/** Set once the command controls were released; a retired ribbon must not rebuild its tab bodies on resize. */
+	private boolean released;
 	private final java.util.Set<String> visibleContextualTabs = new LinkedHashSet<>();
 	private final Map<String, String> contextualTabTitles = new LinkedHashMap<>();
 	private RibbonDensity density = RibbonDensity.FULL;
@@ -334,8 +337,8 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			if (isBackstageTab(tab.getId())) continue;
 			tabBodies.computeIfAbsent(tab.getId(), this::createTabBody);
 		}
-		model.getTabs().stream().map(SwingRibbonModel.RibbonTab::getId)
-			.filter(tabId -> !isBackstageTab(tabId)).findFirst().ifPresent(this::showTab);
+		// A customized order may start with a contextual tab that is not visible yet.
+		firstVisibleTabId().ifPresent(this::showTab);
 		addComponentListener(new java.awt.event.ComponentAdapter() {
 			@Override
 			public void componentResized(java.awt.event.ComponentEvent event) {
@@ -395,6 +398,32 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	 */
 	public RibbonCommandResult dispatchCommand(String commandId, RibbonCommandInvocation.Origin origin, Object source) {
 		return commandSource.dispatch(new RibbonCommandInvocation(commandId, origin, source));
+	}
+
+	@Override
+	public String getSelectedTabId() {
+		return activeTabId;
+	}
+
+	@Override
+	public boolean selectTab(String tabId) {
+		if (tabId == null || isBackstageTab(tabId) || !isTabVisible(tabId)) return false;
+		showTab(tabId);
+		return true;
+	}
+
+	@Override
+	public void releaseCommandControls() {
+		released = true;
+		// Hide the window-level overlay without dismissing it, which would restore a tab of this retired ribbon.
+		if (backstageOpen && backstageHost != null) backstageHost.hide();
+		backstageOpen = false;
+		discardBackstageView();
+		commandSource.unregisterButtons(new ArrayList<>(taskBarProxies));
+		taskBarProxies.clear();
+		unregisterButtons(new ArrayList<>(tabBodies.values()));
+		tabBodies.clear();
+		tabBodyBuildWidths.clear();
 	}
 
 	/** Selects the first document-oriented ribbon tab. */
@@ -1678,7 +1707,9 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		for (SwingRibbonModel.RibbonButton specification : model.getTaskBarControls()) {
 			// Keep the registered proxy styled like a ribbon command so shared
 			// action-state tests and enablement propagation see the same contract.
-			buttonStyler.styleActionButton(createButton(specification, true), "small");
+			AbstractButton proxy = createButton(specification, true);
+			buttonStyler.styleActionButton(proxy, "small");
+			taskBarProxies.add(proxy);
 		}
 	}
 
@@ -1916,7 +1947,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	}
 
 	private void updateResponsiveMode() {
-		if (rebuildingDensity) {
+		if (rebuildingDensity || released) {
 			return;
 		}
 		RibbonDensity nextDensity = RibbonDensity.forWidth(getWidth());

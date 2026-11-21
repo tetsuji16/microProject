@@ -16,6 +16,7 @@ final class OfficeChromeTitleBinding {
 	private final JFrame frame;
 	private final Consumer<String> documentTitleConsumer;
 	private boolean synchronizingNativeTitle;
+	private java.beans.PropertyChangeListener listener;
 
 	private OfficeChromeTitleBinding(JFrame frame, Consumer<String> documentTitleConsumer) {
 		this.frame = frame;
@@ -24,9 +25,16 @@ final class OfficeChromeTitleBinding {
 
 	static OfficeChromeTitleBinding attach(JFrame frame, Consumer<String> documentTitleConsumer) {
 		OfficeChromeTitleBinding binding = new OfficeChromeTitleBinding(frame, documentTitleConsumer);
-		frame.addPropertyChangeListener("title", event -> binding.onTitleChanged((String) event.getNewValue()));
+		binding.listener = event -> binding.onTitleChanged((String) event.getNewValue());
+		frame.addPropertyChangeListener("title", binding.listener);
 		binding.project(frame.getTitle());
 		return binding;
+	}
+
+	/** Stops following the frame title, so a replaced shell is neither retained nor updated. */
+	void detach() {
+		if (listener != null) frame.removePropertyChangeListener("title", listener);
+		listener = null;
 	}
 
 	private void onTitleChanged(String title) {
