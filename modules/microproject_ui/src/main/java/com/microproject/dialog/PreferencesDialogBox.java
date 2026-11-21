@@ -5,6 +5,7 @@
 package com.microproject.dialog;
 
 import java.awt.BorderLayout;
+import java.awt.CardLayout;
 import java.awt.FlowLayout;
 import java.awt.Frame;
 import java.awt.GridBagConstraints;
@@ -22,7 +23,9 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JTabbedPane;
+import javax.swing.JList;
+import javax.swing.JSplitPane;
+import javax.swing.ListSelectionModel;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
@@ -125,35 +128,62 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 				UsabilityStrings.text("preferences.gridColorAutomatic"), preferences.getGridLineColor());
 		ColorChoice barColor = new ColorChoice(this, UsabilityStrings.text("preferences.ganttBarColor"),
 				UsabilityStrings.text("preferences.ganttBarColorAutomatic"), preferences.getDefaultGanttBarColor());
-		JPanel form = new JPanel(new GridBagLayout());
-		form.setBorder(BorderFactory.createEmptyBorder(12, 12, 4, 12));
-		addRow(form, UsabilityStrings.text("preferences.userName"), userName);
-		addRow(form, UsabilityStrings.text("preferences.font"), font);
-		addRow(form, UsabilityStrings.text("preferences.fontSize"), size);
-		addRow(form, UsabilityStrings.text("preferences.ganttBarText"), ganttBarText);
-		addRow(form, UsabilityStrings.text("preferences.ganttBarTextPosition"), ganttBarTextPosition);
-		addRow(form, UsabilityStrings.text("preferences.milestoneShape"), milestoneShape);
-		addRow(form, UsabilityStrings.text("preferences.ganttBarColor"), barColor.controls());
-		addRow(form, UsabilityStrings.text("preferences.gridColor"), gridColor.controls());
-		addRow(form, null, rowLines);
-		addRow(form, null, checkUpdates);
-		addRow(form, UsabilityStrings.text("preferences.theme"), theme);
-		addRow(form, UsabilityStrings.text("preferences.datePattern"), datePattern);
-		addRow(form, UsabilityStrings.text("preferences.dateTimePattern"), dateTimePattern);
-		addRow(form, UsabilityStrings.text("preferences.currencyCode"), currencyCode);
-		addRow(form, null, formatRestartNotice);
-		if (recoveryInterval != null)
-			addRow(form, UsabilityStrings.text("preferences.autoSaveInterval"), recoveryInterval);
-		// Absorb spare height so rows keep their natural size inside the scroll pane.
-		GridBagConstraints filler = new GridBagConstraints();
-		filler.gridx = 0; filler.gridy = GridBagConstraints.RELATIVE; filler.gridwidth = 2; filler.weighty = 1;
-		form.add(new JPanel(), filler);
+		JPanel general = newCategoryForm();
+		addRow(general, UsabilityStrings.text("preferences.userName"), userName);
+		addRow(general, UsabilityStrings.text("preferences.theme"), theme);
+		addRow(general, UsabilityStrings.text("preferences.font"), font);
+		addRow(general, UsabilityStrings.text("preferences.fontSize"), size);
+		addRow(general, null, checkUpdates);
+		JPanel display = newCategoryForm();
+		addRow(display, null, rowLines);
+		addRow(display, UsabilityStrings.text("preferences.ganttBarText"), ganttBarText);
+		addRow(display, UsabilityStrings.text("preferences.ganttBarTextPosition"), ganttBarTextPosition);
+		addRow(display, UsabilityStrings.text("preferences.milestoneShape"), milestoneShape);
+		addRow(display, UsabilityStrings.text("preferences.ganttBarColor"), barColor.controls());
+		addRow(display, UsabilityStrings.text("preferences.gridColor"), gridColor.controls());
+		addRow(display, UsabilityStrings.text("preferences.datePattern"), datePattern);
+		addRow(display, UsabilityStrings.text("preferences.dateTimePattern"), dateTimePattern);
+		addRow(display, UsabilityStrings.text("preferences.currencyCode"), currencyCode);
+		addRow(display, null, formatRestartNotice);
+		JPanel save = null;
+		if (recoveryInterval != null) {
+			save = newCategoryForm();
+			addRow(save, UsabilityStrings.text("preferences.autoSaveInterval"), recoveryInterval);
+		}
+		for (JPanel panel : save == null ? new JPanel[] { general, display } : new JPanel[] { general, display, save }) {
+			// Absorb spare height so rows keep their natural size inside the scroll pane.
+			GridBagConstraints filler = new GridBagConstraints();
+			filler.gridx = 0; filler.gridy = GridBagConstraints.RELATIVE; filler.gridwidth = 2; filler.weighty = 1;
+			panel.add(new JPanel(), filler);
+		}
 		LocaleDialog localeSettings = LocaleDialog.createPreferencesSection(owner);
-		JTabbedPane tabs = new JTabbedPane();
-		tabs.addTab(UsabilityStrings.text("preferences.general"), new JScrollPane(form));
-		tabs.addTab(UsabilityStrings.text("preferences.languageLocale"),
-			new JScrollPane(localeSettings.createPreferencesContent()));
-		tabs.setSelectedIndex(showLocaleTab ? 1 : 0);
+		// Like File > Options in Microsoft Project: categories on the left, the chosen one on the right.
+		java.util.List<String> categoryNames = new java.util.ArrayList<>();
+		CardLayout cards = new CardLayout();
+		JPanel cardPanel = new JPanel(cards);
+		addCategory(cardPanel, categoryNames, UsabilityStrings.text("preferences.general"), general);
+		addCategory(cardPanel, categoryNames, UsabilityStrings.text("preferences.display"), display);
+		if (save != null)
+			addCategory(cardPanel, categoryNames, UsabilityStrings.text("preferences.save"), save);
+		addCategory(cardPanel, categoryNames, UsabilityStrings.text("preferences.language"),
+			localeSettings.createPreferencesContent());
+		JList<String> categories = new JList<>(categoryNames.toArray(new String[0]));
+		categories.setName("preferencesCategories");
+		categories.getAccessibleContext().setAccessibleName(UsabilityStrings.text("preferences.categories"));
+		categories.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+		categories.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
+		categories.addListSelectionListener(event -> {
+			String chosen = categories.getSelectedValue();
+			if (!event.getValueIsAdjusting() && chosen != null) cards.show(cardPanel, chosen);
+		});
+		categories.setSelectedIndex(showLocaleTab ? categoryNames.size() - 1 : 0);
+		JScrollPane categoryScroll = new JScrollPane(categories);
+		categoryScroll.setName("preferencesCategoriesScroll");
+		JSplitPane tabs = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, categoryScroll, cardPanel);
+		tabs.setName("preferencesCategorySplit");
+		tabs.getAccessibleContext().setAccessibleName(UsabilityStrings.text("preferences.categories"));
+		tabs.setContinuousLayout(true);
+		tabs.setDividerSize(4);
 
 		JButton apply = new JButton(UsabilityStrings.text("preferences.apply"));
 		apply.addActionListener(event -> {
@@ -214,6 +244,21 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		// The packed size is only an upper bound: clamp it to the owner's monitor
 		// with the same margin and screen insets every other large tool dialog uses.
 		DialogSizing.applyInitialSize(this, new Dimension(), getSize(), owner);
+	}
+
+	private static JPanel newCategoryForm() {
+		JPanel form = new JPanel(new GridBagLayout());
+		form.setBorder(BorderFactory.createEmptyBorder(12, 12, 4, 12));
+		return form;
+	}
+
+	/** Adds a category page; the page is named and labelled for assistive technology. */
+	private static void addCategory(JPanel cardPanel, java.util.List<String> names, String name, java.awt.Component page) {
+		JScrollPane scroll = new JScrollPane(page);
+		scroll.setName("preferencesCategory." + names.size());
+		scroll.getAccessibleContext().setAccessibleName(name);
+		cardPanel.add(scroll, name);
+		names.add(name);
 	}
 
 	private static void addRow(JPanel form, String label, java.awt.Component field) {

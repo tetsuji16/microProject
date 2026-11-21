@@ -28,7 +28,7 @@ import javax.swing.AbstractButton;
 import javax.swing.JDialog;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
-import javax.swing.JTabbedPane;
+import javax.swing.JList;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
@@ -121,11 +121,12 @@ class PreferencesDialogGuiAcceptanceTest {
 			restartRequests::incrementAndGet, null, true));
 		GuiAcceptanceSupport.await(() -> findDialog() != null, "Preferences dialog did not open on Language and locale");
 		PreferencesDialogBox dialog = findDialog();
-		JTabbedPane tabs = findNamedComponent(dialog, JTabbedPane.class, null);
-		assertTrue(tabs != null, "Preferences dialog must expose its settings tabs");
-		assertEquals(UsabilityStrings.text("preferences.languageLocale"), tabs.getTitleAt(1));
-		assertEquals(1, tabs.getSelectedIndex(), "Ribbon locale route must select Language and locale");
-		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(tabs, "Preferences language and locale tab");
+		JList<?> categories = findNamedComponent(dialog, JList.class, "preferencesCategories");
+		assertTrue(categories != null, "Preferences dialog must expose its category list");
+		assertEquals(UsabilityStrings.text("preferences.language"), categories.getSelectedValue(),
+			"Ribbon locale route must select the Language category");
+		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog.getContentPane(),
+			"Preferences language and locale tab");
 		DialogLayoutAssertions.assertWithinUsableScreen(dialog, "Preferences language and locale tab");
 		JComboBox<?> language = findComboWithItem(dialog, "de");
 		JComboBox<?> country = findComboWithItem(dialog, "Germany");
@@ -213,26 +214,31 @@ class PreferencesDialogGuiAcceptanceTest {
 		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog.getContentPane(), "Preferences dialog");
 		DialogLayoutAssertions.assertWithinUsableScreen(dialog, "Preferences dialog");
 		capture(robot, dialog, "preferences-theme-selection.png");
+		selectCategory(dialog, "preferences.display");
 		enterText(robot, datePattern, "dd.MM.yyyy");
 		enterText(robot, dateTimePattern, "dd.MM.yyyy HH:mm");
 		enterText(robot, currencyCode, "EUR");
 		GuiAcceptanceSupport.await(formatRestartNotice::isVisible,
 			"Changing date formats must tell users to restart the application");
+		openPopup(robot, milestoneShape);
+		robot.keyPress(KeyEvent.VK_END); robot.keyRelease(KeyEvent.VK_END);
+		robot.keyPress(KeyEvent.VK_ENTER); robot.keyRelease(KeyEvent.VK_ENTER);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> !milestoneShape.isPopupVisible(), "Milestone shape popup did not close");
+		selectCategory(dialog, "preferences.save");
 		JTextField intervalEditor = ((JSpinner.DefaultEditor) interval.getEditor()).getTextField();
-		click(robot, intervalEditor);
+		focusByClick(robot, intervalEditor);
 		robot.keyPress(KeyEvent.VK_CONTROL); robot.keyPress(KeyEvent.VK_A);
 		robot.keyRelease(KeyEvent.VK_A); robot.keyRelease(KeyEvent.VK_CONTROL);
 		robot.keyPress(KeyEvent.VK_1); robot.keyRelease(KeyEvent.VK_1);
 		robot.keyPress(KeyEvent.VK_2); robot.keyRelease(KeyEvent.VK_2);
 		robot.keyPress(KeyEvent.VK_ENTER); robot.keyRelease(KeyEvent.VK_ENTER);
-		click(robot, theme);
+		selectCategory(dialog, "preferences.general");
+		openPopup(robot, theme);
 		robot.keyPress(KeyEvent.VK_END); robot.keyRelease(KeyEvent.VK_END);
 		robot.keyPress(KeyEvent.VK_ENTER); robot.keyRelease(KeyEvent.VK_ENTER);
 		GuiAcceptanceSupport.await(() -> UsabilityStrings.text("preferences.themeDark").equals(selectedItem(theme)),
 			"Robot did not select the dark theme");
-		click(robot, milestoneShape);
-		robot.keyPress(KeyEvent.VK_END); robot.keyRelease(KeyEvent.VK_END);
-		robot.keyPress(KeyEvent.VK_ENTER); robot.keyRelease(KeyEvent.VK_ENTER);
 		click(robot, findButton(dialog, UsabilityStrings.text("preferences.apply")));
 		GuiAcceptanceSupport.await(() -> !dialog.isVisible(), "Preferences dialog did not close after Apply");
 		assertEquals(12, appliedInterval.get(), "Apply must persist the entered recovery interval");
@@ -245,6 +251,38 @@ class PreferencesDialogGuiAcceptanceTest {
 		assertEquals("EUR", testPreferences.getCurrencyCode(), "Apply must persist the currency override");
 		assertEquals(MilestoneShapeChoice.TRIANGLE_DOWN.getShapeName(), testPreferences.getDefaultMilestoneShape(),
 			"Apply must persist the default milestone shape");
+	}
+
+	@Test
+	void categoryListNamesAndOrderFollowMicrosoftProjectOptions() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		testPreferences = new GlobalPreferences();
+		originalDarkTheme = testPreferences.isDarkTheme();
+		originalDatePattern = testPreferences.getDatePattern();
+		originalDateTimePattern = testPreferences.getDateTimePattern();
+		originalCurrencyCode = testPreferences.getCurrencyCode();
+		originalMilestoneShape = testPreferences.getDefaultMilestoneShape();
+		SwingUtilities.invokeLater(() -> PreferencesDialogBox.showDialog(null, testPreferences, null,
+			new AutoSaveControl() {
+				public boolean isEnabled() { return true; }
+				public void setEnabled(boolean enabled) { }
+				public int getIntervalMinutes() { return DEFAULT_INTERVAL_MINUTES; }
+				public void setIntervalMinutes(int minutes) { }
+			}));
+		GuiAcceptanceSupport.await(() -> findDialog() != null, "Preferences dialog did not open");
+		PreferencesDialogBox dialog = findDialog();
+		JList<?> categories = findNamedComponent(dialog, JList.class, "preferencesCategories");
+		assertTrue(categories != null, "Preferences dialog must expose its category list");
+		assertEquals(java.util.List.of(UsabilityStrings.text("preferences.general"),
+			UsabilityStrings.text("preferences.display"), UsabilityStrings.text("preferences.save"),
+			UsabilityStrings.text("preferences.language")),
+			java.util.stream.IntStream.range(0, categories.getModel().getSize())
+				.mapToObj(index -> String.valueOf(categories.getModel().getElementAt(index))).toList(),
+			"Categories must be General, Display, Save, Language in this order");
+		assertEquals(0, categories.getSelectedIndex(), "General must be selected by default");
+		assertTrue(categories.getAccessibleContext().getAccessibleName() != null
+			&& !categories.getAccessibleContext().getAccessibleName().isBlank(), "Category list needs an accessible name");
+		SwingUtilities.invokeAndWait(() -> dialog.dispose());
 	}
 
 	@Test
@@ -409,6 +447,68 @@ class PreferencesDialogGuiAcceptanceTest {
 		robot.keyPress(KeyEvent.VK_CONTROL); robot.keyPress(KeyEvent.VK_V);
 		robot.keyRelease(KeyEvent.VK_V); robot.keyRelease(KeyEvent.VK_CONTROL);
 		robot.waitForIdle();
+	}
+
+	/** Opens a combo popup with the mouse, retrying once because the first press can only move focus. */
+	private static void openPopup(Robot robot, JComboBox<?> combo) throws Exception {
+		for (int attempt = 0; attempt < 3 && !combo.isPopupVisible(); attempt++) {
+			click(robot, combo);
+			long deadline = System.nanoTime() + 1_000_000_000L;
+			while (!combo.isPopupVisible() && System.nanoTime() < deadline) robot.delay(50);
+		}
+		GuiAcceptanceSupport.await(combo::isPopupVisible, "Combo popup did not open");
+	}
+
+	/** Clicks until the field keeps focus; Swing hands focus to the category list when a page is hidden. */
+	private static void focusByClick(Robot robot, javax.swing.text.JTextComponent field) throws Exception {
+		for (int attempt = 0; attempt < 5; attempt++) {
+			click(robot, field);
+			robot.delay(400);
+			robot.waitForIdle();
+			if (field.hasFocus()) return;
+		}
+		assertTrue(field.hasFocus(), "Field did not keep focus after clicking it");
+	}
+
+	private static void selectCategory(PreferencesDialogBox dialog, String key) throws Exception {
+		JList<?> categories = findNamedComponent(dialog, JList.class, "preferencesCategories");
+		assertTrue(categories != null, "Preferences dialog must expose its category list");
+		String name = UsabilityStrings.text(key);
+		// A real click, like a user's: the list owns focus afterwards instead of a component on the hidden page.
+		Point[] row = new Point[1];
+		SwingUtilities.invokeAndWait(() -> {
+			int index = -1;
+			for (int i = 0; i < categories.getModel().getSize(); i++)
+				if (name.equals(String.valueOf(categories.getModel().getElementAt(i)))) index = i;
+			assertTrue(index >= 0, "Category " + name + " is not listed");
+			Rectangle cell = categories.getCellBounds(index, index);
+			Point origin = categories.getLocationOnScreen();
+			row[0] = new Point(origin.x + cell.x + cell.width / 2, origin.y + cell.y + cell.height / 2);
+		});
+		Robot clicker = new com.microproject.testsupport.GuiRobot();
+		clicker.mouseMove(row[0].x, row[0].y);
+		clicker.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		clicker.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		clicker.waitForIdle();
+		GuiAcceptanceSupport.await(() -> name.equals(categories.getSelectedValue()), "Category " + name + " was not selected");
+		GuiAcceptanceSupport.await(() -> {
+			for (int index = 0; index < 4; index++) {
+				javax.swing.JScrollPane page = findNamedComponent(dialog, javax.swing.JScrollPane.class,
+					"preferencesCategory." + index);
+				if (page != null && page.isShowing() && name.equals(page.getAccessibleContext().getAccessibleName()))
+					return true;
+			}
+			return false;
+		}, "Category " + name + " page did not become visible");
+		// Swing moves focus out of the hidden page asynchronously; let it settle before the next robot input.
+		GuiAcceptanceSupport.await(() -> {
+			Component owner = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+			return owner != null && owner.isShowing();
+		}, "Focus did not settle after selecting " + name);
+		com.microproject.testsupport.GuiRobot settle = new com.microproject.testsupport.GuiRobot();
+		settle.waitForIdle();
+		settle.delay(400);
+		settle.waitForIdle();
 	}
 
 	private static <T extends java.awt.Component> T findNamedComponent(java.awt.Container container, Class<T> type,

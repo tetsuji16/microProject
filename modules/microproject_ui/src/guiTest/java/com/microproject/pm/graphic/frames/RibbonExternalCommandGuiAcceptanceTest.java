@@ -647,11 +647,12 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> visibleDialog(PreferencesDialogBox.class) != null,
 			"RibbonLocale did not open Preferences");
 		PreferencesDialogBox localePreferencesDialog = (PreferencesDialogBox) visibleDialog(PreferencesDialogBox.class);
-		JTabbedPane localeTabs = flatten(localePreferencesDialog).stream().filter(JTabbedPane.class::isInstance)
-			.map(JTabbedPane.class::cast).findFirst()
-			.orElseThrow(() -> new AssertionError("Preferences dialog has no settings tabs"));
-		assertEquals(UsabilityStrings.text("preferences.languageLocale"), localeTabs.getTitleAt(1));
-		assertEquals(1, localeTabs.getSelectedIndex(), "RibbonLocale must select Language and locale");
+		javax.swing.JList<?> localeCategories = flatten(localePreferencesDialog).stream()
+			.filter(javax.swing.JList.class::isInstance).map(javax.swing.JList.class::cast)
+			.filter(list -> "preferencesCategories".equals(list.getName())).findFirst()
+			.orElseThrow(() -> new AssertionError("Preferences dialog has no category list"));
+		assertEquals(UsabilityStrings.text("preferences.language"), localeCategories.getSelectedValue(),
+			"RibbonLocale must select the Language category");
 		assertNotNull(findButton(localePreferencesDialog, MenuManager.getMenuString("Help.text")),
 			"Language and locale tab must expose its Help route");
 		click(robot, findButton(localePreferencesDialog, UsabilityStrings.text("preferences.cancel")));
@@ -907,9 +908,11 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> visibleDialog(PreferencesDialogBox.class) != null,
 			"RibbonLocale did not open Preferences");
 		PreferencesDialogBox dialog = (PreferencesDialogBox) visibleDialog(PreferencesDialogBox.class);
-		JTabbedPane tabs = flatten(dialog).stream().filter(JTabbedPane.class::isInstance).map(JTabbedPane.class::cast)
-			.findFirst().orElseThrow(() -> new AssertionError("Preferences dialog has no settings tabs"));
-		assertEquals(1, tabs.getSelectedIndex(), "RibbonLocale must select Language and locale");
+		javax.swing.JList<?> categories = flatten(dialog).stream().filter(javax.swing.JList.class::isInstance)
+			.map(javax.swing.JList.class::cast).filter(list -> "preferencesCategories".equals(list.getName()))
+			.findFirst().orElseThrow(() -> new AssertionError("Preferences dialog has no category list"));
+		assertEquals(UsabilityStrings.text("preferences.language"), categories.getSelectedValue(),
+			"RibbonLocale must select Language and locale");
 		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog, "Preferences Language and locale tab");
 		JComboBox<?>[] selectors = new JComboBox<?>[2];
 		SwingUtilities.invokeAndWait(() -> {
@@ -1120,9 +1123,11 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> visibleDialog(PreferencesDialogBox.class) != null,
 			"RibbonLocale did not open Preferences");
 		PreferencesDialogBox dialog = (PreferencesDialogBox) visibleDialog(PreferencesDialogBox.class);
-		JTabbedPane tabs = flatten(dialog).stream().filter(JTabbedPane.class::isInstance).map(JTabbedPane.class::cast)
-			.findFirst().orElseThrow(() -> new AssertionError("Preferences dialog has no settings tabs"));
-		assertEquals(1, tabs.getSelectedIndex(), "RibbonLocale must open Language and locale");
+		javax.swing.JList<?> categories = flatten(dialog).stream().filter(javax.swing.JList.class::isInstance)
+			.map(javax.swing.JList.class::cast).filter(list -> "preferencesCategories".equals(list.getName()))
+			.findFirst().orElseThrow(() -> new AssertionError("Preferences dialog has no category list"));
+		assertEquals(UsabilityStrings.text("preferences.language"), categories.getSelectedValue(),
+			"RibbonLocale must open Language and locale");
 		click(robot, findButton(dialog, UsabilityStrings.text("preferences.cancel")));
 		GuiAcceptanceSupport.await(() -> visibleDialog(PreferencesDialogBox.class) == null,
 			"Preferences dialog did not close through Cancel");
