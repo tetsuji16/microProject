@@ -222,7 +222,8 @@ public class CriticalPath implements SchedulingAlgorithm {
 		criticalPathJustChanged = affectsCriticalPath;
 		doPass(startTask,context); // always assign in first pass.  Dates may change in third pass
 		
-		if (affectsCriticalPath) {
+		// A localized forward pass moves the task's own late dates and its predecessors' late finishes even off the critical path.
+		{
 			context.stateCount = getNextCalculationStateCount(); // backward pass treats next increment
 			context.sentinel = endSentinel;
 			long secondBoundary = -endSentinel.getSchedule(context.scheduleType).getBegin(); // sent bounds of end sentinel for backward pass
@@ -239,7 +240,7 @@ public class CriticalPath implements SchedulingAlgorithm {
 			project.setStart(startSentinel.getEarlyStart());
 			project.setEnd(finishSentinel.getEarlyFinish());
 			
-			if (hasReverseScheduledTasks) {
+			if (affectsCriticalPath && hasReverseScheduledTasks) {
 				context.stateCount = getNextCalculationStateCount(); // backward pass treats next increment
 				context.forward = !context.forward;
 				context.boundary = firstBoundary;

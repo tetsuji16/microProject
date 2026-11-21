@@ -197,6 +197,44 @@ class IncrementalScheduleEquivalenceTest {
 	}
 
 	@Test
+	void assignedNoncriticalDurationChangeWithoutBackwardPassMatchesFullRecalculation() throws Exception {
+		SlackFixture f = new SlackFixture();
+		AssignmentService.getInstance().newAssignment(f.side, resource(f.project), 1.0d, 0L, this);
+		f.project.recalculate();
+		assertEquals(true, f.side.hasRealAssignments());
+		assertEquals(false, f.side.isCritical());
+		List<Long> before = f.snapshot();
+
+		setDuration(f.side, day());
+		assertEquals(day(), f.side.getDuration());
+		assertNotEquals(before, f.snapshot(), "early finish must move");
+		assertEquals(false, f.side.isCritical());
+		f.assertEqualsFullRecalculation("assigned noncritical duration decrease");
+
+		setDuration(f.side, 4L * day());
+		assertEquals(false, f.side.isCritical());
+		f.assertEqualsFullRecalculation("assigned noncritical duration increase within slack");
+	}
+
+	@Test
+	void batchedAssignedNoncriticalDurationChangeWithoutBackwardPassMatchesFullRecalculation() throws Exception {
+		SlackFixture f = new SlackFixture();
+		AssignmentService.getInstance().newAssignment(f.side, resource(f.project), 1.0d, 0L, this);
+		f.project.recalculate();
+		List<Long> before = f.snapshot();
+
+		int transaction = f.project.fireMultipleTransaction(0, true);
+		try {
+			setDuration(f.side, 4L * day());
+		} finally {
+			f.project.fireMultipleTransaction(transaction, false);
+		}
+		assertNotEquals(before, f.snapshot(), "early finish must move");
+		assertEquals(false, f.side.isCritical());
+		f.assertEqualsFullRecalculation("batched assigned noncritical duration increase within slack");
+	}
+
+	@Test
 	void noncriticalTaskBecomingCriticalMatchesFullRecalculation() throws Exception {
 		SlackFixture f = new SlackFixture();
 		assertEquals(false, f.side.isCritical());
