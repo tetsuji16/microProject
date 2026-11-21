@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import com.microproject.configuration.Configuration;
 import com.microproject.datatype.Duration;
@@ -119,6 +121,24 @@ class IncrementalScheduleEquivalenceTest {
 		return project.getResourcePool().newResourceInstance();
 	}
 
+	private interface Edit {
+		void run() throws Exception;
+	}
+
+	/** Runs the edit on its own, or inside an updates-suspended batch. */
+	private void edit(Project project, boolean batched, Edit edit) throws Exception {
+		if (!batched) {
+			edit.run();
+			return;
+		}
+		int transaction = project.fireMultipleTransaction(0, true);
+		try {
+			edit.run();
+		} finally {
+			project.fireMultipleTransaction(transaction, false);
+		}
+	}
+
 	/** Critical chain c0 -> c1 -> c2 (5 days each) and an independent noncritical task with slack. */
 	private final class SlackFixture {
 		final Project project;
@@ -196,8 +216,9 @@ class IncrementalScheduleEquivalenceTest {
 		f.assertEqualsFullRecalculation("unbatched noncritical duration decrease");
 	}
 
-	@Test
-	void assignedNoncriticalDurationChangeWithoutBackwardPassMatchesFullRecalculation() throws Exception {
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void assignedNoncriticalDurationChangeMatchesFullRecalculation(boolean batched) throws Exception {
 		SlackFixture f = new SlackFixture();
 		AssignmentService.getInstance().newAssignment(f.side, resource(f.project), 1.0d, 0L, this);
 		f.project.recalculate();
@@ -205,33 +226,15 @@ class IncrementalScheduleEquivalenceTest {
 		assertEquals(false, f.side.isCritical());
 		List<Long> before = f.snapshot();
 
-		setDuration(f.side, day());
+		edit(f.project, batched, () -> setDuration(f.side, day()));
 		assertEquals(day(), f.side.getDuration());
 		assertNotEquals(before, f.snapshot(), "early finish must move");
 		assertEquals(false, f.side.isCritical());
 		f.assertEqualsFullRecalculation("assigned noncritical duration decrease");
 
-		setDuration(f.side, 4L * day());
+		edit(f.project, batched, () -> setDuration(f.side, 4L * day()));
 		assertEquals(false, f.side.isCritical());
 		f.assertEqualsFullRecalculation("assigned noncritical duration increase within slack");
-	}
-
-	@Test
-	void batchedAssignedNoncriticalDurationChangeWithoutBackwardPassMatchesFullRecalculation() throws Exception {
-		SlackFixture f = new SlackFixture();
-		AssignmentService.getInstance().newAssignment(f.side, resource(f.project), 1.0d, 0L, this);
-		f.project.recalculate();
-		List<Long> before = f.snapshot();
-
-		int transaction = f.project.fireMultipleTransaction(0, true);
-		try {
-			setDuration(f.side, 4L * day());
-		} finally {
-			f.project.fireMultipleTransaction(transaction, false);
-		}
-		assertNotEquals(before, f.snapshot(), "early finish must move");
-		assertEquals(false, f.side.isCritical());
-		f.assertEqualsFullRecalculation("batched assigned noncritical duration increase within slack");
 	}
 
 	@Test
@@ -272,8 +275,9 @@ class IncrementalScheduleEquivalenceTest {
 		f.assertEqualsFullRecalculation("after undo");
 	}
 
-	@Test
-	void shorteningAssignmentOnLatestFinishingTaskRefreshesScheduleExtrema() throws Exception {
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void shorteningAssignmentOnLatestFinishingTaskRefreshesScheduleExtrema(boolean batched) throws Exception {
 		Fixture f = new Fixture(true);
 		NormalTask last = f.b[2];
 		AssignmentService.getInstance().newAssignment(last, resource(f.project), 1.0d, 0L, this);
@@ -281,34 +285,11 @@ class IncrementalScheduleEquivalenceTest {
 		long latestBefore = f.project.getLatestFinishingTask();
 		long durationBefore = last.getDuration();
 
-		AssignmentService.getInstance().newAssignment(last, resource(f.project), 1.0d, 0L, this);
+		edit(f.project, batched, () -> AssignmentService.getInstance().newAssignment(last, resource(f.project), 1.0d, 0L, this));
 		assertNotEquals(durationBefore, last.getDuration(), "second resource must shorten the effort-driven task");
 		long latestIncremental = f.project.getLatestFinishingTask();
 		long earliestIncremental = f.project.getEarliestStartingTask();
 		assertNotEquals(latestBefore, latestIncremental, "latest finish must move");
-
-		f.project.recalculate();
-		assertEquals(f.project.getLatestFinishingTask(), latestIncremental, "latest finish differs from full recalculation");
-		assertEquals(f.project.getEarliestStartingTask(), earliestIncremental, "earliest start differs from full recalculation");
-	}
-
-	@Test
-	void batchedShorteningAssignmentOnLatestFinishingTaskRefreshesScheduleExtrema() throws Exception {
-		Fixture f = new Fixture(true);
-		NormalTask last = f.b[2];
-		AssignmentService.getInstance().newAssignment(last, resource(f.project), 1.0d, 0L, this);
-		f.project.recalculate();
-		long durationBefore = last.getDuration();
-
-		int transaction = f.project.fireMultipleTransaction(0, true);
-		try {
-			AssignmentService.getInstance().newAssignment(last, resource(f.project), 1.0d, 0L, this);
-		} finally {
-			f.project.fireMultipleTransaction(transaction, false);
-		}
-		assertNotEquals(durationBefore, last.getDuration(), "second resource must shorten the effort-driven task");
-		long latestIncremental = f.project.getLatestFinishingTask();
-		long earliestIncremental = f.project.getEarliestStartingTask();
 
 		f.project.recalculate();
 		assertEquals(f.project.getLatestFinishingTask(), latestIncremental, "latest finish differs from full recalculation");
