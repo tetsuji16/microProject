@@ -119,8 +119,104 @@ class IncrementalScheduleEquivalenceTest {
 		return project.getResourcePool().newResourceInstance();
 	}
 
+	/** Critical chain c0 -> c1 -> c2 (5 days each) and an independent noncritical task with slack. */
+	private final class SlackFixture {
+		final Project project;
+		final NormalTask[] chain = new NormalTask[3];
+		final NormalTask side;
+
+		SlackFixture() throws Exception {
+			DataFactoryUndoController undoController = new DataFactoryUndoController();
+			project = Project.createProject(ResourcePool.createRourcePool("slack", undoController), undoController);
+			project.initialize(false, false);
+			for (int i = 0; i < 3; i++) {
+				chain[i] = (NormalTask) project.createLocalTaskNode(null).getImpl();
+				chain[i].setDuration(5L * day());
+			}
+			side = (NormalTask) project.createLocalTaskNode(null).getImpl();
+			side.setDuration(2L * day());
+			for (int i = 0; i < 2; i++)
+				DependencyService.getInstance().newDependency(chain[i], chain[i + 1], DependencyType.FS, 0L, IncrementalScheduleEquivalenceTest.this);
+			project.recalculate();
+		}
+
+		List<NormalTask> all() {
+			List<NormalTask> list = new ArrayList<>(List.of(chain));
+			list.add(side);
+			return list;
+		}
+
+		List<Long> snapshot() {
+			List<Long> dates = new ArrayList<>();
+			dates.add(project.getStart());
+			dates.add(project.getEnd());
+			for (NormalTask t : all()) {
+				dates.add(t.getEarlyStart());
+				dates.add(t.getEarlyFinish());
+				dates.add(t.getLateStart());
+				dates.add(t.getLateFinish());
+				dates.add(t.getTotalSlack());
+				dates.add(t.isCritical() ? 1L : 0L);
+			}
+			return dates;
+		}
+
+		void assertEqualsFullRecalculation(String step) {
+			List<Long> incremental = snapshot();
+			project.recalculate();
+			assertEquals(incremental, snapshot(), "incremental result differs from full recalculation: " + step);
+		}
+	}
+
 	@Test
-	void durationChangingAssignmentOnCriticalChildMatchesFullRecalculation() throws Exception {
+	void batchedNoncriticalDurationChangeKeepsLateDatesAndSlackOfFullRecalculation() throws Exception {
+		SlackFixture f = new SlackFixture();
+		assertEquals(false, f.side.isCritical());
+		List<Long> before = f.snapshot();
+
+		int transaction = f.project.fireMultipleTransaction(0, true);
+		try {
+			setDuration(f.side, 4L * day());
+		} finally {
+			f.project.fireMultipleTransaction(transaction, false);
+		}
+		assertNotEquals(before, f.snapshot(), "late start and slack must move");
+		f.assertEqualsFullRecalculation("batched noncritical duration increase");
+	}
+
+	@Test
+	void unbatchedNoncriticalDurationChangeKeepsLateDatesAndSlackOfFullRecalculation() throws Exception {
+		SlackFixture f = new SlackFixture();
+		List<Long> before = f.snapshot();
+
+		setDuration(f.side, 4L * day());
+		assertNotEquals(before, f.snapshot(), "late start and slack must move");
+		f.assertEqualsFullRecalculation("unbatched noncritical duration increase");
+		setDuration(f.side, day());
+		f.assertEqualsFullRecalculation("unbatched noncritical duration decrease");
+	}
+
+	@Test
+	void noncriticalTaskBecomingCriticalMatchesFullRecalculation() throws Exception {
+		SlackFixture f = new SlackFixture();
+		assertEquals(false, f.side.isCritical());
+
+		int transaction = f.project.fireMultipleTransaction(0, true);
+		try {
+			setDuration(f.side, 15L * day());
+		} finally {
+			f.project.fireMultipleTransaction(transaction, false);
+		}
+		f.assertEqualsFullRecalculation("batched noncritical task becoming critical");
+
+		setDuration(f.side, 20L * day());
+		f.assertEqualsFullRecalculation("unbatched, longer than the old chain");
+		setDuration(f.side, 2L * day());
+		f.assertEqualsFullRecalculation("unbatched, back to noncritical");
+	}
+
+	@Test
+	void durationChangingAssignmentOnCriticalChildMatchesFullRecalculation()throws Exception {
 		Fixture f = new Fixture(true);
 		NormalTask target = f.b[1];
 		AssignmentService.getInstance().newAssignment(target, resource(f.project), 1.0d, 0L, this);
