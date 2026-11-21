@@ -56,6 +56,9 @@ public final class RibbonCustomizationDraft {
 	}
 
 	private final List<String> defaultTabOrder = new ArrayList<>();
+	/** The order as stored; it is written back unchanged until the user reorders the default tabs. */
+	private List<String> storedOrder = List.of();
+	private boolean reordered;
 	private final Set<String> hiddenDefaultTabs = new LinkedHashSet<>();
 	private final List<Tab> customTabs = new ArrayList<>();
 	private final Map<String, List<Group>> defaultTabGroups = new LinkedHashMap<>();
@@ -156,7 +159,9 @@ public final class RibbonCustomizationDraft {
 	public boolean moveTab(String tabId, int delta) {
 		if (customTab(tabId) != null) return move(customTabs, indexOfTab(tabId), delta);
 		int index = defaultTabOrder.indexOf(tabId);
-		return index >= 0 && move(defaultTabOrder, index, delta);
+		boolean moved = index >= 0 && move(defaultTabOrder, index, delta);
+		reordered |= moved;
+		return moved;
 	}
 
 	/** Moves a custom group within its tab; default groups stay before it. */
@@ -201,7 +206,8 @@ public final class RibbonCustomizationDraft {
 	}
 
 	public RibbonCustomization toCustomization() {
-		List<String> order = defaultTabOrder.equals(naturalOrder()) ? List.of() : List.copyOf(defaultTabOrder);
+		List<String> order = !reordered ? storedOrder
+			: defaultTabOrder.equals(naturalOrder()) ? List.of() : List.copyOf(defaultTabOrder);
 		List<RibbonCustomization.CustomTab> tabs = new ArrayList<>();
 		for (Tab tab : customTabs) tabs.add(new RibbonCustomization.CustomTab(tab.id, tab.name, toGroups(tab.groups)));
 		Map<String, List<RibbonCustomization.CustomGroup>> groups = new LinkedHashMap<>();
@@ -215,6 +221,8 @@ public final class RibbonCustomizationDraft {
 		customTabs.clear();
 		defaultTabGroups.clear();
 		defaultTabOrder.addAll(resolvedOrder(source));
+		storedOrder = List.copyOf(source.defaultTabOrder());
+		reordered = false;
 		hiddenDefaultTabs.addAll(source.hiddenDefaultTabs());
 		for (RibbonCustomization.CustomTab tab : source.customTabs()) {
 			Tab copy = new Tab(tab.id(), tab.name());

@@ -62,7 +62,7 @@ public final class RibbonCustomizationCatalog {
 			List<String> commands = new ArrayList<>();
 			for (String token : tokens(lookup(bandId))) {
 				String id = token.endsWith(".TOP") || token.endsWith(".LOW") ? token.substring(0, token.length() - 4) : token;
-				if (!"-".equals(id) && RibbonCommandCatalog.quickAccessCandidates().contains(id)) commands.add(id);
+				if (!"-".equals(id) && RibbonCommandCatalog.isQuickAccessCandidate(id)) commands.add(id);
 			}
 			String title = lookup(bandId + ".title");
 			groups.add(new DefaultGroup(bandId, title == null || title.isBlank() ? bandId : title.trim(), commands));

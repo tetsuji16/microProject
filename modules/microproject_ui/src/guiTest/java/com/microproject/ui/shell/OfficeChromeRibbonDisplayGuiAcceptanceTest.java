@@ -264,9 +264,10 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(frame::isActive, "Quick Access acceptance window did not become active");
 		click(robot, findShowingButton(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME));
 		click(robot, popupItem(UsabilityStrings.text("chrome.customizeQuickAccess")));
-		GuiAcceptanceSupport.await(() -> optionsCommands.stream().anyMatch(entry -> entry.endsWith(":"
-			+ com.microproject.dialog.PreferencesDialogBox.CATEGORY_QUICK_ACCESS)),
+		String expected = "GeneralOptions:" + com.microproject.dialog.PreferencesDialogBox.CATEGORY_QUICK_ACCESS;
+		GuiAcceptanceSupport.await(() -> optionsCommands.contains(expected),
 			"the customize item did not run the Options command with the Quick Access category: " + optionsCommands);
+		assertEquals(java.util.List.of(expected), optionsCommands, "exactly the Options command must have run");
 	}
 
 	@Test

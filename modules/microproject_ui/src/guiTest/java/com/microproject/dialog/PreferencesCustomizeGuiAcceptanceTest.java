@@ -115,9 +115,14 @@ class PreferencesCustomizeGuiAcceptanceTest {
 		clickRow(tree, RibbonCustomizationCatalog.tabTitle(RibbonCustomization.FILE_TAB_ID), 2);
 		clickListCommand(commands, "RibbonFind");
 		assertDisabled("File tab", remove, rename, newGroup, add);
+		// Space only reaches the tree's binding when the tree owns the focus, so select the File row again first.
+		String fileTitle = RibbonCustomizationCatalog.tabTitle(RibbonCustomization.FILE_TAB_ID);
+		clickRow(tree, fileTitle, 2);
+		GuiAcceptanceSupport.await(tree::hasFocus, "the ribbon tree did not take the focus");
 		robot.keyPress(KeyEvent.VK_SPACE);
 		robot.keyRelease(KeyEvent.VK_SPACE);
 		robot.waitForIdle();
+		assertTrue(fileRowChecked(tree, fileTitle), "Space must not hide the File tab");
 		String taskTab = "TaskRibbonTask";
 		RibbonCustomizationCatalog.DefaultGroup defaultGroup = RibbonCustomizationCatalog.defaultGroups(taskTab).stream()
 			.filter(group -> !group.commandIds().isEmpty()).findFirst().orElseThrow();
@@ -468,6 +473,17 @@ class PreferencesCustomizeGuiAcceptanceTest {
 		});
 		clickAt(row[0]);
 		GuiAcceptanceSupport.await(() -> name.equals(categories.getSelectedValue()), "Category " + name + " was not selected");
+	}
+
+	private static boolean fileRowChecked(JTree tree, String fileTitle) throws Exception {
+		boolean[] checked = new boolean[1];
+		SwingUtilities.invokeAndWait(() -> {
+			int row = rowOf(tree, fileTitle, 2);
+			Component renderer = tree.getCellRenderer().getTreeCellRendererComponent(tree,
+				tree.getPathForRow(row).getLastPathComponent(), true, false, false, row, true);
+			checked[0] = renderer instanceof javax.swing.JCheckBox box && box.isSelected() && !box.isEnabled();
+		});
+		return checked[0];
 	}
 
 	private static void assertDisabled(String what, AbstractButton... buttons) {
