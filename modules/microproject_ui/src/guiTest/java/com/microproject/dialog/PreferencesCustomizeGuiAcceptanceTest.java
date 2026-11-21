@@ -323,6 +323,11 @@ class PreferencesCustomizeGuiAcceptanceTest {
 		assertTrue(hasRibbonTab(RibbonGuiEnvironment.FIXTURE_CUSTOM_TAB_ID), "the fixture's custom tab must be on the ribbon");
 		assertFalse(hasRibbonTab(RibbonGuiEnvironment.FIXTURE_HIDDEN_TAB_ID), "the fixture's hidden tab must not be on the ribbon");
 		bringToFront(ribbonFrame);
+		// Show the custom tab's groups in both the normal and the narrow capture.
+		ModernRibbonPanel ribbonPanel = (ModernRibbonPanel) ribbonFrame.getRibbonPanel()
+			.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		assertTrue(onEdt(() -> ribbonPanel.selectTab(RibbonGuiEnvironment.FIXTURE_CUSTOM_TAB_ID)),
+			"the custom tab must be selectable");
 		java.nio.file.Path ribbon = DialogScreenshotArtifacts.captureScreen(frameBounds(), "ribbon-customization-ribbon-normal");
 		assertTrue(java.nio.file.Files.size(ribbon) > 0);
 
