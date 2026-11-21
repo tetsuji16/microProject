@@ -33,6 +33,8 @@ import java.util.prefs.Preferences;
 
 import javax.swing.JOptionPane;
 
+import com.microproject.ui.util.PopupDialogSupport;
+
 import com.formdev.flatlaf.util.SystemFileChooser;
 import com.formdev.flatlaf.util.SystemFileChooser.FileFilter;
 import com.formdev.flatlaf.util.SystemFileChooser.FileNameExtensionFilter;
@@ -98,15 +100,15 @@ public final class SwingFileChooserProvider implements UiServices.FileChooserPro
 		if (save) {
 			fileName = normalizeSelectedSaveFileName(fileName, currentFilter);
 			boolean normalizedToDifferentTarget = !new File(file.toString()).getAbsoluteFile()
-				.equals(new File(fileName).getAbsoluteFile());
-			if (normalizedToDifferentTarget && new File(fileName).exists()
-					&& JOptionPane.showOptionDialog(fileChooserParent,
-						Messages.format("Message.overwriteFileConfirmation", fileName),
-						Messages.getString("Text.confirmOverwrite"), JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE,
-						null, new Object[] { Messages.getString("Text.Replace"), Messages.getString("Text.Cancel") },
-						Messages.getString("Text.Cancel")) != 0) {
-				return null;
-			}
+						.equals(new File(fileName).getAbsoluteFile());
+					if (normalizedToDifferentTarget && new File(fileName).exists()
+						&& PopupDialogSupport.showOptionDialog(fileChooserParent,
+							Messages.format("Message.overwriteFileConfirmation", fileName),
+							Messages.getString("Text.confirmOverwrite"), JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE,
+							null, new Object[] { Messages.getString("Text.Replace"), Messages.getString("Text.Cancel") },
+							Messages.getString("Text.Cancel")) != 0) {
+						return null;
+					}
 		}
 		Preferences.userNodeForPackage(FileHelper.class).put("lastDirectory", file.getParent());
 		return fileName;
