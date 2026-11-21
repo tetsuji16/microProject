@@ -58,6 +58,7 @@ class PreferencesDialogGuiAcceptanceTest {
 	private java.util.prefs.Preferences localePreferences;
 	private String originalLocalePreference;
 	private String originalLanguages;
+	private Boolean originalShowTimeInDates;
 
 	@AfterEach
 	void closeDialogs() throws Exception {
@@ -73,6 +74,8 @@ class PreferencesDialogGuiAcceptanceTest {
 				preferences.setCurrencyCode(originalCurrencyCode);
 				preferences.setDefaultMilestoneShape(originalMilestoneShape);
 				FlatLafSupport.initialize();
+				if (originalShowTimeInDates != null)
+					com.microproject.options.CalendarOption.getInstance().setShowTimeInDates(originalShowTimeInDates);
 				preferences.applyFormatPreferences();
 			}
 			if (localePreferences != null) {
@@ -83,6 +86,7 @@ class PreferencesDialogGuiAcceptanceTest {
 			if (originalLanguages != null) Settings.LANGUAGES = originalLanguages;
 		});
 		testPreferences = null;
+		originalShowTimeInDates = null;
 	}
 
 	@Test
@@ -627,6 +631,9 @@ class PreferencesDialogGuiAcceptanceTest {
 		testPreferences.setDatePattern("");
 		testPreferences.setDateTimePattern("");
 		testPreferences.setCurrencyCode("");
+		originalShowTimeInDates = com.microproject.options.CalendarOption.getInstance().isShowTimeInDates();
+		com.microproject.options.CalendarOption.getInstance().setShowTimeInDates(false);
+		testPreferences.applyFormatPreferences();
 	}
 
 	private PreferencesDialogBox openDisplayPage() throws Exception {
