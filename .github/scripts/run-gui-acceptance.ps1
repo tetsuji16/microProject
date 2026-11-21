@@ -137,11 +137,11 @@ function Test-HostedQuickSettingsDisabled {
 
   # The guard writes hook events from its own log thread, so give the line a short bounded wait.
   $guardLogDeadline = [DateTime]::UtcNow.AddSeconds(3)
-  do {
+  while ($true) {
     $guardLog = Get-Content -LiteralPath $script:hostedWarningWatcherLog -Raw
-    if ($guardLog -match 'blocked Win\+A') { break }
+    if ($guardLog -match 'blocked Win\+A' -or [DateTime]::UtcNow -ge $guardLogDeadline) { break }
     Start-Sleep -Milliseconds 100
-  } while ([DateTime]::UtcNow -lt $guardLogDeadline)
+  }
   if ($guardLog -notmatch 'blocked Win\+A') { throw 'Hosted Win+A guard did not record blocking the preflight shortcut.' }
   Write-Host 'Hosted Windows-key guard preflight passed: Win+A was blocked and Quick Settings and Start/Search stayed closed.'
   if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {
