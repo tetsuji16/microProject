@@ -558,25 +558,29 @@ class PreferencesDialogGuiAcceptanceTest {
 				frame[0].setVisible(true);
 			});
 			robot.waitForIdle();
+			String pattern = "yyyy-MM-dd'T'";
+			Object[] startValue = new Object[1];
+			SwingUtilities.invokeAndWait(() -> startValue[0] = sheet[0].getValueAt(cell[0], cell[1]));
+			long startMillis = startValue[0] instanceof java.util.Date date ? date.getTime()
+				: ((Number) startValue[0]).longValue();
+			// The marker keeps the pattern distinct from every locale's default short date.
+			String expected = com.microproject.util.DateTime.dateFormatInstance(pattern).format(new java.util.Date(startMillis));
 			String before = renderedText(sheet[0], cell[0], cell[1]);
-			assertTrue(!before.matches(".*\\d{2}\\.\\d{2}\\.\\d{4}.*"),
-				"The OS default must not already look like the custom pattern: " + before);
+			assertTrue(!expected.equals(before), "The OS default must differ from the custom pattern: " + before);
 
 			PreferencesDialogBox dialog = openDisplayPage();
 			click(robot, findNamedComponent(dialog, javax.swing.JRadioButton.class, "preferencesDatePatternCustom"));
-			enterText(robot, findNamedComponent(dialog, JTextField.class, "preferencesDatePattern"), "dd.MM.yyyy");
+			enterText(robot, findNamedComponent(dialog, JTextField.class, "preferencesDatePattern"), pattern);
 			click(robot, findButton(dialog, UsabilityStrings.text("preferences.apply")));
 			GuiAcceptanceSupport.await(() -> findDialog() == null, "Preferences dialog did not close after Apply");
 			robot.waitForIdle();
-			String[] after = new String[1];
 			GuiAcceptanceSupport.await(() -> {
 				try {
-					after[0] = renderedText(sheet[0], cell[0], cell[1]);
+					return expected.equals(renderedText(sheet[0], cell[0], cell[1]));
 				} catch (Exception error) {
 					throw new IllegalStateException(error);
 				}
-				return after[0].matches(".*\\d{2}\\.\\d{2}\\.\\d{4}.*");
-			}, "The task spreadsheet Start cell must show the custom date pattern without a restart");
+			}, "The task spreadsheet Start cell must show exactly " + expected + " without a restart");
 		} finally {
 			SwingUtilities.invokeAndWait(() -> {
 				if (frame[0] != null)
