@@ -163,4 +163,32 @@ class RibbonCustomizationPreferencesTest {
 		RibbonDisplayPreferences.saveRibbonCustomization(RibbonCustomization.none());
 		assertEquals(null, preferences.get(KEY, null));
 	}
+
+	@Test
+	void recordsWithTheWrongFieldCountAreMalformed() {
+		for (String bad : List.of("tab:t:Name:extra", "tab:t", "order:TaskRibbonTask:x", "hidden:HelpRibbonTask:x",
+			"group:TaskRibbonTask:g:Name:RibbonFind:extra")) {
+			assertTrue(RibbonCustomization.parse("microProject.ribbonCustomization.v1\n" + bad + "\n").isEmpty(), bad);
+		}
+	}
+
+	@Test
+	void duplicateTabAndGroupDeclarationsAreMalformed() {
+		assertTrue(RibbonCustomization.parse("microProject.ribbonCustomization.v1\n" + "tab:t:First\ntab:t:Second\n").isEmpty());
+		assertTrue(RibbonCustomization.parse("microProject.ribbonCustomization.v1\n"
+			+ "group:TaskRibbonTask:g:A:RibbonFind\ngroup:ViewRibbonTask:g:B:RibbonFind\n").isEmpty());
+	}
+
+	@Test
+	void oversizedCustomizationIsRejectedAndKeepsThePreviousValue() {
+		RibbonCustomization small = sample();
+		RibbonDisplayPreferences.saveRibbonCustomization(small);
+		List<CustomTab> tabs = new java.util.ArrayList<>();
+		for (int i = 0; i < 400; i++) tabs.add(new CustomTab("tab-" + i, "Tab number " + i, List.of()));
+		RibbonCustomization huge = new RibbonCustomization(List.of(), Set.of(), tabs, Map.of());
+
+		assertThrows(IllegalArgumentException.class, () -> RibbonDisplayPreferences.saveRibbonCustomization(huge));
+
+		assertEquals(small, RibbonDisplayPreferences.loadRibbonCustomization());
+	}
 }

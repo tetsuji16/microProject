@@ -97,7 +97,14 @@ public final class RibbonDisplayPreferences {
 	public static void saveRibbonCustomization(RibbonCustomization customization) {
 		Preferences node = Preferences.userNodeForPackage(RibbonDisplayPreferences.class);
 		if (customization.isEmpty()) node.remove(CUSTOMIZATION_KEY);
-		else node.put(CUSTOMIZATION_KEY, customization.serialize());
+		else {
+			String text = customization.serialize();
+			if (text.length() > Preferences.MAX_VALUE_LENGTH) {
+				throw new IllegalArgumentException("Ribbon customization is too large to store ("
+					+ text.length() + " > " + Preferences.MAX_VALUE_LENGTH + " characters)");
+			}
+			node.put(CUSTOMIZATION_KEY, text);
+		}
 	}
 
 	public static void resetRibbonCustomization() {

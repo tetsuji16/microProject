@@ -194,11 +194,19 @@ public final class RibbonCustomization {
 				if (line.isEmpty()) continue;
 				String[] f = line.split(":", -1);
 				switch (f[0]) {
-					case "order" -> order.addAll(splitList(f[1]));
-					case "hidden" -> hidden.addAll(splitList(f[1]));
-					case "tab" -> tabNames.put(f[1], decode(f[2]));
-					case "group" -> groupsByTab.computeIfAbsent(f[1], k -> new ArrayList<>())
-						.add(new CustomGroup(f[2], decode(f[3]), splitList(f[4])));
+					case "order" -> { requireFields(f, 2); order.addAll(splitList(f[1])); }
+					case "hidden" -> { requireFields(f, 2); hidden.addAll(splitList(f[1])); }
+					case "tab" -> {
+						requireFields(f, 3);
+						if (tabNames.putIfAbsent(f[1], decode(f[2])) != null) {
+							throw new IllegalArgumentException("Duplicate tab record: " + f[1]);
+						}
+					}
+					case "group" -> {
+						requireFields(f, 5);
+						groupsByTab.computeIfAbsent(f[1], k -> new ArrayList<>())
+							.add(new CustomGroup(f[2], decode(f[3]), splitList(f[4])));
+					}
 					default -> throw new IllegalArgumentException("Unknown record: " + f[0]);
 				}
 			}
@@ -211,6 +219,12 @@ public final class RibbonCustomization {
 		} catch (RuntimeException invalid) {
 			logger.warning("Ribbon customization: ignoring malformed saved value (" + invalid.getMessage() + ")");
 			return NONE;
+		}
+	}
+
+	private static void requireFields(String[] fields, int expected) {
+		if (fields.length != expected) {
+			throw new IllegalArgumentException("Record " + fields[0] + " needs " + expected + " fields");
 		}
 	}
 
