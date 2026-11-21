@@ -215,6 +215,9 @@ class PreferencesDialogGuiAcceptanceTest {
 		DialogLayoutAssertions.assertWithinUsableScreen(dialog, "Preferences dialog");
 		capture(robot, dialog, "preferences-theme-selection.png");
 		selectCategory(dialog, "preferences.display");
+		for (String radio : new String[] { "preferencesDatePatternCustom", "preferencesDateTimePatternCustom",
+			"preferencesCurrencyCodeCustom" })
+			click(robot, findNamedComponent(dialog, javax.swing.JRadioButton.class, radio));
 		enterText(robot, datePattern, "dd.MM.yyyy");
 		enterText(robot, dateTimePattern, "dd.MM.yyyy HH:mm");
 		enterText(robot, currencyCode, "EUR");
@@ -251,6 +254,56 @@ class PreferencesDialogGuiAcceptanceTest {
 		assertEquals("EUR", testPreferences.getCurrencyCode(), "Apply must persist the currency override");
 		assertEquals(MilestoneShapeChoice.TRIANGLE_DOWN.getShapeName(), testPreferences.getDefaultMilestoneShape(),
 			"Apply must persist the default milestone shape");
+	}
+
+	@Test
+	void formatSettingsSwitchBetweenFollowOsAndCustomAndKeepStoredValuesCompatible() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		testPreferences = new GlobalPreferences();
+		originalDarkTheme = testPreferences.isDarkTheme();
+		originalDatePattern = testPreferences.getDatePattern();
+		originalDateTimePattern = testPreferences.getDateTimePattern();
+		originalCurrencyCode = testPreferences.getCurrencyCode();
+		originalMilestoneShape = testPreferences.getDefaultMilestoneShape();
+		testPreferences.setDatePattern("");
+		testPreferences.setDateTimePattern("");
+		testPreferences.setCurrencyCode("");
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		SwingUtilities.invokeLater(() -> PreferencesDialogBox.showDialog(null, testPreferences));
+		GuiAcceptanceSupport.await(() -> findDialog() != null, "Preferences dialog did not open");
+		PreferencesDialogBox dialog = findDialog();
+		selectCategory(dialog, "preferences.display");
+		JTextField date = findNamedComponent(dialog, JTextField.class, "preferencesDatePattern");
+		javax.swing.JRadioButton dateOs = findNamedComponent(dialog, javax.swing.JRadioButton.class, "preferencesDatePatternFollowOs");
+		javax.swing.JRadioButton dateCustom = findNamedComponent(dialog, javax.swing.JRadioButton.class, "preferencesDatePatternCustom");
+		assertTrue(dateOs.isSelected() && !date.isEnabled(), "An empty stored value must open as follow-the-OS with a disabled field");
+		assertEquals(PreferencesDialogBox.osDatePattern(false), date.getText(), "The OS default pattern must be shown");
+		assertEquals(PreferencesDialogBox.osCurrencyCode(),
+			findNamedComponent(dialog, JTextField.class, "preferencesCurrencyCode").getText());
+		assertTrue(dateOs.getAccessibleContext().getAccessibleName() != null
+			&& !dateOs.getAccessibleContext().getAccessibleName().isBlank(), "Radio buttons need accessible names");
+		click(robot, dateCustom);
+		assertTrue(date.isEnabled(), "Custom must enable the input field");
+		enterText(robot, date, "dd.MM.yyyy");
+		click(robot, findButton(dialog, UsabilityStrings.text("preferences.apply")));
+		GuiAcceptanceSupport.await(() -> !dialog.isVisible(), "Preferences dialog did not close after Apply");
+		assertEquals("dd.MM.yyyy", testPreferences.getDatePattern());
+		assertEquals("", testPreferences.getDateTimePattern(), "Untouched formats must stay empty");
+
+		SwingUtilities.invokeLater(() -> PreferencesDialogBox.showDialog(null, testPreferences));
+		GuiAcceptanceSupport.await(() -> findDialog() != null, "Preferences dialog did not reopen");
+		PreferencesDialogBox reopened = findDialog();
+		selectCategory(reopened, "preferences.display");
+		JTextField reopenedDate = findNamedComponent(reopened, JTextField.class, "preferencesDatePattern");
+		assertTrue(findNamedComponent(reopened, javax.swing.JRadioButton.class, "preferencesDatePatternCustom").isSelected(),
+			"A stored pattern must reopen as custom");
+		assertEquals("dd.MM.yyyy", reopenedDate.getText());
+		click(robot, findNamedComponent(reopened, javax.swing.JRadioButton.class, "preferencesDatePatternFollowOs"));
+		assertTrue(!reopenedDate.isEnabled(), "Follow-the-OS must disable the input field");
+		click(robot, findButton(reopened, UsabilityStrings.text("preferences.apply")));
+		GuiAcceptanceSupport.await(() -> !reopened.isVisible(), "Preferences dialog did not close after Apply");
+		assertEquals("", testPreferences.getDatePattern(), "Follow-the-OS must store an empty value");
 	}
 
 	@Test

@@ -21,6 +21,7 @@ import javax.swing.JComboBox;
 import javax.swing.JColorChooser;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
+import javax.swing.JRadioButton;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JList;
@@ -77,22 +78,24 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		JComboBox<String> theme = new JComboBox<>(new String[] { lightTheme, darkTheme });
 		theme.setName("preferencesTheme");
 		theme.setSelectedItem(preferences.isDarkTheme() ? darkTheme : lightTheme);
-		JTextField datePattern = new JTextField(preferences.getDatePattern(), 16);
-		datePattern.setName("preferencesDatePattern");
-		datePattern.setToolTipText(UsabilityStrings.text("preferences.datePatternHelp"));
-		JTextField dateTimePattern = new JTextField(preferences.getDateTimePattern(), 16);
-		dateTimePattern.setName("preferencesDateTimePattern");
-		dateTimePattern.setToolTipText(UsabilityStrings.text("preferences.datePatternHelp"));
-		JTextField currencyCode = new JTextField(preferences.getCurrencyCode(), 8);
-		currencyCode.setName("preferencesCurrencyCode");
-		currencyCode.setToolTipText(UsabilityStrings.text("preferences.currencyCodeHelp"));
+		FormatChoice datePattern = new FormatChoice("preferencesDatePattern", UsabilityStrings.text("preferences.datePattern"),
+			16, preferences.getDatePattern(), UsabilityStrings.text("preferences.datePatternHelp"),
+			() -> osDatePattern(false), GlobalPreferences::isValidDatePattern);
+		FormatChoice dateTimePattern = new FormatChoice("preferencesDateTimePattern",
+			UsabilityStrings.text("preferences.dateTimePattern"), 16, preferences.getDateTimePattern(),
+			UsabilityStrings.text("preferences.datePatternHelp"), () -> osDatePattern(true),
+			GlobalPreferences::isValidDatePattern);
+		FormatChoice currencyCode = new FormatChoice("preferencesCurrencyCode", UsabilityStrings.text("preferences.currencyCode"),
+			8, preferences.getCurrencyCode(), UsabilityStrings.text("preferences.currencyCodeHelp"),
+			PreferencesDialogBox::osCurrencyCode, GlobalPreferences::isValidCurrencyCode);
 		JLabel formatRestartNotice = new JLabel(UsabilityStrings.text("preferences.dateFormatRestartRequired"));
 		formatRestartNotice.setName("preferencesDateFormatRestartRequired");
 		Runnable updateFormatRestartNotice = () -> formatRestartNotice.setVisible(
-				!preferences.getDatePattern().equals(datePattern.getText().trim())
-					|| !preferences.getDateTimePattern().equals(dateTimePattern.getText().trim())
-					|| !preferences.getCurrencyCode().equals(currencyCode.getText().trim().toUpperCase(java.util.Locale.ROOT)));
-		watchFormatPatternChanges(updateFormatRestartNotice, datePattern, dateTimePattern, currencyCode);
+				!preferences.getDatePattern().equals(datePattern.value())
+					|| !preferences.getDateTimePattern().equals(dateTimePattern.value())
+					|| !preferences.getCurrencyCode().equals(currencyCode.value().toUpperCase(java.util.Locale.ROOT)));
+		for (FormatChoice choice : new FormatChoice[] { datePattern, dateTimePattern, currencyCode })
+			choice.onChange(updateFormatRestartNotice);
 		updateFormatRestartNotice.run();
 		JSpinner recoveryInterval = autoSaveControl == null ? null
 				: new JSpinner(new SpinnerNumberModel(autoSaveControl.getIntervalMinutes(), 1, 1440, 1));
@@ -141,9 +144,9 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		addRow(display, UsabilityStrings.text("preferences.milestoneShape"), milestoneShape);
 		addRow(display, UsabilityStrings.text("preferences.ganttBarColor"), barColor.controls());
 		addRow(display, UsabilityStrings.text("preferences.gridColor"), gridColor.controls());
-		addRow(display, UsabilityStrings.text("preferences.datePattern"), datePattern);
-		addRow(display, UsabilityStrings.text("preferences.dateTimePattern"), dateTimePattern);
-		addRow(display, UsabilityStrings.text("preferences.currencyCode"), currencyCode);
+		addRow(display, UsabilityStrings.text("preferences.datePattern"), datePattern.controls());
+		addRow(display, UsabilityStrings.text("preferences.dateTimePattern"), dateTimePattern.controls());
+		addRow(display, UsabilityStrings.text("preferences.currencyCode"), currencyCode.controls());
 		addRow(display, null, formatRestartNotice);
 		JPanel save = null;
 		if (recoveryInterval != null) {
@@ -187,9 +190,7 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 
 		JButton apply = new JButton(UsabilityStrings.text("preferences.apply"));
 		apply.addActionListener(event -> {
-			if (!GlobalPreferences.isValidDatePattern(datePattern.getText())
-					|| !GlobalPreferences.isValidDatePattern(dateTimePattern.getText())
-					|| !GlobalPreferences.isValidCurrencyCode(currencyCode.getText())) {
+			if (!datePattern.isValid() || !dateTimePattern.isValid() || !currencyCode.isValid()) {
 				JOptionPane.showMessageDialog(this, UsabilityStrings.text("preferences.invalidFormat"),
 					UsabilityStrings.text("preferences.title"), JOptionPane.ERROR_MESSAGE);
 				return;
@@ -216,9 +217,9 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 			preferences.setCheckForUpdates(checkUpdates.isSelected());
 			boolean themeChanged = preferences.isDarkTheme() != darkTheme.equals(theme.getSelectedItem());
 			preferences.setDarkTheme(darkTheme.equals(theme.getSelectedItem()));
-			preferences.setDatePattern(datePattern.getText());
-			preferences.setDateTimePattern(dateTimePattern.getText());
-			preferences.setCurrencyCode(currencyCode.getText());
+			preferences.setDatePattern(datePattern.value());
+			preferences.setDateTimePattern(dateTimePattern.value());
+			preferences.setCurrencyCode(currencyCode.value());
 			if (recoveryInterval != null)
 				autoSaveControl.setIntervalMinutes(((Number) recoveryInterval.getValue()).intValue());
 			dispose();
@@ -398,13 +399,105 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		}
 	}
 
-	private static void watchFormatPatternChanges(Runnable refresh, JTextField... fields) {
-		javax.swing.event.DocumentListener listener = new javax.swing.event.DocumentListener() {
-			public void insertUpdate(javax.swing.event.DocumentEvent event) { refresh.run(); }
-			public void removeUpdate(javax.swing.event.DocumentEvent event) { refresh.run(); }
-			public void changedUpdate(javax.swing.event.DocumentEvent event) { refresh.run(); }
-		};
-		for (JTextField field : fields)
-			field.getDocument().addDocumentListener(listener);
+	/** The operating system's short date pattern, or date-time pattern, for the default locale. */
+	static String osDatePattern(boolean withTime) {
+		java.text.DateFormat format = withTime
+			? java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT,
+				java.util.Locale.getDefault())
+			: java.text.DateFormat.getDateInstance(java.text.DateFormat.SHORT, java.util.Locale.getDefault());
+		return format instanceof java.text.SimpleDateFormat simple ? simple.toPattern() : "";
+	}
+
+	/** The currency code of the default locale, or empty when the locale has none. */
+	static String osCurrencyCode() {
+		try {
+			return java.util.Currency.getInstance(java.util.Locale.getDefault()).getCurrencyCode();
+		} catch (IllegalArgumentException | NullPointerException noCurrency) {
+			return "";
+		}
+	}
+
+	/**
+	 * A format setting with a "follow the OS" and a "custom" choice. An empty stored value means
+	 * "follow the OS": the field then shows the OS default read-only and {@link #value()} is empty.
+	 */
+	private static final class FormatChoice {
+		private final JRadioButton followOs;
+		private final JRadioButton custom;
+		private final JTextField field;
+		private final JPanel controls = new JPanel(new GridBagLayout());
+		private final java.util.function.Supplier<String> osDefault;
+		private final java.util.function.Predicate<String> validator;
+		private String customText;
+
+		FormatChoice(String name, String label, int columns, String stored, String help,
+				java.util.function.Supplier<String> osDefault, java.util.function.Predicate<String> validator) {
+			this.osDefault = osDefault;
+			this.validator = validator;
+			boolean isCustom = stored != null && !stored.isBlank();
+			customText = isCustom ? stored : osDefault.get();
+			followOs = new JRadioButton(UsabilityStrings.text("preferences.formatFollowOs"), !isCustom);
+			custom = new JRadioButton(UsabilityStrings.text("preferences.formatCustom"), isCustom);
+			followOs.setName(name + "FollowOs");
+			custom.setName(name + "Custom");
+			followOs.getAccessibleContext().setAccessibleName(label + ": " + followOs.getText());
+			custom.getAccessibleContext().setAccessibleName(label + ": " + custom.getText());
+			javax.swing.ButtonGroup group = new javax.swing.ButtonGroup();
+			group.add(followOs);
+			group.add(custom);
+			field = new JTextField(isCustom ? stored : osDefault.get(), columns);
+			field.setName(name);
+			field.setToolTipText(help);
+			field.getAccessibleContext().setAccessibleName(label);
+			java.awt.event.ActionListener modeChanged = event -> refresh();
+			followOs.addActionListener(modeChanged);
+			custom.addActionListener(modeChanged);
+			GridBagConstraints radios = new GridBagConstraints();
+			radios.gridx = 0; radios.gridy = 0; radios.anchor = GridBagConstraints.WEST;
+			JPanel radioRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+			radioRow.add(followOs);
+			radioRow.add(custom);
+			controls.add(radioRow, radios);
+			GridBagConstraints input = new GridBagConstraints();
+			input.gridx = 0; input.gridy = 1; input.anchor = GridBagConstraints.WEST;
+			input.insets = new Insets(2, 0, 0, 0);
+			controls.add(field, input);
+			applyMode();
+		}
+
+		private void refresh() {
+			if (custom.isSelected()) {
+				field.setText(customText);
+			} else {
+				customText = field.getText();
+				field.setText(osDefault.get());
+			}
+			applyMode();
+		}
+
+		private void applyMode() {
+			field.setEditable(custom.isSelected());
+			field.setEnabled(custom.isSelected());
+		}
+
+		JPanel controls() { return controls; }
+
+		/** The value to store: empty when following the OS. */
+		String value() { return followOs.isSelected() ? "" : field.getText().trim(); }
+
+		/** Custom values must be non-empty and valid; following the OS is always valid. */
+		boolean isValid() {
+			return followOs.isSelected() || (!field.getText().isBlank() && validator.test(field.getText()));
+		}
+
+		void onChange(Runnable listener) {
+			followOs.addActionListener(event -> listener.run());
+			custom.addActionListener(event -> listener.run());
+			field.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+				public void insertUpdate(javax.swing.event.DocumentEvent event) { listener.run(); }
+				public void removeUpdate(javax.swing.event.DocumentEvent event) { listener.run(); }
+				public void changedUpdate(javax.swing.event.DocumentEvent event) { listener.run(); }
+			});
+		}
 	}
 }
