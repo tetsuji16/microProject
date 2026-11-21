@@ -154,7 +154,7 @@ final class RibbonCustomizationPanel extends JPanel {
 		place(CustomizeSupport.buttonColumn(add, remove), 1, 1, 0, 1, 1);
 		place(CustomizeSupport.scroll(tree, "ribbonCustomizeTreeScroll"), 2, 1, 1, 1, 1);
 		place(CustomizeSupport.buttonColumn(up, down), 3, 1, 0, 1, 1);
-		JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+		JPanel row = new JPanel(new java.awt.GridLayout(0, 3, 4, 4));
 		row.add(newTab);
 		row.add(newGroup);
 		row.add(rename);

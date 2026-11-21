@@ -210,6 +210,11 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		tabs.getAccessibleContext().setAccessibleName(UsabilityStrings.text("preferences.categories"));
 		tabs.setContinuousLayout(true);
 		tabs.setDividerSize(4);
+		// Keep the category list at its preferred width: a wide page must scroll instead of squeezing the list away.
+		int categoryWidth = categoryScroll.getPreferredSize().width;
+		categoryScroll.setMinimumSize(new java.awt.Dimension(categoryWidth, 0));
+		tabs.setResizeWeight(0);
+		tabs.setDividerLocation(categoryWidth);
 
 		JButton apply = new JButton(UsabilityStrings.text("preferences.apply"));
 		apply.addActionListener(event -> {

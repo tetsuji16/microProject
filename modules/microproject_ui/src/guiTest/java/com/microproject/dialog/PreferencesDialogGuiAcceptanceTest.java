@@ -605,6 +605,53 @@ class PreferencesDialogGuiAcceptanceTest {
 	}
 
 	@Test
+	void categoryListKeepsItsWidthWhenTheDialogIsNarrow() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		prepareFormats();
+		SwingUtilities.invokeLater(() -> PreferencesDialogBox.showDialog(null, testPreferences, null, null,
+			PreferencesDialogBox.CATEGORY_CUSTOMIZE_RIBBON));
+		GuiAcceptanceSupport.await(() -> findDialog() != null, "Preferences dialog did not open");
+		PreferencesDialogBox dialog = findDialog();
+		@SuppressWarnings("unchecked")
+		JList<Object> categories = findNamedComponent(dialog, JList.class, "preferencesCategories");
+		assertTrue(categories != null, "Preferences dialog must expose its category list");
+		SwingUtilities.invokeAndWait(() -> {
+			dialog.setSize(976, dialog.getHeight());
+			dialog.validate();
+			dialog.getContentPane().validate();
+		});
+		int[] widths = new int[2];
+		SwingUtilities.invokeAndWait(() -> {
+			int longest = 0;
+			for (int i = 0; i < categories.getModel().getSize(); i++) {
+				Component cell = categories.getCellRenderer().getListCellRendererComponent(categories,
+					categories.getModel().getElementAt(i), i, false, false);
+				longest = Math.max(longest, cell.getPreferredSize().width);
+			}
+			widths[0] = categories.getVisibleRect().width;
+			widths[1] = longest;
+		});
+		assertTrue(widths[0] >= widths[1], "Category list is " + widths[0] + " px wide but needs " + widths[1]);
+		selectCategory(dialog, "preferences.display");
+		assertEquals(UsabilityStrings.text("preferences.display"), categories.getSelectedValue());
+		selectCategory(dialog, "preferences.customizeRibbon");
+		for (String name : new String[] { "ribbonCustomizeImportExport", "ribbonCustomizeUp",
+			"ribbonCustomizeDown", "ribbonCustomizeNewTab", "ribbonCustomizeReset" }) {
+			Component control = findNamedComponent(dialog, Component.class, name);
+			assertTrue(control != null, name + " is missing");
+			String[] problem = new String[1];
+			SwingUtilities.invokeAndWait(() -> {
+				javax.swing.JViewport viewport = (javax.swing.JViewport) SwingUtilities.getAncestorOfClass(
+					javax.swing.JViewport.class, control);
+				Rectangle inView = SwingUtilities.convertRectangle(control.getParent(), control.getBounds(), viewport.getView());
+				if (!viewport.getViewRect().contains(inView))
+					problem[0] = name + " " + inView + " is outside the page viewport " + viewport.getViewRect();
+			});
+			assertTrue(problem[0] == null, problem[0]);
+		}
+	}
+
+	@Test
 	void emptyCustomDateFormatIsRejectedAndTheDialogRecovers() throws Exception {
 		assertRejectedThenAccepted("preferencesDatePatternCustom", "preferencesDatePattern", "", "yyyy-MM-dd");
 		assertEquals("yyyy-MM-dd", testPreferences.getDatePattern());
