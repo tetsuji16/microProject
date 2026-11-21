@@ -206,9 +206,8 @@ class PreferencesDialogGuiAcceptanceTest {
 		JTextField datePattern = findNamedComponent(dialog, JTextField.class, "preferencesDatePattern");
 		JTextField dateTimePattern = findNamedComponent(dialog, JTextField.class, "preferencesDateTimePattern");
 		JTextField currencyCode = findNamedComponent(dialog, JTextField.class, "preferencesCurrencyCode");
-		JLabel formatRestartNotice = findNamedComponent(dialog, JLabel.class, "preferencesDateFormatRestartRequired");
-		assertTrue(datePattern != null && dateTimePattern != null && currencyCode != null && formatRestartNotice != null,
-			"Preferences must expose date/currency formats and their restart notice");
+		assertTrue(datePattern != null && dateTimePattern != null && currencyCode != null,
+			"Preferences must expose date/currency formats");
 		JSpinner interval = findNamedComponent(dialog, JSpinner.class, "preferencesAutoSaveInterval");
 		assertTrue(interval != null, "Preferences must expose the auto-recovery interval");
 		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog.getContentPane(), "Preferences dialog");
@@ -221,8 +220,8 @@ class PreferencesDialogGuiAcceptanceTest {
 		enterText(robot, datePattern, "dd.MM.yyyy");
 		enterText(robot, dateTimePattern, "dd.MM.yyyy HH:mm");
 		enterText(robot, currencyCode, "EUR");
-		GuiAcceptanceSupport.await(formatRestartNotice::isVisible,
-			"Changing date formats must tell users to restart the application");
+		assertTrue(findNamedComponent(dialog, JLabel.class, "preferencesDateFormatRestartRequired") == null,
+			"Format changes apply live and must not announce a restart");
 		openPopup(robot, milestoneShape);
 		robot.keyPress(KeyEvent.VK_END); robot.keyRelease(KeyEvent.VK_END);
 		robot.keyPress(KeyEvent.VK_ENTER); robot.keyRelease(KeyEvent.VK_ENTER);
@@ -461,6 +460,150 @@ class PreferencesDialogGuiAcceptanceTest {
 					frame[0].dispose();
 			});
 		}
+	}
+
+	@Test
+	void customFormatsApplyToTheRunningApplicationOnceAndNotWhenUnchanged() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		prepareFormats();
+		AtomicInteger refreshes = new AtomicInteger();
+		javax.swing.JFrame[] frame = new javax.swing.JFrame[1];
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				frame[0] = new javax.swing.JFrame("Format refresh probe");
+				frame[0].setContentPane(new javax.swing.JPanel() {
+					private static final long serialVersionUID = 1L;
+					@Override public void updateUI() {
+						super.updateUI();
+						refreshes.incrementAndGet();
+					}
+				});
+				frame[0].setSize(240, 120);
+				frame[0].setVisible(true);
+			});
+			robot.waitForIdle();
+			int baseline = refreshes.get();
+			PreferencesDialogBox dialog = openDisplayPage();
+			click(robot, findButton(dialog, UsabilityStrings.text("preferences.apply")));
+			GuiAcceptanceSupport.await(() -> findDialog() == null, "Preferences dialog did not close after Apply");
+			assertEquals(baseline, refreshes.get(), "Apply without a format change must not rebuild open windows");
+
+			dialog = openDisplayPage();
+			click(robot, findNamedComponent(dialog, javax.swing.JRadioButton.class, "preferencesDatePatternCustom"));
+			enterText(robot, findNamedComponent(dialog, JTextField.class, "preferencesDatePattern"), "dd.MM.yyyy");
+			click(robot, findNamedComponent(dialog, javax.swing.JRadioButton.class, "preferencesCurrencyCodeCustom"));
+			enterText(robot, findNamedComponent(dialog, JTextField.class, "preferencesCurrencyCode"), "EUR");
+			click(robot, findButton(dialog, UsabilityStrings.text("preferences.apply")));
+			GuiAcceptanceSupport.await(() -> findDialog() == null, "Preferences dialog did not close after Apply");
+			robot.waitForIdle();
+			assertEquals("dd.MM.yyyy", testPreferences.getDatePattern());
+			assertEquals("EUR", testPreferences.getCurrencyCode());
+			assertEquals(baseline + 1, refreshes.get(), "A format change must rebuild open windows exactly once");
+			java.util.Date sample = new java.util.Date(0);
+			assertTrue(com.microproject.options.EditOption.getInstance().getDateFormat().format(sample).startsWith("01.01.1970"),
+				"The running application must use the new date format without a restart");
+			assertTrue(com.microproject.datatype.Money.getMoneyFormatInstance().format(1).contains("\u20ac"),
+				"The running application must use the new currency without a restart");
+		} finally {
+			SwingUtilities.invokeAndWait(() -> {
+				if (frame[0] != null)
+					frame[0].dispose();
+			});
+		}
+	}
+
+	@Test
+	void emptyCustomDateFormatIsRejectedAndTheDialogRecovers() throws Exception {
+		assertRejectedThenAccepted("preferencesDatePatternCustom", "preferencesDatePattern", "", "yyyy-MM-dd");
+		assertEquals("yyyy-MM-dd", testPreferences.getDatePattern());
+	}
+
+	@Test
+	void invalidCustomDatePatternIsRejectedAndTheDialogRecovers() throws Exception {
+		assertRejectedThenAccepted("preferencesDatePatternCustom", "preferencesDatePattern", "yyyy-MM-dd '", "dd/MM/yyyy");
+		assertEquals("dd/MM/yyyy", testPreferences.getDatePattern());
+	}
+
+	@Test
+	void invalidCustomCurrencyCodeIsRejectedAndTheDialogRecovers() throws Exception {
+		assertRejectedThenAccepted("preferencesCurrencyCodeCustom", "preferencesCurrencyCode", "NOT-A-CURRENCY", "JPY");
+		assertEquals("JPY", testPreferences.getCurrencyCode());
+	}
+
+	private void prepareFormats() {
+		testPreferences = new GlobalPreferences();
+		originalDarkTheme = testPreferences.isDarkTheme();
+		originalDatePattern = testPreferences.getDatePattern();
+		originalDateTimePattern = testPreferences.getDateTimePattern();
+		originalCurrencyCode = testPreferences.getCurrencyCode();
+		originalMilestoneShape = testPreferences.getDefaultMilestoneShape();
+		testPreferences.setDatePattern("");
+		testPreferences.setDateTimePattern("");
+		testPreferences.setCurrencyCode("");
+	}
+
+	private PreferencesDialogBox openDisplayPage() throws Exception {
+		SwingUtilities.invokeLater(() -> PreferencesDialogBox.showDialog(null, testPreferences));
+		GuiAcceptanceSupport.await(() -> findDialog() != null, "Preferences dialog did not open");
+		PreferencesDialogBox dialog = findDialog();
+		selectCategory(dialog, "preferences.display");
+		return dialog;
+	}
+
+	/**
+	 * Applies an unacceptable Custom value, expects the existing error dialog with the preferences
+	 * dialog still open and nothing stored, then corrects the input and expects Apply to succeed.
+	 */
+	private void assertRejectedThenAccepted(String customRadio, String fieldName, String badValue, String goodValue)
+			throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		prepareFormats();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		PreferencesDialogBox dialog = openDisplayPage();
+		JTextField field = findNamedComponent(dialog, JTextField.class, fieldName);
+		click(robot, findNamedComponent(dialog, javax.swing.JRadioButton.class, customRadio));
+		if (badValue.isEmpty()) {
+			click(robot, field);
+			robot.keyPress(KeyEvent.VK_CONTROL); robot.keyPress(KeyEvent.VK_A);
+			robot.keyRelease(KeyEvent.VK_A); robot.keyRelease(KeyEvent.VK_CONTROL);
+			robot.keyPress(KeyEvent.VK_DELETE); robot.keyRelease(KeyEvent.VK_DELETE);
+			robot.waitForIdle();
+		} else {
+			enterText(robot, field, badValue);
+		}
+		click(robot, findButton(dialog, UsabilityStrings.text("preferences.apply")));
+		GuiAcceptanceSupport.await(() -> com.microproject.testsupport.ResourceIntervalTableFixture.visibleError() != null,
+			"Apply with an invalid Custom value must show the error dialog");
+		assertTrue(dialog.isVisible(), "The preferences dialog must stay open after a rejected Apply");
+		assertEquals("", testPreferences.getDatePattern(), "A rejected Apply must not store a date pattern");
+		assertEquals("", testPreferences.getCurrencyCode(), "A rejected Apply must not store a currency code");
+		javax.swing.JOptionPane error = com.microproject.testsupport.ResourceIntervalTableFixture.visibleError();
+		SwingUtilities.invokeAndWait(() -> {
+			AbstractButton ok = findAnyButton(error);
+			if (ok != null)
+				ok.doClick();
+		});
+		GuiAcceptanceSupport.await(() -> com.microproject.testsupport.ResourceIntervalTableFixture.visibleError() == null,
+			"The error dialog did not close");
+		assertTrue(dialog.isVisible(), "The preferences dialog must stay open after the error is dismissed");
+		enterText(robot, field, goodValue);
+		click(robot, findButton(dialog, UsabilityStrings.text("preferences.apply")));
+		GuiAcceptanceSupport.await(() -> findDialog() == null, "Apply must succeed once the input is corrected");
+		assertTrue(com.microproject.testsupport.ResourceIntervalTableFixture.visibleError() == null);
+	}
+
+	private static AbstractButton findAnyButton(java.awt.Container container) {
+		for (java.awt.Component child : container.getComponents()) {
+			if (child instanceof AbstractButton button) return button;
+			if (child instanceof java.awt.Container nested) {
+				AbstractButton found = findAnyButton(nested);
+				if (found != null) return found;
+			}
+		}
+		return null;
 	}
 
 	private static PreferencesDialogBox findDialog() {
