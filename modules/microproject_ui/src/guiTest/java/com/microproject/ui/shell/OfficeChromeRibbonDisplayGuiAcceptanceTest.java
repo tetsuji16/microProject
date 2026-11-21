@@ -308,6 +308,103 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			"the recreated shell must render Tabs Only, not merely retain the preference value");
 	}
 
+	@Test
+	void customRibbonTabButtonRunsTheCanonicalCommandAndRebuildKeepsTheSelectedTab() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		java.util.prefs.Preferences preferences = java.util.prefs.Preferences.userNodeForPackage(RibbonDisplayPreferences.class);
+		String previousCustomization = preferences.get("ribbonCustomization", null);
+		boolean previousNewLook = Environment.isNewLook();
+		RibbonDisplayPreferences.saveRibbonCustomization(com.microproject.ui.ribbon.RibbonCustomization.none());
+		RibbonDisplayPreferences.resetQuickAccessCommands();
+		RibbonDisplayPreferences.save(RibbonDisplayMode.ALWAYS_SHOW);
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		try {
+			com.microproject.undo.DataFactoryUndoController undo = new com.microproject.undo.DataFactoryUndoController();
+			com.microproject.pm.task.Project project = com.microproject.pm.task.Project.createProject(
+				com.microproject.pm.resource.ResourcePool.createRourcePool("ribbon-customization-acceptance", undo), undo);
+			project.initialize(false, false);
+			project.recalculate();
+			undo.clear();
+			SwingUtilities.invokeAndWait(() -> {
+				persistedFrame = new MainRibbonFrame("Ribbon customization render acceptance", null);
+				persistedFrame.setGraphicManager(new com.microproject.pm.graphic.frames.GraphicManager(persistedFrame));
+				persistedFrame.getGraphicManager().initView();
+				persistedFrame.getGraphicManager().addProjectFrame(project);
+				persistedFrame.setSize(1200, 700);
+				persistedFrame.setLocationByPlatform(true);
+				persistedFrame.setAlwaysOnTop(true);
+				persistedFrame.setVisible(true);
+				persistedFrame.toFront();
+			});
+			GuiAcceptanceSupport.await(persistedFrame::isShowing, "customization acceptance window did not become visible");
+			positionFrameForPhysicalHits(persistedFrame);
+			Robot robot = new com.microproject.testsupport.GuiRobot();
+			robot.setAutoDelay(40);
+			GuiAcceptanceSupport.await(persistedFrame::isActive, "customization acceptance window did not become active");
+
+			// Default tab first: this is the reference result of the command.
+			int before = taskCount(project);
+			click(robot, com.microproject.testsupport.RibbonGuiSupport.findVisibleOrExpand(robot, persistedFrame, "RibbonInsertMilestone"));
+			GuiAcceptanceSupport.await(() -> taskCount(project) == before + 1, "default Insert Milestone did not add a task");
+			assertEquals(1, undo.getEditNames().size(), "the default button must post one Undo entry");
+			undo.undo();
+			GuiAcceptanceSupport.await(() -> taskCount(project) == before, "Undo did not remove the milestone");
+			undo.clear();
+
+			// Save a customization and rebuild the open ribbon, as the settings dialog does after a save.
+			RibbonDisplayPreferences.saveRibbonCustomization(new com.microproject.ui.ribbon.RibbonCustomization(
+				java.util.List.of(), java.util.Set.of("HelpRibbonTask"), java.util.List.of(
+					new com.microproject.ui.ribbon.RibbonCustomization.CustomTab("gui-custom-tab", "My Tab", java.util.List.of(
+						new com.microproject.ui.ribbon.RibbonCustomization.CustomGroup("gui-custom-group", "Mine",
+							java.util.List.of("RibbonInsertMilestone"))))), java.util.Map.of()));
+			click(robot, ribbonTab(persistedFrame.getRibbonPanel(), "ViewRibbonTask"));
+			com.microproject.ui.shell.MicroProjectShell.rebuildOpenRibbons();
+			GuiAcceptanceSupport.await(() -> ribbonController(persistedFrame.getRibbonPanel()) != null
+				&& "ViewRibbonTask".equals(ribbonController(persistedFrame.getRibbonPanel()).getSelectedTabId())
+				&& hasRibbonTab(persistedFrame.getRibbonPanel(), "gui-custom-tab"),
+				"rebuild did not show the custom tab while keeping the selected View tab");
+			assertFalse(hasRibbonTab(persistedFrame.getRibbonPanel(), "HelpRibbonTask"), "a hidden default tab must not be shown");
+			positionFrameForPhysicalHits(persistedFrame);
+
+			click(robot, ribbonTab(persistedFrame.getRibbonPanel(), "gui-custom-tab"));
+			AbstractButton custom = com.microproject.testsupport.RibbonGuiSupport.findVisibleOrExpand(robot, persistedFrame, "RibbonInsertMilestone");
+			click(robot, custom);
+			GuiAcceptanceSupport.await(() -> taskCount(project) == before + 1, "custom-tab button did not add a task");
+			assertEquals(1, undo.getEditNames().size(), "the custom-tab button must post the same single Undo entry");
+			undo.undo();
+			GuiAcceptanceSupport.await(() -> taskCount(project) == before, "Undo did not remove the milestone added by the custom tab");
+
+			// Removing the customization drops the custom tab; the selected tab is gone, so Task is selected.
+			RibbonDisplayPreferences.saveRibbonCustomization(com.microproject.ui.ribbon.RibbonCustomization.none());
+			com.microproject.ui.shell.MicroProjectShell.rebuildOpenRibbons();
+			GuiAcceptanceSupport.await(() -> ribbonController(persistedFrame.getRibbonPanel()) != null
+				&& "TaskRibbonTask".equals(ribbonController(persistedFrame.getRibbonPanel()).getSelectedTabId())
+				&& !hasRibbonTab(persistedFrame.getRibbonPanel(), "gui-custom-tab"),
+				"rebuild without the custom tab did not fall back to the Task tab");
+		} finally {
+			Environment.setNewLook(previousNewLook);
+			if (previousCustomization == null) preferences.remove("ribbonCustomization");
+			else preferences.put("ribbonCustomization", previousCustomization);
+		}
+	}
+
+	private static int taskCount(com.microproject.pm.task.Project project) {
+		int count = 0;
+		java.util.Iterator<com.microproject.pm.task.Task> iterator = project.getTaskOutlineIterator();
+		while (iterator.hasNext()) {
+			iterator.next();
+			count++;
+		}
+		return count;
+	}
+
+	private static boolean hasRibbonTab(JPanel root, String tabId) {
+		return UiComponentWalker.flatten(root).stream().filter(AbstractButton.class::isInstance)
+			.anyMatch(button -> tabId.equals(((javax.swing.JComponent) button)
+				.getClientProperty(com.microproject.ui.ribbon.ModernRibbonPanel.TAB_ID_PROPERTY)));
+	}
+
 	private MainRibbonFrame createProductionRibbonFrame(MenuManager manager, String title) throws Exception {
 		MainRibbonFrame[] created = new MainRibbonFrame[1];
 		SwingUtilities.invokeAndWait(() -> {

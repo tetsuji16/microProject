@@ -93,6 +93,10 @@ public final class RibbonCustomization {
 				logger.warning("Ribbon customization: dropping groups for unknown tab ID " + entry.getKey());
 				continue;
 			}
+			if (FILE_TAB_ID.equals(entry.getKey())) {
+				logger.warning("Ribbon customization: the File tab cannot hold custom groups, dropping them");
+				continue;
+			}
 			requireUniqueGroupIds(entry.getValue());
 			for (CustomGroup group : entry.getValue()) {
 				if (!groupIds.add(group.id())) throw new IllegalArgumentException("Duplicate group ID: " + group.id());
