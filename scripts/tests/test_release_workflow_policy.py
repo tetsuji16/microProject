@@ -95,7 +95,7 @@ class ReleaseWorkflowPolicyTest(unittest.TestCase):
 		class_block = re.search(r"\$visualClasses = @\((.*?)\n\)", runner, re.S).group(1)
 		classes = re.findall(r"'([^']+GuiAcceptanceTest)'", class_block)
 		task_info = "com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest"
-		self.assertEqual(11, len(classes))
+		self.assertEqual(12, len(classes))
 		self.assertNotIn(task_info, classes)
 		self.assertIn("foreach ($testClass in $visualTests)", runner)
 		self.assertIn('$visualTests = @($visualClasses + @($taskInformationVisualMethods | ForEach-Object { "$taskInformationTestClass.$_" }))', runner)

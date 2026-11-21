@@ -373,7 +373,8 @@ $visualClasses = @(
   'com.microproject.ui.shell.WindowShellNativeDecorationGuiAcceptanceTest',
   'com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest',
   'com.microproject.dialog.FlatLafLegacyDialogRefreshGuiAcceptanceTest',
-  'com.microproject.pm.graphic.frames.RibbonExternalCommandGuiAcceptanceTest'
+  'com.microproject.pm.graphic.frames.RibbonExternalCommandGuiAcceptanceTest',
+  'com.microproject.dialog.PreferencesCustomizeGuiAcceptanceTest'
 )
 $taskInformationTestClass = 'com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest'
 # Keep scale-sensitive report/view surfaces, viewport and dialog-fit checks,

@@ -59,6 +59,23 @@ public final class DialogScreenshotArtifacts {
 		return artifact;
 	}
 
+	/** Captures {@code area} (screen coordinates) of the desktop, e.g. a ribbon window with its popup. */
+	public static Path captureScreen(Rectangle area, String name) throws Exception {
+		Robot robot = new Robot();
+		robot.waitForIdle();
+		robot.delay(200);
+		robot.waitForIdle();
+		assertTrue(area.width > 0 && area.height > 0, name + " must have non-empty bounds");
+		BufferedImage image = robot.createScreenCapture(area);
+		Path directory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"));
+		Files.createDirectories(directory);
+		String environment = (System.getProperty("user.language", "unknown") + "-"
+			+ System.getProperty("sun.java2d.uiScale", "default")).replaceAll("[^A-Za-z0-9_.-]", "_");
+		Path artifact = directory.resolve(name + "-" + environment + ".png");
+		assertTrue(ImageIO.write(image, "png", artifact.toFile()), "PNG writer is unavailable for " + artifact);
+		return artifact;
+	}
+
 	private static boolean isForeground(Dialog dialog) {
 		return dialog.isShowing() && dialog.isActive()
 			&& KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow() == dialog;
