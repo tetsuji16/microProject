@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.menu.MenuActionMapSupport;
 import com.microproject.menu.MenuManager;
+import com.microproject.ui.ribbon.RibbonDisplayPreferences;
 
 /** A rebuilt ribbon shell must not leave the Quick Access controls of the replaced one registered. */
 class OfficeChromeRebuildLeakTest {
@@ -21,6 +22,16 @@ class OfficeChromeRebuildLeakTest {
 
 	@Test
 	void rebuildingTheShellKeepsTheNumberOfRegisteredQuickAccessControls() throws Exception {
+		java.util.List<String> previousCommands = RibbonDisplayPreferences.loadQuickAccessCommands();
+		RibbonDisplayPreferences.saveQuickAccessCommands(java.util.List.of(COMMAND));
+		try {
+			rebuildTwice();
+		} finally {
+			RibbonDisplayPreferences.saveQuickAccessCommands(previousCommands);
+		}
+	}
+
+	private static void rebuildTwice() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
 			JPanel first = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);

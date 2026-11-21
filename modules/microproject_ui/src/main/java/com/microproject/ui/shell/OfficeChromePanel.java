@@ -519,6 +519,12 @@ final class OfficeChromePanel extends JPanel {
 		refreshQuickAccessCommands();
 	}
 
+	/** Ends this shell's life: stops following the frame title and releases its command controls. */
+	void dispose() {
+		if (titleBinding != null) titleBinding.detach();
+		releaseCommandControls();
+	}
+
 	/** Unregisters the Quick Access controls from their commands before this chrome is replaced. */
 	void releaseCommandControls() {
 		java.util.List<JComponent> previousControls = java.util.Arrays.stream(quickAccessCommands.getComponents())
