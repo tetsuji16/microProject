@@ -38,6 +38,8 @@ import com.microproject.field.ObjectRef;
  *
  */
 public class FieldEdit extends AbstractUndoableEdit{
+	private static final long serialVersionUID = 7075549449877529298L;
+
 	private static final Logger logger = Logger.getLogger(FieldEdit.class.getName());
 	protected Field field;
 	protected Object object,value,oldValue,source;

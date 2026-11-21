@@ -44,6 +44,8 @@ import org.apache.commons.lang3.StringUtils;
  * Class used in converting outline codes to hierarchy
  */
 public class OutlineCode extends Format {
+	private static final long serialVersionUID = 6176846276886697264L;
+
 	static final int NUMBERS = 0;
 	static final int UPPERCASE_LETTERS = 1;
 	static final int LOWERCASE_LETTERS = 2;

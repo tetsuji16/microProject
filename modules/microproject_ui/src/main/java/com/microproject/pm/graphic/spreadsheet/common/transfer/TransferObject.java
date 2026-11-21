@@ -26,6 +26,8 @@ package com.microproject.pm.graphic.spreadsheet.common.transfer;
 import java.util.ArrayList;
 
 public class TransferObject extends ArrayList<Object> {
+	private static final long serialVersionUID = -5258340870359964309L;
+
 	protected boolean recreateAssignments;
 	public TransferObject() {
 		super();

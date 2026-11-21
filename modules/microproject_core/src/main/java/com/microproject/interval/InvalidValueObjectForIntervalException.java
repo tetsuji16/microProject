@@ -27,6 +27,7 @@ package com.microproject.interval;
  *
  */
 public class InvalidValueObjectForIntervalException extends Exception {
+	private static final long serialVersionUID = 8729176183636416659L;
 
 	/**
 	 * @param arg0

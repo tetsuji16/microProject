@@ -39,6 +39,7 @@ import org.jdesktop.swing.calendar.DateSpan;
  *
  */
 public class ContribIntervals extends TreeSet{
+	private static final long serialVersionUID = 7669971886645821425L;
 
 	/**
 	 *

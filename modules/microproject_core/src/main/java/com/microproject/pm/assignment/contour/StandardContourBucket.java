@@ -27,6 +27,7 @@ package com.microproject.pm.assignment.contour;
  * A Contour bucket is a tiny class used to define one of the standard contoured work patterns.
  */
 public final class StandardContourBucket extends AbstractContourBucket {
+	private static final long serialVersionUID = 7171775892861366292L;
 
 	private double fractionOfDuration = 1.0;
 	

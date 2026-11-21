@@ -30,6 +30,7 @@ import com.microproject.pm.task.Project;
  * 
  */
 public class GroupNodeImpl extends NormalTask{ //should use its own implementation
+	private static final long serialVersionUID = 1485090241024432613L;
 
 	public GroupNodeImpl() {
 		super(Project.getDummy());

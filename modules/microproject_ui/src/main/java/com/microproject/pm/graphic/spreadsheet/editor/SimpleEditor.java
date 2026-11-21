@@ -46,6 +46,8 @@ import com.microproject.field.FieldParseException;
  *
  */
 public class SimpleEditor extends DefaultCellEditor   {
+	private static final long serialVersionUID = -2743384761993860364L;
+
 	protected ChangeAwareTextField component;
 	protected Class<?> clazz;
 	protected Format useFormat = null;

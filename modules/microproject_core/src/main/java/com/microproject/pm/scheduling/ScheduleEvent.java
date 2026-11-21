@@ -29,6 +29,8 @@ import java.util.EventObject;
  *
  */
 public class ScheduleEvent extends EventObject {
+	private static final long serialVersionUID = -6303579065876414194L;
+
 	public static final String ACTUAL = "ACTUAL";
 	public static final String BASELINE = "BASELINE";
 	public static final String SCHEDULE = "SCHEDULE";

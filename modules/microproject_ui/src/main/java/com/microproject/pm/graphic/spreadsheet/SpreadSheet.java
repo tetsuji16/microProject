@@ -2466,6 +2466,8 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 
 	public static abstract class SpreadSheetAction extends AbstractAction implements CommonSpreadSheetAction {
+		private static final long serialVersionUID = -8905609279071498414L;
+
 		protected SpreadSheet spreadSheet;
 
 		protected int[] rows;

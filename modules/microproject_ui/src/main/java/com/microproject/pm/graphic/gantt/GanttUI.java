@@ -33,6 +33,8 @@ import com.microproject.pm.task.Task;
  *
  */
 public class GanttUI extends GraphUI{
+	private static final long serialVersionUID = -5650277887013240824L;
+
 	public static final int PROGRESS_BAR_ZONE_ID=1;
 	/**
 	 *

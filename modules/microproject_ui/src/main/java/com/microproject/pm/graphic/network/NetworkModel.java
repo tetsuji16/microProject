@@ -38,6 +38,8 @@ import com.microproject.pm.task.Project;
  *
  */
 public class NetworkModel extends GraphModel{
+	private static final long serialVersionUID = -2500250461068930991L;
+
 	protected NetworkLayout networkLayout;
 	public NetworkModel(Project project,String viewName) {
 		super(project,viewName);

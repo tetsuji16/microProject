@@ -126,6 +126,8 @@ public class DefaultFrameManager implements FrameManager {
 	}
 
 	protected class FrameComboBoxModel extends DefaultComboBoxModel{
+		private static final long serialVersionUID = -3521326100861179950L;
+
 		public FrameComboBoxModel(){
 			super();
 		}

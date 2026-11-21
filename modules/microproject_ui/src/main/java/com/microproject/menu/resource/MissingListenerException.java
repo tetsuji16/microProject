@@ -80,6 +80,8 @@ package com.microproject.menu.resource;
  * @version $Id: MissingListenerException.java,v 1.1 2007/08/15 23:28:28 suricate Exp $
  */
 public class MissingListenerException extends RuntimeException {
+	private static final long serialVersionUID = -3085670222405687815L;
+
     /**
      * The class name of the listener bundle requested
      * @serial

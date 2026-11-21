@@ -291,6 +291,7 @@ public final class ResourceMappingDialog extends AbstractDialog {
     }
 
 	private class AssociationTableModel extends AbstractTableModel{
+		private static final long serialVersionUID = 782443748741668390L;
 
 		public int getColumnCount() {
 			return 2;
@@ -336,6 +337,8 @@ public final class ResourceMappingDialog extends AbstractDialog {
 
 
 	private class AssociationTableColumnModel extends DefaultTableColumnModel{
+		private static final long serialVersionUID = -2519499062723576135L;
+
 		protected int columnIndex=0;
 	    public AssociationTableColumnModel() {
 	        super();

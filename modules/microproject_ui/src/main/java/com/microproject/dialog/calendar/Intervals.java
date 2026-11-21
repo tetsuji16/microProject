@@ -40,6 +40,7 @@ import com.microproject.util.DateTime;
  *
  */
 public class Intervals extends TreeSet<HasStartAndEnd> implements HasStartAndEnd{
+	private static final long serialVersionUID = 8034271239891113511L;
 
 	/**
 	 *

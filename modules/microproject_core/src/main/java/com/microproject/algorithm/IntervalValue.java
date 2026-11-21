@@ -31,6 +31,8 @@ import com.microproject.pm.time.ImmutableInterval;
  * An immutable time interval that has a double value associated
  */
 public class IntervalValue extends ImmutableInterval implements DoubleValue {
+	private static final long serialVersionUID = -6991401364245973031L;
+
 	private double value;
 	/**
 	 * 

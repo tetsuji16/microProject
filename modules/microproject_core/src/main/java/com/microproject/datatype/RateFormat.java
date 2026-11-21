@@ -37,6 +37,8 @@ import com.microproject.util.ClassUtils;
  *
  */
 public class RateFormat extends Format implements TimeUnit {
+	private static final long serialVersionUID = 4352787358487177904L;
+
 	// NumberFormat/DecimalFormat is not thread-safe; always use a fresh instance
 	// per call instead of a shared static one (issue #184).
 	private static NumberFormat moneyFormat() {

@@ -37,6 +37,8 @@ import com.microproject.strings.Messages;
  *
  */
 public class SnapshottableImpl implements Snapshottable, Serializable {
+	private static final long serialVersionUID = 7707138290832650038L;
+
 	DataSnapshot snapshots[] = null;
 	
 	/**

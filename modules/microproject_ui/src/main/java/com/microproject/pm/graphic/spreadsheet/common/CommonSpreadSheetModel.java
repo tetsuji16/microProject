@@ -62,6 +62,8 @@ import com.microproject.pm.assignment.Assignment;
  */
 @SuppressWarnings("unchecked")
 public abstract class CommonSpreadSheetModel extends AbstractTableModel implements CacheListener, OutlineModel, RowModel {
+	private static final long serialVersionUID = -8141406757662094298L;
+
 	protected NodeModelCache cache = null;
 	protected FieldContext fieldContext = null; // only used if a field context is set
 	protected CellStyle cellStyle;

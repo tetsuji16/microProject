@@ -31,6 +31,8 @@ import java.util.List;
  *
  */
 public class CompositeCacheEvent extends EventObject {
+	private static final long serialVersionUID = -1366033458756732655L;
+
     protected List<CacheEvent> nodeEvents;
     protected List<CacheEvent> edgeEvents;
    

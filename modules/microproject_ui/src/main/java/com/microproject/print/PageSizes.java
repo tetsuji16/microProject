@@ -42,6 +42,8 @@ import javax.swing.ComboBoxModel;
 import com.microproject.strings.Messages;
 
 public class PageSizes extends MediaSizeName{
+	private static final long serialVersionUID = -8329306975258275342L;
+
 	public static final int BIG_PAGE=ExtendedPageFormat.BIG_PAGE;
 	public static final int CUSTOM=ExtendedPageFormat.CUSTOM;
 	protected static PageSizes instance;
@@ -164,6 +166,8 @@ public class PageSizes extends MediaSizeName{
 	}
 
 	public static class MediaSizeNameModel extends AbstractListModel implements ComboBoxModel{
+		private static final long serialVersionUID = -6605782057379294347L;
+
 		protected Format[] sizes,sizesSystemNames;
 		protected ArrayList<Format> currentSizes;
 		protected MediaSizeNameModel(Format[] sizes,Format[] sizesSystemNames,PrintService printService){

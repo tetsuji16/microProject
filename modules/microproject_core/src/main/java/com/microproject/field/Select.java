@@ -96,6 +96,8 @@ public abstract class Select implements Map<Object, Object> {
 	}
 
 	public static class InvalidChoiceException extends Exception {
+		private static final long serialVersionUID = -1635330476006258673L;
+
 		/**
 		 * 
 		 */
