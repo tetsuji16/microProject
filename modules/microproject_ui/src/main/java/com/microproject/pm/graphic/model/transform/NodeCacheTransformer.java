@@ -44,6 +44,7 @@ import com.microproject.document.Document;
 import com.microproject.grouping.core.GroupNodeImpl;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
+import com.microproject.grouping.core.NodeBridge;
 import com.microproject.grouping.core.model.WalkersNodeModel;
 import com.microproject.grouping.core.transform.ViewConfiguration;
 import com.microproject.grouping.core.transform.ViewTransformer;
@@ -54,6 +55,7 @@ import com.microproject.grouping.core.transform.grouping.NodeGrouper;
 import com.microproject.grouping.core.transform.sorting.NodeSorter;
 import com.microproject.grouping.core.transform.sorting.TaskSortSpec;
 import com.microproject.grouping.core.transform.transformer.NodeTransformer;
+import com.microproject.pm.task.Project;
 
 /**
  *
@@ -65,6 +67,8 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
     protected int levelOffset=0;
     protected String viewName;
     protected ViewConfiguration view;
+    /** Flag to show project summary row at the top of the task list. */
+    protected boolean showProjectSummaryRow = false;
 
     public NodeCacheTransformer(String viewName,ReferenceNodeModelCache refCache,Consumer<Object> transformerClosure){
     	view=ViewConfiguration.getView(viewName);
@@ -82,10 +86,20 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
     }
 
 	public ViewTransformer getTransformer() {
-		return transformer;
-	}
+			return transformer;
+		}
+	
+		/** Sets whether to show the project summary row at the top of the task list. */
+		public void setShowProjectSummaryRow(boolean show) {
+			this.showProjectSummaryRow = show;
+		}
+	
+		/** Returns whether the project summary row is shown. */
+		public boolean isShowProjectSummaryRow() {
+			return showProjectSummaryRow;
+		}
 
-	public boolean isFlatTaskSort() {
+		public boolean isFlatTaskSort() {
 		return !transformer.isKeepOutline() && !transformer.getTaskSortSpec().keys().isEmpty()
 				&& (viewName == null || !viewName.startsWith("Resource"));
 	}
@@ -219,16 +233,29 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
 
 
         if (grouping){
-        	List<NodeGroup> groups=grouper.getGroups();
-        	levelOffset=groups.size();
-        	List<GraphicNode> groupedList=new LinkedList<>();
-        	groupList(localList,groupedList,groups.listIterator(),null,composition,preserveHierarchy);
-        	localList.clear();
-        	localList.addAll(groupedList);
-        }
+                	List<NodeGroup> groups=grouper.getGroups();
+                	levelOffset=groups.size();
+                	List<GraphicNode> groupedList=new LinkedList<>();
+                	groupList(localList,groupedList,groups.listIterator(),null,composition,preserveHierarchy);
+                	localList.clear();
+                	localList.addAll(groupedList);
+                }
 
+                // Insert project summary row at the beginning if enabled
+                if (showProjectSummaryRow && refCache != null && refCache.getDocument() instanceof Project) {
+                    Project project = (Project) refCache.getDocument();
+                    Node projectNode = NodeFactory.getInstance().createNode(project);
+                    if (projectNode != null) {
+                                    GraphicNode projectSummaryNode = new GraphicNode(projectNode, 0);
+                                    projectSummaryNode.setSummary(true);
+                                    projectSummaryNode.setComposite(true);
+                                    // Mark as project summary row for special handling
+                                    projectSummaryNode.setComposite(true); // used as marker
+                                    localList.add(0, projectSummaryNode);
+                                }
+                }
 
-        if (preserveHierarchy){ //converts tmp tree to list
+                if (preserveHierarchy){ //converts tmp tree to list
          	treeToList(localList, list);
         }
 
