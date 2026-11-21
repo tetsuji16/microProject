@@ -106,6 +106,18 @@ class GlobalPreferencesTest {
 			assertEquals("1970-01-01", EditOption.getInstance().getDateFormat().format(new Date(0)));
 			CalendarOption.getInstance().setShowTimeInDates(true);
 			assertEquals("1970-01-01 00:00", EditOption.getInstance().getDateFormat().format(new Date(0)));
+			preferences.applyFormatPreferences();
+			assertEquals("1970-01-01 00:00", EditOption.getInstance().getDateFormat().format(new Date(0)),
+				"Applying the same formats twice must give the same result");
+			assertTrue(com.microproject.datatype.Money.getMoneyFormatInstance().format(1).contains("\u20ac"));
+			preferences.setDatePattern("");
+			preferences.setDateTimePattern("");
+			preferences.setCurrencyCode("");
+			preferences.applyFormatPreferences();
+			assertEquals(com.microproject.util.DateTime.utcDateFormatInstance().format(new Date(0)),
+				EditOption.getInstance().getDateFormat().format(new Date(0)),
+				"Empty formats must return to the locale defaults");
+			assertFalse(com.microproject.datatype.Money.getMoneyFormatInstance().format(1).contains("\u20ac"));
 		} finally {
 			preferences.setUserName(originalName);
 			preferences.setShowRowLines(originalRows);

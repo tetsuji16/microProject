@@ -58,6 +58,7 @@ class PreferencesDialogGuiAcceptanceTest {
 	private java.util.prefs.Preferences localePreferences;
 	private String originalLocalePreference;
 	private String originalLanguages;
+	private Boolean originalShowTimeInDates;
 
 	@AfterEach
 	void closeDialogs() throws Exception {
@@ -73,6 +74,9 @@ class PreferencesDialogGuiAcceptanceTest {
 				preferences.setCurrencyCode(originalCurrencyCode);
 				preferences.setDefaultMilestoneShape(originalMilestoneShape);
 				FlatLafSupport.initialize();
+				if (originalShowTimeInDates != null)
+					com.microproject.options.CalendarOption.getInstance().setShowTimeInDates(originalShowTimeInDates);
+				preferences.applyFormatPreferences();
 			}
 			if (localePreferences != null) {
 				if (originalLocalePreference == null) localePreferences.remove("locale");
@@ -82,6 +86,7 @@ class PreferencesDialogGuiAcceptanceTest {
 			if (originalLanguages != null) Settings.LANGUAGES = originalLanguages;
 		});
 		testPreferences = null;
+		originalShowTimeInDates = null;
 	}
 
 	@Test
@@ -206,9 +211,8 @@ class PreferencesDialogGuiAcceptanceTest {
 		JTextField datePattern = findNamedComponent(dialog, JTextField.class, "preferencesDatePattern");
 		JTextField dateTimePattern = findNamedComponent(dialog, JTextField.class, "preferencesDateTimePattern");
 		JTextField currencyCode = findNamedComponent(dialog, JTextField.class, "preferencesCurrencyCode");
-		JLabel formatRestartNotice = findNamedComponent(dialog, JLabel.class, "preferencesDateFormatRestartRequired");
-		assertTrue(datePattern != null && dateTimePattern != null && currencyCode != null && formatRestartNotice != null,
-			"Preferences must expose date/currency formats and their restart notice");
+		assertTrue(datePattern != null && dateTimePattern != null && currencyCode != null,
+			"Preferences must expose date/currency formats");
 		JSpinner interval = findNamedComponent(dialog, JSpinner.class, "preferencesAutoSaveInterval");
 		assertTrue(interval != null, "Preferences must expose the auto-recovery interval");
 		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog.getContentPane(), "Preferences dialog");
@@ -221,8 +225,8 @@ class PreferencesDialogGuiAcceptanceTest {
 		enterText(robot, datePattern, "dd.MM.yyyy");
 		enterText(robot, dateTimePattern, "dd.MM.yyyy HH:mm");
 		enterText(robot, currencyCode, "EUR");
-		GuiAcceptanceSupport.await(formatRestartNotice::isVisible,
-			"Changing date formats must tell users to restart the application");
+		assertTrue(findNamedComponent(dialog, JLabel.class, "preferencesDateFormatRestartRequired") == null,
+			"Format changes apply live and must not announce a restart");
 		openPopup(robot, milestoneShape);
 		robot.keyPress(KeyEvent.VK_END); robot.keyRelease(KeyEvent.VK_END);
 		robot.keyPress(KeyEvent.VK_ENTER); robot.keyRelease(KeyEvent.VK_ENTER);
@@ -461,6 +465,239 @@ class PreferencesDialogGuiAcceptanceTest {
 					frame[0].dispose();
 			});
 		}
+	}
+
+	@Test
+	void customFormatsApplyToTheRunningApplicationOnceAndNotWhenUnchanged() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		prepareFormats();
+		AtomicInteger refreshes = new AtomicInteger();
+		javax.swing.JFrame[] frame = new javax.swing.JFrame[1];
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				frame[0] = new javax.swing.JFrame("Format refresh probe");
+				frame[0].setContentPane(new javax.swing.JPanel() {
+					private static final long serialVersionUID = 1L;
+					@Override public void updateUI() {
+						super.updateUI();
+						refreshes.incrementAndGet();
+					}
+				});
+				frame[0].setSize(240, 120);
+				frame[0].setVisible(true);
+			});
+			robot.waitForIdle();
+			int baseline = refreshes.get();
+			PreferencesDialogBox dialog = openDisplayPage();
+			click(robot, findButton(dialog, UsabilityStrings.text("preferences.apply")));
+			GuiAcceptanceSupport.await(() -> findDialog() == null, "Preferences dialog did not close after Apply");
+			assertEquals(baseline, refreshes.get(), "Apply without a format change must not rebuild open windows");
+
+			dialog = openDisplayPage();
+			click(robot, findNamedComponent(dialog, javax.swing.JRadioButton.class, "preferencesDatePatternCustom"));
+			enterText(robot, findNamedComponent(dialog, JTextField.class, "preferencesDatePattern"), "dd.MM.yyyy");
+			click(robot, findNamedComponent(dialog, javax.swing.JRadioButton.class, "preferencesCurrencyCodeCustom"));
+			enterText(robot, findNamedComponent(dialog, JTextField.class, "preferencesCurrencyCode"), "EUR");
+			click(robot, findButton(dialog, UsabilityStrings.text("preferences.apply")));
+			GuiAcceptanceSupport.await(() -> findDialog() == null, "Preferences dialog did not close after Apply");
+			robot.waitForIdle();
+			assertEquals("dd.MM.yyyy", testPreferences.getDatePattern());
+			assertEquals("EUR", testPreferences.getCurrencyCode());
+			assertEquals(baseline + 1, refreshes.get(), "A format change must rebuild open windows exactly once");
+			java.util.Date sample = new java.util.Date(0);
+			assertTrue(com.microproject.options.EditOption.getInstance().getDateFormat().format(sample).startsWith("01.01.1970"),
+				"The running application must use the new date format without a restart");
+			assertTrue(com.microproject.datatype.Money.getMoneyFormatInstance().format(1).contains("\u20ac"),
+				"The running application must use the new currency without a restart");
+		} finally {
+			SwingUtilities.invokeAndWait(() -> {
+				if (frame[0] != null)
+					frame[0].dispose();
+			});
+		}
+	}
+
+	@Test
+	void customDateFormatChangesTheTaskSpreadsheetStartCellWithoutARestart() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		prepareFormats();
+		testPreferences.applyFormatPreferences();
+		com.microproject.undo.DataFactoryUndoController undo = new com.microproject.undo.DataFactoryUndoController();
+		com.microproject.pm.task.Project project = com.microproject.pm.task.Project.createProject(
+			com.microproject.pm.resource.ResourcePool.createRourcePool("format-live", undo), undo);
+		project.initialize(false, false);
+		com.microproject.pm.task.NormalTask task = project.createScriptedTask();
+		task.setName("Format live");
+		task.setStart(com.microproject.util.DateTime.calendarInstance(2026, java.util.Calendar.SEPTEMBER, 7).getTimeInMillis());
+		com.microproject.pm.graphic.spreadsheet.SpreadSheet[] sheet = new com.microproject.pm.graphic.spreadsheet.SpreadSheet[1];
+		javax.swing.JFrame[] frame = new javax.swing.JFrame[1];
+		int[] cell = new int[2];
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				sheet[0] = new com.microproject.pm.graphic.spreadsheet.SpreadSheet();
+				sheet[0].setSpreadSheetCategory(com.microproject.graphic.configuration.SpreadSheetCategories.taskSpreadsheetCategory);
+				com.microproject.pm.graphic.model.cache.NodeModelCache cache =
+					com.microproject.pm.graphic.model.cache.NodeModelCacheFactory.getInstance().createFilteredCache(
+						com.microproject.pm.graphic.model.cache.NodeModelCacheFactory.createTaskNodeModelCache(project,
+							project.getTaskModel()), "format-live-cache", null);
+				com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils.setFieldsAndContext(sheet[0], cache,
+					com.microproject.graphic.configuration.SpreadSheetCategories.taskSpreadsheetCategory,
+					"Spreadsheet.Task.formatLive", true);
+				com.microproject.pm.graphic.spreadsheet.SpreadSheetModel model =
+					(com.microproject.pm.graphic.spreadsheet.SpreadSheetModel) sheet[0].getModel();
+				com.microproject.grouping.core.Node node = (com.microproject.grouping.core.Node) cache.getModel().search(task);
+				cell[0] = model.findGraphicNodeRow(cache.getGraphicNode(node));
+				for (int column = 0; column < model.getColumnCount(); column++) {
+					com.microproject.field.Field field = model.getFieldInColumn(column);
+					if (field != null && "Field.start".equals(field.getId()))
+						cell[1] = sheet[0].convertColumnIndexToView(column);
+				}
+				frame[0] = new javax.swing.JFrame("Format live probe");
+				frame[0].add(new javax.swing.JScrollPane(sheet[0]));
+				frame[0].setSize(900, 300);
+				frame[0].setVisible(true);
+			});
+			robot.waitForIdle();
+			String pattern = "yyyy-MM-dd'T'";
+			Object[] startValue = new Object[1];
+			SwingUtilities.invokeAndWait(() -> startValue[0] = sheet[0].getValueAt(cell[0], cell[1]));
+			long startMillis = startValue[0] instanceof java.util.Date date ? date.getTime()
+				: ((Number) startValue[0]).longValue();
+			// The marker keeps the pattern distinct from every locale's default short date.
+			String expected = com.microproject.util.DateTime.dateFormatInstance(pattern).format(new java.util.Date(startMillis));
+			String before = renderedText(sheet[0], cell[0], cell[1]);
+			assertTrue(!expected.equals(before), "The OS default must differ from the custom pattern: " + before);
+
+			PreferencesDialogBox dialog = openDisplayPage();
+			click(robot, findNamedComponent(dialog, javax.swing.JRadioButton.class, "preferencesDatePatternCustom"));
+			enterText(robot, findNamedComponent(dialog, JTextField.class, "preferencesDatePattern"), pattern);
+			click(robot, findButton(dialog, UsabilityStrings.text("preferences.apply")));
+			GuiAcceptanceSupport.await(() -> findDialog() == null, "Preferences dialog did not close after Apply");
+			robot.waitForIdle();
+			GuiAcceptanceSupport.await(() -> {
+				try {
+					return expected.equals(renderedText(sheet[0], cell[0], cell[1]));
+				} catch (Exception error) {
+					throw new IllegalStateException(error);
+				}
+			}, "The task spreadsheet Start cell must show exactly " + expected + " without a restart");
+		} finally {
+			SwingUtilities.invokeAndWait(() -> {
+				if (frame[0] != null)
+					frame[0].dispose();
+			});
+		}
+	}
+
+	private static String renderedText(com.microproject.pm.graphic.spreadsheet.SpreadSheet sheet, int row, int column)
+			throws Exception {
+		String[] text = new String[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Component rendered = sheet.prepareRenderer(sheet.getCellRenderer(row, column), row, column);
+			text[0] = rendered instanceof JLabel label ? label.getText() : String.valueOf(rendered);
+		});
+		return text[0];
+	}
+
+	@Test
+	void emptyCustomDateFormatIsRejectedAndTheDialogRecovers() throws Exception {
+		assertRejectedThenAccepted("preferencesDatePatternCustom", "preferencesDatePattern", "", "yyyy-MM-dd");
+		assertEquals("yyyy-MM-dd", testPreferences.getDatePattern());
+	}
+
+	@Test
+	void invalidCustomDatePatternIsRejectedAndTheDialogRecovers() throws Exception {
+		assertRejectedThenAccepted("preferencesDatePatternCustom", "preferencesDatePattern", "yyyy-MM-dd '", "dd/MM/yyyy");
+		assertEquals("dd/MM/yyyy", testPreferences.getDatePattern());
+	}
+
+	@Test
+	void invalidCustomCurrencyCodeIsRejectedAndTheDialogRecovers() throws Exception {
+		assertRejectedThenAccepted("preferencesCurrencyCodeCustom", "preferencesCurrencyCode", "NOT-A-CURRENCY", "JPY");
+		assertEquals("JPY", testPreferences.getCurrencyCode());
+	}
+
+	private void prepareFormats() {
+		testPreferences = new GlobalPreferences();
+		originalDarkTheme = testPreferences.isDarkTheme();
+		originalDatePattern = testPreferences.getDatePattern();
+		originalDateTimePattern = testPreferences.getDateTimePattern();
+		originalCurrencyCode = testPreferences.getCurrencyCode();
+		originalMilestoneShape = testPreferences.getDefaultMilestoneShape();
+		testPreferences.setDatePattern("");
+		testPreferences.setDateTimePattern("");
+		testPreferences.setCurrencyCode("");
+		originalShowTimeInDates = com.microproject.options.CalendarOption.getInstance().isShowTimeInDates();
+		com.microproject.options.CalendarOption.getInstance().setShowTimeInDates(false);
+		testPreferences.applyFormatPreferences();
+	}
+
+	private PreferencesDialogBox openDisplayPage() throws Exception {
+		SwingUtilities.invokeLater(() -> PreferencesDialogBox.showDialog(null, testPreferences));
+		GuiAcceptanceSupport.await(() -> findDialog() != null, "Preferences dialog did not open");
+		PreferencesDialogBox dialog = findDialog();
+		selectCategory(dialog, "preferences.display");
+		return dialog;
+	}
+
+	/**
+	 * Applies an unacceptable Custom value, expects the existing error dialog with the preferences
+	 * dialog still open and nothing stored, then corrects the input and expects Apply to succeed.
+	 */
+	private void assertRejectedThenAccepted(String customRadio, String fieldName, String badValue, String goodValue)
+			throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		prepareFormats();
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		PreferencesDialogBox dialog = openDisplayPage();
+		JTextField field = findNamedComponent(dialog, JTextField.class, fieldName);
+		click(robot, findNamedComponent(dialog, javax.swing.JRadioButton.class, customRadio));
+		if (badValue.isEmpty()) {
+			click(robot, field);
+			robot.keyPress(KeyEvent.VK_CONTROL); robot.keyPress(KeyEvent.VK_A);
+			robot.keyRelease(KeyEvent.VK_A); robot.keyRelease(KeyEvent.VK_CONTROL);
+			robot.keyPress(KeyEvent.VK_DELETE); robot.keyRelease(KeyEvent.VK_DELETE);
+			robot.waitForIdle();
+		} else {
+			enterText(robot, field, badValue);
+		}
+		click(robot, findButton(dialog, UsabilityStrings.text("preferences.apply")));
+		GuiAcceptanceSupport.await(() -> com.microproject.testsupport.ResourceIntervalTableFixture.visibleError() != null,
+			"Apply with an invalid Custom value must show the error dialog");
+		assertTrue(dialog.isVisible(), "The preferences dialog must stay open after a rejected Apply");
+		assertEquals("", testPreferences.getDatePattern(), "A rejected Apply must not store a date pattern");
+		assertEquals("", testPreferences.getCurrencyCode(), "A rejected Apply must not store a currency code");
+		javax.swing.JOptionPane error = com.microproject.testsupport.ResourceIntervalTableFixture.visibleError();
+		assertEquals(UsabilityStrings.text("preferences.invalidFormat"), String.valueOf(error.getMessage()),
+			"The rejection must show the invalid-format message");
+		SwingUtilities.invokeAndWait(() -> {
+			AbstractButton ok = findAnyButton(error);
+			if (ok != null)
+				ok.doClick();
+		});
+		GuiAcceptanceSupport.await(() -> com.microproject.testsupport.ResourceIntervalTableFixture.visibleError() == null,
+			"The error dialog did not close");
+		assertTrue(dialog.isVisible(), "The preferences dialog must stay open after the error is dismissed");
+		enterText(robot, field, goodValue);
+		click(robot, findButton(dialog, UsabilityStrings.text("preferences.apply")));
+		GuiAcceptanceSupport.await(() -> findDialog() == null, "Apply must succeed once the input is corrected");
+		assertTrue(com.microproject.testsupport.ResourceIntervalTableFixture.visibleError() == null);
+	}
+
+	private static AbstractButton findAnyButton(java.awt.Container container) {
+		for (java.awt.Component child : container.getComponents()) {
+			if (child instanceof AbstractButton button) return button;
+			if (child instanceof java.awt.Container nested) {
+				AbstractButton found = findAnyButton(nested);
+				if (found != null) return found;
+			}
+		}
+		return null;
 	}
 
 	private static PreferencesDialogBox findDialog() {

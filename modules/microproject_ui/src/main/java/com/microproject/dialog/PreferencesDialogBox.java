@@ -88,15 +88,6 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		FormatChoice currencyCode = new FormatChoice("preferencesCurrencyCode", UsabilityStrings.text("preferences.currencyCode"),
 			8, preferences.getCurrencyCode(), UsabilityStrings.text("preferences.currencyCodeHelp"),
 			PreferencesDialogBox::osCurrencyCode, GlobalPreferences::isValidCurrencyCode);
-		JLabel formatRestartNotice = new JLabel(UsabilityStrings.text("preferences.dateFormatRestartRequired"));
-		formatRestartNotice.setName("preferencesDateFormatRestartRequired");
-		Runnable updateFormatRestartNotice = () -> formatRestartNotice.setVisible(
-				!preferences.getDatePattern().equals(datePattern.value())
-					|| !preferences.getDateTimePattern().equals(dateTimePattern.value())
-					|| !preferences.getCurrencyCode().equals(currencyCode.value().toUpperCase(java.util.Locale.ROOT)));
-		for (FormatChoice choice : new FormatChoice[] { datePattern, dateTimePattern, currencyCode })
-			choice.onChange(updateFormatRestartNotice);
-		updateFormatRestartNotice.run();
 		JSpinner recoveryInterval = autoSaveControl == null ? null
 				: new JSpinner(new SpinnerNumberModel(autoSaveControl.getIntervalMinutes(), 1, 1440, 1));
 		if (recoveryInterval != null) recoveryInterval.setName("preferencesAutoSaveInterval");
@@ -147,7 +138,6 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		addRow(display, UsabilityStrings.text("preferences.datePattern"), datePattern.controls());
 		addRow(display, UsabilityStrings.text("preferences.dateTimePattern"), dateTimePattern.controls());
 		addRow(display, UsabilityStrings.text("preferences.currencyCode"), currencyCode.controls());
-		addRow(display, null, formatRestartNotice);
 		JPanel save = null;
 		if (recoveryInterval != null) {
 			save = newCategoryForm();
@@ -217,19 +207,24 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 			preferences.setCheckForUpdates(checkUpdates.isSelected());
 			boolean themeChanged = preferences.isDarkTheme() != darkTheme.equals(theme.getSelectedItem());
 			preferences.setDarkTheme(darkTheme.equals(theme.getSelectedItem()));
+			boolean formatsChanged = !preferences.getDatePattern().equals(datePattern.value())
+					|| !preferences.getDateTimePattern().equals(dateTimePattern.value())
+					|| !preferences.getCurrencyCode().equals(currencyCode.value().toUpperCase(java.util.Locale.ROOT));
 			preferences.setDatePattern(datePattern.value());
 			preferences.setDateTimePattern(dateTimePattern.value());
 			preferences.setCurrencyCode(currencyCode.value());
+			// Formats are read at display time, so re-applying them is enough for every open window.
+			if (formatsChanged)
+				preferences.applyFormatPreferences();
 			if (recoveryInterval != null)
 				autoSaveControl.setIntervalMinutes(((Number) recoveryInterval.getValue()).intValue());
 			dispose();
-			// Typography is applied once, after the modal dialog is gone, and only
-			// when it changed. A theme switch below refreshes every window itself.
-			if (fontChanged) {
+			// Typography and display formats are applied once, after the modal dialog is gone, and only
+			// when they changed. A theme switch below refreshes every window itself.
+			if (fontChanged)
 				FlatLafSupport.applyUserFontPreference(preferences.getFontFamily(), preferences.getFontSize());
-				if (!themeChanged)
-					FlatUiSupport.updateAllWindowTrees();
-			}
+			if ((fontChanged || formatsChanged) && !themeChanged)
+				FlatUiSupport.updateAllWindowTrees();
 			// The theme applies live to every open window; no restart is needed.
 			if (themeChanged)
 				com.microproject.ui.theme.ThemeManager.applyTheme(preferences.isDarkTheme());
@@ -495,16 +490,6 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		/** Custom values must be non-empty and valid; following the OS is always valid. */
 		boolean isValid() {
 			return followOs.isSelected() || (!field.getText().isBlank() && validator.test(field.getText()));
-		}
-
-		void onChange(Runnable listener) {
-			followOs.addActionListener(event -> listener.run());
-			custom.addActionListener(event -> listener.run());
-			field.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
-				public void insertUpdate(javax.swing.event.DocumentEvent event) { listener.run(); }
-				public void removeUpdate(javax.swing.event.DocumentEvent event) { listener.run(); }
-				public void changedUpdate(javax.swing.event.DocumentEvent event) { listener.run(); }
-			});
 		}
 	}
 }
