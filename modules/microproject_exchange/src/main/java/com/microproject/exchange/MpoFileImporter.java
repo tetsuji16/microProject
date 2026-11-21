@@ -112,9 +112,11 @@ public class MpoFileImporter extends FileImporter {
 	static final String TASK_SPLITS_ENTRY = "microproject/task-splits.json";
 	static final String TASK_LEVELING_OPTIONS_ENTRY = "microproject/task-leveling-options.json";
 	/** Per-task text style (Text Styles, Format Painter); MSPDI has no task-level font fields. */
-	static final String TASK_TEXT_STYLES_ENTRY = "microproject/task-text-styles.json";
+		static final String TASK_TEXT_STYLES_ENTRY = "microproject/task-text-styles.json";
 		/** Sheet-level text styles (Text Styles dialog) per category; MSPDI has no sheet text styles. */
 		static final String SHEET_TEXT_STYLES_ENTRY = "microproject/sheet-text-styles.json";
+		/** Manual PERT box positions (Network Diagram); MSPDI has no manual box positions. */
+		static final String NETWORK_MANUAL_POSITIONS_ENTRY = "microproject/network-manual-positions.json";
 		/** Exact native schedule values needed when MSPDI import recalculates assignments. */
 	static final String TASK_SCHEDULES_ENTRY = "microproject/task-schedules.json";
 	/** Detached saved-baseline assignment profiles not representable in MSPDI assignments. */
@@ -347,8 +349,10 @@ public class MpoFileImporter extends FileImporter {
 		if (entries.containsKey(TASK_TEXT_STYLES_ENTRY))
 				MpoSidecarJson.restoreTaskTextStyles(project, entries.get(TASK_TEXT_STYLES_ENTRY));
 			if (entries.containsKey(SHEET_TEXT_STYLES_ENTRY))
-				MpoSidecarJson.restoreSheetTextStyles(project, entries.get(SHEET_TEXT_STYLES_ENTRY));
-			if (entries.containsKey(TASK_SCHEDULES_ENTRY))
+					MpoSidecarJson.restoreSheetTextStyles(project, entries.get(SHEET_TEXT_STYLES_ENTRY));
+				if (entries.containsKey(NETWORK_MANUAL_POSITIONS_ENTRY))
+					MpoSidecarJson.restoreNetworkManualPositions(project, entries.get(NETWORK_MANUAL_POSITIONS_ENTRY));
+				if (entries.containsKey(TASK_SCHEDULES_ENTRY))
 			MpoSidecarJson.restoreTaskSchedules(project, entries.get(TASK_SCHEDULES_ENTRY));
 		if (entries.containsKey(BASELINE_PROFILES_ENTRY))
 			MpoSidecarJson.restoreBaselineProfiles(project, entries.get(BASELINE_PROFILES_ENTRY));
@@ -674,14 +678,15 @@ public class MpoFileImporter extends FileImporter {
 		entries.put(TASK_LEVELING_OPTIONS_ENTRY, MpoSidecarJson.taskLevelingOptionsJson(project, taskIdentities));
 		entries.put(TASK_TEXT_STYLES_ENTRY, MpoSidecarJson.taskTextStylesJson(project, taskIdentities));
 				entries.put(SHEET_TEXT_STYLES_ENTRY, MpoSidecarJson.sheetTextStylesJson(project));
-				entries.put(TASK_SCHEDULES_ENTRY, MpoSidecarJson.taskSchedulesJson(project, taskIdentities));
+						entries.put(NETWORK_MANUAL_POSITIONS_ENTRY, MpoSidecarJson.networkManualPositionsJson(project));
+						entries.put(TASK_SCHEDULES_ENTRY, MpoSidecarJson.taskSchedulesJson(project, taskIdentities));
 		entries.put(BASELINE_PROFILES_ENTRY, MpoSidecarJson.baselineProfilesJson(project, taskIdentities,
 			MpoSidecarJson.resourceIdentitiesForMpo(project)));
 		entries.put(ASSIGNMENT_LEVELING_SPLITS_ENTRY, MpoSidecarJson.assignmentLevelingSplitsJson(project, serialized.assignmentUids()));
 		entries.put(CCPM_HISTORY_ENTRY, ccpmHistoryJson(project));
 		MpoExtensions extensions = project.findTransientDocumentState(MpoExtensions.class);
 		if (extensions != null) for (java.util.Map.Entry<String, byte[]> extension : extensions.entries.entrySet()) {
-			if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || META_ENTRY.equals(extension.getKey()) || SETTINGS_ENTRY.equals(extension.getKey()) || CCPM_HISTORY_ENTRY.equals(extension.getKey()) || LAYOUT_ENTRY.equals(extension.getKey()) || VISIBILITY_ENTRY.equals(extension.getKey()) || TASK_SPLITS_ENTRY.equals(extension.getKey()) || TASK_LEVELING_OPTIONS_ENTRY.equals(extension.getKey()) || TASK_TEXT_STYLES_ENTRY.equals(extension.getKey()) || SHEET_TEXT_STYLES_ENTRY.equals(extension.getKey()) || TASK_SCHEDULES_ENTRY.equals(extension.getKey()) || BASELINE_PROFILES_ENTRY.equals(extension.getKey()) || ASSIGNMENT_LEVELING_SPLITS_ENTRY.equals(extension.getKey()) || PROJECT_ENTRY.equals(extension.getKey()) || OPERATIONS_ENTRY.equals(extension.getKey()) || TASK_IDENTITIES_ENTRY.equals(extension.getKey()) || extension.getKey().startsWith(EMBEDDED_PROJECT_PREFIX)) continue;
+			if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || META_ENTRY.equals(extension.getKey()) || SETTINGS_ENTRY.equals(extension.getKey()) || CCPM_HISTORY_ENTRY.equals(extension.getKey()) || LAYOUT_ENTRY.equals(extension.getKey()) || VISIBILITY_ENTRY.equals(extension.getKey()) || TASK_SPLITS_ENTRY.equals(extension.getKey()) || TASK_LEVELING_OPTIONS_ENTRY.equals(extension.getKey()) || TASK_TEXT_STYLES_ENTRY.equals(extension.getKey()) || SHEET_TEXT_STYLES_ENTRY.equals(extension.getKey()) || NETWORK_MANUAL_POSITIONS_ENTRY.equals(extension.getKey()) || TASK_SCHEDULES_ENTRY.equals(extension.getKey()) || BASELINE_PROFILES_ENTRY.equals(extension.getKey()) || ASSIGNMENT_LEVELING_SPLITS_ENTRY.equals(extension.getKey()) || PROJECT_ENTRY.equals(extension.getKey()) || OPERATIONS_ENTRY.equals(extension.getKey()) || TASK_IDENTITIES_ENTRY.equals(extension.getKey()) || extension.getKey().startsWith(EMBEDDED_PROJECT_PREFIX)) continue;
 			entries.put(extension.getKey(), extension.getValue().clone());
 		}
 		MpoDocumentMetadata metadata = new MpoDocumentMetadata(project.getDocumentId(), project.getUniqueId(),

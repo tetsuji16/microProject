@@ -54,37 +54,68 @@ public class PertLayout extends AbstractNetworkLayout {
 	
 	
 	public void updateBounds(){
-	    dependencyGraph.updatePertLevels();
-	    
-		GraphicConfiguration config=GraphicConfiguration.getInstance();
+			dependencyGraph.updatePertLevels();
 		
-		Point2D origin=new Point2D.Double(config.getPertXOffset(),config.getPertYOffset());
-		NetworkDisplayOptions options=network.getDisplayOptions();
-		java.awt.Dimension boxSize=options.boxSize(config.getPertCellWidth(),config.getPertCellHeight());
-		int spacing=options.getBoxSpacing();
-		Rectangle2D ref=new Rectangle2D.Double(config.getPertXOffset(),config.getPertYOffset(),boxSize.width,boxSize.height);
-		int row=0;
-		int col=-1;
-		setEmpty();
-		for (ListIterator<GraphicNode> i = cache.getIterator(); i.hasNext();) {
-		    GraphicNode current = i.next();
-		    int currentCol=cache.getPertLevel(current)-1;
-		    if (currentCol<=col) row++;
-		    col=currentCol;
-		    
-		    TexturedShape texturedShape=findShape(current);
-		    if (texturedShape==null) continue;
-		    double centerX=origin.getX()+(ref.getMaxX()+spacing)*col+ref.getWidth()/2;
-		    double centerY=origin.getY()+(ref.getMaxY()+spacing)*row+ref.getHeight()/2;
-		    GeneralPath shape=texturedShape.toGeneralPath(ref.getWidth(),ref.getHeight(),centerX-ref.getWidth()/2,centerY,null);
-		    current.setPertShape(shape,centerX,centerY);
-		    Rectangle cellBounds=network.scale(shape.getBounds());
-		    if (isEmpty())
-				bounds.setBounds(cellBounds);
-			else Rectangle.union(bounds,cellBounds,bounds);
+			GraphicConfiguration config=GraphicConfiguration.getInstance();
+		
+			Point2D origin=new Point2D.Double(config.getPertXOffset(),config.getPertYOffset());
+			NetworkDisplayOptions options=network.getDisplayOptions();
+			java.awt.Dimension boxSize=options.boxSize(config.getPertCellWidth(),config.getPertCellHeight());
+			int spacing=options.getBoxSpacing();
+			Rectangle2D ref=new Rectangle2D.Double(config.getPertXOffset(),config.getPertYOffset(),boxSize.width,boxSize.height);
+			int row=0;
+			int col=-1;
+			setEmpty();
+		
+			// Get manual positions from Project if available
+					java.util.Map<Long, java.awt.geom.Point2D> manualPositions = null;
+					if (network instanceof com.microproject.pm.graphic.network.Network) {
+						com.microproject.pm.graphic.network.Network net = (com.microproject.pm.graphic.network.Network) network;
+						com.microproject.pm.task.Project project = net.getProject();
+						if (project != null && project.getManualPertPositions() != null && !project.getManualPertPositions().isEmpty()) {
+							manualPositions = project.getManualPertPositions();
+						}
+					}
+		
+			for (ListIterator<GraphicNode> i = cache.getIterator(); i.hasNext();) {
+				GraphicNode current = i.next();
+				int currentCol=cache.getPertLevel(current)-1;
+				if (currentCol<=col) row++;
+				col=currentCol;
+			
+				TexturedShape texturedShape=findShape(current);
+				if (texturedShape==null) continue;
+			
+				double centerX, centerY;
+				// Check if this node has a manual position
+				Object impl = current.getNode().getImpl();
+				if (manualPositions != null && impl instanceof com.microproject.pm.task.Task) {
+					Long taskUid = ((com.microproject.pm.task.Task) impl).getUniqueId();
+					java.awt.geom.Point2D manualPos = manualPositions.get(taskUid);
+					if (manualPos != null) {
+						// Use manual position (already at 100% zoom logical coordinates)
+						centerX = manualPos.getX();
+						centerY = manualPos.getY();
+					} else {
+						// Calculate automatic position
+						centerX = origin.getX() + (ref.getMaxX() + spacing) * col + ref.getWidth() / 2;
+						centerY = origin.getY() + (ref.getMaxY() + spacing) * row + ref.getHeight() / 2;
+					}
+				} else {
+					// Calculate automatic position
+					centerX = origin.getX() + (ref.getMaxX() + spacing) * col + ref.getWidth() / 2;
+					centerY = origin.getY() + (ref.getMaxY() + spacing) * row + ref.getHeight() / 2;
+				}
+			
+				GeneralPath shape = texturedShape.toGeneralPath(ref.getWidth(), ref.getHeight(), centerX - ref.getWidth() / 2, centerY, null);
+				current.setPertShape(shape, centerX, centerY);
+				Rectangle cellBounds = network.scale(shape.getBounds());
+				if (isEmpty())
+					bounds.setBounds(cellBounds);
+				else Rectangle.union(bounds, cellBounds, bounds);
+			}
+			fireLayoutChanged();
 		}
-		fireLayoutChanged();
-	}
 	
 	public void graphicNodesCompositeEvent(CompositeCacheEvent compositeEvent) {
  

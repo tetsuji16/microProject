@@ -344,45 +344,84 @@ final class MpoSidecarJson {
 		}
 
 		static void restoreSheetTextStyles(Project project, byte[] bytes) throws IOException {
-			JsonNode root = JSON.readTree(bytes);
-			if (requiredInt(root, "version") != 1) throw new IOException("Invalid mpo sheet text styles version");
-			JsonNode categories = root.path("categories");
-			if (!categories.isObject()) throw new IOException("Invalid mpo sheet text styles categories");
-			SheetTextStyles styles = SheetTextStyles.empty();
-			for (java.util.Iterator<String> it = categories.fieldNames(); it.hasNext();) {
-				String categoryName = it.next();
-				JsonNode formatNode = categories.path(categoryName);
-				SheetTextStyleCategory category;
-				try {
-					category = SheetTextStyleCategory.valueOf(categoryName);
-				} catch (IllegalArgumentException ignored) {
-					// Ignore unknown categories for forward compatibility
-					continue;
+				JsonNode root = JSON.readTree(bytes);
+				if (requiredInt(root, "version") != 1) throw new IOException("Invalid mpo sheet text styles version");
+				JsonNode categories = root.path("categories");
+				if (!categories.isObject()) throw new IOException("Invalid mpo sheet text styles categories");
+				SheetTextStyles styles = SheetTextStyles.empty();
+				for (java.util.Iterator<String> it = categories.fieldNames(); it.hasNext();) {
+					String categoryName = it.next();
+					JsonNode formatNode = categories.path(categoryName);
+					SheetTextStyleCategory category;
+					try {
+						category = SheetTextStyleCategory.valueOf(categoryName);
+					} catch (IllegalArgumentException ignored) {
+						// Ignore unknown categories for forward compatibility
+						continue;
+					}
+					String family = formatNode.path("fontFamily").isTextual() ? formatNode.path("fontFamily").textValue() : null;
+					Integer size = formatNode.path("fontSize").isIntegralNumber() ? Integer.valueOf(formatNode.path("fontSize").intValue()) : null;
+					Integer color = formatNode.path("fontColor").isIntegralNumber() ? Integer.valueOf(formatNode.path("fontColor").intValue()) : null;
+					Boolean bold = formatNode.path("bold").isBoolean() ? Boolean.valueOf(formatNode.path("bold").booleanValue()) : null;
+					Boolean italic = formatNode.path("italic").isBoolean() ? Boolean.valueOf(formatNode.path("italic").booleanValue()) : null;
+					Boolean strikethrough = formatNode.path("strikethrough").isBoolean() ? Boolean.valueOf(formatNode.path("strikethrough").booleanValue()) : null;
+					Boolean underline = formatNode.path("underline").isBoolean() ? Boolean.valueOf(formatNode.path("underline").booleanValue()) : null;
+					Integer background = formatNode.path("fillColor").isIntegralNumber() ? Integer.valueOf(formatNode.path("fillColor").intValue()) : null;
+					SheetTextFormat format = new SheetTextFormat(
+						family,
+						size != null ? size : 0,
+						color,
+						bold != null ? bold : false,
+						italic != null ? italic : false,
+						strikethrough != null ? strikethrough : false,
+						underline != null ? underline : false,
+						background
+					);
+					if (!format.isEmpty()) {
+						styles.set(category, format);
+					}
 				}
-				String family = formatNode.path("fontFamily").isTextual() ? formatNode.path("fontFamily").textValue() : null;
-				Integer size = formatNode.path("fontSize").isIntegralNumber() ? Integer.valueOf(formatNode.path("fontSize").intValue()) : null;
-				Integer color = formatNode.path("fontColor").isIntegralNumber() ? Integer.valueOf(formatNode.path("fontColor").intValue()) : null;
-				Boolean bold = formatNode.path("bold").isBoolean() ? Boolean.valueOf(formatNode.path("bold").booleanValue()) : null;
-				Boolean italic = formatNode.path("italic").isBoolean() ? Boolean.valueOf(formatNode.path("italic").booleanValue()) : null;
-				Boolean strikethrough = formatNode.path("strikethrough").isBoolean() ? Boolean.valueOf(formatNode.path("strikethrough").booleanValue()) : null;
-				Boolean underline = formatNode.path("underline").isBoolean() ? Boolean.valueOf(formatNode.path("underline").booleanValue()) : null;
-				Integer background = formatNode.path("fillColor").isIntegralNumber() ? Integer.valueOf(formatNode.path("fillColor").intValue()) : null;
-				SheetTextFormat format = new SheetTextFormat(
-					family,
-					size != null ? size : 0,
-					color,
-					bold != null ? bold : false,
-					italic != null ? italic : false,
-					strikethrough != null ? strikethrough : false,
-					underline != null ? underline : false,
-					background
-				);
-				if (!format.isEmpty()) {
-					styles.set(category, format);
-				}
+				project.setSheetTextStyles(styles);
 			}
-			project.setSheetTextStyles(styles);
-		}
+
+			static byte[] networkManualPositionsJson(Project project) throws IOException {
+					java.util.Map<Long, java.awt.geom.Point2D> positions = project.getManualPertPositions();
+					if (positions == null || positions.isEmpty()) {
+						return null;
+					}
+					ObjectNode root = JSON.createObjectNode();
+					root.put("version", 1);
+					ObjectNode positionsNode = root.putObject("positions");
+					for (java.util.Map.Entry<Long, java.awt.geom.Point2D> entry : positions.entrySet()) {
+						ObjectNode posNode = positionsNode.putObject(String.valueOf(entry.getKey()));
+						posNode.put("x", entry.getValue().getX());
+						posNode.put("y", entry.getValue().getY());
+					}
+					return JSON.writeValueAsBytes(root);
+				}
+
+				static void restoreNetworkManualPositions(Project project, byte[] bytes) throws IOException {
+					JsonNode root = JSON.readTree(bytes);
+					if (requiredInt(root, "version") != 1) throw new IOException("Invalid mpo network manual positions version");
+					JsonNode positionsNode = root.path("positions");
+					if (!positionsNode.isObject()) throw new IOException("Invalid mpo network manual positions");
+					java.util.Map<Long, java.awt.geom.Point2D> positions = project.getManualPertPositions();
+					for (java.util.Iterator<String> it = positionsNode.fieldNames(); it.hasNext();) {
+						String key = it.next();
+						JsonNode posNode = positionsNode.path(key);
+						Long taskUid;
+						try {
+							taskUid = Long.valueOf(key);
+						} catch (NumberFormatException ignored) {
+							continue;
+						}
+						Double x = posNode.path("x").isNumber() ? posNode.path("x").asDouble() : null;
+						Double y = posNode.path("y").isNumber() ? posNode.path("y").asDouble() : null;
+						if (x != null && y != null) {
+							positions.put(taskUid, new java.awt.geom.Point2D.Double(x, y));
+						}
+					}
+				}
 
 	/** Validates one per-task record and returns the mutation to apply once its task is found. */
 	@FunctionalInterface

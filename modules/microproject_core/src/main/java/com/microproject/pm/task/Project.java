@@ -201,8 +201,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	/** Project-scoped report definitions persisted with native project files. */
 		private transient Map<String, String> customReportPresets = new LinkedHashMap<>();
 		/** Per-category text styles for sheet views (Text Styles dialog). */
-		private transient SheetTextStyles sheetTextStyles = SheetTextStyles.empty();
-		private transient GanttBarFormatOverrides ganttBarFormatOverrides = new GanttBarFormatOverrides();
+			private transient SheetTextStyles sheetTextStyles = SheetTextStyles.empty();
+			/** Manual PERT box positions (task uniqueId -> center point at 100% zoom). Transient for POD; saved in MPO sidecar. */
+			private transient java.util.Map<Long, java.awt.geom.Point2D> manualPertPositions = null;
+			private transient GanttBarFormatOverrides ganttBarFormatOverrides = new GanttBarFormatOverrides();
 	private double risk = 0.0D;
 	private double netPresentValue = 0.0D;
 	private int benefit = 0;
@@ -2986,10 +2988,25 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		}
 
 		public void setSheetTextStyles(SheetTextStyles sheetTextStyles) {
-			this.sheetTextStyles = sheetTextStyles == null ? SheetTextStyles.empty() : sheetTextStyles;
-		}
+				this.sheetTextStyles = sheetTextStyles == null ? SheetTextStyles.empty() : sheetTextStyles;
+			}
 
-		public GanttBarFormatOverrides getGanttBarFormatOverrides() {
+			/** Returns the manual PERT box positions map, creating it if needed. */
+			public java.util.Map<Long, java.awt.geom.Point2D> getManualPertPositions() {
+				if (manualPertPositions == null) {
+					manualPertPositions = new java.util.HashMap<>();
+				}
+				return manualPertPositions;
+			}
+
+			/** Clears all manual PERT box positions. */
+			public void clearManualPertPositions() {
+				if (manualPertPositions != null) {
+					manualPertPositions.clear();
+				}
+			}
+
+			public GanttBarFormatOverrides getGanttBarFormatOverrides() {
 		if (ganttBarFormatOverrides == null)
 			ganttBarFormatOverrides = new GanttBarFormatOverrides();
 		return ganttBarFormatOverrides;

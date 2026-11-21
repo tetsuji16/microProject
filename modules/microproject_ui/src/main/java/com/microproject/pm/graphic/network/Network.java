@@ -129,9 +129,19 @@ public class Network extends Graph implements NetworkLayoutListener, NetworkPara
 		repaint();
 	}
 	public void setRouting(LinkRouting routing) {
-		this.routing=routing;
-	}
-	private void makeZoom(int newZoom) {
+			this.routing=routing;
+		}
+	
+		/** Clears manual PERT box positions and triggers automatic layout. */
+			public void layoutNow() {
+				Project project = getProject();
+				if (project != null) {
+					project.clearManualPertPositions();
+				}
+				relayout();
+			}
+	
+		private void makeZoom(int newZoom) {
 		int factor = newZoom - zoom;
 		if (factor > 0) {
 			for (int i =0; i < factor; i++)
@@ -182,31 +192,49 @@ public class Network extends Graph implements NetworkLayoutListener, NetworkPara
 		return ws;
 	}
 	public static class Workspace implements WorkspaceSetting  {
-		private static final long serialVersionUID = 7804032466144588065L;
-		int zoom;
-		Point viewPosition = null;
-		Boolean progressMarks;
-		Boolean linkLabels;
-		Boolean straightLinks;
-		Boolean collapsedBoxes;
-		Integer boxSpacing;
-		String boxStyles;
-		public int getZoom() {
-			return zoom;
+			private static final long serialVersionUID = 7804032466144588065L;
+			int zoom;
+			Point viewPosition = null;
+			Boolean progressMarks;
+			Boolean linkLabels;
+			Boolean straightLinks;
+			Boolean collapsedBoxes;
+			Integer boxSpacing;
+			String boxStyles;
+			/** Manual box positions (task uniqueId -> center point at 100% zoom). Transient for POD compatibility; saved in MPO sidecar. */
+			transient java.util.Map<Long, java.awt.geom.Point2D> manualPertPositions = null;
+		
+			public int getZoom() {
+				return zoom;
+			}
+		
+			public void setZoom(int zoom) {
+				this.zoom = zoom;
+			}
+		
+			public Point getViewPosition() {
+				return viewPosition;
+			}
+		
+			public void setViewPosition(Point viewPosition) {
+				this.viewPosition = viewPosition;
+			}
+		
+			/** Returns the manual PERT box positions map, creating it if needed. */
+			public java.util.Map<Long, java.awt.geom.Point2D> getManualPertPositions() {
+				if (manualPertPositions == null) {
+					manualPertPositions = new java.util.HashMap<>();
+				}
+				return manualPertPositions;
+			}
+		
+			/** Clears all manual PERT box positions. */
+			public void clearManualPertPositions() {
+				if (manualPertPositions != null) {
+					manualPertPositions.clear();
+				}
+			}
 		}
-
-		public void setZoom(int zoom) {
-			this.zoom = zoom;
-		}
-
-		public Point getViewPosition() {
-			return viewPosition;
-		}
-
-		public void setViewPosition(Point viewPosition) {
-			this.viewPosition = viewPosition;
-		}
-	}
 	public Rectangle getPrintBounds() {
 		return null;
 	}

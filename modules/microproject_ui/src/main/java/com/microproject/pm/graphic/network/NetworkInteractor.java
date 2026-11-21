@@ -38,6 +38,8 @@ import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.network.rendering.FieldChange;
 import com.microproject.field.FieldParseException;
 import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.pm.task.Project;
+import com.microproject.pm.task.Task;
 
 /**
  *
@@ -46,6 +48,10 @@ public class NetworkInteractor extends GraphInteractor{
 	private static final long serialVersionUID = 5365103090789265267L;
 	private static final Logger logger = Logger.getLogger(NetworkInteractor.class.getName());
 	protected static final int BAR_SELECTION=4;
+	protected static final int BAR_MOVE=5;
+	
+	/** Indicates a manual PERT box drag operation. */
+	protected static final int MANUAL_PERT_DRAG=6;
 	/**
 	 *
 	 */
@@ -57,10 +63,12 @@ public class NetworkInteractor extends GraphInteractor{
 
 
     protected void computeNodeSelection(double x,double y){
-    	if (((NetworkUI)ui).isOnBarEdge((GraphicNode)selected,x,y))
-			state=BAR_MOVE;
-		else state=BAR_SELECTION;
-    }
+        	if (((NetworkUI)ui).isOnBarEdge((GraphicNode)selected,x,y))
+        		state=BAR_MOVE;
+        	else if (switchOnLinkCreation(x, y))
+        		state=MANUAL_PERT_DRAG;
+        	else state=BAR_SELECTION;
+        }
 
 
     protected Shape getBarShadowBounds(double x,double y){
@@ -139,18 +147,34 @@ public class NetworkInteractor extends GraphInteractor{
     }
 
     public boolean executeAction(double x,double y){
-    	if (selected==null) return false;
-    	switch (state) {
-		case BAR_SELECTION:
-			((NetworkUI)ui).editNode((GraphicNode)selected);
-			return true;
-		case BAR_MOVE:
-			 ((NetworkRenderer)((NetworkUI)ui).getGraphRenderer()).translateShape((GraphicNode)selected,x-x0,y-y0);
-			return true;
-
-    	}
-    	return false;
-    }
+        	if (selected==null) return false;
+        	switch (state) {
+        	case BAR_SELECTION:
+        		((NetworkUI)ui).editNode((GraphicNode)selected);
+        		return true;
+        	case BAR_MOVE:
+        		 ((NetworkRenderer)((NetworkUI)ui).getGraphRenderer()).translateShape((GraphicNode)selected,x-x0,y-y0);
+        		return true;
+        	case MANUAL_PERT_DRAG:
+        	    		((NetworkRenderer)((NetworkUI)ui).getGraphRenderer()).translateShape((GraphicNode)selected,x-x0,y-y0);
+        	    		// Save manual position on drag end
+        	    		GraphicNode node = (GraphicNode)selected;
+        	    		Object impl = node.getNode().getImpl();
+        	    		if (impl instanceof Task) {
+        	    			Long taskUid = ((Task) impl).getUniqueId();
+        	    			Point2D center = node.getPertCenter();
+        	    			if (center != null) {
+        	    				Network network = (Network) ui.getGraph();
+        	    				Project project = network.getProject();
+        	    				if (project != null) {
+        	    					project.getManualPertPositions().put(taskUid, new Point2D.Double(center.getX(), center.getY()));
+        	    				}
+        	    			}
+        	    		}
+        	    		return true;
+        	}
+        	return false;
+        }
 
 
 
