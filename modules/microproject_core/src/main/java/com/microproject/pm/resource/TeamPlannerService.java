@@ -292,10 +292,27 @@ public final class TeamPlannerService {
 	}
 
 	public static String displayName(Resource resource) {
-		if (resource == null || resource == ResourceImpl.getUnassignedInstance()) {
-			return "Unassigned";
+			if (resource == null || resource == ResourceImpl.getUnassignedInstance()) {
+				return "Unassigned";
+			}
+			String name = resource.getName();
+			return name == null || name.isBlank() ? "Unnamed resource" : name;
 		}
-		String name = resource.getName();
-		return name == null || name.isBlank() ? "Unnamed resource" : name;
+
+		/**
+		 * Returns true if the resource is overallocated at any point in its schedule.
+		 */
+		public static boolean isOverallocated(Resource resource) {
+			Objects.requireNonNull(resource, "resource");
+			if (!resource.isLabor()) {
+				return false;
+			}
+			for (Object value : resource.getAssignments()) {
+				Assignment assignment = (Assignment) value;
+				if (!assignment.getTask().isInactiveTask() && isOverallocated(resource, assignment)) {
+					return true;
+				}
+			}
+			return false;
+		}
 	}
-}

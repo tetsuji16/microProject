@@ -528,9 +528,16 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	}
 
 	public boolean isMilestone() {
-		return false;
-	}
-	/** A task is a subproject reference when it implements the subproject contract. */
+			return false;
+		}
+		/**
+		 * Returns true if the task is marked (flagged by the user).
+		 * This corresponds to the "Marked" field in Microsoft Project.
+		 */
+		public boolean isMarked() {
+			return markerStatus;
+		}
+		/** A task is a subproject reference when it implements the subproject contract. */
 	public boolean isSubproject() {
 		return SubProj.isSubprojectReference(this);
 	}

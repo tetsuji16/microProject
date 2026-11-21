@@ -78,6 +78,7 @@ import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeException;
 import com.microproject.grouping.core.NodeFactory;
+import com.microproject.pm.format.SheetTextStyles;
 import com.microproject.grouping.core.NodeList;
 import com.microproject.grouping.core.NodeVisitor;
 import com.microproject.grouping.core.OutlineCollection;
@@ -198,8 +199,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	long currentDate = 0;
 	private Map<String, Object> extraFields = null;
 	/** Project-scoped report definitions persisted with native project files. */
-	private Map<String, String> customReportPresets = new LinkedHashMap<>();
-	private GanttBarFormatOverrides ganttBarFormatOverrides = new GanttBarFormatOverrides();
+		private transient Map<String, String> customReportPresets = new LinkedHashMap<>();
+		/** Per-category text styles for sheet views (Text Styles dialog). */
+		private transient SheetTextStyles sheetTextStyles = SheetTextStyles.empty();
+		private transient GanttBarFormatOverrides ganttBarFormatOverrides = new GanttBarFormatOverrides();
 	private double risk = 0.0D;
 	private double netPresentValue = 0.0D;
 	private int benefit = 0;
@@ -2971,12 +2974,22 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 
 	public final Map<String, String> getCustomReportPresets() {
-		if (customReportPresets == null)
-			customReportPresets = new LinkedHashMap<>();
-		return customReportPresets;
-	}
+			if (customReportPresets == null)
+				customReportPresets = new LinkedHashMap<>();
+			return customReportPresets;
+		}
 
-	public GanttBarFormatOverrides getGanttBarFormatOverrides() {
+		public SheetTextStyles getSheetTextStyles() {
+			if (sheetTextStyles == null)
+				sheetTextStyles = SheetTextStyles.empty();
+			return sheetTextStyles;
+		}
+
+		public void setSheetTextStyles(SheetTextStyles sheetTextStyles) {
+			this.sheetTextStyles = sheetTextStyles == null ? SheetTextStyles.empty() : sheetTextStyles;
+		}
+
+		public GanttBarFormatOverrides getGanttBarFormatOverrides() {
 		if (ganttBarFormatOverrides == null)
 			ganttBarFormatOverrides = new GanttBarFormatOverrides();
 		return ganttBarFormatOverrides;

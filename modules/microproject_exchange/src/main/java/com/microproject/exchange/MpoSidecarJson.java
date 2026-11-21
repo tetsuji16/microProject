@@ -13,6 +13,9 @@ import java.util.regex.Pattern;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.microproject.pm.format.SheetTextFormat;
+import com.microproject.pm.format.SheetTextStyleCategory;
+import com.microproject.pm.format.SheetTextStyles;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.TaskSplitInterval;
@@ -274,20 +277,20 @@ final class MpoSidecarJson {
 	}
 
 	static void restoreTaskTextStyles(Project project, byte[] bytes) throws IOException {
-		restorePerTaskOptions(project, bytes, "Invalid mpo task text styles", "MPO contains too many task text styles",
-			"Duplicate MPO task text style identity", "MPO task text styles reference an unknown task", node -> {
-				JsonNode family = node.get("fontFamily");
-				JsonNode size = node.get("fontSize");
-				JsonNode color = node.get("fontColor");
-				JsonNode bold = node.get("bold");
-				JsonNode italic = node.get("italic");
-				JsonNode strikethrough = node.get("strikethrough");
-				JsonNode underline = node.get("underline");
-				JsonNode fillColor = node.get("fillColor");
-				JsonNode onTimeline = node.get("displayOnTimeline");
-				// Task.setFontSize accepts 0 (inherit) through 72 points; a larger stored value
-				// is corrupted data, not a size to clamp silently.
-				if ((family != null && !family.isTextual()) || size == null || !size.isIntegralNumber()
+			restorePerTaskOptions(project, bytes, "Invalid mpo task text styles", "MPO contains too many task text styles",
+				"Duplicate MPO task text style identity", "MPO task text styles reference an unknown task", node -> {
+					JsonNode family = node.get("fontFamily");
+					JsonNode size = node.get("fontSize");
+					JsonNode color = node.get("fontColor");
+					JsonNode bold = node.get("bold");
+					JsonNode italic = node.get("italic");
+					JsonNode strikethrough = node.get("strikethrough");
+					JsonNode underline = node.get("underline");
+					JsonNode fillColor = node.get("fillColor");
+					JsonNode onTimeline = node.get("displayOnTimeline");
+					// Task.setFontSize accepts 0 (inherit) through 72 points; a larger stored value
+					// is corrupted data, not a size to clamp silently.
+					if ((family != null && !family.isTextual()) || size == null || !size.isIntegralNumber()
 						|| !size.canConvertToInt() || size.intValue() < 0 || size.intValue() > 72
 						|| (color != null && (!color.isIntegralNumber() || !color.canConvertToInt()
 							|| color.intValue() < 0 || color.intValue() > 0xFFFFFF))
@@ -297,20 +300,89 @@ final class MpoSidecarJson {
 						|| (onTimeline != null && !onTimeline.isBoolean())
 						|| (fillColor != null && (!fillColor.isIntegralNumber() || !fillColor.canConvertToInt()
 							|| fillColor.intValue() < 0 || fillColor.intValue() > 0xFFFFFF)))
-					throw new IOException("Invalid MPO task text style values");
-				return task -> {
-					task.setFontFamily(family == null ? null : family.textValue());
-					task.setFontSize(size.intValue());
-					task.setFontColor(color == null ? null : Integer.valueOf(color.intValue()));
-					task.setFontBold(bold.booleanValue());
-					task.setFontItalic(italic.booleanValue());
-					task.setFontStrikethrough(strikethrough.booleanValue());
-					task.setFontUnderline(underline != null && underline.booleanValue());
-					task.setDisplayOnTimeline(onTimeline != null && onTimeline.booleanValue());
-					task.setFontBackground(fillColor == null ? null : Integer.valueOf(fillColor.intValue()));
-				};
-			});
-	}
+						throw new IOException("Invalid MPO task text style values");
+					return task -> {
+						task.setFontFamily(family == null ? null : family.textValue());
+						task.setFontSize(size.intValue());
+						task.setFontColor(color == null ? null : Integer.valueOf(color.intValue()));
+						task.setFontBold(bold.booleanValue());
+						task.setFontItalic(italic.booleanValue());
+						task.setFontStrikethrough(strikethrough.booleanValue());
+						task.setFontUnderline(underline != null && underline.booleanValue());
+						task.setDisplayOnTimeline(onTimeline != null && onTimeline.booleanValue());
+						task.setFontBackground(fillColor == null ? null : Integer.valueOf(fillColor.intValue()));
+					};
+				});
+		}
+
+		static byte[] sheetTextStylesJson(Project project) throws IOException {
+			SheetTextStyles styles = project.getSheetTextStyles();
+			if (styles == null || styles.isEmpty()) {
+				return null;
+			}
+			ObjectNode root = JSON.createObjectNode();
+			root.put("version", 1);
+			ObjectNode categories = root.putObject("categories");
+			for (SheetTextStyleCategory category : SheetTextStyleCategory.values()) {
+				SheetTextFormat format = styles.get(category);
+				if (format != null && !format.isEmpty()) {
+					ObjectNode formatNode = categories.putObject(category.name());
+					if (format.family() != null) formatNode.put("fontFamily", format.family());
+					if (format.size() != 0) formatNode.put("fontSize", format.size());
+					if (format.color() != null) formatNode.put("fontColor", format.color());
+					if (format.bold()) formatNode.put("bold", true);
+					if (format.italic()) formatNode.put("italic", true);
+					if (format.strikethrough()) formatNode.put("strikethrough", true);
+					if (format.underline()) formatNode.put("underline", true);
+					if (format.background() != null) formatNode.put("fillColor", format.background());
+				}
+			}
+			if (categories.size() == 0) {
+				return null;
+			}
+			return JSON.writeValueAsBytes(root);
+		}
+
+		static void restoreSheetTextStyles(Project project, byte[] bytes) throws IOException {
+			JsonNode root = JSON.readTree(bytes);
+			if (requiredInt(root, "version") != 1) throw new IOException("Invalid mpo sheet text styles version");
+			JsonNode categories = root.path("categories");
+			if (!categories.isObject()) throw new IOException("Invalid mpo sheet text styles categories");
+			SheetTextStyles styles = SheetTextStyles.empty();
+			for (java.util.Iterator<String> it = categories.fieldNames(); it.hasNext();) {
+				String categoryName = it.next();
+				JsonNode formatNode = categories.path(categoryName);
+				SheetTextStyleCategory category;
+				try {
+					category = SheetTextStyleCategory.valueOf(categoryName);
+				} catch (IllegalArgumentException ignored) {
+					// Ignore unknown categories for forward compatibility
+					continue;
+				}
+				String family = formatNode.path("fontFamily").isTextual() ? formatNode.path("fontFamily").textValue() : null;
+				Integer size = formatNode.path("fontSize").isIntegralNumber() ? Integer.valueOf(formatNode.path("fontSize").intValue()) : null;
+				Integer color = formatNode.path("fontColor").isIntegralNumber() ? Integer.valueOf(formatNode.path("fontColor").intValue()) : null;
+				Boolean bold = formatNode.path("bold").isBoolean() ? Boolean.valueOf(formatNode.path("bold").booleanValue()) : null;
+				Boolean italic = formatNode.path("italic").isBoolean() ? Boolean.valueOf(formatNode.path("italic").booleanValue()) : null;
+				Boolean strikethrough = formatNode.path("strikethrough").isBoolean() ? Boolean.valueOf(formatNode.path("strikethrough").booleanValue()) : null;
+				Boolean underline = formatNode.path("underline").isBoolean() ? Boolean.valueOf(formatNode.path("underline").booleanValue()) : null;
+				Integer background = formatNode.path("fillColor").isIntegralNumber() ? Integer.valueOf(formatNode.path("fillColor").intValue()) : null;
+				SheetTextFormat format = new SheetTextFormat(
+					family,
+					size != null ? size : 0,
+					color,
+					bold != null ? bold : false,
+					italic != null ? italic : false,
+					strikethrough != null ? strikethrough : false,
+					underline != null ? underline : false,
+					background
+				);
+				if (!format.isEmpty()) {
+					styles.set(category, format);
+				}
+			}
+			project.setSheetTextStyles(styles);
+		}
 
 	/** Validates one per-task record and returns the mutation to apply once its task is found. */
 	@FunctionalInterface
