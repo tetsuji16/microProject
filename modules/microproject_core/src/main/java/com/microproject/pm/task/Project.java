@@ -2120,9 +2120,11 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		Map<Task, Node> changedChildrenByParent = new IdentityHashMap<>();
 		int count=e.getNodes().length;
 		if (count==0) return;
+		boolean taskNodeChanged = false;
 		for (int i=0;i<count;i++){
 			node=(Node)e.getNodes()[i];
 			if (!(node.getImpl() instanceof Task task)) continue;
+			taskNodeChanged = true;
 
 			previousParentTask=task.getWbsParentTask();
 			previousParentNode=taskOutlines.getDefaultOutline().search(previousParentTask);
@@ -2169,7 +2171,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			for (LeafScheduleTransition transition : transitionedToLeaf) {
 				initializeFormerSummaryLeaf(transition.task(), true, transition.span(), transition.percentComplete());
 			}
-			updateScheduling(e.getSource(),this,ObjectEvent.CREATE); // calculate final leaf state before publishing schedule events
+			// Assignment-only (or other non-task) nodes leave the task structure unchanged;
+			// their own object events already request the recalculation they need.
+			if (taskNodeChanged)
+				updateScheduling(e.getSource(),this,ObjectEvent.CREATE); // calculate final leaf state before publishing schedule events
 		}
 	}
 	public void nodesInserted(HierarchyEvent e) {

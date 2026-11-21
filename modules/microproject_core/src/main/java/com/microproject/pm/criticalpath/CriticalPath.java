@@ -72,6 +72,14 @@ public class CriticalPath implements SchedulingAlgorithm {
 	private final List<Task> deferredTaskOrderRebuild = new ArrayList<>();
 	private final Set<Task> deferredTaskOrderSet = Collections.newSetFromMap(new IdentityHashMap<>());
 	private final Set<Task> deferredDependencyInvalidationSeeds = Collections.newSetFromMap(new IdentityHashMap<>());
+	/**
+	 * The single start task named by every calculation request deferred while updates
+	 * are suspended, or null.  {@link #deferredFullCalculation} is set as soon as a
+	 * request names no task or a different task, so the batch falls back to a pass
+	 * from the boundary sentinel.
+	 */
+	private Task deferredCalculationTask = null;
+	private boolean deferredFullCalculation = false;
 	private final Map<Task, Dependency> startSentinelDependencyIndex = new IdentityHashMap<>();
 	private final Map<Task, Dependency> finishSentinelDependencyIndex = new IdentityHashMap<>();
 	long earliestStart;
@@ -202,7 +210,8 @@ public class CriticalPath implements SchedulingAlgorithm {
 		context.sentinelDependencyIndex = sentinelDependencyIndex(endSentinel);
 		context.earlyOnly = false;
 		context.assign = false;
-		context.scheduleType = isForward() ? TaskSchedule.Kind.EARLY : TaskSchedule.Kind.LATE;
+		TaskSchedule.Kind assignedScheduleType = isForward() ? TaskSchedule.Kind.EARLY : TaskSchedule.Kind.LATE;
+		context.scheduleType = assignedScheduleType;
 		context.pass = 0;
 		boolean affectsCriticalPath = (startTask == beginSentinel) || startTask.getSchedule(context.scheduleType).affectsCriticalPath(context);
 		
@@ -213,7 +222,8 @@ public class CriticalPath implements SchedulingAlgorithm {
 		criticalPathJustChanged = affectsCriticalPath;
 		doPass(startTask,context); // always assign in first pass.  Dates may change in third pass
 		
-		if (affectsCriticalPath) {
+		// A localized forward pass moves the task's own late dates and its predecessors' late finishes even off the critical path.
+		{
 			context.stateCount = getNextCalculationStateCount(); // backward pass treats next increment
 			context.sentinel = endSentinel;
 			long secondBoundary = -endSentinel.getSchedule(context.scheduleType).getBegin(); // sent bounds of end sentinel for backward pass
@@ -230,7 +240,7 @@ public class CriticalPath implements SchedulingAlgorithm {
 			project.setStart(startSentinel.getEarlyStart());
 			project.setEnd(finishSentinel.getEarlyFinish());
 			
-			if (hasReverseScheduledTasks) {
+			if (affectsCriticalPath && hasReverseScheduledTasks) {
 				context.stateCount = getNextCalculationStateCount(); // backward pass treats next increment
 				context.forward = !context.forward;
 				context.boundary = firstBoundary;
@@ -245,7 +255,27 @@ public class CriticalPath implements SchedulingAlgorithm {
 			}
 			
 		}
+		if (startTask != beginSentinel)
+			refreshEarliestAndLatest(assignedScheduleType); // a localized pass only widens the extrema
 		getFreshCalculationStateCount(); // For next time;
+	}
+	/**
+	 * Recomputes the project extrema from the current schedules of every task, exactly as a
+	 * full pass would, so that a localized pass whose task finishes earlier shrinks them.
+	 */
+	private void refreshEarliestAndLatest(TaskSchedule.Kind kind) {
+		initEarliestAndLatest();
+		boolean projectForward = project.isForward();
+		for (PredecessorTaskList.TaskReference taskReference : predecessorTaskList.getList()) {
+			Task task = taskReference.getTask();
+			if (isSentinel(task) || !(projectForward || !task.isWbsParent()))
+				continue;
+			TaskSchedule schedule = task.getSchedule(kind);
+			if (schedule.getBegin() != 0L)
+				earliestStart = Math.min(earliestStart, schedule.getStart());
+			if (schedule.getEnd() != 0)
+				latestFinish = Math.max(latestFinish, schedule.getFinish());
+		}
 	}
 	
 	private void doPass(Task startTask, TaskSchedule.CalculationContext context) {
@@ -315,8 +345,13 @@ public class CriticalPath implements SchedulingAlgorithm {
 			fireScheduleChanged();
 	}
 	private void calculate(final boolean update, final Task task) {
-		if (suspendUpdates)
+		if (suspendUpdates) {
+			if (task == null || (deferredCalculationTask != null && deferredCalculationTask != task))
+				deferredFullCalculation = true;
+			else
+				deferredCalculationTask = task;
 			return;
+		}
 		_calculate(update,task);
 		// Keep scheduling synchronous because callers require immediate updates (bug 225).
 	}
@@ -580,6 +615,12 @@ public class CriticalPath implements SchedulingAlgorithm {
 	public void multipleTransaction(MultipleTransaction objectEvent) {
 		if (objectEvent.isFinalEnd()) {
 			suspendUpdates = false;
+			// A batch whose deferred requests all named one task, with no structural
+			// change pending, is recalculated from that task as an unbatched event would be.
+			Task startTask = deferredFullCalculation || needsReset || !deferredTaskOrderRebuild.isEmpty()
+					|| !deferredDependencyInvalidationSeeds.isEmpty() ? null : deferredCalculationTask;
+			deferredCalculationTask = null;
+			deferredFullCalculation = false;
 			if (!deferredTaskOrderRebuild.isEmpty()) {
 				predecessorTaskList.addAll(project.getTaskList());
 				setProjectBoundaries();
@@ -594,8 +635,12 @@ public class CriticalPath implements SchedulingAlgorithm {
 				deferredDependencyInvalidationSeeds.clear();
 				Task.markDependentClosureAsNeedingRecalculation(seeds);
 			}
-			calculate(true,null);
+			calculate(true,startTask);
 		} else {
+			if (!suspendUpdates) {
+				deferredCalculationTask = null;
+				deferredFullCalculation = false;
+			}
 			suspendUpdates = true;
 		}
 		
