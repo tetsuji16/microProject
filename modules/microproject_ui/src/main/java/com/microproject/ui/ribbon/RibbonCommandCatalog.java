@@ -250,6 +250,13 @@ final class RibbonCommandCatalog {
 		return Map.copyOf(result);
 	}
 
+	/** Default tab IDs; the File tab is fixed. */
+	static List<String> defaultTabIds() {
+		return List.of(FILE, TASK, RESOURCE, REPORT, PROJECT, VIEW, HELP, FORMAT, NETWORK_FORMAT, CALENDAR_FORMAT,
+			TIMELINE_FORMAT, TEAM_PLANNER_FORMAT, RESOURCE_GRAPH_FORMAT, TASK_SHEET_FORMAT, TASK_USAGE_FORMAT,
+			RESOURCE_SHEET_FORMAT, RESOURCE_USAGE_FORMAT);
+	}
+
 	static List<String> quickAccessCandidates() {
 		return PLACEMENTS.keySet().stream().sorted().toList();
 	}
