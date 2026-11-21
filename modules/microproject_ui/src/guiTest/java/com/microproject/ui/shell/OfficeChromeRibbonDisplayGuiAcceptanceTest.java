@@ -316,6 +316,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		boolean previousNewLook = Environment.isNewLook();
 		RibbonDisplayPreferences.saveRibbonCustomization(com.microproject.ui.ribbon.RibbonCustomization.none());
 		RibbonDisplayPreferences.resetQuickAccessCommands();
+		RibbonDisplayPreferences.save(RibbonDisplayMode.ALWAYS_SHOW);
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
 		try {

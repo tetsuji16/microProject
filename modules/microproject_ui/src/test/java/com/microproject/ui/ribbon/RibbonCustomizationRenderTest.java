@@ -188,6 +188,26 @@ class RibbonCustomizationRenderTest {
 	}
 
 	@Test
+	void resizeAfterReleaseDoesNotRegisterTheRetiredRibbonControlsAgain() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			SwingRibbonFactory factory = factory();
+			JPanel host = factory.createPanel(factory.createModel(MenuManager.STANDARD_RIBBON, null), null);
+			RibbonController ribbon = (RibbonController) host.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
+			java.awt.Component panel = (java.awt.Component) ribbon;
+			int before = factory.getRibbonControlsFromId("RibbonFind").size();
+			ribbon.releaseCommandControls();
+			int released = factory.getRibbonControlsFromId("RibbonFind").size();
+			panel.setSize(panel.getWidth() + 200, Math.max(panel.getHeight(), 100));
+			for (java.awt.event.ComponentListener listener : panel.getComponentListeners()) {
+				listener.componentResized(new java.awt.event.ComponentEvent(panel, java.awt.event.ComponentEvent.COMPONENT_RESIZED));
+			}
+			assertTrue(released <= before);
+			assertEquals(released, factory.getRibbonControlsFromId("RibbonFind").size(),
+				"a resize after release must not register the controls of the retired ribbon");
+		});
+	}
+
+	@Test
 	void customGroupsKeyedToTheFileTabAreRejectedRatherThanDropped() {
 		RibbonCustomization customization = custom(List.of(), Set.of(), List.of(),
 			Map.of("FileRibbonTask", List.of(new CustomGroup("g-file", "Mine", List.of("RibbonFind")))));

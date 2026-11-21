@@ -209,6 +209,8 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	private final Map<String, Integer> bandHeights;
 	private final List<Consumer<RibbonDisplayMode>> displayModeListeners = new ArrayList<>();
 	private final List<AbstractButton> taskBarProxies = new ArrayList<>();
+	/** Set once the command controls were released; a retired ribbon must not rebuild its tab bodies on resize. */
+	private boolean released;
 	private final java.util.Set<String> visibleContextualTabs = new LinkedHashSet<>();
 	private final Map<String, String> contextualTabTitles = new LinkedHashMap<>();
 	private RibbonDensity density = RibbonDensity.FULL;
@@ -412,6 +414,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 
 	@Override
 	public void releaseCommandControls() {
+		released = true;
 		// Hide the window-level overlay without dismissing it, which would restore a tab of this retired ribbon.
 		if (backstageOpen && backstageHost != null) backstageHost.hide();
 		backstageOpen = false;
@@ -1944,7 +1947,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	}
 
 	private void updateResponsiveMode() {
-		if (rebuildingDensity) {
+		if (rebuildingDensity || released) {
 			return;
 		}
 		RibbonDensity nextDensity = RibbonDensity.forWidth(getWidth());
