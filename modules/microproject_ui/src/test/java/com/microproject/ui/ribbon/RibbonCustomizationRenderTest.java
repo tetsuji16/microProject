@@ -187,6 +187,24 @@ class RibbonCustomizationRenderTest {
 		});
 	}
 
+	@Test
+	void customGroupsKeyedToTheFileTabAreRejectedRatherThanDropped() {
+		RibbonCustomization customization = custom(List.of(), Set.of(), List.of(),
+			Map.of("FileRibbonTask", List.of(new CustomGroup("g-file", "Mine", List.of("RibbonFind")))));
+		assertTrue(customization.defaultTabGroups().isEmpty());
+	}
+
+	@Test
+	void initialSelectionSkipsAnInvisibleContextualTabThatCustomOrderPlacedFirst() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			JPanel host = factory().createPanel(factory().createModel(MenuManager.STANDARD_RIBBON, null,
+				custom(List.of("FormatRibbonTask", "TaskRibbonTask"), Set.of(), List.of(), Map.of())), null);
+			RibbonController ribbon = (RibbonController) host.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
+			assertNotNull(ribbon.getSelectedTabId());
+			assertFalse("FormatRibbonTask".equals(ribbon.getSelectedTabId()));
+		});
+	}
+
 	private static SwingRibbonModel.RibbonTab tab(SwingRibbonModel model, String id) {
 		return model.getTabs().stream().filter(tab -> tab.getId().equals(id)).findFirst().orElseThrow();
 	}
