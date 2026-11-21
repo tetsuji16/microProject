@@ -2364,7 +2364,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		private static final long serialVersionUID = 1L;
 		public void actionPerformed(ActionEvent arg0) {
 			setMeAsLastGraphicManager();
-			showPreferences(false);
+			// The Quick Access Toolbar menu asks for its own category through the action command.
+			showPreferences(arg0 != null && PreferencesDialogBox.CATEGORY_QUICK_ACCESS.equals(arg0.getActionCommand())
+				? PreferencesDialogBox.CATEGORY_QUICK_ACCESS : PreferencesDialogBox.CATEGORY_GENERAL);
 		}
 	}
 
@@ -3699,14 +3701,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	private void showLocaleDialog() {
-		showPreferences(true);
+		showPreferences(PreferencesDialogBox.CATEGORY_LANGUAGE);
 	}
 
-	private void showPreferences(boolean showLocaleTab) {
+	private void showPreferences(String categoryId) {
 		Preferences pref = Preferences.userNodeForPackage(ConfigurationFile.class);
 		String previousLocale = pref.get("locale", "default");
 		PreferencesDialogBox.showDialog(getFrame(), getPreferences(), () -> applyLocaleChange(previousLocale),
-			autoRecoveryManager, showLocaleTab);
+			autoRecoveryManager, categoryId);
 	}
 
 	private void applyLocaleChange(String previousLocale) {

@@ -342,10 +342,11 @@ class PreferencesDialogGuiAcceptanceTest {
 		assertTrue(categories != null, "Preferences dialog must expose its category list");
 		assertEquals(java.util.List.of(UsabilityStrings.text("preferences.general"),
 			UsabilityStrings.text("preferences.display"), UsabilityStrings.text("preferences.save"),
+			UsabilityStrings.text("preferences.customizeRibbon"), UsabilityStrings.text("preferences.quickAccess"),
 			UsabilityStrings.text("preferences.language")),
 			java.util.stream.IntStream.range(0, categories.getModel().getSize())
 				.mapToObj(index -> String.valueOf(categories.getModel().getElementAt(index))).toList(),
-			"Categories must be General, Display, Save, Language in this order");
+			"Categories must be General, Display, Save, Customize Ribbon, Quick Access, Language in this order");
 		assertEquals(0, categories.getSelectedIndex(), "General must be selected by default");
 		assertTrue(categories.getAccessibleContext().getAccessibleName() != null
 			&& !categories.getAccessibleContext().getAccessibleName().isBlank(), "Category list needs an accessible name");
@@ -792,7 +793,7 @@ class PreferencesDialogGuiAcceptanceTest {
 		clicker.waitForIdle();
 		GuiAcceptanceSupport.await(() -> name.equals(categories.getSelectedValue()), "Category " + name + " was not selected");
 		GuiAcceptanceSupport.await(() -> {
-			for (int index = 0; index < 4; index++) {
+			for (int index = 0; index < 6; index++) {
 				javax.swing.JScrollPane page = findNamedComponent(dialog, javax.swing.JScrollPane.class,
 					"preferencesCategory." + index);
 				if (page != null && page.isShowing() && name.equals(page.getAccessibleContext().getAccessibleName()))

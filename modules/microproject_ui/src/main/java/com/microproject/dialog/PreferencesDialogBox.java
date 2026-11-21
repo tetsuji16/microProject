@@ -42,6 +42,14 @@ import com.microproject.ui.util.PopupDialogSupport;
 /** User-level settings which are independent of a project file. */
 public final class PreferencesDialogBox extends FlatLafDialog {
 	private static final long serialVersionUID = 1L;
+	/** Category IDs for {@link #showDialog(Frame, GlobalPreferences, Runnable, AutoSaveControl, String)}. */
+	public static final String CATEGORY_GENERAL = "general";
+	public static final String CATEGORY_DISPLAY = "display";
+	public static final String CATEGORY_SAVE = "save";
+	public static final String CATEGORY_CUSTOMIZE_RIBBON = "customizeRibbon";
+	public static final String CATEGORY_QUICK_ACCESS = "quickAccess";
+	public static final String CATEGORY_LANGUAGE = "language";
+
 	private boolean applied;
 
 	public static void showDialog(Frame owner, GlobalPreferences preferences) {
@@ -60,13 +68,19 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 
 	public static void showDialog(Frame owner, GlobalPreferences preferences, Runnable localeAction,
 			AutoSaveControl autoSaveControl, boolean showLocaleTab) {
-		PreferencesDialogBox dialog = new PreferencesDialogBox(owner, preferences, autoSaveControl, showLocaleTab);
+		showDialog(owner, preferences, localeAction, autoSaveControl, showLocaleTab ? CATEGORY_LANGUAGE : CATEGORY_GENERAL);
+	}
+
+	/** Opens preferences with the category named by one of the {@code CATEGORY_*} IDs selected; an unknown ID selects the first. */
+	public static void showDialog(Frame owner, GlobalPreferences preferences, Runnable localeAction,
+			AutoSaveControl autoSaveControl, String categoryId) {
+		PreferencesDialogBox dialog = new PreferencesDialogBox(owner, preferences, autoSaveControl, categoryId);
 		dialog.setVisible(true);
 		if (dialog.applied && localeAction != null) localeAction.run();
 	}
 
 	private PreferencesDialogBox(Frame owner, GlobalPreferences preferences, AutoSaveControl autoSaveControl,
-			boolean showLocaleTab) {
+			String initialCategory) {
 		super(owner, UsabilityStrings.text("preferences.title"), true);
 		FlatUiSupport.styleDialogRoot(getRootPane());
 		PopupDialogSupport.bindEscapeToDispose(this);
@@ -152,14 +166,26 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		LocaleDialog localeSettings = LocaleDialog.createPreferencesSection(owner);
 		// Like File > Options in Microsoft Project: categories on the left, the chosen one on the right.
 		java.util.List<String> categoryNames = new java.util.ArrayList<>();
+		java.util.List<String> categoryIds = new java.util.ArrayList<>();
 		CardLayout cards = new CardLayout();
 		JPanel cardPanel = new JPanel(cards);
+		RibbonCustomizationPanel ribbonPage = new RibbonCustomizationPanel();
+		QuickAccessCustomizationPanel quickAccessPage = new QuickAccessCustomizationPanel();
 		addCategory(cardPanel, categoryNames, UsabilityStrings.text("preferences.general"), general);
+		categoryIds.add(CATEGORY_GENERAL);
 		addCategory(cardPanel, categoryNames, UsabilityStrings.text("preferences.display"), display);
-		if (save != null)
+		categoryIds.add(CATEGORY_DISPLAY);
+		if (save != null) {
 			addCategory(cardPanel, categoryNames, UsabilityStrings.text("preferences.save"), save);
+			categoryIds.add(CATEGORY_SAVE);
+		}
+		addCategory(cardPanel, categoryNames, UsabilityStrings.text("preferences.customizeRibbon"), ribbonPage);
+		categoryIds.add(CATEGORY_CUSTOMIZE_RIBBON);
+		addCategory(cardPanel, categoryNames, UsabilityStrings.text("preferences.quickAccess"), quickAccessPage);
+		categoryIds.add(CATEGORY_QUICK_ACCESS);
 		addCategory(cardPanel, categoryNames, UsabilityStrings.text("preferences.language"),
 			localeSettings.createPreferencesContent());
+		categoryIds.add(CATEGORY_LANGUAGE);
 		JList<String> categories = new JList<>(categoryNames.toArray(new String[0]));
 		categories.setName("preferencesCategories");
 		categories.getAccessibleContext().setAccessibleName(UsabilityStrings.text("preferences.categories"));
@@ -169,7 +195,7 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 			String chosen = categories.getSelectedValue();
 			if (!event.getValueIsAdjusting() && chosen != null) cards.show(cardPanel, chosen);
 		});
-		categories.setSelectedIndex(showLocaleTab ? categoryNames.size() - 1 : 0);
+		categories.setSelectedIndex(Math.max(0, categoryIds.indexOf(initialCategory)));
 		JScrollPane categoryScroll = new JScrollPane(categories);
 		categoryScroll.setName("preferencesCategoriesScroll");
 		JSplitPane tabs = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, categoryScroll, cardPanel);
@@ -182,6 +208,11 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		apply.addActionListener(event -> {
 			if (!datePattern.isValid() || !dateTimePattern.isValid() || !currencyCode.isValid()) {
 				JOptionPane.showMessageDialog(this, UsabilityStrings.text("preferences.invalidFormat"),
+					UsabilityStrings.text("preferences.title"), JOptionPane.ERROR_MESSAGE);
+				return;
+			}
+			if (!ribbonPage.canSave()) {
+				JOptionPane.showMessageDialog(this, UsabilityStrings.text("ribbonCustomize.tooLarge"),
 					UsabilityStrings.text("preferences.title"), JOptionPane.ERROR_MESSAGE);
 				return;
 			}
@@ -218,7 +249,12 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 				preferences.applyFormatPreferences();
 			if (recoveryInterval != null)
 				autoSaveControl.setIntervalMinutes(((Number) recoveryInterval.getValue()).intValue());
+			boolean ribbonChanged = ribbonPage.saveIfChanged();
+			boolean quickAccessChanged = quickAccessPage.saveIfChanged();
 			dispose();
+			// Ribbon and Quick Access edits take effect in every open window once they are stored.
+			if (ribbonChanged || quickAccessChanged)
+				com.microproject.ui.shell.MicroProjectShell.rebuildOpenRibbons();
 			// Typography and display formats are applied once, after the modal dialog is gone, and only
 			// when they changed. A theme switch below refreshes every window itself.
 			if (fontChanged)

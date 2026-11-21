@@ -226,10 +226,27 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 	}
 
 	@Test
-	void quickAccessCustomizationAddsAndPersistsCanonicalRibbonAction() throws Exception {
+	void quickAccessCustomizeItemOpensTheQuickAccessCategoryThroughTheOptionsCommand() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
-		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
-		RibbonDisplayPreferences.saveQuickAccessCommands(java.util.List.of("RibbonTopBarSaveProject"));
+		java.util.List<String> optionsCommands = new java.util.concurrent.CopyOnWriteArrayList<>();
+		MenuManager manager = MenuManager.getInstance(new com.microproject.menu.ProjectMenuActionMap() {
+			@Override
+			public javax.swing.Action getAction(String key) {
+				return new javax.swing.AbstractAction(key) {
+					private static final long serialVersionUID = 1L;
+					@Override
+					public void actionPerformed(java.awt.event.ActionEvent event) {
+						optionsCommands.add(key + ":" + event.getActionCommand());
+					}
+				};
+			}
+
+			@Override
+			public String getStringFromAction(javax.swing.Action action) {
+				Object value = action.getValue(javax.swing.Action.NAME);
+				return value == null ? "" : value.toString();
+			}
+		});
 		JPanel ribbonHost = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
 		OfficeChromePanel chrome = new OfficeChromePanel(manager, ribbonHost, () -> { });
 		SwingUtilities.invokeAndWait(() -> {
@@ -247,34 +264,10 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(frame::isActive, "Quick Access acceptance window did not become active");
 		click(robot, findShowingButton(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME));
 		click(robot, popupItem(UsabilityStrings.text("chrome.customizeQuickAccess")));
-		JCheckBox findChoice = findVisibleComponent("quickAccessChoice.RibbonFind", JCheckBox.class);
-		scrollIntoView(robot, findChoice);
-		click(robot, findChoice);
-		robot.keyPress(KeyEvent.VK_ENTER);
-		robot.keyRelease(KeyEvent.VK_ENTER);
-		robot.waitForIdle();
-		GuiAcceptanceSupport.await(() -> RibbonDisplayPreferences.loadQuickAccessCommands().contains("RibbonFind"),
-			"accepted Quick Access customization was not persisted");
-		assertEquals(java.util.List.of("RibbonTopBarSaveProject", "RibbonFind"),
-			RibbonDisplayPreferences.loadQuickAccessCommands(),
-			"newly selected command must be appended after the existing QAT command");
-		AbstractButton findButton = findShowingButton(chrome, "RibbonFind");
-		assertEquals("RibbonFind", findButton.getActionCommand(),
-			"customized QAT controls must dispatch through the canonical RibbonFind command id");
-		assertEquals(manager.getActionFromId("RibbonFind").getValue(javax.swing.Action.NAME),
-			findButton.getAction().getValue(javax.swing.Action.NAME),
-			"customized QAT command must use the action registered for the canonical RibbonFind id");
-		click(robot, findShowingButton(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME));
-		click(robot, popupItem(UsabilityStrings.text("chrome.resetQuickAccess")));
-		robot.keyPress(KeyEvent.VK_ENTER);
-		robot.keyRelease(KeyEvent.VK_ENTER);
-		robot.waitForIdle();
-		GuiAcceptanceSupport.await(() -> RibbonDisplayPreferences.loadQuickAccessCommands().equals(
-			java.util.List.of("RibbonTopBarSaveProject", "RibbonTopBarUndo", "RibbonTopBarRedo")),
-			"confirmed reset did not restore the default Quick Access commands");
-		assertFalse(UiComponentWalker.flatten(findComponent(chrome, OfficeChromePanel.QUICK_ACCESS_COMMANDS_NAME))
-			.stream().anyMatch(component -> "RibbonFind".equals(component.getName())),
-			"reset must remove customized controls from the live QAT");
+		String expected = "GeneralOptions:" + com.microproject.dialog.PreferencesDialogBox.CATEGORY_QUICK_ACCESS;
+		GuiAcceptanceSupport.await(() -> optionsCommands.contains(expected),
+			"the customize item did not run the Options command with the Quick Access category: " + optionsCommands);
+		assertEquals(java.util.List.of(expected), optionsCommands, "exactly the Options command must have run");
 	}
 
 	@Test
