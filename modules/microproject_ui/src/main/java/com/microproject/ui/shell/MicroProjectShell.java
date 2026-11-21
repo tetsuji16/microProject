@@ -28,6 +28,7 @@ import java.awt.Color;
 import java.awt.Container;
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.Window;
 import java.util.Objects;
 
 import javax.swing.Box;
@@ -40,6 +41,7 @@ import javax.swing.JMenuBar;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 import javax.swing.JToolBar;
+import javax.swing.SwingUtilities;
 
 import com.microproject.menu.MenuManager;
 import com.microproject.ui.ribbon.RibbonController;
@@ -90,6 +92,7 @@ public final class MicroProjectShell {
 
 	public static ShellHandles installRibbonShell(MainRibbonFrame frame, MenuManager menuManager, Runnable helpAction,
 		AutoSaveControl autoSaveControl) {
+		frame.setRibbonInstaller(() -> installRibbonShell(frame, menuManager, helpAction, autoSaveControl));
 		JPanel ribbonPanel = menuManager.createRibbonPanel(MenuManager.STANDARD_RIBBON, helpAction);
 		if (ribbonPanel == null) {
 			ribbonPanel = new JPanel(new BorderLayout());
@@ -108,6 +111,21 @@ public final class MicroProjectShell {
 		frame.setRibbonBackstageHost(new OfficeBackstageHost(frame,
 			((OfficeChromePanel)shell).getHeaderComponent()));
 		return new ShellHandles(null, null, null);
+	}
+
+	/**
+	 * Rebuilds the ribbon of every open document window from the saved {@link RibbonDisplayPreferences#loadRibbonCustomization()
+	 * customization}. Call it after saving a customization. It may be called from any thread; the work runs on the
+	 * event dispatch thread. Each window keeps its selected tab if the new ribbon still has it, otherwise it shows Task.
+	 */
+	public static void rebuildOpenRibbons() {
+		if (SwingUtilities.isEventDispatchThread()) {
+			for (Window window : Window.getWindows()) {
+				if (window instanceof MainRibbonFrame ribbonFrame) ribbonFrame.rebuildRibbon();
+			}
+		} else {
+			SwingUtilities.invokeLater(MicroProjectShell::rebuildOpenRibbons);
+		}
 	}
 
 	public static ShellHandles installNewLookShell(

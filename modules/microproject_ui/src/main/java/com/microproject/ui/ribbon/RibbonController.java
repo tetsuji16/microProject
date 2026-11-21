@@ -18,6 +18,7 @@ import java.util.function.Consumer;
  */
 public interface RibbonController {
 	String CONTEXTUAL_TABS_PROPERTY = "microproject.ribbon.contextualTabs";
+	String TASK_TAB_ID = "TaskRibbonTask";
 	String AUTO_HIDE_REVEAL_CONTROL_PROPERTY = "microproject.ribbon.autoHideRevealControl";
 
 	void setRibbonDisplayMode(RibbonDisplayMode mode);
@@ -38,6 +39,15 @@ public interface RibbonController {
 	void setVisibleContextualTabs(Collection<String> tabIds);
 
 	void setContextualTabTitles(Map<String, String> titles);
+
+	/** The ID of the selected tab, or {@code null} before one is shown. */
+	String getSelectedTabId();
+
+	/** Selects a visible tab; returns false, changing nothing, when the ribbon has no such visible tab. */
+	boolean selectTab(String tabId);
+
+	/** Unregisters the commands of this ribbon from the command source before it is replaced. */
+	void releaseCommandControls();
 
 	/** Connects File-tab navigation to the window-level Backstage surface. */
 	void setBackstageHost(RibbonBackstageHost host);

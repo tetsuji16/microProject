@@ -397,6 +397,26 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		return commandSource.dispatch(new RibbonCommandInvocation(commandId, origin, source));
 	}
 
+	@Override
+	public String getSelectedTabId() {
+		return activeTabId;
+	}
+
+	@Override
+	public boolean selectTab(String tabId) {
+		if (tabId == null || isBackstageTab(tabId) || !isTabVisible(tabId)) return false;
+		showTab(tabId);
+		return true;
+	}
+
+	@Override
+	public void releaseCommandControls() {
+		discardBackstageView();
+		unregisterButtons(new ArrayList<>(tabBodies.values()));
+		tabBodies.clear();
+		tabBodyBuildWidths.clear();
+	}
+
 	/** Selects the first document-oriented ribbon tab. */
 	public void showProjectTab() {
 		model.getTabs().stream()

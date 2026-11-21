@@ -42,6 +42,7 @@ import com.microproject.ribbon.SwingRibbonModel;
 import com.microproject.ribbon.SwingRibbonModel.CustomBandProvider;
 
 public final class SwingRibbonFactory {
+	private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(SwingRibbonFactory.class.getName());
 	private final RibbonCommandSource commandSource;
 	private final ResourceBundle[] bundles;
 	private volatile RibbonDropDownSource dropDownSource;
@@ -58,7 +59,17 @@ public final class SwingRibbonFactory {
 	}
 
 	public SwingRibbonModel createModel(String ribbonId, CustomRibbonBandGenerator customBandsGenerator) {
+		return createModel(ribbonId, customBandsGenerator, RibbonDisplayPreferences.loadRibbonCustomization());
+	}
+
+	/**
+	 * Creates the default model and then applies {@code customization} to it. The default model is validated
+	 * first; the customization only reorders, hides and adds, so it never changes what the catalog guarantees.
+	 */
+	public SwingRibbonModel createModel(String ribbonId, CustomRibbonBandGenerator customBandsGenerator,
+		RibbonCustomization customization) {
 		Objects.requireNonNull(ribbonId);
+		Objects.requireNonNull(customization);
 		List<String> tabIds = resolveList(ribbonId);
 		List<SwingRibbonModel.RibbonTab> tabs = new ArrayList<>(tabIds.size());
 		for (String tabId : tabIds) {
@@ -72,7 +83,62 @@ public final class SwingRibbonFactory {
 		}
 		SwingRibbonModel model = new SwingRibbonModel(ribbonId, tabs, taskBarButtons).withTaskBarControls(taskBarControls);
 		RibbonCommandCatalog.validate(model, bundles);
-		return model;
+		if (customization.isEmpty()) {
+			return model;
+		}
+		try {
+			return applyCustomization(model, customization);
+		} catch (RuntimeException ex) {
+			logger.log(java.util.logging.Level.WARNING, "Ribbon customization could not be applied; using the default ribbon", ex);
+			return model;
+		}
+	}
+
+	/**
+	 * The one place that merges a {@link RibbonCustomization} into the default model. Display order is: File
+	 * first; then the default tabs, where the tabs listed in {@code defaultTabOrder} take, in the listed order,
+	 * the positions the listed tabs hold by default and unlisted tabs keep their place; then the custom tabs in
+	 * list order. Hidden default tabs are dropped, so the tab row and the overflow menu both omit them. Custom
+	 * groups are appended after the default groups of their tab.
+	 */
+	private SwingRibbonModel applyCustomization(SwingRibbonModel model, RibbonCustomization customization) {
+		List<SwingRibbonModel.RibbonTab> file = new ArrayList<>();
+		java.util.Map<String, SwingRibbonModel.RibbonTab> movable = new java.util.LinkedHashMap<>();
+		for (SwingRibbonModel.RibbonTab tab : model.getTabs()) {
+			if (RibbonCustomization.FILE_TAB_ID.equals(tab.getId())) file.add(tab);
+			else movable.put(tab.getId(), tab);
+		}
+		java.util.Iterator<String> listed = customization.defaultTabOrder().stream()
+			.filter(movable::containsKey).iterator();
+		java.util.Set<String> listedIds = new java.util.HashSet<>(customization.defaultTabOrder());
+		List<SwingRibbonModel.RibbonTab> tabs = new ArrayList<>(file);
+		for (String slot : movable.keySet()) {
+			String tabId = listedIds.contains(slot) && listed.hasNext() ? listed.next() : slot;
+			if (customization.hiddenDefaultTabs().contains(tabId)) {
+				continue;
+			}
+			SwingRibbonModel.RibbonTab tab = movable.get(tabId);
+			List<RibbonCustomization.CustomGroup> groups = customization.defaultTabGroups().getOrDefault(tabId, List.of());
+			if (groups.isEmpty()) {
+				tabs.add(tab);
+				continue;
+			}
+			List<SwingRibbonModel.RibbonBand> bands = new ArrayList<>(tab.getBands());
+			groups.forEach(group -> bands.add(createCustomGroupBand(group)));
+			tabs.add(new SwingRibbonModel.RibbonTab(tab.getId(), tab.getTitle(), bands, tab.isContextual(), tab.getAccessKey()));
+		}
+		for (RibbonCustomization.CustomTab custom : customization.customTabs()) {
+			List<SwingRibbonModel.RibbonBand> bands = new ArrayList<>();
+			custom.groups().forEach(group -> bands.add(createCustomGroupBand(group)));
+			tabs.add(new SwingRibbonModel.RibbonTab(custom.id(), custom.name(), bands));
+		}
+		return new SwingRibbonModel(model.getId(), tabs, model.getTaskBarButtons())
+			.withTaskBarControls(model.getTaskBarControls());
+	}
+
+	/** A custom group holds canonical command IDs, so its buttons come from the same path as the default ones. */
+	private SwingRibbonModel.RibbonBand createCustomGroupBand(RibbonCustomization.CustomGroup group) {
+		return new SwingRibbonModel.RibbonBand(group.id(), group.name(), createButtons(group.commandIds()));
 	}
 
 	public JPanel createPanel(String ribbonId, Runnable helpAction) {
@@ -200,7 +266,31 @@ public final class SwingRibbonFactory {
 			}
 		}
 
-		List<String> tokens = resolveList(bandId);
+		List<SwingRibbonModel.RibbonButton> buttons = createButtons(resolveList(bandId));
+		SwingRibbonModel.RibbonBand band = new SwingRibbonModel.RibbonBand(bandId, resolveString(bandId + ".title"), buttons);
+		String keepRank = resolveStringOrNull(bandId + ".keepRank");
+		if (keepRank != null && !keepRank.isBlank()) {
+			try {
+				band = band.withKeepRank(Integer.parseInt(keepRank.trim()));
+			} catch (NumberFormatException ex) {
+				throw new IllegalStateException("Invalid " + bandId + ".keepRank: " + keepRank, ex);
+			}
+		}
+		String dialogLauncher = resolveStringOrNull(bandId + ".dialogLauncher");
+		if (dialogLauncher == null || dialogLauncher.isBlank()) {
+			return band;
+		}
+		String launcherId = dialogLauncher.trim();
+		try {
+			commandSource.createAction(launcherId);
+		} catch (RuntimeException ex) {
+			throw new IllegalStateException(bandId + ".dialogLauncher " + launcherId + " is not a command with an Action", ex);
+		}
+		return band.withDialogLauncher(launcherId);
+	}
+
+	/** Builds the buttons of a group from resource tokens; the single path for default and custom groups. */
+	private List<SwingRibbonModel.RibbonButton> createButtons(List<String> tokens) {
 		List<SwingRibbonModel.RibbonButton> buttons = new ArrayList<>(tokens.size());
 		for (String token : tokens) {
 			if ("-".equals(token)) {
@@ -235,26 +325,7 @@ public final class SwingRibbonFactory {
 				resolveStringOrNull(buttonId + ".backstagePage"),
 				Boolean.parseBoolean(resolveStringOrNull(buttonId + ".backstageImmediate"))))));
 		}
-		SwingRibbonModel.RibbonBand band = new SwingRibbonModel.RibbonBand(bandId, resolveString(bandId + ".title"), buttons);
-		String keepRank = resolveStringOrNull(bandId + ".keepRank");
-		if (keepRank != null && !keepRank.isBlank()) {
-			try {
-				band = band.withKeepRank(Integer.parseInt(keepRank.trim()));
-			} catch (NumberFormatException ex) {
-				throw new IllegalStateException("Invalid " + bandId + ".keepRank: " + keepRank, ex);
-			}
-		}
-		String dialogLauncher = resolveStringOrNull(bandId + ".dialogLauncher");
-		if (dialogLauncher == null || dialogLauncher.isBlank()) {
-			return band;
-		}
-		String launcherId = dialogLauncher.trim();
-		try {
-			commandSource.createAction(launcherId);
-		} catch (RuntimeException ex) {
-			throw new IllegalStateException(bandId + ".dialogLauncher " + launcherId + " is not a command with an Action", ex);
-		}
-		return band.withDialogLauncher(launcherId);
+		return buttons;
 	}
 
 	/**
