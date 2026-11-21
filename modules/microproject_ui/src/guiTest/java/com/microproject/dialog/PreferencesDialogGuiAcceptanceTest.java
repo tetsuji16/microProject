@@ -516,6 +516,86 @@ class PreferencesDialogGuiAcceptanceTest {
 	}
 
 	@Test
+	void customDateFormatChangesTheTaskSpreadsheetStartCellWithoutARestart() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		prepareFormats();
+		testPreferences.applyFormatPreferences();
+		com.microproject.undo.DataFactoryUndoController undo = new com.microproject.undo.DataFactoryUndoController();
+		com.microproject.pm.task.Project project = com.microproject.pm.task.Project.createProject(
+			com.microproject.pm.resource.ResourcePool.createRourcePool("format-live", undo), undo);
+		project.initialize(false, false);
+		com.microproject.pm.task.NormalTask task = project.createScriptedTask();
+		task.setName("Format live");
+		task.setStart(com.microproject.util.DateTime.calendarInstance(2026, java.util.Calendar.SEPTEMBER, 7).getTimeInMillis());
+		com.microproject.pm.graphic.spreadsheet.SpreadSheet[] sheet = new com.microproject.pm.graphic.spreadsheet.SpreadSheet[1];
+		javax.swing.JFrame[] frame = new javax.swing.JFrame[1];
+		int[] cell = new int[2];
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				sheet[0] = new com.microproject.pm.graphic.spreadsheet.SpreadSheet();
+				sheet[0].setSpreadSheetCategory(com.microproject.graphic.configuration.SpreadSheetCategories.taskSpreadsheetCategory);
+				com.microproject.pm.graphic.model.cache.NodeModelCache cache =
+					com.microproject.pm.graphic.model.cache.NodeModelCacheFactory.getInstance().createFilteredCache(
+						com.microproject.pm.graphic.model.cache.NodeModelCacheFactory.createTaskNodeModelCache(project,
+							project.getTaskModel()), "format-live-cache", null);
+				com.microproject.pm.graphic.spreadsheet.SpreadSheetUtils.setFieldsAndContext(sheet[0], cache,
+					com.microproject.graphic.configuration.SpreadSheetCategories.taskSpreadsheetCategory,
+					"Spreadsheet.Task.formatLive", true);
+				com.microproject.pm.graphic.spreadsheet.SpreadSheetModel model =
+					(com.microproject.pm.graphic.spreadsheet.SpreadSheetModel) sheet[0].getModel();
+				com.microproject.grouping.core.Node node = (com.microproject.grouping.core.Node) cache.getModel().search(task);
+				cell[0] = model.findGraphicNodeRow(cache.getGraphicNode(node));
+				for (int column = 0; column < model.getColumnCount(); column++) {
+					com.microproject.field.Field field = model.getFieldInColumn(column);
+					if (field != null && "Field.start".equals(field.getId()))
+						cell[1] = sheet[0].convertColumnIndexToView(column);
+				}
+				frame[0] = new javax.swing.JFrame("Format live probe");
+				frame[0].add(new javax.swing.JScrollPane(sheet[0]));
+				frame[0].setSize(900, 300);
+				frame[0].setVisible(true);
+			});
+			robot.waitForIdle();
+			String before = renderedText(sheet[0], cell[0], cell[1]);
+			assertTrue(!before.matches(".*\\d{2}\\.\\d{2}\\.\\d{4}.*"),
+				"The OS default must not already look like the custom pattern: " + before);
+
+			PreferencesDialogBox dialog = openDisplayPage();
+			click(robot, findNamedComponent(dialog, javax.swing.JRadioButton.class, "preferencesDatePatternCustom"));
+			enterText(robot, findNamedComponent(dialog, JTextField.class, "preferencesDatePattern"), "dd.MM.yyyy");
+			click(robot, findButton(dialog, UsabilityStrings.text("preferences.apply")));
+			GuiAcceptanceSupport.await(() -> findDialog() == null, "Preferences dialog did not close after Apply");
+			robot.waitForIdle();
+			String[] after = new String[1];
+			GuiAcceptanceSupport.await(() -> {
+				try {
+					after[0] = renderedText(sheet[0], cell[0], cell[1]);
+				} catch (Exception error) {
+					throw new IllegalStateException(error);
+				}
+				return after[0].matches(".*\\d{2}\\.\\d{2}\\.\\d{4}.*");
+			}, "The task spreadsheet Start cell must show the custom date pattern without a restart");
+		} finally {
+			SwingUtilities.invokeAndWait(() -> {
+				if (frame[0] != null)
+					frame[0].dispose();
+			});
+		}
+	}
+
+	private static String renderedText(com.microproject.pm.graphic.spreadsheet.SpreadSheet sheet, int row, int column)
+			throws Exception {
+		String[] text = new String[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Component rendered = sheet.prepareRenderer(sheet.getCellRenderer(row, column), row, column);
+			text[0] = rendered instanceof JLabel label ? label.getText() : String.valueOf(rendered);
+		});
+		return text[0];
+	}
+
+	@Test
 	void emptyCustomDateFormatIsRejectedAndTheDialogRecovers() throws Exception {
 		assertRejectedThenAccepted("preferencesDatePatternCustom", "preferencesDatePattern", "", "yyyy-MM-dd");
 		assertEquals("yyyy-MM-dd", testPreferences.getDatePattern());
