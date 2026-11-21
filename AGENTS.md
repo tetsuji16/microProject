@@ -90,4 +90,5 @@ Anything that still carries the `projectLibre` / `ProjectLibre`
 ## Git / PR workflow
 
 - Never push directly to `master` or force-push. Use one `issue/<number>-<summary>` branch and one PR per issue; use exactly one of `Closes #N` or `Refs #N` in the PR body. Keep incomplete work in draft, and merge only after required checks pass and review requirements are met.
+- Before merging, read every review comment on the PR, including comments from automated reviewers such as CodeRabbit. Fix each actionable comment in the PR, or reply on the comment with why it does not apply. Passing checks do not replace this: do not merge while an actionable comment has neither a fix nor a reply.
 - Do not bypass branch protection, including with administrator rights. For a stacked PR, retarget it to `master` after its base PR merges before continuing. Use the repository's commit message convention: `<type>: <imperative summary>` (for example, `docs: document PR workflow`).

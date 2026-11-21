@@ -236,13 +236,20 @@ public final class MenuRibbonCommandSource implements RibbonCommandSource {
 				if ("enabled".equals(event.getPropertyName())) dispatchAction.setEnabled(command.isEnabled());
 				if (Action.NAME.equals(event.getPropertyName())) dispatchAction.putValue(Action.NAME, event.getNewValue());
 				if (Action.SELECTED_KEY.equals(event.getPropertyName())) updateSelectedState(event.getNewValue());
-				if (Action.SHORT_DESCRIPTION.equals(event.getPropertyName())) dispatchAction.putValue(Action.SHORT_DESCRIPTION, event.getNewValue());
+				if (Action.SHORT_DESCRIPTION.equals(event.getPropertyName())) forwardDescription(event.getNewValue());
 			};
 			command.addPropertyChangeListener(enabledListener);
 			dispatchAction.setEnabled(command.isEnabled());
 			dispatchAction.putValue(Action.NAME, command.getValue(Action.NAME));
 			updateSelectedState(command.getValue(Action.SELECTED_KEY));
-			dispatchAction.putValue(Action.SHORT_DESCRIPTION, command.getValue(Action.SHORT_DESCRIPTION));
+			forwardDescription(command.getValue(Action.SHORT_DESCRIPTION));
+		}
+
+		// Swing copies SHORT_DESCRIPTION onto every button bound to the dispatcher.  The
+		// ribbon builds its own screen tips, and a context-menu Action bound to the same
+		// command carries none, so forwarding its null would erase those screen tips.
+		private void forwardDescription(Object description) {
+			if (description != null) dispatchAction.putValue(Action.SHORT_DESCRIPTION, description);
 		}
 
 		private void addTransientButton(AbstractButton button) {

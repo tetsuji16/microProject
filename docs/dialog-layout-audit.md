@@ -150,7 +150,7 @@ rg -n "new FormLayout|preferredFormRows" modules/microproject_ui/src/main/java/c
 
 | Dialog surface | Minimum / preferred size | Placement | Resize behavior |
 | --- | --- | --- | --- |
-| Baseline / Clear Baseline | Natural `pack()` size is the minimum; baseline selector column grows from its preferred width | Center on owning document frame (`doModal`) | Selector keeps its preferred height; button panel remains at the bottom |
+| Baseline / Clear Baseline | Natural `pack()` size is the minimum and the maximum: the dialog is a fixed-size form (#863) | Center on owning document frame (`doModal`) | Not user-resizable; selector keeps its preferred height and width |
 | Project Information | Tabbed pane minimum 700×420 logical pixels; initial dialog minimum is its first packed size | Center on owning frame | Tabs and the growable extra-field row expand; text controls retain preferred heights |
 | Resource Information | Preferred content 400×275 dlu; initial dialog minimum is its first packed size | Center on owning frame | Tabbed content expands; each form row remains font-preferred |
 | Resource Mapping | Natural `pack()` size is the minimum; 310dlu growable table column | Center on owning frame | Association table expands; conditional project and access-control rows remain present |
@@ -216,3 +216,84 @@ is the spreadsheet work canvas, not a layout defect, and the existing
 closes #724 A10. The remaining unfilled rows are seven bounded dialogs whose
 command-route evidence is tracked in #724 A8; they are deliberately not given a
 second size contract here.
+
+## Cross-window resize contract (#863 A3)
+
+`WindowSizeContractSweepGuiAcceptanceTest` opens every constructible top-level
+window in one GUI run and asserts the size contract each window declares. This
+is the cross-window counterpart to the per-route journeys: the journeys prove
+that a window is reachable, this sweep proves that growth and shrinking keep its
+text and controls intact.
+
+| Contract | Required result |
+|---|---|
+| `FIXED_FORM` | The window is not user-resizable, its packed size is its locked minimum, every text control keeps its font-derived preferred height, and no visible descendant leaves a bottom or right band wider than the border inset plus 16 logical pixels. |
+| `RESIZABLE` | The window grows by up to 200x140 logical pixels inside the usable screen; text controls keep their font-derived height after growth; the declared work surface (tabbed pane, the scroll pane of a data view, or a paint canvas) absorbs at least half the growth on one axis; the same checks pass again at the packed minimum; and the window never leaves the usable screen. |
+
+The sweep reports one `WINDOW_SIZE_CONTRACT` line per window and writes
+`issue-863-resize-<window>-<locale>-<scale>.png` under
+`build/reports/guiTest-artifacts/`. Sizes below are the window's declared
+initial size in logical pixels at ja/100%; `DialogSizing` windows state their own
+initial size instead of packing.
+
+| Window | Contract | Initial size | Work surface |
+|---|---|---:|---|
+| MainRibbonFrame | RESIZABLE | 1200x720 | Task-table scroll pane |
+| AboutDialog | FIXED_FORM | 397x235 | none (bounded form) |
+| HelpDialog | FIXED_FORM | 836x343 | none (bounded form) |
+| ProjectDialog | RESIZABLE | 579x380 | Notes scroll pane |
+| ProjectInformationDialog | RESIZABLE | 617x516 | Tabbed pane |
+| StatusDateDialog | FIXED_FORM | 303x153 | none (bounded form) |
+| RenameProjectDialog | FIXED_FORM | 451x181 | none (bounded form) |
+| BaselineDialog | FIXED_FORM | 346x211 | none (bounded form) |
+| UpdateProjectDialogBox | FIXED_FORM | 454x302 | none (bounded form) |
+| RecurringTaskDialog | FIXED_FORM | 538x372 | none (bounded form) |
+| UpdateTaskDialog | FIXED_FORM | 445x304 | none (bounded form) |
+| DelegateTaskDialog | FIXED_FORM | 150x136 | none (bounded form) |
+| TaskInformationDialog | RESIZABLE | 749x1025 | Tabbed pane |
+| ResourceInformationDialog | RESIZABLE | 699x557 | Tabbed pane |
+| ResourceLevelingDialogBox | RESIZABLE | 900x520 | Tabbed pane |
+| FieldAliasDialog | FIXED_FORM | 298x194 | none (bounded form) |
+| CalendarDialogBox (Calendar Options) | FIXED_FORM | 346x375 | none (bounded form) |
+| ChangeWorkingTimeDialogBox | RESIZABLE | 677x549 | Tabbed pane |
+| TeamPlannerDialogBox | RESIZABLE | 1120x680 | Canvas scroll pane |
+| CalendarViewDialogBox | RESIZABLE | 1100x760 | Calendar canvas |
+| TimelineDialogBox | RESIZABLE | 1100x620 | Timeline canvas |
+| CustomFieldsDialogBox | RESIZABLE | 900x620 | Table scroll pane |
+| CustomReportDialogBox | RESIZABLE | 1200x760 | Column list / preview |
+| LocaleDialog | RESIZABLE | 555x498 | External-language table |
+
+### Shared cause fixed by this sweep
+
+`#724` declared the fixed-size contract in `AbstractDialog.isFixedSizeForm()`
+and stated that a dialog whose content is one bounded form must override it, but
+eight bounded forms still returned the default `false`. Growing any of them
+added an empty band under the form, which is the symptom #863 reports. They now
+declare `isFixedSizeForm() == true`: About, Help, Rename Project, Clear
+Baseline, Recurring Task, Update Task, Delegate Task, and Calendar Options.
+
+The sweep also found a crash in `RenameProjectDialog`: the name document
+listener ran while the content panel was still being built and dereferenced the
+not-yet-created OK button, so Save As / Rename Project failed with an NPE as soon
+as the form was prefilled. `updateNameValidity()` now tolerates the pre-button
+state and `createButtonPanel()` re-evaluates it, so the initial enabled state
+still matches the prefilled name.
+
+### Windows not covered by the sweep
+
+The sweep constructs windows through their public factories. Windows that exist
+only behind a modal static entry point or need a live document/print context are
+still covered by their own route journeys, and their resize evidence is not
+claimed here:
+
+- `LicenseDialog` (modal-only `showDialog`), `PreferencesDialogBox` (modal
+  `showDialog`), `WelcomeDialog` (needs the menu manager), `LocaleDialog`
+  variants that need a document frame.
+- `AssignmentDialog`, `ReplaceAssignmentDialog`, `TimesheetDialog`,
+  `ResourceMappingDialog`, `FindDialog` (need a document frame and assignment
+  selection; they keep their #724 route tests).
+- `PrintPreviewFrame` (needs a printable document), `ProjectsDialog`,
+  `GridlinesDialogBox`, `AutoFilterDialog`, `ColumnDialog`, `DependencyDialog`,
+  `XbsDependencyDialog`, `TransformParameterDialog`, `PageSetupDialog`,
+  `NewBaseCalendarDialog`, `ResourceAdditionDialog` (need a Gantt view, a
+  spreadsheet, a dependency, or a print setup).

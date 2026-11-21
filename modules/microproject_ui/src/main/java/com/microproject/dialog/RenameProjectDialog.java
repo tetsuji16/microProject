@@ -98,9 +98,21 @@ public final class RenameProjectDialog extends AbstractDialog {
 	}
 
 	private void updateNameValidity() {
+		// The name document fires while the content panel is still being built,
+		// before AbstractDialog creates the OK button. Re-checked once the button
+		// panel exists so the initial enabled state still matches the prefilled name.
+		if (ok == null)
+			return;
 		String text = nameField.getText();
 		Set<String> projectNames = form.getProjectNames();
 		ok.setEnabled((projectNames == null || !projectNames.contains(text)) && !text.isEmpty());
+	}
+
+	@Override
+	public ButtonPanel createButtonPanel() {
+		ButtonPanel panel = super.createButtonPanel();
+		updateNameValidity();
+		return panel;
 	}
 	
 	@Override
@@ -131,6 +143,15 @@ public final class RenameProjectDialog extends AbstractDialog {
 	
 
 	// Building *************************************************************
+
+	/**
+	 * #863: the content is one bounded form, so the dialog keeps its packed size
+	 * instead of showing an empty band when the user grows the window.
+	 */
+	@Override
+	protected boolean isFixedSizeForm() {
+		return true;
+	}
 
 	/**
 	 * Builds the panel. Initializes and configures components first, then
