@@ -634,6 +634,21 @@ class PreferencesDialogGuiAcceptanceTest {
 		assertTrue(widths[0] >= widths[1], "Category list is " + widths[0] + " px wide but needs " + widths[1]);
 		selectCategory(dialog, "preferences.display");
 		assertEquals(UsabilityStrings.text("preferences.display"), categories.getSelectedValue());
+		selectCategory(dialog, "preferences.customizeRibbon");
+		for (String name : new String[] { "ribbonCustomizeImportExport", "ribbonCustomizeUp",
+			"ribbonCustomizeDown", "ribbonCustomizeNewTab", "ribbonCustomizeReset" }) {
+			Component control = findNamedComponent(dialog, Component.class, name);
+			assertTrue(control != null, name + " is missing");
+			String[] problem = new String[1];
+			SwingUtilities.invokeAndWait(() -> {
+				javax.swing.JViewport viewport = (javax.swing.JViewport) SwingUtilities.getAncestorOfClass(
+					javax.swing.JViewport.class, control);
+				Rectangle inView = SwingUtilities.convertRectangle(control.getParent(), control.getBounds(), viewport.getView());
+				if (!viewport.getViewRect().contains(inView))
+					problem[0] = name + " " + inView + " is outside the page viewport " + viewport.getViewRect();
+			});
+			assertTrue(problem[0] == null, problem[0]);
+		}
 	}
 
 	@Test

@@ -47,7 +47,7 @@ final class CustomizeSupport {
 	static JScrollPane scroll(Component view, String name) {
 		JScrollPane scroll = new JScrollPane(view);
 		scroll.setName(name);
-		scroll.setPreferredSize(new java.awt.Dimension(260, 300));
+		scroll.setPreferredSize(new java.awt.Dimension(190, 300));
 		return scroll;
 	}
 
