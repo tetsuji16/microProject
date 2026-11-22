@@ -49,6 +49,10 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 	public static final String CATEGORY_CUSTOMIZE_RIBBON = "customizeRibbon";
 	public static final String CATEGORY_QUICK_ACCESS = "quickAccess";
 	public static final String CATEGORY_LANGUAGE = "language";
+	/** Smallest page width that still shows both customization columns and their buttons. */
+	private static final int MINIMUM_PAGE_WIDTH = 560;
+	/** Smallest height that keeps the customization action row and the Apply/Cancel row visible. */
+	private static final int MINIMUM_HEIGHT = 360;
 
 	private boolean applied;
 
@@ -286,8 +290,11 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		add(tabs, BorderLayout.CENTER); add(buttons, BorderLayout.SOUTH);
 		pack();
 		// The packed size is only an upper bound: clamp it to the owner's monitor
-		// with the same margin and screen insets every other large tool dialog uses.
-		DialogSizing.applyInitialSize(this, new Dimension(), getSize(), owner);
+		// with the same margin and screen insets every other large tool dialog uses. The minimum keeps the
+		// category list and a usable page beside it, so the window cannot be squeezed until pages are cut off;
+		// DialogSizing clamps the minimum to the monitor as well.
+		DialogSizing.applyInitialSize(this, new Dimension(categoryWidth + MINIMUM_PAGE_WIDTH, MINIMUM_HEIGHT),
+			getSize(), owner);
 	}
 
 	private static JPanel newCategoryForm() {

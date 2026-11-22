@@ -19,6 +19,7 @@ import java.util.ListResourceBundle;
 import java.util.Locale;
 import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.AbstractButton;
@@ -184,6 +185,29 @@ class RibbonKeyTipTest {
 			input.dispatch(KeyEvent.KEY_PRESSED, KeyEvent.VK_C);
 			assertEquals(1, clicks.get());
 			assertFalse(ribbon.keyTipSession().isActive());
+		});
+	}
+
+	@Test
+	void aCustomTabKeyTipOpensTheCommandsOfItsCustomGroup() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			RibbonCustomization customization = new RibbonCustomization(List.of(), Set.of(), List.of(
+				new RibbonCustomization.CustomTab("my-tab", "Mine",
+					List.of(new RibbonCustomization.CustomGroup("g1", "Edit", List.of("RibbonCut"))))), Map.of());
+			ResourceBundle[] bundles = MenuDefinitionSupport.ribbonBundles(Locale.ROOT);
+			SwingRibbonFactory factory = new SwingRibbonFactory(new MenuRibbonCommandSource(
+				new ExtToolBarFactory(MenuActionMapSupport.noopActionMap(), bundles)), bundles);
+			JPanel host = factory.createPanel(factory.createModel(MenuManager.STANDARD_RIBBON, null, customization), () -> { });
+			ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
+
+			ribbon.keyTipSession().toggle();
+			assertTrue(ribbon.keyTipSession().visibleTargets().containsKey("Y1"),
+				"custom tab KeyTips: " + ribbon.keyTipSession().visibleTargets().keySet());
+			ribbon.keyTipSession().type('Y');
+			ribbon.keyTipSession().type('1');
+			assertEquals(RibbonKeyTipSession.Level.CONTROLS, ribbon.keyTipSession().getLevel());
+			assertTrue(ribbon.keyTipSession().visibleTargets().containsKey("X"),
+				"custom group KeyTips: " + ribbon.keyTipSession().visibleTargets().keySet());
 		});
 	}
 

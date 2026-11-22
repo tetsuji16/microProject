@@ -26,7 +26,7 @@ import com.microproject.ui.ribbon.RibbonDisplayPreferences;
  * The Quick Access Toolbar page of the preferences dialog: canonical commands on the left, the toolbar commands in
  * order on the right. Edits change a working copy; {@link #saveIfChanged()} stores them when the dialog is applied.
  */
-final class QuickAccessCustomizationPanel extends JPanel {
+final class QuickAccessCustomizationPanel extends CustomizeSupport.Page {
 	private static final long serialVersionUID = 1L;
 
 	private final List<String> saved;

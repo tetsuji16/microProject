@@ -13,9 +13,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.awt.Component;
 import java.awt.Container;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.ListResourceBundle;
+import java.util.Locale;
 import java.util.Map;
+import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.prefs.Preferences;
 
@@ -28,8 +32,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.microproject.menu.ExtToolBarFactory;
 import com.microproject.menu.MenuActionMapSupport;
 import com.microproject.menu.MenuManager;
+import com.microproject.menu.MenuRibbonCommandSource;
+import com.microproject.menu.testsupport.MenuDefinitionSupport;
 import com.microproject.ribbon.SwingRibbonModel;
 import com.microproject.ui.ribbon.RibbonCustomization.CustomGroup;
 import com.microproject.ui.ribbon.RibbonCustomization.CustomTab;
@@ -150,6 +157,74 @@ class RibbonCustomizationRenderTest {
 	}
 
 	@Test
+	void customTabsGetTheOfficeFallbackKeyTipsInDisplayOrder() {
+		RibbonCustomization customization = custom(List.of(), Set.of(), List.of(
+			new CustomTab("first-tab", "First", List.of(new CustomGroup("g1", "Edit", List.of("RibbonCut")))),
+			new CustomTab("second-tab", "Second", List.of())), Map.of());
+		SwingRibbonModel model = factory().createModel(MenuManager.STANDARD_RIBBON, null, customization);
+		assertEquals("Y1", tab(model, "first-tab").getAccessKey());
+		assertEquals("Y2", tab(model, "second-tab").getAccessKey());
+		assertEquals(signature(model),
+			signature(factory().createModel(MenuManager.STANDARD_RIBBON, null, customization)),
+			"the same customization must always produce the same tab KeyTips");
+		Set<String> defaultTips = new HashSet<>();
+		for (SwingRibbonModel.RibbonTab tab : model.getTabs()) {
+			if (tab.getId().equals("first-tab") || tab.getId().equals("second-tab")) continue;
+			if (tab.getAccessKey() != null) defaultTips.add(tab.getAccessKey().trim().toUpperCase(Locale.ROOT));
+		}
+		assertFalse(defaultTips.contains("Y1"), "a custom tab KeyTip must not take a default tab KeyTip");
+		assertFalse(defaultTips.contains("Y2"), "a custom tab KeyTip must not take a default tab KeyTip");
+	}
+
+	@Test
+	void aCustomGroupKeepsTheCanonicalKeyTipOfItsCommand() {
+		SwingRibbonModel model = factory().createModel(MenuManager.STANDARD_RIBBON, null, custom(List.of(), Set.of(),
+			List.of(new CustomTab("first-tab", "First", List.of(new CustomGroup("g1", "Edit", List.of("RibbonCut"))))),
+			Map.of()));
+		SwingRibbonModel.RibbonButton cut = tab(model, "first-tab").getBands().get(0).getButtons().get(0);
+		assertEquals("RibbonCut", cut.getId());
+		assertEquals("X", cut.getKeyTip(), "a command added to a custom group keeps its canonical KeyTip");
+	}
+
+	@Test
+	void aCustomTabSkipsAFallbackKeyTipAnotherTabAlreadyUses() {
+		SwingRibbonModel model = model(Map.of("ViewRibbonTask.accessKey", "Y1"), custom(List.of(), Set.of(),
+			List.of(new CustomTab("first-tab", "First", List.of())), Map.of()));
+		assertEquals("Y2", tab(model, "first-tab").getAccessKey());
+	}
+
+	@Test
+	void aFallbackKeyTipThatPrefixesATakenOneIsSkipped() {
+		Set<String> used = new HashSet<>(Set.of("Y1", "Y10"));
+		assertEquals("Y2", SwingRibbonFactory.nextCustomTabAccessKey(used),
+			"Y1 only narrows to the taken tips, so the next custom tab takes Y2");
+		assertTrue(used.contains("Y2"), "the assigned KeyTip is reserved for the next tab");
+	}
+
+	@Test
+	void tenCustomTabsKeepPrefixFreeKeyTips() {
+		List<CustomTab> tabs = new ArrayList<>();
+		for (int index = 0; index < 10; index++) {
+			tabs.add(new CustomTab("tab-" + index, "Tab " + index, List.of()));
+		}
+		SwingRibbonModel model = factory().createModel(MenuManager.STANDARD_RIBBON, null,
+			custom(List.of(), Set.of(), tabs, Map.of()));
+		List<String> tips = new ArrayList<>();
+		for (int index = 0; index < 10; index++) {
+			tips.add(tab(model, "tab-" + index).getAccessKey());
+		}
+		assertEquals("Y9", tips.get(8));
+		assertEquals("Z1", tips.get(9), "a tenth custom tab must not take a KeyTip that prefixes Y1");
+		for (String outer : tips) {
+			for (String inner : tips) {
+				if (outer.equals(inner)) continue;
+				assertFalse(inner.startsWith(outer),
+					"KeyTip " + inner + " narrows through " + outer + " instead of running it");
+			}
+		}
+	}
+
+	@Test
 	void customTabButtonSharesTheActionOfTheDefaultTabButton() throws Exception {
 		RibbonCustomization customization = custom(List.of(), Set.of(), List.of(
 			new CustomTab("my-tab", "Mine", List.of(new CustomGroup("g1", "Edit", List.of("RibbonFind"))))), Map.of());
@@ -223,6 +298,24 @@ class RibbonCustomizationRenderTest {
 			assertNotNull(ribbon.getSelectedTabId());
 			assertFalse("FormatRibbonTask".equals(ribbon.getSelectedTabId()));
 		});
+	}
+
+	/** Builds the standard model with bundle overrides, the same way the key-tip tests inject resources. */
+	private static SwingRibbonModel model(Map<String, String> overrides, RibbonCustomization customization) {
+		ResourceBundle[] base = MenuDefinitionSupport.ribbonBundles(Locale.ROOT);
+		ResourceBundle[] bundles = new ResourceBundle[base.length + 1];
+		bundles[0] = new ListResourceBundle() {
+			@Override
+			protected Object[][] getContents() {
+				return overrides.entrySet().stream()
+					.map(entry -> new Object[] { entry.getKey(), entry.getValue() })
+					.toArray(Object[][]::new);
+			}
+		};
+		System.arraycopy(base, 0, bundles, 1, base.length);
+		return new SwingRibbonFactory(new MenuRibbonCommandSource(
+			new ExtToolBarFactory(MenuActionMapSupport.noopActionMap(), bundles)), bundles)
+			.createModel(MenuManager.STANDARD_RIBBON, null, customization);
 	}
 
 	private static SwingRibbonModel.RibbonTab tab(SwingRibbonModel model, String id) {
