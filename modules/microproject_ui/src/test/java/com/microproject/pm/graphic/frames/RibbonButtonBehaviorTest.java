@@ -1788,12 +1788,73 @@ class RibbonButtonBehaviorTest {
 
 		var restoredSelection = chart.snapshotSelection();
 		assertEquals(selectedTasks, restoredSelection.getSelectedObjects(),
-			"same-session workspace restore must preserve selected chart tasks");
-		assertEquals(selectedResources, restoredSelection.getSelectedResources(),
-			"same-session workspace restore must preserve all selected chart resources");
-	}
+					"same-session workspace restore must preserve selected chart tasks");
+			assertEquals(selectedResources, restoredSelection.getSelectedResources(),
+				"same-session workspace restore must preserve all selected chart resources");
+		}
 
-	private static int resourceRow(javax.swing.JTree tree, Resource resource) {
+		@Test
+				void detailsWithResourceTopViewRestoresResourceUsage() throws Exception {
+					Harness harness = newHarness();
+
+					// Switch to a resource top view (Resource Sheet)
+					activateView(harness, MenuActionConstants.ACTION_RESOURCES);
+					assertTrue(harness.frame.getActiveTopView().showsResources(), "Resource Sheet should show resources");
+					assertFalse(harness.frame.getActiveTopView().showsTasks(), "Resource Sheet should not show tasks");
+
+					// Press Details - should open Resource Usage as bottom view
+					activateView(harness, MenuActionConstants.ACTION_DETAILS);
+					assertBottomView(harness, MenuActionConstants.ACTION_RESOURCE_USAGE, harness.frame.getResourceUsageView());
+					assertTrue((Boolean) harness.manager.getAction(MenuActionConstants.ACTION_DETAILS)
+						.getValue(Action.SELECTED_KEY));
+
+					// Close Details
+					activateView(harness, MenuActionConstants.ACTION_DETAILS);
+					assertBottomView(harness, MenuActionConstants.ACTION_NO_SUB_WINDOW, null);
+					assertFalse((Boolean) harness.manager.getAction(MenuActionConstants.ACTION_DETAILS)
+						.getValue(Action.SELECTED_KEY));
+
+					// Press Details again - should restore Resource Usage
+					activateView(harness, MenuActionConstants.ACTION_DETAILS);
+					assertBottomView(harness, MenuActionConstants.ACTION_RESOURCE_USAGE, harness.frame.getResourceUsageView());
+					assertTrue((Boolean) harness.manager.getAction(MenuActionConstants.ACTION_DETAILS)
+						.getValue(Action.SELECTED_KEY));
+				}
+
+				@Test
+				void detailsRestoresBottomViewMatchingCurrentTopViewType() throws Exception {
+					Harness harness = newHarness();
+
+					// Start with Task Usage as bottom view
+					activateView(harness, MenuActionConstants.ACTION_TASK_USAGE);
+					assertBottomView(harness, MenuActionConstants.ACTION_TASK_USAGE, harness.frame.getTaskUsageView());
+
+					// Switch to Resource Sheet (resource top view)
+					activateView(harness, MenuActionConstants.ACTION_RESOURCES);
+					assertTrue(harness.frame.getActiveTopView().showsResources());
+
+					// Press Details to close bottom view
+					activateView(harness, MenuActionConstants.ACTION_DETAILS);
+					assertBottomView(harness, MenuActionConstants.ACTION_NO_SUB_WINDOW, null);
+
+					// Press Details again - should restore Resource Usage (matching resource top view)
+					activateView(harness, MenuActionConstants.ACTION_DETAILS);
+					assertBottomView(harness, MenuActionConstants.ACTION_RESOURCE_USAGE, harness.frame.getResourceUsageView());
+
+					// Switch back to Gantt (task top view)
+					activateView(harness, MenuActionConstants.ACTION_GANTT);
+					assertTrue(harness.frame.getActiveTopView().showsTasks());
+
+					// Press Details to close
+					activateView(harness, MenuActionConstants.ACTION_DETAILS);
+					assertBottomView(harness, MenuActionConstants.ACTION_NO_SUB_WINDOW, null);
+
+					// Press Details again - should restore Task Usage (matching task top view)
+					activateView(harness, MenuActionConstants.ACTION_DETAILS);
+					assertBottomView(harness, MenuActionConstants.ACTION_TASK_USAGE, harness.frame.getTaskUsageView());
+				}
+
+				private static int resourceRow(javax.swing.JTree tree, Resource resource) {
 		for (int row = 0; row < tree.getRowCount(); row++) {
 			Object last = tree.getPathForRow(row).getLastPathComponent();
 			if (last instanceof com.microproject.pm.graphic.model.cache.GraphicNode node

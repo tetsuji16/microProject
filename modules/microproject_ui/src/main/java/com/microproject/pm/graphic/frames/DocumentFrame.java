@@ -2195,27 +2195,30 @@ public class DocumentFrame extends NamedFrame implements
 		else if (viewName.equals(ACTION_DELEGATE_TASKS))
 			topView = getTeamPlannerView();
 		else if (viewName.equals(ACTION_HISTOGRAM))
-			bottomView = getHistogramView();
-		else if (viewName.equals(ACTION_CHARTS))
-			bottomView = getChartView();
-		else if (viewName.equals(ACTION_TASK_USAGE))
-			bottomView = getTaskUsageView();
-		else if (viewName.equals(ACTION_RESOURCE_USAGE))
-			bottomView = getResourceUsageView();
-		else if (viewName.equals(ACTION_DETAILS)) {
-			if (activeBottomView != null)
-				deactivateBottomView();
-			else {
-				String restoreName = lastBottomViewName;
-				if (restoreName == null || ACTION_NO_SUB_WINDOW.equals(restoreName))
-					restoreName = ACTION_TASK_USAGE;
-				activateBottomView(getBottomViewForRestore(), restoreName);
-			}
-		}
-		else if (viewName.equals(ACTION_NO_SUB_WINDOW))
-			deactivateBottomView();
+					bottomView = getHistogramView();
+				else if (viewName.equals(ACTION_CHARTS))
+					bottomView = getChartView();
+				else if (viewName.equals(ACTION_TASK_USAGE))
+					bottomView = getTaskUsageView();
+				else if (viewName.equals(ACTION_RESOURCE_USAGE))
+					bottomView = getResourceUsageView();
+				else if (viewName.equals(ACTION_DETAILS)) {
+							if (activeBottomView != null)
+								deactivateBottomView();
+							else {
+								boolean topIsResource = activeTopView != null && activeTopView.showsResources() && !activeTopView.showsTasks();
+								String restoreName = lastBottomViewName;
+								if (restoreName == null || ACTION_NO_SUB_WINDOW.equals(restoreName)
+										|| !isBottomViewNameCompatibleWithTop(restoreName, topIsResource)) {
+									restoreName = topIsResource ? ACTION_RESOURCE_USAGE : ACTION_TASK_USAGE;
+								}
+								activateBottomView(getBottomViewForRestore(restoreName), restoreName);
+							}
+						}
+				else if (viewName.equals(ACTION_NO_SUB_WINDOW))
+					deactivateBottomView();
 
-		if (topView != null) {
+				if (topView != null) {
 			activateTopView(topView,viewName);
 		}
 
@@ -2416,17 +2419,28 @@ public class DocumentFrame extends NamedFrame implements
 			selectedAction != null && !ACTION_NO_SUB_WINDOW.equals(selectedAction));
 	}
 
-	private BaseView getBottomViewForRestore() {
-		String viewName = lastBottomViewName;
-		if (viewName == null || ACTION_NO_SUB_WINDOW.equals(viewName))
-			viewName = ACTION_TASK_USAGE;
-		return switch (viewName) {
-			case ACTION_HISTOGRAM -> getHistogramView();
-			case ACTION_CHARTS -> getChartView();
-			case ACTION_RESOURCE_USAGE -> getResourceUsageView();
-			default -> getTaskUsageView();
-		};
-	}
+	private BaseView getBottomViewForRestore(String restoreName) {
+			return switch (restoreName) {
+				case ACTION_HISTOGRAM -> getHistogramView();
+				case ACTION_CHARTS -> getChartView();
+				case ACTION_RESOURCE_USAGE -> getResourceUsageView();
+				default -> getTaskUsageView();
+			};
+		}
+
+		private boolean isBottomViewNameCompatibleWithTop(String bottomViewName, boolean topIsResource) {
+			// ACTION_HISTOGRAM and ACTION_CHARTS are compatible with both task and resource top views
+			if (ACTION_HISTOGRAM.equals(bottomViewName) || ACTION_CHARTS.equals(bottomViewName))
+				return true;
+			// Task Usage is only compatible with task top views
+			if (ACTION_TASK_USAGE.equals(bottomViewName))
+				return !topIsResource;
+			// Resource Usage is only compatible with resource top views
+			if (ACTION_RESOURCE_USAGE.equals(bottomViewName))
+				return topIsResource;
+			// Unknown bottom view names default to compatible
+			return true;
+		}
 
 
 	/**
