@@ -1,6 +1,6 @@
 # Issue #1323 — custom tab and custom group command KeyTips
 
-State: IN PROGRESS (implementation and local verification done; PR not opened)
+State: IN PROGRESS (PR #1332 open; every required check passed)
 Issue: https://github.com/tetsuji16/microProject/issues/1323
 Contract frozen at: issue body of 2026-11-21
 Baseline HEAD: `11a3034e9`
@@ -34,14 +34,13 @@ is skipped. The assignment is a pure function of the customization, so it is det
 
 ## Current slice
 
-**Next slice:** open the pull request from `issue/1323-custom-tab-keytips` and run the required
-`build` and `GUI acceptance` checks.
+**Next slice:** review the PR and merge it once the review comments are resolved.
 **Done when:** both required checks pass on the pull request head.
 **Then:** comment the outcomes on the issue; close it once the checks are green.
 
 ## Remaining blockers
 
-- The branch is committed locally only; no push, pull request, or CI run has been made.
+- None: PR #1332 has `build`, `GUI acceptance` and `verify` (ubuntu, windows, macos) passing.
 
 ## Latest evidence
 
@@ -52,4 +51,6 @@ is skipped. The assignment is a pure function of the customization, so it is det
   rerun). `git diff --cached --check` — empty.
 - Physical GUI/manual: the GUI acceptance class above drives the real Robot route; the locale/scale
   matrix and the required `GUI acceptance` workflow are pending CI.
-- CI: not run (no push).
+- CI: PR #1332 on `issue/1323-custom-tab-keytips` — `build`, `GUI acceptance`,
+  `verify (ubuntu-latest, windows-latest, macos-latest)` all pass
+  (run 45022636196 and 45022636054).
