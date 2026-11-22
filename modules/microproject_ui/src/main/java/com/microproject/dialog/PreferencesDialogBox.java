@@ -49,6 +49,10 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 	public static final String CATEGORY_CUSTOMIZE_RIBBON = "customizeRibbon";
 	public static final String CATEGORY_QUICK_ACCESS = "quickAccess";
 	public static final String CATEGORY_LANGUAGE = "language";
+	/** Smallest page width that still shows both customization columns and their buttons. */
+	private static final int MINIMUM_PAGE_WIDTH = 560;
+	/** Smallest height that keeps the customization action row and the Apply/Cancel row visible. */
+	private static final int MINIMUM_HEIGHT = 360;
 
 	private boolean applied;
 
@@ -286,8 +290,11 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		add(tabs, BorderLayout.CENTER); add(buttons, BorderLayout.SOUTH);
 		pack();
 		// The packed size is only an upper bound: clamp it to the owner's monitor
-		// with the same margin and screen insets every other large tool dialog uses.
-		DialogSizing.applyInitialSize(this, new Dimension(), getSize(), owner);
+		// with the same margin and screen insets every other large tool dialog uses. The minimum keeps the
+		// category list and a usable page beside it, so the window cannot be squeezed until pages are cut off;
+		// DialogSizing clamps the minimum to the monitor as well.
+		DialogSizing.applyInitialSize(this, new Dimension(categoryWidth + MINIMUM_PAGE_WIDTH, MINIMUM_HEIGHT),
+			getSize(), owner);
 	}
 
 	private static JPanel newCategoryForm() {
@@ -298,11 +305,37 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 
 	/** Adds a category page; the page is named and labelled for assistive technology. */
 	private static void addCategory(JPanel cardPanel, java.util.List<String> names, String name, java.awt.Component page) {
-		JScrollPane scroll = new JScrollPane(page);
+		JScrollPane scroll = new JScrollPane(new CategoryPageHolder(page));
 		scroll.setName("preferencesCategory." + names.size());
 		scroll.getAccessibleContext().setAccessibleName(name);
 		cardPanel.add(scroll, name);
 		names.add(name);
+	}
+
+	/**
+	 * Holds a category page in its scroll pane. The page is laid out at the viewport size whenever the
+	 * viewport is at least the page's minimum size, so a narrow or short dialog shrinks the page's
+	 * lists rather than scrolling its buttons out of view; only a viewport below that minimum scrolls.
+	 */
+	static final class CategoryPageHolder extends JPanel implements javax.swing.Scrollable {
+		private static final long serialVersionUID = 1L;
+
+		CategoryPageHolder(java.awt.Component page) {
+			super(new java.awt.BorderLayout());
+			add(page, java.awt.BorderLayout.CENTER);
+		}
+
+		@Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
+		@Override public int getScrollableUnitIncrement(java.awt.Rectangle visible, int orientation, int direction) { return 16; }
+		@Override public int getScrollableBlockIncrement(java.awt.Rectangle visible, int orientation, int direction) {
+			return Math.max(16, orientation == javax.swing.SwingConstants.VERTICAL ? visible.height : visible.width);
+		}
+		@Override public boolean getScrollableTracksViewportWidth() {
+			return getParent() instanceof javax.swing.JViewport viewport && viewport.getWidth() >= getMinimumSize().width;
+		}
+		@Override public boolean getScrollableTracksViewportHeight() {
+			return getParent() instanceof javax.swing.JViewport viewport && viewport.getHeight() >= getMinimumSize().height;
+		}
 	}
 
 	private static void addRow(JPanel form, String label, java.awt.Component field) {

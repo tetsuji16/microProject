@@ -48,7 +48,38 @@ final class CustomizeSupport {
 		JScrollPane scroll = new JScrollPane(view);
 		scroll.setName(name);
 		scroll.setPreferredSize(new java.awt.Dimension(190, 300));
+		// The page narrows with the window, so the lists must be allowed to give up width down to a still
+		// readable column instead of pushing the buttons of the right-hand column out of view.
+		scroll.setMinimumSize(new java.awt.Dimension(90, 96));
 		return scroll;
+	}
+
+	/**
+	 * A preferences page that narrows with its window instead of keeping its preferred width. A plain panel
+	 * hosted by a scroll pane is always laid out at its preferred width, so in a narrow window, or at a large
+	 * display scale where the same text needs more pixels, the right-hand column (the Up/Down buttons and the
+	 * action row of the ribbon customization) moves behind a horizontal scroll bar and looks cut off.
+	 */
+	static class Page extends JPanel implements javax.swing.Scrollable {
+		private static final long serialVersionUID = 1L;
+
+		Page(java.awt.LayoutManager layout) {
+			super(layout);
+		}
+
+		@Override public java.awt.Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
+
+		@Override public int getScrollableUnitIncrement(java.awt.Rectangle visibleRect, int orientation, int direction) {
+			return 16;
+		}
+
+		@Override public int getScrollableBlockIncrement(java.awt.Rectangle visibleRect, int orientation, int direction) {
+			return orientation == javax.swing.SwingConstants.VERTICAL ? visibleRect.height : visibleRect.width;
+		}
+
+		@Override public boolean getScrollableTracksViewportWidth() { return true; }
+
+		@Override public boolean getScrollableTracksViewportHeight() { return false; }
 	}
 
 	static JLabel label(String textKey, Component target) {

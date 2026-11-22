@@ -127,13 +127,59 @@ public final class SwingRibbonFactory {
 			groups.forEach(group -> bands.add(createCustomGroupBand(group)));
 			tabs.add(new SwingRibbonModel.RibbonTab(tab.getId(), tab.getTitle(), bands, tab.isContextual(), tab.getAccessKey()));
 		}
+		java.util.Set<String> usedTabKeyTips = new java.util.HashSet<>();
+		for (SwingRibbonModel.RibbonTab tab : tabs) {
+			String accessKey = tab.getAccessKey();
+			if (accessKey != null && !accessKey.isBlank()) {
+				usedTabKeyTips.add(accessKey.trim().toUpperCase(java.util.Locale.ROOT));
+			}
+		}
 		for (RibbonCustomization.CustomTab custom : customization.customTabs()) {
 			List<SwingRibbonModel.RibbonBand> bands = new ArrayList<>();
 			custom.groups().forEach(group -> bands.add(createCustomGroupBand(group)));
-			tabs.add(new SwingRibbonModel.RibbonTab(custom.id(), custom.name(), bands));
+			tabs.add(new SwingRibbonModel.RibbonTab(custom.id(), custom.name(), bands, false,
+				nextCustomTabAccessKey(usedTabKeyTips)));
 		}
 		return new SwingRibbonModel(model.getId(), tabs, model.getTaskBarButtons())
 			.withTaskBarControls(model.getTaskBarControls());
+	}
+
+	/**
+	 * Lead letters of the custom-tab KeyTips, in assignment order. Each lead carries the numbers 1-9, so a
+	 * KeyTip is always <lead><digit>: two KeyTips are then either equal or differ in a position, and none can be
+	 * a prefix of another (typing a KeyTip that prefixes another only narrows the sequence instead of running it).
+	 * The standard bundles use none of these letters, so a default tab never loses its own KeyTip.
+	 */
+	private static final char[] CUSTOM_TAB_KEYTIP_LEADS = { 'Y', 'Z', 'J', 'K', 'Q', 'X' };
+	private static final int CUSTOM_TAB_KEYTIPS = CUSTOM_TAB_KEYTIP_LEADS.length * 9;
+
+	/**
+	 * The keyboard KeyTip of a user-defined tab. Office assigns a fallback key built from a "Y" and a number
+	 * when the preferred KeyTips are already taken (Custom KeyTips for Office Add-ins,
+	 * https://learn.microsoft.com/en-us/office/dev/add-ins/design/add-custom-key-tips). Tabs are numbered in
+	 * display order, so the same customization always produces the same KeyTips.
+	 */
+	static String nextCustomTabAccessKey(java.util.Set<String> usedKeyTips) {
+		for (char lead : CUSTOM_TAB_KEYTIP_LEADS) {
+			for (int number = 1; number <= 9; number++) {
+				String keyTip = lead + Integer.toString(number);
+				if (!conflicts(usedKeyTips, keyTip)) {
+					usedKeyTips.add(keyTip);
+					return keyTip;
+				}
+			}
+		}
+		throw new IllegalStateException("More custom tabs than the " + CUSTOM_TAB_KEYTIPS + " KeyTips available");
+	}
+
+	/** Two KeyTips must differ in a position: an exact match or a prefix of either one is ambiguous. */
+	private static boolean conflicts(java.util.Set<String> usedKeyTips, String keyTip) {
+		for (String used : usedKeyTips) {
+			if (used.startsWith(keyTip) || keyTip.startsWith(used)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** A custom group holds canonical command IDs, so its buttons come from the same path as the default ones. */
