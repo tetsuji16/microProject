@@ -30,6 +30,8 @@ import java.awt.print.Pageable;
 import java.awt.print.PrinterException;
 import java.awt.print.PrinterJob;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -68,10 +70,52 @@ public abstract class PrintDocument implements Pageable{
 	boolean showGantt=true;
 	protected double svgZoomX,svgZoomY;
 
+	/** Printer lookups, replaceable in tests so the resolving constructor can be observed. */
+	private static Supplier<PrintService[]> realServiceLookup=PrintDocument::lookupRealPrintServices;
+	private static Supplier<PrintService> defaultServiceLookup=PrintDocument::lookupDefaultRealPrintService;
+
 	/**
-	 *
+	 * Reads the real printers from AWT. The PDF service is added by the document itself, so it
+	 * is never part of this list.
 	 */
+	public static PrintService[] lookupRealPrintServices() {
+		PrintService[] services=PrintServiceLookup.lookupPrintServices(DocFlavor.SERVICE_FORMATTED.PRINTABLE, null);
+		PrintService defaultService=PrintServiceLookup.lookupDefaultPrintService();
+		if (services.length==0&&defaultService!=null) services=new PrintService[]{defaultService}; //strange but it can occur
+		return services;
+	}
+
+	/** Reads the system default printer from AWT, or {@code null} when none is configured. */
+	public static PrintService lookupDefaultRealPrintService() {
+		return PrintServiceLookup.lookupDefaultPrintService();
+	}
+
+	/** Replaces the printer lookups until the returned handle is closed. Tests only. */
+	static AutoCloseable overridePrintServiceLookup(Supplier<PrintService[]> services,
+			Supplier<PrintService> defaultService) {
+		Supplier<PrintService[]> previousServices=realServiceLookup;
+		Supplier<PrintService> previousDefault=defaultServiceLookup;
+		realServiceLookup=Objects.requireNonNull(services);
+		defaultServiceLookup=Objects.requireNonNull(defaultService);
+		return () -> {
+			realServiceLookup=previousServices;
+			defaultServiceLookup=previousDefault;
+		};
+	}
+
+	/** Creates a document that resolves the printers itself. */
 	public PrintDocument(Project project,boolean pdfOnly,boolean printOnly, boolean pdfAsDefault,boolean localSettings) {
+		this(project,pdfOnly,printOnly,pdfAsDefault,localSettings,
+				pdfOnly?new PrintService[0]:realServiceLookup.get(),
+				pdfOnly?null:defaultServiceLookup.get());
+	}
+
+	/**
+	 * Creates a document from printers the caller already resolved, so a slow lookup can run off
+	 * the event thread. The selection rules are the same as in the resolving constructor.
+	 */
+	protected PrintDocument(Project project,boolean pdfOnly,boolean printOnly, boolean pdfAsDefault,boolean localSettings,
+			PrintService[] resolvedServices, PrintService resolvedDefaultService) {
 		printSettings=PrintSettingsManager.getSettings(localSettings?null:project);
 		pdfPrintService=new PDFPrintService(); //Don't want to define a printService for PDF
 		if (pdfOnly){
@@ -79,8 +123,8 @@ public abstract class PrintDocument implements Pageable{
 			printServices=new PrintService[]{pdfPrintService};
 			setPrintService(pdfPrintService,true);
 		}else{
-			realPrintServices=PrintServiceLookup.lookupPrintServices(DocFlavor.SERVICE_FORMATTED.PRINTABLE, null);
-			PrintService defaultService=PrintServiceLookup.lookupDefaultPrintService();
+			realPrintServices=resolvedServices==null?new PrintService[0]:resolvedServices.clone();
+			PrintService defaultService=resolvedDefaultService;
 			if (realPrintServices.length==0&&defaultService!=null) realPrintServices=new PrintService[]{defaultService}; //strange but it can occur
 			printServices=new PrintService[realPrintServices.length+1];
 			printServices[0]=pdfPrintService;

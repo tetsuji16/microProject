@@ -25,6 +25,7 @@ package com.microproject.ui.ribbon.backstage;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -99,7 +100,9 @@ public final class BackstagePrintPage extends JPanel {
 	private final JComboBox<String> paperSizeCombo;
 	private final JButton pageSetupLink;
 	private final JLabel statusLabel;
-	private final JComponent preview;
+	private final String noPrintersText;
+	private final String loadingText;
+	private JComponent preview;
 
 	/**
 	 * @param settings the print-settings snapshot, never {@code null}
@@ -119,6 +122,8 @@ public final class BackstagePrintPage extends JPanel {
 		this.preview = Objects.requireNonNull(preview, "preview");
 
 		boolean hasPrinter = !settings.printers().isEmpty();
+		this.noPrintersText = label.apply("noPrinters");
+		this.loadingText = label.apply("loadingPrinters");
 
 		JPanel left = fixedWidthPanel("officeBackstagePrintSettings");
 		left.setLayout(new GridBagLayout());
@@ -149,7 +154,7 @@ public final class BackstagePrintPage extends JPanel {
 		this.orientationCombo = combo("officeBackstagePrintOrientation", settings.orientations(), settings.orientation());
 		this.paperSizeCombo = combo("officeBackstagePrintPaperSize", settings.paperSizes(), settings.paperSize());
 		this.printerCombo = combo("officeBackstagePrintPrinter", settings.printers(), settings.printer());
-		this.statusLabel = new JLabel(hasPrinter ? "" : label.apply("noPrinters"));
+		this.statusLabel = new JLabel(hasPrinter ? "" : this.noPrintersText);
 		this.statusLabel.setName("officeBackstagePrintStatus");
 		this.pageSetupLink = link(label.apply("pageSetup"), "officeBackstagePrintPageSetup", actions::openPageSetup);
 
@@ -266,6 +271,53 @@ public final class BackstagePrintPage extends JPanel {
 		button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 		button.addActionListener(event -> action.run());
 		return button;
+	}
+
+	/**
+	 * Shows that the printer list is still being read. The printer controls stay disabled until
+	 * {@link #setPrinters} delivers a list.
+	 */
+	public void showPrintersLoading() {
+		printerCombo.setModel(new DefaultComboBoxModel<>());
+		printerCombo.setEnabled(false);
+		printButton.setEnabled(false);
+		statusLabel.setText(loadingText);
+	}
+
+	/** Fills in the printer list once it is known and enables printing when one exists. */
+	public void setPrinters(List<String> printers, String selected) {
+		List<String> values = printers == null ? List.of() : List.copyOf(printers);
+		printerCombo.setModel(new DefaultComboBoxModel<>(values.toArray(String[]::new)));
+		if (selected != null && values.contains(selected)) printerCombo.setSelectedItem(selected);
+		boolean hasPrinter = !values.isEmpty();
+		printerCombo.setEnabled(hasPrinter);
+		printButton.setEnabled(hasPrinter);
+		statusLabel.setText(hasPrinter ? "" : noPrintersText);
+	}
+
+	/** Replaces the preview, e.g. once the print document has been created. */
+	public void setPreviewComponent(JComponent component) {
+		Objects.requireNonNull(component, "component");
+		if (component == preview) return;
+		Container pane = preview.getParent();
+		if (pane == null) return;
+		pane.remove(preview);
+		pane.add(component, BorderLayout.CENTER);
+		preview = component;
+		pane.revalidate();
+		pane.repaint();
+	}
+
+	/** Selects the orientation that matches the document's page format. */
+	public void setOrientation(String orientation) {
+		if (orientation == null) return;
+		ComboBoxModel<String> model = orientationCombo.getModel();
+		for (int i = 0; i < model.getSize(); i++) {
+			if (orientation.equals(model.getElementAt(i))) {
+				orientationCombo.setSelectedItem(orientation);
+				return;
+			}
+		}
 	}
 
 	/** The caller-supplied print button, wired to the existing print command. */

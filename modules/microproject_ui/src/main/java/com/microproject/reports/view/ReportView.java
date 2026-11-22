@@ -361,7 +361,15 @@ public class ReportView extends JPanel implements BaseView, CacheListener {
 	}
 	@Override
 	public com.microproject.print.GraphPageable createPrintDocument(boolean printOnly, boolean pdfAsDefault) {
-		return printable == null ? null : new com.microproject.print.ReportPageable(printable, printOnly);
+		return createPrintDocument(printOnly, pdfAsDefault,
+				com.microproject.print.PrintDocument.lookupRealPrintServices(),
+				com.microproject.print.PrintDocument.lookupDefaultRealPrintService());
+	}
+	@Override
+	public com.microproject.print.GraphPageable createPrintDocument(boolean printOnly, boolean pdfAsDefault,
+			javax.print.PrintService[] resolvedServices, javax.print.PrintService resolvedDefaultService) {
+		return printable == null ? null
+				: new com.microproject.print.ReportPageable(printable, printOnly, resolvedServices, resolvedDefaultService);
 	}
 
 	public ReportPrintable getPrintable() { return printable; }
