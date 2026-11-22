@@ -78,6 +78,8 @@ import com.microproject.ui.util.PopupDialogSupport;
  *
  */
 public abstract class AbstractDialog extends FlatLafDialog {
+	private static final long serialVersionUID = -9113649728788108118L;
+
 	private static final Logger logger = Logger.getLogger(AbstractDialog.class.getName());
 	protected JButton ok;
 

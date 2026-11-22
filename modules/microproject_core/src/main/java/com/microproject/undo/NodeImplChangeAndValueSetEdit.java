@@ -43,6 +43,8 @@ import com.microproject.grouping.core.model.NodeModel;
  *
  */
 public class NodeImplChangeAndValueSetEdit extends AbstractUndoableEdit{
+	private static final long serialVersionUID = -1707242663563629891L;
+
 	private static final Logger logger = Logger.getLogger(NodeImplChangeAndValueSetEdit.class.getName());
 	protected NodeModel model;
 	protected Node node;

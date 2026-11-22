@@ -32,6 +32,8 @@ import com.microproject.pm.task.Project;
  *
  */
 public class DataFactoryUndoController extends UndoController {
+	private static final long serialVersionUID = -4473725178043391054L;
+
 	protected NodeModelDataFactory dataFactory;
 	public DataFactoryUndoController() {
 		super();

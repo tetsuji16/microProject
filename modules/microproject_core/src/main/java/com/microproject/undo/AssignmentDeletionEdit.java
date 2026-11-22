@@ -35,6 +35,8 @@ import com.microproject.pm.assignment.AssignmentService;
  *
  */
 public class AssignmentDeletionEdit extends AbstractUndoableEdit{
+	private static final long serialVersionUID = -6646192353757631202L;
+
 	protected Node node;
 	protected Assignment assignment; //for default assignment which isn't contained in a node
 	

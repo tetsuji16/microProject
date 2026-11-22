@@ -54,6 +54,8 @@ import com.microproject.datatype.TimeUnit;
  *
  */
 public class TaskSnapshot implements DataSnapshot, HasAssignments, Cloneable {
+	private static final long serialVersionUID = 7439107489682923760L;
+
 	TaskSchedule currentSchedule;
 	HasAssignments hasAssignments = null;
 	double fixedCost = 0;

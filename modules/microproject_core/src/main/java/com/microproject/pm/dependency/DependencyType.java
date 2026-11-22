@@ -127,7 +127,8 @@ public class DependencyType {
 	
 	private static Format formatInstance = null;
 	public static class Format extends java.text.Format {
-		
+		private static final long serialVersionUID = 1005946901032946702L;
+
 		public static Format getInstance() {
 			if (formatInstance == null)
 				formatInstance = new Format();

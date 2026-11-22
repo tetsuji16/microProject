@@ -37,6 +37,8 @@ import com.microproject.pm.dependency.DependencyService;
  *
  */
 public class DependencySetFieldsEdit extends AbstractUndoableEdit{
+	private static final long serialVersionUID = -1834377306662869218L;
+
 	private static final Logger logger = Logger.getLogger(DependencySetFieldsEdit.class.getName());
 	protected Dependency dependency;
 	protected long lag;

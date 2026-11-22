@@ -535,6 +535,8 @@ public class IconManager {
 	}
 
 	private static final class ScalableRibbonStateIcon extends ImageIcon {
+		private static final long serialVersionUID = 3117251979455466892L;
+
 		private final FlatSVGIcon source;
 		private final Color tint;
 		private volatile BufferedImage logicalImage;

@@ -39,6 +39,8 @@ import com.microproject.strings.Messages;
 import com.microproject.util.FlatUiSupport;
 
 public final class ReplaceAssignmentDialog extends AbstractDialog implements CommonAssignmentDialog{
+	private static final long serialVersionUID = -4353379252354378830L;
+
 	DocumentFrame documentFrame;
     Resource resource;
 	AssignmentEntryPane spreadSheetPane;

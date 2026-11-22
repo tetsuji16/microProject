@@ -27,6 +27,7 @@ package com.microproject.pm.calendar;
  * 
  */
 public class InvalidCalendarIntersectionException extends Exception {
+	private static final long serialVersionUID = -640351850985560887L;
 
 	/**
 	 * 

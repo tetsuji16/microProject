@@ -34,6 +34,8 @@ import com.microproject.util.ClassUtils;
  * Adds ability for percentage formatter to parse non percents
  */
 public class PercentFormat extends Format {
+	private static final long serialVersionUID = 1189049196188676831L;
+
 	// NumberFormat/DecimalFormat is not thread-safe; always use a fresh instance
 	// per call instead of a shared static one (issue #184).
 	private static NumberFormat numberFormat() {

@@ -38,6 +38,8 @@ import com.microproject.field.Field;
  *
  */
 public class SimpleComboBoxEditor extends DefaultCellEditor  {
+	private static final long serialVersionUID = 6086581691583901057L;
+
 	JTable cachedTable = null;
 	JComboBox component;
 	String oldValue;

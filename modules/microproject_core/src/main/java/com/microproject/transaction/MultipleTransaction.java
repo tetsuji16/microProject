@@ -32,6 +32,8 @@ import com.microproject.document.Document;
  * Takes care of notifying the creation or deletion of objects
  */
 public class MultipleTransaction extends EventObject {
+	private static final long serialVersionUID = 7025122921168398507L;
+
     private boolean begin;
     private int id;
     private int depth;

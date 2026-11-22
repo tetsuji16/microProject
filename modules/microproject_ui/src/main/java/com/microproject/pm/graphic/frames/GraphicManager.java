@@ -1444,6 +1444,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 
 
 	protected class CreateSubprojectEdit extends AbstractUndoableEdit{
+		private static final long serialVersionUID = 1270771120330978599L;
+
 		protected Project project;
 		protected final Node subprojectNode;
 		protected long subprojectUniqueId;

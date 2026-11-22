@@ -34,6 +34,8 @@ import com.microproject.pm.scheduling.ScheduleService;
  *
  */
 public class SplitEdit extends AbstractUndoableEdit{
+	private static final long serialVersionUID = -3121923762671762185L;
+
 	protected Schedule schedule;
 	protected long from,to;
 	protected Object source,detailBackup;

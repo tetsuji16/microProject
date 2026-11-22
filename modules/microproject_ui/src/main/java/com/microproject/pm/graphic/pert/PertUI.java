@@ -30,6 +30,7 @@ import com.microproject.pm.graphic.network.NetworkUI;
  *
  */
 public class PertUI extends NetworkUI {
+	private static final long serialVersionUID = -6453623369099139094L;
 
 	/**
 	 * @param graph

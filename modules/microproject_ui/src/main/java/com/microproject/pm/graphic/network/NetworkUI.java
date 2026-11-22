@@ -39,6 +39,8 @@ import com.microproject.pm.graphic.network.rendering.FieldChange;
  *
  */
 public abstract class NetworkUI extends GraphUI{
+	private static final long serialVersionUID = -4505847524820580169L;
+
 	public NetworkUI(Network graph,GraphRenderer graphRenderer) {
 		super(graph,graphRenderer);
 	}

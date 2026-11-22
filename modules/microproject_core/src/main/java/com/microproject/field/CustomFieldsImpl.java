@@ -34,6 +34,8 @@ import java.util.Arrays;
  * Custom fields and their bounds.  The bounds are set from config file by corresponding fields
  */
 public class CustomFieldsImpl implements CustomFields, Serializable, Cloneable {
+	private static final long serialVersionUID = 5261977799072199015L;
+
 	public static int NUM_COST = 10;
 	public static int NUM_DATE = 10;
 	public static int NUM_DURATION = 10;

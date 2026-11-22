@@ -74,6 +74,8 @@ import com.microproject.util.FlatUiSupport;
 
 
 public class PrintPreviewFrame extends FlatLafFrame implements  ProjectMenuActionMap, MenuActionConstants{
+	private static final long serialVersionUID = -1475474564268149868L;
+
    private static final Logger logger = Logger.getLogger(PrintPreviewFrame.class.getName());
 
    private PagePanel pagePanel;
@@ -170,6 +172,8 @@ public class PrintPreviewFrame extends FlatLafFrame implements  ProjectMenuActio
 	}
 
 	public class PrintAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 7518192435006597180L;
+
 		public void actionPerformed(ActionEvent arg0) {
 			if (document.getPrintService() instanceof PDFPrintService){
 				Alert.error(Messages.getString("PageSetupDialog.NotValidPrinter"),PrintPreviewFrame.this);
@@ -179,6 +183,8 @@ public class PrintPreviewFrame extends FlatLafFrame implements  ProjectMenuActio
 		}
 	}
 	public class PDFAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 111883064509001919L;
+
 		public void actionPerformed(ActionEvent arg0) {
 			try {
 				Class<?> generator=ClassLoaderUtils.forName("com.microproject.export.ImageExport");
@@ -189,6 +195,8 @@ public class PrintPreviewFrame extends FlatLafFrame implements  ProjectMenuActio
 		}
 	}
 	public class FormatAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 39040672022956959L;
+
 		public void actionPerformed(ActionEvent arg0) {
 			toggleFormatPanel();
 		}
@@ -217,51 +225,71 @@ public class PrintPreviewFrame extends FlatLafFrame implements  ProjectMenuActio
 
 	}
 	public class BackAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1660224565965862098L;
+
 		public void actionPerformed(ActionEvent arg0) {
 			previousPage();
 		}
 	}
 	public class ForwardAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = -1546558805151951710L;
+
 		public void actionPerformed(ActionEvent arg0) {
 			nextPage();
 		}
 	}
 	public class UpAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = -8084376057581605187L;
+
 		public void actionPerformed(ActionEvent arg0) {
 			upperPage();
 		}
 	}
 	public class DownAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = -2729237719860139270L;
+
 		public void actionPerformed(ActionEvent arg0) {
 			lowerPage();
 		}
 	}
 	public class FirstAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = -1037255310075880798L;
+
 		public void actionPerformed(ActionEvent arg0) {
 			firstPage();
 		}
 	}
 	public class LastAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 6294328307748324703L;
+
 		public void actionPerformed(ActionEvent arg0) {
 			lastPage();
 		}
 	}
 	public class ZoomInAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 2313463747134946960L;
+
 		public void actionPerformed(ActionEvent arg0) {
 			zoomIn();
 		}
 	}
 	public class ZoomResetAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 3886990790342074220L;
+
 		public void actionPerformed(ActionEvent arg0) {
 			zoomReset();
 		}
 	}
 	public class ZoomOutAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 2970671217764475859L;
+
 		public void actionPerformed(ActionEvent arg0) {
 			zoomOut();
 		}
 	}
 	public class LeftViewAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 8292956066351271266L;
+
 		public void actionPerformed(ActionEvent arg0) {
 			toggleLeftView();
 		}
@@ -273,6 +301,8 @@ public class PrintPreviewFrame extends FlatLafFrame implements  ProjectMenuActio
 		}
 	}
 	public class RightViewAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 7455554173246680553L;
+
 		public void actionPerformed(ActionEvent arg0) {
 			toggleRightView();
 		}

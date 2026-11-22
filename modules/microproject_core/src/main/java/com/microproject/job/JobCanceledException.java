@@ -24,6 +24,7 @@
 package com.microproject.job;
 
 public class JobCanceledException extends Exception {
+	private static final long serialVersionUID = 6004599148815559678L;
 
 	public JobCanceledException() {
 		super();

@@ -29,7 +29,8 @@ import java.util.EventObject;
  *
  */
 public class JobQueueEvent extends EventObject {
-	
+	private static final long serialVersionUID = -3731006891089384323L;
+
 	protected float progress;
 	
 	public JobQueueEvent(Object source, float progress) {

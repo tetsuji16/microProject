@@ -39,6 +39,7 @@ import com.microproject.util.Alert;
  *
  */
 public class PertInteractor extends NetworkInteractor {
+	private static final long serialVersionUID = -7485349525136920460L;
 
 	/**
 	 * @param ui

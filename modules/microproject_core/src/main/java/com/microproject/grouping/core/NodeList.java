@@ -34,6 +34,8 @@ import com.microproject.grouping.core.transform.filtering.NotVoidFilter;
  * It holds all the nodes of a model.
  */
 public class NodeList extends ArrayList<Node> {
+	private static final long serialVersionUID = -2714825937879413227L;
+
 	/**
 	 *  
 	 */

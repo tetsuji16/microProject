@@ -54,6 +54,8 @@ import org.netbeans.swing.outline.TreePathSupport;
  *  
  */
 public class TimeSpreadSheetModel extends CommonSpreadSheetModel implements TimeScaleListener, OutlineModel, RowModel {
+	private static final long serialVersionUID = -7026327845827134670L;
+
 	protected ArrayList<Field> selectedFieldArray;
 	//timescale
 	protected CoordinatesConverter coord;

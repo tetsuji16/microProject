@@ -34,6 +34,8 @@ import com.microproject.grouping.core.model.NodeModel;
  *
  */
 public class NodeImplChangeEdit extends AbstractUndoableEdit{
+	private static final long serialVersionUID = 3125821448424406183L;
+
 	protected NodeModel model;
 	protected Node node;
 	protected Object impl;

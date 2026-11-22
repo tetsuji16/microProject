@@ -53,6 +53,8 @@ import com.microproject.ui.input.PopupTriggerController;
  *
  */
 public abstract class GraphInteractor implements MouseListener, MouseMotionListener, Serializable{
+	private static final long serialVersionUID = -1772127906889326012L;
+
 	protected static final int NOTHING_SELECTED=0;
 	protected static final int LINK_CREATION=1;
 	protected static final int LINK_SELECTION=2;

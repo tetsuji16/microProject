@@ -39,6 +39,8 @@ import com.microproject.datatype.RateFormat;
  *
  */
 public class RateEditor extends SimpleEditor {
+	private static final long serialVersionUID = 462846199585731624L;
+
 	// NumberFormat/DecimalFormat is not thread-safe; use a fresh instance per call (issue #184).
 	public Component getTableCellEditorComponent(JTable table, Object value,
 			boolean arg2, int row, int column) {

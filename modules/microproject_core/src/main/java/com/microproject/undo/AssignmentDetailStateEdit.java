@@ -37,6 +37,8 @@ import com.microproject.pm.task.NormalTask;
 
 /** Restores assignment detail state after connection edits have been replayed. */
 public final class AssignmentDetailStateEdit extends AbstractUndoableEdit {
+	private static final long serialVersionUID = 8342915221239861444L;
+
 	private final Map<Assignment, Object> before;
 	private final Map<Assignment, Object> after;
 

@@ -35,6 +35,8 @@ import com.microproject.field.FieldParseException;
  *
  */
 public class AssignmentSetFieldsEdit extends AbstractUndoableEdit{
+	private static final long serialVersionUID = -2680133235921007426L;
+
 	protected Field field;
 	protected Object object;
 	protected Object value,oldValue;
