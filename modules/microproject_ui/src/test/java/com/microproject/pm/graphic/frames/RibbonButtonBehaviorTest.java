@@ -1793,6 +1793,52 @@ class RibbonButtonBehaviorTest {
 			"same-session workspace restore must preserve all selected chart resources");
 	}
 
+	@Test
+	void detailsWithResourceTopViewRestoresResourceUsage() throws Exception {
+		Harness harness = newHarness();
+		activateView(harness, MenuActionConstants.ACTION_RESOURCES);
+		assertTrue(harness.frame.getActiveTopView().showsResources(), "Resource Sheet should show resources");
+		assertFalse(harness.frame.getActiveTopView().showsTasks(), "Resource Sheet should not show tasks");
+
+		activateView(harness, MenuActionConstants.ACTION_DETAILS);
+		assertBottomView(harness, MenuActionConstants.ACTION_RESOURCE_USAGE, harness.frame.getResourceUsageView());
+		assertTrue((Boolean) harness.manager.getAction(MenuActionConstants.ACTION_DETAILS)
+			.getValue(Action.SELECTED_KEY));
+
+		activateView(harness, MenuActionConstants.ACTION_DETAILS);
+		assertBottomView(harness, MenuActionConstants.ACTION_NO_SUB_WINDOW, null);
+		assertFalse((Boolean) harness.manager.getAction(MenuActionConstants.ACTION_DETAILS)
+			.getValue(Action.SELECTED_KEY));
+
+		activateView(harness, MenuActionConstants.ACTION_DETAILS);
+		assertBottomView(harness, MenuActionConstants.ACTION_RESOURCE_USAGE, harness.frame.getResourceUsageView());
+		assertTrue((Boolean) harness.manager.getAction(MenuActionConstants.ACTION_DETAILS)
+			.getValue(Action.SELECTED_KEY));
+	}
+
+	@Test
+	void detailsRestoresBottomViewMatchingCurrentTopViewType() throws Exception {
+		Harness harness = newHarness();
+		activateView(harness, MenuActionConstants.ACTION_TASK_USAGE);
+		assertBottomView(harness, MenuActionConstants.ACTION_TASK_USAGE, harness.frame.getTaskUsageView());
+
+		// A resource top view replaces the task-usage default with Resource Usage.
+		activateView(harness, MenuActionConstants.ACTION_RESOURCES);
+		assertTrue(harness.frame.getActiveTopView().showsResources());
+		activateView(harness, MenuActionConstants.ACTION_DETAILS);
+		assertBottomView(harness, MenuActionConstants.ACTION_NO_SUB_WINDOW, null);
+		activateView(harness, MenuActionConstants.ACTION_DETAILS);
+		assertBottomView(harness, MenuActionConstants.ACTION_RESOURCE_USAGE, harness.frame.getResourceUsageView());
+
+		// A task top view restores the task-usage default again.
+		activateView(harness, MenuActionConstants.ACTION_GANTT);
+		assertTrue(harness.frame.getActiveTopView().showsTasks());
+		activateView(harness, MenuActionConstants.ACTION_DETAILS);
+		assertBottomView(harness, MenuActionConstants.ACTION_NO_SUB_WINDOW, null);
+		activateView(harness, MenuActionConstants.ACTION_DETAILS);
+		assertBottomView(harness, MenuActionConstants.ACTION_TASK_USAGE, harness.frame.getTaskUsageView());
+	}
+
 	private static int resourceRow(javax.swing.JTree tree, Resource resource) {
 		for (int row = 0; row < tree.getRowCount(); row++) {
 			Object last = tree.getPathForRow(row).getLastPathComponent();

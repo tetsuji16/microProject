@@ -2206,10 +2206,13 @@ public class DocumentFrame extends NamedFrame implements
 			if (activeBottomView != null)
 				deactivateBottomView();
 			else {
+				boolean topIsResource = activeTopView != null && activeTopView.showsResources() && !activeTopView.showsTasks();
 				String restoreName = lastBottomViewName;
-				if (restoreName == null || ACTION_NO_SUB_WINDOW.equals(restoreName))
-					restoreName = ACTION_TASK_USAGE;
-				activateBottomView(getBottomViewForRestore(), restoreName);
+				if (restoreName == null || ACTION_NO_SUB_WINDOW.equals(restoreName)
+					|| !isBottomViewNameCompatibleWithTop(restoreName, topIsResource)) {
+					restoreName = topIsResource ? ACTION_RESOURCE_USAGE : ACTION_TASK_USAGE;
+				}
+				activateBottomView(getBottomViewForRestore(restoreName), restoreName);
 			}
 		}
 		else if (viewName.equals(ACTION_NO_SUB_WINDOW))
@@ -2416,16 +2419,27 @@ public class DocumentFrame extends NamedFrame implements
 			selectedAction != null && !ACTION_NO_SUB_WINDOW.equals(selectedAction));
 	}
 
-	private BaseView getBottomViewForRestore() {
-		String viewName = lastBottomViewName;
-		if (viewName == null || ACTION_NO_SUB_WINDOW.equals(viewName))
-			viewName = ACTION_TASK_USAGE;
-		return switch (viewName) {
+	private BaseView getBottomViewForRestore(String restoreName) {
+		return switch (restoreName) {
 			case ACTION_HISTOGRAM -> getHistogramView();
 			case ACTION_CHARTS -> getChartView();
 			case ACTION_RESOURCE_USAGE -> getResourceUsageView();
 			default -> getTaskUsageView();
 		};
+	}
+
+	/**
+	 * Details restores the last bottom view only when it matches the kind of the top view, so a resource view
+	 * never shows task usage. Histogram and Charts apply to both kinds; an unknown name falls back to compatible.
+	 */
+	private boolean isBottomViewNameCompatibleWithTop(String bottomViewName, boolean topIsResource) {
+		if (ACTION_HISTOGRAM.equals(bottomViewName) || ACTION_CHARTS.equals(bottomViewName))
+			return true;
+		if (ACTION_TASK_USAGE.equals(bottomViewName))
+			return !topIsResource;
+		if (ACTION_RESOURCE_USAGE.equals(bottomViewName))
+			return topIsResource;
+		return true;
 	}
 
 
