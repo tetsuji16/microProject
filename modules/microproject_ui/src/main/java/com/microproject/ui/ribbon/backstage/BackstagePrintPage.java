@@ -172,8 +172,9 @@ public final class BackstagePrintPage extends JPanel {
 		if (!hasPrinter) printerCombo.setEnabled(false);
 		Runnable refresh = () -> {
 			actions.settingsChanged();
-			preview.revalidate();
-			preview.repaint();
+			// The field holds the preview that is installed now, which may replace the caller's component.
+			this.preview.revalidate();
+			this.preview.repaint();
 		};
 		copiesField.addChangeListener(event -> refresh.run());
 		printerCombo.addActionListener(event -> refresh.run());

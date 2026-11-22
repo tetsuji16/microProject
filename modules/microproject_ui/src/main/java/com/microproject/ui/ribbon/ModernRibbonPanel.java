@@ -1149,8 +1149,10 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		closeBackstageBeforeCommand(previewButton);
 
 		GraphPageable[] document = new GraphPageable[1];
-		JComponent preview = createBackstagePrintPreview(null, previewButton,
-				"FileBackstage.print.preparingPreview");
+		BackstagePrintPage[] pageRef = new BackstagePrintPage[1];
+		// Without a document the preview never arrives, so it shows the unavailable text right away.
+		JComponent preview = createBackstagePrintPreview(null, previewButton, frame == null
+				? "FileBackstage.print.previewUnavailable" : "FileBackstage.print.preparingPreview");
 		BackstagePrintPage.Actions actions = new BackstagePrintPage.Actions() {
 			@Override public void openPageSetup() {
 				GraphPageable current = document[0];
@@ -1167,12 +1169,16 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 				if (document[0] != null) {
 					try { document[0].update(); } catch (RuntimeException ignored) { }
 				}
-				preview.revalidate();
-				preview.repaint();
+				// Refresh the preview that is installed now, not the placeholder it replaced.
+				BackstagePrintPage current = pageRef[0];
+				JComponent shown = current == null ? preview : current.getPreviewComponent();
+				shown.revalidate();
+				shown.repaint();
 			}
 		};
 		BackstagePrintPage printPage = new BackstagePrintPage(settings, printButton, preview, actions,
 				key -> localized("FileBackstage.print." + key));
+		pageRef[0] = printPage;
 		if (frame == null) {
 			// Without an active document there are no print settings to evaluate.
 			// Keep the canonical command enabled so it stays physically routable;
@@ -1194,7 +1200,8 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 				} catch (Exception interrupted) {
 					lookup = new PrinterLookup(new PrintService[0], null);
 				}
-				installBackstagePrintDocument(printPage, frame, previewButton, lookup, portrait, landscape);
+				document[0] = installBackstagePrintDocument(printPage, frame, previewButton, lookup,
+						portrait, landscape);
 			}
 		}.execute();
 		return printPage;
@@ -1203,8 +1210,8 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	/** Printers read off the event thread, before the print document is built. */
 	private record PrinterLookup(PrintService[] services, PrintService defaultService) { }
 
-	/** Builds the document from the resolved printers and fills the waiting page. */
-	private void installBackstagePrintDocument(BackstagePrintPage printPage, DocumentFrame frame,
+	/** Builds the document from the resolved printers, fills the waiting page, and returns it. */
+	private GraphPageable installBackstagePrintDocument(BackstagePrintPage printPage, DocumentFrame frame,
 			AbstractButton previewButton, PrinterLookup lookup, String portrait, String landscape) {
 		GraphPageable document = createBackstagePrintDocument(frame, lookup);
 		List<String> printers = new ArrayList<>();
@@ -1229,6 +1236,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		}
 		printPage.revalidate();
 		printPage.repaint();
+		return document;
 	}
 
 	/** Creates a preview-only pageable without a print job; null when no document is available. */
