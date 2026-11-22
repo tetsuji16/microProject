@@ -57,6 +57,7 @@ MS Project 互換性に関する形式テストでは read と write を独立�
 | リボンの幅対応再構築後のグループ名基準線 | ModernRibbonPanelBandBaselineTest: 幅1100/1300/1450/1920で全タブのバンド名下端を比較し、幅による再構築で特定タブだけ高さがズレないことを確認 |
 | Calendar 書式設定のワークスペース往復 | CalendarViewSettingsTest: 行高さ・バー色・文字書式・レイアウト・タスク一覧の保存復元と、共有 DockableProjectToolView によるワークスペース往復を確認 |
 | ダイアログのサイズ制限がオーナーのモニター基準 | DialogSizingTest と PreferencesDialogGuiAcceptanceTest.initialSizeUsesTheOwnerMonitorInsteadOfThePrimaryOne: 共通クランプとセカンダリ モニターの作業領域を確認 |
+| 全ウィンドウのサイズ契約（[#863](https://github.com/tetsuji16/microProject/issues/863) A3） | WindowSizeContractSweepGuiAcceptanceTest: 23 ダイアログとメインウィンドウを開き、宣言した FIXED_FORM / RESIZABLE 契約、成長時の文字高さと作業面の成長吸収、packed 最小への復帰、usable screen 内を確認。固定フォームの一覧と未カバー画面は docs/dialog-layout-audit.md の "Cross-window resize contract (#863 A3)" |
 | Backstage の固定ページと区切り位置 | RibbonStructureTest と ModernRibbonBackstageNavigationTest: 配置がバンドルで宣言され、未宣言ページを指定すると明示的に失敗することを確認 |
 
 ## 1.3 issue に書く試験条件

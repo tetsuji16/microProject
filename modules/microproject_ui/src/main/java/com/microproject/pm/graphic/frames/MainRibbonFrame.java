@@ -46,6 +46,7 @@ public class MainRibbonFrame extends FlatLafFrame implements FrameHolder{
 	protected GraphicManager graphicManager;
 	private JPanel ribbonPanel;
 	private Runnable windowCloseAction;
+	private Runnable ribbonInstaller;
 
 	public MainRibbonFrame(String name, String projectUrl) throws HeadlessException {
 		super(name);
@@ -99,6 +100,33 @@ public class MainRibbonFrame extends FlatLafFrame implements FrameHolder{
 		getContentPane().revalidate();
 		getContentPane().repaint();
 		if (graphicManager != null) graphicManager.updateRibbonContext(graphicManager.getRibbonContextViewId());
+	}
+
+	/** Remembers how to install this window's ribbon, so that {@link #rebuildRibbon()} can build it again. */
+	public void setRibbonInstaller(Runnable ribbonInstaller) {
+		this.ribbonInstaller = ribbonInstaller;
+	}
+
+	/**
+	 * Builds this window's ribbon again from the saved customization. Keeps the selected tab when the new ribbon
+	 * still has it, otherwise selects the Task tab. Must run on the event dispatch thread.
+	 */
+	public void rebuildRibbon() {
+		if (ribbonInstaller == null || ribbonPanel == null) return;
+		JPanel previousShell = ribbonPanel;
+		RibbonController previous = ribbonController(ribbonPanel);
+		String selected = previous == null ? null : previous.getSelectedTabId();
+		ribbonInstaller.run();
+		if (previous != null) previous.releaseCommandControls();
+		com.microproject.ui.shell.MicroProjectShell.releaseRibbonShell(previousShell);
+		RibbonController rebuilt = ribbonController(ribbonPanel);
+		if (rebuilt == null) return;
+		if (selected == null || !rebuilt.selectTab(selected)) rebuilt.selectTab(RibbonController.TASK_TAB_ID);
+	}
+
+	private static RibbonController ribbonController(JPanel panel) {
+		return panel.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY) instanceof RibbonController ribbon
+			? ribbon : null;
 	}
 
 	public void setRibbonBackstageHost(RibbonBackstageHost host) {

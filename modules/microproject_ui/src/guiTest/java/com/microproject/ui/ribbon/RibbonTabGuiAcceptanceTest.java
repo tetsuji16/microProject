@@ -716,15 +716,28 @@ class RibbonTabGuiAcceptanceTest {
 			JComponent navigation = (JComponent)namedComponent(backstage, "officeBackstageNavigation");
 			assertEquals(com.microproject.ui.theme.MicroProjectTheme.tokens().backstageNavigationBackground(),
 				navigation.getBackground(), "Backstage navigation must use the theme's accent navigation colour");
-			int previousY = namedComponent(backstage, "officeBackstageBack").getLocationOnScreen().y;
-			for (String page : new String[] { "home", "new", "open", "info", "save", "saveAs", "print", "export", "close", "account", "options" }) {
+			// On a short screen the destination list scrolls between Back and the pinned Options entry,
+			// so the order is checked inside the list and Options must sit below the list's visible area.
+			Component destinationList = namedComponent(backstage, "officeBackstageDestinations");
+			Component destinationScroll = namedComponent(backstage, "officeBackstageDestinationScroll");
+			assertTrue(destinationList != null && destinationScroll != null, "Backstage destination list is missing");
+			assertTrue(namedComponent(backstage, "officeBackstageBack").getLocationOnScreen().y
+				< destinationScroll.getLocationOnScreen().y, "Back must sit above the Backstage destinations");
+			int previousY = Integer.MIN_VALUE;
+			for (String page : new String[] { "home", "new", "open", "info", "save", "saveAs", "print", "export", "close", "account" }) {
 				Component destination = namedComponent(backstage, "officeBackstageNav-" + page);
 				assertTrue(destination != null && destination.isShowing(), "Backstage destination is not visible: " + page);
-				int y = destination.getLocationOnScreen().y;
+				assertTrue(SwingUtilities.isDescendingFrom(destination, destinationList),
+					"Backstage destination must be in the destination list: " + page);
+				int y = SwingUtilities.convertPoint(destination, 0, 0, destinationList).y;
 				assertTrue(y > previousY, "Backstage destination is out of order: " + page);
 				previousY = y;
 			}
 			Component options = namedComponent(backstage, "officeBackstageNav-options");
+			assertTrue(options != null && options.isShowing(), "Backstage destination is not visible: options");
+			assertTrue(options.getLocationOnScreen().y
+				>= destinationScroll.getLocationOnScreen().y + destinationScroll.getHeight(),
+				"Options must be pinned below the Backstage destination list");
 			int navigationBottom = navigation.getLocationOnScreen().y + navigation.getHeight();
 			assertTrue(navigationBottom - (options.getLocationOnScreen().y + options.getHeight()) <= 16,
 				"Options must be pinned to the bottom of the Backstage navigation");
@@ -1413,6 +1426,13 @@ class RibbonTabGuiAcceptanceTest {
 		Point[] location = new Point[1];
 		assertTrue(button.isShowing(), () -> "physical click target is no longer showing: " + button.getName()
 			+ " command=" + button.getActionCommand() + " text=" + button.getText());
+		// On a short screen a Backstage destination can sit below the scrolled part of its
+		// list; a user scrolls it into view before clicking it.
+		SwingUtilities.invokeAndWait(() -> {
+			if (SwingUtilities.getAncestorOfClass(javax.swing.JViewport.class, button) != null)
+				button.scrollRectToVisible(new java.awt.Rectangle(0, 0, button.getWidth(), button.getHeight()));
+		});
+		robot.waitForIdle();
 		SwingUtilities.invokeAndWait(() -> {
 			Point topLeft = button.getLocationOnScreen();
 			// Split/dropdown buttons reserve their right edge for the arrow; the
@@ -1627,6 +1647,19 @@ class RibbonTabGuiAcceptanceTest {
 			usable.y += screenInsets.top;
 			usable.width -= screenInsets.left + screenInsets.right;
 			usable.height -= screenInsets.top + screenInsets.bottom;
+			// At a fractional scale, Java reports both rectangles in whole logical pixels, rounded from
+			// device pixels separately. A root pane that fills the work area from its origin can then end
+			// one logical pixel past it: in CI at 125%, 1024x720 device px reads as a work area of 819x576
+			// and a root pane of 820x577, and at 150% as 683x480 and 683x481. Accept exactly that
+			// rounding remainder, only for an origin-aligned root pane, and nothing at an integer scale.
+			java.awt.geom.AffineTransform transform = rootPane.getGraphicsConfiguration().getDefaultTransform();
+			Rectangle root = bounds[0];
+			if (root.x == usable.x && root.y == usable.y) {
+				if (transform.getScaleX() != Math.rint(transform.getScaleX()) && root.width == usable.width + 1)
+					usable.width += 1;
+				if (transform.getScaleY() != Math.rint(transform.getScaleY()) && root.height == usable.height + 1)
+					usable.height += 1;
+			}
 			usableBounds[0] = usable;
 		});
 		BufferedImage screenshot = robot.createScreenCapture(bounds[0]);

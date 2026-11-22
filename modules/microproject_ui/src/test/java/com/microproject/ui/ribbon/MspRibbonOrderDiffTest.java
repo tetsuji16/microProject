@@ -94,6 +94,58 @@ class MspRibbonOrderDiffTest {
 	private static final String WRAP_TEXT =
 		"cells render on one line; the sheet has no multi-line cell/row-height engine (only header wrapping exists, under Field Settings)";
 
+	/**
+	 * Microsoft tabs that belong to connected services or cloud features outside the standalone desktop goal (AGENTS.md).
+	 */
+	private static final Map<String, String> EXCLUDED_TABS = Map.of(
+		"TabResourcePlanViewFormat",
+		"scope exclusion: Resource Plan view belongs to Project Online / Server resource engagements (AGENTS.md)",
+		"TabEngagementsFormat",
+		"scope exclusion: " + ONLINE + " (engagements)",
+		"TabShare",
+		"scope exclusion: connected cloud sharing and email routes are outside the standalone desktop goal (AGENTS.md)",
+		"TabPublish",
+		"scope exclusion: Project Server / Project Online publishing is outside the standalone desktop goal (AGENTS.md)");
+
+	/**
+	 * Microsoft desktop tabs that are not yet implemented or whose feature engines/views remain unresolved gaps.
+	 */
+	private static final Map<String, String> UNRESOLVED_TABS = Map.ofEntries(
+		Map.entry("TabDeveloper",
+			OFFICE_ADDIN),
+		Map.entry("TabTaskFormViewFormat",
+			"the product has no task form lower-pane split view (only task dialogs exist), so its contextual format tab has no host view; phase 2, #1166 / #1180"),
+		Map.entry("TabResourceFormViewFormat",
+			"the product has no resource form lower-pane split view (only resource dialogs exist), so its contextual format tab has no host view; phase 2, #1166 / #1180"),
+		Map.entry("TabCompareProjects",
+			"the Compare Projects feature is not implemented yet; phase 1b, #1166"),
+		Map.entry("TabProjectScrum",
+			AGILE),
+		Map.entry("TabProjectKanban",
+			AGILE),
+		Map.entry("TabTaskBoardViewFormat",
+			AGILE),
+		Map.entry("TabReportToolsDesign",
+			"no interactive report designer exists (report preview is static); phase 3, #1166"),
+		Map.entry("TabTableToolsDesign",
+			"no interactive report designer table design exists; phase 3, #1166"),
+		Map.entry("TabTableToolsLayout",
+			"no interactive report designer table layout exists; phase 3, #1166"),
+		Map.entry("TabChartToolsDesignNew",
+			"no interactive report designer chart design exists; phase 3, #1166"),
+		Map.entry("TabChartToolsFormatNew",
+			"no interactive report designer chart formatting exists; phase 3, #1166"),
+		Map.entry("TabDrawingToolsFormat",
+			"no report drawing/shapes layer exists; phase 3, #1166"),
+		Map.entry("TabPictureToolsFormat",
+			"no report picture editing layer exists; phase 3, #1166"),
+		Map.entry("TabRecent",
+			"Backstage Open / Recent page is handled by Backstage view (#1116) rather than a ribbon tab"),
+		Map.entry("TabSave",
+			"Backstage Save / Save As page is handled by Backstage view (#1119) rather than a ribbon tab"),
+		Map.entry("TabHelp",
+			"Backstage Help page is handled by Backstage view rather than a ribbon tab"));
+
 	private static final Map<String, String> TABS = Map.ofEntries(
 		Map.entry("TaskRibbonTask", "TabTask"),
 		Map.entry("ResourceRibbonTask", "TabResource"),
@@ -477,6 +529,43 @@ class MspRibbonOrderDiffTest {
 		assertTrue(order.stream().noneMatch(row -> row.group().contains("Standard")),
 			"Standard layout variants must be left out in favour of the Professional group");
 		assertEquals(bandsByTab.keySet(), TABS.keySet(), "a compared core tab is missing from the ribbon");
+	}
+
+	@Test
+	void everyMicrosoftTabIsComparedOrHasADocumentedExclusionOrUnresolvedReason() {
+		Set<String> allTabs = new TreeSet<>();
+		for (OrderRow row : order) {
+			allTabs.add(row.tab());
+		}
+		Set<String> accountedFor = new TreeSet<>();
+		accountedFor.addAll(TABS.values());
+		accountedFor.addAll(EXCLUDED_TABS.keySet());
+		accountedFor.addAll(UNRESOLVED_TABS.keySet());
+
+		Set<String> unaccounted = new TreeSet<>(allTabs);
+		unaccounted.removeAll(accountedFor);
+		assertTrue(unaccounted.isEmpty(),
+			() -> "Microsoft Project tabs without an order comparison, documented exclusion, or unresolved gap: " + unaccounted);
+
+		Set<String> overlapTabsExcluded = new TreeSet<>(TABS.values());
+		overlapTabsExcluded.retainAll(EXCLUDED_TABS.keySet());
+		assertTrue(overlapTabsExcluded.isEmpty(), () -> "TABS overlaps with EXCLUDED_TABS: " + overlapTabsExcluded);
+
+		Set<String> overlapTabsUnresolved = new TreeSet<>(TABS.values());
+		overlapTabsUnresolved.retainAll(UNRESOLVED_TABS.keySet());
+		assertTrue(overlapTabsUnresolved.isEmpty(), () -> "TABS overlaps with UNRESOLVED_TABS: " + overlapTabsUnresolved);
+
+		Set<String> overlapExcludedUnresolved = new TreeSet<>(EXCLUDED_TABS.keySet());
+		overlapExcludedUnresolved.retainAll(UNRESOLVED_TABS.keySet());
+		assertTrue(overlapExcludedUnresolved.isEmpty(), () -> "EXCLUDED_TABS overlaps with UNRESOLVED_TABS: " + overlapExcludedUnresolved);
+
+		Set<String> staleExcluded = new TreeSet<>(EXCLUDED_TABS.keySet());
+		staleExcluded.removeAll(allTabs);
+		assertTrue(staleExcluded.isEmpty(), () -> "EXCLUDED_TABS has entries not in " + ORDER + ": " + staleExcluded);
+
+		Set<String> staleUnresolved = new TreeSet<>(UNRESOLVED_TABS.keySet());
+		staleUnresolved.removeAll(allTabs);
+		assertTrue(staleUnresolved.isEmpty(), () -> "UNRESOLVED_TABS has entries not in " + ORDER + ": " + staleUnresolved);
 	}
 
 	@Test

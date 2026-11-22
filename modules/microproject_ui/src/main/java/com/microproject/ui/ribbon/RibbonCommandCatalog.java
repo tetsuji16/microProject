@@ -250,8 +250,22 @@ final class RibbonCommandCatalog {
 		return Map.copyOf(result);
 	}
 
+	/** Default tab IDs; the File tab is fixed. */
+	static List<String> defaultTabIds() {
+		return List.of(FILE, TASK, RESOURCE, REPORT, PROJECT, VIEW, HELP, FORMAT, NETWORK_FORMAT, CALENDAR_FORMAT,
+			TIMELINE_FORMAT, TEAM_PLANNER_FORMAT, RESOURCE_GRAPH_FORMAT, TASK_SHEET_FORMAT, TASK_USAGE_FORMAT,
+			RESOURCE_SHEET_FORMAT, RESOURCE_USAGE_FORMAT);
+	}
+
+	private static final List<String> QUICK_ACCESS_CANDIDATES = PLACEMENTS.keySet().stream().sorted().toList();
+	private static final Set<String> QUICK_ACCESS_CANDIDATE_IDS = Set.copyOf(QUICK_ACCESS_CANDIDATES);
+
 	static List<String> quickAccessCandidates() {
-		return PLACEMENTS.keySet().stream().sorted().toList();
+		return QUICK_ACCESS_CANDIDATES;
+	}
+
+	static boolean isQuickAccessCandidate(String commandId) {
+		return QUICK_ACCESS_CANDIDATE_IDS.contains(commandId);
 	}
 
 	private static void register(Map<String, Placement> placements, CommandScope scope, String tab, String... ids) {

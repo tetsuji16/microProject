@@ -5,6 +5,7 @@
 package com.microproject.dialog;
 
 import java.awt.BorderLayout;
+import java.awt.CardLayout;
 import java.awt.FlowLayout;
 import java.awt.Frame;
 import java.awt.GridBagConstraints;
@@ -20,9 +21,12 @@ import javax.swing.JComboBox;
 import javax.swing.JColorChooser;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
+import javax.swing.JRadioButton;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JTabbedPane;
+import javax.swing.JList;
+import javax.swing.JSplitPane;
+import javax.swing.ListSelectionModel;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
@@ -38,6 +42,18 @@ import com.microproject.ui.util.PopupDialogSupport;
 /** User-level settings which are independent of a project file. */
 public final class PreferencesDialogBox extends FlatLafDialog {
 	private static final long serialVersionUID = 1L;
+	/** Category IDs for {@link #showDialog(Frame, GlobalPreferences, Runnable, AutoSaveControl, String)}. */
+	public static final String CATEGORY_GENERAL = "general";
+	public static final String CATEGORY_DISPLAY = "display";
+	public static final String CATEGORY_SAVE = "save";
+	public static final String CATEGORY_CUSTOMIZE_RIBBON = "customizeRibbon";
+	public static final String CATEGORY_QUICK_ACCESS = "quickAccess";
+	public static final String CATEGORY_LANGUAGE = "language";
+	/** Smallest page width that still shows both customization columns and their buttons. */
+	private static final int MINIMUM_PAGE_WIDTH = 560;
+	/** Smallest height that keeps the customization action row and the Apply/Cancel row visible. */
+	private static final int MINIMUM_HEIGHT = 360;
+
 	private boolean applied;
 
 	public static void showDialog(Frame owner, GlobalPreferences preferences) {
@@ -56,13 +72,19 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 
 	public static void showDialog(Frame owner, GlobalPreferences preferences, Runnable localeAction,
 			AutoSaveControl autoSaveControl, boolean showLocaleTab) {
-		PreferencesDialogBox dialog = new PreferencesDialogBox(owner, preferences, autoSaveControl, showLocaleTab);
+		showDialog(owner, preferences, localeAction, autoSaveControl, showLocaleTab ? CATEGORY_LANGUAGE : CATEGORY_GENERAL);
+	}
+
+	/** Opens preferences with the category named by one of the {@code CATEGORY_*} IDs selected; an unknown ID selects the first. */
+	public static void showDialog(Frame owner, GlobalPreferences preferences, Runnable localeAction,
+			AutoSaveControl autoSaveControl, String categoryId) {
+		PreferencesDialogBox dialog = new PreferencesDialogBox(owner, preferences, autoSaveControl, categoryId);
 		dialog.setVisible(true);
 		if (dialog.applied && localeAction != null) localeAction.run();
 	}
 
 	private PreferencesDialogBox(Frame owner, GlobalPreferences preferences, AutoSaveControl autoSaveControl,
-			boolean showLocaleTab) {
+			String initialCategory) {
 		super(owner, UsabilityStrings.text("preferences.title"), true);
 		FlatUiSupport.styleDialogRoot(getRootPane());
 		PopupDialogSupport.bindEscapeToDispose(this);
@@ -74,23 +96,16 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		JComboBox<String> theme = new JComboBox<>(new String[] { lightTheme, darkTheme });
 		theme.setName("preferencesTheme");
 		theme.setSelectedItem(preferences.isDarkTheme() ? darkTheme : lightTheme);
-		JTextField datePattern = new JTextField(preferences.getDatePattern(), 16);
-		datePattern.setName("preferencesDatePattern");
-		datePattern.setToolTipText(UsabilityStrings.text("preferences.datePatternHelp"));
-		JTextField dateTimePattern = new JTextField(preferences.getDateTimePattern(), 16);
-		dateTimePattern.setName("preferencesDateTimePattern");
-		dateTimePattern.setToolTipText(UsabilityStrings.text("preferences.datePatternHelp"));
-		JTextField currencyCode = new JTextField(preferences.getCurrencyCode(), 8);
-		currencyCode.setName("preferencesCurrencyCode");
-		currencyCode.setToolTipText(UsabilityStrings.text("preferences.currencyCodeHelp"));
-		JLabel formatRestartNotice = new JLabel(UsabilityStrings.text("preferences.dateFormatRestartRequired"));
-		formatRestartNotice.setName("preferencesDateFormatRestartRequired");
-		Runnable updateFormatRestartNotice = () -> formatRestartNotice.setVisible(
-				!preferences.getDatePattern().equals(datePattern.getText().trim())
-					|| !preferences.getDateTimePattern().equals(dateTimePattern.getText().trim())
-					|| !preferences.getCurrencyCode().equals(currencyCode.getText().trim().toUpperCase(java.util.Locale.ROOT)));
-		watchFormatPatternChanges(updateFormatRestartNotice, datePattern, dateTimePattern, currencyCode);
-		updateFormatRestartNotice.run();
+		FormatChoice datePattern = new FormatChoice("preferencesDatePattern", UsabilityStrings.text("preferences.datePattern"),
+			16, preferences.getDatePattern(), UsabilityStrings.text("preferences.datePatternHelp"),
+			() -> osDatePattern(false), GlobalPreferences::isValidDatePattern);
+		FormatChoice dateTimePattern = new FormatChoice("preferencesDateTimePattern",
+			UsabilityStrings.text("preferences.dateTimePattern"), 16, preferences.getDateTimePattern(),
+			UsabilityStrings.text("preferences.datePatternHelp"), () -> osDatePattern(true),
+			GlobalPreferences::isValidDatePattern);
+		FormatChoice currencyCode = new FormatChoice("preferencesCurrencyCode", UsabilityStrings.text("preferences.currencyCode"),
+			8, preferences.getCurrencyCode(), UsabilityStrings.text("preferences.currencyCodeHelp"),
+			PreferencesDialogBox::osCurrencyCode, GlobalPreferences::isValidCurrencyCode);
 		JSpinner recoveryInterval = autoSaveControl == null ? null
 				: new JSpinner(new SpinnerNumberModel(autoSaveControl.getIntervalMinutes(), 1, 1440, 1));
 		if (recoveryInterval != null) recoveryInterval.setName("preferencesAutoSaveInterval");
@@ -125,42 +140,95 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 				UsabilityStrings.text("preferences.gridColorAutomatic"), preferences.getGridLineColor());
 		ColorChoice barColor = new ColorChoice(this, UsabilityStrings.text("preferences.ganttBarColor"),
 				UsabilityStrings.text("preferences.ganttBarColorAutomatic"), preferences.getDefaultGanttBarColor());
-		JPanel form = new JPanel(new GridBagLayout());
-		form.setBorder(BorderFactory.createEmptyBorder(12, 12, 4, 12));
-		addRow(form, UsabilityStrings.text("preferences.userName"), userName);
-		addRow(form, UsabilityStrings.text("preferences.font"), font);
-		addRow(form, UsabilityStrings.text("preferences.fontSize"), size);
-		addRow(form, UsabilityStrings.text("preferences.ganttBarText"), ganttBarText);
-		addRow(form, UsabilityStrings.text("preferences.ganttBarTextPosition"), ganttBarTextPosition);
-		addRow(form, UsabilityStrings.text("preferences.milestoneShape"), milestoneShape);
-		addRow(form, UsabilityStrings.text("preferences.ganttBarColor"), barColor.controls());
-		addRow(form, UsabilityStrings.text("preferences.gridColor"), gridColor.controls());
-		addRow(form, null, rowLines);
-		addRow(form, null, checkUpdates);
-		addRow(form, UsabilityStrings.text("preferences.theme"), theme);
-		addRow(form, UsabilityStrings.text("preferences.datePattern"), datePattern);
-		addRow(form, UsabilityStrings.text("preferences.dateTimePattern"), dateTimePattern);
-		addRow(form, UsabilityStrings.text("preferences.currencyCode"), currencyCode);
-		addRow(form, null, formatRestartNotice);
-		if (recoveryInterval != null)
-			addRow(form, UsabilityStrings.text("preferences.autoSaveInterval"), recoveryInterval);
-		// Absorb spare height so rows keep their natural size inside the scroll pane.
-		GridBagConstraints filler = new GridBagConstraints();
-		filler.gridx = 0; filler.gridy = GridBagConstraints.RELATIVE; filler.gridwidth = 2; filler.weighty = 1;
-		form.add(new JPanel(), filler);
+		JPanel general = newCategoryForm();
+		addRow(general, UsabilityStrings.text("preferences.userName"), userName);
+		addRow(general, UsabilityStrings.text("preferences.theme"), theme);
+		addRow(general, UsabilityStrings.text("preferences.font"), font);
+		addRow(general, UsabilityStrings.text("preferences.fontSize"), size);
+		addRow(general, null, checkUpdates);
+		JPanel display = newCategoryForm();
+		addRow(display, null, rowLines);
+		addRow(display, UsabilityStrings.text("preferences.ganttBarText"), ganttBarText);
+		addRow(display, UsabilityStrings.text("preferences.ganttBarTextPosition"), ganttBarTextPosition);
+		addRow(display, UsabilityStrings.text("preferences.milestoneShape"), milestoneShape);
+		addRow(display, UsabilityStrings.text("preferences.ganttBarColor"), barColor.controls());
+		addRow(display, UsabilityStrings.text("preferences.gridColor"), gridColor.controls());
+		addRow(display, UsabilityStrings.text("preferences.datePattern"), datePattern.controls());
+		addRow(display, UsabilityStrings.text("preferences.dateTimePattern"), dateTimePattern.controls());
+		addRow(display, UsabilityStrings.text("preferences.currencyCode"), currencyCode.controls());
+		JPanel save = null;
+		if (recoveryInterval != null) {
+			save = newCategoryForm();
+			addRow(save, UsabilityStrings.text("preferences.autoSaveInterval"), recoveryInterval);
+		}
+		for (JPanel panel : save == null ? new JPanel[] { general, display } : new JPanel[] { general, display, save }) {
+			// Absorb spare height so rows keep their natural size inside the scroll pane.
+			GridBagConstraints filler = new GridBagConstraints();
+			filler.gridx = 0; filler.gridy = GridBagConstraints.RELATIVE; filler.gridwidth = 2; filler.weighty = 1;
+			panel.add(new JPanel(), filler);
+		}
 		LocaleDialog localeSettings = LocaleDialog.createPreferencesSection(owner);
-		JTabbedPane tabs = new JTabbedPane();
-		tabs.addTab(UsabilityStrings.text("preferences.general"), new JScrollPane(form));
-		tabs.addTab(UsabilityStrings.text("preferences.languageLocale"),
-			new JScrollPane(localeSettings.createPreferencesContent()));
-		tabs.setSelectedIndex(showLocaleTab ? 1 : 0);
+		// Like File > Options in Microsoft Project: categories on the left, the chosen one on the right.
+		java.util.List<String> categoryNames = new java.util.ArrayList<>();
+		java.util.List<String> categoryIds = new java.util.ArrayList<>();
+		CardLayout cards = new CardLayout();
+		JPanel cardPanel = new JPanel(cards);
+		RibbonCustomizationPanel ribbonPage = new RibbonCustomizationPanel();
+		QuickAccessCustomizationPanel quickAccessPage = new QuickAccessCustomizationPanel();
+		CustomizationTransfer transfer = new CustomizationTransfer(ribbonPage::workingCustomization,
+			quickAccessPage::workingCommands, (customization, commands) -> {
+				ribbonPage.replaceWorking(customization);
+				quickAccessPage.replaceWorking(commands);
+			});
+		ribbonPage.attachTransfer(transfer);
+		quickAccessPage.attachTransfer(transfer);
+		addCategory(cardPanel, categoryNames, UsabilityStrings.text("preferences.general"), general);
+		categoryIds.add(CATEGORY_GENERAL);
+		addCategory(cardPanel, categoryNames, UsabilityStrings.text("preferences.display"), display);
+		categoryIds.add(CATEGORY_DISPLAY);
+		if (save != null) {
+			addCategory(cardPanel, categoryNames, UsabilityStrings.text("preferences.save"), save);
+			categoryIds.add(CATEGORY_SAVE);
+		}
+		addCategory(cardPanel, categoryNames, UsabilityStrings.text("preferences.customizeRibbon"), ribbonPage);
+		categoryIds.add(CATEGORY_CUSTOMIZE_RIBBON);
+		addCategory(cardPanel, categoryNames, UsabilityStrings.text("preferences.quickAccess"), quickAccessPage);
+		categoryIds.add(CATEGORY_QUICK_ACCESS);
+		addCategory(cardPanel, categoryNames, UsabilityStrings.text("preferences.language"),
+			localeSettings.createPreferencesContent());
+		categoryIds.add(CATEGORY_LANGUAGE);
+		JList<String> categories = new JList<>(categoryNames.toArray(new String[0]));
+		categories.setName("preferencesCategories");
+		categories.getAccessibleContext().setAccessibleName(UsabilityStrings.text("preferences.categories"));
+		categories.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+		categories.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
+		categories.addListSelectionListener(event -> {
+			String chosen = categories.getSelectedValue();
+			if (!event.getValueIsAdjusting() && chosen != null) cards.show(cardPanel, chosen);
+		});
+		categories.setSelectedIndex(Math.max(0, categoryIds.indexOf(initialCategory)));
+		JScrollPane categoryScroll = new JScrollPane(categories);
+		categoryScroll.setName("preferencesCategoriesScroll");
+		JSplitPane tabs = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, categoryScroll, cardPanel);
+		tabs.setName("preferencesCategorySplit");
+		tabs.getAccessibleContext().setAccessibleName(UsabilityStrings.text("preferences.categories"));
+		tabs.setContinuousLayout(true);
+		tabs.setDividerSize(4);
+		// Keep the category list at its preferred width: a wide page must scroll instead of squeezing the list away.
+		int categoryWidth = categoryScroll.getPreferredSize().width;
+		categoryScroll.setMinimumSize(new java.awt.Dimension(categoryWidth, 0));
+		tabs.setResizeWeight(0);
+		tabs.setDividerLocation(categoryWidth);
 
 		JButton apply = new JButton(UsabilityStrings.text("preferences.apply"));
 		apply.addActionListener(event -> {
-			if (!GlobalPreferences.isValidDatePattern(datePattern.getText())
-					|| !GlobalPreferences.isValidDatePattern(dateTimePattern.getText())
-					|| !GlobalPreferences.isValidCurrencyCode(currencyCode.getText())) {
+			if (!datePattern.isValid() || !dateTimePattern.isValid() || !currencyCode.isValid()) {
 				JOptionPane.showMessageDialog(this, UsabilityStrings.text("preferences.invalidFormat"),
+					UsabilityStrings.text("preferences.title"), JOptionPane.ERROR_MESSAGE);
+				return;
+			}
+			if (!ribbonPage.canSave()) {
+				JOptionPane.showMessageDialog(this, UsabilityStrings.text("ribbonCustomize.tooLarge"),
 					UsabilityStrings.text("preferences.title"), JOptionPane.ERROR_MESSAGE);
 				return;
 			}
@@ -186,19 +254,29 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 			preferences.setCheckForUpdates(checkUpdates.isSelected());
 			boolean themeChanged = preferences.isDarkTheme() != darkTheme.equals(theme.getSelectedItem());
 			preferences.setDarkTheme(darkTheme.equals(theme.getSelectedItem()));
-			preferences.setDatePattern(datePattern.getText());
-			preferences.setDateTimePattern(dateTimePattern.getText());
-			preferences.setCurrencyCode(currencyCode.getText());
+			boolean formatsChanged = !preferences.getDatePattern().equals(datePattern.value())
+					|| !preferences.getDateTimePattern().equals(dateTimePattern.value())
+					|| !preferences.getCurrencyCode().equals(currencyCode.value().toUpperCase(java.util.Locale.ROOT));
+			preferences.setDatePattern(datePattern.value());
+			preferences.setDateTimePattern(dateTimePattern.value());
+			preferences.setCurrencyCode(currencyCode.value());
+			// Formats are read at display time, so re-applying them is enough for every open window.
+			if (formatsChanged)
+				preferences.applyFormatPreferences();
 			if (recoveryInterval != null)
 				autoSaveControl.setIntervalMinutes(((Number) recoveryInterval.getValue()).intValue());
+			boolean ribbonChanged = ribbonPage.saveIfChanged();
+			boolean quickAccessChanged = quickAccessPage.saveIfChanged();
 			dispose();
-			// Typography is applied once, after the modal dialog is gone, and only
-			// when it changed. A theme switch below refreshes every window itself.
-			if (fontChanged) {
+			// Ribbon and Quick Access edits take effect in every open window once they are stored.
+			if (ribbonChanged || quickAccessChanged)
+				com.microproject.ui.shell.MicroProjectShell.rebuildOpenRibbons();
+			// Typography and display formats are applied once, after the modal dialog is gone, and only
+			// when they changed. A theme switch below refreshes every window itself.
+			if (fontChanged)
 				FlatLafSupport.applyUserFontPreference(preferences.getFontFamily(), preferences.getFontSize());
-				if (!themeChanged)
-					FlatUiSupport.updateAllWindowTrees();
-			}
+			if ((fontChanged || formatsChanged) && !themeChanged)
+				FlatUiSupport.updateAllWindowTrees();
 			// The theme applies live to every open window; no restart is needed.
 			if (themeChanged)
 				com.microproject.ui.theme.ThemeManager.applyTheme(preferences.isDarkTheme());
@@ -212,8 +290,52 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		add(tabs, BorderLayout.CENTER); add(buttons, BorderLayout.SOUTH);
 		pack();
 		// The packed size is only an upper bound: clamp it to the owner's monitor
-		// with the same margin and screen insets every other large tool dialog uses.
-		DialogSizing.applyInitialSize(this, new Dimension(), getSize(), owner);
+		// with the same margin and screen insets every other large tool dialog uses. The minimum keeps the
+		// category list and a usable page beside it, so the window cannot be squeezed until pages are cut off;
+		// DialogSizing clamps the minimum to the monitor as well.
+		DialogSizing.applyInitialSize(this, new Dimension(categoryWidth + MINIMUM_PAGE_WIDTH, MINIMUM_HEIGHT),
+			getSize(), owner);
+	}
+
+	private static JPanel newCategoryForm() {
+		JPanel form = new JPanel(new GridBagLayout());
+		form.setBorder(BorderFactory.createEmptyBorder(12, 12, 4, 12));
+		return form;
+	}
+
+	/** Adds a category page; the page is named and labelled for assistive technology. */
+	private static void addCategory(JPanel cardPanel, java.util.List<String> names, String name, java.awt.Component page) {
+		JScrollPane scroll = new JScrollPane(new CategoryPageHolder(page));
+		scroll.setName("preferencesCategory." + names.size());
+		scroll.getAccessibleContext().setAccessibleName(name);
+		cardPanel.add(scroll, name);
+		names.add(name);
+	}
+
+	/**
+	 * Holds a category page in its scroll pane. The page is laid out at the viewport size whenever the
+	 * viewport is at least the page's minimum size, so a narrow or short dialog shrinks the page's
+	 * lists rather than scrolling its buttons out of view; only a viewport below that minimum scrolls.
+	 */
+	static final class CategoryPageHolder extends JPanel implements javax.swing.Scrollable {
+		private static final long serialVersionUID = 1L;
+
+		CategoryPageHolder(java.awt.Component page) {
+			super(new java.awt.BorderLayout());
+			add(page, java.awt.BorderLayout.CENTER);
+		}
+
+		@Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
+		@Override public int getScrollableUnitIncrement(java.awt.Rectangle visible, int orientation, int direction) { return 16; }
+		@Override public int getScrollableBlockIncrement(java.awt.Rectangle visible, int orientation, int direction) {
+			return Math.max(16, orientation == javax.swing.SwingConstants.VERTICAL ? visible.height : visible.width);
+		}
+		@Override public boolean getScrollableTracksViewportWidth() {
+			return getParent() instanceof javax.swing.JViewport viewport && viewport.getWidth() >= getMinimumSize().width;
+		}
+		@Override public boolean getScrollableTracksViewportHeight() {
+			return getParent() instanceof javax.swing.JViewport viewport && viewport.getHeight() >= getMinimumSize().height;
+		}
 	}
 
 	private static void addRow(JPanel form, String label, java.awt.Component field) {
@@ -353,13 +475,102 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		}
 	}
 
-	private static void watchFormatPatternChanges(Runnable refresh, JTextField... fields) {
-		javax.swing.event.DocumentListener listener = new javax.swing.event.DocumentListener() {
-			public void insertUpdate(javax.swing.event.DocumentEvent event) { refresh.run(); }
-			public void removeUpdate(javax.swing.event.DocumentEvent event) { refresh.run(); }
-			public void changedUpdate(javax.swing.event.DocumentEvent event) { refresh.run(); }
-		};
-		for (JTextField field : fields)
-			field.getDocument().addDocumentListener(listener);
+	/**
+	 * The pattern used when the stored value is empty. It comes from the same factories as
+	 * {@code GlobalPreferences.applyFormatPreferences()}, so the preview matches the runtime.
+	 */
+	static String osDatePattern(boolean withTime) {
+		java.text.DateFormat format = withTime
+			? com.microproject.util.DateTime.utcDateFormatInstance()
+			: com.microproject.util.DateTime.utcShortDateFormatInstance();
+		return format instanceof java.text.SimpleDateFormat simple ? simple.toPattern() : "";
+	}
+
+	/** The currency code used when the stored value is empty: the one of {@code Money}'s currency format. */
+	static String osCurrencyCode() {
+		try {
+			return java.text.NumberFormat.getCurrencyInstance().getCurrency().getCurrencyCode();
+		} catch (RuntimeException noCurrency) {
+			return "";
+		}
+	}
+
+	/**
+	 * A format setting with a "follow the OS" and a "custom" choice. An empty stored value means
+	 * "follow the OS": the field then shows the OS default read-only and {@link #value()} is empty.
+	 */
+	private static final class FormatChoice {
+		private final JRadioButton followOs;
+		private final JRadioButton custom;
+		private final JTextField field;
+		private final JPanel controls = new JPanel(new GridBagLayout());
+		private final java.util.function.Supplier<String> osDefault;
+		private final java.util.function.Predicate<String> validator;
+		private String customText;
+		private boolean showingCustom;
+
+		FormatChoice(String name, String label, int columns, String stored, String help,
+				java.util.function.Supplier<String> osDefault, java.util.function.Predicate<String> validator) {
+			this.osDefault = osDefault;
+			this.validator = validator;
+			boolean isCustom = stored != null && !stored.isBlank();
+			customText = isCustom ? stored : osDefault.get();
+			followOs = new JRadioButton(UsabilityStrings.text("preferences.formatFollowOs"), !isCustom);
+			custom = new JRadioButton(UsabilityStrings.text("preferences.formatCustom"), isCustom);
+			followOs.setName(name + "FollowOs");
+			custom.setName(name + "Custom");
+			followOs.getAccessibleContext().setAccessibleName(label + ": " + followOs.getText());
+			custom.getAccessibleContext().setAccessibleName(label + ": " + custom.getText());
+			javax.swing.ButtonGroup group = new javax.swing.ButtonGroup();
+			group.add(followOs);
+			group.add(custom);
+			field = new JTextField(isCustom ? stored : osDefault.get(), columns);
+			field.setName(name);
+			field.setToolTipText(help);
+			field.getAccessibleContext().setAccessibleName(label);
+			java.awt.event.ActionListener modeChanged = event -> refresh();
+			followOs.addActionListener(modeChanged);
+			custom.addActionListener(modeChanged);
+			GridBagConstraints radios = new GridBagConstraints();
+			radios.gridx = 0; radios.gridy = 0; radios.anchor = GridBagConstraints.WEST;
+			JPanel radioRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+			radioRow.add(followOs);
+			radioRow.add(custom);
+			controls.add(radioRow, radios);
+			GridBagConstraints input = new GridBagConstraints();
+			input.gridx = 0; input.gridy = 1; input.anchor = GridBagConstraints.WEST;
+			input.insets = new Insets(2, 0, 0, 0);
+			controls.add(field, input);
+			showingCustom = isCustom;
+			applyMode();
+		}
+
+		private void refresh() {
+			// A radio button fires again when it is clicked while selected; only a real mode change moves text.
+			if (custom.isSelected() == showingCustom) return;
+			showingCustom = custom.isSelected();
+			if (custom.isSelected()) {
+				field.setText(customText);
+			} else {
+				customText = field.getText();
+				field.setText(osDefault.get());
+			}
+			applyMode();
+		}
+
+		private void applyMode() {
+			field.setEditable(custom.isSelected());
+			field.setEnabled(custom.isSelected());
+		}
+
+		JPanel controls() { return controls; }
+
+		/** The value to store: empty when following the OS. */
+		String value() { return followOs.isSelected() ? "" : field.getText().trim(); }
+
+		/** Custom values must be non-empty and valid; following the OS is always valid. */
+		boolean isValid() {
+			return followOs.isSelected() || (!field.getText().isBlank() && validator.test(field.getText()));
+		}
 	}
 }

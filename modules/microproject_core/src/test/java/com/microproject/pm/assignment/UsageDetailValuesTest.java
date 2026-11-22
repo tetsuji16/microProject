@@ -68,7 +68,9 @@ class UsageDetailValuesTest {
 		resource.setWorkCalendar(null);
 		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
 		long start = assignment.getStart();
-		long end = start + 7L * DAY;
+		// DAY is one working day (8h), so 7 * DAY of wall clock can be as short as two
+		// calendar days and miss the task calendar's Wednesday/Thursday closures.
+		long end = assignment.getEffectiveWorkCalendar().add(start, 7L * DAY, false);
 		double units = ((Availability) resource.getAvailabilityTable().getList().iterator().next()).getMaximumUnits();
 
 		long projectWork = Math.round(project.getEffectiveWorkCalendar().compare(end, start, false) * units);

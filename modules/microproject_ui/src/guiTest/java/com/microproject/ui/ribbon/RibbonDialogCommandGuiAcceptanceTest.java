@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.testsupport.RibbonGuiSupport;
 import com.microproject.dialog.ResourceInformationDialog;
+import com.microproject.dialog.TaskInspectorPanel;
 import com.microproject.pm.graphic.views.ResourceView;
 
 /**
@@ -36,6 +37,10 @@ class RibbonDialogCommandGuiAcceptanceTest {
 	/** Commands that open something other than a Swing window; each needs a stated reason. */
 	private static final Map<String, String> NOT_A_SWING_WINDOW = Map.of(
 		"RibbonMicroProjectDocumentation", "opens the documentation in the system browser");
+
+	/** Commands whose result is a pane docked in the document frame, not a window; the pane is the observable result. */
+	private static final Map<String, Class<? extends java.awt.Component>> DOCKED_PANE = Map.of(
+		"RibbonTaskInspector", TaskInspectorPanel.class);
 
 	@Test
 	void everyDialogCommandOpensAWindowAndReleasesItsButton() throws Exception {
@@ -130,6 +135,13 @@ class RibbonDialogCommandGuiAcceptanceTest {
 				"Resource Notes should reuse the existing Resource Information dialog");
 			fixture.closeWindow(resourceDialog);
 			fixture.closeNewWindows(before);
+		} else if (DOCKED_PANE.containsKey(commandId)) {
+			Class<? extends java.awt.Component> pane = DOCKED_PANE.get(commandId);
+			GuiAcceptanceSupport.await(() -> dockedPaneShowing(fixture, pane),
+				commandId + " did not show its docked " + pane.getSimpleName());
+			fixture.click(button);
+			GuiAcceptanceSupport.await(() -> !dockedPaneShowing(fixture, pane),
+				commandId + " did not hide its docked " + pane.getSimpleName() + " on the second click");
 		} else {
 			awaitWindow(fixture, before, "no dialog or window opened");
 			fixture.closeNewWindows(before);
@@ -160,6 +172,15 @@ class RibbonDialogCommandGuiAcceptanceTest {
 			throw new AssertionError(message + "; showing windows opened by the route: "
 				+ fixture.describeWindows(before) + "; " + fixture.describeActiveSelection() + "; "
 				+ fixture.describeLastRouteDiagnostics(), failure);
+		}
+	}
+
+	private static boolean dockedPaneShowing(RibbonCommandGuiFixture fixture, Class<? extends java.awt.Component> pane) {
+		try {
+			return fixture.onEdt(() -> com.microproject.menu.testsupport.UiComponentWalker.flatten(fixture.window).stream()
+				.anyMatch(component -> pane.isInstance(component) && component.isShowing()));
+		} catch (Exception failure) {
+			throw new AssertionError(failure);
 		}
 	}
 

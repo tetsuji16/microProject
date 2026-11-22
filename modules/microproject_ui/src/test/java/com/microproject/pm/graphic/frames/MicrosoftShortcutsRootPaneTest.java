@@ -29,7 +29,9 @@ import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.ResourceBundle;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
@@ -43,11 +45,16 @@ import com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheet;
 
 import org.junit.jupiter.api.Test;
 
+import com.microproject.menu.ExtToolBarFactory;
 import com.microproject.menu.MenuActionConstants;
+import com.microproject.menu.MenuActionMapSupport;
 import com.microproject.menu.MenuManager;
+import com.microproject.menu.MenuRibbonCommandSource;
+import com.microproject.menu.testsupport.MenuDefinitionSupport;
 import com.microproject.pm.graphic.frames.workspace.FrameManager;
 import com.microproject.pm.graphic.frames.workspace.NamedFrame;
 import com.microproject.pm.graphic.frames.workspace.Workspace;
+import com.microproject.ui.ribbon.SwingRibbonFactory;
 import com.microproject.workspace.WorkspaceSetting;
 
 /**
@@ -62,6 +69,7 @@ import com.microproject.workspace.WorkspaceSetting;
  * drives that seam directly so it runs headless.
  */
 class MicrosoftShortcutsRootPaneTest {
+	private static final String COMMANDS_PROPERTY = "test.ribbonCommands";
 
 	@Test
 	void documentF2IsRemovedWhenTableSetupBindsItToTheFocusedMap() throws Exception {
@@ -222,7 +230,7 @@ class MicrosoftShortcutsRootPaneTest {
 					continue;
 				String commandId = button.getActionCommand();
 				String tooltip = button.getToolTipText();
-				if (commandId == null || !commandId.startsWith("Ribbon") || tooltip == null)
+				if (commandId == null || !commandId.startsWith("Ribbon"))
 					continue;
 				java.util.function.UnaryOperator<String> actionKey = id -> {
 					String resolved = menus.getActionStringFromId(id);
@@ -230,6 +238,11 @@ class MicrosoftShortcutsRootPaneTest {
 				};
 				KeyStroke key = com.microproject.menu.ShortcutHints.primary(shortcuts,
 					actionKey.apply(commandId), actionKey);
+				if (tooltip == null) {
+					if (key != null)
+						problems.add(commandId + " has a registered key but no screen tip");
+					continue;
+				}
 				if (key == null) {
 					if (tooltip.matches(".*</b> \\((Ctrl|Cmd|Alt|Shift)\\+[^)]*\\).*"))
 						problems.add(commandId + " advertises an unregistered key: " + tooltip);
@@ -247,6 +260,77 @@ class MicrosoftShortcutsRootPaneTest {
 			assertEquals("(Ctrl+V)", hinted.get("RibbonPaste"), "hinted commands: " + hinted);
 			assertTrue(hinted.size() >= 8, "the built ribbon must expose its shortcut commands: " + hinted);
 		});
+	}
+
+	/**
+	 * Issue #973: the translated ribbon keeps the one-line "name (key)" shape. The
+	 * Japanese screen tip shows the translated name and the same key the document root
+	 * pane dispatches, and every hinted command still advertises exactly one key.
+	 *
+	 * <p>This fixture builds the standard ribbon from the Japanese menu bundles without a
+	 * document action map, so commands that need one (the clipboard group) are absent;
+	 * {@link #ribbonScreenTipsShowTheRegisteredShortcutOfEveryCommandThatHasOne()} covers
+	 * them in the root locale.</p>
+	 */
+	@Test
+	void japaneseRibbonScreenTipsKeepTheShortcutAfterTheTranslatedName() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ShortcutHarness harness = new ShortcutHarness();
+			InputMap shortcuts = new InputMap();
+			harness.manager.applyMicrosoftShortcuts(shortcuts, harness.panel.getActionMap());
+			JPanel ribbon = japaneseRibbon(shortcuts);
+			com.microproject.menu.MenuRibbonCommandSource commands =
+				(com.microproject.menu.MenuRibbonCommandSource) ribbon.getClientProperty(COMMANDS_PROPERTY);
+
+			java.util.List<String> problems = new java.util.ArrayList<>();
+			java.util.Map<String, String> tooltips = new java.util.TreeMap<>();
+			java.util.ArrayDeque<java.awt.Component> pending = new java.util.ArrayDeque<>();
+			pending.add(ribbon);
+			while (!pending.isEmpty()) {
+				java.awt.Component component = pending.poll();
+				if (component instanceof java.awt.Container container)
+					pending.addAll(java.util.Arrays.asList(container.getComponents()));
+				if (!(component instanceof javax.swing.AbstractButton button))
+					continue;
+				String commandId = button.getActionCommand();
+				String tooltip = button.getToolTipText();
+				if (commandId == null || !commandId.startsWith("Ribbon"))
+					continue;
+				KeyStroke key = commands.getShortcut(commandId);
+				if (tooltip == null) {
+					if (key != null)
+						problems.add(commandId + " has a registered key but no screen tip");
+					continue;
+				}
+				tooltips.put(commandId, tooltip);
+				if (key == null) {
+					if (tooltip.contains("</b> ("))
+						problems.add(commandId + " advertises an unregistered key: " + tooltip);
+					continue;
+				}
+				String hint = "(" + com.microproject.menu.ShortcutHints.describe(key) + ")";
+				if (!tooltip.contains("</b> " + hint) || tooltip.indexOf(hint) != tooltip.lastIndexOf(hint))
+					problems.add(commandId + " must show exactly one " + hint + " after its name but was: " + tooltip);
+			}
+			assertTrue(problems.isEmpty(), "the Japanese ribbon must keep every key hint: " + problems);
+			assertEquals("<html><b>クリア</b> (Ctrl+Delete)<br>選択したセルの内容をクリアします</html>",
+				tooltips.get("RibbonClear"));
+			assertEquals("<html><b>検索</b> (Ctrl+F)<br>検索</html>", tooltips.get("RibbonFind"));
+			assertEquals("<html><b>リンク</b> (Ctrl+F2)<br>リンク</html>", tooltips.get("RibbonLink"));
+			assertEquals("<html><b>上へ移動</b> (Alt+Shift+Up)<br>タスクを上へ移動</html>",
+				tooltips.get("RibbonMoveTaskUp"));
+			assertEquals("<html><b>レベル下げ</b> (Ctrl+.)<br>レベル下げ</html>", tooltips.get("RibbonIndent"));
+		});
+	}
+
+	private static JPanel japaneseRibbon(InputMap shortcuts) {
+		ResourceBundle[] bundles = MenuDefinitionSupport.ribbonBundles(Locale.JAPANESE);
+		MenuRibbonCommandSource commands = new MenuRibbonCommandSource(
+			new ExtToolBarFactory(MenuActionMapSupport.noopActionMap(), bundles));
+		commands.setDocumentShortcuts(shortcuts);
+		JPanel ribbon = new SwingRibbonFactory(commands, bundles).createPanel(MenuManager.STANDARD_RIBBON, () -> { });
+		ribbon.putClientProperty(COMMANDS_PROPERTY, commands);
+		return ribbon;
 	}
 
 	@Test

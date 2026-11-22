@@ -6,7 +6,7 @@ Original contract: document Task Form, Resource Form, Task Board and Resource Pl
 
 | Acceptance | State / evidence |
 |---|---|
-| Exclusions, report/agile tabs and KeyTips | Open; audit against current #1166 implementation and Microsoft source. |
+| Exclusions, report/agile tabs and KeyTips | In progress: Task Form, Resource Form, Task Board, and Resource Plan exclusions/unresolved reasons documented and asserted in `MspRibbonOrderDiffTest.everyMicrosoftTabIsComparedOrHasADocumentedExclusionOrUnresolvedReason`. Report/agile contextual tabs and KeyTips remain open. |
 | JA/EN visual matrix | In progress: full GUI run 43999020531 on `a1add999f`. |
 | Sheet Text Styles, Wrap Text, Drawings, Project Summary Task, Assignment Information, Network Align | Open; require model/route and persistence assessment. |
 | Team Planner selected-task commands | Active slice; disabled without selected bars and enabled on selection. |

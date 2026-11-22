@@ -95,7 +95,7 @@ class ReleaseWorkflowPolicyTest(unittest.TestCase):
 		class_block = re.search(r"\$visualClasses = @\((.*?)\n\)", runner, re.S).group(1)
 		classes = re.findall(r"'([^']+GuiAcceptanceTest)'", class_block)
 		task_info = "com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest"
-		self.assertEqual(11, len(classes))
+		self.assertEqual(12, len(classes))
 		self.assertNotIn(task_info, classes)
 		self.assertIn("foreach ($testClass in $visualTests)", runner)
 		self.assertIn('$visualTests = @($visualClasses + @($taskInformationVisualMethods | ForEach-Object { "$taskInformationTestClass.$_" }))', runner)
@@ -132,7 +132,8 @@ class ReleaseWorkflowPolicyTest(unittest.TestCase):
 		self.assertIn("UnhookWindowsHookEx(hook)", watcher)
 		self.assertIn("if ((key == VkLWin || key == VkRWin) && (down || up))", watcher)
 		self.assertIn("key == VkA && windowsKeyDown", watcher)
-		self.assertIn("[Windows.Forms.Application]::DoEvents()", watcher)
+		self.assertIn("while (GetMessage(out message, IntPtr.Zero, 0, 0) > 0)", watcher)
+		self.assertNotIn("DoEvents", watcher)
 		self.assertIn("IsStartSearchVisible", runner)
 		self.assertNotIn("DisableControlCenter", runner + watcher)
 		self.assertNotIn("NoWinKeys", runner + watcher)

@@ -142,6 +142,42 @@ All rows reported that the last task finish moved after the schedule edit and re
 
 A diagnostic sequential 1k JFR run on this candidate took 9.640s with recording enabled (the matching no-JFR run took 8.617s). It contained 931 `jdk.ExecutionSample` events across the 300-task warm-up, measured build, and edit/undo phases. Inclusive frame occurrences included `Project.publishEventBatchNow` 814, `CriticalPath.multipleTransaction` 801, `CriticalPath.fastCalc` / `doPass` 776, `TaskSchedule.calcDates` 752, `TaskSchedule.calcStartAndFinish` 649, `AssignmentService.newAssignment` 516, and `DependencyService.newDependency` 330. Calendar work remained prominent (`WorkingCalendar.add` 465, `CalendarDefinition.add` 463, `CalendarDefinition.AddCacheScope.add` 455, and `NormalTask.calcOffsetFrom` 512). These stacks indicate that the repeated single-item link and assignment commands still enter synchronous critical-path calculation, with calendar arithmetic dominating calculation time. Counts are inclusive occurrences and may overlap within a sample; they are diagnostic, not independent percentages. The JFR launch was supplied through a temporary Gradle init script; no recording configuration was retained in the repository.
 
+### Summary bound and single-task batch follow-up (2026-11-21)
+
+Instrumented sequential 2k runs showed that each single-item assignment ran a full forward and backward pass from the `<Start>` sentinel, recalculating every phase summary. Each summary recalculation rolls up progress over its descendants, so each assignment cost O(N). Three causes were found and changed:
+
+1. **Summary bound re-flagging (`TaskSchedule`).** In the PARENT_BEGIN / PARENT_END step, a summary stores its children's aggregate date in `dependencyDate`, not the bound it pushed down. Every visit therefore compared unequal, and the summary flagged all its children again. A transient `childBound` now records the bound last pushed to the children. Children are flagged again only when the bound changes or when anything else writes or invalidates `dependencyDate` (init, invalidation, clone copy, reset, and date flip all clear it).
+2. **Deferred calculation start (`CriticalPath`).** While updates are suspended in a `MultipleTransaction`, deferred `calculate` requests used to end in `calculate(true, null)`, a pass from the sentinel. The batch now remembers the single start task when every deferred request named the same task. It falls back to the sentinel when a request named no task or a different task, when a reset is pending, or when task-order or dependency-invalidation work was deferred.
+3. **Assignment node inserts (`Project.nodesChanged`).** Inserting an assignment node fired `updateScheduling(..., CREATE)` for the project. That reaches `CriticalPath.objectChanged` as a project change, which resets and recalculates everything. The project-level scheduling update is now fired only when a `Task` node was inserted or removed. The assignment's own object events still request the recalculation it needs.
+
+`IncrementalScheduleEquivalenceTest` compares project start/end and every task's early and late dates after each incremental step with a full `Project.recalculate()`. It also checks that undo restores the original dates. The cases are:
+- an assignment that changes duration across two chained phases
+- an assignment that leaves dates unchanged
+- a summary SNET constraint moved later, then earlier, then removed
+- a child duration change plus undo
+- a backward-scheduled project with assignments
+
+The full `:microproject_core`, `:microproject_exchange` and `:microproject_application` test suites pass.
+
+No-JFR single-run profile on this candidate:
+
+| Mode | Tasks | Node setup | Add links | Add assignments | Build total | Assignment state-count delta | Full recalc | Edit | Undo |
+|------|------:|-----------:|----------:|----------------:|------------:|------------------------------:|------------:|-----:|-----:|
+| bulk | 1,000 | 139 | 6 | 45 | 191 | 3 | 8 | 6 | 11 |
+| bulk | 2,000 | 207 | 9 | 61 | 279 | 3 | 14 | 17 | 8 |
+| production-batch | 1,000 | 168 | 22 | 89 | 280 | 150 | 6 | 9 | 9 |
+| production-batch | 2,000 | 246 | 15 | 85 | 347 | 150 | 14 | 10 | 9 |
+| sequential | 1,000 | 130 | 1,515 | 216 | 1,863 | 3,000 | 10 | 10 | 12 |
+| sequential | 2,000 | 1,266 | 10,467 | 494 | 12,229 | 6,000 | 20 | 22 | 17 |
+
+All rows reported that the last task finish moved after the edit and returned after undo.
+
+In the sequential mode, the assignment phase fell from 25,198 ms to 494 ms at 2k and now grows about 2.3x for 2x tasks. The 2k build total fell from 42,292 ms to 12,229 ms.
+
+A3 is still not met. The 1k timings vary between runs: an instrumented run of the same code measured 2,650 ms for links and 3,207 ms in total. The remaining cost is:
+- **Link creation.** Each link in the synthetic chain extends the critical path, so the project finish moves and the late dates of roughly half the tasks genuinely change on every link. A backward pass over those tasks is required for a correct result, so this phase stays quadratic in this workflow.
+- **Node setup.** The per-task `setDuration` whole-project rollback snapshot described below.
+
 ### Duration setup and snapshot ownership
 
 Every synthetic task is assigned a varying 1–5 day duration after it is connected to the project. Each
