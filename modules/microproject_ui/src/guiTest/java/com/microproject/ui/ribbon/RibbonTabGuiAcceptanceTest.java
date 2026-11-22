@@ -716,15 +716,28 @@ class RibbonTabGuiAcceptanceTest {
 			JComponent navigation = (JComponent)namedComponent(backstage, "officeBackstageNavigation");
 			assertEquals(com.microproject.ui.theme.MicroProjectTheme.tokens().backstageNavigationBackground(),
 				navigation.getBackground(), "Backstage navigation must use the theme's accent navigation colour");
-			int previousY = namedComponent(backstage, "officeBackstageBack").getLocationOnScreen().y;
-			for (String page : new String[] { "home", "new", "open", "info", "save", "saveAs", "print", "export", "close", "account", "options" }) {
+			// On a short screen the destination list scrolls between Back and the pinned Options entry,
+			// so the order is checked inside the list and Options must sit below the list's visible area.
+			Component destinationList = namedComponent(backstage, "officeBackstageDestinations");
+			Component destinationScroll = namedComponent(backstage, "officeBackstageDestinationScroll");
+			assertTrue(destinationList != null && destinationScroll != null, "Backstage destination list is missing");
+			assertTrue(namedComponent(backstage, "officeBackstageBack").getLocationOnScreen().y
+				< destinationScroll.getLocationOnScreen().y, "Back must sit above the Backstage destinations");
+			int previousY = Integer.MIN_VALUE;
+			for (String page : new String[] { "home", "new", "open", "info", "save", "saveAs", "print", "export", "close", "account" }) {
 				Component destination = namedComponent(backstage, "officeBackstageNav-" + page);
 				assertTrue(destination != null && destination.isShowing(), "Backstage destination is not visible: " + page);
-				int y = destination.getLocationOnScreen().y;
+				assertTrue(SwingUtilities.isDescendingFrom(destination, destinationList),
+					"Backstage destination must be in the destination list: " + page);
+				int y = SwingUtilities.convertPoint(destination, 0, 0, destinationList).y;
 				assertTrue(y > previousY, "Backstage destination is out of order: " + page);
 				previousY = y;
 			}
 			Component options = namedComponent(backstage, "officeBackstageNav-options");
+			assertTrue(options != null && options.isShowing(), "Backstage destination is not visible: options");
+			assertTrue(options.getLocationOnScreen().y
+				>= destinationScroll.getLocationOnScreen().y + destinationScroll.getHeight(),
+				"Options must be pinned below the Backstage destination list");
 			int navigationBottom = navigation.getLocationOnScreen().y + navigation.getHeight();
 			assertTrue(navigationBottom - (options.getLocationOnScreen().y + options.getHeight()) <= 16,
 				"Options must be pinned to the bottom of the Backstage navigation");
@@ -1627,6 +1640,12 @@ class RibbonTabGuiAcceptanceTest {
 			usable.y += screenInsets.top;
 			usable.width -= screenInsets.left + screenInsets.right;
 			usable.height -= screenInsets.top + screenInsets.bottom;
+			// At a fractional scale, Windows sizes the maximized frame in device pixels and Java rounds the
+			// logical size up while it truncates the work area, so the root pane can be one logical pixel
+			// (less than one device pixel) wider or taller. That remainder is not overflow.
+			java.awt.geom.AffineTransform transform = rootPane.getGraphicsConfiguration().getDefaultTransform();
+			if (transform.getScaleX() != Math.rint(transform.getScaleX())) usable.width += 1;
+			if (transform.getScaleY() != Math.rint(transform.getScaleY())) usable.height += 1;
 			usableBounds[0] = usable;
 		});
 		BufferedImage screenshot = robot.createScreenCapture(bounds[0]);

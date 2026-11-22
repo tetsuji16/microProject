@@ -298,11 +298,37 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 
 	/** Adds a category page; the page is named and labelled for assistive technology. */
 	private static void addCategory(JPanel cardPanel, java.util.List<String> names, String name, java.awt.Component page) {
-		JScrollPane scroll = new JScrollPane(page);
+		JScrollPane scroll = new JScrollPane(new CategoryPageHolder(page));
 		scroll.setName("preferencesCategory." + names.size());
 		scroll.getAccessibleContext().setAccessibleName(name);
 		cardPanel.add(scroll, name);
 		names.add(name);
+	}
+
+	/**
+	 * Holds a category page in its scroll pane. The page is laid out at the viewport size whenever the
+	 * viewport is at least the page's minimum size, so a narrow or short dialog shrinks the page's
+	 * lists rather than scrolling its buttons out of view; only a viewport below that minimum scrolls.
+	 */
+	static final class CategoryPageHolder extends JPanel implements javax.swing.Scrollable {
+		private static final long serialVersionUID = 1L;
+
+		CategoryPageHolder(java.awt.Component page) {
+			super(new java.awt.BorderLayout());
+			add(page, java.awt.BorderLayout.CENTER);
+		}
+
+		@Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
+		@Override public int getScrollableUnitIncrement(java.awt.Rectangle visible, int orientation, int direction) { return 16; }
+		@Override public int getScrollableBlockIncrement(java.awt.Rectangle visible, int orientation, int direction) {
+			return Math.max(16, orientation == javax.swing.SwingConstants.VERTICAL ? visible.height : visible.width);
+		}
+		@Override public boolean getScrollableTracksViewportWidth() {
+			return getParent() instanceof javax.swing.JViewport viewport && viewport.getWidth() >= getMinimumSize().width;
+		}
+		@Override public boolean getScrollableTracksViewportHeight() {
+			return getParent() instanceof javax.swing.JViewport viewport && viewport.getHeight() >= getMinimumSize().height;
+		}
 	}
 
 	private static void addRow(JPanel form, String label, java.awt.Component field) {

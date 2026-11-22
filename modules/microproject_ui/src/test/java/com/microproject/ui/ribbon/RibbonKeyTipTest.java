@@ -205,6 +205,47 @@ class RibbonKeyTipTest {
 		assertNotNull(model);
 	}
 
+	@Test
+	void aCommandInACollapsedGroupKeepsItsKeyTip() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			JPanel host = ribbonHost();
+			ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+			host.setSize(160, 200);
+			layoutTree(host);
+			layoutTree(host);
+			javax.swing.JPopupMenu collapsed = UiComponentWalker.flatten(host).stream()
+				.filter(javax.swing.JComponent.class::isInstance).map(javax.swing.JComponent.class::cast)
+				.map(component -> component.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY))
+				.filter(javax.swing.JPopupMenu.class::isInstance).map(javax.swing.JPopupMenu.class::cast)
+				.filter(popup -> UiComponentWalker.flatten(popup).stream().anyMatch(component ->
+					component instanceof AbstractButton button
+						&& "X".equals(button.getClientProperty(RibbonControlPopups.KEY_TIP_PROPERTY))))
+				.findFirst().orElse(null);
+			assertNotNull(collapsed, "a 160 px ribbon must collapse the group that holds Cut");
+			AtomicInteger clicks = new AtomicInteger();
+			UiComponentWalker.flatten(collapsed).stream()
+				.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+				.filter(button -> "X".equals(button.getClientProperty(RibbonControlPopups.KEY_TIP_PROPERTY)))
+				.forEach(button -> button.addActionListener(event -> clicks.incrementAndGet()));
+			RibbonKeyTipInput input = ribbon.keyTipInput();
+
+			input.dispatch(KeyEvent.KEY_PRESSED, KeyEvent.VK_ALT);
+			input.dispatch(KeyEvent.KEY_RELEASED, KeyEvent.VK_ALT);
+			input.dispatch(KeyEvent.KEY_PRESSED, KeyEvent.VK_H);
+			assertTrue(ribbon.keyTipSession().visibleTargets().containsKey("X"));
+			input.dispatch(KeyEvent.KEY_PRESSED, KeyEvent.VK_X);
+			assertEquals(1, clicks.get());
+			assertFalse(ribbon.keyTipSession().isActive());
+		});
+	}
+
+	private static void layoutTree(java.awt.Component component) {
+		if (component instanceof java.awt.Container container) {
+			container.doLayout();
+			for (java.awt.Component child : container.getComponents()) layoutTree(child);
+		}
+	}
+
 	private static RibbonKeyTipSession session(List<String> log) {
 		Map<String, RibbonKeyTipSession.Target> tabs = new LinkedHashMap<>();
 		tabs.put("h", new RibbonKeyTipSession.Target("home", null, () -> log.add("tab H")));

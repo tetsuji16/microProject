@@ -65,6 +65,9 @@ public final class BackstagePrintPage extends JPanel {
 	private static final long serialVersionUID = 1L;
 	private static final int COLUMN_WIDTH = 300;
 	private static final int FIELD_WIDTH = 170;
+	/** Narrowest preview column kept beside the settings; below it the preview moves under them. */
+	static final int MINIMUM_SIDE_PREVIEW_WIDTH = 320;
+	private static final int COLUMN_GAP = 24;
 
 	/** Immutable snapshot of the print settings shown in the left column. */
 	public record Settings(int copies, List<String> printers, String printer,
@@ -117,27 +120,23 @@ public final class BackstagePrintPage extends JPanel {
 
 		boolean hasPrinter = !settings.printers().isEmpty();
 
-		JPanel columns = new JPanel(new GridBagLayout());
-		columns.setName("officeBackstagePrintColumns");
-		columns.setOpaque(false);
 		JPanel left = fixedWidthPanel("officeBackstagePrintSettings");
 		left.setLayout(new GridBagLayout());
 		JPanel right = createPreviewPane();
-		GridBagConstraints leftConstraints = new GridBagConstraints();
-		leftConstraints.gridx = 0;
-		leftConstraints.gridy = 0;
-		leftConstraints.weightx = 0;
-		leftConstraints.anchor = GridBagConstraints.NORTHWEST;
-		leftConstraints.insets = new Insets(0, 0, 0, 24);
-		columns.add(left, leftConstraints);
-		GridBagConstraints rightConstraints = new GridBagConstraints();
-		rightConstraints.gridx = 1;
-		rightConstraints.gridy = 0;
-		rightConstraints.weightx = 1;
-		rightConstraints.weighty = 1;
-		rightConstraints.fill = GridBagConstraints.BOTH;
-		rightConstraints.anchor = GridBagConstraints.NORTHWEST;
-		columns.add(right, rightConstraints);
+		JPanel columns = new JPanel(new GridBagLayout()) {
+			private static final long serialVersionUID = 1L;
+			@Override public void doLayout() {
+				// A narrow window cannot hold the fixed settings column and a usable preview side by
+				// side; the preview then moves under the settings instead of being pushed out of view.
+				arrangeColumns(this, left, right, getWidth() < COLUMN_WIDTH + COLUMN_GAP + MINIMUM_SIDE_PREVIEW_WIDTH);
+				super.doLayout();
+			}
+		};
+		columns.setName("officeBackstagePrintColumns");
+		columns.setOpaque(false);
+		columns.add(left, new GridBagConstraints());
+		columns.add(right, new GridBagConstraints());
+		arrangeColumns(columns, left, right, false);
 		add(columns, BorderLayout.CENTER);
 
 		this.printButton = Objects.requireNonNull(printButton, "printButton");
@@ -176,6 +175,25 @@ public final class BackstagePrintPage extends JPanel {
 		rangeCombo.addActionListener(event -> refresh.run());
 		orientationCombo.addActionListener(event -> refresh.run());
 		paperSizeCombo.addActionListener(event -> refresh.run());
+	}
+
+	private static void arrangeColumns(JPanel columns, JComponent left, JComponent right, boolean stacked) {
+		GridBagLayout layout = (GridBagLayout) columns.getLayout();
+		GridBagConstraints leftConstraints = new GridBagConstraints();
+		leftConstraints.gridx = 0;
+		leftConstraints.gridy = 0;
+		leftConstraints.weightx = stacked ? 1 : 0;
+		leftConstraints.anchor = GridBagConstraints.NORTHWEST;
+		leftConstraints.insets = stacked ? new Insets(0, 0, 12, 0) : new Insets(0, 0, 0, COLUMN_GAP);
+		layout.setConstraints(left, leftConstraints);
+		GridBagConstraints rightConstraints = new GridBagConstraints();
+		rightConstraints.gridx = stacked ? 0 : 1;
+		rightConstraints.gridy = stacked ? 1 : 0;
+		rightConstraints.weightx = 1;
+		rightConstraints.weighty = 1;
+		rightConstraints.fill = GridBagConstraints.BOTH;
+		rightConstraints.anchor = GridBagConstraints.NORTHWEST;
+		layout.setConstraints(right, rightConstraints);
 	}
 
 	private JPanel createPreviewPane() {

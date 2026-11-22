@@ -1627,6 +1627,22 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			tips.putIfAbsent(tip, new RibbonKeyTipSession.Target(button.getName() == null ? tip : button.getName(),
 				button, () -> button.doClick(0)));
 		}
+		// A group collapsed at a narrow width keeps its commands in the proxy's popup.  Keep
+		// their KeyTips working so a command's key sequence does not depend on the window
+		// width.  They have no badge, because the popup is closed while the KeyTips show.
+		for (AbstractButton button : buttons) {
+			if (!(button.getClientProperty(COLLAPSED_POPUP_PROPERTY) instanceof JPopupMenu popup)
+				|| !button.isEnabled() || !isVisibleWithin(button, body)) continue;
+			List<AbstractButton> collapsed = new ArrayList<>();
+			collectButtons(popup, collapsed);
+			for (AbstractButton command : collapsed) {
+				if (command instanceof javax.swing.JMenu
+					|| !(command.getClientProperty(RibbonControlPopups.KEY_TIP_PROPERTY) instanceof String tip)
+					|| !command.isEnabled()) continue;
+				tips.putIfAbsent(tip, new RibbonKeyTipSession.Target(command.getName() == null ? tip : command.getName(),
+					null, () -> command.doClick(0)));
+			}
+		}
 		return tips;
 	}
 
