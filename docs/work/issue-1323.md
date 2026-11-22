@@ -24,6 +24,7 @@ Blockers: none.
 | A3 | KeyTips never collide with a KeyTip another tab already uses, including the prefix ambiguity of the KeyTip sequence | pass | `RibbonCustomizationRenderTest.aCustomTabSkipsAFallbackKeyTipAnotherTabAlreadyUses`, `.aFallbackKeyTipThatPrefixesATakenOneIsSkipped` |
 | A4 | Alt → custom tab KeyTip → command KeyTip runs the command in the custom tab | pass | `RibbonKeyTipTest.aCustomTabKeyTipOpensTheCommandsOfItsCustomGroup`, `PreferencesCustomizeGuiAcceptanceTest.keyboardOnlyJourneyCreatesATabAddsACommandAppliesItAndRunsTheCommandByKeyTip` |
 | A5 | Default tab KeyTips stay unchanged | pass | `RibbonCustomizationRenderTest.noCustomizationLeavesTheDefaultRibbonUnchanged`, existing KeyTip tests |
+| A6 | A custom tab KeyTip does not take a Quick Access Toolbar KeyTip | pass | The Quick Access Toolbar registers no KeyTip: `ModernRibbonPanel.registerQuickAccessActions` only builds styled proxy buttons, and no `KEY_TIP_PROPERTY` or Alt shortcut is installed for it. Custom tab KeyTips are the only two-character Alt-sequence targets, so the two cannot collide. |
 
 Rule source (document-derived): Office assigns a fallback KeyTip of the `Y` prefix followed
 by a number (`Y1`, `Y2`, …) when the preferred KeyTip conflicts —
@@ -40,7 +41,7 @@ is skipped. The assignment is a pure function of the customization, so it is det
 
 ## Remaining blockers
 
-- None: PR #1332 has `build`, `GUI acceptance` and `verify` (ubuntu, windows, macos) passing.
+- None: PR #1332 has `build`, `GUI acceptance` and `verify` (ubuntu, windows, macOS) passing.
 
 ## Latest evidence
 
