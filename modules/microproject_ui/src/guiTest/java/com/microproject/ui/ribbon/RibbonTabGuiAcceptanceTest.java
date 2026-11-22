@@ -1631,12 +1631,6 @@ class RibbonTabGuiAcceptanceTest {
 		throw new AssertionError("Ribbon band not found for " + component);
 	}
 
-	/** Whether a logical edge lands short of a device-pixel boundary, so the real edge was truncated. */
-	private static boolean endsInsideADevicePixelRow(int logicalEdge, double scale) {
-		double deviceEdge = logicalEdge * scale;
-		return Math.abs(deviceEdge - Math.rint(deviceEdge)) > 1e-9;
-	}
-
 	private void captureVisibleRibbon(Robot robot, String fileName) throws Exception {
 		captureVisibleRibbon(robot, fileName, 900);
 	}
@@ -1653,13 +1647,19 @@ class RibbonTabGuiAcceptanceTest {
 			usable.y += screenInsets.top;
 			usable.width -= screenInsets.left + screenInsets.right;
 			usable.height -= screenInsets.top + screenInsets.bottom;
-			// Windows sizes the maximized frame in device pixels. When the work area's far edge is
-			// not a whole logical pixel (1024 device px is 819.2 logical px at 125%), Java truncates
-			// the work area but rounds the frame up, so the frame can end in that same last, partial
-			// logical pixel. Count that partial pixel as part of the work area, and only then.
+			// At a fractional scale, Java reports both rectangles in whole logical pixels, rounded from
+			// device pixels separately. A root pane that fills the work area from its origin can then end
+			// one logical pixel past it: in CI at 125%, 1024x720 device px reads as a work area of 819x576
+			// and a root pane of 820x577, and at 150% as 683x480 and 683x481. Accept exactly that
+			// rounding remainder, only for an origin-aligned root pane, and nothing at an integer scale.
 			java.awt.geom.AffineTransform transform = rootPane.getGraphicsConfiguration().getDefaultTransform();
-			if (endsInsideADevicePixelRow(usable.x + usable.width, transform.getScaleX())) usable.width += 1;
-			if (endsInsideADevicePixelRow(usable.y + usable.height, transform.getScaleY())) usable.height += 1;
+			Rectangle root = bounds[0];
+			if (root.x == usable.x && root.y == usable.y) {
+				if (transform.getScaleX() != Math.rint(transform.getScaleX()) && root.width == usable.width + 1)
+					usable.width += 1;
+				if (transform.getScaleY() != Math.rint(transform.getScaleY()) && root.height == usable.height + 1)
+					usable.height += 1;
+			}
 			usableBounds[0] = usable;
 		});
 		BufferedImage screenshot = robot.createScreenCapture(bounds[0]);
