@@ -1636,11 +1636,17 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			List<AbstractButton> collapsed = new ArrayList<>();
 			collectButtons(popup, collapsed);
 			for (AbstractButton command : collapsed) {
-				if (command instanceof javax.swing.JMenu
-					|| !(command.getClientProperty(RibbonControlPopups.KEY_TIP_PROPERTY) instanceof String tip)
+				if (!(command.getClientProperty(RibbonControlPopups.KEY_TIP_PROPERTY) instanceof String tip)
 					|| !command.isEnabled()) continue;
+				// A popup-only control is a menu in the group's popup: open the group, then the menu.
+				Runnable activate = command instanceof javax.swing.JMenu menu
+					? () -> {
+						button.doClick(0);
+						SwingUtilities.invokeLater(() -> menu.doClick(0));
+					}
+					: () -> command.doClick(0);
 				tips.putIfAbsent(tip, new RibbonKeyTipSession.Target(command.getName() == null ? tip : command.getName(),
-					null, () -> command.doClick(0)));
+					null, activate));
 			}
 		}
 		return tips;

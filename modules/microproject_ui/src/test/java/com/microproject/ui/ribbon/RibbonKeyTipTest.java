@@ -239,6 +239,37 @@ class RibbonKeyTipTest {
 		});
 	}
 
+	@Test
+	void aPopupOnlyControlInACollapsedGroupKeepsItsKeyTip() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			JPanel host = ribbonHost();
+			ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+			host.setSize(160, 200);
+			layoutTree(host);
+			layoutTree(host);
+			// A popup-only control has no button of its own in a collapsed group: its popup entry is a
+			// menu that carries the control's KeyTip. Give one such entry a KeyTip no other control uses.
+			javax.swing.JMenu facade = UiComponentWalker.flatten(host).stream()
+				.filter(javax.swing.JComponent.class::isInstance).map(javax.swing.JComponent.class::cast)
+				.map(component -> component.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY))
+				.filter(javax.swing.JPopupMenu.class::isInstance).map(javax.swing.JPopupMenu.class::cast)
+				.flatMap(popup -> java.util.Arrays.stream(popup.getComponents()))
+				.filter(javax.swing.JMenu.class::isInstance).map(javax.swing.JMenu.class::cast)
+				.filter(javax.swing.JMenu::isEnabled)
+				.findFirst().orElse(null);
+			assertNotNull(facade, "a 160 px Home tab must collapse a group that holds a popup-only control");
+			String menuTip = "ZQ";
+			facade.putClientProperty(RibbonControlPopups.KEY_TIP_PROPERTY, menuTip);
+			RibbonKeyTipInput input = ribbon.keyTipInput();
+
+			input.dispatch(KeyEvent.KEY_PRESSED, KeyEvent.VK_ALT);
+			input.dispatch(KeyEvent.KEY_RELEASED, KeyEvent.VK_ALT);
+			input.dispatch(KeyEvent.KEY_PRESSED, KeyEvent.VK_H);
+			assertTrue(ribbon.keyTipSession().visibleTargets().containsKey(menuTip),
+				() -> "KeyTip " + menuTip + " must stay reachable: " + ribbon.keyTipSession().visibleTargets().keySet());
+		});
+	}
+
 	private static void layoutTree(java.awt.Component component) {
 		if (component instanceof java.awt.Container container) {
 			container.doLayout();

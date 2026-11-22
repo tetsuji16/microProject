@@ -1631,6 +1631,12 @@ class RibbonTabGuiAcceptanceTest {
 		throw new AssertionError("Ribbon band not found for " + component);
 	}
 
+	/** Whether a logical edge lands short of a device-pixel boundary, so the real edge was truncated. */
+	private static boolean endsInsideADevicePixelRow(int logicalEdge, double scale) {
+		double deviceEdge = logicalEdge * scale;
+		return Math.abs(deviceEdge - Math.rint(deviceEdge)) > 1e-9;
+	}
+
 	private void captureVisibleRibbon(Robot robot, String fileName) throws Exception {
 		captureVisibleRibbon(robot, fileName, 900);
 	}
@@ -1647,12 +1653,13 @@ class RibbonTabGuiAcceptanceTest {
 			usable.y += screenInsets.top;
 			usable.width -= screenInsets.left + screenInsets.right;
 			usable.height -= screenInsets.top + screenInsets.bottom;
-			// At a fractional scale, Windows sizes the maximized frame in device pixels and Java rounds the
-			// logical size up while it truncates the work area, so the root pane can be one logical pixel
-			// (less than one device pixel) wider or taller. That remainder is not overflow.
+			// Windows sizes the maximized frame in device pixels. When the work area's far edge is
+			// not a whole logical pixel (1024 device px is 819.2 logical px at 125%), Java truncates
+			// the work area but rounds the frame up, so the frame can end in that same last, partial
+			// logical pixel. Count that partial pixel as part of the work area, and only then.
 			java.awt.geom.AffineTransform transform = rootPane.getGraphicsConfiguration().getDefaultTransform();
-			if (transform.getScaleX() != Math.rint(transform.getScaleX())) usable.width += 1;
-			if (transform.getScaleY() != Math.rint(transform.getScaleY())) usable.height += 1;
+			if (endsInsideADevicePixelRow(usable.x + usable.width, transform.getScaleX())) usable.width += 1;
+			if (endsInsideADevicePixelRow(usable.y + usable.height, transform.getScaleY())) usable.height += 1;
 			usableBounds[0] = usable;
 		});
 		BufferedImage screenshot = robot.createScreenCapture(bounds[0]);
