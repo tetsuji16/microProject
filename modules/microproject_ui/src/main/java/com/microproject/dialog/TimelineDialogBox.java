@@ -286,8 +286,9 @@ public final class TimelineDialogBox extends FlatLafDialog {
 		BufferedImage image = new BufferedImage(imageWidth, imageHeight, BufferedImage.TYPE_INT_RGB);
 		Graphics2D g = image.createGraphics();
 		try {
-			// The picture is pasted into documents and e-mail as a page image, so its base is
-			// printable paper: white on purpose, independent of the theme (see PrintPreviewFrame).
+			// The raster starts as white so an unpainted pixel is never black. The visible
+			// picture background is painted by paintForPicture from the canvas background,
+			// so this fill does not decide the picture colour.
 			g.setColor(Color.WHITE);
 			g.fillRect(0, 0, imageWidth, imageHeight);
 			g.scale(scale, scale);
