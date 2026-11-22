@@ -1426,6 +1426,13 @@ class RibbonTabGuiAcceptanceTest {
 		Point[] location = new Point[1];
 		assertTrue(button.isShowing(), () -> "physical click target is no longer showing: " + button.getName()
 			+ " command=" + button.getActionCommand() + " text=" + button.getText());
+		// On a short screen a Backstage destination can sit below the scrolled part of its
+		// list; a user scrolls it into view before clicking it.
+		SwingUtilities.invokeAndWait(() -> {
+			if (SwingUtilities.getAncestorOfClass(javax.swing.JViewport.class, button) != null)
+				button.scrollRectToVisible(new java.awt.Rectangle(0, 0, button.getWidth(), button.getHeight()));
+		});
+		robot.waitForIdle();
 		SwingUtilities.invokeAndWait(() -> {
 			Point topLeft = button.getLocationOnScreen();
 			// Split/dropdown buttons reserve their right edge for the arrow; the
