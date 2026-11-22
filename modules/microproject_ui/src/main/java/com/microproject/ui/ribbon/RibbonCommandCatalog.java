@@ -257,8 +257,15 @@ final class RibbonCommandCatalog {
 			RESOURCE_SHEET_FORMAT, RESOURCE_USAGE_FORMAT);
 	}
 
+	private static final List<String> QUICK_ACCESS_CANDIDATES = PLACEMENTS.keySet().stream().sorted().toList();
+	private static final Set<String> QUICK_ACCESS_CANDIDATE_IDS = Set.copyOf(QUICK_ACCESS_CANDIDATES);
+
 	static List<String> quickAccessCandidates() {
-		return PLACEMENTS.keySet().stream().sorted().toList();
+		return QUICK_ACCESS_CANDIDATES;
+	}
+
+	static boolean isQuickAccessCandidate(String commandId) {
+		return QUICK_ACCESS_CANDIDATE_IDS.contains(commandId);
 	}
 
 	private static void register(Map<String, Placement> placements, CommandScope scope, String tab, String... ids) {

@@ -126,6 +126,39 @@ class ReportRenderingTest {
 		assertTrue(inkPixels(image) > 100, "the continuation page must render its heading and first value");
 	}
 
+	@Test
+	void tableDataRowsPaintTheirValuesInsteadOfOnlyTheHeader() throws Exception {
+		// #943: drawHeader() left the paint colour white, so every task row was drawn
+		// white on the white page and the preview looked like it only had column headers.
+		List<Field> columns = List.of(field("Field.name", "Task"), field("Field.cost", "Cost"));
+		ReportModel model = new ReportModel("Task Information", columns,
+			List.of(List.of("Alpha", 10.0), List.of("Beta", 20.0)),
+			new int[] { 400, 200 }, -1, java.util.Arrays.asList(null, null), "Plan",
+			false, false, false);
+		ReportPrintable printable = new ReportPrintable(model);
+		java.awt.print.PageFormat format = printable.getPageFormat(0);
+		ReportLayout layout = printable.layout();
+		BufferedImage image = new BufferedImage((int) Math.ceil(format.getWidth()),
+			(int) Math.ceil(format.getHeight()), BufferedImage.TYPE_INT_ARGB);
+		var graphics = image.createGraphics();
+		try { printable.print(graphics, format, 0); } finally { graphics.dispose(); }
+		double scaleX = format.getImageableWidth() / layout.pageWidth(model);
+		double scaleY = format.getImageableHeight() / layout.pageHeight(model);
+		int left = (int) Math.floor(format.getImageableX());
+		int top = (int) Math.floor(format.getImageableY());
+		int rowTop = 117;
+		for (int row = 0; row < model.rows().size(); row++) {
+			int rowBottom = rowTop + (int) Math.ceil(
+				ReportLayout.tableRowHeight(model, layout.segment(0), row));
+			int from = top + (int) Math.floor(rowTop * scaleY);
+			int to = top + (int) Math.ceil(rowBottom * scaleY);
+			assertTrue(inkPixels(image, left + (int) (23 * scaleX), from,
+				left + (int) (400 * scaleX), to) > 10,
+				"data row " + row + " was invisible: only the column header band was painted");
+			rowTop = rowBottom;
+		}
+	}
+
 	private static Field field(String id, String name) {
 		Field field = new Field();
 		field.setId(id);
@@ -135,11 +168,16 @@ class ReportRenderingTest {
 	}
 
 	private static long inkPixels(BufferedImage image) {
+		return inkPixels(image, 0, 0, image.getWidth(), image.getHeight());
+	}
+
+	private static long inkPixels(BufferedImage image, int x0, int y0, int x1, int y1) {
 		long count = 0;
-		for (int y = 0; y < image.getHeight(); y++) for (int x = 0; x < image.getWidth(); x++) {
-			int pixel = image.getRGB(x, y);
-			if ((pixel >>> 24) != 0 && (pixel & 0x00ffffff) != 0x00ffffff) count++;
-		}
+		for (int y = Math.max(0, y0); y < Math.min(image.getHeight(), y1); y++)
+			for (int x = Math.max(0, x0); x < Math.min(image.getWidth(), x1); x++) {
+				int pixel = image.getRGB(x, y);
+				if ((pixel >>> 24) != 0 && (pixel & 0x00ffffff) != 0x00ffffff) count++;
+			}
 		return count;
 	}
 }

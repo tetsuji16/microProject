@@ -5,6 +5,11 @@
  ******************************************************************************/
 package com.microproject.testsupport;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import com.microproject.ui.ribbon.RibbonCustomization;
 import com.microproject.util.Environment;
 import com.microproject.util.FlatLafSupport;
 
@@ -21,5 +26,20 @@ public final class RibbonGuiEnvironment {
 		}
 		Environment.setRibbonUI(true);
 		Environment.setNewLook(true);
+	}
+
+	/** The default tab the customization fixture hides. */
+	public static final String FIXTURE_HIDDEN_TAB_ID = "HelpRibbonTask";
+	/** The custom tab the customization fixture adds. */
+	public static final String FIXTURE_CUSTOM_TAB_ID = "custom-evidence-tab";
+
+	/** One custom tab with two custom groups holding three commands, and one hidden default tab. */
+	public static RibbonCustomization customizedRibbon() {
+		RibbonCustomization.CustomGroup edit = new RibbonCustomization.CustomGroup("custom-evidence-edit", "Evidence Edit",
+			List.of("RibbonFind", "RibbonCut"));
+		RibbonCustomization.CustomGroup copy = new RibbonCustomization.CustomGroup("custom-evidence-copy", "Evidence Copy",
+			List.of("RibbonCopy"));
+		return new RibbonCustomization(List.of(), Set.of(FIXTURE_HIDDEN_TAB_ID), List.of(
+			new RibbonCustomization.CustomTab(FIXTURE_CUSTOM_TAB_ID, "Evidence Tab", List.of(edit, copy))), Map.of());
 	}
 }

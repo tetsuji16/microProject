@@ -97,6 +97,51 @@ class BackstagePrintPageTest {
 	}
 
 	@Test
+	void narrowPageMovesThePreviewUnderTheSettingsInsteadOfPushingItOutOfView() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			RecordingActions actions = actions();
+			JPanel preview = new JPanel(new java.awt.BorderLayout());
+			JPanel controls = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 4));
+			controls.add(new JButton("<"));
+			controls.add(new JButton(">"));
+			JButton previewButton = new JButton("Preview");
+			controls.add(previewButton);
+			preview.add(controls, java.awt.BorderLayout.NORTH);
+			JPanel pageImage = new JPanel();
+			pageImage.setPreferredSize(new java.awt.Dimension(600, 800));
+			preview.add(pageImage, java.awt.BorderLayout.CENTER);
+			BackstagePrintPage page = new BackstagePrintPage(settings(List.of("Printer One")),
+					printButton(actions), preview, actions, LABELS::get);
+			Component pane = named(page, "officeBackstagePrintPreviewPane");
+
+			// 683 logical px at 150 % leaves about 380 px beside the Backstage navigation.
+			layoutTree(page, 380, 420);
+			java.awt.Rectangle narrow = SwingUtilities.convertRectangle(previewButton.getParent(),
+					previewButton.getBounds(), page);
+			assertTrue(new java.awt.Rectangle(page.getSize()).contains(narrow),
+					"Preview must stay inside a narrow Print page: " + narrow + " page=" + page.getSize());
+			java.awt.Rectangle settingsBounds = named(page, "officeBackstagePrintSettings").getBounds();
+			assertTrue(pane.getY() >= settingsBounds.y + settingsBounds.height,
+					"a narrow page must place the preview under the settings: pane=" + pane.getBounds());
+
+			layoutTree(page, 900, 420);
+			assertTrue(pane.getX() >= settingsBounds.width,
+					"a wide page must keep the preview beside the settings: pane=" + pane.getBounds());
+		});
+	}
+
+	private static void layoutTree(Container root, int width, int height) {
+		root.setSize(width, height);
+		layoutDescendants(root);
+	}
+
+	private static void layoutDescendants(Container container) {
+		container.doLayout();
+		for (Component child : container.getComponents())
+			if (child instanceof Container nested) layoutDescendants(nested);
+	}
+
+	@Test
 	void withPrintersThePrintButtonIsEnabledAndValuesAreShown() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			RecordingActions actions = actions();

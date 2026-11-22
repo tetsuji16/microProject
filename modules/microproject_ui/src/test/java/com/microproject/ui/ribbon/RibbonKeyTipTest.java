@@ -19,6 +19,7 @@ import java.util.ListResourceBundle;
 import java.util.Locale;
 import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.AbstractButton;
@@ -188,6 +189,29 @@ class RibbonKeyTipTest {
 	}
 
 	@Test
+	void aCustomTabKeyTipOpensTheCommandsOfItsCustomGroup() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			RibbonCustomization customization = new RibbonCustomization(List.of(), Set.of(), List.of(
+				new RibbonCustomization.CustomTab("my-tab", "Mine",
+					List.of(new RibbonCustomization.CustomGroup("g1", "Edit", List.of("RibbonCut"))))), Map.of());
+			ResourceBundle[] bundles = MenuDefinitionSupport.ribbonBundles(Locale.ROOT);
+			SwingRibbonFactory factory = new SwingRibbonFactory(new MenuRibbonCommandSource(
+				new ExtToolBarFactory(MenuActionMapSupport.noopActionMap(), bundles)), bundles);
+			JPanel host = factory.createPanel(factory.createModel(MenuManager.STANDARD_RIBBON, null, customization), () -> { });
+			ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
+
+			ribbon.keyTipSession().toggle();
+			assertTrue(ribbon.keyTipSession().visibleTargets().containsKey("Y1"),
+				"custom tab KeyTips: " + ribbon.keyTipSession().visibleTargets().keySet());
+			ribbon.keyTipSession().type('Y');
+			ribbon.keyTipSession().type('1');
+			assertEquals(RibbonKeyTipSession.Level.CONTROLS, ribbon.keyTipSession().getLevel());
+			assertTrue(ribbon.keyTipSession().visibleTargets().containsKey("X"),
+				"custom group KeyTips: " + ribbon.keyTipSession().visibleTargets().keySet());
+		});
+	}
+
+	@Test
 	void sameKeyTipInOneTabIsRejectedWhenTheModelIsBuilt() {
 		assertThrows(IllegalStateException.class, () -> model(Map.of("RibbonCopy.keytip", "V")));
 		assertThrows(IllegalStateException.class, () -> model(Map.of("RibbonCopy.keytip", "v")));
@@ -203,6 +227,78 @@ class RibbonKeyTipTest {
 	void theSameKeyTipInDifferentTabsIsAllowed() {
 		SwingRibbonModel model = model(Map.of("RibbonGantt.keytip", "V"));
 		assertNotNull(model);
+	}
+
+	@Test
+	void aCommandInACollapsedGroupKeepsItsKeyTip() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			JPanel host = ribbonHost();
+			ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+			host.setSize(160, 200);
+			layoutTree(host);
+			layoutTree(host);
+			javax.swing.JPopupMenu collapsed = UiComponentWalker.flatten(host).stream()
+				.filter(javax.swing.JComponent.class::isInstance).map(javax.swing.JComponent.class::cast)
+				.map(component -> component.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY))
+				.filter(javax.swing.JPopupMenu.class::isInstance).map(javax.swing.JPopupMenu.class::cast)
+				.filter(popup -> UiComponentWalker.flatten(popup).stream().anyMatch(component ->
+					component instanceof AbstractButton button
+						&& "X".equals(button.getClientProperty(RibbonControlPopups.KEY_TIP_PROPERTY))))
+				.findFirst().orElse(null);
+			assertNotNull(collapsed, "a 160 px ribbon must collapse the group that holds Cut");
+			AtomicInteger clicks = new AtomicInteger();
+			UiComponentWalker.flatten(collapsed).stream()
+				.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+				.filter(button -> "X".equals(button.getClientProperty(RibbonControlPopups.KEY_TIP_PROPERTY)))
+				.forEach(button -> button.addActionListener(event -> clicks.incrementAndGet()));
+			RibbonKeyTipInput input = ribbon.keyTipInput();
+
+			input.dispatch(KeyEvent.KEY_PRESSED, KeyEvent.VK_ALT);
+			input.dispatch(KeyEvent.KEY_RELEASED, KeyEvent.VK_ALT);
+			input.dispatch(KeyEvent.KEY_PRESSED, KeyEvent.VK_H);
+			assertTrue(ribbon.keyTipSession().visibleTargets().containsKey("X"));
+			input.dispatch(KeyEvent.KEY_PRESSED, KeyEvent.VK_X);
+			assertEquals(1, clicks.get());
+			assertFalse(ribbon.keyTipSession().isActive());
+		});
+	}
+
+	@Test
+	void aPopupOnlyControlInACollapsedGroupKeepsItsKeyTip() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			JPanel host = ribbonHost();
+			ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+			host.setSize(160, 200);
+			layoutTree(host);
+			layoutTree(host);
+			// A popup-only control has no button of its own in a collapsed group: its popup entry is a
+			// menu that carries the control's KeyTip. Give one such entry a KeyTip no other control uses.
+			javax.swing.JMenu facade = UiComponentWalker.flatten(host).stream()
+				.filter(javax.swing.JComponent.class::isInstance).map(javax.swing.JComponent.class::cast)
+				.map(component -> component.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY))
+				.filter(javax.swing.JPopupMenu.class::isInstance).map(javax.swing.JPopupMenu.class::cast)
+				.flatMap(popup -> java.util.Arrays.stream(popup.getComponents()))
+				.filter(javax.swing.JMenu.class::isInstance).map(javax.swing.JMenu.class::cast)
+				.filter(javax.swing.JMenu::isEnabled)
+				.findFirst().orElse(null);
+			assertNotNull(facade, "a 160 px Home tab must collapse a group that holds a popup-only control");
+			String menuTip = "ZQ";
+			facade.putClientProperty(RibbonControlPopups.KEY_TIP_PROPERTY, menuTip);
+			RibbonKeyTipInput input = ribbon.keyTipInput();
+
+			input.dispatch(KeyEvent.KEY_PRESSED, KeyEvent.VK_ALT);
+			input.dispatch(KeyEvent.KEY_RELEASED, KeyEvent.VK_ALT);
+			input.dispatch(KeyEvent.KEY_PRESSED, KeyEvent.VK_H);
+			assertTrue(ribbon.keyTipSession().visibleTargets().containsKey(menuTip),
+				() -> "KeyTip " + menuTip + " must stay reachable: " + ribbon.keyTipSession().visibleTargets().keySet());
+		});
+	}
+
+	private static void layoutTree(java.awt.Component component) {
+		if (component instanceof java.awt.Container container) {
+			container.doLayout();
+			for (java.awt.Component child : container.getComponents()) layoutTree(child);
+		}
 	}
 
 	private static RibbonKeyTipSession session(List<String> log) {

@@ -1,6 +1,6 @@
 # Issue #943 — EVM user workflow and reporting
 
-State: IN PROGRESS
+State: COMPLETE — the reopen symptom is explained, fixed and covered by a physical-route GUI test
 Issue: https://github.com/tetsuji16/microProject/issues/943
 Contract frozen at: 2026-10-26, issue body fetched at intake
 Baseline HEAD: `6d430c1591202a84ffeb08103988b868eb196313`
@@ -19,17 +19,17 @@ Blockers: none known.
 |---|---|---|---|
 | A1 | User-facing paths for PV/EV/AC and status date found or absent items grounded in code | pass | `configuration.xml` editable percent/actual-work and read-only actual-cost fields; task/project EVM spreadsheet presets; Status Date dialog and EVM fields now selectable in Custom Report |
 | A2 | Known-value SV/CV/SPI/CPI formulas, aggregation, currency, and status-date relationship verified | pass | `EarnedValueProjectValuesTest` pins BAC, ACWP, BCWS, BCWP, CV, SV, CPI and SPI to hand calculations at two status dates, plus the MPO round trip and the no-baseline case (single task, internal units). Aggregation and currency rest on the report-level evidence below, not on that test: no summary rollup of EVM values is asserted anywhere. |
-| A3 | MPO save/reload values and presentation confirmed; implemented routes have focused regressions | pass | MPO seven-value round trip + report-column availability tests pass; Windows Robot selected all seven EVM columns, asserted preview values, exported CSV, and asserted exported values (run `40341421912`) |
+| A3 | MPO save/reload values and presentation confirmed; implemented routes have focused regressions | pass | MPO seven-value round trip + report-column availability tests; physical route `ReportViewEarnedValueGuiAcceptanceTest` now selects report + preset in the real Reports tab, asserts the task row and its hand-calculated values, and compares the exported CSV cell by cell. It also caught and fixes the empty-preview defect described below. |
 | A4 | Book/user-guide explainable operation scope defined from evidence | pass | Japanese chapters 5/10/12 describe tested calculation/input scope, status date, report fields, MPO persistence, and currency caveat; Windows Robot evidence is recorded below |
 
 ## Current slice
 
-**Current slice:** Implementation and acceptance evidence are complete on the issue branch, rebased onto the current `master` head. PR #949 is the review/integration path.
-**Done when:** Merge PR #949 after required checks are green; then close #943 with this packet linked as evidence.
+**Current slice:** The reopen symptom (a report preview that showed only column headers) is reproduced, root-caused, fixed in `ReportPrintable`, and covered by a pixel regression plus a physical-route GUI acceptance test. This packet is the evidence for closing #943.
+**Done when:** The PR that carries the renderer fix, the pixel regression, the GUI route test and this packet passes `build` and `GUI acceptance`.
 
 ## Remaining blockers
 
-- No implementation blockers. The local Robot attempts were stopped twice by the desktop contention guard because foreground MSPaint overlapped the report dialog; hosted Windows GUI acceptance subsequently supplied physical-route evidence. Mixed-source currency amounts cannot be detected or converted; guidance says normalize before consolidation.
+- No implementation blockers. Mixed-source currency amounts cannot be detected or converted; guidance says normalize before consolidation.
 
 ## Latest evidence
 
@@ -64,3 +64,42 @@ The merged version of this test (#1263) pinned the mid-plan values to 16 h while
 Not covered by this test and still standing on the earlier report-level evidence: aggregation of EVM values into a summary/project row (`configuration.xml` declares `sum="Sum"`) and currency handling for mixed-source costs. The test lives in `microproject_ui` because the round trip needs `MpoFileImporter` from `microproject_exchange`, which `microproject_core`'s test source cannot see.
 
 Commands: `.\gradlew.bat :microproject_ui:cleanTest :microproject_ui:test --tests "com.microproject.pm.costing.EarnedValueProjectValuesTest" --console=plain` → BUILD SUCCESSFUL (2 tests, 0 failures). Mutation check: replacing `efficiency() * cost` with `cost` in `Assignment.bcwp` fails both tests (`BCWP is the earned half of those three days … expected 2.592E9 but was 5.184E9`), so the assertions do gate the calculation rather than restating it.
+
+## Reopen symptom: "the preview shows only the column headers" (fixed)
+
+The reporter selected **レポート > カスタムレポート > Task Information > 出来高 - コスト** on v0.1.0.1271 and saw the column headers and the CSV button, but no task row and no values. The same route now renders the data, so the defect was in the renderer, not in the report model or the EVM calculation.
+
+### Root cause
+
+`ReportPrintable.drawHeader()` fills each header cell dark and then sets the paint colour to `Color.WHITE` for the label. `drawRows()` started without restoring the colour, so every *non-summary* data row was painted white on the white page — invisible. The summary row sets `Color.BLACK` before drawing, which is why the project-total row was the only body text that survived, and why the page looked "empty except the headings". The same leak happens after a group-header band, which also paints its label white.
+
+Why the previous tests missed it: `ReportRenderingTest` only counted ink pixels over the whole page (`inkPixels(image) > 100`); the header band and the footer alone always exceed that, so a page whose rows are all white still passed.
+
+### Fix
+
+- `ReportPrintable.drawRows()` restores `Color.BLACK` before laying out rows.
+- The group-header band restores `Color.BLACK` after its white label.
+- New `ReportRenderingTest.tableDataRowsPaintTheirValuesInsteadOfOnlyTheHeader()` renders a two-row table and asserts each row band contains ink. Removing the reset makes this test fail; restoring it makes it pass, so the assertion gates the regression.
+
+### Evidence
+
+| Item | Result |
+|---|---|
+| Physical route | `ReportViewEarnedValueGuiAcceptanceTest` (guiTest, `ja`, 1.0): `MainRibbonFrame` → `addProjectFrame` → `GraphicManager.showReportView()` (the Reports tab / Custom Report entry point), then physically clicks the report combo and the preset combo |
+| Rows | 2 rows: the task row and the project total (`summaryRow(1)`); every preview page has `endRow > firstRow` |
+| Values (hand calculation) | BCWS `60 × 24 h × HOUR_MILLIS` = 5.184e9; BCWP half of that; CV = BCWP − ACWP; CPI 0.5; BAC `60 × 80 h × HOUR_MILLIS` = 1.728e10; VAC = BAC − EAC. Amounts are the stored cost unit (rate per hour × work in ms) and are asserted to be formatted exactly as `Field.getText(task, null)` formats them for the task sheet |
+| CSV | The preview's own CSV button writes the file, the shared chooser is asked exactly once, and every cell of the exported task row equals the preview cell; the header row equals the preview column names; the UTF-8 BOM is preserved |
+| Artifacts | `report-view-earned-value.png` (the task row is now visible above the total row) and `report-view-earned-value.txt` (model rows and page ranges) under `build/reports/guiTest-artifacts` |
+
+Commands (Windows):
+
+```
+.\gradlew.bat :microproject_reports:test --tests "com.microproject.reports.render.ReportRenderingTest" --console=plain
+.\gradlew.bat :microproject_reports:test :microproject_ui:test --console=plain
+.\gradlew.bat verifyNamingConventions verifyArchitectureBoundaries --console=plain
+.\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.reports.view.ReportViewEarnedValueGuiAcceptanceTest -Locale ja -Scale 1.0
+.\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.reports.view.ReportViewEarnedValueGuiAcceptanceTest -Locale en -Scale 1.0
+.\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.reports.view.ReportViewEarnedValueGuiAcceptanceTest -Locale ja -Scale 1.25
+```
+
+The Gradle commands report `BUILD SUCCESSFUL`. The authoritative runner reports `tests=1 failures=0 errors=0 skipped=0` for each of the three locale/scale legs (ja/1.0, en/1.0, ja/1.25) at 2560x1440; the PNG and the layout dump are kept per leg under `build/reports/guiTest-artifacts/focused-…-<locale>-<scale>-<id>/`.

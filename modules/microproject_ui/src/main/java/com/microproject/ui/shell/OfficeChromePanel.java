@@ -49,10 +49,8 @@ import javax.swing.JMenuItem;
 import javax.swing.JLayeredPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
-import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.JToggleButton;
-import javax.swing.JCheckBox;
 import javax.swing.JOptionPane;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
@@ -74,6 +72,7 @@ final class OfficeChromePanel extends JPanel {
 	static final String SEARCH_BOX_NAME = "officeChromeSearchBox";
 	static final String SEARCH_FIELD_NAME = "officeChromeSearchField";
 	static final String DOCUMENT_TITLE_NAME = "officeChromeDocumentTitle";
+	static final String OPTIONS_COMMAND_ID = "RibbonBackstageOptions";
 	static final String QUICK_ACCESS_NAME = "officeChromeQuickAccess";
 	static final String QUICK_ACCESS_COMMANDS_NAME = "officeChromeQuickAccessCommands";
 	static final String RIGHT_ACTIONS_NAME = "officeChromeRightActions";
@@ -481,45 +480,23 @@ final class OfficeChromePanel extends JPanel {
 		refreshQuickAccessCommands();
 	}
 
+	/** Opens the Quick Access Toolbar category of the preferences dialog through the application's Options command. */
 	private void customizeQuickAccess() {
 		if (menuManager == null) return;
-		java.util.List<String> supported = new java.util.ArrayList<>();
-		for (String id : RibbonDisplayPreferences.quickAccessCandidateCommands()) {
-			if (menuManager.getActionFromId(id) != null) supported.add(id);
-		}
-		for (String id : RibbonDisplayPreferences.loadQuickAccessCommands()) {
-			if (menuManager.getActionFromId(id) != null && !supported.contains(id)) supported.add(id);
-		}
-		java.util.List<JCheckBox> checks = new java.util.ArrayList<>(supported.size());
-		java.util.Set<String> selected = new java.util.LinkedHashSet<>(RibbonDisplayPreferences.loadQuickAccessCommands());
-		java.awt.GridLayout choiceLayout = new java.awt.GridLayout(0, 1, 0, 2);
-		JPanel choices = new JPanel(choiceLayout);
-		choices.setBorder(new EmptyBorder(6, 8, 6, 8));
-		for (String id : supported) {
-			JCheckBox check = new JCheckBox(resolveTooltip(id), selected.contains(id));
-			check.setName("quickAccessChoice." + id);
-			checks.add(check);
-			choices.add(check);
-		}
-		JScrollPane scroll = new JScrollPane(choices);
-		int rowHeight = checks.stream().mapToInt(check -> check.getPreferredSize().height).max().orElse(16);
-		scroll.getVerticalScrollBar().setUnitIncrement(Math.max(1, rowHeight + choiceLayout.getVgap()));
-		scroll.setPreferredSize(new Dimension(380, Math.min(440, Math.max(180, supported.size() * 29))));
-		int result = JOptionPane.showConfirmDialog(this, scroll,
-			UsabilityStrings.text("chrome.customizeQuickAccess"), JOptionPane.OK_CANCEL_OPTION,
-			JOptionPane.PLAIN_MESSAGE);
-		if (result != JOptionPane.OK_OPTION) return;
-		java.util.Set<String> selectedCommands = new java.util.LinkedHashSet<>();
-		for (int index = 0; index < checks.size(); index++) {
-			if (checks.get(index).isSelected()) selectedCommands.add(supported.get(index));
-		}
-		java.util.List<String> commands = RibbonDisplayPreferences.orderQuickAccessSelection(
-			RibbonDisplayPreferences.loadQuickAccessCommands(), supported, selectedCommands);
-		RibbonDisplayPreferences.saveQuickAccessCommands(commands);
-		refreshQuickAccessCommands();
+		javax.swing.Action options = menuManager.getActionFromId(OPTIONS_COMMAND_ID);
+		if (options == null) return;
+		options.actionPerformed(new java.awt.event.ActionEvent(this, java.awt.event.ActionEvent.ACTION_PERFORMED,
+			com.microproject.dialog.PreferencesDialogBox.CATEGORY_QUICK_ACCESS));
 	}
 
-	private void refreshQuickAccessCommands() {
+	/** Ends this shell's life: stops following the frame title and releases its command controls. */
+	void dispose() {
+		if (titleBinding != null) titleBinding.detach();
+		releaseCommandControls();
+	}
+
+	/** Unregisters the Quick Access controls from their commands before this chrome is replaced. */
+	void releaseCommandControls() {
 		java.util.List<JComponent> previousControls = java.util.Arrays.stream(quickAccessCommands.getComponents())
 			.filter(JComponent.class::isInstance).map(JComponent.class::cast).toList();
 		if (menuManager != null && menuManager.getRibbonFactory() != null) {
@@ -528,6 +505,10 @@ final class OfficeChromePanel extends JPanel {
 		previousControls.stream().filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
 			.forEach(button -> button.setAction(null));
 		quickAccessCommands.removeAll();
+	}
+
+	private void refreshQuickAccessCommands() {
+		releaseCommandControls();
 		java.util.List<String> visibleCommands = RibbonDisplayPreferences.loadQuickAccessCommands().stream()
 			.filter(id -> menuManager != null && menuManager.getActionFromId(id) != null).toList();
 		if (!visibleCommands.isEmpty()) quickAccessCommands.add(new VerticalDivider());
