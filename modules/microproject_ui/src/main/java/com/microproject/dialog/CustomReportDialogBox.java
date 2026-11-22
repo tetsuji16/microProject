@@ -185,17 +185,19 @@ public final class CustomReportDialogBox extends FlatLafDialog implements Schedu
 	}
 
 	private JPanel buildSettings() {
-		JPanel result = new JPanel(new GridLayout(2, 1));
+		// One flow row per line: a FlowLayout row inside a GridLayout keeps its single-line height, so a wrapped control would be clipped.
+		JPanel result = new JPanel(new GridLayout(3, 1));
 		JPanel row1 = new JPanel(); row1.add(new JLabel(t("report.preset"))); row1.add(presets);
 		JButton create = new JButton(t("report.new")); create.addActionListener(event -> createTemplatePreset());
 		JButton load = new JButton(t("report.load")); load.addActionListener(event -> loadPreset());
 		JButton save = new JButton(t("report.saveAs")); save.addActionListener(event -> savePreset());
 		JButton delete = new JButton(t("report.delete")); delete.addActionListener(event -> deletePreset());
-		row1.add(create); row1.add(load); row1.add(save); row1.add(delete); row1.add(new JLabel(t("report.filter"))); row1.add(filter);
-		row1.add(new JLabel(t("report.nameContains"))); row1.add(contains); row1.add(includeSummary);
+		row1.add(create); row1.add(load); row1.add(save); row1.add(delete);
+		JPanel filterRow = new JPanel(); filterRow.add(new JLabel(t("report.filter"))); filterRow.add(filter);
+		filterRow.add(new JLabel(t("report.nameContains"))); filterRow.add(contains); filterRow.add(includeSummary);
 		JPanel row2 = new JPanel(); row2.add(new JLabel(t("report.group"))); row2.add(group); row2.add(new JLabel(t("report.sort"))); row2.add(sort);
 		row2.add(useDateRange); row2.add(new JLabel(t("report.from"))); row2.add(from); row2.add(new JLabel(t("report.to"))); row2.add(to);
-		result.add(row1); result.add(row2); return result;
+		result.add(row1); result.add(filterRow); result.add(row2); return result;
 	}
 
 	private JPanel buildButtons() {
