@@ -48,6 +48,7 @@ import com.microproject.strings.Messages;
 import com.microproject.util.FlatUiSupport;
 
 public final class NewBaseCalendarDialog extends AbstractDialog {
+	private static final long serialVersionUID = 2717645244832536055L;
 
 	JTextField name;
 	JRadioButton createNewBase;

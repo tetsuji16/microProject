@@ -55,6 +55,8 @@ import org.netbeans.swing.outline.RowModel;
  * 
  */
 public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineModel, RowModel {
+	private static final long serialVersionUID = 5472118670833654418L;
+
 	protected boolean readOnly;
 	private transient TaskFieldEditOutcomeHandler taskFieldEditOutcomeHandler;
 	private transient Runnable committedValueListener;

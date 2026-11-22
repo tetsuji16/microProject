@@ -44,6 +44,8 @@ import com.microproject.util.DateFieldSupport;
 import com.microproject.util.FlatUiSupport;
 
 public class DateEditor extends AbstractCellEditor implements TableCellEditor {
+	private static final long serialVersionUID = 6887343892697956803L;
+
 	protected ExtDateField dateField;
 	private JTable table;
 	private int editingRow = -1;

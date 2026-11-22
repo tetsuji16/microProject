@@ -33,6 +33,8 @@ import javax.swing.JTextField;
 import com.microproject.datatype.PercentFormat;
 
 public class PercentEditor extends SimpleEditor {
+	private static final long serialVersionUID = -3775962878202196011L;
+
 	// NumberFormat/DecimalFormat is not thread-safe; use a fresh instance per call (issue #184).
 
 	public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {

@@ -34,6 +34,8 @@ import com.microproject.pm.dependency.DependencyService;
  *
  */
 public class DependencyDeletionEdit extends AbstractUndoableEdit{
+	private static final long serialVersionUID = -3820463194994110823L;
+
 	protected Dependency dependency;
 	protected Object source;
 	

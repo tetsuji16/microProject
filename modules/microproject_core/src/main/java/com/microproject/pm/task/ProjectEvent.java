@@ -29,6 +29,8 @@ import java.util.EventObject;
  *
  */
 public class ProjectEvent extends EventObject {
+	private static final long serialVersionUID = -1838317933906126410L;
+
 	public enum Kind {
 		NAME_CHANGED(1),
 		GROUP_DIRTY_CHANGED(2);

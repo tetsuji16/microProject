@@ -29,7 +29,8 @@ import java.util.EventObject;
  *
  */
 public class NetworkLayoutEvent extends EventObject {
-	
+	private static final long serialVersionUID = -9016348071522313887L;
+
 	/**
 	 * @param source
 	 */

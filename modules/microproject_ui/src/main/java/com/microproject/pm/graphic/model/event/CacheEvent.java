@@ -34,6 +34,8 @@ import com.microproject.pm.graphic.event.GraphicEvent;
  *
  */
 public class CacheEvent extends GraphicEvent {
+	private static final long serialVersionUID = -724386834145963223L;
+
     public static final int NODES_CHANGED = 0;
     public static final int NODES_INSERTED = 1;
     public static final int NODES_REMOVED = 2;

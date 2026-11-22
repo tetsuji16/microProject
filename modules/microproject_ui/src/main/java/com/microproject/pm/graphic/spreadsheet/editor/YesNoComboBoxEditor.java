@@ -47,6 +47,8 @@ import com.microproject.pm.graphic.spreadsheet.renderer.YesNoRenderer;
  * table the committed value is the Boolean.
  */
 public class YesNoComboBoxEditor extends SimpleComboBoxEditor {
+	private static final long serialVersionUID = 2344703231748575331L;
+
 	/** Client property on the combo box marking a Yes/No list, read by the sheet to open its popup. */
 	public static final String LIST_CLIENT_PROPERTY = "microproject.yesNoList";
 

@@ -38,6 +38,8 @@ import com.microproject.undo.NodeUndoInfo;
  *
  */
 public class ObjectEvent extends EventObject {
+	private static final long serialVersionUID = 2778399810760252048L;
+
 	private static final Logger logger = Logger.getLogger(ObjectEvent.class.getName());
     
 	public Object getObject() {

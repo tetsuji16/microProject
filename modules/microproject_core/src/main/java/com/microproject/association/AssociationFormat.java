@@ -29,6 +29,8 @@ import java.util.Collection;
  * Base class for a text formatter for predecessors or assignments. Used by AssociationListFormat
  */
 public abstract class AssociationFormat extends java.text.Format{
+	private static final long serialVersionUID = -8129104153516685078L;
+
 	protected AssociationFormatParameters parameters;
 	public AssociationFormat(AssociationFormatParameters parameters) {
 		this.parameters = parameters;

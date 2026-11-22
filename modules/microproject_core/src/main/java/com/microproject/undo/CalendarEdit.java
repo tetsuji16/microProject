@@ -34,6 +34,8 @@ import com.microproject.pm.calendar.WorkingCalendar;
  *
  */
 public class CalendarEdit extends AbstractUndoableEdit{
+	private static final long serialVersionUID = -7556160420520983503L;
+
 	protected WorkingCalendar oldValue;
 	protected WorkingCalendar dest;
 	protected WorkingCalendar newValue;

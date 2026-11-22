@@ -58,6 +58,8 @@ import com.microproject.pm.time.MutableInterval;
  * Implementation of class which contains assignments
  */
 public class HasAssignmentsImpl implements HasAssignments, HasTimeDistributedData, Serializable, Cloneable{
+	private static final long serialVersionUID = 7226222599710405289L;
+
 	//private static Log log = LogFactory.getLog(HasAssignmentsImpl.class);
 	transient AssociationList assignments;
 	private static final double ALMOST_ZERO = 0.00001D;

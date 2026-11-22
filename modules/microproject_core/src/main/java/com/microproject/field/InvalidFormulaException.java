@@ -27,6 +27,7 @@ package com.microproject.field;
  * 
  */
 public class InvalidFormulaException extends Exception {
+	private static final long serialVersionUID = 58657576886807472L;
 
 	/**
 	 * 

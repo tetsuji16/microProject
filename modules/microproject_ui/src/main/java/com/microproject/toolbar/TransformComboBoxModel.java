@@ -40,6 +40,8 @@ import com.microproject.strings.Messages;
  * 
  */
 public class TransformComboBoxModel extends AbstractListModel implements ComboBoxModel {
+	private static final long serialVersionUID = 489786249390749321L;
+
 	public static final int FILTER=1;
 	public static final int SORTER=2;
 	public static final int GROUPER=3;

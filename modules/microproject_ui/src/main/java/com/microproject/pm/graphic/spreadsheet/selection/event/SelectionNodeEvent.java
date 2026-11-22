@@ -32,6 +32,8 @@ import com.microproject.pm.graphic.event.GraphicEvent;
  *
  */
 public class SelectionNodeEvent extends GraphicEvent {
+	private static final long serialVersionUID = -1409630903321417802L;
+
     public static final int SELECTION_CHANGED = 0;
     
     protected int type;

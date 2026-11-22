@@ -34,6 +34,8 @@ import com.microproject.graphic.configuration.GraphicConfiguration;
  *
  */
 public class SpreadSheetRowHeaderColumnModel extends DefaultTableColumnModel {
+	private static final long serialVersionUID = 6352251842580815089L;
+
 	int columnIndex=0;
 	public SpreadSheetRowHeaderColumnModel() {
 		super();

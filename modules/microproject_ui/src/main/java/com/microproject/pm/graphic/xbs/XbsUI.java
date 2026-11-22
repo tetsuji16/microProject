@@ -31,6 +31,7 @@ import com.microproject.pm.graphic.network.NetworkUI;
  *
  */
 public class XbsUI extends NetworkUI {
+	private static final long serialVersionUID = -1735326941165127519L;
 
 	/**
 	 * @param graph

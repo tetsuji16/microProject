@@ -27,6 +27,7 @@ package com.microproject.pm.calendar;
  * 
  */
 public class InvalidCalendarException extends Exception {
+	private static final long serialVersionUID = 2705229025133019520L;
 
 	/**
 	 * 

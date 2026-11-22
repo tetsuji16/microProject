@@ -33,6 +33,8 @@ import com.microproject.pm.graphic.spreadsheet.renderer.TimeSpreadSheetRowHeader
  *
  */
 public class TimeSpreadSheetRowHeaderColumnModel extends DefaultTableColumnModel {
+	private static final long serialVersionUID = 7827675168567028346L;
+
 	int columnIndex=0;
 	public TimeSpreadSheetRowHeaderColumnModel() {
 		super();

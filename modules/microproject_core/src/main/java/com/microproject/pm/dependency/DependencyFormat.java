@@ -40,6 +40,8 @@ import com.microproject.strings.Messages;
 
 
 public class DependencyFormat extends AssociationFormat {
+	private static final long serialVersionUID = 1965022191348537616L;
+
 	public static DependencyFormat getInstance(AssociationFormatParameters parameters) {
 		return new DependencyFormat(parameters);
 	}

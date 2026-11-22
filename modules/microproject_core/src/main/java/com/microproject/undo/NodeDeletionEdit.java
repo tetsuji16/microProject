@@ -40,6 +40,8 @@ import com.microproject.pm.task.Project;
  *
  */
 public class NodeDeletionEdit extends AbstractUndoableEdit{
+	private static final long serialVersionUID = -2211958065942407526L;
+
 	protected NodeModel model;
 	protected RemovalSnapshot removalSnapshot;
 	

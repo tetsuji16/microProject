@@ -37,6 +37,8 @@ import com.microproject.grouping.core.model.NodeModel;
  *
  */
 public class NodeIndentEdit extends AbstractUndoableEdit{
+	private static final long serialVersionUID = -3122105350482648298L;
+
 	protected NodeModel model;
 	protected List<Node> nodes;
 	protected int deltaLevel;
