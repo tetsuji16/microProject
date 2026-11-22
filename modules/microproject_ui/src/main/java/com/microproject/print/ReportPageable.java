@@ -6,6 +6,7 @@ package com.microproject.print;
 
 import java.awt.print.PrinterException;
 import java.awt.print.PrinterJob;
+import javax.print.PrintService;
 import javax.swing.JFrame;
 import javax.swing.WindowConstants;
 
@@ -19,6 +20,12 @@ public final class ReportPageable extends GraphPageable {
 	private final ReportPrintable report;
 	public ReportPageable(ReportPrintable report, boolean printOnly) {
 		super(report, printOnly);
+		this.report = report;
+	}
+	/** Uses printers the caller already resolved off the event thread. */
+	public ReportPageable(ReportPrintable report, boolean printOnly,
+			PrintService[] resolvedServices, PrintService resolvedDefaultService) {
+		super(report, printOnly, resolvedServices, resolvedDefaultService);
 		this.report = report;
 	}
 	@Override public int getColumnCount() { return 1; }

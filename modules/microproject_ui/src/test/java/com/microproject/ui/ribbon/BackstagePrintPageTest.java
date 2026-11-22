@@ -45,7 +45,8 @@ class BackstagePrintPageTest {
 	private static final Map<String, String> LABELS = Map.of(
 			"print", "Print", "noPrinters", "No printers available", "pageSetup", "Page Setup",
 			"copies", "Copies", "printer", "Printer", "range", "Print range",
-			"orientation", "Orientation", "paperSize", "Paper size");
+			"orientation", "Orientation", "paperSize", "Paper size",
+			"loadingPrinters", "Looking for printers...");
 
 	private static final List<String> RANGES = List.of("All", "Current page", "Selection");
 	private static final List<String> ORIENTATIONS = List.of("Portrait", "Landscape");
@@ -127,6 +128,62 @@ class BackstagePrintPageTest {
 			layoutTree(page, 900, 420);
 			assertTrue(pane.getX() >= settingsBounds.width,
 					"a wide page must keep the preview beside the settings: pane=" + pane.getBounds());
+		});
+	}
+
+	/** Issue #1293: the page is usable before the printer list and the print document exist. */
+	@Test
+	void printersLoadingShowsTheLoadingTextAndKeepsPrintingDisabled() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			RecordingActions actions = actions();
+			BackstagePrintPage page = new BackstagePrintPage(settings(List.of()), printButton(actions),
+					new JPanel(), actions, LABELS::get);
+
+			page.showPrintersLoading();
+
+			assertTrue(texts(page).contains("Looking for printers..."), texts(page).toString());
+			assertFalse(page.getPrinterCombo().isEnabled(), "the printer field waits for the list");
+			assertFalse(page.getPrintButton().isEnabled(), "printing needs a printer");
+			assertEquals(0, actions.printCalls.get());
+		});
+	}
+
+	@Test
+	void printersArrivingAfterThePageIsShownFillTheFieldAndEnablePrinting() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			RecordingActions actions = actions();
+			BackstagePrintPage page = new BackstagePrintPage(settings(List.of()), printButton(actions),
+					new JPanel(), actions, LABELS::get);
+			page.showPrintersLoading();
+
+			page.setPrinters(List.of("Printer One", "Printer Two"), "Printer Two");
+
+			assertTrue(page.getPrinterCombo().isEnabled());
+			assertTrue(page.getPrintButton().isEnabled());
+			assertEquals("Printer Two", page.getPrinterCombo().getSelectedItem());
+			assertFalse(texts(page).contains("Looking for printers..."), texts(page).toString());
+			assertFalse(texts(page).contains("No printers available"), texts(page).toString());
+		});
+	}
+
+	@Test
+	void thePreviewPlaceholderIsReplacedInPlaceWhenTheDocumentIsReady() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			RecordingActions actions = actions();
+			JLabel placeholder = new JLabel("Preparing the preview...");
+			BackstagePrintPage page = new BackstagePrintPage(settings(List.of("Printer One")),
+					printButton(actions), placeholder, actions, LABELS::get);
+
+			JPanel canvas = new JPanel();
+			canvas.setName("officeBackstagePrintPreviewCanvas");
+			page.setPreviewComponent(canvas);
+
+			assertSame(canvas, page.getPreviewComponent());
+			assertFalse(UiComponentWalker.flatten(page).contains(placeholder),
+					"the placeholder leaves the page once the preview exists");
+			layoutTree(page, 900, 420);
+			assertTrue(canvas.getWidth() > 0 && canvas.getHeight() > 0,
+					"the preview fills the pane: " + canvas.getBounds());
 		});
 	}
 

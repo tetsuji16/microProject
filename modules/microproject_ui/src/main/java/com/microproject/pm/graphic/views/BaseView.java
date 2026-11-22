@@ -64,6 +64,11 @@ public interface BaseView extends SpreadSheetCategories, SavableToWorkspace{
 	boolean isPrintable();
 	/** Optional specialized document that still participates in the shared print/export pipeline. */
 	default GraphPageable createPrintDocument(boolean printOnly, boolean pdfAsDefault) { return null; }
+	/** Same as above, with printers the caller already resolved off the event thread. */
+	default GraphPageable createPrintDocument(boolean printOnly, boolean pdfAsDefault,
+			javax.print.PrintService[] resolvedServices, javax.print.PrintService resolvedDefaultService) {
+		return null;
+	}
 	void cleanUp();
 	NodeModelCache getCache();
 }
