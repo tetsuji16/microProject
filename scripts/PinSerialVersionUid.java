@@ -6,6 +6,8 @@
 import java.io.IOException;
 import java.io.ObjectStreamClass;
 import java.io.Serializable;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
@@ -165,7 +167,8 @@ public final class PinSerialVersionUid {
 		System.out.println("pinned per module: " + perModule);
 		System.out.println("total selected=" + all.size() + " pinned=" + perModule.values().stream().mapToInt(i -> i).sum());
 		for (String n : notLocated) System.out.println("NOT LOCATED " + n);
-		System.exit(notLocated.isEmpty() ? 0 : 1);
+		// A class that could not be loaded was never checked or pinned, so the run did not succeed.
+		System.exit(notLocated.isEmpty() && loadFailures.isEmpty() ? 0 : 1);
 	}
 
 	private static boolean selected(Class<?> c, Class<?> jcomponent) {
@@ -177,8 +180,11 @@ public final class PinSerialVersionUid {
 
 	private static boolean declaresUid(Class<?> c) {
 		try {
-			c.getDeclaredField("serialVersionUID");
-			return true;
+			Field field = c.getDeclaredField("serialVersionUID");
+			// Only a static final long field pins the identifier; any other declaration has no effect.
+			return field.getType() == long.class
+					&& Modifier.isStatic(field.getModifiers())
+					&& Modifier.isFinal(field.getModifiers());
 		} catch (NoSuchFieldException e) {
 			return false;
 		}

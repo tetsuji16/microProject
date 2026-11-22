@@ -27,6 +27,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -78,8 +80,11 @@ class SerialVersionUidPinTest {
 
 	private static boolean declaresSerialVersionUid(Class<?> type) {
 		try {
-			type.getDeclaredField("serialVersionUID");
-			return true;
+			Field field = type.getDeclaredField("serialVersionUID");
+			// Only a static final long field pins the identifier; any other declaration has no effect.
+			return field.getType() == long.class
+					&& Modifier.isStatic(field.getModifiers())
+					&& Modifier.isFinal(field.getModifiers());
 		} catch (NoSuchFieldException e) {
 			return false;
 		}

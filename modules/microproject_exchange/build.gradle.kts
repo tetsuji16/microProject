@@ -20,6 +20,9 @@ tasks.test {
     enabled = true
     useJUnitPlatform()
     systemProperty("java.awt.headless", "true")
+    // Fixtures are read at runtime, so a fixture-only edit must rerun the tests.
+    inputs.dir("testdata")
+    inputs.dir(rootProject.file("samples"))
     // Regenerates testdata/persisted-classes.txt: .\gradlew.bat :microproject_exchange:test --tests "*PersistedClassInventoryTest" -Dmicroproject.updatePersistedClasses=true
     providers.systemProperty("microproject.updatePersistedClasses").orNull?.let { systemProperty("microproject.updatePersistedClasses", it) }
     // Force commons-logging to the JDK logger. Auto-discovery of log4j2 / logback

@@ -25,6 +25,9 @@ public final class ClassRelocations {
 	/** Old binary class name to new binary class name. */
 	private static final Map<String, String> RELOCATIONS = Map.of();
 
+	/** The JVM accepts at most this many dimensions in an array descriptor. */
+	private static final int MAX_ARRAY_DIMENSIONS = 255;
+
 	private static volatile Map<String, String> table = RELOCATIONS;
 
 	private ClassRelocations() {
@@ -36,15 +39,20 @@ public final class ClassRelocations {
 			return name;
 		if (name.charAt(0) == '[')
 			return relocateArrayDescriptor(name);
+		return relocateClassName(name);
+	}
+
+	private static String relocateClassName(String name) {
 		Map<String, String> current = table;
 		String moved = current.get(name);
 		if (moved != null)
 			return moved;
-		int nested = name.indexOf('$');
-		if (nested > 0) {
-			String outer = current.get(name.substring(0, nested));
-			if (outer != null)
-				return outer + name.substring(nested);
+		// A member class follows its enclosing class, and a member of that member follows too:
+		// search the enclosing prefixes from the innermost one outward.
+		for (int nested = name.lastIndexOf('$'); nested > 0; nested = name.lastIndexOf('$', nested - 1)) {
+			String enclosing = current.get(name.substring(0, nested));
+			if (enclosing != null)
+				return enclosing + name.substring(nested);
 		}
 		return name;
 	}
@@ -53,11 +61,17 @@ public final class ClassRelocations {
 		int dimensions = 0;
 		while (dimensions < name.length() && name.charAt(dimensions) == '[')
 			dimensions++;
-		if (dimensions >= name.length() - 2 || name.charAt(dimensions) != 'L' || !name.endsWith(";"))
+		if (dimensions > MAX_ARRAY_DIMENSIONS || dimensions >= name.length() - 2
+				|| name.charAt(dimensions) != 'L' || !name.endsWith(";"))
 			return name;
-		String element = name.substring(dimensions + 1, name.length() - 1);
-		String moved = relocate(element);
-		if (moved.equals(element))
+		String component = name.substring(dimensions + 1, name.length() - 1);
+		// A descriptor has exactly one component. Anything else (a ';' or '[' inside the
+		// component, as in a crafted "[L[L...x;;;..." name) is malformed and is returned
+		// unchanged instead of being parsed as another descriptor.
+		if (component.isEmpty() || component.indexOf(';') >= 0 || component.indexOf('[') >= 0)
+			return name;
+		String moved = relocateClassName(component);
+		if (moved.equals(component))
 			return name;
 		return name.substring(0, dimensions + 1) + moved + ";";
 	}

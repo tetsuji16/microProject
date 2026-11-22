@@ -83,6 +83,25 @@ class ClassRelocationsTest {
 		}
 	}
 
+	@Test
+	void aMemberClassThatMovedTakesItsOwnMembersAndTheirArraysWithIt() throws Exception {
+		try (AutoCloseable ignored = ClassRelocations.overrideForTesting(
+				Map.of(BEFORE + "$Part", AFTER + "$Part"))) {
+			assertEquals(AFTER + "$Part", ClassRelocations.relocate(BEFORE + "$Part"));
+			assertEquals(AFTER + "$Part$Leaf", ClassRelocations.relocate(BEFORE + "$Part$Leaf"));
+			assertEquals("[L" + AFTER + "$Part$Leaf;",
+					ClassRelocations.relocate("[L" + BEFORE + "$Part$Leaf;"));
+			assertEquals(BEFORE + "$Other$Leaf", ClassRelocations.relocate(BEFORE + "$Other$Leaf"));
+		}
+	}
+
+	@Test
+	void aMalformedArrayDescriptorIsReturnedUnchangedInsteadOfBeingParsedAgain() {
+		String crafted = "[L".repeat(20000) + "x" + ";".repeat(20000);
+		assertEquals(crafted, ClassRelocations.relocate(crafted));
+		assertEquals("[LDuplicated;;", ClassRelocations.relocate("[LDuplicated;;"));
+	}
+
 	private static byte[] streamWrittenBeforeMove() throws Exception {
 		var first = new com.microproject.exchange.relocationfixture.before.Moved();
 		first.name = "task";
