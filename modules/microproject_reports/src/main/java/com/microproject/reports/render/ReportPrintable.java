@@ -98,6 +98,10 @@ public final class ReportPrintable implements Printable, Pageable {
 
 	private void drawRows(Graphics2D g, ReportLayout.Page page, ReportLayout.Segment segment) {
 		g.setFont(BODY);
+		// drawHeader() paints its labels white and leaves that colour behind; without this
+		// reset the first data row of every page is painted white on the white page and the
+		// preview looks like it only contains column headers (#943).
+		g.setColor(Color.BLACK);
 		FontMetrics fm = g.getFontMetrics();
 		double[] widths = segment.widths();
 		int y = 117;
@@ -142,6 +146,8 @@ public final class ReportPrintable implements Printable, Pageable {
 				g.setFont(HEADER);
 				g.drawString(String.valueOf(groupKey), 23, y + 13);
 				g.setFont(BODY);
+				// The group band paints its label white; restore the row ink colour.
+				g.setColor(Color.BLACK);
 				y += 21;
 			}
 			if (summary) {
