@@ -47,7 +47,7 @@ import com.microproject.ui.ribbon.RibbonDisplayPreferences;
  * of the ribbon on the right. Edits change a working copy ({@link RibbonCustomizationDraft}); nothing is stored until
  * {@link #saveIfChanged()} runs when the dialog is applied.
  */
-final class RibbonCustomizationPanel extends JPanel {
+final class RibbonCustomizationPanel extends CustomizeSupport.Page {
 	private static final long serialVersionUID = 1L;
 
 	private enum Kind { FILE_TAB, DEFAULT_TAB, DEFAULT_GROUP, DEFAULT_COMMAND, CUSTOM_TAB, CUSTOM_GROUP, CUSTOM_COMMAND }
