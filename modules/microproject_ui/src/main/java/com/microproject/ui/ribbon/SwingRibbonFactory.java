@@ -127,13 +127,51 @@ public final class SwingRibbonFactory {
 			groups.forEach(group -> bands.add(createCustomGroupBand(group)));
 			tabs.add(new SwingRibbonModel.RibbonTab(tab.getId(), tab.getTitle(), bands, tab.isContextual(), tab.getAccessKey()));
 		}
+		java.util.Set<String> usedTabKeyTips = new java.util.HashSet<>();
+		for (SwingRibbonModel.RibbonTab tab : tabs) {
+			String accessKey = tab.getAccessKey();
+			if (accessKey != null && !accessKey.isBlank()) {
+				usedTabKeyTips.add(accessKey.trim().toUpperCase(java.util.Locale.ROOT));
+			}
+		}
 		for (RibbonCustomization.CustomTab custom : customization.customTabs()) {
 			List<SwingRibbonModel.RibbonBand> bands = new ArrayList<>();
 			custom.groups().forEach(group -> bands.add(createCustomGroupBand(group)));
-			tabs.add(new SwingRibbonModel.RibbonTab(custom.id(), custom.name(), bands));
+			tabs.add(new SwingRibbonModel.RibbonTab(custom.id(), custom.name(), bands, false,
+				nextCustomTabAccessKey(usedTabKeyTips)));
 		}
 		return new SwingRibbonModel(model.getId(), tabs, model.getTaskBarButtons())
 			.withTaskBarControls(model.getTaskBarControls());
+	}
+
+	/**
+	 * The keyboard KeyTip of a user-defined tab. Office assigns a fallback "Y" prefix followed by a number
+	 * (Y1, Y2, ...) when the default KeyTips are already taken (Custom KeyTips for Office Add-ins,
+	 * https://learn.microsoft.com/en-us/office/dev/add-ins/design/add-custom-key-tips). Tabs are numbered in
+	 * display order, so the same customization always produces the same KeyTips.
+	 */
+	static String nextCustomTabAccessKey(java.util.Set<String> usedKeyTips) {
+		for (int number = 1; ; number++) {
+			String keyTip = "Y" + number;
+			if (!conflicts(usedKeyTips, keyTip)) {
+				usedKeyTips.add(keyTip);
+				return keyTip;
+			}
+		}
+	}
+
+	/**
+	 * The KeyTip sequence narrows by prefix, so a candidate that is itself a prefix of a taken KeyTip would
+	 * never run (typing it only narrows). An already used KeyTip that is a prefix of the candidate is safe: the
+	 * user reaches the candidate by typing the rest.
+	 */
+	private static boolean conflicts(java.util.Set<String> usedKeyTips, String keyTip) {
+		for (String used : usedKeyTips) {
+			if (used.startsWith(keyTip)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** A custom group holds canonical command IDs, so its buttons come from the same path as the default ones. */

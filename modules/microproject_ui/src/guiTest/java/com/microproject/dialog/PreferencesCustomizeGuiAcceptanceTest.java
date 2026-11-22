@@ -431,20 +431,28 @@ class PreferencesCustomizeGuiAcceptanceTest {
 		assertEquals(List.of("RibbonCut"), saved.customTabs().get(0).groups().get(0).commandIds());
 		GuiAcceptanceSupport.await(() -> hasRibbonTab(saved.customTabs().get(0).id()), "the open ribbon did not show the applied tab");
 
-		// A custom tab has no tab KeyTip, so the KeyTip route reaches the command on the default Home tab.
-		// Apply rebuilt the ribbon, so the observers go on the new buttons.
+		// The custom tab takes Office's fallback tab KeyTip (Y1), so the route is Alt, Y, 1 for the tab and then
+		// X for the Cut command inside its custom group.
+		String customTabId = saved.customTabs().get(0).id();
+		bringToFront(ribbonFrame);
+		tap(KeyEvent.VK_ALT);
+		tap(KeyEvent.VK_Y);
+		tap(KeyEvent.VK_1);
+		assertTrue(onEdt(() -> ribbonTab(customTabId).isSelected()),
+			"the KeyTip sequence Alt, Y, 1 did not select the custom tab");
+
+		// The panel builds a tab body when the tab is first shown, so the observer goes on the Cut button that the
+		// custom tab now shows.
 		int[] runs = new int[1];
 		List<AbstractButton> cutButtons = new ArrayList<>();
 		for (Component component : UiComponentWalker.flatten(ribbonFrame.getRibbonPanel()))
 			if (component instanceof AbstractButton button
 				&& ("RibbonCut".equals(button.getActionCommand()) || "RibbonCut".equals(button.getName()))) cutButtons.add(button);
-		assertFalse(cutButtons.isEmpty(), "the ribbon must expose the Cut command");
+		assertFalse(cutButtons.isEmpty(), "the custom tab must show the Cut command it was given");
 		cutButtons.forEach(button -> button.addActionListener(event -> runs[0]++));
-		bringToFront(ribbonFrame);
-		tap(KeyEvent.VK_ALT);
-		tap(KeyEvent.VK_H);
 		tap(KeyEvent.VK_X);
-		GuiAcceptanceSupport.await(() -> runs[0] > 0, "the KeyTip sequence Alt, H, X did not run the Cut command");
+		GuiAcceptanceSupport.await(() -> runs[0] > 0,
+			"the KeyTip sequence Alt, Y, 1, X did not run the Cut command of the custom tab");
 	}
 
 	@Test
