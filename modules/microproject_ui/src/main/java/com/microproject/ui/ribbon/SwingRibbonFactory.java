@@ -127,13 +127,40 @@ public final class SwingRibbonFactory {
 			groups.forEach(group -> bands.add(createCustomGroupBand(group)));
 			tabs.add(new SwingRibbonModel.RibbonTab(tab.getId(), tab.getTitle(), bands, tab.isContextual(), tab.getAccessKey()));
 		}
+		// Custom tabs receive a deterministic KeyTip in display order. Office assigns user-defined tabs a
+		// two-character KeyTip ("Y1", "Y2", ...) and never reuses a letter that a default tab already owns,
+		// so keep the first free Y-slot and fall back to Z if that namespace is exhausted.
+		java.util.Set<String> usedTabKeyTips = new java.util.HashSet<>();
+		for (SwingRibbonModel.RibbonTab tab : tabs) {
+			if (tab.getAccessKey() != null) {
+				usedTabKeyTips.add(tab.getAccessKey().toUpperCase(java.util.Locale.ROOT));
+			}
+		}
 		for (RibbonCustomization.CustomTab custom : customization.customTabs()) {
 			List<SwingRibbonModel.RibbonBand> bands = new ArrayList<>();
 			custom.groups().forEach(group -> bands.add(createCustomGroupBand(group)));
-			tabs.add(new SwingRibbonModel.RibbonTab(custom.id(), custom.name(), bands));
+			String accessKey = assignCustomTabKeyTip(usedTabKeyTips);
+			usedTabKeyTips.add(accessKey.toUpperCase(java.util.Locale.ROOT));
+			tabs.add(new SwingRibbonModel.RibbonTab(custom.id(), custom.name(), bands, false, accessKey));
 		}
 		return new SwingRibbonModel(model.getId(), tabs, model.getTaskBarButtons())
 			.withTaskBarControls(model.getTaskBarControls());
+	}
+
+	/**
+	 * Returns the first unused custom-tab KeyTip, counting from {@code Y1}. The caller records the returned value so
+	 * that the assignment stays deterministic for the same customization and never collides with a default tab.
+	 */
+	private static String assignCustomTabKeyTip(java.util.Set<String> usedKeyTips) {
+		for (String prefix : new String[] { "Y", "Z" }) {
+			for (int i = 1; i <= 99; i++) {
+				String candidate = prefix + i;
+				if (!usedKeyTips.contains(candidate.toUpperCase(java.util.Locale.ROOT))) {
+					return candidate;
+				}
+			}
+		}
+		throw new IllegalStateException("Exhausted custom tab KeyTip namespace");
 	}
 
 	/** A custom group holds canonical command IDs, so its buttons come from the same path as the default ones. */

@@ -431,7 +431,8 @@ class PreferencesCustomizeGuiAcceptanceTest {
 		assertEquals(List.of("RibbonCut"), saved.customTabs().get(0).groups().get(0).commandIds());
 		GuiAcceptanceSupport.await(() -> hasRibbonTab(saved.customTabs().get(0).id()), "the open ribbon did not show the applied tab");
 
-		// A custom tab has no tab KeyTip, so the KeyTip route reaches the command on the default Home tab.
+		// The applied custom tab receives the first free custom-tab KeyTip (Y1), so the whole route stays on the
+		// keyboard: Alt shows the tab KeyTips, Y1 selects the custom tab, and X runs its Cut command.
 		// Apply rebuilt the ribbon, so the observers go on the new buttons.
 		int[] runs = new int[1];
 		List<AbstractButton> cutButtons = new ArrayList<>();
@@ -449,9 +450,11 @@ class PreferencesCustomizeGuiAcceptanceTest {
 		cutButtons.forEach(button -> button.addActionListener(event -> runs[0]++));
 		bringToFront(ribbonFrame);
 		tap(KeyEvent.VK_ALT);
-		tap(KeyEvent.VK_H);
+		tap(KeyEvent.VK_Y);
+		tap(KeyEvent.VK_1);
 		tap(KeyEvent.VK_X);
-		GuiAcceptanceSupport.await(() -> runs[0] > 0, "the KeyTip sequence Alt, H, X did not run the Cut command");
+		GuiAcceptanceSupport.await(() -> runs[0] > 0,
+			"the KeyTip sequence Alt, Y, 1, X did not run the Cut command of the custom tab");
 	}
 
 	@Test
