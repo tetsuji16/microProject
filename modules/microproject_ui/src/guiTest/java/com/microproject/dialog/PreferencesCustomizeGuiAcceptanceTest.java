@@ -433,11 +433,14 @@ class PreferencesCustomizeGuiAcceptanceTest {
 
 		// The applied custom tab receives the first free custom-tab KeyTip (Y1), so the whole route stays on the
 		// keyboard: Alt shows the tab KeyTips, Y1 selects the custom tab, and X runs its Cut command.
-		// Apply rebuilt the ribbon, so the observers go on the new buttons.
 		int[] runs = new int[1];
+		bringToFront(ribbonFrame);
+		tap(KeyEvent.VK_ALT);
+		tap(KeyEvent.VK_Y);
+		tap(KeyEvent.VK_1);
+		// Showing the custom tab builds its body, and at a narrow width the Clipboard group collapses its commands
+		// into the group's popup. Observe the buttons the KeyTip session will run, after that body exists.
 		List<AbstractButton> cutButtons = new ArrayList<>();
-		// At 125% and 150% the window is narrower than requested and the Clipboard group may
-		// collapse; its commands then live in the collapsed group's popup.
 		List<Component> candidates = new ArrayList<>(UiComponentWalker.flatten(ribbonFrame.getRibbonPanel()));
 		for (Component component : List.copyOf(candidates))
 			if (component instanceof javax.swing.JComponent swing
@@ -448,10 +451,6 @@ class PreferencesCustomizeGuiAcceptanceTest {
 				&& ("RibbonCut".equals(button.getActionCommand()) || "RibbonCut".equals(button.getName()))) cutButtons.add(button);
 		assertFalse(cutButtons.isEmpty(), "the ribbon must expose the Cut command");
 		cutButtons.forEach(button -> button.addActionListener(event -> runs[0]++));
-		bringToFront(ribbonFrame);
-		tap(KeyEvent.VK_ALT);
-		tap(KeyEvent.VK_Y);
-		tap(KeyEvent.VK_1);
 		tap(KeyEvent.VK_X);
 		GuiAcceptanceSupport.await(() -> runs[0] > 0,
 			"the KeyTip sequence Alt, Y, 1, X did not run the Cut command of the custom tab");
