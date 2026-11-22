@@ -458,7 +458,14 @@ class PreferencesCustomizeGuiAcceptanceTest {
 		// custom tab now shows.
 		int[] runs = new int[1];
 		List<AbstractButton> cutButtons = new ArrayList<>();
-		for (Component component : UiComponentWalker.flatten(ribbonFrame.getRibbonPanel()))
+		// At 125% and 150% the window is narrower than requested and the Clipboard group may
+		// collapse; its commands then live in the collapsed group's popup.
+		List<Component> candidates = new ArrayList<>(UiComponentWalker.flatten(ribbonFrame.getRibbonPanel()));
+		for (Component component : List.copyOf(candidates))
+			if (component instanceof javax.swing.JComponent swing
+				&& swing.getClientProperty(ModernRibbonPanel.COLLAPSED_POPUP_PROPERTY) instanceof javax.swing.JPopupMenu popup)
+				candidates.addAll(UiComponentWalker.flatten(popup));
+		for (Component component : candidates)
 			if (component instanceof AbstractButton button
 				&& ("RibbonCut".equals(button.getActionCommand()) || "RibbonCut".equals(button.getName()))) cutButtons.add(button);
 		assertFalse(cutButtons.isEmpty(), "the custom tab must show the Cut command it was given");

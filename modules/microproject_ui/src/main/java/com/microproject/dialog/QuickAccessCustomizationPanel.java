@@ -71,16 +71,18 @@ final class QuickAccessCustomizationPanel extends CustomizeSupport.Page {
 	private void layoutControls() {
 		JLabel availableLabel = CustomizeSupport.label("customize.commandList", availableList);
 		JLabel chosenLabel = CustomizeSupport.label("quickAccess.chosenList", chosenList);
-		place(availableLabel, 0, 0, 0, 0);
-		place(chosenLabel, 2, 0, 0, 0);
-		place(CustomizeSupport.scroll(availableList, "quickAccessAvailableScroll"), 0, 1, 1, 1);
-		place(CustomizeSupport.buttonColumn(add, remove), 1, 1, 0, 1);
-		place(CustomizeSupport.scroll(chosenList, "quickAccessChosenScroll"), 2, 1, 1, 1);
-		place(CustomizeSupport.buttonColumn(up, down), 3, 1, 0, 1);
+		// The labels and the reset row span their list and its button column, so a narrow page
+		// shrinks the lists instead of scrolling the buttons out of view.
+		place(availableLabel, 0, 0, 0, 0, 2);
+		place(chosenLabel, 2, 0, 0, 0, 2);
+		place(CustomizeSupport.scroll(availableList, "quickAccessAvailableScroll"), 0, 1, 1, 1, 1);
+		place(CustomizeSupport.buttonColumn(add, remove), 1, 1, 0, 1, 1);
+		place(CustomizeSupport.scroll(chosenList, "quickAccessChosenScroll"), 2, 1, 1, 1, 1);
+		place(CustomizeSupport.buttonColumn(up, down), 3, 1, 0, 1, 1);
 		JPanel resetRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 0, 0));
 		resetRow.add(reset);
 		transferRow = resetRow;
-		place(resetRow, 2, 2, 0, 0);
+		place(resetRow, 2, 2, 0, 0, 2);
 	}
 
 	/** Adds the Import/Export dropdown shared with the Customize Ribbon page. */
@@ -103,10 +105,11 @@ final class QuickAccessCustomizationPanel extends CustomizeSupport.Page {
 		updateButtons();
 	}
 
-	private void place(java.awt.Component component, int x, int y, double weightx, double weighty) {
+	private void place(java.awt.Component component, int x, int y, double weightx, double weighty, int width) {
 		GridBagConstraints constraints = new GridBagConstraints();
 		constraints.gridx = x;
 		constraints.gridy = y;
+		constraints.gridwidth = width;
 		constraints.weightx = weightx;
 		constraints.weighty = weighty;
 		constraints.insets = new Insets(2, 4, 2, 4);

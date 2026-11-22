@@ -148,13 +148,15 @@ final class RibbonCustomizationPanel extends CustomizeSupport.Page {
 	private void layoutControls() {
 		JLabel commandsLabel = CustomizeSupport.label("customize.commandList", commandList);
 		JLabel treeLabel = CustomizeSupport.label("ribbonCustomize.tree", tree);
-		place(commandsLabel, 0, 0, 0, 0, 1);
-		place(treeLabel, 2, 0, 0, 0, 1);
+		// The labels span their list and its button column, and the command row wraps into two
+		// columns, so neither sets a fixed column width when the page is narrow.
+		place(commandsLabel, 0, 0, 0, 0, 2);
+		place(treeLabel, 2, 0, 0, 0, 2);
 		place(CustomizeSupport.scroll(commandList, "ribbonCustomizeCommandsScroll"), 0, 1, 1, 1, 1);
 		place(CustomizeSupport.buttonColumn(add, remove), 1, 1, 0, 1, 1);
 		place(CustomizeSupport.scroll(tree, "ribbonCustomizeTreeScroll"), 2, 1, 1, 1, 1);
 		place(CustomizeSupport.buttonColumn(up, down), 3, 1, 0, 1, 1);
-		JPanel row = new JPanel(new java.awt.GridLayout(0, 3, 4, 4));
+		JPanel row = new JPanel(new java.awt.GridLayout(0, 2, 4, 4));
 		row.add(newTab);
 		row.add(newGroup);
 		row.add(rename);
