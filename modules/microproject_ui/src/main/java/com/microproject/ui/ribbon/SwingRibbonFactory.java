@@ -145,29 +145,37 @@ public final class SwingRibbonFactory {
 	}
 
 	/**
-	 * The keyboard KeyTip of a user-defined tab. Office assigns a fallback "Y" prefix followed by a number
-	 * (Y1, Y2, ...) when the default KeyTips are already taken (Custom KeyTips for Office Add-ins,
+	 * Lead letters of the custom-tab KeyTips, in assignment order. Each lead carries the numbers 1-9, so a
+	 * KeyTip is always <lead><digit>: two KeyTips are then either equal or differ in a position, and none can be
+	 * a prefix of another (typing a KeyTip that prefixes another only narrows the sequence instead of running it).
+	 * The standard bundles use none of these letters, so a default tab never loses its own KeyTip.
+	 */
+	private static final char[] CUSTOM_TAB_KEYTIP_LEADS = { 'Y', 'Z', 'J', 'K', 'Q', 'X' };
+	private static final int CUSTOM_TAB_KEYTIPS = CUSTOM_TAB_KEYTIP_LEADS.length * 9;
+
+	/**
+	 * The keyboard KeyTip of a user-defined tab. Office assigns a fallback key built from a "Y" and a number
+	 * when the preferred KeyTips are already taken (Custom KeyTips for Office Add-ins,
 	 * https://learn.microsoft.com/en-us/office/dev/add-ins/design/add-custom-key-tips). Tabs are numbered in
 	 * display order, so the same customization always produces the same KeyTips.
 	 */
 	static String nextCustomTabAccessKey(java.util.Set<String> usedKeyTips) {
-		for (int number = 1; ; number++) {
-			String keyTip = "Y" + number;
-			if (!conflicts(usedKeyTips, keyTip)) {
-				usedKeyTips.add(keyTip);
-				return keyTip;
+		for (char lead : CUSTOM_TAB_KEYTIP_LEADS) {
+			for (int number = 1; number <= 9; number++) {
+				String keyTip = lead + Integer.toString(number);
+				if (!conflicts(usedKeyTips, keyTip)) {
+					usedKeyTips.add(keyTip);
+					return keyTip;
+				}
 			}
 		}
+		throw new IllegalStateException("More custom tabs than the " + CUSTOM_TAB_KEYTIPS + " KeyTips available");
 	}
 
-	/**
-	 * The KeyTip sequence narrows by prefix, so a candidate that is itself a prefix of a taken KeyTip would
-	 * never run (typing it only narrows). An already used KeyTip that is a prefix of the candidate is safe: the
-	 * user reaches the candidate by typing the rest.
-	 */
+	/** Two KeyTips must differ in a position: an exact match or a prefix of either one is ambiguous. */
 	private static boolean conflicts(java.util.Set<String> usedKeyTips, String keyTip) {
 		for (String used : usedKeyTips) {
-			if (used.startsWith(keyTip)) {
+			if (used.startsWith(keyTip) || keyTip.startsWith(used)) {
 				return true;
 			}
 		}

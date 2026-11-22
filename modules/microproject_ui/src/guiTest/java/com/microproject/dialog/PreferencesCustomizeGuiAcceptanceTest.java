@@ -27,6 +27,7 @@ import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.JTree;
 import javax.swing.SwingUtilities;
@@ -341,6 +342,18 @@ class PreferencesCustomizeGuiAcceptanceTest {
 		PreferencesDialogBox dialog = openDialog(PreferencesDialogBox.CATEGORY_CUSTOMIZE_RIBBON);
 		awaitShowing("ribbonCustomizeTree", JTree.class);
 		DialogScreenshotArtifacts.capture(dialog, "ribbon-customization-customize-ribbon-normal");
+		// The page takes the dialog width: a page that keeps its preferred width needs a horizontal scroll bar
+		// and hides the Up/Down buttons and the action row, which users report as an insufficient window width.
+		JScrollPane ribbonPage = pageScroll(dialog, "ribbonCustomizationPanel");
+		assertNotNull(ribbonPage, "the customize page must be shown");
+		assertFalse(onEdt(() -> ribbonPage.getHorizontalScrollBar().isShowing()),
+			"the customize page must fit the dialog width instead of scrolling sideways");
+		AbstractButton upButton = find("ribbonCustomizeUp", AbstractButton.class);
+		java.awt.Rectangle upVisible = new java.awt.Rectangle();
+		SwingUtilities.invokeAndWait(() -> upVisible.setBounds(upButton.getVisibleRect()));
+		assertEquals(upButton.getWidth(), upVisible.width,
+			"the Up button must be fully visible inside the customize page: " + upVisible
+				+ " of width " + upButton.getWidth());
 		selectCategory(dialog, "preferences.quickAccess");
 		awaitShowing("quickAccessAvailable", JList.class);
 		DialogScreenshotArtifacts.capture(dialog, "ribbon-customization-quick-access-normal");
@@ -489,6 +502,15 @@ class PreferencesCustomizeGuiAcceptanceTest {
 		});
 		assertTrue(checked[0] >= minimumControls, panelName + " exposed only " + checked[0] + " controls");
 		assertTrue(unnamed.isEmpty(), panelName + " controls without an accessible name: " + unnamed);
+	}
+
+	/** The scroll pane of the preferences page whose contents are named {@code pageName}. */
+	private static JScrollPane pageScroll(Component root, String pageName) {
+		for (Component component : UiComponentWalker.flatten(root))
+			if (component instanceof JScrollPane scroll && scroll.getViewport() != null
+				&& scroll.getViewport().getView() != null && pageName.equals(scroll.getViewport().getView().getName()))
+				return scroll;
+		return null;
 	}
 
 	private AbstractButton tabOverflowButton() {

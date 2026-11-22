@@ -197,8 +197,31 @@ class RibbonCustomizationRenderTest {
 	void aFallbackKeyTipThatPrefixesATakenOneIsSkipped() {
 		Set<String> used = new HashSet<>(Set.of("Y1", "Y10"));
 		assertEquals("Y2", SwingRibbonFactory.nextCustomTabAccessKey(used),
-			"Y1 only narrows to Y10, so the next custom tab takes Y2");
+			"Y1 only narrows to the taken tips, so the next custom tab takes Y2");
 		assertTrue(used.contains("Y2"), "the assigned KeyTip is reserved for the next tab");
+	}
+
+	@Test
+	void tenCustomTabsKeepPrefixFreeKeyTips() {
+		List<CustomTab> tabs = new ArrayList<>();
+		for (int index = 0; index < 10; index++) {
+			tabs.add(new CustomTab("tab-" + index, "Tab " + index, List.of()));
+		}
+		SwingRibbonModel model = factory().createModel(MenuManager.STANDARD_RIBBON, null,
+			custom(List.of(), Set.of(), tabs, Map.of()));
+		List<String> tips = new ArrayList<>();
+		for (int index = 0; index < 10; index++) {
+			tips.add(tab(model, "tab-" + index).getAccessKey());
+		}
+		assertEquals("Y9", tips.get(8));
+		assertEquals("Z1", tips.get(9), "a tenth custom tab must not take a KeyTip that prefixes Y1");
+		for (String outer : tips) {
+			for (String inner : tips) {
+				if (outer.equals(inner)) continue;
+				assertFalse(inner.startsWith(outer),
+					"KeyTip " + inner + " narrows through " + outer + " instead of running it");
+			}
+		}
 	}
 
 	@Test
