@@ -175,8 +175,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 			projectWindow.setGraphicManager(projectManager);
 			projectManager.initView();
 			document[0] = projectManager.addProjectFrame(fixture.project);
-			projectWindow.setSize(1050, 650);
-			projectWindow.setLocationByPlatform(true);
+			placeInUsableArea(projectWindow, 1050, 650);
 			projectWindow.setAlwaysOnTop(true);
 			projectWindow.setVisible(true);
 			document[0].activateGanttView();
@@ -508,8 +507,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 			projectWindow.setGraphicManager(projectManager);
 			projectManager.initView();
 			document[0] = projectManager.addProjectFrame(fixture.project);
-			projectWindow.setSize(1050, 650);
-			projectWindow.setLocationByPlatform(true);
+			placeInUsableArea(projectWindow, 1050, 650);
 			projectWindow.setAlwaysOnTop(true);
 			projectWindow.setVisible(true);
 			document[0].activateGanttView();
@@ -1293,6 +1291,17 @@ class GanttBarDateDragGuiAcceptanceTest {
 		robot.waitForIdle();
 	}
 
+	/**
+	 * Places a project window inside the usable desktop area at a fixed position. Platform
+	 * placement depends on how many windows earlier tests placed, so on a small screen the
+	 * window could start anywhere along the cascade.
+	 */
+	private static void placeInUsableArea(Window window, int width, int height) {
+		Rectangle usableBounds = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+		window.setSize(Math.min(width, usableBounds.width), Math.min(height, usableBounds.height));
+		window.setLocation(usableBounds.x, usableBounds.y);
+	}
+
 	private void showFixture(Fixture fixture) throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			frame = new JFrame("Gantt bar date drag GUI acceptance");
@@ -1325,8 +1334,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 			projectWindow.setGraphicManager(projectManager);
 			projectManager.initView();
 			document[0] = projectManager.addProjectFrame(fixture.project);
-			projectWindow.setSize(1050, 650);
-			projectWindow.setLocationByPlatform(true);
+			placeInUsableArea(projectWindow, 1050, 650);
 			projectWindow.setAlwaysOnTop(true);
 			projectWindow.setVisible(true);
 			document[0].activateGanttView();
