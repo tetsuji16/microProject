@@ -51,8 +51,8 @@ public class NetworkInteractor extends GraphInteractor{
 	private static final long serialVersionUID = 5365103090789265267L;
 	private static final Logger logger = Logger.getLogger(NetworkInteractor.class.getName());
 	protected static final int BAR_SELECTION=4;
-	/** Original center position of the moved node (logical coordinates at 100% zoom), captured on mouse press. */
-	private Point2D originalCenter;
+	/** Existing override, if any. Kept separate from the rendered center so Undo restores auto-layout. */
+	private PertManualPositions.Position originalManualPosition;
 	/**
 	*
 	*/
@@ -117,15 +117,13 @@ public class NetworkInteractor extends GraphInteractor{
 			computeNodeSelection(e.getX(), e.getY());
 			if (state == BAR_MOVE) {
 				GraphicNode node = (GraphicNode) selected;
-				Point2D center = ((NetworkRenderer)((NetworkUI)ui).getGraphRenderer()).getCenter(node);
-				// Convert to logical coordinates (100% zoom)
-				java.awt.geom.AffineTransform transform = ((Network)ui.getGraph()).getTransform();
-				originalCenter = new Point2D.Double(
-					(center.getX() - transform.getTranslateX()) / transform.getScaleX(),
-					(center.getY() - transform.getTranslateY()) / transform.getScaleY()
-				);
+				PertManualPositions positions = ((Network) ui.getGraph()).getProject()
+					.findTransientDocumentState(PertManualPositions.class);
+				Long taskUid = node.getNode().getImpl() instanceof com.microproject.pm.task.Task task
+					? task.getUniqueId() : null;
+				originalManualPosition = positions != null && taskUid != null ? positions.getPosition(taskUid) : null;
 			} else {
-				originalCenter = null;
+				originalManualPosition = null;
 			}
 		}
 		super.mousePressed(e);
@@ -203,12 +201,14 @@ public class NetworkInteractor extends GraphInteractor{
 					if (undoController != null) {
 						EditSupport editSupport = undoController.getEditSupport();
 						if (editSupport != null) {
-							editSupport.postEdit(new NetworkBoxMoveEdit(network, taskUid, originalCenter, logicalNewCenter, this));
+							editSupport.postEdit(new NetworkBoxMoveEdit(network, taskUid, originalManualPosition,
+								new PertManualPositions.Position(logicalNewCenter.getX(), logicalNewCenter.getY()), this));
 						}
 					}
 					// Update manual positions in project's transient state (the undo edit will also do this on redo/undo)
 					PertManualPositions pmp = network.getProject().getOrCreateTransientDocumentState(PertManualPositions.class, PertManualPositions::new);
-					pmp.putPosition(taskUid, logicalNewCenter);
+					pmp.putPosition(taskUid, new PertManualPositions.Position(logicalNewCenter.getX(), logicalNewCenter.getY()));
+					network.getProject().setDirty(true);
 				}
 		return true;
 	}

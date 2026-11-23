@@ -12,6 +12,7 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,12 +31,15 @@ import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.pert.PertChart;
+import com.microproject.pm.graphic.network.PertManualPositions;
 import com.microproject.pm.graphic.views.PertView;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.testsupport.GuiAcceptanceSupport;
 import com.microproject.testsupport.GuiRobot;
+import com.microproject.testsupport.GuiJourney;
+import com.microproject.testsupport.GuiJourney.InputMechanism;
 import com.microproject.testsupport.RibbonGuiSupport;
 import com.microproject.ui.ribbon.RibbonController;
 import com.microproject.ui.ribbon.RibbonDisplayMode;
@@ -56,6 +60,97 @@ class PertInteractionGuiAcceptanceTest {
 	private boolean previousRibbonUi;
 	private boolean previousNewLook;
 	private RibbonDisplayMode previousRibbonDisplayMode;
+
+	@Test
+	@GuiJourney(InputMechanism.PERT_DRAG)
+	void robotMovesPertBoxUndoRedoAndCreatesLinkFromBoxEdge() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for PERT drag acceptance.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		previousRibbonDisplayMode = RibbonDisplayPreferences.load();
+		RibbonDisplayPreferences.save(RibbonDisplayMode.ALWAYS_SHOW);
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		Project project = dependencyProject();
+		showProject(project);
+		Robot robot = new GuiRobot();
+		robot.setAutoDelay(45);
+		GuiAcceptanceSupport.await(() -> onEdt(window::isShowing), "project window did not become visible");
+		AbstractButton viewTab = GuiAcceptanceSupport.findShowingButtonByText(window,
+			ResourceBundle.getBundle("com.microproject.menu.menu").getString("ViewRibbonTask.title"));
+		click(robot, screenBounds(viewTab));
+		clickCommand(robot, "RibbonNetwork");
+		PertView view = onEdt(() -> (PertView) manager.getCurrentFrame().getActiveTopView());
+		PertChart graph = onEdt(() -> (PertChart) view.getViewport().getView());
+		GuiAcceptanceSupport.await(() -> onEdt(() -> view.isShowing() && view.getCache().getSize() > 40),
+			"PERT dependency graph did not render");
+		GraphicNode source = onEdt(() -> (GraphicNode) view.getCache().getElementAt(2));
+		GraphicNode target = onEdt(() -> (GraphicNode) view.getCache().getElementAt(3));
+		NormalTask sourceTask = (NormalTask) source.getNode().getImpl();
+		NormalTask targetTask = (NormalTask) target.getNode().getImpl();
+		clickNode(robot, graph, source);
+		Point2D oldCenter = onEdt(() -> (Point2D) source.getPertCenter().clone());
+		Point origin = onScreen(graph);
+		Point2D screenCenter = onEdt(() -> graph.scale(source.getPertCenter()));
+		int startX = origin.x + (int) screenCenter.getX();
+		int startY = origin.y + (int) screenCenter.getY();
+		robot.mouseMove(startX, startY);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		for (int step = 1; step <= 8; step++) {
+			robot.mouseMove(startX + 40 * step / 8, startY + 24 * step / 8);
+		}
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> onEdt(() -> {
+			PertManualPositions positions = project.findTransientDocumentState(PertManualPositions.class);
+			return positions != null && positions.getPosition(sourceTask.getUniqueId()) != null;
+		}), "physical PERT box drag did not store a manual position");
+		Point2D movedCenter = onEdt(source::getPertCenter);
+		assertTrue(movedCenter.distance(oldCenter) > 20, "dragged PERT box center should move visibly");
+
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> onEdt(() -> {
+			PertManualPositions positions = project.findTransientDocumentState(PertManualPositions.class);
+			return positions == null || positions.getPosition(sourceTask.getUniqueId()) == null;
+		}), "physical Ctrl+Z did not remove the manual PERT position");
+		assertEquals(oldCenter, onEdt(source::getPertCenter), "Undo should restore the visible automatic position");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> onEdt(() -> {
+			PertManualPositions positions = project.findTransientDocumentState(PertManualPositions.class);
+			return positions != null && positions.getPosition(sourceTask.getUniqueId()) != null;
+		}), "physical Ctrl+Y did not restore the manual PERT position");
+
+		Point2D targetCenter = onEdt(() -> graph.scale(target.getPertCenter()));
+		Point2D edgePoint = onEdt(() -> {
+			java.awt.geom.Rectangle2D bounds = graph.scale(source.getPertShape()).getBounds2D();
+			return new Point2D.Double(bounds.getMaxX() - 1, bounds.getCenterY());
+		});
+		int edgeX = origin.x + (int) edgePoint.getX();
+		int edgeY = origin.y + (int) edgePoint.getY();
+		int targetX = origin.x + (int) targetCenter.getX();
+		int targetY = origin.y + (int) targetCenter.getY();
+		assertTrue(targetTask.getPredecessorList().isEmpty(), "sibling fixture node must start without a dependency");
+		robot.mouseMove(edgeX, edgeY);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseMove(edgeX + 4, edgeY);
+		for (int step = 1; step <= 10; step++) {
+			robot.mouseMove(edgeX + 4 + (targetX - edgeX - 4) * step / 10,
+				edgeY + (targetY - edgeY) * step / 10);
+		}
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> !targetTask.getPredecessorList().isEmpty(),
+			"physical drag from a PERT box edge did not create a dependency");
+		assertTrue(targetTask.getPredecessorList().stream().anyMatch(dependency ->
+			((com.microproject.pm.dependency.Dependency) dependency).getPredecessor() == sourceTask),
+			"edge drag should create the source-to-target dependency");
+	}
 
 	@AfterEach
 	void closeWindow() throws Exception {

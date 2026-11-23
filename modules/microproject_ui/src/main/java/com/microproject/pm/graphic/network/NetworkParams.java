@@ -38,7 +38,7 @@ public interface NetworkParams extends GraphParams,NetworkLayoutListener{
 	public int getZoom();
 
 	/** Returns the map of task unique ID to manual center position (logical coordinates at 100% zoom). May be empty. */
-	public default Map<Long, Point2D> getManualPositions() { return java.util.Collections.emptyMap(); }
+	public default Map<Long, com.microproject.pm.graphic.network.PertManualPositions.Position> getManualPositions() { return java.util.Collections.emptyMap(); }
 
 	public default GeneralPath scale(GeneralPath path){
 		if (path == null)

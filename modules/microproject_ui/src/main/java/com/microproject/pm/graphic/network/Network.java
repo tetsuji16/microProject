@@ -109,7 +109,7 @@ public class Network extends Graph implements NetworkLayoutListener, NetworkPara
 				return zoom;
 			}
 			@Override
-			public Map<Long, Point2D> getManualPositions() {
+			public Map<Long, PertManualPositions.Position> getManualPositions() {
 				PertManualPositions pmp = getProject().findTransientDocumentState(PertManualPositions.class);
 				return pmp != null ? pmp.getPositions() : Collections.emptyMap();
 			}

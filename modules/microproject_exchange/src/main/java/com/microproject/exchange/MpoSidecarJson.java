@@ -11,7 +11,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
-import java.awt.geom.Point2D;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -1263,9 +1262,9 @@ final class MpoSidecarJson {
 					root.put("version", 1);
 					com.fasterxml.jackson.databind.node.ArrayNode positions = root.putArray("positions");
 
-					for (Map.Entry<Long, Point2D> entry : pmp.getPositions().entrySet()) {
+					for (Map.Entry<Long, PertManualPositions.Position> entry : pmp.getPositions().entrySet()) {
 						Long taskUid = entry.getKey();
-						Point2D pos = entry.getValue();
+						PertManualPositions.Position pos = entry.getValue();
 						// Find the serialized UID for this task
 						JsonNode serializedUid = identities.path(String.valueOf(taskUid));
 						if (!serializedUid.canConvertToLong()) {
@@ -1273,8 +1272,8 @@ final class MpoSidecarJson {
 						}
 						ObjectNode posNode = positions.addObject();
 						posNode.put("taskUid", serializedUid.longValue());
-						posNode.put("x", pos.getX());
-						posNode.put("y", pos.getY());
+						posNode.put("x", pos.x());
+						posNode.put("y", pos.y());
 					}
 
 					if (positions.isEmpty()) {
@@ -1296,20 +1295,16 @@ final class MpoSidecarJson {
 					JsonNode positions = root.path("positions");
 					if (!positions.isArray()) throw new IOException("Invalid mpo pert manual positions array");
 
-					JsonNode identities = JSON.readTree(taskIdentities);
-					if (!identities.isObject()) throw new IOException("Invalid mpo task identity map");
-
-					// Build reverse mapping: serialized UID -> model unique ID
-					Map<Long, Long> serializedToModel = new HashMap<>();
-					for (java.util.Iterator<java.util.Map.Entry<String, JsonNode>> it = identities.fields(); it.hasNext(); ) {
-						java.util.Map.Entry<String, JsonNode> entry = it.next();
-						try {
-							long modelUid = Long.parseLong(entry.getKey());
-							long serializedUid = entry.getValue().longValue();
-							serializedToModel.put(serializedUid, modelUid);
-						} catch (NumberFormatException ignored) {}
+					JsonNode identities = taskIdentities == null ? null : JSON.readTree(taskIdentities);
+					if (identities != null && !identities.isObject()) throw new IOException("Invalid mpo task identity map");
+					java.util.Set<Long> serializedTaskIds = new java.util.HashSet<>();
+					if (identities != null) {
+						java.util.Iterator<JsonNode> values = identities.elements();
+						while (values.hasNext()) {
+							JsonNode value = values.next();
+							if (value.canConvertToLong()) serializedTaskIds.add(value.longValue());
+						}
 					}
-
 					PertManualPositions pmp = project.getOrCreateTransientDocumentState(PertManualPositions.class, PertManualPositions::new);
 					pmp.clear();
 
@@ -1321,9 +1316,8 @@ final class MpoSidecarJson {
 							continue;
 						}
 						long serializedUid = taskUidNode.longValue();
-						Long modelUid = serializedToModel.get(serializedUid);
-						if (modelUid != null) {
-							pmp.putPosition(modelUid, new Point2D.Double(xNode.asDouble(), yNode.asDouble()));
+						if (serializedTaskIds.contains(serializedUid)) {
+							pmp.putPosition(serializedUid, new PertManualPositions.Position(xNode.asDouble(), yNode.asDouble()));
 						}
 					}
 				}

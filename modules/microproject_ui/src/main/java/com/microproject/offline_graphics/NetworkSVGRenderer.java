@@ -69,6 +69,7 @@ public class NetworkSVGRenderer implements SVGRenderer, CacheListener, Cloneable
 		this.project=project;
 		this.cache=cache;
 		params=new NetworkParamsImpl();
+		params.setProject(project);
 		params.setNetworkLayout(type==PERT?new PertLayout(params):new XbsLayout(params));
 		String viewName=null;
 		switch (type) {

@@ -43,6 +43,7 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.BaselineRollupOptions;
 import com.microproject.pm.task.TaskSnapshot;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.graphic.network.PertManualPositions;
 import com.microproject.pm.task.TaskSplitInterval;
 import com.microproject.pm.task.TaskModeService;
 import com.microproject.pm.task.TaskProgressService;
@@ -2303,6 +2304,36 @@ class MpoFileImporterTest {
 			StandardCharsets.UTF_8);
 		assertFalse(styles.contains("displayOnTimeline"), styles);
 		assertFalse(firstTask(loadFromBytes(plainArchive.toByteArray())).isDisplayOnTimeline());
+	}
+
+	@Test
+	void pertManualPositionsSurviveRepeatedMpoSaveAndReload() throws Exception {
+		Project project = projectForRoundTrip();
+		Task originalTask = firstTask(project);
+		originalTask.setUniqueId(-1L);
+		long originalUid = originalTask.getUniqueId();
+		PertManualPositions positions = project.getOrCreateTransientDocumentState(
+			PertManualPositions.class, PertManualPositions::new);
+		positions.putPosition(originalUid, new PertManualPositions.Position(432.5, 217.25));
+
+		byte[] firstSave = saveProjectBytes(project);
+		Map<Long, Long> taskIdentities = MpoSidecarJson.readTaskIdentities(readEntries(firstSave)
+			.get(MpoFileImporter.TASK_IDENTITIES_ENTRY));
+		long serializedUid = taskIdentities.get(originalUid);
+		assertNotEquals(originalUid, serializedUid, "fixture must exercise model-to-MSPDI UID remapping");
+		Project reopened = loadFromBytes(firstSave);
+		Task reopenedTask = firstTask(reopened);
+		PertManualPositions restored = reopened.findTransientDocumentState(PertManualPositions.class);
+		assertNotNull(restored);
+		assertEquals(serializedUid, reopenedTask.getUniqueId());
+		assertEquals(new PertManualPositions.Position(432.5, 217.25), restored.getPosition(reopenedTask.getUniqueId()));
+
+		Project resaved = loadFromBytes(saveProjectBytes(reopened));
+		PertManualPositions restoredAgain = resaved.findTransientDocumentState(PertManualPositions.class);
+		assertNotNull(restoredAgain);
+		assertEquals(new PertManualPositions.Position(432.5, 217.25),
+			restoredAgain.getPosition(firstTask(resaved).getUniqueId()),
+			"a reload must retain the identity used by the next save");
 	}
 
 	@Test

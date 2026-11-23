@@ -185,17 +185,20 @@ public class PertView extends JScrollPane implements BaseView {
 		pert.repaint();
 	}
 	/** Recomputes every box position from the dependency levels (Layout Now). */
-		public void layoutNow() {
-			if (pert != null && pert.getNetworkLayout() != null) {
-				// Clear manual positions to restore automatic layout
-				PertManualPositions pmp = pert.getProject().findTransientDocumentState(PertManualPositions.class);
-				if (pmp != null) {
-					pmp.clear();
-				}
-				pert.getNetworkLayout().updateBounds();
-				pert.repaint();
+	public void layoutNow() {
+		if (pert == null || pert.getNetworkLayout() == null) return;
+		PertManualPositions pmp = project.findTransientDocumentState(PertManualPositions.class);
+		if (pmp != null && !pmp.isEmpty()) {
+			java.util.Map<Long, PertManualPositions.Position> previous = new java.util.HashMap<>(pmp.getPositions());
+			pmp.clear();
+			project.setDirty(true);
+			UndoController undoController = project.getUndoController();
+			if (undoController != null && undoController.getEditSupport() != null) {
+				undoController.getEditSupport().postEdit(new com.microproject.pm.graphic.network.NetworkLayoutNowEdit(pert, previous));
 			}
 		}
+		pert.relayout();
+	}
 	public boolean canScrollToTask() {
 		return false;
 	}

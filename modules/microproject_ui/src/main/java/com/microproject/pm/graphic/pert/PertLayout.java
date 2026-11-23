@@ -36,6 +36,7 @@ import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.event.CompositeCacheEvent;
 import com.microproject.pm.graphic.network.NetworkDisplayOptions;
 import com.microproject.pm.graphic.network.NetworkParams;
+import com.microproject.pm.graphic.network.PertManualPositions;
 import com.microproject.pm.graphic.network.layout.AbstractNetworkLayout;
 import com.microproject.graphic.configuration.GraphicConfiguration;
 import com.microproject.graphic.configuration.TexturedShape;
@@ -68,7 +69,7 @@ public class PertLayout extends AbstractNetworkLayout {
 			int col=-1;
 			setEmpty();
 			// Get manual positions from network params
-			Map<Long, Point2D> manualPositions = network.getManualPositions();
+			Map<Long, PertManualPositions.Position> manualPositions = network.getManualPositions();
 			for (ListIterator<GraphicNode> i = cache.getIterator(); i.hasNext();) {
 				GraphicNode current = i.next();
 				int currentCol=cache.getPertLevel(current)-1;
@@ -82,19 +83,21 @@ public class PertLayout extends AbstractNetworkLayout {
 				Long taskUid = current.getNode().getImpl() instanceof com.microproject.pm.task.Task
 					? ((com.microproject.pm.task.Task) current.getNode().getImpl()).getUniqueId()
 					: null;
-				Point2D manualPos = taskUid != null ? manualPositions.get(taskUid) : null;
+				PertManualPositions.Position manualPos = taskUid != null ? manualPositions.get(taskUid) : null;
 
 				double centerX, centerY;
-				if (manualPos != null) {
+				boolean manuallyPositioned = manualPos != null;
+				if (manuallyPositioned) {
 					// Use manual position (logical coordinates at 100% zoom)
-					centerX = manualPos.getX();
-					centerY = manualPos.getY();
+					centerX = manualPos.x();
+					centerY = manualPos.y();
 				} else {
 					// Calculate automatic position
 					centerX=origin.getX()+(ref.getMaxX()+spacing)*col+ref.getWidth()/2;
 					centerY=origin.getY()+(ref.getMaxY()+spacing)*row+ref.getHeight()/2;
 				}
-				GeneralPath shape=texturedShape.toGeneralPath(ref.getWidth(),ref.getHeight(),centerX-ref.getWidth()/2,centerY-ref.getHeight()/2,null);
+				double shapeY = manuallyPositioned ? centerY - ref.getHeight() / 2 : centerY;
+				GeneralPath shape=texturedShape.toGeneralPath(ref.getWidth(),ref.getHeight(),centerX-ref.getWidth()/2,shapeY,null);
 				current.setPertShape(shape,centerX,centerY);
 				Rectangle cellBounds=network.scale(shape.getBounds());
 				if (isEmpty())

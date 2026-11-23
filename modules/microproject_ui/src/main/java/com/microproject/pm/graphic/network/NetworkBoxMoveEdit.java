@@ -23,7 +23,6 @@
  *******************************************************************************/
 package com.microproject.pm.graphic.network;
 
-import java.awt.geom.Point2D;
 import javax.swing.undo.AbstractUndoableEdit;
 import javax.swing.undo.CannotRedoException;
 import javax.swing.undo.CannotUndoException;
@@ -37,17 +36,20 @@ import com.microproject.pm.graphic.network.PertManualPositions;
 public class NetworkBoxMoveEdit extends AbstractUndoableEdit {
 	private static final long serialVersionUID = 1L;
 
+	private final Network network;
 	private final Project project;
 	private final long taskUniqueId;
-	private final Point2D oldPosition;
-	private final Point2D newPosition;
+	private final PertManualPositions.Position oldPosition;
+	private final PertManualPositions.Position newPosition;
 	private final Object source;
 
-	public NetworkBoxMoveEdit(Network network, long taskUniqueId, Point2D oldPosition, Point2D newPosition, Object source) {
+	public NetworkBoxMoveEdit(Network network, long taskUniqueId, PertManualPositions.Position oldPosition,
+			PertManualPositions.Position newPosition, Object source) {
+		this.network = network;
 		this.project = network.getProject();
 		this.taskUniqueId = taskUniqueId;
-		this.oldPosition = oldPosition != null ? new Point2D.Double(oldPosition.getX(), oldPosition.getY()) : null;
-		this.newPosition = newPosition != null ? new Point2D.Double(newPosition.getX(), newPosition.getY()) : null;
+		this.oldPosition = oldPosition;
+		this.newPosition = newPosition;
 		this.source = source;
 	}
 
@@ -64,29 +66,21 @@ public class NetworkBoxMoveEdit extends AbstractUndoableEdit {
 	public void redo() throws CannotRedoException {
 		super.redo();
 		PertManualPositions pmp = getPertManualPositions();
-		if (newPosition != null) {
-			pmp.putPosition(taskUniqueId, new Point2D.Double(newPosition.getX(), newPosition.getY()));
-		} else {
-			pmp.removePosition(taskUniqueId);
-		}
-		if (project != null) {
-			// Trigger layout update and repaint through the network view
-			// The network view will pick up the new positions on next updateBounds()
-		}
+		pmp.putPosition(taskUniqueId, newPosition);
+		refresh();
 	}
 
 	@Override
 	public void undo() throws CannotUndoException {
 		super.undo();
 		PertManualPositions pmp = getPertManualPositions();
-		if (oldPosition != null) {
-			pmp.putPosition(taskUniqueId, new Point2D.Double(oldPosition.getX(), oldPosition.getY()));
-		} else {
-			pmp.removePosition(taskUniqueId);
-		}
-		if (project != null) {
-			// Trigger layout update and repaint through the network view
-		}
+		pmp.putPosition(taskUniqueId, oldPosition);
+		refresh();
+	}
+
+	private void refresh() {
+		project.setDirty(true);
+		network.relayout();
 	}
 
 	public Object getSource() {

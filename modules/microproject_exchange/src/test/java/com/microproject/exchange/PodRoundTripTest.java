@@ -26,12 +26,14 @@ package com.microproject.exchange;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 import java.io.File;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -63,6 +65,7 @@ import com.microproject.pm.task.Task;
 import com.microproject.pm.task.RollupSpan;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.graphic.network.PertManualPositions;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceType;
 import com.microproject.pm.snapshot.Snapshottable;
@@ -75,6 +78,33 @@ import com.microproject.server.data.ProjectData;
 import com.microproject.server.data.Serializer;
 
 public class PodRoundTripTest {
+	@Test
+	void manualPertDocumentStateDoesNotChangeSerializedPodBytes() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("pert-pod-wire-contract", undo), undo);
+		project.initialize(false, false);
+		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		task.setName("POD wire contract task");
+		serializePodDocument(project); // Serializer initializes derived distribution state on its first pass.
+		byte[] baseline = serializePodDocument(project);
+		PertManualPositions positions = project.getOrCreateTransientDocumentState(
+			PertManualPositions.class, PertManualPositions::new);
+		positions.putPosition(task.getUniqueId(), new PertManualPositions.Position(777, 333));
+		assertArrayEquals(baseline, serializePodDocument(project),
+			"transient PERT view state must not change the legacy POD object stream");
+	}
+
+	private static byte[] serializePodDocument(Project project) throws Exception {
+		var documentData = new com.microproject.server.data.DataUtil().serializeDocument(project);
+		documentData.setMaster(true);
+		documentData.setLocal(true);
+		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+		try (ObjectOutputStream output = new ObjectOutputStream(bytes)) {
+			output.writeObject(LocalFileImporter.VERSION);
+			output.writeObject(documentData);
+		}
+		return bytes.toByteArray();
+	}
 	@Test
 	public void earnedValueMetricsSurviveNativeMpoRoundTrip() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();

@@ -23,7 +23,6 @@
  *******************************************************************************/
 package com.microproject.pm.graphic.network;
 
-import java.awt.geom.Point2D;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -33,30 +32,32 @@ import java.util.Map;
  * Not serialized via Java serialization (POD format) - manual positions are only persisted in MPO.
  */
 public class PertManualPositions {
-	private final Map<Long, Point2D> positions = new HashMap<>();
+	/** Presentation-independent logical coordinates, measured at 100% zoom. */
+	public record Position(double x, double y) { }
 
-	public Map<Long, Point2D> getPositions() {
+	private final Map<Long, Position> positions = new HashMap<>();
+
+	public Map<Long, Position> getPositions() {
 		return positions;
 	}
 
-	public void setPositions(Map<Long, Point2D> positions) {
+	public void setPositions(Map<Long, Position> positions) {
 		this.positions.clear();
 		if (positions != null) {
 			this.positions.putAll(positions);
 		}
 	}
 
-	public void putPosition(long taskUniqueId, Point2D position) {
+	public void putPosition(long taskUniqueId, Position position) {
 		if (position != null) {
-			positions.put(taskUniqueId, new Point2D.Double(position.getX(), position.getY()));
+			positions.put(taskUniqueId, position);
 		} else {
 			positions.remove(taskUniqueId);
 		}
 	}
 
-	public Point2D getPosition(long taskUniqueId) {
-		Point2D pos = positions.get(taskUniqueId);
-		return pos != null ? new Point2D.Double(pos.getX(), pos.getY()) : null;
+	public Position getPosition(long taskUniqueId) {
+		return positions.get(taskUniqueId);
 	}
 
 	public void removePosition(long taskUniqueId) {
