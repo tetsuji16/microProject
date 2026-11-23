@@ -27,6 +27,7 @@ package com.microproject.pm.snapshot;
  *
  */
 public class SnapshotEmptyException extends Exception {
+	private static final long serialVersionUID = -2676510180081824790L;
 
 	/**
 	 * 

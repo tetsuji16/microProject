@@ -33,7 +33,8 @@ import com.microproject.pm.dependency.DependencyType;
  *
  */
 public abstract class GanttLinkRouting extends LinkRouting implements Serializable {
-	
+	private static final long serialVersionUID = -8024273691619217078L;
+
 	public abstract void routePath(GeneralPath path,double x0,double y0,double x1,double y1,double y2,double y1floor,double y1ceil,DependencyType.Kind type);
 	public final void routePath(GeneralPath path,double x0,double y0,double x1,double y1,double y2,double y1floor,double y1ceil,int type) {
 		routePath(path, x0, y0, x1, y1, y2, y1floor, y1ceil, DependencyType.Kind.fromCode(type));

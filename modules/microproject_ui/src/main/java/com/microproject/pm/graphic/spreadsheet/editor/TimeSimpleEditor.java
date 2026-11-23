@@ -41,6 +41,8 @@ import com.microproject.util.FlatUiSupport;
  *
  */
 public class TimeSimpleEditor extends DefaultCellEditor {
+	private static final long serialVersionUID = -6496388133607349397L;
+
 	protected ChangeAwareTextField component;
 	protected Class<?> clazz;
 	protected Format useFormat = null;

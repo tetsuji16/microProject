@@ -968,6 +968,8 @@ public final class FlatUiSupport {
 	private static int rowGridOverlayNext;
 
 	private static final class RowGridOverlayBorder extends AbstractBorder {
+		private static final long serialVersionUID = 6874837498917515255L;
+
 		private final Border baseBorder;
 		private final Color gridColor;
 
@@ -1400,6 +1402,8 @@ public final class FlatUiSupport {
 	}
 
 	private static final class CommandButtonBorder extends AbstractBorder {
+		private static final long serialVersionUID = -3017592506618514857L;
+
 		private final Insets insets;
 		private final int arc;
 
@@ -1465,6 +1469,8 @@ public final class FlatUiSupport {
 	}
 
 	private static final class RibbonTabBorder extends AbstractBorder {
+		private static final long serialVersionUID = -8361399314006210874L;
+
 		@Override
 		public Insets getBorderInsets(Component component) {
 			return new Insets(

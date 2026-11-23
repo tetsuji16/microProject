@@ -33,6 +33,8 @@ import com.microproject.session.SessionFactory;
  *
  */
 public class VoidNodeImpl implements HasId, DataObject  {
+	private static final long serialVersionUID = 127752914228755303L;
+
 	protected static final LinkedList<Object> fields = new LinkedList<>();
 	long id = 0;
 	public LinkedList<Object> getFields() throws NodeException {

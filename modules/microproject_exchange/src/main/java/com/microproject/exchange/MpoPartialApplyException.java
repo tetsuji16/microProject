@@ -21,6 +21,8 @@ import com.microproject.strings.Messages;
  * silently claiming success.
  */
 public final class MpoPartialApplyException extends IOException implements SaveFailureFeedback {
+	private static final long serialVersionUID = 4985622023478802270L;
+
 	private final Path archive;
 
 	public MpoPartialApplyException(Path archive, Throwable cause) {

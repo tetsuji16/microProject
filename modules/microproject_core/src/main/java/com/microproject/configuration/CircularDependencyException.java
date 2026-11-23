@@ -29,6 +29,8 @@ import com.microproject.strings.Messages;
  * Exception thrown if the user tries to make a circular link
  */
 public class CircularDependencyException extends Exception {
+	private static final long serialVersionUID = -5477943199083401004L;
+
 	public static final String RUNTIME_EXCEPTION_TEXT = Messages.getString("Message.importCircularLink");
 	public CircularDependencyException() {
 		super();

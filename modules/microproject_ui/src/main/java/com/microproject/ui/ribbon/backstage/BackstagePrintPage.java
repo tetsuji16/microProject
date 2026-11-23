@@ -25,6 +25,7 @@ package com.microproject.ui.ribbon.backstage;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -65,6 +66,9 @@ public final class BackstagePrintPage extends JPanel {
 	private static final long serialVersionUID = 1L;
 	private static final int COLUMN_WIDTH = 300;
 	private static final int FIELD_WIDTH = 170;
+	/** Narrowest preview column kept beside the settings; below it the preview moves under them. */
+	static final int MINIMUM_SIDE_PREVIEW_WIDTH = 320;
+	private static final int COLUMN_GAP = 24;
 
 	/** Immutable snapshot of the print settings shown in the left column. */
 	public record Settings(int copies, List<String> printers, String printer,
@@ -96,7 +100,9 @@ public final class BackstagePrintPage extends JPanel {
 	private final JComboBox<String> paperSizeCombo;
 	private final JButton pageSetupLink;
 	private final JLabel statusLabel;
-	private final JComponent preview;
+	private final String noPrintersText;
+	private final String loadingText;
+	private JComponent preview;
 
 	/**
 	 * @param settings the print-settings snapshot, never {@code null}
@@ -116,28 +122,26 @@ public final class BackstagePrintPage extends JPanel {
 		this.preview = Objects.requireNonNull(preview, "preview");
 
 		boolean hasPrinter = !settings.printers().isEmpty();
+		this.noPrintersText = label.apply("noPrinters");
+		this.loadingText = label.apply("loadingPrinters");
 
-		JPanel columns = new JPanel(new GridBagLayout());
-		columns.setName("officeBackstagePrintColumns");
-		columns.setOpaque(false);
 		JPanel left = fixedWidthPanel("officeBackstagePrintSettings");
 		left.setLayout(new GridBagLayout());
 		JPanel right = createPreviewPane();
-		GridBagConstraints leftConstraints = new GridBagConstraints();
-		leftConstraints.gridx = 0;
-		leftConstraints.gridy = 0;
-		leftConstraints.weightx = 0;
-		leftConstraints.anchor = GridBagConstraints.NORTHWEST;
-		leftConstraints.insets = new Insets(0, 0, 0, 24);
-		columns.add(left, leftConstraints);
-		GridBagConstraints rightConstraints = new GridBagConstraints();
-		rightConstraints.gridx = 1;
-		rightConstraints.gridy = 0;
-		rightConstraints.weightx = 1;
-		rightConstraints.weighty = 1;
-		rightConstraints.fill = GridBagConstraints.BOTH;
-		rightConstraints.anchor = GridBagConstraints.NORTHWEST;
-		columns.add(right, rightConstraints);
+		JPanel columns = new JPanel(new GridBagLayout()) {
+			private static final long serialVersionUID = 1L;
+			@Override public void doLayout() {
+				// A narrow window cannot hold the fixed settings column and a usable preview side by
+				// side; the preview then moves under the settings instead of being pushed out of view.
+				arrangeColumns(this, left, right, getWidth() < COLUMN_WIDTH + COLUMN_GAP + MINIMUM_SIDE_PREVIEW_WIDTH);
+				super.doLayout();
+			}
+		};
+		columns.setName("officeBackstagePrintColumns");
+		columns.setOpaque(false);
+		columns.add(left, new GridBagConstraints());
+		columns.add(right, new GridBagConstraints());
+		arrangeColumns(columns, left, right, false);
 		add(columns, BorderLayout.CENTER);
 
 		this.printButton = Objects.requireNonNull(printButton, "printButton");
@@ -150,7 +154,7 @@ public final class BackstagePrintPage extends JPanel {
 		this.orientationCombo = combo("officeBackstagePrintOrientation", settings.orientations(), settings.orientation());
 		this.paperSizeCombo = combo("officeBackstagePrintPaperSize", settings.paperSizes(), settings.paperSize());
 		this.printerCombo = combo("officeBackstagePrintPrinter", settings.printers(), settings.printer());
-		this.statusLabel = new JLabel(hasPrinter ? "" : label.apply("noPrinters"));
+		this.statusLabel = new JLabel(hasPrinter ? "" : this.noPrintersText);
 		this.statusLabel.setName("officeBackstagePrintStatus");
 		this.pageSetupLink = link(label.apply("pageSetup"), "officeBackstagePrintPageSetup", actions::openPageSetup);
 
@@ -168,14 +172,34 @@ public final class BackstagePrintPage extends JPanel {
 		if (!hasPrinter) printerCombo.setEnabled(false);
 		Runnable refresh = () -> {
 			actions.settingsChanged();
-			preview.revalidate();
-			preview.repaint();
+			// The field holds the preview that is installed now, which may replace the caller's component.
+			this.preview.revalidate();
+			this.preview.repaint();
 		};
 		copiesField.addChangeListener(event -> refresh.run());
 		printerCombo.addActionListener(event -> refresh.run());
 		rangeCombo.addActionListener(event -> refresh.run());
 		orientationCombo.addActionListener(event -> refresh.run());
 		paperSizeCombo.addActionListener(event -> refresh.run());
+	}
+
+	private static void arrangeColumns(JPanel columns, JComponent left, JComponent right, boolean stacked) {
+		GridBagLayout layout = (GridBagLayout) columns.getLayout();
+		GridBagConstraints leftConstraints = new GridBagConstraints();
+		leftConstraints.gridx = 0;
+		leftConstraints.gridy = 0;
+		leftConstraints.weightx = stacked ? 1 : 0;
+		leftConstraints.anchor = GridBagConstraints.NORTHWEST;
+		leftConstraints.insets = stacked ? new Insets(0, 0, 12, 0) : new Insets(0, 0, 0, COLUMN_GAP);
+		layout.setConstraints(left, leftConstraints);
+		GridBagConstraints rightConstraints = new GridBagConstraints();
+		rightConstraints.gridx = stacked ? 0 : 1;
+		rightConstraints.gridy = stacked ? 1 : 0;
+		rightConstraints.weightx = 1;
+		rightConstraints.weighty = 1;
+		rightConstraints.fill = GridBagConstraints.BOTH;
+		rightConstraints.anchor = GridBagConstraints.NORTHWEST;
+		layout.setConstraints(right, rightConstraints);
 	}
 
 	private JPanel createPreviewPane() {
@@ -248,6 +272,53 @@ public final class BackstagePrintPage extends JPanel {
 		button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 		button.addActionListener(event -> action.run());
 		return button;
+	}
+
+	/**
+	 * Shows that the printer list is still being read. The printer controls stay disabled until
+	 * {@link #setPrinters} delivers a list.
+	 */
+	public void showPrintersLoading() {
+		printerCombo.setModel(new DefaultComboBoxModel<>());
+		printerCombo.setEnabled(false);
+		printButton.setEnabled(false);
+		statusLabel.setText(loadingText);
+	}
+
+	/** Fills in the printer list once it is known and enables printing when one exists. */
+	public void setPrinters(List<String> printers, String selected) {
+		List<String> values = printers == null ? List.of() : List.copyOf(printers);
+		printerCombo.setModel(new DefaultComboBoxModel<>(values.toArray(String[]::new)));
+		if (selected != null && values.contains(selected)) printerCombo.setSelectedItem(selected);
+		boolean hasPrinter = !values.isEmpty();
+		printerCombo.setEnabled(hasPrinter);
+		printButton.setEnabled(hasPrinter);
+		statusLabel.setText(hasPrinter ? "" : noPrintersText);
+	}
+
+	/** Replaces the preview, e.g. once the print document has been created. */
+	public void setPreviewComponent(JComponent component) {
+		Objects.requireNonNull(component, "component");
+		if (component == preview) return;
+		Container pane = preview.getParent();
+		if (pane == null) return;
+		pane.remove(preview);
+		pane.add(component, BorderLayout.CENTER);
+		preview = component;
+		pane.revalidate();
+		pane.repaint();
+	}
+
+	/** Selects the orientation that matches the document's page format. */
+	public void setOrientation(String orientation) {
+		if (orientation == null) return;
+		ComboBoxModel<String> model = orientationCombo.getModel();
+		for (int i = 0; i < model.getSize(); i++) {
+			if (orientation.equals(model.getElementAt(i))) {
+				orientationCombo.setSelectedItem(orientation);
+				return;
+			}
+		}
 	}
 
 	/** The caller-supplied print button, wired to the existing print command. */

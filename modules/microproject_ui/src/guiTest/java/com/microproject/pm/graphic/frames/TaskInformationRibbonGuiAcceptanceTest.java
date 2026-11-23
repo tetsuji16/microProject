@@ -2873,6 +2873,42 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
+	void robotDetailsOpensResourceUsageForAResourceView() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for GUI view coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		NormalTask task = createTask();
+		showProject(task.getOwningProject());
+		SwingUtilities.invokeAndWait(() -> window.setSize(1600, 700));
+		GuiAcceptanceSupport.await(() -> window.isShowing() && manager.getCurrentFrame() != null,
+			"resource bottom-view test window did not become visible");
+
+		Robot robot = new com.microproject.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activateWindow(robot, window);
+		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+				.getString("ViewRibbonTask.title"));
+		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab");
+
+		SwingUtilities.invokeAndWait(() -> manager.getCurrentFrame()
+			.activateView(com.microproject.menu.MenuActionConstants.ACTION_RESOURCES));
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveTopView() != null
+			&& manager.getCurrentFrame().getActiveTopView().showsResources(),
+			"Resource Sheet did not become the top view");
+
+		AbstractButton details = findShowingButtonByCommand("RibbonDetails");
+		click(robot, details);
+		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getActiveBottomView()
+				== manager.getCurrentFrame().getResourceUsageView(),
+			"Details did not open Resource Usage for a resource view");
+		assertTrue(manager.getCurrentFrame().getMainView().getBottomComponent().isShowing(),
+			"Resource Usage bottom component must be physically visible");
+		GuiAcceptanceSupport.await(details::isSelected, "Details was not selected after opening Resource Usage");
+	}
+
+	@Test
 	void robotCalendarOptionsRibbonRouteOpensUsableDialog() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		previousRibbonUi = Environment.isRibbonUI();

@@ -37,6 +37,8 @@ import com.microproject.grouping.core.model.NodeModel;
  *
  */
 public class NodeCreationEdit extends AbstractUndoableEdit{
+	private static final long serialVersionUID = -1117830874214097390L;
+
 	protected NodeModel model;
 	protected Node parent;
 	protected List<Node> children;

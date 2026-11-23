@@ -87,6 +87,7 @@ import javax.swing.JToggleButton;
 import javax.swing.InputMap;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 import javax.print.PrintService;
 import javax.swing.SwingConstants;
 import javax.swing.border.Border;
@@ -105,6 +106,7 @@ import com.microproject.preference.GlobalPreferences;
 import com.microproject.print.GraphPageable;
 import com.microproject.print.PDFPrintService;
 import com.microproject.print.PageSetup;
+import com.microproject.print.PrintDocument;
 import com.microproject.print.PrintDocumentFactory;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.graphic.frames.DocumentFrame;
@@ -1112,34 +1114,23 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 	 * Builds the Office-style Print page. The caller supplies every value and action;
 	 * neither opening the page nor changing a setting creates a print job or mutates
 	 * project data. The preview reuses the existing {@link GraphPageable} rendering.
+	 *
+	 * <p>The page is assembled before the print document exists: reading the printer list can
+	 * block for a long time when a network printer answers slowly, so that lookup runs off the
+	 * event thread and the document is created once the list arrives. Until then the page shows
+	 * its loading text and a preview placeholder; the placeholder is replaced when it is ready.</p>
 	 */
 	private JComponent createBackstagePrintPage(BackstagePage page) {
 		DocumentFrame frame = GraphicManager.getDocumentFrameInstance();
-		final GraphPageable document = createBackstagePrintDocument(frame);
-
-		List<String> printers = new ArrayList<>();
-		String activePrinter = "";
-		if (document != null) {
-			for (PrintService service : document.getPrintServices()) {
-				if (!(service instanceof PDFPrintService)) printers.add(service.getName());
-			}
-			PrintService selected = document.getPrintService();
-			if (selected != null && !(selected instanceof PDFPrintService)) activePrinter = selected.getName();
-		}
-
-		java.awt.print.PageFormat format = document == null ? null : document.getPageFormat();
 		String portrait = localized("FileBackstage.print.portrait");
 		String landscape = localized("FileBackstage.print.landscape");
-		String orientation = format != null && format.getOrientation() == java.awt.print.PageFormat.LANDSCAPE
-				? landscape : portrait;
 		List<String> paperSizes = List.of(localized("FileBackstage.print.paperA4"),
 				localized("FileBackstage.print.paperLetter"), localized("FileBackstage.print.paperLegal"));
-		String paperSize = paperSizes.getFirst();
-		BackstagePrintPage.Settings settings = new BackstagePrintPage.Settings(1, printers, activePrinter,
+		BackstagePrintPage.Settings settings = new BackstagePrintPage.Settings(1, List.of(), "",
 				List.of(localized("FileBackstage.print.all"), localized("FileBackstage.print.currentPage"),
 						localized("FileBackstage.print.selection")),
 				localized("FileBackstage.print.all"),
-				List.of(portrait, landscape), orientation, paperSizes, paperSize);
+				List.of(portrait, landscape), portrait, paperSizes, paperSizes.getFirst());
 
 		Map<String, AbstractButton> commands = new LinkedHashMap<>();
 		for (SwingRibbonModel.RibbonButton specification : page.commands())
@@ -1157,50 +1148,111 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		previewButton.setName("officeBackstageCommand-RibbonPrintPreview");
 		closeBackstageBeforeCommand(previewButton);
 
-		JComponent preview = createBackstagePrintPreview(document, previewButton);
-
+		GraphPageable[] document = new GraphPageable[1];
+		BackstagePrintPage[] pageRef = new BackstagePrintPage[1];
+		// Without a document the preview never arrives, so it shows the unavailable text right away.
+		JComponent preview = createBackstagePrintPreview(null, previewButton, frame == null
+				? "FileBackstage.print.previewUnavailable" : "FileBackstage.print.preparingPreview");
 		BackstagePrintPage.Actions actions = new BackstagePrintPage.Actions() {
 			@Override public void openPageSetup() {
-				if (document == null) return;
+				GraphPageable current = document[0];
+				if (current == null) return;
 				try {
 					GraphicManager manager = GraphicManager.getInstance();
 					java.awt.Frame owner = manager == null ? null : manager.getFrame();
-					PageSetupDialog.getInstance(owner, PageSetup.getInstance(document)).setVisible(true);
+					PageSetupDialog.getInstance(owner, PageSetup.getInstance(current)).setVisible(true);
 				} catch (RuntimeException ignored) {
 					// A preview-only settings failure must not surface as an error dialog.
 				}
 			}
 			@Override public void settingsChanged() {
-				if (document != null) {
-					try { document.update(); } catch (RuntimeException ignored) { }
+				if (document[0] != null) {
+					try { document[0].update(); } catch (RuntimeException ignored) { }
 				}
-				preview.revalidate();
-				preview.repaint();
+				// Refresh the preview that is installed now, not the placeholder it replaced.
+				BackstagePrintPage current = pageRef[0];
+				JComponent shown = current == null ? preview : current.getPreviewComponent();
+				shown.revalidate();
+				shown.repaint();
 			}
 		};
 		BackstagePrintPage printPage = new BackstagePrintPage(settings, printButton, preview, actions,
 				key -> localized("FileBackstage.print." + key));
-		if (document == null) {
+		pageRef[0] = printPage;
+		if (frame == null) {
 			// Without an active document there are no print settings to evaluate.
 			// Keep the canonical command enabled so it stays physically routable;
 			// the existing print command itself is a no-op without a document.
 			printButton.setEnabled(true);
+			return printPage;
 		}
+		printPage.showPrintersLoading();
+		new SwingWorker<PrinterLookup, Void>() {
+			@Override protected PrinterLookup doInBackground() {
+				// Off the event thread: a slow network printer must not freeze the ribbon.
+				return new PrinterLookup(PrintDocument.lookupRealPrintServices(),
+						PrintDocument.lookupDefaultRealPrintService());
+			}
+			@Override protected void done() {
+				PrinterLookup lookup;
+				try {
+					lookup = get();
+				} catch (Exception interrupted) {
+					lookup = new PrinterLookup(new PrintService[0], null);
+				}
+				document[0] = installBackstagePrintDocument(printPage, frame, previewButton, lookup,
+						portrait, landscape);
+			}
+		}.execute();
 		return printPage;
 	}
 
+	/** Printers read off the event thread, before the print document is built. */
+	private record PrinterLookup(PrintService[] services, PrintService defaultService) { }
+
+	/** Builds the document from the resolved printers, fills the waiting page, and returns it. */
+	private GraphPageable installBackstagePrintDocument(BackstagePrintPage printPage, DocumentFrame frame,
+			AbstractButton previewButton, PrinterLookup lookup, String portrait, String landscape) {
+		GraphPageable document = createBackstagePrintDocument(frame, lookup);
+		List<String> printers = new ArrayList<>();
+		String activePrinter = "";
+		if (document != null) {
+			for (PrintService service : document.getPrintServices()) {
+				if (!(service instanceof PDFPrintService)) printers.add(service.getName());
+			}
+			PrintService selected = document.getPrintService();
+			if (selected != null && !(selected instanceof PDFPrintService)) activePrinter = selected.getName();
+			java.awt.print.PageFormat format = document.getPageFormat();
+			printPage.setOrientation(format != null && format.getOrientation() == java.awt.print.PageFormat.LANDSCAPE
+					? landscape : portrait);
+		}
+		printPage.setPrinters(printers, activePrinter);
+		printPage.setPreviewComponent(createBackstagePrintPreview(document, previewButton,
+				"FileBackstage.print.previewUnavailable"));
+		if (document == null) {
+			// Without a document there are no print settings to evaluate; keep the command enabled so
+			// it stays physically routable (the print command itself is a no-op).
+			printPage.getPrintButton().setEnabled(true);
+		}
+		printPage.revalidate();
+		printPage.repaint();
+		return document;
+	}
+
 	/** Creates a preview-only pageable without a print job; null when no document is available. */
-	private static GraphPageable createBackstagePrintDocument(DocumentFrame frame) {
+	private static GraphPageable createBackstagePrintDocument(DocumentFrame frame, PrinterLookup lookup) {
 		if (frame == null) return null;
 		try {
-			return PrintDocumentFactory.getInstance().createDocument(frame, false, false);
+			return PrintDocumentFactory.getInstance().createDocument(frame, false, false,
+					lookup.services(), lookup.defaultService());
 		} catch (RuntimeException ignored) {
 			return null; // show an empty preview instead of an error dialog
 		}
 	}
 
 	/** Wraps the existing GraphPageable page renderer with Backstage page/zoom controls. */
-	private JComponent createBackstagePrintPreview(GraphPageable document, AbstractButton previewButton) {
+	private JComponent createBackstagePrintPreview(GraphPageable document, AbstractButton previewButton,
+			String placeholderKey) {
 		JPanel root = new JPanel(new BorderLayout());
 		root.setName("officeBackstagePrintPreview");
 		JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
@@ -1229,7 +1281,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		controls.add(previewButton);
 		root.add(controls, BorderLayout.NORTH);
 		root.add(panel == null
-				? new JLabel(localized("FileBackstage.print.previewUnavailable"))
+				? new JLabel(localized(placeholderKey))
 				: new JScrollPane(panel), BorderLayout.CENTER);
 		return root;
 	}
@@ -1626,6 +1678,28 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 				|| !button.isEnabled() || !isVisibleWithin(button, body)) continue;
 			tips.putIfAbsent(tip, new RibbonKeyTipSession.Target(button.getName() == null ? tip : button.getName(),
 				button, () -> button.doClick(0)));
+		}
+		// A group collapsed at a narrow width keeps its commands in the proxy's popup.  Keep
+		// their KeyTips working so a command's key sequence does not depend on the window
+		// width.  They have no badge, because the popup is closed while the KeyTips show.
+		for (AbstractButton button : buttons) {
+			if (!(button.getClientProperty(COLLAPSED_POPUP_PROPERTY) instanceof JPopupMenu popup)
+				|| !button.isEnabled() || !isVisibleWithin(button, body)) continue;
+			List<AbstractButton> collapsed = new ArrayList<>();
+			collectButtons(popup, collapsed);
+			for (AbstractButton command : collapsed) {
+				if (!(command.getClientProperty(RibbonControlPopups.KEY_TIP_PROPERTY) instanceof String tip)
+					|| !command.isEnabled()) continue;
+				// A popup-only control is a menu in the group's popup: open the group, then the menu.
+				Runnable activate = command instanceof javax.swing.JMenu menu
+					? () -> {
+						button.doClick(0);
+						SwingUtilities.invokeLater(() -> menu.doClick(0));
+					}
+					: () -> command.doClick(0);
+				tips.putIfAbsent(tip, new RibbonKeyTipSession.Target(command.getName() == null ? tip : command.getName(),
+					null, activate));
+			}
 		}
 		return tips;
 	}

@@ -44,7 +44,7 @@ import com.microproject.util.FlatUiSupport;
 import com.microproject.util.DateTime;
 
 public final class TransformParameterDialog extends AbstractDialog implements Consumer<Object>{
-
+	private static final long serialVersionUID = 1248342484353019839L;
 
 	List<String> labels=new ArrayList<>();
 	List<ExtDateField> valueComponents=new ArrayList<>();

@@ -161,6 +161,31 @@ class WindowSizeContractSweepGuiAcceptanceTest {
 			+ System.lineSeparator() + String.join(System.lineSeparator(), failures));
 	}
 
+	/**
+	 * #1340: a large tool dialog is centered on its owner, so a fixed pixel size larger than
+	 * the usable area hides its bottom-right action row. The dialog must fit the monitor it
+	 * opens on, and this test leaves it where the product put it.
+	 */
+	@Test
+	void resourceLevelingDialogOpensInsideTheUsableScreen() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
+			"A desktop session is required for the dialog placement contract.");
+		FlatLafSupport.ensureInitialized();
+		startApplicationWindow();
+		Window[] created = new Window[1];
+		SwingUtilities.invokeAndWait(() -> {
+			ResourceLevelingDialogBox dialog = ResourceLevelingDialogBox.getInstance(owner, project);
+			dialog.setModal(false);
+			dialog.setVisible(true);
+			created[0] = dialog;
+			opened.add(dialog);
+		});
+		Window dialog = created[0];
+		GuiAcceptanceSupport.await(dialog::isShowing, "resource-leveling window did not become visible");
+		// The dialog places itself on its owner; moving it first would hide the defect.
+		DialogLayoutAssertions.assertWithinUsableScreen(dialog, "resource-leveling");
+	}
+
 	private void verifySizeContract(Window window, WindowCase windowCase, Path artifacts, Robot robot,
 			List<String> report, List<String> failures) throws Exception {
 		String name = windowCase.name();

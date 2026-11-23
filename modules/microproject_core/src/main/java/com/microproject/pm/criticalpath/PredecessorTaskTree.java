@@ -116,6 +116,8 @@ public class PredecessorTaskTree {
 	}
 	
 	public class PertLayoutTreeNode extends DefaultMutableTreeNode{
+		private static final long serialVersionUID = -9077529077347539544L;
+
         public PertLayoutTreeNode(Object userObject) {
             super(userObject);
         }

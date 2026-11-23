@@ -34,6 +34,8 @@ import com.microproject.configuration.Settings;
  * Text formatter used for formatting and parsing lists of assignments or predecessors
  */
 public class AssociationListFormat extends Format {
+	private static final long serialVersionUID = 7061344629677442297L;
+
 	private final Format associationFormat;
 	public static AssociationListFormat getInstance(Format associationFormat) {
 		return new AssociationListFormat(associationFormat);

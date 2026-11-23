@@ -33,6 +33,8 @@ import com.microproject.datatype.Money;
  *
  */
 public class MoneyEditor extends SimpleEditor {
+	private static final long serialVersionUID = 3734927264055820272L;
+
 	// NumberFormat/DecimalFormat is not thread-safe; use a fresh instance per call (issue #184).
 	
 //	public Component getTableCellEditorComponent(JTable arg0, Object value,

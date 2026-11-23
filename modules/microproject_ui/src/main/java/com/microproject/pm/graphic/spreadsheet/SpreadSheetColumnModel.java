@@ -65,6 +65,8 @@ import com.microproject.graphic.configuration.SpreadSheetFieldArray;
  *
  */
 public class SpreadSheetColumnModel extends DefaultTableColumnModel {
+	private static final long serialVersionUID = 4359879643396774956L;
+
 	int columnIndex = 0;
 
 	int colWidth = 0;

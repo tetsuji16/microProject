@@ -29,6 +29,8 @@ import java.util.EventObject;
  *
  */
 public class TimeScaleEvent extends EventObject {
+	private static final long serialVersionUID = 6776054567705472617L;
+
 	public static final int ORIGIN_AND_END_CHANGE=1;
 	public static final int END_ONLY_CHANGE=2;
 	public static final int SCALE_CHANGE=4;

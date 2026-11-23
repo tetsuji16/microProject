@@ -80,6 +80,8 @@ package com.microproject.menu.resource;
  * @version $Id: ResourceFormatException.java,v 1.1 2007/08/15 23:28:28 suricate Exp $
  */
 public class ResourceFormatException extends RuntimeException {
+	private static final long serialVersionUID = 8481045893833418302L;
+
     /**
      * The class name of the resource bundle requested
      * @serial

@@ -45,6 +45,8 @@ import com.microproject.util.MathUtils;
  * A spinner in a spreadsheet or dialog
  */
 public class SpinEditor extends SimpleEditor {
+	private static final long serialVersionUID = 5977366796855118691L;
+
 	private Double defaultValue = Double.valueOf(1.0D);
 	private static double MAX_VALUE = 60000000.0; 
 	private static final String NUMBER_TEMPLATE="#######################";

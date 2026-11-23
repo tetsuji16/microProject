@@ -28,6 +28,7 @@ import java.io.InputStream;
 import java.io.ObjectInputFilter;
 import java.io.ObjectStreamClass;
 import java.io.ObjectInputStream;
+import java.util.function.Consumer;
 import java.util.logging.Logger;
 
 /**
@@ -73,7 +74,26 @@ public final class SafeObjectInput {
 
 	private static final ObjectInputFilter PERSISTED_DATA_FILTER = SafeObjectInput::checkInput;
 
+	private static final ThreadLocal<Consumer<Class<?>>> RESOLVED_CLASS_OBSERVER = new ThreadLocal<>();
+
 	private SafeObjectInput() {
+	}
+
+	/**
+	 * Registers a per-thread observer that receives every class resolved by the
+	 * persisted-data filter (array component types unwrapped, primitives skipped),
+	 * including superclass descriptors. Used to inventory classes in stored files.
+	 * Closing the returned handle restores the previously registered observer.
+	 */
+	public static AutoCloseable observeResolvedClasses(Consumer<Class<?>> observer) {
+		Consumer<Class<?>> previous = RESOLVED_CLASS_OBSERVER.get();
+		RESOLVED_CLASS_OBSERVER.set(observer);
+		return () -> {
+			if (previous == null)
+				RESOLVED_CLASS_OBSERVER.remove();
+			else
+				RESOLVED_CLASS_OBSERVER.set(previous);
+		};
 	}
 
 	public static ObjectInputStream create(InputStream input) throws IOException {
@@ -123,6 +143,9 @@ public final class SafeObjectInput {
 			type = type.getComponentType();
 		if (type.isPrimitive())
 			return ObjectInputFilter.Status.ALLOWED;
+		Consumer<Class<?>> observer = RESOLVED_CLASS_OBSERVER.get();
+		if (observer != null)
+			observer.accept(type);
 
 		String className = type.getName();
 		if (com.microproject.exchange.PodFormatIdentifiers.isAllowedLegacyClass(className))

@@ -235,9 +235,9 @@ public final class ResourceLevelingDialogBox extends FlatLafDialog {
 		south.add(statusArea, BorderLayout.CENTER);
 		south.add(buttons, BorderLayout.EAST);
 		add(south, BorderLayout.SOUTH);
-		setPreferredSize(new Dimension(900, 520));
-		pack();
-		setLocationRelativeTo(getOwner());
+		// A fixed 900x520 would be wider than the usable area of a 1024x768 screen at 125% or 150%,
+		// which pushes the bottom-right action row off the screen; the shared sizing keeps it on it.
+		DialogSizing.applyInitialSize(this, new Dimension(660, 420), new Dimension(900, 520), getOwner());
 	}
 
 	private void preview() {

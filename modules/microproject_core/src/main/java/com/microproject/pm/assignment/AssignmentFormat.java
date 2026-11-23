@@ -44,6 +44,8 @@ import com.microproject.strings.Messages;
 
 
 public class AssignmentFormat extends AssociationFormat {
+	private static final long serialVersionUID = 1941290733811499767L;
+
 	public static AssignmentFormat getInstance(AssociationFormatParameters parameters) {
 		return new AssignmentFormat(parameters);
 	}

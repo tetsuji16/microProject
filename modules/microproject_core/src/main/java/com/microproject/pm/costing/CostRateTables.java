@@ -38,6 +38,8 @@ import com.microproject.interval.InvalidValueObjectForIntervalException;
  * 
  */
 public class CostRateTables implements Cost, Serializable, Cloneable {
+	private static final long serialVersionUID = 4257382829617648117L;
+
 	/** @deprecated use {@link CostRateIndex.Kind#A} at typed boundaries. */
 	@Deprecated public static final int DEFAULT = CostRateIndex.Kind.A.code();
 	protected CostRateTable[] costRateTableArray;

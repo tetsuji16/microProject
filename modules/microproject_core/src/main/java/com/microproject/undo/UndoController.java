@@ -40,6 +40,7 @@ import com.microproject.util.Environment;
  *
  */
 public class UndoController extends UndoManager implements EditListener{
+	private static final long serialVersionUID = 7485069230233095720L;
 
 	protected transient EditSupport editSupport;
 	/**

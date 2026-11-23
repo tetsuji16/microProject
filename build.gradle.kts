@@ -153,6 +153,20 @@ subprojects {
 
 }
 
+tasks.register("writeSerialPinClasspath") {
+    group = "verification"
+    description = "Writes the union of module runtime classpaths for scripts/PinSerialVersionUid.java."
+    doLast {
+        val entries = linkedSetOf<String>()
+        subprojects.forEach { module ->
+            module.configurations.findByName("runtimeClasspath")?.files?.forEach { entries.add(it.absolutePath) }
+        }
+        val out = layout.buildDirectory.file("serial-pin-classpath.txt").get().asFile
+        out.parentFile.mkdirs()
+        out.writeText(entries.joinToString("\n"))
+    }
+}
+
 tasks.register("stageAppDist") {
     group = "distribution"
     description = "Builds the installable application layout for microProject."

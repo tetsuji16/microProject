@@ -25,6 +25,8 @@ package com.microproject.print;
 
 import java.util.List;
 
+import javax.print.PrintService;
+
 import com.microproject.offline_graphics.GanttSVGRenderer;
 import com.microproject.offline_graphics.NetworkSVGRenderer;
 import com.microproject.offline_graphics.SVGRenderer;
@@ -51,8 +53,15 @@ public class PrintDocumentFactory {
 		return instance;
 	}
 	public GraphPageable createDocument(DocumentFrame frame,boolean printOnly,boolean pdfAsDefault){
+		return createDocument(frame,printOnly,pdfAsDefault,
+				PrintDocument.lookupRealPrintServices(),PrintDocument.lookupDefaultRealPrintService());
+	}
+	/** Builds the document from printers the caller already resolved off the event thread. */
+	public GraphPageable createDocument(DocumentFrame frame,boolean printOnly,boolean pdfAsDefault,
+			PrintService[] resolvedServices,PrintService resolvedDefaultService){
 		BaseView view=frame.getActiveTopView();
-		GraphPageable specializedDocument = view.createPrintDocument(printOnly, pdfAsDefault);
+		GraphPageable specializedDocument = view.createPrintDocument(printOnly, pdfAsDefault,
+				resolvedServices,resolvedDefaultService);
 		if (specializedDocument != null) return specializedDocument;
 		SVGRenderer renderer;
 		NodeModelCache cache;
@@ -99,7 +108,8 @@ public class PrintDocumentFactory {
 		transformer.setUserFilterId(srcTransformer.getUserFilterId()); //this is valid just because the views have the same transformers
 		transformer.setTaskSortSpec(srcTransformer.getTaskSortSpec());
 		transformer.setUserGrouperId(srcTransformer.getUserGrouperId()); //this is valid just because the views have the same transformers
-		GraphPageable document=new GraphPageable(renderer,printOnly,pdfAsDefault,true);
+		GraphPageable document=new GraphPageable(renderer,printOnly,pdfAsDefault,true,
+				resolvedServices,resolvedDefaultService);
 		return document;
 	}
 }

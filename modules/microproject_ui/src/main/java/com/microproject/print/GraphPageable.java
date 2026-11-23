@@ -33,6 +33,8 @@ import java.awt.print.PrinterJob;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.print.PrintService;
+
 import com.microproject.offline_graphics.SVGRenderer;
 import com.microproject.pm.graphic.graph.GraphParams;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetParams;
@@ -55,13 +57,29 @@ public class GraphPageable extends PrintDocument implements ViewPrintableParams{
 	public GraphPageable (SVGRenderer renderer,boolean printOnly,boolean pdfAsDefault,boolean localSettings) {
 		this(renderer,false,printOnly,pdfAsDefault,localSettings);
    }
+	/** Builds the document from printers the caller already resolved off the event thread. */
+	public GraphPageable (SVGRenderer renderer,boolean printOnly,boolean pdfAsDefault,boolean localSettings,
+			PrintService[] resolvedServices, PrintService resolvedDefaultService) {
+		this(renderer,false,printOnly,pdfAsDefault,localSettings,resolvedServices,resolvedDefaultService);
+	}
 	/** Adapts report pages to the standard GraphPageable export pipeline. */
 	public GraphPageable(ReportPrintable reportPrintable, boolean printOnly) {
 		super(null, false, printOnly, false, true);
 		this.reportPrintable = java.util.Objects.requireNonNull(reportPrintable);
 	}
+	/** Adapts report pages using printers the caller already resolved. */
+	public GraphPageable(ReportPrintable reportPrintable, boolean printOnly,
+			PrintService[] resolvedServices, PrintService resolvedDefaultService) {
+		super(null, false, printOnly, false, true, resolvedServices, resolvedDefaultService);
+		this.reportPrintable = java.util.Objects.requireNonNull(reportPrintable);
+	}
 	private GraphPageable (SVGRenderer renderer,boolean pdfOnly,boolean printOnly,boolean pdfAsDefault,boolean localSettings) {
-		   super(renderer.getProject(),pdfOnly,printOnly,pdfAsDefault,localSettings);
+		   this(renderer,pdfOnly,printOnly,pdfAsDefault,localSettings,
+				   PrintDocument.lookupRealPrintServices(),PrintDocument.lookupDefaultRealPrintService());
+   }
+	private GraphPageable (SVGRenderer renderer,boolean pdfOnly,boolean printOnly,boolean pdfAsDefault,boolean localSettings,
+			PrintService[] resolvedServices, PrintService resolvedDefaultService) {
+		   super(renderer.getProject(),pdfOnly,printOnly,pdfAsDefault,localSettings,resolvedServices,resolvedDefaultService);
 		   FontManager.setOfflineDefaultFont(FontManager.getDefaultFont());
 		   this.renderer=renderer;
 
