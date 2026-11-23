@@ -71,6 +71,7 @@ import com.microproject.pm.resource.ResourceType;
 import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.datatype.Rate;
 import com.microproject.datatype.TimeUnit;
+import com.microproject.pm.graphic.network.PertManualPositions;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
@@ -92,6 +93,53 @@ public class PodRoundTripTest {
 		positions.putPosition(task.getUniqueId(), new PertManualPositions.Position(777, 333));
 		assertArrayEquals(baseline, serializePodDocument(project),
 			"transient PERT view state must not change the legacy POD object stream");
+	}
+
+	@Test
+	void manualPertDocumentStateDoesNotChangeFullPodFileAfterFixtureMigration() throws Exception {
+		Project project = load(findSample("June_1_sample.pod"));
+		File output = File.createTempFile("pert-pod-file-stability", ".pod");
+		output.deleteOnExit();
+		savePodFile(project, output); // Migrate the fixed legacy fixture and initialize derived distributions.
+		File migratedFixture = File.createTempFile("pert-pod-migrated-fixture", ".pod");
+		migratedFixture.deleteOnExit();
+		Project baselineProject = load(output);
+		Project stateProject = load(output);
+		savePodFile(baselineProject, migratedFixture);
+		byte[] baseline = readAll(migratedFixture);
+		Task task = firstTask(stateProject);
+		PertManualPositions positions = stateProject.getOrCreateTransientDocumentState(
+			PertManualPositions.class, PertManualPositions::new);
+		positions.putPosition(task.getUniqueId(), new PertManualPositions.Position(777, 333));
+		savePodFile(stateProject, output);
+		byte[] withPertState = readAll(output);
+		byte[] separator = com.microproject.exchange.PodFormatIdentifiers.EMBEDDED_XML_SEPARATOR
+			.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+		int baselineSerializedEnd = indexOf(baseline, separator);
+		int pertSerializedEnd = indexOf(withPertState, separator);
+		assertTrue("both files must contain the embedded MSPDI separator", baselineSerializedEnd >= 0 && pertSerializedEnd >= 0);
+		assertArrayEquals(java.util.Arrays.copyOfRange(baseline, 0, baselineSerializedEnd),
+			java.util.Arrays.copyOfRange(withPertState, 0, pertSerializedEnd),
+			"adding transient PERT state must not change the POD Java object stream");
+		assertArrayEquals(java.util.Arrays.copyOfRange(baseline, baselineSerializedEnd, baseline.length),
+			java.util.Arrays.copyOfRange(withPertState, pertSerializedEnd, withPertState.length),
+			"adding transient PERT state must not change the embedded MSPDI payload");
+	}
+
+	private static void savePodFile(Project project, File target) throws Exception {
+		LocalFileImporter exporter = new LocalFileImporter();
+		exporter.setFileName(target.getAbsolutePath());
+		exporter.setProject(project);
+		exporter.exportFile();
+	}
+
+	private static int indexOf(byte[] bytes, byte[] target) {
+		outer: for (int start = 0; start <= bytes.length - target.length; start++) {
+			for (int offset = 0; offset < target.length; offset++)
+				if (bytes[start + offset] != target[offset]) continue outer;
+			return start;
+		}
+		return -1;
 	}
 
 	private static byte[] serializePodDocument(Project project) throws Exception {
