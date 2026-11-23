@@ -257,8 +257,14 @@ public class GraphPageable extends PrintDocument implements ViewPrintableParams{
 		GraphParams params=renderer.getParams();
 		double zw=extendedPrintService.getWRatio(pw, iw,params);
 		double zh=ph<=0?zw:extendedPrintService.getHRatio(ph, ih,params);
-		setTotalZoomX(zw);
-		setTotalZoomY(zh);
+		// Fitting N pages wide and M pages tall are two independent limits on the same drawing, not one
+		// limit per axis. Applying them separately stretched the table and the Gantt bars (a "1 page wide by
+		// 1 page tall" fit compressed the width about five times relative to the height), which is what made
+		// the print preview look squashed. Use the smaller scale so the drawing keeps its proportions and
+		// still fits inside the requested page grid.
+		double z=zh>0?Math.min(zw, zh):zw;
+		setTotalZoomX(z);
+		setTotalZoomY(z);
 		update();
 	}
 
