@@ -100,9 +100,8 @@ public final class BackstageSaveAsPage extends BackstageChoicePage {
 	private static JComponent browse(AbstractButton mpoButton, AbstractButton otherButton,
 			Function<String, String> label) {
 		JPanel panel = panel("officeBackstageSaveAsBrowse");
-		JLabel description = new JLabel(label.apply("FileBackstage.saveAs.description"));
-		description.setName("officeBackstageSaveAsDescription");
-		description.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+		JComponent description = BackstageChoicePage.description(
+				label.apply("FileBackstage.saveAs.description"), "officeBackstageSaveAsDescription");
 		add(panel, description, 0);
 		int row = 1;
 		if (mpoButton != null) {
@@ -123,7 +122,6 @@ public final class BackstageSaveAsPage extends BackstageChoicePage {
 				Dimension preferred = super.getPreferredSize();
 				return new Dimension(Math.max(DETAIL_WIDTH, preferred.width), preferred.height);
 			}
-			@Override public Dimension getMaximumSize() { return getPreferredSize(); }
 		};
 		panel.setName(name);
 		panel.setOpaque(false);
