@@ -123,7 +123,8 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 		// The resource-name column stays on the left while the timeline scrolls and can be widened by dragging its
 		// right edge, like the Gantt sheet's name column.
 		rowHeader.setMaximumWidthSupplier(() ->
-			Math.max(TeamPlannerRowHeader.MIN_WIDTH, scrollPane.getViewport().getWidth() / 2));
+			Math.max(TeamPlannerRowHeader.MIN_WIDTH,
+				(scrollPane.getViewport().getWidth() + rowHeader.labelWidth()) / 2));
 		rowHeader.setWidthListener(width -> {
 			corner.setPreferredSize(new Dimension(width, TeamPlannerCanvas.HEADER_HEIGHT));
 			corner.revalidate();
@@ -295,6 +296,10 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 
 		int getPixelsPerDay() {
 			return pixelsPerDay;
+		}
+
+		long getTimelineStart() {
+			return timelineStart;
 		}
 
 		void setPixelsPerDay(int value) {
@@ -650,7 +655,7 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 			return labelWidth;
 		}
 
-		/** Widens or narrows the column, clamped so the timeline always keeps at least half of the viewport. */
+		/** Widens or narrows the column, clamped so the timeline keeps half of the combined viewport. */
 		void setLabelWidth(int width) {
 			int maximum = Math.max(MIN_WIDTH, maximumWidthSupplier.getAsInt());
 			int clamped = Math.max(MIN_WIDTH, Math.min(maximum, width));

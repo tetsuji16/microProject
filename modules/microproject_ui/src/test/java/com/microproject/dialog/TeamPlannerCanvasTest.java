@@ -56,8 +56,10 @@ class TeamPlannerCanvasTest {
 		TeamPlannerDialogBox.TeamPlannerCanvas canvas = canvas(fixture);
 		Point bar = findBar(canvas, "Planned work");
 		assertNotNull(bar, "the assignment bar must be painted on the canvas");
-		assertTrue(bar.x >= 0 && bar.x < canvas.getWidth(),
-			"the bar must be placed from the canvas origin, not behind the resource column");
+		int expectedX = (int) Math.round((fixture.task.getStart() - canvas.getTimelineStart())
+			/ (double) (24L * 60L * 60L * 1000L) * canvas.getPixelsPerDay());
+		assertTrue(Math.abs(bar.x - expectedX) <= 5,
+			"the bar must begin at its date-based canvas position without the removed resource-column offset");
 	}
 
 	@Test

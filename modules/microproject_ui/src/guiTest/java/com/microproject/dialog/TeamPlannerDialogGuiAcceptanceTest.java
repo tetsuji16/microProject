@@ -134,6 +134,10 @@ class TeamPlannerDialogGuiAcceptanceTest {
 			"the resource-name column must be the scroll pane's row header");
 		GuiAcceptanceSupport.await(() -> rowHeader.isShowing() && rowHeader.getWidth() > 0,
 			"the resource-name column was not laid out");
+		SwingUtilities.invokeAndWait(() -> ((TeamPlannerDialogBox.TeamPlannerCanvas)
+			scrollPane.getViewport().getView()).setPixelsPerDay(48));
+		GuiAcceptanceSupport.await(() -> scrollPane.getHorizontalScrollBar().getMaximum()
+			> scrollPane.getHorizontalScrollBar().getVisibleAmount(), "the timeline did not overflow horizontally");
 		Point before = rowHeader.getLocationOnScreen();
 		int widthBefore = rowHeader.getWidth();
 
@@ -150,7 +154,7 @@ class TeamPlannerDialogGuiAcceptanceTest {
 		assertEquals(widthBefore, rowHeader.getWidth(), "scrolling must not change the column width");
 	}
 
-	/** The column can be widened, but never below its minimum and never past half of the viewport. */
+	/** A physical drag resizes the column within the combined timeline and resource viewport. */
 	@Test
 	void resourceColumnWidthStaysWithinItsContract() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
@@ -167,10 +171,21 @@ class TeamPlannerDialogGuiAcceptanceTest {
 		assertEquals(TeamPlannerDialogBox.TeamPlannerRowHeader.MIN_WIDTH, rowHeader.labelWidth(),
 			"the column must not become narrower than its minimum");
 
-		SwingUtilities.invokeAndWait(() -> rowHeader.setLabelWidth(100_000));
+		int widthBeforeResize = rowHeader.getWidth();
+		Point edge = rowHeader.getLocationOnScreen();
+		edge.translate(widthBeforeResize - 2, rowHeader.getHeight() / 2);
+		com.microproject.testsupport.GuiRobot robot = new com.microproject.testsupport.GuiRobot();
+		robot.mouseMove(edge.x, edge.y);
+		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseMove(edge.x + 400, edge.y);
+		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> rowHeader.labelWidth() > widthBeforeResize,
+			"dragging the resource-column edge did not widen it");
 		int maximum = Math.max(TeamPlannerDialogBox.TeamPlannerRowHeader.MIN_WIDTH,
-			scrollPane.getViewport().getWidth() / 2);
-		assertTrue(rowHeader.labelWidth() <= maximum, "the column must leave at least half of the viewport to the timeline");
+			(scrollPane.getViewport().getWidth() + rowHeader.labelWidth()) / 2);
+		assertTrue(rowHeader.labelWidth() <= maximum,
+			"the column must leave at least half of the combined viewport to the timeline");
 		assertEquals(rowHeader.labelWidth(),
 			scrollPane.getCorner(JScrollPane.UPPER_LEFT_CORNER).getPreferredSize().width,
 			"the corner must follow the column width");
