@@ -119,9 +119,9 @@ public final class CriticalChainStatusDialogBox extends FlatLafDialog {
 		south.add(feedback, BorderLayout.CENTER);
 		south.add(buttons, BorderLayout.EAST);
 		add(south, BorderLayout.SOUTH);
-		setPreferredSize(new Dimension(820, 510));
-		pack();
-		setLocationRelativeTo(owner);
+		// Keep the export and close buttons on screen at a large display scale, where 820 px is
+		// wider than the usable area of a 1024x768 screen.
+		DialogSizing.applyInitialSize(this, new Dimension(660, 420), new Dimension(820, 510), owner);
 	}
 
 	private void installUndoRedoBindings() {
