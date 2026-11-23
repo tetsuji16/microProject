@@ -5,6 +5,8 @@
  ******************************************************************************/
 package com.microproject.dialog;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.GraphicsEnvironment;
@@ -20,6 +22,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import javax.imageio.ImageIO;
+import javax.swing.JComponent;
+import javax.swing.JScrollBar;
+import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
 import javax.swing.JToolTip;
 
@@ -113,6 +118,93 @@ class TeamPlannerDialogGuiAcceptanceTest {
 		robot.keyRelease(java.awt.event.KeyEvent.VK_ENTER);
 		robot.waitForIdle();
 		GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "Enter did not press the default Close button");
+	}
+
+	/** The resource-name column must stay on the left while the timeline scrolls sideways. */
+	@Test
+	void resourceColumnStaysOnTheLeftWhileTheTimelineScrolls() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = fixture();
+		SwingUtilities.invokeLater(() -> TeamPlannerDialogBox.getInstance(null, fixture.owner).setVisible(true));
+		GuiAcceptanceSupport.await(() -> findDialog() != null, "Team Planner dialog did not open");
+		JScrollPane scrollPane = findScrollPane(findDialog());
+		assertNotNull(scrollPane, "Team Planner must host its canvas in a scroll pane");
+		JComponent rowHeader = (JComponent) scrollPane.getRowHeader().getView();
+		assertTrue(rowHeader instanceof TeamPlannerDialogBox.TeamPlannerRowHeader,
+			"the resource-name column must be the scroll pane's row header");
+		GuiAcceptanceSupport.await(() -> rowHeader.isShowing() && rowHeader.getWidth() > 0,
+			"the resource-name column was not laid out");
+		SwingUtilities.invokeAndWait(() -> ((TeamPlannerDialogBox.TeamPlannerCanvas)
+			scrollPane.getViewport().getView()).setPixelsPerDay(48));
+		GuiAcceptanceSupport.await(() -> scrollPane.getHorizontalScrollBar().getMaximum()
+			> scrollPane.getHorizontalScrollBar().getVisibleAmount(), "the timeline did not overflow horizontally");
+		Point before = rowHeader.getLocationOnScreen();
+		int widthBefore = rowHeader.getWidth();
+
+		SwingUtilities.invokeAndWait(() -> {
+			JScrollBar horizontal = scrollPane.getHorizontalScrollBar();
+			horizontal.setValue(horizontal.getMaximum());
+		});
+		GuiAcceptanceSupport.await(() -> scrollPane.getViewport().getViewPosition().x > 0,
+			"the timeline did not scroll sideways");
+
+		assertTrue(rowHeader.isShowing(), "the resource-name column must stay visible at the right end of the timeline");
+		assertEquals(before, rowHeader.getLocationOnScreen(),
+			"the resource-name column must not move with the timeline");
+		assertEquals(widthBefore, rowHeader.getWidth(), "scrolling must not change the column width");
+	}
+
+	/** A physical drag resizes the column within the combined timeline and resource viewport. */
+	@Test
+	void resourceColumnWidthStaysWithinItsContract() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = fixture();
+		SwingUtilities.invokeLater(() -> TeamPlannerDialogBox.getInstance(null, fixture.owner).setVisible(true));
+		GuiAcceptanceSupport.await(() -> findDialog() != null, "Team Planner dialog did not open");
+		JScrollPane scrollPane = findScrollPane(findDialog());
+		assertNotNull(scrollPane, "Team Planner must host its canvas in a scroll pane");
+		TeamPlannerDialogBox.TeamPlannerRowHeader rowHeader =
+			(TeamPlannerDialogBox.TeamPlannerRowHeader) scrollPane.getRowHeader().getView();
+		GuiAcceptanceSupport.await(() -> scrollPane.getViewport().getWidth() > 0, "the viewport was not laid out");
+
+		SwingUtilities.invokeAndWait(() -> rowHeader.setLabelWidth(10));
+		assertEquals(TeamPlannerDialogBox.TeamPlannerRowHeader.MIN_WIDTH, rowHeader.labelWidth(),
+			"the column must not become narrower than its minimum");
+		GuiAcceptanceSupport.await(() -> rowHeader.getWidth() == rowHeader.labelWidth(),
+			"the resource-column minimum width was not applied to its laid-out component");
+
+		int widthBeforeResize = rowHeader.getWidth();
+		Point edge = rowHeader.getLocationOnScreen();
+		edge.translate(widthBeforeResize - 2, rowHeader.getHeight() / 2);
+		com.microproject.testsupport.GuiRobot robot = new com.microproject.testsupport.GuiRobot();
+		robot.mouseMove(edge.x, edge.y);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> rowHeader.getCursor().getType() == java.awt.Cursor.E_RESIZE_CURSOR,
+			"the physical pointer did not reach the resource-column resize edge");
+		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		robot.mouseMove(edge.x + 400, edge.y);
+		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> rowHeader.labelWidth() > widthBeforeResize,
+			"dragging the resource-column edge did not widen it");
+		int maximum = Math.max(TeamPlannerDialogBox.TeamPlannerRowHeader.MIN_WIDTH,
+			(scrollPane.getViewport().getWidth() + rowHeader.labelWidth()) / 2);
+		assertTrue(rowHeader.labelWidth() <= maximum,
+			"the column must leave at least half of the combined viewport to the timeline");
+		assertEquals(rowHeader.labelWidth(),
+			scrollPane.getCorner(JScrollPane.UPPER_LEFT_CORNER).getPreferredSize().width,
+			"the corner must follow the column width");
+	}
+
+	private static JScrollPane findScrollPane(Component component) {
+		if (component instanceof JScrollPane scrollPane) return scrollPane;
+		if (component instanceof Container container)
+			for (Component child : container.getComponents()) {
+				JScrollPane found = findScrollPane(child);
+				if (found != null) return found;
+			}
+		return null;
 	}
 
 	private static boolean hasVisibleTooltip(String expectedText) {

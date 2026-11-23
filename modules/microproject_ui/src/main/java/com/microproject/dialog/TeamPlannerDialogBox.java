@@ -26,6 +26,7 @@ package com.microproject.dialog;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -51,6 +52,7 @@ import java.util.Set;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.DefaultListModel;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
@@ -109,6 +111,32 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 		toolbar.add(zoom);
 		JButton today = new JButton(UsabilityStrings.text("team.today"));
 		JScrollPane scrollPane = new JScrollPane(canvas);
+		TeamPlannerRowHeader rowHeader = new TeamPlannerRowHeader(canvas);
+		TeamPlannerDateHeader dateHeader = new TeamPlannerDateHeader(canvas);
+		JPanel corner = new JPanel();
+		corner.setOpaque(true);
+		corner.setBackground(FlatUiSupport.panelBackground());
+		corner.setPreferredSize(new Dimension(rowHeader.labelWidth(), TeamPlannerCanvas.HEADER_HEIGHT));
+		scrollPane.setRowHeaderView(rowHeader);
+		scrollPane.setColumnHeaderView(dateHeader);
+		scrollPane.setCorner(JScrollPane.UPPER_LEFT_CORNER, corner);
+		// The resource-name column stays on the left while the timeline scrolls and can be widened by dragging its
+		// right edge, like the Gantt sheet's name column.
+		rowHeader.setMaximumWidthSupplier(() ->
+			Math.max(TeamPlannerRowHeader.MIN_WIDTH,
+				(scrollPane.getViewport().getWidth() + rowHeader.labelWidth()) / 2));
+		rowHeader.setWidthListener(width -> {
+			corner.setPreferredSize(new Dimension(width, TeamPlannerCanvas.HEADER_HEIGHT));
+			corner.revalidate();
+			scrollPane.revalidate();
+			scrollPane.repaint();
+		});
+		canvas.setGeometryListener(() -> {
+			rowHeader.revalidate();
+			rowHeader.repaint();
+			dateHeader.revalidate();
+			dateHeader.repaint();
+		});
 		today.addActionListener(event -> canvas.scrollDateToVisible(System.currentTimeMillis()));
 		toolbar.add(today);
 		JButton level = new JButton(UsabilityStrings.text("team.resolve"));
@@ -196,14 +224,14 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 
 	static final class TeamPlannerCanvas extends JPanel {
 		private static final long serialVersionUID = 1L;
-		private static final int HEADER_HEIGHT = 42;
+		static final int HEADER_HEIGHT = 42;
 		private static final int ROW_HEIGHT = 54;
-		private static final int LABEL_WIDTH = 180;
 		private static final int BAR_HEIGHT = 28;
 		private static final long DAY = 24L * 60L * 60L * 1000L;
 		private final Project project;
 		private final TeamPlannerViewSettings settings;
 		private final Runnable selectionListener;
+		private Runnable geometryListener = () -> { };
 		private final Set<Task> selection = Collections.newSetFromMap(new IdentityHashMap<>());
 		private int[] rowTops = new int[0];
 		private int[] rowHeights = new int[0];
@@ -270,11 +298,21 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 			return pixelsPerDay;
 		}
 
+		long getTimelineStart() {
+			return timelineStart;
+		}
+
 		void setPixelsPerDay(int value) {
 			pixelsPerDay = Math.max(8, value);
 			updatePreferredSize();
+			geometryListener.run();
 			revalidate();
 			repaint();
+		}
+
+		/** Called when the row geometry or the timeline range changed, so the headers can follow. */
+		void setGeometryListener(Runnable listener) {
+			geometryListener = listener == null ? () -> { } : listener;
 		}
 
 		void reload() {
@@ -295,6 +333,7 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 			timelineEnd = Math.max(timelineStart + 30L * DAY, maximum + 7L * DAY);
 			layoutRows();
 			updatePreferredSize();
+			geometryListener.run();
 			revalidate();
 			repaint();
 		}
@@ -315,7 +354,7 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 			laneOf.clear();
 			rowTops = new int[rows.size()];
 			rowHeights = new int[rows.size()];
-			int top = HEADER_HEIGHT;
+			int top = 0;
 			for (int row = 0; row < rows.size(); row++) {
 				List<Long> laneEnds = new ArrayList<>();
 				for (TeamPlannerService.Slot slot : slots) {
@@ -375,8 +414,8 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 
 		private void updatePreferredSize() {
 			long days = Math.max(30L, (timelineEnd - timelineStart + DAY - 1L) / DAY);
-			setPreferredSize(new Dimension(LABEL_WIDTH + (int) Math.min(100_000L, days * pixelsPerDay),
-				rows.isEmpty() ? HEADER_HEIGHT + ROW_HEIGHT : rowTops[rows.size() - 1] + rowHeights[rows.size() - 1]));
+			setPreferredSize(new Dimension((int) Math.min(100_000L, days * pixelsPerDay),
+				rows.isEmpty() ? ROW_HEIGHT : rowTops[rows.size() - 1] + rowHeights[rows.size() - 1]));
 		}
 
 		@Override
@@ -395,30 +434,20 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 		}
 
 		private void paintGrid(Graphics2D g2) {
-			g2.setColor(FlatUiSupport.panelBackground());
-			g2.fillRect(0, 0, getWidth(), HEADER_HEIGHT);
 			for (int row = 0; row < rows.size(); row++) {
 				int y = rowTops[row];
 				g2.setColor(row % 2 == 0 ? FlatUiSupport.dataSurfaceBackground() : FlatUiSupport.panelBackground());
 				g2.fillRect(0, y, getWidth(), rowHeights[row]);
 				g2.setColor(FlatUiSupport.borderColor());
 				g2.drawLine(0, y + rowHeights[row] - 1, getWidth(), y + rowHeights[row] - 1);
-				g2.setColor(FlatUiSupport.tableForeground());
-				g2.drawString(TeamPlannerService.displayName(rows.get(row)), 10, y + 31);
 			}
 			for (long date = timelineStart; date <= timelineEnd; date += DAY) {
 				int x = dateToX(date);
 				if (settings.isGridlines()) {
 					g2.setColor(FlatUiSupport.separatorColor());
-					g2.drawLine(x, HEADER_HEIGHT, x, getHeight());
-				}
-				if (((date - timelineStart) / DAY) % 7L == 0L) {
-					g2.setColor(FlatUiSupport.labelForeground());
-					g2.drawString(dateFormat.format(Instant.ofEpochMilli(date)), x + 3, 26);
+					g2.drawLine(x, 0, x, getHeight());
 				}
 			}
-			g2.setColor(FlatUiSupport.borderColor());
-			g2.drawLine(LABEL_WIDTH, 0, LABEL_WIDTH, getHeight());
 		}
 
 		private void paintSlots(Graphics2D g2) {
@@ -540,7 +569,7 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 		}
 
 		private int dateToX(long date) {
-			return LABEL_WIDTH + (int) Math.round((date - timelineStart) / (double) DAY * pixelsPerDay);
+			return (int) Math.round((date - timelineStart) / (double) DAY * pixelsPerDay);
 		}
 
 		private static long startOfDay(long value) {
@@ -557,6 +586,172 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 				text = text.substring(0, text.length() - 1);
 			}
 			return text + "…";
+		}
+	}
+
+	/**
+	 * The fixed resource-name column of the Team Planner. It shares the canvas row geometry, so a name always lines
+	 * up with its bars, and its right edge can be dragged to widen the column. It is the scroll pane's row header,
+	 * which keeps it in place while the timeline scrolls sideways.
+	 */
+	static final class TeamPlannerRowHeader extends JComponent {
+		private static final long serialVersionUID = 1L;
+		static final int MIN_WIDTH = 80;
+		static final int DEFAULT_WIDTH = 180;
+		private final TeamPlannerCanvas canvas;
+		private java.util.function.IntSupplier maximumWidthSupplier = () -> Integer.MAX_VALUE;
+		private java.util.function.IntConsumer widthListener = width -> { };
+		private int labelWidth = DEFAULT_WIDTH;
+		private boolean resizing;
+		private int resizeStartWidth;
+		private int resizeStartX;
+
+		TeamPlannerRowHeader(TeamPlannerCanvas canvas) {
+			this.canvas = canvas;
+			setOpaque(true);
+			setBackground(FlatUiSupport.panelBackground());
+			setToolTipText("");
+			MouseAdapter mouse = new MouseAdapter() {
+				@Override
+				public void mouseMoved(MouseEvent event) {
+					setCursor(Cursor.getPredefinedCursor(overResizeEdge(event)
+						? Cursor.E_RESIZE_CURSOR : Cursor.DEFAULT_CURSOR));
+				}
+
+				@Override
+				public void mousePressed(MouseEvent event) {
+					if (!overResizeEdge(event)) {
+						return;
+					}
+					resizing = true;
+					resizeStartWidth = labelWidth;
+					resizeStartX = event.getX();
+				}
+
+				@Override
+				public void mouseDragged(MouseEvent event) {
+					if (resizing) {
+						setLabelWidth(resizeStartWidth + event.getX() - resizeStartX);
+					}
+				}
+
+				@Override
+				public void mouseReleased(MouseEvent event) {
+					resizing = false;
+				}
+
+				@Override
+				public void mouseExited(MouseEvent event) {
+					if (!resizing) {
+						setCursor(Cursor.getDefaultCursor());
+					}
+				}
+			};
+			addMouseListener(mouse);
+			addMouseMotionListener(mouse);
+		}
+
+		int labelWidth() {
+			return labelWidth;
+		}
+
+		/** Widens or narrows the column, clamped so the timeline keeps half of the combined viewport. */
+		void setLabelWidth(int width) {
+			int maximum = Math.max(MIN_WIDTH, maximumWidthSupplier.getAsInt());
+			int clamped = Math.max(MIN_WIDTH, Math.min(maximum, width));
+			if (clamped == labelWidth) {
+				return;
+			}
+			labelWidth = clamped;
+			widthListener.accept(clamped);
+			revalidate();
+			repaint();
+		}
+
+		void setMaximumWidthSupplier(java.util.function.IntSupplier supplier) {
+			maximumWidthSupplier = supplier == null ? () -> Integer.MAX_VALUE : supplier;
+		}
+
+		void setWidthListener(java.util.function.IntConsumer listener) {
+			widthListener = listener == null ? width -> { } : listener;
+		}
+
+		private boolean overResizeEdge(MouseEvent event) {
+			return event.getX() >= getWidth() - 4;
+		}
+
+		@Override
+		public Dimension getPreferredSize() {
+			return new Dimension(labelWidth, canvas.getPreferredSize().height);
+		}
+
+		@Override
+		protected void paintComponent(Graphics graphics) {
+			Graphics2D g2 = (Graphics2D) graphics.create();
+			try {
+				g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+				g2.setFont(FlatUiSupport.uiFont());
+				FontMetrics metrics = g2.getFontMetrics();
+				g2.setColor(FlatUiSupport.panelBackground());
+				g2.fillRect(0, 0, getWidth(), getHeight());
+				for (int row = 0; row < canvas.rowTops.length; row++) {
+					int y = canvas.rowTops[row];
+					g2.setColor(row % 2 == 0
+						? FlatUiSupport.dataSurfaceBackground() : FlatUiSupport.panelBackground());
+					g2.fillRect(0, y, getWidth(), canvas.rowHeights[row]);
+					g2.setColor(FlatUiSupport.borderColor());
+					g2.drawLine(0, y + canvas.rowHeights[row] - 1, getWidth(), y + canvas.rowHeights[row] - 1);
+					g2.setColor(FlatUiSupport.tableForeground());
+					String name = TeamPlannerService.displayName(canvas.rows.get(row));
+					g2.drawString(TeamPlannerCanvas.ellipsize(name, metrics, getWidth() - 20), 10, y + 31);
+				}
+				g2.setColor(FlatUiSupport.borderColor());
+				g2.drawLine(getWidth() - 1, 0, getWidth() - 1, getHeight());
+			} finally {
+				g2.dispose();
+			}
+		}
+	}
+
+	/** The date strip above the timeline. It is the scroll pane's column header, so it stays while rows scroll. */
+	static final class TeamPlannerDateHeader extends JComponent {
+		private static final long serialVersionUID = 1L;
+		private final TeamPlannerCanvas canvas;
+
+		TeamPlannerDateHeader(TeamPlannerCanvas canvas) {
+			this.canvas = canvas;
+			setOpaque(true);
+			setBackground(FlatUiSupport.panelBackground());
+		}
+
+		@Override
+		public Dimension getPreferredSize() {
+			return new Dimension(canvas.getPreferredSize().width, TeamPlannerCanvas.HEADER_HEIGHT);
+		}
+
+		@Override
+		protected void paintComponent(Graphics graphics) {
+			Graphics2D g2 = (Graphics2D) graphics.create();
+			try {
+				g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+				g2.setFont(FlatUiSupport.uiFont());
+				g2.setColor(FlatUiSupport.panelBackground());
+				g2.fillRect(0, 0, getWidth(), getHeight());
+				for (long date = canvas.timelineStart; date <= canvas.timelineEnd; date += TeamPlannerCanvas.DAY) {
+					if (((date - canvas.timelineStart) / TeamPlannerCanvas.DAY) % 7L != 0L) {
+						continue;
+					}
+					int x = canvas.dateToX(date);
+					g2.setColor(FlatUiSupport.separatorColor());
+					g2.drawLine(x, 0, x, getHeight());
+					g2.setColor(FlatUiSupport.labelForeground());
+					g2.drawString(canvas.dateFormat.format(Instant.ofEpochMilli(date)), x + 3, 26);
+				}
+				g2.setColor(FlatUiSupport.borderColor());
+				g2.drawLine(0, getHeight() - 1, getWidth(), getHeight() - 1);
+			} finally {
+				g2.dispose();
+			}
 		}
 	}
 }
