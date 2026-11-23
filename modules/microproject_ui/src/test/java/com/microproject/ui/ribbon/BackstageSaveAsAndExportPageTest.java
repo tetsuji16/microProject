@@ -215,6 +215,11 @@ class BackstageSaveAsAndExportPageTest {
 		assertTrue(detail.getY() >= list.getY() + list.getHeight(),
 				"a narrow page must place the detail under the choice list: list=" + list.getBounds()
 						+ " detail=" + detail.getBounds());
+		for (Component choice : ((java.awt.Container) list).getComponents()) {
+			if (!(choice instanceof AbstractButton button)) continue;
+			assertTrue(button.getWidth() > 0 && button.getHeight() > 0,
+					"choice buttons must stay visible when the detail moves under them: " + button.getBounds());
+		}
 
 		layoutTree(page, 900, 500);
 		assertSectionInsidePage(page, sectionName, "wide");

@@ -92,13 +92,25 @@ public class BackstageChoicePage extends JPanel {
 		Objects.requireNonNull(choices, "choices");
 		if (choices.isEmpty()) throw new IllegalArgumentException("A Backstage choice page needs at least one choice");
 
-		JPanel list = new JPanel();
+		// Only the width is fixed; the height follows the entries so the list keeps its buttons
+		// when it is stacked above the detail.
+		JPanel list = new JPanel() {
+			private static final long serialVersionUID = 1L;
+
+			@Override public Dimension getPreferredSize() {
+				Dimension preferred = super.getPreferredSize();
+				return new Dimension(CHOICE_WIDTH, preferred.height);
+			}
+
+			@Override public Dimension getMinimumSize() {
+				Dimension minimum = super.getMinimumSize();
+				return new Dimension(CHOICE_MINIMUM_WIDTH, minimum.height);
+			}
+		};
 		choiceList = list;
 		list.setName("officeBackstage" + pageName + "Choices");
 		list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
 		list.setOpaque(false);
-		list.setPreferredSize(new Dimension(CHOICE_WIDTH, 0));
-		list.setMinimumSize(new Dimension(CHOICE_MINIMUM_WIDTH, 0));
 
 		DetailStack stack = new DetailStack();
 		stack.setName("officeBackstage" + pageName + "Sections");
