@@ -240,7 +240,7 @@ public final class WindowAcceptanceAssertions {
 			String className = frame.getClassName();
 			String methodName = frame.getMethodName();
 			if (className.equals(WindowAcceptanceAssertions.class.getName())
-				|| className.startsWith("com.microproject.testsupport.")
+				|| className.startsWith("com.microproject.ui.testsupport.")
 				|| className.equals("java.lang.Thread")
 				|| methodName.equals("click") || methodName.equals("clickAndAwaitSelected"))
 				continue;

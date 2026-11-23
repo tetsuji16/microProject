@@ -11,31 +11,30 @@ Baseline working tree: clean isolated integration worktree; original worktrees p
 Move microproject_ui packages, class references, launch configuration and package-relative resources under com.microproject.ui. Preserve supported project files and functionality.
 
 Out of scope: class redesign, core/exchange package relocation, com.jgoodies.
-Blockers: none established.
 
 ## Acceptance
 
 | ID | Required result/evidence | State | Evidence |
 |---|---|---|---|
-| A1 | UI source/resource directories under com.microproject.ui | pass | directory inspection, integration tree |
-| A2 | old package reference grep is empty | pass | tracked and untracked source search, integration tree |
-| A3 | installDist launch succeeds | open | pending |
-| A4 | PR build and GUI acceptance pass | open | pending PR CI |
-| A5 | relocated persisted classes mapped; exchange tests pass if applicable | pass | no moved main classes in persisted inventory; exchange tests passed |
-| A6 | issue verification commands pass | open | compile and architecture tasks passed; remaining tests pending |
+| A1 | UI source/resource directories under com.microproject.ui | pass | directory inspection, `83e8b42d6` |
+| A2 | old package reference grep is empty | pass | source search, `83e8b42d6` |
+| A3 | installDist launch succeeds | open | physical startup pending |
+| A4 | PR build and GUI acceptance pass | open | exact candidate CI pending |
+| A5 | relocated persisted classes mapped; exchange tests pass if applicable | pass | no moved main classes in persisted inventory; exchange test and clean build passed, `83e8b42d6` |
+| A6 | issue verification commands pass | open | clean build and compile, architecture, source inventory passed; physical startup pending |
 
 ## Current slice
 
-**Next slice:** complete clean build and installDist; inspect startup.
-**Done when:** focused commands pass and unresolved failures are documented.
-**Then:** push candidate and inspect required PR checks.
+**Next slice:** push corrected CI references and assess exact candidate build and GUI acceptance.
+**Done when:** both required checks pass and startup is demonstrated.
+**Then:** review final diff and prepare PR for review.
 
 ## Remaining blockers
 
-- Clean build, startup and PR checks pending.
+- A3, A4: physical startup and passing candidate CI.
 
 ## Latest evidence
 
-- UI compile and architecture checks passed; UI, reports, and exchange tests passed on integration tree. Source inventory check passed.
-- Physical GUI/manual: pending.
-- CI: pending PR.
+- `83e8b42d6`: `./gradlew.bat clean build installDist --console=plain` passed on Windows.
+- CI on `83e8b42d6`: Windows and macOS builds passed; Linux failed at a stale test path; GUI failed loading stale service provider name. Corrected locally.
+- Corrected tree: `python -m unittest discover -s scripts/tests -v` passed (24 tests); `./gradlew.bat :microproject_ui:guiTest --tests "*GuiEnvironmentExtensionUserDataTest" --console=plain` passed (3 tests). This exercises service loading, not physical application startup.

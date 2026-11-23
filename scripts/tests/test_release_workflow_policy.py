@@ -116,7 +116,7 @@ class ReleaseWorkflowPolicyTest(unittest.TestCase):
 		):
 			self.assertIn(method, methods)
 		source = (REPO_ROOT / "modules" / "microproject_ui" / "src" / "guiTest" / "java" /
-			"com" / "microproject" / "pm" / "graphic" / "frames" / "TaskInformationRibbonGuiAcceptanceTest.java").read_text(encoding="utf-8")
+			"com" / "microproject" / "ui" / "frame" / "TaskInformationRibbonGuiAcceptanceTest.java").read_text(encoding="utf-8")
 		for method in methods:
 			self.assertRegex(source, rf"(?m)^\s*@Test\s*(?:\r?\n\s*@[^\r\n]+\s*)*(?:\r?\n\s*)+void\s+{re.escape(method)}\s*\(")
 		self.assertIn("Visual GUI test method must map to exactly one @Test source method", runner)
