@@ -149,16 +149,16 @@ final class RibbonCommandCatalog {
 			"RibbonSaveProject", "RibbonSaveProjectAs", "RibbonSaveMpoAs", "RibbonCloseProject", "RibbonExportProject",
 			"RibbonBackstageProjectInformation", "RibbonPrint", "RibbonPrintPreview", "RibbonPDF");
 		register(result, CommandScope.TASK, TASK,
-			"RibbonInsert", "RibbonInsertRecurring", "RibbonIndent", "RibbonOutdent",
-			"RibbonMoveTaskUp", "RibbonMoveTaskDown",
-			"RibbonLink", "RibbonUnlink", "RibbonTaskSplit", "RibbonRespectLinks",
-			"RibbonDelegateTasks", "RibbonTaskInformation", "RibbonTaskInspector", "RibbonNotes", "RibbonUpdateTasks", "RibbonMarkOnTrack", "RibbonDelete",
-			"RibbonFind", "RibbonScrollToTask", "RibbonScrollToToday", "RibbonTaskModeManual", "RibbonTaskModeAutomatic",
-			"RibbonFormatPainter",
-			"RibbonInactivateTask",
-			"RibbonInsertMilestone", "RibbonInsertSummary", "RibbonClear", "RibbonSelectAll", "RibbonTaskDetails",
-			"RibbonPercentComplete0", "RibbonPercentComplete25", "RibbonPercentComplete50", "RibbonPercentComplete75", "RibbonPercentComplete100",
-			"RibbonHideSelectedTasks", "RibbonShowAllTasks");
+					"RibbonInsert", "RibbonInsertRecurring", "RibbonIndent", "RibbonOutdent",
+					"RibbonMoveTaskUp", "RibbonMoveTaskDown",
+					"RibbonLink", "RibbonUnlink", "RibbonTaskSplit", "RibbonRespectLinks",
+					"RibbonDelegateTasks", "RibbonTaskInformation", "RibbonTaskInspector", "RibbonNotes", "RibbonUpdateTasks", "RibbonMarkOnTrack", "RibbonDelete",
+					"RibbonFind", "RibbonScrollToTask", "RibbonScrollToToday", "RibbonTaskModeManual", "RibbonTaskModeAutomatic",
+					"RibbonFormatPainter",
+					"RibbonInactivateTask",
+					"RibbonInsertMilestone", "RibbonInsertSummary", "RibbonClear", "RibbonSelectAll", "RibbonTaskDetails", "RibbonAssignmentInformation",
+					"RibbonPercentComplete0", "RibbonPercentComplete25", "RibbonPercentComplete50", "RibbonPercentComplete75", "RibbonPercentComplete100",
+					"RibbonHideSelectedTasks", "RibbonShowAllTasks");
 		register(result, CommandScope.RESOURCE, RESOURCE,
 			"RibbonInsertResource", "RibbonResourceInformation", "RibbonTimesheet", "RibbonTeamFilter",
 			"RibbonLevelSelection", "RibbonLevelResource", "RibbonLevelAll", "RibbonClearLevelSelection", "RibbonClearLevelAll",
@@ -195,8 +195,8 @@ final class RibbonCommandCatalog {
 			"RibbonInsertColumn", "RibbonAlignLeft", "RibbonAlignCenter", "RibbonAlignRight", "RibbonColumnSettings",
 			"RibbonHideColumn", "RibbonFieldSettings", "RibbonFormatBarStyles", "RibbonFormatBar", "RibbonBarStylesItem", "RibbonCriticalTasks", "RibbonSlack", "RibbonLateTasks", "RibbonTaskPath", "RibbonPathPredecessors", "RibbonPathDrivingPredecessors", "RibbonPathSuccessors", "RibbonPathDrivenSuccessors", "RibbonPathRemove", "RibbonShowBaseline", "RibbonSlippage", "RibbonGanttStyleGallery", "RibbonOutlineNumbers", "RibbonSummaryTasks", "RibbonGanttStyleDefault", "RibbonGanttStyleBlue", "RibbonGanttStyleGreen", "RibbonGanttStyleOrange", "RibbonGanttStylePurple", "RibbonGanttStyleGray");
 		// Table-view Format tabs reuse the Gantt Columns and Show/Hide commands; each acts on the active spreadsheet view.
-		for (String id : List.of("RibbonInsertColumn", "RibbonAlignLeft", "RibbonAlignCenter", "RibbonAlignRight",
-			"RibbonColumnSettings", "RibbonHideColumn", "RibbonFieldSettings", "RibbonCustomFields")) {
+				for (String id : List.of("RibbonInsertColumn", "RibbonAlignLeft", "RibbonAlignCenter", "RibbonAlignRight", "RibbonAssignmentInformation",
+					"RibbonColumnSettings", "RibbonHideColumn", "RibbonFieldSettings", "RibbonCustomFields")) {
 			Placement placement = result.get(id);
 			Set<String> tabs = new java.util.HashSet<>(placement.permittedTabs());
 			tabs.addAll(Set.of(TASK_SHEET_FORMAT, TASK_USAGE_FORMAT, RESOURCE_SHEET_FORMAT, RESOURCE_USAGE_FORMAT));

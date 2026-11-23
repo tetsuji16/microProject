@@ -2267,10 +2267,10 @@ class RibbonButtonBehaviorTest {
 			"RibbonReportDashboards", "RibbonReportResources", "RibbonReportInProgress", "RibbonReportCustom",
 			"RibbonReportRecent", "RibbonTeamPlanner", "RibbonTimescaleGallery", "RibbonSwitchWindows");
 		// Task-tab commands added for #769/#453; behavior is asserted in TaskTabRibbonCommandsTest.
-		add(map, Strategy.STRUCTURAL_ONLY,
-			"RibbonInsertMilestone", "RibbonInsertSummary", "RibbonClear", "RibbonSelectAll", "RibbonTaskDetails",
-			"RibbonPercentComplete0", "RibbonPercentComplete25", "RibbonPercentComplete50",
-			"RibbonPercentComplete75", "RibbonPercentComplete100");
+				add(map, Strategy.STRUCTURAL_ONLY,
+					"RibbonInsertMilestone", "RibbonInsertSummary", "RibbonClear", "RibbonSelectAll", "RibbonTaskDetails",
+					"RibbonPercentComplete0", "RibbonPercentComplete25", "RibbonPercentComplete50",
+					"RibbonPercentComplete75", "RibbonPercentComplete100", "RibbonAssignmentInformation");
 		return map;
 	}
 

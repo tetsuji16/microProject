@@ -46,6 +46,7 @@ Task,Properties,Information,RibbonTaskInformation,REQUIRED,S12
 Task,Tasks,Inspect,RibbonTaskInspector,REQUIRED,S19
 Task,Properties,Notes,RibbonNotes,REQUIRED,S30
 Task,Properties,Details,RibbonTaskDetails,REQUIRED,S32
+Task,Properties,Assignment Information,RibbonAssignmentInformation,EXTENSION,microProject extension; opens Assignment Information for selected assignment
 Task,Properties,Add to Timeline,RibbonAddToTimeline,REQUIRED,S26
 Task,Properties,Custom Fields,RibbonCustomFields,REQUIRED,S34
 Task,Schedule,Mark on Track,RibbonMarkOnTrack,REQUIRED,S3

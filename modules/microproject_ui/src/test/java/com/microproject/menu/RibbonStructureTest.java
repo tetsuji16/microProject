@@ -221,28 +221,30 @@ class RibbonStructureTest {
 			}
 		}
 		// Custom Fields is both a Project Properties command and a Columns command of the Gantt Chart Format tab.
-		Set<String> permittedDuplicates = Set.of("RibbonPaste", "RibbonCopy", "RibbonCut", "RibbonCustomFields", "RibbonFontName", "RibbonFontSize", "RibbonBold", "RibbonItalic",
-			"RibbonUnderline", "RibbonFillColor", "RibbonFontColor", "RibbonFont");
+				Set<String> permittedDuplicates = Set.of("RibbonPaste", "RibbonCopy", "RibbonCut", "RibbonCustomFields", "RibbonFontName", "RibbonFontSize", "RibbonBold", "RibbonItalic",
+					"RibbonUnderline", "RibbonFillColor", "RibbonFontColor", "RibbonFont", "RibbonAssignmentInformation");
 		Set<String> contextualFormatCommands = Set.of(
-			"RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName",
-			"RibbonGridlines", "RibbonToggleCriticalChain", "RibbonTimescale", "RibbonBarStyles",
-			"RibbonTextStyles", "RibbonLayout",
-			// the table-view Format tabs share the Gantt Columns, Show/Hide and usage Details commands
-			"RibbonInsertColumn", "RibbonAlignLeft", "RibbonAlignCenter", "RibbonAlignRight", "RibbonColumnSettings",
-			"RibbonHideColumn", "RibbonFieldSettings", "RibbonOutlineNumbers", "RibbonSummaryTasks",
-			"RibbonUsageDetailWork", "RibbonUsageDetailActualWork", "RibbonUsageDetailCost", "RibbonUsageDetailsAdd", "RibbonSheetGridlines",
-			"RibbonUsageDetailCumulativeWork", "RibbonNetworkLayoutNow",
-			"RibbonNetworkBoxFieldsCollapsed", "RibbonNetworkBoxFormat", "RibbonNetworkBoxStyles", "RibbonNetworkLayout", "RibbonNetworkLinkLabels",
-			"RibbonNetworkStraightLinks", "RibbonNetworkProgressMarks", "RibbonCalendarTextStyles", "RibbonCalendarBarStyles", "RibbonCalendarLayoutNow",
-			"RibbonCalendarWeekHeightBestFit", "RibbonCalendarLayout", "RibbonCalendarTaskList",
-			// the Timeline and Team Planner Format tabs
-			"RibbonTimelineTextStyles", "RibbonTimelineDateRange", "RibbonTimelineDates", "RibbonTimelineExpand", "RibbonTimelineBarLabels",
-			"RibbonTimelineOverlapped", "RibbonTimelinePanZoom", "RibbonTimelineTextLines", "RibbonTimelineInsertBar", "RibbonTimelineAddExisting",
-			"RibbonTimelineInsertTask", "RibbonTimelineInsertCallout", "RibbonTimelineInsertMilestone", "RibbonTimelineDisplay",
-			"RibbonTimelineCallout", "RibbonTimelineRemove", "RibbonTimelineCopy", "RibbonTeamPlannerOutline", "RibbonTeamPlannerGridlines",
-			"RibbonTeamPlannerTextStyles", "RibbonTeamPlannerTextLines", "RibbonTeamPlannerSelectedStyle", "RibbonTeamPlannerAutoStyle",
-			"RibbonTeamPlannerManualStyle", "RibbonTeamPlannerActualStyle", "RibbonTeamPlannerExternalStyle", "RibbonTeamPlannerLateStyle",
-			"RibbonTeamPlannerPreventOverallocation", "RibbonTeamPlannerExpandRows", "RibbonTeamPlannerUnassigned", "RibbonTeamPlannerUnscheduled");
+					"RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName",
+					"RibbonGridlines", "RibbonToggleCriticalChain", "RibbonTimescale", "RibbonBarStyles",
+					"RibbonTextStyles", "RibbonLayout",
+					// the table-view Format tabs share the Gantt Columns, Show/Hide and usage Details commands
+					"RibbonInsertColumn", "RibbonAlignLeft", "RibbonAlignCenter", "RibbonAlignRight", "RibbonColumnSettings",
+					"RibbonHideColumn", "RibbonFieldSettings", "RibbonOutlineNumbers", "RibbonSummaryTasks",
+					"RibbonUsageDetailWork", "RibbonUsageDetailActualWork", "RibbonUsageDetailCost", "RibbonUsageDetailsAdd", "RibbonSheetGridlines",
+					"RibbonUsageDetailCumulativeWork", "RibbonNetworkLayoutNow",
+					"RibbonNetworkBoxFieldsCollapsed", "RibbonNetworkBoxFormat", "RibbonNetworkBoxStyles", "RibbonNetworkLayout", "RibbonNetworkLinkLabels",
+					"RibbonNetworkStraightLinks", "RibbonNetworkProgressMarks", "RibbonCalendarTextStyles", "RibbonCalendarBarStyles", "RibbonCalendarLayoutNow",
+					"RibbonCalendarWeekHeightBestFit", "RibbonCalendarLayout", "RibbonCalendarTaskList",
+					// the Timeline and Team Planner Format tabs
+					"RibbonTimelineTextStyles", "RibbonTimelineDateRange", "RibbonTimelineDates", "RibbonTimelineExpand", "RibbonTimelineBarLabels",
+					"RibbonTimelineOverlapped", "RibbonTimelinePanZoom", "RibbonTimelineTextLines", "RibbonTimelineInsertBar", "RibbonTimelineAddExisting",
+					"RibbonTimelineInsertTask", "RibbonTimelineInsertCallout", "RibbonTimelineInsertMilestone", "RibbonTimelineDisplay",
+					"RibbonTimelineCallout", "RibbonTimelineRemove", "RibbonTimelineCopy", "RibbonTeamPlannerOutline", "RibbonTeamPlannerGridlines",
+					"RibbonTeamPlannerTextStyles", "RibbonTeamPlannerTextLines", "RibbonTeamPlannerSelectedStyle", "RibbonTeamPlannerAutoStyle",
+					"RibbonTeamPlannerManualStyle", "RibbonTeamPlannerActualStyle", "RibbonTeamPlannerExternalStyle", "RibbonTeamPlannerLateStyle",
+					"RibbonTeamPlannerPreventOverallocation", "RibbonTeamPlannerExpandRows", "RibbonTeamPlannerUnassigned", "RibbonTeamPlannerUnscheduled",
+					// Assignment Information appears in Task, Task Usage Format, and Resource Usage Format
+					"RibbonAssignmentInformation");
 		for (Map.Entry<String, Set<String>> entry : tabsByButton.entrySet()) {
 			boolean legalContextualFormatDuplicate = contextualFormatCommands.contains(entry.getKey())
 				&& entry.getValue().stream().allMatch(Set.of(
