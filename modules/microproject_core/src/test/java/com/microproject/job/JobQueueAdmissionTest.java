@@ -152,7 +152,7 @@ class JobQueueAdmissionTest {
 			});
 		// The EDT route resolves its admission key on a background thread.
 		try {
-			com.microproject.testsupport.TestAwait.awaitTrue(() -> coalescedCount.get() >= 1, java.time.Duration.ofSeconds(5), "a coalesced admission");
+			com.microproject.ui.testsupport.TestAwait.awaitTrue(() -> coalescedCount.get() >= 1, java.time.Duration.ofSeconds(5), "a coalesced admission");
 		} catch (AssertionError timedOut) {
 			// asserted below
 		}

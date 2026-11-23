@@ -1,0 +1,123 @@
+/*******************************************************************************
+ * MIT License
+ * Copyright (c) 2026 microProject
+ ******************************************************************************/
+package com.microproject.ui.dialog;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+
+import java.awt.GraphicsEnvironment;
+import java.awt.Robot;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
+import java.util.List;
+
+import javax.swing.SwingUtilities;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.Test;
+
+import com.microproject.field.Field;
+import com.microproject.ui.frame.DocumentFrame;
+import com.microproject.ui.frame.GraphicManager;
+import com.microproject.ui.frame.MainRibbonFrame;
+import com.microproject.ui.view.views.SearchContext;
+import com.microproject.ui.view.views.Searchable;
+import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.task.Project;
+import com.microproject.strings.Messages;
+import com.microproject.ui.testsupport.DialogLayoutAssertions;
+import com.microproject.ui.testsupport.GuiAcceptanceSupport;
+import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.configuration.Configuration;
+
+/** Verifies the real Find buttons' theme sizing, icons, and physical directions (#717). */
+class FindDialogButtonsGuiAcceptanceTest {
+	private MainRibbonFrame owner;
+	private GraphicManager manager;
+	private FindDialog dialog;
+
+	@AfterEach
+	void closeWindows() throws Exception {
+		if (dialog != null) SwingUtilities.invokeAndWait(dialog::dispose);
+		if (manager != null) SwingUtilities.invokeAndWait(manager::cleanUp);
+		if (owner != null) SwingUtilities.invokeAndWait(owner::dispose);
+	}
+
+	@Test
+	void findNextAndDirectionComboUseCurrentDesignAndNavigate() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Find button acceptance coverage.");
+		Field nameField = Configuration.getFieldFromId("Field.name");
+		java.util.ArrayList<Boolean> directions = new java.util.ArrayList<>();
+		Searchable searchable = new Searchable() {
+			@Override public boolean findNext(SearchContext context) {
+				directions.add(context.isForward());
+				return true;
+			}
+			@Override public SearchContext createSearchContext() { return new SearchContext() { }; }
+			@Override public List<Field> getAvailableFields() { return List.of(nameField); }
+		};
+		SwingUtilities.invokeAndWait(() -> {
+			owner = new MainRibbonFrame("Find dialog button acceptance", null);
+			manager = new GraphicManager(owner);
+			owner.setGraphicManager(manager);
+			owner.setSize(900, 600);
+			owner.setLocationByPlatform(true);
+			owner.setVisible(true);
+			DataFactoryUndoController undo = new DataFactoryUndoController();
+			Project project = Project.createProject(ResourcePool.createRourcePool("Find button pool", undo), undo);
+			DocumentFrame frame = new DocumentFrame(manager, project, "find-buttons-gui");
+			dialog = FindDialog.getInstance(frame, searchable, nameField);
+			dialog.pack();
+			dialog.setLocationRelativeTo(owner);
+			dialog.setVisible(true);
+		});
+		GuiAcceptanceSupport.await(() -> dialog.isShowing(), "Find dialog did not open");
+
+		assertNull(dialog.next.getIcon(), "Find Next must not use a legacy GIF icon");
+		assertNotNull(dialog.direction, "Search direction combo must exist");
+		assertEquals(0, dialog.direction.getSelectedIndex(), "Default direction must be Down");
+		assertEquals(dialog.next, dialog.getRootPane().getDefaultButton(), "Find Next must be the default button");
+		DialogLayoutAssertions.assertWithinUsableScreen(dialog, "Find dialog (#724)");
+		DialogLayoutAssertions.assertResizeWithinUsableScreen(dialog, 80, 30,
+			"Find dialog (#724)");
+
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
+		robot.setAutoDelay(35);
+		click(robot, dialog.search);
+		robot.keyPress(KeyEvent.VK_X);
+		robot.keyRelease(KeyEvent.VK_X);
+		GuiAcceptanceSupport.await(() -> dialog.next.isEnabled(),
+			"Find Next must enable for a non-empty query");
+		click(robot, dialog.next);
+		SwingUtilities.invokeAndWait(() -> assertEquals(List.of(true), directions,
+			"Find Next with Down must search forward"));
+		SwingUtilities.invokeAndWait(() -> dialog.direction.setSelectedIndex(1));
+		click(robot, dialog.next);
+		SwingUtilities.invokeAndWait(() -> assertEquals(List.of(true, false), directions,
+			"Find Next with Up must search backward"));
+		for (int direction : new int[] { 0, 1 }) {
+			SwingUtilities.invokeAndWait(() -> dialog.direction.setSelectedIndex(direction));
+			click(robot, dialog.search);
+			GuiAcceptanceSupport.await(() -> dialog.search.isFocusOwner(),
+				"Search field must own focus before Enter");
+			robot.keyPress(KeyEvent.VK_ENTER);
+			robot.keyRelease(KeyEvent.VK_ENTER);
+			robot.waitForIdle();
+			SwingUtilities.invokeAndWait(() -> assertEquals(
+				direction == 0 ? List.of(true, false, true) : List.of(true, false, true, false),
+				directions, "Enter must search once using the current direction"));
+		}
+	}
+
+	private static void click(Robot robot, java.awt.Component component) throws Exception {
+		java.awt.Point point = component.getLocationOnScreen();
+		robot.mouseMove(point.x + component.getWidth() / 2, point.y + component.getHeight() / 2);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
+	}
+}

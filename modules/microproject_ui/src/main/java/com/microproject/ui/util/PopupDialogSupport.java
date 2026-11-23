@@ -38,7 +38,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JRootPane;
 import javax.swing.KeyStroke;
 
-import com.microproject.dialog.UsabilityStrings;
+import com.microproject.ui.dialog.UsabilityStrings;
 
 public final class PopupDialogSupport {
 	static final String ESCAPE_ACTION_KEY = "microproject.closeOnEscape";

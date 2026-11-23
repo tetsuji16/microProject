@@ -103,7 +103,7 @@ class JvmLockRegistryAcceptanceTest {
 		assertTrue(entered.await(5, TimeUnit.SECONDS));
 		waiter.start();
 		try {
-			com.microproject.testsupport.TestAwait.awaitTrue(() -> CollaborationMetadataStore.jvmLockReferenceCountForTests(project.toFile()) >= 2,
+			com.microproject.ui.testsupport.TestAwait.awaitTrue(() -> CollaborationMetadataStore.jvmLockReferenceCountForTests(project.toFile()) >= 2,
 					java.time.Duration.ofSeconds(5), "the waiter to join the lock registry");
 		} catch (AssertionError timedOut) {
 			// asserted below

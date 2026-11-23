@@ -1,0 +1,189 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.view.spreadsheet.editor;
+
+import java.awt.Component;
+import java.text.Format;
+import java.text.ParseException;
+
+import javax.swing.DefaultCellEditor;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.text.AbstractDocument;
+
+import com.microproject.ui.dialog.util.FixedSizeFilter;
+import com.microproject.ui.view.ChangeAwareTextField;
+import com.microproject.ui.view.spreadsheet.SpreadSheetModel;
+import com.microproject.ui.view.spreadsheet.common.CommonSpreadSheet;
+import com.microproject.datatype.CanSupplyRateUnit;
+import com.microproject.datatype.DurationFormat;
+import com.microproject.datatype.DurationDefaults;
+import com.microproject.field.Field;
+import com.microproject.field.FieldConverter;
+import com.microproject.field.FieldParseException;
+/**
+ *
+ */
+public class SimpleEditor extends DefaultCellEditor   {
+	private static final long serialVersionUID = -2743384761993860364L;
+
+	protected ChangeAwareTextField component;
+	protected Class<?> clazz;
+	protected Format useFormat = null;
+	JTable cachedTable = null;
+	/**
+	 * 
+	 */
+	public SimpleEditor() {
+		super(new ChangeAwareTextField());
+		component = (ChangeAwareTextField) getComponent();
+		clazz = String.class;
+		
+	}
+	public SimpleEditor(Class<?> clazz) {
+		this();
+		this.clazz=clazz;
+	}
+	public SimpleEditor(Class<?> arg0, Format arg1) {
+		this(arg0);		
+		useFormat = arg1;
+	}
+	
+	
+	
+	
+	/**
+	 * @see javax.swing.table.TableCellEditor#getTableCellEditorComponent(javax.swing.JTable, java.lang.Object, boolean, int, int)
+	 */
+	public Component getTableCellEditorComponent(JTable table, Object value,
+			boolean arg2, int row, int column) {
+		cachedTable = table;
+		useFormat = null;
+		String stringValue;
+		if(value==null)
+			stringValue=null;
+		else 
+			stringValue=FieldConverter.toString(value);
+		
+		component.setText(stringValue);
+		//component.resetChange();
+		if (table.getModel() instanceof SpreadSheetModel) {
+			SpreadSheetModel model  = (SpreadSheetModel) table.getModel();
+			Field field = model.getFieldInViewColumn(column);
+			Field modelField = model.getFieldInColumn(column);
+			int width = field.getTextWidth(null,null);
+			((AbstractDocument)component.getDocument()).setDocumentFilter(null);
+			if (width != Integer.MAX_VALUE) {
+				((AbstractDocument)component.getDocument()).setDocumentFilter(new FixedSizeFilter(width));
+			}
+			component.setHorizontalAlignment(FieldPresentation.horizontalAlignment(field));
+			if (value instanceof com.microproject.datatype.Duration || field.isDuration() || "Field.duration".equals(field.getId())
+					|| (modelField != null && (modelField.isDuration() || "Field.duration".equals(modelField.getId())))) {
+				// A few legacy task-sheet columns expose their storage type (Double)
+				// rather than Duration to JTable. Parse by field semantics so a bare
+				// value such as "3" keeps the configured duration unit instead of
+				// becoming three milliseconds and rendering as zero.
+				useFormat = DurationFormat.getInstance();
+				if ("Field.duration".equals(field.getId()) && model.getFieldContext() != null) {
+					Object rowObject = model.getObjectInRow(row);
+					if (rowObject instanceof com.microproject.pm.task.NormalTask)
+						component.setText(field.getText(rowObject, model.getFieldContext()));
+				}
+			}
+			if (field.isWork()) {
+				Object rowObject = model.getObjectInRow(row);
+				if (rowObject instanceof CanSupplyRateUnit && ((CanSupplyRateUnit)rowObject).isMaterial())
+					useFormat = DurationFormat.getNonTemporalWorkInstance();
+			}
+		} else {		
+			if (value == null || value instanceof String ) 
+				component.setHorizontalAlignment(JTextField.LEFT);
+			else 
+				component.setHorizontalAlignment(JTextField.RIGHT);
+		}
+		component.selectAll();
+		return component;
+	}
+	
+
+	public Object getCellEditorValue() {
+		if (useFormat == null)
+			try {
+				// plain text keeps full-width characters; only parsed values are normalized
+				String text = component.getText();
+				return FieldConverter.convert(clazz == String.class ? text : com.microproject.util.FullWidthInput.normalize(text),clazz,null);
+			} catch (FieldParseException e1) {
+				return null;
+			}
+		else
+			try {
+				DurationDefaults defaults = durationDefaults();
+				if (useFormat instanceof DurationFormat durationFormat && defaults != null)
+					return durationFormat.parseObject(component.getText(), new java.text.ParsePosition(0), defaults);
+				return useFormat.parseObject(com.microproject.util.FullWidthInput.normalize(component.getText()));
+			} catch (ParseException e) {
+				return null;
+			}
+	}
+
+	protected DurationDefaults durationDefaults() {
+		if (cachedTable != null && cachedTable.getModel() instanceof SpreadSheetModel model
+				&& model.getFieldContext() != null)
+			return model.getFieldContext().getDurationDefaults();
+		return null;
+	}
+	
+	
+	
+	
+	public boolean stopCellEditing() {
+		if (component.hasChanged()) {
+			boolean result = super.stopCellEditing();
+			if (handledPostErrorFocus())
+				return false;
+			return result;	
+		}else{
+			cancelCellEditing();
+			return true;
+		}
+	}
+	
+	public void cancelCellEditing() {
+		super.cancelCellEditing();
+	}
+
+	protected boolean handledPostErrorFocus() {
+		if (cachedTable != null && cachedTable instanceof CommonSpreadSheet) {
+			if (((CommonSpreadSheet)cachedTable).getLastException() != null) {
+				cachedTable.requestFocus();
+				return true;
+			}
+		}
+		return false;
+
+	}
+	
+
+	
+}

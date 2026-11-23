@@ -36,7 +36,7 @@ import javax.swing.Icon;
 import javax.swing.JLabel;
 import javax.swing.SwingConstants;
 
-import com.microproject.pm.graphic.IconManager;
+import com.microproject.ui.view.IconManager;
 import com.microproject.ribbon.RibbonTheme;
 
 final class RibbonButtonStyler {

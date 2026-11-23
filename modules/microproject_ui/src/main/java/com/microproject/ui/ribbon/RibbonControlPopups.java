@@ -56,7 +56,7 @@ import com.microproject.ribbon.RibbonActivation;
 import com.microproject.ribbon.RibbonCommandSource;
 import com.microproject.ribbon.RibbonControlKind;
 import com.microproject.ribbon.SwingRibbonModel;
-import com.microproject.util.FlatUiSupport;
+import com.microproject.ui.util.FlatUiSupport;
 
 /**
  * Applies the input behavior of a {@link RibbonControlKind} to the Swing button
@@ -732,7 +732,7 @@ final class RibbonControlPopups {
 			Action.LONG_DESCRIPTION, Action.SELECTED_KEY }) {
 			mirror.putValue(key, command.getValue(key));
 		}
-		mirror.putValue(com.microproject.menu.ExtToolBarFactory.POPUP_OPENER_ACTION_PROPERTY, Boolean.TRUE);
+		mirror.putValue(com.microproject.ui.menu.ExtToolBarFactory.POPUP_OPENER_ACTION_PROPERTY, Boolean.TRUE);
 		mirror.setEnabled(command.isEnabled());
 		command.addPropertyChangeListener(new WeakActionMirrorListener(mirror));
 		button.setAction(mirror);

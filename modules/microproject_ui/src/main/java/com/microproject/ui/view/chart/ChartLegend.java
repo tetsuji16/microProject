@@ -1,0 +1,576 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.view.chart;
+
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Point;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.swing.BorderFactory;
+import javax.swing.ButtonGroup;
+import javax.swing.DefaultListSelectionModel;
+import javax.swing.Icon;
+import javax.swing.JCheckBox;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JPanel;
+import javax.swing.JRadioButton;
+import javax.swing.JScrollPane;
+import javax.swing.JTree;
+import javax.swing.ListCellRenderer;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
+import javax.swing.event.TreeSelectionEvent;
+import javax.swing.event.TreeSelectionListener;
+import javax.swing.tree.DefaultTreeCellRenderer;
+import javax.swing.tree.DefaultTreeSelectionModel;
+import javax.swing.tree.TreePath;
+
+
+import com.jgoodies.forms.builder.DefaultFormBuilder;
+import com.jgoodies.forms.layout.CellConstraints;
+import com.jgoodies.forms.layout.FormLayout;
+import com.microproject.ui.menu.MenuActionConstants;
+import com.microproject.ui.view.IconManager;
+import com.microproject.ui.view.model.cache.GraphicNode;
+import com.microproject.ui.view.spreadsheet.selection.event.SelectionNodeEvent;
+import com.microproject.ui.view.spreadsheet.selection.event.SelectionNodeListener;
+import com.microproject.ui.view.swing.Util;
+import com.microproject.ui.toolbar.TransformComboBox;
+import com.microproject.ui.toolbar.TransformComboBoxModel;
+import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.NodeList;
+import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.grouping.core.transform.CommonTransformFactory;
+import com.microproject.grouping.core.transform.ViewConfiguration;
+import com.microproject.pm.assignment.HasAssignmentsImpl;
+import com.microproject.pm.assignment.HasTimeDistributedData;
+import com.microproject.pm.resource.Resource;
+import com.microproject.pm.resource.ResourceImpl;
+import com.microproject.pm.task.Project;
+import com.microproject.strings.Messages;
+import com.microproject.ui.util.ColorLuminance;
+import com.microproject.util.Environment;
+import com.microproject.workspace.SavableToWorkspace;
+import com.microproject.workspace.WorkspaceSetting;
+
+/**
+ *
+ */
+@SuppressWarnings("deprecation")
+public class ChartLegend  implements SelectionNodeListener, Serializable , SavableToWorkspace{
+	private static final long serialVersionUID = 5098599798868391983L;
+
+	JTree tree;
+//	JList traces;
+
+	JCheckBox selectedOnTop;
+	JCheckBox cumulative;
+	JCheckBox histogram;
+	JRadioButton cost;
+	JRadioButton work;
+	JScrollPane treeScrollPane = null;
+	JScrollPane tracesScrollPane = null;
+	boolean selecting = false;
+	JList workTraces;
+	JList costTraces;
+	
+	boolean simple;
+	ChartInfo chartInfo;
+	List<Object> selectedObjects = new ArrayList<>();
+	List selectedResourcesFromTasks = new ArrayList();
+	List selectedResourcesOnTree = new ArrayList();
+	TransformComboBox filterComboBox = null;
+	JList tracesList;
+
+	public ChartLegend(ChartInfo chartInfo) {
+		super();
+		this.chartInfo = chartInfo;
+		this.simple = chartInfo.isResourceGraph();
+	}
+	
+	/**
+	 * Moves the resource shown by the Resource Graph one row up (-1) or down (+1) the resource list.
+	 *
+	 * @return false when the list is empty or already at that end
+	 */
+	boolean selectAdjacentResource(int delta) {
+		if (tree == null)
+			return false;
+		int rows = tree.getRowCount();
+		if (rows == 0)
+			return false;
+		int[] selected = tree.getSelectionRows();
+		int current = selected == null || selected.length == 0 ? (delta > 0 ? -1 : rows) : selected[0];
+		int target = current + delta;
+		if (target < 0 || target >= rows)
+			return false;
+		tree.setSelectionRow(target);
+		tree.scrollRowToVisible(target);
+		return true;
+	}
+
+	/** Whether {@link #selectAdjacentResource} would move in that direction. */
+	boolean hasAdjacentResource(int delta) {
+		if (tree == null)
+			return false;
+		int rows = tree.getRowCount();
+		int[] selected = tree.getSelectionRows();
+		int current = selected == null || selected.length == 0 ? (delta > 0 ? -1 : rows) : selected[0];
+		int target = current + delta;
+		return target >= 0 && target < rows;
+	}
+
+	void rebuildTree() {
+		initTree();
+//		((AbstractMutableNodeHierarchy)chartInfo.getCache().getReference().getModel().getHierarchy()).dump();
+	}
+	
+	private void initTree() {
+//		tree = new JTree(chartInfo.getNodeModel());
+		tree = new JTree(chartInfo.getCache());
+		tree.setExpandsSelectedPaths(true);
+		tree.getSelectionModel().setSelectionMode(simple
+				? DefaultTreeSelectionModel.SINGLE_TREE_SELECTION
+				: DefaultTreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION);
+		final JTree finalTree = tree;
+		tree.addTreeSelectionListener(new TreeSelectionListener() {
+			public void valueChanged(TreeSelectionEvent evt) {
+				if (!selecting) {
+					TreePath[] paths = ((JTree)evt.getSource()).getSelectionPaths(); //evt.getPaths();
+					chartInfo.updateChart(selectedObjects,pathsToList(paths));
+				}
+				chartInfo.fireResourceSelectionChanged();
+			}
+			
+		});
+		tree.setCellRenderer(new TreeRenderer());
+		if (treeScrollPane == null)
+			treeScrollPane = new JScrollPane(tree);
+		else
+			treeScrollPane.getViewport().add(tree);
+	}
+	
+	JList getListInstance(boolean cost) {
+		final JList list = new JList() { // do not want to update the UI. see below also
+			private static final long serialVersionUID = 1L;
+		};
+		list.setSelectionMode(DefaultListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+		list.setCellRenderer( new ListRenderer());
+		setListFields(list,cost);
+		if (!simple) {
+			if (cost)
+				list.setSelectedIndex(0);
+			else
+				list.setSelectedIndices(new int[] { 0, 1, 2 }); // Work, Actual Work, Remaining Work
+			list.addListSelectionListener(new ListSelectionListener() {
+				public void valueChanged(ListSelectionEvent e) {
+					if (chartInfo.isRestoring()) // don't want to listen if updating from workspace
+						return;
+				    if (e.getValueIsAdjusting() == false) {
+				    	chartInfo.setTraces(list.getSelectedValues());
+				    }
+				}
+			});
+		}
+			
+		return list;
+	}
+	
+	public void setControlValues() {
+		if (simple) {
+			selectedOnTop.setSelected(chartInfo.isSelectedOnTop()); // start off as histogram
+		} else {
+			cumulative.setSelected(chartInfo.isCumulative()); // start off as histogram
+			histogram.setSelected(chartInfo.isHistogram()); // start off as histogram
+			work.setSelected(chartInfo.isWork());
+			cost.setSelected(!chartInfo.isWork());
+			Util.setSelectedValues(tracesList,chartInfo.traces);
+		}
+		
+	}
+	void initControls() {
+		chartInfo.setAxisPanel(new AxisPanel(chartInfo));
+		filterComboBox=new TransformComboBox(null,MenuActionConstants.ACTION_CHOOSE_FILTER,TransformComboBoxModel.FILTER);
+		filterComboBox.setView(ViewConfiguration.getView(chartInfo.getMode().getViewAction()));
+		filterComboBox.addActionListener(new ActionListener() {
+
+			public void actionPerformed(ActionEvent e) {
+				if (chartInfo.isRestoring())
+					return;
+		        TransformComboBox combo = (TransformComboBox) e.getSource();
+				CommonTransformFactory factory = (CommonTransformFactory)combo.getSelectedItem();
+				((TransformComboBoxModel)combo.getModel()).changeTransform(factory);
+			}});
+		
+		initTree();
+		Object[] fields = getFields(false);
+		
+		workTraces = getListInstance(false);
+		tracesList = workTraces; // start off work
+		tracesScrollPane = new JScrollPane(workTraces);
+		workTraces.setVisibleRowCount(HasTimeDistributedData.tracesCount);
+
+//		final ViewTransformer transformer=ViewConfiguration.getView(MenuActionConstants.ACTION_CHARTS).getTransform();
+//		final ResourceInTeamFilter hiddenFilter=(ResourceInTeamFilter)transformer.getHiddenFilter();		
+//		teamResources= new JCheckBox(Messages.getString("Text.ShowTeamResourcesOnly"));
+//		teamResources.addItemListener(new ItemListener() {
+//			public void itemStateChanged(ItemEvent e) {
+//				hiddenFilter.setFilterTeam(e.getStateChange() == ItemEvent.SELECTED);
+//				transformer.update();
+//			}
+//		});
+//		teamResources.setSelected(hiddenFilter.isFilterTeam());
+		
+		
+		if (simple) {
+			chartInfo.setTraces(fields);
+			tree.getSelectionModel().setSelectionMode(DefaultTreeSelectionModel.SINGLE_TREE_SELECTION); // allow only 1 for histogram
+			
+			selectedOnTop = new JCheckBox(Messages.getString("Text.ShowSelectedOnTop")); //$NON-NLS-1$
+			selectedOnTop.addItemListener(new ItemListener() {
+				public void itemStateChanged(ItemEvent e) {
+
+					chartInfo.setSelectedOnTop(e.getStateChange() == ItemEvent.SELECTED);
+					Object[] traces = getFields(false);
+			    	chartInfo.setTraces(traces);
+					workTraces = getListInstance(false);
+					tracesScrollPane.getViewport().add(workTraces);
+					workTraces.setVisibleRowCount(HasTimeDistributedData.tracesCount);
+				}
+			});
+			selectedOnTop.setSelected(chartInfo.isSelectedOnTop()); // start off as histogram
+			
+			return;
+		}
+
+		costTraces = getListInstance(true);		
+		cumulative = new JCheckBox(Messages.getString("Text.Cumulative")); //$NON-NLS-1$
+		cumulative.setSelected(chartInfo.isCumulative()); // start off as histogram
+		cumulative.addItemListener(new ItemListener() {
+			public void itemStateChanged(ItemEvent e) {
+				chartInfo.setCumulative(e.getStateChange() == ItemEvent.SELECTED);
+			}
+		});
+		histogram = new JCheckBox(Messages.getString("Text.Histogram")); //$NON-NLS-1$
+		histogram.setSelected(chartInfo.isHistogram()); // start off as histogram
+		histogram.addItemListener(new ItemListener() {
+			public void itemStateChanged(ItemEvent e) {
+				boolean histogramSelected = e.getStateChange() == ItemEvent.SELECTED;
+				chartInfo.setHistogram(histogramSelected);
+				if (histogramSelected) {
+					workTraces.setSelectionMode(DefaultListSelectionModel.SINGLE_SELECTION); // allow only 1 for histogram
+					costTraces.setSelectionMode(DefaultListSelectionModel.SINGLE_SELECTION); // allow only 1 for histogram
+				} else {
+					workTraces.setSelectionMode(DefaultListSelectionModel.MULTIPLE_INTERVAL_SELECTION); // allow many
+					costTraces.setSelectionMode(DefaultListSelectionModel.MULTIPLE_INTERVAL_SELECTION); // allow only 1 for histogram					
+				}
+			}
+		});
+
+		work = new JRadioButton(Messages.getString("Text.work")); //$NON-NLS-1$
+		work.setSelected(chartInfo.isWork());
+		cost = new JRadioButton(Messages.getString("Text.cost")); //$NON-NLS-1$
+
+
+		ItemListener costWork = new ItemListener() {
+			public void itemStateChanged(ItemEvent e) {
+				boolean isCost = e.getSource() == cost;
+				chartInfo.setWork(!isCost);
+				tracesList = isCost ? costTraces : workTraces;
+				tracesScrollPane.getViewport().add(tracesList);
+				if (!chartInfo.isRestoring())
+					chartInfo.setTraces(tracesList.getSelectedValues());
+			}
+		}; 
+		cost.addItemListener(costWork);
+		work.addItemListener(costWork);
+		ButtonGroup group = new ButtonGroup();
+		group.add(cost);
+		group.add(work);
+
+		// by default, always select first item
+		chartInfo.setTraces(new Object[] {fields[0]});
+	}
+
+
+	
+	//	 This class is a custom renderer based
+	//	 on DefaultTreeCellRenderer
+	class TreeRenderer extends DefaultTreeCellRenderer {
+		private static final long serialVersionUID = 1L;
+		private Icon activeIcon = IconManager.getIcon("greenCircle");	 //$NON-NLS-1$
+		
+		public Component getTreeCellRendererComponent(JTree tree, Object value,
+				boolean selected, boolean expanded, boolean leaf, int row,
+				boolean hasFocus) {
+			// Allow the original renderer to set up the label
+			Component c = super.getTreeCellRendererComponent(tree, value,
+					selected, expanded, leaf, row, hasFocus);
+
+			if (selectedResourcesFromTasks.contains( ((GraphicNode)value).getNode().getImpl() )) {
+				setIcon(activeIcon);
+			}
+
+			return c;
+		}
+	} 	
+	
+	class ListRenderer extends JLabel implements ListCellRenderer {
+		private static final long serialVersionUID = 1L;
+	   public ListRenderer () {
+	       // Don't paint behind the component
+	       setOpaque(true);
+	   }
+
+	   public Component getListCellRendererComponent(JList list,
+	         Object value, // value to display
+	         int index,    // cell index
+	         boolean iss,  // is selected
+	         boolean chf) { // cell has focus?
+	   		setText(value.toString());
+	   		if (iss) {
+				Color color = ChartHelper.getColorForField(value);
+				setBackground(color);
+				setForeground(readableTextColor(color));
+	   				
+	   		} else {
+	   			setBackground(list.getBackground());
+	   			setForeground(list.getForeground());
+	   		}
+	        setBorder(BorderFactory.createEmptyBorder(1, 1, 1, 1));
+
+	   		
+	   		return this;
+	   }
+	}
+
+	static Color readableTextColor(Color background) {
+		return ColorLuminance.isDark(background) ? Color.WHITE : Color.BLACK;
+	}
+
+	
+	private List<Resource> pathsToList(TreePath[] paths) {
+		List<Resource> list = new ArrayList<>(paths == null ? 0 : paths.length);
+		if (paths != null) {
+			for (int i=0; i < paths.length; i++) {
+				list.add((Resource) ((GraphicNode)paths[i].getLastPathComponent()).getNode().getImpl());
+			}
+		}
+		return list;
+	}
+	
+	
+	public JComponent createContentPanel() {
+		// Separating the component initialization and configuration
+		// from the layout code makes both parts easier to read.
+		initControls();
+		FormLayout layout = new FormLayout("p:grow, 3dlu,100dlu:grow,5dlu, default, 5dlu", // cols //$NON-NLS-1$
+				"p, 3dlu, p, 3dlu, p, 3dlu, " + (simple ? "" : "fill:") + "p:grow, 5dlu"); // rows		 //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$
+
+		// Create a builder that assists in adding components to the container.
+		// Wrap the panel with a standardized border.
+		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
+		builder.setBorder(BorderFactory.createEmptyBorder(0, 5 ,0 ,0)); 
+		CellConstraints cc = new CellConstraints();
+		
+		builder.addLabel(Messages.getString("ChartLegend.ResourceFilter"),		cc.xy  (1,1)); //$NON-NLS-1$
+		builder.add(filterComboBox,		cc.xy  (3,1));
+		builder.add(treeScrollPane,	cc.xywh(1,3,3,5));
+		builder.add(tracesScrollPane		,cc.xy  (5,7));
+		if (simple){
+			builder.add(selectedOnTop,				cc.xy  (5,1));
+		}else{
+			builder.add(cumulative,				cc.xy  (5,1));
+			builder.add(histogram,				cc.xy  (5,3));		
+			builder.add(workCostRadioPanel(),			cc.xy  (5,5));
+		}
+		return builder.getPanel();
+	}
+	
+	public Component workCostRadioPanel() {
+		JPanel panel = new JPanel();
+		panel.add(work);
+		panel.add(cost);
+		return panel;
+	}
+ 	private Object[] getFields(boolean cost) {
+ 		if (simple) {
+			return chartInfo.isSelectedOnTop() ? HasTimeDistributedData.histogramTypes : HasTimeDistributedData.reverseHistogramTypes;
+ 		}
+ 		return cost ? HasTimeDistributedData.costTypes : HasTimeDistributedData.workTypes;
+ 	}
+	
+	private void setListFields(JList list, boolean cost) {
+		Object[] items = getFields(cost);
+		list.setListData(items);
+		list.setVisibleRowCount(items.length);
+		if (simple) {
+			list.setSelectionInterval(0,items.length);
+			list.setEnabled(false); // in simple mode, no selection allowed
+		}
+	}
+
+	private List<Object> getListFromNodeList(List<? extends Node> nodes) {
+		List<Object> implList = NodeList.nodeListToImplList(nodes);
+		// normally it is tasks or resources, but if project, make sure its works too
+		if (implList.isEmpty() || !(implList.get(0) instanceof Project)) 
+			return implList;
+	
+		long taskCount = 0;
+		for (Object item : implList) {
+			taskCount = Math.min(Integer.MAX_VALUE, taskCount + ((Project) item).getTaskList().size());
+		}
+		final List<Object> resultList = new ArrayList<>((int) taskCount);
+		for (Object item : implList) {
+			((Project)item).forTasks(resultList::add);
+			//resultList.addAll( ((Project)i.next()).getTasks());
+		}
+		return resultList;
+	}
+	public void selectionChanged(SelectionNodeEvent e) {
+		
+		if (!chartInfo.isVisible())
+			return;
+		
+		List<? extends Node> nodes = e.getNodes();
+		selectedObjects = getListFromNodeList(nodes);
+		List<Resource> resList = extractResources(selectedObjects);
+		if (resList.isEmpty())
+			selectedResourcesFromTasks = HasAssignmentsImpl.extractOppositeList(selectedObjects,false);
+		else {
+			selectedResourcesFromTasks = resList; // top view is resource list
+			selectedObjects = null;
+		}
+		setTreeSelection(selectedResourcesFromTasks);
+		chartInfo.updateChart(selectedObjects,selectedResourcesOnTree);
+	}
+	
+	private List<Resource> extractResources(List<?> list) {
+		ArrayList<Resource> resList = new ArrayList<>(list.size());
+		for (Object obj : list) {
+			if (obj instanceof Resource)
+				resList.add((Resource) obj);
+		}
+		return resList;
+	}
+	private void setTreeSelection(List resources) {
+		selecting = true;
+		selectedResourcesOnTree.clear();
+		selectedResourcesOnTree.addAll(resources);
+		selectedResourcesOnTree.remove(ResourceImpl.getUnassignedInstance());
+		int[] sel = new int[selectedResourcesOnTree.size()]; // if simple can only select 1
+		Object resource;
+		NodeModel nodeModel = chartInfo.getNodeModel();
+		
+		int topRow = Integer.MAX_VALUE;
+		Object topResource = null;
+		for (int i = 0; i < selectedResourcesOnTree.size(); i++) {
+			resource = selectedResourcesOnTree.get(i);
+			int row = getTreeRowForResource(resource);
+			if (row < 0)
+				row = nodeModel.getHierarchy().getIndexOfNode(nodeModel.search(resource),false);
+			sel[i] = row;
+			if (row < topRow) {
+				topRow = row;
+				topResource = resource;
+			}
+		}
+		tree.clearSelection();		
+		tree.setExpandsSelectedPaths(true);		
+		if (simple && topResource != null) {
+			tree.setSelectionRow(topRow);
+			selectedResourcesOnTree.clear();
+			selectedResourcesOnTree.add(topResource);
+		} else {
+			tree.setSelectionRows(sel);
+		}
+		tree.setExpandsSelectedPaths(true);
+		tree.repaint();
+		selecting = false;
+	}
+
+	private int getTreeRowForResource(Object resource) {
+		for (int row = 0; row < tree.getRowCount(); row++) {
+			Object value = tree.getPathForRow(row).getLastPathComponent();
+			if (value instanceof GraphicNode graphicNode && graphicNode.getNode().getImpl() == resource)
+				return row;
+		}
+		return -1;
+	}
+
+	/** Restores chart selections after a same-session workspace reload. */
+	public void restoreSelection(List<?> objects, List<Resource> resources) {
+		selectedObjects = objects == null ? null : new ArrayList<>(objects);
+		selectedResourcesFromTasks = resources == null ? new ArrayList<>() : new ArrayList<>(resources);
+		setTreeSelection(resources == null ? java.util.Collections.emptyList() : resources);
+		chartInfo.updateChart(selectedObjects, selectedResourcesOnTree);
+	}
+
+	public List<Object> getSelectedObjects() {
+		return selectedObjects == null ? null : new ArrayList<>(selectedObjects);
+	}
+
+	public List<Resource> getSelectedResources() {
+		return pathsToList(tree.getSelectionPaths());
+	}
+
+	public WorkspaceSetting createWorkspace(int context) {
+		Workspace ws = new Workspace();
+		ws.treeViewPosition = treeScrollPane.getViewport().getViewPosition();
+		ws.tracesViewPosition = tracesScrollPane.getViewport().getViewPosition();
+		return ws;
+	}
+
+	public void restoreWorkspace(WorkspaceSetting w, int context) {
+		Workspace ws = (Workspace) w;
+		treeScrollPane.getViewport().setViewPosition(ws.treeViewPosition);
+		tracesScrollPane.getViewport().setViewPosition(ws.tracesViewPosition);
+	}
+	public static class Workspace implements WorkspaceSetting {
+		private static final long serialVersionUID = -8581691622116505516L; 
+		Point treeViewPosition;
+		Point tracesViewPosition;
+		public Point getTracesViewPosition() {
+			return tracesViewPosition;
+		}
+		public void setTracesViewPosition(Point tracesViewPosition) {
+			this.tracesViewPosition = tracesViewPosition;
+		}
+		public Point getTreeViewPosition() {
+			return treeViewPosition;
+		}
+		public void setTreeViewPosition(Point treeViewPosition) {
+			this.treeViewPosition = treeViewPosition;
+		}
+	}	
+}

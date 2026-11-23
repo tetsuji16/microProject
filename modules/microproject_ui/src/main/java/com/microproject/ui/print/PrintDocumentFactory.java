@@ -1,0 +1,115 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.print;
+
+import java.util.List;
+
+import javax.print.PrintService;
+
+import com.microproject.ui.export.svg.GanttSVGRenderer;
+import com.microproject.ui.export.svg.NetworkSVGRenderer;
+import com.microproject.ui.export.svg.SVGRenderer;
+import com.microproject.ui.frame.DocumentFrame;
+import com.microproject.ui.view.model.cache.NodeModelCache;
+import com.microproject.ui.view.model.cache.NodeModelCacheFactory;
+import com.microproject.ui.view.model.cache.ReferenceNodeModelCache;
+import com.microproject.ui.view.model.transform.NodeCacheTransformer;
+import com.microproject.ui.view.spreadsheet.SpreadSheet;
+import com.microproject.ui.view.views.BaseView;
+import com.microproject.ui.view.views.GanttView;
+import com.microproject.ui.view.views.PertView;
+import com.microproject.ui.view.views.ProjectView;
+import com.microproject.ui.view.views.ResourceView;
+import com.microproject.ui.view.views.TreeView;
+import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.grouping.core.transform.ViewTransformer;
+import com.microproject.pm.task.Portfolio;
+
+public class PrintDocumentFactory {
+	protected static PrintDocumentFactory instance;
+	public static synchronized PrintDocumentFactory getInstance(){
+		if (instance==null) instance=new PrintDocumentFactory();
+		return instance;
+	}
+	public GraphPageable createDocument(DocumentFrame frame,boolean printOnly,boolean pdfAsDefault){
+		return createDocument(frame,printOnly,pdfAsDefault,
+				PrintDocument.lookupRealPrintServices(),PrintDocument.lookupDefaultRealPrintService());
+	}
+	/** Builds the document from printers the caller already resolved off the event thread. */
+	public GraphPageable createDocument(DocumentFrame frame,boolean printOnly,boolean pdfAsDefault,
+			PrintService[] resolvedServices,PrintService resolvedDefaultService){
+		BaseView view=frame.getActiveTopView();
+		GraphPageable specializedDocument = view.createPrintDocument(printOnly, pdfAsDefault,
+				resolvedServices,resolvedDefaultService);
+		if (specializedDocument != null) return specializedDocument;
+		SVGRenderer renderer;
+		NodeModelCache cache;
+		if (view instanceof GanttView){
+			renderer=new GanttSVGRenderer();
+			SpreadSheet sp=frame.getActiveSpreadSheet();
+			SpreadSheetFieldArray fieldArray=sp.getFieldArrayWithWidths(null);
+			List<Integer> colWidth=null;
+			cache=NodeModelCacheFactory.getInstance().createFilteredCache(frame.getReferenceCache(true),"OfflineGantt",null);
+			((GanttSVGRenderer)renderer).init(frame.getProject(),cache,fieldArray,colWidth,frame.getScale(),true);
+			renderer.getParams().setSupportLeftAndRightParts(true);
+		}else if (view instanceof ResourceView){
+			renderer=new GanttSVGRenderer();
+			SpreadSheet sp=frame.getActiveSpreadSheet();
+			SpreadSheetFieldArray fieldArray=sp.getFieldArrayWithWidths(null);
+			List<Integer> colWidth=null;
+			cache=NodeModelCacheFactory.getInstance().createFilteredCache(frame.getReferenceCache(false),"OfflineResources",null);
+			((GanttSVGRenderer)renderer).init(frame.getProject(),cache,fieldArray,colWidth,frame.getScale(),false);
+		}else if (view instanceof ProjectView){
+			renderer=new GanttSVGRenderer();
+			SpreadSheet sp=frame.getActiveSpreadSheet();
+			SpreadSheetFieldArray fieldArray=sp.getFieldArrayWithWidths(null);
+			List<Integer> colWidth=null;
+			Portfolio portfolio = frame.getGraphicManager().getProjectFactory().getPortfolio();
+			cache=NodeModelCacheFactory.getInstance().createDefaultCache(portfolio.getNodeModel(), portfolio,NodeModelCache.PROJECT_TYPE,"OfflineProjects",null);
+			((GanttSVGRenderer)renderer).init(frame.getProject(),cache,fieldArray,colWidth,frame.getScale(),false);
+		}else if (view instanceof PertView){
+			renderer=new NetworkSVGRenderer();
+			cache=NodeModelCacheFactory.getInstance().createFilteredCache(frame.getReferenceCache(true),"Network",null);
+			((NetworkSVGRenderer)renderer).init(frame.getProject(),cache,NetworkSVGRenderer.PERT,frame.getScale());
+		}else if (view instanceof TreeView treeView){
+			renderer=new NetworkSVGRenderer();
+			if ("WBS".equals(treeView.getViewName())){
+				cache=NodeModelCacheFactory.getInstance().createFilteredCache(frame.getReferenceCache(true),"WBS",null);
+				((NetworkSVGRenderer)renderer).init(frame.getProject(),cache,NetworkSVGRenderer.WBS,frame.getScale());
+			}else{
+				cache=NodeModelCacheFactory.getInstance().createFilteredCache(frame.getReferenceCache(false),"RBS",null);
+				((NetworkSVGRenderer)renderer).init(frame.getProject(),cache,NetworkSVGRenderer.RBS,frame.getScale());
+			}
+		}else return null;
+		NodeModelCache srcCache=view.getCache();
+		ViewTransformer transformer=((NodeCacheTransformer)cache.getVisibleNodes().getTransformer()).getTransformer();
+		ViewTransformer srcTransformer=((NodeCacheTransformer)srcCache.getVisibleNodes().getTransformer()).getTransformer();
+		transformer.setUserFilterId(srcTransformer.getUserFilterId()); //this is valid just because the views have the same transformers
+		transformer.setTaskSortSpec(srcTransformer.getTaskSortSpec());
+		transformer.setUserGrouperId(srcTransformer.getUserGrouperId()); //this is valid just because the views have the same transformers
+		GraphPageable document=new GraphPageable(renderer,printOnly,pdfAsDefault,true,
+				resolvedServices,resolvedDefaultService);
+		return document;
+	}
+}

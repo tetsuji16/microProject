@@ -1,0 +1,463 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.dialog.assignment;
+
+import java.awt.event.ActionEvent;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.swing.AbstractAction;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+
+import com.jgoodies.forms.builder.DefaultFormBuilder;
+import com.jgoodies.forms.layout.CellConstraints;
+import com.jgoodies.forms.layout.FormLayout;
+import com.microproject.ui.dialog.AbstractDialog;
+import com.microproject.ui.dialog.ButtonPanel;
+import com.microproject.ui.help.HelpUtil;
+import com.microproject.ui.view.collaboration.CollaborationHelper;
+import com.microproject.ui.view.IconManager;
+import com.microproject.ui.frame.DocumentFrame;
+import com.microproject.ui.frame.DocumentSelectedEvent;
+import com.microproject.ui.frame.GraphicManager;
+import com.microproject.ui.view.spreadsheet.SpreadSheet;
+import com.microproject.ui.view.spreadsheet.selection.event.SelectionNodeEvent;
+import com.microproject.ui.view.spreadsheet.selection.event.SelectionNodeListener;
+import com.microproject.ui.view.views.GanttView;
+import com.microproject.configuration.Settings;
+import com.microproject.document.ObjectEvent;
+import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.NodeList;
+import com.microproject.grouping.core.transform.filtering.NodeFilter;
+import com.microproject.grouping.core.transform.filtering.NotAssignmentFilter;
+import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.resource.Resource;
+import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.Project;
+import com.microproject.pm.task.Task;
+import com.microproject.strings.Messages;
+import com.microproject.util.Alert;
+import com.microproject.util.DataUtils;
+
+@SuppressWarnings("unchecked")
+public final class AssignmentDialog extends AbstractDialog implements DocumentSelectedEvent.Listener, SelectionNodeListener, ResourceAssigner, ObjectEvent.Listener, CommonAssignmentDialog  {
+	private static final long serialVersionUID = 1L;
+	DocumentFrame documentFrame;
+	AssignmentEntryPane spreadSheetPane;
+	JLabel taskNames;
+	JButton assignButton;
+	JButton removeButton;
+	JButton replaceButton;
+	JButton stopEditorButton;
+	JButton cancelEditorButton;
+	JPanel editorsButtons=null;
+	List<NormalTask> selectedTasks = null;
+
+	@FunctionalInterface
+	private interface AssignmentMutation {
+		void apply(List<NormalTask> tasks);
+	}
+	
+	public AssignmentDialog(DocumentFrame documentFrame) {
+		super(documentFrame.getGraphicManager().getFrame(),Messages.getString("Text.AssignResources"),false); //$NON-NLS-1$
+		setDocumentFrame(documentFrame);
+		DocumentSelectedEvent.addListener(this);
+		addDocHelp("Assign_Resources");
+	}
+
+	/**
+	 * Creates, intializes and configures the UI components. Real applications
+	 * may further bind the components to underlying models.
+	 */
+	protected void initControls() {
+        GraphicManager mf = documentFrame.getGraphicManager();
+        spreadSheetPane = new AssignmentEntryPane(this,documentFrame.getProject(),this,false,mf.setAssignmentDialogTransformerInitializationClosure());
+        taskNames = new JLabel();
+        Project project=documentFrame.getProject();
+		spreadSheetPane.setProject(project); //init content of spreadsheet
+		SpreadSheet activeSpreadSheet = mf.getCurrentFrame() == null ? null : mf.getCurrentFrame().getTopSpreadSheet();
+		setSelectedTasks(activeSpreadSheet == null ? emptyList : activeSpreadSheet.getSelectedNodes()); //update
+        
+        AbstractAction assignAction = new AbstractAction(Messages.getString("Text.Assign")) { //$NON-NLS-1$
+    		private static final long serialVersionUID = 1L;
+  			public void actionPerformed(ActionEvent e) {
+    			AssignmentDialog.this.assign();
+    		}
+    	};
+        assignButton = new JButton(assignAction);
+		assignButton.setName("assignResources");
+    	
+        AbstractAction removeAction  = new AbstractAction(Messages.getString("Text.Remove")) { //$NON-NLS-1$
+    		private static final long serialVersionUID = 1L;
+   			public void actionPerformed(ActionEvent e) {
+    			AssignmentDialog.this.remove();
+    		}
+    	};
+        removeButton = new JButton(removeAction);
+		removeButton.setName("removeResources");
+        
+        AbstractAction replaceAction  = new AbstractAction(Messages.format("Format.ellipsis", Messages.getString("Text.Replace"))) { //$NON-NLS-1$
+    		private static final long serialVersionUID = 1L;
+ 			public void actionPerformed(ActionEvent e) {
+    			AssignmentDialog.this.replace();
+    		}
+    	};
+        replaceButton = new JButton(replaceAction);
+		replaceButton.setName("replaceResources");
+		updateSharedPoolAvailability();
+    	
+        stopEditorButton = new JButton(new AbstractAction(null,IconManager.getIcon("dialog.ok")){ //$NON-NLS-1$
+    		private static final long serialVersionUID = 1L;
+  			public void actionPerformed(ActionEvent e) {
+  				if (spreadSheetPane.getSpreadSheet().getCellEditor() != null)
+  					spreadSheetPane.getSpreadSheet().getCellEditor().stopCellEditing();
+    		}
+        });
+        cancelEditorButton = new JButton(new AbstractAction(null,IconManager.getIcon("dialog.cancel")){ //$NON-NLS-1$
+    		private static final long serialVersionUID = 1L;
+ 			public void actionPerformed(ActionEvent e) {
+   			    SpreadSheet sp=spreadSheetPane.getSpreadSheet();
+   			    if (sp.getCellEditor() != null)
+   			    	sp.getCellEditor().cancelCellEditing();
+    			sp.clearSelection();
+    		}
+        });
+        setEditorButtonsVisible(false);
+        
+        documentFrame.getGraphicManager().getPreferences().addObjectListener(this);
+        
+	}
+	
+	public void setEditorButtonsVisible(boolean visible){
+        stopEditorButton.setEnabled(visible);
+        cancelEditorButton.setEnabled(visible);
+	}
+
+	/** A saved-but-unavailable pool must not look editable in the assignment UI. */
+	private void updateSharedPoolAvailability() {
+		boolean available = documentFrame == null || documentFrame.getProject() == null
+				|| !documentFrame.getProject().isSharedResourcePoolUnresolved();
+		String explanation = available ? null : Messages.getString("SharedResourcePool.poolNotOpen");
+		if (assignButton != null) {
+			assignButton.setEnabled(available);
+			assignButton.setToolTipText(explanation);
+		}
+		if (removeButton != null) {
+			removeButton.setEnabled(available);
+			removeButton.setToolTipText(explanation);
+		}
+		if (replaceButton != null) {
+			replaceButton.setEnabled(available);
+			replaceButton.setToolTipText(explanation);
+		}
+	}
+	
+	
+	void assign() {
+	    SpreadSheet sp=spreadSheetPane.getSpreadSheet();
+		if (sp.isEditing()) sp.getCellEditor().stopCellEditing();
+		assign(getSelectedResources(),1.0D);
+	}
+	
+	void assign(List<?> resourceList, double units) {
+		List<Resource> resources = resourceSnapshot(resourceList);
+		if (resources.isEmpty())
+			return;
+		executeAssignmentMutation("assign resources", tasks ->
+			AssignmentService.getInstance().newAssignments(tasks, resources, units, 0L, this, true));
+	}
+	
+	public void assign(Resource resource, double units) {
+		ArrayList<Resource> list = new ArrayList<>(1);
+		list.add(resource);
+		assign(list,units);
+	}
+
+/**
+ * Removes given the current task and resource selection
+ *
+ */	void remove() {
+		remove(getSelectedResources());
+	}
+
+/**
+ * Removes given the current task selection for the given resource lsit
+ * @param resourceList
+*/	void remove(List<?> resourceList) {
+		List<Resource> resources = resourceSnapshot(resourceList);
+		if (resources.isEmpty())
+			return;
+		executeAssignmentMutation("remove resource assignment", tasks -> {
+			for (NormalTask task : tasks) {
+				for (Resource resource : resources) {
+					Assignment assignment = task.findAssignment(resource);
+					if (assignment != null)
+						AssignmentService.getInstance().remove(assignment, this, true);
+				}
+			}
+		});
+	}
+	
+/**
+ * Removes given resource from current task selection 
+ * @param resource
+ * @param selectedTasks
+*/	void remove(Resource resource) {
+		if (resource != null)
+			remove(List.of(resource));
+	}	
+	
+	void replace() {
+		if (documentFrame.getProject().isSharedResourcePoolUnresolved())
+			return;
+		List<Resource> list = spreadSheetPane.getSelectedResources(true);
+		if (list.size() > 1) {
+			Alert.warn(Messages.getString("Message.onlyReplaceOneResourceAtATime"),this); //$NON-NLS-1$
+			return;
+		} else if (list.size() == 0) {
+			return;
+		}
+		Resource resource = list.get(0);
+		List<Resource> replacementList = ReplaceAssignmentDialog.getReplacementFromDialog(documentFrame, this, resource);
+		if (replacementList == null || replacementList.isEmpty()) // cancelled or nothing chosen
+			return;
+		List<Resource> replacements = resourceSnapshot(replacementList);
+		executeAssignmentMutation("replace resource assignment", tasks -> {
+			for (NormalTask task : tasks) {
+				Assignment source = task.findAssignment(resource);
+				if (source != null)
+					AssignmentService.getInstance().replaceAssignment(source, replacements, this, true);
+			}
+		});
+	}
+
+	/**
+	 * The three assignment mutations share one selection snapshot and one
+	 * collaboration-lock boundary.  Showing the dialog remains lock-free;
+	 * locks are acquired only immediately before a model mutation.
+	 */
+	private boolean executeAssignmentMutation(String actionLabel, AssignmentMutation mutation) {
+		if (documentFrame == null || documentFrame.getProject() == null
+				|| documentFrame.getProject().isSharedResourcePoolUnresolved())
+			return false;
+		List<NormalTask> tasks = selectedTaskSnapshot();
+		if (tasks.isEmpty())
+			return false;
+		if (!CollaborationHelper.tryLockNodes(documentFrame.getProject(), new ArrayList<NormalTask>(tasks), this,
+				actionLabel))
+			return false;
+		mutation.apply(tasks);
+		spreadSheetPane.updateTable();
+		return true;
+	}
+
+	private List<NormalTask> selectedTaskSnapshot() {
+		if (selectedTasks == null || selectedTasks.isEmpty())
+			return List.of();
+		List<NormalTask> tasks = new ArrayList<NormalTask>(selectedTasks.size());
+		for (NormalTask task : selectedTasks) {
+			if (task != null && task.isAssignable())
+				tasks.add(task);
+		}
+		return List.copyOf(tasks);
+	}
+
+	private List<Resource> resourceSnapshot(List<?> resources) {
+		if (resources == null || resources.isEmpty())
+			return List.of();
+		List<Resource> result = new ArrayList<Resource>(resources.size());
+		for (Object resource : resources) {
+			if (resource instanceof Resource)
+				result.add((Resource) resource);
+		}
+		return List.copyOf(result);
+	}
+
+	
+	// Building *************************************************************
+
+	/**
+	 * Builds the panel. Initializes and configures components first, then
+	 * creates a FormLayout, configures the layout, creates a builder, sets a
+	 * border, and finally adds the components.
+	 * 
+	 * @return the built panel
+	 */
+
+	public JComponent createContentPanel() {
+        
+		// Separating the component initialization and configuration
+		// from the layout code makes both parts easier to read.
+		initControls();
+		FormLayout layout = new FormLayout("p, 1dlu, default ,3dlu, default", // cols //$NON-NLS-1$
+		"p, 3dlu,fill:200dlu:grow"); // rows //$NON-NLS-1$ //$NON-NLS-2$
+
+		// Create a builder that assists in adding components to the container.
+		// Wrap the panel with a standardized border.
+		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
+		builder.setDefaultDialogBorder();
+		CellConstraints cc = new CellConstraints();
+		// task names span whole dialog
+		builder.add(taskNames,cc.xyw(builder.getColumn(), builder.getRow(), builder.getColumnCount()));
+		builder.nextLine(2);
+		
+		builder.append(spreadSheetPane, createEditorsButtons(), createButtons());
+		return builder.getPanel();
+	}
+	
+	public JComponent createEditorsButtons() {
+		FormLayout layout = new FormLayout("20px", // cols //$NON-NLS-1$
+		"20dlu,20px, 3dlu, 20px"); // rows //$NON-NLS-1$
+		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
+		builder.nextLine(1);
+		builder.append(stopEditorButton);
+		builder.nextLine(2);
+		builder.append(cancelEditorButton);
+		editorsButtons=builder.getPanel();
+		return editorsButtons;
+	}
+	public JComponent createButtons() {
+		FormLayout layout = new FormLayout("default", // cols //$NON-NLS-1$
+		"50dlu,p,3dlu,p, 3dlu, p, 3dlu, p"); // rows //$NON-NLS-1$
+		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
+		builder.nextLine(1);
+		builder.append(assignButton);
+		builder.nextLine(2);
+		builder.append(removeButton);
+		builder.nextLine(2);		
+		builder.append(replaceButton);
+		builder.nextLine(2);		
+		builder.add(getHelpButton());
+
+		return builder.getPanel();
+	}
+	
+	public ButtonPanel createButtonPanel() {
+		return null;
+	}
+
+	/**
+	 * @return Returns the project.
+	 */
+	public DocumentFrame getDocumentFrame() {
+		return documentFrame;
+	}
+	/**
+	 * @param project The project to set.
+	 */
+	public void setDocumentFrame(DocumentFrame documentFrame) {
+		detachDocumentFrame(this.documentFrame);
+		this.documentFrame = documentFrame;
+		attachDocumentFrame(documentFrame);
+	}
+
+	private void detachDocumentFrame(DocumentFrame frame) {
+		if (frame != null && frame.getProject() != null) {
+			frame.getProject().removeObjectListener(this);
+			frame.getProject().getResourcePool().removeObjectListener(this);
+		}
+	}
+
+	private void attachDocumentFrame(DocumentFrame frame) {
+		if (frame == null || frame.getProject() == null) {
+			return;
+		}
+		Project project = frame.getProject();
+		// Mirror detachDocumentFrame exactly so switching documents never leaves a stale listener.
+		project.addObjectListener(this);
+		project.getResourcePool().addObjectListener(this);
+	}
+
+	@Override
+	public void dispose() {
+		// Unregister first: a later documentSelected would otherwise re-attach this disposed dialog.
+		DocumentSelectedEvent.removeListener(this);
+		detachDocumentFrame(documentFrame);
+		if (documentFrame != null) documentFrame.getGraphicManager().getPreferences().removeObjectListener(this);
+		super.dispose();
+	}
+	
+	private static final List<Node> emptyList = List.of();
+	public void documentSelected(DocumentSelectedEvent evt) {
+		setDocumentFrame(evt.getCurrent());
+		if (getDocumentFrame() != null) {
+			spreadSheetPane.setProject(getDocumentFrame().getProject());
+		}
+		updateSharedPoolAvailability();
+		setSelectedTasks(emptyList);
+	}
+
+	public void selectionChanged(SelectionNodeEvent e) {
+		if (e.getCategory() != GanttView.spreadsheetCategory) // Keep spreadsheet events scoped to the assignment pane.
+			return;
+		List<? extends Node> selectedNodes = e.getNodes();
+		setSelectedTasks(selectedNodes);
+	}
+
+	private static final NodeFilter filter=NotAssignmentFilter.getWritableInstance();
+	private void setSelectedTasks(List<? extends Node> selectedNodes) {
+		selectedTasks = toSelectedTasks(selectedNodes);
+		String names;
+		if (selectedTasks.isEmpty())
+			names = Messages.getString("AssignmentDialog.none"); //$NON-NLS-1$
+		else
+			names = DataUtils.stringListWithMaxAndMessage(selectedTasks,Settings.STRING_LIST_LIMIT,Messages.getString("Message.tooManyTasksSelectedToList")); //$NON-NLS-1$
+
+		String label = Messages.format("Format.labelValue", Messages.getString("Text.Tasks"), names); //$NON-NLS-1$
+		if (documentFrame.getProject().isSharedResourcePoolUnresolved())
+			label += " — " + Messages.getString("SharedResourcePool.poolNotOpen");
+		taskNames.setText(label);
+		spreadSheetPane.setSelectedTasks(selectedTasks);
+//		setEnabled(!selectedTasks.isEmpty());
+	}
+	
+	public List<Resource> getSelectedResources(){
+  		return spreadSheetPane.getSelectedResources(false);
+  	}
+
+	private List<NormalTask> toSelectedTasks(List<? extends Node> selectedNodes) {
+		List<Object> objects = NodeList.nodeListToImplList(selectedNodes, filter);
+		List<NormalTask> tasks = new ArrayList<>(objects.size());
+		for (Object current : objects) {
+			if (current instanceof NormalTask task && task.isAssignable()) {
+				tasks.add(task);
+			}
+		}
+		return tasks;
+	}
+
+
+	public void objectChanged(ObjectEvent objectEvent) {
+		if (documentFrame == null)
+			return;
+		if (objectEvent.getObject() instanceof Resource)
+			spreadSheetPane.setProject(documentFrame.getProject());	
+		else if (objectEvent.getObject() instanceof Assignment)
+			spreadSheetPane.updateTable(); // Undo and spreadsheet changes still funnel through the table refresh path.
+	}
+}

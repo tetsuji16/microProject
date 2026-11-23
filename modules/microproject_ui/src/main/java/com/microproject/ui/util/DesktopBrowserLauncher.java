@@ -37,8 +37,8 @@ import java.util.logging.Logger;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
-import com.microproject.pm.graphic.frames.DocumentFrame;
-import com.microproject.pm.graphic.frames.GraphicManager;
+import com.microproject.ui.frame.DocumentFrame;
+import com.microproject.ui.frame.GraphicManager;
 import com.microproject.strings.Messages;
 import com.microproject.util.BrowserControl.BrowserLauncher;
 import com.microproject.util.ExternalLinkPolicy;

@@ -1,0 +1,380 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.dialog.options;
+
+import java.awt.Frame;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JSpinner;
+import javax.swing.JTextField;
+import javax.swing.SpinnerNumberModel;
+
+import com.jgoodies.forms.builder.DefaultFormBuilder;
+import com.jgoodies.forms.layout.CellConstraints;
+import com.jgoodies.forms.layout.FormLayout;
+import com.microproject.ui.dialog.AbstractDialog;
+import com.microproject.configuration.Settings;
+import com.microproject.options.CalendarOption;
+import com.microproject.strings.Messages;
+import com.microproject.ui.util.FlatUiSupport;
+import com.microproject.util.TimeInputParser;
+
+/**
+ *
+ */
+public class CalendarDialogBox extends AbstractDialog{
+	private static final long serialVersionUID = -6887419605301434923L;
+
+	public static class Form {
+        Double hoursPerDay;
+        Double hoursPerWeek;
+        Double daysPerMonth;
+        String startTime;
+        String endTime;
+        String weekStart;
+        String fiscalYearStart;
+        Boolean showTimeInDates;
+        Boolean useStartingYear;
+        Boolean setAsDefault;
+        
+        Form(CalendarOption option) {
+        	hoursPerDay = Double.valueOf(option.getHoursPerDay());
+        	hoursPerWeek = Double.valueOf(option.getHoursPerWeek());
+        	daysPerMonth = Double.valueOf(option.getDaysPerMonth());
+	startTime = Integer.toString(option.getDefaultStartHour());
+	endTime = Integer.toString(option.getDefaultEndHour());
+		weekStart = Integer.toString(option.getWeekStartsOn() - 1);
+		fiscalYearStart = Integer.toString(option.getFiscalYearStartsIn() - 1);
+		useStartingYear = Boolean.FALSE;
+		setAsDefault = Boolean.FALSE;
+        	showTimeInDates = Boolean.valueOf(option.isShowTimeInDates());
+        	
+        }
+        public void copyToOption(CalendarOption option) {
+        	option.setHoursPerDay(hoursPerDay.doubleValue());
+        	option.setHoursPerWeek(hoursPerWeek.doubleValue());
+        	option.setDaysPerMonth(daysPerMonth.doubleValue());
+        	option.setShowTimeInDates(showTimeInDates.booleanValue());
+        	option.setDefaultStartHour(parseHour(startTime, option.getDefaultStartHour()));
+        	option.setDefaultEndHour(parseHour(endTime, option.getDefaultEndHour()));
+		option.setWeekStartsOn(parseIndex(weekStart, option.getWeekStartsOn() - 1) + 1);
+		option.setFiscalYearStartsIn(parseIndex(fiscalYearStart, option.getFiscalYearStartsIn() - 1) + 1);
+        	
+        }
+        public Double getDaysPerMonth() {
+            return daysPerMonth;
+        }
+        public void setDaysPerMonth(Double daysPerMonth) {
+            this.daysPerMonth = daysPerMonth;
+        }
+        public String getEndTime() {
+            return endTime;
+        }
+        public void setEndTime(String endTime) {
+            this.endTime = endTime;
+        }
+        public String getFiscalYearStart() {
+            return fiscalYearStart;
+        }
+        public void setFiscalYearStart(String fiscalYearStart) {
+            this.fiscalYearStart = fiscalYearStart;
+        }
+        public Double getHoursPerDay() {
+            return hoursPerDay;
+        }
+        public void setHoursPerDay(Double hoursPerDay) {
+            this.hoursPerDay = hoursPerDay;
+        }
+        public Double getHoursPerWeek() {
+            return hoursPerWeek;
+        }
+        public void setHoursPerWeek(Double hoursPerWeek) {
+            this.hoursPerWeek = hoursPerWeek;
+        }
+        public Boolean getSetAsDefault() {
+            return setAsDefault;
+        }
+        public void setSetAsDefault(Boolean setAsDefault) {
+            this.setAsDefault = setAsDefault;
+        }
+        public Boolean getShowTimeInDates() {
+            return showTimeInDates;
+        }
+        public void setShowTimeInDates(Boolean showTimeInDates) {
+            this.showTimeInDates = showTimeInDates;
+        }
+        public String getStartTime() {
+            return startTime;
+        }
+        public void setStartTime(String startTime) {
+            this.startTime = startTime;
+        }
+        public Boolean getUseStartingYear() {
+            return useStartingYear;
+        }
+        public void setUseStartingYear(Boolean useStartingYear) {
+            this.useStartingYear = useStartingYear;
+        }
+        public String getWeekStart() {
+            return weekStart;
+        }
+        public void setWeekStart(String weekStart) {
+            this.weekStart = weekStart;
+        }
+
+        private int parseHour(String value, int fallback) {
+        	return TimeInputParser.parseHour(value, fallback);
+        }
+	private int parseIndex(String value, int fallback) {
+		try { return Integer.parseInt(value); } catch (RuntimeException ignored) { return fallback; }
+	}
+    }	
+        
+        private Form form;
+       
+        JSpinner hoursPerDay;
+        JSpinner hoursPerWeek;
+        JSpinner daysPerMonth;
+        JTextField startTime;
+        JTextField endTime;
+        JComboBox weekStart;
+        JComboBox fiscalYearStart;
+        JCheckBox showTimeInDates;
+        JCheckBox useStartingYear;
+        JButton setAsDefault;
+
+        
+    	public static CalendarDialogBox getInstance(Frame owner, CalendarOption option) {
+    		return new CalendarDialogBox(owner, option);
+    	}
+
+	/** Smallest accepted duration conversion value: DurationDefaults rejects zero, so the dialog must too. */
+	static final double MIN_POSITIVE = 0.01;
+
+	static SpinnerNumberModel positiveSpinnerModel(double value, double max, double step) {
+		return new SpinnerNumberModel(Math.min(Math.max(value, MIN_POSITIVE), max), MIN_POSITIVE, max, step);
+	}
+
+    	private CalendarDialogBox(Frame owner, CalendarOption option) {
+    		super(owner, Messages.getString("CalendarDialogBox.DurationSettings"), true); //$NON-NLS-1$
+   			this.form = new Form(option);
+   			addDocHelp("Calendar_Options");
+    	}
+    	
+    	protected void initControls() {
+    	    
+    	    String[] week =new String [] {Messages.getString("CalendarDialogBox.Monday"),Messages.getString("CalendarDialogBox.Tuesday"),Messages.getString("CalendarDialogBox.Wednesday"),Messages.getString("CalendarDialogBox.Thursday"), //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$
+    	            Messages.getString("CalendarDialogBox.Friday"),Messages.getString("CalendarDialogBox.Saturday"),Messages.getString("CalendarDialogBox.Sunday") //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
+    	    };
+    	    String[] year =new String [] {Messages.getString("CalendarDialogBox.January"),Messages.getString("CalendarDialogBox.February"),Messages.getString("CalendarDialogBox.March"),Messages.getString("CalendarDialogBox.April"),Messages.getString("CalendarDialogBox.May"),Messages.getString("CalendarDialogBox.June"),Messages.getString("CalendarDialogBox.July"), //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$ //$NON-NLS-5$ //$NON-NLS-6$ //$NON-NLS-7$
+    	            Messages.getString("CalendarDialogBox.August"),Messages.getString("CalendarDialogBox.September"),Messages.getString("CalendarDialogBox.October"),Messages.getString("CalendarDialogBox.November"),Messages.getString("CalendarDialogBox.December") //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$ //$NON-NLS-5$
+    	    };
+    	    weekStart=new JComboBox(week);
+    	    fiscalYearStart=new JComboBox(year);   
+    	    showTimeInDates = new JCheckBox(Messages.getString("CalendarDialogBox.ShowTimeInDates")); //$NON-NLS-1$
+    	    useStartingYear=new JCheckBox(Messages.getString("CalendarDialogBox.UserStartingYearForFVNumbering")); //$NON-NLS-1$
+    	    useStartingYear.setEnabled(false);
+
+            startTime= new JTextField(form.getStartTime());
+            endTime= new JTextField(form.getEndTime());
+    	              
+		hoursPerDay = new JSpinner(positiveSpinnerModel(form.getHoursPerDay().doubleValue(),24.0,0.5));
+    		JSpinner.NumberEditor editor1;
+    		editor1 = new JSpinner.NumberEditor(hoursPerDay,"##.##"); //$NON-NLS-1$
+    		hoursPerDay.setEditor(editor1);
+    		
+		hoursPerWeek = new JSpinner(positiveSpinnerModel(form.getHoursPerWeek().doubleValue(),168.0,0.5));
+    		JSpinner.NumberEditor editor2;
+    		editor2 = new JSpinner.NumberEditor(hoursPerWeek,"##.##"); //$NON-NLS-1$
+    		hoursPerWeek.setEditor(editor2);
+    		
+		daysPerMonth = new JSpinner(positiveSpinnerModel(form.getDaysPerMonth().doubleValue(),31.0,1.0));
+    		JSpinner.NumberEditor editor3;
+    		editor3 = new JSpinner.NumberEditor(daysPerMonth,"##.##"); //$NON-NLS-1$
+    		daysPerMonth.setEditor(editor3);
+    		
+            setAsDefault= new JButton(Messages.getString("CalendarDialogBox.SetAsDefault")); //$NON-NLS-1$
+            FlatUiSupport.styleDialogButton(setAsDefault, false);
+            setAsDefault.addActionListener(new ActionListener(){
+                public void actionPerformed(ActionEvent e) {
+                    if (!bind(false)) {
+                        return;
+                    }
+                    applyFormToDefault(form);
+                }
+            });
+
+    		fiscalYearStart.addActionListener(new ActionListener(){
+    		    public void actionPerformed(ActionEvent e){
+    	    	    if (fiscalYearStart.getSelectedItem().equals(Messages.getString("CalendarDialogBox.January"))){ //$NON-NLS-1$
+    	    	        useStartingYear.setEnabled(false);
+    	    	    }else{
+    	    	        useStartingYear.setEnabled(true);
+    	    	    }
+    		    }});
+    		
+
+    		
+    	}
+
+	static void applyFormToDefault(CalendarDialogBox.Form form) {
+		form.copyToOption(CalendarOption.getDefaultInstance());
+	}
+ 
+    
+    	protected boolean bind(boolean get) {
+    		if (form == null)
+    			return false;
+    		if (get) {
+		    weekStart.setSelectedIndex(Integer.parseInt(form.getWeekStart()));
+		    fiscalYearStart.setSelectedIndex(Integer.parseInt(form.getFiscalYearStart()));
+    		    showTimeInDates.setSelected((form.getShowTimeInDates()).booleanValue());
+		    useStartingYear.setSelected(form.getUseStartingYear().booleanValue());
+		    startTime.setText(form.getStartTime());
+		    endTime.setText(form.getEndTime());
+    		    hoursPerDay.setValue(form.getHoursPerDay());
+    		    hoursPerWeek.setValue(form.getHoursPerWeek());
+    		    daysPerMonth.setValue(form.getDaysPerMonth());    		    
+    		    setAsDefault.setSelected((form.getSetAsDefault()).booleanValue());
+    		    
+ 
+ 
+    		} else {
+			form.setWeekStart(Integer.toString(weekStart.getSelectedIndex()));
+			form.setFiscalYearStart(Integer.toString(fiscalYearStart.getSelectedIndex()));
+    			form.setShowTimeInDates(Boolean.valueOf(showTimeInDates.isSelected()));
+    			Boolean b1=Boolean.valueOf(useStartingYear.isSelected());
+    			form.setUseStartingYear(b1);
+    			form.setStartTime(startTime.getText());
+    			form.setEndTime(endTime.getText());
+    			form.setHoursPerDay((Double)hoursPerDay.getValue());
+    			form.setHoursPerWeek((Double)hoursPerWeek.getValue());
+    			form.setDaysPerMonth((Double)daysPerMonth.getValue());    			
+    			Boolean b2=Boolean.valueOf(setAsDefault.isSelected());
+    			form.setSetAsDefault(b2);
+
+    		}
+    		return true;
+    	}
+    	
+	/**
+	 * #863: the content is one bounded form, so the dialog keeps its packed size
+	 * instead of showing an empty band when the user grows the window.
+	 */
+	@Override
+	protected boolean isFixedSizeForm() {
+		return true;
+	}
+
+    	public JComponent createContentPanel() {
+    	
+    		initControls();
+    		
+			FormLayout layout = new FormLayout(
+			        "p,3dlu,p,p:grow", //$NON-NLS-1$
+			  "p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p"); //$NON-NLS-1$
+
+    		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
+    		builder.setDefaultDialogBorder();
+    		CellConstraints cc = new CellConstraints();
+			builder.add(new JLabel(Messages.getString("CalendarDialogBox.TheseSettingsOnlyApplyToDuration")),cc.xyw(builder.getColumn(), builder //$NON-NLS-1$
+					.getRow(), 4));
+    		builder.nextLine(2);
+    		builder.append(Messages.getString("CalendarDialogBox.HoursPerday"),hoursPerDay); //$NON-NLS-1$
+    		builder.nextLine(2);
+    		builder.append(Messages.getString("CalendarDialogBox.HoursPerWeek"),hoursPerWeek); //$NON-NLS-1$
+    		builder.nextLine(2);
+    		builder.append(Messages.getString("CalendarDialogBox.DaysPerMonth"),daysPerMonth); //$NON-NLS-1$
+		builder.nextLine(2);
+		builder.append(Messages.getString("CalendarDialogBox.WeekStartsOn"), weekStart); //$NON-NLS-1$
+		builder.nextLine(2);
+		builder.append(Messages.getString("CalendarDialogBox.FiscalYearStartsIn"), fiscalYearStart); //$NON-NLS-1$
+		builder.nextLine(2);
+		builder.append(Messages.getString("CalendarDialogBox.DefaultStartTime"), startTime); //$NON-NLS-1$
+		builder.nextLine(2);
+		builder.append(Messages.getString("CalendarDialogBox.DefaultEndTime"), endTime); //$NON-NLS-1$
+    		builder.nextLine(2);
+    		builder.append(setAsDefault);
+    		builder.nextLine(2);
+    		builder.append(showTimeInDates);
+  
+
+    		return builder.getPanel();
+    	}
+//    	public JComponent createContentPanel() {
+//        	
+//    		initControls();
+//    		
+//    		FormLayout layout = new FormLayout(
+//    		        "left:80dlu,3dlu,50dlu, 3dlu,130dlu,3dlu",
+//    	    		  "p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,p,3dlu,fill:10dlu:grow");
+//
+//    		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
+//    		builder.setDefaultDialogBorder();
+//    		CellConstraints cc = new CellConstraints();
+//    		
+//    		builder.addSeparator("Local calendar options");
+//    		builder.nextLine(4);
+//    		builder.append("Week starts on :",weekStart);
+//    		builder.nextLine(2);
+//    		builder.append("Fiscal year starts in :",fiscalYearStart);
+//    		builder.nextLine(2);
+//    		builder.nextColumn(4);
+//    		builder.append(useStartingYear);
+//    		builder.nextLine(4);
+//    		builder.addSeparator("");
+//    		builder.nextLine(4);
+//    		builder.append("Default start time :",startTime);
+//    		builder.nextLine(2);
+//    		builder.append("Default end time :",endTime);
+//    		builder.nextLine(4);
+//    		builder.addSeparator("");
+//    		builder.nextLine(4);
+//    		builder.append("Hours per day :",hoursPerDay);
+//    		builder.nextLine(2);
+//    		builder.append("Hours per week :",hoursPerWeek);
+//    		builder.nextLine(2);
+//    		builder.append("Days per month :",daysPerMonth);
+//    		builder.nextLine(4);
+//    		builder.append(setAsDefault);
+//    		builder.nextLine(2);
+//  
+//
+//    		return builder.getPanel();
+//    	}
+    	 	
+    	public Object getBean(){
+    		return form;
+    	}
+
+		public Form getForm() {
+			return form;
+		}
+}

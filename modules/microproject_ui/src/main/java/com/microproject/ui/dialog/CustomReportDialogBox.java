@@ -1,0 +1,482 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.dialog;
+
+import java.awt.BorderLayout;
+import java.awt.CardLayout;
+import java.awt.Dimension;
+import java.awt.Frame;
+import java.awt.GridLayout;
+import java.awt.print.PrinterException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+import java.util.Base64;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JSpinner;
+import javax.swing.JSplitPane;
+import javax.swing.SwingUtilities;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.ListSelectionModel;
+import javax.swing.SpinnerDateModel;
+import javax.swing.table.DefaultTableModel;
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.ChartPanel;
+import org.jfree.chart.JFreeChart;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.data.category.DefaultCategoryDataset;
+import org.jfree.data.gantt.TaskSeries;
+import org.jfree.data.gantt.TaskSeriesCollection;
+
+import com.microproject.configuration.Configuration;
+import com.microproject.field.Field;
+import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.scheduling.ScheduleEvent;
+import com.microproject.pm.scheduling.ScheduleEventListener;
+import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProjectHierarchyQueries;
+import com.microproject.pm.task.Task;
+import com.microproject.util.Alert;
+import com.microproject.util.UiServices;
+import com.microproject.ui.help.HelpUtil;
+import com.microproject.reports.model.ReportCsvWriter;
+import com.microproject.reports.model.ReportModel;
+import com.microproject.reports.render.ReportPrintable;
+import com.microproject.ui.print.ReportPageable;
+import com.microproject.ui.util.PopupDialogSupport;
+import com.microproject.ui.util.FlatUiSupport;
+import com.microproject.ui.util.FlatLafDialog;
+
+/** User-configurable task report with reusable presets, preview, print, and CSV export. */
+public final class CustomReportDialogBox extends FlatLafDialog implements ScheduleEventListener {
+	private static final long serialVersionUID = 1L;
+	enum ReportTemplate {
+		BLANK("blank", "report.template.blank", List.of()),
+		CHART("chart", "report.template.chart", List.of("Field.name", "Field.work", "Field.actualWork", "Field.remainingWork")),
+		TABLE("table", "report.template.table", List.of("Field.name", "Field.start", "Field.finish", "Field.duration", "Field.percentComplete", "Field.resourceNames")),
+		COMPARISON("comparison", "report.template.comparison", List.of("Field.name", "Field.start", "Field.finish", "Field.baselineStart", "Field.baselineFinish", "Field.percentComplete"));
+
+		private final String code;
+		private final String labelKey;
+		private final List<String> fieldIds;
+
+		ReportTemplate(String code, String labelKey, List<String> fieldIds) {
+			this.code = code;
+			this.labelKey = labelKey;
+			this.fieldIds = fieldIds;
+		}
+
+		String code() { return code; }
+		List<String> fieldIds() { return fieldIds; }
+		@Override public String toString() { return t(labelKey); }
+
+		static ReportTemplate fromCode(String code) {
+			for (ReportTemplate template : values()) if (template.code.equals(code)) return template;
+			return TABLE;
+		}
+	}
+	private static final String[] FILTERS = { t("report.all"), t("report.incomplete"), t("report.late"), t("report.milestones"), t("report.critical"), t("report.manual"), t("report.inactive") };
+	private static final String[] GROUPS = { t("report.none"), t("report.status"), t("common.resource") };
+	private final Project project;
+	private final List<Field> fields;
+	private final JList<Field> columns;
+	private final JComboBox<String> filter = new JComboBox<>(FILTERS);
+	private final JComboBox<String> group = new JComboBox<>(GROUPS);
+	private final JComboBox<Field> sort;
+	private final JTextField contains = new JTextField(14);
+	private final JCheckBox includeSummary = new JCheckBox(t("report.summary"));
+	private final JCheckBox useDateRange = new JCheckBox(t("report.dateRange"));
+	private final JSpinner from = new JSpinner(new SpinnerDateModel());
+	private final JSpinner to = new JSpinner(new SpinnerDateModel());
+	private final JComboBox<String> presets = new JComboBox<>();
+	private final DefaultTableModel previewModel = new DefaultTableModel() {
+		private static final long serialVersionUID = 1L;
+		@Override public boolean isCellEditable(int row, int column) { return false; }
+	};
+	private final JTable preview = new JTable(previewModel);
+	private final JPanel previewCards = new JPanel(new CardLayout());
+	private final ChartPanel chartPreview = new ChartPanel(null);
+	private final JLabel summary = new JLabel(" ");
+	private ReportTemplate selectedTemplate = ReportTemplate.TABLE;
+	private ReportModel reportModel;
+
+	public CustomReportDialogBox(Frame owner, Project project) {
+		super(owner, t("report.title"), false);
+		HelpUtil.addDocHelp(getRootPane(), "Custom_Reports");
+		getAccessibleContext().setAccessibleDescription(t("report.accessible"));
+		PopupDialogSupport.bindEscapeToDispose(this);
+		this.project = project;
+		project.addScheduleListener(this);
+		fields = reportFields();
+		columns = new JList<>(fields.toArray(Field[]::new));
+		columns.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+		columns.setVisibleRowCount(12);
+		sort = new JComboBox<>(fields.toArray(Field[]::new));
+		selectDefaults();
+		setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+		setLayout(new BorderLayout(8, 8));
+		add(buildSettings(), BorderLayout.NORTH);
+		previewCards.add(new JPanel(), "table");
+		previewCards.add(chartPreview, "chart");
+		JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(columns), previewCards);
+		split.setResizeWeight(0.2D); add(split, BorderLayout.CENTER);
+		add(buildButtons(), BorderLayout.SOUTH);
+		preview.setAutoCreateRowSorter(true); preview.setRowHeight(Math.max(22, preview.getRowHeight()));
+		preview.getAccessibleContext().setAccessibleName(t("report.accessible"));
+		refreshPresetNames(); generate();
+		DialogSizing.applyInitialSize(this, new Dimension(950, 600), new Dimension(1200, 760), owner);
+		FlatUiSupport.styleDialogRoot(getRootPane());
+		FlatUiSupport.styleDialogComponents(getContentPane());
+	}
+
+	@Override
+	public void scheduleChanged(ScheduleEvent event) {
+		if (!isDisplayable())
+			return;
+		SwingUtilities.invokeLater(() -> {
+			if (isDisplayable())
+				generate();
+		});
+	}
+
+	@Override
+	public void dispose() {
+		project.removeScheduleListener(this);
+		super.dispose();
+	}
+
+	private JPanel buildSettings() {
+		// One flow row per line: a FlowLayout row inside a GridLayout keeps its single-line height, so a wrapped control would be clipped.
+		JPanel result = new JPanel(new GridLayout(3, 1));
+		JPanel row1 = new JPanel(); row1.add(new JLabel(t("report.preset"))); row1.add(presets);
+		JButton create = new JButton(t("report.new")); create.addActionListener(event -> createTemplatePreset());
+		JButton load = new JButton(t("report.load")); load.addActionListener(event -> loadPreset());
+		JButton save = new JButton(t("report.saveAs")); save.addActionListener(event -> savePreset());
+		JButton delete = new JButton(t("report.delete")); delete.addActionListener(event -> deletePreset());
+		row1.add(create); row1.add(load); row1.add(save); row1.add(delete);
+		JPanel filterRow = new JPanel(); filterRow.add(new JLabel(t("report.filter"))); filterRow.add(filter);
+		filterRow.add(new JLabel(t("report.nameContains"))); filterRow.add(contains); filterRow.add(includeSummary);
+		JPanel row2 = new JPanel(); row2.add(new JLabel(t("report.group"))); row2.add(group); row2.add(new JLabel(t("report.sort"))); row2.add(sort);
+		row2.add(useDateRange); row2.add(new JLabel(t("report.from"))); row2.add(from); row2.add(new JLabel(t("report.to"))); row2.add(to);
+		result.add(row1); result.add(filterRow); result.add(row2); return result;
+	}
+
+	private JPanel buildButtons() {
+		JPanel result = new JPanel(new BorderLayout()); result.add(summary, BorderLayout.WEST);
+		JPanel buttons = new JPanel(); JButton generate = new JButton(t("report.generate")); FlatUiSupport.styleDialogButton(generate, true); generate.addActionListener(event -> generate());
+		JButton export = new JButton(t("report.export")); export.addActionListener(event -> exportCsv());
+		JButton print = new JButton(t("report.print")); print.addActionListener(event -> print());
+		JButton close = new JButton(t("common.close")); close.addActionListener(event -> dispose());
+		getRootPane().setDefaultButton(generate); // Enter presses the primary command (Windows/Office dialog rule)
+		buttons.add(generate); buttons.add(export); buttons.add(print); buttons.add(close); result.add(buttons, BorderLayout.EAST); return result;
+	}
+
+	static List<Field> reportFields() {
+		List<String> standard = List.of("Field.name", "Field.wbs", "Field.start", "Field.finish", "Field.duration",
+			"Field.percentComplete", "Field.work", "Field.cost", "Field.resourceNames", "Field.priority",
+			"Field.deadline", "Field.totalSlack", "Field.manuallyScheduled", "Field.inactiveTask",
+			"Field.bcws", "Field.bcwp", "Field.acwp", "Field.cv", "Field.sv", "Field.cpi", "Field.spi");
+		List<Field> taskFields = Configuration.getInstance().getFieldDictionary().getTaskFields();
+		List<Field> result = new ArrayList<>(standard.size() + taskFields.size());
+		for (String id : standard) { Field field = Configuration.getFieldFromId(id); if (field != null) result.add(field); }
+		taskFields.stream().filter(Field::isCustom)
+			.sorted(Comparator.comparing(Field::getName)).forEach(result::add);
+		return List.copyOf(result);
+	}
+
+	private void selectDefaults() {
+		List<String> defaults = List.of("Field.name", "Field.start", "Field.finish", "Field.duration", "Field.percentComplete", "Field.resourceNames");
+		int[] indices = java.util.stream.IntStream.range(0, fields.size()).filter(index -> defaults.contains(fields.get(index).getId())).toArray();
+		columns.setSelectedIndices(indices);
+	}
+
+	private void generate() {
+		List<Field> selected = columns.getSelectedValuesList();
+		if (selected.isEmpty()) {
+			previewModel.setDataVector(new Object[0][0], new Object[0]);
+			showTablePreview();
+			summary.setText(t("report.blankPreview"));
+			return;
+		}
+		List<Task> tasks = filteredTasks(); Field sortField = (Field) sort.getSelectedItem();
+		if (sortField != null) tasks.sort(Comparator.comparing(task -> safeText(sortField, task), String.CASE_INSENSITIVE_ORDER));
+		boolean grouped = group.getSelectedIndex() > 0;
+		List<String> names = new ArrayList<>(selected.size() + (grouped ? 1 : 0)); if (grouped) names.add(t("report.groupColumn")); selected.forEach(field -> names.add(field.getName()));
+		previewModel.setDataVector(new Object[0][0], names.toArray());
+		List<List<Object>> reportRows = new ArrayList<>();
+		List<Object> groupKeys = new ArrayList<>();
+		TaskAggregation aggregation = aggregateTasks(tasks);
+		double totalCost = aggregation.summaryOwnFixedCost(); long totalWork = 0L;
+		for (Task task : tasks) {
+			List<Object> row = new ArrayList<>(selected.size() + (grouped ? 1 : 0)); if (grouped) row.add(groupValue(task));
+			for (Field field : selected) row.add(safeText(field, task));
+			previewModel.addRow(row.toArray());
+			reportRows.add(new ArrayList<>(row));
+			groupKeys.add(grouped ? groupValue(task) : null);
+		}
+		for (Task task : aggregation.tasks()) {
+			if (task instanceof com.microproject.pm.task.NormalTask normal) {
+				totalCost += normal.getCost(null);
+				totalWork += normal.getWork(null);
+			}
+		}
+		List<Field> reportColumns = new ArrayList<>();
+		if (grouped) {
+			Field groupField = new Field();
+			groupField.setName(t("report.groupColumn"));
+			reportColumns.add(groupField);
+		}
+		reportColumns.addAll(selected);
+		int[] widths = reportColumns.stream().mapToInt(field -> Math.max(60, field.getColumnWidth())).toArray();
+		reportModel = new ReportModel(t("report.title"), reportColumns, reportRows, widths,
+			grouped ? 0 : -1, groupKeys, project.getName(), false, false, false);
+		summary.setText(tasks.size() + " tasks  |  Cost: " + String.format(Locale.getDefault(), "%,.2f", totalCost) + "  |  Work: " + totalWork);
+		if (selectedTemplate == ReportTemplate.CHART) {
+			chartPreview.setChart(createWorkChart(tasks));
+			showChartPreview();
+		} else if (selectedTemplate == ReportTemplate.COMPARISON) {
+			chartPreview.setChart(createComparisonChart(tasks));
+			showChartPreview();
+		} else {
+			showTablePreview();
+		}
+	}
+
+	private void showTablePreview() {
+		showPreview("table");
+	}
+
+	private void showChartPreview() {
+		showPreview("chart");
+	}
+
+	private void showPreview(String card) {
+		previewCards.removeAll();
+		previewCards.add(reportModel == null ? new JPanel()
+			: new com.microproject.reports.render.ReportPreview(new ReportPrintable(reportModel)), "table");
+		previewCards.add(chartPreview, "chart");
+		((CardLayout)previewCards.getLayout()).show(previewCards, card);
+		previewCards.revalidate(); previewCards.repaint();
+	}
+
+	static JFreeChart createWorkChart(List<? extends Task> tasks) {
+		DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+		double work = 0D;
+		double actualWork = 0D;
+		double remainingWork = 0D;
+		for (Task task : aggregateTasks(tasks).tasks()) {
+			if (task instanceof com.microproject.pm.task.NormalTask normal) {
+				work += hours(normal.getWork(null));
+				actualWork += hours(normal.getActualWork(null));
+				remainingWork += hours(normal.getRemainingWork(null));
+			}
+		}
+		dataset.addValue(work, "Work", "Project");
+		dataset.addValue(actualWork, "Actual Work", "Project");
+		dataset.addValue(remainingWork, "Remaining Work", "Project");
+		return ChartFactory.createBarChart("Work", "", "Hours", dataset,
+			PlotOrientation.VERTICAL, true, true, false);
+	}
+
+	static TaskAggregation aggregateTasks(List<? extends Task> visibleTasks) {
+		List<Task> included = new ArrayList<>(visibleTasks.size());
+		java.util.Set<Task> visible = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+		visible.addAll(visibleTasks);
+		double summaryOwnFixedCost = 0D;
+		for (Task task : visibleTasks) {
+			if (task instanceof com.microproject.pm.task.NormalTask normal && task.isSummary()
+					&& !normal.hasRealAssignments() && hasVisibleDescendant(task, visible)) {
+				summaryOwnFixedCost += normal.getFixedCost(null);
+			} else {
+				included.add(task);
+			}
+		}
+		return new TaskAggregation(List.copyOf(included), summaryOwnFixedCost);
+	}
+
+	private static boolean hasVisibleDescendant(Task summary, java.util.Set<Task> visibleTasks) {
+		for (Task candidate : visibleTasks) {
+			for (Task parent = candidate.getWbsParentTask(); parent != null; parent = parent.getWbsParentTask())
+				if (parent == summary) return true;
+		}
+		return false;
+	}
+
+	record TaskAggregation(List<Task> tasks, double summaryOwnFixedCost) { }
+
+	/**
+	 * Shows the current and saved-baseline schedules on a common time line, just as
+	 * the Microsoft Project Comparison report does.  The table remains populated so
+	 * exports and printed reports retain their explicit date values.
+	 */
+	static JFreeChart createComparisonChart(List<? extends Task> tasks) {
+		TaskSeries current = new TaskSeries(t("report.currentSchedule"));
+		TaskSeries baseline = new TaskSeries(t("report.baselineSchedule"));
+		for (Task task : tasks) {
+			if (!(task instanceof com.microproject.pm.task.NormalTask normal))
+				continue;
+			addScheduleTask(current, task.getName(), task.getStart(), task.getEnd());
+			addScheduleTask(baseline, task.getName(), normal.getBaselineStartOrZero(), normal.getBaselineFinishOrZero());
+		}
+		TaskSeriesCollection dataset = new TaskSeriesCollection();
+		dataset.add(current);
+		dataset.add(baseline);
+		return ChartFactory.createGanttChart(t("report.comparisonTimeline"), t("Field.name"), "",
+			dataset, true, true, false);
+	}
+
+	private static void addScheduleTask(TaskSeries series, String taskName, long start, long finish) {
+		if (start <= 0L || finish < start)
+			return;
+		series.add(new org.jfree.data.gantt.Task(taskName == null ? "" : taskName, new Date(start), new Date(finish)));
+	}
+
+	private static double hours(long milliseconds) {
+		return milliseconds / 3_600_000D;
+	}
+
+	private List<Task> filteredTasks() {
+		List<Task> result = new ArrayList<>(); String text = contains.getText().trim().toLowerCase(Locale.ROOT);
+		long lower = ((Date) from.getValue()).getTime(), upper = ((Date) to.getValue()).getTime();
+		for (Task task : ProjectHierarchyQueries.outline(project)) {
+			if (!includeSummary.isSelected() && task.isSummary()) continue;
+			if (!text.isEmpty() && (task.getName() == null || !task.getName().toLowerCase(Locale.ROOT).contains(text))) continue;
+			if (useDateRange.isSelected() && (task.getStart() < lower || task.getStart() > upper)) continue;
+			String chosen = (String) filter.getSelectedItem();
+			if (t("report.incomplete").equals(chosen) && task.isComplete()) continue;
+			if (t("report.late").equals(chosen) && (task.isComplete() || task.getEnd() >= effectiveStatusDate())) continue;
+			if (t("report.milestones").equals(chosen) && !task.isMilestone()) continue;
+			if (t("report.critical").equals(chosen) && !task.isCritical()) continue;
+			if (t("report.manual").equals(chosen) && !task.isManuallyScheduled()) continue;
+			if (t("report.inactive").equals(chosen) && !task.isInactiveTask()) continue;
+			result.add(task);
+		}
+		return result;
+	}
+
+	private long effectiveStatusDate() { long status = project.getStatusDate(); return status > 0L ? status : System.currentTimeMillis(); }
+	private String groupValue(Task task) {
+		if (group.getSelectedIndex() == 1) return task.isInactiveTask() ? t("report.inactive") : task.isComplete() ? t("report.complete") : task.inProgress() ? t("report.inProgress") : t("report.notStarted");
+		if (!(task instanceof com.microproject.pm.task.NormalTask normal)) return t("report.unassigned");
+		List<String> names = new ArrayList<>(); for (Object value : normal.getAssignments()) { Assignment assignment = (Assignment) value; if (assignment.getResource() != null) names.add(assignment.getResource().getName()); }
+		return names.isEmpty() ? t("report.unassigned") : String.join(", ", names);
+	}
+	private String safeText(Field field, Task task) { try { String value = field.getText(task, null); return value == null ? "" : value; } catch (RuntimeException error) { return ""; } }
+
+	private void savePreset() {
+		String name = JOptionPane.showInputDialog(this, t("report.presetName"), t("report.savePreset"), JOptionPane.PLAIN_MESSAGE);
+		if (name == null || name.isBlank()) return;
+		String displayName = name.trim();
+		project.getCustomReportPresets().put(displayName, encodePreset(currentPresetValues()));
+		refreshPresetNames(); presets.setSelectedItem(displayName);
+	}
+	private void createTemplatePreset() {
+		ReportTemplate template = (ReportTemplate) JOptionPane.showInputDialog(this, t("report.templatePrompt"),
+			t("report.new"), JOptionPane.PLAIN_MESSAGE, null, ReportTemplate.values(), ReportTemplate.TABLE);
+		if (template == null) return;
+		String name = JOptionPane.showInputDialog(this, t("report.presetName"), t("report.new"), JOptionPane.PLAIN_MESSAGE);
+		if (name == null || name.isBlank()) return;
+		applyTemplate(template);
+		String displayName = name.trim();
+		project.getCustomReportPresets().put(displayName, encodePreset(currentPresetValues()));
+		refreshPresetNames(); presets.setSelectedItem(displayName); generate();
+	}
+
+	private Map<String, String> currentPresetValues() {
+		Map<String, String> values = new LinkedHashMap<>();
+		values.put("template", selectedTemplate.code());
+		values.put("columns", String.join(",", columns.getSelectedValuesList().stream().map(Field::getId).toList()));
+		values.put("filter", String.valueOf(filter.getSelectedItem()));
+		values.put("group", String.valueOf(group.getSelectedItem()));
+		Field sortField = (Field) sort.getSelectedItem(); values.put("sort", sortField == null ? "" : sortField.getId());
+		values.put("summary", Boolean.toString(includeSummary.isSelected()));
+		return values;
+	}
+
+	private void applyTemplate(ReportTemplate template) {
+		selectedTemplate = template == null ? ReportTemplate.TABLE : template;
+		List<String> ids = selectedTemplate.fieldIds();
+		columns.setSelectedIndices(java.util.stream.IntStream.range(0, fields.size())
+			.filter(index -> ids.contains(fields.get(index).getId())).toArray());
+		includeSummary.setSelected(selectedTemplate == ReportTemplate.COMPARISON);
+		group.setSelectedItem(GROUPS[0]); filter.setSelectedItem(FILTERS[0]); contains.setText("");
+	}
+	private void loadPreset() {
+		String name = (String) presets.getSelectedItem(); if (name == null) return;
+		Map<String, String> values = decodePreset(project.getCustomReportPresets().get(name)); if (values == null) return;
+		selectedTemplate = ReportTemplate.fromCode(values.get("template"));
+		List<String> ids = Arrays.asList(values.getOrDefault("columns", "").split(",", -1));
+		columns.setSelectedIndices(java.util.stream.IntStream.range(0, fields.size()).filter(i -> ids.contains(fields.get(i).getId())).toArray());
+		filter.setSelectedItem(values.getOrDefault("filter", FILTERS[0])); group.setSelectedItem(values.getOrDefault("group", GROUPS[0]));
+		includeSummary.setSelected(Boolean.parseBoolean(values.getOrDefault("summary", "false")));
+		String sortId = values.getOrDefault("sort", ""); fields.stream().filter(field -> field.getId().equals(sortId)).findFirst().ifPresent(sort::setSelectedItem); generate();
+	}
+	private void deletePreset() { String name = (String) presets.getSelectedItem(); if (name != null) { project.getCustomReportPresets().remove(name); refreshPresetNames(); } }
+	private void refreshPresetNames() { presets.removeAllItems(); project.getCustomReportPresets().keySet().stream().sorted(String.CASE_INSENSITIVE_ORDER).forEach(presets::addItem); }
+	static String encodePreset(Map<String, String> values) {
+		return values.entrySet().stream().map(entry -> encode(entry.getKey()) + "=" + encode(entry.getValue())).collect(java.util.stream.Collectors.joining("\n"));
+	}
+	static Map<String, String> decodePreset(String encoded) {
+		if (encoded == null) return null;
+		Map<String, String> values = new LinkedHashMap<>();
+		try { for (String line : encoded.split("\\n")) { int separator = line.indexOf('='); if (separator <= 0) return null; values.put(decode(line.substring(0, separator)), decode(line.substring(separator + 1))); } return values.isEmpty() ? null : values; }
+		catch (IllegalArgumentException error) { return null; }
+	}
+	private static String encode(String value) { return Base64.getUrlEncoder().withoutPadding().encodeToString(value.getBytes(StandardCharsets.UTF_8)); }
+	private static String decode(String value) { return new String(Base64.getUrlDecoder().decode(value), StandardCharsets.UTF_8); }
+
+	private void exportCsv() {
+		generate();
+		String selectedFile = UiServices.getFileChooserProvider().chooseFileName(
+			new UiServices.FileChooserOptions(true, "project-report.csv", "Export custom report", "CSV (*.csv)", "csv"), this);
+		if (selectedFile == null) return;
+		try (OutputStream out = Files.newOutputStream(Path.of(selectedFile))) { ReportCsvWriter.write(reportModel, out); }
+		catch (Exception error) { Alert.error(t("report.exportError") + " " + error.getMessage()); }
+	}
+
+	private static String t(String key) { return UsabilityStrings.text(key); }
+	private void print() {
+		generate();
+		if (reportModel == null) return;
+		new ReportPageable(new ReportPrintable(reportModel), true).print();
+	}
+}

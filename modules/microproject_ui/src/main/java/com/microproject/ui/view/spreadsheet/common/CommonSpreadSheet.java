@@ -1,0 +1,2338 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.view.spreadsheet.common;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.KeyboardFocusManager;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.event.ActionEvent;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+import java.awt.event.InputMethodEvent;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
+import java.lang.reflect.Method;
+import java.text.AttributedCharacterIterator;
+import java.util.ArrayList;
+import java.util.EventListener;
+import java.util.EventObject;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.Map;
+import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.concurrent.ConcurrentHashMap;
+
+import javax.swing.CellEditor;
+import javax.swing.AbstractAction;
+import javax.swing.ActionMap;
+import javax.swing.JScrollPane;
+import javax.swing.JComboBox;
+import javax.swing.JTable;
+import javax.swing.JComponent;
+import javax.swing.JTextField;
+import javax.swing.Timer;
+import javax.swing.JViewport;
+import javax.swing.InputMap;
+import javax.swing.KeyStroke;
+import javax.swing.UIManager;
+import javax.swing.SwingUtilities;
+import javax.swing.border.Border;
+import javax.swing.event.EventListenerList;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.plaf.UIResource;
+import javax.swing.plaf.basic.ComboPopup;
+import javax.swing.table.TableCellEditor;
+import javax.swing.table.TableModel;
+import javax.swing.text.JTextComponent;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.Utilities;
+
+
+import com.microproject.ui.view.ChangeAwareComponent;
+import com.microproject.ui.view.model.cache.GraphicNode;
+import com.microproject.ui.view.model.cache.NodeModelCache;
+import com.microproject.ui.view.model.cache.ProjectionRowKey;
+import com.microproject.ui.view.model.cache.RevisionedProjectionIndex;
+import com.microproject.ui.view.model.event.CacheListener;
+import com.microproject.ui.view.model.event.CompositeCacheEvent;
+import com.microproject.ui.view.spreadsheet.SpreadSheetColumnModel;
+import com.microproject.ui.view.spreadsheet.SpreadSheetModel;
+import com.microproject.ui.view.collaboration.CollaborationHelper;
+import com.microproject.ui.view.spreadsheet.SpreadSheetSearchContext;
+import com.microproject.ui.view.spreadsheet.SpreadSheetUtils;
+import com.microproject.ui.view.spreadsheet.editor.DateEditor;
+import com.microproject.ui.view.spreadsheet.editor.KeyboardFocusable;
+import com.microproject.ui.view.spreadsheet.editor.SpreadSheetCellEditorAdapter;
+import com.microproject.ui.view.spreadsheet.editor.YesNoComboBoxEditor;
+import com.microproject.ui.view.spreadsheet.editor.ImeTextInputSupport;
+import com.microproject.ui.view.spreadsheet.renderer.NameCellComponent;
+import com.microproject.ui.view.spreadsheet.selection.SpreadSheetSelectionModel;
+import com.microproject.ui.view.spreadsheet.selection.event.SelectionNodeEvent;
+import com.microproject.ui.view.spreadsheet.selection.event.SelectionNodeListener;
+import com.microproject.ui.view.timescale.ScaledScrollPane;
+import com.microproject.ui.view.views.SearchContext;
+import com.microproject.ui.view.views.Searchable;
+import com.microproject.pm.task.ProjectTaskKey;
+import com.microproject.configuration.Dictionary;
+import com.microproject.field.Field;
+import com.microproject.field.FieldParseException;
+import com.microproject.graphic.configuration.GraphicConfiguration;
+import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.NodeFactory;
+import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.util.ErrorLogger;
+import com.microproject.strings.Messages;
+import com.microproject.util.Alert;
+import com.microproject.workspace.SavableToWorkspace;
+import com.microproject.workspace.WorkspaceSetting;
+import com.microproject.ui.util.FlatUiSupport;
+/**
+ *
+ */
+@SuppressWarnings("unchecked")
+public class CommonSpreadSheet extends CommonTable implements CacheListener, SavableToWorkspace, Searchable {
+	private static final Map<Class<?>, Optional<Method>> TEXT_FIELD_METHODS = new ConcurrentHashMap<>();
+	private static final Logger logger = Logger.getLogger(CommonSpreadSheet.class.getName());
+	/**
+	 *
+	 */
+	private static final long serialVersionUID = 2541466281456673698L;
+	public static final String RESOURCE_CATEGORY="resourceSpreadsheet";
+	public static final String TASK_CATEGORY="taskSpreadsheet";
+	private static final String COMMIT_AND_MOVE_DOWN_ACTION = "spreadsheet.commitAndMoveDown";
+	private static final String COMPOSITION_PROPERTY = ImeTextInputSupport.COMPOSITION_PROPERTY;
+	private static final int RECONVERSION_FOCUS_TIMEOUT_MILLIS = 1000;
+
+	protected SpreadSheetSelectionModel selection;
+	protected String spreadSheetCategory = null;
+	protected SpreadSheetRowHeader rowHeader;
+	protected SpreadSheetCorner corner;
+	protected int lastEditingRow = -1;
+	protected boolean canModifyColumns = true;
+	protected boolean canSelectFieldArray = true;
+	private PendingUndoSelection pendingUndoSelection;
+	private boolean inputMethodEditingSessionActive;
+	private final StringBuilder pendingReceivedText = new StringBuilder();
+	private long editingGeneration;
+	private boolean headerColumnSelectionActive;
+	private boolean rowHeaderSelectionActive;
+
+	public CommonSpreadSheet() {
+		super();
+		getAccessibleContext().setAccessibleName(Messages.getString("SpreadSheet.accessibleName"));
+		getAccessibleContext().setAccessibleDescription(Messages.getString("SpreadSheet.accessibleDescription"));
+		setGridColor(FlatUiSupport.tableGridColor());
+		FlatUiSupport.applyDataSurface(this);
+		putClientProperty("JTable.autoStartsEdit", Boolean.FALSE);
+		putClientProperty("terminateEditOnFocusLost", Boolean.TRUE);
+		//setSurrendersFocusOnKeystroke(true); //has the side effect of selecting the first character of cell after ENTER keystroke
+		setAutoCreateColumnsFromModel(false);
+		// ETable installs F2 on its focused input map on macOS. It starts editing
+		// the lead column of an all-column row selection before the document root-pane
+		// can dispatch EditField, so it may edit a different field than the clicked
+		// cell. F2 is registered exclusively by GraphicManager on the root pane.
+		// The document root pane gives Escape priority to cancelling an active
+		// sheet editor, then to stopping Format Painter. ETable's enabled ancestor
+		// cancel action would consume Escape before that document command.
+		removeAncestorShortcut(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0));
+		removeRootPaneShortcutDuplicates(this);
+		// ETable can also consume MSP's outline shortcuts from this ancestor map
+		// while a cell editor owns focus. The document root pane is the sole
+		// registration layer for these commands.
+		removeAncestorShortcut(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT,
+				java.awt.event.InputEvent.ALT_DOWN_MASK | java.awt.event.InputEvent.SHIFT_DOWN_MASK));
+		removeAncestorShortcut(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT,
+				java.awt.event.InputEvent.ALT_DOWN_MASK | java.awt.event.InputEvent.SHIFT_DOWN_MASK));
+		enableInputMethods(true);
+		rowHeader=new SpreadSheetRowHeader(this);
+		rowHeader.setRowHeight(getRowHeight());
+
+		setFocusCycleRoot(true);
+	}
+
+	private void removeAncestorShortcut(KeyStroke shortcut) {
+		setInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT,
+			copyInputMapWithout(getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT), shortcut));
+	}
+
+	/** Removes spreadsheet-level copies of document shortcuts from both local maps. */
+	protected static void removeRootPaneShortcutDuplicates(JComponent component, KeyStroke... extraShortcuts) {
+		KeyStroke[] baseShortcuts = {KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0),
+			KeyStroke.getKeyStroke("ctrl V"), KeyStroke.getKeyStroke("ctrl C"),
+			KeyStroke.getKeyStroke("ctrl X"),
+			KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, java.awt.event.InputEvent.CTRL_DOWN_MASK),
+			KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, java.awt.event.InputEvent.SHIFT_DOWN_MASK),
+			KeyStroke.getKeyStroke(KeyEvent.VK_SPACE,
+					java.awt.event.InputEvent.CTRL_DOWN_MASK | java.awt.event.InputEvent.SHIFT_DOWN_MASK)};
+		KeyStroke[] shortcuts = java.util.stream.Stream.concat(java.util.Arrays.stream(baseShortcuts),
+				java.util.Arrays.stream(extraShortcuts)).toArray(KeyStroke[]::new);
+		for (int condition : new int[] {JComponent.WHEN_FOCUSED,
+				JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT}) {
+			component.setInputMap(condition, copyInputMapWithout(component.getInputMap(condition), shortcuts));
+		}
+	}
+
+	private static InputMap copyInputMapWithout(InputMap source, KeyStroke... shortcuts) {
+		if (source == null)
+			return null;
+		InputMap copy = new InputMap();
+		copy.setParent(copyInputMapWithout(source.getParent(), shortcuts));
+		KeyStroke[] keys = source.keys();
+		if (keys != null) {
+			for (KeyStroke key : keys) {
+				if (!java.util.Arrays.asList(shortcuts).contains(key))
+					copy.put(key, source.get(key));
+			}
+		}
+		return copy;
+	}
+	public void cleanUp() {
+		if (corner != null)
+			corner.cleanUp();
+		NodeModelCache currentCache = getCache();
+		if (currentCache != null && getModel() instanceof CacheListener listener) {
+			currentCache.removeNodeModelListener(listener);
+		}
+	}
+
+//	public void setModel(CommonSpreadSheetModel spreadSheetModel, DefaultTableColumnModel spreadSheetColumnModel) {
+//
+//		setModel(spreadSheetModel);
+//	    setColumnModel(spreadSheetColumnModel);
+//
+//	    selection = new SpreadSheetSelectionModel(this);
+//		selection.setRowSelection(new SpreadSheetListSelectionModel(selection,
+//				true));
+//		selection.setColumnSelection(new SpreadSheetListSelectionModel(
+//				selection, false));
+//		setSelectionModel(selection.getRowSelection());
+//		createDefaultColumnsFromModel();
+//		getColumnModel().setSelectionModel(selection.getColumnSelection());
+//
+//		registerEditors();
+//		initRowHeader(spreadSheetModel);
+//		initModel();
+//		initListeners();
+//
+//
+//
+//	}
+
+	//helper
+	public void setCache(NodeModelCache cache){
+		((CommonSpreadSheetModel)getModel()).setCache(cache);
+	}
+	public NodeModelCache getCache(){
+		var model = getCommonSpreadSheetModel();
+		return model == null ? null : model.getCache();
+	}
+
+	public void setFieldArray(ArrayList<Field> fieldArray){
+		clearHeaderColumnSelectionState();
+		if (hasSelectionModel())
+			getSelection().clearActiveCell();
+		((SpreadSheetColumnModel)getColumnModel()).setFieldArray(fieldArray);
+//
+//		((CommonSpreadSheetModel)getModel()).setFieldArray(fieldArray);
+	}
+	public ArrayList<Field> getFieldArray() {
+		var model = getCommonSpreadSheetModel();
+		return model == null ? new ArrayList<>() : model.getFieldArray();
+	}
+
+	public final SpreadSheetFieldArray getFieldArrayWithWidths(ArrayList<Field> fieldArray) {
+		if (fieldArray == null) {
+			fieldArray = getFieldArray();
+		}
+		SpreadSheetFieldArray result;
+		if (fieldArray instanceof SpreadSheetFieldArray spreadSheetFieldArray) {
+			result = spreadSheetFieldArray;
+		} else {
+			result = new SpreadSheetFieldArray();
+			result.addAll(fieldArray);
+		}
+		// the widths don't work now anyway, and someone had a crash due to code below
+		var cols = getColumnModel();
+		var colWidths = new ArrayList<Integer>(cols.getColumnCount());
+		var manualWidths = new ArrayList<Boolean>(cols.getColumnCount() + 1);
+		colWidths.add(-1); //id column ignored
+		manualWidths.add(false);
+		var headerWraps = new ArrayList<Boolean>(cols.getColumnCount() + 1);
+		headerWraps.add(true);
+		var alignments = new ArrayList<Integer>(cols.getColumnCount() + 1);
+		alignments.add(SpreadSheetFieldArray.ALIGN_DEFAULT);
+		for (int i = 0; i < cols.getColumnCount(); i++) {
+			colWidths.add(cols.getColumn(i).getWidth());
+			Object identifier = cols.getColumn(i).getIdentifier();
+			boolean manuallyAdjusted = cols instanceof SpreadSheetColumnModel spreadSheetColumns
+					&& identifier instanceof Field field
+					&& spreadSheetColumns.isWidthManuallyAdjusted(field.getId());
+			manualWidths.add(manuallyAdjusted);
+			headerWraps.add(!(cols instanceof SpreadSheetColumnModel spreadSheetColumns) || spreadSheetColumns.isHeaderWrap(i));
+			alignments.add(cols instanceof SpreadSheetColumnModel spreadSheetColumns ? spreadSheetColumns.getAlignment(i) : SpreadSheetFieldArray.ALIGN_DEFAULT);
+		}
+		result.setWidths(colWidths);
+		result.setManualWidths(manualWidths);
+		result.setHeaderWraps(headerWraps);
+		result.setAlignments(alignments);
+		return result;
+	}
+
+	public final void setFieldArrayWithWidths(SpreadSheetFieldArray fieldArray) {
+		if (fieldArray == null) return;
+		SpreadSheetColumnModel columns = (SpreadSheetColumnModel) getColumnModel();
+		// Configure before rebuilding: task sheets may auto-size during model
+		// setup, before persisted widths would otherwise be applied.
+		columns.applySavedWidthConfiguration(fieldArray);
+		setFieldArray(fieldArray);
+		columns.restoreSavedWidths();
+		resizeAndRepaintHeader();
+	}
+
+
+	public void setRowHeight(int rowHeight) {
+		super.setRowHeight(rowHeight);
+		if (rowHeader!=null) rowHeader.setRowHeight(rowHeight);
+	}
+	protected void initRowHeader(CommonSpreadSheetModel spreadSheetModel){
+		rowHeader.setModel(spreadSheetModel,new SpreadSheetRowHeaderColumnModel());
+		rowHeader.createDefaultColumnsFromModel();
+		if (selection != null) {
+			rowHeader.setSelectionModel(selection.getRowSelection());
+		}
+	}
+
+	protected void initModel(){
+
+
+		GraphicConfiguration config=GraphicConfiguration.getInstance();
+		setRowHeight(config.getRowHeight());
+		setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+		setCellSelectionEnabled(true);
+		//setRowSelectionAllowed(true);
+		//setColumnSelectionAllowed(true);
+	}
+
+	protected void initListeners(){
+	}
+
+	@Override
+	public void columnSelectionChanged(ListSelectionEvent event) {
+		super.columnSelectionChanged(event);
+		if (getTableHeader() != null)
+			getTableHeader().repaint();
+	}
+
+	@Override
+	public void valueChanged(ListSelectionEvent event) {
+		super.valueChanged(event);
+		if (rowHeader != null)
+			rowHeader.repaint();
+	}
+
+	/**
+	 * @return Returns the selection.
+	 */
+	public SpreadSheetSelectionModel getSelection() {
+		return selection;
+	}
+	public boolean isCellEditing(int row, int col) {
+		return isEditing() && getEditingRow() == row && getEditingColumn() == col;
+	}
+
+	// ---------------------------------------------------------------------
+	// Editing entry points
+	// ---------------------------------------------------------------------
+
+	private void startEditingCurrentCell(boolean caretAtEnd) {
+		startEditingCurrentCell(caretAtEnd, false);
+	}
+
+	private void startEditingCurrentCell(boolean caretAtEnd, boolean clearTextOnStart) {
+		EditableCellTarget target = resolveEditableCellTarget();
+		if (target == null)
+			return;
+		inputMethodEditingSessionActive = false;
+		startEditingAtTarget(target, new StartEditEvent(this, caretAtEnd, null, clearTextOnStart, !caretAtEnd && !clearTextOnStart), text -> {
+			if (clearTextOnStart) {
+				text.setText("");
+			}
+			if (caretAtEnd) {
+				positionEditorCaretToEnd(text);
+			}
+		});
+	}
+
+	private boolean startClearingCurrentCell() {
+		EditableCellTarget target = resolveEditableCellTarget();
+		if (target == null)
+			return false;
+		if (!isCellEditable(target.row, target.column))
+			return false;
+		startEditingCurrentCell(false, true);
+		return true;
+	}
+
+	private void startEditingFromTypedKey(KeyEvent e) {
+		EditableCellTarget target = resolveEditableCellTarget();
+		if (target == null)
+			return;
+		if (isYesNoListCell(target.row, target.column)) {
+			startListEditing(target, e.getKeyChar());
+			return;
+		}
+		inputMethodEditingSessionActive = false;
+		final boolean clearTextOnStart = shouldClearFieldOnTypedDigit(target.row, target.column, e.getKeyChar());
+		final char typedChar = e.getKeyChar();
+		startEditingAtTarget(target, new StartEditEvent(this, false, Character.valueOf(typedChar), clearTextOnStart, false), text -> {
+			applyTypedChar(text, typedChar, clearTextOnStart);
+		});
+	}
+
+	private void insertReceivedText(String text) {
+		if (text == null || text.isEmpty())
+			return;
+		EditableCellTarget target = resolveEditableCellTarget();
+		if (target == null)
+			return;
+		if (isYesNoListEditor()) {
+			openListPopup((JComboBox<?>) editorComp, text.charAt(0));
+			return;
+		}
+		if (!isEditing() && isYesNoListCell(target.row, target.column)) {
+			startListEditing(target, text.charAt(0));
+			return;
+		}
+		final boolean startNewEdit = !isEditing();
+		pendingReceivedText.append(text);
+		if (startNewEdit) {
+			inputMethodEditingSessionActive = false;
+			startEditingAtTarget(target, new StartEditEvent(this, false, null, false, false), editorText -> {
+				flushReceivedText(editorText, true);
+			});
+			return;
+		}
+		SwingUtilities.invokeLater(() -> {
+			requestEditorFocus();
+			JTextComponent editorText = getEditorTextComponent();
+			if (editorText == null)
+				return;
+			flushReceivedText(editorText, false);
+		});
+	}
+
+	private void startEditingFromInputMethod(InputMethodEvent e) {
+		EditableCellTarget target = resolveEditableCellTarget();
+		if (target == null)
+			return;
+		if (isYesNoListCell(target.row, target.column)) {
+			startListEditing(target, null);
+			return;
+		}
+		inputMethodEditingSessionActive = true;
+		startEditingAtTarget(target, new StartEditEvent(this, false, null, false, false), text -> {
+			dispatchInputMethodEvent(text, e);
+		});
+	}
+
+	private void startEditingForReconversion(KeyEvent e) {
+		EditableCellTarget target = resolveEditableCellTarget();
+		if (target == null)
+			return;
+		startEditingAtTarget(target, new StartEditEvent(this, false, null, false, false), text -> {
+			text.selectAll();
+			requestReconversion(text, editingGeneration);
+		});
+	}
+
+	private void startEditingAtTarget(EditableCellTarget target, StartEditEvent startEvent, EditorStartAction action) {
+		if (target == null)
+			return;
+		if (!editCellAt(target.row, target.column, startEvent))
+			return;
+		SwingUtilities.invokeLater(() -> {
+			requestEditorFocus();
+			JTextComponent text = getEditorTextComponent();
+			if (text == null)
+				return;
+			// Outline shortcuts are owned by the document root pane.  Swing text
+			// editors inherit platform bindings for Alt+Shift+Left/Right, which
+			// otherwise consume MSP's outdent/indent keystrokes before the root map
+			// can dispatch the canonical command.
+			removeDocumentHierarchyShortcutBindings(text);
+			// NameCellComponent reuses a composite editor.  Its wrapper can carry
+			// a fresh UI-delegate InputMap when the second edit begins, so clear the
+			// same inherited bindings from the editor hierarchy as well.  The
+			// document root-pane remains the only owner/action registration layer.
+			if (editorComp instanceof JComponent editor && editor != text)
+				removeDocumentHierarchyShortcutBindings(editor);
+			if (action != null) {
+				action.apply(text);
+			}
+		});
+	}
+
+	private static void removeDocumentHierarchyShortcutBindings(JComponent component) {
+		KeyStroke right = KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT,
+				java.awt.event.InputEvent.ALT_DOWN_MASK | java.awt.event.InputEvent.SHIFT_DOWN_MASK);
+		KeyStroke left = KeyStroke.getKeyStroke(KeyEvent.VK_LEFT,
+				java.awt.event.InputEvent.ALT_DOWN_MASK | java.awt.event.InputEvent.SHIFT_DOWN_MASK);
+		component.setInputMap(JComponent.WHEN_FOCUSED,
+				copyInputMapWithout(component.getInputMap(JComponent.WHEN_FOCUSED), right, left));
+		component.setInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT,
+				copyInputMapWithout(component.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT), right, left));
+	}
+
+	private static void removeDocumentHierarchyShortcutsOnFocus(JComponent component) {
+		FocusAdapter listener = new FocusAdapter() {
+			@Override public void focusGained(FocusEvent event) {
+				component.removeFocusListener(this);
+				removeDocumentHierarchyShortcutBindings(component);
+			}
+		};
+		component.addFocusListener(listener);
+	}
+
+	// ---------------------------------------------------------------------
+	// Input dispatch
+	// ---------------------------------------------------------------------
+
+	@Override
+	protected void processKeyEvent(KeyEvent e) {
+		if (e != null && e.getID() == KeyEvent.KEY_TYPED && shouldTreatAsReceivedText(e) && !shouldSuppressReceivedText(e)) {
+			insertReceivedText(String.valueOf(e.getKeyChar()));
+			e.consume();
+			return;
+		}
+		// editCellAt() attaches the editor synchronously, while the editor focus is
+		// transferred on the next EDT turn. A physical keyboard can deliver another
+		// printable key in that window. It still arrives at the table, where JTable
+		// would otherwise discard it. Route all such text through the same pending
+		// buffer used for IME input; the editor's own events do not pass through here.
+		if (e != null && e.getID() == KeyEvent.KEY_TYPED && isEditing()
+				&& shouldStartTypingEdit(e) && !shouldSuppressReceivedText(e)) {
+			insertReceivedText(String.valueOf(e.getKeyChar()));
+			e.consume();
+			return;
+		}
+		if (e != null && !isEditing()) {
+			if (e.getID() == KeyEvent.KEY_PRESSED && moveActiveCellWithArrowKey(e)) {
+				e.consume();
+				return;
+			}
+			if (e.getID() == KeyEvent.KEY_PRESSED && e.getKeyCode() == KeyEvent.VK_DOWN && e.isAltDown()
+					&& !e.isControlDown() && !e.isShiftDown() && !e.isMetaDown()) {
+				// Alt+Down opens the list of a Yes/No cell, as for any Office drop-down.
+				EditableCellTarget listTarget = resolveEditableCellTarget();
+				if (listTarget != null && isYesNoListCell(listTarget.row, listTarget.column)
+						&& startListEditing(listTarget, null)) {
+					e.consume();
+					return;
+				}
+			}
+			if (e.getID() == KeyEvent.KEY_PRESSED && handleHierarchyNavigationKeyEvent(e)) {
+				e.consume();
+				return;
+			}
+			if (e.getID() == KeyEvent.KEY_PRESSED && isClearCellKey(e)) {
+				if (handleClearCellKey(e)) {
+					e.consume();
+					return;
+				}
+				if (startClearingCurrentCell()) {
+					e.consume();
+					return;
+				}
+			}
+			if (e.getID() == KeyEvent.KEY_PRESSED && isReconversionKey(e)) {
+				startEditingForReconversion(e);
+				e.consume();
+				return;
+			}
+			if (e.getID() == KeyEvent.KEY_TYPED && shouldStartTypingEdit(e)) {
+				startEditingFromTypedKey(e);
+				e.consume();
+				return;
+			}
+		}
+		super.processKeyEvent(e);
+	}
+
+	/**
+	 * Keeps keyboard navigation anchored to the explicit active cell.  A whole
+	 * row or header-column selection deliberately has a broader JTable range,
+	 * whose lead index is not the cell that the user clicked.  Arrow navigation
+	 * must use the visible active coordinate instead of that incidental lead.
+	 */
+	private boolean moveActiveCellWithArrowKey(KeyEvent event) {
+		if (headerColumnSelectionActive || event.isShiftDown() || event.isControlDown()
+				|| event.isMetaDown() || event.isAltDown() || !hasSelectionModel())
+			return false;
+		int row = getSelection().getActiveRow();
+		int column = getSelection().getActiveColumn();
+		if (row < 0 || column < 0)
+			return false;
+		int targetRow = row;
+		int targetColumn = column;
+		switch (event.getKeyCode()) {
+		case KeyEvent.VK_LEFT -> targetColumn--;
+		case KeyEvent.VK_RIGHT -> targetColumn++;
+		case KeyEvent.VK_UP -> targetRow--;
+		case KeyEvent.VK_DOWN -> targetRow++;
+		default -> {
+			return false;
+		}
+		}
+		if (targetRow < 0 || targetRow >= getRowCount() || targetColumn < 0 || targetColumn >= getColumnCount())
+			return true;
+		changeSelection(targetRow, targetColumn, false, false);
+		scrollRectToVisible(getCellRect(targetRow, targetColumn, true));
+		return true;
+	}
+
+
+	@Override
+	protected void processInputMethodEvent(InputMethodEvent e) {
+		if (e != null && shouldStartInputMethodEdit(e)) {
+			inputMethodEditingSessionActive = true;
+		}
+		if (e != null && !isEditing() && shouldStartInputMethodEdit(e)) {
+			startEditingFromInputMethod(e);
+			e.consume();
+			return;
+		}
+		if (e != null && isEditing() && dispatchInputMethodEvent(getEditorTextComponent(), e)) {
+			e.consume();
+			return;
+		}
+		super.processInputMethodEvent(e);
+	}
+
+	// ---------------------------------------------------------------------
+	// Input classification
+	// ---------------------------------------------------------------------
+
+	private boolean shouldStartTypingEdit(KeyEvent e) {
+		if (e == null)
+			return false;
+		if (e.isControlDown() || e.isAltDown() || e.isMetaDown())
+			return false;
+		char c = e.getKeyChar();
+		return c != KeyEvent.CHAR_UNDEFINED && !Character.isISOControl(c);
+	}
+
+	private boolean shouldTreatAsReceivedText(KeyEvent e) {
+		if (e == null || e.getID() != KeyEvent.KEY_TYPED)
+			return false;
+		if (e.isControlDown() || e.isAltDown() || e.isMetaDown())
+			return false;
+		char c = e.getKeyChar();
+		return c != KeyEvent.CHAR_UNDEFINED && !Character.isISOControl(c) && c > 0x7f;
+	}
+
+	private boolean shouldSuppressReceivedText(KeyEvent e) {
+		if (e == null)
+			return false;
+		return inputMethodEditingSessionActive || isEditorCompositionActive();
+	}
+
+	private boolean shouldStartInputMethodEdit(InputMethodEvent e) {
+		return e.getID() == InputMethodEvent.INPUT_METHOD_TEXT_CHANGED && e.getText() != null;
+	}
+
+	private boolean isReconversionKey(KeyEvent e) {
+		return e.getKeyCode() == KeyEvent.VK_CONVERT && !e.isControlDown() && !e.isAltDown() && !e.isMetaDown();
+	}
+
+	private boolean isClearCellKey(KeyEvent e) {
+		if (e.getID() == KeyEvent.KEY_PRESSED) {
+			return e.getKeyCode() == KeyEvent.VK_BACK_SPACE && !e.isControlDown() && !e.isAltDown() && !e.isMetaDown();
+		}
+		return e.getID() == KeyEvent.KEY_TYPED && e.getKeyChar() == '\b' && !e.isControlDown() && !e.isAltDown() && !e.isMetaDown();
+	}
+
+	// ---------------------------------------------------------------------
+	// Input method helpers
+	// ---------------------------------------------------------------------
+
+	// ---------------------------------------------------------------------
+	// Text initialization helpers
+	// ---------------------------------------------------------------------
+
+	private void requestReconversion(JTextComponent text, long generation) {
+		if (text == null)
+			return;
+		requestEditorFocus();
+		if (isCurrentReconversionTarget(text, generation)
+				&& KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner() == text) {
+			ImeTextInputSupport.requestReconversion(text);
+			return;
+		}
+
+		final Timer[] timeout = new Timer[1];
+		FocusAdapter focusListener = new FocusAdapter() {
+			@Override
+			public void focusGained(FocusEvent event) {
+				text.removeFocusListener(this);
+				if (timeout[0] != null)
+					timeout[0].stop();
+				if (isCurrentReconversionTarget(text, generation))
+					ImeTextInputSupport.requestReconversion(text);
+			}
+		};
+		timeout[0] = new Timer(RECONVERSION_FOCUS_TIMEOUT_MILLIS, event -> {
+			text.removeFocusListener(focusListener);
+			((Timer) event.getSource()).stop();
+		});
+		text.addFocusListener(focusListener);
+		timeout[0].setRepeats(false);
+		timeout[0].start();
+		text.requestFocusInWindow();
+	}
+
+	private boolean isCurrentReconversionTarget(JTextComponent text, long generation) {
+		return generation == editingGeneration && isEditing() && getEditorTextComponent() == text;
+	}
+
+	private boolean shouldClearFieldOnTypedDigit(int row, int column, char typedChar) {
+		if (!Character.isDigit(typedChar))
+			return false;
+		SpreadSheetModel model = getSpreadSheetModel();
+		if (model == null)
+			return false;
+		Field field = model.getFieldInViewColumn(column);
+		return field != null && field.isDate() && (field.isStartValue() || field.isEndValue());
+	}
+
+	/**
+	 * Gives specialised spreadsheets a chance to handle Backspace before it is
+	 * interpreted as clearing the lead cell.  In particular, a full-column
+	 * selection is not a cell selection.
+	 */
+	protected boolean handleClearCellKey(KeyEvent e) {
+		return false;
+	}
+
+	private void positionEditorCaretToEnd() {
+		positionEditorCaretToEnd(getEditorTextComponent());
+	}
+
+	private void requestEditorFocus() {
+		JTextComponent text = getEditorTextComponent();
+		if (text != null) {
+			text.requestFocusInWindow();
+			return;
+		}
+		if (editorComp instanceof Component) {
+			(editorComp).requestFocusInWindow();
+		}
+	}
+
+	private JTextComponent getEditorTextComponent() {
+		if (!(editorComp instanceof Component component)) {
+			return null;
+		}
+		if (component instanceof NameCellComponent nameCellComponent) {
+			var textComponent = nameCellComponent.getTextComponent();
+			if (textComponent instanceof JTextComponent text) {
+				return text;
+			}
+			return null;
+		}
+		if (component instanceof JTextComponent textComponent) {
+			return textComponent;
+		}
+		Optional<Method> method = TEXT_FIELD_METHODS.computeIfAbsent(component.getClass(), type -> {
+			try {
+				return Optional.of(type.getMethod("getTextField"));
+			} catch (NoSuchMethodException ignored) {
+				return Optional.empty();
+			}
+		});
+		try {
+			if (method.isEmpty())
+				return null;
+			var textField = method.get().invoke(component);
+			if (textField instanceof JTextComponent text) {
+				return text;
+			}
+		} catch (Exception ignored) {
+			// Ignore; not all editors expose a text field accessor.
+		}
+		return null;
+	}
+
+	private EditableCellTarget resolveEditableCellTarget() {
+		int row = hasSelectionModel() ? getSelection().getActiveRow() : -1;
+		int column = getCurrentViewColumn();
+		if (row < 0)
+			row = getCurrentRow();
+		if (row < 0 && getRowCount() > 0) {
+			row = 0;
+		}
+		if (column < 0 && getColumnCount() > 0) {
+			column = 0;
+		}
+		if (row < 0 || column < 0) {
+			return null;
+		}
+		return new EditableCellTarget(row, column);
+	}
+
+	private void resetEditorHorizontalOffset(JTextComponent text) {
+		if (text instanceof JTextField textField) {
+			textField.setScrollOffset(0);
+		}
+	}
+
+	private void positionEditorCaretToEnd(JTextComponent text) {
+		if (text == null)
+			return;
+		resetEditorHorizontalOffset(text);
+		text.setCaretPosition(text.getDocument().getLength());
+	}
+
+	private CommonSpreadSheetModel getCommonSpreadSheetModel() {
+		var model = getModel();
+		return model instanceof CommonSpreadSheetModel commonModel ? commonModel : null;
+	}
+
+	private SpreadSheetModel getSpreadSheetModel() {
+		var model = getModel();
+		return model instanceof SpreadSheetModel spreadSheetModel ? spreadSheetModel : null;
+	}
+
+	private boolean hasSelectionModel() {
+		return getSelection() != null;
+	}
+
+	private boolean hasRowHeaderSelection() {
+		return rowHeaderSelectionActive;
+	}
+
+	private void selectRows(SpreadSheetSelectionModel selection, int startRow, int endRow) {
+		if (getRowCount() > 0) {
+			selection.getRowSelection().setSelectionInterval(startRow, endRow);
+		}
+	}
+
+	private void selectColumns(SpreadSheetSelectionModel selection, int startColumn, int endColumn) {
+		if (getColumnCount() > 0) {
+			selection.getColumnSelection().setSelectionInterval(startColumn, endColumn);
+		}
+	}
+
+	private ArrayList<Node> collectSelectedNodes(SpreadSheetModel model) {
+		var rows = getSelectedRows();
+		var nodes = new ArrayList<Node>(rows.length);
+		for (int row : rows){
+			GraphicNode graphicNode = model.getNode(row);
+			if (graphicNode != null && graphicNode.getNode() != null) {
+				nodes.add(graphicNode.getNode());
+			}
+		}
+		return nodes;
+	}
+
+	private ArrayList<Object> collectSelectedNodeImpls(SpreadSheetModel model) {
+		var rows = getSelectedRows();
+		var nodes = new ArrayList<Object>(rows.length);
+		for (int row : rows){
+			GraphicNode graphicNode = model.getNode(row);
+			if (graphicNode != null && graphicNode.getNode() != null) {
+				nodes.add(graphicNode.getNode().getImpl());
+			}
+		}
+		return nodes;
+	}
+
+	private ArrayList<Field> collectSelectedFields() {
+		var columns = getSelectedColumns();
+		var fields = new ArrayList<Field>(columns.length);
+		SpreadSheetModel model = getSpreadSheetModel();
+		if (model == null)
+			return fields;
+		for (int column : columns) {
+			Field field = model.getFieldInViewColumn(column);
+			if (field != null)
+				fields.add(field);
+		}
+		return fields;
+	}
+
+	private ArrayList<Field> collectSelectableFields() {
+		var fieldArray = getFieldArray();
+		var fields = new ArrayList<Field>(fieldArray.size());
+		fields.addAll(fieldArray);
+		if (fields.size()>0) fields.remove(0); //ID not selectable
+		return fields;
+	}
+
+	private Object getCurrentRowImpl(SpreadSheetModel model) {
+		int row = getSelectedRow();
+		return row < 0 ? null : model.getObjectInRow(row);
+	}
+
+	private Node getCurrentRowNode(SpreadSheetModel model) {
+		var row = getCurrentRow();
+		if (row < 0 || row >= getRowCount()) {
+        	return null;
+        }
+        return model.getNodeInRow(row);
+	}
+
+	private void applyTypedChar(JTextComponent text, char typedChar, boolean clearTextOnStart) {
+		if (text == null)
+			return;
+		if (clearTextOnStart) {
+			text.setText("");
+		}
+		text.setText(String.valueOf(typedChar));
+		positionEditorCaretToEnd(text);
+		stabilizeDateEditorSelection(text);
+	}
+
+	private void applyReceivedText(JTextComponent text, String receivedText, boolean startNewEdit) {
+		if (text == null)
+			return;
+		if (startNewEdit) {
+			text.setText(receivedText);
+		} else {
+			text.replaceSelection(receivedText);
+		}
+		positionEditorCaretToEnd(text);
+		stabilizeDateEditorSelection(text);
+	}
+
+	/** Applies every received character that arrived before the editor was ready. */
+	private void flushReceivedText(JTextComponent text, boolean startNewEdit) {
+		if (text == null || pendingReceivedText.isEmpty())
+			return;
+		String receivedText = pendingReceivedText.toString();
+		pendingReceivedText.setLength(0);
+		applyReceivedText(text, receivedText, startNewEdit);
+	}
+
+	private void stabilizeDateEditorSelection(JTextComponent text) {
+		if (!(editorComp instanceof DateEditor.ExtDateField)) {
+			return;
+		}
+		SwingUtilities.invokeLater(() -> {
+			JTextComponent currentText = getEditorTextComponent();
+			if (currentText == null || currentText != text) {
+				return;
+			}
+			currentText.setSelectionStart(currentText.getDocument().getLength());
+			currentText.setSelectionEnd(currentText.getDocument().getLength());
+			currentText.setCaretPosition(currentText.getDocument().getLength());
+		});
+	}
+
+	private boolean dispatchInputMethodEvent(JTextComponent text, InputMethodEvent sourceEvent) {
+		if (text == null || sourceEvent == null)
+			return false;
+		InputMethodEvent editorEvent = copyInputMethodEvent(text, sourceEvent);
+		if (editorEvent == null)
+			return false;
+		requestEditorFocus();
+		text.dispatchEvent(editorEvent);
+		return true;
+	}
+
+	private InputMethodEvent copyInputMethodEvent(Component target, InputMethodEvent sourceEvent) {
+		if (target == null || sourceEvent == null)
+			return null;
+		AttributedCharacterIterator text = sourceEvent.getText();
+		return new InputMethodEvent(target, sourceEvent.getID(), sourceEvent.getWhen(), text,
+			sourceEvent.getCommittedCharacterCount(), sourceEvent.getCaret(), sourceEvent.getVisiblePosition());
+	}
+
+	private boolean isEditorCompositionActive() {
+		JTextComponent text = getEditorTextComponent();
+		if (!(text instanceof JComponent component)) {
+			return false;
+		}
+		return ImeTextInputSupport.isCompositionActive(component);
+	}
+
+	private static final class EditableCellTarget {
+		private final int row;
+		private final int column;
+
+		private EditableCellTarget(int row, int column) {
+			this.row = row;
+			this.column = column;
+		}
+	}
+
+	private interface EditorStartAction {
+		void apply(JTextComponent text);
+	}
+
+	private void installCommitAndMoveDownAction(JComponent component, final int row, final int column) {
+		if (component == null)
+			return;
+		InputMap inputMap = component.getInputMap(JComponent.WHEN_FOCUSED);
+		ActionMap actionMap = component.getActionMap();
+		inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), COMMIT_AND_MOVE_DOWN_ACTION);
+		actionMap.put(COMMIT_AND_MOVE_DOWN_ACTION, new AbstractAction() {
+			private static final long serialVersionUID = 1L;
+			public void actionPerformed(ActionEvent e) {
+				if (ImeTextInputSupport.isCompositionActive(component))
+					return; // Enter confirms the IME composition, not the cell
+				CellEditor editor = getCellEditor();
+				if (editor == null)
+					return;
+				if (isYesNoListEditor())
+					adoptPopupSelection((JComboBox<?>) editorComp);
+				boolean stopped = editor.stopCellEditing();
+				if (stopped) {
+					moveSelectionDownAfterCommit(row, column);
+				}
+			}
+		});
+	}
+
+	private void moveSelectionDownAfterCommit(final int row, final int column) {
+		rememberPendingUndoSelection(row, column);
+		SwingUtilities.invokeLater(new Runnable() {
+			public void run() {
+				if (getRowCount() <= 0 || getColumnCount() <= 0)
+					return;
+				int targetRow = Math.min(Math.max(row + 1, 0), getRowCount() - 1);
+				int targetColumn = Math.min(Math.max(column, 0), getColumnCount() - 1);
+				requestFocusInWindow();
+				changeSelection(targetRow, targetColumn, false, false);
+				scrollRectToVisible(getCellRect(targetRow, targetColumn, true));
+			}
+		});
+	}
+
+	private void rememberPendingUndoSelection(int row, int column) {
+		Node node = null;
+		Object impl = null;
+		SpreadSheetModel model = getSpreadSheetModel();
+		if (model != null && row >= 0 && row < getRowCount()) {
+			node = model.getNodeInRow(row);
+			impl = (node == null) ? null : node.getImpl();
+		}
+		int followRow = Math.min(Math.max(row + 1, 0), Math.max(getRowCount() - 1, 0));
+		int followColumn = Math.min(Math.max(column, 0), Math.max(getColumnCount() - 1, 0));
+		pendingUndoSelection = new PendingUndoSelection(node, impl, row, column, followRow, followColumn);
+	}
+
+	public PendingUndoSelection consumePendingUndoSelection(int currentRow, int currentColumn) {
+		PendingUndoSelection selection = pendingUndoSelection;
+		pendingUndoSelection = null;
+		if (selection == null)
+			return null;
+		if (selection.followRow() != currentRow || selection.followColumn() != currentColumn)
+			return null;
+		return selection;
+	}
+
+	public static record PendingUndoSelection(Node node, Object impl, int row, int column, int followRow, int followColumn) {}
+
+	private static final class StartEditEvent extends EventObject {
+		private static final long serialVersionUID = 1L;
+		private final boolean caretAtEnd;
+		private final Character typedChar;
+		private final boolean clearTextOnStart;
+		private final boolean selectAllOnStart;
+
+		private StartEditEvent(Object source, boolean caretAtEnd, Character typedChar, boolean clearTextOnStart, boolean selectAllOnStart) {
+			super(source);
+			this.caretAtEnd = caretAtEnd;
+			this.typedChar = typedChar;
+			this.clearTextOnStart = clearTextOnStart;
+			this.selectAllOnStart = selectAllOnStart;
+		}
+	}
+
+	// ---------------------------------------------------------------------
+	// Yes/No list editing (issue #899)
+	// ---------------------------------------------------------------------
+
+	/** Keys typed before the list popup is shown; they only move its highlight. */
+	private final StringBuilder pendingListKeys = new StringBuilder();
+
+	/** True when the cell is edited by choosing Yes/No (or Task Mode) from a list. */
+	protected boolean isYesNoListCell(int row, int column) {
+		if (row < 0 || column < 0 || row >= getRowCount() || column >= getColumnModel().getColumnCount()
+				|| !isCellEditable(row, column))
+			return false;
+		TableCellEditor editor = getCellEditor(row, column);
+		if (editor instanceof SpreadSheetCellEditorAdapter adapter)
+			editor = adapter.getDelegate();
+		return editor instanceof YesNoComboBoxEditor;
+	}
+
+	/**
+	 * Starts editing a Yes/No cell and shows its list. A click on the active cell,
+	 * F2, Alt+Down and typed characters all arrive here, so the popup rule has one
+	 * owner; a typed character only moves the highlight to its item.
+	 */
+	protected boolean startListEditing(int row, int column, Character typedChar) {
+		inputMethodEditingSessionActive = false;
+		return editCellAt(row, column, new StartEditEvent(this, false, typedChar, false, false));
+	}
+
+	private boolean startListEditing(EditableCellTarget target, Character typedChar) {
+		return target != null && startListEditing(target.row, target.column, typedChar);
+	}
+
+	private boolean isYesNoListEditor() {
+		return isEditing() && editorComp instanceof JComboBox<?> combo
+				&& Boolean.TRUE.equals(combo.getClientProperty(YesNoComboBoxEditor.LIST_CLIENT_PROPERTY));
+	}
+
+	/** Shows the list of the editor that was just started and applies queued typed keys. */
+	private void openListPopup(JComboBox<?> combo, Character typedChar) {
+		if (typedChar != null)
+			pendingListKeys.append(typedChar);
+		SwingUtilities.invokeLater(() -> {
+			if (!isEditing() || editorComp != combo) {
+				pendingListKeys.setLength(0);
+				return;
+			}
+			combo.requestFocusInWindow();
+			if (!combo.isShowing()) {
+				pendingListKeys.setLength(0);
+				return;
+			}
+			if (!combo.isPopupVisible())
+				combo.showPopup();
+			applyPendingListKeys(combo);
+		});
+	}
+
+	private void applyPendingListKeys(JComboBox<?> combo) {
+		String keys = pendingListKeys.toString();
+		pendingListKeys.setLength(0);
+		for (int i = 0; i < keys.length(); i++) {
+			int index = listIndexForKey(combo, keys.charAt(i));
+			if (index >= 0 && combo.getUI().getAccessibleChild(combo, 0) instanceof ComboPopup popup) {
+				popup.getList().setSelectedIndex(index);
+				popup.getList().ensureIndexIsVisible(index);
+			}
+		}
+	}
+
+	/** The item a typed character selects: the label's first letter, else y/n/1/0 as Yes/No. */
+	static int listIndexForKey(JComboBox<?> combo, char key) {
+		String typed = String.valueOf(key).toLowerCase(java.util.Locale.ROOT);
+		for (int i = 0; i < combo.getItemCount(); i++) {
+			if (String.valueOf(combo.getItemAt(i)).toLowerCase(java.util.Locale.ROOT).startsWith(typed))
+				return i;
+		}
+		Boolean value = com.microproject.field.BooleanText.parse(null, typed);
+		return value == null ? -1 : value ? 0 : 1;
+	}
+
+	/** Makes the highlighted item of an open list the editor value before an Enter commit. */
+	private static void adoptPopupSelection(JComboBox<?> combo) {
+		if (combo.isPopupVisible() && combo.getUI().getAccessibleChild(combo, 0) instanceof ComboPopup popup) {
+			Object item = popup.getList().getSelectedValue();
+			if (item != null)
+				combo.setSelectedItem(item);
+		}
+	}
+
+	//editing for example
+	public int[] finishCurrentOperations(){
+		int[] rows=null;
+		if (isEditing()){
+			lastEditingRow = getEditingRow();
+			CellEditor editor=getCellEditor();
+			if (editor!=null){
+				rows=getSelectedRows();
+				editor.stopCellEditing();//editor.cancelCellEditing();
+
+			}
+		}
+		inputMethodEditingSessionActive = false;
+		pendingReceivedText.setLength(0);
+		return rows;
+	}
+
+
+
+
+	//node selection
+	protected EventListenerList selectionNodeListenerList = new EventListenerList();
+
+	public void addSelectionNodeListener(SelectionNodeListener l) {
+	    selectionNodeListenerList.add(SelectionNodeListener.class, l);
+	}
+	public void removeSelectionNodeListener(SelectionNodeListener l) {
+	    selectionNodeListenerList.remove(SelectionNodeListener.class, l);
+	}
+	public SelectionNodeListener[] getSelectionNodeListeners() {
+		return selectionNodeListenerList.getListeners(SelectionNodeListener.class);
+	}
+	public void fireContentsChanged(Object source, List<? extends Node> nodes, Node currentNode) {
+		Object[] listeners = selectionNodeListenerList.getListenerList();
+		SelectionNodeEvent e = null;
+		for (int i = listeners.length - 2; i >= 0; i -= 2) {
+			if (listeners[i] == SelectionNodeListener.class) {
+				if (e == null) {
+					e = new SelectionNodeEvent(source,
+							SelectionNodeEvent.SELECTION_CHANGED, nodes, currentNode,getSpreadSheetCategory());
+				}
+				((SelectionNodeListener) listeners[i + 1]).selectionChanged(e);
+			}
+		}
+	}
+
+
+    public EventListener[] getSelectionNodeListeners(Class listenerType) {
+    	return selectionNodeListenerList.getListeners(listenerType);
+    }
+
+    public boolean isNodeDeletable(Node node) {
+    	return true;
+    }
+    public boolean isNodeCuttable(Node node) {
+    	return true;
+    }
+    public List<Node> getSelectedDeletableRows() {
+    	var list = getSelectedNodes();
+        list.removeIf(node -> !isNodeDeletable(node));
+    	return list;
+
+    }
+    public List<Node> getSelectedCuttableRows(List<Node> nodes) {
+        if (nodes != null)
+            nodes.removeIf(node -> !isNodeCuttable(node));
+    	return nodes;
+
+    }
+    public ArrayList<Node> getSelectedNodes(){
+        var model = getSpreadSheetModel();
+        if (model == null) {
+        	return new ArrayList<Node>();
+        }
+		return collectSelectedNodes(model);
+    }
+    public ArrayList<Object> getSelectedNodesImpl(){
+        var model = getSpreadSheetModel();
+        if (model == null) {
+        	return new ArrayList<Object>();
+        }
+		return collectSelectedNodeImpls(model);
+    }
+    public ArrayList<Field> getSelectedFields(){
+    	if (hasRowHeaderSelection()) return null;
+		return collectSelectedFields();
+    }
+    public ArrayList<Field> getSelectableFields(){
+    	return collectSelectableFields();
+    }
+
+    public Object getCurrentRowImpl() {
+        var model = getSpreadSheetModel();
+        if (model == null) {
+        	return null;
+        }
+        return getCurrentRowImpl(model);
+    }
+    public Node getCurrentRowNode() {
+        var model = getSpreadSheetModel();
+        if (model == null) {
+        	return null;
+        }
+		return getCurrentRowNode(model);
+    }
+    public Node getNodeAtRow(int row) {
+        var model = getSpreadSheetModel();
+        if (model == null || row < 0 || row >= getRowCount()) return null;
+        return model.getNodeInRow(row);
+    }
+    public int getCurrentRow() {
+        int row = getSelectedRow();
+        if (row == -1)
+        	row = getEditingRow();
+        if (row == -1)
+        	row = lastEditingRow;
+        return row;
+
+    }
+
+    protected boolean cellEditable=true;
+
+	public boolean isCellEditable(int row,int col) {
+		return (cellEditable)?super.isCellEditable(row,col):false;
+	}
+	public void setCellEditable(boolean cellEditable) {
+		this.cellEditable = cellEditable;
+	}
+    // edit triggered by click
+	public boolean editCellAt(int row, int column, EventObject e){
+		if (row < 0 || column < 0 || row >= getRowCount() || column >= getColumnCount()) {
+			return false;
+		}
+		if (e == null)
+			e = new StartEditEvent(this, true, null, false, false);
+		if (e instanceof MouseEvent me && me.getClickCount() < 2) {
+			return false;
+		}
+		SpreadSheetModel model = getSpreadSheetModel();
+		if (column > 0 && model != null) {
+			var node = model.getNodeInRow(row);
+			if (node != null && !CollaborationHelper.tryLockObject(null, node, this, "edit")) {
+				return false;
+    		}
+		}
+		editingGeneration++;
+		var editingStarted = super.editCellAt(row, column, e);
+    	if (editingStarted && editorComp != null) {
+    		configureEditorComponentAfterStart(row, column, e);
+		if (e instanceof StartEditEvent start && isYesNoListEditor())
+			openListPopup((JComboBox<?>) editorComp, start.typedChar);
+		// JTable attaches the editor synchronously, but the real F2/click route
+		// must transfer keyboard focus before the next physical key arrives.
+		SwingUtilities.invokeLater(this::requestEditorFocus);
+    	}
+		return editingStarted;
+	}
+
+	@Override
+	public void removeEditor() {
+		editingGeneration++;
+		super.removeEditor();
+	}
+
+	private void configureEditorComponentAfterStart(int row, int column, EventObject e) {
+		Component component;
+		var nameCell = false;
+		if (editorComp instanceof NameCellComponent nameCellComponent) {
+			nameCell = true;
+			component = nameCellComponent.getTextComponent();
+			if (component instanceof JComponent jComponent) {
+				installCommitAndMoveDownAction(jComponent, row, column);
+			}
+		} else {
+			component = editorComp;
+		}
+		if (editorComp instanceof JComponent jComponent) {
+			installCommitAndMoveDownAction(jComponent, row, column);
+		}
+
+		var selectAll = true;
+		var caretAtEnd = false;
+		Character typedChar = null;
+		var clearTextOnStart = false;
+		if (e instanceof StartEditEvent startEditEvent) {
+			selectAll = false;
+			caretAtEnd = startEditEvent.caretAtEnd;
+			typedChar = startEditEvent.typedChar;
+			clearTextOnStart = startEditEvent.clearTextOnStart;
+			selectAll = startEditEvent.selectAllOnStart;
+		} else if (e == null) {
+			selectAll = false;
+			caretAtEnd = true;
+		}
+
+		var text = component instanceof JTextComponent textComponent ? textComponent : getEditorTextComponent();
+		if (text != null) {
+			installCommitAndMoveDownAction(text, row, column);
+		}
+		var shouldUseKeyboardFocusableSelectAll = !(caretAtEnd || typedChar != null);
+		if (component instanceof KeyboardFocusable keyboardFocusable && shouldUseKeyboardFocusableSelectAll) {
+			keyboardFocusable.selectAll(selectAll);
+		}
+		if (text == null) {
+			return;
+		}
+		// The editor may be reused and its UI delegate can reinstall the
+		// platform Alt+Shift+Arrow bindings during configure/start.  Remove them
+		// synchronously, before focus is transferred, so the second edit cannot
+		// consume the keystroke before the document root-pane route sees it.
+		removeDocumentHierarchyShortcutBindings(text);
+		if (editorComp instanceof JComponent editor && editor != text)
+			removeDocumentHierarchyShortcutBindings(editor);
+		removeDocumentHierarchyShortcutsOnFocus(text);
+		if (editorComp instanceof JComponent editor && editor != text)
+			removeDocumentHierarchyShortcutsOnFocus(editor);
+
+		var mouseEditingNameCell = nameCell && e instanceof MouseEvent;
+		if (nameCell && !mouseEditingNameCell) {
+			resetEditorHorizontalOffset(text);
+		}
+		if (clearTextOnStart) {
+			text.setText(typedChar == null ? "" : String.valueOf(typedChar));
+			if (nameCell) {
+				resetEditorHorizontalOffset(text);
+			}
+			text.setCaretPosition(text.getDocument().getLength());
+			selectAll = false;
+		} else if (typedChar != null) {
+			text.setText(String.valueOf(typedChar));
+			if (nameCell) {
+				resetEditorHorizontalOffset(text);
+			}
+			text.setCaretPosition(text.getDocument().getLength());
+			selectAll = false;
+		}
+		if (caretAtEnd) {
+			if (nameCell) {
+				resetEditorHorizontalOffset(text);
+			}
+			text.setCaretPosition(text.getDocument().getLength());
+		}
+		if (e instanceof MouseEvent me && nameCell) {
+			handleNameCellMouseEdit(row, column, text, me);
+			selectAll = false;
+		}
+		if (selectAll) {
+			text.selectAll();
+		}
+		if (nameCell && !mouseEditingNameCell) {
+			resetEditorHorizontalOffset(text);
+		}
+		if (text instanceof ChangeAwareComponent changeAwareComponent) {
+			changeAwareComponent.resetChange();
+			// Clearing via Backspace changes the value during editor setup.  The
+			// reset above is still needed for ordinary editor initialization, but
+			// must not turn this explicit clear into a no-op on commit.
+			if (clearTextOnStart) {
+				changeAwareComponent.markChanged();
+			}
+		}
+    }
+
+	private void handleNameCellMouseEdit(int row, int column, JTextComponent text, MouseEvent me) {
+		var bounds = text.getBounds();
+		var cell = getCellRect(row, column, false);
+		bounds.setFrame(cell.getX() + bounds.getX(), cell.getY() + bounds.getY(), bounds.getWidth(), bounds.getHeight());
+		if (!bounds.contains(me.getPoint())) {
+			return;
+		}
+		positionCaretAtMousePoint(text, me, bounds);
+	}
+
+    private void positionCaretAtMousePoint(final JTextComponent text, final MouseEvent me, final Rectangle cellBounds) {
+    	if (text == null || me == null || cellBounds == null)
+    		return;
+    	final Rectangle visibleBefore = text.getVisibleRect();
+    	final int scrollOffsetBefore = (text instanceof JTextField) ? ((JTextField)text).getScrollOffset() : -1;
+    	SwingUtilities.invokeLater(new Runnable() {
+    		public void run() {
+    			try {
+    				Point localPoint = SwingUtilities.convertPoint(CommonSpreadSheet.this, me.getPoint(), text);
+    				int pos = text.viewToModel2D(localPoint);
+    				if (pos >= 0) {
+    					int caret = pos;
+    					try {
+    						caret = getWordStartPosition(text, pos);
+    					} catch (BadLocationException ex) {
+    						caret = pos;
+    					}
+    					text.setCaretPosition(caret);
+     					if (visibleBefore != null) {
+     						text.scrollRectToVisible(visibleBefore);
+     					}
+     					restoreEditorHorizontalPosition(text, visibleBefore, scrollOffsetBefore);
+    				}
+    			} catch (RuntimeException ex) {
+    				// If mapping fails, leave the default caret position in place.
+    			}
+    		}
+    	});
+    }
+
+    private int getWordStartPosition(JTextComponent text, int position) throws BadLocationException {
+    	if (text == null)
+    		return position;
+    	String content = text.getText();
+    	if (content == null || content.length() == 0)
+    		return 0;
+    	int bounded = Math.max(0, Math.min(position, content.length()));
+    	if (bounded == content.length() && bounded > 0)
+    		bounded--;
+    	if (bounded < 0 || bounded >= content.length())
+    		return Math.max(0, Math.min(position, content.length()));
+    	char current = content.charAt(bounded);
+    	if (Character.isWhitespace(current))
+    		return bounded;
+    	return Utilities.getWordStart(text, bounded);
+    }
+
+    protected boolean handleHierarchyNavigationKeyEvent(KeyEvent e) {
+    	return false;
+    }
+
+
+
+    protected boolean editOnSelect=false;
+
+	/**
+	 * @return Returns the editOnSelect.
+	 */
+	public boolean isEditOnSelect() {
+		return editOnSelect;
+	}
+	/**
+	 * @param editOnSelect The editOnSelect to set.
+	 */
+	public void setEditOnSelect(boolean editOnSelect) {
+		this.editOnSelect = editOnSelect;
+	}
+
+	public void changeSelection(int rowIndex, int columnIndex, boolean toggle,
+			boolean extend) {
+		changeSelection(rowIndex,columnIndex,toggle,extend,true);
+	}
+	public void changeSelection(int rowIndex, int columnIndex, boolean toggle,
+			boolean extend,boolean forwards) {
+		headerColumnSelectionActive = false;
+		rowHeaderSelectionActive = false;
+		super.changeSelection(rowIndex,columnIndex,toggle,extend);
+		if (hasSelectionModel())
+			getSelection().setActiveCell(rowIndex, columnIndex);
+	}
+
+	/** Starts editing the active task-table cell, preserving a cell click inside a whole-row selection. */
+	public boolean editActiveCell() {
+		EditableCellTarget target = resolveEditableCellTarget();
+		return target != null && editCellAt(target.row, target.column,
+				new StartEditEvent(this, true, null, false, false));
+	}
+
+
+
+	public void clearSelection() {
+		headerColumnSelectionActive = false;
+		rowHeaderSelectionActive = false;
+		super.clearSelection();
+		if (hasSelectionModel())
+			getSelection().clearActiveCell();
+	}
+
+	public void selectRowAndAllColumns(int row) {
+		headerColumnSelectionActive = false;
+		rowHeaderSelectionActive = false;
+		if (row < 0 || row >= getRowCount())
+			return;
+		if (!hasSelectionModel())
+			return;
+		SpreadSheetSelectionModel selection = getSelection();
+		selectRows(selection, row, row);
+		selectColumns(selection, 0, getColumnCount() - 1);
+		selection.clearActiveCell();
+		rowHeaderSelectionActive = true;
+	}
+
+	public void selectColumnAndAllRows(int column) {
+		rowHeaderSelectionActive = false;
+		if (column < 0 || column >= getColumnCount())
+			return;
+		if (!hasSelectionModel())
+			return;
+		// JTable represents a complete-column selection as every row plus one
+		// column.  Mark it before changing the Swing selection so listeners can
+		// distinguish this presentation selection from a task-row selection.
+		headerColumnSelectionActive = true;
+		SpreadSheetSelectionModel selection = getSelection();
+		selectColumns(selection, column, column);
+		selectRows(selection, 0, getRowCount() - 1);
+		selection.clearActiveCell();
+	}
+
+	public void selectEntireSpreadsheet() {
+		headerColumnSelectionActive = false;
+		rowHeaderSelectionActive = true;
+		if (!hasSelectionModel())
+			return;
+		SpreadSheetSelectionModel selection = getSelection();
+		selectRows(selection, 0, getRowCount() - 1);
+		selectColumns(selection, 0, getColumnCount() - 1);
+		selection.clearActiveCell();
+	}
+
+	public boolean isRowFullySelected(int row) {
+		if (row < 0 || row >= getRowCount())
+			return false;
+		return getSelectionModel().isSelectedIndex(row)
+			&& getSelectedRowCount() == 1
+			&& getSelectedRow() == row
+			&& getSelectedColumnCount() == getColumnCount();
+	}
+
+	public boolean isColumnFullySelected(int column) {
+		if (column < 0 || column >= getColumnCount())
+			return false;
+		return headerColumnSelectionActive
+			&& getColumnModel().getSelectionModel().isSelectedIndex(column)
+			&& getSelectedColumnCount() == 1
+			&& getSelectedRowCount() == getRowCount();
+	}
+
+	public boolean isHeaderColumnSelectionActive() {
+		return headerColumnSelectionActive;
+	}
+
+	protected void setHeaderColumnSelectionActive(boolean active) {
+		headerColumnSelectionActive = active;
+	}
+
+	public boolean isRowHeaderSelectionActive() {
+		return rowHeaderSelectionActive;
+	}
+
+	/**
+	 * Returns the view column that the table header should highlight.
+	 *
+	 * A normal task-cell click selects the complete row, so JTable's lead
+	 * column is not the clicked column anymore (it normally collapses to zero).
+	 * The selection model's active cell is the authoritative coordinate for
+	 * that case.  An explicit column-header selection is the one case where
+	 * JTable's selected column is authoritative.
+	 *
+	 * @return the active view column, or {@code -1} when no column header should
+	 *         be highlighted
+	 */
+	public int getActiveHeaderColumn() {
+		if (headerColumnSelectionActive)
+			return getSelectedColumn();
+		if (rowHeaderSelectionActive)
+			return -1;
+		if (hasSelectionModel()) {
+			int activeColumn = getSelection().getActiveColumn();
+			if (activeColumn >= 0 && activeColumn < getColumnCount())
+				return activeColumn;
+		}
+		return -1;
+	}
+
+	/**
+	 * Resolves the view column belonging to the current cell.  A task-cell
+	 * click selects the complete row, so JTable's selected-column lead is not a
+	 * reliable current-cell coordinate in that state.  The active cell is the
+	 * authoritative value; a single explicit column selection is the only safe
+	 * fallback.  Ambiguous multi-column selections deliberately return -1
+	 * instead of allowing the lead (often the rightmost column) to move the
+	 * viewport or edit the wrong field.
+	 */
+	public int getCurrentViewColumn() {
+		if (isEditing()) {
+			int editingColumn = getEditingColumn();
+			if (editingColumn >= 0 && editingColumn < getColumnCount())
+				return editingColumn;
+		}
+		if (hasSelectionModel()) {
+			int activeColumn = getSelection().getActiveColumn();
+			if (activeColumn >= 0 && activeColumn < getColumnCount())
+				return activeColumn;
+		}
+		if (getSelectedColumnCount() == 1) {
+			int selectedColumn = getSelectedColumn();
+			if (selectedColumn >= 0 && selectedColumn < getColumnCount())
+				return selectedColumn;
+		}
+		// Ctrl+Space and a row-header click intentionally select every column,
+		// but still leave one task row as the current row.  Keep the historical
+		// first-cell fallback for that unambiguous one-row state; returning -1
+		// here would make Shift+Space and Undo/Redo silently do nothing.
+		if (getSelectedRowCount() == 1
+				&& getSelectedColumnCount() == getColumnCount() && getColumnCount() > 0)
+			return 0;
+		return -1;
+	}
+
+	public void setRowHeaderSelectionActive(boolean active) {
+		rowHeaderSelectionActive = active;
+		if (active) {
+			headerColumnSelectionActive = false;
+		}
+	}
+
+	protected void clearHeaderColumnSelectionState() {
+		headerColumnSelectionActive = false;
+	}
+
+
+	/**
+	 * @return Returns the spreadSheetCategory.
+	 */
+	public String getSpreadSheetCategory() {
+		return spreadSheetCategory;
+	}
+	/**
+	 * @param spreadSheetCategory The spreadSheetCategory to set.
+	 */
+	public void setSpreadSheetCategory(String spreadSheetCategory) {
+		this.spreadSheetCategory = spreadSheetCategory;
+	}
+
+	@SuppressWarnings("unchecked")
+	public List<Field> getAvailableFields() {
+		return (List<Field>) SpreadSheetUtils.getFieldsForCategory(getSpreadSheetCategory());
+	}
+
+	protected void configureScrollPaneHeaders(JScrollPane scrollPane){
+        if (scrollPane instanceof ScaledScrollPane)
+        	scrollPane.setColumnHeaderView(((ScaledScrollPane)scrollPane).getTimeScaleComponent());
+        else scrollPane.setColumnHeaderView(getTableHeader());
+        JViewport vp=new JViewport();
+        vp.setView(rowHeader);
+        vp.setPreferredSize(rowHeader.getPreferredSize());
+        scrollPane.setRowHeader(vp);
+        corner=new SpreadSheetCorner(this);
+        scrollPane.setCorner(JScrollPane.UPPER_LEFT_CORNER,corner);
+        //scrollPane.setCorner(JScrollPane.LOWER_LEFT_CORNER,new GradientCorner());
+	}
+
+    protected void configureEnclosingScrollPane() {
+    	super.configureEnclosingScrollPane();
+     	Container p = getParent();
+     	if (p instanceof JViewport) {
+     		Container gp = p.getParent();
+     		if (gp instanceof JScrollPane) {
+     			JScrollPane scrollPane = (JScrollPane)gp;
+     			JViewport viewport = scrollPane.getViewport();
+     			if (viewport == null || viewport.getView() != this) return;
+				FlatUiSupport.applyViewportSurface(viewport);
+
+				 //fix the mouse wheel scroll but introduces a middle useless vertical scrollbar
+//				scrollPane.setAutoscrolls(true);
+//				scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+
+
+     			configureScrollPaneHeaders(scrollPane);
+
+     			Border border = scrollPane.getBorder();
+     			if (border == null || border instanceof UIResource) {
+     				scrollPane.setBorder(UIManager.getBorder("Table.scrollPaneBorder"));
+     			}
+     		}
+     	}
+     }
+
+	public Node addNodeForImpl(Object impl) {
+		return addNodeForImpl(impl,NodeModel.NORMAL);
+	}
+	public Node addNodeForImpl(Object impl,int eventType) {
+		finishCurrentOperations();
+        int row = getCurrentRow();
+        if (row == -1)  { // fix for bug when inserting subproject and no selection
+        	row = 0; // use 0th row if no selection
+        	addRowSelectionInterval(0, 0);
+        }
+		Node current = getCurrentRowNode();
+		Node newNode = NodeFactory.getInstance().createNode(impl);
+        SpreadSheetModel model = getSpreadSheetModel();
+        NodeModel nodeModel = model.getCache().getModel();
+		nodeModel.addBefore(current,newNode,eventType);
+        return newNode;
+	}
+
+    public void graphicNodesCompositeEvent(CompositeCacheEvent compositeEvent){
+    	if (isEditing()){
+    		int row=getEditingRow();
+    		int col=getEditingColumn();
+    		TableCellEditor editor=getCellEditor();
+    		editor.cancelCellEditing();
+    		editCellAt(row,col,new StartEditEvent(this, true, null, false, false));
+    	}
+    }
+
+    private void restoreEditorHorizontalPosition(final JTextComponent text, final Rectangle visibleBefore, final int scrollOffsetBefore) {
+    	if (text == null)
+    		return;
+    	if (visibleBefore != null)
+    		text.scrollRectToVisible(visibleBefore);
+    	if (text instanceof JTextField && scrollOffsetBefore >= 0)
+    		((JTextField)text).setScrollOffset(scrollOffsetBefore);
+    	SwingUtilities.invokeLater(new Runnable() {
+    		public void run() {
+    			if (visibleBefore != null)
+    				text.scrollRectToVisible(visibleBefore);
+    			if (text instanceof JTextField && scrollOffsetBefore >= 0)
+    				((JTextField)text).setScrollOffset(scrollOffsetBefore);
+    		}
+    	});
+    }
+
+
+
+
+	public SpreadSheetRowHeader getRowHeader() {
+		return rowHeader;
+	}
+
+
+	public SpreadSheetCorner getCorner() {
+		return corner;
+	}
+
+
+/**
+ * For minor spreadsheets that have fixed columns, make sure they are not modifiable
+ * @return
+ */
+    public final boolean isCanModifyColumns() {
+		return canModifyColumns && SpreadSheetUtils.getFieldsForCategory(getSpreadSheetCategory()) != null;
+	}
+
+
+
+	public final void setCanModifyColumns(boolean canModifyColumns) {
+		this.canModifyColumns = canModifyColumns;
+	}
+
+	public boolean isHasColumnHeaderPopup() {
+		return isCanModifyColumns();
+	}
+
+	public final boolean isCanSelectFieldArray() {
+		return canSelectFieldArray;
+	}
+
+
+	public final void setCanSelectFieldArray(boolean canSelectFieldArray) {
+		this.canSelectFieldArray = canSelectFieldArray;
+	}
+
+	public void resizeAndRepaintHeader() { // this is really abstract
+	}
+
+	protected Exception lastException;
+
+	public final Exception getLastException() {
+		return lastException;
+	}
+
+	protected void doPostExceptionTreatment() {
+
+	}
+	public void setValueAt(Object arg0, int arg1, int arg2) {
+		lastException = null; // initialize. will get set if a throw
+		try {
+			super.setValueAt(arg0, arg1, arg2);
+		} catch (Exception e) { // because setValue has no exceptions, I package it in a runtime one
+			lastException = (Exception) e.getCause(); // editors will use this value to see if exception
+			if (lastException==null) lastException=e;
+			Alert.error(lastException.getMessage(),this);
+
+			doPostExceptionTreatment();
+		}
+	}
+
+	public SearchContext createSearchContext() {
+		SpreadSheetSearchContext ctx = new SpreadSheetSearchContext();
+		return ctx;
+
+	}
+
+/**
+ * Used by find dialog
+ */
+	public boolean findNext(SearchContext context) {
+		SpreadSheetSearchContext ctx = (SpreadSheetSearchContext)context;
+
+		int row = this.getCurrentRow();
+		NodeModelCache currentCache = getCache();
+		if (currentCache == null || currentCache.getSize() <= 0) {
+			return false;
+		}
+		// make sure in bounds
+		if (row < 0)
+			row =0;
+		if (row >= currentCache.getSize())
+			row = currentCache.getSize() -1;
+
+		ListIterator i = currentCache.getIterator(row);
+		if (ctx.getRow() != -1) { // after the first search, need to move ahead or back
+			if (ctx.isForward())
+				if (i.hasNext())
+					i.next();
+			else
+				if (i.hasPrevious())
+					i.previous();
+		}
+
+		boolean found = false;
+		GraphicNode gnode = null;
+		Object obj;
+		Node node;
+		while (ctx.isForward() ? i.hasNext() : i.hasPrevious()) {
+			gnode=(GraphicNode)(ctx.isForward() ? i.next() : i.previous());
+			if (gnode.isVoid())
+				continue;
+			node = gnode.getNode();
+			obj = node.getImpl();
+			if (ctx.matches(obj)) {
+				found = true;
+				break;
+			}
+		}
+		if (found) {
+			int r = currentCache.getRowAt(gnode);
+			int col = getFieldArray().indexOf(ctx.getField())-1;
+			this.changeSelection(r, col, false, false);
+			ctx.setRow(r);
+		}
+		return found;
+	}
+
+	/**
+	 * Used by the replace mode of the find dialog: replaces the search text in the text cells of
+	 * the searched field. With {@code all} false only the current row is considered. Cells
+	 * that are read-only or not text are left alone. Returns the number of cells changed.
+	 */
+	@Override
+	public int replace(SearchContext context, String replacement, boolean all) {
+		if (context == null || context.getField() == null || replacement == null)
+			return 0;
+		String search = context.getSearchValue();
+		if (search == null || search.isEmpty())
+			return 0;
+		int col = getFieldArray().indexOf(context.getField()) - 1;
+		SpreadSheetModel sheetModel = getSpreadSheetModel();
+		if (col < 0 || sheetModel == null)
+			return 0;
+		finishCurrentOperations();
+		int first = all ? 0 : getCurrentRow();
+		int last = all ? getRowCount() - 1 : getCurrentRow();
+		int replaced = 0;
+		for (int row = Math.max(first, 0); row <= last && row < getRowCount(); row++) {
+			Node node = sheetModel.getNodeInRow(row);
+			if (node == null || !context.matches(node.getImpl()) || !isCellEditable(row, col))
+				continue;
+			if (!(getValueAt(row, col) instanceof String current))
+				continue;
+			String updated = replaceText(current, search, replacement, context.isCaseSensitive());
+			if (updated.equals(current))
+				continue;
+			setValueAt(updated, row, col);
+			if (getLastException() != null)
+				break;
+			replaced++;
+		}
+		return replaced;
+	}
+
+	static String replaceText(String text, String search, String replacement, boolean caseSensitive) {
+		java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(java.util.regex.Pattern.quote(search),
+			caseSensitive ? 0 : java.util.regex.Pattern.CASE_INSENSITIVE | java.util.regex.Pattern.UNICODE_CASE);
+		return pattern.matcher(text).replaceAll(java.util.regex.Matcher.quoteReplacement(replacement));
+	}
+
+	public void selectObject(Object object) {
+		int row = ((CommonSpreadSheetModel)getModel()).findObjectRow(object);
+		if (row != -1) {
+			finishCurrentOperations();
+			int column = getCurrentViewColumn();
+			changeSelection(row, column < 0 ? 0 : column, false, false);
+		}
+
+	}
+
+	public void restoreWorkspace(WorkspaceSetting w, int context) {
+		// this checks for invalid conditions and continues
+
+		Workspace ws = (Workspace) w;
+		if (getRowCount() > ws.editingRow)
+			setEditingRow(ws.editingRow);
+		if (getColumnCount() > ws.editingColumn)
+			setEditingColumn(ws.editingColumn);
+		if (getRowCount() > ws.lastEditingRow)
+			lastEditingRow = ws.lastEditingRow;
+		clearSelection();
+		if (rowHeader != null)
+			rowHeader.clearSelection();
+		boolean restoredStableSelection = restoreStableTaskSelection(ws);
+		if (!restoredStableSelection)
+			restoreLegacyRowSelection(ws.selectedRows);
+		if (ws.selectedColumns != null) {
+			for (int i=0; i < ws.selectedColumns.length; i++) {
+				try {
+					addColumnSelectionInterval(ws.selectedColumns[i], ws.selectedColumns[i]);
+				} catch (RuntimeException e) {
+					// in case out of bounds
+				}
+			}
+		}
+		SpreadSheetFieldArray s = (SpreadSheetFieldArray) Dictionary.get(getSpreadSheetCategory(),ws.fieldArrayName);
+		if (s != null)
+			setFieldArray(s);
+		Container p = getParent();
+		if (p instanceof JViewport && ws.viewPosition != null) {
+			try {
+			Point stablePosition = resolveStableScrollPosition(ws);
+			((JViewport)p).setViewPosition(stablePosition == null ? ws.viewPosition : stablePosition);
+			} catch (RuntimeException e) {
+				logger.log(Level.FINE, "problem restoring viewport to point {0}", ws.viewPosition);
+     		}
+     	}
+	}
+
+
+
+	public WorkspaceSetting createWorkspace(int context) {
+		Workspace ws = new Workspace();
+		ws.editingRow = getEditingRow();
+		ws.editingColumn = getEditingColumn();
+		ws.lastEditingRow = lastEditingRow;
+		int[] selectedRows = getSelectedRows();
+		int[] selectedColumns = getSelectedColumns();
+		ws.selectedRows = selectedRows == null ? null : selectedRows.clone();
+		ws.selectedColumns = selectedColumns == null ? null : selectedColumns.clone();
+		ws.fieldArrayName = getFieldArray().toString();
+		captureStableTaskSelection(ws);
+		Container p = getParent();
+		if (p instanceof JViewport) {
+			ws.viewPosition = new Point(((JViewport)p).getViewPosition());
+			captureStableScrollAnchor(ws, ws.viewPosition);
+		}
+		return ws;
+	}
+
+	private void restoreLegacyRowSelection(int[] rows) {
+		if (rows == null)
+			return;
+		for (int row : rows) {
+			try {
+				addRowSelectionInterval(row, row);
+				rowHeader.addRowSelectionInterval(row, row);
+			} catch (RuntimeException e) {
+				// Legacy workspaces may contain row numbers outside the current projection.
+			}
+		}
+	}
+
+	private boolean restoreStableTaskSelection(Workspace ws) {
+		if (!ws.hasValidStableTaskSelection())
+			return false;
+		if (!(getModel() instanceof SpreadSheetModel model) || model.getRowMultiple() != 1 || getCache() == null)
+			return false;
+		RevisionedProjectionIndex projection = getCache().getVisibleNodes().getProjectionIndex();
+		int[] viewRows = new int[ws.selectedTaskIds.length];
+		for (int index = 0; index < ws.selectedTaskIds.length; index++) {
+			int modelRow = rowForWorkspaceTask(projection, ws.selectedProjectIds[index], ws.selectedTaskIds[index],
+				ws.selectedOccurrences[index]);
+			if (modelRow < 0)
+				return true;
+			viewRows[index] = convertRowIndexToView(modelRow);
+			if (viewRows[index] < 0)
+				return true;
+		}
+		for (int viewRow : viewRows) {
+			addRowSelectionInterval(viewRow, viewRow);
+			rowHeader.addRowSelectionInterval(viewRow, viewRow);
+		}
+		setHeaderColumnSelectionActive(ws.headerColumnSelectionActive);
+		setRowHeaderSelectionActive(ws.rowHeaderSelectionActive);
+		return true;
+	}
+
+	private Point resolveStableScrollPosition(Workspace ws) {
+		if (!ws.hasValidStableScrollAnchor() || !(getModel() instanceof SpreadSheetModel model)
+				|| model.getRowMultiple() != 1 || getCache() == null)
+			return null;
+		RevisionedProjectionIndex projection = getCache().getVisibleNodes().getProjectionIndex();
+		int modelRow = rowForWorkspaceTask(projection, ws.scrollAnchorProjectId, ws.scrollAnchorTaskId,
+			ws.scrollAnchorOccurrence);
+		if (modelRow < 0)
+			return null;
+		int viewRow = convertRowIndexToView(modelRow);
+		if (viewRow < 0)
+			return null;
+		Rectangle rowBounds = getCellRect(viewRow, 0, true);
+		int offset = Math.min(ws.scrollAnchorOffset, Math.max(0, rowBounds.height - 1));
+		int x = ws.viewPosition == null ? 0 : Math.max(0, ws.viewPosition.x);
+		return new Point(x, Math.max(0, rowBounds.y + offset));
+	}
+
+	private static int rowForWorkspaceTask(RevisionedProjectionIndex projection, long projectId, long taskId,
+			int occurrence) {
+		int match = -1;
+		for (int row = 0; row < projection.size(); row++) {
+			if (!(projection.keyAt(row) instanceof ProjectionRowKey.TaskRow taskRow))
+				continue;
+			ProjectTaskKey key = taskRow.taskKey();
+			if (key.owningProjectId() == projectId && key.taskUniqueId() == taskId
+					&& taskRow.occurrence() == occurrence) {
+				if (match >= 0)
+					return -1;
+				match = row;
+			}
+		}
+		return match;
+	}
+
+	private void captureStableTaskSelection(Workspace ws) {
+		if (!(getModel() instanceof SpreadSheetModel model) || model.getRowMultiple() != 1 || getCache() == null)
+			return;
+		int[] viewRows = getSelectedRows();
+		long[] projectIds = new long[viewRows.length];
+		long[] taskIds = new long[viewRows.length];
+		int[] occurrences = new int[viewRows.length];
+		RevisionedProjectionIndex projection = getCache().getVisibleNodes().getProjectionIndex();
+		for (int index = 0; index < viewRows.length; index++) {
+			int modelRow = convertRowIndexToModel(viewRows[index]);
+			if (modelRow < 0 || modelRow >= projection.size()
+					|| !(projection.keyAt(modelRow) instanceof ProjectionRowKey.TaskRow taskRow))
+				return;
+			projectIds[index] = taskRow.taskKey().owningProjectId();
+			taskIds[index] = taskRow.taskKey().taskUniqueId();
+			if (projectIds[index] <= 0L || taskIds[index] <= 0L)
+				return;
+			occurrences[index] = taskRow.occurrence();
+		}
+		ws.selectedProjectIds = projectIds;
+		ws.selectedTaskIds = taskIds;
+		ws.selectedOccurrences = occurrences;
+		ws.stableTaskSelectionPresent = true;
+		ws.headerColumnSelectionActive = isHeaderColumnSelectionActive();
+		ws.rowHeaderSelectionActive = isRowHeaderSelectionActive();
+	}
+
+	private void captureStableScrollAnchor(Workspace ws, Point viewPosition) {
+		if (viewPosition == null || !(getModel() instanceof SpreadSheetModel model)
+				|| model.getRowMultiple() != 1 || getCache() == null)
+			return;
+		int viewRow = rowAtPoint(new Point(0, viewPosition.y));
+		if (viewRow < 0)
+			return;
+		int modelRow = convertRowIndexToModel(viewRow);
+		RevisionedProjectionIndex projection = getCache().getVisibleNodes().getProjectionIndex();
+		if (modelRow < 0 || modelRow >= projection.size()
+				|| !(projection.keyAt(modelRow) instanceof ProjectionRowKey.TaskRow taskRow))
+			return;
+		if (taskRow.taskKey().owningProjectId() <= 0L || taskRow.taskKey().taskUniqueId() <= 0L)
+			return;
+		Rectangle rowBounds = getCellRect(viewRow, 0, true);
+		ws.scrollAnchorProjectId = taskRow.taskKey().owningProjectId();
+		ws.scrollAnchorTaskId = taskRow.taskKey().taskUniqueId();
+		ws.scrollAnchorOccurrence = taskRow.occurrence();
+		ws.scrollAnchorOffset = Math.max(0, viewPosition.y - rowBounds.y);
+		ws.stableScrollAnchorPresent = true;
+	}
+
+	public static class Workspace implements WorkspaceSetting {
+		private static final long serialVersionUID = -847570793053006783L;
+		int editingRow;
+		int editingColumn;
+		int lastEditingRow;
+		int[] selectedRows=null;
+		int[] selectedColumns=null;
+		String fieldArrayName;
+		Point viewPosition = null;
+		int workspaceVersion = 2;
+		boolean stableTaskSelectionPresent;
+		long[] selectedProjectIds;
+		long[] selectedTaskIds;
+		int[] selectedOccurrences;
+		boolean headerColumnSelectionActive;
+		boolean rowHeaderSelectionActive;
+		boolean stableScrollAnchorPresent;
+		long scrollAnchorProjectId;
+		long scrollAnchorTaskId;
+		int scrollAnchorOccurrence;
+		int scrollAnchorOffset;
+
+		boolean hasValidStableTaskSelection() {
+			if (workspaceVersion != 2 || !stableTaskSelectionPresent || selectedProjectIds == null
+					|| selectedTaskIds == null || selectedOccurrences == null
+					|| selectedProjectIds.length != selectedTaskIds.length
+					|| selectedProjectIds.length != selectedOccurrences.length)
+				return false;
+			for (int index = 0; index < selectedProjectIds.length; index++) {
+				if (selectedProjectIds[index] <= 0L || selectedTaskIds[index] <= 0L
+						|| selectedOccurrences[index] < 0)
+					return false;
+			}
+			return true;
+		}
+
+		boolean hasValidStableScrollAnchor() {
+			return workspaceVersion == 2 && stableScrollAnchorPresent
+					&& scrollAnchorProjectId > 0L && scrollAnchorTaskId > 0L
+					&& scrollAnchorOccurrence >= 0 && scrollAnchorOffset >= 0;
+		}
+
+		public int getWorkspaceVersion() {
+			return workspaceVersion;
+		}
+
+		public void setWorkspaceVersion(int workspaceVersion) {
+			this.workspaceVersion = workspaceVersion;
+		}
+
+		public long[] getSelectedProjectIds() {
+			return selectedProjectIds == null ? null : selectedProjectIds.clone();
+		}
+
+		public void setSelectedProjectIds(long[] selectedProjectIds) {
+			this.selectedProjectIds = selectedProjectIds == null ? null : selectedProjectIds.clone();
+		}
+
+		public long[] getSelectedTaskIds() {
+			return selectedTaskIds == null ? null : selectedTaskIds.clone();
+		}
+
+		public void setSelectedTaskIds(long[] selectedTaskIds) {
+			this.selectedTaskIds = selectedTaskIds == null ? null : selectedTaskIds.clone();
+		}
+
+		public int[] getSelectedOccurrences() {
+			return selectedOccurrences == null ? null : selectedOccurrences.clone();
+		}
+
+		public void setSelectedOccurrences(int[] selectedOccurrences) {
+			this.selectedOccurrences = selectedOccurrences == null ? null : selectedOccurrences.clone();
+		}
+
+		public boolean isStableTaskSelectionPresent() {
+			return stableTaskSelectionPresent;
+		}
+
+		public void setStableTaskSelectionPresent(boolean present) {
+			stableTaskSelectionPresent = present;
+		}
+
+		public boolean isHeaderColumnSelectionActive() {
+			return headerColumnSelectionActive;
+		}
+
+		public void setHeaderColumnSelectionActive(boolean active) {
+			headerColumnSelectionActive = active;
+		}
+
+		public boolean isRowHeaderSelectionActive() {
+			return rowHeaderSelectionActive;
+		}
+
+		public void setRowHeaderSelectionActive(boolean active) {
+			rowHeaderSelectionActive = active;
+		}
+
+		public boolean isStableScrollAnchorPresent() {
+			return stableScrollAnchorPresent;
+		}
+
+		public void setStableScrollAnchorPresent(boolean present) {
+			stableScrollAnchorPresent = present;
+		}
+
+		public long getScrollAnchorProjectId() {
+			return scrollAnchorProjectId;
+		}
+
+		public void setScrollAnchorProjectId(long value) {
+			scrollAnchorProjectId = value;
+		}
+
+		public long getScrollAnchorTaskId() {
+			return scrollAnchorTaskId;
+		}
+
+		public void setScrollAnchorTaskId(long value) {
+			scrollAnchorTaskId = value;
+		}
+
+		public int getScrollAnchorOccurrence() {
+			return scrollAnchorOccurrence;
+		}
+
+		public void setScrollAnchorOccurrence(int value) {
+			scrollAnchorOccurrence = value;
+		}
+
+		public int getScrollAnchorOffset() {
+			return scrollAnchorOffset;
+		}
+
+		public void setScrollAnchorOffset(int value) {
+			scrollAnchorOffset = value;
+		}
+
+		public final int getEditingColumn() {
+			return editingColumn;
+		}
+
+		public final void setEditingColumn(int editingColumn) {
+			this.editingColumn = editingColumn;
+		}
+
+		public final int getEditingRow() {
+			return editingRow;
+		}
+
+		public final void setEditingRow(int editingRow) {
+			this.editingRow = editingRow;
+		}
+
+		public final String getFieldArrayName() {
+			return fieldArrayName;
+		}
+
+		public final void setFieldArrayName(String fieldArrayName) {
+			this.fieldArrayName = fieldArrayName;
+		}
+
+		public final int getLastEditingRow() {
+			return lastEditingRow;
+		}
+
+		public final void setLastEditingRow(int lastEditingRow) {
+			this.lastEditingRow = lastEditingRow;
+		}
+
+		public final int[] getSelectedColumns() {
+			return selectedColumns;
+		}
+
+		public final void setSelectedColumns(int[] selectedColumns) {
+			this.selectedColumns = selectedColumns;
+		}
+
+		public final int[] getSelectedRows() {
+			return selectedRows;
+		}
+
+		public final void setSelectedRows(int[] selectedRows) {
+			this.selectedRows = selectedRows;
+		}
+
+		public Point getViewPosition() {
+			return viewPosition == null ? null : new Point(viewPosition);
+		}
+
+		public void setViewPosition(Point viewPosition) {
+			this.viewPosition = viewPosition == null ? null : new Point(viewPosition);
+		}
+	}
+
+
+
+
+}

@@ -1,0 +1,534 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.view.model.transform;
+
+import java.util.ArrayList;
+import java.util.function.Consumer;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.ListIterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.Stack;
+
+import com.microproject.ui.view.model.cache.GraphicNode;
+import com.microproject.ui.view.model.cache.ReferenceNodeModelCache;
+import com.microproject.document.Document;
+import com.microproject.grouping.core.GroupNodeImpl;
+import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.NodeFactory;
+import com.microproject.grouping.core.model.WalkersNodeModel;
+import com.microproject.grouping.core.transform.ViewConfiguration;
+import com.microproject.grouping.core.transform.ViewTransformer;
+import com.microproject.grouping.core.transform.filtering.BaseFilter;
+import com.microproject.grouping.core.transform.filtering.NodeFilter;
+import com.microproject.grouping.core.transform.grouping.NodeGroup;
+import com.microproject.grouping.core.transform.grouping.NodeGrouper;
+import com.microproject.grouping.core.transform.sorting.NodeSorter;
+import com.microproject.grouping.core.transform.sorting.TaskSortSpec;
+import com.microproject.grouping.core.transform.transformer.NodeTransformer;
+
+/**
+ *
+ */
+public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
+    protected ViewTransformer transformer;
+
+    protected ReferenceNodeModelCache refCache;
+    protected int levelOffset=0;
+    protected String viewName;
+    protected ViewConfiguration view;
+
+    public NodeCacheTransformer(String viewName,ReferenceNodeModelCache refCache,Consumer<Object> transformerClosure){
+    	view=ViewConfiguration.getView(viewName);
+        if (view == null || view.getTransform() == null) {
+            view = new ViewConfiguration();
+            view.setName(viewName);
+            transformer = new ViewTransformer();
+        } else {
+            transformer=view.getTransform();
+        }
+        if (transformerClosure!=null) transformerClosure.accept(transformer);
+
+    	this.refCache=refCache;
+    	this.viewName=viewName;
+    }
+
+	public ViewTransformer getTransformer() {
+		return transformer;
+	}
+
+	public boolean isFlatTaskSort() {
+		return !transformer.isKeepOutline() && !transformer.getTaskSortSpec().keys().isEmpty()
+				&& (viewName == null || !viewName.startsWith("Resource"));
+	}
+
+	public int getDisplayLevel(GraphicNode node) {
+		return isFlatTaskSort() && !node.isGroup() ? levelOffset + 1 : node.getLevel() + (node.isGroup() ? 0 : levelOffset);
+	}
+
+
+
+    public void transfrom(List<GraphicNode> list){
+    	model.clear();
+        levelOffset=0;
+
+        if (list==null) return;
+
+        boolean preserveHierarchy=transformer.isPreserveHierarchy() && transformer.isKeepOutline();
+        if (!transformer.isShowSummary()){
+        	preserveHierarchy=false;
+        	removeSummaries(list);
+        }
+        Map<GraphicNode,List<GraphicNode>> assignmentsMap=null;
+        if (!transformer.isShowAssignments()) removeAssignments(list);
+        if (!transformer.isShowEmptyLines()) removeVoids(list);
+        if (transformer.isShowEmptyLines()&&!transformer.isShowEndEmptyLines()) removeEndVoids(list);
+
+        NodeTransformer composition=transformer.getTransformer();
+
+        NodeFilter hiddenFilter=transformer.getHiddenFilter();
+        if (hiddenFilter instanceof BaseFilter && !((BaseFilter)hiddenFilter).isActive()) hiddenFilter=null; //to avoid useless filtering in case of BaseFilter
+        NodeFilter userFilter=(transformer.isNoneFilter())?null:transformer.getUserFilter();
+        boolean filtering=hiddenFilter!=null||userFilter!=null;
+        Set<GraphicNode> hiddenFilteredSummaries = new HashSet<>();
+
+        NodeSorter sorter1=transformer.getHiddenSorter();
+        NodeSorter sorter2=transformer.getUserSorter();
+		TaskSortSpec taskSortSpec = transformer.getTaskSortSpec();
+        boolean taskView = viewName == null || !viewName.startsWith("Resource");
+		boolean canonicalTaskSorter = taskView && !taskSortSpec.keys().isEmpty();
+        boolean sorting=sorter1!=null || canonicalTaskSorter || !transformer.isNoneSorter();
+
+        NodeGrouper grouper=transformer.getUserGrouper();
+        boolean grouping=!transformer.isNoneGrouper();
+
+        if (!filtering&&!sorting&&!grouping) return;
+
+        if (transformer.isShowAssignments()&&preserveHierarchy&&!transformer.isTreatAssignmentsAsTasks()) assignmentsMap=extractAssignments(list);
+
+
+        List<GraphicNode> localList=null;
+        Stack<GraphicNode> parents=null;
+        boolean alreadyExcluded;
+        if (preserveHierarchy){
+         	localList=new ArrayList<>();
+         	parents=new Stack<>();
+        }else localList=list;
+
+        GraphicNode gnode,previous=null;
+        Object current;
+        for (ListIterator<GraphicNode> i=list.listIterator();i.hasNext();){
+            gnode=i.next();
+            gnode.setFiltered(false);
+            if (!gnode.isVoid()){
+	            current=(composition==null)?gnode.getNode():composition.evaluate(gnode.getNode());
+	            alreadyExcluded=false;
+	             if (hiddenFilter!=null){
+	                 if(!hiddenFilter.test(current)){
+	                    if (!gnode.isSummary() || !preserveHierarchy){
+	                    	i.remove();
+		                    continue;
+	                    }
+                    	if (gnode.isSummary()&&preserveHierarchy) gnode.setFiltered(true);
+	                    if (gnode.isSummary()&&preserveHierarchy) hiddenFilteredSummaries.add(gnode);
+                    	alreadyExcluded=true;
+	                }
+	            }
+	             if (userFilter!=null&&!alreadyExcluded){
+	                 if(!userFilter.test(current)){
+	                	 if (!gnode.isSummary() || !preserveHierarchy){
+	                		 i.remove();
+	 		                continue;
+	                	 }
+	                    if (gnode.isSummary()&&preserveHierarchy) gnode.setFiltered(true);
+	                }
+	             }
+            }
+             if (preserveHierarchy){
+	             //contruct a temporary tree for sorting and grouping
+//            	 if (parents==null||previous==null){
+//            	 }
+	             if (gnode.getLevel()==1){
+	            	 localList.add(gnode);
+	            	 parents.clear();
+	             }else{
+	                 if (previous.getLevel()<gnode.getLevel()){
+	                	 parents.push(previous);
+	                 }else if (previous.getLevel()>=gnode.getLevel()){
+	                	 while (parents.size()>=gnode.getLevel()) parents.pop();
+	                 }
+	                 parents.peek().getChildren().add(gnode);
+	             }
+	             previous=gnode;
+             }
+         }
+
+        //remove parents without children
+        if (preserveHierarchy){
+        	list.clear();
+        	if (transformer.isShowEmptySummaries()){
+			if ("TaskUsage".equals(viewName)) filterBadBranches(localList);
+			else filterHiddenSummaryBranches(localList, hiddenFilteredSummaries);
+        	}else filterEmptySummaries(localList,false);
+        }
+
+
+
+
+        if (sorting){
+	        if (sorter1!=null)
+	            sorter1.sortList(localList,new GraphicNodeComparator(sorter1,composition),preserveHierarchy);
+	        if (canonicalTaskSorter) {
+	            Comparator<Object> taskComparator = taskSortSpec.comparator();
+	            NodeSorter.sortHierarchically(localList,
+					new GraphicNodeComparator(taskComparator, null, composition), preserveHierarchy);
+	        } else if (!transformer.isNoneSorter()) {
+	            Comparator<Object> orderedComparator = NodeSorter.forOrder(sorter2, transformer.isUserSorterAscending());
+	            sorter2.sortList(localList,new GraphicNodeComparator(orderedComparator,sorter2,composition),preserveHierarchy);
+	        }
+        }
+
+
+
+        if (grouping){
+        	List<NodeGroup> groups=grouper.getGroups();
+        	levelOffset=groups.size();
+        	List<GraphicNode> groupedList=new LinkedList<>();
+        	groupList(localList,groupedList,groups.listIterator(),null,composition,preserveHierarchy);
+        	localList.clear();
+        	localList.addAll(groupedList);
+        }
+
+
+        if (preserveHierarchy){ //converts tmp tree to list
+         	treeToList(localList, list);
+        }
+
+        if (assignmentsMap!=null) recoverAssignments(list, assignmentsMap);
+
+//        if (transformer.isShowEmptyLines())
+//        	placeVoidNodes(list);
+
+
+    }
+
+	private boolean filterEmptySummaries(List<GraphicNode> list,boolean filterVoids){
+		boolean containsNonSummaries=false;
+		boolean containsVoids=false;
+		for (Iterator<GraphicNode> i=list.iterator();i.hasNext();){
+			GraphicNode gnode=i.next();
+			if (gnode.isVoid()){
+				containsVoids=true;
+				continue;
+			}
+			if (!gnode.isSummary()||(gnode.getChildren().size()>0 && filterEmptySummaries(gnode.getChildren(),true))) containsNonSummaries=true;
+			else i.remove();
+		}
+		if (!containsNonSummaries&&(!containsVoids || filterVoids)) list.clear();
+		return containsNonSummaries;
+	}
+
+	private void filterBadBranches(List<GraphicNode> list){
+		filterBadBranches(list, false);
+	}
+	private boolean filterHiddenSummaryBranches(List<GraphicNode> list, Set<GraphicNode> hiddenSummaries) {
+		boolean containsVisibleRow = false;
+		for (Iterator<GraphicNode> i = list.iterator(); i.hasNext();) {
+			GraphicNode node = i.next();
+			boolean hiddenSummary = hiddenSummaries.contains(node);
+			if (!node.isSummary() || filterHiddenSummaryBranches(node.getChildren(), hiddenSummaries) || !hiddenSummary) {
+				containsVisibleRow = true;
+			} else {
+				i.remove();
+			}
+		}
+		return containsVisibleRow;
+	}
+	private boolean filterBadBranches(List<GraphicNode> list,boolean cut){
+		boolean keep=false;
+		for (Iterator<GraphicNode> i=list.iterator();i.hasNext();){
+			GraphicNode gnode=i.next();
+			boolean cutBranch=cut|gnode.isFiltered();
+			if (!gnode.isSummary()||(!gnode.isFiltered()&&gnode.getChildren().size()==0)||filterBadBranches(gnode.getChildren(),cutBranch)||!gnode.isFiltered()) keep=true;
+			else i.remove();
+		}
+		return keep;
+	}
+
+	private void treeToList(List<GraphicNode> in,List<GraphicNode> out){
+		for (Iterator<GraphicNode> i=in.iterator();i.hasNext();){
+			GraphicNode graphicNode=i.next();
+			out.add(graphicNode);
+			if (graphicNode.getChildren().size()>0) treeToList(graphicNode.getChildren(),out);
+			graphicNode.getChildren().clear();
+		}
+	}
+
+
+
+	public int getLevelOffset() {
+		return levelOffset;
+	}
+
+
+	private class GraphicNodeComparator implements Comparator<GraphicNode>{
+	    protected Comparator<Object> comparator;
+	    protected NodeSorter sorterMetadata;
+	    protected NodeTransformer composition;
+	    private GraphicNodeComparator(NodeSorter comparator){
+	        this(comparator,comparator,null);
+	    }
+	    private GraphicNodeComparator(NodeSorter comparator,NodeTransformer composition){
+	        this(comparator,comparator,composition);
+	    }
+	    private GraphicNodeComparator(Comparator<Object> comparator,NodeSorter sorterMetadata,NodeTransformer composition){
+	        this.comparator=comparator;
+	        this.sorterMetadata=sorterMetadata;
+	        this.composition=composition;
+	    }
+	    public int compare(GraphicNode n1, GraphicNode n2) {
+	    	if (n1==n2) return 0;
+	    	else if (n1.isVoid()) return 1;
+	    	else if (n2.isVoid()) return -1;
+	    	if (composition==null)
+	    		return comparator.compare(n1.getNode(),n2.getNode());
+	    	else return comparator.compare(composition.evaluate(n1.getNode()),composition.evaluate(n2.getNode()));
+	    }
+	    public ListIterator<Object> getCurrentSorter(){
+	        return sorterMetadata.getCurrentSorter();
+	    }
+	}
+
+	protected static GraphicNode createGroupWithName(int level,NodeGroup group,String name){
+		Node node=NodeFactory.getInstance().createGroup(group,name);
+		GraphicNode gnode=new GraphicNode(node,level);
+		gnode.setComposite(true);
+		gnode.setSummary(true);
+		gnode.setCollapsed(false);
+		return gnode;
+	}
+
+	protected  GraphicNode createGroup(int level,NodeGroup group,NodeSorter sorter,Node node){
+	    return createGroupWithName(level,group,sorter.getGroupName(node));
+	}
+
+    private void groupList(List<GraphicNode> list,List<GraphicNode> destList,ListIterator<NodeGroup> groupIterator,Node parentGroup,NodeTransformer composition, boolean preserveHierarchy){
+    	NodeGroup group=groupIterator.next();
+    	NodeSorter sorter=group.getSorter();
+    	GraphicNodeComparator gcomp=new GraphicNodeComparator(sorter,composition);
+    	sorter.sortList(list,gcomp,preserveHierarchy);
+    	GraphicNode last=null;
+    	List<GraphicNode> nodes=null;
+    	GraphicNode current;
+    	for (ListIterator<GraphicNode> i=list.listIterator();i.hasNext();){
+    		current=i.next();
+    		if (last==null){
+    			nodes=new LinkedList<>();
+    		}else if (gcomp.compare(last,current)!=0){
+    			handleGroup(destList,groupIterator,parentGroup,group,last,nodes,composition,preserveHierarchy);
+    			nodes=new LinkedList<>();
+    		}
+    		nodes.add(current);
+    		last=current;
+    	}
+    	if (nodes!=null&&nodes.size()>0){
+			handleGroup(destList,groupIterator,parentGroup,group,last,nodes,composition,preserveHierarchy);
+    	}
+    	groupIterator.previous();
+    }
+    private void handleGroup(List<GraphicNode> destList,ListIterator<NodeGroup> groupIterator,Node parentGroup,NodeGroup group,GraphicNode last, List<GraphicNode> nodes,NodeTransformer composition, boolean preserveHierarchy){
+		GraphicNode groupNode=createGroup(groupIterator.nextIndex(),group,group.getSorter(),last.getNode());
+		destList.add(groupNode);
+		model.addRelationship(parentGroup,groupNode.getNode());
+		if (groupIterator.hasNext()){
+			groupList(nodes,destList,groupIterator,groupNode.getNode(),composition,preserveHierarchy);
+		}
+		else{
+    		for (Iterator<GraphicNode> j=nodes.iterator();j.hasNext();)
+    			model.addRelationship(groupNode.getNode(),j.next().getNode());
+    		destList.addAll(nodes);
+    	}
+    }
+
+
+
+
+
+
+    private void placeVoidNodes(List<GraphicNode> list){
+    	ListIterator<GraphicNode> i=list.listIterator();
+    	while (i.hasNext()){
+        	GraphicNode gnode=i.next();
+        	//if (!gnode.isGroup()){ //Already disabled if sorters or groupers are working
+        		placeVoidNodes(i,gnode.getNode());
+        	//}
+    	}
+        placeVoidNodes(i,(Node)refCache.getModel().getRoot());
+    }
+    private void placeVoidNodes(ListIterator<GraphicNode> i,Node node){
+    		Node current;
+        	for (Enumeration e=node.children();e.hasMoreElements();){
+            	current=(Node)e.nextElement();
+        		if (current.isVoid()){
+        			GraphicNode gcurrent=refCache.getGraphicNode(current);
+        			i.add(gcurrent);
+        		}
+        	}
+    }
+
+    private void removeVoids(List<GraphicNode> list){
+    	GraphicNode current;
+        for (ListIterator<GraphicNode> i=list.listIterator();i.hasNext();){
+            current=i.next();
+            if (current.isVoid()){
+            	i.remove();
+            }
+        }
+    }
+    private void removeEndVoids(List<GraphicNode> list){
+    	GraphicNode current;
+        for (ListIterator<GraphicNode> i=list.listIterator(list.size());i.hasPrevious();){
+            current=i.previous();
+            if (current.isVoid()){
+            	i.remove();
+            }else break;
+        }
+    }
+
+    private void removeSummaries(List<GraphicNode> list){
+    	GraphicNode current;
+        for (ListIterator<GraphicNode> i=list.listIterator();i.hasNext();){
+            current=i.next();
+            if (current.isSummary()){
+            	i.remove();
+            }
+        }
+    }
+    private void removeAssignments(List<GraphicNode> list){
+    	GraphicNode current;
+        for (ListIterator<GraphicNode> i=list.listIterator();i.hasNext();){
+            current=i.next();
+            if (current.isAssignment()){
+            	i.remove();
+            }
+        }
+    }
+    private Map<GraphicNode,List<GraphicNode>> extractAssignments(List<GraphicNode> list){
+	Map<GraphicNode,List<GraphicNode>> map = HashMap.newHashMap(list.size());
+    	GraphicNode current,last;
+	Stack<GraphicNode> path=new Stack<>();
+        for (ListIterator<GraphicNode> i=list.listIterator();i.hasNext();){
+            current=i.next();
+            if (current.getLevel()==1){
+            	path.clear();
+            	path.push(current);
+            	continue;
+            }
+            while ((last=path.peek()).getLevel()>=current.getLevel()) path.pop();
+            if (current.isAssignment()){
+            	GraphicNode task=path.peek();
+            	List<GraphicNode> ass=map.get(task);
+            	if (ass==null){
+		ass=new LinkedList<>();
+            		map.put(task, ass);
+            	}
+            	ass.add(current);
+            	i.remove();
+            }
+            path.push(current);
+        }
+        return map;
+    }
+    private void recoverAssignments(List<GraphicNode> list,Map<GraphicNode,List<GraphicNode>> map){
+    	GraphicNode current=null;
+        for (ListIterator<GraphicNode> i=list.listIterator();i.hasNext();){
+            current=i.next();
+            if (map.containsKey(current)){
+            	List<GraphicNode> ass=map.get(current);
+            	for (GraphicNode a : ass) {
+					i.add(a);
+				}
+            }
+        }
+     }
+
+
+
+	public WalkersNodeModel getWalkersModel(){
+		return model;
+	}
+
+	private TransformerNodeModel model=new TransformerNodeModel();
+	class TransformerNodeModel implements WalkersNodeModel{
+	    protected Map<Node, List<Node>> childrenMap=new HashMap<>();
+	    protected Map<Node,Node> parentMap=new HashMap<>();
+
+		public List<?> getChildren(Node node) {
+			if (node.getImpl() instanceof GroupNodeImpl){
+				return childrenMap.get(node);
+			}
+			else return refCache.getModel().getChildren(node);
+		}
+
+		public Node getParent(Node child) {
+			if (parentMap.containsKey(child)){
+				return parentMap.get(child);
+			}
+			else return refCache.getModel().getParent(child);
+		}
+		public boolean isSummary(Node node) {
+			if (node.getImpl() instanceof GroupNodeImpl) return true;
+			else return refCache.getModel().isSummary(node);
+		}
+		public Node search(Object key) {
+			Node node=refCache.getModel().search(key);
+			return null;
+		}
+
+		public void addRelationship(Node parent,Node child){
+			if (parent!=null) childrenMap.computeIfAbsent(parent, ignored -> new ArrayList<>()).add(child);
+			parentMap.put(child,parent);
+		}
+
+		public void clear(){
+			childrenMap.clear();
+			parentMap.clear();
+		}
+
+
+
+        public Document getDocument() {
+            return refCache.getDocument();
+        }
+	}
+
+}
+

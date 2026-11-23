@@ -32,6 +32,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
+import com.microproject.util.Alert;
+import com.microproject.util.AlertPresenter;
 
 class PopupDialogUsageAuditTest {
 	@Test

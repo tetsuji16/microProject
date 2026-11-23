@@ -1,0 +1,158 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.export.svg;
+
+import java.awt.Dimension;
+import java.awt.Graphics2D;
+import java.awt.Rectangle;
+
+import com.microproject.ui.view.graph.GraphParams;
+import com.microproject.ui.view.model.cache.NodeModelCache;
+import com.microproject.ui.view.model.cache.NodeModelCacheFactory;
+import com.microproject.ui.view.model.cache.ReferenceNodeModelCache;
+import com.microproject.ui.view.model.event.CacheListener;
+import com.microproject.ui.view.model.event.CompositeCacheEvent;
+import com.microproject.ui.view.network.NetworkParamsImpl;
+import com.microproject.ui.view.network.NetworkRenderer;
+import com.microproject.ui.view.pert.PertLayout;
+import com.microproject.ui.view.pert.PertRenderer;
+import com.microproject.ui.view.spreadsheet.SpreadSheet;
+import com.microproject.ui.view.timescale.CoordinatesConverter;
+import com.microproject.ui.view.xbs.XbsLayout;
+import com.microproject.ui.view.xbs.XbsRenderer;
+import com.microproject.configuration.Dictionary;
+import com.microproject.graphic.configuration.BarStyles;
+import com.microproject.pm.task.Project;
+
+public class NetworkSVGRenderer implements SVGRenderer, CacheListener, Cloneable{
+	public static final int PERT=1;
+	public static final int WBS=2;
+	public static final int RBS=3;
+	protected NetworkParamsImpl params;
+	protected CoordinatesConverter coord;
+	protected SpreadSheet spreadSheet;
+	protected NetworkRenderer renderer;
+	protected Project project;
+	private NodeModelCache cache;
+	public void init(Project project, ReferenceNodeModelCache refCache) {
+		init(project, NodeModelCacheFactory.getInstance().createFilteredCache(refCache,"Network",null),PERT,-1);
+	}
+	/** Initializes this renderer with a dedicated cache that this renderer will close on cleanup. */
+	public void init(Project project, NodeModelCache cache,int type,int scale) {
+		if (this.cache == cache) {
+			cache.removeNodeModelListener(this);
+			this.cache = null;
+		} else {
+			cleanUp();
+		}
+		this.project=project;
+		this.cache=cache;
+		params=new NetworkParamsImpl();
+		params.setNetworkLayout(type==PERT?new PertLayout(params):new XbsLayout(params));
+		String viewName=null;
+		switch (type) {
+			case PERT:
+				viewName="pert";
+				renderer=new PertRenderer(params);
+				renderer.setVertical(false);
+				break;
+			case WBS:
+				viewName="WBS";
+				renderer=new XbsRenderer(params);
+				renderer.setVertical(true);
+				break;
+			case RBS:
+				viewName="RBS";
+				renderer=new XbsRenderer(params);
+				renderer.setVertical(true);
+				break;
+		}
+		params.setBarStyles((BarStyles) Dictionary.get(BarStyles.category,viewName));
+		params.setZoom(scale);
+		params.setCache(cache);
+		cache.addNodeModelListener(this);
+//		renderer=new PertRenderer(params);
+//		renderer.setVertical(false);
+		cache.update();
+		params.updateLayout();
+	}
+
+	/** Releases the cache listener owned by this renderer. Safe to call more than once. */
+	public void cleanUp() {
+		if (cache != null) {
+			cache.removeNodeModelListener(this);
+			cache.close();
+			cache = null;
+		}
+	}
+
+
+	public Object clone(){
+		try {
+			return super.clone();
+		} catch (CloneNotSupportedException e) {
+			throw new InternalError();
+		}
+	}
+	public SVGRenderer createSafePrintCopy(){
+		NetworkSVGRenderer c=(NetworkSVGRenderer)clone();
+		c.params=(NetworkParamsImpl)c.params.createSafePrintCopy();
+		c.renderer.setGraphInfo(c.params);
+		return c;
+	}
+
+
+	public void paint(Graphics2D g){
+		paint(g,-1,-1);
+	}
+	public void paint(Graphics2D g,int prow,int pcol){
+		Rectangle drawingBounds=params.getDrawingBounds();
+		if (prow==-1){
+			g.drawRect(0, 0, drawingBounds.width, drawingBounds.height);
+			renderer.paint(g);
+		}else{
+			Rectangle printBounds=params.getPrintBounds();
+			Rectangle networkPrintBounds=params.getNetworkPrintBounds(prow, pcol);
+			g.translate(-pcol*printBounds.width,-prow*printBounds.height);
+			renderer.paint(g,networkPrintBounds);
+
+		}
+	 }
+
+	public Dimension getCanvasSize(){
+		return params.getDrawingBounds().getSize();
+	}
+
+	public void graphicNodesCompositeEvent(CompositeCacheEvent e) {
+		params.getNetworkLayout().graphicNodesCompositeEvent(e);
+	}
+
+	public GraphParams getParams() {
+		return params;
+	}
+	public Project getProject() {
+		return project;
+	}
+
+}
