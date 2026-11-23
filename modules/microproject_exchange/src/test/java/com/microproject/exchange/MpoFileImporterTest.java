@@ -2337,6 +2337,38 @@ class MpoFileImporterTest {
 	}
 
 	@Test
+	void loadedPertManualPositionsFollowMovesAndClearsOnSubsequentMpoSaves() throws Exception {
+		Project original = projectForRoundTrip();
+		Task originalTask = firstTask(original);
+		PertManualPositions initialPositions = original.getOrCreateTransientDocumentState(
+			PertManualPositions.class, PertManualPositions::new);
+		initialPositions.putPosition(originalTask.getUniqueId(), new PertManualPositions.Position(100, 200));
+
+		Project opened = loadFromBytes(saveProjectBytes(original));
+		Task openedTask = firstTask(opened);
+		PertManualPositions openedPositions = opened.findTransientDocumentState(PertManualPositions.class);
+		assertNotNull(openedPositions);
+		openedPositions.putPosition(openedTask.getUniqueId(), new PertManualPositions.Position(350, 475));
+
+		byte[] movedArchive = saveProjectBytes(opened);
+		Project movedReload = loadFromBytes(movedArchive);
+		Task movedTask = firstTask(movedReload);
+		PertManualPositions movedPositions = movedReload.findTransientDocumentState(PertManualPositions.class);
+		assertNotNull(movedPositions);
+		assertEquals(new PertManualPositions.Position(350, 475), movedPositions.getPosition(movedTask.getUniqueId()),
+			"a save after moving a restored box must use its current position, not the loaded sidecar bytes");
+
+		movedPositions.clear();
+		byte[] clearedArchive = saveProjectBytes(movedReload);
+		assertFalse(readEntries(clearedArchive).containsKey(MpoFileImporter.PERT_MANUAL_POSITIONS_ENTRY),
+			"clearing manual positions must remove the preserved PERT sidecar entry");
+		Project clearedReload = loadFromBytes(clearedArchive);
+		PertManualPositions clearedPositions = clearedReload.findTransientDocumentState(PertManualPositions.class);
+		assertTrue(clearedPositions == null || clearedPositions.isEmpty(),
+			"cleared manual positions must remain cleared after MPO reload");
+	}
+
+	@Test
 	void mpoRejectsCorruptedTaskTextStyleInsteadOfClampingIt() throws Exception {
 		Project project = projectForRoundTrip();
 		firstTask(project).setFontBold(true);
