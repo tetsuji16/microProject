@@ -34,6 +34,9 @@ import com.microproject.pm.calendar.WorkingHours;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.pm.task.TaskSnapshot;
+import com.microproject.pm.format.SheetTextFormat;
+import com.microproject.pm.format.SheetTextStyleCategory;
+import com.microproject.pm.format.SheetTextStyles;
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.pm.assignment.TimeDistributedHelper;
@@ -255,25 +258,47 @@ final class MpoSidecarJson {
 	}
 
 	static byte[] taskTextStylesJson(Project project, String taskIdentities) throws IOException {
-		return perTaskOptionsJson(project, taskIdentities, "text style", "text styles",
-			task -> task.getFontFamily() == null && task.getFontSize() == 0 && task.getFontColor() == null
-				&& !task.isFontBold() && !task.isFontItalic() && !task.isFontStrikethrough()
-				&& !task.isFontUnderline() && task.getFontBackground() == null && !task.isDisplayOnTimeline(),
-			(task, node) -> {
-				if (task.getFontFamily() != null) node.put("fontFamily", task.getFontFamily());
-				node.put("fontSize", task.getFontSize());
-				if (task.getFontColor() != null) node.put("fontColor", task.getFontColor().intValue());
-				node.put("bold", task.isFontBold());
-				node.put("italic", task.isFontItalic());
-				node.put("strikethrough", task.isFontStrikethrough());
-				// Absent keys mean the default, so files without underline/background stay byte-identical.
-				if (task.isFontUnderline()) node.put("underline", true);
-				if (task.isDisplayOnTimeline()) node.put("displayOnTimeline", true);
-				if (task.getFontBackground() != null) node.put("fillColor", task.getFontBackground().intValue());
-			});
-	}
+	        return perTaskOptionsJson(project, taskIdentities, "text style", "text styles",
+	                task -> task.getFontFamily() == null && task.getFontSize() == 0 && task.getFontColor() == null
+	                        && !task.isFontBold() && !task.isFontItalic() && !task.isFontStrikethrough()
+	                        && !task.isFontUnderline() && task.getFontBackground() == null && !task.isDisplayOnTimeline(),
+	                (task, node) -> {
+	                    if (task.getFontFamily() != null) node.put("fontFamily", task.getFontFamily());
+	                    node.put("fontSize", task.getFontSize());
+	                    if (task.getFontColor() != null) node.put("fontColor", task.getFontColor().intValue());
+	                    node.put("bold", task.isFontBold());
+	                    node.put("italic", task.isFontItalic());
+	                    node.put("strikethrough", task.isFontStrikethrough());
+	                    // Absent keys mean the default, so files without underline/background stay byte-identical.
+	                    if (task.isFontUnderline()) node.put("underline", true);
+	                    if (task.isDisplayOnTimeline()) node.put("displayOnTimeline", true);
+	                    if (task.getFontBackground() != null) node.put("fillColor", task.getFontBackground().intValue());
+	                });
+	    }
 
-	static void restoreTaskTextStyles(Project project, byte[] bytes) throws IOException {
+	    /** Serializes the project-level sheet text styles (category -> format). Empty when no styles are set. */
+	    static byte[] sheetTextStylesJson(Project project) throws IOException {
+	        SheetTextStyles styles = project.getSheetTextStyles();
+	        if (styles == null || styles.isEmpty()) return null;
+	        ObjectNode root = JSON.createObjectNode();
+	        root.put("version", 1);
+	        for (SheetTextStyleCategory category : SheetTextStyleCategory.values()) {
+	            SheetTextFormat format = styles.get(category);
+	            if (format == null) continue;
+	            ObjectNode catNode = root.putObject(category.name());
+	            if (format.family() != null) catNode.put("fontFamily", format.family());
+	            catNode.put("fontSize", format.size());
+	            if (format.color() != null) catNode.put("fontColor", format.color());
+	            catNode.put("bold", format.bold());
+	            catNode.put("italic", format.italic());
+	            catNode.put("strikethrough", format.strikethrough());
+	            if (format.underline()) catNode.put("underline", true);
+	            if (format.background() != null) catNode.put("fillColor", format.background());
+	        }
+	        return root.size() <= 1 ? null : JSON.writeValueAsBytes(root); // only "version" -> empty
+	    }
+
+	    static void restoreTaskTextStyles(Project project, byte[] bytes) throws IOException {
 		restorePerTaskOptions(project, bytes, "Invalid mpo task text styles", "MPO contains too many task text styles",
 			"Duplicate MPO task text style identity", "MPO task text styles reference an unknown task", node -> {
 				JsonNode family = node.get("fontFamily");
@@ -310,9 +335,53 @@ final class MpoSidecarJson {
 					task.setFontBackground(fillColor == null ? null : Integer.valueOf(fillColor.intValue()));
 				};
 			});
-	}
+			    }
 
-	/** Validates one per-task record and returns the mutation to apply once its task is found. */
+			    /** Restores project-level sheet text styles from MPO sidecar. Unknown categories are ignored. */
+			    static void restoreSheetTextStyles(Project project, byte[] bytes) throws IOException {
+			        JsonNode root = JSON.readTree(bytes);
+			        if (requiredInt(root, "version") != 1) throw new IOException("Invalid mpo sheet text styles version");
+			        SheetTextStyles styles = SheetTextStyles.empty();
+			        for (SheetTextStyleCategory category : SheetTextStyleCategory.values()) {
+			            JsonNode catNode = root.get(category.name());
+			            if (catNode == null || !catNode.isObject()) continue;
+			            JsonNode family = catNode.get("fontFamily");
+			            JsonNode size = catNode.get("fontSize");
+			            JsonNode color = catNode.get("fontColor");
+			            JsonNode bold = catNode.get("bold");
+			            JsonNode italic = catNode.get("italic");
+			            JsonNode strikethrough = catNode.get("strikethrough");
+			            JsonNode underline = catNode.get("underline");
+			            JsonNode fillColor = catNode.get("fillColor");
+			            if ((family != null && !family.isTextual()) || size == null || !size.isIntegralNumber()
+			                    || !size.canConvertToInt() || size.intValue() < 0 || size.intValue() > 72
+			                    || (color != null && (!color.isIntegralNumber() || !color.canConvertToInt()
+			                            || color.intValue() < 0 || color.intValue() > 0xFFFFFF))
+			                    || bold == null || !bold.isBoolean() || italic == null || !italic.isBoolean()
+			                    || strikethrough == null || !strikethrough.isBoolean()
+			                    || (underline != null && !underline.isBoolean())
+			                    || (fillColor != null && (!fillColor.isIntegralNumber() || !fillColor.canConvertToInt()
+			                            || fillColor.intValue() < 0 || fillColor.intValue() > 0xFFFFFF))) {
+			                throw new IOException("Invalid MPO sheet text style values for category " + category.name());
+			            }
+			            SheetTextFormat format = new SheetTextFormat(
+			                    family == null ? null : family.textValue(),
+			                    size.intValue(),
+			                    color == null ? null : Integer.valueOf(color.intValue()),
+			                    bold.booleanValue(),
+			                    italic.booleanValue(),
+			                    strikethrough.booleanValue(),
+			                    underline != null && underline.booleanValue(),
+			                    fillColor == null ? null : Integer.valueOf(fillColor.intValue())
+			            );
+			            if (!format.isEmpty()) {
+			                styles.set(category, format);
+			            }
+			        }
+			        project.setSheetTextStyles(styles);
+			    }
+
+			    /** Validates one per-task record and returns the mutation to apply once its task is found. */
 	@FunctionalInterface
 	private interface TaskOptionReader {
 		java.util.function.Consumer<Task> read(JsonNode node) throws IOException;

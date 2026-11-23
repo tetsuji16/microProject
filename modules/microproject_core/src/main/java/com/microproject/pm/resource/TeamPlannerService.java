@@ -260,38 +260,69 @@ public final class TeamPlannerService {
 	}
 
 	private static boolean isOverallocated(Resource resource, Assignment candidate) {
-		if (resource == null || !resource.isLabor() || candidate.getTask().isInactiveTask()) {
-			return false;
-		}
-		// Capacity changes only where an assignment starts, so probing the candidate start and every
-		// other start inside the candidate interval covers the whole interval.
-		long from = candidate.getStart();
-		long to = candidate.getEnd();
-		List<Long> probes = new ArrayList<>();
-		probes.add(from);
-		for (Object value : resource.getAssignments()) {
-			Assignment assignment = (Assignment) value;
-			if (!assignment.getTask().isInactiveTask() && assignment.getStart() > from && assignment.getStart() < to)
-				probes.add(assignment.getStart());
-		}
-		for (long probe : probes) {
-			double units = 0D;
-			for (Object value : resource.getAssignments()) {
-				Assignment assignment = (Assignment) value;
-				if (assignment.getTask().isInactiveTask()) {
-					continue;
-				}
-				if (assignment.getStart() <= probe && assignment.getEnd() > probe) {
-					units += Math.max(0D, assignment.getUnits());
-				}
-			}
-			if (units > resource.getMaximumUnits() + 0.000001D)
-				return true;
-		}
-		return false;
-	}
+	        if (resource == null || !resource.isLabor() || candidate.getTask().isInactiveTask()) {
+	            return false;
+	        }
+	        // Capacity changes only where an assignment starts, so probing the candidate start and every
+	        // other start inside the candidate interval covers the whole interval.
+	        long from = candidate.getStart();
+	        long to = candidate.getEnd();
+	        List<Long> probes = new ArrayList<>();
+	        probes.add(from);
+	        for (Object value : resource.getAssignments()) {
+	            Assignment assignment = (Assignment) value;
+	            if (!assignment.getTask().isInactiveTask() && assignment.getStart() > from && assignment.getStart() < to)
+	                probes.add(assignment.getStart());
+	        }
+	        for (long probe : probes) {
+	            double units = 0D;
+	            for (Object value : resource.getAssignments()) {
+	                Assignment assignment = (Assignment) value;
+	                if (assignment.getTask().isInactiveTask()) {
+	                    continue;
+	                }
+	                if (assignment.getStart() <= probe && assignment.getEnd() > probe) {
+	                    units += Math.max(0D, assignment.getUnits());
+	                }
+	            }
+	            if (units > resource.getMaximumUnits() + 0.000001D)
+	                return true;
+	        }
+	        return false;
+	    }
 
-	public static String displayName(Resource resource) {
+	    /**
+	     * Checks whether a resource is overallocated at its current schedule.
+	     * Returns true if the total units assigned to the resource at any time point
+	     * exceeds its maximum units.
+	     */
+	    public static boolean isOverallocated(Resource resource) {
+	        Objects.requireNonNull(resource, "resource");
+	        if (!resource.isLabor()) return false;
+	        // Probe at each assignment start time
+	        List<Long> probes = new ArrayList<>();
+	        for (Object value : resource.getAssignments()) {
+	            Assignment assignment = (Assignment) value;
+	            if (!assignment.getTask().isInactiveTask())
+	                probes.add(assignment.getStart());
+	        }
+	        if (probes.isEmpty()) return false;
+	        for (long probe : probes) {
+	            double units = 0D;
+	            for (Object value : resource.getAssignments()) {
+	                Assignment assignment = (Assignment) value;
+	                if (assignment.getTask().isInactiveTask()) continue;
+	                if (assignment.getStart() <= probe && assignment.getEnd() > probe) {
+	                    units += Math.max(0D, assignment.getUnits());
+	                }
+	            }
+	            if (units > resource.getMaximumUnits() + 0.000001D)
+	                return true;
+	        }
+	        return false;
+	    }
+
+	    public static String displayName(Resource resource) {
 		if (resource == null || resource == ResourceImpl.getUnassignedInstance()) {
 			return "Unassigned";
 		}

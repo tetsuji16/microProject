@@ -78,6 +78,7 @@ import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeException;
 import com.microproject.grouping.core.NodeFactory;
+import com.microproject.pm.format.SheetTextStyles;
 import com.microproject.grouping.core.NodeList;
 import com.microproject.grouping.core.NodeVisitor;
 import com.microproject.grouping.core.OutlineCollection;
@@ -163,8 +164,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	static final long serialVersionUID = 17283790404932L;
 	private static final Logger logger = Logger.getLogger(Project.class.getName());
 	private long statusDate = 0;
-	private transient ProgressLineSettings progressLineSettings;
-	private String manager="";
+	    private transient ProgressLineSettings progressLineSettings;
+	    /** Per-category sheet text styles, persisted by MPO sidecar (not POD). */
+	    private transient SheetTextStyles sheetTextStyles;
+	    private String manager="";
 	private transient HasKeyImpl hasKey;
 	private String notes="";
 	private transient LinkedList<Task> tasks = new LinkedList<>();
@@ -717,15 +720,24 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	}
 
 	/** Project-level Gantt progress-line display options, persisted by MPO sidecar settings. */
-	public ProgressLineSettings getProgressLineSettings() {
-		return progressLineSettings;
-	}
+	    public ProgressLineSettings getProgressLineSettings() {
+	        return progressLineSettings;
+	    }
 
-	public void setProgressLineSettings(ProgressLineSettings settings) {
-		progressLineSettings = settings;
-	}
+	    public void setProgressLineSettings(ProgressLineSettings settings) {
+	        progressLineSettings = settings;
+	    }
 
-	/** Clears an explicitly configured status date (used by undo). */
+	    /** Per-category sheet text styles, persisted by MPO sidecar (not POD). */
+	    public SheetTextStyles getSheetTextStyles() {
+	        return sheetTextStyles;
+	    }
+
+	    public void setSheetTextStyles(SheetTextStyles styles) {
+	        this.sheetTextStyles = styles;
+	    }
+
+	    /** Clears an explicitly configured status date (used by undo). */
 	public void clearStatusDate() {
 		this.statusDate = 0L;
 	}

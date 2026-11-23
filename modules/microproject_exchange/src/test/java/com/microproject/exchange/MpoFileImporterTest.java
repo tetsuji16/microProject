@@ -68,6 +68,9 @@ import com.microproject.grouping.core.NodeFactory;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.pm.format.SheetTextFormat;
+import com.microproject.pm.format.SheetTextStyleCategory;
+import com.microproject.pm.format.SheetTextStyles;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -2306,26 +2309,127 @@ class MpoFileImporterTest {
 	}
 
 	@Test
-	void mpoRejectsCorruptedTaskTextStyleInsteadOfClampingIt() throws Exception {
-		Project project = projectForRoundTrip();
-		firstTask(project).setFontBold(true);
-		ByteArrayOutputStream archive = new ByteArrayOutputStream();
-		assertTrue(new MpoFileImporter().saveProject(project, archive));
-		Map<String, byte[]> entries = readEntries(archive.toByteArray());
-		String styles = new String(entries.get(MpoFileImporter.TASK_TEXT_STYLES_ENTRY), StandardCharsets.UTF_8);
-		assertTrue(styles.contains("\"fontSize\":0"), styles);
-		for (String corrupted : List.of("\"fontSize\":99", "\"fontSize\":1.5")) {
-			byte[] tampered = styles.replace("\"fontSize\":0", corrupted).getBytes(StandardCharsets.UTF_8);
-			entries.put(MpoFileImporter.TASK_TEXT_STYLES_ENTRY, tampered);
-			updateManifestChecksum(entries, MpoFileImporter.TASK_TEXT_STYLES_ENTRY, tampered);
-			byte[] mpo = zip(entries).toByteArray();
-			assertThrows(Exception.class, () -> loadFromBytes(mpo),
-				"MPO must reject a task text style outside the model's 0..72 point range: " + corrupted);
-		}
-	}
+	    void mpoRejectsCorruptedTaskTextStyleInsteadOfClampingIt() throws Exception {
+	        Project project = projectForRoundTrip();
+	        firstTask(project).setFontBold(true);
+	        ByteArrayOutputStream archive = new ByteArrayOutputStream();
+	        assertTrue(new MpoFileImporter().saveProject(project, archive));
+	        Map<String, byte[]> entries = readEntries(archive.toByteArray());
+	        String styles = new String(entries.get(MpoFileImporter.TASK_TEXT_STYLES_ENTRY), StandardCharsets.UTF_8);
+	        assertTrue(styles.contains("\"fontSize\":0"), styles);
+	        for (String corrupted : List.of("\"fontSize\":99", "\"fontSize\":1.5")) {
+	            byte[] tampered = styles.replace("\"fontSize\":0", corrupted).getBytes(StandardCharsets.UTF_8);
+	            entries.put(MpoFileImporter.TASK_TEXT_STYLES_ENTRY, tampered);
+	            updateManifestChecksum(entries, MpoFileImporter.TASK_TEXT_STYLES_ENTRY, tampered);
+	            byte[] mpo = zip(entries).toByteArray();
+	            assertThrows(Exception.class, () -> loadFromBytes(mpo),
+	                    "MPO must reject a task text style outside the model's 0..72 point range: " + corrupted);
+	        }
+	    }
 
-	@Test
-	void loadProjectDoesNotCloseCallerOwnedInputStream() throws Exception {
+	    @Test
+	    void mpoRoundTripPreservesSheetTextStyles() throws Exception {
+	        Project project = projectForRoundTrip();
+	        SheetTextStyles styles = SheetTextStyles.empty();
+	        styles.set(SheetTextStyleCategory.ALL, new SheetTextFormat("Arial", 12, 0x112233, true, false, false, false, null));
+	        styles.set(SheetTextStyleCategory.CRITICAL_TASKS, new SheetTextFormat("CriticalFont", 14, 0xFF0000, true, true, false, true, 0xFFFF00));
+	        styles.set(SheetTextStyleCategory.SUMMARY_TASKS, new SheetTextFormat("SummaryFont", 13, 0x008800, false, false, true, false, null));
+	        project.setSheetTextStyles(styles);
+
+	        ByteArrayOutputStream archive = new ByteArrayOutputStream();
+	        assertTrue(new MpoFileImporter().saveProject(project, archive));
+
+	        Project reopened = loadFromBytes(archive.toByteArray());
+	        SheetTextStyles restored = reopened.getSheetTextStyles();
+	        assertNotNull(restored);
+	        assertFalse(restored.isEmpty());
+
+	        SheetTextFormat all = restored.get(SheetTextStyleCategory.ALL);
+	        assertNotNull(all);
+	        assertEquals("Arial", all.family());
+	        assertEquals(12, all.size());
+	        assertEquals(Integer.valueOf(0x112233), all.color());
+	        assertTrue(all.bold());
+	        assertFalse(all.italic());
+	        assertFalse(all.strikethrough());
+	        assertFalse(all.underline());
+	        assertNull(all.background());
+
+	        SheetTextFormat critical = restored.get(SheetTextStyleCategory.CRITICAL_TASKS);
+	        assertNotNull(critical);
+	        assertEquals("CriticalFont", critical.family());
+	        assertEquals(14, critical.size());
+	        assertEquals(Integer.valueOf(0xFF0000), critical.color());
+	        assertTrue(critical.bold());
+	        assertTrue(critical.italic());
+	        assertFalse(critical.strikethrough());
+	        assertTrue(critical.underline());
+	        assertEquals(Integer.valueOf(0xFFFF00), critical.background());
+
+	        SheetTextFormat summary = restored.get(SheetTextStyleCategory.SUMMARY_TASKS);
+	        assertNotNull(summary);
+	        assertEquals("SummaryFont", summary.family());
+	        assertEquals(13, summary.size());
+	        assertEquals(Integer.valueOf(0x008800), summary.color());
+	        assertFalse(summary.bold());
+	        assertFalse(summary.italic());
+	        assertTrue(summary.strikethrough());
+	        assertFalse(summary.underline());
+	        assertNull(summary.background());
+
+	        // Categories not set should be null
+	        assertNull(restored.get(SheetTextStyleCategory.MARKED_TASKS));
+	        assertNull(restored.get(SheetTextStyleCategory.MILESTONE_TASKS));
+	        assertNull(restored.get(SheetTextStyleCategory.NONCRITICAL_TASKS));
+	        assertNull(restored.get(SheetTextStyleCategory.ROW_AND_COLUMN_TITLES));
+	        assertNull(restored.get(SheetTextStyleCategory.ALL_RESOURCES));
+	        assertNull(restored.get(SheetTextStyleCategory.OVERALLOCATED_RESOURCES));
+	    }
+
+	    @Test
+	        void mpoSheetTextStylesMissingEntryLoadsEmpty() throws Exception {
+	            Project project = projectForRoundTrip();
+	            project.setSheetTextStyles(SheetTextStyles.empty());
+
+	            ByteArrayOutputStream archive = new ByteArrayOutputStream();
+	            assertTrue(new MpoFileImporter().saveProject(project, archive));
+
+	            Map<String, byte[]> entries = readEntries(archive.toByteArray());
+	            // Remove the sheet text styles entry to simulate an older file
+	            entries.remove(MpoFileImporter.SHEET_TEXT_STYLES_ENTRY);
+	            // Also remove its manifest entry
+	            String manifest = new String(entries.get(MpoFileImporter.MANIFEST_ENTRY), StandardCharsets.UTF_8);
+	            manifest = manifest.replaceFirst("(?s)path=\"microproject/sheet-text-styles\\.json\"[^>]*>\\s*", "");
+	            entries.put(MpoFileImporter.MANIFEST_ENTRY, manifest.getBytes(StandardCharsets.UTF_8));
+
+	            Project reopened = loadFromBytes(zip(entries).toByteArray());
+	            SheetTextStyles restored = reopened.getSheetTextStyles();
+	            assertNotNull(restored);
+	            assertTrue(restored.isEmpty(), "Missing sheet-text-styles entry should load as empty");
+	        }
+
+	    @Test
+	    void mpoSheetTextStylesIgnoresUnknownCategories() throws Exception {
+	        Project project = projectForRoundTrip();
+	        project.setSheetTextStyles(SheetTextStyles.empty());
+
+	        ByteArrayOutputStream archive = new ByteArrayOutputStream();
+	        assertTrue(new MpoFileImporter().saveProject(project, archive));
+
+	        Map<String, byte[]> entries = readEntries(archive.toByteArray());
+	        // Add a fake category to the sheet-text-styles entry
+	        String stylesJson = "{\"version\":1,\"UNKNOWN_CATEGORY\":{\"fontFamily\":\"Test\",\"fontSize\":10,\"bold\":false,\"italic\":false,\"strikethrough\":false}}";
+	        entries.put(MpoFileImporter.SHEET_TEXT_STYLES_ENTRY, stylesJson.getBytes(StandardCharsets.UTF_8));
+	        updateManifestChecksum(entries, MpoFileImporter.SHEET_TEXT_STYLES_ENTRY, stylesJson.getBytes(StandardCharsets.UTF_8));
+
+	        Project reopened = loadFromBytes(zip(entries).toByteArray());
+	        SheetTextStyles restored = reopened.getSheetTextStyles();
+	        assertNotNull(restored);
+	        assertTrue(restored.isEmpty(), "Unknown category should be ignored, leaving empty styles");
+	    }
+
+	    @Test
+	    void loadProjectDoesNotCloseCallerOwnedInputStream() throws Exception {
 		Project project = projectForRoundTrip();
 		ByteArrayOutputStream archive = new ByteArrayOutputStream();
 		assertTrue(new MpoFileImporter().saveProject(project, archive));
