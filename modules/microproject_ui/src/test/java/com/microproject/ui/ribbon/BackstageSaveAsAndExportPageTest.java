@@ -187,6 +187,52 @@ class BackstageSaveAsAndExportPageTest {
 		});
 	}
 
+	/**
+	 * #1339: the detail column must follow the available width, not keep its preferred width and push
+	 * the right side of a section out of view. 683 logical px at 150 % leaves about 380 px beside the
+	 * Backstage navigation.
+	 */
+	@Test
+	void narrowPageKeepsTheDetailColumnInsideTheAvailableWidth() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			BackstageSaveAsPage saveAs = new BackstageSaveAsPage("C:/work", List.of(path("C:/recent/one")),
+					command("RibbonSaveMpoAs"), command("RibbonSaveProjectAs"), picked -> { },
+					BackstageSaveAsAndExportPageTest::label);
+			assertDetailFits(saveAs, "officeBackstageSaveAsSection-browse");
+
+			BackstageExportPage export = new BackstageExportPage(command("RibbonPDF"),
+					command("RibbonExportProject"), command("RibbonImportProject"),
+					BackstageSaveAsAndExportPageTest::label);
+			assertDetailFits(export, "officeBackstageExportSection-changeType");
+		});
+	}
+
+	private static void assertDetailFits(JComponent page, String sectionName) {
+		layoutTree(page, 380, 500);
+		JComponent section = named(page, sectionName);
+		java.awt.Rectangle sectionBounds = SwingUtilities.convertRectangle(section.getParent(),
+				section.getBounds(), page);
+		assertTrue(new java.awt.Rectangle(page.getSize()).contains(sectionBounds),
+				sectionName + " must stay inside a narrow page: " + sectionBounds + " page=" + page.getSize());
+		for (AbstractButton button : UiComponentWalker.flatten(section).stream()
+				.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast).toList()) {
+			java.awt.Rectangle bounds = SwingUtilities.convertRectangle(button.getParent(), button.getBounds(), page);
+			assertTrue(new java.awt.Rectangle(page.getSize()).contains(bounds),
+					button.getName() + " must stay inside a narrow page: " + bounds + " page=" + page.getSize());
+		}
+	}
+
+	private static void layoutTree(java.awt.Container root, int width, int height) {
+		root.setSize(width, height);
+		layoutDescendants(root);
+	}
+
+	private static void layoutDescendants(java.awt.Container container) {
+		container.doLayout();
+		for (Component child : container.getComponents())
+			if (child instanceof java.awt.Container nested) layoutDescendants(nested);
+	}
+
 	private static List<String> texts(Component root) {
 		List<String> result = new ArrayList<>();
 		for (Component component : UiComponentWalker.flatten(root)) {

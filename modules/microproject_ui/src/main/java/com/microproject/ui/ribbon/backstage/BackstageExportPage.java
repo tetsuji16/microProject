@@ -67,9 +67,8 @@ public final class BackstageExportPage extends BackstageChoicePage {
 
 	private static JComponent pdfSection(AbstractButton pdfButton, Function<String, String> label) {
 		JPanel panel = panel("officeBackstageExportPdf");
-		JLabel description = new JLabel(label.apply("FileBackstage.export.pdfDescription"));
-		description.setName("officeBackstageExportPdfDescription");
-		description.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+		JComponent description = BackstageChoicePage.description(
+				label.apply("FileBackstage.export.pdfDescription"), "officeBackstageExportPdfDescription");
 		add(panel, description, 0);
 		JLabel caption = new JLabel(label.apply("FileBackstage.export.description.RibbonPDF"));
 		caption.setName("officeBackstageExportPdfCaption");
@@ -85,9 +84,8 @@ public final class BackstageExportPage extends BackstageChoicePage {
 	private static JComponent changeTypeSection(AbstractButton exportButton, AbstractButton importButton,
 			Function<String, String> label) {
 		JPanel panel = panel("officeBackstageExportChangeType");
-		JLabel description = new JLabel(label.apply("FileBackstage.export.changeTypeDescription"));
-		description.setName("officeBackstageExportChangeTypeDescription");
-		description.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+		JComponent description = BackstageChoicePage.description(
+				label.apply("FileBackstage.export.changeTypeDescription"), "officeBackstageExportChangeTypeDescription");
 		add(panel, description, 0);
 		int row = 1;
 		for (AbstractButton command : new AbstractButton[] { exportButton, importButton }) {
@@ -109,7 +107,6 @@ public final class BackstageExportPage extends BackstageChoicePage {
 				Dimension preferred = super.getPreferredSize();
 				return new Dimension(Math.max(DETAIL_WIDTH, preferred.width), preferred.height);
 			}
-			@Override public Dimension getMaximumSize() { return getPreferredSize(); }
 		};
 		panel.setName(name);
 		panel.setOpaque(false);
