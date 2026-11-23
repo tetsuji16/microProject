@@ -19,10 +19,10 @@ Blockers: none
 |---|---|---|---|
 | AC-1 | フラグ off のとき、表示されるノードの並びが今と同じ（単体テストあり） | pass | `NodeCacheTransformerTest.projectSummaryTaskNotShownWhenFlagOff` |
 | AC-2 | フラグ on のとき、先頭にプロジェクトの概要行が 1 行あり、終了日がプロジェクトの終了日と一致する（単体テストあり） | pass | `NodeCacheTransformerTest.projectSummaryTaskShownWhenFlagOn`, `NodeCacheTransformerTest.projectSummaryTaskEndDateMatchesProjectEnd`; filter/sort also retain row first |
-| AC-3 | 概要行を選んでいるとき、タスクの削除・インデント・リンクが無効（単体テストあり） | pass | `ProjectSummaryRowSpreadsheetTest.projectSummaryRowCannotBeDeletedOrCutFromTaskSheet`; `RibbonButtonBehaviorTest.projectSummarySelectionDisablesAndRejectsLinkDeleteAndIndent` |
-| AC-4 | 概要行の名前を変えると、プロジェクト名が変わり、1 回の Undo で戻る（単体テストあり） | pass | `ProjectSummaryRowSpreadsheetTest.onlyProjectNameIsEditableAndOneUndoRestoresIt` verifies dirty state, one-step Undo/Redo, MPO save/reload |
+| AC-3 | 概要行を選んでいるとき、タスクの削除・インデント・リンクが無効（単体テストあり） | pass | `ProjectSummaryRowSpreadsheetTest.projectSummaryRowCannotBeDeletedOrCutFromTaskSheet`; `RibbonButtonBehaviorTest.projectSummarySelectionDisablesAndRejectsLinkDeleteAndIndent`; Robot physical selection/disabled actions/link rejection in `ProjectSummaryTaskGuiAcceptanceTest` |
+| AC-4 | 概要行の名前を変えると、プロジェクト名が変わり、1 回の Undo で戻る（単体テストあり） | pass | `ProjectSummaryRowSpreadsheetTest.onlyProjectNameIsEditableAndOneUndoRestoresIt` verifies dirty state/MPO; Robot F2/Ctrl+Z/Ctrl+Y/MPO in `ProjectSummaryTaskGuiAcceptanceTest` |
 | AC-5 | `Project` と `Task` のクラス階層、POD の読み書きに変更が無い | pass | No changes to Project/Task hierarchy or POD serialization |
-| AC-6 | Ganttバーがサマリータスクと同じ形で、プロジェクトの開始から終了まで描画される | pass | `RibbonButtonBehaviorTest.projectSummaryRowUsesSummaryGanttBarFromProjectStartToFinish` calls `GanttUI.updateShape` and asserts geometry and intervals |
+| AC-6 | Ganttバーがサマリータスクと同じ形で、プロジェクトの開始から終了まで描画される | pass | `RibbonButtonBehaviorTest.projectSummaryRowUsesSummaryGanttBarFromProjectStartToFinish`; physical rendered Gantt hit target in `ProjectSummaryTaskGuiAcceptanceTest` |
 | AC-7 | `NodeCacheTransformerTest` が通る | pass | All 4 tests in `NodeCacheTransformerTest` pass |
 | AC-8 | `python scripts/test_source_inventory.py --check` が通る | pass | Verified |
 | AC-9 | `git diff --check` が通る | pass | Verified |
@@ -58,5 +58,5 @@ Other task columns remain governed by `Field.isApplicable(Project.class)` and th
 
 - Tests/build: `.\gradlew.bat :microproject_core:test --console=plain` and `.\gradlew.bat :microproject_ui:test --console=plain` passed on current slice. `python scripts/test_source_inventory.py --check` also passed. Focused classes were rerun during implementation.
 - Tests/build: focused `RibbonButtonBehaviorTest` (64), `NodeCacheTransformerTest` (6), and `ProjectSummaryRowSpreadsheetTest` (2) pass. Previous full `:microproject_ui:test` and `:microproject_core:test` pass. `git diff --check` passes.
-- Physical GUI/manual: 未実施
+- Physical GUI: `ProjectSummaryTaskGuiAcceptanceTest.visibleProjectSummarySupportsGanttCommandsEditingUndoRedoAndMpo` pass on local Windows desktop; screenshot at `modules/microproject_ui/build/reports/guiTest-artifacts/project-summary-task.png` (generated, not source controlled)
 - CI on PR head `134bd7c5`: `GUI acceptance` passed; Windows/macOS build passed; Ubuntu build failed before compile because Maven Central returned HTTP 429 while resolving `commons-lang3:3.22.0` and 16 other artifacts. Retry after final head update.
