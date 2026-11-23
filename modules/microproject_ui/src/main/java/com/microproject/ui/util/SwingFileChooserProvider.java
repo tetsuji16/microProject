@@ -1,0 +1,389 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.util;
+
+import java.awt.Component;
+import java.io.File;
+import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.prefs.Preferences;
+
+import javax.swing.JOptionPane;
+
+import com.formdev.flatlaf.util.SystemFileChooser;
+import com.formdev.flatlaf.util.SystemFileChooser.FileFilter;
+import com.formdev.flatlaf.util.SystemFileChooser.FileNameExtensionFilter;
+import com.microproject.session.FileHelper;
+import com.microproject.preference.ConfigurationFile;
+import com.microproject.strings.Messages;
+import com.microproject.util.UiServices;
+
+public final class SwingFileChooserProvider implements UiServices.FileChooserProvider {
+	private static final String DEFAULT_FILE_EXTENSION = FileHelper.DEFAULT_FILE_EXTENSION;
+	private static final String LEGACY_POD_FILE_EXTENSION = FileHelper.POD_FILE_EXTENSION;
+	/** FlatLaf allows a caller to explicitly select its Swing chooser fallback. */
+	static final String USE_SYSTEM_FILE_CHOOSER_PROPERTY = "flatlaf.useSystemFileChooser";
+
+	static {
+		SystemFileChooser.setStateStore(new SystemFileChooser.StateStore() {
+			private static final String KEY_PREFIX = "fileChooser.";
+			private final java.util.prefs.Preferences state = Preferences.userNodeForPackage(SwingFileChooserProvider.class);
+
+			@Override
+			public String get(String key, String def) {
+				return state.get(KEY_PREFIX + key, def);
+			}
+
+			@Override
+			public void put(String key, String value) {
+				if (value != null)
+					state.put(KEY_PREFIX + key, value);
+				else
+					state.remove(KEY_PREFIX + key);
+			}
+		});
+	}
+
+	private SystemFileChooser fileChooser;
+	private String chooserConfigurationSignature;
+	private Boolean chooserConfigurationSaveMode;
+	private FileFilter nativeProjectFilter;
+	private FileFilter legacyPodFilter;
+	private FileFilter microsoftFilter;
+	private FileFilter microsoftXMLFilter;
+	private FileFilter microsoftXlsxFilter;
+	private FileFilter plannerFilter;
+	private FileFilter projectFilter;
+
+	@Override
+	public synchronized String chooseFileName(boolean save, String selectedFileName, Object parent) {
+		Component fileChooserParent = parent instanceof Component ? (Component) parent : null;
+		SystemFileChooser chooser = prepareFileChooser(save, selectedFileName);
+		if (selectedFileName == null) {
+			try {
+				String lastDirectory = Preferences.userNodeForPackage(FileHelper.class).get("lastDirectory", null);
+				chooser.setCurrentDirectory(initialProjectDirectory(new File(System.getProperty("user.home")), lastDirectory));
+			} catch (Exception e) {
+			}
+		}
+		int result = save ? chooser.showSaveDialog(fileChooserParent) : chooser.showOpenDialog(fileChooserParent);
+		if (result != SystemFileChooser.APPROVE_OPTION) {
+			return null;
+		}
+		File file = chooser.getSelectedFile();
+		String fileName = file.toString();
+		FileFilter currentFilter = chooser.getFileFilter();
+		if (save) {
+			fileName = normalizeSelectedSaveFileName(fileName, currentFilter);
+			boolean normalizedToDifferentTarget = !new File(file.toString()).getAbsoluteFile()
+				.equals(new File(fileName).getAbsoluteFile());
+			if (normalizedToDifferentTarget && new File(fileName).exists()
+					&& JOptionPane.showOptionDialog(fileChooserParent,
+						Messages.format("Message.overwriteFileConfirmation", fileName),
+						Messages.getString("Text.confirmOverwrite"), JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE,
+						null, new Object[] { Messages.getString("Text.Replace"), Messages.getString("Text.Cancel") },
+						Messages.getString("Text.Cancel")) != 0) {
+				return null;
+			}
+		}
+		Preferences.userNodeForPackage(FileHelper.class).put("lastDirectory", file.getParent());
+		return fileName;
+	}
+
+	static File initialProjectDirectory(File userHome, String lastDirectory) {
+		if (lastDirectory != null && !lastDirectory.isBlank()) {
+			return new File(lastDirectory);
+		}
+		File canonical = new File(userHome, "microProject");
+		if (canonical.isDirectory()) {
+			return canonical;
+		}
+		File legacy = new File(userHome, "ProjectLibre");
+		return legacy.isDirectory() ? legacy : userHome;
+	}
+
+	@Override
+	public synchronized String chooseFileName(UiServices.FileChooserOptions options, Object parent) {
+		if (options == null || options.filterExtensions().isEmpty()
+				|| (options.save() && (options.extension() == null || options.extension().isBlank())))
+			throw new IllegalArgumentException("A file extension filter is required for a specialized chooser");
+		SystemFileChooser chooser = prepareFileChooser(options.save(), options.selectedFileName());
+		String previousDialogTitle = chooser.getDialogTitle();
+		configureSpecializedChooser(chooser, options);
+		chooser.setSelectedFile(initialSelectedFile(options.selectedFileName()));
+		if (options.dialogTitle() != null)
+			chooser.setDialogTitle(options.dialogTitle());
+		try {
+			Component fileChooserParent = parent instanceof Component ? (Component) parent : null;
+			int result = options.save() ? chooser.showSaveDialog(fileChooserParent) : chooser.showOpenDialog(fileChooserParent);
+			if (result != SystemFileChooser.APPROVE_OPTION || chooser.getSelectedFile() == null)
+				return null;
+			File selected = chooser.getSelectedFile();
+			String fileName = options.save()
+				? normalizeSpecializedSaveFileName(selected.toString(), options.extension()) : selected.toString();
+			if (options.save()) {
+				if (selected.getParent() != null)
+					Preferences.userNodeForPackage(FileHelper.class).put("lastDirectory", selected.getParent());
+			}
+			return fileName;
+		} finally {
+			// The shared native chooser is reused; force project filters to be rebuilt
+			// before the next ordinary project open/save operation and do not leak a
+			// purpose-specific title into that later dialog.
+			chooser.setDialogTitle(previousDialogTitle);
+			chooserConfigurationSignature = null;
+		}
+	}
+
+	void configureSpecializedChooser(SystemFileChooser chooser, UiServices.FileChooserOptions options) {
+		chooser.setMultiSelectionEnabled(false);
+		chooser.resetChoosableFileFilters();
+		chooser.setAcceptAllFileFilterUsed(true);
+		FileNameExtensionFilter filter = new FileNameExtensionFilter(options.filterDescription(),
+			options.filterExtensions().toArray(String[]::new));
+		chooser.addChoosableFileFilter(filter);
+		chooser.setFileFilter(filter);
+	}
+
+	String normalizeSpecializedSaveFileName(String fileName, String extension) {
+		if (fileName == null || extension == null || extension.isBlank())
+			return fileName;
+		return extension.equalsIgnoreCase(FileHelper.getFileExtension(fileName))
+			? fileName : changeFileExtension(fileName, extension);
+	}
+
+	@Override
+	public synchronized List<String> chooseFileNames(boolean save, String selectedFileName, Object parent) {
+		if (save) {
+			String selected = chooseFileName(true, selectedFileName, parent);
+			return selected == null ? List.of() : List.of(selected);
+		}
+		SystemFileChooser chooser = prepareFileChooser(false, selectedFileName);
+		Component fileChooserParent = parent instanceof Component ? (Component) parent : null;
+		int result = chooser.showOpenDialog(fileChooserParent);
+		if (result != SystemFileChooser.APPROVE_OPTION) {
+			return List.of();
+		}
+		File[] files = chooser.getSelectedFiles();
+		if (files == null || files.length == 0) {
+			File single = chooser.getSelectedFile();
+			return single == null ? List.of() : List.of(single.toString());
+		}
+		String parentDirectory = files[0].getParent();
+		if (parentDirectory != null) {
+			Preferences.userNodeForPackage(FileHelper.class).put("lastDirectory", parentDirectory);
+		}
+		return selectedFileNames(files);
+	}
+
+	static List<String> selectedFileNames(File[] files) {
+		if (files == null || files.length == 0) return List.of();
+		List<String> names = new ArrayList<>(files.length);
+		for (File file : files) {
+			if (file != null) names.add(file.toString());
+		}
+		return List.copyOf(names);
+	}
+
+	SystemFileChooser prepareFileChooser(boolean save, String selectedFileName) {
+		SystemFileChooser chooser = getFileChooser();
+		chooser.setSelectedFile(initialSelectedFile(selectedFileName));
+		ensureFileChooserConfigured(save);
+		if (save) {
+			selectSaveFileFilter(chooser, selectedFileName);
+			applySaveFileFilterDefaults(chooser);
+			if (selectedFileName != null) {
+				chooser.setSelectedFile(new File(getSuggestedSaveFileName(selectedFileName, chooser.getFileFilter())));
+			}
+		} else {
+			selectOpenFileFilter(chooser);
+		}
+		return chooser;
+	}
+
+	static File initialSelectedFile(String selectedFileName) {
+		return selectedFileName == null ? null : new File(selectedFileName);
+	}
+
+	private SystemFileChooser getFileChooser() {
+		if (fileChooser == null) {
+			fileChooser = new SystemFileChooser();
+			fileChooser.setFileSelectionMode(SystemFileChooser.FILES_ONLY);
+			fileChooser.setAcceptAllFileFilterUsed(true);
+		}
+		return fileChooser;
+	}
+
+	private String getChooserConfigurationSignature() {
+		Preferences pref = Preferences.userNodeForPackage(ConfigurationFile.class);
+		boolean useExternalLocales = pref.getBoolean("useExternalLocales", false);
+		String externalLocalesDirectory = pref.get("externalLocalesDirectory", "");
+		return Locale.getDefault().toString() + "|" + useExternalLocales + "|" + externalLocalesDirectory;
+	}
+
+	void configureFileChooser(SystemFileChooser chooser, final boolean save) {
+		chooser.setMultiSelectionEnabled(!save);
+		nativeProjectFilter = new FileNameExtensionFilter(
+			formatFilterLabel(Messages.getString("File.nativeProject"), "*." + DEFAULT_FILE_EXTENSION),
+			DEFAULT_FILE_EXTENSION);
+		legacyPodFilter = new FileNameExtensionFilter(
+			formatFilterLabel(Messages.getString("File.LegacyPod"), "*." + LEGACY_POD_FILE_EXTENSION),
+			LEGACY_POD_FILE_EXTENSION);
+		microsoftFilter = new FileNameExtensionFilter(
+			formatFilterLabel(Messages.getString("File.microsoft"), "*.mpp, *.mpx"),
+			"mpp", "mpx");
+		microsoftXMLFilter = new FileNameExtensionFilter(
+			formatFilterLabel(Messages.getString("File.microsoftXML"), "*.xml"),
+			"xml");
+		microsoftXlsxFilter = new FileNameExtensionFilter(
+			"Excel Workbook (*.xlsx)",
+			"xlsx");
+		plannerFilter = new FileNameExtensionFilter(
+			formatFilterLabel(Messages.getString("File.planner"), "*.planner"),
+			"planner");
+		projectFilter = new FileNameExtensionFilter(
+			Messages.getString("File.projects"),
+			DEFAULT_FILE_EXTENSION, LEGACY_POD_FILE_EXTENSION, "xml", "xlsx", "planner", "mpp", "mpx");
+
+		chooser.resetChoosableFileFilters();
+		chooser.setAcceptAllFileFilterUsed(true);
+		if (save) {
+			chooser.addChoosableFileFilter(nativeProjectFilter);
+			chooser.addChoosableFileFilter(microsoftXMLFilter);
+			chooser.addChoosableFileFilter(microsoftXlsxFilter);
+		} else {
+			chooser.addChoosableFileFilter(nativeProjectFilter);
+			chooser.addChoosableFileFilter(legacyPodFilter);
+			chooser.addChoosableFileFilter(microsoftFilter);
+			chooser.addChoosableFileFilter(microsoftXMLFilter);
+			chooser.addChoosableFileFilter(microsoftXlsxFilter);
+			chooser.addChoosableFileFilter(plannerFilter);
+			chooser.addChoosableFileFilter(projectFilter);
+		}
+	}
+
+	static String formatFilterLabel(String label, String extensionPattern) {
+		return Messages.format("Format.fileFilter", label, extensionPattern);
+	}
+
+	void selectOpenFileFilter(SystemFileChooser chooser) {
+		chooser.setFileFilter(nativeProjectFilter);
+	}
+
+	private void selectSaveFileFilter(SystemFileChooser chooser, String selectedFileName) {
+		String extension = preferredSaveExtension(selectedFileName);
+		if (DEFAULT_FILE_EXTENSION.equals(extension) && nativeProjectFilter != null) {
+			chooser.setFileFilter(nativeProjectFilter);
+		} else if ("xlsx".equals(extension)) {
+			chooser.setFileFilter(microsoftXlsxFilter);
+		} else {
+			chooser.setFileFilter(microsoftXMLFilter);
+		}
+	}
+
+	static String preferredSaveExtension(String selectedFileName) {
+		String extension = selectedFileName == null ? null : FileHelper.getFileExtension(selectedFileName);
+		if ("xlsx".equals(extension)) {
+			return "xlsx";
+		}
+		if ("xml".equals(extension)) {
+			return "xml";
+		}
+		if (DEFAULT_FILE_EXTENSION.equals(extension)) {
+			return DEFAULT_FILE_EXTENSION;
+		}
+		return DEFAULT_FILE_EXTENSION;
+	}
+
+	private void ensureFileChooserConfigured(final boolean save) {
+		String signature = getChooserConfigurationSignature();
+		if (chooserConfigurationSignature == null
+				|| chooserConfigurationSaveMode == null
+				|| chooserConfigurationSaveMode.booleanValue() != save
+				|| !chooserConfigurationSignature.equals(signature)) {
+			configureFileChooser(getFileChooser(), save);
+			chooserConfigurationSignature = signature;
+			chooserConfigurationSaveMode = Boolean.valueOf(save);
+		}
+	}
+
+	private String getSuggestedSaveFileName(String baseFileName, FileFilter filter) {
+		if (baseFileName == null) {
+			return null;
+		}
+		if (filter == microsoftXlsxFilter) {
+			return changeFileExtension(baseFileName, "xlsx");
+		}
+		if (filter == microsoftXMLFilter) {
+			return changeFileExtension(baseFileName, "xml");
+		}
+		if (filter == nativeProjectFilter) {
+			return changeFileExtension(baseFileName, DEFAULT_FILE_EXTENSION);
+		}
+		return baseFileName;
+	}
+
+	private String normalizeSelectedSaveFileName(String fileName, FileFilter filter) {
+		String extension = getSaveExtension(filter);
+		if (extension == null) {
+			return FileHelper.isFileNameAllowed(fileName, true) ? fileName : changeFileExtension(fileName, DEFAULT_FILE_EXTENSION);
+		}
+		String currentExtension = FileHelper.getFileExtension(fileName);
+		if (extension.equals(currentExtension)) {
+			return fileName;
+		}
+		return changeFileExtension(fileName, extension);
+	}
+
+	private String getSaveExtension(FileFilter filter) {
+		if (filter == microsoftXlsxFilter) {
+			return "xlsx";
+		}
+		if (filter == microsoftXMLFilter) {
+			return "xml";
+		}
+		if (filter == nativeProjectFilter) {
+			return DEFAULT_FILE_EXTENSION;
+		}
+		return null;
+	}
+
+	private void applySaveFileFilterDefaults(SystemFileChooser chooser) {
+		String extension = getSaveExtension(chooser.getFileFilter());
+		chooser.putPlatformProperty(SystemFileChooser.WINDOWS_DEFAULT_EXTENSION, extension);
+	}
+
+	private String changeFileExtension(String fileName, String extension) {
+		if (fileName == null) {
+			return null;
+		}
+		int i = fileName.lastIndexOf('.');
+		if (i <= 0) {
+			return fileName + "." + extension;
+		}
+		return fileName.substring(0, i) + "." + extension;
+	}
+}

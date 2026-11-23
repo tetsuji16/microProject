@@ -1,0 +1,138 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.view.network.layout;
+
+import java.awt.Rectangle;
+import java.util.EventListener;
+import java.util.function.Consumer;
+
+import javax.swing.event.EventListenerList;
+
+import com.microproject.ui.view.model.cache.GraphicNode;
+import com.microproject.ui.view.model.cache.NodeModelCache;
+import com.microproject.ui.view.model.event.CompositeCacheEvent;
+import com.microproject.ui.view.network.NetworkParams;
+import com.microproject.document.ObjectEvent;
+import com.microproject.graphic.configuration.BarFormat;
+import com.microproject.graphic.configuration.BarStyles;
+import com.microproject.graphic.configuration.TexturedShape;
+import com.microproject.pm.scheduling.ScheduleEvent;
+
+/**
+ *
+ */
+public abstract class AbstractNetworkLayout implements NetworkLayout {
+	protected NodeModelCache cache;
+	protected BarStyles barStyles;
+	protected Rectangle bounds;
+	protected NetworkParams network;
+	public AbstractNetworkLayout(NetworkParams network){
+		this.network=network;
+		addNetworkLayoutListener(network);
+	}
+	public void setCache(NodeModelCache cache){
+		this.cache=cache;
+		bounds=new Rectangle();
+	}
+	public void setBarStyles(BarStyles barStyles) {
+		this.barStyles = barStyles;
+	}
+	
+	public abstract void updateBounds();
+
+	protected TexturedShapeFinder texturedShapeFinder=new TexturedShapeFinder();
+	protected class TexturedShapeFinder implements Consumer<Object>{
+		protected BarFormat format;
+		protected GraphicNode node;
+		protected TexturedShape shape;
+		void initialize(GraphicNode node) {
+			this.node = node;
+			shape=null;
+		}
+		public void accept(Object arg0) {
+			format = (BarFormat)arg0;
+			if (format.getMiddle()!=null)
+				shape=format.getMiddle();
+		}
+		public TexturedShape getShape(){
+			return shape;
+		}
+	}
+	protected TexturedShape findShape(GraphicNode node){
+		texturedShapeFinder.initialize(node);
+		barStyles.apply(node.getNode().getImpl(),texturedShapeFinder);
+		return texturedShapeFinder.getShape();
+	}
+	
+	
+	
+	public Rectangle getBounds() {
+		return bounds;
+	}
+	protected void setEmpty(){
+		bounds.setSize(0,0);
+	}
+	protected boolean isEmpty(){
+		return bounds.isEmpty();
+	}
+	
+	public void scheduleChanged(ScheduleEvent evt) {
+	}
+	public void objectChanged(ObjectEvent objectEvent) {
+	}
+	public void graphicNodesCompositeEvent(CompositeCacheEvent compositeEvent) {
+	}
+	
+	
+	
+	protected EventListenerList listenerList = new EventListenerList();
+
+	public void addNetworkLayoutListener(NetworkLayoutListener l) {
+		listenerList.add(NetworkLayoutListener.class, l);
+	}
+	public void removeNetworkLayoutListener(NetworkLayoutListener l) { 
+		listenerList.remove(NetworkLayoutListener.class, l);
+	}
+	public NetworkLayoutListener[] getNetworkLayoutListeners() {
+		return listenerList.getListeners(NetworkLayoutListener.class);
+	}
+	protected void fireLayoutChanged() {
+		Object[] listeners = listenerList.getListenerList();
+		NetworkLayoutEvent e = null;
+		for (int i = listeners.length - 2; i >= 0; i -= 2) {
+			if (listeners[i] == NetworkLayoutListener.class) {
+				if (e == null) {
+					e = new NetworkLayoutEvent(this);
+				}
+				((NetworkLayoutListener) listeners[i + 1]).layoutChanged(e);
+			}
+		}
+	}
+    public EventListener[] getListeners(Class listenerType) { 
+    	return listenerList.getListeners(listenerType); 
+       }
+
+	
+}
+

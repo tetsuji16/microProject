@@ -1,0 +1,269 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.view.spreadsheet;
+
+import java.util.LinkedList;
+import java.util.List;
+
+import com.microproject.ui.view.model.cache.NodeModelCache;
+import com.microproject.ui.view.model.cache.GraphicNode;
+import com.microproject.ui.view.model.cache.ProjectionRowKey;
+import com.microproject.ui.view.spreadsheet.common.CommonSpreadSheetModel;
+import com.microproject.ui.view.spreadsheet.command.TaskCommandGateway;
+import com.microproject.ui.view.spreadsheet.command.TaskFieldEditIntent;
+import com.microproject.ui.view.spreadsheet.command.TaskCommandResult;
+import com.microproject.association.InvalidAssociationException;
+import com.microproject.datatype.Duration;
+import com.microproject.field.Field;
+import com.microproject.field.FieldParseException;
+import com.microproject.graphic.configuration.ActionList;
+import com.microproject.graphic.configuration.CellStyle;
+import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.dependency.DependencyType;
+import com.microproject.pm.task.Task;
+import com.microproject.util.ClassUtils;
+import com.microproject.util.Environment;
+
+import org.netbeans.swing.outline.OutlineModel;
+import org.netbeans.swing.outline.RowModel;
+
+/**
+ * 
+ */
+public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineModel, RowModel {
+	private static final long serialVersionUID = 5472118670833654418L;
+
+	protected boolean readOnly;
+	private transient TaskFieldEditOutcomeHandler taskFieldEditOutcomeHandler;
+	private transient Runnable committedValueListener;
+	private static final String DEPENDENCY_TYPE_FIELD_ID = "Field.dependencyType";
+	private static final String DEPENDENCY_LAG_FIELD_ID = "Field.lag";
+	/**
+	 * 
+	 */
+	public SpreadSheetModel(NodeModelCache cache, SpreadSheetColumnModel colModel, CellStyle cellStyle, ActionList actionList) {
+		super(cache, colModel, cellStyle, actionList);
+	}
+
+	public void setTaskFieldEditOutcomeHandler(TaskFieldEditOutcomeHandler handler) {
+		taskFieldEditOutcomeHandler = handler;
+	}
+
+	/** Runs after a cell value was committed; for sheets whose rows have no dirty-tracking owner of their own. */
+	public void setCommittedValueListener(Runnable listener) {
+		committedValueListener = listener;
+	}
+
+	public interface TaskFieldEditOutcomeHandler {
+		TaskFieldEditOutcomeContext capture();
+		void publish(TaskCommandResult result, Task task, TaskFieldEditOutcomeContext context);
+	}
+
+	public record TaskFieldEditOutcomeContext(List<Long> selectedTaskIds) {
+		public TaskFieldEditOutcomeContext {
+			selectedTaskIds = selectedTaskIds == null ? List.of() : List.copyOf(selectedTaskIds);
+		}
+	}
+
+
+	public int getColumnCount() {
+		return colModel.getFieldColumnCount();
+	}
+
+	public Field getFieldInColumn(int col) {
+		return SpreadSheetUtils.getFieldInColumn(col,colModel);
+		//return colModel.getFieldInColumn(col);
+	}
+
+	public Field getFieldInNonTranslatedColumn(int col) {
+		return colModel.getFieldInNonTranslatedColumn(col);
+	}
+
+	public Field getFieldInViewColumn(int viewColumn) {
+		return colModel.getFieldInViewColumn(viewColumn);
+	}
+
+	public int getModelColumnForViewColumn(int viewColumn) {
+		return colModel.getModelColumnForViewColumn(viewColumn);
+	}
+
+	@Override
+	public String getColumnName(int col) {
+		if (col == 0) {
+			return "";
+		}
+		return getFieldInColumn(col).getName();
+	}
+
+	@Override
+	public Class getColumnClass(int col) {
+		return getFieldInColumn(col).getDisplayType();
+	}
+
+	public Object getValueAt(int row, int col) {
+		return SpreadSheetUtils.getValueAt(row,col,getRowMultiple(),cache,colModel,fieldContext);
+	}
+
+	/** Renderer-only access to the stable domain node behind a visible row. */
+	public Node getNodeForDisplayRow(int row) {
+		return getNodeInRow(row);
+	}
+
+	public void setValueAt(Object value, int row, int col) {
+		if (isReadOnly()) return;
+		if (row < 0 || row >= getRowCount() || col <= 0 || col >= getColumnCount()) return;
+		Field field=getFieldInColumn(col);
+		boolean roleField="Field.userRole".equals(field.getId()); //an exception for roles
+		NodeModel nodeModel=getCache().getModel();
+		// "setValueAt("+value+","+row+","+col+")");
+
+		Object oldValue = getValueAt(row, col);
+		// if (oldValue==null&&(value==null||"".equals(value))) return;
+		if (oldValue == null && ("".equals(value)))
+			return;
+
+		Node rowNode = getNodeInRow(row);
+		//Field field = getFieldInColumn(col);
+
+		try {
+			// A Yes/No cell commits its displayed text (list, typing, paste): one conversion, here.
+			if (field.isBoolean() && value instanceof String text)
+				value = field.parseYesNo(text);
+			if (rowNode.isVoid()) {
+				if (value == null) { // null means parse error, so generate error here
+					getCache().getModel().setFieldValue(field, rowNode, this, value, fieldContext, NodeModel.NORMAL);
+				} else{
+					//boolean previousIsParent=false;
+					LinkedList<Node> previousNodes = getPreviousVisibleNodesFromRow(row);
+					if (previousNodes!=null){
+						Node nextSibling=getNextNonVoidSiblingFromRow(row);
+						if(nextSibling!=null&&nextSibling.getParent()==previousNodes.getFirst()) previousNodes=null;
+					}
+					getCache().getModel()
+							.replaceImplAndSetFieldValue(rowNode, previousNodes, getFieldInColumn(col), this, value, fieldContext, NodeModel.NORMAL);
+			
+				}
+			} else if (rowNode.getImpl() instanceof Task) {
+				var projection = getCache().getVisibleNodes().getProjectionIndex();
+				if (getRowMultiple() != 1 || row >= projection.size()
+						|| !(projection.keyAt(row) instanceof ProjectionRowKey.TaskRow))
+					throw new IllegalStateException("Task field edit requires a durable projected task identity");
+				ProjectionRowKey.TaskRow taskRow = (ProjectionRowKey.TaskRow) projection.keyAt(row);
+				TaskFieldEditIntent intent = new TaskFieldEditIntent(taskRow.taskKey(), taskRow.occurrence(),
+					projection.topologyRevision(), field, oldValue, value);
+				TaskFieldEditOutcomeHandler outcomeHandler = taskFieldEditOutcomeHandler;
+				TaskFieldEditOutcomeContext outcomeContext = outcomeHandler == null ? null : outcomeHandler.capture();
+				TaskCommandResult result = TaskCommandGateway.execute(this, intent, this);
+				if (outcomeHandler != null)
+					outcomeHandler.publish(result, (Task) rowNode.getImpl(), outcomeContext);
+				if (result.status() != TaskCommandResult.Status.CHANGED
+						&& result.status() != TaskCommandResult.Status.NO_CHANGE)
+					throw new IllegalStateException("Task field edit rejected: " + result.reason());
+			} else if (rowNode.getImpl() instanceof Dependency) { // dependencies
+																	// need
+																	// specific
+																	// handling
+																	// at least
+																	// for undo
+				Dependency dependency = (Dependency) rowNode.getImpl();
+				DependencyService dependencyService = DependencyService.getInstance();
+				try {
+					long lag = getDependencyLag(field, value, dependency);
+					int type = getDependencyType(field, value, dependency);
+					dependencyService.setFields(dependency, lag, type, this);
+				} catch (InvalidAssociationException e1) {
+					throw new RuntimeException(e1);
+				}
+			} else {
+				getCache().getModel().setFieldValue(field, rowNode, this, value, fieldContext, NodeModel.NORMAL);
+			}
+		} catch (FieldParseException e) {
+			throw new RuntimeException(e); // exceptions will be treated by the spreadsheet, not the model, because there is a popup.  Because this method doesn't have an exception, a runtime exception will be caught by the spreadsheet
+		}
+		if (committedValueListener != null)
+			committedValueListener.run();
+	}
+
+	static long getDependencyLag(Field editedField, Object value, Dependency dependency) {
+		if (editedField != null && DEPENDENCY_LAG_FIELD_ID.equals(editedField.getId())) {
+			return ((Duration) value).getEncodedMillis();
+		}
+		return dependency.getLag();
+	}
+
+	static int getDependencyType(Field editedField, Object value, Dependency dependency) {
+		if (editedField != null && DEPENDENCY_TYPE_FIELD_ID.equals(editedField.getId())) {
+			Integer parsedType = DependencyType.mapStringToValue((String) value);
+			if (parsedType == null) {
+				throw new IllegalArgumentException("Invalid dependency type: " + value);
+			}
+			return parsedType.intValue();
+		}
+		return dependency.getDependencyType();
+	}
+
+	public boolean isRowEditable(int row) {
+		if (isReadOnly()) return false;
+		NodeModel nodeModel=getCache().getModel();
+		Node node = getNodeInRow(row);
+		if (node.isVoid())
+			return true;
+		return !ClassUtils.isObjectReadOnly(node.getImpl());
+	}
+	
+	public boolean isCellEditable(int row, int col) {
+		if (isReadOnly()) return false;
+		if (col == 0)
+			return false;
+		Field field=getFieldInColumn(col);
+		if (field.getLookupTypes() != null)
+			return false;
+		Node node = getNodeInRow(row);
+		NodeModel nodeModel=getCache().getModel();
+		
+		if (node.isVoid()&&!(nodeModel.isLocal()||nodeModel.isMaster())&&"Field.userRole".equals(field.getId()))
+			return false;
+
+		if (node.isVoid())
+			return true;
+		return !field.isReadOnly(node, getCache().getWalkersModel(), fieldContext);
+	}
+
+	private int findFieldColumn(Field field) {
+		return colModel.findFieldColumn(field);
+	}
+
+	public boolean isReadOnly() {
+		return readOnly;
+	}
+
+	public void setReadOnly(boolean readOnly) {
+		this.readOnly = readOnly;
+	}
+
+}
+

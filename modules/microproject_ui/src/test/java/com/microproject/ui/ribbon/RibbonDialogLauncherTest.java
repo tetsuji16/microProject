@@ -46,12 +46,12 @@ import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.menu.ExtToolBarFactory;
-import com.microproject.menu.MenuManager;
-import com.microproject.menu.MenuRibbonCommandSource;
-import com.microproject.menu.ProjectMenuActionMap;
-import com.microproject.menu.testsupport.MenuDefinitionSupport;
-import com.microproject.menu.testsupport.UiComponentWalker;
+import com.microproject.ui.menu.ExtToolBarFactory;
+import com.microproject.ui.menu.MenuManager;
+import com.microproject.ui.menu.MenuRibbonCommandSource;
+import com.microproject.ui.menu.ProjectMenuActionMap;
+import com.microproject.ui.menu.testsupport.MenuDefinitionSupport;
+import com.microproject.ui.menu.testsupport.UiComponentWalker;
 import com.microproject.ribbon.SwingRibbonModel;
 
 /** The group dialog launchers declared by {@code <band>.dialogLauncher}: data, validation and wiring. */

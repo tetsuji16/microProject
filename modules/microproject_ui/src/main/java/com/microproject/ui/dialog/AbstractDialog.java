@@ -1,0 +1,478 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.dialog;
+
+import java.util.function.Consumer;
+
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Dialog;
+import java.awt.Dimension;
+import java.awt.Frame;
+import java.awt.Point;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.util.logging.Logger;
+
+import javax.swing.BoxLayout;
+import javax.swing.ComboBoxModel;
+import javax.swing.DefaultComboBoxModel;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JDialog;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JRadioButton;
+import javax.swing.JRootPane;
+import javax.swing.JScrollPane;
+import javax.swing.JToolTip;
+import javax.swing.KeyStroke;
+import javax.swing.plaf.ButtonUI;
+import javax.swing.plaf.basic.BasicButtonUI;
+
+
+import com.microproject.ui.help.HelpUtil;
+import com.microproject.ui.menu.HyperLinkToolTip;
+import com.microproject.ui.menu.MenuManager;
+import com.microproject.ui.view.IconManager;
+import com.microproject.ui.frame.DocumentFrame;
+import com.microproject.ui.frame.GraphicManager;
+import com.microproject.ui.view.model.cache.NodeModelCache;
+import com.microproject.ui.view.model.cache.ReferenceNodeModelCache;
+import com.microproject.configuration.FieldDictionary;
+import com.microproject.configuration.Settings;
+import com.microproject.strings.Messages;
+import com.microproject.util.BrowserControl;
+import com.microproject.ui.util.FlatUiSupport;
+import com.microproject.ui.util.FlatLafDialog;
+import com.microproject.ui.shell.WindowBoundsSupport;
+import com.microproject.ui.util.PopupDialogSupport;
+
+/**
+ *
+ */
+public abstract class AbstractDialog extends FlatLafDialog {
+	private static final long serialVersionUID = -9113649728788108118L;
+
+	private static final Logger logger = Logger.getLogger(AbstractDialog.class.getName());
+	protected JButton ok;
+
+	protected JButton cancel;
+	protected JComponent help;
+
+	protected Frame owner;
+    private int dialogResult = JOptionPane.CANCEL_OPTION;
+
+	protected JComponent contentPanel = null;
+    private JScrollPane contentViewport;
+    protected ButtonPanel buttonPanel = null;
+    private String helpAddress = null;
+	private boolean packedOnce;
+
+	public AbstractDialog() {
+		super();
+	}
+
+	public AbstractDialog(Frame owner/*, MainFrame main*/, String title, boolean modal) {
+		super(owner, title, modal);
+		this.owner = owner;
+		FlatUiSupport.styleDialogRoot(getRootPane());
+	}
+
+	public AbstractDialog(Dialog owner, String title, Dialog.ModalityType modalityType) {
+		super(owner, title, modalityType);
+		this.owner = owner != null && owner.getOwner() instanceof Frame frame ? frame : null;
+		FlatUiSupport.styleDialogRoot(getRootPane());
+	}
+
+	protected JRootPane createRootPane() {
+		ActionListener escapeListener = new ActionListener() {
+			public void actionPerformed(ActionEvent actionEvent) {
+				onCancel();
+
+			}
+		};
+		ActionListener enterListener = new ActionListener() {
+			public void actionPerformed(ActionEvent actionEvent) {
+				JButton focused = focusedButtonForEnter(
+					java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner(), AbstractDialog.this);
+				if (focused != null) focused.doClick();
+				else onOk();
+			}
+		};
+
+		ActionListener helpListener = new ActionListener() {
+			public void actionPerformed(ActionEvent actionEvent) {
+				onHelp();
+
+			}
+
+
+		};
+		JRootPane rootPane = new JRootPane();
+		KeyStroke escapeStroke = KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0);
+		KeyStroke enterStroke = KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0);
+		KeyStroke f1Stroke = KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0);
+		PopupDialogSupport.bindRootPaneAction(rootPane, escapeStroke, "dialog.escape", escapeListener);
+		PopupDialogSupport.bindRootPaneAction(rootPane, enterStroke, "dialog.enter", enterListener);
+		PopupDialogSupport.bindRootPaneAction(rootPane, f1Stroke, "dialog.help", helpListener);
+		return rootPane;
+	}
+
+	/**
+	 * Windows/Office dialog rule: Enter activates the focused push button (for example Cancel); otherwise it
+	 * activates the default command (OK). Toggle controls such as check boxes do not take Enter.
+	 */
+	static JButton focusedButtonForEnter(Component focusOwner, Component dialog) {
+		if (focusOwner instanceof JButton button && button.isEnabled()
+				&& javax.swing.SwingUtilities.isDescendingFrom(button, dialog))
+			return button;
+		return null;
+	}
+
+	protected boolean hasHelp() {
+		return helpAddress !=null;
+	}
+	protected boolean hasHelpButton() {
+		return hasHelp();
+	}
+
+	protected void onHelp() {
+		if (helpAddress != null)
+			BrowserControl.displayURL(HelpUtil.getHelpURL(helpAddress));
+		else
+			logger.info("no help available");
+	}
+	protected void onCancel() {
+		setVisible(false);
+		setDialogResult(JOptionPane.CANCEL_OPTION);
+	}
+
+	public void onOk() {
+		if (!bind(false) || !beforeAccept()) return;
+		setDialogResult(JOptionPane.OK_OPTION);
+		setVisible(false);
+	}
+
+	/** Allows a dialog to reject acceptance after its form has been bound. */
+	protected boolean beforeAccept() {
+		return true;
+	}
+
+	public abstract JComponent createContentPanel();
+
+	@Override
+	public void setLocationRelativeTo(Component reference) {
+		super.setLocationRelativeTo(reference);
+		WindowBoundsSupport.fitWithinUsableScreen(this);
+	}
+
+	public void setVisible(boolean b) {
+		if (b && !listenersActivated)
+			activateListeners();
+		else if (!b && listenersActivated)
+			desactivateListeners();
+		super.setVisible(b);
+	}
+
+	protected boolean listenersActivated = true;
+
+	protected void activateListeners() {
+		listenersActivated = true;
+	}
+
+	protected void desactivateListeners() {
+		listenersActivated = false;
+	}
+
+	protected boolean bind(boolean get) {
+		return true;
+	}
+
+	protected void initComponents() {
+		// #724 size contract: a single bounded form keeps its packed size.
+		// Data views (tables, lists, tabbed editors) stay user-resizable.
+		setResizable(!isFixedSizeForm());
+		// pack() can be requested again after a dialog is reused or resized.  Do
+		// not leave the previous content/button panels installed: duplicate
+		// BorderLayout children are silently replaced or collapsed by Swing, which
+		// presents as an empty dialog on the second display.
+		if (contentPanel != null || buttonPanel != null)
+			clearComponents();
+		contentPanel = createContentPanel();
+		buttonPanel = createButtonPanel();
+        getContentPane().setLayout(new BorderLayout());
+		if (getContentPane() instanceof JComponent content) {
+			FlatUiSupport.styleDialogContent(content);
+		}
+		if (contentPanel != null) {
+			contentViewport = contentPanel instanceof JScrollPane scrollPane
+				? scrollPane : createContentViewport(contentPanel);
+			getContentPane().add(contentViewport, BorderLayout.CENTER);
+		}
+		if (buttonPanel != null)
+			getContentPane().add(buttonPanel, BorderLayout.AFTER_LAST_LINE);
+
+	}
+	protected void clearComponents() {
+		if (contentViewport != null) {
+			getContentPane().remove(contentViewport);
+			contentViewport = null;
+		}
+		if (buttonPanel != null)
+			getContentPane().remove(buttonPanel);
+		
+	}
+
+	static JScrollPane createContentViewport(JComponent content) {
+		JScrollPane viewport = new JScrollPane(content,
+			JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+		viewport.setBorder(null);
+		return viewport;
+	}
+    public void pack() {
+		initComponents();
+		super.pack();
+        if (!packedOnce) {
+			// Center only after the preferred dimensions are known. Centering the
+			// zero-sized window in the constructor leaves its top-left at the
+			// monitor center and pushes the packed dialog below the usable screen.
+			setLocationRelativeTo(getOwner());
+			packedOnce = true;
+		}
+		lockMinimumSizeToCurrentPack();
+    }
+
+    protected void lockMinimumSizeToCurrentPack() {
+        if (getWidth() > 0 && getHeight() > 0 && getMinimumSize().equals(new Dimension())) {
+            FlatUiSupport.applyMinimumSize(this, getSize());
+        }
+    }
+
+	protected void createOkCancelButtons(String okText,String cancelText) {
+		ok = new JButton(okText);
+		ok.setEnabled(initialOkEnabledState());
+		FlatUiSupport.styleDialogButton(ok, true);
+		ok.addActionListener(event -> onOk());
+		cancel = new JButton(cancelText);
+		FlatUiSupport.styleDialogButton(cancel, false);
+		cancel.addActionListener(event -> onCancel());
+    }
+    
+	protected JComponent getHelpButton() {
+	    	if (help  == null) {
+				String helpText;
+				try {
+					helpText = MenuManager.getMenuString("Help.text");
+				} catch (RuntimeException unavailableMenuResources) {
+					// Dialogs are also created by isolated tests and startup recovery
+					// before the ribbon menu bundles are initialized.
+					helpText = Messages.getString("ButtonText.Help");
+				}
+				help= new JButton(helpText);//,IconManager.getIcon("menu24.help"));
+				FlatUiSupport.styleDialogButton((JButton) help, false);
+
+				help.addMouseListener(new MouseAdapter() {
+				public void mouseClicked(MouseEvent arg0) {
+					AbstractDialog.this.onHelp();
+			}});
+    	}
+    	return help;
+    }
+    protected void createOkCancelButtons() {
+    	createOkCancelButtons(Messages.getString("ButtonText.OK"), Messages.getString("ButtonText.Cancel"));
+    }
+
+	protected void createCloseButton() {
+		ok = new JButton(Messages.getString("ButtonText.Close"));
+		FlatUiSupport.styleDialogButton(ok, true);
+		ok.addActionListener(event -> onOk());
+	}
+
+	public ButtonPanel createButtonPanel() {
+		if (!hasOkAndCancelButtons() && !hasCloseButton())
+			return null;
+		if (hasCloseButton())
+			createCloseButton();
+		else
+			createOkCancelButtons();
+		ButtonPanel buttonPanel = new ButtonPanel();
+		buttonPanel.addButton(ok);
+		if (hasOkAndCancelButtons())
+			buttonPanel.addButton(cancel);
+		if (hasHelpButton())
+			buttonPanel.add(getHelpButton());
+		return buttonPanel;
+	}
+
+	public JComponent createBannerPanel() {
+		return null;
+	}
+
+	public boolean doModal() {
+		pack();
+		setLocationRelativeTo(getParent());// to center on parent
+		setVisible(true);
+		return (getDialogResult() != JOptionPane.CANCEL_OPTION);
+	}
+
+	public Object getBean() {
+		return null;
+	}
+
+
+	public int execute(Consumer<Object> setter, Consumer<Object> getter) {
+		pack();
+		setter.accept(getBean());
+		bind(true);
+		setLocationRelativeTo(null);// to center on screen
+		setVisible(true);
+		if (getDialogResult() != JOptionPane.CANCEL_OPTION) {
+			if (getter != null)
+				getter.accept(getBean());
+		}
+		return getDialogResult();
+	}
+
+	protected boolean initialOkEnabledState() {
+		return true;
+	}
+
+	@SuppressWarnings("unchecked")
+	public static ComboBoxModel<Object> getComboBoxModel(String fieldId) {
+		Object[] options = FieldDictionary.getInstance().getFieldFromId(fieldId).getOptions(null);
+		return new DefaultComboBoxModel<Object>(options);
+	}
+
+	public ReferenceNodeModelCache getReferenceCache(boolean task) {
+		DocumentFrame df = GraphicManager.getInstance(this).getCurrentFrame();
+		return df.getReferenceCache(task);
+	}
+
+	public NodeModelCache createCache(boolean task, String viewName) {
+		DocumentFrame df = GraphicManager.getInstance(this).getCurrentFrame();
+		return df.createCache(task, viewName);
+	}
+
+	protected boolean hasOkAndCancelButtons() {
+		return !hasCloseButton();
+	}
+
+	protected boolean hasCloseButton() {
+		return false;
+	}
+
+	/**
+	 * Declares the #724 size contract for dialogs whose content is a single
+	 * bounded form. These forms keep their packed size; a dialog that hosts a
+	 * table, list, or tabbed editor returns {@code false} so its data view can
+	 * grow. Subclasses with a fixed form also get a packed minimum size from
+	 * {@link #lockMinimumSizeToCurrentPack()}.
+	 */
+	protected boolean isFixedSizeForm() {
+		return false;
+	}
+
+	public static JDialog containedInDialog(Object object) {
+		if (!(object instanceof Component component))
+			return null;
+		Component c = component;
+		while (c != null) {
+			if (c instanceof JDialog dialog)
+				return dialog;
+			c = c.getParent();
+		}
+		return null;
+	}
+
+	public class DoubleClickRadio extends JRadioButton implements MouseListener {
+		private static final long serialVersionUID = 1L;
+		public DoubleClickRadio(String label, String tooltip) {
+			super(label);
+			this.setToolTipText(tooltip);
+			addMouseListener(this);
+		}
+		public Point getToolTipLocation(MouseEvent event) { // the tip MUST be touching the button if html because you can click on links
+			return new Point(getWidth()-2, -20);
+		}
+
+		public JToolTip createToolTip() {
+				return HyperLinkToolTip.createFor(this);
+		}
+
+		public void mouseClicked(MouseEvent e) {
+			if (e.getClickCount() == 2) {
+				bind(false);
+				((JRadioButton) e.getSource()).setSelected(true);
+				AbstractDialog.this.onOk();
+			}
+		}
+
+		public void mousePressed(MouseEvent e) {
+		}
+
+		public void mouseReleased(MouseEvent e) {
+		}
+
+		public void mouseEntered(MouseEvent e) {
+		}
+
+		public void mouseExited(MouseEvent e) {
+		}
+	}
+
+	public int getDialogResult() {
+		return dialogResult;
+	}
+
+	public void setDialogResult(int dialogResult) {
+		this.dialogResult = dialogResult;
+	}
+
+	public ButtonPanel getButtonPanel() {
+		return buttonPanel;
+	}
+
+	public void setButtonPanel(ButtonPanel buttonPanel) {
+		this.buttonPanel = buttonPanel;
+	}
+
+	public JComponent getContentPanel() {
+		return contentPanel;
+	}
+
+	public void setContentPanel(JComponent contentPanel) {
+		this.contentPanel = contentPanel;
+	}
+	public void addDocHelp(String helpAddress) {
+		HelpUtil.addDocHelp(this,helpAddress);
+		this.helpAddress = helpAddress;
+	}
+}
+

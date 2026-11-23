@@ -43,17 +43,17 @@ import javax.swing.JTabbedPane;
 import javax.swing.JToolBar;
 import javax.swing.SwingUtilities;
 
-import com.microproject.menu.MenuManager;
+import com.microproject.ui.menu.MenuManager;
 import com.microproject.ui.ribbon.RibbonController;
 import com.microproject.ui.ribbon.RibbonDisplayPreferences;
-import com.microproject.pm.graphic.TabbedNavigation;
-import com.microproject.pm.graphic.frames.MainRibbonFrame;
-import com.microproject.pm.graphic.frames.workspace.DefaultFrameManager;
-import com.microproject.pm.graphic.frames.workspace.FrameManager;
-import com.microproject.pm.graphic.laf.LafManager;
+import com.microproject.ui.view.TabbedNavigation;
+import com.microproject.ui.frame.MainRibbonFrame;
+import com.microproject.ui.frame.workspace.DefaultFrameManager;
+import com.microproject.ui.frame.workspace.FrameManager;
+import com.microproject.ui.theme.LafManager;
 import com.microproject.strings.Messages;
-import com.microproject.toolbar.FilterToolBarManager;
-import com.microproject.util.FlatUiSupport;
+import com.microproject.ui.toolbar.FilterToolBarManager;
+import com.microproject.ui.util.FlatUiSupport;
 
 /**
  * Builds shell chrome while leaving action orchestration in GraphicManager.

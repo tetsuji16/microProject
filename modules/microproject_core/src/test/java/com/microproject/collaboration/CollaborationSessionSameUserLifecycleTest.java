@@ -1223,7 +1223,7 @@ class CollaborationSessionSameUserLifecycleTest {
 
 	private static void awaitFile(Path path, Process child) throws Exception {
 		try {
-			com.microproject.testsupport.TestAwait.awaitTrue(() -> Files.exists(path) || !child.isAlive(), Duration.ofSeconds(15), path.getFileName().toString());
+			com.microproject.ui.testsupport.TestAwait.awaitTrue(() -> Files.exists(path) || !child.isAlive(), Duration.ofSeconds(15), path.getFileName().toString());
 		} catch (AssertionError timedOut) {
 			// reported by the assertion below together with the child's exit state
 		}
@@ -1233,7 +1233,7 @@ class CollaborationSessionSameUserLifecycleTest {
 
 	private static void awaitFileAbsent(Path path, long timeout, TimeUnit unit) throws InterruptedException {
 		try {
-			com.microproject.testsupport.TestAwait.awaitTrue(() -> !Files.exists(path), Duration.ofNanos(unit.toNanos(timeout)), path.getFileName() + " to disappear");
+			com.microproject.ui.testsupport.TestAwait.awaitTrue(() -> !Files.exists(path), Duration.ofNanos(unit.toNanos(timeout)), path.getFileName() + " to disappear");
 		} catch (AssertionError timedOut) {
 			// callers assert on the resulting state
 		}
@@ -1247,7 +1247,7 @@ class CollaborationSessionSameUserLifecycleTest {
 			session.start();
 			try {
 				Files.writeString(control.resolve("child-session.ready"), "ready");
-				com.microproject.testsupport.TestAwait.awaitTrue(() -> Files.exists(control.resolve("child-session.stop")), Duration.ofSeconds(15),
+				com.microproject.ui.testsupport.TestAwait.awaitTrue(() -> Files.exists(control.resolve("child-session.stop")), Duration.ofSeconds(15),
 						"parent stop signal");
 				if (!Files.exists(control.resolve("child-session.stop"))) throw new IllegalStateException("timed out waiting for parent stop signal");
 			} finally {
@@ -1289,7 +1289,7 @@ class CollaborationSessionSameUserLifecycleTest {
 		Field stopped = CollaborationSession.class.getDeclaredField("stopped");
 		stopped.setAccessible(true);
 		try {
-			com.microproject.testsupport.TestAwait.awaitTrue(() -> {
+			com.microproject.ui.testsupport.TestAwait.awaitTrue(() -> {
 				try {
 					return stopped.getBoolean(session);
 				} catch (IllegalAccessException access) {

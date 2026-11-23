@@ -35,25 +35,25 @@ import javax.swing.AbstractButton;
 import javax.swing.JTabbedPane;
 import javax.swing.SwingUtilities;
 
-import com.microproject.menu.testsupport.UiComponentWalker;
-import com.microproject.pm.graphic.frames.GraphicManager;
-import com.microproject.pm.graphic.frames.MainRibbonFrame;
-import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
+import com.microproject.ui.menu.testsupport.UiComponentWalker;
+import com.microproject.ui.frame.GraphicManager;
+import com.microproject.ui.frame.MainRibbonFrame;
+import com.microproject.ui.view.spreadsheet.SpreadSheet;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
-import com.microproject.dialog.ResourceInformationDialog;
+import com.microproject.ui.dialog.ResourceInformationDialog;
 import com.microproject.job.JobQueue;
 import com.microproject.session.SessionFactory;
 import com.microproject.exchange.MpoFileImporter;
-import com.microproject.testsupport.GuiAcceptanceSupport;
-import com.microproject.testsupport.RibbonGuiSupport;
-import com.microproject.testsupport.WindowAcceptanceAssertions;
+import com.microproject.ui.testsupport.GuiAcceptanceSupport;
+import com.microproject.ui.testsupport.RibbonGuiSupport;
+import com.microproject.ui.testsupport.WindowAcceptanceAssertions;
 import com.microproject.ui.ribbon.RibbonDisplayMode;
 import com.microproject.ui.ribbon.RibbonDisplayPreferences;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Environment;
 import com.microproject.util.UiServices;
-import com.microproject.util.SwingFileChooserProvider;
+import com.microproject.ui.util.SwingFileChooserProvider;
 import com.microproject.ribbon.RibbonCommandResult;
 
 /**
@@ -152,7 +152,7 @@ final class RibbonCommandGuiFixture implements AutoCloseable {
 			frame[0].toFront();
 			frame[0].requestFocus();
 		});
-		Robot robot = new com.microproject.testsupport.GuiRobot();
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		RibbonCommandGuiFixture fixture = new RibbonCommandGuiFixture(frame[0], manager[0], robot, ribbonUi, newLook, displayMode,
 			previousFileChooser, previousSystemChooserProperty, chooserFileNameCalls, chooserFileNamesCalls,

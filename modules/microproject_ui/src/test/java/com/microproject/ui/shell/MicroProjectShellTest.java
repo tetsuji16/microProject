@@ -50,8 +50,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.ui.theme.MicroProjectTheme;
-import com.microproject.menu.MenuActionMapSupport;
-import com.microproject.menu.MenuManager;
+import com.microproject.ui.menu.MenuActionMapSupport;
+import com.microproject.ui.menu.MenuManager;
 import com.microproject.ui.ribbon.RibbonDisplayPreferences;
 
 class MicroProjectShellTest {
@@ -280,7 +280,7 @@ class MicroProjectShellTest {
 	}
 
 	private static JComponent findComponent(JComponent root, String name) {
-		for (java.awt.Component component : com.microproject.menu.testsupport.UiComponentWalker.flatten(root)) {
+		for (java.awt.Component component : com.microproject.ui.menu.testsupport.UiComponentWalker.flatten(root)) {
 			if (component instanceof JComponent jComponent && name.equals(jComponent.getName())) {
 				return jComponent;
 			}
@@ -289,7 +289,7 @@ class MicroProjectShellTest {
 	}
 
 	private static boolean hasComponent(JComponent root, String name) {
-		for (java.awt.Component component : com.microproject.menu.testsupport.UiComponentWalker.flatten(root)) {
+		for (java.awt.Component component : com.microproject.ui.menu.testsupport.UiComponentWalker.flatten(root)) {
 			if (component instanceof JComponent jComponent && name.equals(jComponent.getName())) {
 				return true;
 			}

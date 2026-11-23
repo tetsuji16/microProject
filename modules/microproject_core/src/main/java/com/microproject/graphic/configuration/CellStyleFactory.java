@@ -58,7 +58,7 @@ public class CellStyleFactory implements FormulaCatalog.Factory<CellStyle> {
 		}else if (formulaText!=null){
 		    StringBuilder classText = new StringBuilder();
 		    classText.append("package com.microproject.graphic.configuration;\n");
-		    classText.append("import com.microproject.pm.graphic.model.cache.GraphicNode;\n");
+		    classText.append("import com.microproject.ui.view.model.cache.GraphicNode;\n");
 			String definition = type + "\n" + format + "\n" + formulaText;
 			String className = GroovyClassCompiler.scriptClassName("CellStyle", definition);
 		    classText.append("public class ").append(className).append(" implements CellStyle{\n");

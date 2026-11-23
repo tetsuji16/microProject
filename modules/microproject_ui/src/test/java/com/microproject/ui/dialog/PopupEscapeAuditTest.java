@@ -1,0 +1,80 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.dialog;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import org.junit.jupiter.api.Test;
+
+class PopupEscapeAuditTest {
+	@Test
+	void abstractDialogStillBindsEscapeAtTheBaseClass() throws Exception {
+		String source = source("modules/microproject_ui/src/main/java/com/microproject/dialog/AbstractDialog.java");
+
+		assertTrue(source.contains("KeyEvent.VK_ESCAPE"));
+		assertTrue(source.contains("PopupDialogSupport.bindRootPaneAction(rootPane, escapeStroke, \"dialog.escape\""));
+		assertFalse(source.contains("bindWindowAction("));
+		assertFalse(source.contains("getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)"));
+	}
+
+	@Test
+	void graphicManagerRoutesChoosersThroughPopupDialogSupport() throws Exception {
+		String source = source("modules/microproject_ui/src/main/java/com/microproject/pm/graphic/frames/GraphicManager.java");
+		String collaboration = source("modules/microproject_core/src/main/java/com/microproject/collaboration/CollaborationSession.java");
+		String collaborationUi = source("modules/microproject_ui/src/main/java/com/microproject/pm/graphic/collaboration/CollaborationHelper.java");
+
+		assertTrue(source.contains("CollaborationHelper.checkBeforeSave(session, getCurrentFrame())"));
+		assertTrue(collaborationUi.contains("PopupDialogSupport.showOptionDialog("));
+		assertFalse(collaboration.contains("javax.swing"));
+		assertFalse(collaboration.contains("PopupDialogSupport"));
+		assertFalse(collaboration.contains("java.awt.Component"));
+		assertTrue(source.contains("PopupDialogSupport.showConfirmDialog("));
+		assertFalse(source.contains("JOptionPane.showOptionDialog("));
+		assertFalse(source.contains("JOptionPane.showConfirmDialog("));
+	}
+
+	@Test
+	void startupAndTipDialogsHaveEscapeCoverageHooks() throws Exception {
+		String mainSource = source("modules/microproject_ui/src/main/java/com/microproject/pm/graphic/gantt/Main.java");
+
+		// Main no longer shows a startup dialog; it must not reintroduce a raw JOptionPane.
+		assertFalse(mainSource.contains("JOptionPane.showMessageDialog("));
+	}
+
+	private static String source(String relativePath) throws IOException {
+		for (Path current = Path.of("").toAbsolutePath(); current != null; current = current.getParent()) {
+			Path candidate = current.resolve(relativePath).normalize();
+			if (Files.exists(candidate)) {
+				return Files.readString(candidate, StandardCharsets.UTF_8);
+			}
+		}
+		throw new java.nio.file.NoSuchFileException(relativePath);
+	}
+}

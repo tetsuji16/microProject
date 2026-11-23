@@ -1,0 +1,162 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.view.spreadsheet;
+
+import java.awt.Frame;
+import java.awt.Window;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.List;
+
+import javax.swing.JCheckBoxMenuItem;
+import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
+import javax.swing.SwingUtilities;
+
+import com.microproject.ui.dialog.AutoFilterDialog;
+import com.microproject.ui.dialog.ColumnDialog;
+import com.microproject.ui.dialog.FieldAliasDialog;
+import com.microproject.ui.view.IconManager;
+import com.microproject.ui.frame.GraphicManager;
+import com.microproject.ui.view.spreadsheet.common.CommonSpreadSheet;
+import com.microproject.field.Field;
+import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.strings.Messages;
+import com.microproject.util.Alert;
+
+/**
+ * 
+ */
+public class SpreadSheetColumnMenu extends JPopupMenu {
+	private static final long serialVersionUID = -8788124911790572547L;
+	@FunctionalInterface
+	interface FieldSelector {
+		Field select(CommonSpreadSheet spreadSheet, List<Field> availableFields, List<Field> currentFields);
+	}
+
+	private JMenuItem insert = new JMenuItem(Messages.getString("SpreadSheetColumnMenu.InsertColumn")); //$NON-NLS-1$
+
+	private JMenuItem hide = new JMenuItem(Messages.getString("SpreadSheetColumnMenu.HideColumn")); //$NON-NLS-1$
+	private JMenuItem rename = new JMenuItem(Messages.getString("RenameDialog.Rename")); //$NON-NLS-1$
+	private JCheckBoxMenuItem headerWrap = new JCheckBoxMenuItem(Messages.getString("SpreadSheetColumnMenu.HeaderWrap")); //$NON-NLS-1$
+	private JMenuItem find = new JMenuItem(Messages.getString("FindDialog.Find")); //$NON-NLS-1$
+	private JMenuItem autoFilter = new JMenuItem(Messages.getString("SpreadSheetColumnMenu.AutoFilter")); //$NON-NLS-1$
+
+	/**
+	 * @param col column that was clicked on
+	 * 
+	 */
+	public SpreadSheetColumnMenu(CommonSpreadSheet spreadSheet, final int col) {
+		this(spreadSheet, col, (sheet, available, current) ->
+			ColumnDialog.getFieldFromDialog(sheet, available, current));
+	}
+
+	/** Package-visible seam keeps the popup route testable without a modal dialog. */
+	SpreadSheetColumnMenu(CommonSpreadSheet spreadSheet, final int col, FieldSelector fieldSelector) {
+		super();
+		// setLabel("");
+		final CommonSpreadSheet sp = spreadSheet;
+		final SpreadSheetFieldArray fields = (SpreadSheetFieldArray) sp.getFieldArray();
+		insert.setIcon(IconManager.getIcon("menu.insertColumn")); //$NON-NLS-1$
+		insert.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				Field field = fieldSelector.select(sp, sp.getAvailableFields(), fields);
+				if (field != null) {
+					int c = col <= 0 ? fields.size() : Math.min(col, fields.size());
+					if (sp instanceof SpreadSheet sheet) {
+						sheet.insertColumn(c, field);
+					} else {
+						sp.setFieldArray(fields.insertField(c, field));
+					}
+				}
+			}
+		});
+		hide.setIcon(IconManager.getIcon("menu.hideColumn")); //$NON-NLS-1$
+
+		hide.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				if (sp instanceof SpreadSheet sheet) {
+					// col is a field-array index (the hidden ID field is index 0).
+					// Delegate to the one task-layout mutation path so this context-menu
+					// operation persists on the project and posts exactly one Undo edit.
+					if (!sheet.removeSelectedColumn(col - 1))
+						Alert.warn(Messages.getString("Message.cantEmptySpreadsheet"), sp);
+				} else if (fields.size() > 2 ) { // there is always the hidden Id field, so only allow delete if more than one other field
+					sp.setFieldArray(fields.removeField(col));
+				} else {
+					Alert.warn(Messages.getString("Message.cantEmptySpreadsheet"),sp); //$NON-NLS-1$
+				}
+			}
+		});
+
+		final Field f = fields.get(col);
+		final Frame owner = ownerFrame(sp);
+		
+		rename.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				
+				if (fields.size() > 2 ) { // there is always the hidden Id field, so only allow delete if more than one other field
+					FieldAliasDialog.doRename(owner, f);
+					sp.setFieldArray(fields);
+				} else {
+					Alert.warn(Messages.getString("Message.cantEmptySpreadsheet"),sp); //$NON-NLS-1$
+				}
+			}
+		});		
+		
+		find.addActionListener(new ActionListener() {
+			
+			public void actionPerformed(ActionEvent arg0) {
+				GraphicManager.getInstance().doFind(sp,f);
+			}
+		});		
+		
+		autoFilter.setIcon(IconManager.getIcon("menu.filter")); //$NON-NLS-1$
+		autoFilter.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				AutoFilterDialog.open(owner, sp, f);
+			}
+		});
+		
+		add(insert);
+		add(hide);
+		if (f.isCustom())
+			add(rename);
+		if (sp instanceof SpreadSheet sheet) {
+			// Microsoft Project "Header Wrapping" (Table Definition): default on, per column.
+			headerWrap.setSelected(sheet.isColumnHeaderWrap(col));
+			headerWrap.addActionListener(event -> sheet.setColumnHeaderWrap(col, !sheet.isColumnHeaderWrap(col)));
+			add(headerWrap);
+		}
+		add(find);
+		add(autoFilter);
+	}
+
+	private static Frame ownerFrame(CommonSpreadSheet spreadSheet) {
+		Window window = SwingUtilities.getWindowAncestor(spreadSheet);
+		if (window instanceof Frame frame)
+			return frame;
+		return GraphicManager.getFrameInstance();
+	}
+}

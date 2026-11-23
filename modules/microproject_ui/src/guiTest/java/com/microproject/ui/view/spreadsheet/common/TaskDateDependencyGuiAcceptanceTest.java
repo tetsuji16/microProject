@@ -1,0 +1,456 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ ******************************************************************************/
+package com.microproject.ui.view.spreadsheet.common;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.awt.Dimension;
+import java.awt.Dialog;
+import java.awt.GraphicsEnvironment;
+import java.awt.KeyboardFocusManager;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.Robot;
+import java.awt.Window;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
+import java.awt.image.BufferedImage;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Calendar;
+import java.util.TimeZone;
+
+import javax.swing.AbstractAction;
+import javax.swing.ActionMap;
+import javax.swing.JFrame;
+import javax.swing.JComponent;
+import javax.swing.JScrollPane;
+import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
+import javax.swing.Timer;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+
+import com.microproject.field.Field;
+import com.microproject.graphic.configuration.SpreadSheetCategories;
+import com.microproject.grouping.core.Node;
+import com.microproject.options.CalendarOption;
+import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.dependency.DependencyService;
+import com.microproject.pm.dependency.DependencyType;
+import com.microproject.ui.view.model.cache.NodeModelCache;
+import com.microproject.ui.view.model.cache.NodeModelCacheFactory;
+import com.microproject.ui.view.spreadsheet.SpreadSheet;
+import com.microproject.ui.view.spreadsheet.SpreadSheetModel;
+import com.microproject.ui.view.spreadsheet.SpreadSheetUtils;
+import com.microproject.ui.view.spreadsheet.editor.DateEditor;
+import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.Project;
+import com.microproject.strings.Messages;
+import com.microproject.ui.testsupport.GuiAcceptanceSupport;
+import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.ui.util.SwingAlertPresenter;
+import com.microproject.util.Alert;
+import com.microproject.util.Environment;
+import com.microproject.util.DateTime;
+
+/** Robot coverage for editing a predecessor start date through the visible task table. */
+class TaskDateDependencyGuiAcceptanceTest {
+	private JFrame frame;
+
+	@AfterEach
+	void closeWindow() throws Exception {
+		if (frame != null) SwingUtilities.invokeAndWait(() -> {
+			frame.dispose();
+			frame = null;
+		});
+	}
+
+	@ParameterizedTest(name = "{0} dependency")
+	@ValueSource(ints = { DependencyType.FS, DependencyType.SS, DependencyType.FF, DependencyType.SF })
+	void robotDateEditRecalculatesSuccessor(int type) throws Exception {
+		runRobotDateEdit(type, 0L);
+	}
+
+	@ParameterizedTest(name = "FS lag {0} days")
+	@ValueSource(longs = { -1L, 1L, 2L })
+	void robotDateEditHonorsFsLag(long lagDays) throws Exception {
+		runRobotDateEdit(DependencyType.FS, lagDays);
+	}
+
+	@Test
+	void robotDateEditSkipsWeekendWhenSchedulingFsSuccessor() throws Exception {
+		runRobotDateEdit(DependencyType.FS, 0L, "2026/06/13");
+	}
+
+	@Test
+	void robotInvalidDateRejectsInputAndPreservesOriginalValue() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(DependencyType.FS, 0L);
+		showFixture(fixture);
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activate(fixture);
+		clickCell(robot, fixture.sheet, fixture.predecessorRow, fixture.startColumn);
+		dispatchF2(fixture.sheet);
+		GuiAcceptanceSupport.await(fixture.sheet::isEditing, "F2 did not start date editing");
+		long originalStart = fixture.predecessor.getStart();
+		boolean previousClientSide = Environment.isClientSide();
+		Environment.setClientSide(true);
+		Alert.setPresenter(new SwingAlertPresenter());
+		AtomicBoolean warningSeen = new AtomicBoolean();
+		Timer closer = scheduleWarningDismissal(warningSeen);
+		try {
+			closer.start();
+			SwingUtilities.invokeAndWait(() -> {
+				DateEditor.ExtDateField editor = (DateEditor.ExtDateField) fixture.sheet.getEditorComponent();
+				editor.getTextField().setText("not-a-date");
+				assertTrue(fixture.sheet.getCellEditor().stopCellEditing(), "invalid date must be consumed with a warning");
+			});
+			GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "invalid date edit did not cancel");
+			assertTrue(warningSeen.get(), "invalid date must display a warning dialog");
+			assertEquals(originalStart, fixture.predecessor.getStart(), "invalid date must preserve the original value");
+		} finally {
+			closer.stop();
+			Environment.setClientSide(previousClientSide);
+		}
+	}
+
+	@Test
+	void robotInvalidPredecessorRejectsInputAndPreservesExistingLink() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture(DependencyType.FS, 0L);
+		showFixture(fixture);
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activate(fixture);
+		clickCell(robot, fixture.sheet, fixture.successorRow, fixture.predecessorsColumn);
+		dispatchF2(fixture.sheet);
+		GuiAcceptanceSupport.await(fixture.sheet::isEditing, "F2 did not start predecessor editing");
+		boolean previousClientSide = Environment.isClientSide();
+		Environment.setClientSide(true);
+		Alert.setPresenter(new SwingAlertPresenter());
+		AtomicBoolean warningSeen = new AtomicBoolean();
+		Timer closer = scheduleWarningDismissal(warningSeen);
+		try {
+			closer.start();
+			SwingUtilities.invokeAndWait(() -> {
+				javax.swing.text.JTextComponent editor = (javax.swing.text.JTextComponent) fixture.sheet.getEditorComponent();
+				editor.setText("999999");
+				assertTrue(!fixture.sheet.getCellEditor().stopCellEditing(), "invalid predecessor must keep the editor open for correction");
+			});
+			GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "invalid predecessor edit did not finish after error handling");
+			assertTrue(warningSeen.get(), "invalid predecessor must display an error dialog");
+			assertTrue(fixture.sheet.getLastException() != null, "spreadsheet must retain the parse failure for focus recovery");
+			assertEquals(1, fixture.successor.getPredecessorList().size(), "invalid predecessor must preserve the existing link");
+		} finally {
+			closer.stop();
+			Environment.setClientSide(previousClientSide);
+		}
+	}
+
+	private static Timer scheduleWarningDismissal(AtomicBoolean warningSeen) {
+		Timer timer = new Timer(100, event -> {
+			for (Window window : Window.getWindows()) {
+				if (window instanceof Dialog dialog && dialog.isVisible() && isAlertDialog(dialog)) {
+					warningSeen.set(true);
+					dialog.dispose();
+					((Timer) event.getSource()).stop();
+					return;
+				}
+			}
+		});
+		timer.setRepeats(true);
+		return timer;
+	}
+
+	private static boolean isAlertDialog(Dialog dialog) {
+		String title = dialog.getTitle();
+		return Messages.getString("Title.ApplicationWarning").equals(title)
+			|| Messages.getString("Title.ApplicationError").equals(title);
+	}
+
+	private void runRobotDateEdit(int type, long lagDays) throws Exception {
+		runRobotDateEdit(type, lagDays, "2026/06/09");
+	}
+
+	private void runRobotDateEdit(int type, long lagDays, String editedDate) throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = "2026/06/13".equals(editedDate)
+			? createFixture(type, lagDays, Calendar.JUNE, 8)
+			: createFixture(type, lagDays);
+		showFixture(fixture);
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		activate(fixture);
+		clickCell(robot, fixture.sheet, fixture.predecessorRow, fixture.startColumn);
+		dispatchF2(fixture.sheet);
+		GuiAcceptanceSupport.await(fixture.sheet::isEditing, "F2 did not start date editing");
+		assertEquals(fixture.startColumn, fixture.sheet.getEditingColumn(), "F2 must edit the start-date cell");
+		SwingUtilities.invokeAndWait(() -> {
+			DateEditor.ExtDateField editor = (DateEditor.ExtDateField) fixture.sheet.getEditorComponent();
+			editor.getTextField().setText(editedDate);
+			assertTrue(fixture.sheet.getCellEditor().stopCellEditing(), "date editor rejected a valid date");
+		});
+		GuiAcceptanceSupport.await(() -> !fixture.sheet.isEditing(), "date edit did not commit");
+		SwingUtilities.invokeAndWait(fixture.project::recalculate);
+		long requiredSuccessorStart = fixture.dependency.calcForwardDependencyDate(
+			fixture.predecessor.getStart(), fixture.predecessor.getEnd(), true);
+		long rawLinkBoundary = switch (type) {
+			case DependencyType.FS, DependencyType.FF -> fixture.predecessor.getEnd();
+			case DependencyType.SS, DependencyType.SF -> fixture.predecessor.getStart();
+			default -> throw new AssertionError("Unexpected dependency type " + type);
+		};
+		if (lagDays == 0L) {
+			if (type == DependencyType.FS || type == DependencyType.SS) {
+				assertEquals(rawLinkBoundary, requiredSuccessorStart,
+					"zero-lag start links use the predecessor endpoint as their raw start boundary");
+			}
+		}
+		// Microsoft specifies that the link boundary is a minimum and automatic
+		// tasks use working time. Compute the fixture's Standard-calendar start
+		// independently (UTC weekdays, 08:00-12:00 and 13:00-17:00); do not call
+		// the production WorkCalendar to manufacture the test expectation.
+		long expectedSuccessorStart = standardCalendarStartAtOrAfter(requiredSuccessorStart);
+		if (lagDays == 0L && "2026/06/09".equals(editedDate)) {
+			switch (type) {
+				case DependencyType.FS -> {
+					assertEquals(utc("2026-06-08T17:00:00Z"), rawLinkBoundary,
+						"FS raw boundary is the predecessor's Monday 17:00 finish");
+					expectedSuccessorStart = utc("2026-06-09T08:00:00Z");
+				}
+				case DependencyType.SS -> {
+					assertEquals(utc("2026-06-06T08:00:00Z"), rawLinkBoundary,
+						"SS raw boundary is Saturday 08:00");
+					expectedSuccessorStart = utc("2026-06-08T08:00:00Z");
+				}
+				case DependencyType.FF -> {
+					assertEquals(utc("2026-06-08T17:00:00Z"), rawLinkBoundary,
+						"FF raw boundary is the predecessor's Monday 17:00 finish");
+					expectedSuccessorStart = utc("2026-06-08T08:00:00Z");
+					assertTrue(fixture.successor.getEnd() >= rawLinkBoundary,
+						"FF successor must not finish before the predecessor finishes");
+					assertEquals(rawLinkBoundary, fixture.successor.getEnd(),
+						"the one-workday FF fixture finishes at the fixed Monday 17:00 boundary");
+				}
+				case DependencyType.SF -> {
+					assertEquals(utc("2026-06-06T08:00:00Z"), rawLinkBoundary,
+						"SF raw boundary is the predecessor's Saturday 08:00 start");
+					expectedSuccessorStart = utc("2026-06-08T08:00:00Z");
+					assertTrue(fixture.successor.getEnd() >= rawLinkBoundary,
+						"SF successor must not finish before the predecessor starts");
+					assertEquals(utc("2026-06-08T17:00:00Z"), fixture.successor.getEnd(),
+						"the one-workday SF fixture finishes at its fixed Monday 17:00 slot");
+				}
+				default -> throw new AssertionError("Unexpected dependency type " + type);
+			}
+		}
+		assertTrue(fixture.predecessor.getStart() > fixture.originalStart, "predecessor start must move after GUI edit");
+		if ("2026/06/13".equals(editedDate)) {
+			Calendar moved = DateTime.calendarInstance();
+			moved.setTimeInMillis(fixture.predecessor.getStart());
+			assertNotEquals(Calendar.SATURDAY, moved.get(Calendar.DAY_OF_WEEK),
+				"calendar must not leave a task on Saturday (" + moved.getTime() + ")");
+			assertNotEquals(Calendar.SUNDAY, moved.get(Calendar.DAY_OF_WEEK),
+				"calendar must not leave a task on Sunday (" + moved.getTime() + ")");
+		}
+		assertEquals(expectedSuccessorStart, fixture.successor.getStart(),
+			"successor must honor the link boundary at a valid calendar time after GUI edit; required="
+				+ requiredSuccessorStart + " expected=" + expectedSuccessorStart + " predecessor="
+				+ fixture.predecessor.getStart() + ".." + fixture.predecessor.getEnd() + " successor="
+				+ fixture.successor.getStart() + ".." + fixture.successor.getEnd() + " type="
+				+ dependencyTypeName(type) + " lag=" + fixture.dependency.getLeadValue() + " mode="
+				+ (fixture.successor.isManuallyScheduled() ? "manual" : "auto") + " calendar="
+				+ fixture.successor.getEffectiveWorkCalendar().getName());
+		capture(robot, type, lagDays);
+	}
+
+	private static long standardCalendarStartAtOrAfter(long boundary) {
+		Calendar time = Calendar.getInstance(TimeZone.getTimeZone("GMT"));
+		time.setTimeInMillis(boundary);
+		while (true) {
+			int day = time.get(Calendar.DAY_OF_WEEK);
+			if (day == Calendar.SATURDAY || day == Calendar.SUNDAY) {
+				time.add(Calendar.DAY_OF_MONTH, day == Calendar.SATURDAY ? 2 : 1);
+				setUtcTime(time, 8, 0);
+				continue;
+			}
+			int hour = time.get(Calendar.HOUR_OF_DAY);
+			if (hour < 8) {
+				setUtcTime(time, 8, 0);
+				return time.getTimeInMillis();
+			}
+			if (hour >= 17) {
+				time.add(Calendar.DAY_OF_MONTH, 1);
+				setUtcTime(time, 8, 0);
+				continue;
+			}
+			if (hour == 12) {
+				setUtcTime(time, 13, 0);
+				return time.getTimeInMillis();
+			}
+			return time.getTimeInMillis();
+		}
+	}
+
+	private static void setUtcTime(Calendar time, int hour, int minute) {
+		time.set(Calendar.HOUR_OF_DAY, hour);
+		time.set(Calendar.MINUTE, minute);
+		time.set(Calendar.SECOND, 0);
+		time.set(Calendar.MILLISECOND, 0);
+	}
+
+	private static long utc(String value) {
+		return java.time.Instant.parse(value).toEpochMilli();
+	}
+
+	private void showFixture(Fixture fixture) throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			frame = new JFrame("Task date dependency GUI acceptance");
+			JComponent rootPane = frame.getRootPane();
+			rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0), "EditField");
+			ActionMap actions = rootPane.getActionMap();
+			actions.put("EditField", new AbstractAction() {
+				@Override public void actionPerformed(java.awt.event.ActionEvent event) {
+					fixture.sheet.editActiveCell();
+				}
+			});
+			frame.add(new JScrollPane(fixture.sheet));
+			frame.setPreferredSize(new Dimension(1000, 460));
+			frame.pack();
+			frame.setLocationByPlatform(true);
+			frame.setAlwaysOnTop(true);
+			frame.setVisible(true);
+		});
+	}
+
+	private void activate(Fixture fixture) throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			frame.toFront();
+			frame.requestFocus();
+			fixture.sheet.requestFocusInWindow();
+		});
+		GuiAcceptanceSupport.await(fixture.sheet::isFocusOwner, "task table did not receive focus");
+	}
+
+	private static void clickCell(Robot robot, SpreadSheet sheet, int row, int column) throws Exception {
+		Rectangle cell = cellOnScreen(sheet, row, column);
+		robot.mouseMove(cell.x + cell.width / 2, cell.y + cell.height / 2);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+	}
+
+	private static void dispatchF2(SpreadSheet sheet) throws Exception {
+		SwingUtilities.invokeAndWait(() -> KeyboardFocusManager.getCurrentKeyboardFocusManager().dispatchEvent(
+			new KeyEvent(sheet, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_F2, KeyEvent.CHAR_UNDEFINED)));
+	}
+
+	private static Rectangle cellOnScreen(SpreadSheet sheet, int row, int column) throws Exception {
+		Rectangle[] result = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle bounds = sheet.getCellRect(row, column, true);
+			Point location = sheet.getLocationOnScreen();
+			result[0] = new Rectangle(location.x + bounds.x, location.y + bounds.y, bounds.width, bounds.height);
+		});
+		return result[0];
+	}
+
+	private void capture(Robot robot, int type, long lagDays) throws Exception {
+		Rectangle[] bounds = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> bounds[0] = new Rectangle(frame.getRootPane().getLocationOnScreen(), frame.getRootPane().getSize()));
+		BufferedImage screenshot = robot.createScreenCapture(bounds[0]);
+		Path directory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"));
+		Files.createDirectories(directory);
+		String suffix = dependencyTypeName(type) + (lagDays == 0L ? "" : "-lag" + lagDays);
+		javax.imageio.ImageIO.write(screenshot, "png", directory.resolve("task-date-dependency-edit-" + suffix + ".png").toFile());
+	}
+
+	private static String dependencyTypeName(int type) {
+		return switch (type) {
+			case DependencyType.FS -> "FS";
+			case DependencyType.SS -> "SS";
+			case DependencyType.FF -> "FF";
+			case DependencyType.SF -> "SF";
+			default -> "unknown";
+		};
+	}
+
+	private static Fixture createFixture(int type) throws Exception {
+		return createFixture(type, 0L);
+	}
+
+	private static Fixture createFixture(int type, long lagDays) throws Exception {
+		return createFixture(type, lagDays, Calendar.JUNE, 6);
+	}
+
+	private static Fixture createFixture(int type, long lagDays, int month, int day) throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("gui-date-dependency", undo);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		NormalTask predecessor = task(project, "GUI predecessor", 1L);
+		NormalTask successor = task(project, "GUI successor", 1L);
+		long originalStart = DateTime.calendarInstance(2026, month, day).getTimeInMillis();
+		predecessor.setStart(originalStart);
+		Dependency dependency = DependencyService.getInstance().newDependency(predecessor, successor, type,
+			lagDays * CalendarOption.getInstance().getMillisPerDay(), project);
+		project.recalculate();
+		final Fixture[] result = new Fixture[1];
+		SwingUtilities.invokeAndWait(() -> {
+			SpreadSheet sheet = new SpreadSheet();
+			sheet.setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
+			NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
+				NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel()), "gui-date-dependency", null);
+			SpreadSheetUtils.setFieldsAndContext(sheet, cache, SpreadSheetCategories.taskSpreadsheetCategory, "Spreadsheet.Task.entry", true);
+			Node node = (Node) cache.getModel().search(predecessor);
+			int row = ((SpreadSheetModel) sheet.getModel()).findGraphicNodeRow(cache.getGraphicNode(node));
+			Node successorNode = (Node) cache.getModel().search(successor);
+			int successorRow = ((SpreadSheetModel) sheet.getModel()).findGraphicNodeRow(cache.getGraphicNode(successorNode));
+			result[0] = new Fixture(project, sheet, predecessor, successor, dependency, originalStart, row, successorRow,
+				findStartColumn(sheet), findPredecessorsColumn(sheet));
+		});
+		return result[0];
+	}
+
+	private static NormalTask task(Project project, String name, long days) {
+		NormalTask task = new NormalTask(project);
+		task.setName(name);
+		project.connectTask(task);
+		project.getSchedulingAlgorithm().addObject(task);
+		task.getCurrentSchedule().setStart(project.getStart());
+		task.setDuration(days * CalendarOption.getInstance().getMillisPerDay());
+		return task;
+	}
+
+	private static int findStartColumn(SpreadSheet sheet) {
+		SpreadSheetModel model = (SpreadSheetModel) sheet.getModel();
+		for (int column = 0; column < model.getColumnCount(); column++) {
+			Field field = model.getFieldInColumn(column);
+			if (field != null && "Field.start".equals(field.getId())) return sheet.convertColumnIndexToView(column);
+		}
+		throw new IllegalArgumentException("Missing start field");
+	}
+
+	private static int findPredecessorsColumn(SpreadSheet sheet) {
+		SpreadSheetModel model = (SpreadSheetModel) sheet.getModel();
+		for (int column = 0; column < model.getColumnCount(); column++) {
+			Field field = model.getFieldInColumn(column);
+			if (field != null && "Field.predecessors".equals(field.getId())) return sheet.convertColumnIndexToView(column);
+		}
+		throw new IllegalArgumentException("Missing predecessors field");
+	}
+
+	private record Fixture(Project project, SpreadSheet sheet, NormalTask predecessor, NormalTask successor,
+		Dependency dependency, long originalStart, int predecessorRow, int successorRow, int startColumn, int predecessorsColumn) { }
+}

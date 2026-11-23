@@ -28,7 +28,7 @@ package com.microproject.pm.scheduling.pert;
  */
 /**
  * Core PERT calculation interface. This is distinct from
- * {@link com.microproject.pm.graphic.pert.PertChart} which is the PERT view component.
+ * {@link com.microproject.ui.view.pert.PertChart} which is the PERT view component.
  */
 public interface Pert {
 	public long getExpectedFinish();
