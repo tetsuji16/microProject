@@ -42,6 +42,7 @@ import com.microproject.field.FieldParseException;
 import com.microproject.graphic.configuration.ActionList;
 import com.microproject.graphic.configuration.CellStyle;
 import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.ProjectSummaryRow;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
@@ -150,7 +151,7 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 			return;
 
 		Node rowNode = getNodeInRow(row);
-		if (rowNode.getImpl() instanceof Project project && getCache().getModel().getDataFactory() == project) {
+		if (rowNode instanceof ProjectSummaryRow && rowNode.getImpl() instanceof Project project) {
 			var editSupport = getCache().getModel().getUndoableEditSupport();
 			if (project.isReadOnly() || editSupport == null || !"Field.name".equals(field.getId())
 					|| !(value instanceof String newName))
@@ -158,11 +159,11 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 			String previousName = project.getName();
 			if (java.util.Objects.equals(previousName, newName) || newName.isEmpty())
 				return;
-			project.setName(newName);
+			setProjectName(project, newName);
 			editSupport.postEdit(new AbstractUndoableEdit() {
 				private static final long serialVersionUID = 1L;
-				@Override public void undo() { super.undo(); project.setName(previousName); }
-				@Override public void redo() { super.redo(); project.setName(newName); }
+				@Override public void undo() { super.undo(); setProjectName(project, previousName); }
+				@Override public void redo() { super.redo(); setProjectName(project, newName); }
 				@Override public String getPresentationName() { return "Rename Project"; }
 			});
 			if (committedValueListener != null)
@@ -230,6 +231,11 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 			committedValueListener.run();
 	}
 
+	private static void setProjectName(Project project, String name) {
+		project.setName(name);
+		project.setDirty(true);
+	}
+
 	static long getDependencyLag(Field editedField, Object value, Dependency dependency) {
 		if (editedField != null && DEPENDENCY_LAG_FIELD_ID.equals(editedField.getId())) {
 			return ((Duration) value).getEncodedMillis();
@@ -265,7 +271,7 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 		if (field.getLookupTypes() != null)
 			return false;
 		Node node = getNodeInRow(row);
-		if (node.getImpl() instanceof Project project && getCache().getModel().getDataFactory() == project)
+		if (node instanceof ProjectSummaryRow && node.getImpl() instanceof Project project)
 			return !project.isReadOnly() && "Field.name".equals(field.getId());
 		NodeModel nodeModel=getCache().getModel();
 		

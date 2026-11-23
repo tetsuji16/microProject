@@ -109,6 +109,7 @@ import com.microproject.document.ObjectSelectionEvent;
 import com.microproject.document.ObjectSelectionListener;
 import com.microproject.field.Field;
 import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.ProjectSummaryRow;
 import com.microproject.grouping.core.NodeList;
 import com.microproject.grouping.core.model.WalkersNodeModel;
 import com.microproject.grouping.core.model.NodeModel;
@@ -856,7 +857,7 @@ public class DocumentFrame extends NamedFrame implements
 	public boolean hasProjectSummaryRowSelected() {
 		SpreadSheet sheet = getActiveSpreadSheet();
 		return sheet != null && sheet.getSelectedNodes().stream()
-				.anyMatch(node -> node != null && node.getImpl() == project);
+				.anyMatch(node -> node instanceof ProjectSummaryRow);
 	}
 
 	private RibbonCommandResult rejectedWithSelection(CommandId command, String reason, List<Long> selectedIds) {

@@ -44,6 +44,7 @@ import com.microproject.document.Document;
 import com.microproject.grouping.core.GroupNodeImpl;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
+import com.microproject.grouping.core.ProjectSummaryRow;
 import com.microproject.grouping.core.model.WalkersNodeModel;
 import com.microproject.grouping.core.transform.ViewConfiguration;
 import com.microproject.grouping.core.transform.ViewTransformer;
@@ -121,7 +122,7 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
 
 	private boolean isProjectSummaryNode(GraphicNode node) {
 		return showProjectSummaryTask && node != null && node.getNode() != null
-				&& node.getNode().getImpl() instanceof Project;
+                && node.getNode() instanceof ProjectSummaryRow;
 	}
 
 
@@ -282,7 +283,7 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
 		if (!showProjectSummaryTask || refCache == null || !(refCache.getDocument() instanceof Project project))
 			return;
 		list.removeIf(this::isProjectSummaryNode);
-		Node projectNode = NodeFactory.getInstance().createNode(project);
+		Node projectNode = new ProjectSummaryRow(project);
 		GraphicNode summaryNode = new GraphicNode(projectNode, 0);
 		summaryNode.setSummary(true);
 		summaryNode.setComposite(true);

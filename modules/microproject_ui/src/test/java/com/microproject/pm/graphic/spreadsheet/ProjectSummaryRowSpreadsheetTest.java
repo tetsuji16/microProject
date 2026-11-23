@@ -7,6 +7,7 @@ package com.microproject.pm.graphic.spreadsheet;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -38,13 +39,33 @@ class ProjectSummaryRowSpreadsheetTest {
 		int nameColumn = findColumn(model, "Field.name");
 		int otherColumn = findColumn(model, "Field.start");
 		assertTrue(model.isCellEditable(row, nameColumn));
-		assertFalse(model.isCellEditable(row, otherColumn));
+		for (int column = 1; column < model.getColumnCount(); column++)
+			if (column != nameColumn) assertFalse(model.isCellEditable(row, column),
+				"only the name column may be edited: " + model.getFieldInColumn(column).getId());
 		assertEquals(new java.util.Date(fixture.project().getStart()), model.getValueAt(row, otherColumn));
+		for (int column = 1; column < model.getColumnCount(); column++)
+			model.getValueAt(row, column); // every default task-sheet column must tolerate the synthetic Project row
+		assertEquals(fixture.project().getName(), model.getValueAt(row, findColumn(model, "Field.name")));
+		assertEquals(new java.util.Date(fixture.project().getEnd()), model.getValueAt(row, findColumn(model, "Field.finish")));
+		assertEquals(fixture.project().getDuration(), ((com.microproject.datatype.Duration) model.getValueAt(row,
+			findColumn(model, "Field.duration"))).getEncodedMillis());
+		assertEquals(null, model.getValueAt(row, findColumn(model, "Field.manuallyScheduled")));
+		assertEquals(null, model.getValueAt(row, findColumn(model, "Field.resourceNames")));
+		assertEquals(null, model.getValueAt(row, findColumn(model, "Field.predecessors")));
 
 		SwingUtilities.invokeAndWait(() -> model.setValueAt("Renamed project", row, nameColumn));
 		assertEquals("Renamed project", fixture.project().getName());
+		assertTrue(fixture.project().isDirty(), "renaming the project must mark it dirty for saving");
 		SwingUtilities.invokeAndWait(() -> fixture.project().getUndoController().undo());
 		assertEquals("Summary Sheet Test", fixture.project().getName());
+		SwingUtilities.invokeAndWait(() -> fixture.project().getUndoController().redo());
+		assertEquals("Renamed project", fixture.project().getName());
+		java.io.ByteArrayOutputStream saved = new java.io.ByteArrayOutputStream();
+		assertTrue(new com.microproject.exchange.MpoFileImporter().saveProject(fixture.project(), saved));
+		Project reopened = new com.microproject.exchange.MpoFileImporter().loadProject(
+			new java.io.ByteArrayInputStream(saved.toByteArray()));
+		assertNotNull(reopened);
+		assertEquals("Renamed project", reopened.getName(), "the edited project name must survive MPO save/reload");
 	}
 
 	@Test

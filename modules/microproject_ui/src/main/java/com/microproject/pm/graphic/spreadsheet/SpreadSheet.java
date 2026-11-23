@@ -112,6 +112,7 @@ import com.microproject.pm.graphic.spreadsheet.renderer.SpreadSheetColumnHeaderR
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.ProjectSummaryRow;
 import com.microproject.grouping.core.NodeBridge;
 import com.microproject.grouping.core.NodeFactory;
 import com.microproject.grouping.core.model.NodeModel;
@@ -2533,9 +2534,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	};
 
 	private boolean isProjectSummaryRow(GraphicNode graphicNode) {
-		if (graphicNode == null || graphicNode.getNode() == null
-				|| !(graphicNode.getNode().getImpl() instanceof Project project)) return false;
-		return getModel() instanceof SpreadSheetModel model && model.getCache().getModel().getDataFactory() == project;
+		return graphicNode != null && graphicNode.getNode() instanceof ProjectSummaryRow;
 	}
 
 	protected SpreadSheetAction newAction=new SpreadSheetAction("Spreadsheet.Action.new",this){
@@ -2582,12 +2581,12 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 
 	@Override
 	public boolean isNodeDeletable(Node node) {
-		return node != null && !(node.getImpl() instanceof Project) && super.isNodeDeletable(node);
+		return node != null && !(node instanceof ProjectSummaryRow) && super.isNodeDeletable(node);
 	}
 
 	@Override
 	public boolean isNodeCuttable(Node node) {
-		return node != null && !(node.getImpl() instanceof Project) && super.isNodeCuttable(node);
+		return node != null && !(node instanceof ProjectSummaryRow) && super.isNodeCuttable(node);
 	}
 
 	protected SpreadSheetAction cutAction = new SpreadSheetAction("Spreadsheet.Action.cut",this) {
