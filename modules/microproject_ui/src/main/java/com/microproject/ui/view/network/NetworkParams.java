@@ -27,14 +27,18 @@ import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
+import java.util.Map;
 
 import com.microproject.ui.view.graph.GraphParams;
 import com.microproject.ui.view.network.layout.NetworkLayout;
 import com.microproject.ui.view.network.layout.NetworkLayoutListener;
 
-public interface NetworkParams extends GraphParams,NetworkLayoutListener{	
+public interface NetworkParams extends GraphParams,NetworkLayoutListener{
 	public AffineTransform getTransform();
 	public int getZoom();
+
+	/** Returns the map of task unique ID to manual center position (logical coordinates at 100% zoom). May be empty. */
+	public default Map<Long, com.microproject.pm.graphic.network.PertManualPositions.Position> getManualPositions() { return java.util.Collections.emptyMap(); }
 
 	public default GeneralPath scale(GeneralPath path){
 		if (path == null)
@@ -71,7 +75,7 @@ public interface NetworkParams extends GraphParams,NetworkLayoutListener{
 	public NetworkLayout getNetworkLayout();
 	/** Display options of the Network Format tab; views without their own get the defaults. */
 	public default NetworkDisplayOptions getDisplayOptions(){ return new NetworkDisplayOptions(); }
-	
+
 
 }
 

@@ -43,6 +43,7 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.BaselineRollupOptions;
 import com.microproject.pm.task.TaskSnapshot;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.graphic.network.PertManualPositions;
 import com.microproject.pm.task.TaskSplitInterval;
 import com.microproject.pm.task.TaskModeService;
 import com.microproject.pm.task.TaskProgressService;
@@ -2303,6 +2304,68 @@ class MpoFileImporterTest {
 			StandardCharsets.UTF_8);
 		assertFalse(styles.contains("displayOnTimeline"), styles);
 		assertFalse(firstTask(loadFromBytes(plainArchive.toByteArray())).isDisplayOnTimeline());
+	}
+
+	@Test
+	void pertManualPositionsSurviveRepeatedMpoSaveAndReload() throws Exception {
+		Project project = projectForRoundTrip();
+		Task originalTask = firstTask(project);
+		originalTask.setUniqueId(-1L);
+		long originalUid = originalTask.getUniqueId();
+		PertManualPositions positions = project.getOrCreateTransientDocumentState(
+			PertManualPositions.class, PertManualPositions::new);
+		positions.putPosition(originalUid, new PertManualPositions.Position(432.5, 217.25));
+
+		byte[] firstSave = saveProjectBytes(project);
+		Map<Long, Long> taskIdentities = MpoSidecarJson.readTaskIdentities(readEntries(firstSave)
+			.get(MpoFileImporter.TASK_IDENTITIES_ENTRY));
+		long serializedUid = taskIdentities.get(originalUid);
+		assertNotEquals(originalUid, serializedUid, "fixture must exercise model-to-MSPDI UID remapping");
+		Project reopened = loadFromBytes(firstSave);
+		Task reopenedTask = firstTask(reopened);
+		PertManualPositions restored = reopened.findTransientDocumentState(PertManualPositions.class);
+		assertNotNull(restored);
+		assertEquals(serializedUid, reopenedTask.getUniqueId());
+		assertEquals(new PertManualPositions.Position(432.5, 217.25), restored.getPosition(reopenedTask.getUniqueId()));
+
+		Project resaved = loadFromBytes(saveProjectBytes(reopened));
+		PertManualPositions restoredAgain = resaved.findTransientDocumentState(PertManualPositions.class);
+		assertNotNull(restoredAgain);
+		assertEquals(new PertManualPositions.Position(432.5, 217.25),
+			restoredAgain.getPosition(firstTask(resaved).getUniqueId()),
+			"a reload must retain the identity used by the next save");
+	}
+
+	@Test
+	void loadedPertManualPositionsFollowMovesAndClearsOnSubsequentMpoSaves() throws Exception {
+		Project original = projectForRoundTrip();
+		Task originalTask = firstTask(original);
+		PertManualPositions initialPositions = original.getOrCreateTransientDocumentState(
+			PertManualPositions.class, PertManualPositions::new);
+		initialPositions.putPosition(originalTask.getUniqueId(), new PertManualPositions.Position(100, 200));
+
+		Project opened = loadFromBytes(saveProjectBytes(original));
+		Task openedTask = firstTask(opened);
+		PertManualPositions openedPositions = opened.findTransientDocumentState(PertManualPositions.class);
+		assertNotNull(openedPositions);
+		openedPositions.putPosition(openedTask.getUniqueId(), new PertManualPositions.Position(350, 475));
+
+		byte[] movedArchive = saveProjectBytes(opened);
+		Project movedReload = loadFromBytes(movedArchive);
+		Task movedTask = firstTask(movedReload);
+		PertManualPositions movedPositions = movedReload.findTransientDocumentState(PertManualPositions.class);
+		assertNotNull(movedPositions);
+		assertEquals(new PertManualPositions.Position(350, 475), movedPositions.getPosition(movedTask.getUniqueId()),
+			"a save after moving a restored box must use its current position, not the loaded sidecar bytes");
+
+		movedPositions.clear();
+		byte[] clearedArchive = saveProjectBytes(movedReload);
+		assertFalse(readEntries(clearedArchive).containsKey(MpoFileImporter.PERT_MANUAL_POSITIONS_ENTRY),
+			"clearing manual positions must remove the preserved PERT sidecar entry");
+		Project clearedReload = loadFromBytes(clearedArchive);
+		PertManualPositions clearedPositions = clearedReload.findTransientDocumentState(PertManualPositions.class);
+		assertTrue(clearedPositions == null || clearedPositions.isEmpty(),
+			"cleared manual positions must remain cleared after MPO reload");
 	}
 
 	@Test

@@ -17,7 +17,7 @@ Out of scope: class redesign, core/exchange package relocation, com.jgoodies.
 | ID | Required result/evidence | State | Evidence |
 |---|---|---|---|
 | A1 | UI source/resource directories under com.microproject.ui | pass | directory inspection, `83e8b42d6` |
-| A2 | old package reference grep is empty | pass | source search, `83e8b42d6` |
+| A2 | old package reference grep is empty | open | master added core `pm.graphic.network.PertManualPositions`; see issue comment |
 | A3 | installDist launch succeeds | open | physical startup pending |
 | A4 | PR build and GUI acceptance pass | open | exact candidate CI pending |
 | A5 | relocated persisted classes mapped; exchange tests pass if applicable | pass | no moved main classes in persisted inventory; exchange test and clean build passed, `83e8b42d6` |
@@ -31,6 +31,7 @@ Out of scope: class redesign, core/exchange package relocation, com.jgoodies.
 
 ## Remaining blockers
 
+- A2: master added a core class in the excluded namespace; issue contract conflicts with its stated scope, documented in issue comment.
 - A3, A4: physical startup and passing candidate CI.
 
 ## Latest evidence
@@ -38,3 +39,5 @@ Out of scope: class redesign, core/exchange package relocation, com.jgoodies.
 - `83e8b42d6`: `./gradlew.bat clean build installDist --console=plain` passed on Windows.
 - CI on `83e8b42d6`: Windows and macOS builds passed; Linux failed at a stale test path; GUI failed loading stale service provider name. Corrected locally.
 - Corrected tree: `python -m unittest discover -s scripts/tests -v` passed (24 tests); `./gradlew.bat :microproject_ui:guiTest --tests "*GuiEnvironmentExtensionUserDataTest" --console=plain` passed (3 tests). This exercises service loading, not physical application startup.
+
+- Integration with master `305e393c8`: UI compile and architecture checks passed; focused network, summary and ribbon unit tests passed. CI pending.

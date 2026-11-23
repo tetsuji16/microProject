@@ -28,6 +28,10 @@ import java.awt.Dimension;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.Point2D;
+import java.io.Serializable;
+import java.util.Collections;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -45,15 +49,17 @@ import com.microproject.pm.task.Project;
 import com.microproject.ui.util.FlatUiSupport;
 import com.microproject.workspace.SavableToWorkspace;
 import com.microproject.workspace.WorkspaceSetting;
+import com.microproject.pm.graphic.network.PertManualPositions;
 
 /**
- *
- */
+*
+*/
 public class Network extends Graph implements NetworkLayoutListener, NetworkParams, SavableToWorkspace{
 	private static final Logger logger = Logger.getLogger(Network.class.getName());
 	private static final long serialVersionUID = -7976852605189565105L;
 	protected AffineTransform transform;
-    protected int zoom;
+	protected int zoom;
+	protected LinkRouting routing = new DefaultNetworkLinkRouting();
 
 	public Network(Project project,String viewName) {
 		this(new NetworkModel(project,viewName),project);
@@ -97,13 +103,33 @@ public class Network extends Graph implements NetworkLayoutListener, NetworkPara
 		return zoom!=barStyles.getMinZoom();
 	}
 	public AffineTransform getTransform() {
-		return transform;
-	}
-	public int getZoom() {
-		return zoom;
-	}
+				return transform;
+			}
+			public int getZoom() {
+				return zoom;
+			}
+			@Override
+			public Map<Long, PertManualPositions.Position> getManualPositions() {
+				PertManualPositions pmp = getProject().findTransientDocumentState(PertManualPositions.class);
+				return pmp != null ? pmp.getPositions() : Collections.emptyMap();
+			}
 
-   	protected LinkRouting routing=new DefaultNetworkLinkRouting();
+		@Override
+				public WorkspaceSetting createWorkspace(int context) {
+					Workspace ws = new Workspace();
+					ws.zoom = zoom;
+					ws.progressMarks = Boolean.valueOf(displayOptions.isProgressMarks());
+					ws.linkLabels = Boolean.valueOf(displayOptions.isLinkLabels());
+					ws.straightLinks = Boolean.valueOf(displayOptions.isStraightLinks());
+					ws.collapsedBoxes = Boolean.valueOf(displayOptions.isCollapsed());
+					ws.boxSpacing = Integer.valueOf(displayOptions.getBoxSpacing());
+					ws.boxStyles = displayOptions.encodeStyles();
+			Container p = getParent();
+			if (p instanceof JViewport) {
+				ws.viewPosition = ((JViewport)p).getViewPosition();
+			}
+			return ws;
+			}
 	public LinkRouting getRouting(){
 		return routing;
 	}
@@ -145,68 +171,52 @@ public class Network extends Graph implements NetworkLayoutListener, NetworkPara
 		return true;
 	}
 	public void restoreWorkspace(WorkspaceSetting w, int context) {
-		Workspace ws = (Workspace) w;
-		makeZoom(ws.zoom);
-		displayOptions.setProgressMarks(ws.progressMarks != null && ws.progressMarks.booleanValue());
-		displayOptions.setLinkLabels(ws.linkLabels != null && ws.linkLabels.booleanValue());
-		boolean wasCollapsed = displayOptions.isCollapsed();
-		int wasSpacing = displayOptions.getBoxSpacing();
-		displayOptions.setCollapsed(ws.collapsedBoxes != null && ws.collapsedBoxes.booleanValue());
-		displayOptions.setBoxSpacing(ws.boxSpacing == null ? 0 : ws.boxSpacing.intValue());
-		displayOptions.decodeStyles(ws.boxStyles);
-		setStraightLinks(ws.straightLinks != null && ws.straightLinks.booleanValue());
-		if (wasCollapsed != displayOptions.isCollapsed() || wasSpacing != displayOptions.getBoxSpacing()) relayout();
-     	Container p = getParent();
-     	if (p instanceof JViewport && ws.viewPosition != null) {
-     		try {
-     		((JViewport)p).setViewPosition(ws.viewPosition);
-     		} catch (RuntimeException e) {
-     			logger.log(Level.FINE, "problem restoring viewport to point {0}", ws.viewPosition);
-     		}
-     	}
-
-	}
-	public WorkspaceSetting createWorkspace(int context) {
-		Workspace ws = new Workspace();
-		ws.zoom = zoom;
-		ws.progressMarks = Boolean.valueOf(displayOptions.isProgressMarks());
-		ws.linkLabels = Boolean.valueOf(displayOptions.isLinkLabels());
-		ws.straightLinks = Boolean.valueOf(displayOptions.isStraightLinks());
-		ws.collapsedBoxes = Boolean.valueOf(displayOptions.isCollapsed());
-		ws.boxSpacing = Integer.valueOf(displayOptions.getBoxSpacing());
-		ws.boxStyles = displayOptions.encodeStyles();
-     	Container p = getParent();
-     	if (p instanceof JViewport) {
-     		ws.viewPosition = ((JViewport)p).getViewPosition();
-     	}
-		return ws;
-	}
-	public static class Workspace implements WorkspaceSetting  {
-		private static final long serialVersionUID = 7804032466144588065L;
-		int zoom;
-		Point viewPosition = null;
-		Boolean progressMarks;
-		Boolean linkLabels;
-		Boolean straightLinks;
-		Boolean collapsedBoxes;
-		Integer boxSpacing;
-		String boxStyles;
-		public int getZoom() {
-			return zoom;
-		}
-
-		public void setZoom(int zoom) {
-			this.zoom = zoom;
-		}
-
-		public Point getViewPosition() {
-			return viewPosition;
-		}
-
-		public void setViewPosition(Point viewPosition) {
-			this.viewPosition = viewPosition;
+			Workspace ws = (Workspace) w;
+			makeZoom(ws.zoom);
+			displayOptions.setProgressMarks(ws.progressMarks != null && ws.progressMarks.booleanValue());
+			displayOptions.setLinkLabels(ws.linkLabels != null && ws.linkLabels.booleanValue());
+			boolean wasCollapsed = displayOptions.isCollapsed();
+			int wasSpacing = displayOptions.getBoxSpacing();
+			displayOptions.setCollapsed(ws.collapsedBoxes != null && ws.collapsedBoxes.booleanValue());
+			displayOptions.setBoxSpacing(ws.boxSpacing == null ? 0 : ws.boxSpacing.intValue());
+			displayOptions.decodeStyles(ws.boxStyles);
+			setStraightLinks(ws.straightLinks != null && ws.straightLinks.booleanValue());
+			if (wasCollapsed != displayOptions.isCollapsed() || wasSpacing != displayOptions.getBoxSpacing()) relayout();
+		Container p = getParent();
+		if (p instanceof JViewport && ws.viewPosition != null) {
+			try {
+			((JViewport)p).setViewPosition(ws.viewPosition);
+			} catch (RuntimeException e) {
+				logger.log(Level.FINE, "problem restoring viewport to point {0}", ws.viewPosition);
+			}
 		}
 	}
+		public static class Workspace implements WorkspaceSetting, Serializable  {
+				private static final long serialVersionUID = 7804032466144588065L;
+				int zoom;
+				Point viewPosition = null;
+				Boolean progressMarks;
+				Boolean linkLabels;
+				Boolean straightLinks;
+				Boolean collapsedBoxes;
+				Integer boxSpacing;
+				String boxStyles;
+				public int getZoom() {
+					return zoom;
+				}
+
+				public void setZoom(int zoom) {
+					this.zoom = zoom;
+				}
+
+				public Point getViewPosition() {
+					return viewPosition;
+				}
+
+				public void setViewPosition(Point viewPosition) {
+					this.viewPosition = viewPosition;
+				}
+			}
 	public Rectangle getPrintBounds() {
 		return null;
 	}

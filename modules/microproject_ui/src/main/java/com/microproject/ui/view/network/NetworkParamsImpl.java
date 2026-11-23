@@ -23,8 +23,13 @@
  *******************************************************************************/
 package com.microproject.ui.view.network;
 
+import com.microproject.pm.graphic.network.PertManualPositions;
+
 import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.Point2D;
+import java.util.Collections;
+import java.util.Map;
 
 import com.microproject.ui.view.graph.GraphParams;
 import com.microproject.ui.view.graph.LinkRouting;
@@ -34,6 +39,7 @@ import com.microproject.ui.view.network.layout.NetworkLayoutEvent;
 import com.microproject.ui.view.link_routing.DefaultNetworkLinkRouting;
 import com.microproject.graphic.configuration.BarStyles;
 import com.microproject.graphic.configuration.GraphicConfiguration;
+import com.microproject.pm.task.Project;
 
 public class NetworkParamsImpl implements NetworkParams,Cloneable {
 	protected AffineTransform transform;
@@ -44,11 +50,23 @@ public class NetworkParamsImpl implements NetworkParams,Cloneable {
 	protected LinkRouting routing;
 	protected NetworkLayout networkLayout;
 	protected Rectangle printBounds;
+	protected Project project;
 
 	public NetworkParamsImpl(){
 		configuration=GraphicConfiguration.getInstance();
 		routing=new DefaultNetworkLinkRouting();
 		transform=new AffineTransform();
+	}
+
+	public void setProject(Project project) {
+		this.project = project;
+	}
+
+	@Override
+	public Map<Long, PertManualPositions.Position> getManualPositions() {
+		if (project == null) return Collections.emptyMap();
+		PertManualPositions state = project.findTransientDocumentState(PertManualPositions.class);
+		return state == null ? Collections.emptyMap() : state.getPositions();
 	}
 
 	public AffineTransform getTransform() {

@@ -22,6 +22,7 @@ import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.model.cache.NodeModelCacheFactory;
 import com.microproject.ui.view.model.cache.ReferenceNodeModelCache;
 import com.microproject.ui.view.network.NetworkParams;
+import com.microproject.pm.graphic.network.PertManualPositions;
 import com.microproject.ui.view.pert.PertLayout;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
@@ -69,6 +70,38 @@ class PertLayoutGeometryTest {
 			assertTrue(branchANode.getPertCenter().getY() < branchBNode.getPertCenter().getY());
 			assertEquals(Set.of("Start->Branch A", "Start->Branch B", "Branch A->Finish", "Branch B->Finish"),
 				edgeDescriptions(cache));
+		} finally {
+			renderer.cleanUp();
+			reference.close();
+		}
+	}
+
+	@Test
+	void manualPositionOverridesOnlyThatTaskAndAutomaticBoundsStayStable() throws Exception {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("pert-manual-position", undo), undo);
+		project.initialize(false, false);
+		NormalTask first = addTask(project, "First");
+		NormalTask second = addTask(project, "Second");
+		first.setUniqueId(101L);
+		second.setUniqueId(102L);
+		ReferenceNodeModelCache reference = NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel());
+		NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(reference, "Network", null);
+		NetworkSVGRenderer renderer = new NetworkSVGRenderer();
+		try {
+			renderer.init(project, cache, NetworkSVGRenderer.PERT, -1);
+			PertLayout layout = (PertLayout) ((NetworkParams) renderer.getParams()).getNetworkLayout();
+			GraphicNode firstNode = node(cache, project, first);
+			GraphicNode secondNode = node(cache, project, second);
+			double automaticSecondY = secondNode.getPertCenter().getY();
+			PertManualPositions positions = project.getOrCreateTransientDocumentState(
+				PertManualPositions.class, PertManualPositions::new);
+			positions.putPosition(first.getUniqueId(), new PertManualPositions.Position(1234, 567));
+			layout.updateBounds();
+			assertEquals(1234, firstNode.getPertCenter().getX(), 0.01);
+			assertEquals(567, firstNode.getPertCenter().getY(), 0.01);
+			assertEquals(automaticSecondY, secondNode.getPertCenter().getY(), 0.01,
+				"automatic node centers should not move when manual positioning is applied");
 		} finally {
 			renderer.cleanUp();
 			reference.close();

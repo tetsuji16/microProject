@@ -109,6 +109,7 @@ import com.microproject.document.ObjectSelectionEvent;
 import com.microproject.document.ObjectSelectionListener;
 import com.microproject.field.Field;
 import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.ProjectSummaryRow;
 import com.microproject.grouping.core.NodeList;
 import com.microproject.grouping.core.model.WalkersNodeModel;
 import com.microproject.grouping.core.model.NodeModel;
@@ -846,9 +847,17 @@ public class DocumentFrame extends NamedFrame implements
 			ActiveTaskSelectionResolver.Selection selection, int minimumCount) {
 		String reason = project == null ? "no-active-document"
 			: project.isReadOnly() ? "document-read-only"
+			: hasProjectSummaryRowSelected() ? "project-summary-row-selected"
 			: minimumCount <= 0 || selection.isEligible(minimumCount) ? null
 			: selection.rejectionReason().isEmpty() ? "selection-too-small" : selection.rejectionReason();
 		return reason == null ? null : rejectedWithSelection(command, reason, selection.stableTaskIds());
+	}
+
+	/** True when the active task sheet selection includes the synthetic whole-project row. */
+	public boolean hasProjectSummaryRowSelected() {
+		SpreadSheet sheet = getActiveSpreadSheet();
+		return sheet != null && sheet.getSelectedNodes().stream()
+				.anyMatch(node -> node instanceof ProjectSummaryRow);
 	}
 
 	private RibbonCommandResult rejectedWithSelection(CommandId command, String reason, List<Long> selectedIds) {

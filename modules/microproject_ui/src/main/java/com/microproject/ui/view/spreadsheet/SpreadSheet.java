@@ -112,6 +112,7 @@ import com.microproject.ui.view.spreadsheet.renderer.SpreadSheetColumnHeaderRend
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.ProjectSummaryRow;
 import com.microproject.grouping.core.NodeBridge;
 import com.microproject.grouping.core.NodeFactory;
 import com.microproject.grouping.core.model.NodeModel;
@@ -2517,16 +2518,24 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	protected SpreadSheetAction indentAction = new SpreadSheetAction("Spreadsheet.Action.indent",this) {
 		public void execute() {
 			finishCurrentOperations();
-			getCache().indentNodes(getSelected());
+			List<GraphicNode> selected = new ArrayList<>(getSelected());
+			if (selected.stream().anyMatch(SpreadSheet.this::isProjectSummaryRow)) return;
+			getCache().indentNodes(selected);
 		}
 	};
 
 	protected SpreadSheetAction outdentAction = new SpreadSheetAction("Spreadsheet.Action.outdent",this) {
 		public void execute() {
 			finishCurrentOperations();
-			getCache().outdentNodes(getSelected());
+			List<GraphicNode> selected = new ArrayList<>(getSelected());
+			if (selected.stream().anyMatch(SpreadSheet.this::isProjectSummaryRow)) return;
+			getCache().outdentNodes(selected);
 		}
 	};
+
+	private boolean isProjectSummaryRow(GraphicNode graphicNode) {
+		return graphicNode != null && graphicNode.getNode() instanceof ProjectSummaryRow;
+	}
 
 	protected SpreadSheetAction newAction=new SpreadSheetAction("Spreadsheet.Action.new",this){
 		public void execute(){
@@ -2569,6 +2578,16 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			}
 		}
 	};
+
+	@Override
+	public boolean isNodeDeletable(Node node) {
+		return node != null && !(node instanceof ProjectSummaryRow) && super.isNodeDeletable(node);
+	}
+
+	@Override
+	public boolean isNodeCuttable(Node node) {
+		return node != null && !(node instanceof ProjectSummaryRow) && super.isNodeCuttable(node);
+	}
 
 	protected SpreadSheetAction cutAction = new SpreadSheetAction("Spreadsheet.Action.cut",this) {
 		private static final long serialVersionUID = -7928292866527615772L;

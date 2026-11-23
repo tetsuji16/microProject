@@ -24,8 +24,15 @@
 package com.microproject.scripting.formulas;
 
 import com.microproject.pm.task.Task;
+import com.microproject.pm.task.Project;
+import com.microproject.field.InvalidFormulaException;
 
 public class SummaryTaskFormula extends TaskFormula {
+	@Override
+	public Object evaluate(Object object) throws InvalidFormulaException {
+		return Boolean.valueOf(object instanceof Project || Boolean.TRUE.equals(super.evaluate(object)));
+	}
+
 	public boolean evaluateTask(Task task){
 		return task.isSummary();
 	}

@@ -41,21 +41,22 @@ import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.pm.task.Project;
 import com.microproject.undo.UndoController;
 import com.microproject.workspace.WorkspaceSetting;
+import com.microproject.pm.graphic.network.PertManualPositions;
 
 /**
- *
- */
+*
+*/
 public class PertView extends JScrollPane implements BaseView {
 	private static final long serialVersionUID = 1493530627188782732L;
 	protected PertChart pert;
 	protected NodeModel model;
 	protected Project project;
 	DocumentFrame documentFrame;
-	
+
 	protected NodeModelCache cache;
 	/**
-	 * 
-	 */
+	*
+	*/
 	public PertView(DocumentFrame documentFrame, MenuManager manager) {
 		super();
 		HelpUtil.addDocHelp(this,"Network_Diagram");
@@ -67,16 +68,16 @@ public class PertView extends JScrollPane implements BaseView {
 		this.cache=NodeModelCacheFactory.getInstance().createAntiAssignmentFilteredCache(cache,getViewName(),null);
 		pert.setCache(this.cache);
 		pert.setBarStyles((BarStyles) Dictionary.get(BarStyles.category,"pert"));
-			
-		
+
+
 		JViewport viewport = createViewport();
 		viewport.setView(pert);
 		setViewport(viewport);
 		if (project.isReadOnly())
 			pert.setEnabled(false);
-		cache.update(); //this is not required by certain views 
+		cache.update(); //this is not required by certain views
 	}
-	
+
 	public void cleanUp() {
 		pert.cleanUp();
 		pert = null;
@@ -109,7 +110,7 @@ public class PertView extends JScrollPane implements BaseView {
 	public boolean hasNormalMinWidth() {
 		return true;
 	}
-	
+
 	public String getViewName() {
 		return MenuActionConstants.ACTION_NETWORK;
 	}
@@ -122,7 +123,7 @@ public class PertView extends JScrollPane implements BaseView {
 	}
 	public void onActivate(boolean activate) {
 	}
-	
+
 	public boolean isPrintable() {
 		return true;
 	}
@@ -136,7 +137,7 @@ public class PertView extends JScrollPane implements BaseView {
 		return ws;
 	}
 
-	public static class Workspace implements WorkspaceSetting { 
+	public static class Workspace implements WorkspaceSetting {
 		private static final long serialVersionUID = 3364215160357571230L;
 		WorkspaceSetting network;
 
@@ -185,21 +186,29 @@ public class PertView extends JScrollPane implements BaseView {
 	}
 	/** Recomputes every box position from the dependency levels (Layout Now). */
 	public void layoutNow() {
-		if (pert != null && pert.getNetworkLayout() != null) {
-			pert.getNetworkLayout().updateBounds();
-			pert.repaint();
+		if (pert == null || pert.getNetworkLayout() == null) return;
+		PertManualPositions pmp = project.findTransientDocumentState(PertManualPositions.class);
+		if (pmp != null && !pmp.isEmpty()) {
+			java.util.Map<Long, PertManualPositions.Position> previous = new java.util.HashMap<>(pmp.getPositions());
+			pmp.clear();
+			project.setDirty(true);
+			UndoController undoController = project.getUndoController();
+			if (undoController != null && undoController.getEditSupport() != null) {
+				undoController.getEditSupport().postEdit(new com.microproject.ui.view.network.NetworkLayoutNowEdit(pert, previous));
+			}
 		}
+		pert.relayout();
 	}
 	public boolean canScrollToTask() {
 		return false;
 	}
 	public void scrollToTask() {
 	}
-	
+
 	public NodeModelCache getCache(){
 		return cache;
 	}
-	
-	
-	
+
+
+
 }
