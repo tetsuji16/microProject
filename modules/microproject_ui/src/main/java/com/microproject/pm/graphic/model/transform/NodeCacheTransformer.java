@@ -111,7 +111,17 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
 	}
 
 	public int getDisplayLevel(GraphicNode node) {
-		return isFlatTaskSort() && !node.isGroup() ? levelOffset + 1 : node.getLevel() + (node.isGroup() ? 0 : levelOffset);
+		if (isProjectSummaryNode(node)) return 0;
+		int displayLevel = isFlatTaskSort() && !node.isGroup()
+				? levelOffset + 1 : node.getLevel() + (node.isGroup() ? 0 : levelOffset);
+		// Top-level task rows already begin at level one. Group rows normally begin
+		// at zero, so move those down to make room for the project summary row.
+		return showProjectSummaryTask && node.isGroup() ? displayLevel + 1 : displayLevel;
+	}
+
+	private boolean isProjectSummaryNode(GraphicNode node) {
+		return showProjectSummaryTask && node != null && node.getNode() != null
+				&& node.getNode().getImpl() instanceof Project;
 	}
 
 
@@ -151,19 +161,7 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
         boolean grouping=!transformer.isNoneGrouper();
 
         if (!filtering&&!sorting&&!grouping) {
-            // Still need to insert project summary task row if enabled
-            if (showProjectSummaryTask && refCache != null) {
-                Document document = refCache.getDocument();
-                if (document instanceof Project project) {
-                    Node projectNode = NodeFactory.getInstance().createNode(project);
-                    GraphicNode projectSummaryNode = new GraphicNode(projectNode, 0);
-                    projectSummaryNode.setSummary(true);
-                    projectSummaryNode.setComposite(true);
-                    projectSummaryNode.setCollapsed(false);
-                    list.add(0, projectSummaryNode);
-                    levelOffset += 1;
-                }
-            }
+            insertProjectSummaryRow(list);
             return;
         }
 
@@ -269,12 +267,28 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
 
         if (assignmentsMap!=null) recoverAssignments(list, assignmentsMap);
 
+        // Keep the project summary outside filtering, sorting and grouping. It always
+        // represents the project as a whole and remains the first visible row.
+        insertProjectSummaryRow(list);
+
 
 //        if (transformer.isShowEmptyLines())
 //        	placeVoidNodes(list);
 
 
     }
+
+	private void insertProjectSummaryRow(List<GraphicNode> list) {
+		if (!showProjectSummaryTask || refCache == null || !(refCache.getDocument() instanceof Project project))
+			return;
+		list.removeIf(this::isProjectSummaryNode);
+		Node projectNode = NodeFactory.getInstance().createNode(project);
+		GraphicNode summaryNode = new GraphicNode(projectNode, 0);
+		summaryNode.setSummary(true);
+		summaryNode.setComposite(true);
+		summaryNode.setCollapsed(false);
+		list.add(0, summaryNode);
+	}
 
 	private boolean filterEmptySummaries(List<GraphicNode> list,boolean filterVoids){
 		boolean containsNonSummaries=false;

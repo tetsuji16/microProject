@@ -16,11 +16,13 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
+import com.microproject.grouping.core.transform.ViewTransformer;
 import com.microproject.pm.graphic.model.transform.NodeCacheTransformer;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Task;
+import com.microproject.scripting.formulas.SummaryTaskFormula;
 import com.microproject.undo.DataFactoryUndoController;
 
 class NodeCacheTransformerTest {
@@ -90,10 +92,36 @@ class NodeCacheTransformerTest {
         for (GraphicNode node : nodes) {
             if (node.getNode().getImpl() instanceof NormalTask) {
                 foundTask = true;
-                assertEquals(1, node.getLevel(), "Task levels should be offset by 1");
+                assertEquals(1, transformer.getDisplayLevel(node), "Task display levels should be offset by 1");
             }
         }
         assertTrue(foundTask, "Should have at least one task node");
+    }
+
+    @Test
+    void projectSummaryRowRemainsFirstWhenFilteredSortedAndGrouped() {
+        Project project = createTestProject();
+        ReferenceNodeModelCache refCache = createRefCache(project);
+        NodeCacheTransformer transformer = new NodeCacheTransformer("test-filter-summary", refCache, value -> {
+            ViewTransformer viewTransformer = (ViewTransformer) value;
+            viewTransformer.setUserFilterId("Filter.Gantt");
+            viewTransformer.setUserSorter("Sorter.Name", false);
+            viewTransformer.setUserGrouperId("Grouper.Duration");
+        });
+        transformer.setShowProjectSummaryTask(true);
+
+        VisibleNodes view = new VisibleNodes("test-filter-summary", transformer);
+        VisibleDependencies deps = new VisibleDependencies("test-filter-summary-dependencies");
+        view.setVisibleDependencies(deps);
+        deps.setVisibleNodes(view);
+        refCache.updateVisibleElements(view);
+
+        List<GraphicNode> nodes = view.getElements();
+        assertFalse(nodes.isEmpty(), "filtered tasks should leave a project summary row");
+        assertTrue(nodes.get(0).getNode().getImpl() instanceof Project);
+        assertEquals(0, transformer.getDisplayLevel(nodes.get(0)));
+        assertTrue(nodes.stream().filter(GraphicNode::isGroup).allMatch(node -> transformer.getDisplayLevel(node) > 0),
+                "group levels should be shifted below the project summary row");
     }
 
     @Test
@@ -115,6 +143,13 @@ class NodeCacheTransformerTest {
         long projectEnd = project.getEnd();
         long summaryEnd = projectSummaryNode.getEnd();
         assertEquals(projectEnd, summaryEnd, "Project summary row end should match project end");
+    }
+
+    @Test
+    void projectSummaryRowUsesSummaryBarStyleFormula() throws Exception {
+        Project project = createTestProject();
+        assertEquals(Boolean.TRUE, new SummaryTaskFormula().evaluate(project),
+                "the whole-project row should qualify for the existing summary task bar style");
     }
 
     private Project createTestProject() {

@@ -2517,14 +2517,18 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	protected SpreadSheetAction indentAction = new SpreadSheetAction("Spreadsheet.Action.indent",this) {
 		public void execute() {
 			finishCurrentOperations();
-			getCache().indentNodes(getSelected());
+			List<GraphicNode> selected = new ArrayList<>(getSelected());
+			selected.removeIf(node -> node.getNode().getImpl() instanceof Project);
+			getCache().indentNodes(selected);
 		}
 	};
 
 	protected SpreadSheetAction outdentAction = new SpreadSheetAction("Spreadsheet.Action.outdent",this) {
 		public void execute() {
 			finishCurrentOperations();
-			getCache().outdentNodes(getSelected());
+			List<GraphicNode> selected = new ArrayList<>(getSelected());
+			selected.removeIf(node -> node.getNode().getImpl() instanceof Project);
+			getCache().outdentNodes(selected);
 		}
 	};
 
@@ -2569,6 +2573,16 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			}
 		}
 	};
+
+	@Override
+	public boolean isNodeDeletable(Node node) {
+		return node != null && !(node.getImpl() instanceof Project) && super.isNodeDeletable(node);
+	}
+
+	@Override
+	public boolean isNodeCuttable(Node node) {
+		return node != null && !(node.getImpl() instanceof Project) && super.isNodeCuttable(node);
+	}
 
 	protected SpreadSheetAction cutAction = new SpreadSheetAction("Spreadsheet.Action.cut",this) {
 		private static final long serialVersionUID = -7928292866527615772L;
