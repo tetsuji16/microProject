@@ -5893,6 +5893,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		DocumentFrame editFrame = getCurrentFrame();
 		SpreadSheet editSheet = editFrame == null ? null : editFrame.getActiveSpreadSheet();
 		boolean hasClipboardSelection = editSheet != null && !editSheet.getSelectedNodes().isEmpty();
+		boolean hasProjectSummarySelection = editFrame != null && editFrame.hasProjectSummaryRowSelected();
 		traceUi("button-state impl=" + describeUiObject(currentImpl)
 			+ " taskInformationEnabled=" + taskInfoEnabled
 			+ " documentActive=" + isDocumentActive());
@@ -5914,7 +5915,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_CUT,!readOnly && hasClipboardSelection && (actions==null||actions.contains(ACTION_CUT)));
 		getMenuManager().setActionEnabled(ACTION_COPY,hasClipboardSelection&&(actions==null||actions.contains(ACTION_COPY)));
 		getMenuManager().setActionEnabled(ACTION_PASTE,!readOnly && (actions==null||actions.contains(ACTION_PASTE)));
-		getMenuManager().setActionEnabled(ACTION_DELETE,!readOnly && (actions==null||actions.contains(ACTION_DELETE)));
+		getMenuManager().setActionEnabled(ACTION_DELETE,!readOnly && !hasProjectSummarySelection
+			&& (actions==null||actions.contains(ACTION_DELETE)));
 		getMenuManager().setActionEnabled("RibbonFormatPainter", !readOnly && taskType && editFrame != null
 			&& editFrame.canStartFormatPainter());
 		boolean canFormatTaskText = !readOnly && taskType && editFrame != null && editFrame.canFormatSelectedTaskText();
@@ -5954,9 +5956,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		boolean hierarchyCommandsAvailable = isTask || actions == null
 			|| actions.contains(ACTION_INDENT) || actions.contains(ACTION_OUTDENT);
 		getMenuManager().setActionEnabled(ACTION_INDENT,
-				!readOnly && hasPureHierarchySelection && hierarchyCommandsAvailable);
+				!readOnly && !hasProjectSummarySelection && hasPureHierarchySelection && hierarchyCommandsAvailable);
 		getMenuManager().setActionEnabled(ACTION_OUTDENT,
-				!readOnly && hasPureHierarchySelection && canOutdent && hierarchyCommandsAvailable);
+				!readOnly && !hasProjectSummarySelection && hasPureHierarchySelection && canOutdent && hierarchyCommandsAvailable);
 		getMenuManager().setActionEnabled(ACTION_MOVE_TASK_UP,!readOnly && isTask && getCurrentFrame() != null && getCurrentFrame().canMoveSelectedTasks(-1));
 		getMenuManager().setActionEnabled(ACTION_MOVE_TASK_DOWN,!readOnly && isTask && getCurrentFrame() != null && getCurrentFrame().canMoveSelectedTasks(1));
 		getMenuManager().setActionEnabled(ACTION_EXPAND,
@@ -5964,7 +5966,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_COLLAPSE,
 				!readOnly && hasOutlineTaskSelection && (actions==null||actions.contains(ACTION_COLLAPSE)));
 		boolean hasLinkSelection = hierarchyTaskNodes.size() >= 2;
-		getMenuManager().setActionEnabled(ACTION_LINK, !readOnly && hasLinkSelection);
+		getMenuManager().setActionEnabled(ACTION_LINK, !readOnly && !hasProjectSummarySelection && hasLinkSelection);
 		getMenuManager().setActionEnabled(ACTION_UNLINK, !readOnly && hasEditableTaskSelection);
 		boolean taskModeEnabled = !readOnly && taskType && hasEditableTaskSelection;
 		getMenuManager().setActionEnabled(ACTION_TASK_MODE_MANUAL, taskModeEnabled);
