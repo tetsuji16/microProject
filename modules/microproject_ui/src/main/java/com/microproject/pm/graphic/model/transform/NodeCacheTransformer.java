@@ -44,6 +44,7 @@ import com.microproject.document.Document;
 import com.microproject.grouping.core.GroupNodeImpl;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
+import com.microproject.grouping.core.ProjectSummaryRow;
 import com.microproject.grouping.core.model.WalkersNodeModel;
 import com.microproject.grouping.core.transform.ViewConfiguration;
 import com.microproject.grouping.core.transform.ViewTransformer;
@@ -54,6 +55,7 @@ import com.microproject.grouping.core.transform.grouping.NodeGrouper;
 import com.microproject.grouping.core.transform.sorting.NodeSorter;
 import com.microproject.grouping.core.transform.sorting.TaskSortSpec;
 import com.microproject.grouping.core.transform.transformer.NodeTransformer;
+import com.microproject.pm.task.Project;
 
 /**
  *
@@ -65,9 +67,10 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
     protected int levelOffset=0;
     protected String viewName;
     protected ViewConfiguration view;
+    protected boolean showProjectSummaryTask = false;
 
     public NodeCacheTransformer(String viewName,ReferenceNodeModelCache refCache,Consumer<Object> transformerClosure){
-    	view=ViewConfiguration.getView(viewName);
+	view=ViewConfiguration.getView(viewName);
         if (view == null || view.getTransform() == null) {
             view = new ViewConfiguration();
             view.setName(viewName);
@@ -81,6 +84,24 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
     	this.viewName=viewName;
     }
 
+    /**
+     * Returns whether the project summary task row should be displayed at the top of the view.
+     * @return true if project summary task is shown
+     */
+    public boolean isShowProjectSummaryTask() {
+        return showProjectSummaryTask;
+    }
+
+    /**
+     * Sets whether the project summary task row should be displayed at the top of the view.
+     * When enabled, a synthetic row representing the project as a summary task is inserted
+     * at the beginning of the node list with level 0, and all other task levels are offset by 1.
+     * @param showProjectSummaryTask true to show the project summary task row
+     */
+    public void setShowProjectSummaryTask(boolean showProjectSummaryTask) {
+        this.showProjectSummaryTask = showProjectSummaryTask;
+    }
+
 	public ViewTransformer getTransformer() {
 		return transformer;
 	}
@@ -91,7 +112,17 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
 	}
 
 	public int getDisplayLevel(GraphicNode node) {
-		return isFlatTaskSort() && !node.isGroup() ? levelOffset + 1 : node.getLevel() + (node.isGroup() ? 0 : levelOffset);
+		if (isProjectSummaryNode(node)) return 0;
+		int displayLevel = isFlatTaskSort() && !node.isGroup()
+				? levelOffset + 1 : node.getLevel() + (node.isGroup() ? 0 : levelOffset);
+		// Top-level task rows already begin at level one. Group rows normally begin
+		// at zero, so move those down to make room for the project summary row.
+		return showProjectSummaryTask && node.isGroup() ? displayLevel + 1 : displayLevel;
+	}
+
+	private boolean isProjectSummaryNode(GraphicNode node) {
+		return showProjectSummaryTask && node != null && node.getNode() != null
+                && node.getNode() instanceof ProjectSummaryRow;
 	}
 
 
@@ -130,7 +161,10 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
         NodeGrouper grouper=transformer.getUserGrouper();
         boolean grouping=!transformer.isNoneGrouper();
 
-        if (!filtering&&!sorting&&!grouping) return;
+        if (!filtering&&!sorting&&!grouping) {
+            insertProjectSummaryRow(list);
+            return;
+        }
 
         if (transformer.isShowAssignments()&&preserveHierarchy&&!transformer.isTreatAssignmentsAsTasks()) assignmentsMap=extractAssignments(list);
 
@@ -234,11 +268,28 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
 
         if (assignmentsMap!=null) recoverAssignments(list, assignmentsMap);
 
+        // Keep the project summary outside filtering, sorting and grouping. It always
+        // represents the project as a whole and remains the first visible row.
+        insertProjectSummaryRow(list);
+
+
 //        if (transformer.isShowEmptyLines())
 //        	placeVoidNodes(list);
 
 
     }
+
+	private void insertProjectSummaryRow(List<GraphicNode> list) {
+		if (!showProjectSummaryTask || refCache == null || !(refCache.getDocument() instanceof Project project))
+			return;
+		list.removeIf(this::isProjectSummaryNode);
+		Node projectNode = new ProjectSummaryRow(project);
+		GraphicNode summaryNode = new GraphicNode(projectNode, 0);
+		summaryNode.setSummary(true);
+		summaryNode.setComposite(true);
+		summaryNode.setCollapsed(false);
+		list.add(0, summaryNode);
+	}
 
 	private boolean filterEmptySummaries(List<GraphicNode> list,boolean filterVoids){
 		boolean containsNonSummaries=false;

@@ -26,6 +26,8 @@ package com.microproject.pm.graphic.spreadsheet;
 import java.util.LinkedList;
 import java.util.List;
 
+import javax.swing.undo.AbstractUndoableEdit;
+
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.ProjectionRowKey;
@@ -40,11 +42,13 @@ import com.microproject.field.FieldParseException;
 import com.microproject.graphic.configuration.ActionList;
 import com.microproject.graphic.configuration.CellStyle;
 import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.ProjectSummaryRow;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.task.Task;
+import com.microproject.pm.task.Project;
 import com.microproject.util.ClassUtils;
 import com.microproject.util.Environment;
 
@@ -147,6 +151,25 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 			return;
 
 		Node rowNode = getNodeInRow(row);
+		if (rowNode instanceof ProjectSummaryRow && rowNode.getImpl() instanceof Project project) {
+			var editSupport = getCache().getModel().getUndoableEditSupport();
+			if (project.isReadOnly() || editSupport == null || !"Field.name".equals(field.getId())
+					|| !(value instanceof String newName))
+				return;
+			String previousName = project.getName();
+			if (java.util.Objects.equals(previousName, newName) || newName.isEmpty())
+				return;
+			setProjectName(project, newName);
+			editSupport.postEdit(new AbstractUndoableEdit() {
+				private static final long serialVersionUID = 1L;
+				@Override public void undo() { super.undo(); setProjectName(project, previousName); }
+				@Override public void redo() { super.redo(); setProjectName(project, newName); }
+				@Override public String getPresentationName() { return "Rename Project"; }
+			});
+			if (committedValueListener != null)
+				committedValueListener.run();
+			return;
+		}
 		//Field field = getFieldInColumn(col);
 
 		try {
@@ -208,6 +231,11 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 			committedValueListener.run();
 	}
 
+	private static void setProjectName(Project project, String name) {
+		project.setName(name);
+		project.setDirty(true);
+	}
+
 	static long getDependencyLag(Field editedField, Object value, Dependency dependency) {
 		if (editedField != null && DEPENDENCY_LAG_FIELD_ID.equals(editedField.getId())) {
 			return ((Duration) value).getEncodedMillis();
@@ -243,6 +271,8 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 		if (field.getLookupTypes() != null)
 			return false;
 		Node node = getNodeInRow(row);
+		if (node instanceof ProjectSummaryRow && node.getImpl() instanceof Project project)
+			return !project.isReadOnly() && "Field.name".equals(field.getId());
 		NodeModel nodeModel=getCache().getModel();
 		
 		if (node.isVoid()&&!(nodeModel.isLocal()||nodeModel.isMaster())&&"Field.userRole".equals(field.getId()))
