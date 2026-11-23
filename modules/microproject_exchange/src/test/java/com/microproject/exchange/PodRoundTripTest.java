@@ -71,7 +71,6 @@ import com.microproject.pm.resource.ResourceType;
 import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.datatype.Rate;
 import com.microproject.datatype.TimeUnit;
-import com.microproject.pm.graphic.network.PertManualPositions;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
