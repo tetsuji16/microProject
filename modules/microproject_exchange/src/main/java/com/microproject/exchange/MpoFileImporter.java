@@ -1,8 +1,8 @@
 /*******************************************************************************
- * MIT License
- *
- * Copyright (c) 2026 microProject
- ******************************************************************************/
+* MIT License
+*
+* Copyright (c) 2026 microProject
+******************************************************************************/
 package com.microproject.exchange;
 
 import java.io.ByteArrayInputStream;
@@ -88,10 +88,10 @@ import com.microproject.util.RetirableFileLock;
 import com.microproject.util.SafeFileReplace;
 
 /**
- * Reads and writes MPOF v1.0 containers. An mpo file is a ZIP containing a
- * UTF-8 manifest and a standards-based MSPDI XML snapshot; it never embeds a
- * Java serialized object.
- */
+* Reads and writes MPOF v1.0 containers. An mpo file is a ZIP containing a
+* UTF-8 manifest and a standards-based MSPDI XML snapshot; it never embeds a
+* Java serialized object.
+*/
 public class MpoFileImporter extends FileImporter {
 	private static final Object EXPORT_LOCK_GUARD = new Object();
 	private static final int CAPTURE_ATTEMPTS = 3;
@@ -118,17 +118,19 @@ public class MpoFileImporter extends FileImporter {
 	/** Detached saved-baseline assignment profiles not representable in MSPDI assignments. */
 	static final String BASELINE_PROFILES_ENTRY = "microproject/baseline-profiles.json";
 	/** Assignment-level generated split ownership not represented by MSPDI. */
-	static final String ASSIGNMENT_LEVELING_SPLITS_ENTRY = "microproject/assignment-leveling-splits.json";
-	/** MPOF v1.0 container layout (ODF conventions). */
+		static final String ASSIGNMENT_LEVELING_SPLITS_ENTRY = "microproject/assignment-leveling-splits.json";
+		/** Network Diagram (PERT) manual box positions; MSPDI has no equivalent. */
+		static final String PERT_MANUAL_POSITIONS_ENTRY = "microproject/pert-manual-positions.json";
+		/** MPOF v1.0 container layout (ODF conventions). */
 	static final String FORMAT_ID = "mpof";
 	/** Container version this build writes; every save rewrites the file at this version. */
 	static final String FORMAT_VERSION = MpoFormatVersion.CURRENT.toString();
 	/**
-	 * A container is readable when its major version matches. Minor revisions are additive
-	 * (unknown entries are carried through as extensions), so an older or newer minor
-	 * revision still opens and is upgraded to {@link #FORMAT_VERSION} on the next save
-	 * (issue #356). A different major version is rejected with an explicit message.
-	 */
+	* A container is readable when its major version matches. Minor revisions are additive
+	* (unknown entries are carried through as extensions), so an older or newer minor
+	* revision still opens and is upgraded to {@link #FORMAT_VERSION} on the next save
+	* (issue #356). A different major version is rejected with an explicit message.
+	*/
 	static final int SUPPORTED_FORMAT_MAJOR = MpoFormatVersion.CURRENT.major();
 	/** Marker added once MPOF snapshots use the MSPDI minute-based delay unit. */
 	static final String LEVELING_DELAY_UNIT_ATTRIBUTE = "levelingDelayUnit";
@@ -162,11 +164,11 @@ public class MpoFileImporter extends FileImporter {
 		.enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
 	/**
-	 * Configures the application-owned root used for extracted embedded projects.
-	 * The path is copied as a normalized absolute path; passing {@code null}
-	 * restores the platform default.  This bridge keeps exchange independent of
-	 * the application TemporaryWorkspace implementation.
-	 */
+	* Configures the application-owned root used for extracted embedded projects.
+	* The path is copied as a normalized absolute path; passing {@code null}
+	* restores the platform default.  This bridge keeps exchange independent of
+	* the application TemporaryWorkspace implementation.
+	*/
 	public static void setExtractionWorkspaceRoot(Path root) {
 		extractionWorkspaceRoot = root == null ? null : root.toAbsolutePath().normalize();
 	}
@@ -188,14 +190,14 @@ public class MpoFileImporter extends FileImporter {
 	}
 
 	/**
-	 * Reads a file-backed MPO through its central directory before applying the
-	 * stream parser.  Some valid ZIP writers use data descriptors whose local
-	 * header sizes are unreliable to {@link ZipInputStream}; {@link ZipFile}
-	 * resolves those entries from the authoritative central directory.  The
-	 * normalized bytes still pass through {@link #loadProject(InputStream)}, so
-	 * duplicate-name, mimetype, checksum and expansion-limit validation remains
-	 * identical for stream and file imports.
-	 */
+	* Reads a file-backed MPO through its central directory before applying the
+	* stream parser.  Some valid ZIP writers use data descriptors whose local
+	* header sizes are unreliable to {@link ZipInputStream}; {@link ZipFile}
+	* resolves those entries from the authoritative central directory.  The
+	* normalized bytes still pass through {@link #loadProject(InputStream)}, so
+	* duplicate-name, mimetype, checksum and expansion-limit validation remains
+	* identical for stream and file imports.
+	*/
 	private Project loadProject(File source) throws Exception {
 		MpoArchiveBudgetValidator.Result budget = MpoArchiveBudgetValidator.validate(source.toPath(),
 			MpoArchiveBudgetValidator.DEFAULT_BUDGET);
@@ -329,28 +331,31 @@ public class MpoFileImporter extends FileImporter {
 			state.capture(project);
 		}
 		if (!extensions.entries.isEmpty()) project.getOrCreateTransientDocumentState(MpoExtensions.class, MpoExtensions::new).entries.putAll(extensions.entries);
-		MpoEmbeddedProjects.restoreEmbeddedProjectReferences(project, manifestData, extensions.entries, embeddedProjectFailures);
-		restoreTaskExtensions(project, extensions.entries);
-		return project;
+					MpoEmbeddedProjects.restoreEmbeddedProjectReferences(project, manifestData, extensions.entries, embeddedProjectFailures);
+					String taskIdentitiesStr = taskIdentities == null ? null : new String(taskIdentities, StandardCharsets.UTF_8);
+					restoreTaskExtensions(project, extensions.entries, taskIdentitiesStr);
+					return project;
 	}
 
 	/** Applies the task data MSPDI cannot hold; opening a file and copying a model must agree on it. */
-	private static void restoreTaskExtensions(Project project, java.util.Map<String, byte[]> entries) throws IOException {
-		if (entries.containsKey(TASK_SPLITS_ENTRY))
-			MpoSidecarJson.restoreTaskSplits(project, entries.get(TASK_SPLITS_ENTRY));
-		if (entries.containsKey(TASK_LEVELING_OPTIONS_ENTRY))
-			MpoSidecarJson.restoreTaskLevelingOptions(project, entries.get(TASK_LEVELING_OPTIONS_ENTRY));
-		else
-			MpoSidecarJson.resetLegacyTaskLevelingDefaults(project);
-		if (entries.containsKey(TASK_TEXT_STYLES_ENTRY))
-			MpoSidecarJson.restoreTaskTextStyles(project, entries.get(TASK_TEXT_STYLES_ENTRY));
-		if (entries.containsKey(TASK_SCHEDULES_ENTRY))
-			MpoSidecarJson.restoreTaskSchedules(project, entries.get(TASK_SCHEDULES_ENTRY));
-		if (entries.containsKey(BASELINE_PROFILES_ENTRY))
-			MpoSidecarJson.restoreBaselineProfiles(project, entries.get(BASELINE_PROFILES_ENTRY));
-		if (entries.containsKey(ASSIGNMENT_LEVELING_SPLITS_ENTRY))
-			MpoSidecarJson.restoreAssignmentLevelingSplits(project, entries.get(ASSIGNMENT_LEVELING_SPLITS_ENTRY));
-	}
+		private static void restoreTaskExtensions(Project project, java.util.Map<String, byte[]> entries, String taskIdentities) throws IOException {
+			if (entries.containsKey(TASK_SPLITS_ENTRY))
+				MpoSidecarJson.restoreTaskSplits(project, entries.get(TASK_SPLITS_ENTRY));
+			if (entries.containsKey(TASK_LEVELING_OPTIONS_ENTRY))
+				MpoSidecarJson.restoreTaskLevelingOptions(project, entries.get(TASK_LEVELING_OPTIONS_ENTRY));
+			else
+				MpoSidecarJson.resetLegacyTaskLevelingDefaults(project);
+			if (entries.containsKey(TASK_TEXT_STYLES_ENTRY))
+				MpoSidecarJson.restoreTaskTextStyles(project, entries.get(TASK_TEXT_STYLES_ENTRY));
+			if (entries.containsKey(TASK_SCHEDULES_ENTRY))
+				MpoSidecarJson.restoreTaskSchedules(project, entries.get(TASK_SCHEDULES_ENTRY));
+			if (entries.containsKey(BASELINE_PROFILES_ENTRY))
+				MpoSidecarJson.restoreBaselineProfiles(project, entries.get(BASELINE_PROFILES_ENTRY));
+			if (entries.containsKey(ASSIGNMENT_LEVELING_SPLITS_ENTRY))
+				MpoSidecarJson.restoreAssignmentLevelingSplits(project, entries.get(ASSIGNMENT_LEVELING_SPLITS_ENTRY));
+			if (entries.containsKey(PERT_MANUAL_POSITIONS_ENTRY))
+						MpoSidecarJson.restorePertManualPositions(project, entries.get(PERT_MANUAL_POSITIONS_ENTRY), taskIdentities);
+		}
 
 	@Override
 	public void exportFile() throws Exception {
@@ -422,11 +427,11 @@ public class MpoFileImporter extends FileImporter {
 	}
 
 	/**
-	 * The one save protocol shared by ordinary saves, recovery snapshots and
-	 * merges: capture the live model, build and replace the archive from that
-	 * detached capture with no model barrier held, then commit only if the live
-	 * model still equals what was captured.
-	 */
+	* The one save protocol shared by ordinary saves, recovery snapshots and
+	* merges: capture the live model, build and replace the archive from that
+	* detached capture with no model barrier held, then commit only if the live
+	* model still equals what was captured.
+	*/
 	private void exportFileLocked(File target) throws Exception {
 		committed = false;
 		MpoCapture captured = captureLiveModel(project);
@@ -532,12 +537,12 @@ public class MpoFileImporter extends FileImporter {
 	}
 
 	/**
-	 * Reads one stable generation of the live model and reserves its operation
-	 * IDs.  No lock is held while reading, because serialization can take seconds
-	 * and edits on the EDT must not wait for it.  The archive content itself is
-	 * read twice and compared instead, so an edit through any setter is detected
-	 * and no list of writers has to be kept complete.
-	 */
+	* Reads one stable generation of the live model and reserves its operation
+	* IDs.  No lock is held while reading, because serialization can take seconds
+	* and edits on the EDT must not wait for it.  The archive content itself is
+	* read twice and compared instead, so an edit through any setter is detected
+	* and no list of writers has to be kept complete.
+	*/
 	private static MpoCapture captureLiveModel(Project project) throws IOException {
 		Exception last = null;
 		for (int attempt = 0; attempt < CAPTURE_ATTEMPTS; attempt++) {
@@ -671,11 +676,16 @@ public class MpoFileImporter extends FileImporter {
 		entries.put(TASK_TEXT_STYLES_ENTRY, MpoSidecarJson.taskTextStylesJson(project, taskIdentities));
 		entries.put(TASK_SCHEDULES_ENTRY, MpoSidecarJson.taskSchedulesJson(project, taskIdentities));
 		entries.put(BASELINE_PROFILES_ENTRY, MpoSidecarJson.baselineProfilesJson(project, taskIdentities,
-			MpoSidecarJson.resourceIdentitiesForMpo(project)));
-		entries.put(ASSIGNMENT_LEVELING_SPLITS_ENTRY, MpoSidecarJson.assignmentLevelingSplitsJson(project, serialized.assignmentUids()));
-		entries.put(CCPM_HISTORY_ENTRY, ccpmHistoryJson(project));
+					MpoSidecarJson.resourceIdentitiesForMpo(project)));
+			entries.put(ASSIGNMENT_LEVELING_SPLITS_ENTRY, MpoSidecarJson.assignmentLevelingSplitsJson(project, serialized.assignmentUids()));
+			byte[] pertManualPositions = MpoSidecarJson.pertManualPositionsJson(project, taskIdentities);
+			if (pertManualPositions != null) entries.put(PERT_MANUAL_POSITIONS_ENTRY, pertManualPositions);
+			entries.put(CCPM_HISTORY_ENTRY, ccpmHistoryJson(project));
 		MpoExtensions extensions = project.findTransientDocumentState(MpoExtensions.class);
 		if (extensions != null) for (java.util.Map.Entry<String, byte[]> extension : extensions.entries.entrySet()) {
+			// This sidecar is regenerated from the current transient document state above.
+			// Never let bytes retained from an older archive override a move or a clear.
+			if (PERT_MANUAL_POSITIONS_ENTRY.equals(extension.getKey())) continue;
 			if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || META_ENTRY.equals(extension.getKey()) || SETTINGS_ENTRY.equals(extension.getKey()) || CCPM_HISTORY_ENTRY.equals(extension.getKey()) || LAYOUT_ENTRY.equals(extension.getKey()) || VISIBILITY_ENTRY.equals(extension.getKey()) || TASK_SPLITS_ENTRY.equals(extension.getKey()) || TASK_LEVELING_OPTIONS_ENTRY.equals(extension.getKey()) || TASK_TEXT_STYLES_ENTRY.equals(extension.getKey()) || TASK_SCHEDULES_ENTRY.equals(extension.getKey()) || BASELINE_PROFILES_ENTRY.equals(extension.getKey()) || ASSIGNMENT_LEVELING_SPLITS_ENTRY.equals(extension.getKey()) || PROJECT_ENTRY.equals(extension.getKey()) || OPERATIONS_ENTRY.equals(extension.getKey()) || TASK_IDENTITIES_ENTRY.equals(extension.getKey()) || extension.getKey().startsWith(EMBEDDED_PROJECT_PREFIX)) continue;
 			entries.put(extension.getKey(), extension.getValue().clone());
 		}
@@ -713,14 +723,16 @@ public class MpoFileImporter extends FileImporter {
 	}
 
 	/** Creates a detached operation-state plan.  Callers commit it only after
-	 * their output transaction has completed successfully. */
-	/** The candidate written to an existing file: the document as reopening the capture would show it. */
-	private Project copyOfCapture(MpoCapture captured) throws IOException {
-		Project copy = copyProjectForTransaction(project, captured.serialized().xml());
-		MpoSidecarJson.restoreVisibility(copy, captured.entries().get(VISIBILITY_ENTRY));
-		restoreTaskExtensions(copy, captured.entries());
-		return copy;
-	}
+		* their output transaction has completed successfully. */
+		/** The candidate written to an existing file: the document as reopening the capture would show it. */
+		private Project copyOfCapture(MpoCapture captured) throws IOException {
+			Project copy = copyProjectForTransaction(project, captured.serialized().xml());
+			MpoSidecarJson.restoreVisibility(copy, captured.entries().get(VISIBILITY_ENTRY));
+			byte[] taskIdentitiesBytes = captured.entries().get(TASK_IDENTITIES_ENTRY);
+			String taskIdentitiesStr = taskIdentitiesBytes == null ? null : new String(taskIdentitiesBytes, StandardCharsets.UTF_8);
+			restoreTaskExtensions(copy, captured.entries(), taskIdentitiesStr);
+			return copy;
+		}
 
 	private Project copyProjectForTransaction(Project source, byte[] xml) throws IOException {
 		MicrosoftImporter delegate = new MicrosoftImporter();
@@ -1100,26 +1112,26 @@ public class MpoFileImporter extends FileImporter {
 	}
 
 	/**
-	 * Accepts any MPOF container whose major version equals {@link #SUPPORTED_FORMAT_MAJOR}.
-	 * Files written by an older or newer minor revision load unchanged and are rewritten at
-	 * {@link #FORMAT_VERSION} the next time they are saved, so opening and saving upgrades a
-	 * file to the current layout (issue #356). A different major version cannot be read
-	 * safely and is reported as such instead of as a generic invalid-manifest error.
-	 */
+	* Accepts any MPOF container whose major version equals {@link #SUPPORTED_FORMAT_MAJOR}.
+	* Files written by an older or newer minor revision load unchanged and are rewritten at
+	* {@link #FORMAT_VERSION} the next time they are saved, so opening and saving upgrades a
+	* file to the current layout (issue #356). A different major version cannot be read
+	* safely and is reported as such instead of as a generic invalid-manifest error.
+	*/
 	/** Linked files to embed, read from the model without touching the disk. */
 	/**
-	 * The master snapshot remains authoritative when one optional embedded child
-	 * is damaged.  Structural manifest defects still fail the archive, while
-	 * absent or tampered child payloads are reported on their corresponding
-	 * master reference so every other project can be opened and repaired.
-	 */
+	* The master snapshot remains authoritative when one optional embedded child
+	* is damaged.  Structural manifest defects still fail the archive, while
+	* absent or tampered child payloads are reported on their corresponding
+	* master reference so every other project can be opened and repaired.
+	*/
 	/** Operation replay mutates tasks and can repaint an open spreadsheet, so it must use the EDT. */
 	/**
-	 * Applies the already validated domain phase of an MPOF transaction.  This
-	 * is deliberately a protected stage seam: callers cannot pass a mutable
-	 * archive into it, while transaction tests can inject a transient failure
-	 * and prove that a subsequent export retries the apply phase.
-	 */
+	* Applies the already validated domain phase of an MPOF transaction.  This
+	* is deliberately a protected stage seam: callers cannot pass a mutable
+	* archive into it, while transaction tests can inject a transient failure
+	* and prove that a subsequent export retries the apply phase.
+	*/
 	/** Applies a merged history while skipping operations already present in the project snapshot. */
 	protected void applyMergedOperationsOnEdt(Project project,
 			java.util.List<OperationLog.Operation> operations,
@@ -1197,10 +1209,10 @@ public class MpoFileImporter extends FileImporter {
 
 	/** Validates checksums for the complete archive when written by a checksum-aware MPOF writer. */
 	/**
-	 * MPOF snapshots written before the unit marker stored the engine's raw
-	 * millisecond value in MSPDI's serialized delay field. Restrict conversion to these
-	 * microProject files: ordinary MSPDI imports remain standards-compliant.
-	 */
+	* MPOF snapshots written before the unit marker stored the engine's raw
+	* millisecond value in MSPDI's serialized delay field. Restrict conversion to these
+	* microProject files: ordinary MSPDI imports remain standards-compliant.
+	*/
 	static javax.xml.parsers.DocumentBuilderFactory secureDocumentBuilderFactory() throws javax.xml.parsers.ParserConfigurationException {
 		return MspdiProjectBoundary.secureDocumentBuilderFactory(false);
 	}
