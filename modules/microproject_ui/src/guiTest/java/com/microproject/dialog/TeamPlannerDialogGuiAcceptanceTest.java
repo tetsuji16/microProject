@@ -170,13 +170,19 @@ class TeamPlannerDialogGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> rowHeader.setLabelWidth(10));
 		assertEquals(TeamPlannerDialogBox.TeamPlannerRowHeader.MIN_WIDTH, rowHeader.labelWidth(),
 			"the column must not become narrower than its minimum");
+		GuiAcceptanceSupport.await(() -> rowHeader.getWidth() == rowHeader.labelWidth(),
+			"the resource-column minimum width was not applied to its laid-out component");
 
 		int widthBeforeResize = rowHeader.getWidth();
 		Point edge = rowHeader.getLocationOnScreen();
 		edge.translate(widthBeforeResize - 2, rowHeader.getHeight() / 2);
 		com.microproject.testsupport.GuiRobot robot = new com.microproject.testsupport.GuiRobot();
 		robot.mouseMove(edge.x, edge.y);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> rowHeader.getCursor().getType() == java.awt.Cursor.E_RESIZE_CURSOR,
+			"the physical pointer did not reach the resource-column resize edge");
 		robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+		robot.waitForIdle();
 		robot.mouseMove(edge.x + 400, edge.y);
 		robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
 		robot.waitForIdle();
