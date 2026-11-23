@@ -209,16 +209,31 @@ class BackstageSaveAsAndExportPageTest {
 
 	private static void assertDetailFits(JComponent page, String sectionName) {
 		layoutTree(page, 380, 500);
+		assertSectionInsidePage(page, sectionName, "narrow");
+		Component list = page.getComponent(0);
+		Component detail = page.getComponent(1);
+		assertTrue(detail.getY() >= list.getY() + list.getHeight(),
+				"a narrow page must place the detail under the choice list: list=" + list.getBounds()
+						+ " detail=" + detail.getBounds());
+
+		layoutTree(page, 900, 500);
+		assertSectionInsidePage(page, sectionName, "wide");
+		assertTrue(detail.getX() >= list.getX() + list.getWidth(),
+				"a wide page must keep the detail beside the choice list: list=" + list.getBounds()
+						+ " detail=" + detail.getBounds());
+	}
+
+	private static void assertSectionInsidePage(JComponent page, String sectionName, String shape) {
 		JComponent section = named(page, sectionName);
 		java.awt.Rectangle sectionBounds = SwingUtilities.convertRectangle(section.getParent(),
 				section.getBounds(), page);
 		assertTrue(new java.awt.Rectangle(page.getSize()).contains(sectionBounds),
-				sectionName + " must stay inside a narrow page: " + sectionBounds + " page=" + page.getSize());
+				sectionName + " must stay inside a " + shape + " page: " + sectionBounds + " page=" + page.getSize());
 		for (AbstractButton button : UiComponentWalker.flatten(section).stream()
 				.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast).toList()) {
 			java.awt.Rectangle bounds = SwingUtilities.convertRectangle(button.getParent(), button.getBounds(), page);
 			assertTrue(new java.awt.Rectangle(page.getSize()).contains(bounds),
-					button.getName() + " must stay inside a narrow page: " + bounds + " page=" + page.getSize());
+					button.getName() + " must stay inside a " + shape + " page: " + bounds + " page=" + page.getSize());
 		}
 	}
 

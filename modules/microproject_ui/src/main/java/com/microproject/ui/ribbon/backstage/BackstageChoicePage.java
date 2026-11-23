@@ -65,7 +65,9 @@ public class BackstageChoicePage extends JPanel {
 	/** The choice list may give up width in a narrow window before the detail column is squeezed. */
 	private static final int CHOICE_MINIMUM_WIDTH = 110;
 	/** Wrapping width of a section description; wide enough to read, narrow enough to fit a small window. */
-	private static final int DESCRIPTION_WIDTH = 160;
+	private static final int DESCRIPTION_WIDTH = 200;
+	/** Below this width the choice list moves above the detail instead of squeezing it. */
+	static final int STACKED_BELOW_WIDTH = 560;
 	/** Client property that marks the currently chosen left entry. */
 	public static final String SELECTED_PROPERTY = "microproject.backstageChoice.selected";
 
@@ -80,6 +82,7 @@ public class BackstageChoicePage extends JPanel {
 
 	private final Map<String, JButton> choiceButtons = new LinkedHashMap<>();
 	private final Map<String, JComponent> sections = new LinkedHashMap<>();
+	private final JPanel choiceList;
 	private final JScrollPane detailScroll;
 
 	protected BackstageChoicePage(String pageName, List<Section> choices) {
@@ -90,6 +93,7 @@ public class BackstageChoicePage extends JPanel {
 		if (choices.isEmpty()) throw new IllegalArgumentException("A Backstage choice page needs at least one choice");
 
 		JPanel list = new JPanel();
+		choiceList = list;
 		list.setName("officeBackstage" + pageName + "Choices");
 		list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
 		list.setOpaque(false);
@@ -133,25 +137,40 @@ public class BackstageChoicePage extends JPanel {
 		detailScroll.setOpaque(false);
 		detailScroll.getViewport().setOpaque(false);
 
+		add(choiceList);
+		add(detailScroll);
+		arrangeColumns(false);
+
+		select(choices.getFirst().id());
+	}
+
+	@Override
+	public void doLayout() {
+		// A narrow window cannot hold the choice list and a readable detail column side by side;
+		// the list then moves above the detail instead of being cut off or squeezing it.
+		arrangeColumns(getWidth() > 0 && getWidth() < STACKED_BELOW_WIDTH);
+		super.doLayout();
+	}
+
+	private void arrangeColumns(boolean stacked) {
+		GridBagLayout layout = (GridBagLayout) getLayout();
 		GridBagConstraints left = new GridBagConstraints();
 		left.gridx = 0;
 		left.gridy = 0;
-		left.weightx = 0;
-		left.weighty = 1;
+		left.weightx = stacked ? 1 : 0;
+		left.weighty = stacked ? 0 : 1;
 		left.anchor = GridBagConstraints.NORTHWEST;
-		left.fill = GridBagConstraints.BOTH;
-		left.insets = new Insets(0, 0, 0, 24);
-		add(list, left);
+		left.fill = stacked ? GridBagConstraints.HORIZONTAL : GridBagConstraints.BOTH;
+		left.insets = stacked ? new Insets(0, 0, 16, 0) : new Insets(0, 0, 0, 24);
+		layout.setConstraints(choiceList, left);
 		GridBagConstraints right = new GridBagConstraints();
-		right.gridx = 1;
-		right.gridy = 0;
+		right.gridx = stacked ? 0 : 1;
+		right.gridy = stacked ? 1 : 0;
 		right.weightx = 1;
 		right.weighty = 1;
 		right.anchor = GridBagConstraints.NORTHWEST;
 		right.fill = GridBagConstraints.BOTH;
-		add(detailScroll, right);
-
-		select(choices.getFirst().id());
+		layout.setConstraints(detailScroll, right);
 	}
 
 	/** Marks an entry chosen and brings its detail into view without hiding the others. */
