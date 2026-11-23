@@ -97,7 +97,7 @@ public final class MpoConcurrentSaveProcess {
 		Files.createFile(ready);
 
 		try {
-			com.microproject.ui.testsupport.TestAwait.awaitTrue(() -> Files.exists(release), Duration.ofSeconds(30), "parent release");
+			com.microproject.testsupport.TestAwait.awaitTrue(() -> Files.exists(release), Duration.ofSeconds(30), "parent release");
 		} catch (AssertionError timedOut) {
 			throw new IllegalStateException("Timed out waiting for parent to release concurrent saves");
 		}

@@ -176,7 +176,7 @@ class TeamPlannerDialogGuiAcceptanceTest {
 		int widthBeforeResize = rowHeader.getWidth();
 		Point edge = rowHeader.getLocationOnScreen();
 		edge.translate(widthBeforeResize - 2, rowHeader.getHeight() / 2);
-		com.microproject.testsupport.GuiRobot robot = new com.microproject.testsupport.GuiRobot();
+		com.microproject.ui.testsupport.GuiRobot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.mouseMove(edge.x, edge.y);
 		robot.waitForIdle();
 		GuiAcceptanceSupport.await(() -> rowHeader.getCursor().getType() == java.awt.Cursor.E_RESIZE_CURSOR,

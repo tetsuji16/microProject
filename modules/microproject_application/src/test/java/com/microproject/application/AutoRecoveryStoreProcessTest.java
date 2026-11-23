@@ -141,7 +141,7 @@ class AutoRecoveryStoreProcessTest {
 	private void await(String name) throws Exception { waitFor(directory.resolve(name)); }
 	private static void waitFor(Path path) throws Exception {
 		try {
-			com.microproject.ui.testsupport.TestAwait.awaitTrue(() -> Files.exists(path), java.time.Duration.ofSeconds(10), path.toString());
+			com.microproject.testsupport.TestAwait.awaitTrue(() -> Files.exists(path), java.time.Duration.ofSeconds(10), path.toString());
 		} catch (AssertionError timedOut) {
 			throw new IOException("Timed out waiting for " + path);
 		}

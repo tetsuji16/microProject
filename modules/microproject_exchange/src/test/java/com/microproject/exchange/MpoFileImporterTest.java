@@ -5059,7 +5059,7 @@ class MpoFileImporterTest {
 
 	private static void awaitWorkerReady(Process worker, Path ready, Path log) throws Exception {
 		try {
-			com.microproject.ui.testsupport.TestAwait.awaitTrue(() -> Files.exists(ready) || !worker.isAlive(), java.time.Duration.ofSeconds(30),
+			com.microproject.testsupport.TestAwait.awaitTrue(() -> Files.exists(ready) || !worker.isAlive(), java.time.Duration.ofSeconds(30),
 				"the MPO worker's editor snapshot");
 		} catch (AssertionError timedOut) {
 			throw new AssertionError("MPO worker did not load its editor snapshot in time: " + readWorkerLog(log));
@@ -6577,7 +6577,7 @@ class MpoFileImporterTest {
 			Files.createFile(release);
 			Process savingWorker = worker;
 			try {
-				com.microproject.ui.testsupport.TestAwait.awaitTrue(() -> workerLogContains(log, "MPO_SAVE_ATTEMPT=") || !savingWorker.isAlive(),
+				com.microproject.testsupport.TestAwait.awaitTrue(() -> workerLogContains(log, "MPO_SAVE_ATTEMPT=") || !savingWorker.isAlive(),
 					java.time.Duration.ofSeconds(10), "the MPO worker's save attempt");
 			} catch (AssertionError timedOut) {
 				throw new AssertionError("MPO worker did not attempt save in time: " + readWorkerLog(log));

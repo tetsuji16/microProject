@@ -127,7 +127,7 @@ tasks.register<Test>("guiTest") {
 	val guiTestJavaDir = file("src/guiTest/java")
 	val journeyAnnotation = Regex("""@GuiJourney\(InputMechanism\.(\w+)\)""")
 	val journeyJavaFiles = fileTree(guiTestJavaDir) { include("**/*.java") }.files
-	val journeySource = file("src/guiTest/java/com/microproject/testsupport/GuiJourney.java").readText()
+	val journeySource = file("src/guiTest/java/com/microproject/ui/testsupport/GuiJourney.java").readText()
 	val mechanismEnumBody = Regex("""enum InputMechanism\s*\{([^}]*)\}""")
 		.find(journeySource)?.groupValues?.get(1)
 		?: error("Could not find GuiJourney.InputMechanism in GuiJourney.java")

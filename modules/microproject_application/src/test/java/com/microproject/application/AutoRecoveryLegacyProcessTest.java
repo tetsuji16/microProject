@@ -59,7 +59,7 @@ class AutoRecoveryLegacyProcessTest {
 	private void await(String file) throws Exception { waitFor(directory.resolve(file)); }
 	private static void waitFor(Path file) throws Exception {
 		try {
-			com.microproject.ui.testsupport.TestAwait.awaitTrue(() -> Files.exists(file), java.time.Duration.ofSeconds(10), file.toString());
+			com.microproject.testsupport.TestAwait.awaitTrue(() -> Files.exists(file), java.time.Duration.ofSeconds(10), file.toString());
 		} catch (AssertionError timedOut) {
 			throw new java.io.IOException("Timed out waiting for " + file);
 		}
