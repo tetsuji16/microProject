@@ -856,7 +856,7 @@ public class DocumentFrame extends NamedFrame implements
 	public boolean hasProjectSummaryRowSelected() {
 		SpreadSheet sheet = getActiveSpreadSheet();
 		return sheet != null && sheet.getSelectedNodes().stream()
-				.anyMatch(node -> node != null && node.getImpl() instanceof Project);
+				.anyMatch(node -> node != null && node.getImpl() == project);
 	}
 
 	private RibbonCommandResult rejectedWithSelection(CommandId command, String reason, List<Long> selectedIds) {

@@ -2518,7 +2518,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		public void execute() {
 			finishCurrentOperations();
 			List<GraphicNode> selected = new ArrayList<>(getSelected());
-			selected.removeIf(node -> node.getNode().getImpl() instanceof Project);
+			if (selected.stream().anyMatch(SpreadSheet.this::isProjectSummaryRow)) return;
 			getCache().indentNodes(selected);
 		}
 	};
@@ -2527,10 +2527,16 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		public void execute() {
 			finishCurrentOperations();
 			List<GraphicNode> selected = new ArrayList<>(getSelected());
-			selected.removeIf(node -> node.getNode().getImpl() instanceof Project);
+			if (selected.stream().anyMatch(SpreadSheet.this::isProjectSummaryRow)) return;
 			getCache().outdentNodes(selected);
 		}
 	};
+
+	private boolean isProjectSummaryRow(GraphicNode graphicNode) {
+		if (graphicNode == null || graphicNode.getNode() == null
+				|| !(graphicNode.getNode().getImpl() instanceof Project project)) return false;
+		return getModel() instanceof SpreadSheetModel model && model.getCache().getModel().getDataFactory() == project;
+	}
 
 	protected SpreadSheetAction newAction=new SpreadSheetAction("Spreadsheet.Action.new",this){
 		public void execute(){

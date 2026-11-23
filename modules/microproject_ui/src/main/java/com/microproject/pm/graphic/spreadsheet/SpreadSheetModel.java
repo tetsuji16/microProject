@@ -150,7 +150,7 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 			return;
 
 		Node rowNode = getNodeInRow(row);
-		if (rowNode.getImpl() instanceof Project project) {
+		if (rowNode.getImpl() instanceof Project project && getCache().getModel().getDataFactory() == project) {
 			var editSupport = getCache().getModel().getUndoableEditSupport();
 			if (project.isReadOnly() || editSupport == null || !"Field.name".equals(field.getId())
 					|| !(value instanceof String newName))
@@ -265,7 +265,7 @@ public class SpreadSheetModel extends CommonSpreadSheetModel implements OutlineM
 		if (field.getLookupTypes() != null)
 			return false;
 		Node node = getNodeInRow(row);
-		if (node.getImpl() instanceof Project project)
+		if (node.getImpl() instanceof Project project && getCache().getModel().getDataFactory() == project)
 			return !project.isReadOnly() && "Field.name".equals(field.getId());
 		NodeModel nodeModel=getCache().getModel();
 		

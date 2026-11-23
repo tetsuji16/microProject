@@ -85,6 +85,10 @@ import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.pm.graphic.views.Searchable;
 import com.microproject.pm.graphic.views.BaseView;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
+import com.microproject.pm.graphic.model.transform.NodeCacheTransformer;
+import com.microproject.pm.graphic.model.cache.GraphicNode;
+import com.microproject.pm.graphic.model.cache.NodeModelCache;
+import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.util.Environment;
 import com.microproject.pm.graphic.frames.workspace.FrameManager;
 import com.microproject.pm.graphic.frames.workspace.NamedFrame;
@@ -1127,6 +1131,61 @@ class RibbonButtonBehaviorTest {
 			assertEquals(List.of(readOnlySubproject.getUniqueId(), harness.secondTask.getUniqueId()), result.selectedTaskIds());
 			assertTrue(result.affectedTaskIds().isEmpty());
 		});
+	}
+
+	@Test
+	void projectSummarySelectionDisablesAndRejectsLinkDeleteAndIndent() throws Exception {
+		Harness harness = newHarness();
+		harness.setTaskInformation(true, false);
+		SwingUtilities.invokeAndWait(() -> {
+			SpreadSheet sheet = harness.frame.getTopSpreadSheet();
+			NodeModelCache cache = sheet.getCache();
+			((NodeCacheTransformer) cache.getVisibleNodes().getTransformer()).setShowProjectSummaryTask(true);
+			cache.update();
+			GraphicNode summary = cache.getVisibleNodes().getElements().stream()
+				.filter(row -> row.getNode().getImpl() instanceof Project).findFirst().orElseThrow();
+			int summaryRow = cache.getVisibleNodes().getProjectionIndex().rowForNode(summary);
+			sheet.setRowSelectionInterval(summaryRow, summaryRow + 2);
+			harness.manager.setButtonState(harness.project, harness.project);
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_DELETE).isEnabled());
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_INDENT).isEnabled());
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_OUTDENT).isEnabled());
+			assertFalse(harness.manager.getAction(MenuActionConstants.ACTION_LINK).isEnabled());
+			harness.frame.setExecuteLinkForSelectionTest(true);
+			RibbonCommandResult result = harness.frame.routeTaskCommand(CommandId.LINK);
+			assertEquals(RibbonCommandResult.Status.REJECTED, result.status());
+			assertEquals("project-summary-row-selected", result.reason());
+			assertTrue(harness.secondTask.getPredecessorList().isEmpty(), "rejected link must leave project dependencies unchanged");
+		});
+	}
+
+	@Test
+	void projectSummaryRowUsesSummaryGanttBarFromProjectStartToFinish() throws Exception {
+		Harness harness = newHarness();
+		AtomicReference<Throwable> failure = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> {
+			try {
+				SpreadSheet sheet = harness.frame.getTopSpreadSheet();
+				NodeModelCache cache = sheet.getCache();
+				((NodeCacheTransformer) cache.getVisibleNodes().getTransformer()).setShowProjectSummaryTask(true);
+				cache.update();
+				GraphicNode summary = cache.getVisibleNodes().getElements().stream()
+					.filter(node -> node.getNode().getImpl() instanceof Project).findFirst().orElseThrow();
+				assertTrue(summary.isSummary());
+				assertEquals(harness.project.getStart(), summary.getStart());
+				assertEquals(harness.project.getEnd(), summary.getEnd());
+				List<ScheduleInterval> intervals = new ArrayList<>();
+				summary.consumeIntervals(intervals::add);
+				assertFalse(intervals.isEmpty(), "the summary row must expose project schedule intervals to the bar renderer");
+				assertEquals(harness.project.getStart(), intervals.get(0).getStart());
+				assertEquals(harness.project.getEnd(), intervals.get(intervals.size() - 1).getEnd());
+				harness.frame.ganttView.getGantt().getUI().updateShape(summary);
+				assertTrue(summary.getGanttShapeHeight() > 0.0d, "summary style must produce rendered bar geometry");
+			} catch (Throwable throwable) {
+				failure.set(throwable);
+			}
+		});
+		if (failure.get() != null) throw new AssertionError("project summary Gantt route failed", failure.get());
 	}
 
 	@Test
