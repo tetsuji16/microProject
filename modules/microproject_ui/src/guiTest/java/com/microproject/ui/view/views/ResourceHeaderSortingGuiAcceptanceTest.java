@@ -241,7 +241,7 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 			assertEquals("Field.name", workspace.getSortedFieldId());
 			assertFalse(workspace.isSortAscending());
 		});
-		String viewTabText = java.util.ResourceBundle.getBundle("com.microproject.menu.menu").getString("ViewRibbonTask.title");
+		String viewTabText = java.util.ResourceBundle.getBundle("com.microproject.ui.menu.menu").getString("ViewRibbonTask.title");
 		click(robot, findShowingButtonByText(window, viewTabText));
 		GuiAcceptanceSupport.await(() -> findShowingButtonByCommand(window, "RibbonChooseSort") != null,
 			"View ribbon did not expose the Sort command");
@@ -460,7 +460,7 @@ class ResourceHeaderSortingGuiAcceptanceTest {
 				return active[0];
 			}, "the first view was not activated");
 			assertTrue(frame.getActiveTopView().showsTasks(), "the journey must start on a task view");
-			String viewTabText = java.util.ResourceBundle.getBundle("com.microproject.menu.menu")
+			String viewTabText = java.util.ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString("ViewRibbonTask.title");
 			click(robot, GuiAcceptanceSupport.findShowingButtonByText(window, viewTabText));
 			RibbonGuiSupport.clickSplitPrimary(robot, RibbonGuiSupport.findVisibleOrExpand(robot, window.getRibbonPanel(), "RibbonResources"));

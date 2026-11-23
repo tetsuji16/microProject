@@ -85,7 +85,7 @@ class WbsInteractionGuiAcceptanceTest {
 			"project window did not become visible");
 
 		AbstractButton viewTab = GuiAcceptanceSupport.findShowingButtonByText(window,
-			ResourceBundle.getBundle("com.microproject.menu.menu").getString("ViewRibbonTask.title"));
+			ResourceBundle.getBundle("com.microproject.ui.menu.menu").getString("ViewRibbonTask.title"));
 		click(robot, screenBounds(viewTab));
 		GuiAcceptanceSupport.await(() -> onEdt(viewTab::isSelected), "physical View tab click did not select the View ribbon");
 		clickCommand(robot, "RibbonWBS");

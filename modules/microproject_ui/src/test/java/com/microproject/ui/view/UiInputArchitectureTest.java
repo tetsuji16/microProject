@@ -38,7 +38,7 @@ class UiInputArchitectureTest {
 	@Test
 	void spreadsheetPackageDoesNotContainAnIndependentKeyboardInputSandbox() throws Exception {
 		Path sourceRoot = findProjectRoot().resolve(
-			"modules/microproject_ui/src/main/java/com/microproject/pm/graphic/spreadsheet");
+			"modules/microproject_ui/src/main/java/com/microproject/ui/view/spreadsheet");
 		try (var files = Files.walk(sourceRoot)) {
 			assertFalse(files.anyMatch(path -> path.getFileName().toString().equals("SpreadsheetImeSandbox.java")),
 				"Production spreadsheet input must use the document shortcut and editor paths, not an isolated sandbox");
@@ -56,7 +56,7 @@ class UiInputArchitectureTest {
 	/** #414: one wheel owner per synchronized view, with symmetric registration in ScrollPaneSynchronizer. */
 	@Test
 	void mouseWheelListenersAreOwnedOnlyByTheScrollPaneSynchronizer() throws Exception {
-		assertEquals(List.of("pm/graphic/views/synchro/ScrollPaneSynchronizer.java"),
+		assertEquals(List.of("view/views/synchro/ScrollPaneSynchronizer.java"),
 			sourcesMatching("\\baddMouseWheelListener\\s*\\("),
 			"a second wheel path would double-handle Ctrl/Shift/plain wheel events");
 	}
@@ -86,7 +86,7 @@ class UiInputArchitectureTest {
 
 	private static List<String> sourcesMatching(String regex) throws Exception {
 		Pattern pattern = Pattern.compile(regex);
-		Path sourceRoot = findProjectRoot().resolve("modules/microproject_ui/src/main/java/com/microproject");
+		Path sourceRoot = findProjectRoot().resolve("modules/microproject_ui/src/main/java/com/microproject/ui");
 		try (var files = Files.walk(sourceRoot)) {
 			List<String> matches = new ArrayList<>();
 			for (Path path : files.filter(p -> p.toString().endsWith(".java")).sorted().toList()) {

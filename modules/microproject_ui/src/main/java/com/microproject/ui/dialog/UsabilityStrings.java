@@ -28,7 +28,7 @@ import java.util.ResourceBundle;
 
 /** Localized text shared by the modern usability dialogs. */
 public final class UsabilityStrings {
-	private static final ResourceBundle BUNDLE = ResourceBundle.getBundle("com.microproject.dialog.usability");
+	private static final ResourceBundle BUNDLE = ResourceBundle.getBundle("com.microproject.ui.dialog.usability");
 	private UsabilityStrings() { }
 	public static String text(String key) {
 		return text(key, key);

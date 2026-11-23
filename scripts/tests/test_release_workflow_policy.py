@@ -94,7 +94,7 @@ class ReleaseWorkflowPolicyTest(unittest.TestCase):
 		runner = (REPO_ROOT / ".github" / "scripts" / "run-gui-acceptance.ps1").read_text(encoding="utf-8")
 		class_block = re.search(r"\$visualClasses = @\((.*?)\n\)", runner, re.S).group(1)
 		classes = re.findall(r"'([^']+GuiAcceptanceTest)'", class_block)
-		task_info = "com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest"
+		task_info = "com.microproject.ui.frame.TaskInformationRibbonGuiAcceptanceTest"
 		self.assertEqual(12, len(classes))
 		self.assertNotIn(task_info, classes)
 		self.assertIn("foreach ($testClass in $visualTests)", runner)

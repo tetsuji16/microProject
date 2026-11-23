@@ -103,7 +103,7 @@ class PodResourceViewGuiAcceptanceTest {
 			key(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
 			GuiAcceptanceSupport.await(() -> onEdt(() -> "Edited Task".equals(task.getName())), "Gantt Redo did not restore task");
 			assertEquals("Edited Task", renderedText(gantt, ganttRow, ganttNameColumn));
-			String viewTab = ResourceBundle.getBundle("com.microproject.menu.menu").getString("ViewRibbonTask.title");
+			String viewTab = ResourceBundle.getBundle("com.microproject.ui.menu.menu").getString("ViewRibbonTask.title");
 			WindowAcceptanceAssertions.clickComponent(robot, GuiAcceptanceSupport.findShowingButtonByText(window[0], viewTab));
 			RibbonGuiSupport.clickSplitPrimary(robot, RibbonGuiSupport.findVisibleOrExpand(robot, window[0].getRibbonPanel(), "RibbonResources"));
 			GuiAcceptanceSupport.await(() -> onEdt(() -> frame.getActiveTopView() instanceof ResourceView), "Resource ribbon did not open Resource View");

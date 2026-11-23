@@ -56,18 +56,17 @@ public class CellStyleFactory implements FormulaCatalog.Factory<CellStyle> {
 			}
 			return null;
 		}else if (formulaText!=null){
-		    StringBuilder classText = new StringBuilder();
-		    classText.append("package com.microproject.graphic.configuration;\n");
-		    classText.append("import com.microproject.ui.view.model.cache.GraphicNode;\n");
+			StringBuilder classText = new StringBuilder();
+			classText.append("package com.microproject.graphic.configuration;\n");
 			String definition = type + "\n" + format + "\n" + formulaText;
 			String className = GroovyClassCompiler.scriptClassName("CellStyle", definition);
-		    classText.append("public class ").append(className).append(" implements CellStyle{\n");
-		    classText.append("\tpublic CellFormat getCellFormat(Object _nodeObject){\n\t\tGraphicNode ")
-		    	.append(type).append("=(GraphicNode)_nodeObject;\n\t\tCellFormat ")
-		    	.append(format).append("=new CellFormat();\n")
-		    	.append(formulaText).
-		    	append("\n\t\treturn ").append(format).append(";\n\t}\n");
-		    classText.append("}\n");
+			classText.append("public class ").append(className).append(" implements CellStyle{\n");
+			classText.append("\tpublic CellFormat getCellFormat(Object _nodeObject){\n\t\tdef ")
+				.append(type).append("=_nodeObject;\n\t\tCellFormat ")
+				.append(format).append("=new CellFormat();\n")
+				.append(formulaText).
+				append("\n\t\treturn ").append(format).append(";\n\t}\n");
+			classText.append("}\n");
 			try {
 				return GroovyClassCompiler.compileAndInstantiate(classText.toString(), CellStyle.class);
 			} catch (Exception e) {

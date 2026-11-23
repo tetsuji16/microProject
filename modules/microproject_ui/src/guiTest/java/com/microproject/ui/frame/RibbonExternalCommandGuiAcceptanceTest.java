@@ -1162,7 +1162,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			"Locale change did not install a new GraphicManager through StartupFactory");
 		manager = window.getGraphicManager();
 		AbstractButton[] restoredTaskTab = new AbstractButton[1];
-		String taskTabTitle = java.util.ResourceBundle.getBundle("com.microproject.menu.menu")
+		String taskTabTitle = java.util.ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("TaskRibbonTask.title");
 		GuiAcceptanceSupport.await(() -> {
 			try {

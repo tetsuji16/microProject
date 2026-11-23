@@ -37,8 +37,8 @@ import java.util.Set;
 import com.microproject.ui.menu.MenuManager;
 
 public final class MenuDefinitionSupport {
-	private static final String MENU_BUNDLE = "com.microproject.menu.menu";
-	private static final String MENU_INTERNAL_BUNDLE = "com.microproject.menu.menuInternal";
+	private static final String MENU_BUNDLE = "com.microproject.ui.menu.menu";
+	private static final String MENU_INTERNAL_BUNDLE = "com.microproject.ui.menu.menuInternal";
 
 	private MenuDefinitionSupport() {
 	}

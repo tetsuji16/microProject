@@ -5,26 +5,26 @@
 		<format id="Bar.totalSlack" row="1" from="Field.earlyStart" to="Field.lateFinish">
 			<middle shapeName="FULL_HEIGHT" colorName="MONDAY_GROUP_A" paintName="DIAGONAL" strokeName="SOLID"/>
 		</format>
-		<format id="Bar.task" row="1" layer="1" intervalGenerator="com.microproject.pm.graphic.gantt.GanttBarIntervalGenerator" from="Field.start" to="Field.finish">
+		<format id="Bar.task" row="1" layer="1" intervalGenerator="com.microproject.ui.view.gantt.GanttBarIntervalGenerator" from="Field.start" to="Field.finish">
 			<middle shapeName="FULL_HEIGHT" colorName="MONDAY_GROUP_A" paintName="DEFAULT" strokeName="FRAMED"/>
 		</format>
-		<format id="Bar.milestone" row="1" layer="1" intervalGenerator="com.microproject.pm.graphic.gantt.GanttBarIntervalGenerator"  from="Field.finish" to="Field.finish">
+		<format id="Bar.milestone" row="1" layer="1" intervalGenerator="com.microproject.ui.view.gantt.GanttBarIntervalGenerator"  from="Field.finish" to="Field.finish">
 			<start shapeName="DIAMOND" colorName="MONDAY_GROUP_A" paintName="SOLID"/>
 		</format>
-		<format id="Bar.summary" row="1" layer="1" intervalGenerator="com.microproject.pm.graphic.gantt.GanttBarIntervalGenerator"  from="Field.start" to="Field.finish">
+		<format id="Bar.summary" row="1" layer="1" intervalGenerator="com.microproject.ui.view.gantt.GanttBarIntervalGenerator"  from="Field.start" to="Field.finish">
 			<start shapeName="PENTAGON_DOWN" colorName="MONDAY_GROUP_A" paintName="SOLID" />
 			<middle shapeName="FULL_HEIGHT" colorName="MONDAY_GROUP_A" paintName="SOLID" strokeName="SOLID"/>
 			<end shapeName="PENTAGON_DOWN" colorName="MONDAY_GROUP_A" paintName="SOLID"/>
 		</format>
-		<format id="Bar.critical" row="1" layer="1" intervalGenerator="com.microproject.pm.graphic.gantt.GanttBarIntervalGenerator"  from="Field.start" to="Field.finish">
+		<format id="Bar.critical" row="1" layer="1" intervalGenerator="com.microproject.ui.view.gantt.GanttBarIntervalGenerator"  from="Field.start" to="Field.finish">
 			<middle shapeName="FULL_HEIGHT" colorName="MONDAY_GROUP_A" paintName="DEFAULT" strokeName="FRAMED"/>
 		</format>
 <!--
-		<format id="Bar.late"  row="1" layer="1" intervalGenerator="com.microproject.pm.graphic.gantt.GanttBarIntervalGenerator"  from="Field.start" to="Field.finish">
+		<format id="Bar.late"  row="1" layer="1" intervalGenerator="com.microproject.ui.view.gantt.GanttBarIntervalGenerator"  from="Field.start" to="Field.finish">
 			<middle shapeName="FULL_HEIGHT" colorName="PURPLE" paintName="DEFAULT" strokeName="FRAMED"/>
 		</format>
 -->		
-		<format id="Bar.assignment" row="1" layer="1" intervalGenerator="com.microproject.pm.graphic.gantt.GanttBarIntervalGenerator"  from="Field.start" to="Field.finish">
+		<format id="Bar.assignment" row="1" layer="1" intervalGenerator="com.microproject.ui.view.gantt.GanttBarIntervalGenerator"  from="Field.start" to="Field.finish">
 			<middle shapeName="HALF_HEIGHT_CENTER" colorName="MONDAY_GROUP_B" paintName="DEFAULT" strokeName="FRAMED"/>
 		</format>
 
@@ -884,9 +884,9 @@
 
 
 	<cellstyles id="CellStyles.default">
-		<style id="CellStyle.default" formulaClass="com.microproject.graphic.configuration.cellstyles.DefaultCellStyle"/>
-		<style id="CellStyle.resources" formulaClass="com.microproject.graphic.configuration.cellstyles.ResourceCellStyle"/>
-		<style id="CellStyle.assignments" formulaClass="com.microproject.graphic.configuration.cellstyles.AssignmentCellStyle"/>
+		<style id="CellStyle.default" formulaClass="com.microproject.ui.view.style.DefaultCellStyle"/>
+		<style id="CellStyle.resources" formulaClass="com.microproject.ui.view.style.ResourceCellStyle"/>
+		<style id="CellStyle.assignments" formulaClass="com.microproject.ui.view.style.AssignmentCellStyle"/>
 
 		<!--style id="CellStyle.default" type="node" format="format">
 			<formulaText>

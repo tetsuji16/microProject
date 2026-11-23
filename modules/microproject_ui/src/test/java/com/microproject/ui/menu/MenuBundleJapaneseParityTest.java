@@ -48,8 +48,8 @@ class MenuBundleJapaneseParityTest {
 
 	@Test
 	void japaneseMenuBundleDefinesEveryTextAndTooltipKey() throws IOException {
-		Properties base = load("/com/microproject/menu/menu.properties");
-		Properties japanese = load("/com/microproject/menu/menu_ja.properties");
+		Properties base = load("/com/microproject/ui/menu/menu.properties");
+		Properties japanese = load("/com/microproject/ui/menu/menu_ja.properties");
 		List<String> missing = new ArrayList<>();
 		for (String key : base.stringPropertyNames())
 			if ((key.endsWith(".text") || key.endsWith(".tooltip")) && !japanese.containsKey(key))

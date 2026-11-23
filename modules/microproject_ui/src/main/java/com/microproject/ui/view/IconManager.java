@@ -89,9 +89,9 @@ public class IconManager {
 		}
 	}
 	private final static String[] iconPackages = new String[] {
-			"com/microproject/pm/graphic/images/"
-			,"com/microproject/pm/graphic/images/big/"
-			,"com/microproject/pm/graphic/images/ribbon/"
+			"com/microproject/ui/view/images/"
+			,"com/microproject/ui/view/images/big/"
+			,"com/microproject/ui/view/images/ribbon/"
 			,"toolbarButtonGraphics/general/"
 			,"toolbarButtonGraphics/text/"			
 			,"toolbarButtonGraphics/table/"
@@ -251,7 +251,7 @@ public class IconManager {
 
 	private static String getIconName(String key) {
 		ResourceBundle bundle = ResourceBundle
-				.getBundle("com/microproject/pm/graphic/images",Locale.getDefault(),classLoader);
+				.getBundle("com/microproject/ui/view/images",Locale.getDefault(),classLoader);
 		return bundle.getString(key);
 	}
 

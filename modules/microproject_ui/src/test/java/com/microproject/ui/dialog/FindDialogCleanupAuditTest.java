@@ -36,7 +36,7 @@ import org.junit.jupiter.api.Test;
 class FindDialogCleanupAuditTest {
 	@Test
 	void findDialogRemovesGlobalListenersOnDispose() throws Exception {
-		String source = source("modules/microproject_ui/src/main/java/com/microproject/dialog/FindDialog.java");
+		String source = source("modules/microproject_ui/src/main/java/com/microproject/ui/dialog/FindDialog.java");
 
 		assertTrue(source.contains("public void dispose()"));
 		assertTrue(source.contains("DocumentSelectedEvent.removeListener(this);"));

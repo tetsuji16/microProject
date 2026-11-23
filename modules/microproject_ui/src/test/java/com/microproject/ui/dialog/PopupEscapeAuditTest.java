@@ -36,7 +36,7 @@ import org.junit.jupiter.api.Test;
 class PopupEscapeAuditTest {
 	@Test
 	void abstractDialogStillBindsEscapeAtTheBaseClass() throws Exception {
-		String source = source("modules/microproject_ui/src/main/java/com/microproject/dialog/AbstractDialog.java");
+		String source = source("modules/microproject_ui/src/main/java/com/microproject/ui/dialog/AbstractDialog.java");
 
 		assertTrue(source.contains("KeyEvent.VK_ESCAPE"));
 		assertTrue(source.contains("PopupDialogSupport.bindRootPaneAction(rootPane, escapeStroke, \"dialog.escape\""));
@@ -46,9 +46,9 @@ class PopupEscapeAuditTest {
 
 	@Test
 	void graphicManagerRoutesChoosersThroughPopupDialogSupport() throws Exception {
-		String source = source("modules/microproject_ui/src/main/java/com/microproject/pm/graphic/frames/GraphicManager.java");
+		String source = source("modules/microproject_ui/src/main/java/com/microproject/ui/frame/GraphicManager.java");
 		String collaboration = source("modules/microproject_core/src/main/java/com/microproject/collaboration/CollaborationSession.java");
-		String collaborationUi = source("modules/microproject_ui/src/main/java/com/microproject/pm/graphic/collaboration/CollaborationHelper.java");
+		String collaborationUi = source("modules/microproject_ui/src/main/java/com/microproject/ui/view/collaboration/CollaborationHelper.java");
 
 		assertTrue(source.contains("CollaborationHelper.checkBeforeSave(session, getCurrentFrame())"));
 		assertTrue(collaborationUi.contains("PopupDialogSupport.showOptionDialog("));
@@ -62,7 +62,7 @@ class PopupEscapeAuditTest {
 
 	@Test
 	void startupAndTipDialogsHaveEscapeCoverageHooks() throws Exception {
-		String mainSource = source("modules/microproject_ui/src/main/java/com/microproject/pm/graphic/gantt/Main.java");
+		String mainSource = source("modules/microproject_ui/src/main/java/com/microproject/ui/view/gantt/Main.java");
 
 		// Main no longer shows a startup dialog; it must not reintroduce a raw JOptionPane.
 		assertFalse(mainSource.contains("JOptionPane.showMessageDialog("));

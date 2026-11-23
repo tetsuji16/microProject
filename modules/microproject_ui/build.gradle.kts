@@ -44,7 +44,7 @@ dependencies {
 }
 
 application {
-    mainClass.set("com.microproject.main.Main")
+    mainClass.set("com.microproject.ui.app.Main")
     applicationDefaultJvmArgs = listOf("--enable-native-access=ALL-UNNAMED")
 }
 
@@ -86,7 +86,7 @@ tasks.register<JavaExec>("imeSandbox") {
     group = "application"
     description = "Launch the spreadsheet IME sandbox."
     classpath = sourceSets.main.get().runtimeClasspath
-    mainClass.set("com.microproject.pm.graphic.spreadsheet.common.SpreadsheetImeSandbox")
+    mainClass.set("com.microproject.ui.view.spreadsheet.common.SpreadsheetImeSandbox")
     dependsOn(tasks.classes)
 }
 
@@ -161,7 +161,7 @@ tasks.register<Test>("guiTest") {
 	// Gradle test worker per phase. Keep it out of ordinary full-suite discovery;
 	// the dedicated driver supplies the workspace and requires phase markers.
 	if (providers.environmentVariable("MICROPROJECT_ISSUE967_WORKSPACE").orNull.isNullOrBlank()) {
-		exclude("com/microproject/pm/graphic/frames/FreshProcessMpoRestartGuiAcceptanceTest.class")
+		exclude("com/microproject/ui/frame/FreshProcessMpoRestartGuiAcceptanceTest.class")
 	}
 	// Swing singletons (locale, menu factories, windows and focus state) are
 	// process-wide. One acceptance class may not leave that state behind for

@@ -139,14 +139,14 @@ class RibbonUiAuditTest {
 
 	@Test
 	void noKnownInformationButtonsFallbackToSharedInformationAction() {
-		assertFalse(hasLegacyInformationAction(ResourceBundle.getBundle("com.microproject.menu.menuInternal"), "RibbonTaskInformation"));
-		assertFalse(hasLegacyInformationAction(ResourceBundle.getBundle("com.microproject.menu.menuInternal"), "RibbonResourceInformation"));
-		assertFalse(hasLegacyInformationAction(ResourceBundle.getBundle("com.microproject.menu.menu_ta"), "RibbonTaskInformation"));
-		assertFalse(hasLegacyInformationAction(ResourceBundle.getBundle("com.microproject.menu.menu_ta"), "RibbonResourceInformation"));
-		assertFalse(resourceContains("com/microproject/menu/nativeCodePage/menu_zh_CN.properties", "Tool24TaskInformation.action\t=InformationAction"));
-		assertFalse(resourceContains("com/microproject/menu/nativeCodePage/menu_zh_CN.properties", "Tool24ResourceInformation.action\t=InformationAction"));
-		assertFalse(resourceContains("com/microproject/menu/nativeCodePage/menu_ru.properties.1251", "Tool24TaskInformation.action\t=InformationAction"));
-		assertFalse(resourceContains("com/microproject/menu/nativeCodePage/menu_ru.properties.1251", "Tool24ResourceInformation.action\t=InformationAction"));
+		assertFalse(hasLegacyInformationAction(ResourceBundle.getBundle("com.microproject.ui.menu.menuInternal"), "RibbonTaskInformation"));
+		assertFalse(hasLegacyInformationAction(ResourceBundle.getBundle("com.microproject.ui.menu.menuInternal"), "RibbonResourceInformation"));
+		assertFalse(hasLegacyInformationAction(ResourceBundle.getBundle("com.microproject.ui.menu.menu_ta"), "RibbonTaskInformation"));
+		assertFalse(hasLegacyInformationAction(ResourceBundle.getBundle("com.microproject.ui.menu.menu_ta"), "RibbonResourceInformation"));
+		assertFalse(resourceContains("com/microproject/ui/menu/nativeCodePage/menu_zh_CN.properties", "Tool24TaskInformation.action\t=InformationAction"));
+		assertFalse(resourceContains("com/microproject/ui/menu/nativeCodePage/menu_zh_CN.properties", "Tool24ResourceInformation.action\t=InformationAction"));
+		assertFalse(resourceContains("com/microproject/ui/menu/nativeCodePage/menu_ru.properties.1251", "Tool24TaskInformation.action\t=InformationAction"));
+		assertFalse(resourceContains("com/microproject/ui/menu/nativeCodePage/menu_ru.properties.1251", "Tool24ResourceInformation.action\t=InformationAction"));
 	}
 
 	private static boolean hasLegacyInformationAction(ResourceBundle bundle, String key) {

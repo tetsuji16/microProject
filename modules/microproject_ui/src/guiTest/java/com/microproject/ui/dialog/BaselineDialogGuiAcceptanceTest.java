@@ -188,7 +188,7 @@ class BaselineDialogGuiAcceptanceTest {
 
 	private void openClearBaseline(Robot robot) throws Exception {
 		Component projectTab = GuiAcceptanceSupport.findShowingButtonByText(window,
-			java.util.ResourceBundle.getBundle("com.microproject.menu.menu").getString("ProjectRibbonTask.title"));
+			java.util.ResourceBundle.getBundle("com.microproject.ui.menu.menu").getString("ProjectRibbonTask.title"));
 		ModernRibbonPanel ribbon = (ModernRibbonPanel) window.getRibbonPanel()
 			.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
 		if (!ribbon.isCommandSurfaceVisible()) {

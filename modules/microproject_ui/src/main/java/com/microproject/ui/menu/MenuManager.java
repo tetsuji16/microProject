@@ -61,8 +61,8 @@ import com.microproject.ui.util.FlatUiSupport;
  */
 public class MenuManager {
 	private static final Logger logger = Logger.getLogger(MenuManager.class.getName());
-	private static final String MENU_BUNDLE = "com.microproject.menu.menu";
-	private static final String MENU_INTERNAL_BUNDLE = "com.microproject.menu.menuInternal";
+	private static final String MENU_BUNDLE = "com.microproject.ui.menu.menu";
+	private static final String MENU_INTERNAL_BUNDLE = "com.microproject.ui.menu.menuInternal";
 	private static final String MENU_BUNDLE_CONF_DIR = "menu";
 	public static final String STANDARD_MENU ="StandardMenuBar";
 	public static final String MAC_STANDARD_MENU ="MacStandardMenuBar";

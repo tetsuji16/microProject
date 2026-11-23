@@ -914,10 +914,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertTrue(pageable.getNumberOfPages() >= 2, "fixture must exercise all-page preview rather than a single page");
 		assertEveryReportPageRenders(pageable);
 
-		AbstractButton fileTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton fileTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("FileRibbonTask.title"));
 		clickAndAwaitSelected(robot, fileTab, "Robot click did not select the File ribbon tab");
-		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("RibbonPrint.text")));
 		AbstractButton preview = findShowingButtonByCommand("RibbonPrintPreview");
 		assertTrue(preview.isEnabled(), "report print preview must use the application's enabled Print Preview command");
@@ -1117,7 +1117,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
-		AbstractButton reportTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton reportTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("ReportRibbonTask.title"));
 		clickAndAwaitSelected(robot, reportTab, "Robot click did not select the Report ribbon tab");
 		AbstractButton reportViewCommand = findShowingButtonByCommand("RibbonReport");
@@ -1349,7 +1349,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 			robot.setAutoDelay(45);
 			activateWindow(robot, window);
-			AbstractButton fileTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+			AbstractButton fileTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString("FileRibbonTask.title"));
 			clickAndAwaitSelected(robot, fileTab, "Robot click did not select the File ribbon tab");
 			GuiAcceptanceSupport.await(fileTab::isSelected, "Robot click did not select the File ribbon tab");
@@ -1492,7 +1492,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, task), nameColumn(sheet));
-		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("TaskRibbonTask.title"));
 		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
 		GuiAcceptanceSupport.await(taskTab::isSelected, "Robot click did not select the Task ribbon tab");
@@ -1677,7 +1677,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		int column = nameColumn(sheet);
 		clickUntilSelected(robot, window, sheet, row, column);
 
-		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("TaskRibbonTask.title"));
 		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
 		GuiAcceptanceSupport.await(taskTab::isSelected, "Robot click did not select the Task ribbon tab");
@@ -1755,7 +1755,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, task), nameColumn(sheet));
-		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("TaskRibbonTask.title"));
 		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
 		AbstractButton information = RibbonGuiSupport.findVisibleOrExpand(robot, window, "RibbonTaskInformation");
@@ -1898,7 +1898,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, task), nameColumn(sheet));
-		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("TaskRibbonTask.title"));
 		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
 		AbstractButton information = RibbonGuiSupport.findVisibleOrExpand(robot, window, "RibbonTaskInformation");
@@ -2294,7 +2294,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
-		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString("ViewRibbonTask.title"));
 		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab");
 		AbstractButton ganttButton = findShowingButtonByCommand("RibbonGantt");
@@ -2349,7 +2349,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
-		String formatTabLabel = ResourceBundle.getBundle("com.microproject.menu.menu").getString("FormatRibbonTask.title");
+		String formatTabLabel = ResourceBundle.getBundle("com.microproject.ui.menu.menu").getString("FormatRibbonTask.title");
 		AtomicReference<AbstractButton> formatTabReference = new AtomicReference<>();
 		SwingUtilities.invokeAndWait(() -> formatTabReference.set(UiComponentWalker.flatten(window).stream()
 			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast).filter(AbstractButton::isShowing)
@@ -2464,7 +2464,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
-		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString("ViewRibbonTask.title"));
 		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab");
 		AbstractButton ganttButton = findShowingButtonByCommand("RibbonGantt");
@@ -2840,7 +2840,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
-		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString("ViewRibbonTask.title"));
 		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab");
 
@@ -2888,7 +2888,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
-		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString("ViewRibbonTask.title"));
 		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab");
 
@@ -2924,7 +2924,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
-		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("ProjectRibbonTask.title"));
 		clickAndAwaitSelected(robot, projectTab, "Robot click did not select the Project ribbon tab");
 		AbstractButton calendarOptions = findShowingButtonByCommand("RibbonCalendarOptions");
@@ -2959,7 +2959,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
-		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("ProjectRibbonTask.title"));
 		clickAndAwaitSelected(robot, projectTab, "Robot click did not select the Project ribbon tab");
 		GuiAcceptanceSupport.await(projectTab::isSelected, "Project ribbon tab did not become selected");
@@ -3003,7 +3003,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
-		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("ProjectRibbonTask.title"));
 		clickAndAwaitSelected(robot, projectTab, "Project ribbon tab did not become selected");
 
@@ -3086,7 +3086,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				.noneMatch(candidate -> candidate instanceof Dialog && candidate.isShowing()),
 				"the expected Resource Sheet notice did not close");
 		}
-		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("ProjectRibbonTask.title"));
 		for (int attempt = 0; attempt < 3 && !projectTab.isSelected(); attempt++) {
 			if (attempt > 0) activateWindow(robot, window);
@@ -3150,7 +3150,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
-		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString("ViewRibbonTask.title"));
 		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab");
 		GuiAcceptanceSupport.await(viewTab::isSelected, "Robot click did not select the View ribbon tab");
@@ -3220,7 +3220,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
-		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("ViewRibbonTask.title"));
 		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab");
 		GuiAcceptanceSupport.await(viewTab::isSelected, "View ribbon tab was not selected");
@@ -3589,7 +3589,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
-		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("ViewRibbonTask.title"));
 		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab for Calendar");
 		click(robot, findShowingButtonByCommand("RibbonCalendarView"));
@@ -3625,7 +3625,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"Remove must preserve the unrelated predecessor dependency");
 		// Unlinking reschedules these tasks onto the same day; expand that week through
 		// the real Calendar Format route before asserting every card is visible.
-		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString("CalendarFormat.contextualTitle")), "Robot click did not select Calendar Format");
 		click(robot, findShowingButtonByCommand("RibbonCalendarWeekHeightBestFit"));
 		GuiAcceptanceSupport.await(() -> calendar.getVisibleTaskCardCount() == 3,
@@ -3695,7 +3695,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
-		AbstractButton resourceTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton resourceTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString("ResourceRibbonTask.title"));
 		clickAndAwaitSelected(robot, resourceTab, "Robot click did not select the Resource ribbon tab");
 		AbstractButton timesheet = findShowingButtonByCommand("RibbonTimesheet");
@@ -3770,7 +3770,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			.map(node -> ((Task) node.getImpl()).getUniqueId()).toList(),
 			"physical selection must target only the real outline summary parent");
 		String collapseAfterSelect = taskCollapseState(sheet, fixture.parent());
-		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString("TaskRibbonTask.title"));
 		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
 		AbstractButton hide = findVisibleOrOverflowButton(robot, "RibbonHideSelectedTasks");
@@ -3848,7 +3848,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		Gantt gantt = manager.getCurrentFrame().getGanttView().getGantt();
-		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString("ViewRibbonTask.title"));
 		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab for grouping");
 		openRibbonPopupCommand(robot, "RibbonChooseGroup", "RibbonMoreGroups");
@@ -3891,7 +3891,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			.filter(node -> node.getImpl() instanceof Task)
 			.map(node -> ((Task) node.getImpl()).getUniqueId()).toList();
 		assertEquals(1, selectedIds.size(), "physical row selection must identify exactly one virtual group task");
-		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString("TaskRibbonTask.title"));
 		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
 		AbstractButton hide = findVisibleOrOverflowButton(robot, "RibbonHideSelectedTasks");
@@ -3939,7 +3939,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		for (NormalTask task : expected)
 			assertFalse(taskNamed(shownReload, task.getName()).isHiddenTask(), "MPO reload retained hidden group member " + task.getName());
 		// Grouping is a project-view preference shared by later physical GUI routes; restore the default.
-		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString("ViewRibbonTask.title")));
 		openRibbonPopupCommand(robot, "RibbonChooseGroup", "RibbonMoreGroups");
 		JComboBox<?> resetGroupChoice = findShowingTransformCombo("Grouper.CompleteIncomplete");
@@ -4186,7 +4186,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, task), nameColumn(sheet));
-		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString("ProjectRibbonTask.title")));
 		AbstractButton update = GuiPhysicalRouteAdapter.visibleButton(robot, window, "RibbonUpdateProject");
 		GuiAcceptanceSupport.await(update::isEnabled, "Update Project remained disabled");
@@ -4510,7 +4510,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, task), nameColumn(sheet)));
-		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("ProjectRibbonTask.title")));
 		AbstractButton saveBaseline = findVisibleOrOverflowButton(robot, "RibbonSaveBaseline");
 		GuiAcceptanceSupport.await(saveBaseline::isEnabled, "Save Baseline remained disabled");
@@ -4522,7 +4522,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			.filter(candidate -> candidate instanceof BaselineDialog && candidate.isShowing())
 			.map(BaselineDialog.class::cast).findFirst().orElseThrow();
 		click(robot, findShowingButtonByText(dialog, Messages.getString("Text.SelectedTasks")));
-		ResourceBundle baselineLabels = ResourceBundle.getBundle("com.microproject.dialog.usability");
+		ResourceBundle baselineLabels = ResourceBundle.getBundle("com.microproject.ui.dialog.usability");
 		click(robot, findShowingButtonByText(dialog,
 			baselineLabels.getString("baseline.rollupToSummaryTasks")));
 		click(robot, findShowingButtonByText(dialog, Messages.getString("ButtonText.OK")));
@@ -4779,7 +4779,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
-		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("ProjectRibbonTask.title")));
 		openBaselineDialog(robot, "RibbonSaveBaseline");
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
@@ -4796,7 +4796,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertEquals(Snapshottable.BASELINE_1.intValue(), baselineSelector.getSelectedIndex(),
 			"Physical chooser selection must target Baseline 1");
 		assertTrue(entireProject.isSelected(), "Physical scope selection must target Entire Project");
-		ResourceBundle baselineLabels = ResourceBundle.getBundle("com.microproject.dialog.usability");
+		ResourceBundle baselineLabels = ResourceBundle.getBundle("com.microproject.ui.dialog.usability");
 		click(robot, findShowingButtonByText(dialog, Messages.getString("ButtonText.OK")));
 		GuiAcceptanceSupport.await(() -> isActiveDialogOwnedBy(dialog, baselineLabels.getString("baseline.overwriteTitle")),
 			"Recapturing occupied Baseline 1 must show an overwrite confirmation");
@@ -5005,7 +5005,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, selected), nameColumn(sheet)));
-		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("ProjectRibbonTask.title")));
 		openBaselineDialog(robot, clear ? "RibbonClearBaseline" : "RibbonSaveBaseline");
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
@@ -5022,7 +5022,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertEquals(slot.intValue(), baselineSelector.getSelectedIndex(),
 			"Physical chooser selection must target Baseline " + slot);
 		assertTrue(selectedTasks.isSelected(), "Physical scope selection must target Selected Tasks");
-		ResourceBundle labels = ResourceBundle.getBundle("com.microproject.dialog.usability");
+		ResourceBundle labels = ResourceBundle.getBundle("com.microproject.ui.dialog.usability");
 		click(robot, findShowingButtonByText(dialog, Messages.getString("ButtonText.OK")));
 		if (!clear && occupied) {
 			GuiAcceptanceSupport.await(() -> isActiveDialogOwnedBy(dialog, labels.getString("baseline.overwriteTitle")),
@@ -5136,7 +5136,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
-		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton projectTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("ProjectRibbonTask.title"));
 		click(robot, projectTab);
 		openBaselineDialog(robot, "RibbonClearBaseline");
@@ -5236,7 +5236,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		if (selectTask) click(robot, cellOnScreen(sheet, rowForTask(sheet, progressTask), nameColumn(sheet)));
 		else SwingUtilities.invokeAndWait(sheet::clearSelection);
-		AbstractButton progressTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton progressTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString(commandId.equals("MarkOnTrack") ? "TaskRibbonTask.title" : "ProjectRibbonTask.title"));
 		clickAndAwaitSelected(robot, progressTab, routeName + " ribbon tab did not become selected");
 		SwingUtilities.invokeAndWait(() -> { });
@@ -5336,7 +5336,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
-		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		click(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString("TaskRibbonTask.title")));
 		// Selecting a ribbon tab can rebuild the active spreadsheet; capture the
 		// current view after the rebuild before exercising physical clipboard routes.
@@ -5503,7 +5503,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(45);
 		activateWindow(robot, window);
-		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString("TaskRibbonTask.title"));
 		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
 		GuiAcceptanceSupport.await(taskTab::isSelected, "Robot click did not select the Task ribbon tab");
@@ -5517,13 +5517,13 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"Indent must be disabled without a selected task");
 		assertFalse(findVisibleOrOverflowButton(robot, "RibbonOutdent").isEnabled(),
 			"Outdent must be disabled without a selected task");
-		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString("ViewRibbonTask.title")), "Robot click did not select the View ribbon tab");
 		assertFalse(findVisibleOrOverflowButton(robot, "RibbonCollapse").isEnabled(),
 			"Collapse must be disabled without a selected task");
 		assertFalse(findVisibleOrOverflowButton(robot, "RibbonExpand").isEnabled(),
 			"Expand must be disabled without a selected task");
-		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString("TaskRibbonTask.title")), "Robot click did not select the Task ribbon tab");
 		AbstractButton hide = findVisibleOrOverflowButton(robot, "RibbonHideSelectedTasks");
 		AbstractButton show = findVisibleOrOverflowButton(robot, "RibbonShowAllTasks");
@@ -5562,7 +5562,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		RowHeaderTarget parentRowTarget = rowHeaderTargetOnScreen(rowHeader, rowForTask(sheet, parent), false);
 		click(robot, new Rectangle(parentRowTarget.screenPoint().x, parentRowTarget.screenPoint().y, 1, 1));
 		assertTrue(isTaskVisible(sheet, child), "selecting the summary row must not collapse its children");
-		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString("ViewRibbonTask.title"));
 		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the View ribbon tab");
 		AbstractButton collapse = findVisibleOrOverflowButton(robot, "RibbonCollapse");
@@ -6028,7 +6028,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
 		GuiAcceptanceSupport.await(() -> rowForTask(sheet, second) < rowForTask(sheet, first),
 			"Ctrl+Y did not reapply the task order after the move shortcut");
-		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("TaskRibbonTask.title"));
 		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab for task movement");
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, first), nameColumn(sheet)));
@@ -6474,7 +6474,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		int selectedResourceRow = resourceRow;
 		GuiAcceptanceSupport.await(() -> resourceTree.isRowSelected(selectedResourceRow),
 			"Robot did not select the allocated resource in the Resource Graph legend");
-		AbstractButton formatTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton formatTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("ResourceGraphFormat.contextualTitle"));
 		clickAndAwaitSelected(robot, formatTab, "Robot did not activate the Resource Graph Format contextual tab");
 		AbstractButton barStyles = findShowingButtonByCommand("RibbonResourceGraphBarStyles");
@@ -6482,14 +6482,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, barStyles);
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
 			.anyMatch(candidate -> candidate instanceof JDialog dialog && dialog.isShowing()
-				&& ResourceBundle.getBundle("com.microproject.menu.menu").getString("ResourceGraph.title.barStyles").equals(dialog.getTitle())),
+				&& ResourceBundle.getBundle("com.microproject.ui.menu.menu").getString("ResourceGraph.title.barStyles").equals(dialog.getTitle())),
 			"Resource Graph Bar Styles dialog did not open");
 		JDialog dialog = java.util.Arrays.stream(Window.getWindows()).filter(JDialog.class::isInstance).map(JDialog.class::cast)
 			.filter(candidate -> candidate.isShowing()
-				&& ResourceBundle.getBundle("com.microproject.menu.menu").getString("ResourceGraph.title.barStyles").equals(candidate.getTitle()))
+				&& ResourceBundle.getBundle("com.microproject.ui.menu.menu").getString("ResourceGraph.title.barStyles").equals(candidate.getTitle()))
 			.findFirst().orElseThrow();
 		JSpinner overlap = UiComponentWalker.flatten(dialog).stream().filter(JSpinner.class::isInstance).map(JSpinner.class::cast)
-			.filter(candidate -> ResourceBundle.getBundle("com.microproject.menu.menu").getString("ResourceGraph.dialog.percentBarOverlap")
+			.filter(candidate -> ResourceBundle.getBundle("com.microproject.ui.menu.menu").getString("ResourceGraph.dialog.percentBarOverlap")
 				.equals(candidate.getAccessibleContext().getAccessibleName()))
 			.findFirst().orElseThrow(() -> new AssertionError("Bar overlap spinner is missing from the real dialog"));
 		JTextField overlapEditor = ((JSpinner.DefaultEditor) overlap.getEditor()).getTextField();
@@ -6506,14 +6506,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, barStyles);
 		GuiAcceptanceSupport.await(() -> java.util.Arrays.stream(Window.getWindows())
 			.anyMatch(candidate -> candidate instanceof JDialog current && current.isShowing()
-				&& ResourceBundle.getBundle("com.microproject.menu.menu").getString("ResourceGraph.title.barStyles").equals(current.getTitle())),
+				&& ResourceBundle.getBundle("com.microproject.ui.menu.menu").getString("ResourceGraph.title.barStyles").equals(current.getTitle())),
 			"the second Bar Styles dialog did not open");
 		JDialog invalidDialog = java.util.Arrays.stream(Window.getWindows()).filter(JDialog.class::isInstance).map(JDialog.class::cast)
 			.filter(candidate -> candidate.isShowing()
-				&& ResourceBundle.getBundle("com.microproject.menu.menu").getString("ResourceGraph.title.barStyles").equals(candidate.getTitle()))
+				&& ResourceBundle.getBundle("com.microproject.ui.menu.menu").getString("ResourceGraph.title.barStyles").equals(candidate.getTitle()))
 			.findFirst().orElseThrow();
 		JSpinner invalidOverlap = UiComponentWalker.flatten(invalidDialog).stream().filter(JSpinner.class::isInstance)
-			.map(JSpinner.class::cast).filter(candidate -> ResourceBundle.getBundle("com.microproject.menu.menu")
+			.map(JSpinner.class::cast).filter(candidate -> ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString("ResourceGraph.dialog.percentBarOverlap").equals(candidate.getAccessibleContext().getAccessibleName()))
 			.findFirst().orElseThrow();
 		JTextField invalidEditor = ((JSpinner.DefaultEditor) invalidOverlap.getEditor()).getTextField();
@@ -6526,7 +6526,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertEquals("101", invalidEditor.getText(), "an invalid typed value must survive focus loss until the OK validator runs");
 		assertEquals(0, invalidOverlap.getValue(), "focus loss must not apply the invalid spinner text to the model");
 		click(robot, findShowingButtonByText(invalidDialog, Messages.getString("ButtonText.OK")));
-		String invalidOverlapMessage = ResourceBundle.getBundle("com.microproject.menu.menu")
+		String invalidOverlapMessage = ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("ResourceGraph.dialog.invalidBarOverlap");
 		GuiAcceptanceSupport.await(() -> findDialogContainingText(invalidOverlapMessage) != null,
 			"the OK route must show an invalid overlap warning with the localized message: " + invalidOverlapMessage);
@@ -6621,7 +6621,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(predecessor)
 				&& manager.getCurrentFrame().getSelectedImpls(false).contains(successor),
 			"Shift-click did not preserve both selected tasks");
-		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString("TaskRibbonTask.title"));
 		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
 		assertFalse(RibbonGuiSupport.findVisibleOrExpand(robot, window, "RibbonTaskInformation").isEnabled(),
@@ -7170,7 +7170,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"the three independent cycle tasks must be visible in the spreadsheet");
 		assertEquals(0, gantt.getModel().getCache().getEdgesSize(), "cycle fixture must start without Gantt dependencies");
 		undo.clear();
-		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("TaskRibbonTask.title"));
 		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab for cycle links");
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, a), nameColumn(sheet)));
@@ -7391,7 +7391,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, selected), nameColumn(sheet)));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(selected),
 			"physical task click did not select the Clear Leveling target");
-		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString("ResourceRibbonTask.title")), "Robot click did not select the Resource ribbon tab");
 		AbstractButton clearSelected = findVisibleOrOverflowButton(robot, "RibbonClearLevelSelection");
 		GuiAcceptanceSupport.await(clearSelected::isEnabled,
@@ -7496,7 +7496,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		activateWindow(robot, window);
 		SpreadSheet sheet = manager.getCurrentFrame().getActiveSpreadSheet();
 		clickUntilSelected(robot, window, sheet, rowForTask(sheet, successor), nameColumn(sheet));
-		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		clickAndAwaitSelected(robot, findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("TaskRibbonTask.title")), "Robot click did not select the Task ribbon tab");
 		click(robot, findVisibleOrOverflowButton(robot, "RibbonTaskInspector"));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().taskInspectorVisible()
@@ -7773,7 +7773,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		taskFilterViewToRestore = ViewConfiguration.getView(manager.getCurrentFrame().getTopViewId());
 		previousTaskFilterId = taskFilterViewToRestore.getTransform().getUserFilterId();
 		boolean dirtyBeforeFilter = project.needsSaving();
-		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("ViewRibbonTask.title"));
 		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab for filtering");
 		openRibbonPopupCommand(robot, "RibbonChooseFilter", "RibbonMoreFilters");
@@ -7877,7 +7877,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertSame(sheet.getCache(), ganttView.getCache(), "task table and Gantt must share the live projection");
 		assertEquals(originalOutline, visibleTaskOrder(sheet), "task table must initially follow outline order");
 
-		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton viewTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("ViewRibbonTask.title"));
 		clickAndAwaitSelected(robot, viewTab, "Robot click did not select the View ribbon tab");
 		openSortBy(robot);
@@ -8102,7 +8102,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		Dialog permanentChooser = (Dialog) java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
 		JCheckBox permanentCheck = UiComponentWalker.flatten(permanentChooser).stream()
 			.filter(JCheckBox.class::isInstance).map(JCheckBox.class::cast)
-			.filter(check -> check.getText().equals(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.filter(check -> check.getText().equals(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString("Sort.PermanentTaskOrder"))).findFirst().orElseThrow();
 		JCheckBox keepOutlineForCancel = UiComponentWalker.flatten(permanentChooser).stream()
 			.filter(JCheckBox.class::isInstance).map(JCheckBox.class::cast)
@@ -8140,7 +8140,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"the permanent sort must use the explicitly selected descending direction");
 		JCheckBox permanentCheckAgain = UiComponentWalker.flatten(permanentChooserAgain).stream()
 			.filter(JCheckBox.class::isInstance).map(JCheckBox.class::cast)
-			.filter(check -> check.getText().equals(ResourceBundle.getBundle("com.microproject.menu.menu")
+			.filter(check -> check.getText().equals(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 				.getString("Sort.PermanentTaskOrder"))).findFirst().orElseThrow();
 		JCheckBox keepOutlineAgain = UiComponentWalker.flatten(permanentChooserAgain).stream()
 			.filter(JCheckBox.class::isInstance).map(JCheckBox.class::cast)
@@ -8228,7 +8228,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, first), nameColumn(sheet)));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(first),
 			"physical task click did not select the first overallocated task");
-		AbstractButton resourceTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton resourceTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("ResourceRibbonTask.title"));
 		clickAndAwaitSelected(robot, resourceTab, "Robot click did not select the Resource ribbon tab");
 		AbstractButton next = findShowingButtonByCommand("RibbonNextOverallocation");
@@ -8290,7 +8290,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		click(robot, cellOnScreen(sheet, rowForTask(sheet, selected), nameColumn(sheet)));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(selected),
 			"single task selection was not retained for unlink choice");
-		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton taskTab = findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("TaskRibbonTask.title"));
 		clickAndAwaitSelected(robot, taskTab, "Robot click did not select the Task ribbon tab");
 		AbstractButton unlink = findVisibleOrOverflowButton(robot, "RibbonUnlink");
@@ -8839,7 +8839,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	private void dismissTaskRibbonOverflow(Robot robot, Component command, BooleanSupplier preservedState,
 			String preservedStateMessage) throws Exception {
 		dismissRibbonOverflow(robot, command,
-			findShowingButtonByText(ResourceBundle.getBundle("com.microproject.menu.menu").getString("TaskRibbonTask.title")),
+			findShowingButtonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu").getString("TaskRibbonTask.title")),
 			preservedState, preservedStateMessage);
 	}
 

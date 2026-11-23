@@ -1311,7 +1311,7 @@ class RibbonTabGuiAcceptanceTest {
 				"File tab did not open Backstage before command " + commandId);
 		}
 		java.util.ResourceBundle metadata = java.util.ResourceBundle.getBundle(
-			"com.microproject.menu.menuInternal", Locale.ROOT);
+			"com.microproject.ui.menu.menuInternal", Locale.ROOT);
 		String pageId = metadata.getString(commandId + ".backstagePage");
 		Component destination = findShowingComponent(frame, "officeBackstageNav-" + pageId);
 		if (!(destination instanceof AbstractButton pageButton))

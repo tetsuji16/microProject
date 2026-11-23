@@ -140,7 +140,7 @@ class AssignmentDialogGuiAcceptanceTest {
 		click(robot, cellBounds(taskSheet, rowForTask(taskSheet, task), nameColumn(taskSheet)));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(task),
 			"Robot click did not select the assignment task");
-		AbstractButton taskTab = buttonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		AbstractButton taskTab = buttonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("ResourceRibbonTask.title"));
 		click(robot, bounds(taskTab));
 		AbstractButton assignResources = com.microproject.ui.testsupport.RibbonGuiSupport.findVisibleOrExpand(robot, window, "RibbonAssignResources");
@@ -253,7 +253,7 @@ class AssignmentDialogGuiAcceptanceTest {
 		click(robot, cellBounds(taskSheet, rowForTask(taskSheet, task), nameColumn(taskSheet)));
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame().getSelectedImpls(false).contains(task),
 			"Robot click did not select the replacement task");
-		click(robot, bounds(buttonByText(ResourceBundle.getBundle("com.microproject.menu.menu")
+		click(robot, bounds(buttonByText(ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("ResourceRibbonTask.title"))));
 		AbstractButton assignResources = com.microproject.ui.testsupport.RibbonGuiSupport.findVisibleOrExpand(robot, window, "RibbonAssignResources");
 		GuiAcceptanceSupport.await(assignResources::isEnabled, "Assign Resources remained disabled for the replacement task");

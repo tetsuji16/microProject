@@ -51,8 +51,8 @@ public final class RibbonInventory {
 	}
 
 	public static RibbonInventory standardRibbon() {
-		ResourceBundle internal = ResourceBundle.getBundle("com.microproject.menu.menuInternal", Locale.ROOT);
-		ResourceBundle images = ResourceBundle.getBundle("com.microproject.pm.graphic.images", Locale.getDefault());
+		ResourceBundle internal = ResourceBundle.getBundle("com.microproject.ui.menu.menuInternal", Locale.ROOT);
+		ResourceBundle images = ResourceBundle.getBundle("com.microproject.ui.view.images", Locale.getDefault());
 		List<String> taskIds = Collections.unmodifiableList(tokens(internal, "StandardRibbon"));
 		Map<String, List<String>> bandsByTask = new LinkedHashMap<>();
 		Map<String, List<String>> buttonsByBand = new LinkedHashMap<>();

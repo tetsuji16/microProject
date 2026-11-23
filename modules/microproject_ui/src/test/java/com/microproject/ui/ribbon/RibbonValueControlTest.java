@@ -139,7 +139,7 @@ class RibbonValueControlTest {
 			new com.microproject.ui.menu.ExtToolBarFactory(actions,
 				com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonBundles(java.util.Locale.ROOT)));
 		java.util.ResourceBundle japaneseText = java.util.ResourceBundle.getBundle(
-			"com.microproject.menu.menu", java.util.Locale.JAPAN);
+			"com.microproject.ui.menu.menu", java.util.Locale.JAPAN);
 		SwingUtilities.invokeAndWait(() -> {
 			String commandId = "RibbonFillColor";
 			JButton owner = new JButton(actual.createAction(commandId));
@@ -177,7 +177,7 @@ class RibbonValueControlTest {
 			com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonBundles(java.util.Locale.ROOT));
 		RibbonCommandSource actual = new com.microproject.ui.menu.MenuRibbonCommandSource(factory);
 		java.util.ResourceBundle english = java.util.ResourceBundle.getBundle(
-			"com.microproject.menu.menu", java.util.Locale.ROOT);
+			"com.microproject.ui.menu.menu", java.util.Locale.ROOT);
 		SwingUtilities.invokeAndWait(() -> {
 			String commandId = "RibbonFillColor";
 			JButton owner = new JButton(actual.createAction(commandId));

@@ -72,7 +72,7 @@ class NetworkCalendarRibbonGuiAcceptanceTest {
 		robot.setAutoDelay(45);
 		GuiAcceptanceSupport.await(() -> onEdt(() -> window.isShowing() && manager.getCurrentFrame() != null),
 			"project window did not become visible");
-		ResourceBundle menu = ResourceBundle.getBundle("com.microproject.menu.menu");
+		ResourceBundle menu = ResourceBundle.getBundle("com.microproject.ui.menu.menu");
 
 		AbstractButton viewTab = GuiAcceptanceSupport.findShowingButtonByText(window, menu.getString("ViewRibbonTask.title"));
 		click(robot, screenBounds(viewTab));

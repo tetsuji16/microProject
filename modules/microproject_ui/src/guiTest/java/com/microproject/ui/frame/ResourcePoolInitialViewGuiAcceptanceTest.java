@@ -197,7 +197,7 @@ class ResourcePoolInitialViewGuiAcceptanceTest {
 
 		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(50);
-		String resourceTabText = ResourceBundle.getBundle("com.microproject.menu.menu")
+		String resourceTabText = ResourceBundle.getBundle("com.microproject.ui.menu.menu")
 			.getString("ResourceRibbonTask.title");
 		AbstractButton resourceTab = GuiAcceptanceSupport.findShowingButtonByText(window, resourceTabText);
 		click(robot, resourceTab);
@@ -307,7 +307,7 @@ class ResourcePoolInitialViewGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> manager.getCurrentFrame() == secondFrame,
 			"normal project focus did not update the active document before command dispatch");
 		AbstractButton viewTab = GuiAcceptanceSupport.findShowingButtonByText(normalWindow,
-			ResourceBundle.getBundle("com.microproject.menu.menu").getString("ViewRibbonTask.title"));
+			ResourceBundle.getBundle("com.microproject.ui.menu.menu").getString("ViewRibbonTask.title"));
 		WindowAcceptanceAssertions.clickComponent(robot, viewTab);
 		GuiAcceptanceSupport.await(() -> normalWindow.isFocused() && viewTab.isFocusOwner() && viewTab.isSelected(),
 			"physical ribbon-tab click did not establish keyboard focus in the active document window");

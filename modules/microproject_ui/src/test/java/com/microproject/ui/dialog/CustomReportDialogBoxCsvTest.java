@@ -102,7 +102,7 @@ class CustomReportDialogBoxCsvTest {
 	private static String reportDialogSource() throws java.io.IOException {
 		for (java.nio.file.Path current = java.nio.file.Path.of("").toAbsolutePath(); current != null; current = current.getParent()) {
 			java.nio.file.Path source = current.resolve(
-				"modules/microproject_ui/src/main/java/com/microproject/dialog/CustomReportDialogBox.java");
+				"modules/microproject_ui/src/main/java/com/microproject/ui/dialog/CustomReportDialogBox.java");
 			if (java.nio.file.Files.isRegularFile(source))
 				return java.nio.file.Files.readString(source);
 		}

@@ -29,7 +29,7 @@ class ChangeWorkingTimeDialogBoxSaveTest {
 			for (java.nio.file.Path current = java.nio.file.Path.of("").toAbsolutePath(); current != null; current = current
 					.getParent()) {
 				java.nio.file.Path candidate = current.resolve(
-						"modules/microproject_ui/src/main/java/com/microproject/dialog/calendar/ChangeWorkingTimeDialogBox.java")
+						"modules/microproject_ui/src/main/java/com/microproject/ui/dialog/calendar/ChangeWorkingTimeDialogBox.java")
 						.normalize();
 				if (java.nio.file.Files.exists(candidate)) {
 					return java.nio.file.Files.readString(candidate);

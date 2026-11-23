@@ -225,7 +225,7 @@ class IconManagerRibbonIconTest {
 	@Test
 	void quickAccessSaveIconPreservesItsInteriorWhenTheChromeAppliesItsSharedTint() {
 		assertEquals("document-save-outline.svg", IconManager.getConfiguredIconName("ribbon.saveToolbar"));
-		var menu = java.util.ResourceBundle.getBundle("com/microproject/menu/menuInternal");
+		var menu = java.util.ResourceBundle.getBundle("com/microproject/ui/menu/menuInternal");
 		assertEquals("ribbon.saveToolbar", menu.getString("RibbonTopBarSaveProject.icon"),
 			"the shared title-bar icon tint requires an outline glyph with transparent interior");
 		BufferedImage image = paint(IconManager.getRibbonIconTinted("ribbon.saveToolbar", 32, 32,
@@ -597,7 +597,7 @@ class IconManagerRibbonIconTest {
 
 	/** The ribbon icon keys declared by {@code images.properties}. */
 	private static Set<String> ribbonIconKeys() {
-		ResourceBundle bundle = ResourceBundle.getBundle("com.microproject.pm.graphic.images", Locale.getDefault());
+		ResourceBundle bundle = ResourceBundle.getBundle("com.microproject.ui.view.images", Locale.getDefault());
 		return bundle.keySet().stream().filter(key -> key.startsWith("ribbon.")).collect(
 			java.util.stream.Collectors.toCollection(java.util.TreeSet::new));
 	}

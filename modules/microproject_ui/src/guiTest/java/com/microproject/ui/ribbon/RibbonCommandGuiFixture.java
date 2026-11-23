@@ -63,7 +63,7 @@ import com.microproject.ribbon.RibbonCommandResult;
  * copied into the tests.
  */
 final class RibbonCommandGuiFixture implements AutoCloseable {
-	private static final String RIBBON_RESOURCE = "/com/microproject/menu/menuInternal.properties";
+	private static final String RIBBON_RESOURCE = "/com/microproject/ui/menu/menuInternal.properties";
 	private static final Properties RIBBON = loadRibbonProperties();
 
 	final MainRibbonFrame window;
