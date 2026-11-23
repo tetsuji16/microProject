@@ -45,7 +45,11 @@ The current default task entry sheet fields were exercised against the synthetic
 | `Field.duration` | Project duration | `ProjectSummaryRowSpreadsheetTest` |
 | `Field.start` | Project start | `ProjectSummaryRowSpreadsheetTest` |
 | `Field.finish` | Project finish | `ProjectSummaryRowSpreadsheetTest` |
-| `Field.id`, `Field.indicators`, `Field.percentWorkComplete` | Evaluated through standard field access; no exception | all-column evaluation in `ProjectSummaryRowSpreadsheetTest` |
+| `Field.work` | Project aggregate work; nonzero assigned work appears in the summary row | `ProjectSummaryRowSpreadsheetTest.projectAggregateFieldsShowActualNonzeroProjectValues` |
+| `Field.cost` | Project aggregate cost; nonzero resource rate/work appears in the summary row | `ProjectSummaryRowSpreadsheetTest.projectAggregateFieldsShowActualNonzeroProjectValues` |
+| `Field.percentComplete` | Project aggregate progress; a partially complete task appears in the summary row | `ProjectSummaryRowSpreadsheetTest.projectAggregateFieldsShowActualNonzeroProjectValues` |
+| `Field.percentWorkComplete` | Not applicable to Project (`TaskSpecificFields`); blank | `ProjectSummaryRowSpreadsheetTest` |
+| `Field.id`, `Field.indicators` | Evaluated through standard field access; no exception asserted | all-column evaluation in `ProjectSummaryRowSpreadsheetTest` |
 | `Field.manuallyScheduled`, `Field.predecessors`, `Field.resourceNames` | Not applicable to `Project`, blank | `ProjectSummaryRowSpreadsheetTest` |
 
 Other task columns remain governed by `Field.isApplicable(Project.class)` and the normal Project field interfaces; no project-only custom mapping was introduced.
@@ -57,6 +61,6 @@ Other task columns remain governed by `Field.isApplicable(Project.class)` and th
 ## Latest evidence
 
 - Tests/build: `.\gradlew.bat :microproject_core:test --console=plain` and `.\gradlew.bat :microproject_ui:test --console=plain` passed on current slice. `python scripts/test_source_inventory.py --check` also passed. Focused classes were rerun during implementation.
-- Tests/build: focused `RibbonButtonBehaviorTest` (64), `NodeCacheTransformerTest` (6), and `ProjectSummaryRowSpreadsheetTest` (2) pass. Previous full `:microproject_ui:test` and `:microproject_core:test` pass. `git diff --check` passes.
+- Tests/build: focused `RibbonButtonBehaviorTest` (64), `NodeCacheTransformerTest` (6), and `ProjectSummaryRowSpreadsheetTest` (3) pass. `projectAggregateFieldsShowActualNonzeroProjectValues` confirms the displayed `Field.work`, `Field.cost`, and `Field.percentComplete` equal the standard Field values for Project with nonzero assigned work, rate-derived cost, and task completion. Previous full `:microproject_ui:test` and `:microproject_core:test` pass. `git diff --check` passes.
 - Physical GUI: `ProjectSummaryTaskGuiAcceptanceTest.visibleProjectSummarySupportsGanttCommandsEditingUndoRedoAndMpo` pass on local Windows desktop; screenshot at `modules/microproject_ui/build/reports/guiTest-artifacts/project-summary-task.png` (generated, not source controlled)
 - CI on PR head `134bd7c5`: `GUI acceptance` passed; Windows/macOS build passed; Ubuntu build failed before compile because Maven Central returned HTTP 429 while resolving `commons-lang3:3.22.0` and 16 other artifacts. Retry after final head update.

@@ -15,7 +15,10 @@ import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.grouping.core.Node;
+import com.microproject.configuration.FieldDictionary;
+import com.microproject.datatype.Rate;
+import com.microproject.field.FieldContext;
+import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
 import com.microproject.pm.graphic.model.cache.NodeModelCache;
 import com.microproject.pm.graphic.model.cache.NodeModelCacheFactory;
@@ -23,11 +26,63 @@ import com.microproject.pm.graphic.model.cache.ReferenceNodeModelCache;
 import com.microproject.pm.graphic.model.transform.NodeCacheTransformer;
 import com.microproject.graphic.configuration.SpreadSheetCategories;
 import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 
 class ProjectSummaryRowSpreadsheetTest {
+
+	@Test
+	void projectAggregateFieldsShowActualNonzeroProjectValues() throws Exception {
+		var setup = new AtomicReference<Fixture>();
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			NormalTask task = (NormalTask) fixture.project().getTaskList().get(0);
+			ResourceImpl resource = (ResourceImpl) fixture.project().getResourcePool().createScriptedResource();
+			resource.setName("Summary resource");
+			resource.setStandardRate(new Rate(125.0D));
+			var assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0D, 0L, this);
+			assignment.setWork(8L * 60L * 60L * 1000L, null);
+			task.setPercentComplete(0.5D);
+			setup.set(fixture);
+		});
+		Fixture fixture = setup.get();
+		var displayed = new AtomicReference<Object[]>();
+		SwingUtilities.invokeAndWait(() -> {
+			var fields = new SpreadSheetFieldArray();
+			fields.addField("Field.name");
+			fields.addField("Field.work");
+			fields.addField("Field.cost");
+			fields.addField("Field.percentComplete");
+			fixture.sheet().setCache(fixture.cache(), fields, fields.getCellStyle(), fields.getActionList());
+			FieldContext context = new FieldContext();
+			context.setLeftAssociation(true);
+			context.setTaskSheetUpdate(true);
+			var model = (SpreadSheetModel) fixture.sheet().getModel();
+			model.setFieldContext(context);
+			model.getCache().update();
+			int row = 0; // The synthetic project row is first after the spreadsheet cache is rebound.
+			assertTrue(model.getNode(row).getNode().getImpl() instanceof Project);
+			displayed.set(new Object[] { context, model.getValueAt(row, findColumn(model, "Field.work")),
+				model.getValueAt(row, findColumn(model, "Field.cost")),
+				model.getValueAt(row, findColumn(model, "Field.percentComplete")) });
+		});
+		FieldContext context = (FieldContext) displayed.get()[0];
+		Object displayedWork = displayed.get()[1];
+		Object displayedCost = displayed.get()[2];
+		Object displayedProgress = displayed.get()[3];
+		assertTrue(fixture.project().getWork(context) > 0L);
+		assertTrue(fixture.project().getCost(context) > 0.0D);
+		assertTrue(fixture.project().getPercentComplete() > 0.0D);
+		assertEquals(FieldDictionary.getInstance().getFieldFromId("Field.work").getValue(fixture.project(), context), displayedWork);
+		assertEquals(FieldDictionary.getInstance().getFieldFromId("Field.cost").getValue(fixture.project(), context), displayedCost);
+		assertEquals(FieldDictionary.getInstance().getFieldFromId("Field.percentComplete").getValue(fixture.project(), context), displayedProgress);
+		assertNotNull(displayedWork, "Project Work column must show the aggregate work value");
+		assertNotNull(displayedCost, "Project Cost column must show the aggregate cost value");
+		assertNotNull(displayedProgress, "Project % Complete column must show the aggregate progress value");
+	}
 
 	@Test
 	void onlyProjectNameIsEditableAndOneUndoRestoresIt() throws Exception {
@@ -49,6 +104,7 @@ class ProjectSummaryRowSpreadsheetTest {
 		assertEquals(new java.util.Date(fixture.project().getEnd()), model.getValueAt(row, findColumn(model, "Field.finish")));
 		assertEquals(fixture.project().getDuration(), ((com.microproject.datatype.Duration) model.getValueAt(row,
 			findColumn(model, "Field.duration"))).getEncodedMillis());
+		assertEquals(null, model.getValueAt(row, findColumn(model, "Field.percentWorkComplete")));
 		assertEquals(null, model.getValueAt(row, findColumn(model, "Field.manuallyScheduled")));
 		assertEquals(null, model.getValueAt(row, findColumn(model, "Field.resourceNames")));
 		assertEquals(null, model.getValueAt(row, findColumn(model, "Field.predecessors")));
@@ -102,7 +158,7 @@ class ProjectSummaryRowSpreadsheetTest {
 			"Spreadsheet.Task.entry", true);
 		GraphicNode summaryRow = cache.getVisibleNodes().getElements().stream()
 			.filter(node -> node.getNode().getImpl() instanceof Project).findFirst().orElseThrow();
-		return new Fixture(project, sheet, summaryRow);
+		return new Fixture(project, sheet, cache, summaryRow);
 	}
 
 	private static int findColumn(SpreadSheetModel model, String fieldId) {
@@ -111,5 +167,5 @@ class ProjectSummaryRowSpreadsheetTest {
 		throw new IllegalArgumentException("Missing field " + fieldId);
 	}
 
-	private record Fixture(Project project, SpreadSheet sheet, GraphicNode summaryRow) { }
+	private record Fixture(Project project, SpreadSheet sheet, NodeModelCache cache, GraphicNode summaryRow) { }
 }
