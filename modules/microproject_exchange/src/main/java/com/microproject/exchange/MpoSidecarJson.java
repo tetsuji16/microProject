@@ -1,15 +1,17 @@
 /*******************************************************************************
- * MIT License
- *
- * Copyright (c) 2026 microProject
- ******************************************************************************/
+* MIT License
+*
+* Copyright (c) 2026 microProject
+******************************************************************************/
 package com.microproject.exchange;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
+import java.awt.geom.Point2D;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -37,6 +39,7 @@ import com.microproject.pm.task.TaskSnapshot;
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.pm.assignment.TimeDistributedHelper;
+import com.microproject.pm.graphic.network.PertManualPositions;
 
 /**
 	* Reads and writes the JSON sidecar entries of an MPOF v1.0 container: layout,
@@ -319,9 +322,9 @@ final class MpoSidecarJson {
 	}
 
 	/**
-	 * Shared frame of the per-task option entries: version 1 plus a "tasks" array of {taskUid, fields},
-	 * listing only tasks whose options are not the defaults ({@code isDefault}).
-	 */
+	* Shared frame of the per-task option entries: version 1 plus a "tasks" array of {taskUid, fields},
+	* listing only tasks whose options are not the defaults ({@code isDefault}).
+	*/
 	static byte[] perTaskOptionsJson(Project project, String taskIdentities, String identityLabel,
 		String serializeLabel, java.util.function.Predicate<Task> isDefault,
 		java.util.function.BiConsumer<Task, ObjectNode> fields) throws IOException {
@@ -652,10 +655,10 @@ final class MpoSidecarJson {
 	}
 
 	/**
-	 * Shared week / exceptions / workWeeks / recurringExceptions block of both calendar schemas. The
-	 * callers differ on purpose in what they pass: project and resource calendars write their
-	 * concrete (inheritance-resolved) definition, schedule calendars write only their own differences.
-	 */
+	* Shared week / exceptions / workWeeks / recurringExceptions block of both calendar schemas. The
+	* callers differ on purpose in what they pass: project and resource calendars write their
+	* concrete (inheritance-resolved) definition, schedule calendars write only their own differences.
+	*/
 	static void writeCalendarBody(ObjectNode node, java.util.function.IntFunction<WorkDay> weekDay,
 		WorkDay[] exceptionDays, java.util.List<WorkWeekPeriod> workWeekPeriods,
 		java.util.List<RecurringCalendarException> recurringExceptions) {
@@ -1232,18 +1235,96 @@ final class MpoSidecarJson {
 	}
 
 	static java.util.Map<Long, Long> readTaskIdentities(byte[] json) throws IOException {
-		JsonNode root = JSON.readTree(json);
-		if (!root.isObject()) throw new IOException("Invalid mpo task identity map");
-		java.util.Map<Long, Long> result = new java.util.LinkedHashMap<>();
-		java.util.Iterator<java.util.Map.Entry<String, JsonNode>> fields = root.fields();
-		while (fields.hasNext()) {
-			java.util.Map.Entry<String, JsonNode> entry = fields.next();
-			try {
-				result.put(Long.valueOf(entry.getKey()), Long.valueOf(integralLong(entry.getValue(), "taskUid")));
-			} catch (NumberFormatException exception) {
-				throw new IOException("Invalid mpo task identity", exception);
+			JsonNode root = JSON.readTree(json);
+			if (!root.isObject()) throw new IOException("Invalid mpo task identity map");
+			java.util.Map<Long, Long> result = new java.util.LinkedHashMap<>();
+			java.util.Iterator<java.util.Map.Entry<String, JsonNode>> fields = root.fields();
+			while (fields.hasNext()) {
+				java.util.Map.Entry<String, JsonNode> entry = fields.next();
+				try {
+					result.put(Long.valueOf(entry.getKey()), Long.valueOf(integralLong(entry.getValue(), "taskUid")));
+				} catch (NumberFormatException exception) {
+					throw new IOException("Invalid mpo task identity", exception);
+				}
 			}
+			return result;
 		}
-		return result;
-	}
-}
+
+		/** Serializes Network Diagram (PERT) manual box positions to JSON. */
+			static byte[] pertManualPositionsJson(Project project, String taskIdentities) throws IOException {
+				try {
+					PertManualPositions pmp = project.findTransientDocumentState(PertManualPositions.class);
+					if (pmp == null || pmp.isEmpty()) {
+						return null; // No manual positions to save
+					}
+					JsonNode identities = JSON.readTree(taskIdentities);
+					if (!identities.isObject()) throw new IOException("Invalid mpo task identity map");
+					ObjectNode root = JSON.createObjectNode();
+					root.put("version", 1);
+					com.fasterxml.jackson.databind.node.ArrayNode positions = root.putArray("positions");
+
+					for (Map.Entry<Long, Point2D> entry : pmp.getPositions().entrySet()) {
+						Long taskUid = entry.getKey();
+						Point2D pos = entry.getValue();
+						// Find the serialized UID for this task
+						JsonNode serializedUid = identities.path(String.valueOf(taskUid));
+						if (!serializedUid.canConvertToLong()) {
+							continue; // Skip tasks not in the identity map
+						}
+						ObjectNode posNode = positions.addObject();
+						posNode.put("taskUid", serializedUid.longValue());
+						posNode.put("x", pos.getX());
+						posNode.put("y", pos.getY());
+					}
+
+					if (positions.isEmpty()) {
+						return null; // No valid positions to save
+					}
+
+					return JSON.writeValueAsBytes(root);
+				} catch (IOException exception) {
+					throw exception;
+				} catch (Exception exception) {
+					throw new IOException("Unable to serialize mpo pert manual positions", exception);
+				}
+			}
+
+			/** Restores Network Diagram (PERT) manual box positions from JSON. */
+				static void restorePertManualPositions(Project project, byte[] bytes, String taskIdentities) throws IOException {
+					JsonNode root = JSON.readTree(bytes);
+					if (requiredInt(root, "version") != 1) throw new IOException("Invalid mpo pert manual positions version");
+					JsonNode positions = root.path("positions");
+					if (!positions.isArray()) throw new IOException("Invalid mpo pert manual positions array");
+
+					JsonNode identities = JSON.readTree(taskIdentities);
+					if (!identities.isObject()) throw new IOException("Invalid mpo task identity map");
+
+					// Build reverse mapping: serialized UID -> model unique ID
+					Map<Long, Long> serializedToModel = new HashMap<>();
+					for (java.util.Iterator<java.util.Map.Entry<String, JsonNode>> it = identities.fields(); it.hasNext(); ) {
+						java.util.Map.Entry<String, JsonNode> entry = it.next();
+						try {
+							long modelUid = Long.parseLong(entry.getKey());
+							long serializedUid = entry.getValue().longValue();
+							serializedToModel.put(serializedUid, modelUid);
+						} catch (NumberFormatException ignored) {}
+					}
+
+					PertManualPositions pmp = project.getOrCreateTransientDocumentState(PertManualPositions.class, PertManualPositions::new);
+					pmp.clear();
+
+					for (JsonNode posNode : positions) {
+						JsonNode taskUidNode = posNode.path("taskUid");
+						JsonNode xNode = posNode.path("x");
+						JsonNode yNode = posNode.path("y");
+						if (!taskUidNode.canConvertToLong() || !xNode.isNumber() || !yNode.isNumber()) {
+							continue;
+						}
+						long serializedUid = taskUidNode.longValue();
+						Long modelUid = serializedToModel.get(serializedUid);
+						if (modelUid != null) {
+							pmp.putPosition(modelUid, new Point2D.Double(xNode.asDouble(), yNode.asDouble()));
+						}
+					}
+				}
+			}
