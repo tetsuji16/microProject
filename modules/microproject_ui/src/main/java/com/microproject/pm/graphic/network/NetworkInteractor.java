@@ -178,6 +178,10 @@ public class NetworkInteractor extends GraphInteractor{
 		return true;
 	case BAR_MOVE:
 		GraphicNode node = (GraphicNode)selected;
+		// A click on an already-selected box can enter BAR_MOVE before the graph
+		// knows whether it became a drag. Do not create a manual override or undo
+		// edit unless the pointer actually moved away from the press location.
+		if (Math.hypot(x - x0, y - y0) < 2.0) return true;
 		// Translate the shape visually
 		((NetworkRenderer)((NetworkUI)ui).getGraphRenderer()).translateShape(node, x-x0, y-y0);
 

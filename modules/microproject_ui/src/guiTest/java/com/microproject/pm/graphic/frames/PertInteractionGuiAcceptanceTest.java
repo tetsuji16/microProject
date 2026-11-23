@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.GraphicsEnvironment;
+import java.awt.KeyEventDispatcher;
+import java.awt.KeyboardFocusManager;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
@@ -17,8 +19,12 @@ import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ResourceBundle;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.AbstractButton;
+import javax.swing.Action;
+import javax.swing.JComponent;
+import javax.swing.KeyStroke;
 import javax.swing.JScrollBar;
 import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
@@ -88,7 +94,14 @@ class PertInteractionGuiAcceptanceTest {
 		GraphicNode target = onEdt(() -> (GraphicNode) view.getCache().getElementAt(3));
 		NormalTask sourceTask = (NormalTask) source.getNode().getImpl();
 		NormalTask targetTask = (NormalTask) target.getNode().getImpl();
+		PertManualPositions initialPositions = project.findTransientDocumentState(PertManualPositions.class);
+		assertTrue(initialPositions == null || initialPositions.getPosition(sourceTask.getUniqueId()) == null,
+			"PERT fixture must begin with the source task automatically placed");
 		clickNode(robot, graph, source);
+		GuiAcceptanceSupport.await(() -> onEdt(() -> {
+			PertManualPositions positions = project.findTransientDocumentState(PertManualPositions.class);
+			return positions == null || positions.getPosition(sourceTask.getUniqueId()) == null;
+		}), "selecting a PERT box without dragging must not create a manual position");
 		Point2D oldCenter = onEdt(() -> (Point2D) source.getPertCenter().clone());
 		Point origin = onScreen(graph);
 		Point2D screenCenter = onEdt(() -> graph.scale(source.getPertCenter()));
@@ -107,11 +120,42 @@ class PertInteractionGuiAcceptanceTest {
 		}), "physical PERT box drag did not store a manual position");
 		Point2D movedCenter = onEdt(source::getPertCenter);
 		assertTrue(movedCenter.distance(oldCenter) > 20, "dragged PERT box center should move visibly");
+		assertTrue(project.getUndoController().canUndo(), "manual PERT move should enable project undo");
+		assertEquals("Move Network Box", project.getUndoController().getUndoName(),
+			"manual PERT move should be the next undo operation");
+		KeyStroke undoKey = KeyStroke.getKeyStroke(KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK);
+		Object undoBinding = onEdt(() -> window.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).get(undoKey));
+		assertTrue(undoBinding != null, "physical Ctrl+Z must resolve through the active window root pane");
+		Action undoAction = onEdt(() -> window.getRootPane().getActionMap().get(undoBinding));
+		assertTrue(undoAction != null && undoAction.isEnabled(), "root-pane Ctrl+Z must resolve to an enabled Undo action");
+		SwingUtilities.invokeAndWait(() -> {
+			window.toFront();
+			window.requestFocus();
+		});
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> onEdt(() -> KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusedWindow() == window),
+			"PERT window did not regain keyboard focus before physical undo");
+		assertTrue(onEdt(manager::isDocumentActive), "PERT document must be active before physical undo");
 
-		robot.keyPress(KeyEvent.VK_CONTROL);
-		robot.keyPress(KeyEvent.VK_Z);
-		robot.keyRelease(KeyEvent.VK_Z);
-		robot.keyRelease(KeyEvent.VK_CONTROL);
+		AtomicBoolean ctrlZDispatched = new AtomicBoolean();
+		KeyEventDispatcher dispatcher = event -> {
+			if (event.getID() == KeyEvent.KEY_PRESSED && event.getKeyCode() == KeyEvent.VK_Z
+					&& event.isControlDown()) ctrlZDispatched.set(true);
+			return false;
+		};
+		KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(dispatcher);
+		try {
+			robot.keyPress(KeyEvent.VK_CONTROL);
+			robot.keyPress(KeyEvent.VK_Z);
+			robot.keyRelease(KeyEvent.VK_Z);
+			robot.keyRelease(KeyEvent.VK_CONTROL);
+			robot.waitForIdle();
+		} finally {
+			KeyboardFocusManager.getCurrentKeyboardFocusManager().removeKeyEventDispatcher(dispatcher);
+		}
+		assertTrue(ctrlZDispatched.get(), "physical Ctrl+Z key event did not reach the focused AWT window");
+		assertEquals("Move Network Box", project.getUndoController().getRedoName(),
+			"physical Ctrl+Z did not invoke the manual PERT move undo edit");
 		GuiAcceptanceSupport.await(() -> onEdt(() -> {
 			PertManualPositions positions = project.findTransientDocumentState(PertManualPositions.class);
 			return positions == null || positions.getPosition(sourceTask.getUniqueId()) == null;
@@ -135,7 +179,9 @@ class PertInteractionGuiAcceptanceTest {
 		int edgeY = origin.y + (int) edgePoint.getY();
 		int targetX = origin.x + (int) targetCenter.getX();
 		int targetY = origin.y + (int) targetCenter.getY();
-		assertTrue(targetTask.getPredecessorList().isEmpty(), "sibling fixture node must start without a dependency");
+		assertTrue(targetTask.getPredecessorList().stream().noneMatch(dependency ->
+			((com.microproject.pm.dependency.Dependency) dependency).getPredecessor() == sourceTask),
+			"sibling fixture nodes must not start with a dependency between them");
 		robot.mouseMove(edgeX, edgeY);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
 		robot.mouseMove(edgeX + 4, edgeY);
@@ -272,6 +318,7 @@ class PertInteractionGuiAcceptanceTest {
 			dependencyService.newDependency(start, branch, DependencyType.Kind.FS, 0, PertInteractionGuiAcceptanceTest.class);
 			dependencyService.newDependency(branch, finish, DependencyType.Kind.FS, 0, PertInteractionGuiAcceptanceTest.class);
 		}
+		undo.clear();
 		return project;
 	}
 
