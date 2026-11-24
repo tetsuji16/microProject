@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.model.assignment.Assignment;
 import com.microproject.model.assignment.AssignmentService;
+import com.microproject.i18n.Messages;
 import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.ui.frame.DocumentFrame;
 import com.microproject.ui.frame.GraphicManager;
@@ -146,7 +147,7 @@ class AssignmentInformationGuiAcceptanceTest {
 			for (char key : "200".toCharArray()) robot.keyRelease(java.awt.event.KeyEvent.getExtendedKeyCodeForChar(key));
 			robot.keyPress(java.awt.event.KeyEvent.VK_ENTER);
 			robot.keyRelease(java.awt.event.KeyEvent.VK_ENTER);
-			click(robot, (Component) named(dialog.getContentPane(), "ok"));
+			clickOk(robot, dialog);
 			GuiAcceptanceSupport.await(() -> !dialog.isShowing(), "Dialog must close after OK");
 			assertEquals(2.0, assignment.getUnits(), 0.001, "Units must be 200% after edit");
 			// Undo must revert both fields in one step
@@ -321,11 +322,8 @@ class AssignmentInformationGuiAcceptanceTest {
 		robot.waitForIdle();
 	}
 
-	private static void clickOk(AssignmentInformationDialog dialog) {
-		Component ok = named(dialog.getContentPane(), "ok");
-		if (ok instanceof AbstractButton) {
-			((AbstractButton) ok).doClick();
-		}
+	private static void clickOk(Robot robot, AssignmentInformationDialog dialog) throws Exception {
+		click(robot, GuiAcceptanceSupport.findShowingButtonByText(dialog, Messages.getString("ButtonText.OK")));
 	}
 
 	private static void clickCancel(AssignmentInformationDialog dialog) {
