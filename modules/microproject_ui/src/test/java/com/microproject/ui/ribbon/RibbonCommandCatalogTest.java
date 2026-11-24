@@ -69,6 +69,22 @@ class RibbonCommandCatalogTest {
 	}
 
 	@Test
+	void assignmentInformationBelongsOnlyToTheTwoUsageFormatTabs() {
+		var model = validate(Locale.ROOT);
+		var actualTabs = model.getTabs().stream()
+			.filter(tab -> tab.getBands().stream().flatMap(band -> band.getButtons().stream())
+				.anyMatch(button -> button.getId().equals("RibbonAssignmentInformation")))
+			.map(SwingRibbonModel.RibbonTab::getId)
+			.collect(java.util.stream.Collectors.toSet());
+		var command = RibbonCommandCatalog.from(model)
+			.stream().filter(candidate -> candidate.id().equals("RibbonAssignmentInformation"))
+			.findFirst().orElseThrow();
+		assertEquals("TaskUsageFormatRibbonTask", command.primaryTab());
+		assertEquals(Set.of("TaskUsageFormatRibbonTask", "ResourceUsageFormatRibbonTask"), command.permittedTabs());
+		assertEquals(command.permittedTabs(), actualTabs);
+	}
+
+	@Test
 	void catalogIncludesAndValidatesQuickAccessCommands() {
 		SwingRibbonModel model = validate(Locale.ROOT);
 		Set<String> quickAccessIds = RibbonCommandCatalog.from(
