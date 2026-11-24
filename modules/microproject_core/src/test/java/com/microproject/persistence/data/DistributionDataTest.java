@@ -21,25 +21,49 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *******************************************************************************/
-package com.microproject.server.data;
+package com.microproject.persistence.data;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
-class ProjectDataTest {
+class DistributionDataTest {
 	@Test
-	void budgetStatusIndicatorUsesCpiLabel() {
-		ProjectData data = new ProjectData();
-		Map values = new HashMap();
-		values.put("Field.cpi", Double.valueOf(1.2D));
-		values.put("Field.spi", Double.valueOf(0.8D));
-		data.setFieldValues(values);
+	void projectIdParticipatesInDistributionIdentity() {
+		DistributionData first = distribution(1, 2, 3, 4, (short) 5);
+		DistributionData otherProject = distribution(9, 2, 3, 4, (short) 5);
 
-		assertEquals("CPI=1.2", data.getBudgetStatusIndicator().getLabel());
-		assertEquals("SPI=0.8", data.getScheduleStatusIndicator().getLabel());
+		assertNotEquals(first, otherProject);
+		assertEquals(2, Set.of(first, otherProject).size());
+		assertNotEquals(0, new DistributionComparator().compare(first, otherProject));
+	}
+
+	@Test
+	void nonKeyValuesDoNotAffectDistributionIdentity() {
+		DistributionData first = distribution(1, 2, 3, 4, (short) 5);
+		DistributionData sameKey = distribution(1, 2, 3, 4, (short) 5);
+		first.setCost(12.5);
+		first.setWork(7.25);
+		first.setStatus(DistributionData.UPDATE);
+		sameKey.setCost(99.0);
+		sameKey.setWork(42.0);
+		sameKey.setStatus(DistributionData.INSERT);
+
+		assertEquals(first, sameKey);
+		assertEquals(first.hashCode(), sameKey.hashCode());
+	}
+
+	private static DistributionData distribution(long projectId, long taskId, long resourceId, int timeId, short type) {
+		DistributionData data = new DistributionData();
+		data.setProjectId(projectId);
+		data.setTaskId(taskId);
+		data.setResourceId(resourceId);
+		data.setTimeId(timeId);
+		data.setType(type);
+		return data;
 	}
 }

@@ -104,7 +104,7 @@ class PodDescriptorInventoryTest {
 					// The fixture uses old FQNs. This mapping only lets the test read the full graph
 					// while recording the original wire descriptors; SafeObjectInput is tested separately.
 					String legacy = descriptor.getName();
-					String remapped = legacy.replace("com.projectlibre1.", "com.microproject.");
+					String remapped = PodFormatIdentifiers.remapClassName(legacy);
 					if (!legacy.equals(remapped)) {
 						try { return Class.forName(remapped); }
 						catch (ClassNotFoundException ignored) { }

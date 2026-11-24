@@ -21,22 +21,25 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *******************************************************************************/
-package com.microproject.server.data;
+package com.microproject.persistence.data;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
-
-class DistributionConverterTest {
+class ProjectDataTest {
 	@Test
-	void standaloneConverterReturnsAnEmptyResultInsteadOfNull() {
-		DistributionConverter converter = new DistributionConverter();
-		List<DistributionData> distributions = converter.createDistributionData(null, false);
-		assertNotNull(distributions);
-		assertTrue(distributions.isEmpty());
+	void budgetStatusIndicatorUsesCpiLabel() {
+		ProjectData data = new ProjectData();
+		Map values = new HashMap();
+		values.put("Field.cpi", Double.valueOf(1.2D));
+		values.put("Field.spi", Double.valueOf(0.8D));
+		data.setFieldValues(values);
+
+		assertEquals("CPI=1.2", data.getBudgetStatusIndicator().getLabel());
+		assertEquals("SPI=0.8", data.getScheduleStatusIndicator().getLabel());
 	}
 }

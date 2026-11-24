@@ -43,7 +43,7 @@ public class DataUtil {
 	private Method deserializeLocalDocumentMethod;
 	public DataUtil(){
 		try {
-			clazz = Class.forName("com.microproject.server.data.Serializer");
+			clazz = Class.forName("com.microproject.exchange.serialize.Serializer");
 			obj = clazz.getDeclaredConstructor().newInstance();
 			serializeDocumentMethod = clazz.getMethod("serializeDocument", Project.class);
 			deserializeLocalDocumentMethod = clazz.getMethod("deserializeLocalDocument", DocumentData.class);
@@ -92,7 +92,7 @@ public class DataUtil {
 	
     public static void setEnterpriseResources(Collection<?> resources,ResourcePool resourcePool) throws IOException, ClassNotFoundException{
 		try {
-			Class.forName("com.microproject.server.data.Serializer")
+			Class.forName("com.microproject.exchange.serialize.Serializer")
 				.getMethod("setEnterpriseResources", Collection.class, ResourcePool.class, Session.class)
 				.invoke(null, resources, resourcePool, null);
 		} catch (IllegalArgumentException e) {

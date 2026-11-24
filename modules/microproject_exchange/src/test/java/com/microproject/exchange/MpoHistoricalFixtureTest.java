@@ -75,7 +75,10 @@ class MpoHistoricalFixtureTest {
 
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
 		assertTrue(new MpoFileImporter().saveProject(imported, saved));
-		assertFixedScheduleSemantics(load(saved.toByteArray()));
+		Project reopened = load(saved.toByteArray());
+		assertFixedScheduleSemantics(reopened);
+		assertEquals(resourceNames(imported), resourceNames(reopened),
+			"the previous-writer fixture must preserve every resource name and count");
 	}
 
 	@Test
@@ -357,6 +360,11 @@ class MpoHistoricalFixtureTest {
 		assertEquals(4201L, ((Task) predecessorLink.getPredecessor()).getUniqueId());
 		assertEquals(DependencyType.Kind.FS, predecessorLink.getDependencyKind());
 		assertEquals(0L, predecessorLink.getLag());
+	}
+
+	private static List<String> resourceNames(Project project) {
+		return project.getResourcePool().getResourceList().stream().map(resource -> resource.getName())
+			.sorted(java.util.Comparator.nullsFirst(java.util.Comparator.naturalOrder())).toList();
 	}
 
 	private static long modelTime(String floatingWallTime) {
