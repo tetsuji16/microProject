@@ -135,7 +135,7 @@ class TeamPlannerDialogGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> rowHeader.isShowing() && rowHeader.getWidth() > 0,
 			"the resource-name column was not laid out");
 		SwingUtilities.invokeAndWait(() -> ((TeamPlannerDialogBox.TeamPlannerCanvas)
-			scrollPane.getViewport().getView()).setPixelsPerDay(48));
+			scrollPane.getViewport().getView()).setTimescale(TeamPlannerViewSettings.Timescale.DAYS));
 		GuiAcceptanceSupport.await(() -> scrollPane.getHorizontalScrollBar().getMaximum()
 			> scrollPane.getHorizontalScrollBar().getVisibleAmount(), "the timeline did not overflow horizontally");
 		Point before = rowHeader.getLocationOnScreen();

@@ -7,10 +7,21 @@ package com.microproject.ui.dialog;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import javax.swing.JPanel;
 
 import org.junit.jupiter.api.Test;
 
 import com.microproject.ui.dialog.TeamPlannerViewSettings.Category;
+import com.microproject.ui.dialog.TeamPlannerViewSettings.Timescale;
+import com.microproject.ui.menu.MenuActionConstants;
+import com.microproject.ui.view.views.DockableProjectToolView;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.Project;
+import com.microproject.undo.DataFactoryUndoController;
 
 /** The Team Planner Format settings and their workspace round trip. */
 class TeamPlannerViewSettingsTest {
@@ -68,5 +79,67 @@ class TeamPlannerViewSettingsTest {
 		assertEquals(0x00BB22, restored.getBorder(Category.EXTERNAL));
 		assertEquals(0x123456, restored.getTaskFill(5L));
 		assertEquals(0x654321, restored.getTaskBorder(6L));
+	}
+
+	/** The gallery and the options dialog list one definition: the units' own labels, finest first. */
+	@Test
+	void bothTimescaleChoosersListTheUnitsInScaleOrder() {
+		String[] labels = Timescale.labels();
+		assertEquals(Timescale.values().length, labels.length, "every unit must have one chooser row");
+		for (int index = 0; index < labels.length; index++) {
+			assertEquals(Timescale.values()[index].label(), labels[index], "row " + index + " must name its unit");
+			assertEquals(Timescale.values()[index], Timescale.at(index), "row " + index + " must map back to its unit");
+		}
+		assertNull(Timescale.at(-1), "a row before the list names no unit");
+		assertNull(Timescale.at(labels.length), "a row after the list names no unit");
+	}
+
+	/** The scale chosen with the View tab's Timescale command survives saving and reopening the project. */
+	@Test
+	void theChosenTimescaleSurvivesASaveAndRestore() {
+		TeamPlannerViewSettings settings = new TeamPlannerViewSettings();
+		assertEquals(TeamPlannerViewSettings.DEFAULT_TIMESCALE, settings.getTimescale());
+		settings.setTimescale(Timescale.MONTHS);
+
+		TeamPlannerViewSettings restored = new TeamPlannerViewSettings();
+		restored.restoreSettings(settings.saveSettings());
+
+		assertEquals(Timescale.MONTHS, restored.getTimescale());
+		assertTrue(settings.saveSettings().contains("timescale=MONTHS"));
+	}
+
+	@Test
+	void anUnknownOrMissingTimescaleFallsBackToTheDefault() {
+		TeamPlannerViewSettings settings = new TeamPlannerViewSettings();
+		settings.setTimescale(Timescale.YEARS);
+		settings.restoreSettings("timescale=NOT_A_UNIT");
+		assertEquals(TeamPlannerViewSettings.DEFAULT_TIMESCALE, settings.getTimescale());
+		settings.setTimescale(Timescale.YEARS);
+		settings.restoreSettings("");
+		assertEquals(TeamPlannerViewSettings.DEFAULT_TIMESCALE, settings.getTimescale());
+	}
+
+	/** The Team Planner is an embedded tool view, so its workspace round trip carries the chosen scale. */
+	@Test
+	void theChosenTimescaleIsRestoredByTheSharedWorkspaceView() {
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("team-planner-settings", undo), undo);
+		TeamPlannerViewSettings settings = new TeamPlannerViewSettings();
+		AtomicBoolean refreshed = new AtomicBoolean();
+		JPanel content = new JPanel();
+		content.putClientProperty(ViewSettingsState.PROPERTY, settings);
+		content.putClientProperty(ViewSettingsState.REFRESH_PROPERTY, (Runnable) () -> refreshed.set(true));
+		DockableProjectToolView view = new DockableProjectToolView(project,
+			MenuActionConstants.ACTION_DELEGATE_TASKS, content);
+
+		settings.setTimescale(Timescale.QUARTERS);
+		com.microproject.workspace.WorkspaceSetting workspace = view.createWorkspace(0);
+		settings.restoreSettings("");
+		refreshed.set(false);
+		assertEquals(TeamPlannerViewSettings.DEFAULT_TIMESCALE, settings.getTimescale());
+
+		view.restoreWorkspace(workspace, 0);
+		assertEquals(Timescale.QUARTERS, settings.getTimescale());
+		assertTrue(refreshed.get(), "a restored workspace must re-apply the scale to the planner");
 	}
 }
