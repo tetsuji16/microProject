@@ -19,8 +19,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.util.FlatLafSupport;
-import com.microproject.util.FlatUiSupport;
+import com.microproject.ui.util.FlatLafSupport;
+import com.microproject.ui.util.FlatUiSupport;
 
 /**
  * Runtime theme switching (issue #483): several theme tokens are white in the

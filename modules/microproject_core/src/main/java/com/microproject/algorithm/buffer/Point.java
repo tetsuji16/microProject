@@ -27,7 +27,7 @@ import java.io.Serializable;
 import java.util.Comparator;
 
 import com.microproject.algorithm.DoubleValue;
-import com.microproject.pm.time.HasStartAndEnd;
+import com.microproject.model.time.HasStartAndEnd;
 
 
 /**

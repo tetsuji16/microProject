@@ -38,10 +38,10 @@ import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.menu.ExtToolBarFactory;
-import com.microproject.menu.MenuActionMapSupport;
-import com.microproject.menu.MenuManager;
-import com.microproject.menu.testsupport.MenuDefinitionSupport;
+import com.microproject.ui.menu.ExtToolBarFactory;
+import com.microproject.ui.menu.MenuActionMapSupport;
+import com.microproject.ui.menu.MenuManager;
+import com.microproject.ui.menu.testsupport.MenuDefinitionSupport;
 import com.microproject.ribbon.SwingRibbonModel;
 
 class RibbonCommandCatalogTest {
@@ -128,7 +128,7 @@ class RibbonCommandCatalogTest {
 	private static SwingRibbonModel validate(Locale locale) {
 		ExtToolBarFactory buttons = new ExtToolBarFactory(MenuActionMapSupport.noopActionMap(), MenuDefinitionSupport.ribbonBundles(locale));
 		SwingRibbonFactory factory = new SwingRibbonFactory(
-			new com.microproject.menu.MenuRibbonCommandSource(buttons),
+			new com.microproject.ui.menu.MenuRibbonCommandSource(buttons),
 			MenuDefinitionSupport.ribbonBundles(locale));
 		return factory.createModel(MenuManager.STANDARD_RIBBON);
 	}

@@ -7,7 +7,7 @@ from scripts.audit.openproj_java25_inventory import current_path
 class LicenseAuditMappingTest(unittest.TestCase):
 	def test_microproject_source_path_maps_to_openproj_package(self):
 		candidates = old_candidates(
-			"modules/microproject_core/src/main/java/com/microproject/pm/task/Task.java"
+			"modules/microproject_core/src/main/java/com/microproject/model/task/Task.java"
 		)
 		self.assertIn("openproj_core/src/com/projity/pm/task/Task.java", candidates)
 
@@ -18,7 +18,7 @@ class LicenseAuditMappingTest(unittest.TestCase):
 		)
 
 	def test_inventory_keeps_current_microproject_path(self):
-		path = "modules/microproject_core/src/main/java/com/microproject/pm/task/Task.java"
+		path = "modules/microproject_core/src/main/java/com/microproject/model/task/Task.java"
 		self.assertEqual(current_path(path), path)
 
 

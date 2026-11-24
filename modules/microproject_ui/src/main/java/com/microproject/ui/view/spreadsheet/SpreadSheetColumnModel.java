@@ -1,0 +1,447 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.view.spreadsheet;
+
+import java.awt.Component;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import javax.swing.DefaultComboBoxModel;
+import javax.swing.JTable;
+import javax.swing.table.DefaultTableColumnModel;
+import javax.swing.table.TableColumn;
+
+import com.microproject.ui.view.spreadsheet.editor.MoneyEditor;
+import com.microproject.ui.view.spreadsheet.editor.PercentEditor;
+import com.microproject.ui.view.spreadsheet.editor.RateEditor;
+import com.microproject.ui.view.spreadsheet.editor.SimpleComboBoxEditor;
+import com.microproject.ui.view.spreadsheet.editor.SimpleEditor;
+import com.microproject.ui.view.spreadsheet.editor.SpinEditor;
+import com.microproject.ui.view.spreadsheet.editor.SpreadSheetCellEditorAdapter;
+import com.microproject.ui.view.spreadsheet.editor.SpreadSheetNameCellEditor;
+import com.microproject.ui.view.spreadsheet.editor.YesNoComboBoxEditor;
+import com.microproject.ui.view.spreadsheet.renderer.DateRenderer;
+import com.microproject.ui.view.spreadsheet.renderer.IndicatorsRenderer;
+import com.microproject.ui.view.spreadsheet.renderer.LookupRenderer;
+import com.microproject.ui.view.spreadsheet.renderer.YesNoRenderer;
+import com.microproject.ui.view.spreadsheet.renderer.PercentRenderer;
+import com.microproject.ui.view.spreadsheet.renderer.RateRenderer;
+import com.microproject.ui.view.spreadsheet.renderer.SimpleRenderer;
+import com.microproject.ui.view.spreadsheet.renderer.SpreadSheetCellRendererAdapter;
+import com.microproject.ui.view.spreadsheet.renderer.SpreadSheetColumnHeaderRenderer;
+import com.microproject.ui.view.spreadsheet.renderer.SpreadSheetNameCellRenderer;
+import com.microproject.configuration.Configuration;
+import com.microproject.field.BooleanText;
+import com.microproject.field.Field;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
+
+/**
+ *
+ */
+public class SpreadSheetColumnModel extends DefaultTableColumnModel {
+	private static final long serialVersionUID = 4359879643396774956L;
+
+	int columnIndex = 0;
+
+	int colWidth = 0;
+
+	private ArrayList<Field> fieldArray; //changes when columns are moved - needed to update the current definition
+	private ArrayList<Field> originalFieldArray; // will not change
+	private Map<String,Integer> colWidthMap;
+	private final Set<String> configuredWidthFields = new HashSet<>();
+	private final Set<String> manuallyAdjustedWidthFields = new HashSet<>();
+	/** Field ids whose heading must stay on one line (wrapping is the default). */
+	private final Set<String> unwrappedHeaderFields = new HashSet<>();
+	private final java.util.Map<String, Integer> alignmentByField = new java.util.HashMap<>();
+	private boolean applyingSavedWidths;
+
+	boolean svg;
+	/**
+	 * @param fieldArray
+	 *            the initial spreadsheet fields
+	 *
+	 */
+	public SpreadSheetColumnModel(final ArrayList<Field> fieldArray) {
+		this(fieldArray,null);
+
+	}
+	public SpreadSheetColumnModel(ArrayList<Field> fieldArray,List<Integer> colWidthList) {
+		super();
+		setFieldArray(fieldArray);
+		colWidthMap=new HashMap<>();
+		if (fieldArray instanceof SpreadSheetFieldArray){
+			SpreadSheetFieldArray sa=(SpreadSheetFieldArray)fieldArray;
+			if (colWidthList==null&&sa!=null&&sa.getWidths()!=null&&sa.getWidths().size()>0){
+				colWidthList=sa.getWidths();
+			}
+			if (colWidthList==null) return;
+			Iterator<Field> a = sa.iterator();
+			Iterator<Integer> s=colWidthList.iterator();
+			int column = 0;
+			while (a.hasNext()&&s.hasNext()){
+				String f=a.next().getId();
+				int size=s.next();
+				boolean manuallyAdjusted = sa.isManualWidth(column);
+				if (!manuallyAdjusted) size = Math.max(size, minimumReadableWidth(f));
+				if (!colWidthMap.containsKey(f)) {
+					colWidthMap.put(f, size);
+					if (size > 0 && manuallyAdjusted) {
+						configuredWidthFields.add(f);
+						manuallyAdjustedWidthFields.add(f);
+					}
+				}
+				column++;
+			}
+		}
+	}
+
+	/**
+	 * Sets the initial width of fields without a saved user width to the widest
+	 * rendered header or cell value.  This is intentionally a one-time layout
+	 * operation; editing a cell must not unexpectedly move the other columns.
+	 */
+	public void autoSizeColumnsToContent(JTable table) {
+		int totalWidth = 0;
+		for (int viewColumn = 0; viewColumn < getColumnCount(); viewColumn++) {
+			TableColumn column = getColumn(viewColumn);
+			Field field = (Field) column.getIdentifier();
+			if (field == null || configuredWidthFields.contains(field.getId())) {
+				totalWidth += column.getPreferredWidth();
+				continue;
+			}
+
+			// The content width of a heading is its single-line width, whatever the
+			// current column width or wrapping state.
+			int width = column.getHeaderRenderer() instanceof SpreadSheetColumnHeaderRenderer headerRenderer
+					? headerRenderer.singleLineWidth(table, field.getName(), viewColumn)
+					: preferredWidth(column.getHeaderRenderer()
+						.getTableCellRendererComponent(table, field.getName(), false, false, -1, viewColumn));
+			for (int row = 0; row < table.getRowCount(); row++) {
+				Component component = table.prepareRenderer(table.getCellRenderer(row, viewColumn), row, viewColumn);
+				width = Math.max(width, component.getPreferredSize().width);
+			}
+
+			column.setPreferredWidth(Math.max(minimumReadableWidth(field.getId()), width));
+			colWidthMap.put(field.getId(), column.getPreferredWidth());
+			totalWidth += column.getPreferredWidth();
+		}
+		colWidth = totalWidth;
+	}
+
+	/**
+	 * Loads persisted column width metadata before columns are rebuilt.  The
+	 * metadata is deliberately keyed by field id: a malformed or truncated
+	 * width list must not shift widths onto a different field.
+	 */
+	public void applySavedWidthConfiguration(SpreadSheetFieldArray fields) {
+		configuredWidthFields.clear();
+		manuallyAdjustedWidthFields.clear();
+		if (fields == null) return;
+		for (int index = 0; index < fields.size(); index++) {
+			Field field = fields.get(index);
+			if (field == null) continue;
+			int width = fields.getWidth(index);
+			if (width <= 0) continue;
+			boolean manuallyAdjusted = fields.isManualWidth(index);
+			int safeWidth = manuallyAdjusted ? width : Math.max(width, minimumReadableWidth(field.getId()));
+			colWidthMap.put(field.getId(), safeWidth);
+			if (manuallyAdjusted) {
+				configuredWidthFields.add(field.getId());
+				manuallyAdjustedWidthFields.add(field.getId());
+			}
+		}
+	}
+
+	/** Applies the already validated saved widths to the current columns. */
+	public void restoreSavedWidths() {
+		applyingSavedWidths = true;
+		try {
+			for (int index = 0; index < getColumnCount(); index++) {
+				TableColumn column = getColumn(index);
+				if (!(column.getIdentifier() instanceof Field field)) continue;
+				Integer width = colWidthMap.get(field.getId());
+				if (width == null || width <= 0) continue;
+				int safeWidth = manuallyAdjustedWidthFields.contains(field.getId())
+						? width : Math.max(width, minimumReadableWidth(field.getId()));
+				column.setPreferredWidth(safeWidth);
+				column.setWidth(safeWidth);
+			}
+		} finally {
+			applyingSavedWidths = false;
+		}
+	}
+
+	private static int preferredWidth(Component component) {
+		return component == null || component.getPreferredSize() == null
+				? 0 : component.getPreferredSize().width;
+	}
+
+	public void addColumn(TableColumn tc) {
+		tc.setHeaderRenderer(new SpreadSheetColumnHeaderRenderer());
+
+		if (columnIndex == 0) {
+			Field field = originalFieldArray.get(columnIndex);
+			tc.setIdentifier(field); // store the field with the column
+			// tc.setIdentifier(null); // store the field with the column
+			tc.setPreferredWidth(0);
+
+			colWidth = 0;
+			// nothing
+		} else {
+			super.addColumn(tc);
+			Field field = originalFieldArray.get(columnIndex);
+			tc.setIdentifier(field); // store the field with the column
+
+			if (field.isNameField()) {
+				tc.setPreferredWidth((svg)?170:150);
+				tc.setCellRenderer(new SpreadSheetNameCellRenderer());
+				tc.setCellEditor(new SpreadSheetNameCellEditor(new SimpleEditor(String.class)));
+			} else if (field == Configuration.getFieldFromId("Field.indicators")) {
+				tc.setPreferredWidth(50);
+				tc.setCellRenderer(new SpreadSheetCellRendererAdapter(new IndicatorsRenderer()));
+				tc.setHeaderRenderer(new SpreadSheetColumnHeaderRenderer(IndicatorsRenderer.getCellHeader()));
+			} else if (field.getLookupTypes() != null) {
+				tc.setCellRenderer(new SpreadSheetCellRendererAdapter(new LookupRenderer()));
+			} else {
+				tc.setPreferredWidth(150);
+				if (field.hasOptions()) {
+					tc.setPreferredWidth(150);
+					tc.setCellRenderer(new SpreadSheetCellRendererAdapter(new SimpleRenderer()));
+					// note that in Spreadsheet, there getCellEditor() is
+					// overridden and dynamic combos are filled there
+					tc.setCellEditor(new SpreadSheetCellEditorAdapter(new SimpleComboBoxEditor(new DefaultComboBoxModel<>(field.getOptions(null)))));
+				} else if (field.getRange() != null) {
+					if (field.isPercent()) {
+						tc.setCellRenderer(new SpreadSheetCellRendererAdapter(new PercentRenderer()));
+						tc.setCellEditor(new SpreadSheetCellEditorAdapter(new PercentEditor()));
+					} else {
+						tc.setCellRenderer(new SpreadSheetCellRendererAdapter(new SimpleRenderer()));
+						tc.setCellEditor(new SpreadSheetCellEditorAdapter(new SpinEditor(field)));
+					}
+				} else if (field.isRate()) {
+					tc.setCellRenderer(new SpreadSheetCellRendererAdapter(new RateRenderer()));
+					tc.setCellEditor(new SpreadSheetCellEditorAdapter(new RateEditor(null, field.isMoney(),field.isPercent(),true)));
+				} else if (field.isMoney()) {
+					tc.setCellRenderer(new SpreadSheetCellRendererAdapter(new SimpleRenderer()));
+					tc.setCellEditor(new SpreadSheetCellEditorAdapter(new MoneyEditor()));
+				} else if (field.isPercent()) {
+					tc.setCellRenderer(new SpreadSheetCellRendererAdapter(new PercentRenderer()));
+					tc.setCellEditor(new SpreadSheetCellEditorAdapter(new PercentEditor()));
+				} else if (field.isDate()) {
+					tc.setCellRenderer(new SpreadSheetCellRendererAdapter(new DateRenderer()));
+				} else if (field.isBoolean()){
+					// Microsoft Project has no check boxes: Yes/No text, chosen from a list (#899).
+					tc.setCellRenderer(new SpreadSheetCellRendererAdapter(new YesNoRenderer(field.getId())));
+					tc.setCellEditor(new SpreadSheetCellEditorAdapter(new YesNoComboBoxEditor(field.getId())));
+				} else {
+					//SimpleRenderer in other cases, LC 8/2006
+					tc.setCellRenderer(new SpreadSheetCellRendererAdapter(new SimpleRenderer()));
+					tc.setPreferredWidth(field.getColumnWidth(svg));
+				}
+			}
+			Integer size=colWidthMap.get(field.getId());
+			if (size==null||size<=0) colWidthMap.put(field.getId(),tc.getPreferredWidth());
+			else tc.setPreferredWidth(manuallyAdjustedWidthFields.contains(field.getId())
+					? size : Math.max(size, minimumReadableWidth(field.getId())));
+			tc.setWidth(Math.max(tc.getWidth(), tc.getPreferredWidth()));
+			colWidth += tc.getPreferredWidth();
+		}
+		columnIndex++;
+	}
+
+	static int minimumReadableWidth(String fieldId) {
+		if ("Field.name".equals(fieldId)) return 140;
+		if ("Field.start".equals(fieldId) || "Field.finish".equals(fieldId)) return 100;
+		if ("Field.duration".equals(fieldId)) return 60;
+		if (BooleanText.isTaskMode(fieldId)) return 110; // icon + 手動スケジュール (#899)
+		return 1;
+	}
+
+	/** Applies shared readability floors before JTable lays out preferred widths. */
+	public void ensureMinimumReadableWidths() {
+		for (int index = 0; index < getColumnCount(); index++) {
+			TableColumn column = getColumn(index);
+			if (!(column.getIdentifier() instanceof Field field)) continue;
+			int minimum = minimumReadableWidth(field.getId());
+			if (manuallyAdjustedWidthFields.contains(field.getId()) || column.getPreferredWidth() >= minimum) continue;
+			column.setPreferredWidth(minimum);
+			if (column.getWidth() < minimum) column.setWidth(minimum);
+		}
+	}
+
+	public void removeColumn(TableColumn column) {
+		columnIndex--;
+		super.removeColumn(column);
+		if (columnIndex == 1)
+			columnIndex = 0;
+	}
+
+	/***************************************************************************
+	 * @see javax.swing.table.TableColumnModel#moveColumn(int, int)
+	 */
+	public void moveColumn(int columnIndex, int newIndex) {
+		if (newIndex != -1)
+			super.moveColumn(columnIndex, newIndex);
+
+		if (columnIndex == newIndex)
+			return;
+		SpreadSheetFieldArray f = (SpreadSheetFieldArray) getFieldArray();
+		fieldArray = f.move(columnIndex+1, newIndex+1);
+	}
+
+	public ArrayList<Field> getFieldArray() {
+		return fieldArray;
+	}
+
+	public void setFieldArray(ArrayList<Field> fieldArray) {
+		this.fieldArray = fieldArray;
+		originalFieldArray = new ArrayList<>(fieldArray);
+		unwrappedHeaderFields.clear();
+		alignmentByField.clear();
+		if (fieldArray instanceof SpreadSheetFieldArray fields) {
+			for (int index = 0; index < fields.size(); index++) {
+				Field field = fields.get(index);
+				if (field != null && !fields.isHeaderWrap(index))
+					unwrappedHeaderFields.add(field.getId());
+				if (field != null && fields.getAlignment(index) != SpreadSheetFieldArray.ALIGN_DEFAULT)
+					alignmentByField.put(field.getId(), fields.getAlignment(index));
+			}
+		}
+	}
+
+	/** Whether the heading of the given view column may wrap onto several lines. */
+	public boolean isHeaderWrap(int viewColumn) {
+		Field field = getFieldInViewColumn(viewColumn);
+		return field == null || !unwrappedHeaderFields.contains(field.getId());
+	}
+
+	/** Alignment override (SpreadSheetFieldArray.ALIGN_*) of the given view column. */
+	public int getAlignment(int viewColumn) {
+		Field field = getFieldInViewColumn(viewColumn);
+		return field == null ? SpreadSheetFieldArray.ALIGN_DEFAULT
+				: alignmentByField.getOrDefault(field.getId(), SpreadSheetFieldArray.ALIGN_DEFAULT);
+	}
+
+	public int getAlignment(String fieldId) {
+		return alignmentByField.getOrDefault(fieldId, SpreadSheetFieldArray.ALIGN_DEFAULT);
+	}
+
+	public boolean isHeaderWrap(String fieldId) {
+		return !unwrappedHeaderFields.contains(fieldId);
+	}
+
+	public int getColWidth() {
+		return colWidth;
+	}
+
+	public boolean isWidthManuallyAdjusted(String fieldId) {
+		return manuallyAdjustedWidthFields.contains(fieldId);
+	}
+
+	/** Records a width changed through the physical table-header resize gesture. */
+	public void markWidthManuallyAdjusted(String fieldId) {
+		if (fieldId != null) {
+			manuallyAdjustedWidthFields.add(fieldId);
+			configuredWidthFields.add(fieldId);
+		}
+	}
+
+	public boolean isSvg() {
+		return svg;
+	}
+
+	public void setSvg(boolean svg) {
+		this.svg = svg;
+	}
+
+/**
+ * Normally, JTable automatically translates columns to take care of any columns that may have been moved
+ * However, sometimes, such as when a column is determines from a mouse event, the column is not translated.
+ * @param col
+ * @return
+ */
+	public Field getFieldInNonTranslatedColumn(int col) {
+		return fieldArray.get(col);
+	}
+
+	public Field getFieldInColumn(int col) {
+//		return (Field)fieldArray.get(col);
+		return originalFieldArray.get(col);
+
+//		if (col >= getColumnCount()) // on initializing
+//			return (Field) fieldArray.get(col);
+//		if (col == 0) // the 0th column isn't displayed and isn't in the table, but calls are made to it
+//			return (Field) fieldArray.get(col);
+//		return (Field) getColumn(col - 1).getIdentifier();
+	}
+
+	/** Resolves a field using a JTable view column rather than a model column. */
+	public Field getFieldInViewColumn(int viewColumn) {
+		if (viewColumn < 0 || viewColumn >= getColumnCount())
+			return null;
+		int modelColumn = getColumn(viewColumn).getModelIndex();
+		if (modelColumn < 0 || modelColumn >= originalFieldArray.size())
+			return null;
+		return originalFieldArray.get(modelColumn);
+	}
+
+	public int getModelColumnForViewColumn(int viewColumn) {
+		if (viewColumn < 0 || viewColumn >= getColumnCount())
+			return -1;
+		return getColumn(viewColumn).getModelIndex();
+	}
+
+	public int findFieldColumn(Field field) {
+		return originalFieldArray.indexOf(field);
+//		Enumeration i = getColumns();
+//		int count = 0;
+//		while (i.hasMoreElements()) {
+//			count++;
+//			TableColumn col = (TableColumn) i.nextElement();
+//			if (col.getIdentifier() == field)
+//				return count;
+//		}
+//		if (field == fieldArray.get(0)) // in case hidden 0th column
+//			return 0;
+//		return -1;
+	}
+
+	public int getFieldColumnCount() {
+		return getFieldArray().size();
+	}
+
+//	@Override
+//	protected void fireColumnSelectionChanged(ListSelectionEvent lse) {
+//		super.fireColumnSelectionChanged(lse);
+//	}
+
+
+
+
+}

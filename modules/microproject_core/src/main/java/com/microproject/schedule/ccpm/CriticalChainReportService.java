@@ -1,0 +1,61 @@
+/*******************************************************************************
+ * MIT License
+ * Copyright (c) 2026 microProject
+ ******************************************************************************/
+package com.microproject.schedule.ccpm;
+
+import com.microproject.util.MarkupEscape;
+import java.time.ZoneOffset;
+import java.time.temporal.IsoFields;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+
+/** Deterministic CSV/HTML reports built from persisted CCPM observations. */
+public final class CriticalChainReportService {
+	/** Exports the same typed buffer projection used by supported CCPM views. */
+	public String toBufferCsv(CriticalChainService.Analysis analysis) {
+		StringBuilder out = new StringBuilder("kind,id,plannedMillis,consumedMillis,remainingMillis,status\n");
+		if (analysis == null) return out.toString();
+		appendBuffer(out, "PROJECT", "project", analysis.projectBuffer());
+		for (var entry : analysis.feedingBuffers().entrySet()) appendBuffer(out, "FEEDING", entry.getKey().toString(), entry.getValue());
+		for (var entry : analysis.resourceBuffers().entrySet()) appendBuffer(out, "RESOURCE", entry.getKey().toString(), entry.getValue());
+		return out.toString();
+	}
+
+	private static void appendBuffer(StringBuilder out, String kind, String id, CriticalChainService.Buffer buffer) {
+		if (buffer != null) out.append(kind).append(',').append(id).append(',').append(buffer.plannedMillis()).append(',')
+			.append(buffer.consumedMillis()).append(',').append(buffer.remainingMillis()).append(',').append(buffer.status()).append('\n');
+	}
+	public String toCsv(CriticalChainBufferHistory history) {
+		StringBuilder out = new StringBuilder("observedAt,actorId,actorName,progressPercent,consumptionPercent,zone,baselineId\n");
+		if (history != null) for (CriticalChainBufferHistory.Point p : history.points()) {
+			out.append(p.observedAt()).append(',').append(csv(p.actorId())).append(',').append(csv(p.actorName())).append(',')
+				.append(p.progressPercent()).append(',').append(p.consumptionPercent()).append(',').append(p.zone()).append(',').append(csv(p.baselineId())).append('\n');
+		}
+		return out.toString();
+	}
+
+	public String toHtml(String projectName, CriticalChainBufferHistory history) {
+		StringBuilder out = new StringBuilder("<!doctype html><meta charset=\"utf-8\"><title>CCPM report</title><h1>CCPM report: ");
+		out.append(MarkupEscape.escape(projectName == null ? "" : projectName)).append("</h1><table><thead><tr><th>Observed</th><th>Actor</th><th>Progress %</th><th>Buffer %</th><th>Zone</th></tr></thead><tbody>");
+		if (history != null) for (CriticalChainBufferHistory.Point p : history.points()) out.append("<tr><td>").append(p.observedAt()).append("</td><td>").append(MarkupEscape.escape(p.actorName())).append("</td><td>").append(p.progressPercent()).append("</td><td>").append(p.consumptionPercent()).append("</td><td>").append(MarkupEscape.escape(p.zone())).append("</td></tr>");
+		return out.append("</tbody></table>").toString();
+	}
+
+	public void writeCsv(Path target, CriticalChainBufferHistory history) throws IOException {
+		Files.writeString(target, toCsv(history));
+	}
+
+	public void writeHtml(Path target, String projectName, CriticalChainBufferHistory history) throws IOException {
+		Files.writeString(target, toHtml(projectName, history));
+	}
+
+	public List<CriticalChainBufferHistory.Point> isoWeek(CriticalChainBufferHistory history, int week) {
+		if (history == null) return List.of();
+		return history.points().stream().filter(p -> p.observedAt().atZone(ZoneOffset.UTC).get(IsoFields.WEEK_OF_WEEK_BASED_YEAR) == week).toList();
+	}
+
+	private static String csv(String value) { String s = value == null ? "" : value; return s.contains(",") || s.contains("\"") ? "\"" + s.replace("\"", "\"\"") + "\"" : s; }
+}

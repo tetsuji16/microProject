@@ -35,8 +35,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.job.JobQueue;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.resource.ResourcePool;
+import com.microproject.model.task.Project;
+import com.microproject.model.resource.ResourcePool;
 import com.microproject.session.LocalSession;
 import com.microproject.session.SaveOptions;
 import com.microproject.session.SessionFactory;

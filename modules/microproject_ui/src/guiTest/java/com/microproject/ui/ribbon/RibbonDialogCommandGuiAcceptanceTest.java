@@ -22,11 +22,11 @@ import javax.swing.AbstractButton;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.testsupport.GuiAcceptanceSupport;
-import com.microproject.testsupport.RibbonGuiSupport;
-import com.microproject.dialog.ResourceInformationDialog;
-import com.microproject.dialog.TaskInspectorPanel;
-import com.microproject.pm.graphic.views.ResourceView;
+import com.microproject.ui.testsupport.GuiAcceptanceSupport;
+import com.microproject.ui.testsupport.RibbonGuiSupport;
+import com.microproject.ui.dialog.ResourceInformationDialog;
+import com.microproject.ui.dialog.TaskInspectorPanel;
+import com.microproject.ui.view.views.ResourceView;
 
 /**
  * Physically exercises commands declared with {@code activation=DIALOG}. Most must open a
@@ -177,7 +177,7 @@ class RibbonDialogCommandGuiAcceptanceTest {
 
 	private static boolean dockedPaneShowing(RibbonCommandGuiFixture fixture, Class<? extends java.awt.Component> pane) {
 		try {
-			return fixture.onEdt(() -> com.microproject.menu.testsupport.UiComponentWalker.flatten(fixture.window).stream()
+			return fixture.onEdt(() -> com.microproject.ui.menu.testsupport.UiComponentWalker.flatten(fixture.window).stream()
 				.anyMatch(component -> pane.isInstance(component) && component.isShowing()));
 		} catch (Exception failure) {
 			throw new AssertionError(failure);

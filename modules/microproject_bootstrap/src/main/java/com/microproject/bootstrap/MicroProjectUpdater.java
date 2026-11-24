@@ -297,7 +297,7 @@ public final class MicroProjectUpdater {
 
     static void launchInstalledApp(String[] applicationArguments) {
         String mainClass = System.getProperty("microproject.mainClass",
-                "com.microproject.main.Main");
+                "com.microproject.ui.app.Main");
         try {
             // jpackage deliberately strips native launchers such as java.exe
             // from the bundled runtime. The bootstrap itself already runs

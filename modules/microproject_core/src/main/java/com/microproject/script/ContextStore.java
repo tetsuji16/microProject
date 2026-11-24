@@ -36,7 +36,7 @@ import org.apache.commons.digester3.Digester;
 
 import com.microproject.configuration.Dictionary;
 import com.microproject.configuration.NamedItem;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 
 public class ContextStore  implements NamedItem {

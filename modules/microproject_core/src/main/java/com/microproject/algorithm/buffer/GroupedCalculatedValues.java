@@ -31,7 +31,7 @@ import java.util.TreeMap;
 import java.util.logging.Logger;
 import org.apache.commons.lang3.time.DateUtils;
 
-import com.microproject.pm.calendar.WorkCalendar;
+import com.microproject.model.calendar.WorkCalendar;
 
 /**
  * Calculated values that are grouped by time buckets, such as a histogram

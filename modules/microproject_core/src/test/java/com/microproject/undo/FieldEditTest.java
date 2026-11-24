@@ -33,9 +33,9 @@ import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
 import com.microproject.field.FieldParseException;
 import com.microproject.field.ObjectRef;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.NodeModelDataFactory;
-import com.microproject.grouping.core.model.WalkersNodeModel;
+import com.microproject.node.Node;
+import com.microproject.node.model.NodeModelDataFactory;
+import com.microproject.node.model.WalkersNodeModel;
 
 class FieldEditTest {
 	@Test

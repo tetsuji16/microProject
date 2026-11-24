@@ -1,0 +1,359 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ ******************************************************************************/
+package com.microproject.ui.view.views;
+
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.geom.Path2D;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.UUID;
+import java.util.function.Consumer;
+
+import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+
+import com.microproject.ui.dialog.UsabilityStrings;
+import com.microproject.schedule.ccpm.CriticalChainBufferHistory;
+import com.microproject.schedule.ccpm.CriticalChainService;
+import com.microproject.model.task.Project;
+import com.microproject.ui.theme.MicroProjectTheme;
+import com.microproject.ui.theme.ThemeManager;
+import com.microproject.ui.util.ColorLuminance;
+import com.microproject.ui.util.FlatUiSupport;
+
+/** Read-only CCPM fever chart relating project progress to buffer consumption. */
+public final class CriticalChainBufferChartPanel extends JPanel {
+	private static final long serialVersionUID = 1L;
+	private static final int LEFT = 64;
+	private static final int RIGHT = 26;
+	private static final int TOP = 30;
+	private static final int BOTTOM = 52;
+	private static final int MAX_HISTORY = 32;
+	private static final double GREEN_INTERCEPT = 10D;
+	private static final double GREEN_SLOPE = 0.50D;
+	private static final double AMBER_INTERCEPT = 35D;
+	private static final double AMBER_SLOPE = 0.55D;
+	enum Zone { GREEN, AMBER, RED }
+	private final Project project;
+	private final List<CriticalChainBufferHistory.Point> history = new ArrayList<>();
+	private CriticalChainService.Analysis analysis;
+	private boolean enabled;
+	private UUID selectedObservationId;
+	private Consumer<UUID> selectionListener = ignored -> { };
+
+	public CriticalChainBufferChartPanel(Project project) {
+		this.project = project;
+		CriticalChainBufferHistory saved = project == null ? null : project.findTransientDocumentState(CriticalChainBufferHistory.class);
+		if (saved != null) history.addAll(saved.points());
+		setBackground(backgroundColor());
+		ThemeManager.bindToComponent(this, () -> { setBackground(backgroundColor()); repaint(); });
+		setPreferredSize(new Dimension(620, 420));
+		getAccessibleContext().setAccessibleName(UsabilityStrings.text("ccpm.bufferChartAccessible"));
+		setToolTipText(UsabilityStrings.text("ccpm.bufferChartTooltip"));
+		setFocusable(true);
+		addMouseListener(new MouseAdapter() {
+			@Override public void mousePressed(MouseEvent event) { selectAt(event.getX(), event.getY()); }
+			@Override public void mouseClicked(MouseEvent event) { selectAt(event.getX(), event.getY()); }
+		});
+	}
+
+	/** Installs the one selection callback used by the status dialog. */
+	public void setSelectionListener(Consumer<UUID> listener) {
+		selectionListener = listener == null ? ignored -> { } : listener;
+	}
+
+	public CriticalChainBufferHistory.Point selectedPoint() {
+		if (selectedObservationId == null) return null;
+		return history.stream().filter(point -> selectedObservationId.equals(point.observationId())).findFirst().orElse(null);
+	}
+
+	/** Returns the physical screen point for a rendered observation marker. */
+	public java.awt.Point screenPointForObservation(java.util.UUID observationId) {
+		if (observationId == null || !isShowing()) return null;
+		CriticalChainBufferHistory.Point point = history.stream()
+			.filter(value -> observationId.equals(value.observationId())).findFirst().orElse(null);
+		if (point == null) return null;
+		int width = Math.max(1, getWidth() - LEFT - RIGHT);
+		int height = Math.max(1, getHeight() - TOP - BOTTOM);
+		java.awt.Point screen = new java.awt.Point(xFor(point.progressPercent(), width), yFor(point.consumptionPercent(), height));
+		SwingUtilities.convertPointToScreen(screen, this);
+		return screen;
+	}
+
+	/** Selects the nearest visible point within the marker hit radius. */
+	public void selectAt(int x, int y) {
+		int width = Math.max(1, getWidth() - LEFT - RIGHT);
+		int height = Math.max(1, getHeight() - TOP - BOTTOM);
+		CriticalChainBufferHistory.Point candidate = null;
+		// Keep physical Robot selection tolerant of DPI rounding and the
+		// anti-aliased marker edge while retaining nearest-point semantics.
+		double bestDistance = 16D * 16D;
+		// Hit testing uses every active observation. Rendering may collapse adjacent
+		// duplicates for a clean line, but selection must still choose the latest
+		// observation when markers overlap.
+		for (CriticalChainBufferHistory.Point point : history) {
+			double dx = xFor(point.progressPercent(), width) - x;
+			double dy = yFor(point.consumptionPercent(), height) - y;
+			double distance = dx * dx + dy * dy;
+			// In an overlap, the latest observation is the actionable one.
+			if (distance <= bestDistance && (candidate == null || distance < bestDistance
+				|| point.observedAt().isAfter(candidate.observedAt()))) {
+				candidate = point; bestDistance = distance;
+			}
+		}
+		selectedObservationId = candidate == null ? null : candidate.observationId();
+		selectionListener.accept(selectedObservationId);
+		repaint();
+	}
+
+	/** Reloads active observations after a model mutation or Undo/Redo. */
+	public void reloadHistory() {
+		history.clear();
+		CriticalChainBufferHistory saved = project == null ? null
+			: project.findTransientDocumentState(CriticalChainBufferHistory.class);
+		if (saved != null) history.addAll(saved.points());
+		if (selectedPoint() == null) selectedObservationId = null;
+		selectionListener.accept(selectedObservationId);
+		repaint();
+	}
+
+	/** Number of active observations currently available to normal views. */
+	public int activeObservationCount() { return history.size(); }
+
+	/** Updates the current point and retains distinct observations made during this dialog session. */
+	public void setAnalysis(CriticalChainService.Analysis analysis, boolean enabled) {
+		this.analysis = analysis;
+		if (!enabled && this.enabled) clearHistory();
+		this.enabled = enabled;
+		if (enabled && analysis != null) addObservation(pointFor(project, analysis.projectBuffer()));
+		repaint();
+	}
+
+	@Override protected void paintComponent(Graphics graphics) {
+		super.paintComponent(graphics);
+		Graphics2D g = (Graphics2D) graphics.create();
+		try {
+			g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			// Chart labels are painted directly on Graphics, so do not rely on the
+			// component's inherited font (which can differ across look and feels).
+			applyChartFont(g);
+			if (!enabled || analysis == null) {
+				g.setColor(textColor());
+				g.drawString(UsabilityStrings.text("ccpm.bufferChartEmpty"), LEFT, TOP + 20);
+				return;
+			}
+			int width = Math.max(1, getWidth() - LEFT - RIGHT);
+			int height = Math.max(1, getHeight() - TOP - BOTTOM);
+			drawZones(g, width, height);
+			drawAxes(g, width, height);
+			drawHistory(g, width, height);
+			drawLegend(g, width);
+		} finally {
+			g.dispose();
+		}
+	}
+
+	static void applyChartFont(Graphics2D graphics) {
+		if (graphics != null) graphics.setFont(FlatUiSupport.uiFont());
+	}
+
+	private void drawZones(Graphics2D g, int width, int height) {
+		fillZone(g, zoneColor(Zone.GREEN), width, height, GREEN_INTERCEPT, GREEN_SLOPE);
+		fillBand(g, zoneColor(Zone.AMBER), width, height, GREEN_INTERCEPT, GREEN_SLOPE, AMBER_INTERCEPT, AMBER_SLOPE);
+		fillAbove(g, zoneColor(Zone.RED), width, height, AMBER_INTERCEPT, AMBER_SLOPE);
+	}
+
+	private void fillZone(Graphics2D g, Color color, int width, int height, double intercept, double slope) {
+		Path2D path = new Path2D.Double();
+		path.moveTo(LEFT, TOP + height);
+		path.lineTo(LEFT + width, TOP + height);
+		path.lineTo(LEFT + width, yFor(intercept + slope * 100D, height));
+		path.lineTo(LEFT, yFor(intercept, height));
+		path.closePath();
+		g.setColor(color);
+		g.fill(path);
+	}
+
+	private void fillBand(Graphics2D g, Color color, int width, int height, double lowerIntercept, double lowerSlope,
+		double upperIntercept, double upperSlope) {
+		Path2D path = new Path2D.Double();
+		path.moveTo(LEFT, yFor(lowerIntercept, height));
+		path.lineTo(LEFT + width, yFor(lowerIntercept + lowerSlope * 100D, height));
+		path.lineTo(LEFT + width, yFor(upperIntercept + upperSlope * 100D, height));
+		path.lineTo(LEFT, yFor(upperIntercept, height));
+		path.closePath();
+		g.setColor(color);
+		g.fill(path);
+	}
+
+	private void fillAbove(Graphics2D g, Color color, int width, int height, double intercept, double slope) {
+		Path2D path = new Path2D.Double();
+		path.moveTo(LEFT, TOP);
+		path.lineTo(LEFT + width, TOP);
+		path.lineTo(LEFT + width, yFor(intercept + slope * 100D, height));
+		path.lineTo(LEFT, yFor(intercept, height));
+		path.closePath();
+		g.setColor(color);
+		g.fill(path);
+	}
+
+	private void drawAxes(Graphics2D g, int width, int height) {
+		g.setColor(isDark() ? MicroProjectTheme.tokens().labelForeground() : new Color(75, 75, 75));
+		g.setStroke(new BasicStroke(1f));
+		g.drawLine(LEFT, TOP, LEFT, TOP + height);
+		g.drawLine(LEFT, TOP + height, LEFT + width, TOP + height);
+		for (int value = 0; value <= 100; value += 20) {
+			int x = xFor(value, width);
+			int y = yFor(value, height);
+			g.drawLine(x, TOP + height, x, TOP + height + 4);
+			g.drawString(value + "%", x - 10, TOP + height + 20);
+			g.drawLine(LEFT - 4, y, LEFT, y);
+			g.drawString(value + "%", LEFT - 45, y + 5);
+		}
+		g.drawString(UsabilityStrings.text("ccpm.bufferChartProgress"), LEFT + width / 2 - 75, TOP + height + 42);
+		g.drawString(UsabilityStrings.text("ccpm.bufferChartConsumption"), LEFT, 17);
+	}
+
+	private void drawHistory(Graphics2D g, int width, int height) {
+		List<CriticalChainBufferHistory.Point> points = renderPoints(history);
+		if (points.isEmpty()) return;
+		g.setColor(isDark() ? MicroProjectTheme.tokens().accentColor() : new Color(34, 94, 168));
+		g.setStroke(new BasicStroke(2f));
+		CriticalChainBufferHistory.Point previous = null;
+		for (CriticalChainBufferHistory.Point point : points) {
+			if (previous != null) g.drawLine(xFor(previous.progressPercent(), width), yFor(previous.consumptionPercent(), height),
+				xFor(point.progressPercent(), width), yFor(point.consumptionPercent(), height));
+			previous = point;
+		}
+		for (CriticalChainBufferHistory.Point point : points) {
+			int x = xFor(point.progressPercent(), width);
+			int y = yFor(point.consumptionPercent(), height);
+			g.setColor(isDark() ? MicroProjectTheme.tokens().accentColor() : new Color(20, 75, 145));
+			g.fillOval(x - 5, y - 5, 10, 10);
+			if (point.observationId().equals(selectedObservationId)) {
+				g.setColor(selectionColor());
+				g.setStroke(new BasicStroke(2f));
+				g.drawOval(x - 8, y - 8, 16, 16);
+			}
+			g.setColor(isDark() ? MicroProjectTheme.tokens().tableBackground() : Color.WHITE);
+			g.drawOval(x - 3, y - 3, 6, 6);
+			g.setColor(textColor());
+			g.drawString(Math.round(point.progressPercent()) + "% / " + Math.round(point.consumptionPercent()) + "%", x + 8, y - 8);
+		}
+	}
+
+	private void drawLegend(Graphics2D g, int width) {
+		int x = LEFT + width - 196;
+		legend(g, zoneColor(Zone.GREEN), UsabilityStrings.text("ccpm.bufferChartGreen"), x, TOP + 16);
+		legend(g, zoneColor(Zone.AMBER), UsabilityStrings.text("ccpm.bufferChartAmber"), x, TOP + 34);
+		legend(g, zoneColor(Zone.RED), UsabilityStrings.text("ccpm.bufferChartRed"), x, TOP + 52);
+	}
+
+	private static void legend(Graphics2D g, Color color, String label, int x, int y) {
+		g.setColor(color);
+		g.fillRect(x, y - 10, 12, 12);
+		g.setColor(textColor());
+		g.drawRect(x, y - 10, 12, 12);
+		g.drawString(label, x + 18, y);
+	}
+
+	private static CriticalChainBufferHistory.Point pointFor(Project project, CriticalChainService.Buffer buffer) {
+		double progress = project == null ? 0D : clamp(project.getPercentComplete() * 100D);
+		return new CriticalChainBufferHistory.Point(Instant.now(), "unknown", "unknown", progress,
+				clamp(buffer.consumptionRatio() * 100D), zoneForValues(progress, clamp(buffer.consumptionRatio() * 100D)).name(), "");
+	}
+
+	/**
+	 * Returns the stable point sequence used for rendering.  A project can be
+	 * opened in a new chart instance after a persisted history was loaded, and
+	 * the current analysis can then add the same coordinate with a new sample
+	 * timestamp.  Rendering must not let that lifecycle detail create an
+	 * apparent jump or a line to a non-adjacent observation.
+	 */
+	static List<CriticalChainBufferHistory.Point> renderPoints(List<CriticalChainBufferHistory.Point> source) {
+		List<CriticalChainBufferHistory.Point> sorted = new ArrayList<>(source == null ? List.of() : source);
+		sorted.sort(Comparator.comparing(CriticalChainBufferHistory.Point::observedAt));
+		List<CriticalChainBufferHistory.Point> result = new ArrayList<>(sorted.size());
+		for (CriticalChainBufferHistory.Point point : sorted) {
+			if (result.isEmpty() || !samePosition(result.get(result.size() - 1), point)) result.add(point);
+		}
+		return result;
+	}
+
+	private static boolean samePosition(CriticalChainBufferHistory.Point first, CriticalChainBufferHistory.Point second) {
+		return Double.compare(first.progressPercent(), second.progressPercent()) == 0
+			&& Double.compare(first.consumptionPercent(), second.consumptionPercent()) == 0;
+	}
+
+	private static Zone zoneForValues(double progress, double consumption) {
+		if (consumption <= GREEN_INTERCEPT + GREEN_SLOPE * progress) return Zone.GREEN;
+		return consumption <= AMBER_INTERCEPT + AMBER_SLOPE * progress ? Zone.AMBER : Zone.RED;
+	}
+
+	static Zone zoneFor(CriticalChainBufferHistory.Point point) {
+		double progress = point.progressPercent();
+		double consumption = point.consumptionPercent();
+		if (consumption <= GREEN_INTERCEPT + GREEN_SLOPE * progress) return Zone.GREEN;
+		return consumption <= AMBER_INTERCEPT + AMBER_SLOPE * progress ? Zone.AMBER : Zone.RED;
+	}
+
+	private void addObservation(CriticalChainBufferHistory.Point point) {
+		if (!history.isEmpty() && history.get(history.size() - 1).sameObservation(point)) return;
+		if (history.size() == MAX_HISTORY) history.remove(0);
+		history.add(point);
+		if (project != null) {
+			CriticalChainBufferHistory saved = project.getOrCreateTransientDocumentState(CriticalChainBufferHistory.class, CriticalChainBufferHistory::new);
+			saved.add(point);
+		}
+	}
+
+	private void clearHistory() {
+		history.clear();
+		if (project != null) project.removeTransientDocumentState(CriticalChainBufferHistory.class);
+	}
+
+	private static int xFor(double percent, int width) { return LEFT + (int) Math.round(clamp(percent) * width / 100D); }
+	private static int yFor(double percent, int height) { return TOP + height - (int) Math.round(clamp(percent) * height / 100D); }
+	private static double clamp(double value) { return Double.isFinite(value) ? Math.max(0D, Math.min(100D, value)) : 0D; }
+
+	static int observationCount(CriticalChainBufferChartPanel panel) { return panel.history.size(); }
+	static CriticalChainBufferHistory.Point currentPoint(Project project, CriticalChainService.Buffer buffer) { return pointFor(project, buffer); }
+	private static boolean isDark() {
+		return ColorLuminance.isDark(MicroProjectTheme.tokens().appBackground());
+	}
+
+	private static Color backgroundColor() {
+		return isDark() ? MicroProjectTheme.tokens().tableBackground() : Color.WHITE;
+	}
+
+	static Color textColor() {
+		return isDark() ? MicroProjectTheme.tokens().labelForeground() : Color.DARK_GRAY;
+	}
+
+	/** Outline of the selected observation; it must stand out from every zone fill of the current theme. */
+	static Color selectionColor() {
+		return isDark() ? new Color(255, 170, 90) : new Color(160, 50, 10);
+	}
+
+	/** Zone fill for the current theme; read at every paint so a theme switch needs no rebuild. */
+	static Color zoneColor(Zone zone) {
+		boolean dark = isDark();
+		return switch (zone) {
+			case GREEN -> dark ? new Color(40, 84, 52) : new Color(218, 239, 211);
+			case AMBER -> dark ? new Color(104, 84, 18) : new Color(255, 242, 170);
+			case RED -> dark ? new Color(112, 44, 52) : new Color(240, 180, 185);
+		};
+	}
+}

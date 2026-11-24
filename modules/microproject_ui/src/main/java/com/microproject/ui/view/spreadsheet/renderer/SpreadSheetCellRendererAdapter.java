@@ -1,0 +1,83 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.view.spreadsheet.renderer;
+
+import java.awt.Component;
+
+import javax.swing.JComponent;
+import javax.swing.JTable;
+import javax.swing.table.TableCellRenderer;
+
+import com.microproject.ui.view.model.cache.GraphicNode;
+import com.microproject.ui.view.spreadsheet.SpreadSheetParams;
+import com.microproject.field.Field;
+import com.microproject.model.task.Task;
+import com.microproject.ui.privacy.PrivacyDisplayMode;
+
+/**
+ *
+ */
+public class SpreadSheetCellRendererAdapter implements OfflineRenderer {
+	protected TableCellRenderer renderer;
+	/**
+	 * 
+	 */
+	public SpreadSheetCellRendererAdapter(TableCellRenderer renderer) { 
+		this.renderer=renderer;
+	}
+	/**
+	 * @see javax.swing.table.TableCellRenderer#getTableCellRendererComponent(javax.swing.JTable, java.lang.Object, boolean, boolean, int, int)
+	 */
+	public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+		Object cvalue = value;
+		if (table != null && table.getModel() instanceof com.microproject.ui.view.spreadsheet.SpreadSheetModel model) {
+			var node = model.getNodeForDisplayRow(table.convertRowIndexToModel(row));
+			if (node != null && node.getImpl() instanceof Task task) {
+				Field field = model.getFieldInViewColumn(column);
+				cvalue = maskResourceNames(value, task, field);
+			}
+		}
+		JComponent component=(JComponent)renderer.getTableCellRendererComponent(table,cvalue,isSelected,hasFocus,row,column);
+		CellUtility.setAppearance(table,cvalue,isSelected,hasFocus,row,column,component);
+		return component;
+	}
+	//To use only if renderer is an OfflineRenderer 
+	public Component getComponent(Object value, GraphicNode node,Field field,SpreadSheetParams params){
+		Object cvalue = value;
+		if (node != null && node.getNode() != null && node.getNode().getImpl() instanceof Task task)
+			cvalue = maskResourceNames(value, task, field);
+		JComponent component=(JComponent)((OfflineRenderer)renderer).getComponent(cvalue, node, field, params);
+		CellUtility.setAppearance(params.getFieldArray().getCellStyle().getCellFormat(node), component);
+		return component;
+	}
+
+	static Object maskResourceNames(Object value, Task task, Field field) {
+		if (task == null || field == null || !"Field.resourceNames".equals(field.getId())
+				|| !PrivacyDisplayMode.isMasked(task.getProject()) || value == null) {
+			return value;
+		}
+		return PrivacyDisplayMode.resourceNames(task.getProject(), value.toString());
+	}
+
+}

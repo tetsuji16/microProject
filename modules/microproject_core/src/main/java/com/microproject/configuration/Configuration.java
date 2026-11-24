@@ -28,8 +28,8 @@ import java.util.Collection;
 import org.apache.commons.digester3.Digester;
 
 import com.microproject.field.Field;
-import com.microproject.graphic.configuration.GraphicConfiguration;
-import com.microproject.strings.Messages;
+import com.microproject.view.configuration.GraphicConfiguration;
+import com.microproject.i18n.Messages;
 import com.microproject.timescale.TimeScaleManager;
 import com.microproject.util.ClassUtils;
 

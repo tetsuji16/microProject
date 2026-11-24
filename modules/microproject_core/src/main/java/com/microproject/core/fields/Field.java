@@ -34,7 +34,7 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 import com.microproject.core.configuration.LegacyConfiguration;
 import com.microproject.core.dictionary.HasCategories;
 import com.microproject.core.dictionary.HasStringId;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /**
  * @author Laurent Chretienneau

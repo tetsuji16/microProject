@@ -16,7 +16,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.port.PortRegistry;
 import com.microproject.port.ProjectArtifactLifecyclePort;
 

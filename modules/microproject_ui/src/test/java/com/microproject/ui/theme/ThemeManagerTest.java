@@ -39,10 +39,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.graphic.IconManager;
-import com.microproject.util.FlatLafSupport;
-import com.microproject.util.FlatUiSupport;
-import com.microproject.util.MicrosoftProjectGanttTheme;
+import com.microproject.ui.view.IconManager;
+import com.microproject.ui.util.FlatLafSupport;
+import com.microproject.ui.util.FlatUiSupport;
+import com.microproject.ui.util.MicrosoftProjectGanttTheme;
 
 class ThemeManagerTest {
 	private boolean originalDark;

@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.server.data.CustomFieldsMapper;
+import com.microproject.exchange.serialize.CustomFieldsMapper;
 
 import org.mpxj.ResourceField;
 import org.mpxj.TaskField;

@@ -23,6 +23,9 @@
  *******************************************************************************/
 package com.microproject.exchange;
 
+import com.microproject.persistence.PodFormatIdentifiers;
+import com.microproject.persistence.FileImporter;
+
 import java.io.BufferedInputStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -42,16 +45,16 @@ import javax.swing.SwingUtilities;
 import com.microproject.job.Job;
 import com.microproject.port.SaveFailureFeedback;
 import com.microproject.job.JobRunnable;
-import com.microproject.pm.task.Project;
-import com.microproject.server.data.DataUtil;
-import com.microproject.server.data.DocumentData;
+import com.microproject.model.task.Project;
+import com.microproject.persistence.data.DataUtil;
+import com.microproject.persistence.data.DocumentData;
 import com.microproject.session.LoadOptions;
 import com.microproject.session.LocalSession;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.Alert;
 import com.microproject.util.SafeFileReplace;
 import com.microproject.util.SafeObjectInput;
-import com.microproject.temporary.TemporaryCleanupQueue;
+import com.microproject.util.temporary.TemporaryCleanupQueue;
 
 /**
  * Loads/Saves a project from/to a pod file

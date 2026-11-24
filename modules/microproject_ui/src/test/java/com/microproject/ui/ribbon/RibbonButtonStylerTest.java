@@ -35,7 +35,7 @@ import javax.swing.JButton;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.util.FlatUiSupport;
+import com.microproject.ui.util.FlatUiSupport;
 
 class RibbonButtonStylerTest {
 	@Test
@@ -49,7 +49,7 @@ class RibbonButtonStylerTest {
 		assertNotNull(button.getIcon());
 		JLabel probe = new JLabel(button.getText());
 		probe.setFont(button.getFont());
-		assertTrue(button.getPreferredSize().height >= button.getIcon().getIconHeight() + probe.getPreferredSize().height + com.microproject.util.FlatUiSupport.ribbonButtonVerticalInset());
+		assertTrue(button.getPreferredSize().height >= button.getIcon().getIconHeight() + probe.getPreferredSize().height + com.microproject.ui.util.FlatUiSupport.ribbonButtonVerticalInset());
 	}
 
 	@Test
@@ -109,7 +109,7 @@ class RibbonButtonStylerTest {
 
 		styler.styleActionButton(button, true);
 
-		assertEquals(com.microproject.util.FlatUiSupport.ribbonLargeButtonHeight(), button.getPreferredSize().height);
+		assertEquals(com.microproject.ui.util.FlatUiSupport.ribbonLargeButtonHeight(), button.getPreferredSize().height);
 	}
 
 	@Test
@@ -123,7 +123,7 @@ class RibbonButtonStylerTest {
 		// The inline height is a floor: text/icon content can legitimately make the
 		// button taller than the configured theme height (e.g. larger font metrics on
 		// some JDKs), but it must never drop below it or crush the icon.
-		assertTrue(button.getPreferredSize().height >= com.microproject.util.FlatUiSupport.ribbonInlineButtonHeight());
+		assertTrue(button.getPreferredSize().height >= com.microproject.ui.util.FlatUiSupport.ribbonInlineButtonHeight());
 		assertTrue(button.getPreferredSize().height >= button.getIcon().getIconHeight());
 	}
 

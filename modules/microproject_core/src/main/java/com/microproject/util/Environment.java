@@ -30,7 +30,7 @@ import java.util.StringTokenizer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.microproject.company.ApplicationUser;
+import com.microproject.user.ApplicationUser;
 import com.microproject.util.ClassLoaderUtils;
 
 public class Environment {

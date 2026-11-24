@@ -26,7 +26,7 @@ package com.microproject.session;
 import java.util.function.Consumer;
 
 
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 
 public class SaveOptions implements Cloneable{
 	protected boolean local;

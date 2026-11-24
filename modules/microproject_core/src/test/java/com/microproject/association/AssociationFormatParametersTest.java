@@ -9,8 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.dependency.HasDependencies;
-import com.microproject.pm.task.NormalTask;
+import com.microproject.model.dependency.HasDependencies;
+import com.microproject.model.task.NormalTask;
 
 class AssociationFormatParametersTest {
 	@Test

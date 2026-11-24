@@ -29,13 +29,13 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.menu.MenuManager;
-import com.microproject.menu.ProjectMenuActionMap;
-import com.microproject.menu.ExtToolBarFactory;
-import com.microproject.menu.MenuRibbonCommandSource;
-import com.microproject.menu.testsupport.MenuDefinitionSupport;
-import com.microproject.pm.graphic.frames.MainRibbonFrame;
-import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.ui.menu.MenuManager;
+import com.microproject.ui.menu.ProjectMenuActionMap;
+import com.microproject.ui.menu.ExtToolBarFactory;
+import com.microproject.ui.menu.MenuRibbonCommandSource;
+import com.microproject.ui.menu.testsupport.MenuDefinitionSupport;
+import com.microproject.ui.frame.MainRibbonFrame;
+import com.microproject.ui.testsupport.GuiAcceptanceSupport;
 import com.microproject.ui.ribbon.SwingRibbonFactory;
 
 /** Verifies the tab-row search hit area using the real ribbon inside a realized Swing window. */
@@ -108,7 +108,7 @@ class OfficeChromeSearchGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(frame::isActive, "native Office header frame did not receive focus");
 		GuiAcceptanceSupport.await(() -> box[0].isShowing() && save[0].isShowing() && help[0].isShowing(),
 			"native Office header controls did not become visible");
-		Robot robot = new com.microproject.testsupport.GuiRobot();
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		click(robot, field[0]);
 		GuiAcceptanceSupport.await(field[0]::isFocusOwner, "physical click in the search field did not focus the text field");

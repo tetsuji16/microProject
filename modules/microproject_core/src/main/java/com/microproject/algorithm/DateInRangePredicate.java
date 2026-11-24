@@ -25,7 +25,7 @@ package com.microproject.algorithm;
 
 import java.util.function.Predicate;
 
-import com.microproject.pm.time.HasStartAndEnd;
+import com.microproject.model.time.HasStartAndEnd;
 
 /**
  * A predicate which tests whether an interval is enclosed in a range

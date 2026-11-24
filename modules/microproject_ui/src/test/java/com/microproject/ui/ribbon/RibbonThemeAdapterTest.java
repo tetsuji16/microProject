@@ -6,7 +6,7 @@ package com.microproject.ui.ribbon;
 
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
-import com.microproject.util.FlatUiSupport;
+import com.microproject.ui.util.FlatUiSupport;
 
 class RibbonThemeAdapterTest {
 	@Test

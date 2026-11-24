@@ -43,11 +43,11 @@ import java.util.TreeSet;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.menu.ExtToolBarFactory;
-import com.microproject.menu.MenuActionMapSupport;
-import com.microproject.menu.MenuManager;
-import com.microproject.menu.MenuRibbonCommandSource;
-import com.microproject.menu.testsupport.MenuDefinitionSupport;
+import com.microproject.ui.menu.ExtToolBarFactory;
+import com.microproject.ui.menu.MenuActionMapSupport;
+import com.microproject.ui.menu.MenuManager;
+import com.microproject.ui.menu.MenuRibbonCommandSource;
+import com.microproject.ui.menu.testsupport.MenuDefinitionSupport;
 import com.microproject.ribbon.RibbonActivation;
 import com.microproject.ribbon.RibbonControlKind;
 import com.microproject.ribbon.SwingRibbonModel;

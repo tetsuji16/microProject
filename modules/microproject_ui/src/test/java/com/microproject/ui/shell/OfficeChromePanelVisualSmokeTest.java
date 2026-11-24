@@ -52,12 +52,12 @@ import com.microproject.ui.ribbon.SwingRibbonFactory;
 import com.microproject.ui.ribbon.ModernRibbonPanel;
 import com.microproject.ui.ribbon.RibbonController;
 import com.microproject.ui.theme.MicroProjectTheme;
-import com.microproject.util.FlatLafSupport;
-import com.microproject.menu.ExtToolBarFactory;
-import com.microproject.menu.MenuActionMapSupport;
-import com.microproject.menu.MenuManager;
-import com.microproject.menu.testsupport.MenuDefinitionSupport;
-import com.microproject.menu.testsupport.UiComponentWalker;
+import com.microproject.ui.util.FlatLafSupport;
+import com.microproject.ui.menu.ExtToolBarFactory;
+import com.microproject.ui.menu.MenuActionMapSupport;
+import com.microproject.ui.menu.MenuManager;
+import com.microproject.ui.menu.testsupport.MenuDefinitionSupport;
+import com.microproject.ui.menu.testsupport.UiComponentWalker;
 
 class OfficeChromePanelVisualSmokeTest {
 	@Test
@@ -74,7 +74,7 @@ class OfficeChromePanelVisualSmokeTest {
 				MenuActionMapSupport.noopActionMap(),
 				MenuDefinitionSupport.ribbonBundles(Locale.JAPAN));
 			SwingRibbonFactory ribbonFactory = new SwingRibbonFactory(
-				new com.microproject.menu.MenuRibbonCommandSource(buttonFactory),
+				new com.microproject.ui.menu.MenuRibbonCommandSource(buttonFactory),
 				MenuDefinitionSupport.ribbonBundles(Locale.JAPAN));
 			JPanel ribbonPanel = ribbonFactory.createPanel(MenuManager.STANDARD_RIBBON, () -> {});
 			OfficeChromePanel panel = new OfficeChromePanel(menuManager, ribbonPanel, () -> {});
@@ -193,7 +193,7 @@ class OfficeChromePanelVisualSmokeTest {
 			MenuActionMapSupport.noopActionMap(),
 			MenuDefinitionSupport.ribbonBundles(locale));
 		SwingRibbonFactory ribbonFactory = new SwingRibbonFactory(
-			new com.microproject.menu.MenuRibbonCommandSource(buttonFactory),
+			new com.microproject.ui.menu.MenuRibbonCommandSource(buttonFactory),
 			MenuDefinitionSupport.ribbonBundles(locale));
 		var model = ribbonFactory.createModel(MenuManager.STANDARD_RIBBON);
 		JPanel ribbonPanel = ribbonFactory.createPanel(model, () -> {});

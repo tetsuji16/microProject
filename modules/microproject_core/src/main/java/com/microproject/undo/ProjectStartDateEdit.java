@@ -7,7 +7,7 @@ package com.microproject.undo;
 
 import javax.swing.undo.AbstractUndoableEdit;
 
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 
 /** Undo unit for the MSP-compatible Move Project operation. */
 public final class ProjectStartDateEdit extends AbstractUndoableEdit {

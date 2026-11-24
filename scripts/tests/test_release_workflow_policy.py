@@ -94,7 +94,7 @@ class ReleaseWorkflowPolicyTest(unittest.TestCase):
 		runner = (REPO_ROOT / ".github" / "scripts" / "run-gui-acceptance.ps1").read_text(encoding="utf-8")
 		class_block = re.search(r"\$visualClasses = @\((.*?)\n\)", runner, re.S).group(1)
 		classes = re.findall(r"'([^']+GuiAcceptanceTest)'", class_block)
-		task_info = "com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest"
+		task_info = "com.microproject.ui.frame.TaskInformationRibbonGuiAcceptanceTest"
 		self.assertEqual(12, len(classes))
 		self.assertNotIn(task_info, classes)
 		self.assertIn("foreach ($testClass in $visualTests)", runner)
@@ -116,7 +116,7 @@ class ReleaseWorkflowPolicyTest(unittest.TestCase):
 		):
 			self.assertIn(method, methods)
 		source = (REPO_ROOT / "modules" / "microproject_ui" / "src" / "guiTest" / "java" /
-			"com" / "microproject" / "pm" / "graphic" / "frames" / "TaskInformationRibbonGuiAcceptanceTest.java").read_text(encoding="utf-8")
+			"com" / "microproject" / "ui" / "frame" / "TaskInformationRibbonGuiAcceptanceTest.java").read_text(encoding="utf-8")
 		for method in methods:
 			self.assertRegex(source, rf"(?m)^\s*@Test\s*(?:\r?\n\s*@[^\r\n]+\s*)*(?:\r?\n\s*)+void\s+{re.escape(method)}\s*\(")
 		self.assertIn("Visual GUI test method must map to exactly one @Test source method", runner)

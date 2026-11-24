@@ -30,7 +30,7 @@ import java.util.Date;
  *
  */
 /**
- * @deprecated Use {@link com.microproject.pm.time.MutableInterval}.
+ * @deprecated Use {@link com.microproject.model.time.MutableInterval}.
  */
 @Deprecated(forRemoval = false)
 public class DefaultTimeInterval implements TimeInterval, Comparable<TimeInterval> {
@@ -38,7 +38,7 @@ public class DefaultTimeInterval implements TimeInterval, Comparable<TimeInterva
 	protected static long EMPTY_END=-1L;
 	protected long start=EMPTY_START;
 	protected long end=EMPTY_END;
-	private transient com.microproject.pm.time.MutableInterval canonical;
+	private transient com.microproject.model.time.MutableInterval canonical;
 	
 	public DefaultTimeInterval(){
 	}
@@ -47,9 +47,9 @@ public class DefaultTimeInterval implements TimeInterval, Comparable<TimeInterva
 		this.end=end;
 	}
 
-	private com.microproject.pm.time.MutableInterval canonical() {
+	private com.microproject.model.time.MutableInterval canonical() {
 		if (canonical == null)
-			canonical = new com.microproject.pm.time.MutableInterval(start, end);
+			canonical = new com.microproject.model.time.MutableInterval(start, end);
 		else {
 			canonical.setStart(start);
 			canonical.setEnd(end);
@@ -105,7 +105,7 @@ public class DefaultTimeInterval implements TimeInterval, Comparable<TimeInterva
 	public boolean equals(Object obj) {
 		if (obj instanceof DefaultTimeInterval interval)
 			return start == interval.getStart() && end == interval.getEnd();
-		if (obj instanceof com.microproject.pm.time.Interval interval)
+		if (obj instanceof com.microproject.model.time.Interval interval)
 			return start == interval.getStart() && end == interval.getEnd();
 		return false;
 	}

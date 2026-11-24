@@ -1,0 +1,267 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.menu;
+
+import static com.microproject.ui.menu.testsupport.MenuDefinitionSupport.menuInternalBundle;
+import static com.microproject.ui.menu.testsupport.MenuDefinitionSupport.menuBundle;
+import static com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonBandIds;
+import static com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds;
+import static com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonTaskIds;
+import static com.microproject.ui.menu.testsupport.MenuDefinitionSupport.toolBarButtonIds;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.Locale;
+
+import org.junit.jupiter.api.Test;
+
+/** Locks the MS Project-style information architecture into the resource map. */
+class RibbonStructureTest {
+	@Test
+	void standardRibbonUsesTheDesktopProjectTabOrder() {
+		assertEquals(List.of(
+			"FileRibbonTask", "TaskRibbonTask", "ResourceRibbonTask", "ReportRibbonTask",
+			"ProjectRibbonTask", "ViewRibbonTask", "HelpRibbonTask", "FormatRibbonTask",
+			"NetworkFormatRibbonTask", "CalendarFormatRibbonTask", "TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask",
+			"TaskSheetFormatRibbonTask", "TaskUsageFormatRibbonTask",
+			"ResourceSheetFormatRibbonTask", "ResourceUsageFormatRibbonTask", "ResourceGraphFormatRibbonTask"), ribbonTaskIds());
+	}
+
+	@Test
+	void viewDataGroupKeepsSortAsFirstLargeControlAndStaysDirectBeforeResourceViews() {
+		assertEquals("RibbonChooseSort.TOP", menuInternalBundle().getString("ViewDataRibbonBand").split("\s+")[0]);
+		assertEquals("gallery", menuInternalBundle().getString("RibbonChooseSort.control"));
+		// At the 1120 px reference window the group holding Sort must outlast the wider Resource views group.
+		assertEquals("1", menuInternalBundle().getString("ViewDataRibbonBand.keepRank"));
+	}
+
+	@Test
+	void helpCommandsLiveOnTheStandardHelpTabAndShareTheirCanonicalActions() {
+		assertEquals(List.of("HelpRibbonBand"), ribbonBandIds("HelpRibbonTask"));
+		assertTrue(!ribbonBandIds("FileRibbonTask").contains("HelpRibbonBand"));
+		assertEquals(List.of("RibbonMicroProjectDocumentation", "RibbonAboutMicroProject"),
+			ribbonButtonIds("HelpRibbonBand"));
+		assertEquals("MicroProjectDocumentationAction",
+			menuInternalBundle().getString("RibbonMicroProjectDocumentation.action"));
+		assertEquals("AboutMicroProjectAction", menuInternalBundle().getString("RibbonAboutMicroProject.action"));
+		assertEquals("Help", menuBundle(Locale.ROOT).getString("HelpRibbonTask.title"));
+		assertEquals("ヘルプ", menuBundle(Locale.JAPANESE).getString("HelpRibbonTask.title"));
+	}
+
+	@Test
+	void quickAccessContainsOnlyDocumentWideCommands() {
+		assertEquals(Set.of("RibbonTopBarSaveProject", "RibbonTopBarUndo", "RibbonTopBarRedo"),
+			toolBarButtonIds("StandardRibbon.TaskBar"));
+		assertTrue(!ribbonBandIds("FileRibbonTask").contains("FileQuickRibbonBand"));
+	}
+
+	@Test
+	void fileBackstageExposesRecentProjectsBesideOpen() {
+		assertEquals(List.of(
+			"RibbonNewProject", "RibbonNewMasterProject", "RibbonOpenProject", "RibbonRecentProjects",
+			"RibbonSaveProject", "RibbonBackstageProjectInformation", "RibbonBackstageOptions",
+			"RibbonSaveProjectAs", "RibbonSaveMpoAs", "RibbonCloseProject"),
+			ribbonButtonIds("FileRibbonBand"));
+		assertEquals("RecentProjectsAction",
+			menuInternalBundle().getString("RibbonRecentProjects.action"));
+		assertEquals(List.of("home", "new", "open", "info", "save", "saveAs", "print", "export", "close", "account", "options"),
+			List.of(menuInternalBundle().getString("FileBackstagePages").split("\\s+")));
+		assertEquals("options", menuInternalBundle().getString("FileBackstagePages.pinned"));
+		assertEquals("open", menuInternalBundle().getString("FileBackstagePages.separatorAfter"));
+		assertFalse(menuInternalBundle().containsKey("RibbonHome.backstagePage"),
+			"Home is a product destination, not a File-tab command page");
+		assertFalse(menuInternalBundle().containsKey("RibbonAccount.backstagePage"),
+			"Account is a product destination, not a File-tab command page");
+		assertEquals("open", menuInternalBundle().getString("RibbonOpenProject.backstagePage"));
+		assertEquals("info", menuInternalBundle().getString("RibbonBackstageProjectInformation.backstagePage"));
+		assertEquals("options", menuInternalBundle().getString("RibbonBackstageOptions.backstagePage"));
+		assertEquals("save", menuInternalBundle().getString("RibbonSaveProject.backstagePage"));
+		assertEquals("true", menuInternalBundle().getString("RibbonSaveProject.backstageImmediate"));
+		assertEquals("options", menuInternalBundle().getString("RibbonLocale.backstagePage"),
+			"Microsoft documents application language under File > Options > Language");
+		assertFalse(menuInternalBundle().containsKey("RibbonLocale.backstageImmediate"),
+			"Language must be a visible action within the selected Options page");
+	}
+
+	@Test
+	void taskClipboardGroupUsesTheLocalizedClipboardTitle() {
+		assertEquals(List.of("RibbonPaste", "RibbonCut", "RibbonCopy", "RibbonFormatPainter"),
+			ribbonButtonIds("TaskClipboardRibbonBand"));
+		for (String tag : List.of("ar", "da", "de", "el", "es", "fr", "hi", "it", "ja", "ko", "nl", "pt", "ru",
+				"sv", "th", "tr", "ur", "vi", "zh", "zh-CN", "zh-TW")) {
+			Locale locale = Locale.forLanguageTag(tag);
+			assertEquals(menuBundle(locale).getString("ClipboardRibbonBand.title"),
+				menuBundle(locale).getString("TaskClipboardRibbonBand.title"),
+				() -> "Task tab Clipboard group must keep the localized title for " + tag);
+		}
+	}
+
+	@Test
+	void taskTabPlacesMicrosoftScheduleCommandsInScheduleGroup() {
+		assertEquals(List.of("RibbonExportProject", "RibbonImportProject"),
+			ribbonButtonIds("FileExchangeRibbonBand"));
+		assertEquals(List.of(
+			"TaskViewRibbonBand", "TaskClipboardRibbonBand", "TaskFontRibbonBand", "TaskTrackingRibbonBand", "TaskTasksRibbonBand", "TaskInsertRibbonBand",
+			"TaskPropertiesRibbonBand", "TaskEditingRibbonBand"),
+			ribbonBandIds("TaskRibbonTask"));
+		assertEquals(List.of("RibbonTaskModeManual", "RibbonTaskModeAutomatic", "RibbonTaskInspector",
+				"RibbonMoveTask", "RibbonScheduleMode", "RibbonMoveTaskUp", "RibbonMoveTaskDown", "RibbonDelegateTasks"),
+			ribbonButtonIds("TaskTasksRibbonBand"));
+		assertEquals(List.of("RibbonExpand", "RibbonCollapse"),
+			ribbonButtonIds("ViewDataRibbonBand").stream().filter(id -> id.equals("RibbonExpand") || id.equals("RibbonCollapse")).toList());
+		assertEquals("MoveTaskUpAction",menuInternalBundle().getString("RibbonMoveTaskUp.action"));
+		assertEquals("MoveTaskDownAction",menuInternalBundle().getString("RibbonMoveTaskDown.action"));
+		assertFalse(menuBundle(Locale.ROOT).getString("RibbonMoveTaskUp.tooltip").contains("Alt+Shift+Up"),
+			"the screen tip key comes from the registered binding (#973), not the bundle");
+		assertFalse(menuBundle(Locale.ROOT).getString("RibbonMoveTaskDown.tooltip").contains("Alt+Shift+Down"),
+			"the screen tip key comes from the registered binding (#973), not the bundle");
+		assertEquals(List.of(
+			"RibbonPercentComplete0", "RibbonPercentComplete25", "RibbonPercentComplete50", "RibbonPercentComplete75", "RibbonPercentComplete100",
+			"RibbonOutdent", "RibbonIndent", "RibbonTaskSplit", "RibbonLink", "RibbonUnlink", "RibbonMarkOnTrack", "RibbonUpdateTasks",
+			"RibbonRespectLinks", "RibbonInactivateTask"),
+			ribbonButtonIds("TaskTrackingRibbonBand"));
+		assertEquals(List.of("RibbonProjectInformation", "RibbonCustomFields", "RibbonChangeWorkingTime", "RibbonCalendarOptions", "RibbonProjectsDialog"),
+			ribbonButtonIds("ProjectInfoRibbonBand"));
+		assertEquals(List.of("RibbonStatusDate", "RibbonUpdateProject"),
+			ribbonButtonIds("ProjectStatusRibbonBand"));
+		assertEquals(List.of("ProjectInsertRibbonBand", "ProjectInfoRibbonBand", "ProjectScheduleRibbonBand",
+			"ProjectStatusRibbonBand", "ProjectCcpmRibbonBand"), ribbonBandIds("ProjectRibbonTask"));
+		assertEquals(List.of(
+			"ResourceViewRibbonBand", "ResourceAssignmentsRibbonBand", "ResourceInsertRibbonBand", "ResourcePropertiesRibbonBand",
+			"ResourceLevelRibbonBand", "ClipboardRibbonBand"), ribbonBandIds("ResourceRibbonTask"));
+		assertEquals(List.of("RibbonAssignResources", "RibbonUseResourcePool", "RibbonCreateResourcePool",
+			"RibbonRefreshResourcePool", "RibbonTimesheet", "RibbonTeamFilter"), ribbonButtonIds("ResourceAssignmentsRibbonBand"));
+		assertEquals(List.of("RibbonInsertProject", "RibbonRefreshSubprojects", "RibbonOpenSubproject", "RibbonRemoveSubproject"),
+			ribbonButtonIds("ProjectInsertRibbonBand"));
+		assertEquals(List.of("RibbonRecalculate", "RibbonSaveBaseline", "RibbonClearBaseline", "RibbonMoveProject"),
+			ribbonButtonIds("ProjectScheduleRibbonBand"));
+	}
+
+	@Test
+	void issue36ResourceCommandsMatchTheMsProjectRibbonModel() {
+		assertEquals(List.of("RibbonTaskUsageDetail"),
+			ribbonButtonIds("ViewTaskRibbonBand").stream()
+				.filter(id -> id.endsWith("UsageDetail"))
+				.toList());
+		assertEquals(List.of("RibbonResourceUsageDetail"),
+			ribbonButtonIds("ViewResourceRibbonBand").stream()
+				.filter(id -> id.endsWith("UsageDetail"))
+				.toList());
+		assertEquals(List.of("RibbonAssignResources", "RibbonUseResourcePool", "RibbonCreateResourcePool",
+				"RibbonRefreshResourcePool", "RibbonTimesheet", "RibbonTeamFilter"),
+			ribbonButtonIds("ResourceAssignmentsRibbonBand"));
+		assertEquals(List.of("RibbonLevelSelection", "RibbonLevelResource", "RibbonLevelAll",
+				"RibbonClearLevelSelection", "RibbonLevelResources", "RibbonClearLevelAll", "RibbonNextOverallocation"),
+			ribbonButtonIds("ResourceLevelRibbonBand"));
+		assertEquals("TOGGLE", menuInternalBundle().getString("RibbonTeamFilter.type"));
+	}
+
+	@Test
+	void projectTabDoesNotExposeTheUnimplementedDefineWbsCommand() {
+		assertTrue(!ribbonButtonIds("ProjectInfoRibbonBand").contains("RibbonDefineWBS"));
+	}
+
+	@Test
+	void japaneseStatusDateUsesMicrosoftProjectTerminology() {
+		// Microsoft Support's Japanese Project documentation calls Status Date
+		// "状況報告日" (for example, /ja-jp/project/start-fields).
+		assertEquals("状況報告日", menuBundle(Locale.JAPANESE).getString("RibbonStatusDate.text"));
+		assertEquals("状況報告日", menuBundle(Locale.JAPANESE).getString("StatusDate.text"));
+		assertTrue(menuBundle(Locale.JAPANESE).getString("RibbonStatusDate.tooltip").contains("状況報告日"));
+		assertTrue(menuBundle(Locale.JAPANESE).getString("RibbonMarkOnTrack.tooltip").contains("状況報告日"));
+		assertTrue(!menuBundle(Locale.JAPANESE).getString("RibbonMarkOnTrack.tooltip").contains("選択"));
+		assertEquals("作業時間の変更", menuBundle(Locale.JAPANESE).getString("RibbonChangeWorkingTime.text"));
+		assertEquals("プロジェクトの更新", menuBundle(Locale.JAPANESE).getString("RibbonUpdateProject.text"));
+	}
+
+	@Test
+	void japaneseRibbonLabelsDoNotFallBackToEnglishForTaskVisibilityAndProjectScheduling() {
+		var japanese = menuBundle(Locale.JAPANESE);
+		assertEquals("選択したタスクを非表示", japanese.getString("RibbonHideSelectedTasks.text"));
+		assertEquals("すべてのタスクを表示", japanese.getString("RibbonShowAllTasks.text"));
+		assertEquals("プロジェクトの移動", japanese.getString("RibbonMoveProject.text"));
+		assertTrue(japanese.getString("RibbonHideSelectedTasks.tooltip").contains("非表示"));
+		assertTrue(japanese.getString("RibbonShowAllTasks.tooltip").contains("表示"));
+		assertTrue(japanese.getString("RibbonMoveProject.tooltip").contains("開始日"));
+	}
+
+	@Test
+	void commandsHaveOnePrimaryTabExceptClipboard() {
+		Map<String, Set<String>> tabsByButton = new LinkedHashMap<>();
+		for (String task : ribbonTaskIds()) {
+			for (String button : ribbonButtonIdsForTask(task)) {
+				tabsByButton.computeIfAbsent(button, ignored -> new LinkedHashSet<>()).add(task);
+			}
+		}
+		// Custom Fields is both a Project Properties command and a Columns command of the Gantt Chart Format tab.
+				Set<String> permittedDuplicates = Set.of("RibbonPaste", "RibbonCopy", "RibbonCut", "RibbonCustomFields", "RibbonFontName", "RibbonFontSize", "RibbonBold", "RibbonItalic",
+					"RibbonUnderline", "RibbonFillColor", "RibbonFontColor", "RibbonFont", "RibbonAssignmentInformation");
+		Set<String> contextualFormatCommands = Set.of(
+					"RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName",
+					"RibbonGridlines", "RibbonToggleCriticalChain", "RibbonTimescale", "RibbonBarStyles",
+					"RibbonTextStyles", "RibbonLayout",
+					// the table-view Format tabs share the Gantt Columns, Show/Hide and usage Details commands
+					"RibbonInsertColumn", "RibbonAlignLeft", "RibbonAlignCenter", "RibbonAlignRight", "RibbonColumnSettings",
+					"RibbonHideColumn", "RibbonFieldSettings", "RibbonOutlineNumbers", "RibbonSummaryTasks",
+					"RibbonUsageDetailWork", "RibbonUsageDetailActualWork", "RibbonUsageDetailCost", "RibbonUsageDetailsAdd", "RibbonSheetGridlines",
+					"RibbonUsageDetailCumulativeWork", "RibbonNetworkLayoutNow",
+					"RibbonNetworkBoxFieldsCollapsed", "RibbonNetworkBoxFormat", "RibbonNetworkBoxStyles", "RibbonNetworkLayout", "RibbonNetworkLinkLabels",
+					"RibbonNetworkStraightLinks", "RibbonNetworkProgressMarks", "RibbonCalendarTextStyles", "RibbonCalendarBarStyles", "RibbonCalendarLayoutNow",
+					"RibbonCalendarWeekHeightBestFit", "RibbonCalendarLayout", "RibbonCalendarTaskList",
+					// the Timeline and Team Planner Format tabs
+					"RibbonTimelineTextStyles", "RibbonTimelineDateRange", "RibbonTimelineDates", "RibbonTimelineExpand", "RibbonTimelineBarLabels",
+					"RibbonTimelineOverlapped", "RibbonTimelinePanZoom", "RibbonTimelineTextLines", "RibbonTimelineInsertBar", "RibbonTimelineAddExisting",
+					"RibbonTimelineInsertTask", "RibbonTimelineInsertCallout", "RibbonTimelineInsertMilestone", "RibbonTimelineDisplay",
+					"RibbonTimelineCallout", "RibbonTimelineRemove", "RibbonTimelineCopy", "RibbonTeamPlannerOutline", "RibbonTeamPlannerGridlines",
+					"RibbonTeamPlannerTextStyles", "RibbonTeamPlannerTextLines", "RibbonTeamPlannerSelectedStyle", "RibbonTeamPlannerAutoStyle",
+					"RibbonTeamPlannerManualStyle", "RibbonTeamPlannerActualStyle", "RibbonTeamPlannerExternalStyle", "RibbonTeamPlannerLateStyle",
+					"RibbonTeamPlannerPreventOverallocation", "RibbonTeamPlannerExpandRows", "RibbonTeamPlannerUnassigned", "RibbonTeamPlannerUnscheduled",
+					// Assignment Information appears in Task, Task Usage Format, and Resource Usage Format
+					"RibbonAssignmentInformation");
+		for (Map.Entry<String, Set<String>> entry : tabsByButton.entrySet()) {
+			boolean legalContextualFormatDuplicate = contextualFormatCommands.contains(entry.getKey())
+				&& entry.getValue().stream().allMatch(Set.of(
+					"FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask", "TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask",
+					"TaskSheetFormatRibbonTask", "TaskUsageFormatRibbonTask",
+					"ResourceSheetFormatRibbonTask", "ResourceUsageFormatRibbonTask", "ResourceGraphFormatRibbonTask")::contains);
+			assertTrue(entry.getValue().size() == 1 || permittedDuplicates.contains(entry.getKey())
+				|| legalContextualFormatDuplicate,
+				() -> "Unexpected duplicate ribbon command: " + entry.getKey() + " in " + entry.getValue());
+		}
+	}
+
+	private static Set<String> ribbonButtonIdsForTask(String task) {
+		Set<String> buttons = new LinkedHashSet<>();
+		for (String band : ribbonBandIds(task)) {
+			buttons.addAll(ribbonButtonIds(band));
+		}
+		return buttons;
+	}
+}

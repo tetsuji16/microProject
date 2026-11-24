@@ -88,7 +88,7 @@ contract, not a claim that every command has identical MSP side effects.
 Focused local verification:
 
 ```text
-.\gradlew.bat :microproject_ui:test --tests "com.microproject.menu.RibbonStructureTest" --tests "com.microproject.ui.ribbon.RibbonCommandCatalogTest" --tests "com.microproject.pm.graphic.frames.CommandRouteMatrixTest" --tests "com.microproject.pm.graphic.frames.DocumentFrameHierarchyCommandTest" --tests "com.microproject.pm.graphic.spreadsheet.SpreadSheetColumnPermissionTest" --tests "com.microproject.pm.graphic.spreadsheet.SpreadSheetColumnUndoLifecycleTest" --console=plain
+.\gradlew.bat :microproject_ui:test --tests "com.microproject.menu.RibbonStructureTest" --tests "com.microproject.ui.ribbon.RibbonCommandCatalogTest" --tests "com.microproject.model.graphic.frames.CommandRouteMatrixTest" --tests "com.microproject.model.graphic.frames.DocumentFrameHierarchyCommandTest" --tests "com.microproject.model.graphic.spreadsheet.SpreadSheetColumnPermissionTest" --tests "com.microproject.model.graphic.spreadsheet.SpreadSheetColumnUndoLifecycleTest" --console=plain
 .\gradlew.bat :microproject_ui:test --console=plain
 ```
 

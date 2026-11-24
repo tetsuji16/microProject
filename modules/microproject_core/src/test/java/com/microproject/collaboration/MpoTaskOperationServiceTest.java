@@ -35,11 +35,11 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.dependency.DependencyType;
+import com.microproject.model.dependency.DependencyType;
 import com.microproject.options.CalendarOption;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.model.resource.ResourcePool;
 import com.microproject.transaction.MultipleTransactionManager;
 import com.microproject.undo.DataFactoryUndoController;
 
@@ -105,7 +105,7 @@ class MpoTaskOperationServiceTest {
 			Set.of(linkId), "task.update", UUID.randomUUID().toString(), Map.of(
 				"legacyUniqueId", replayed.summary().getUniqueId(), "percentComplete", 1D));
 
-		com.microproject.pm.dependency.DependencyService.getInstance().newDependency(expected.predecessor(),
+		com.microproject.model.dependency.DependencyService.getInstance().newDependency(expected.predecessor(),
 			expected.child(), DependencyType.Kind.FS, 0L, null);
 		expected.summary().setPercentComplete(1D);
 		new MpoTaskOperationService().apply(replayed.project(), List.of(summaryProgress, link));
@@ -136,7 +136,7 @@ class MpoTaskOperationServiceTest {
 		long day = CalendarOption.getInstance().getMillisPerDay();
 		NormalTask predecessor = createTask(project, 301L);
 		predecessor.setDuration(4L * day);
-		com.microproject.grouping.core.Node summaryNode = project.createLocalTaskNode(null);
+		com.microproject.node.Node summaryNode = project.createLocalTaskNode(null);
 		NormalTask summary = (NormalTask) summaryNode.getImpl();
 		summary.setUniqueId(302L);
 		NormalTask child = (NormalTask) project.createLocalTaskNode(summaryNode).getImpl();

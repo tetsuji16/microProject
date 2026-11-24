@@ -16,9 +16,9 @@ import java.util.Iterator;
 import com.microproject.port.PortRegistry;
 import com.microproject.port.ImportPort;
 import com.microproject.port.SessionImporterRegistry;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectFactory;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectFactory;
+import com.microproject.model.task.Task;
 import com.microproject.session.LocalSession;
 
 class TypedExchangePortTest {

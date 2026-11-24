@@ -27,8 +27,8 @@ import javax.swing.undo.AbstractUndoableEdit;
 import javax.swing.undo.CannotRedoException;
 import javax.swing.undo.CannotUndoException;
 
-import com.microproject.pm.calendar.CalendarService;
-import com.microproject.pm.calendar.WorkingCalendar;
+import com.microproject.model.calendar.CalendarService;
+import com.microproject.model.calendar.WorkingCalendar;
 
 /**
  *

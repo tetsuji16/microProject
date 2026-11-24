@@ -8,7 +8,7 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Objects;
 
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 
 /**
  * Process-local ownership bridge for extracted MPOF children.

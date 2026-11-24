@@ -32,7 +32,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 public class ExtendedDateFormat extends SimpleDateFormat {
 	private static final long serialVersionUID = -4920293891910018650L;

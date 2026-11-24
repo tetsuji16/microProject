@@ -7,8 +7,8 @@ package com.microproject.port;
 import java.nio.file.Path;
 import java.util.Objects;
 
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectFactory;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectFactory;
 
 /** Core-owned import boundary; concrete file formats live in exchange. */
 public interface ImportPort {
