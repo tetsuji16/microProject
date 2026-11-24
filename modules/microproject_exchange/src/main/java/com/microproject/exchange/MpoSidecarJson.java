@@ -38,7 +38,7 @@ import com.microproject.pm.task.TaskSnapshot;
 import com.microproject.field.Field;
 import com.microproject.graphic.configuration.SpreadSheetFieldArray;
 import com.microproject.pm.assignment.TimeDistributedHelper;
-import com.microproject.pm.graphic.network.PertManualPositions;
+import com.microproject.view.network.PertManualPositions;
 
 /**
 	* Reads and writes the JSON sidecar entries of an MPOF v1.0 container: layout,

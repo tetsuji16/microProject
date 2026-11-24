@@ -36,14 +36,14 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.dialog.UsabilityStrings;
-import com.microproject.menu.MenuActionMapSupport;
-import com.microproject.menu.MenuManager;
-import com.microproject.menu.testsupport.UiComponentWalker;
-import com.microproject.pm.graphic.frames.MainRibbonFrame;
-import com.microproject.testsupport.GuiAcceptanceSupport;
-import com.microproject.testsupport.RibbonGuiEnvironment;
-import com.microproject.testsupport.WindowAcceptanceAssertions;
+import com.microproject.ui.dialog.UsabilityStrings;
+import com.microproject.ui.menu.MenuActionMapSupport;
+import com.microproject.ui.menu.MenuManager;
+import com.microproject.ui.menu.testsupport.UiComponentWalker;
+import com.microproject.ui.frame.MainRibbonFrame;
+import com.microproject.ui.testsupport.GuiAcceptanceSupport;
+import com.microproject.ui.testsupport.RibbonGuiEnvironment;
+import com.microproject.ui.testsupport.WindowAcceptanceAssertions;
 import com.microproject.ui.ribbon.RibbonController;
 import com.microproject.ui.ribbon.RibbonDisplayMode;
 import com.microproject.ui.ribbon.RibbonDisplayPreferences;
@@ -109,7 +109,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		positionFrameForPhysicalHits(frame);
 		OfficeChromePanel chrome = (OfficeChromePanel) ((MainRibbonFrame) frame).getRibbonPanel();
 		AbstractButton options = findShowingButton(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME);
-		Robot robot = new com.microproject.testsupport.GuiRobot();
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		GuiAcceptanceSupport.await(frame::isActive, "office chrome test window did not become active");
 		GuiAcceptanceSupport.await(() -> options.isShowing()
@@ -229,7 +229,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 	void quickAccessCustomizeItemOpensTheQuickAccessCategoryThroughTheOptionsCommand() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		java.util.List<String> optionsCommands = new java.util.concurrent.CopyOnWriteArrayList<>();
-		MenuManager manager = MenuManager.getInstance(new com.microproject.menu.ProjectMenuActionMap() {
+		MenuManager manager = MenuManager.getInstance(new com.microproject.ui.menu.ProjectMenuActionMap() {
 			@Override
 			public javax.swing.Action getAction(String key) {
 				return new javax.swing.AbstractAction(key) {
@@ -259,12 +259,12 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			frame.toFront();
 		});
 		positionFrameForPhysicalHits(frame);
-		Robot robot = new com.microproject.testsupport.GuiRobot();
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		GuiAcceptanceSupport.await(frame::isActive, "Quick Access acceptance window did not become active");
 		click(robot, findShowingButton(chrome, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME));
 		click(robot, popupItem(UsabilityStrings.text("chrome.customizeQuickAccess")));
-		String expected = "GeneralOptions:" + com.microproject.dialog.PreferencesDialogBox.CATEGORY_QUICK_ACCESS;
+		String expected = "GeneralOptions:" + com.microproject.ui.dialog.PreferencesDialogBox.CATEGORY_QUICK_ACCESS;
 		GuiAcceptanceSupport.await(() -> optionsCommands.contains(expected),
 			"the customize item did not run the Options command with the Quick Access category: " + optionsCommands);
 		assertEquals(java.util.List.of(expected), optionsCommands, "exactly the Options command must have run");
@@ -278,7 +278,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		persistedFrame = createProductionRibbonFrame(manager, "Ribbon preference first shell");
 		JPanel firstShell = persistedFrame.getRibbonPanel();
 		AbstractButton options = findShowingButton(firstShell, OfficeChromePanel.RIBBON_DISPLAY_OPTIONS_NAME);
-		Robot robot = new com.microproject.testsupport.GuiRobot();
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		GuiAcceptanceSupport.await(persistedFrame::isActive, "first production ribbon window did not become active");
 		click(robot, options);
@@ -321,7 +321,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			undo.clear();
 			SwingUtilities.invokeAndWait(() -> {
 				persistedFrame = new MainRibbonFrame("Ribbon customization render acceptance", null);
-				persistedFrame.setGraphicManager(new com.microproject.pm.graphic.frames.GraphicManager(persistedFrame));
+				persistedFrame.setGraphicManager(new com.microproject.ui.frame.GraphicManager(persistedFrame));
 				persistedFrame.getGraphicManager().initView();
 				persistedFrame.getGraphicManager().addProjectFrame(project);
 				persistedFrame.setSize(1200, 700);
@@ -332,13 +332,13 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			});
 			GuiAcceptanceSupport.await(persistedFrame::isShowing, "customization acceptance window did not become visible");
 			positionFrameForPhysicalHits(persistedFrame);
-			Robot robot = new com.microproject.testsupport.GuiRobot();
+			Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 			robot.setAutoDelay(40);
 			GuiAcceptanceSupport.await(persistedFrame::isActive, "customization acceptance window did not become active");
 
 			// Default tab first: this is the reference result of the command.
 			int before = taskCount(project);
-			click(robot, com.microproject.testsupport.RibbonGuiSupport.findVisibleOrExpand(robot, persistedFrame, "RibbonInsertMilestone"));
+			click(robot, com.microproject.ui.testsupport.RibbonGuiSupport.findVisibleOrExpand(robot, persistedFrame, "RibbonInsertMilestone"));
 			GuiAcceptanceSupport.await(() -> taskCount(project) == before + 1, "default Insert Milestone did not add a task");
 			assertEquals(1, undo.getEditNames().size(), "the default button must post one Undo entry");
 			undo.undo();
@@ -361,7 +361,7 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 			positionFrameForPhysicalHits(persistedFrame);
 
 			click(robot, ribbonTab(persistedFrame.getRibbonPanel(), "gui-custom-tab"));
-			AbstractButton custom = com.microproject.testsupport.RibbonGuiSupport.findVisibleOrExpand(robot, persistedFrame, "RibbonInsertMilestone");
+			AbstractButton custom = com.microproject.ui.testsupport.RibbonGuiSupport.findVisibleOrExpand(robot, persistedFrame, "RibbonInsertMilestone");
 			click(robot, custom);
 			GuiAcceptanceSupport.await(() -> taskCount(project) == before + 1, "custom-tab button did not add a task");
 			assertEquals(1, undo.getEditNames().size(), "the custom-tab button must post the same single Undo entry");

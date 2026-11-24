@@ -793,7 +793,7 @@
 
 	<script>
 		<class name="java.lang.Object" />
-		<class name="com.microproject.pm.graphic.model.cache.GraphicNode" />
+		<class name="com.microproject.ui.view.model.cache.GraphicNode" />
 		<class name="com.microproject.graphic.configuration.CellStyle" />
 		<class name="com.microproject.graphic.configuration.CellFormat" />
 		<class name="com.microproject.grouping.core.model.NodeModel" />

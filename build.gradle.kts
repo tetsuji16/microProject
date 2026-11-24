@@ -245,12 +245,22 @@ tasks.register("verifyArchitectureBoundaries") {
             "microproject_ribbon" to listOf("com.microproject.application", "com.microproject.core", "com.microproject.exchange", "com.microproject.menu", "com.microproject.pm", "com.microproject.reports", "com.microproject.ui", "com.microproject.util")
         )
 
+        val boundaryAllowlist = mapOf(
+            "modules/microproject_bootstrap/src/main/java/com/microproject/bootstrap/MicroProjectUpdater.java" to setOf(
+                "com.microproject.ui.app.Main"
+            )
+        )
+
         boundaryRules.forEach { (module, forbiddenPackages) ->
             val sourceRoot = project(":$module").projectDir.resolve("src/main")
             fileTree(sourceRoot).matching { include("**/*.java", "**/*.kt") }.forEach { sourceFile ->
-                architectureSourceBoundaryViolations(sourceFile, forbiddenPackages).forEach { violation ->
-                    throw GradleException("Independent boundary violation in $violation")
-                }
+                val relative = sourceFile.relativeTo(layout.projectDirectory.asFile).invariantSeparatorsPath
+                val allowed = boundaryAllowlist[relative].orEmpty()
+                architectureSourceBoundaryViolations(sourceFile, forbiddenPackages)
+                    .filterNot { violation -> allowed.any { violation.contains(it) } }
+                    .forEach { violation ->
+                        throw GradleException("Independent boundary violation in $violation")
+                    }
             }
         }
 

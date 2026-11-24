@@ -12,8 +12,8 @@ import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.menu.MenuActionMapSupport;
-import com.microproject.menu.MenuManager;
+import com.microproject.ui.menu.MenuActionMapSupport;
+import com.microproject.ui.menu.MenuManager;
 import com.microproject.ui.ribbon.RibbonDisplayPreferences;
 
 /** A rebuilt ribbon shell must not leave the Quick Access controls of the replaced one registered. */

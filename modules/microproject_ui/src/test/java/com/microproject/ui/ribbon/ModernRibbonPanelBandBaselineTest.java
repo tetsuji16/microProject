@@ -21,12 +21,12 @@ import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.menu.ExtToolBarFactory;
-import com.microproject.menu.MenuActionMapSupport;
-import com.microproject.menu.MenuManager;
-import com.microproject.menu.MenuRibbonCommandSource;
-import com.microproject.menu.testsupport.MenuDefinitionSupport;
-import com.microproject.menu.testsupport.UiComponentWalker;
+import com.microproject.ui.menu.ExtToolBarFactory;
+import com.microproject.ui.menu.MenuActionMapSupport;
+import com.microproject.ui.menu.MenuManager;
+import com.microproject.ui.menu.MenuRibbonCommandSource;
+import com.microproject.ui.menu.testsupport.MenuDefinitionSupport;
+import com.microproject.ui.menu.testsupport.UiComponentWalker;
 
 /** Band captions must share one baseline across every tab at every responsive width. */
 class ModernRibbonPanelBandBaselineTest {

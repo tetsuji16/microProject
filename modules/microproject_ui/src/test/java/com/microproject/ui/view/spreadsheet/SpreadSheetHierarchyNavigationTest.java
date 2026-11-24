@@ -1,0 +1,324 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.view.spreadsheet;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
+import java.util.function.Supplier;
+
+import javax.swing.ActionMap;
+import javax.swing.InputMap;
+import javax.swing.JComponent;
+import javax.swing.JMenuItem;
+import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
+
+import org.junit.jupiter.api.Test;
+
+import com.microproject.field.Field;
+import com.microproject.graphic.configuration.SpreadSheetCategories;
+import com.microproject.grouping.core.Node;
+import com.microproject.ui.view.model.cache.NodeModelCache;
+import com.microproject.ui.view.model.cache.NodeModelCacheFactory;
+import com.microproject.ui.view.spreadsheet.editor.SimpleEditor;
+import com.microproject.ui.view.spreadsheet.editor.SpreadSheetCellEditorAdapter;
+import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.Project;
+import com.microproject.pm.resource.ResourcePool;
+import com.microproject.undo.DataFactoryUndoController;
+
+class SpreadSheetHierarchyNavigationTest {
+	@Test
+	void ctrlArrowsRemainStandardSheetNavigationInTableAndEditor() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createHierarchyFixture();
+			SpreadSheet sheet = fixture.sheet();
+			InputMap tableInputMap = sheet.getInputMap(JComponent.WHEN_FOCUSED);
+			assertNull(
+				tableInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_UP, KeyEvent.CTRL_DOWN_MASK)));
+			assertNull(
+				tableInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, KeyEvent.CTRL_DOWN_MASK)));
+
+			SpreadSheetCellEditorAdapter adapter = new SpreadSheetCellEditorAdapter(new SimpleEditor(String.class));
+			int nameColumn = findNameColumn(sheet);
+			int row = findRow(sheet, fixture.firstChild());
+			JComponent editor = (JComponent) adapter.getTableCellEditorComponent(sheet, "Task", true, row, nameColumn);
+			InputMap editorInputMap = editor.getInputMap(JComponent.WHEN_FOCUSED);
+			assertNotEquals("spreadsheet.nameColumnFirst",
+				editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_UP, KeyEvent.CTRL_DOWN_MASK)));
+			assertNotEquals("spreadsheet.nameColumnLast",
+				editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, KeyEvent.CTRL_DOWN_MASK)));
+		});
+	}
+
+	@Test
+	void nameEditorKeepsTabAndCtrlArrowsAsEditingNavigation() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createHierarchyFixture();
+			SpreadSheet sheet = fixture.sheet();
+			SpreadSheetCellEditorAdapter adapter = new SpreadSheetCellEditorAdapter(new SimpleEditor(String.class));
+			int nameColumn = findNameColumn(sheet);
+			int row = findRow(sheet, fixture.firstChild());
+			JComponent editor = (JComponent) adapter.getTableCellEditorComponent(sheet, "Task", true, row, nameColumn);
+			InputMap editorInputMap = editor.getInputMap(JComponent.WHEN_FOCUSED);
+
+			assertNotEquals("spreadsheet.nameColumnIndent",
+				editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, 0)));
+			assertNotEquals("spreadsheet.nameColumnOutdent",
+				editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, KeyEvent.SHIFT_DOWN_MASK)));
+			assertNotEquals("projectlibre.nameHierarchyCollapseAction",
+				editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, KeyEvent.CTRL_DOWN_MASK)));
+			assertNotEquals("projectlibre.nameHierarchyExpandAction",
+				editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, KeyEvent.CTRL_DOWN_MASK)));
+			assertNull(editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_Z, KeyEvent.CTRL_DOWN_MASK)));
+			assertNull(editorInputMap.get(KeyStroke.getKeyStroke(KeyEvent.VK_Y, KeyEvent.CTRL_DOWN_MASK)));
+		});
+	}
+
+	@Test
+	void insertingAColumnUpdatesTheTaskLayoutAndSelectsTheInsertedField() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createHierarchyFixture();
+			SpreadSheet sheet = fixture.sheet();
+			Field field = sheet.getAvailableFields().stream()
+				.filter(candidate -> !sheet.getFieldArray().contains(candidate))
+				.findFirst()
+				.orElseThrow();
+			int fieldCount = sheet.getFieldArray().size();
+			int columnCount = sheet.getColumnCount();
+
+			assertTrue(sheet.insertColumn(2, field));
+			assertEquals(fieldCount + 1, sheet.getFieldArray().size());
+			assertEquals(columnCount + 1, sheet.getColumnCount());
+			assertEquals(field, sheet.getFieldArray().get(2));
+			assertEquals(1, sheet.getSelectedColumn());
+
+			fixture.project().getUndoController().undo();
+			assertEquals(fieldCount, sheet.getFieldArray().size());
+			assertEquals(columnCount, sheet.getColumnCount());
+			fixture.project().getUndoController().redo();
+			assertEquals(fieldCount + 1, sheet.getFieldArray().size());
+			assertEquals(field, sheet.getFieldArray().get(2));
+		});
+	}
+
+	@Test
+	void ctrlUpAndDownMoveToTheFirstAndLastVisibleTaskRows() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createHierarchyFixture();
+			SpreadSheet sheet = fixture.sheet();
+			int nameColumn = findNameColumn(sheet);
+			int firstRow = firstTaskRow(sheet);
+			int lastRow = lastTaskRow(sheet);
+			assertTrue(firstRow >= 0);
+			assertTrue(lastRow >= 0);
+
+			sheet.setRowSelectionInterval(lastRow, lastRow);
+			sheet.setColumnSelectionInterval(nameColumn, nameColumn);
+			sheet.executeNameCellBoundaryJump(false);
+			assertEquals(firstRow, sheet.getSelectedRow());
+			assertEquals(nameColumn, sheet.getSelectedColumn());
+
+			sheet.executeNameCellBoundaryJump(true);
+			assertEquals(lastRow, sheet.getSelectedRow());
+			assertEquals(nameColumn, sheet.getSelectedColumn());
+		});
+	}
+
+	@Test
+	void nameCellEditorDoesNotReceiveNonMspHierarchyNavigationActions() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createHierarchyFixture();
+			SpreadSheet sheet = fixture.sheet();
+			int nameColumn = findNameColumn(sheet);
+			int row = findRow(sheet, fixture.firstChild());
+			assertTrue(row >= 0);
+
+			SpreadSheetCellEditorAdapter adapter = new SpreadSheetCellEditorAdapter(new SimpleEditor(String.class));
+			JComponent editor = (JComponent) adapter.getTableCellEditorComponent(sheet, "Task", true, row, nameColumn);
+		});
+	}
+
+	@Test
+	void ctrlUpAndDownStayAtTheVisibleBoundaries() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createHierarchyFixture();
+			SpreadSheet sheet = fixture.sheet();
+			int nameColumn = findNameColumn(sheet);
+			int firstRow = firstTaskRow(sheet);
+			int lastRow = lastTaskRow(sheet);
+			assertTrue(firstRow >= 0);
+			assertTrue(lastRow >= 0);
+
+			sheet.setRowSelectionInterval(firstRow, firstRow);
+			sheet.setColumnSelectionInterval(nameColumn, nameColumn);
+			sheet.executeNameCellBoundaryJump(false);
+			assertEquals(firstRow, sheet.getSelectedRow());
+
+			sheet.setRowSelectionInterval(lastRow, lastRow);
+			sheet.setColumnSelectionInterval(nameColumn, nameColumn);
+			sheet.executeNameCellBoundaryJump(true);
+			assertEquals(lastRow, sheet.getSelectedRow());
+		});
+	}
+
+	private Fixture createHierarchyFixture() {
+		return createHierarchyFixture(SpreadSheet::new);
+	}
+
+	private Fixture createHierarchyFixture(Supplier<SpreadSheet> sheetFactory) {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("shortcut-test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+
+		NormalTask parent = createTask(project, "Parent");
+		NormalTask firstChild = createTask(project, "First child");
+		NormalTask secondChild = createTask(project, "Second child");
+		project.getTaskOutlines().addToAll(parent, null);
+		project.getTaskOutlines().addToAll(firstChild, null);
+		project.getTaskOutlines().addToAll(secondChild, null);
+
+		NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(
+			NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel()),
+			"shortcut-test",
+			null);
+		SpreadSheet sheet = sheetFactory.get();
+		sheet.setSpreadSheetCategory(SpreadSheetCategories.taskSpreadsheetCategory);
+		SpreadSheetUtils.setFieldsAndContext(sheet,
+			cache,
+			SpreadSheetCategories.taskSpreadsheetCategory,
+			"Spreadsheet.Task.entry",
+			true);
+
+		Node parentNode = (Node) project.getTaskModel().search(parent);
+		Node firstChildNode = (Node) project.getTaskModel().search(firstChild);
+		Node secondChildNode = (Node) project.getTaskModel().search(secondChild);
+		try {
+			cache.createHierarchyDependency((com.microproject.ui.view.model.cache.GraphicNode) cache.getGraphicNode(parentNode),
+				(com.microproject.ui.view.model.cache.GraphicNode) cache.getGraphicNode(firstChildNode));
+			cache.createHierarchyDependency((com.microproject.ui.view.model.cache.GraphicNode) cache.getGraphicNode(parentNode),
+				(com.microproject.ui.view.model.cache.GraphicNode) cache.getGraphicNode(secondChildNode));
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+		cache.update();
+
+		return new Fixture(sheet, project, firstChild, secondChild);
+	}
+
+	private NormalTask createTask(Project project, String name) {
+		NormalTask task = project.createScriptedTask();
+		task.setName(name);
+		project.connectTask(task);
+		project.getTaskOutlines().addToAll(task, null);
+		return task;
+	}
+
+	private int findNameColumn(SpreadSheet sheet) {
+		for (int column = 0; column < sheet.getColumnCount(); column++) {
+			if (sheet.isNameFieldColumn(column)) {
+				return column;
+			}
+		}
+		return -1;
+	}
+
+	private int findRow(SpreadSheet sheet, NormalTask task) {
+		if (!(sheet.getModel() instanceof SpreadSheetModel model)) {
+			return -1;
+		}
+		Node node = (Node) sheet.getCache().getModel().search(task);
+		return model.findGraphicNodeRow(sheet.getCache().getGraphicNode(node));
+	}
+
+	@Test
+	void headerContextInsertColumnUsesTheSamePersistentUndoableLayoutMutation() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createHierarchyFixture();
+			SpreadSheet sheet = fixture.sheet();
+			Field field = sheet.getAvailableFields().stream()
+				.filter(candidate -> !sheet.getFieldArray().contains(candidate))
+				.findFirst().orElseThrow();
+			int fieldCount = sheet.getFieldArray().size();
+
+			// HeaderMouseListener supplies a field-array index: index 0 is hidden.
+			SpreadSheetColumnMenu menu = new SpreadSheetColumnMenu(sheet, 2,
+				(ignored, available, current) -> field);
+			((JMenuItem) menu.getComponent(0)).doClick();
+
+			assertEquals(fieldCount + 1, sheet.getFieldArray().size());
+			assertEquals(fieldCount + 1, fixture.project().getFieldArray().size());
+			assertEquals(field, sheet.getFieldArray().get(2));
+			fixture.project().getUndoController().undo();
+			assertEquals(fieldCount, sheet.getFieldArray().size());
+			fixture.project().getUndoController().redo();
+			assertEquals(field, sheet.getFieldArray().get(2));
+		});
+	}
+
+	@Test
+	void headerContextHideColumnUsesTheSamePersistentUndoableLayoutMutation() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createHierarchyFixture();
+			SpreadSheet sheet = fixture.sheet();
+			int fieldCount = sheet.getFieldArray().size();
+
+			// HeaderMouseListener supplies a field-array index: index 0 is the hidden ID field.
+			SpreadSheetColumnMenu menu = new SpreadSheetColumnMenu(sheet, 1);
+			((JMenuItem)menu.getComponent(1)).doClick();
+
+			assertEquals(fieldCount - 1, sheet.getFieldArray().size());
+			assertEquals(fieldCount - 1, fixture.project().getFieldArray().size());
+			fixture.project().getUndoController().undo();
+			assertEquals(fieldCount, sheet.getFieldArray().size());
+			assertEquals(fieldCount, fixture.project().getFieldArray().size());
+			fixture.project().getUndoController().redo();
+			assertEquals(fieldCount - 1, sheet.getFieldArray().size());
+		});
+	}
+
+	private int firstTaskRow(SpreadSheet sheet) {
+		if (!(sheet.getModel() instanceof SpreadSheetModel model)) return -1;
+		for (int row = 0; row < sheet.getRowCount(); row++)
+			if (model.getNode(row) != null && !model.getNode(row).isVoid()) return row;
+		return -1;
+	}
+
+	private int lastTaskRow(SpreadSheet sheet) {
+		if (!(sheet.getModel() instanceof SpreadSheetModel model)) return -1;
+		for (int row = sheet.getRowCount() - 1; row >= 0; row--)
+			if (model.getNode(row) != null && !model.getNode(row).isVoid()) return row;
+		return -1;
+	}
+
+	private record Fixture(SpreadSheet sheet, Project project, NormalTask firstChild, NormalTask secondChild) {}
+
+}

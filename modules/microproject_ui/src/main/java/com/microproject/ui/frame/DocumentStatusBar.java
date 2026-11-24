@@ -1,0 +1,147 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.frame;
+
+import java.awt.FlowLayout;
+import java.util.Calendar;
+import java.text.MessageFormat;
+import java.util.function.IntFunction;
+
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.border.EmptyBorder;
+
+import com.microproject.strings.Messages;
+import com.microproject.timescale.TimeScale;
+
+/**
+ * Slim status bar at the bottom of a document frame, mirroring the essential
+ * MS Project status bar: the current timescale zoom level and the number of
+ * selected tasks.
+ */
+public class DocumentStatusBar extends JPanel {
+	private static final long serialVersionUID = 1L;
+
+	private final JLabel zoomLabel = new JLabel();
+	private final JLabel selectionLabel = new JLabel();
+	private final JLabel modeLabel = new JLabel();
+
+	public DocumentStatusBar() {
+		setLayout(new FlowLayout(FlowLayout.LEFT, 16, 2));
+		setBorder(new EmptyBorder(1, 6, 1, 6));
+		add(zoomLabel);
+		add(selectionLabel);
+		add(modeLabel);
+		setZoom(0, 1);
+		setSelectedCount(0);
+		setMode("StatusBar.Ready");
+	}
+
+	public void setMode(String modeKey) {
+		modeLabel.setText(Messages.getString(modeKey));
+	}
+
+	/** Shows a short non-modal document warning without interrupting editing. */
+	public void setMessage(String message) {
+		modeLabel.setText(message == null || message.isBlank() ? Messages.getString("StatusBar.Ready") : message);
+	}
+
+	/** Clears a transient message only when it is still the message this caller set. */
+	public void clearMessageIfEquals(String message) {
+		if (message != null && message.equals(modeLabel.getText())) setMessage(null);
+	}
+
+	public void setZoom(int scaleIndex, int scaleCount) {
+		zoomLabel.setText(formatZoom(scaleIndex, scaleCount));
+	}
+	public void setZoom(int scaleIndex, int scaleCount, TimeScale scale) {
+		zoomLabel.setText(formatZoom(scaleIndex, scaleCount, scale));
+	}
+
+	public void setSelectedCount(int count) {
+		selectionLabel.setText(formatSelection(count));
+	}
+
+	static String formatZoom(int scaleIndex, int scaleCount) {
+		int clampedCount = Math.max(1, scaleCount);
+		int clampedIndex = Math.min(Math.max(0, scaleIndex), clampedCount - 1);
+		return MessageFormat.format(Messages.getString("StatusBar.Zoom"), clampedIndex + 1, clampedCount);
+	}
+	static String formatZoom(int scaleIndex, int scaleCount, TimeScale scale) {
+		if (scale == null) return formatZoom(scaleIndex, scaleCount);
+		return MessageFormat.format(Messages.getString("StatusBar.ZoomSemantic"), formatScaleDescription(scale));
+	}
+
+	static String formatScaleChoice(String timescaleLabel, int scaleIndex, int scaleCount, TimeScale scale) {
+		int count = Math.max(1, scaleCount);
+		int position = Math.min(Math.max(0, scaleIndex), count - 1) + 1;
+		if (scale == null) return timescaleLabel + " " + position;
+		return formatScaleDescription(scale);
+	}
+
+	static String[] formatScaleChoices(String timescaleLabel, int scaleCount, IntFunction<TimeScale> scaleAt) {
+		String[] labels = new String[Math.max(0, scaleCount)];
+		for (int i = 0; i < labels.length; i++) {
+			labels[i] = formatScaleChoice(timescaleLabel, i, labels.length, scaleAt.apply(i));
+		}
+		return labels;
+	}
+
+	/**
+	 * Describes the configured major interval. The index is deliberately not
+	 * used to infer a name: projects may supply a custom scale sequence.
+	 */
+	private static String formatScaleDescription(TimeScale scale) {
+		String parent = formatInterval(scale.getCalendarField2(), scale.getNumber2());
+		String child = formatInterval(scale.getCalendarField1(), scale.getNumber1());
+		return MessageFormat.format(Messages.getString("StatusBar.ScaleHierarchy"), parent, child);
+	}
+	private static String formatInterval(int field, int amount) {
+		int n = Math.max(1, amount);
+		return switch (field) {
+			case Calendar.MINUTE -> interval("StatusBar.Interval.Minute", n);
+			case Calendar.HOUR_OF_DAY -> interval(n == 1 ? "StatusBar.Interval.Hour" : "StatusBar.Interval.Hours", n);
+			case Calendar.DAY_OF_WEEK, Calendar.DAY_OF_MONTH, Calendar.DAY_OF_YEAR ->
+					n == 1 ? Messages.getString("StatusBar.Interval.Day") : interval("StatusBar.Interval.Days", n);
+			case Calendar.WEEK_OF_YEAR, Calendar.WEEK_OF_MONTH ->
+					n == 1 ? Messages.getString("StatusBar.Interval.Week") : interval("StatusBar.Interval.Weeks", n);
+			case Calendar.MONTH -> n == 1 ? Messages.getString("StatusBar.Interval.Month")
+					: n == 3 ? Messages.getString("StatusBar.Interval.Quarter")
+					: n == 6 ? Messages.getString("StatusBar.Interval.HalfYear")
+					: interval("StatusBar.Interval.Months", n);
+			case Calendar.YEAR -> n == 1 ? Messages.getString("StatusBar.Interval.Year")
+					: interval("StatusBar.Interval.Years", n);
+			case Calendar.SECOND -> interval("StatusBar.Interval.Second", n);
+			case Calendar.MILLISECOND -> interval("StatusBar.Interval.Millisecond", n);
+			default -> Messages.getString("StatusBar.Interval.Custom");
+		};
+	}
+	private static String interval(String key, int amount) {
+		return MessageFormat.format(Messages.getString(key), amount);
+	}
+
+	static String formatSelection(int count) {
+		return MessageFormat.format(Messages.getString("StatusBar.SelectedTasks"), Math.max(0, count));
+	}
+}

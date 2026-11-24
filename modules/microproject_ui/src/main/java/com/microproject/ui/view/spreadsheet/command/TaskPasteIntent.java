@@ -1,0 +1,35 @@
+/*******************************************************************************
+ * MIT License
+ * Copyright (c) 2026 microProject
+ *******************************************************************************/
+package com.microproject.ui.view.spreadsheet.command;
+
+import java.util.List;
+import java.util.Objects;
+
+import com.microproject.grouping.core.Node;
+import com.microproject.ui.view.model.cache.ProjectionRowKey;
+
+/** A task-row paste addressed to the selection snapshot in one visible projection. */
+public record TaskPasteIntent(List<Node> copiedRoots, List<ProjectionRowKey> selectedRows,
+		long projectionRevision, String commandId) {
+	public static final String PASTE = "Paste";
+	public static final String PASTE_INSERT = "PasteInsert";
+
+	public TaskPasteIntent(List<Node> copiedRoots, List<ProjectionRowKey> selectedRows, long projectionRevision) {
+		this(copiedRoots, selectedRows, projectionRevision, PASTE);
+	}
+
+	public TaskPasteIntent {
+		copiedRoots = copiedRoots == null ? List.of() : List.copyOf(copiedRoots);
+		selectedRows = selectedRows == null ? List.of() : List.copyOf(selectedRows);
+		if (copiedRoots.isEmpty() || copiedRoots.stream().anyMatch(Objects::isNull))
+			throw new IllegalArgumentException("copied task roots are required");
+		if (selectedRows.stream().anyMatch(Objects::isNull))
+			throw new IllegalArgumentException("selected row keys cannot contain null");
+		if (projectionRevision < 0L)
+			throw new IllegalArgumentException("projectionRevision must not be negative");
+		if (!PASTE.equals(commandId) && !PASTE_INSERT.equals(commandId))
+			throw new IllegalArgumentException("unsupported task paste command");
+	}
+}

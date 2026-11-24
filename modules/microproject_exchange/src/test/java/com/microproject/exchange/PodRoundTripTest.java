@@ -65,7 +65,7 @@ import com.microproject.pm.task.Task;
 import com.microproject.pm.task.RollupSpan;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.graphic.network.PertManualPositions;
+import com.microproject.view.network.PertManualPositions;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceType;
 import com.microproject.pm.snapshot.Snapshottable;

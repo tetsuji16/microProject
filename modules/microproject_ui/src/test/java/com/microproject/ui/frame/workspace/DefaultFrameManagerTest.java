@@ -1,0 +1,205 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.frame.workspace;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.awt.BorderLayout;
+
+import javax.swing.ImageIcon;
+import javax.swing.JComboBox;
+import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
+
+import org.junit.jupiter.api.Test;
+
+import com.microproject.ui.frame.GraphicManager;
+
+class DefaultFrameManagerTest {
+	@Test
+	void projectSelectorActivatesTheSelectedOpenProjectFrame() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			TrackingPanel container = new TrackingPanel();
+			container.setLayout(new BorderLayout());
+			JPanel emptyPanel = new JPanel();
+			GraphicManager graphicManager = new GraphicManager(new JPanel());
+			DefaultFrameManager frameManager = new DefaultFrameManager(container, emptyPanel, graphicManager);
+			TestNamedFrame firstProject = new TestNamedFrame("first", "First project");
+			TestNamedFrame secondProject = new TestNamedFrame("second", "Second project");
+
+			frameManager.addFrame(firstProject);
+			frameManager.addFrame(secondProject);
+
+			JComboBox projectSelector = (JComboBox)frameManager.getProjectComboPanel().getComponent(0);
+			assertTrue(frameManager.getProjectComboPanel().isVisible());
+			assertSame(secondProject, frameManager.getSelectedFrame());
+			assertSame(secondProject, frameManager.getActiveFrame());
+			assertTrue(secondProject.isActive());
+			assertFalse(firstProject.isActive());
+
+			container.resetRepaintCount();
+			projectSelector.setSelectedItem(firstProject);
+
+			assertSame(firstProject, frameManager.getSelectedFrame());
+			assertSame(firstProject, frameManager.getActiveFrame());
+			assertTrue(firstProject.isActive());
+			assertTrue(firstProject.isVisible());
+			assertFalse(secondProject.isActive());
+			assertFalse(secondProject.isVisible());
+			assertSame(firstProject, container.getComponent(0));
+			assertTrue(container.repaintCount > 0, "Switching open projects must repaint the document container");
+		});
+	}
+
+	@Test
+	void repeatedModelOnlyActivationOfCurrentFrameDoesNotRebuildContainer() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			TrackingPanel container = new TrackingPanel();
+			container.setLayout(new BorderLayout());
+			DefaultFrameManager manager = new DefaultFrameManager(container, new JPanel(), new GraphicManager(container));
+			TestNamedFrame current = new TestNamedFrame("current", "Current");
+			manager.addFrame(current);
+			int adds = container.addCount;
+			int removes = container.removeCount;
+			container.resetRepaintCount();
+
+			manager.activateFrameFromWindow(current);
+
+			assertSame(current, manager.getActiveFrame());
+			assertSame(current, container.getComponent(0));
+			assertEquals(adds, container.addCount, "Repeated model-only activation must not reparent the frame");
+			assertEquals(removes, container.removeCount, "Repeated model-only activation must not remove the frame");
+			assertEquals(0, container.repaintCount, "Repeated model-only activation must not refresh the container");
+		});
+	}
+
+	@Test
+	void disposedFrameManagerRejectsQueuedDocumentWindowFocusCallbacks() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			TrackingPanel container = new TrackingPanel();
+			GraphicManager graphicManager = new GraphicManager(container);
+			DefaultFrameManager manager = new DefaultFrameManager(container, new JPanel(), graphicManager);
+			try {
+				java.lang.reflect.Method selector = DefaultFrameManager.class.getDeclaredMethod("getProjectComboBox");
+				selector.setAccessible(true);
+				selector.invoke(manager);
+			} catch (ReflectiveOperationException failure) {
+				throw new AssertionError(failure);
+			}
+			manager.cleanUp();
+
+			assertFalse(manager.canActivateDocumentWindow(null),
+				"a queued native focus callback must be ignored after its frame manager is disposed");
+		});
+	}
+
+	@Test
+	void arrangeAllTilesOpenProjectsAndProjectSelectionReturnsToSingleFrame() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			TrackingPanel container = new TrackingPanel();
+			container.setLayout(new BorderLayout());
+			DefaultFrameManager manager = new DefaultFrameManager(container, new JPanel(), new GraphicManager(new JPanel()));
+			TestNamedFrame first = new TestNamedFrame("first", "First");
+			TestNamedFrame second = new TestNamedFrame("second", "Second");
+			manager.addFrame(first);
+			manager.addFrame(second);
+
+			manager.arrangeAll();
+
+			assertTrue(container.getComponent(0) instanceof JPanel);
+			assertEquals(2, ((JPanel) container.getComponent(0)).getComponentCount());
+			assertTrue(first.isVisible());
+			assertTrue(second.isVisible());
+			assertTrue(second.isActive());
+
+			manager.activateFrame(first);
+
+			assertSame(first, container.getComponent(0));
+			assertTrue(first.isActive());
+			assertFalse(second.isVisible());
+		});
+	}
+
+	@Test
+	void supportsAllPublishedProjectWindowArrangements() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			TrackingPanel container = new TrackingPanel();
+			container.setLayout(new BorderLayout());
+			DefaultFrameManager manager = new DefaultFrameManager(container, new JPanel(), new GraphicManager(container));
+			manager.addFrame(new TestNamedFrame("one", "One"));
+			manager.addFrame(new TestNamedFrame("two", "Two"));
+
+			for (FrameManager.WindowArrangement arrangement : new FrameManager.WindowArrangement[] {
+					FrameManager.WindowArrangement.TILE, FrameManager.WindowArrangement.HORIZONTAL,
+					FrameManager.WindowArrangement.VERTICAL, FrameManager.WindowArrangement.CASCADE }) {
+				manager.arrangeAll(arrangement);
+				assertEquals(arrangement, manager.getCurrentArrangement());
+				assertTrue(container.getComponent(0) instanceof JPanel);
+				assertEquals(2, ((JPanel) container.getComponent(0)).getComponentCount());
+			}
+
+			manager.arrangeAll(FrameManager.WindowArrangement.SINGLE);
+			assertEquals(FrameManager.WindowArrangement.SINGLE, manager.getCurrentArrangement());
+			assertTrue(container.getComponent(0) instanceof NamedFrame);
+		});
+	}
+
+	private static final class TrackingPanel extends JPanel {
+		private int repaintCount;
+		private int addCount;
+		private int removeCount;
+
+		@Override
+		protected void addImpl(java.awt.Component component, Object constraints, int index) {
+			addCount++;
+			super.addImpl(component, constraints, index);
+		}
+
+		@Override
+		public void remove(java.awt.Component component) {
+			removeCount++;
+			super.remove(component);
+		}
+
+		@Override
+		public void repaint() {
+			repaintCount++;
+			super.repaint();
+		}
+
+		private void resetRepaintCount() {
+			repaintCount = 0;
+		}
+	}
+
+	private static final class TestNamedFrame extends NamedFrame {
+		private TestNamedFrame(String id, String title) {
+			super(id, new ImageIcon());
+			setTabTitle(title);
+		}
+	}
+}

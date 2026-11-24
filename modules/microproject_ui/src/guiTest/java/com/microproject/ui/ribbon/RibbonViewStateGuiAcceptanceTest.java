@@ -18,7 +18,7 @@ import javax.swing.AbstractButton;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.ui.testsupport.GuiAcceptanceSupport;
 
 /**
  * Pressed state of the ribbon: an {@code EXCLUSIVE_VIEW} button stays pressed while its view is

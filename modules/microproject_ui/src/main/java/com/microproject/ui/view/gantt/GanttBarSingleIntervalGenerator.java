@@ -1,0 +1,70 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.view.gantt;
+
+import java.io.Serializable;
+import java.util.Date;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import com.microproject.ui.view.model.cache.GraphicNode;
+import com.microproject.field.Field;
+import com.microproject.pm.scheduling.IntervalConsumer;
+import com.microproject.pm.scheduling.ScheduleIntervalGenerator;
+import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.pm.scheduling.ScheduleInterval;
+
+/**
+ *
+ */
+public class GanttBarSingleIntervalGenerator implements ScheduleIntervalGenerator, Serializable {
+	private static final long serialVersionUID = -1250584638501522059L;
+	private static final Logger logger = Logger.getLogger(GanttBarSingleIntervalGenerator.class.getName());
+	protected Field fromField;
+	protected Field toField;
+	protected transient NodeModel nodeModel;
+	
+	public void initialize(NodeModel nodeModel, Field fromField, Field toField){
+		this.nodeModel=nodeModel;
+		this.fromField=fromField;
+		this.toField=toField;
+	}
+
+	public void consumeIntervals(Object object, IntervalConsumer consumer) {
+		Node node=((GraphicNode)object).getNode();
+	    Object startDate=fromField.getValue(node,nodeModel,null);
+	    Object finishDate=toField.getValue(node,nodeModel,null);
+	    if (startDate==null||finishDate==null)
+	    	return;
+	    if (!(startDate instanceof Date ) || !(finishDate instanceof Date)) {
+	    	logger.log(Level.WARNING, "Unexpected interval field types for gantt bar generator: start={0}, finish={1}",
+	    		new Object[] { startDate, finishDate });
+	    	return;
+	    }
+	    
+		consumer.consumeInterval(new ScheduleInterval(((Date)startDate).getTime(),((Date)finishDate).getTime()));
+	}
+
+}

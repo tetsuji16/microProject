@@ -43,7 +43,7 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.BaselineRollupOptions;
 import com.microproject.pm.task.TaskSnapshot;
 import com.microproject.pm.task.Task;
-import com.microproject.pm.graphic.network.PertManualPositions;
+import com.microproject.view.network.PertManualPositions;
 import com.microproject.pm.task.TaskSplitInterval;
 import com.microproject.pm.task.TaskModeService;
 import com.microproject.pm.task.TaskProgressService;
