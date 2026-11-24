@@ -46,12 +46,10 @@ public class Intervals extends TreeSet<HasStartAndEnd> implements HasStartAndEnd
 	 *
 	 */
 	public Intervals(ContribIntervals c) {
-		super(new Comparator<HasStartAndEnd>(){
-			public int compare(HasStartAndEnd d1, HasStartAndEnd d2) {
-				if (d1.getStart()<d2.getStart()||(d1.getStart()==d2.getStart()&&d1.getEnd()<d2.getEnd())) return -1;
-				else if (d1.getStart()>d2.getStart()||(d1.getStart()==d2.getStart()&&d1.getEnd()>d2.getEnd())) return 1;
-				else return 0;
-			}
+		super((d1, d2) -> {
+			if (d1.getStart() < d2.getStart() || (d1.getStart() == d2.getStart() && d1.getEnd() < d2.getEnd())) return -1;
+			else if (d1.getStart() > d2.getStart() || (d1.getStart() == d2.getStart() && d1.getEnd() > d2.getEnd())) return 1;
+			else return 0;
 		});
 		if (c!=null)
 			for (Object interval : c) {

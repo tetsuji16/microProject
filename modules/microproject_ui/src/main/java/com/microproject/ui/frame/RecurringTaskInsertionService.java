@@ -100,8 +100,7 @@ final class RecurringTaskInsertionService {
 			if (current != null)
 				return SelectionAnchor.from(current);
 		}
-		@SuppressWarnings("unchecked")
-		List<Node> nodes = (List<Node>) frame.getSelectedNodes(true);
+		List<Node> nodes = frame.getSelectedNodes(true);
 		if (nodes == null || nodes.isEmpty())
 			return SelectionAnchor.root();
 		return SelectionAnchor.from(nodes.get(0));
