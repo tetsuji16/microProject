@@ -36,6 +36,7 @@ import java.util.TreeSet;
 import com.microproject.ui.view.gantt.GanttRenderer;
 import com.microproject.ui.view.graph.GraphParams;
 import com.microproject.ui.view.views.GanttRowHeight;
+import com.microproject.ui.view.views.RowHeights;
 import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.model.cache.NodeModelCacheFactory;
 import com.microproject.ui.view.model.cache.ReferenceNodeModelCache;
@@ -87,6 +88,11 @@ public class GanttSVGRenderer implements SVGRenderer,Cloneable{
 		spreadSheetRenderer=new SpreadSheetRenderer(params);
 		footerRenderer=new FooterRenderer(params);
 		cache.update();
+	}
+
+	/** Uses a snapshot of the live Gantt row heights for print and SVG output. */
+	public void setRowHeights(RowHeights rowHeights) {
+		params.setRowHeights(rowHeights);
 	}
 
 
