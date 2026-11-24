@@ -6590,7 +6590,6 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	@Test
-	@GuiJourney(InputMechanism.RIBBON_CLICK)
 	void linkAndUnlinkSelectedTasksThroughRibbonRoundTripsDependency() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		beginCommandDiagnosticCapture();

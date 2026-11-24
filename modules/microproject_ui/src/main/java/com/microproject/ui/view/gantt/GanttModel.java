@@ -1,7 +1,7 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2026 microProject
+	 * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,11 +29,13 @@ import java.io.Serializable;
 import com.microproject.ui.view.graph.GraphModel;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.timescale.CoordinatesConverter;
+import com.microproject.ui.view.model.event.CompositeCacheEvent;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.view.configuration.GraphicConfiguration;
 import com.microproject.model.task.Project;
 import com.microproject.timescale.TimeScaleEvent;
 import com.microproject.timescale.TimeScaleListener;
+import com.microproject.ui.view.views.RowHeights;
 
 /**
  *
@@ -43,44 +45,47 @@ public class GanttModel extends GraphModel implements TimeScaleListener, Seriali
 
 	//timescale
 	protected CoordinatesConverter coord;
-    
-	//baselines
-	protected int rowHeight;
-	
-    
-    
-    
-    
+
+    // Row heights (per-row overrides supported via RowHeights)
+    protected RowHeights rowHeights;
+
+
+
+
+
 	public GanttModel(Project project,String viewName) {
 		super(project,viewName);
-		rowHeight=GraphicConfiguration.getInstance().getRowHeight();
+		rowHeights = new RowHeights(GraphicConfiguration.getInstance().getRowHeight());
 	}
 
-	
-	
+
+
+
 	public AffineTransform getTransform(double w){
 		var sx = ((double) (coord.getEnd() - coord.getOrigin())) / w;
 		var sy = 1.0 / getRowHeight();
 		return new AffineTransform(sx,0,0,sy,coord.getOrigin(),0);
 	}
-	
-	
-//cache: edges	
+
+
+
+//cache: edges
 	public void createEdge(GraphicNode startNode,GraphicNode endNode) throws InvalidAssociationException{
 		getCache().createDependency(startNode,endNode);
 	}
 
-	
-	
-	
-	
-//timescale	
+
+
+
+
+
+//timescale
     public CoordinatesConverter getCoord() {
         return coord;
     }
     public void setCoord(CoordinatesConverter coord) {
         if (this.coord != null) {
-        	this.coord.removeTimeScaleListener(this);
+			this.coord.removeTimeScaleListener(this);
         }
         this.coord = coord;
 		coord.addTimeScaleListener(this);
@@ -96,23 +101,39 @@ public class GanttModel extends GraphModel implements TimeScaleListener, Seriali
 //			edit(propertyMap, null, null, null,"NO_SETVALUE");
 //		}
 	}
-	
-	
-	
+
+
+
+
+
     public int getRowHeight() {
-        return rowHeight;
+        return rowHeights.getDefaultHeight();
     }
     public void setRowHeight(int rowHeight) {
-        this.rowHeight = rowHeight;
+        rowHeights = rowHeights.withDefaultHeight(rowHeight);
     }
 
-	
+    /** Returns the RowHeights instance for per-row height management. */
+    public RowHeights getRowHeights() {
+        if (cache != null) {
+            var projection = cache.getVisibleNodes().getProjectionIndex();
+            rowHeights.bindToProjection(cache, projection.topologyRevision(), projection.rowKeys());
+        }
+        return rowHeights;
+    }
+
+    /** Sets the number of rows in the RowHeights table. */
+    public void setRowCount(int rowCount) {
+        rowHeights.setRowCount(rowCount);
+    }
+
+
 //	public void splitBar(GanttBarCell cell,double x){
-//		long t=(long)coord.toTime(x);	
+//		long t=(long)coord.toTime(x);
 //		Schedule task=(Schedule)cell.getGanttCell().getNode().getNode().getImpl();
 //		ScheduleService.getInstance().split(this,task,t,t);
 //	}
-	
+
 //progress
 //	public void updateProgress(GraphicNode node){
 //		long completed=(long)coord.toTime(node.getGanttCell().getProgress());
@@ -120,8 +141,8 @@ public class GanttModel extends GraphModel implements TimeScaleListener, Seriali
 //		ScheduleService.getInstance().setCompleted(this,schedule,completed);
 //	}
 
-	
-	
-	
-}
 
+
+
+
+}

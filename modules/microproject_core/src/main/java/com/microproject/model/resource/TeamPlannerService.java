@@ -37,6 +37,7 @@ import com.microproject.model.task.NormalTask;
 import com.microproject.model.task.Project;
 import com.microproject.model.task.ProjectHierarchyQueries;
 import com.microproject.model.task.Task;
+import com.microproject.model.time.HasStartAndEnd;
 import com.microproject.schedule.ConstraintType;
 import com.microproject.schedule.ScheduleService;
 import com.microproject.undo.UndoController;
@@ -260,38 +261,80 @@ public final class TeamPlannerService {
 	}
 
 	private static boolean isOverallocated(Resource resource, Assignment candidate) {
-		if (resource == null || !resource.isLabor() || candidate.getTask().isInactiveTask()) {
-			return false;
-		}
-		// Capacity changes only where an assignment starts, so probing the candidate start and every
-		// other start inside the candidate interval covers the whole interval.
+		if (resource == null || !resource.isLabor() || candidate.getTask().isInactiveTask()) return false;
+		// Capacity changes at assignment starts and after split gaps. Probe each working interval.
 		long from = candidate.getStart();
 		long to = candidate.getEnd();
 		List<Long> probes = new ArrayList<>();
-		probes.add(from);
+		addWorkingStarts(candidate, probes, from, to);
 		for (Object value : resource.getAssignments()) {
 			Assignment assignment = (Assignment) value;
-			if (!assignment.getTask().isInactiveTask() && assignment.getStart() > from && assignment.getStart() < to)
-				probes.add(assignment.getStart());
+			if (!assignment.getTask().isInactiveTask()) addWorkingStarts(assignment, probes, from, to);
 		}
 		for (long probe : probes) {
+			if (!assignmentCovers(candidate, probe)) continue;
 			double units = 0D;
 			for (Object value : resource.getAssignments()) {
 				Assignment assignment = (Assignment) value;
-				if (assignment.getTask().isInactiveTask()) {
-					continue;
-				}
-				if (assignment.getStart() <= probe && assignment.getEnd() > probe) {
-					units += Math.max(0D, assignment.getUnits());
-				}
+				if (assignmentCovers(assignment, probe)) units += Math.max(0D, assignment.getUnits());
 			}
-			if (units > resource.getMaximumUnits() + 0.000001D)
-				return true;
+			if (units > resource.getMaximumUnits() + 0.000001D) return true;
 		}
 		return false;
 	}
 
-	public static String displayName(Resource resource) {
+	/**
+	 * Checks whether a resource is overallocated at its current schedule.
+	 * Returns true if the total units assigned to the resource at any time point
+	 * exceeds its maximum units.
+	 */
+	public static boolean isOverallocated(Resource resource) {
+		Objects.requireNonNull(resource, "resource");
+		if (!resource.isLabor()) return false;
+		// Probe at every working interval start, including the end of an assignment split gap.
+		List<Long> probes = new ArrayList<>();
+		for (Object value : resource.getAssignments()) {
+			Assignment assignment = (Assignment) value;
+			if (!assignment.getTask().isInactiveTask()) addWorkingStarts(assignment, probes);
+		}
+		if (probes.isEmpty()) return false;
+		for (long probe : probes) {
+			double units = 0D;
+			for (Object value : resource.getAssignments()) {
+				Assignment assignment = (Assignment) value;
+				if (assignmentCovers(assignment, probe)) units += Math.max(0D, assignment.getUnits());
+			}
+			if (units > resource.getMaximumUnits() + 0.000001D) return true;
+		}
+		return false;
+	}
+
+	private static void addWorkingStarts(Assignment assignment, List<Long> probes) {
+		assignment.forEachWorkingInterval(value -> {
+			if (value instanceof HasStartAndEnd interval && interval.getEnd() > interval.getStart())
+				probes.add(interval.getStart());
+		}, true, assignment.getEffectiveWorkCalendar());
+	}
+
+	private static void addWorkingStarts(Assignment assignment, List<Long> probes, long from, long to) {
+		assignment.forEachWorkingInterval(value -> {
+			if (value instanceof HasStartAndEnd interval && interval.getEnd() > interval.getStart()
+					&& interval.getStart() >= from && interval.getStart() < to)
+				probes.add(interval.getStart());
+		}, true, assignment.getEffectiveWorkCalendar());
+	}
+
+	private static boolean assignmentCovers(Assignment assignment, long time) {
+		if (assignment.getTask().isInactiveTask()) return false;
+		final boolean[] covers = { false };
+		assignment.forEachWorkingInterval(value -> {
+			if (value instanceof HasStartAndEnd interval && interval.getStart() <= time && interval.getEnd() > time)
+				covers[0] = true;
+		}, true, assignment.getEffectiveWorkCalendar());
+		return covers[0];
+	}
+
+	    public static String displayName(Resource resource) {
 		if (resource == null || resource == ResourceImpl.getUnassignedInstance()) {
 			return "Unassigned";
 		}

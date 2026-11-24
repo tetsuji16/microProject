@@ -77,6 +77,7 @@ import com.microproject.model.resource.Resource;
 import com.microproject.model.resource.ResourceImpl;
 import com.microproject.model.snapshot.Snapshottable;
 import com.microproject.model.task.TaskSnapshot;
+import com.microproject.model.format.SheetTextStyles;
 import com.microproject.field.Field;
 import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.model.assignment.TimeDistributedHelper;
@@ -115,6 +116,10 @@ public class MpoFileImporter extends FileImporter {
 	static final String TASK_LEVELING_OPTIONS_ENTRY = "microproject/task-leveling-options.json";
 	/** Per-task text style (Text Styles, Format Painter); MSPDI has no task-level font fields. */
 	static final String TASK_TEXT_STYLES_ENTRY = "microproject/task-text-styles.json";
+	/** Marked task values are stored here because MSPDI snapshots are recomputed on load. */
+	static final String TASK_MARKED_ENTRY = "microproject/task-marked.json";
+	/** Per-category sheet text styles (Text Styles dialog); not represented by MSPDI. */
+	static final String SHEET_TEXT_STYLES_ENTRY = "microproject/sheet-text-styles.json";
 	/** Exact native schedule values needed when MSPDI import recalculates assignments. */
 	static final String TASK_SCHEDULES_ENTRY = "microproject/task-schedules.json";
 	/** Detached saved-baseline assignment profiles not representable in MSPDI assignments. */
@@ -332,32 +337,39 @@ public class MpoFileImporter extends FileImporter {
 			state.json = new OperationLog().writeJsonl(state.documentId, normalized, state.appliedOperationIds);
 			state.capture(project);
 		}
-		if (!extensions.entries.isEmpty()) project.getOrCreateTransientDocumentState(MpoExtensions.class, MpoExtensions::new).entries.putAll(extensions.entries);
-					MpoEmbeddedProjects.restoreEmbeddedProjectReferences(project, manifestData, extensions.entries, embeddedProjectFailures);
-					String taskIdentitiesStr = taskIdentities == null ? null : new String(taskIdentities, StandardCharsets.UTF_8);
-					restoreTaskExtensions(project, extensions.entries, taskIdentitiesStr);
-					return project;
+		if (!extensions.entries.isEmpty())
+			project.getOrCreateTransientDocumentState(MpoExtensions.class, MpoExtensions::new).entries.putAll(extensions.entries);
+		MpoEmbeddedProjects.restoreEmbeddedProjectReferences(project, manifestData, extensions.entries, embeddedProjectFailures);
+		String taskIdentitiesStr = taskIdentities == null ? null : new String(taskIdentities, StandardCharsets.UTF_8);
+		restoreTaskExtensions(project, extensions.entries, taskIdentitiesStr);
+		return project;
 	}
 
 	/** Applies the task data MSPDI cannot hold; opening a file and copying a model must agree on it. */
-		private static void restoreTaskExtensions(Project project, java.util.Map<String, byte[]> entries, String taskIdentities) throws IOException {
-			if (entries.containsKey(TASK_SPLITS_ENTRY))
-				MpoSidecarJson.restoreTaskSplits(project, entries.get(TASK_SPLITS_ENTRY));
-			if (entries.containsKey(TASK_LEVELING_OPTIONS_ENTRY))
-				MpoSidecarJson.restoreTaskLevelingOptions(project, entries.get(TASK_LEVELING_OPTIONS_ENTRY));
-			else
-				MpoSidecarJson.resetLegacyTaskLevelingDefaults(project);
-			if (entries.containsKey(TASK_TEXT_STYLES_ENTRY))
-				MpoSidecarJson.restoreTaskTextStyles(project, entries.get(TASK_TEXT_STYLES_ENTRY));
-			if (entries.containsKey(TASK_SCHEDULES_ENTRY))
-				MpoSidecarJson.restoreTaskSchedules(project, entries.get(TASK_SCHEDULES_ENTRY));
-			if (entries.containsKey(BASELINE_PROFILES_ENTRY))
-				MpoSidecarJson.restoreBaselineProfiles(project, entries.get(BASELINE_PROFILES_ENTRY));
-			if (entries.containsKey(ASSIGNMENT_LEVELING_SPLITS_ENTRY))
-				MpoSidecarJson.restoreAssignmentLevelingSplits(project, entries.get(ASSIGNMENT_LEVELING_SPLITS_ENTRY));
-			if (entries.containsKey(PERT_MANUAL_POSITIONS_ENTRY))
-						MpoSidecarJson.restorePertManualPositions(project, entries.get(PERT_MANUAL_POSITIONS_ENTRY), taskIdentities);
-		}
+	private static void restoreTaskExtensions(Project project, java.util.Map<String, byte[]> entries, String taskIdentities) throws IOException {
+		if (entries.containsKey(TASK_SPLITS_ENTRY))
+			MpoSidecarJson.restoreTaskSplits(project, entries.get(TASK_SPLITS_ENTRY));
+		if (entries.containsKey(TASK_LEVELING_OPTIONS_ENTRY))
+			MpoSidecarJson.restoreTaskLevelingOptions(project, entries.get(TASK_LEVELING_OPTIONS_ENTRY));
+		else
+			MpoSidecarJson.resetLegacyTaskLevelingDefaults(project);
+		if (entries.containsKey(TASK_TEXT_STYLES_ENTRY))
+			MpoSidecarJson.restoreTaskTextStyles(project, entries.get(TASK_TEXT_STYLES_ENTRY));
+		if (entries.containsKey(TASK_MARKED_ENTRY))
+			MpoSidecarJson.restoreTaskMarked(project, entries.get(TASK_MARKED_ENTRY));
+		if (entries.containsKey(SHEET_TEXT_STYLES_ENTRY))
+			MpoSidecarJson.restoreSheetTextStyles(project, entries.get(SHEET_TEXT_STYLES_ENTRY));
+		else
+			project.setSheetTextStyles(SheetTextStyles.empty());
+		if (entries.containsKey(TASK_SCHEDULES_ENTRY))
+			MpoSidecarJson.restoreTaskSchedules(project, entries.get(TASK_SCHEDULES_ENTRY));
+		if (entries.containsKey(BASELINE_PROFILES_ENTRY))
+			MpoSidecarJson.restoreBaselineProfiles(project, entries.get(BASELINE_PROFILES_ENTRY));
+		if (entries.containsKey(ASSIGNMENT_LEVELING_SPLITS_ENTRY))
+			MpoSidecarJson.restoreAssignmentLevelingSplits(project, entries.get(ASSIGNMENT_LEVELING_SPLITS_ENTRY));
+		if (entries.containsKey(PERT_MANUAL_POSITIONS_ENTRY))
+			MpoSidecarJson.restorePertManualPositions(project, entries.get(PERT_MANUAL_POSITIONS_ENTRY), taskIdentities);
+	}
 
 	@Override
 	public void exportFile() throws Exception {
@@ -485,13 +497,14 @@ public class MpoFileImporter extends FileImporter {
 				.anyMatch(operation -> !merge.alreadyAppliedOperationIds().contains(operation.id()));
 		// Serialization can take seconds, so the full comparison stays off the EDT.
 		verifyLiveModelUnchanged(target, captured);
-		IoAction commit = () -> commitReplacedArchive(target, merge, operationState, appliesExternalOperations);
+		MpoCapture committedCapture = output;
+		IoAction commit = () -> commitReplacedArchive(target, merge, operationState, appliesExternalOperations, committedCapture);
 		if (appliesExternalOperations) runOnEdt(commit);
 		else commit.run();
 	}
 
 	private void commitReplacedArchive(File target, MpoMergePreparation merge,
-			MpoOperationState plan, boolean appliesExternalOperations) throws IOException {
+			MpoOperationState plan, boolean appliesExternalOperations, MpoCapture committedCapture) throws IOException {
 		// Remote operations only touch fields the journal tracks, so this cheap check
 		// on the same EDT step keeps them from overwriting an edit made just before.
 		if (hasUnjournaledChanges(project))
@@ -514,6 +527,12 @@ public class MpoFileImporter extends FileImporter {
 		// can round differently and would then look like an edit on the next save.
 		if (appliesExternalOperations) plan.capture(project);
 		MpoExternalMerge.commitOperationState(project, plan);
+		MpoExtensions extensions = project.getOrCreateTransientDocumentState(MpoExtensions.class, MpoExtensions::new);
+		for (String key : java.util.List.of(TASK_MARKED_ENTRY, SHEET_TEXT_STYLES_ENTRY)) {
+			byte[] value = committedCapture.entries().get(key);
+			if (value == null) extensions.entries.remove(key);
+			else extensions.entries.put(key, value.clone());
+		}
 		committed = true;
 	}
 
@@ -676,6 +695,10 @@ public class MpoFileImporter extends FileImporter {
 		entries.put(TASK_SPLITS_ENTRY, MpoSidecarJson.taskSplitsJson(project, taskIdentities));
 		entries.put(TASK_LEVELING_OPTIONS_ENTRY, MpoSidecarJson.taskLevelingOptionsJson(project, taskIdentities));
 		entries.put(TASK_TEXT_STYLES_ENTRY, MpoSidecarJson.taskTextStylesJson(project, taskIdentities));
+		byte[] markedTasks = MpoSidecarJson.taskMarkedJson(project, taskIdentities);
+		if (markedTasks != null) entries.put(TASK_MARKED_ENTRY, markedTasks);
+		byte[] sheetTextStyles = MpoSidecarJson.sheetTextStylesJson(project);
+		if (sheetTextStyles != null) entries.put(SHEET_TEXT_STYLES_ENTRY, sheetTextStyles);
 		entries.put(TASK_SCHEDULES_ENTRY, MpoSidecarJson.taskSchedulesJson(project, taskIdentities));
 		entries.put(BASELINE_PROFILES_ENTRY, MpoSidecarJson.baselineProfilesJson(project, taskIdentities,
 					MpoSidecarJson.resourceIdentitiesForMpo(project)));
@@ -688,7 +711,7 @@ public class MpoFileImporter extends FileImporter {
 			// This sidecar is regenerated from the current transient document state above.
 			// Never let bytes retained from an older archive override a move or a clear.
 			if (PERT_MANUAL_POSITIONS_ENTRY.equals(extension.getKey())) continue;
-			if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || META_ENTRY.equals(extension.getKey()) || SETTINGS_ENTRY.equals(extension.getKey()) || CCPM_HISTORY_ENTRY.equals(extension.getKey()) || LAYOUT_ENTRY.equals(extension.getKey()) || VISIBILITY_ENTRY.equals(extension.getKey()) || TASK_SPLITS_ENTRY.equals(extension.getKey()) || TASK_LEVELING_OPTIONS_ENTRY.equals(extension.getKey()) || TASK_TEXT_STYLES_ENTRY.equals(extension.getKey()) || TASK_SCHEDULES_ENTRY.equals(extension.getKey()) || BASELINE_PROFILES_ENTRY.equals(extension.getKey()) || ASSIGNMENT_LEVELING_SPLITS_ENTRY.equals(extension.getKey()) || PROJECT_ENTRY.equals(extension.getKey()) || OPERATIONS_ENTRY.equals(extension.getKey()) || TASK_IDENTITIES_ENTRY.equals(extension.getKey()) || extension.getKey().startsWith(EMBEDDED_PROJECT_PREFIX)) continue;
+			if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || META_ENTRY.equals(extension.getKey()) || SETTINGS_ENTRY.equals(extension.getKey()) || CCPM_HISTORY_ENTRY.equals(extension.getKey()) || LAYOUT_ENTRY.equals(extension.getKey()) || VISIBILITY_ENTRY.equals(extension.getKey()) || TASK_SPLITS_ENTRY.equals(extension.getKey()) || TASK_LEVELING_OPTIONS_ENTRY.equals(extension.getKey()) || TASK_TEXT_STYLES_ENTRY.equals(extension.getKey()) || TASK_MARKED_ENTRY.equals(extension.getKey()) || SHEET_TEXT_STYLES_ENTRY.equals(extension.getKey()) || TASK_SCHEDULES_ENTRY.equals(extension.getKey()) || BASELINE_PROFILES_ENTRY.equals(extension.getKey()) || ASSIGNMENT_LEVELING_SPLITS_ENTRY.equals(extension.getKey()) || PROJECT_ENTRY.equals(extension.getKey()) || OPERATIONS_ENTRY.equals(extension.getKey()) || TASK_IDENTITIES_ENTRY.equals(extension.getKey()) || extension.getKey().startsWith(EMBEDDED_PROJECT_PREFIX)) continue;
 			entries.put(extension.getKey(), extension.getValue().clone());
 		}
 		MpoDocumentMetadata metadata = new MpoDocumentMetadata(project.getDocumentId(), project.getUniqueId(),
@@ -825,18 +848,38 @@ public class MpoFileImporter extends FileImporter {
 					.map(conflict -> new MpoMergePlan.Conflict(conflict.entityId(),
 							"Concurrent " + conflict.kind() + " operations: " + conflict.operationIds()))
 					.toList();
+			java.util.List<OperationLog.Conflict> allConflicts = new java.util.ArrayList<>(conflicts);
+			MpoExtensions baselineExtensions = project.findTransientDocumentState(MpoExtensions.class);
+			for (String key : java.util.List.of(TASK_MARKED_ENTRY, SHEET_TEXT_STYLES_ENTRY)) {
+				byte[] base = baselineExtensions == null ? null : baselineExtensions.entries.get(key);
+				byte[] remote = external.extensions().entries.get(key);
+				byte[] current = captured.entries().get(key);
+				if (!java.util.Arrays.equals(base, remote) && !java.util.Arrays.equals(current, remote)) {
+					String entity = "mpo-sidecar:" + key;
+					allConflicts.add(new OperationLog.Conflict(entity, "sidecar", java.util.List.of()));
+				}
+			}
+			if (allConflicts.size() != conflicts.size()) {
+				java.util.Set<String> alreadyPlanned = planConflicts.stream().map(MpoMergePlan.Conflict::entryName)
+						.collect(java.util.stream.Collectors.toSet());
+				java.util.List<MpoMergePlan.Conflict> extendedConflicts = new java.util.ArrayList<>(planConflicts);
+				for (OperationLog.Conflict conflict : allConflicts) if (alreadyPlanned.add(conflict.entityId()))
+					extendedConflicts.add(new MpoMergePlan.Conflict(conflict.entityId(),
+						"Concurrent MPO sidecar changes require manual resolution"));
+				planConflicts = extendedConflicts;
+			}
 			java.util.List<MpoMergePlan.Operation> plannedOperations = merged.ready().stream()
 					.filter(operation -> external.document().appliedOperationIds().contains(operation.id()))
 					.filter(operation -> !locallyAppliedOperationIds.contains(operation.id()))
 					.map(operation -> new MpoMergePlan.Operation(operation.id(), MpoMergePlan.Action.UPDATE))
 					.toList();
 			MpoMergePlan plan = MpoExternalMerge.planFor(external.snapshot(), plannedOperations, planConflicts);
-			if (!conflicts.isEmpty()) {
+			if (!allConflicts.isEmpty()) {
 				java.util.List<OperationLog.Operation> conflictOperations = new java.util.ArrayList<>(merged.ready());
 				conflictOperations.addAll(merged.pending());
 				Path recoveryCopy = persistRecoveryCopy(target, captured, local, conflictOperations,
 						external.extensions());
-				throw new MpoConflictRecoveryException(recoveryCopy, conflicts);
+				throw new MpoConflictRecoveryException(recoveryCopy, allConflicts);
 			}
 			MpoExternalMerge.validateMergePlan(plan);
 			// The snapshot already contains every local operation.  Replaying that

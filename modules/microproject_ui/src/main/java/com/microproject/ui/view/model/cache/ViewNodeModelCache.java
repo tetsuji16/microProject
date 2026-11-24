@@ -481,17 +481,15 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 	}
 
 
-	public void expandNodes(List<?> nodes, boolean expand){
+	public void expandNodes(List<GraphicNode> nodes, boolean expand){
 		if (nodes == null) return;
 
-		for (Object element : nodes) {
-			if (element instanceof GraphicNode gnode) {
-				if (expand && !gnode.isFetched()) // for subprojects
-					gnode.fetch();
+		for (GraphicNode gnode : nodes) {
+			if (expand && !gnode.isFetched()) // for subprojects
+				gnode.fetch();
 
-				if (gnode.isCollapsed() == expand)
-					changeCollapsedState(gnode);
-			}
+			if (gnode.isCollapsed() == expand)
+				changeCollapsedState(gnode);
 		}
 	}
 

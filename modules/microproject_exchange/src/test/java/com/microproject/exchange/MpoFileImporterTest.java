@@ -69,6 +69,9 @@ import com.microproject.node.NodeFactory;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.field.Field;
 import com.microproject.view.configuration.SpreadSheetFieldArray;
+import com.microproject.model.format.SheetTextFormat;
+import com.microproject.model.format.SheetTextStyleCategory;
+import com.microproject.model.format.SheetTextStyles;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -7055,6 +7058,117 @@ class MpoFileImporterTest {
 		assertEquals(1, restored.retractions().size());
 		assertEquals(point.observationId(), restored.retractions().getFirst().observationId());
 		assertEquals("Accidental status refresh", restored.retractions().getFirst().reason());
+	}
+
+	@Test
+	void mpoRoundTripPreservesSheetTextStylesAndMarkedTasks() throws Exception {
+		Project project = projectForRoundTrip();
+		SheetTextStyles styles = SheetTextStyles.empty();
+		styles.set(SheetTextStyleCategory.ALL,
+			new SheetTextFormat("Arial", 12, 0x112233, true, false, false, false, null));
+		styles.set(SheetTextStyleCategory.CRITICAL_TASKS,
+			new SheetTextFormat("CriticalFont", 14, 0xFF0000, true, true, false, true, 0xFFFF00));
+		firstTask(project).setMarked(true);
+		project.setSheetTextStyles(styles);
+
+		byte[] archive = saveProjectBytes(project);
+		Map<String, byte[]> entries = readEntries(archive);
+		assertTrue(entries.containsKey(MpoFileImporter.SHEET_TEXT_STYLES_ENTRY));
+		assertTrue(entries.containsKey(MpoFileImporter.TASK_MARKED_ENTRY));
+
+		Project reopened = loadFromBytes(archive);
+		assertEquals(styles, reopened.getSheetTextStyles());
+		assertTrue(firstTask(reopened).isMarked());
+		assertFalse(reopened.isDirty(), "restoring persisted sheet styles must not dirty the project");
+		Project.DirtyState beforeMarkedRestore = reopened.captureDirtyState();
+		MpoSidecarJson.restoreTaskMarked(reopened, entries.get(MpoFileImporter.TASK_MARKED_ENTRY));
+		assertEquals(beforeMarkedRestore, reopened.captureDirtyState(),
+			"restoring the marked sidecar must preserve dirty and group-dirty state");
+	}
+
+	@Test
+	void concurrentSidecarChangeIsRejectedWithoutLosingEitherEditorsState() throws Exception {
+		Project initial = projectForRoundTrip();
+		File shared = File.createTempFile("mpo-sidecar-conflict", ".mpo");
+		shared.deleteOnExit();
+		MpoFileImporter seed = new MpoFileImporter();
+		seed.setFileName(shared.getAbsolutePath());
+		seed.setProject(initial);
+		seed.exportFile();
+
+		Project local = load(shared);
+		Project remote = load(shared);
+		SheetTextStyles remoteStyles = SheetTextStyles.empty();
+		remoteStyles.set(SheetTextStyleCategory.ALL,
+			new SheetTextFormat("RemoteFont", 13, 0x123456, true, false, false, false, null));
+		remote.setSheetTextStyles(remoteStyles);
+		firstTask(remote).setMarked(true);
+		MpoFileImporter remoteWriter = new MpoFileImporter();
+		remoteWriter.setFileName(shared.getAbsolutePath());
+		remoteWriter.setProject(remote);
+		remoteWriter.exportFile();
+		byte[] remoteArchive = Files.readAllBytes(shared.toPath());
+
+		firstTask(local).setName("Local task edit");
+		MpoFileImporter localWriter = new MpoFileImporter();
+		localWriter.setFileName(shared.getAbsolutePath());
+		localWriter.setProject(local);
+		MpoConflictRecoveryException conflict = assertThrows(MpoConflictRecoveryException.class, localWriter::exportFile);
+		assertTrue(conflict.conflicts().stream().anyMatch(value -> value.entityId().contains(MpoFileImporter.SHEET_TEXT_STYLES_ENTRY)));
+		assertTrue(conflict.conflicts().stream().anyMatch(value -> value.entityId().contains(MpoFileImporter.TASK_MARKED_ENTRY)));
+		org.junit.jupiter.api.Assertions.assertArrayEquals(remoteArchive, Files.readAllBytes(shared.toPath()),
+			"the remote archive remains untouched when sidecar merge cannot be represented safely");
+		assertEquals("Local task edit", firstTask(local).getName(), "the local in-memory task edit remains available");
+		assertTrue(SheetTextStyles.resolve(firstTask(local)) == null,
+			"the failed save must not mutate local sheet styles from the remote archive");
+
+		local.setSheetTextStyles(remoteStyles);
+		firstTask(local).setMarked(true);
+		assertDoesNotThrow(localWriter::exportFile, "identical sidecar values may be saved after explicit resolution");
+		Project merged = load(shared);
+		assertEquals(remoteStyles, merged.getSheetTextStyles());
+		assertTrue(firstTask(merged).isMarked());
+		assertEquals("Local task edit", firstTask(merged).getName());
+	}
+
+	@Test
+	void localOnlySidecarEditMergesWithRemoteTaskEdit() throws Exception {
+		Project initial = projectForRoundTrip();
+		File shared = File.createTempFile("mpo-local-sidecar", ".mpo");
+		shared.deleteOnExit();
+		MpoFileImporter seed = new MpoFileImporter();
+		seed.setFileName(shared.getAbsolutePath());
+		seed.setProject(initial);
+		seed.exportFile();
+
+		Project local = load(shared);
+		Project remote = load(shared);
+		SheetTextStyles styles = SheetTextStyles.empty();
+		styles.set(SheetTextStyleCategory.ALL,
+			new SheetTextFormat("LocalFont", 12, 0x654321, false, true, false, false, null));
+		local.setSheetTextStyles(styles);
+		firstTask(remote).setName("Remote task edit");
+		MpoFileImporter remoteWriter = new MpoFileImporter();
+		remoteWriter.setFileName(shared.getAbsolutePath());
+		remoteWriter.setProject(remote);
+		remoteWriter.exportFile();
+
+		MpoFileImporter localWriter = new MpoFileImporter();
+		localWriter.setFileName(shared.getAbsolutePath());
+		localWriter.setProject(local);
+		assertDoesNotThrow(localWriter::exportFile, "an unchanged remote sidecar must not conflict with local-only style edits");
+		Project merged = load(shared);
+		assertEquals(styles, merged.getSheetTextStyles());
+		assertEquals("Remote task edit", firstTask(merged).getName());
+	}
+
+	@Test
+	void olderMpoFixtureWithoutSheetTextStylesLoadsWithAnEmptyStyleSet() throws Exception {
+		Path fixture = Path.of("testdata", "mpo", "v024-1265-previous-writer.mpo");
+		assertTrue(Files.isRegularFile(fixture), "legacy MPO fixture must be present");
+		Project reopened = loadFromBytes(Files.readAllBytes(fixture));
+		assertNotNull(reopened.getSheetTextStyles());
+		assertTrue(reopened.getSheetTextStyles().isEmpty());
 	}
 
 	private static Project loadFromBytes(byte[] mpo) throws Exception {

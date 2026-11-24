@@ -61,6 +61,8 @@ public interface TaskSpecificFields {
 	// task type is taken care of by schedulingRule
 	boolean isMarkTaskAsMilestone();
 	void setMarkTaskAsMilestone(boolean markTaskAsMilestone);
+	boolean isMarked();
+	void setMarked(boolean marked);
 	@Deprecated
 	public int getEarnedValueMethod();
 	@Deprecated

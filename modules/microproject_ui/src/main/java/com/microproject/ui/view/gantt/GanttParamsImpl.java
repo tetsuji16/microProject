@@ -37,6 +37,7 @@ import com.microproject.configuration.Dictionary;
 import com.microproject.view.configuration.BarStyles;
 import com.microproject.view.configuration.GraphicConfiguration;
 import com.microproject.ui.util.FlatUiSupport;
+import com.microproject.ui.view.views.RowHeights;
 
 public class GanttParamsImpl implements GanttParams, Serializable,Cloneable {
 	private static final long serialVersionUID = 2314555242629487089L;
@@ -109,9 +110,12 @@ public class GanttParamsImpl implements GanttParams, Serializable,Cloneable {
 	}
 	public void setRowHeight(int rowHeight) {
 		this.rowHeight=rowHeight;
+		if (this.rowHeights != null) {
+			this.rowHeights = this.rowHeights.withDefaultHeight(rowHeight);
+		}
 	}
 	public Rectangle getGanttBounds() {
-		return new Rectangle(0, configuration.getColumnHeaderHeight(), (int) Math.ceil(coord.getWidth()), getRowHeight() * cache.getSize());
+		return new Rectangle(0, configuration.getColumnHeaderHeight(), (int) Math.ceil(coord.getWidth()), getRowHeights().totalHeight(cache.getSize()));
 //		return new Rectangle(0,configuration.getColumnHeaderHeight(),(int)Math.ceil(coord.getWidth()),configuration.getRowHeight()*cache.getSize());
 	}
 	public Rectangle getDrawingBounds() {
@@ -161,12 +165,29 @@ public class GanttParamsImpl implements GanttParams, Serializable,Cloneable {
 		this.rightPartVisible = rightPartVisible;
 	}
 	protected boolean supportLeftAndRightParts=false;
-	public boolean isSupportLeftAndRightParts(){
-		return supportLeftAndRightParts;
-	}
-	public void setSupportLeftAndRightParts(boolean supports){
-		this.supportLeftAndRightParts = supports;
-	}
+		protected RowHeights rowHeights;
+		public boolean isSupportLeftAndRightParts(){
+			return supportLeftAndRightParts;
+		}
+		public void setSupportLeftAndRightParts(boolean supports){
+			this.supportLeftAndRightParts = supports;
+		}
+		public RowHeights getRowHeights() {
+			if (rowHeights == null) {
+				rowHeights = new RowHeights(rowHeight, cache != null ? cache.getSize() : 0);
+			}
+			if (cache != null) {
+				var projection = cache.getVisibleNodes().getProjectionIndex();
+				rowHeights.bindToProjection(cache, projection.topologyRevision(), projection.rowKeys());
+			}
+			return rowHeights;
+		}
+		public void setRowHeights(RowHeights rowHeights) {
+			this.rowHeights = rowHeights == null ? null : rowHeights.copy();
+			if (this.rowHeights != null && cache != null) {
+				this.rowHeights.setRowCount(cache.getSize());
+			}
+		}
 
 	public boolean isGridLinesVisible() {
 		return gridLinesVisible;

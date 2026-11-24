@@ -39,6 +39,7 @@ import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.spreadsheet.renderer.OfflineRenderer;
 import com.microproject.field.Field;
 import com.microproject.ui.util.FlatUiSupport;
+import com.microproject.ui.view.views.RowHeights;
 
 public class SpreadSheetRenderer extends Renderer{
 
@@ -55,13 +56,12 @@ public class SpreadSheetRenderer extends Renderer{
 	}
 	public void paint(Graphics g,int prow, int pcol) {
 		Graphics2D g2=(Graphics2D)g;
-		int h=params.getSpreadSheetBounds().y;
-		int rowH=params.getRowHeight();
+		Rectangle spreadsheetBounds=params.getSpreadSheetBounds();
+		RowHeights rowHeights = params.getRowHeights();
 		int row0=0;
 		int row1=Integer.MAX_VALUE;
 		int col0=0;
 		int col1=Integer.MAX_VALUE;
-		Rectangle spreadsheetBounds=params.getSpreadSheetBounds();
 		if (prow!=-1){
 			SpreadSheetParamsImpl.PageInfo colInfo=params.getColPageInfo(pcol);
 			SpreadSheetParamsImpl.PageInfo rowInfo=params.getRowPageInfo(prow);
@@ -72,11 +72,12 @@ public class SpreadSheetRenderer extends Renderer{
 			Rectangle printSpreadsheetBounds=((SpreadSheetParamsImpl)params).getSpreadsheetPrintBounds(prow, pcol,false);
 			spreadsheetBounds=new Rectangle(spreadsheetBounds.x,spreadsheetBounds.y,printSpreadsheetBounds.width,printSpreadsheetBounds.height);
 		}
-		int row=row0;
+		int h = spreadsheetBounds.y + rowHeights.yOf(row0);
+		int row = row0;
 		for (Iterator<GraphicNode> i = graphInfo.getCache().getIterator(row0); i.hasNext() && row <= row1; row++){
 			GraphicNode gnode = i.next();
 			paintRow(g2, row, row0, h,col0,col1,gnode,spreadsheetBounds);
-			h+=rowH;
+			h += rowHeights.heightOf(row);
 		}
 		paintColumnHeader(g2,col0,col1,spreadsheetBounds);
 	}
@@ -119,7 +120,7 @@ public class SpreadSheetRenderer extends Renderer{
 	protected void paintRow(Graphics2D g2, int row, int row0, int h,int col0,int col1,GraphicNode node,Rectangle spreadsheetBounds){
 		TableColumn c;
 		int w=spreadsheetBounds.x;
-		fillBackground(g2, spreadsheetBounds.x, h, spreadsheetBounds.width, params.getRowHeight(), FlatUiSupport.dataSurfaceBackground());
+		fillBackground(g2, spreadsheetBounds.x, h, spreadsheetBounds.width, params.getRowHeights().heightOf(row), FlatUiSupport.dataSurfaceBackground());
 		int col=0;
 		for (Iterator<TableColumn> i=params.getColumnIterator();i.hasNext()&&col<=col1;col++){
 			c=i.next();
@@ -136,7 +137,7 @@ public class SpreadSheetRenderer extends Renderer{
 			JComponent component=(JComponent)renderer.getComponent(value, node, field, params);
 	    	boolean opaque=component.isOpaque();
 			component.setOpaque(false);
-			component.setSize(compWidth, params.getRowHeight());
+			component.setSize(compWidth, params.getRowHeights().heightOf(row));
 	    	g2.translate(w+getColMargin(col),h);
 	    	component.doLayout();
 	    	component.print(g2);

@@ -79,7 +79,7 @@ public interface NodeModelCache extends TreeModel{
 	//public boolean isSummary(GraphicNode node);
 	
 	public void changeCollapsedState(GraphicNode node);
-	public void expandNodes(List<?> nodes, boolean expand);
+	public void expandNodes(List<GraphicNode> nodes, boolean expand);
 	
 	public void newNode(GraphicNode node);
 	/** Inserts and returns a new empty node immediately before the stable task node. */

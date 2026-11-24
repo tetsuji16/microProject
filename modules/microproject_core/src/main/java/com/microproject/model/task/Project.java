@@ -133,6 +133,7 @@ import com.microproject.schedule.ScheduleEventManager;
 import com.microproject.schedule.ScheduleInterval;
 import com.microproject.schedule.ScheduleUtil;
 import com.microproject.model.snapshot.BaselineScheduleFields;
+import com.microproject.model.format.SheetTextStyles;
 import com.microproject.model.snapshot.Snapshottable;
 import com.microproject.model.snapshot.SnapshottableImpl;
 import com.microproject.model.time.MutableHasStartAndEnd;
@@ -164,6 +165,8 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	private static final Logger logger = Logger.getLogger(Project.class.getName());
 	private long statusDate = 0;
 	private transient ProgressLineSettings progressLineSettings;
+	/** Per-category sheet text styles, persisted by MPO sidecar (not POD). */
+	private transient SheetTextStyles sheetTextStyles;
 	private String manager="";
 	private transient HasKeyImpl hasKey;
 	private String notes="";
@@ -723,6 +726,22 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	public void setProgressLineSettings(ProgressLineSettings settings) {
 		progressLineSettings = settings;
+	}
+
+	/** Per-category sheet text styles, persisted by MPO sidecar (not POD). Returns a detached copy. */
+	public SheetTextStyles getSheetTextStyles() {
+		if (sheetTextStyles == null)
+			sheetTextStyles = SheetTextStyles.empty();
+		return sheetTextStyles.copy();
+	}
+
+	/** Replaces sheet text styles; callers must set a changed copy to mark the project dirty. */
+	public void setSheetTextStyles(SheetTextStyles styles) {
+		SheetTextStyles replacement = SheetTextStyles.copyOf(styles);
+		if (replacement.equals(getSheetTextStyles()))
+			return;
+		this.sheetTextStyles = replacement;
+		setDirty(true);
 	}
 
 	/** Clears an explicitly configured status date (used by undo). */

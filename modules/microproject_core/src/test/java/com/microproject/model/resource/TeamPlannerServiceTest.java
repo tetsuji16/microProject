@@ -157,6 +157,25 @@ class TeamPlannerServiceTest {
 			"the earlier assignment overlaps the later one after its own start");
 	}
 
+	@Test void splitAssignmentGapDoesNotCountAsResourceOverload() {
+		Fixture fixture = fixture();
+		NormalTask splitTask = task(fixture.project, "Split");
+		splitTask.setDuration(day() * 5L);
+		var split = AssignmentService.getInstance().newAssignment(splitTask, fixture.first, 0.75D, 0L, this);
+		long gapStart = split.getStart() + 2L * 3_600_000L;
+		long gapEnd = gapStart + 2L * 24L * 60L * 60L * 1000L;
+		split.split(this, gapStart, gapEnd);
+		NormalTask gapTask = task(fixture.project, "Only in gap");
+		gapTask.setStart(gapStart);
+		gapTask.setDuration(day() - 2L * 3_600_000L);
+		AssignmentService.getInstance().newAssignment(gapTask, fixture.first, 0.75D, 0L, this);
+
+		assertFalse(TeamPlannerService.isOverallocated(fixture.first),
+			"work in an assignment split gap must not be added to the other assignment's units");
+		assertFalse(new TeamPlannerService().isOverallocated(splitTask),
+			"a candidate must not be reported overallocated when the overlap exists only in its split gap");
+	}
+
 	private Fixture fixture() {
 		DataFactoryUndoController undo = new DataFactoryUndoController(); ResourcePool pool = ResourcePool.createRourcePool("team-test", undo);
 		Project project = Project.createProject(pool, undo); project.initialize(false, false); project.setFileName("C:/team-planner-fixtures/" + System.nanoTime() + ".mpo");

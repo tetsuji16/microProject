@@ -11,6 +11,12 @@ microProjectの標準リボンに表示される全コマンドボタンを、�
 
 ## ユースケース一覧
 
+### Task Usage と Resource Usage
+
+| ID | 操作ユースケース | 合格条件 |
+|---|---|---|
+| RibbonAssignmentInformation | Task Usage または Resource Usage で割り当て行を選択し、書式タブの「情報」を開く | 選択した割り当ての単位、作業の配分、メモを表示する。値を変更して OK を押すと一つの Undo で元に戻り、Cancel は値を変更しない。MPO 保存・再読込後も単位と平文メモが残る。割り当て行が未選択ならコマンドは無効。 |
+
 ### ファイル（FileRibbonTask）
 
 | ID | 操作ユースケース | 合格条件 |

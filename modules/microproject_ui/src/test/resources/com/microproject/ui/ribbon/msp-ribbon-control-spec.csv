@@ -38,6 +38,7 @@ RibbonTaskInspector,InspectTasksMenu,BUTTON,DIALOG,DOCUMENTED,TaskRibbonTask/Tas
 RibbonNotes,TaskNotes,BUTTON,DIALOG,DOCUMENTED,TaskRibbonTask/TaskPropertiesRibbonBand,
 RibbonAddToTimeline,TaskAddToTimeline,TOGGLE_BUTTON,TOGGLE_STATE,DOCUMENTED,TaskRibbonTask/TaskPropertiesRibbonBand,Pressed when every selected task is on the timeline
 RibbonTaskDetails,TaskDetailsDisplay,TOGGLE_BUTTON,TOGGLE_STATE,DOCUMENTED,TaskRibbonTask/TaskPropertiesRibbonBand,
+RibbonAssignmentInformation,AssignmentInformation,BUTTON,DIALOG,BASELINE,TaskUsageFormatRibbonTask/AssignmentInformationRibbonBand,microProject extension; opens Assignment Information for selected assignment
 RibbonCustomFields,CustomFieldDialog,BUTTON,DIALOG,DOCUMENTED,ProjectRibbonTask/ProjectInfoRibbonBand,
 RibbonMarkOnTrack,UpdateAsScheduledMenu,SPLIT_BUTTON,COMMAND,DOCUMENTED,TaskRibbonTask/TaskTrackingRibbonBand,Mark on Track / Update Tasks
 RibbonUpdateTasks,TasksUpdate,BUTTON,DIALOG,DOCUMENTED,TaskRibbonTask/TaskTrackingRibbonBand,

@@ -67,6 +67,7 @@ import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.model.cache.RevisionedProjectionIndex;
 import com.microproject.ui.view.timescale.CoordinatesConverter;
+import com.microproject.ui.view.views.RowHeights;
 import com.microproject.field.Field;
 import com.microproject.field.FieldConverter;
 import com.microproject.configuration.Configuration;
@@ -583,8 +584,8 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		public void initialize(Graphics2D g2, GraphicNode node, int row) {
 			this.g2 = g2;
 			this.node = node;
-			int rowHeight=((GanttParams)graphInfo).getRowHeight();
-			yrow=row*rowHeight;
+			RowHeights rowHeights = ((GanttParams)graphInfo).getRowHeights();
+			yrow = rowHeights.yOf(row);
 			setLayers(BarFormat.MIN_FOREGROUND_LAYER,BarFormat.MAX_FOREGROUND_LAYER);
 		}
 
@@ -787,9 +788,9 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			this.g2 = g2;
 			this.node = node;
 			this.row = row;
-			int rowHeight=((GanttParams)graphInfo).getRowHeight();
+			RowHeights rowHeights = ((GanttParams)graphInfo).getRowHeights();
 			config=((GanttParams)graphInfo).getConfiguration();
-			yrow=row*rowHeight;
+			yrow = rowHeights.yOf(row);
 			Font uiFont = FlatUiSupport.uiFont();
 			if (uiFont != cachedUiFont || cachedPlainFont == null) {
 				cachedUiFont = uiFont;
@@ -851,7 +852,8 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			if (clipped == null || clipped.isEmpty())
 				return;
 			annotationRenderedForNode = true;
-			int rowHeight = ((GanttParams)graphInfo).getRowHeight();
+			RowHeights rowHeights = ((GanttParams)graphInfo).getRowHeights();
+			int rowHeight = rowHeights.heightOf(row);
 			int textTop = yrow + Math.max(0, (rowHeight - fontMetrics.getHeight()) / 2);
 			int textBaseline = textTop + fontMetrics.getAscent();
 			int clipHeight = Math.min(rowHeight, Math.max(fontMetrics.getHeight() + 2, h + 2));
@@ -939,10 +941,10 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 				double tx1=GanttSelectionGeometrySupport.getSelectionEndForNode(to,coord,config);
 				double x0=fromSign<0?fx0:fx1;
 				double x1=toSign<0?tx0:tx1;
-				int rowHeight=((GanttParams)graphInfo).getRowHeight();
+				RowHeights rowHeights = ((GanttParams)graphInfo).getRowHeights();
 				int yOffset=config.getGanttBarYOffset()+config.getGanttBarHeight()/2;
-				int y0=rowHeight*predecessorRow;
-				int y1=rowHeight*successorRow;
+				int y0=rowHeights.yOf(predecessorRow);
+				int y1=rowHeights.yOf(successorRow);
 				double y2=Math.max(y0,y1);
 				y0+=yOffset;
 				y1+=yOffset;
@@ -1033,10 +1035,11 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
     	Rectangle bounds = ((GanttParams)graphInfo).getGanttBounds();
     	CoordinatesConverter coord=((GanttParams)graphInfo).getCoord();
     	if (coord==null) return;
-		double rowHeight=((GanttParams)graphInfo).getRowHeight();
+		RowHeights rowHeights = ((GanttParams)graphInfo).getRowHeights();
+		if (rowHeights.getRowCount() == 0) return;
 
-		int i0=(int)Math.floor(bounds.getY()/rowHeight);
-		int i1=(int)Math.ceil(bounds.getMaxY()/rowHeight);
+		int i0 = rowHeights.rowAt((int)bounds.getY());
+		int i1 = rowHeights.rowAt((int)bounds.getMaxY()) + 1;
 
 		GraphicNode node;
 		@SuppressWarnings("unchecked")
@@ -1116,7 +1119,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		try {
 			enablePaintHints(g2);
 			g2.setColor(graphInfo instanceof Gantt gantt ? gantt.getGridLineColor() : palette.getGridLine());
-			int y = (row + 1) * params.getRowHeight() - 1;
+			int y = params.getRowHeights().yOf(row + 1) - 1;
 			g2.drawLine(bounds.x, y, bounds.x + bounds.width, y);
 		} finally {
 			g2.setColor(oldColor);
@@ -1178,8 +1181,8 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		Set<Integer> rows = gantt.getHighlightedRows();
 		if (rows == null || rows.isEmpty())
 			return;
-		int rowHeight = ((GanttParams) graphInfo).getRowHeight();
-		if (rowHeight <= 0)
+		RowHeights rowHeights = ((GanttParams) graphInfo).getRowHeights();
+		if (rowHeights.getDefaultHeight() <= 0)
 			return;
 		Color oldColor = g2.getColor();
 		try {
@@ -1187,10 +1190,11 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			for (int row : rows) {
 				if (row < 0)
 					continue;
-				int y = row * rowHeight;
-				if (y + rowHeight < bounds.y || y > bounds.y + bounds.height)
+				int y = rowHeights.yOf(row);
+				int rowH = rowHeights.heightOf(row);
+				if (y + rowH < bounds.y || y > bounds.y + bounds.height)
 					continue;
-				g2.fillRect(bounds.x, y, bounds.width, rowHeight);
+				g2.fillRect(bounds.x, y, bounds.width, rowH);
 			}
 		} finally {
 			g2.setColor(oldColor);
@@ -1217,7 +1221,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			int row = projection.rowForNode(node);
 			if (row < 0)
 				continue;
-			double top = ((GanttParams) graphInfo).getRowHeight() * (double) row + config.getGanttBarYOffset();
+			double top = ((GanttParams) graphInfo).getRowHeights().yOf(row) + config.getGanttBarYOffset();
 			double centre = top + barHeight / 2.0d;
 			if (gantt.isSlackVisible() && !node.isSummary() && !task.isMilestone() && task.getEnd() > 0L
 					&& task.getLateFinish() > task.getEnd()) {
@@ -1338,13 +1342,16 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			if (path == null) {
 				path = new GeneralPath();
 				referenceX = coord.toX(referenceDate);
-				path.moveTo((float)referenceX, (float)(y - ((GanttParams)graphInfo).getRowHeight() / 2.0d));
+				RowHeights rowHeights = ((GanttParams)graphInfo).getRowHeights();
+				path.moveTo((float)referenceX, (float)(y - rowHeights.heightOf(projection.rowForNode(node)) / 2.0d));
 			}
 			path.lineTo((float)progressX, (float)y);
 			lastY = y;
 		}
-		if (path != null)
-			path.lineTo((float)referenceX, (float)(lastY + ((GanttParams)graphInfo).getRowHeight() / 2.0d));
+		if (path != null) {
+			RowHeights rowHeights = ((GanttParams)graphInfo).getRowHeights();
+			path.lineTo((float)referenceX, (float)(lastY + rowHeights.heightOf(projection.rowForNode(nodeList.get(nodeList.size()-1))) / 2.0d));
+		}
 		return path;
 	}
 
@@ -1382,9 +1389,9 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 	}
 
 	double getProgressLineY(GraphicNode node, RevisionedProjectionIndex projection) {
-		int rowHeight=((GanttParams)graphInfo).getRowHeight();
+		RowHeights rowHeights = ((GanttParams)graphInfo).getRowHeights();
 		int yOffset=config.getGanttBarYOffset()+config.getGanttBarHeight()/2;
-		return rowHeight*projection.rowForNode(node)+yOffset;
+		return rowHeights.yOf(projection.rowForNode(node))+yOffset;
 	}
 
 	double getProgressLineY(GraphicNode node) {
@@ -1557,12 +1564,12 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 
 		//Modif for offline graphics
 
-		double rowHeight=((GanttParams)graphInfo).getRowHeight();
+		RowHeights rowHeights = ((GanttParams)graphInfo).getRowHeights();
 
-		int i0=(int)Math.floor(clipBounds.getY()/rowHeight);
+		int i0 = rowHeights.rowAt((int)clipBounds.getY());
 		int i1;
-		if (visibleBounds==null) i1=(int)Math.ceil(clipBounds.getMaxY()/rowHeight);
-		else i1=(int)Math.floor(clipBounds.getMaxY()/rowHeight);
+		if (visibleBounds==null) i1 = rowHeights.rowAt((int)clipBounds.getMaxY()) + 1;
+		else i1 = rowHeights.rowAt((int)clipBounds.getMaxY());
 
 		nodeList.clear();
 
@@ -1597,7 +1604,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 			int predecessorRow = projection.rowForNode(predecessor);
 			int successorRow = projection.rowForNode(successor);
 			if (isDependencyPotentiallyVisible(predecessorRow, successorRow,
-					(int) rowHeight, clipBounds))
+					rowHeights.getDefaultHeight(), clipBounds))
 				paintLink(g2,dependency,projection);
 		}
 
