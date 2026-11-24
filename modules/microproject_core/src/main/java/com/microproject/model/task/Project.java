@@ -728,15 +728,20 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		progressLineSettings = settings;
 	}
 
-	/** Per-category sheet text styles, persisted by MPO sidecar (not POD). */
+	/** Per-category sheet text styles, persisted by MPO sidecar (not POD). Returns a detached copy. */
 	public SheetTextStyles getSheetTextStyles() {
 		if (sheetTextStyles == null)
 			sheetTextStyles = SheetTextStyles.empty();
-		return sheetTextStyles;
+		return sheetTextStyles.copy();
 	}
 
+	/** Replaces sheet text styles; callers must set a changed copy to mark the project dirty. */
 	public void setSheetTextStyles(SheetTextStyles styles) {
-		this.sheetTextStyles = styles;
+		SheetTextStyles replacement = SheetTextStyles.copyOf(styles);
+		if (replacement.equals(getSheetTextStyles()))
+			return;
+		this.sheetTextStyles = replacement;
+		setDirty(true);
 	}
 
 	/** Clears an explicitly configured status date (used by undo). */

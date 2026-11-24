@@ -336,7 +336,11 @@ final class MpoSidecarJson {
 				JsonNode marked = node.get("marked");
 				if (marked == null || !marked.isBoolean() || !marked.booleanValue())
 					throw new IOException("Invalid MPO marked task value");
-				return task -> task.setMarked(true);
+				return task -> {
+					boolean wasDirty = task.isDirty();
+					task.setMarked(true);
+					if (!wasDirty) task.setDirty(false);
+				};
 			});
 	}
 
@@ -391,7 +395,9 @@ final class MpoSidecarJson {
 					strike.booleanValue(), underline != null && underline.booleanValue(),
 					fill == null ? null : fill.intValue()));
 		}
+		Project.DirtyState dirtyState = project.captureDirtyState();
 		project.setSheetTextStyles(styles);
+		project.restoreDirtyState(dirtyState);
 	}
 
 	private static boolean validColor(JsonNode value) {

@@ -64,6 +64,26 @@ class SheetTextStylesTest {
     }
 
     @Test
+    void replacingSheetTextStylesMarksProjectDirtyAndGetterCannotMutateProject() {
+        Project project = newProject();
+        project.restoreDirtyState(new Project.DirtyState(false, false));
+        SheetTextStyles configured = SheetTextStyles.empty();
+        configured.set(SheetTextStyleCategory.ALL,
+                new SheetTextFormat("Arial", 12, null, false, false, false, false, null));
+
+        project.setSheetTextStyles(configured);
+        assertTrue(project.isDirty());
+        project.restoreDirtyState(new Project.DirtyState(false, false));
+        project.setSheetTextStyles(configured.copy());
+        assertFalse(project.isDirty(), "setting equal styles must not dirty the project");
+
+        SheetTextStyles detached = project.getSheetTextStyles();
+        detached.clear(SheetTextStyleCategory.ALL);
+        assertFalse(project.isDirty());
+        assertEquals(configured, project.getSheetTextStyles());
+    }
+
+    @Test
     void newProjectStartsWithAnEmptySheetTextStyleSet() {
         Project project = newProject();
         assertNotNull(project.getSheetTextStyles());

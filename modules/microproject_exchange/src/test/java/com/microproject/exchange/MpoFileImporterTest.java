@@ -7079,6 +7079,7 @@ class MpoFileImporterTest {
 		Project reopened = loadFromBytes(archive);
 		assertEquals(styles, reopened.getSheetTextStyles());
 		assertTrue(firstTask(reopened).isMarked());
+		assertFalse(reopened.isDirty(), "restoring persisted sheet styles must not dirty the project");
 	}
 
 	@Test
