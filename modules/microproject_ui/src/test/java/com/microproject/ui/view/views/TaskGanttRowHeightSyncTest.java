@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.awt.Point;
 import javax.swing.SwingUtilities;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -102,21 +103,26 @@ class TaskGanttRowHeightSyncTest {
 			SwingUtilities.invokeAndWait(() -> {
 				DefaultMutableTreeNode root = new DefaultMutableTreeNode("root");
 				for (int i = 0; i < 3; i++) root.add(new DefaultMutableTreeNode("Task " + i));
-				SpreadSheet sheet = new SpreadSheet();
+				SpreadSheet sheet = new TestSpreadSheet(cache);
 				sheet.setModel(DefaultOutlineModel.createOutlineModel(new DefaultTreeModel(root), new TestRowModel(), false, "Name"));
+				sheet.getRowHeader().setModel(sheet.getModel());
 				TaskGanttSyncSupport.applyRowHeight(sheet, gantt, 30);
 				assertEquals(30, sheet.getRowHeight());
 				assertEquals(30, gantt.getRowHeight());
 				assertEquals(30, sheet.getRowHeight(2));
+				assertEquals(30, sheet.getRowHeader().getRowHeight(2));
 				assertEquals(30, gantt.getRowHeights().heightOf(2));
 
 				RowHeights requested = new RowHeights(34, 3);
-				requested.setRowHeight(2, 52);
+				var projection = cache.getVisibleNodes().getProjectionIndex();
+				requested.setRowKeys(List.of(projection.keyAt(2), projection.keyAt(0), projection.keyAt(1)));
+				requested.setRowHeight(0, 52);
 				TaskGanttSyncSupport.applyRowHeight(sheet, gantt, requested);
 				assertEquals(34, sheet.getRowHeight());
 				assertEquals(34, gantt.getRowHeight());
 				assertEquals(34, sheet.getRowHeight(0));
 				assertEquals(52, sheet.getRowHeight(2));
+				assertEquals(52, sheet.getRowHeader().getRowHeight(2));
 				assertEquals(68, sheet.getCellRect(2, 0, true).y);
 				assertEquals(2, sheet.rowAtPoint(new Point(2, 70)));
 				assertEquals(120, sheet.getPreferredSize().height);
@@ -152,5 +158,11 @@ class TaskGanttRowHeightSyncTest {
 		@Override public boolean isCellEditable(Object node, int column) { return false; }
 		@Override public void setValueFor(Object node, int column, Object value) { }
 		@Override public String getColumnName(int column) { return ""; }
+	}
+
+	private static final class TestSpreadSheet extends SpreadSheet {
+		private final NodeModelCache cache;
+		private TestSpreadSheet(NodeModelCache cache) { this.cache = cache; }
+		@Override public NodeModelCache getCache() { return cache; }
 	}
 }

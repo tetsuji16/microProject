@@ -62,6 +62,24 @@ public class RowHeightsTest {
     }
 
     @Test
+    public void keyedOverridesFollowRowsAcrossReorderFilterAndDefaultChanges() {
+        RowHeights heights = new RowHeights(20, 3);
+        heights.setRowKeys(java.util.List.of("task-a", "task-b", "task-c"));
+        heights.setRowHeight(1, 44);
+
+        heights.setRowKeys(java.util.List.of("task-c", "task-a", "task-b"));
+        assertEquals(44, heights.heightOf(2), "sorting must keep the height with its row key");
+        heights.setRowKeys(java.util.List.of("task-c", "task-a"));
+        heights.setRowKeys(java.util.List.of("task-b", "task-a", "task-c"));
+        assertEquals(44, heights.heightOf(0), "temporarily filtered rows must recover their override");
+
+        RowHeights changedDefault = heights.withDefaultHeight(28);
+        assertEquals(28, changedDefault.heightOf(1));
+        assertEquals(44, changedDefault.heightOf(0));
+        assertEquals(28, changedDefault.getDefaultHeight());
+    }
+
+    @Test
     public void singleOverride_rowAt_yOf_inverse() {
         RowHeights rh = new RowHeights(20, 5);
         rh.setRowHeight(2, 40); // row 2 is double height

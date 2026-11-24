@@ -111,7 +111,7 @@ public class GanttParamsImpl implements GanttParams, Serializable,Cloneable {
 	public void setRowHeight(int rowHeight) {
 		this.rowHeight=rowHeight;
 		if (this.rowHeights != null) {
-			this.rowHeights = new RowHeights(rowHeight, cache != null ? cache.getSize() : 0);
+			this.rowHeights = this.rowHeights.withDefaultHeight(rowHeight);
 		}
 	}
 	public Rectangle getGanttBounds() {
@@ -175,8 +175,12 @@ public class GanttParamsImpl implements GanttParams, Serializable,Cloneable {
 		public RowHeights getRowHeights() {
 			if (rowHeights == null) {
 				rowHeights = new RowHeights(rowHeight, cache != null ? cache.getSize() : 0);
-			} else if (cache != null && rowHeights.getRowCount() != cache.getSize()) {
-				rowHeights.setRowCount(cache.getSize());
+			}
+			if (cache != null) {
+				var projection = cache.getVisibleNodes().getProjectionIndex();
+				java.util.ArrayList<Object> keys = new java.util.ArrayList<>(projection.size());
+				for (int row = 0; row < projection.size(); row++) keys.add(projection.keyAt(row));
+				rowHeights.setRowKeys(keys);
 			}
 			return rowHeights;
 		}

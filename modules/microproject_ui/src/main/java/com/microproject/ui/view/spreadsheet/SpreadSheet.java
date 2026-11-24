@@ -193,7 +193,10 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	@Override
 	public void setRowHeight(int rowHeight) {
 		super.setRowHeight(rowHeight);
-		if (rowHeights != null) rowHeights = new RowHeights(rowHeight, getRowCount());
+		if (rowHeights != null) rowHeights = rowHeights.withDefaultHeight(rowHeight);
+		if (rowHeader != null) {
+			for (int row = 0; row < rowHeader.getRowCount(); row++) rowHeader.setRowHeight(row, rowHeight);
+		}
 	}
 
 	@Override
@@ -201,6 +204,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		if (row < 0 || row >= getRowCount()) return;
 		ensureRowHeights();
 		rowHeights.setRowHeight(row, rowHeight);
+		if (rowHeader != null && row < rowHeader.getRowCount()) rowHeader.setRowHeight(row, rowHeight);
 		revalidate();
 		repaint();
 	}
@@ -267,7 +271,17 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 
 	private void ensureRowHeights() {
 		if (rowHeights == null) rowHeights = new RowHeights(super.getRowHeight(), getRowCount());
-		else if (rowHeights.getRowCount() != getRowCount()) rowHeights.setRowCount(getRowCount());
+		NodeModelCache cache = getCache();
+		if (cache != null) {
+			var projection = cache.getVisibleNodes().getProjectionIndex();
+			if (projection.size() == getRowCount()) {
+				List<Object> keys = new ArrayList<>(projection.size());
+				for (int row = 0; row < projection.size(); row++) keys.add(projection.keyAt(row));
+				rowHeights.setRowKeys(keys);
+				return;
+			}
+		}
+		if (rowHeights.getRowCount() != getRowCount()) rowHeights.setRowCount(getRowCount());
 	}
 
 	@Override
