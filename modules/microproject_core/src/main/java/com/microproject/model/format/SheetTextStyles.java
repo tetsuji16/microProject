@@ -138,10 +138,8 @@ public final class SheetTextStyles {
         SheetTextStyles styles = project.getSheetTextStyles();
         if (styles == null || styles.isEmpty()) return null;
 
-        if (TeamPlannerService.isOverallocated(resource)) {
-            SheetTextFormat f = styles.get(SheetTextStyleCategory.OVERALLOCATED_RESOURCES);
-            if (f != null) return f;
-        }
+        SheetTextFormat overallocated = styles.get(SheetTextStyleCategory.OVERALLOCATED_RESOURCES);
+        if (overallocated != null && TeamPlannerService.isOverallocated(resource)) return overallocated;
         return styles.get(SheetTextStyleCategory.ALL_RESOURCES);
     }
 
