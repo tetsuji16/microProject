@@ -25,12 +25,15 @@ package com.microproject.ui.view.gantt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
+import java.awt.event.InputEvent;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -105,6 +108,70 @@ class GanttRendererSelectedRowTest {
 	}
 
 	@Test
+	void publicRowLookupKeepsLegacyDivisionOutsideTheVisibleRows() {
+		Gantt gantt = newGantt();
+		try {
+			int totalHeight = gantt.getRowHeights().totalHeight(gantt.getCache().getSize());
+			assertEquals(-1, gantt.getRow(-ROW_HEIGHT));
+			assertEquals(gantt.getCache().getSize(), gantt.getRow(totalHeight));
+			assertEquals(gantt.getCache().getSize() + 1, gantt.getRow(totalHeight + ROW_HEIGHT));
+		} finally {
+			gantt.cleanUp();
+		}
+	}
+
+	@Test
+	void taskRowHitTestingAndBarPositionUsePerRowHeights() {
+		Gantt gantt = newGantt();
+		try {
+			gantt.getRowHeights().setRowHeight(1, ROW_HEIGHT * 2);
+			GanttUI ui = (GanttUI) gantt.getUI();
+			int row = 2;
+			int rowMiddle = gantt.getRowHeights().yOf(row) + gantt.getRowHeights().heightOf(row) / 2;
+
+			assertSame(gantt.getCache().getElementAt(row), ui.getTaskRowAt(rowMiddle),
+				"hit testing below a taller row must resolve the visible task row");
+			assertEquals(null, ui.getTaskRowAt(gantt.getRowHeights().totalHeight(gantt.getCache().getSize())),
+				"the area below the final row must remain outside task hit testing");
+			assertEquals(-1, ui.getRowAt(gantt.getRowHeights().totalHeight(gantt.getCache().getSize())),
+				"row-level gestures must preserve the old out-of-range result");
+			assertEquals(gantt.getRowHeights().heightOf(1), ui.getBarY(row) - ui.getBarY(1), 0.0,
+				"the next Gantt bar must follow the taller spreadsheet row");
+		} finally {
+			gantt.cleanUp();
+		}
+	}
+
+	@Test
+	void calendarClickAndDragBelowAnOverriddenRowTargetTheVisibleTasks() {
+		Gantt gantt = newGantt();
+		try {
+			gantt.getRowHeights().setRowHeight(1, ROW_HEIGHT * 2);
+			GanttUI ui = new GanttUI(gantt) {
+				@Override
+				public com.microproject.ui.view.graph.GraphZone getObjectAt(double x, double y) {
+					return null;
+				}
+			};
+			((TestGantt) gantt).installUI(ui);
+			List<Gantt.BarClick> selections = new ArrayList<>();
+			gantt.setBarSelectionListener(selections::add);
+			int row2Y = gantt.getRowHeights().yOf(2) + ROW_HEIGHT / 2;
+			int row3Y = gantt.getRowHeights().yOf(3) + ROW_HEIGHT / 2;
+
+			ui.getInteractor().mousePressed(mouse(gantt, MouseEvent.MOUSE_PRESSED, row2Y));
+			assertSame(gantt.getCache().getElementAt(2), selections.get(0).node(),
+				"a calendar click below a taller row must select the visible task");
+			ui.getInteractor().mouseDragged(mouse(gantt, MouseEvent.MOUSE_DRAGGED, row3Y));
+			assertSame(gantt.getCache().getElementAt(3), selections.get(1).node(),
+				"a calendar drag below a taller row must extend to the visible task");
+			ui.getInteractor().mouseReleased(mouse(gantt, MouseEvent.MOUSE_RELEASED, row3Y));
+		} finally {
+			gantt.cleanUp();
+		}
+	}
+
+	@Test
 	void horizontalGridLineIsPaintedForAnEmptyRow() {
 		Gantt gantt = newGantt();
 		try {
@@ -128,6 +195,30 @@ class GanttRendererSelectedRowTest {
 	}
 
 	@Test
+	void horizontalGridLineFollowsTheBottomOfAnOverriddenRow() {
+		Gantt gantt = newGantt();
+		try {
+			gantt.getRowHeights().setRowHeight(1, ROW_HEIGHT * 2);
+			GanttRenderer renderer = new GanttRenderer(gantt);
+			BufferedImage image = new BufferedImage(200, ROW_HEIGHT * 5, BufferedImage.TYPE_INT_ARGB);
+			Graphics2D graphics = image.createGraphics();
+			try {
+				graphics.setClip(new Rectangle(0, 0, image.getWidth(), image.getHeight()));
+				renderer.paintHorizontalLine(graphics, 1);
+			} finally {
+				graphics.dispose();
+			}
+
+			assertEquals(gantt.getGridLineColor().getRGB(), image.getRGB(100, ROW_HEIGHT * 3 - 1),
+				"the row separator must follow the overridden row height");
+			assertNotEquals(gantt.getGridLineColor().getRGB(), image.getRGB(100, ROW_HEIGHT * 2 - 1),
+				"the separator must not stay at the fixed-height position");
+		} finally {
+			gantt.cleanUp();
+		}
+	}
+
+	@Test
 	void highlightedRowsStateStoresAndNormalizesItsInput() {
 		Gantt gantt = newGantt();
 		try {
@@ -144,7 +235,7 @@ class GanttRendererSelectedRowTest {
 		}
 	}
 
-	private Gantt newGantt() {
+	private TestGantt newGantt() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		ResourcePool resourcePool = ResourcePool.createRourcePool("selected-row-test", undoController);
 		Project project = Project.createProject(resourcePool, undoController);
@@ -153,7 +244,7 @@ class GanttRendererSelectedRowTest {
 			project.createScriptedTask().setName("Selection row " + i);
 		}
 		project.recalculate();
-		Gantt gantt = new Gantt(project, "Gantt");
+		TestGantt gantt = new TestGantt(project);
 		ReferenceNodeModelCache reference = NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel());
 		references.add(reference);
 		var cache = NodeModelCacheFactory.getInstance().createFilteredCache(reference, "selected-row-test", null);
@@ -162,6 +253,16 @@ class GanttRendererSelectedRowTest {
 		gantt.setCache(cache);
 		gantt.setRowHeight(ROW_HEIGHT);
 		return gantt;
+	}
+
+	private static final class TestGantt extends Gantt {
+		private TestGantt(Project project) {
+			super(project, "Gantt");
+		}
+
+		private void installUI(GanttUI ui) {
+			setUI(ui);
+		}
 	}
 
 	private static com.microproject.ui.view.model.cache.ProjectionRowKey keyAt(Gantt gantt, int row) {
@@ -178,5 +279,10 @@ class GanttRendererSelectedRowTest {
 			graphics.dispose();
 		}
 		return image;
+	}
+
+	private static MouseEvent mouse(Gantt gantt, int id, int y) {
+		return new MouseEvent(gantt, id, System.currentTimeMillis(), InputEvent.BUTTON1_DOWN_MASK,
+				20, y, 1, false, MouseEvent.BUTTON1);
 	}
 }

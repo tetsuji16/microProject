@@ -108,6 +108,10 @@ public class PrintDocumentFactory {
 		transformer.setUserFilterId(srcTransformer.getUserFilterId()); //this is valid just because the views have the same transformers
 		transformer.setTaskSortSpec(srcTransformer.getTaskSortSpec());
 		transformer.setUserGrouperId(srcTransformer.getUserGrouperId()); //this is valid just because the views have the same transformers
+		cache.update();
+		if (view instanceof GanttView ganttView && ganttView.getGantt() != null) {
+			((GanttSVGRenderer) renderer).setRowHeights(ganttView.getGantt().getRowHeights());
+		}
 		GraphPageable document=new GraphPageable(renderer,printOnly,pdfAsDefault,true,
 				resolvedServices,resolvedDefaultService);
 		return document;

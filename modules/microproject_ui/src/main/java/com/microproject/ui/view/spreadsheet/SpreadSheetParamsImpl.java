@@ -117,7 +117,7 @@ public class SpreadSheetParamsImpl extends GanttParamsImpl implements SpreadShee
 
 	public Rectangle getSpreadSheetBounds(){
 		//return new Rectangle(0,configuration.getColumnHeaderHeight(),spreadSheetWidth,configuration.getRowHeight()*cache.getSize());
-		return new Rectangle(0,configuration.getColumnHeaderHeight(),spreadSheetWidth,getRowHeight()*cache.getSize());
+		return new Rectangle(0,configuration.getColumnHeaderHeight(),spreadSheetWidth,getRowHeights().totalHeight(cache.getSize()));
 	}
 	public Rectangle getDrawingBounds() {
 		return new Rectangle(0,configuration.getColumnHeaderHeight(),(isLeftPartVisible()?(getSpreadSheetBounds().width):0)+(isRightPartVisible()?(getGanttBounds().width):0),getSpreadSheetBounds().height+configuration.getColumnHeaderHeight());
