@@ -21,6 +21,8 @@ For Microsoft Project compatibility decisions, read `docs/agent-workflows.md` be
 
 ## Module map
 
+See [package layout](docs/architecture/package-layout.md) for package responsibilities and historical moves.
+
 - `modules/microproject_core`: scheduling engine, data model, shared utilities, and core configuration.
 - `modules/microproject_application`: open/save workflows, document coordination, and file policies.
 - `modules/microproject_ui`: Swing UI, spreadsheet and Gantt views, rendering, menus, and startup.

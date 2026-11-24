@@ -20,6 +20,16 @@ fun architectureSourceBoundaryViolations(sourceFile: File, forbiddenPackages: Li
     }
 }
 
+// Only declarations in production sources are forbidden; historical names in
+// persistence compatibility maps remain valid string data.
+fun retiredMainPackage(sourceFile: File): String? {
+    val declaration = Regex("(?m)^\\s*package\\s+([A-Za-z_$][A-Za-z0-9_$.]*)\\s*;?")
+        .find(sourceFile.readText())?.groupValues?.get(1) ?: return null
+    val retired = listOf("com.microproject.pm", "com.microproject.grouping.core",
+        "com.microproject.server", "com.microproject.offline_graphics")
+    return declaration.takeIf { name -> retired.any { name == it || name.startsWith("$it.") } }
+}
+
 fun corePresentationReferences(sourceFile: File, sourceRoot: File): Set<String> {
     val relativePath = sourceFile.relativeTo(sourceRoot).invariantSeparatorsPath
     val presentationType = Regex("(?<![A-Za-z0-9_$])(?:javax\\.swing|java\\.awt|com\\.microproject\\.(?:view\\.configuration|print|dialog))(?:[A-Za-z0-9_$.]*)(?![A-Za-z0-9_$])")
@@ -398,6 +408,23 @@ tasks.register("verifyArchitectureBoundaryFixtures") {
                 "Architecture fixture must reject a new Swing dependency in core."
             }
 
+            val retiredPackageFixture = fixtureRoot.resolve("RetiredPackage.java")
+            listOf("com.microproject.pm", "com.microproject.grouping.core.model",
+                "com.microproject.server.data", "com.microproject.offline_graphics").forEach { name ->
+                retiredPackageFixture.writeText("package $name;\nclass RetiredPackage {}\n")
+                require(retiredMainPackage(retiredPackageFixture) == name) {
+                    "Naming fixture must reject retired package $name"
+                }
+            }
+            retiredPackageFixture.writeText("package com.microproject.model.task;\nclass CurrentPackage {}\n")
+            require(retiredMainPackage(retiredPackageFixture) == null) {
+                "Naming fixture must allow the current model package"
+            }
+            retiredPackageFixture.writeText("package com.microproject.pmhelper;\nclass SimilarPackage {}\n")
+            require(retiredMainPackage(retiredPackageFixture) == null) {
+                "Naming fixture must respect package boundaries"
+            }
+
             var projectDependencyRejected = false
             try {
                 requireArchitectureSet("project dependency graph", "fixture", emptySet(), setOf("microproject_exchange"))
@@ -430,6 +457,18 @@ tasks.register("verifyNamingConventions") {
     description = "Verifies the microproject build identity, microProject product branding, and source namespace policy."
 
     doLast {
+        val retiredDeclarations = fileTree(layout.projectDirectory.dir("modules")) {
+            include("**/src/main/**/*.java", "**/src/main/**/*.kt")
+            exclude("**/build/**")
+        }.mapNotNull { source ->
+            retiredMainPackage(source)?.let { name ->
+                "${source.relativeTo(layout.projectDirectory.asFile).invariantSeparatorsPath}: $name"
+            }
+        }.sorted()
+        require(retiredDeclarations.isEmpty()) {
+            "Retired production packages must not be reintroduced:\n" + retiredDeclarations.joinToString("\n")
+        }
+
         val allowlistFile = layout.projectDirectory.file("docs/architecture/legacy-name-allowlist.tsv").asFile
         val allowedLegacyNames = allowlistFile.readLines().filter { it.isNotBlank() && !it.startsWith("#") }.map { entry ->
             val columns = entry.split("\t", limit = 3)
