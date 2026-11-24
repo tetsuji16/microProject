@@ -108,6 +108,19 @@ class GanttRendererSelectedRowTest {
 	}
 
 	@Test
+	void publicRowLookupKeepsLegacyDivisionOutsideTheVisibleRows() {
+		Gantt gantt = newGantt();
+		try {
+			int totalHeight = gantt.getRowHeights().totalHeight(gantt.getCache().getSize());
+			assertEquals(-1, gantt.getRow(-ROW_HEIGHT));
+			assertEquals(gantt.getCache().getSize(), gantt.getRow(totalHeight));
+			assertEquals(gantt.getCache().getSize() + 1, gantt.getRow(totalHeight + ROW_HEIGHT));
+		} finally {
+			gantt.cleanUp();
+		}
+	}
+
+	@Test
 	void taskRowHitTestingAndBarPositionUsePerRowHeights() {
 		Gantt gantt = newGantt();
 		try {

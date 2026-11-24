@@ -201,15 +201,14 @@ public final class RowHeights {
         return cumulativeHeights[rowCount];
     }
 
-    /** Returns the row index at or above the given y-coordinate. */
+    /** Returns the row index for y; results outside the configured rows are not clamped. */
     public int rowAt(int y) {
-        if (y < 0) {
-            return 0;
-        }
+        if (overrides.isEmpty()) return y / defaultHeight;
+        if (y < 0) return y / defaultHeight;
         ensureCache();
         int total = cumulativeHeights[rowCount];
         if (y >= total) {
-            return rowCount - 1;
+            return rowCount + (y - total) / defaultHeight;
         }
         // Binary search on cumulativeHeights
         int lo = 0;

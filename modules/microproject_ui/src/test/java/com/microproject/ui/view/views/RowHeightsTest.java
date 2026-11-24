@@ -36,9 +36,9 @@ public class RowHeightsTest {
         for (int r = 0; r <= 10; r++) {
             assertEquals(r * 20, rh.yOf(r));
         }
-        // rowAt(y) == y / defaultHeight (clamped)
-        for (int y = 0; y < 200; y++) {
-            int expected = Math.min(9, y / 20);
+        // rowAt(y) == legacy y / defaultHeight, including out-of-range coordinates.
+        for (int y = -40; y <= 220; y++) {
+            int expected = y / 20;
             assertEquals(expected, rh.rowAt(y));
         }
         // totalHeight == rowCount * defaultHeight
@@ -99,10 +99,9 @@ public class RowHeightsTest {
         assertEquals(2, rh.rowAt(79));
         assertEquals(3, rh.rowAt(80));
         assertEquals(3, rh.rowAt(99));
-        assertEquals(4, rh.rowAt(100));
+        assertEquals(5, rh.rowAt(120));
+        assertEquals(9, rh.rowAt(200));
         assertEquals(4, rh.rowAt(119));
-        assertEquals(4, rh.rowAt(120));
-        assertEquals(4, rh.rowAt(200));
     }
 
     @Test
@@ -171,8 +170,8 @@ public class RowHeightsTest {
         assertEquals(1, rh.rowAt(49));
         assertEquals(2, rh.rowAt(50));
         assertEquals(2, rh.rowAt(69));
-        assertEquals(2, rh.rowAt(70));
-        assertEquals(2, rh.rowAt(100));
+        assertEquals(3, rh.rowAt(70));
+        assertEquals(4, rh.rowAt(100));
     }
 
     @Test

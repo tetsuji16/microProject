@@ -35,15 +35,15 @@ Scope: per-row geometry for task sheet and Gantt; wrapping controls/persistence 
 - Insertions and deletions change cache size after `setCache`. `GanttModel` and `GanttParamsImpl` synchronize row counts when geometry is requested; shrinking the table removes overrides for removed rows.
 - Gantt pointer and separator paths still used fixed-height arithmetic. They now use cumulative row coordinates.
 - NetBeans Outline's `setRowHeight(row,height)` logs "Not supported yet" and does not update JTable's row model. The task SpreadSheet now supplies per-row table rectangles, hit testing, path bounds, and preferred height from the shared `RowHeights` state.
-- `RowHeights.rowAt` clamps for renderer edge calculations. GanttUI row lookup now checks the true total height first and returns `-1` outside the task area, preserving prior hit-test and drag boundary behavior.
+- `RowHeights.rowAt` remains an arithmetic coordinate conversion and does not clamp: with no overrides it exactly returns Java's legacy `y / defaultHeight`, including coordinates outside the rows. GanttUI row lookup separately checks `0 <= y < totalHeight` and returns `-1` outside the task area. Renderer iteration clamps its derived range to the visible cache bounds.
 - `RowHeights` retains per-task overrides by stable `ProjectionRowKey`; visible row indices are rebound when sorting, filtering, insertion, or deletion changes the projection. Filtered rows keep their override in the keyed map and recover it when visible again.
 
 ## Verification
 
 - `.\gradlew.bat :microproject_ui:compileJava :microproject_ui:compileTestJava --console=plain` — PASS on integrated current-master tree.
 - `.\gradlew.bat :microproject_ui:test --tests 'com.microproject.ui.view.views.TaskGanttRowHeightSyncTest' --tests 'com.microproject.ui.view.gantt.GanttRendererSelectedRowTest' --tests 'com.microproject.ui.view.spreadsheet.SpreadSheetVisibleRowSelectionTest' --tests 'com.microproject.ui.view.spreadsheet.SpreadSheetHierarchyNavigationTest' --console=plain` — PASS after table geometry and out-of-range changes.
-- `.\gradlew.bat :microproject_ui:test --console=plain` — PASS, full UI suite after keyed row identities, sort/filter remapping, row-header synchronization, Gantt out-of-range hit tests, and print cache sort/group updates.
-- `.\gradlew.bat :microproject_ui:test --tests 'com.microproject.ui.view.views.RowHeightsTest' --tests 'com.microproject.ui.view.views.TaskGanttRowHeightSyncTest' --tests 'com.microproject.ui.view.gantt.GanttRendererSelectedRowTest' --console=plain` — PASS for keyed reorder/filter behavior and table/Gantt/print integration.
+- `.\gradlew.bat :microproject_ui:test --console=plain` — PASS, full UI suite after keyed row identities, sort/filter remapping, row-header synchronization, legacy rowAt boundary behavior, Gantt out-of-range hit tests, and print cache sort/group updates.
+- `.\gradlew.bat :microproject_ui:test --tests 'com.microproject.ui.view.views.RowHeightsTest' --tests 'com.microproject.ui.view.views.TaskGanttRowHeightSyncTest' --tests 'com.microproject.ui.view.gantt.GanttRendererSelectedRowTest' --tests 'com.microproject.ui.print.GraphPageableFitToZoomTest' --tests 'com.microproject.ui.print.PageSetupSettingsTransactionTest' --tests 'com.microproject.ui.print.PrintDocumentFactoryTest' --tests 'com.microproject.ui.export.PageablePdfWriterTest' --console=plain` — PASS on master including #1347 print changes.
 - `git diff --check` — PASS.
 - `build` and `GUI acceptance` — pending exact integrated candidate SHA.
 - Physical GUI run — pending GUI acceptance workflow.
