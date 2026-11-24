@@ -4,7 +4,7 @@
  *******************************************************************************/
 package com.microproject.ui.view.network;
 
-import com.microproject.pm.graphic.network.PertManualPositions;
+import com.microproject.view.network.PertManualPositions;
 
 import java.util.HashMap;
 import java.util.Map;

@@ -49,7 +49,7 @@ import com.microproject.pm.task.Project;
 import com.microproject.ui.util.FlatUiSupport;
 import com.microproject.workspace.SavableToWorkspace;
 import com.microproject.workspace.WorkspaceSetting;
-import com.microproject.pm.graphic.network.PertManualPositions;
+import com.microproject.view.network.PertManualPositions;
 
 /**
 *

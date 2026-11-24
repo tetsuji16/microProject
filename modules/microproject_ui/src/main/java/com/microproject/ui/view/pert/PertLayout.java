@@ -36,7 +36,7 @@ import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.model.event.CompositeCacheEvent;
 import com.microproject.ui.view.network.NetworkDisplayOptions;
 import com.microproject.ui.view.network.NetworkParams;
-import com.microproject.pm.graphic.network.PertManualPositions;
+import com.microproject.view.network.PertManualPositions;
 import com.microproject.ui.view.network.layout.AbstractNetworkLayout;
 import com.microproject.graphic.configuration.GraphicConfiguration;
 import com.microproject.graphic.configuration.TexturedShape;

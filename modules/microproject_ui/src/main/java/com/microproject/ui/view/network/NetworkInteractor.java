@@ -42,7 +42,7 @@ import com.microproject.field.FieldParseException;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.undo.EditSupport;
 import com.microproject.undo.UndoController;
-import com.microproject.pm.graphic.network.PertManualPositions;
+import com.microproject.view.network.PertManualPositions;
 
 /**
 *

@@ -37,7 +37,7 @@ import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.pert.PertChart;
-import com.microproject.pm.graphic.network.PertManualPositions;
+import com.microproject.view.network.PertManualPositions;
 import com.microproject.ui.view.views.PertView;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;

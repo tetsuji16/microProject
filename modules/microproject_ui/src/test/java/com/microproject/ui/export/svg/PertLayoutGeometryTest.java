@@ -22,7 +22,7 @@ import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.model.cache.NodeModelCacheFactory;
 import com.microproject.ui.view.model.cache.ReferenceNodeModelCache;
 import com.microproject.ui.view.network.NetworkParams;
-import com.microproject.pm.graphic.network.PertManualPositions;
+import com.microproject.view.network.PertManualPositions;
 import com.microproject.ui.view.pert.PertLayout;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;

@@ -28,7 +28,7 @@ import javax.swing.undo.CannotRedoException;
 import javax.swing.undo.CannotUndoException;
 
 import com.microproject.pm.task.Project;
-import com.microproject.pm.graphic.network.PertManualPositions;
+import com.microproject.view.network.PertManualPositions;
 
 /**
  * Undoable edit for moving a Network Diagram box manually.
