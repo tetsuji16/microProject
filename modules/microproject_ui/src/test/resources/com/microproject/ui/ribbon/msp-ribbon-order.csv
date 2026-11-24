@@ -75,7 +75,6 @@ TabTask,GroupTaskInsert,13,TaskDependencySynchronize,DeliverablesMenu
 TabTask,GroupTaskProperties,1,TaskInformation,
 TabTask,GroupTaskProperties,2,TaskNotes,
 TabTask,GroupTaskProperties,3,TaskDetailsDisplay,
-TabTask,GroupTaskProperties,4,AssignmentInformation,
 TabTask,GroupTaskProperties,5,TaskAddToTimeline,
 TabTask,GroupEditing,1,SelectedTaskGoTo,
 TabTask,GroupEditing,2,SelectMenuExcel,

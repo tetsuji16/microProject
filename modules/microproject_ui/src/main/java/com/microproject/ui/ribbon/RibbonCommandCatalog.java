@@ -202,7 +202,7 @@ final class RibbonCommandCatalog {
 			tabs.addAll(Set.of(TASK_SHEET_FORMAT, TASK_USAGE_FORMAT, RESOURCE_SHEET_FORMAT, RESOURCE_USAGE_FORMAT));
 			result.put(id, new Placement(placement.scope(), placement.primaryTab(), Set.copyOf(tabs)));
 		}
-		register(result, CommandScope.TASK, TASK, Set.of(TASK, TASK_USAGE_FORMAT, RESOURCE_USAGE_FORMAT),
+		register(result, CommandScope.FORMAT, TASK_USAGE_FORMAT, Set.of(TASK_USAGE_FORMAT, RESOURCE_USAGE_FORMAT),
 			"RibbonAssignmentInformation");
 		for (String id : List.of("RibbonOutlineNumbers", "RibbonSummaryTasks")) {
 			Placement placement = result.get(id);

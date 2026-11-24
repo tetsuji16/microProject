@@ -10,10 +10,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Window;
 import java.awt.event.InputEvent;
+import java.awt.image.BufferedImage;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ResourceBundle;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.AbstractButton;
 import javax.swing.JSpinner;
@@ -115,8 +120,19 @@ class AssignmentInformationGuiAcceptanceTest {
 			if (info == null) throw new AssertionError("Visible ribbon command not found: RibbonAssignmentInformation");
 			GuiAcceptanceSupport.await(info::isEnabled, "Assignment Information must enable for a selected assignment");
 			GuiAcceptanceSupport.await(() -> info.isShowing(), "Assignment Information button must be showing");
+			assertAssignmentSelection(frame, manager, sheet, assignment, info);
+			AtomicInteger commandDispatches = new AtomicInteger();
+			info.addActionListener(event -> commandDispatches.incrementAndGet());
 			click(robot, info);
-			AssignmentInformationDialog dialog = awaitDialog();
+			if (commandDispatches.get() != 1) captureRouteFailure(frame, manager, sheet, assignment, info);
+			assertEquals(1, commandDispatches.get(), "The physical click must dispatch the registered ribbon action");
+			AssignmentInformationDialog dialog;
+			try {
+				dialog = awaitDialog();
+			} catch (AssertionError failure) {
+				captureRouteFailure(frame, manager, sheet, assignment, info);
+				throw failure;
+			}
 			JSpinner spinner = (JSpinner) named(dialog, "assignmentUnits");
 			javax.swing.JFormattedTextField unitsField = ((JSpinner.DefaultEditor) spinner.getEditor()).getTextField();
 			click(robot, unitsField);
@@ -164,8 +180,15 @@ class AssignmentInformationGuiAcceptanceTest {
 			GuiAcceptanceSupport.await(resourceUsageFormatTab::isSelected, "Resource Usage Format tab did not select");
 			AbstractButton resourceInfo = RibbonGuiSupport.findVisibleOrExpand(robot, frame, "RibbonAssignmentInformation");
 			GuiAcceptanceSupport.await(resourceInfo::isEnabled, "Command must enable on Resource Usage Format");
+			assertAssignmentSelection(frame, manager, resourceSheet, assignment, resourceInfo);
 			click(robot, resourceInfo);
-			AssignmentInformationDialog resourceDialog = awaitDialog();
+			AssignmentInformationDialog resourceDialog;
+			try {
+				resourceDialog = awaitDialog();
+			} catch (AssertionError failure) {
+				captureRouteFailure(frame, manager, resourceSheet, assignment, resourceInfo);
+				throw failure;
+			}
 			robot.keyPress(java.awt.event.KeyEvent.VK_ESCAPE);
 			robot.keyRelease(java.awt.event.KeyEvent.VK_ESCAPE);
 			GuiAcceptanceSupport.await(() -> !resourceDialog.isShowing(), "Escape must cancel the dialog");
@@ -193,6 +216,70 @@ class AssignmentInformationGuiAcceptanceTest {
 			return found[0] != null;
 		}, "AssignmentInformationDialog must appear");
 		return found[0];
+	}
+
+	private static void assertAssignmentSelection(MainRibbonFrame frame, GraphicManager manager, SpreadSheet sheet,
+			Assignment assignment, AbstractButton command) throws Exception {
+		Object[] state = new Object[3];
+		javax.swing.SwingUtilities.invokeAndWait(() -> {
+			state[0] = manager.getCurrentFrame().getActiveTopView();
+			state[1] = sheet.getSelectedNodes().size() == 1
+				&& sheet.getSelectedNodes().get(0).getImpl() == assignment;
+			try {
+				var resolver = GraphicManager.class.getDeclaredMethod("informationSelectionSnapshot");
+				resolver.setAccessible(true);
+				Object selection = resolver.invoke(manager);
+				var kind = selection.getClass().getDeclaredMethod("kind");
+				var selectedAssignment = selection.getClass().getDeclaredMethod("assignment");
+				kind.setAccessible(true);
+				selectedAssignment.setAccessible(true);
+				state[2] = kind.invoke(selection) + ":" + (selectedAssignment.invoke(selection) == assignment);
+			} catch (ReflectiveOperationException failure) {
+				throw new RuntimeException(failure);
+			}
+		});
+		if (!(state[0] instanceof UsageDetailView) || !Boolean.TRUE.equals(state[1])
+				|| !"ASSIGNMENT:true".equals(state[2])) captureRouteFailure(frame, manager, sheet, assignment, command);
+		assertTrue(state[0] instanceof UsageDetailView, "The action resolver must see the active Usage Detail view");
+		assertEquals(Boolean.TRUE, state[1], "The actual assignment row must remain selected when the format tab is active");
+		assertEquals("ASSIGNMENT:true", state[2], "The action's selection resolver must resolve this exact assignment");
+		assertEquals("RibbonAssignmentInformationAction",
+			manager.getAction("RibbonAssignmentInformation").getClass().getSimpleName(),
+			"The ribbon command must map to its registered document action");
+	}
+
+	private static void captureRouteFailure(MainRibbonFrame frame, GraphicManager manager, SpreadSheet sheet,
+			Assignment assignment, AbstractButton command) throws Exception {
+		Path directory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"));
+		Files.createDirectories(directory);
+		StringBuilder state = new StringBuilder().append("frameBounds=").append(frame.getBounds()).append('\n')
+			.append("commandEnabled=").append(command.isEnabled()).append('\n')
+			.append("commandAction=").append(manager.getAction("RibbonAssignmentInformation").getClass().getName()).append('\n');
+		javax.swing.SwingUtilities.invokeAndWait(() -> {
+			state.append("activeTopView=").append(manager.getCurrentFrame().getActiveTopView().getClass().getName()).append('\n')
+				.append("selectedNodes=").append(sheet.getSelectedNodes().size()).append('\n')
+				.append("selectedAssignment=").append(sheet.getSelectedNodes().size() == 1
+					&& sheet.getSelectedNodes().get(0).getImpl() == assignment).append('\n');
+			try {
+				var resolver = GraphicManager.class.getDeclaredMethod("informationSelectionSnapshot");
+				resolver.setAccessible(true);
+				Object selection = resolver.invoke(manager);
+				var kind = selection.getClass().getDeclaredMethod("kind");
+				var selectedAssignment = selection.getClass().getDeclaredMethod("assignment");
+				kind.setAccessible(true);
+				selectedAssignment.setAccessible(true);
+				state.append("selectionResolver=").append(kind.invoke(selection)).append(":")
+					.append(selectedAssignment.invoke(selection) == assignment).append('\n');
+			} catch (ReflectiveOperationException failure) {
+				state.append("selectionResolverFailure=").append(failure).append('\n');
+			}
+			for (Window window : Window.getWindows()) state.append(window.getClass().getName())
+				.append(" showing=").append(window.isShowing()).append(" bounds=").append(window.getBounds()).append('\n');
+		});
+		Files.writeString(directory.resolve("assignment-information-route-failure.txt"), state);
+		Rectangle desktop = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+		BufferedImage screenshot = new Robot().createScreenCapture(desktop);
+		javax.imageio.ImageIO.write(screenshot, "png", directory.resolve("assignment-information-route-failure.png").toFile());
 	}
 
 	private static <T> T named(Container root, String name) {

@@ -222,7 +222,7 @@ class RibbonStructureTest {
 		}
 		// Custom Fields is both a Project Properties command and a Columns command of the Gantt Chart Format tab.
 				Set<String> permittedDuplicates = Set.of("RibbonPaste", "RibbonCopy", "RibbonCut", "RibbonCustomFields", "RibbonFontName", "RibbonFontSize", "RibbonBold", "RibbonItalic",
-					"RibbonUnderline", "RibbonFillColor", "RibbonFontColor", "RibbonFont", "RibbonAssignmentInformation");
+					"RibbonUnderline", "RibbonFillColor", "RibbonFontColor", "RibbonFont");
 		Set<String> contextualFormatCommands = Set.of(
 					"RibbonToggleProgressLine", "RibbonLabelResourceNames", "RibbonLabelTaskName",
 					"RibbonGridlines", "RibbonToggleCriticalChain", "RibbonTimescale", "RibbonBarStyles",
@@ -243,7 +243,7 @@ class RibbonStructureTest {
 					"RibbonTeamPlannerTextStyles", "RibbonTeamPlannerTextLines", "RibbonTeamPlannerSelectedStyle", "RibbonTeamPlannerAutoStyle",
 					"RibbonTeamPlannerManualStyle", "RibbonTeamPlannerActualStyle", "RibbonTeamPlannerExternalStyle", "RibbonTeamPlannerLateStyle",
 					"RibbonTeamPlannerPreventOverallocation", "RibbonTeamPlannerExpandRows", "RibbonTeamPlannerUnassigned", "RibbonTeamPlannerUnscheduled",
-					// Assignment Information appears in Task, Task Usage Format, and Resource Usage Format
+					// Assignment Information is shared by the Task Usage and Resource Usage Format tabs
 					"RibbonAssignmentInformation");
 		for (Map.Entry<String, Set<String>> entry : tabsByButton.entrySet()) {
 			boolean legalContextualFormatDuplicate = contextualFormatCommands.contains(entry.getKey())
