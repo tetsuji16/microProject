@@ -172,6 +172,8 @@ class TeamPlannerServiceTest {
 
 		assertFalse(TeamPlannerService.isOverallocated(fixture.first),
 			"work in an assignment split gap must not be added to the other assignment's units");
+		assertFalse(new TeamPlannerService().isOverallocated(splitTask),
+			"a candidate must not be reported overallocated when the overlap exists only in its split gap");
 	}
 
 	private Fixture fixture() {

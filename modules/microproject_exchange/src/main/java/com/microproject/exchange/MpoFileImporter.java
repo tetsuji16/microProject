@@ -337,38 +337,39 @@ public class MpoFileImporter extends FileImporter {
 			state.json = new OperationLog().writeJsonl(state.documentId, normalized, state.appliedOperationIds);
 			state.capture(project);
 		}
-		if (!extensions.entries.isEmpty()) project.getOrCreateTransientDocumentState(MpoExtensions.class, MpoExtensions::new).entries.putAll(extensions.entries);
-					MpoEmbeddedProjects.restoreEmbeddedProjectReferences(project, manifestData, extensions.entries, embeddedProjectFailures);
-					String taskIdentitiesStr = taskIdentities == null ? null : new String(taskIdentities, StandardCharsets.UTF_8);
-					restoreTaskExtensions(project, extensions.entries, taskIdentitiesStr);
-					return project;
+		if (!extensions.entries.isEmpty())
+			project.getOrCreateTransientDocumentState(MpoExtensions.class, MpoExtensions::new).entries.putAll(extensions.entries);
+		MpoEmbeddedProjects.restoreEmbeddedProjectReferences(project, manifestData, extensions.entries, embeddedProjectFailures);
+		String taskIdentitiesStr = taskIdentities == null ? null : new String(taskIdentities, StandardCharsets.UTF_8);
+		restoreTaskExtensions(project, extensions.entries, taskIdentitiesStr);
+		return project;
 	}
 
 	/** Applies the task data MSPDI cannot hold; opening a file and copying a model must agree on it. */
-		private static void restoreTaskExtensions(Project project, java.util.Map<String, byte[]> entries, String taskIdentities) throws IOException {
-			if (entries.containsKey(TASK_SPLITS_ENTRY))
-				MpoSidecarJson.restoreTaskSplits(project, entries.get(TASK_SPLITS_ENTRY));
-			if (entries.containsKey(TASK_LEVELING_OPTIONS_ENTRY))
-				MpoSidecarJson.restoreTaskLevelingOptions(project, entries.get(TASK_LEVELING_OPTIONS_ENTRY));
-			else
-				MpoSidecarJson.resetLegacyTaskLevelingDefaults(project);
-			if (entries.containsKey(TASK_TEXT_STYLES_ENTRY))
-				MpoSidecarJson.restoreTaskTextStyles(project, entries.get(TASK_TEXT_STYLES_ENTRY));
+	private static void restoreTaskExtensions(Project project, java.util.Map<String, byte[]> entries, String taskIdentities) throws IOException {
+		if (entries.containsKey(TASK_SPLITS_ENTRY))
+			MpoSidecarJson.restoreTaskSplits(project, entries.get(TASK_SPLITS_ENTRY));
+		if (entries.containsKey(TASK_LEVELING_OPTIONS_ENTRY))
+			MpoSidecarJson.restoreTaskLevelingOptions(project, entries.get(TASK_LEVELING_OPTIONS_ENTRY));
+		else
+			MpoSidecarJson.resetLegacyTaskLevelingDefaults(project);
+		if (entries.containsKey(TASK_TEXT_STYLES_ENTRY))
+			MpoSidecarJson.restoreTaskTextStyles(project, entries.get(TASK_TEXT_STYLES_ENTRY));
 		if (entries.containsKey(TASK_MARKED_ENTRY))
 			MpoSidecarJson.restoreTaskMarked(project, entries.get(TASK_MARKED_ENTRY));
 		if (entries.containsKey(SHEET_TEXT_STYLES_ENTRY))
 			MpoSidecarJson.restoreSheetTextStyles(project, entries.get(SHEET_TEXT_STYLES_ENTRY));
 		else
 			project.setSheetTextStyles(SheetTextStyles.empty());
-			if (entries.containsKey(TASK_SCHEDULES_ENTRY))
-				MpoSidecarJson.restoreTaskSchedules(project, entries.get(TASK_SCHEDULES_ENTRY));
-			if (entries.containsKey(BASELINE_PROFILES_ENTRY))
-				MpoSidecarJson.restoreBaselineProfiles(project, entries.get(BASELINE_PROFILES_ENTRY));
-			if (entries.containsKey(ASSIGNMENT_LEVELING_SPLITS_ENTRY))
-				MpoSidecarJson.restoreAssignmentLevelingSplits(project, entries.get(ASSIGNMENT_LEVELING_SPLITS_ENTRY));
-			if (entries.containsKey(PERT_MANUAL_POSITIONS_ENTRY))
-						MpoSidecarJson.restorePertManualPositions(project, entries.get(PERT_MANUAL_POSITIONS_ENTRY), taskIdentities);
-		}
+		if (entries.containsKey(TASK_SCHEDULES_ENTRY))
+			MpoSidecarJson.restoreTaskSchedules(project, entries.get(TASK_SCHEDULES_ENTRY));
+		if (entries.containsKey(BASELINE_PROFILES_ENTRY))
+			MpoSidecarJson.restoreBaselineProfiles(project, entries.get(BASELINE_PROFILES_ENTRY));
+		if (entries.containsKey(ASSIGNMENT_LEVELING_SPLITS_ENTRY))
+			MpoSidecarJson.restoreAssignmentLevelingSplits(project, entries.get(ASSIGNMENT_LEVELING_SPLITS_ENTRY));
+		if (entries.containsKey(PERT_MANUAL_POSITIONS_ENTRY))
+			MpoSidecarJson.restorePertManualPositions(project, entries.get(PERT_MANUAL_POSITIONS_ENTRY), taskIdentities);
+	}
 
 	@Override
 	public void exportFile() throws Exception {
