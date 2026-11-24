@@ -54,16 +54,27 @@ public final class AssignmentInformationEditService {
 			try {
 				assignment.restoreDetail(before.get(assignment));
 				assignment.doUpdateService(source);
+			} catch (RuntimeException | Error rollbackFailure) {
+				failure.addSuppressed(rollbackFailure);
 			} finally {
 				rollbackRecording.close();
+				editSupport.discardSince(command.group(), checkpoint);
 			}
-			editSupport.discardSince(command.group(), checkpoint);
 			throw failure;
 		} finally {
-			project.fireMultipleTransaction(transaction, false);
-			if (applied) editSupport.reserveCommit(command.group());
-			command.close();
-			editSupport.completePublication(command.group());
+			try {
+				project.fireMultipleTransaction(transaction, false);
+			} finally {
+				try {
+					if (applied) editSupport.reserveCommit(command.group());
+				} finally {
+					try {
+						command.close();
+					} finally {
+						editSupport.completePublication(command.group());
+					}
+				}
+			}
 		}
 	}
 }

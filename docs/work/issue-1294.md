@@ -6,21 +6,21 @@
 - Out of scope: tracking fields, rich-text notes, double-click route and Project Server booking fields.
 
 ## Implementation
-- Catalog and enable command only on the two usage Format tabs for an editable selected assignment.
+- Catalog/enable only on the two usage Format tabs for an editable selected assignment.
 - Dialog uses `AbstractDialog`/`PopupDialogSupport`; labels and validation are localized EN/JA.
-- Application service posts a single edit group only after success. On failure it restores the model and discards edits since the undo checkpoint, preserving prior history.
+- Application edit service publishes one undo group after success. On failure it restores the model, discards edits since the undo checkpoint and preserves prior history.
 - Headless tests cover edit/undo, cancel, read-only, failure rollback/history preservation, MPO round-trip and ribbon enablement.
-- GUI journey now uses Task Usage Format, physical keyboard editing + Undo, then Resource Usage Format assignment selection + command + Escape cancel.
+- `@GuiJourney(RIBBON_CLICK)` physically exercises Task Usage Format, units edit and Undo, then Resource Usage Format, selected assignment, command and Escape cancellation.
 
-## Evidence on local candidate before latest master integration
+## Evidence on latest integrated local candidate
 | Criterion | Evidence | Status |
 |---|---|---|
-| Service mutation, rollback and Undo history | `:microproject_ui:test --tests 'com.microproject.ui.dialog.AssignmentInformationDialogTest'` | Pass |
-| All UI unit tests | `:microproject_ui:test` | Pass |
-| GUI journey source compile and journey contract | `:microproject_ui:compileGuiTestJava -PguiTestSuite=smoke` | Pass |
-| GUI physical route | `:microproject_ui:guiTest --tests 'com.microproject.ui.dialog.AssignmentInformationGuiAcceptanceTest'` | Blocked before first Robot input: foreground Claude PDF window overlapped test window (`GUI_ENVIRONMENT_CONTENDED`); no app was closed. |
-| Required build and GUI acceptance | Latest prior candidate `a09d89c42` | Build and GUI acceptance passed, but predates the corrected journey and undo fix. Re-run after push. |
+| Failure rollback/history | `:microproject_ui:test --tests 'com.microproject.ui.dialog.AssignmentInformationDialogTest'` | Pass |
+| Full UI unit suite | `:microproject_ui:test` | Pass |
+| Main/test/GUI journey compile | `:microproject_ui:compileJava :microproject_ui:compileTestJava :microproject_ui:compileGuiTestJava -PguiTestSuite=smoke` | Pass |
+| Physical GUI route | `:microproject_ui:guiTest --tests 'com.microproject.ui.dialog.AssignmentInformationGuiAcceptanceTest'` | Blocked before first Robot input: foreground Claude PDF window overlapped the test window (`GUI_ENVIRONMENT_CONTENDED`); no app was closed. |
+| Required checks | Exact pushed candidate | Pending after final push |
 
 ## Remaining work
-- Latest `origin/master` includes #1354 (`21b1f5383`). Integrate it, rerun checks, push branch, and inspect build/GUI acceptance on exact head.
-- Do not close issue until exact-head required checks and physical route evidence pass.
+- Push after latest origin/master #1354 integration; inspect exact-head Build and GUI acceptance checks.
+- Do not close issue until required checks pass and physical route evidence is available.
