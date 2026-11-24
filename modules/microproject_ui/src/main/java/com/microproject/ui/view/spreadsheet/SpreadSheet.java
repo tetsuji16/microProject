@@ -237,6 +237,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	@Override
 	public TreePath getClosestPathForLocation(int x, int y) {
 		int row = rowAtPoint(new Point(x, y));
+		if (row < 0) row = getRowCount() == 0 ? -1 : y < 0 ? 0 : getRowCount() - 1;
 		int modelRow = row < 0 ? -1 : convertRowIndexToModel(row);
 		return modelRow < 0 || getOutlineModel() == null ? null : getOutlineModel().getLayout().getPathForRow(modelRow);
 	}
@@ -244,9 +245,15 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	@Override
 	public Rectangle getPathBounds(TreePath path) {
 		if (path == null || getOutlineModel() == null) return null;
+		Rectangle bounds = super.getPathBounds(path);
+		if (bounds == null) return null;
+		ensureRowHeights();
 		int modelRow = getOutlineModel().getLayout().getRowForPath(path);
 		int viewRow = modelRow < 0 ? -1 : convertRowIndexToView(modelRow);
-		return viewRow < 0 ? null : getCellRect(viewRow, 0, true);
+		if (viewRow < 0) return null;
+		bounds.y = rowHeights.yOf(viewRow);
+		bounds.height = getRowHeight(viewRow);
+		return bounds;
 	}
 
 	@Override

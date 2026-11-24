@@ -24,12 +24,14 @@
 package com.microproject.ui.view.views;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.util.ArrayList;
 import java.awt.Point;
 import javax.swing.SwingUtilities;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
+import javax.swing.tree.TreePath;
 import org.netbeans.swing.outline.DefaultOutlineModel;
 import org.netbeans.swing.outline.RowModel;
 import org.junit.jupiter.api.Test;
@@ -46,6 +48,42 @@ import com.microproject.ui.view.spreadsheet.SpreadSheet;
 import com.microproject.undo.DataFactoryUndoController;
 
 class TaskGanttRowHeightSyncTest {
+	@Test
+	void variableGeometryPreservesOutlineIndentAndClosestPathBehavior() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			DefaultMutableTreeNode root = new DefaultMutableTreeNode("root");
+			DefaultMutableTreeNode parent = new DefaultMutableTreeNode("Parent");
+			DefaultMutableTreeNode child = new DefaultMutableTreeNode("Group");
+			DefaultMutableTreeNode leaf = new DefaultMutableTreeNode("Child");
+			root.add(parent);
+			parent.add(child);
+			child.add(leaf);
+			SpreadSheet sheet = new SpreadSheet();
+			sheet.setModel(DefaultOutlineModel.createOutlineModel(new DefaultTreeModel(root), new TestRowModel(), false, "Name"));
+			sheet.setRootVisible(false);
+			TreePath parentPath = new TreePath(parent.getPath());
+			TreePath childPath = new TreePath(child.getPath());
+			TreePath leafPath = new TreePath(leaf.getPath());
+			sheet.expandPath(parentPath);
+			sheet.expandPath(childPath);
+			sheet.setRowHeight(0, 30);
+			sheet.setRowHeight(2, 48);
+
+			java.awt.Rectangle childBounds = sheet.getPathBounds(leafPath);
+			assertNotNull(childBounds);
+			java.awt.Rectangle outlineBounds = sheet.getOutlineModel().getLayout().getBounds(leafPath, null);
+			assertEquals(outlineBounds.x + sheet.getInsets().left, childBounds.x,
+				"row-height adjustment must preserve Outline's hierarchical x offset");
+			assertEquals(outlineBounds.width, childBounds.width,
+				"row-height adjustment must preserve Outline's path width");
+			assertEquals(30 + sheet.getRowHeight(1), childBounds.y);
+			assertEquals(48, childBounds.height);
+			assertEquals(leafPath, sheet.getClosestPathForLocation(childBounds.x, childBounds.y + 2));
+			assertEquals(leafPath, sheet.getClosestPathForLocation(childBounds.x, sheet.getPreferredSize().height + 10),
+				"Outline closest-path behavior should still resolve blank space below the rows");
+		});
+	}
+
 	@Test
 	void defaultAndPerRowHeightsStayAlignedAcrossTableGanttAndPrintRenderer() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
