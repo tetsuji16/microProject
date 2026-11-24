@@ -33,6 +33,7 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowEvent;
+import java.awt.event.WindowAdapter;
 import java.awt.event.WindowStateListener;
 import java.io.IOException;
 import java.io.File;
@@ -56,6 +57,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.prefs.Preferences;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.swing.AbstractButton;
@@ -2396,12 +2398,44 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			DocumentFrame frame = getCurrentFrame();
 			InformationSelection selection = informationSelectionSnapshot();
-			if (frame == null || !(frame.getActiveTopView() instanceof UsageDetailView)
-					|| selection.kind() != InformationSelectionKind.ASSIGNMENT || !isDocumentWritable())
+			String rejection = frame == null ? "no-active-document"
+				: !(frame.getActiveTopView() instanceof UsageDetailView) ? "wrong-view"
+				: selection.kind() != InformationSelectionKind.ASSIGNMENT ? "no-assignment-selection"
+				: !isDocumentWritable() ? "read-only" : null;
+			if (rejection != null) {
+				traceUi("assignment-information rejected reason=" + rejection + " selection=" + selection.kind()
+					+ " activeView=" + (frame == null ? "" : frame.getTopViewId()));
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected("RibbonAssignmentInformation", rejection));
 				return;
+			}
 			finishAnyOperations();
-			new AssignmentInformationDialog(getFrame(), selection.assignment()).doModal();
+			traceUi("assignment-information presenting selection=" + selection.kind()
+				+ " activeView=" + frame.getTopViewId() + " editable=" + isDocumentWritable());
+			try {
+				boolean visible = presentAssignmentInformationDialog(selection.assignment());
+				RibbonCommandResult result = visible
+					? new RibbonCommandResult("RibbonAssignmentInformation", RibbonCommandResult.Status.DISPATCHED,
+						"", List.of(), List.of(), frame.getTopViewId())
+					: new RibbonCommandResult("RibbonAssignmentInformation", RibbonCommandResult.Status.FAILED,
+						"dialog-not-visible", List.of(), List.of(), frame.getTopViewId());
+				publishTaskCommandOutcome(this, result);
+			} catch (RuntimeException | Error failure) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.failed("RibbonAssignmentInformation", failure)
+					.withActiveView(frame.getTopViewId()));
+				throw failure;
+			}
 		}
+	}
+
+	/** Presents the assignment dialog and reports whether it actually opened. */
+	protected boolean presentAssignmentInformationDialog(Assignment assignment) {
+		AtomicBoolean opened = new AtomicBoolean();
+		AssignmentInformationDialog dialog = new AssignmentInformationDialog(getFrame(), assignment);
+		dialog.addWindowListener(new WindowAdapter() {
+			@Override public void windowOpened(WindowEvent event) { opened.set(true); }
+		});
+		dialog.doModal();
+		return opened.get();
 	}
 	public class RibbonTaskInspectorAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;

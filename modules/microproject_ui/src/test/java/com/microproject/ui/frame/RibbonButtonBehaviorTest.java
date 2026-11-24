@@ -1328,6 +1328,24 @@ class RibbonButtonBehaviorTest {
 	}
 
 	@Test
+	void assignmentInformationActionDispatchesTheResolvedAssignmentToItsPresenter() throws Exception {
+		Harness harness = newHarness();
+		harness.setTaskInformation(true, true);
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.activateView(MenuActionConstants.ACTION_TASK_USAGE_DETAIL);
+			harness.selectSingle(harness.assignmentNode);
+			harness.manager.setButtonState(harness.assignment, harness.project);
+			Action action = harness.manager.getAction("RibbonAssignmentInformation");
+			action.actionPerformed(new ActionEvent(action, ActionEvent.ACTION_PERFORMED, "RibbonAssignmentInformation"));
+			assertEquals(harness.assignment, harness.manager.assignmentInformationTarget,
+				"The document action must present the exact selected assignment");
+			assertEquals(RibbonCommandResult.Status.DISPATCHED,
+				harness.manager.getLastRibbonCommandResult().status());
+			assertEquals("TaskUsageDetail", harness.manager.getLastRibbonCommandResult().activeViewId());
+		});
+	}
+
+	@Test
 	void informationEnablementUsesOneTypedSelectionSnapshotForEverySelectionKind() throws Exception {
 		Harness harness = newHarness();
 		harness.setTaskInformation(true, false);
@@ -2489,6 +2507,7 @@ class RibbonButtonBehaviorTest {
 		private boolean taskInformationRouteAccepted;
 		private boolean taskInformationVisible;
 		private RuntimeException taskInformationFailure;
+		private Assignment assignmentInformationTarget;
 
 		RecordingGraphicManager(JPanel panel, List<Call> calls) {
 			super(panel);
@@ -2554,6 +2573,12 @@ class RibbonButtonBehaviorTest {
 			if (taskInformationFailure != null)
 				throw taskInformationFailure;
 			return taskInformationVisible;
+		}
+
+		@Override
+		protected boolean presentAssignmentInformationDialog(Assignment assignment) {
+			assignmentInformationTarget = assignment;
+			return true;
 		}
 
 		@Override

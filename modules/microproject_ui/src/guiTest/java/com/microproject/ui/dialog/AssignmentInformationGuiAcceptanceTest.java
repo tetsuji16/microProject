@@ -21,6 +21,7 @@ import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.AbstractButton;
+import javax.swing.Action;
 import javax.swing.JSpinner;
 
 import org.junit.jupiter.api.Assumptions;
@@ -28,6 +29,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.model.assignment.Assignment;
 import com.microproject.model.assignment.AssignmentService;
+import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.ui.frame.DocumentFrame;
 import com.microproject.ui.frame.GraphicManager;
 import com.microproject.ui.frame.MainRibbonFrame;
@@ -256,6 +258,13 @@ class AssignmentInformationGuiAcceptanceTest {
 			.append("commandEnabled=").append(command.isEnabled()).append('\n')
 			.append("commandAction=").append(manager.getAction("RibbonAssignmentInformation").getClass().getName()).append('\n');
 		javax.swing.SwingUtilities.invokeAndWait(() -> {
+			Action buttonAction = command.getAction();
+			Object ribbonOutcome = buttonAction == null ? null
+				: buttonAction.getValue(RibbonCommandResult.RESULT_ACTION_PROPERTY);
+			state.append("buttonAction=").append(buttonAction == null ? "null" : buttonAction.getClass().getName()).append('\n')
+				.append("buttonActionListeners=").append(java.util.Arrays.stream(command.getActionListeners())
+					.map(listener -> listener.getClass().getName()).toList()).append('\n')
+				.append("ribbonOutcome=").append(ribbonOutcome).append('\n');
 			state.append("activeTopView=").append(manager.getCurrentFrame().getActiveTopView().getClass().getName()).append('\n')
 				.append("selectedNodes=").append(sheet.getSelectedNodes().size()).append('\n')
 				.append("selectedAssignment=").append(sheet.getSelectedNodes().size() == 1
