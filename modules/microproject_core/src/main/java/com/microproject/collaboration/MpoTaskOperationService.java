@@ -158,8 +158,8 @@ public final class MpoTaskOperationService {
 		// a historical move here would try to validate against a not-yet-loaded owner.
 		if (parent instanceof SubProj subproject && subproject.getSubproject() == null)
 			return;
-		com.microproject.grouping.core.Node childNode = project.getTaskModel().search(task);
-		com.microproject.grouping.core.Node parentNode = parent == null ? null : project.getTaskModel().search(parent);
+		com.microproject.node.Node childNode = project.getTaskModel().search(task);
+		com.microproject.node.Node parentNode = parent == null ? null : project.getTaskModel().search(parent);
 		if (childNode == null || (parent != null && parentNode == null)) throw new IOException("task.move cannot resolve task hierarchy");
 		project.setLocalParent(childNode, parentNode);
 	}

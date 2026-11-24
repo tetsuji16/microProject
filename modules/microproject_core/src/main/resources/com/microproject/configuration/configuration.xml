@@ -22,7 +22,7 @@
 		</int>
 		<int>
 			<name>
-				com.microproject.grouping.core.hierarchy.MutableNodeHierarchy.DEFAULT_NB_END_VOID_NODES
+				com.microproject.node.hierarchy.MutableNodeHierarchy.DEFAULT_NB_END_VOID_NODES
 			</name>
 			<value>50</value>
 		</int>
@@ -155,7 +155,7 @@
 				vector="true" duration="true" work="true" sum="Sum" readOnly="true" />
 		</class>
 		<class
-			name="com.microproject.grouping.core.hierarchy.BelongsToHierarchy">
+			name="com.microproject.node.hierarchy.BelongsToHierarchy">
 			<!-- since there is currently no way to show other hierarchies, I have limited the number of indexed fields to 1 instead of 11 -->
 			<field property="parentId" id="Field.parentId#" indexes="1"
 				zeroBasedIndex="true"
@@ -796,17 +796,17 @@
 		<class name="com.microproject.ui.view.model.cache.GraphicNode" />
 		<class name="com.microproject.view.configuration.CellStyle" />
 		<class name="com.microproject.view.configuration.CellFormat" />
-		<class name="com.microproject.grouping.core.model.NodeModel" />
+		<class name="com.microproject.node.model.NodeModel" />
 		<class name="com.microproject.util.Environment" />
 		<class name="com.microproject.view.configuration.ActionList" />
 		<class name="java.lang.String" />
 		<class
-			name="com.microproject.grouping.core.transform.filtering.NodeFilter" />
+			name="com.microproject.node.transform.filtering.NodeFilter" />
 		<class
-			name="com.microproject.grouping.core.transform.sorting.NodeSorter" />
+			name="com.microproject.node.transform.sorting.NodeSorter" />
 		<class
-			name="com.microproject.grouping.core.transform.transformer.NodeTransformer" />
-		<class name="com.microproject.grouping.core.Node" />
+			name="com.microproject.node.transform.transformer.NodeTransformer" />
+		<class name="com.microproject.node.Node" />
 		<class name="com.microproject.pm.assignment.Assignment" />
 		<class name="com.microproject.datatype.Duration" />
 		<class name="com.microproject.datatype.DurationFormat" />

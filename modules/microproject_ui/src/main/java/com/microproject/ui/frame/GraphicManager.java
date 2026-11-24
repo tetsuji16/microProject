@@ -1554,14 +1554,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (activeSheet != null && activeSheet.isHeaderColumnSelectionActive())
 			return InformationSelection.empty(InformationSelectionKind.HEADER);
 		if (activeSheet != null && activeSheet.getSelectedRows().length > 0) {
-			List<com.microproject.grouping.core.Node> activeSelection = activeSheet.getSelectedNodes();
+			List<com.microproject.node.Node> activeSelection = activeSheet.getSelectedNodes();
 			if (activeSelection == null || activeSelection.isEmpty())
 				return InformationSelection.empty(InformationSelectionKind.NONE);
 			if (activeSelection.size() != 1)
 				return InformationSelection.empty(InformationSelectionKind.MULTIPLE);
 			Object impl = activeSelection.get(0).getImpl();
 			if (impl instanceof Task) {
-				List<com.microproject.grouping.core.Node> selectedTasks = frame.getSelectedTaskNodes(false, false);
+				List<com.microproject.node.Node> selectedTasks = frame.getSelectedTaskNodes(false, false);
 				if (selectedTasks.size() != 1 || selectedTasks.get(0).getImpl() != impl)
 					return InformationSelection.empty(InformationSelectionKind.NONE);
 			}
@@ -3414,7 +3414,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		DocumentFrame frame = getCurrentFrame();
 		if (frame != null)
 			for (Object node : frame.getSelectedTaskNodes(false, false))
-				if (node instanceof com.microproject.grouping.core.Node selected)
+				if (node instanceof com.microproject.node.Node selected)
 					types.add(com.microproject.ui.view.network.NetworkDisplayOptions.boxType(selected.getImpl()));
 		return types.isEmpty()
 			? java.util.List.of(com.microproject.ui.view.network.NetworkDisplayOptions.BoxType.values())
@@ -4184,8 +4184,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 					.withActiveView(frame.getTopViewId()));
 				return;
 			}
-			com.microproject.grouping.core.transform.ViewConfiguration view =
-				com.microproject.grouping.core.transform.ViewConfiguration.getView(frame.getTopViewId());
+			com.microproject.node.transform.ViewConfiguration view =
+				com.microproject.node.transform.ViewConfiguration.getView(frame.getTopViewId());
 			if (view == null || view.getTransform() == null) {
 				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(commandId, "no-sortable-view"));
 				return;
@@ -4356,8 +4356,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			DocumentFrame frame = getCurrentFrame();
 			if (type == 0 || frame == null)
 				return null;
-			com.microproject.grouping.core.transform.ViewConfiguration view =
-				com.microproject.grouping.core.transform.ViewConfiguration.getView(frame.getTopViewId());
+			com.microproject.node.transform.ViewConfiguration view =
+				com.microproject.node.transform.ViewConfiguration.getView(frame.getTopViewId());
 			if (view == null || view.getTransform() == null)
 				return null;
 			TransformComboBoxModel model = new TransformComboBoxModel(type);
@@ -4561,12 +4561,12 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			if (!isDocumentActive()) return;
 			DocumentFrame frame = getCurrentFrame();
-			com.microproject.grouping.core.transform.ViewConfiguration view =
-				com.microproject.grouping.core.transform.ViewConfiguration.getView(frame.getTopViewId());
+			com.microproject.node.transform.ViewConfiguration view =
+				com.microproject.node.transform.ViewConfiguration.getView(frame.getTopViewId());
 			if (view == null || view.getTransform() == null) return;
 			if (!view.getTransform().isNoneFilter()) {
 				view.getTransform().setUserFilterId(
-					com.microproject.grouping.core.transform.ViewTransformer.FILTER_NONE_ID);
+					com.microproject.node.transform.ViewTransformer.FILTER_NONE_ID);
 				frame.setComboBoxesViewName(frame.getTopViewId());
 			}
 			setButtonState(frame.getSelectedImpl(), frame.getProject());
@@ -5346,7 +5346,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (!isDocumentActive())
 			return;
 		TransformComboBox combo = new TransformComboBox(getMenuManager(), actionId, type);
-		combo.setView(com.microproject.grouping.core.transform.ViewConfiguration.getView(getTopViewId()));
+		combo.setView(com.microproject.node.transform.ViewConfiguration.getView(getTopViewId()));
 		if (combo.getItemCount() == 0)
 			return;
 		if (combo.getSelectedIndex() < 0)
@@ -5935,11 +5935,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		// After hierarchy Undo/Redo the lead node supplied by the selection event
 		// may still describe the pre-mutation row.  Command enablement must use the
 		// same stable task selection that execution uses, not that stale singleton.
-		List<com.microproject.grouping.core.Node> selectedTaskNodes = getCurrentFrame() == null
+		List<com.microproject.node.Node> selectedTaskNodes = getCurrentFrame() == null
 			? java.util.List.of() : getCurrentFrame().getSelectedTaskNodes(false, true);
-		List<com.microproject.grouping.core.Node> hierarchyTaskNodes = getCurrentFrame() == null
+		List<com.microproject.node.Node> hierarchyTaskNodes = getCurrentFrame() == null
 			? java.util.List.of() : getCurrentFrame().getSelectedTaskNodes(true, true);
-		List<com.microproject.grouping.core.Node> pureHierarchyTaskNodes = getCurrentFrame() == null
+		List<com.microproject.node.Node> pureHierarchyTaskNodes = getCurrentFrame() == null
 			? java.util.List.of() : getCurrentFrame().getSelectedTaskNodes(true, false);
 		boolean isTask = currentImpl instanceof Task || !selectedTaskNodes.isEmpty();
 		boolean isLinkedSubproject = selectedSubprojectReference() != null;

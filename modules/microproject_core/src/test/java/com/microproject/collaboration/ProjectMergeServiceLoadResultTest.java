@@ -36,7 +36,7 @@ class ProjectMergeServiceLoadResultTest {
 		AtomicInteger scheduleEvents = new AtomicInteger();
 		project.addScheduleListener(event -> scheduleEvents.incrementAndGet());
 
-		new ProjectMergeService().fireTaskUpdates(project, Arrays.asList((com.microproject.grouping.core.Node) null));
+		new ProjectMergeService().fireTaskUpdates(project, Arrays.asList((com.microproject.node.Node) null));
 
 		assertEquals(1, scheduleEvents.get());
 	}

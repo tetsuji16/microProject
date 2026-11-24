@@ -669,7 +669,7 @@ class SpreadSheetMouseInteractionTest {
 			Node firstNode = sheet.getCache().getModel().search(fixture.firstTask());
 			Node secondNode = sheet.getCache().getModel().search(fixture.secondTask());
 			assertTrue(sheet.getCache().getModel().relocate(Collections.singletonList(secondNode), firstNode, 0,
-					com.microproject.grouping.core.model.NodeModel.NORMAL));
+					com.microproject.node.model.NodeModel.NORMAL));
 			sheet.getCache().update();
 			int firstRow = findRow(sheet, fixture.firstTask());
 			int secondRow = findRow(sheet, fixture.secondTask());

@@ -61,7 +61,7 @@ class WindowSizeContractSweepGuiAcceptanceTest {
 	private Project project;
 	private NormalTask task;
 	private Resource resource;
-	private List<com.microproject.grouping.core.Node> taskNodes;
+	private List<com.microproject.node.Node> taskNodes;
 	private DataFactoryUndoController undo;
 
 	@AfterEach
@@ -260,7 +260,7 @@ class WindowSizeContractSweepGuiAcceptanceTest {
 		project.setForward(true);
 		task = project.createScriptedTask();
 		task.setName("Window size contract task");
-		taskNodes = List.of(com.microproject.grouping.core.NodeFactory.getInstance().createNode(task));
+		taskNodes = List.of(com.microproject.node.NodeFactory.getInstance().createNode(task));
 		resource = pool.createScriptedResource();
 		resource.setName("Window size contract resource");
 		SwingUtilities.invokeAndWait(() -> {

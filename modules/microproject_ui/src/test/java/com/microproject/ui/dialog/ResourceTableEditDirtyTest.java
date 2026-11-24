@@ -83,7 +83,7 @@ class ResourceTableEditDirtyTest {
 				sheet.setSpreadSheetCategory(category);
 				sheet.setCanSelectFieldArray(false);
 				SpreadSheetUtils.createCollectionSpreadSheet(sheet, rows, "View.ResourceInformation.Availability",
-					category, spreadsheetId, false, (com.microproject.grouping.core.model.NodeModelDataFactory) table, 1);
+					category, spreadsheetId, false, (com.microproject.node.model.NodeModelDataFactory) table, 1);
 				ResourceInformationDialog.trackTableEdits(sheet, () -> fixture.resource());
 				SpreadSheetModel model = (SpreadSheetModel) sheet.getModel();
 				int column = -1;

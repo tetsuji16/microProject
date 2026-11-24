@@ -425,11 +425,11 @@ public class FieldVerifier extends InputVerifier {
 		private final Object object;
 		private final ObjectRef parent;
 		private SingleObjectRef(Object object, ObjectRef parent) { this.object = object; this.parent = parent; }
-		@Override public com.microproject.grouping.core.Node getNode() { return null; }
-		@Override public com.microproject.grouping.core.model.WalkersNodeModel getNodeModel() { return null; }
+		@Override public com.microproject.node.Node getNode() { return null; }
+		@Override public com.microproject.node.model.WalkersNodeModel getNodeModel() { return null; }
 		@Override public Object getObject() { return object; }
 		@Override public Collection<?> getCollection() { return null; }
-		@Override public com.microproject.grouping.core.model.NodeModelDataFactory getDataFactory() { return parent.getDataFactory(); }
+		@Override public com.microproject.node.model.NodeModelDataFactory getDataFactory() { return parent.getDataFactory(); }
 	}
 
 	

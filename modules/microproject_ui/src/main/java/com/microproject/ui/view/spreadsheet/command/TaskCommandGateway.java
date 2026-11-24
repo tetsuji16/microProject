@@ -193,7 +193,7 @@ public final class TaskCommandGateway {
 
 		Node anchor = selectedNodes.isEmpty() ? null : selectedNodes.getFirst();
 		Node parent = anchor == null ? null : (Node) anchor.getParent();
-		int position = anchor == null || parent == null ? 0 : ((com.microproject.grouping.core.NodeBridge) parent).getIndex(anchor);
+		int position = anchor == null || parent == null ? 0 : ((com.microproject.node.NodeBridge) parent).getIndex(anchor);
 		progress.markApplied();
 		boolean pasted = sheetModel.getCache().pasteNodes(parent, new ArrayList<>(intent.copiedRoots()), position);
 		List<Long> affectedTaskIds = pasted ? project.getTaskList().stream()

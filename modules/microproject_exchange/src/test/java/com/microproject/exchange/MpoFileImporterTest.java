@@ -3130,7 +3130,7 @@ class MpoFileImporterTest {
 		var model = project.getTaskModel();
 		var summaryNode = model.search(summary);
 		assertTrue(model.relocate(List.of(model.search(first), model.search(second)), summaryNode, 0,
-			com.microproject.grouping.core.model.NodeModel.SILENT));
+			com.microproject.node.model.NodeModel.SILENT));
 		summary.setWbsChildrenNodes(model.getHierarchy().getChildren(summaryNode));
 		first.setWbsParent(summary);
 		second.setWbsParent(summary);
@@ -3597,13 +3597,13 @@ class MpoFileImporterTest {
 		NormalTask secondTask = (NormalTask) original.createLocalTaskNode(null).getImpl();
 		secondTask.setName("Materialized after blank row");
 		secondTask.setUniqueId(9_823_471L);
-		com.microproject.grouping.core.model.NodeModel taskModel = original.getTaskModel();
-		com.microproject.grouping.core.Node secondNode = taskModel.search(secondTask);
-		com.microproject.grouping.core.Node blankRow = NodeFactory.getInstance().createVoidNode();
+		com.microproject.node.model.NodeModel taskModel = original.getTaskModel();
+		com.microproject.node.Node secondNode = taskModel.search(secondTask);
+		com.microproject.node.Node blankRow = NodeFactory.getInstance().createVoidNode();
 		Object outlineRoot = taskModel.getHierarchy().getRoot();
-		taskModel.add((com.microproject.grouping.core.Node) outlineRoot, blankRow,
+		taskModel.add((com.microproject.node.Node) outlineRoot, blankRow,
 			taskModel.getIndexOfChild(outlineRoot, secondNode),
-			com.microproject.grouping.core.model.NodeModel.SILENT);
+			com.microproject.node.model.NodeModel.SILENT);
 		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
 		task.setDuration(3L * day);
 		secondTask.setDuration(2L * day);
@@ -3639,10 +3639,10 @@ class MpoFileImporterTest {
 		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, restored.getConstraintTypeKind());
 		assertEquals(constraintDate, restored.getConstraintDate());
 		assertNotNull(restoredSecond, "the high-runtime-UID task after a blank row must be restored");
-		com.microproject.grouping.core.Node previousRow = null;
+		com.microproject.node.Node previousRow = null;
 		Object reopenedRoot = reopened.getTaskOutline().getHierarchy().getRoot();
 		for (java.util.Iterator<?> rows = reopened.getTaskOutline().iterator(); rows.hasNext();) {
-			com.microproject.grouping.core.Node row = (com.microproject.grouping.core.Node) rows.next();
+			com.microproject.node.Node row = (com.microproject.node.Node) rows.next();
 			if (row.getImpl() == restoredSecond) break;
 			if (row != reopenedRoot) previousRow = row;
 		}
@@ -3772,7 +3772,7 @@ class MpoFileImporterTest {
 			reference.setLoadStatus(com.microproject.pm.task.SubProj.LoadStatus.INVALID);
 			reference.setSubprojectFile(childFile.getAbsolutePath());
 			master.connectTask(reference);
-			com.microproject.grouping.core.Node referenceNode = NodeFactory.getInstance().createNode(reference);
+			com.microproject.node.Node referenceNode = NodeFactory.getInstance().createNode(reference);
 			master.addToDefaultOutline(null, referenceNode);
 			factory.addProject(master, false, false);
 			factory.addProject(originalChild, false, false);
@@ -5995,19 +5995,19 @@ class MpoFileImporterTest {
 		ResourcePool pool = original.getResourcePool();
 		pool.setLocal(true);
 		pool.addProject(original);
-		com.microproject.grouping.core.model.NodeModel resourceModel = pool.getResourceOutline();
+		com.microproject.node.model.NodeModel resourceModel = pool.getResourceOutline();
 		resourceModel.setUndoController(pool.getUndoController());
 		Resource resource = pool.createScriptedResource();
 		resource.setName("Initial Resource");
 		AssignmentService.getInstance().newAssignment((NormalTask) firstTask(original), resource, 1.0D, 0L, this);
-		com.microproject.grouping.core.Node resourceNode = resourceModel.search(resource);
+		com.microproject.node.Node resourceNode = resourceModel.search(resource);
 		resourceModel.setFieldValue(com.microproject.configuration.Configuration.getFieldFromId("Field.name"),
-			resourceNode, this, "Published Resource", null, com.microproject.grouping.core.model.NodeModel.NORMAL);
+			resourceNode, this, "Published Resource", null, com.microproject.node.model.NodeModel.NORMAL);
 		resourceModel.setFieldValue(com.microproject.configuration.Configuration.getFieldFromId("Field.standardRate"),
 			resourceNode, this, new com.microproject.datatype.Rate(
 				137.5D / com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
 				com.microproject.datatype.TimeUnit.HOURS), null,
-			com.microproject.grouping.core.model.NodeModel.NORMAL);
+			com.microproject.node.model.NodeModel.NORMAL);
 		long futureEffectiveDate = java.time.LocalDate.of(2027, 1, 1).atStartOfDay(java.time.ZoneOffset.UTC)
 			.toInstant().toEpochMilli();
 		com.microproject.pm.costing.CostRate futureDefaultRate = (com.microproject.pm.costing.CostRate)
@@ -6248,7 +6248,7 @@ class MpoFileImporterTest {
 		var model = hierarchy.getTaskModel();
 		var summaryNode = model.search(summary);
 		assertTrue(model.relocate(List.of(model.search(child)), summaryNode, 0,
-			com.microproject.grouping.core.model.NodeModel.SILENT));
+			com.microproject.node.model.NodeModel.SILENT));
 		summary.setWbsChildrenNodes(model.getHierarchy().getChildren(summaryNode));
 		child.setWbsParent(summary);
 		Map<String, byte[]> parentMetadata = readEntries(saveProjectBytes(hierarchy));

@@ -550,7 +550,7 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 		List<String> rows = new ArrayList<>();
 		Object root = project.getTaskOutline().getHierarchy().getRoot();
 		for (var iterator = project.getTaskOutline().iterator(); iterator.hasNext();) {
-			com.microproject.grouping.core.Node node = (com.microproject.grouping.core.Node) iterator.next();
+			com.microproject.node.Node node = (com.microproject.node.Node) iterator.next();
 			if (node == root) continue;
 			if (node.isVoid()) rows.add("");
 			else if (node.getImpl() instanceof Task task) rows.add(task.getName());
@@ -567,7 +567,7 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 			int otherCount = 0;
 			Object root = project.getTaskOutline().getHierarchy().getRoot();
 			for (var iterator = project.getTaskOutline().iterator(); iterator.hasNext();) {
-				com.microproject.grouping.core.Node node = (com.microproject.grouping.core.Node) iterator.next();
+				com.microproject.node.Node node = (com.microproject.node.Node) iterator.next();
 				if (node == root) continue;
 				Object impl = node.getImpl();
 				classes.merge("isVoid=" + node.isVoid() + "; node=" + node.getClass().getName()

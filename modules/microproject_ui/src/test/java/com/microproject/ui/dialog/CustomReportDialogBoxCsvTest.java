@@ -214,10 +214,10 @@ class CustomReportDialogBoxCsvTest {
 	}
 
 	private void attach(NormalTask parent, NormalTask... children) {
-		java.util.ArrayList<com.microproject.grouping.core.Node> nodes = new java.util.ArrayList<>();
+		java.util.ArrayList<com.microproject.node.Node> nodes = new java.util.ArrayList<>();
 		for (NormalTask child : children) {
 			child.setWbsParent(parent);
-			nodes.add(com.microproject.grouping.core.NodeFactory.getInstance().createNode(child));
+			nodes.add(com.microproject.node.NodeFactory.getInstance().createNode(child));
 		}
 		parent.setWbsChildrenNodes(nodes);
 	}

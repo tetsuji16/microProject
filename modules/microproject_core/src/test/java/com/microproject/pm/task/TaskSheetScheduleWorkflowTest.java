@@ -147,7 +147,7 @@ class TaskSheetScheduleWorkflowTest {
 		NormalTask parent = createTask(project);
 		task.parent = parent;
 		task.setWbsParent(parent);
-		parent.setWbsChildrenNodes(List.of(com.microproject.grouping.core.NodeFactory.getInstance().createNode(task)));
+		parent.setWbsChildrenNodes(List.of(com.microproject.node.NodeFactory.getInstance().createNode(task)));
 		NormalTask successor = createTask(project);
 		long day = day();
 		task.setDuration(day);
@@ -218,7 +218,7 @@ class TaskSheetScheduleWorkflowTest {
 		NormalTask parent = createTask(project);
 		NormalTask child = createTask(project);
 		child.setWbsParent(parent);
-		parent.setWbsChildrenNodes(List.of(com.microproject.grouping.core.NodeFactory.getInstance().createNode(child)));
+		parent.setWbsChildrenNodes(List.of(com.microproject.node.NodeFactory.getInstance().createNode(child)));
 		child.setDuration(day());
 		long childStart = child.getStart();
 		long childFinish = child.getEnd();

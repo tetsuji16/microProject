@@ -41,8 +41,8 @@ public class NodeSorterFactory extends CommonTransformFactory{
 	    if (t!=null) return t;
 	    if (formulaText==null&&subTransforms==null) return null;
 		StringBuilder classText = new StringBuilder();
-	    classText.append("package com.microproject.grouping.core.transform.sorting;\n");
-	    classText.append("import com.microproject.grouping.core.Node;\n");
+	    classText.append("package com.microproject.node.transform.sorting;\n");
+	    classText.append("import com.microproject.node.Node;\n");
 	    classText.append("import com.microproject.datatype.*;\n");
 		String definition = type1 + "\n" + type2 + "\n" + formulaText + "\n" + groupNameFormula;
 		String className = GroovyClassCompiler.scriptClassName("SorterFormula", definition);

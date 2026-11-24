@@ -150,7 +150,7 @@ public final class TaskInspectorPanel extends JPanel {
 	}
 
 	private String subtasks(Task selected) {
-		Collection<com.microproject.grouping.core.Node> children = selected.getWbsChildrenNodes();
+		Collection<com.microproject.node.Node> children = selected.getWbsChildrenNodes();
 		if (children == null || children.isEmpty()) return Messages.getString("TaskInspector.None");
 		List<String> names = new ArrayList<>();
 		for (var child : children) {

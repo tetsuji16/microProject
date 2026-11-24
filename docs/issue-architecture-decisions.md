@@ -43,7 +43,7 @@ can be merged. Current caller and boundary checks distinguish these pairs:
   same responsibility; merging them would cross the JAXB configuration and
   runtime field-model boundary.
 - `com.microproject.core.nodes.Node` is an ID-bearing legacy configuration
-  node contract. `com.microproject.grouping.core.Node` is the Swing tree node
+  node contract. `com.microproject.node.Node` is the Swing tree node
   contract used by the active task/resource outline and grouped-view pipeline.
   They have different parents, lifecycle, and callers; retain both until the
   legacy JAXB subsystem has an explicit migration and round-trip decision.
@@ -88,7 +88,7 @@ migrated; document and resolve the source-compatibility policy first.
 ## #258 — hierarchy types
 
 `com.microproject.core.hierarchy` models the legacy document hierarchy;
-`com.microproject.grouping.core.hierarchy` models filtered/grouped view
+`com.microproject.node.hierarchy` models filtered/grouped view
 hierarchies and mutable transformations. Their node contracts and lifecycle
 are different. The active view pipeline uses the grouping hierarchy, while
 legacy document code still uses the core hierarchy. No classes are deleted;

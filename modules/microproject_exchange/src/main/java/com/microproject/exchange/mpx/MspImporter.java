@@ -184,9 +184,9 @@ public class MspImporter {
 
 	private static void collectImportedBaselineFixedCosts(NormalTask summary, int slot,
 		java.util.List<TaskSnapshot.FixedCostProfile> profiles) {
-		java.util.Collection<com.microproject.grouping.core.Node> children = summary.getWbsChildrenNodes();
+		java.util.Collection<com.microproject.node.Node> children = summary.getWbsChildrenNodes();
 		if (children == null) return;
-		for (com.microproject.grouping.core.Node node : children) {
+		for (com.microproject.node.Node node : children) {
 			if (!(node.getImpl() instanceof NormalTask child)) continue;
 			if (child.getSnapshot(Integer.valueOf(slot)) instanceof TaskSnapshot childSnapshot) {
 				TaskSnapshot.FixedCostProfile profile = childSnapshot.captureOwnFixedCostProfile(

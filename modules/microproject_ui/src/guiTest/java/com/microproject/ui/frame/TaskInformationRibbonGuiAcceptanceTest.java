@@ -3868,16 +3868,16 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> {
 			CommonSpreadSheetModel model = (CommonSpreadSheetModel) sheet.getModel();
 			for (int row = 0; row < sheet.getRowCount(); row++)
-				if (model.getNode(row) != null && model.getNode(row).getNode().getImpl() instanceof com.microproject.grouping.core.GroupNodeImpl)
+				if (model.getNode(row) != null && model.getNode(row).getNode().getImpl() instanceof com.microproject.node.GroupNodeImpl)
 					return true;
 			return false;
 		}, "physical View > Group did not create a virtual group row");
 		CommonSpreadSheetModel groupedModel = (CommonSpreadSheetModel) sheet.getModel();
 		int groupRow = -1;
-		com.microproject.grouping.core.Node groupNode = null;
+		com.microproject.node.Node groupNode = null;
 		for (int row = 0; row < sheet.getRowCount(); row++) {
 			if (groupedModel.getNode(row) != null
-					&& groupedModel.getNode(row).getNode().getImpl() instanceof com.microproject.grouping.core.GroupNodeImpl) {
+					&& groupedModel.getNode(row).getNode().getImpl() instanceof com.microproject.node.GroupNodeImpl) {
 				groupRow = row;
 				groupNode = groupedModel.getNode(row).getNode();
 				break;
@@ -3958,7 +3958,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> {
 			CommonSpreadSheetModel model = (CommonSpreadSheetModel) sheet.getModel();
 			for (int row = 0; row < sheet.getRowCount(); row++)
-				if (model.getNode(row) != null && model.getNode(row).getNode().getImpl() instanceof com.microproject.grouping.core.GroupNodeImpl)
+				if (model.getNode(row) != null && model.getNode(row).getNode().getImpl() instanceof com.microproject.node.GroupNodeImpl)
 					return false;
 			return true;
 		}, "group Hide test did not restore the ungrouped task view");
@@ -4488,7 +4488,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		var taskModel = project.getTaskModel();
 		var summaryNode = taskModel.search(summary);
 		assertTrue(taskModel.relocate(List.of(taskModel.search(task)), summaryNode, 0,
-			com.microproject.grouping.core.model.NodeModel.SILENT));
+			com.microproject.node.model.NodeModel.SILENT));
 		summary.setWbsChildrenNodes(taskModel.getHierarchy().getChildren(summaryNode));
 		task.setWbsParent(summary);
 		Resource resource = project.getResourcePool().createScriptedResource();
@@ -5833,7 +5833,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		int insertedRow = rowForTask(sheet, second) + 1;
 		assertSame(insertedNode, sheet.getNodeAtRow(insertedRow),
 			"the visible row immediately after the selected range must be the inserted placeholder Node");
-		assertTrue(insertedNode.getImpl() instanceof com.microproject.grouping.core.VoidNodeImpl,
+		assertTrue(insertedNode.getImpl() instanceof com.microproject.node.VoidNodeImpl,
 			"the first newly inserted task row must start blank");
 		click(robot, cellOnScreen(sheet, insertedRow, nameColumn(sheet)));
 		GuiAcceptanceSupport.await(sheet::isFocusOwner, "the new task name cell did not receive focus");

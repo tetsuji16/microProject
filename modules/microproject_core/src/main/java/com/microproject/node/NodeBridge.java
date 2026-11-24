@@ -62,7 +62,7 @@ public class NodeBridge extends DefaultMutableTreeNode implements Node{
 		this.virtual = virtual;
 	}
 	/**
-	 * @see com.microproject.grouping.core.Node#isVirtual()
+	 * @see com.microproject.node.Node#isVirtual()
 	 */
 	public boolean isVirtual() {
 		return virtual;

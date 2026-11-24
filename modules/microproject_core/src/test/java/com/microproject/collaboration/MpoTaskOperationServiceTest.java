@@ -136,7 +136,7 @@ class MpoTaskOperationServiceTest {
 		long day = CalendarOption.getInstance().getMillisPerDay();
 		NormalTask predecessor = createTask(project, 301L);
 		predecessor.setDuration(4L * day);
-		com.microproject.grouping.core.Node summaryNode = project.createLocalTaskNode(null);
+		com.microproject.node.Node summaryNode = project.createLocalTaskNode(null);
 		NormalTask summary = (NormalTask) summaryNode.getImpl();
 		summary.setUniqueId(302L);
 		NormalTask child = (NormalTask) project.createLocalTaskNode(summaryNode).getImpl();

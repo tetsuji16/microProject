@@ -2498,7 +2498,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		return new Point(location.x + bounds.x + bounds.width / 2, location.y + bounds.y + bounds.height / 2);
 	}
 
-	private static com.microproject.grouping.core.Node findTaskNode(Project project, String name) {
+	private static com.microproject.node.Node findTaskNode(Project project, String name) {
 		java.util.Iterator<com.microproject.pm.task.Task> iterator = project.getTaskOutlineIterator();
 		while (iterator.hasNext()) {
 			var task = iterator.next();

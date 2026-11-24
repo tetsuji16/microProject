@@ -472,7 +472,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		List<String> rows = new ArrayList<>();
 		Object root = project.getTaskOutline().getHierarchy().getRoot();
 		for (java.util.Iterator<?> nodes = project.getTaskOutline().iterator(); nodes.hasNext();) {
-			com.microproject.grouping.core.Node row = (com.microproject.grouping.core.Node) nodes.next();
+			com.microproject.node.Node row = (com.microproject.node.Node) nodes.next();
 			if (row != root) rows.add(row.getImpl() instanceof Task task ? task.getName() : "");
 		}
 		// Blank rows after the last task are the view's filler, which is not saved.

@@ -324,7 +324,7 @@ class LegacyReportBaselineTest {
 		@Override public boolean hasNext() {
 			while (!prepared && delegate.hasNext()) {
 				Object candidate = delegate.next();
-				Object value = candidate instanceof com.microproject.grouping.core.Node node ? node.getImpl() : candidate;
+				Object value = candidate instanceof com.microproject.node.Node node ? node.getImpl() : candidate;
 				if (predicate.test(value)) { next = candidate; prepared = true; }
 			}
 			return prepared;
@@ -332,7 +332,7 @@ class LegacyReportBaselineTest {
 		@Override public Object next() {
 			if (!hasNext()) throw new java.util.NoSuchElementException();
 			prepared = false;
-			return !nodeBased && next instanceof com.microproject.grouping.core.Node node ? node.getImpl() : next;
+			return !nodeBased && next instanceof com.microproject.node.Node node ? node.getImpl() : next;
 		}
 	}
 

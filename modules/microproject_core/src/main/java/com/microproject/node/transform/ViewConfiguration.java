@@ -67,35 +67,35 @@ public class ViewConfiguration implements NamedItem {
     
     public static void addDigesterEvents(Digester digester){
 		// main properties of bar
-		digester.addObjectCreate("*/views/view", "com.microproject.grouping.core.transform.ViewConfiguration");
+		digester.addObjectCreate("*/views/view", "com.microproject.node.transform.ViewConfiguration");
 	    digester.addSetProperties("*/views/view");
 		digester.addSetNext("*/views/view", "add", "com.microproject.configuration.NamedItem");
 
 		// start section
-		digester.addObjectCreate("*/views/view/transform", "com.microproject.grouping.core.transform.ViewTransformer");
+		digester.addObjectCreate("*/views/view/transform", "com.microproject.node.transform.ViewTransformer");
 	    digester.addSetProperties("*/views/view/transform");
-	    digester.addSetNext("*/views/view/transform", "setTransform", "com.microproject.grouping.core.transform.ViewTransformer");
+	    digester.addSetNext("*/views/view/transform", "setTransform", "com.microproject.node.transform.ViewTransformer");
 	    
 	    
-		digester.addObjectCreate("*/views/view/transform/filter", "com.microproject.grouping.core.transform.TransformId");
+		digester.addObjectCreate("*/views/view/transform/filter", "com.microproject.node.transform.TransformId");
 	    digester.addSetProperties("*/views/view/transform/filter");
-	    digester.addSetNext("*/views/view/transform/filter", "setFilterId", "com.microproject.grouping.core.transform.TransformId");
+	    digester.addSetNext("*/views/view/transform/filter", "setFilterId", "com.microproject.node.transform.TransformId");
 		
 	    
-		digester.addObjectCreate("*/views/view/transform/sorter", "com.microproject.grouping.core.transform.TransformId");
+		digester.addObjectCreate("*/views/view/transform/sorter", "com.microproject.node.transform.TransformId");
 	    digester.addSetProperties("*/views/view/transform/sorter");
-	    digester.addSetNext("*/views/view/transform/sorter", "setSorterId", "com.microproject.grouping.core.transform.TransformId");
+	    digester.addSetNext("*/views/view/transform/sorter", "setSorterId", "com.microproject.node.transform.TransformId");
 	    
 	    
 	    
-		digester.addObjectCreate("*/views/view/transform/grouper", "com.microproject.grouping.core.transform.TransformId");
+		digester.addObjectCreate("*/views/view/transform/grouper", "com.microproject.node.transform.TransformId");
 	    digester.addSetProperties("*/views/view/transform/grouper");
-	    digester.addSetNext("*/views/view/transform/grouper", "setGrouperId", "com.microproject.grouping.core.transform.TransformId");
+	    digester.addSetNext("*/views/view/transform/grouper", "setGrouperId", "com.microproject.node.transform.TransformId");
 
 	    
-		digester.addObjectCreate("*/views/view/transform/transformer", "com.microproject.grouping.core.transform.TransformId");
+		digester.addObjectCreate("*/views/view/transform/transformer", "com.microproject.node.transform.TransformId");
 	    digester.addSetProperties("*/views/view/transform/transformer");
-	    digester.addSetNext("*/views/view/transform/transformer", "setTransformerId", "com.microproject.grouping.core.transform.TransformId");
+	    digester.addSetNext("*/views/view/transform/transformer", "setTransformerId", "com.microproject.node.transform.TransformId");
 
 	    
 	}

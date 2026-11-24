@@ -550,7 +550,7 @@ class PreferencesDialogGuiAcceptanceTest {
 					"Spreadsheet.Task.formatLive", true);
 				com.microproject.ui.view.spreadsheet.SpreadSheetModel model =
 					(com.microproject.ui.view.spreadsheet.SpreadSheetModel) sheet[0].getModel();
-				com.microproject.grouping.core.Node node = (com.microproject.grouping.core.Node) cache.getModel().search(task);
+				com.microproject.node.Node node = (com.microproject.node.Node) cache.getModel().search(task);
 				cell[0] = model.findGraphicNodeRow(cache.getGraphicNode(node));
 				for (int column = 0; column < model.getColumnCount(); column++) {
 					com.microproject.field.Field field = model.getFieldInColumn(column);

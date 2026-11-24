@@ -520,7 +520,7 @@ public class PodRoundTripTest {
 
 		DefaultSubProj placeholder = new DefaultSubProj(master, child.getUniqueId());
 		master.connectTask(placeholder);
-		Node placeholderNode = com.microproject.grouping.core.NodeFactory.getInstance().createNode(placeholder);
+		Node placeholderNode = com.microproject.node.NodeFactory.getInstance().createNode(placeholder);
 		master.getTaskOutline().add(placeholderNode, NodeModel.EVENT);
 		master.getSubprojectHandler().addSubproject(child, placeholderNode, true, false);
 
@@ -552,7 +552,7 @@ public class PodRoundTripTest {
 		String expectedReferenceId = "9adf2bb0-e0cf-4d2c-9bbe-93d6df3a87af";
 		placeholder.setReferenceId(expectedReferenceId);
 		master.connectTask(placeholder);
-		Node placeholderNode = com.microproject.grouping.core.NodeFactory.getInstance().createNode(placeholder);
+		Node placeholderNode = com.microproject.node.NodeFactory.getInstance().createNode(placeholder);
 		master.getTaskOutline().add(placeholderNode, NodeModel.EVENT);
 		master.getSubprojectHandler().addSubproject(child, placeholderNode, true, false);
 

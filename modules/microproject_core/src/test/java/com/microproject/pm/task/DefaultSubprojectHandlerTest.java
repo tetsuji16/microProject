@@ -51,7 +51,7 @@ class DefaultSubprojectHandlerTest {
 
 		assertNotNull(subproject);
 		assertTrue(subproject instanceof NormalTask);
-		assertTrue(subproject instanceof com.microproject.grouping.core.LazyParent);
+		assertTrue(subproject instanceof com.microproject.node.LazyParent);
 		assertEquals(42L, subproject.getSubprojectUniqueId());
 		assertEquals(0L, handler.getReferringSubprojectTaskDependencyDate());
 	}

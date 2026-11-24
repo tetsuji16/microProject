@@ -77,13 +77,13 @@ class TaskPasteRollbackTest {
 		NormalTask pasted = new NormalTask(project);
 		pasted.setName("Pasted");
 		Node pastedNode = NodeFactory.getInstance().createNode(pasted);
-		model.getHierarchy().addHierarchyListener(new com.microproject.grouping.core.event.HierarchyListener() {
-			@Override public void nodesChanged(com.microproject.grouping.core.event.HierarchyEvent e) { }
-			@Override public void nodesInserted(com.microproject.grouping.core.event.HierarchyEvent e) {
+		model.getHierarchy().addHierarchyListener(new com.microproject.node.event.HierarchyListener() {
+			@Override public void nodesChanged(com.microproject.node.event.HierarchyEvent e) { }
+			@Override public void nodesInserted(com.microproject.node.event.HierarchyEvent e) {
 				throw new IllegalStateException("injected observer failure");
 			}
-			@Override public void nodesRemoved(com.microproject.grouping.core.event.HierarchyEvent e) { }
-			@Override public void structureChanged(com.microproject.grouping.core.event.HierarchyEvent e) { }
+			@Override public void nodesRemoved(com.microproject.node.event.HierarchyEvent e) { }
+			@Override public void structureChanged(com.microproject.node.event.HierarchyEvent e) { }
 		});
 		int depthBefore = MultipleTransactionManager.depth;
 

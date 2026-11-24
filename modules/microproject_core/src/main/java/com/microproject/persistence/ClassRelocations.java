@@ -24,6 +24,17 @@ import java.util.Objects;
 public final class ClassRelocations {
 	/** Old binary class name to new binary class name. */
 	private static final Map<String, String> RELOCATIONS = Map.ofEntries(
+		Map.entry("com.microproject.grouping.core.GroupNodeImpl", "com.microproject.node.GroupNodeImpl"),
+		Map.entry("com.microproject.grouping.core.Node", "com.microproject.node.Node"),
+		Map.entry("com.microproject.grouping.core.NodeBridge", "com.microproject.node.NodeBridge"),
+		Map.entry("com.microproject.grouping.core.NodeException", "com.microproject.node.NodeException"),
+		Map.entry("com.microproject.grouping.core.NodeList", "com.microproject.node.NodeList"),
+		Map.entry("com.microproject.grouping.core.OutlineCode", "com.microproject.node.OutlineCode"),
+		Map.entry("com.microproject.grouping.core.ProjectSummaryRow", "com.microproject.node.ProjectSummaryRow"),
+		Map.entry("com.microproject.grouping.core.VoidNodeImpl", "com.microproject.node.VoidNodeImpl"),
+		Map.entry("com.microproject.grouping.core.event.HierarchyEvent", "com.microproject.node.event.HierarchyEvent"),
+		Map.entry("com.microproject.grouping.core.transform.ViewTransformerEvent", "com.microproject.node.transform.ViewTransformerEvent"),
+		Map.entry("com.microproject.server.access.PartnerInfo", "com.microproject.persistence.access.PartnerInfo"),
 		Map.entry("com.microproject.graphic.configuration.BarStyles", "com.microproject.view.configuration.BarStyles"),
 		Map.entry("com.microproject.graphic.configuration.GanttBarFormatOverrides", "com.microproject.view.configuration.GanttBarFormatOverrides"),
 		Map.entry("com.microproject.graphic.configuration.SpreadSheetFieldArray", "com.microproject.view.configuration.SpreadSheetFieldArray"),

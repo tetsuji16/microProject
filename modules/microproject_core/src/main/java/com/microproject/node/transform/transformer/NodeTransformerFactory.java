@@ -42,8 +42,8 @@ public class NodeTransformerFactory extends CommonTransformFactory{
 	    }
 	    if (formulaText==null) return null;
 	    StringBuilder classText = new StringBuilder();
-	    classText.append("package com.microproject.grouping.core.transform.transformer;\n");
-	    classText.append("import com.microproject.grouping.core.Node;\n");
+	    classText.append("package com.microproject.node.transform.transformer;\n");
+	    classText.append("import com.microproject.node.Node;\n");
 	    classText.append("import com.microproject.datatype.*;\n");
 	    classText.append("import com.microproject.pm.assignment.Assignment;\n");
 		String className = GroovyClassCompiler.scriptClassName("TransformerFormula", type + "\n" + formulaText);

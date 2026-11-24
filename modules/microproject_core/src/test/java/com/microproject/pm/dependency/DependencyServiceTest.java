@@ -514,7 +514,7 @@ class DependencyServiceTest {
 		rootProject.initialize(false, false);
 		NodeModel rootSecondaryOutline = rootProject.getTaskOutline(1);
 		rootSecondaryOutline.add(null, NodeFactory.getInstance().createNode(placeholder), NodeModel.SILENT);
-		NodeModel[] rootOutlines = ((com.microproject.grouping.core.OutlineCollectionImpl) rootProject.getTaskOutlines())
+		NodeModel[] rootOutlines = ((com.microproject.node.OutlineCollectionImpl) rootProject.getTaskOutlines())
 				.getOutlines();
 		rootOutlines[1] = (NodeModel) Proxy.newProxyInstance(NodeModel.class.getClassLoader(),
 				new Class<?>[] { NodeModel.class }, (proxy, method, args) -> {

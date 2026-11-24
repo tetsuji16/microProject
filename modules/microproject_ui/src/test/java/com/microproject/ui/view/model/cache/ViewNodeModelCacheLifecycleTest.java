@@ -171,7 +171,7 @@ class ViewNodeModelCacheLifecycleTest {
 				.createFilteredCache(reference, "structure-table", null);
 		ViewNodeModelCache gantt = (ViewNodeModelCache) NodeModelCacheFactory.getInstance()
 				.createFilteredCache(reference, "structure-gantt", null);
-		var model = (com.microproject.grouping.core.model.DefaultNodeModel) project.getTaskModel();
+		var model = (com.microproject.node.model.DefaultNodeModel) project.getTaskModel();
 		SwingUtilities.invokeAndWait(() -> {
 			reference.update();
 			assertProjectionsAgree(table, gantt, "First", "Second");
@@ -179,10 +179,10 @@ class ViewNodeModelCacheLifecycleTest {
 			reference.update();
 			assertProjectionsAgree(table, gantt, "First", "Second", "Inserted");
 			model.indent(java.util.List.of(model.search(second)), 1,
-					com.microproject.grouping.core.model.NodeModel.SILENT);
+					com.microproject.node.model.NodeModel.SILENT);
 			reference.update();
 			assertProjectionsAgree(table, gantt, "First", "Second", "Inserted");
-			model.remove(model.search(inserted), com.microproject.grouping.core.model.NodeModel.SILENT);
+			model.remove(model.search(inserted), com.microproject.node.model.NodeModel.SILENT);
 			reference.update();
 			assertProjectionsAgree(table, gantt, "First", "Second");
 		});

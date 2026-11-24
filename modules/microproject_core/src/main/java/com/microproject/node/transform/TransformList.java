@@ -136,55 +136,55 @@ public class TransformList implements NamedItem {
 	
 	public static void addDigesterEvents(Digester digester){
 		//filters
-	    digester.addObjectCreate("*/transform/filters", "com.microproject.grouping.core.transform.TransformList");
+	    digester.addObjectCreate("*/transform/filters", "com.microproject.node.transform.TransformList");
 	    digester.addSetProperties("*/transform/filters");
 		digester.addSetNext("*/transform/filters", "add", "com.microproject.configuration.NamedItem");
 
-		digester.addObjectCreate("*/filter", "com.microproject.grouping.core.transform.filtering.NodeFilterFactory");
+		digester.addObjectCreate("*/filter", "com.microproject.node.transform.filtering.NodeFilterFactory");
 	    digester.addSetProperties("*/filter");
 	    digester.addCallMethod("*/filter/formulaText","setFormulaText",0);
-	    digester.addSetNext("*/filter", "addFactory", "com.microproject.grouping.core.transform.filtering.NodeFilterFactory");
+	    digester.addSetNext("*/filter", "addFactory", "com.microproject.node.transform.filtering.NodeFilterFactory");
 
 	    
 	    //sorters
-		digester.addObjectCreate("*/transform/sorters", "com.microproject.grouping.core.transform.TransformList");
+		digester.addObjectCreate("*/transform/sorters", "com.microproject.node.transform.TransformList");
 	    digester.addSetProperties("*/transform/sorters");
 		digester.addSetNext("*/transform/sorters", "add", "com.microproject.configuration.NamedItem");
 	    
-	    digester.addObjectCreate("*/sorter", "com.microproject.grouping.core.transform.sorting.NodeSorterFactory");
+	    digester.addObjectCreate("*/sorter", "com.microproject.node.transform.sorting.NodeSorterFactory");
 	    digester.addSetProperties("*/sorter");
 	    digester.addCallMethod("*/sorter/formulaText","setFormulaText",0);
 	    digester.addCallMethod("*/sorter/groupNameFormula","setGroupNameFormula",0);
-	    digester.addSetNext("*/sorter", "addFactory", "com.microproject.grouping.core.transform.sorting.NodeSorterFactory");
+	    digester.addSetNext("*/sorter", "addFactory", "com.microproject.node.transform.sorting.NodeSorterFactory");
 	    	    
 	    //groupers
-		digester.addObjectCreate("*/transform/groupers", "com.microproject.grouping.core.transform.TransformList");
+		digester.addObjectCreate("*/transform/groupers", "com.microproject.node.transform.TransformList");
 	    digester.addSetProperties("*/transform/groupers");
 		digester.addSetNext("*/transform/groupers", "add", "com.microproject.configuration.NamedItem");
 	    
-	    digester.addObjectCreate("*/grouper", "com.microproject.grouping.core.transform.grouping.NodeGrouper");
+	    digester.addObjectCreate("*/grouper", "com.microproject.node.transform.grouping.NodeGrouper");
 	    digester.addSetProperties("*/grouper");
-	    digester.addSetNext("*/grouper", "addFactory", "com.microproject.grouping.core.transform.grouping.NodeGrouper");
+	    digester.addSetNext("*/grouper", "addFactory", "com.microproject.node.transform.grouping.NodeGrouper");
 	    
-	    digester.addObjectCreate("*/grouper/group", "com.microproject.grouping.core.transform.grouping.NodeGroup");
+	    digester.addObjectCreate("*/grouper/group", "com.microproject.node.transform.grouping.NodeGroup");
 	    digester.addSetProperties("*/grouper/group");
-	    digester.addSetNext("*/grouper/group", "addGroup", "com.microproject.grouping.core.transform.grouping.NodeGroup");
+	    digester.addSetNext("*/grouper/group", "addGroup", "com.microproject.node.transform.grouping.NodeGroup");
 
 	    
-	    digester.addObjectCreate("*/param", "com.microproject.grouping.core.transform.TransformParameter");
+	    digester.addObjectCreate("*/param", "com.microproject.node.transform.TransformParameter");
 	    digester.addSetProperties("*/param");
-	    digester.addSetNext("*/param", "addParameter", "com.microproject.grouping.core.transform.TransformParameter");
+	    digester.addSetNext("*/param", "addParameter", "com.microproject.node.transform.TransformParameter");
 	    
 	    
 		//transformers
-	    digester.addObjectCreate("*/transform/transformers", "com.microproject.grouping.core.transform.TransformList");
+	    digester.addObjectCreate("*/transform/transformers", "com.microproject.node.transform.TransformList");
 	    digester.addSetProperties("*/transform/transformers");
 		digester.addSetNext("*/transform/transformers", "add", "com.microproject.configuration.NamedItem");
 
-		digester.addObjectCreate("*/transformer", "com.microproject.grouping.core.transform.transformer.NodeTransformerFactory");
+		digester.addObjectCreate("*/transformer", "com.microproject.node.transform.transformer.NodeTransformerFactory");
 	    digester.addSetProperties("*/transformer");
 	    digester.addCallMethod("*/transformer/formulaText","setFormulaText",0);
-	    digester.addSetNext("*/transformer", "addFactory", "com.microproject.grouping.core.transform.transformer.NodeTransformerFactory");
+	    digester.addSetNext("*/transformer", "addFactory", "com.microproject.node.transform.transformer.NodeTransformerFactory");
 
 	
 	}
