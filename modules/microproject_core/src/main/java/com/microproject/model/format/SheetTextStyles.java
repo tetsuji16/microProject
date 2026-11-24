@@ -78,7 +78,7 @@ public final class SheetTextStyles {
      */
     public static SheetTextFormat resolve(Task task) {
         if (task == null) return null;
-        Project project = (Project) task.getDocument();
+        if (!(task.getDocument() instanceof Project project)) return null;
         SheetTextStyles styles = project.getSheetTextStyles();
         if (styles == null || styles.isEmpty()) return null;
 

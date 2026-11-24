@@ -91,6 +91,11 @@ class SheetTextStylesTest {
     }
 
     @Test
+    void detachedTaskHasNoProjectTextStyle() {
+        assertNull(SheetTextStyles.resolve(new NormalTask()));
+    }
+
+    @Test
     void emptyStylesReturnsNull() {
         Project project = newProject();
         SheetTextStyles styles = SheetTextStyles.empty();
