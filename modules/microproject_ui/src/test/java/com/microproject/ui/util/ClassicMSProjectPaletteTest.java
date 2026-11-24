@@ -38,8 +38,8 @@ import java.lang.reflect.Proxy;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.scheduling.Schedule;
-import com.microproject.pm.task.TaskSpecificFields;
+import com.microproject.schedule.Schedule;
+import com.microproject.model.task.TaskSpecificFields;
 
 class ClassicMSProjectPaletteTest {
 	@Test

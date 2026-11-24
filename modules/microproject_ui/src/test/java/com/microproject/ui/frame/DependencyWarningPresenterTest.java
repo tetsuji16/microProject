@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.dependency.DependencyWarningNotifications;
+import com.microproject.model.dependency.DependencyWarningNotifications;
 
 class DependencyWarningPresenterTest {
 	@AfterEach

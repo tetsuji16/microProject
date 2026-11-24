@@ -44,17 +44,17 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.view.configuration.SpreadSheetCategories;
 import com.microproject.field.Field;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.NodeFactory;
+import com.microproject.node.Node;
+import com.microproject.node.NodeFactory;
 import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.model.cache.NodeModelCacheFactory;
 import com.microproject.ui.view.spreadsheet.common.SpreadSheetRowHeader;
 import com.microproject.ui.view.spreadsheet.command.TaskHierarchyEditIntent;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.DefaultSubProj;
-import com.microproject.pm.task.Task;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.DefaultSubProj;
+import com.microproject.model.task.Task;
 import com.microproject.i18n.Messages;
 import com.microproject.ui.menu.MenuManager;
 import com.microproject.undo.DataFactoryUndoController;
@@ -355,13 +355,13 @@ class SpreadSheetMouseInteractionTest {
 			NormalTask second = fixture.secondTask();
 			first.setDuration(2L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
 			try {
-				com.microproject.pm.dependency.DependencyService.getInstance().newDependency(
-				first, second, com.microproject.pm.dependency.DependencyType.FS, 0L, this);
+				com.microproject.model.dependency.DependencyService.getInstance().newDependency(
+				first, second, com.microproject.model.dependency.DependencyType.FS, 0L, this);
 			} catch (Exception failure) {
 				throw new AssertionError(failure);
 			}
 			second.setManualDates(first.getStart(), first.getEnd());
-			assertTrue(com.microproject.pm.task.ScheduleDiagnosticsService.showsWarning(second));
+			assertTrue(com.microproject.model.task.ScheduleDiagnosticsService.showsWarning(second));
 
 			popup.setRow(findRow(sheet, first));
 			assertFalse(menuItem(popup, "fixInTaskInspector").isVisible());
@@ -669,7 +669,7 @@ class SpreadSheetMouseInteractionTest {
 			Node firstNode = sheet.getCache().getModel().search(fixture.firstTask());
 			Node secondNode = sheet.getCache().getModel().search(fixture.secondTask());
 			assertTrue(sheet.getCache().getModel().relocate(Collections.singletonList(secondNode), firstNode, 0,
-					com.microproject.grouping.core.model.NodeModel.NORMAL));
+					com.microproject.node.model.NodeModel.NORMAL));
 			sheet.getCache().update();
 			int firstRow = findRow(sheet, fixture.firstTask());
 			int secondRow = findRow(sheet, fixture.secondTask());

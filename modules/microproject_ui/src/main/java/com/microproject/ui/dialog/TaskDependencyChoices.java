@@ -28,8 +28,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
 
 /** Shared candidate and label rules for predecessor and successor choosers. */
 final class TaskDependencyChoices {

@@ -11,15 +11,15 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.configuration.Dictionary;
 import com.microproject.datatype.Rate;
-import com.microproject.grouping.core.transform.ViewTransformer;
+import com.microproject.node.transform.ViewTransformer;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.model.cache.NodeModelCacheFactory;
 import com.microproject.ui.view.model.cache.ReferenceNodeModelCache;
 import com.microproject.ui.view.model.cache.ViewNodeModelCache;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.resource.ResourceImpl;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.resource.ResourceType;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.resource.ResourceImpl;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.resource.ResourceType;
 import com.microproject.undo.DataFactoryUndoController;
 
 /** Resource sort composed with the resource filter and grouper projection. */

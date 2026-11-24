@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.DurationFormat;
-import com.microproject.pm.dependency.DependencyType;
+import com.microproject.model.dependency.DependencyType;
 import com.microproject.ui.view.link_routing.DefaultNetworkLinkRouting;
 import com.microproject.ui.view.link_routing.StraightNetworkLinkRouting;
 

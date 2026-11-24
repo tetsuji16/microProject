@@ -108,34 +108,34 @@ import com.microproject.document.ObjectEvent;
 import com.microproject.document.ObjectSelectionEvent;
 import com.microproject.document.ObjectSelectionListener;
 import com.microproject.field.Field;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.ProjectSummaryRow;
-import com.microproject.grouping.core.NodeList;
-import com.microproject.grouping.core.model.WalkersNodeModel;
-import com.microproject.grouping.core.model.NodeModel;
-import com.microproject.grouping.core.transform.ViewTransformer;
-import com.microproject.grouping.core.transform.filtering.NodeFilter;
-import com.microproject.grouping.core.transform.filtering.ResourceInTeamFilter;
+import com.microproject.node.Node;
+import com.microproject.node.ProjectSummaryRow;
+import com.microproject.node.NodeList;
+import com.microproject.node.model.WalkersNodeModel;
+import com.microproject.node.model.NodeModel;
+import com.microproject.node.transform.ViewTransformer;
+import com.microproject.node.transform.filtering.NodeFilter;
+import com.microproject.node.transform.filtering.ResourceInTeamFilter;
 import com.microproject.job.JobQueue;
-import com.microproject.pm.calendar.CalendarService;
-import com.microproject.pm.calendar.HasCalendar;
-import com.microproject.pm.calendar.WorkingCalendar;
-import com.microproject.pm.dependency.DependencyService;
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.dependency.HasDependencies;
+import com.microproject.model.calendar.CalendarService;
+import com.microproject.model.calendar.HasCalendar;
+import com.microproject.model.calendar.WorkingCalendar;
+import com.microproject.model.dependency.DependencyService;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.dependency.HasDependencies;
 import com.microproject.ui.view.undo.SwingUndoAdapter;
-import com.microproject.pm.resource.ResourceImpl;
-import com.microproject.pm.resource.ResourceLevelingService;
-import com.microproject.pm.resource.TeamPlannerService;
-import com.microproject.pm.task.Portfolio;
-import com.microproject.pm.task.TaskMoveService;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.BaselineRollupOptions;
-import com.microproject.pm.task.ProjectEvent;
-import com.microproject.pm.task.ProjectFactory;
-import com.microproject.pm.task.ProjectListener;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.task.UpdateProjectRequest;
+import com.microproject.model.resource.ResourceImpl;
+import com.microproject.model.resource.ResourceLevelingService;
+import com.microproject.model.resource.TeamPlannerService;
+import com.microproject.model.task.Portfolio;
+import com.microproject.model.task.TaskMoveService;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.BaselineRollupOptions;
+import com.microproject.model.task.ProjectEvent;
+import com.microproject.model.task.ProjectFactory;
+import com.microproject.model.task.ProjectListener;
+import com.microproject.model.task.Task;
+import com.microproject.model.task.UpdateProjectRequest;
 import com.microproject.i18n.Messages;
 import com.microproject.timescale.TimeScale;
 import com.microproject.preference.GlobalPreferences;
@@ -614,8 +614,8 @@ public class DocumentFrame extends NamedFrame implements
 			resolveTaskSelection(false, false));
 		case HIDE_SELECTED -> lastTaskCommandResult = applyTaskVisibility(command, true);
 		case SHOW_ALL -> lastTaskCommandResult = applyTaskVisibility(command, false);
-		case TASK_MODE_MANUAL -> lastTaskCommandResult = applyTaskMode(command, com.microproject.pm.task.TaskModeService.Mode.MANUAL);
-		case TASK_MODE_AUTOMATIC -> lastTaskCommandResult = applyTaskMode(command, com.microproject.pm.task.TaskModeService.Mode.AUTOMATIC);
+		case TASK_MODE_MANUAL -> lastTaskCommandResult = applyTaskMode(command, com.microproject.model.task.TaskModeService.Mode.MANUAL);
+		case TASK_MODE_AUTOMATIC -> lastTaskCommandResult = applyTaskMode(command, com.microproject.model.task.TaskModeService.Mode.AUTOMATIC);
 		case INACTIVATE_TASK -> lastTaskCommandResult = applyInactivateTask(command);
 		case RESPECT_LINKS -> lastTaskCommandResult = applyRespectLinks(command);
 		case TASK_MOVE_FORWARD_DAY -> lastTaskCommandResult = applyTaskMove(command, TaskMoveService.DAY);
@@ -905,7 +905,7 @@ public class DocumentFrame extends NamedFrame implements
 	private RibbonCommandResult applyPercentComplete(CommandId command, double fraction) {
 		EditableTaskTargets targets = resolveEditableTaskTargets(command, "set percent complete");
 		if (targets.rejection() != null) return targets.rejection();
-		var result = new com.microproject.pm.task.TaskProgressService().setPercentComplete(project, targets.tasks(), fraction);
+		var result = new com.microproject.model.task.TaskProgressService().setPercentComplete(project, targets.tasks(), fraction);
 		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), result.change());
 		restoreTaskRows(targets.nodes());
 		List<Long> affectedTaskIds = targets.tasks().stream().map(Task::getUniqueId).toList();
@@ -929,10 +929,10 @@ public class DocumentFrame extends NamedFrame implements
 		menuManager.setActionSelected(ACTION_INACTIVATE_TASK, any && selected.stream().allMatch(Task::isInactiveTask));
 	}
 
-	private RibbonCommandResult applyTaskMode(CommandId command, com.microproject.pm.task.TaskModeService.Mode mode) {
+	private RibbonCommandResult applyTaskMode(CommandId command, com.microproject.model.task.TaskModeService.Mode mode) {
 		EditableTaskTargets targets = resolveEditableTaskTargets(command, "change task mode");
 		if (targets.rejection() != null) return targets.rejection();
-		var result = new com.microproject.pm.task.TaskModeService().apply(targets.tasks(), mode);
+		var result = new com.microproject.model.task.TaskModeService().apply(targets.tasks(), mode);
 		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), result.change());
 		restoreTaskRows(targets.nodes());
 		return taskSelectionOutcome(command, result.change().hasChanged()
@@ -986,7 +986,7 @@ public class DocumentFrame extends NamedFrame implements
 		List<Task> changed = targets.tasks().stream().filter(task -> task.isDisplayOnTimeline() != value).toList();
 		if (changed.isEmpty())
 			return taskSelectionOutcome(command, RibbonCommandResult.Status.NO_CHANGE, targets.selectedIds());
-		com.microproject.pm.task.ReversibleModelChange change = com.microproject.pm.task.ReversibleModelChange.changed(
+		com.microproject.model.task.ReversibleModelChange change = com.microproject.model.task.ReversibleModelChange.changed(
 			() -> { changed.forEach(task -> task.setDisplayOnTimeline(!value)); refreshEmbeddedTimeline(); },
 			() -> { changed.forEach(task -> task.setDisplayOnTimeline(value)); refreshEmbeddedTimeline(); });
 		changed.forEach(task -> task.setDisplayOnTimeline(value));
@@ -1005,7 +1005,7 @@ public class DocumentFrame extends NamedFrame implements
 	private RibbonCommandResult applyInactivateTask(CommandId command) {
 		EditableTaskTargets targets = resolveEditableTaskTargets(command, "inactivate");
 		if (targets.rejection() != null) return targets.rejection();
-		var result = new com.microproject.pm.task.TaskInactivationService().toggle(targets.tasks());
+		var result = new com.microproject.model.task.TaskInactivationService().toggle(targets.tasks());
 		if (!result.change().hasChanged())
 			return taskSelectionOutcome(command, RibbonCommandResult.Status.NO_CHANGE, targets.selectedIds());
 		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), result.change());
@@ -1017,7 +1017,7 @@ public class DocumentFrame extends NamedFrame implements
 		EditableTaskTargets targets = resolveEditableTaskTargets(command, "respect links");
 		if (targets.rejection() != null) return targets.rejection();
 		try {
-			var result = new com.microproject.pm.task.RespectLinksService().apply(project, targets.tasks());
+			var result = new com.microproject.model.task.RespectLinksService().apply(project, targets.tasks());
 			if (!result.change().hasChanged())
 				return taskSelectionOutcome(command, RibbonCommandResult.Status.NO_CHANGE, targets.selectedIds());
 			SwingUndoAdapter.post(project.getUndoController().getEditSupport(), result.change());
@@ -1108,17 +1108,17 @@ public class DocumentFrame extends NamedFrame implements
 	}
 
 	/** Test seam: replaces the resource picker dialog; receives all resources and returns the chosen ones. */
-	java.util.function.Function<List<com.microproject.pm.resource.Resource>, List<com.microproject.pm.resource.Resource>> levelResourcePicker;
+	java.util.function.Function<List<com.microproject.model.resource.Resource>, List<com.microproject.model.resource.Resource>> levelResourcePicker;
 
 	/** Resource &gt; Level &gt; Level Resource: levels only the resources picked in a dialog, as one undoable edit. */
 	private RibbonCommandResult applyResourceLevelResources(CommandId command) {
 		if (project == null || project.isReadOnly())
 			return RibbonCommandResult.rejected(command.actionId(), project == null ? "no-active-document" : "document-read-only");
 		finishAnyOperations();
-		List<com.microproject.pm.resource.Resource> all = new ArrayList<>(project.getResourcePool().getResourceList());
+		List<com.microproject.model.resource.Resource> all = new ArrayList<>(project.getResourcePool().getResourceList());
 		if (all.isEmpty())
 			return RibbonCommandResult.noChange(command.actionId(), getSelectedTaskIds()).withActiveView(getTopViewId());
-		List<com.microproject.pm.resource.Resource> chosen;
+		List<com.microproject.model.resource.Resource> chosen;
 		if (levelResourcePicker != null)
 			chosen = levelResourcePicker.apply(all);
 		else if (java.awt.GraphicsEnvironment.isHeadless())
@@ -1139,9 +1139,9 @@ public class DocumentFrame extends NamedFrame implements
 		return applyResourceLevelingPlan(command, plan, selectedIds, selectionSnapshot.selectedNodes, selectionSnapshot);
 	}
 
-	private List<com.microproject.pm.resource.Resource> pickResourcesToLevel(List<com.microproject.pm.resource.Resource> all) {
+	private List<com.microproject.model.resource.Resource> pickResourcesToLevel(List<com.microproject.model.resource.Resource> all) {
 		javax.swing.DefaultListModel<String> model = new javax.swing.DefaultListModel<>();
-		for (com.microproject.pm.resource.Resource resource : all)
+		for (com.microproject.model.resource.Resource resource : all)
 			model.addElement(String.valueOf(resource.getName()));
 		javax.swing.JList<String> list = new javax.swing.JList<>(model);
 		list.setVisibleRowCount(Math.min(12, Math.max(4, all.size())));
@@ -1151,7 +1151,7 @@ public class DocumentFrame extends NamedFrame implements
 		int answer = JOptionPane.showConfirmDialog(this, panel, Messages.getString("LevelResource.title"),
 			JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 		if (answer != JOptionPane.OK_OPTION) return List.of();
-		List<com.microproject.pm.resource.Resource> chosen = new ArrayList<>();
+		List<com.microproject.model.resource.Resource> chosen = new ArrayList<>();
 		for (int index : list.getSelectedIndices()) chosen.add(all.get(index));
 		return chosen;
 	}
@@ -1181,9 +1181,9 @@ public class DocumentFrame extends NamedFrame implements
 		plan.changes().stream().map(ResourceLevelingService.Change::task).forEach(task -> addIdentity(affectedTasks, task));
 		plan.splits().stream().map(ResourceLevelingService.Split::task).forEach(task -> addIdentity(affectedTasks, task));
 		plan.assignmentChanges().stream().map(ResourceLevelingService.AssignmentChange::assignment)
-			.map(com.microproject.pm.assignment.Assignment::getTask).forEach(task -> addIdentity(affectedTasks, task));
+			.map(com.microproject.model.assignment.Assignment::getTask).forEach(task -> addIdentity(affectedTasks, task));
 		plan.assignmentSplits().stream().map(ResourceLevelingService.AssignmentSplit::assignment)
-			.map(com.microproject.pm.assignment.Assignment::getTask).forEach(task -> addIdentity(affectedTasks, task));
+			.map(com.microproject.model.assignment.Assignment::getTask).forEach(task -> addIdentity(affectedTasks, task));
 		List<Long> affectedIds = affectedTasks.stream().map(Task::getUniqueId)
 			.filter(java.util.Objects::nonNull).distinct().toList();
 		if (!plan.hasChanges()) {
@@ -1288,7 +1288,7 @@ public class DocumentFrame extends NamedFrame implements
 		StatusDateDialog dialog = StatusDateDialog.getInstance(getGraphicManager().getFrame(), project);
 		dialog.setLocationRelativeTo(getGraphicManager().getFrame());
 		if (!dialog.doModal()) return RibbonCommandResult.noChange(command.actionId());
-		var service = new com.microproject.pm.task.TaskProgressService();
+		var service = new com.microproject.model.task.TaskProgressService();
 		var result = dialog.isNotSet()
 			? service.clearStatusDate(project)
 			: service.setStatusDate(project, dialog.getSelectedStatusDate().getTime());
@@ -1302,7 +1302,7 @@ public class DocumentFrame extends NamedFrame implements
 	private RibbonCommandResult applyMarkOnTrack(CommandId command) {
 		EditableTaskTargets targets = resolveEditableTaskTargets(command, "mark on track");
 		if (targets.rejection() != null) return targets.rejection();
-		var result = new com.microproject.pm.task.TaskProgressService().markOnTrack(project, targets.tasks());
+		var result = new com.microproject.model.task.TaskProgressService().markOnTrack(project, targets.tasks());
 		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), result.change());
 		restoreTaskRows(targets.nodes());
 		List<Long> affectedTaskIds = targets.tasks().stream().map(Task::getUniqueId).toList();
@@ -2558,7 +2558,7 @@ public class DocumentFrame extends NamedFrame implements
 	public boolean setIgnoreWarnings(List<Task> tasks, boolean ignore) {
 		if (project == null || project.isReadOnly() || tasks == null || tasks.isEmpty()) return false;
 		try {
-			var result = new com.microproject.pm.task.TaskWarningsService().setIgnoreWarnings(project, tasks, ignore);
+			var result = new com.microproject.model.task.TaskWarningsService().setIgnoreWarnings(project, tasks, ignore);
 			return finishWarningsChange(result.change());
 		} catch (RuntimeException refused) {
 			GraphicManager.traceUi("ignore-warnings refused " + refused);
@@ -2570,14 +2570,14 @@ public class DocumentFrame extends NamedFrame implements
 	public boolean showIgnoredProblems() {
 		if (project == null || project.isReadOnly()) return false;
 		try {
-			return finishWarningsChange(new com.microproject.pm.task.TaskWarningsService().showIgnoredProblems(project).change());
+			return finishWarningsChange(new com.microproject.model.task.TaskWarningsService().showIgnoredProblems(project).change());
 		} catch (RuntimeException refused) {
 			GraphicManager.traceUi("show-ignored-problems refused " + refused);
 			return false;
 		}
 	}
 
-	private boolean finishWarningsChange(com.microproject.pm.task.ReversibleModelChange change) {
+	private boolean finishWarningsChange(com.microproject.model.task.ReversibleModelChange change) {
 		if (!change.hasChanged()) return false;
 		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), change);
 		refreshTaskDiagnostics();

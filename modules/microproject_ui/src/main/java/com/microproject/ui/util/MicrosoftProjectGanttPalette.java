@@ -10,8 +10,8 @@ import java.awt.Paint;
 import java.awt.geom.Rectangle2D;
 
 import com.microproject.view.configuration.BarFormat;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.scheduling.Schedule;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.schedule.Schedule;
 
 /** Flat MS Project-compatible palette for the default Gantt chart. */
 public final class MicrosoftProjectGanttPalette implements GanttColorPalette {

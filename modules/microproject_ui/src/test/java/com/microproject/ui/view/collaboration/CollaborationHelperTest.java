@@ -25,10 +25,10 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.collaboration.CollaborationLockUnavailableException;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Alert;
 import com.microproject.util.AlertPresenter;

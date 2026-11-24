@@ -7,8 +7,8 @@ package com.microproject.application;
 import java.nio.file.Path;
 import java.util.Objects;
 
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectFactory;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectFactory;
 import com.microproject.port.ExportPort;
 import com.microproject.port.ImportPort;
 import com.microproject.port.PortDiagnostic;

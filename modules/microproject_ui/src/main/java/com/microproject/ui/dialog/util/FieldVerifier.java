@@ -49,8 +49,8 @@ import com.microproject.persistence.data.DataObject;
 import com.microproject.options.EditOption;
 import com.microproject.undo.FieldEdit;
 import com.microproject.undo.TaskConstraintEdit;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Task;
 import com.microproject.util.Alert;
 import com.microproject.ui.util.DateFieldSupport;
 import com.microproject.ui.util.FlatUiSupport;
@@ -290,7 +290,7 @@ public class FieldVerifier extends InputVerifier {
 
 	private boolean isWorkingTimeField(Object newValue) {
 		return newValue instanceof java.util.Date && field.isDate() && (field.isStartValue() || field.isEndValue())
-				&& !(objectRef != null && objectRef.getObject() instanceof com.microproject.pm.task.Project);
+				&& !(objectRef != null && objectRef.getObject() instanceof com.microproject.model.task.Project);
 	}
 
 	private static boolean isMidnight(java.util.Date date) {
@@ -317,11 +317,11 @@ public class FieldVerifier extends InputVerifier {
 
 	/** Undo bookkeeping for task-sheet schedule edits; Duration posts its own edit, so nothing is added for it. */
 	private static final class ScheduleUndo {
-		private final com.microproject.pm.task.Project project;
-		private final com.microproject.pm.task.ProjectTaskSnapshot before;
+		private final com.microproject.model.task.Project project;
+		private final com.microproject.model.task.ProjectTaskSnapshot before;
 		private final java.util.Map<Task, Integer> calculationStates;
 
-		private ScheduleUndo(com.microproject.pm.task.Project project, com.microproject.pm.task.ProjectTaskSnapshot before,
+		private ScheduleUndo(com.microproject.model.task.Project project, com.microproject.model.task.ProjectTaskSnapshot before,
 				java.util.Map<Task, Integer> calculationStates) {
 			this.project = project;
 			this.before = before;
@@ -330,22 +330,22 @@ public class FieldVerifier extends InputVerifier {
 
 		static boolean usesTaskSheetRules(Field field) {
 			String id = field.getId();
-			return com.microproject.pm.task.TaskSheetScheduleWorkflow.isScheduleField(id)
-					|| com.microproject.pm.task.TaskSheetScheduleWorkflow.PERCENT_COMPLETE_FIELD_ID.equals(id);
+			return com.microproject.model.task.TaskSheetScheduleWorkflow.isScheduleField(id)
+					|| com.microproject.model.task.TaskSheetScheduleWorkflow.PERCENT_COMPLETE_FIELD_ID.equals(id);
 		}
 
 		static ScheduleUndo begin(Field field, ObjectRef objectRef, FieldContext context) {
 			if (!FieldContext.isTaskSheetUpdate(context) || objectRef.getCollection() != null
 					|| !(objectRef.getObject() instanceof NormalTask task) || task.getProject() == null)
 				return null;
-			com.microproject.pm.task.Project project = task.getProject();
-			if (com.microproject.pm.task.TaskSheetScheduleWorkflow.DURATION_FIELD_ID.equals(field.getId()))
+			com.microproject.model.task.Project project = task.getProject();
+			if (com.microproject.model.task.TaskSheetScheduleWorkflow.DURATION_FIELD_ID.equals(field.getId()))
 				return new ScheduleUndo(project, null, null); // the Duration workflow posts its own edit
-			return new ScheduleUndo(project, com.microproject.pm.task.ProjectTaskSnapshot.capture(project),
+			return new ScheduleUndo(project, com.microproject.model.task.ProjectTaskSnapshot.capture(project),
 					states(project));
 		}
 
-		private static java.util.Map<Task, Integer> states(com.microproject.pm.task.Project project) {
+		private static java.util.Map<Task, Integer> states(com.microproject.model.task.Project project) {
 			java.util.Map<Task, Integer> states = new java.util.IdentityHashMap<>();
 			for (Task task : project.getTaskList())
 				states.put(task, task.getCalculationStateCount());
@@ -425,11 +425,11 @@ public class FieldVerifier extends InputVerifier {
 		private final Object object;
 		private final ObjectRef parent;
 		private SingleObjectRef(Object object, ObjectRef parent) { this.object = object; this.parent = parent; }
-		@Override public com.microproject.grouping.core.Node getNode() { return null; }
-		@Override public com.microproject.grouping.core.model.WalkersNodeModel getNodeModel() { return null; }
+		@Override public com.microproject.node.Node getNode() { return null; }
+		@Override public com.microproject.node.model.WalkersNodeModel getNodeModel() { return null; }
 		@Override public Object getObject() { return object; }
 		@Override public Collection<?> getCollection() { return null; }
-		@Override public com.microproject.grouping.core.model.NodeModelDataFactory getDataFactory() { return parent.getDataFactory(); }
+		@Override public com.microproject.node.model.NodeModelDataFactory getDataFactory() { return parent.getDataFactory(); }
 	}
 
 	

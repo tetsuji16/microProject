@@ -27,7 +27,7 @@ import javax.swing.SpinnerNumberModel;
 import com.microproject.ui.dialog.CalendarViewSettings.TextStyle;
 import com.microproject.ui.dialog.TimelineViewSettings;
 import com.microproject.ui.frame.NetworkCalendarFormatDialogs.OptionPanel;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.Task;
 
 /**
  * Option panels of the Timeline and Team Planner Format tabs (text styles, date range, text lines,

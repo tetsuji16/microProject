@@ -25,7 +25,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import com.microproject.exchange.mpx.MspImporter;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.exchange.serialize.MPXConverter;
 import com.microproject.util.DateTime;
 

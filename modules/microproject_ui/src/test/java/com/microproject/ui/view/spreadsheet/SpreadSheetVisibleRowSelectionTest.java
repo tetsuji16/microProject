@@ -17,14 +17,14 @@ import javax.swing.table.TableRowSorter;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.model.cache.NodeModelCacheFactory;
 import com.microproject.ui.view.spreadsheet.common.CommonSpreadSheetModel;
 import com.microproject.view.configuration.SpreadSheetCategories;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 
 class SpreadSheetVisibleRowSelectionTest {

@@ -86,10 +86,10 @@ import com.microproject.view.configuration.CellStyles;
 import com.microproject.configuration.Init;
 import com.microproject.ui.menu.MenuActionConstants;
 import com.microproject.ui.menu.MenuManager;
-import com.microproject.pm.ccpm.CriticalChainBufferHistory;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
+import com.microproject.schedule.ccpm.CriticalChainBufferHistory;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
 import com.microproject.ui.frame.workspace.NamedFrame;
 import com.microproject.preference.ConfigurationFile;
 import com.microproject.session.SessionFactory;
@@ -341,14 +341,14 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		Project scalarProject = manager.findFrameForProjectFile(scalarXml.toString()).getProject();
 		Task baselineTask = scalarProject.getTaskList().stream()
 			.filter(candidate -> "Assignment baseline task".equals(candidate.getName())).findFirst().orElseThrow();
-		assertTrue(baselineTask instanceof com.microproject.pm.task.NormalTask);
-		com.microproject.pm.task.NormalTask normalBaselineTask = (com.microproject.pm.task.NormalTask) baselineTask;
-		assertEquals("Baseline test resource", ((com.microproject.pm.assignment.Assignment)
+		assertTrue(baselineTask instanceof com.microproject.model.task.NormalTask);
+		com.microproject.model.task.NormalTask normalBaselineTask = (com.microproject.model.task.NormalTask) baselineTask;
+		assertEquals("Baseline test resource", ((com.microproject.model.assignment.Assignment)
 			normalBaselineTask.getAssignments().iterator().next()).getResource().getName());
 		assertEquals(null, normalBaselineTask.getSnapshot(Integer.valueOf(0)),
 			"assignment-only baseline import must not create a task baseline");
-		com.microproject.pm.assignment.Assignment scalarAssignment =
-			(com.microproject.pm.assignment.Assignment) normalBaselineTask.getAssignments().iterator().next();
+		com.microproject.model.assignment.Assignment scalarAssignment =
+			(com.microproject.model.assignment.Assignment) normalBaselineTask.getAssignments().iterator().next();
 		assertEquals(Instant.parse("2026-10-05T17:00:00Z").toEpochMilli(),
 			scalarAssignment.getBaselineValues(0).start());
 		assertEquals(null, scalarAssignment.getBaselineValues(0).finish(), "slot 0 Finish is intentionally missing");
@@ -410,13 +410,13 @@ class RibbonExternalCommandGuiAcceptanceTest {
 			java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 		scalarReader.importFile();
 		Project scalarReopened = scalarReader.getProject();
-		com.microproject.pm.task.NormalTask reopenedBaselineTask = (com.microproject.pm.task.NormalTask)
+		com.microproject.model.task.NormalTask reopenedBaselineTask = (com.microproject.model.task.NormalTask)
 			scalarReopened.getTaskList().stream()
 				.filter(candidate -> "Edited assignment baseline task".equals(candidate.getName())).findFirst().orElseThrow();
 		assertEquals(expectedScalarBaselines, assignmentBaselineSemantics(scalarReopened),
 			"MPO reopen must preserve physical MSPDI assignment baseline values");
-		com.microproject.pm.assignment.Assignment reopenedScalarAssignment =
-			(com.microproject.pm.assignment.Assignment) reopenedBaselineTask.getAssignments().iterator().next();
+		com.microproject.model.assignment.Assignment reopenedScalarAssignment =
+			(com.microproject.model.assignment.Assignment) reopenedBaselineTask.getAssignments().iterator().next();
 		assertEquals(scalarAssignment.getBaselineValues(0), reopenedScalarAssignment.getBaselineValues(0));
 		assertEquals(scalarAssignment.getBaselineValues(9), reopenedScalarAssignment.getBaselineValues(9));
 		assertEquals(scalarAssignment.getBaselineValues(10), reopenedScalarAssignment.getBaselineValues(10));
@@ -472,7 +472,7 @@ class RibbonExternalCommandGuiAcceptanceTest {
 		List<String> rows = new ArrayList<>();
 		Object root = project.getTaskOutline().getHierarchy().getRoot();
 		for (java.util.Iterator<?> nodes = project.getTaskOutline().iterator(); nodes.hasNext();) {
-			com.microproject.grouping.core.Node row = (com.microproject.grouping.core.Node) nodes.next();
+			com.microproject.node.Node row = (com.microproject.node.Node) nodes.next();
 			if (row != root) rows.add(row.getImpl() instanceof Task task ? task.getName() : "");
 		}
 		// Blank rows after the last task are the view's filler, which is not saved.
@@ -2450,11 +2450,11 @@ class RibbonExternalCommandGuiAcceptanceTest {
 	private static List<String> assignmentBaselineSemantics(Project project) {
 		List<String> summary = new ArrayList<>();
 		for (Task task : project.getTaskList()) {
-			if (!(task instanceof com.microproject.pm.task.NormalTask normalTask)) continue;
+			if (!(task instanceof com.microproject.model.task.NormalTask normalTask)) continue;
 			for (Object value : normalTask.getAssignments()) {
-				com.microproject.pm.assignment.Assignment assignment = (com.microproject.pm.assignment.Assignment) value;
+				com.microproject.model.assignment.Assignment assignment = (com.microproject.model.assignment.Assignment) value;
 				for (int slot = 0; slot <= 10; slot++) {
-					com.microproject.pm.assignment.Assignment.BaselineValues baseline = assignment.getBaselineValues(slot);
+					com.microproject.model.assignment.Assignment.BaselineValues baseline = assignment.getBaselineValues(slot);
 					if (baseline != null && (baseline.start() != null || baseline.finish() != null
 							|| (baseline.work() != null && baseline.work().longValue() != 0L)))
 						summary.add(task.getName() + "|" + assignment.getResource().getName() + "|" + slot

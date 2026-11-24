@@ -37,7 +37,7 @@ import com.microproject.configuration.Configuration;
 import com.microproject.configuration.Dictionary;
 import com.microproject.configuration.NamedItem;
 import com.microproject.field.Field;
-import com.microproject.pm.assignment.TimeDistributedHelper;
+import com.microproject.model.assignment.TimeDistributedHelper;
 import com.microproject.i18n.Messages;
 import com.microproject.workspace.SavableToWorkspace;
 import com.microproject.workspace.WorkspaceSetting;

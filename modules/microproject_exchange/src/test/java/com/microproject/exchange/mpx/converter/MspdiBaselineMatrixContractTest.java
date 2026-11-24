@@ -28,11 +28,11 @@ import org.w3c.dom.Element;
 import com.microproject.exchange.MicrosoftImporter;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.exchange.MspdiProjectBoundary;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.TaskSnapshot;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.TaskSnapshot;
 
 import org.mpxj.ScheduleFrom;
 
@@ -194,7 +194,7 @@ class MspdiBaselineMatrixContractTest {
 	}
 
 	private record ImportStage(String name, long currentTaskFinish, long currentAssignmentFinish, long currentAssignmentWork,
-		com.microproject.pm.scheduling.ConstraintType.Kind constraint,
+		com.microproject.schedule.ConstraintType.Kind constraint,
 		Object currentTaskSchedule, Object taskBaselineSchedule, Object currentAssignment,
 		Object assignmentBaseline, long taskBaselineFinish, long assignmentBaselineFinish) { }
 

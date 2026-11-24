@@ -25,8 +25,8 @@ package com.microproject.ui.frame;
 
 import javax.swing.SwingUtilities;
 
-import com.microproject.pm.assignment.AssignmentCalendarNotifications;
-import com.microproject.pm.task.Task;
+import com.microproject.model.assignment.AssignmentCalendarNotifications;
+import com.microproject.model.task.Task;
 import com.microproject.i18n.Messages;
 import com.microproject.util.Alert;
 

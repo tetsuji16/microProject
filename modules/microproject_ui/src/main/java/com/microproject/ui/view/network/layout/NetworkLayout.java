@@ -30,7 +30,7 @@ import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.model.event.CacheListener;
 import com.microproject.document.ObjectEvent;
 import com.microproject.view.configuration.BarStyles;
-import com.microproject.pm.scheduling.ScheduleEventListener;
+import com.microproject.schedule.ScheduleEventListener;
 
 /**
  *

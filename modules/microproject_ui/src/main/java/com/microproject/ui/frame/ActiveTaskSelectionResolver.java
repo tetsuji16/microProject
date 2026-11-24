@@ -8,8 +8,8 @@ package com.microproject.ui.frame;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.microproject.grouping.core.Node;
-import com.microproject.pm.task.Task;
+import com.microproject.node.Node;
+import com.microproject.model.task.Task;
 import com.microproject.util.ClassUtils;
 
 /** Resolves the active task-row selection and its command eligibility once. */

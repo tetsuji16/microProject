@@ -37,9 +37,9 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
-import com.microproject.pm.calendar.WorkCalendar;
-import com.microproject.pm.resource.EnterpriseResource;
-import com.microproject.pm.resource.ResourceImpl;
+import com.microproject.model.calendar.WorkCalendar;
+import com.microproject.model.resource.EnterpriseResource;
+import com.microproject.model.resource.ResourceImpl;
 import com.microproject.session.Session;
 import com.microproject.util.SafeObjectInput;
 

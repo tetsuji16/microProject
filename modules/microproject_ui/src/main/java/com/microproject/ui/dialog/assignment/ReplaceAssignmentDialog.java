@@ -34,7 +34,7 @@ import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.ui.dialog.AbstractDialog;
 import com.microproject.ui.frame.DocumentFrame;
-import com.microproject.pm.resource.Resource;
+import com.microproject.model.resource.Resource;
 import com.microproject.i18n.Messages;
 import com.microproject.ui.util.FlatUiSupport;
 

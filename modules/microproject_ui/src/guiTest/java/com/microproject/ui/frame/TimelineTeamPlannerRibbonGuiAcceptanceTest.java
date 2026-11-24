@@ -24,9 +24,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
 import com.microproject.ui.testsupport.GuiAcceptanceSupport;
 import com.microproject.ui.testsupport.GuiRobot;
 import com.microproject.ui.testsupport.RibbonGuiSupport;
@@ -111,7 +111,7 @@ class TimelineTeamPlannerRibbonGuiAcceptanceTest {
 		confirmDialog(robot, dialog -> { });
 		// Add to Timeline is enabled from the Timeline selection, so it must act on the Timeline's
 		// selected task, not on the (empty) table selection.
-		com.microproject.pm.task.Task target = project.getTasks().getFirst();
+		com.microproject.model.task.Task target = project.getTasks().getFirst();
 		boolean onTimeline = onEdt(target::isDisplayOnTimeline);
 		onEdt(() -> { timeline.selectTasks(java.util.List.of(target)); return null; });
 		onEdt(() -> { manager.getAction(com.microproject.ribbon.CommandId.TASK_ADD_TO_TIMELINE.actionId()).actionPerformed(

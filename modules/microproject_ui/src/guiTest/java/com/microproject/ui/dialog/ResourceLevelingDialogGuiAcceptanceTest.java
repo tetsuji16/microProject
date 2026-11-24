@@ -28,15 +28,15 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.assignment.AssignmentService;
-import com.microproject.pm.assignment.Assignment;
+import com.microproject.model.assignment.AssignmentService;
+import com.microproject.model.assignment.Assignment;
 import com.microproject.options.CalendarOption;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.resource.ResourceImpl;
-import com.microproject.pm.resource.BookingType;
-import com.microproject.pm.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.resource.ResourceImpl;
+import com.microproject.model.resource.BookingType;
+import com.microproject.model.task.NormalTask;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.ui.testsupport.GuiAcceptanceSupport;
 import com.microproject.ui.frame.GraphicManager;
@@ -64,7 +64,7 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Project project = newConflictProject();
 		for (Object value : project.getResourcePool().getResourceList())
-			((ResourceImpl) value).setBookingTypeKind(com.microproject.pm.resource.BookingType.Kind.COMMITTED);
+			((ResourceImpl) value).setBookingTypeKind(com.microproject.model.resource.BookingType.Kind.COMMITTED);
 		NormalTask target = (NormalTask) project.getTaskList().get(1);
 		Assignment assignment = (Assignment) target.getAssignments().iterator().next();
 		ResourceLevelingDialogBox dialog = openDialog(project);
@@ -96,7 +96,7 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 		project.initialize(false, false);
 		ResourceImpl resource = pool.newResourceInstance();
 		resource.setName("Shared resource");
-		resource.setBookingTypeKind(com.microproject.pm.resource.BookingType.Kind.COMMITTED);
+		resource.setBookingTypeKind(com.microproject.model.resource.BookingType.Kind.COMMITTED);
 		NormalTask targetTask = task(project, "Split target", 5L);
 		NormalTask blockerTask = task(project, "Interior blocker", 1L);
 		blockerTask.setPriority(900);
@@ -157,8 +157,8 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 		blockerTask.setStart(project.getEffectiveWorkCalendar().add(project.getStart(),
 			CalendarOption.getInstance().getMillisPerDay(), false));
 		Assignment target = AssignmentService.getInstance().newAssignment(targetTask, shared, 1D, 0L, this);
-		long userGapStart = target.getStart() + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
-		long userGapEnd = userGapStart + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long userGapStart = target.getStart() + com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long userGapEnd = userGapStart + com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
 		ResourceImpl other = pool.newResourceInstance();
 		other.setName("Unrelated resource");
 		Assignment unrelated = AssignmentService.getInstance().newAssignment(targetTask, other, 1D, 0L, this);
@@ -668,7 +668,7 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 		NormalTask second = task(project, "Conflict B", 1L);
 		ResourceImpl resource = pool.newResourceInstance();
 		resource.setName("Shared resource");
-		resource.setBookingTypeKind(com.microproject.pm.resource.BookingType.Kind.PROPOSED);
+		resource.setBookingTypeKind(com.microproject.model.resource.BookingType.Kind.PROPOSED);
 		AssignmentService.getInstance().newAssignment(first, resource, 1.0, 0L, ResourceLevelingDialogGuiAcceptanceTest.class);
 		AssignmentService.getInstance().newAssignment(second, resource, 1.0, 0L, ResourceLevelingDialogGuiAcceptanceTest.class);
 		project.recalculate();
@@ -689,18 +689,18 @@ class ResourceLevelingDialogGuiAcceptanceTest {
 	}
 
 	private static NormalTask taskWithUniqueId(Project project, long uniqueId, NormalTask savedTask) {
-		for (java.util.Iterator<com.microproject.pm.task.Task> tasks = project.getTaskOutlineIterator(); tasks.hasNext();) {
-			com.microproject.pm.task.Task task = tasks.next();
+		for (java.util.Iterator<com.microproject.model.task.Task> tasks = project.getTaskOutlineIterator(); tasks.hasNext();) {
+			com.microproject.model.task.Task task = tasks.next();
 			if (task.getUniqueId() == uniqueId) return (NormalTask) task;
 		}
 		java.util.List<String> outline = new java.util.ArrayList<>();
-		for (java.util.Iterator<com.microproject.pm.task.Task> tasks = project.getTaskOutlineIterator(); tasks.hasNext();) {
-			com.microproject.pm.task.Task task = tasks.next();
+		for (java.util.Iterator<com.microproject.model.task.Task> tasks = project.getTaskOutlineIterator(); tasks.hasNext();) {
+			com.microproject.model.task.Task task = tasks.next();
 			outline.add("id=" + task.getUniqueId() + ",name=" + task.getName());
 		}
 		java.util.List<String> taskList = new java.util.ArrayList<>();
 		for (Object value : project.getTaskList()) {
-			com.microproject.pm.task.Task task = (com.microproject.pm.task.Task) value;
+			com.microproject.model.task.Task task = (com.microproject.model.task.Task) value;
 			taskList.add("id=" + task.getUniqueId() + ",name=" + task.getName());
 		}
 		throw new AssertionError("MPO reload omitted target task id=" + uniqueId + ", name=" + savedTask.getName()

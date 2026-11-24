@@ -8,9 +8,9 @@ import java.util.List;
 import java.util.Objects;
 
 import com.microproject.ui.view.model.cache.ProjectionRowKey;
-import com.microproject.pm.task.ProjectTaskKey;
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.ProjectTaskKey;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.task.Task;
 
 /** A dependency edit addressed to task identities in one visible projection. */
 public record TaskDependencyIntent(Operation operation, List<ProjectionRowKey.TaskRow> tasks,

@@ -14,30 +14,30 @@ import java.util.regex.Pattern;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.TaskSplitInterval;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.assignment.BaselineAssignmentProfile;
-import com.microproject.pm.assignment.AssignmentLevelingSplitState;
-import com.microproject.pm.assignment.BaselineAssignmentProfile.Bucket;
-import com.microproject.pm.assignment.BaselineAssignmentProfile.Contour;
-import com.microproject.pm.calendar.CalendarDefinition;
-import com.microproject.pm.calendar.CalendarRecurrence;
-import com.microproject.pm.calendar.RecurringCalendarException;
-import com.microproject.pm.calendar.WorkDay;
-import com.microproject.pm.calendar.WorkRange;
-import com.microproject.pm.calendar.WorkWeek;
-import com.microproject.pm.calendar.WorkWeekPeriod;
-import com.microproject.pm.calendar.WorkingCalendar;
-import com.microproject.pm.calendar.WorkingHours;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.snapshot.Snapshottable;
-import com.microproject.pm.task.TaskSnapshot;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.TaskSplitInterval;
+import com.microproject.model.task.Task;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.assignment.BaselineAssignmentProfile;
+import com.microproject.model.assignment.AssignmentLevelingSplitState;
+import com.microproject.model.assignment.BaselineAssignmentProfile.Bucket;
+import com.microproject.model.assignment.BaselineAssignmentProfile.Contour;
+import com.microproject.model.calendar.CalendarDefinition;
+import com.microproject.model.calendar.CalendarRecurrence;
+import com.microproject.model.calendar.RecurringCalendarException;
+import com.microproject.model.calendar.WorkDay;
+import com.microproject.model.calendar.WorkRange;
+import com.microproject.model.calendar.WorkWeek;
+import com.microproject.model.calendar.WorkWeekPeriod;
+import com.microproject.model.calendar.WorkingCalendar;
+import com.microproject.model.calendar.WorkingHours;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.snapshot.Snapshottable;
+import com.microproject.model.task.TaskSnapshot;
 import com.microproject.field.Field;
 import com.microproject.view.configuration.SpreadSheetFieldArray;
-import com.microproject.pm.assignment.TimeDistributedHelper;
+import com.microproject.model.assignment.TimeDistributedHelper;
 import com.microproject.view.network.PertManualPositions;
 
 /**
@@ -586,7 +586,7 @@ final class MpoSidecarJson {
 					taskNode.put("taskUid", serializedTaskUid.longValue());
 					taskNode.put("slot", slot);
 					taskNode.put("fixedCostAccrual", snapshot.getFixedCostAccrual());
-					com.microproject.pm.calendar.WorkCalendar fixedCostCalendar = snapshot.getFixedCostCalendar();
+					com.microproject.model.calendar.WorkCalendar fixedCostCalendar = snapshot.getFixedCostCalendar();
 					if (fixedCostCalendar == null) fixedCostCalendar = task.getEffectiveWorkCalendar();
 					writeCalendar(taskNode.putObject("fixedCostCalendar"), fixedCostCalendar);
 					var profiles = taskNode.putArray("profiles");
@@ -646,7 +646,7 @@ final class MpoSidecarJson {
 		}
 	}
 
-	static void writeCalendar(ObjectNode node, com.microproject.pm.calendar.WorkCalendar calendar) {
+	static void writeCalendar(ObjectNode node, com.microproject.model.calendar.WorkCalendar calendar) {
 		CalendarDefinition definition = calendar.getConcreteInstance();
 		node.put("name", calendar.getName());
 		writeCalendarBody(node, definition::getWeekDay, definition.getExceptionDays(),
@@ -747,12 +747,12 @@ final class MpoSidecarJson {
 			int slot = integralInt(slotNode, "slot");
 			int accrualCode = requiredInt(taskNode, "fixedCostAccrual");
 			try {
-				com.microproject.pm.costing.Accrual.Kind.fromCode(accrualCode);
+				com.microproject.model.costing.Accrual.Kind.fromCode(accrualCode);
 			} catch (IllegalArgumentException exception) {
 				throw new IOException("Invalid mpo baseline fixed-cost accrual", exception);
 			}
 			Integer fixedCostAccrual = Integer.valueOf(accrualCode);
-			com.microproject.pm.calendar.WorkCalendar fixedCostCalendar = taskNode.has("fixedCostCalendar")
+			com.microproject.model.calendar.WorkCalendar fixedCostCalendar = taskNode.has("fixedCostCalendar")
 				? readCalendar(taskNode.path("fixedCostCalendar")) : null;
 			java.util.List<TaskSnapshot.FixedCostProfile> rolledUpFixedCosts = taskNode.has("rolledUpFixedCosts")
 				? readFixedCostProfiles(taskNode.path("rolledUpFixedCosts")) : null;
@@ -812,7 +812,7 @@ final class MpoSidecarJson {
 			long start = integralLong(profile.path("start"), "start");
 			long finish = integralLong(profile.path("finish"), "finish");
 			long rawDuration = integralLong(profile.path("rawDuration"), "rawDuration");
-			com.microproject.pm.calendar.WorkCalendar calendar = readCalendar(profile.path("calendar"));
+			com.microproject.model.calendar.WorkCalendar calendar = readCalendar(profile.path("calendar"));
 			try {
 				profiles.add(new TaskSnapshot.FixedCostProfile(cost.doubleValue(), accrual, start, finish,
 					rawDuration, calendar));
@@ -1014,7 +1014,7 @@ final class MpoSidecarJson {
 
 	private record BaselineProfilesReplacement(NormalTask task, int slot, TaskSnapshot snapshot,
 		java.util.List<Assignment> assignments, Integer fixedCostAccrual,
-		com.microproject.pm.calendar.WorkCalendar fixedCostCalendar,
+		com.microproject.model.calendar.WorkCalendar fixedCostCalendar,
 		java.util.List<TaskSnapshot.FixedCostProfile> rolledUpFixedCosts) { }
 
 	static byte[] taskSchedulesJson(Project project, String taskIdentities) throws IOException {
@@ -1059,7 +1059,7 @@ final class MpoSidecarJson {
 	}
 
 	static ObjectNode scheduleCalendarJson(WorkingCalendar calendar,
-		com.microproject.pm.calendar.WorkCalendar projectCalendar) {
+		com.microproject.model.calendar.WorkCalendar projectCalendar) {
 		ObjectNode node = JSON.createObjectNode();
 		node.put("name", calendar.getName());
 		node.put("uniqueId", calendar.getUniqueId());
@@ -1083,7 +1083,7 @@ final class MpoSidecarJson {
 				throw new IOException("Conflicting MPO schedule calendar definitions for uniqueId=" + uniqueId);
 			return state.byId.get(uniqueId);
 		}
-		com.microproject.pm.calendar.WorkCalendar base = null;
+		com.microproject.model.calendar.WorkCalendar base = null;
 		boolean hasProjectBase = node.has("baseProjectCalendar");
 		boolean hasNestedBase = node.has("baseCalendar");
 		if (hasProjectBase && hasNestedBase)
@@ -1153,7 +1153,7 @@ final class MpoSidecarJson {
 			if (!(task instanceof NormalTask normalTask))
 				throw new IOException("MPO task schedule references an unknown task uid=" + serializedId
 					+ " found=" + (task == null ? "null" : task.getClass().getName()));
-			if (com.microproject.pm.scheduling.ConstraintType.Kind.fromCodeOrNull(constraintType) == null)
+			if (com.microproject.schedule.ConstraintType.Kind.fromCodeOrNull(constraintType) == null)
 				throw new IOException("Invalid mpo task schedule constraint type");
 			if (finish < start) throw new IOException("Invalid mpo task schedule boundaries");
 			if (percentComplete != null && normalTask.isWbsParent())
@@ -1215,7 +1215,7 @@ final class MpoSidecarJson {
 	}
 
 	private record PendingCalendarBase(WorkingCalendar calendar,
-		com.microproject.pm.calendar.WorkCalendar base) { }
+		com.microproject.model.calendar.WorkCalendar base) { }
 
 	private record TaskScheduleSnapshot(NormalTask task, int constraintType, long constraintDate, long start,
 		long finish, long actualStart, Double percentComplete, Long unassignedWork,

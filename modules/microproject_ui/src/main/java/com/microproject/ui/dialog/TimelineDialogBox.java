@@ -57,10 +57,10 @@ import javax.swing.table.AbstractTableModel;
 
 import com.microproject.ui.frame.ViewPictureClipboard;
 import com.microproject.ui.view.undo.SwingUndoAdapter;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectHierarchyQueries;
-import com.microproject.pm.task.ReversibleModelChange;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectHierarchyQueries;
+import com.microproject.model.task.ReversibleModelChange;
+import com.microproject.model.task.Task;
 import com.microproject.ui.privacy.PrivacyDisplayMode;
 import com.microproject.ui.help.HelpUtil;
 import com.microproject.ui.util.PopupDialogSupport;

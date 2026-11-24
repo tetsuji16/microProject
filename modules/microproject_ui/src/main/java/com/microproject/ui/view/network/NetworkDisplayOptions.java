@@ -17,8 +17,8 @@ import java.util.Map;
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.DurationDefaults;
 import com.microproject.datatype.DurationFormat;
-import com.microproject.pm.dependency.DependencyType;
-import com.microproject.pm.task.Task;
+import com.microproject.model.dependency.DependencyType;
+import com.microproject.model.task.Task;
 
 /**
  * Per-view display choices of the Network Diagram Format tab (progress marks, link labels, straight

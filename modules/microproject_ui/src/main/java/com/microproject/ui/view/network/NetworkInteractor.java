@@ -39,7 +39,7 @@ import com.microproject.ui.view.graph.GraphUI;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.network.rendering.FieldChange;
 import com.microproject.field.FieldParseException;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.model.NodeModel;
 import com.microproject.undo.EditSupport;
 import com.microproject.undo.UndoController;
 import com.microproject.view.network.PertManualPositions;
@@ -119,7 +119,7 @@ public class NetworkInteractor extends GraphInteractor{
 				GraphicNode node = (GraphicNode) selected;
 				PertManualPositions positions = ((Network) ui.getGraph()).getProject()
 					.findTransientDocumentState(PertManualPositions.class);
-				Long taskUid = node.getNode().getImpl() instanceof com.microproject.pm.task.Task task
+				Long taskUid = node.getNode().getImpl() instanceof com.microproject.model.task.Task task
 					? task.getUniqueId() : null;
 				originalManualPosition = positions != null && taskUid != null ? positions.getPosition(taskUid) : null;
 			} else {
@@ -194,8 +194,8 @@ public class NetworkInteractor extends GraphInteractor{
 		);
 
 		// Get task unique ID
-		Long taskUid = node.getNode().getImpl() instanceof com.microproject.pm.task.Task
-			? ((com.microproject.pm.task.Task) node.getNode().getImpl()).getUniqueId()
+		Long taskUid = node.getNode().getImpl() instanceof com.microproject.model.task.Task
+			? ((com.microproject.model.task.Task) node.getNode().getImpl()).getUniqueId()
 			: null;
 
 		if (taskUid != null) {

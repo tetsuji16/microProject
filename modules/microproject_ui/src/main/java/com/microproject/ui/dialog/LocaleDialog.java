@@ -101,7 +101,7 @@ import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.ui.frame.GraphicManager;
 import com.microproject.configuration.Settings;
 import com.microproject.ui.menu.MenuManager;
-import com.microproject.pm.snapshot.SnapshottableImpl;
+import com.microproject.model.snapshot.SnapshottableImpl;
 import com.microproject.preference.ConfigurationFile;
 import com.microproject.i18n.Messages;
 import com.microproject.util.Alert;

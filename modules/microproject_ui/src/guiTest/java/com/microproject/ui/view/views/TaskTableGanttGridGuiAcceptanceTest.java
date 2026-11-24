@@ -95,12 +95,12 @@ import com.microproject.ui.view.spreadsheet.selection.SpreadSheetColumnsPopupMen
 import com.microproject.ui.view.timescale.CoordinatesConverter;
 import com.microproject.ui.view.views.synchro.ScrollPaneSynchronizer;
 import com.microproject.ui.view.views.synchro.Synchronizer;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.dependency.DependencyService;
-import com.microproject.pm.dependency.DependencyType;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.dependency.DependencyService;
+import com.microproject.model.dependency.DependencyType;
 import com.microproject.options.CalendarOption;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.NormalTask;
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
 import com.microproject.exchange.MpoFileImporter;
@@ -1978,7 +1978,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		robot.setAutoDelay(40);
 		AtomicReference<Gantt.BarClick> click = new AtomicReference<>();
 		GraphicNode node = (GraphicNode) fixture.gantt.getModel().getCache().getElementAt(0);
-		com.microproject.pm.task.Task task = (com.microproject.pm.task.Task) node.getNode().getImpl();
+		com.microproject.model.task.Task task = (com.microproject.model.task.Task) node.getNode().getImpl();
 		SwingUtilities.invokeAndWait(() -> {
 			task.setPercentComplete(0.0d);
 			fixture.gantt.setProgressLineEnabled(true);
@@ -2498,8 +2498,8 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		return new Point(location.x + bounds.x + bounds.width / 2, location.y + bounds.y + bounds.height / 2);
 	}
 
-	private static com.microproject.grouping.core.Node findTaskNode(Project project, String name) {
-		java.util.Iterator<com.microproject.pm.task.Task> iterator = project.getTaskOutlineIterator();
+	private static com.microproject.node.Node findTaskNode(Project project, String name) {
+		java.util.Iterator<com.microproject.model.task.Task> iterator = project.getTaskOutlineIterator();
 		while (iterator.hasNext()) {
 			var task = iterator.next();
 			if (name.equals(task.getName()))

@@ -52,8 +52,8 @@ import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.model.cache.ViewNodeModelCache;
 import com.microproject.ui.view.gantt.GanttBarColorScheme;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.task.TaskPathAnalyzer;
+import com.microproject.model.task.Task;
+import com.microproject.model.task.TaskPathAnalyzer;
 import com.microproject.ui.view.model.cache.NodeModelCacheFactory;
 import com.microproject.ui.view.model.cache.ReferenceNodeModelCache;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
@@ -69,12 +69,12 @@ import com.microproject.configuration.Dictionary;
 import com.microproject.field.FieldContext;
 import com.microproject.view.configuration.BarStyles;
 import com.microproject.view.configuration.GraphicConfiguration;
-import com.microproject.grouping.core.model.NodeModel;
-import com.microproject.pm.scheduling.ScheduleEvent;
-import com.microproject.pm.scheduling.ScheduleEventListener;
-import com.microproject.pm.task.Project;
+import com.microproject.node.model.NodeModel;
+import com.microproject.schedule.ScheduleEvent;
+import com.microproject.schedule.ScheduleEventListener;
+import com.microproject.model.task.Project;
 import com.microproject.preference.GlobalPreferences;
-import com.microproject.pm.time.HasStartAndEnd;
+import com.microproject.model.time.HasStartAndEnd;
 import com.microproject.undo.UndoController;
 import com.microproject.workspace.WorkspaceSetting;
 
@@ -261,7 +261,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		gantt.setDefaultTaskBarColor(documentFrame.getGraphicManager().getPreferences().getDefaultGanttBarColor());
 		gantt.setDefaultMilestoneShape(documentFrame.getGraphicManager().getPreferences().getDefaultMilestoneShape());
 		gantt.setTrackingView(tracking);
-		com.microproject.pm.task.ProgressLineSettings progressLineSettings = project.getProgressLineSettings();
+		com.microproject.model.task.ProgressLineSettings progressLineSettings = project.getProgressLineSettings();
 		if (progressLineSettings != null)
 			setProgressLineEnabled(progressLineSettings.showCurrentLine() || progressLineSettings.showRecurringLines());
 		gantt.setBarStyles((BarStyles) Dictionary.get(BarStyles.category, DEFAULT_GANTT_BAR_STYLE));
@@ -691,7 +691,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		applyBarFormat(gantt, ws);
 		setOutlineNumbersVisible(ws.outlineNumbersVisible != null && ws.outlineNumbersVisible.booleanValue());
 		setSummaryTasksVisible(ws.summaryTasksVisible == null || ws.summaryTasksVisible.booleanValue());
-		com.microproject.pm.task.ProgressLineSettings progressLineSettings = project == null
+		com.microproject.model.task.ProgressLineSettings progressLineSettings = project == null
 			? null : project.getProgressLineSettings();
 		boolean progressLineVisible = progressLineSettings == null
 			? ws.progressLineEnabled

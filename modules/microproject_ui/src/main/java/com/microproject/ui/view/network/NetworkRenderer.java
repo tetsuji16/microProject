@@ -52,7 +52,7 @@ import com.microproject.view.configuration.BarFormat;
 import com.microproject.view.configuration.BarStyles;
 import com.microproject.view.configuration.GraphicConfiguration;
 import com.microproject.view.configuration.TexturedShape;
-import com.microproject.pm.dependency.Dependency;
+import com.microproject.model.dependency.Dependency;
 import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.ui.theme.MicroProjectThemeTokens;
 
@@ -174,7 +174,7 @@ public abstract class NetworkRenderer extends GraphRenderer{
 			Dependency dep=dependency.getDependency();
 			if (dep==null) return NetworkDisplayOptions.linkLabel(dependency.getType(),0L);
 			com.microproject.datatype.DurationDefaults defaults=null;
-			if (dep.getSuccessor() instanceof com.microproject.pm.task.Task task&&task.getProject()!=null) defaults=task.getProject().getDurationDefaults();
+			if (dep.getSuccessor() instanceof com.microproject.model.task.Task task&&task.getProject()!=null) defaults=task.getProject().getDurationDefaults();
 			return NetworkDisplayOptions.linkLabel(dependency.getType(),dep.getLag(),defaults);
 		}
 		private void drawLinkLabel(Graphics2D g, String text, LinkRouting routing) {
@@ -373,7 +373,7 @@ public abstract class NetworkRenderer extends GraphRenderer{
 		/** Collapsed boxes show the task ID only. */
 		private void paintCollapsedBox(Graphics2D g,GraphicNode node,Rectangle bounds){
 			Object impl=node.getNode().getImpl();
-			String id=impl instanceof com.microproject.pm.task.Task task?Long.toString(task.getId()):"";
+			String id=impl instanceof com.microproject.model.task.Task task?Long.toString(task.getId()):"";
 			Color oldColor=g.getColor();
 			g.setColor(javax.swing.UIManager.getColor("Table.background")==null?Color.WHITE:javax.swing.UIManager.getColor("Table.background"));
 			NetworkDisplayOptions.BoxStyle style=((NetworkParams)graphInfo).getDisplayOptions().getStyle(NetworkDisplayOptions.boxType(impl));
@@ -394,7 +394,7 @@ public abstract class NetworkRenderer extends GraphRenderer{
 			Object impl=node.getNode().getImpl();
 			Color oldColor=g.getColor();
 			Stroke oldStroke=g.getStroke();
-			if (options.isProgressMarks()&&impl instanceof com.microproject.pm.task.Task task){
+			if (options.isProgressMarks()&&impl instanceof com.microproject.model.task.Task task){
 				NetworkDisplayOptions.ProgressMark mark=NetworkDisplayOptions.progressMark(task.getPercentComplete());
 				if (mark!=NetworkDisplayOptions.ProgressMark.NONE){
 					g.setColor(javax.swing.UIManager.getColor("Table.foreground")==null?Color.DARK_GRAY:javax.swing.UIManager.getColor("Table.foreground"));

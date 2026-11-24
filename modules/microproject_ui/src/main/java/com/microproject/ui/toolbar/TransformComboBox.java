@@ -35,8 +35,8 @@ import javax.swing.UIManager;
 import com.microproject.ui.menu.HyperLinkToolTip;
 import com.microproject.ui.menu.MenuManager;
 import com.microproject.ui.menu.MenuTextKeys;
-import com.microproject.grouping.core.transform.CommonTransformFactory;
-import com.microproject.grouping.core.transform.ViewConfiguration;
+import com.microproject.node.transform.CommonTransformFactory;
+import com.microproject.node.transform.ViewConfiguration;
 import com.microproject.ui.util.FlatUiSupport;
 
 /**

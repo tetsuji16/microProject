@@ -40,15 +40,15 @@ import javax.swing.undo.AbstractUndoableEdit;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.NodeModelDataFactory;
+import com.microproject.node.Node;
+import com.microproject.node.model.NodeModelDataFactory;
 import com.microproject.ui.menu.MenuActionConstants;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
 import com.microproject.ui.view.spreadsheet.SpreadSheetModel;
 import com.microproject.ui.view.spreadsheet.SpreadSheetUtils;
-import com.microproject.pm.resource.ResourceImpl;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.Project;
+import com.microproject.model.resource.ResourceImpl;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.Project;
 import com.microproject.interval.ValueObjectForIntervalTable;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.DateTime;
@@ -83,7 +83,7 @@ class ResourceTableEditDirtyTest {
 				sheet.setSpreadSheetCategory(category);
 				sheet.setCanSelectFieldArray(false);
 				SpreadSheetUtils.createCollectionSpreadSheet(sheet, rows, "View.ResourceInformation.Availability",
-					category, spreadsheetId, false, (com.microproject.grouping.core.model.NodeModelDataFactory) table, 1);
+					category, spreadsheetId, false, (com.microproject.node.model.NodeModelDataFactory) table, 1);
 				ResourceInformationDialog.trackTableEdits(sheet, () -> fixture.resource());
 				SpreadSheetModel model = (SpreadSheetModel) sheet.getModel();
 				int column = -1;
@@ -298,7 +298,7 @@ class ResourceTableEditDirtyTest {
 		var table = f.resource().getAvailabilityTable();
 		edit(f, table, table.getList(), "availabilitySpreadsheet", "Spreadsheet.availability",
 			"Field.maximumUnits", Double.valueOf(0.5d));
-		assertEquals(0.5d, ((com.microproject.pm.availability.Availability) table.getList().get(0)).getMaximumUnits());
+		assertEquals(0.5d, ((com.microproject.model.availability.Availability) table.getList().get(0)).getMaximumUnits());
 		assertTrue(f.project().needsSaving(), "availability edit must prompt to save");
 	}
 
@@ -308,7 +308,7 @@ class ResourceTableEditDirtyTest {
 		var table = f.resource().getCostRateTable(0);
 		edit(f, table, table.getList(), "costRates", "Spreadsheet.costRates", "Field.costPerUse",
 			Double.valueOf(12.0d));
-		assertEquals(12.0d, ((com.microproject.pm.costing.CostRate) table.getList().get(0)).getCostPerUse());
+		assertEquals(12.0d, ((com.microproject.model.costing.CostRate) table.getList().get(0)).getCostPerUse());
 		assertTrue(f.project().needsSaving(), "cost rate edit must prompt to save");
 	}
 }

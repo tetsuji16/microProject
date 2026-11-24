@@ -33,7 +33,7 @@ import com.microproject.ui.view.spreadsheet.common.CommonSpreadSheet;
 import com.microproject.ui.view.spreadsheet.common.CommonSpreadSheetModel;
 import com.microproject.ui.view.spreadsheet.selection.SpreadSheetListSelectionModel;
 import com.microproject.ui.view.spreadsheet.selection.SpreadSheetSelectionModel;
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 
 /**
  *

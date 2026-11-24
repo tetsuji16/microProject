@@ -25,7 +25,7 @@ package com.microproject.algorithm;
 
 import java.util.Date;
 
-import com.microproject.pm.time.ImmutableInterval;
+import com.microproject.model.time.ImmutableInterval;
 
 /**
  * An immutable time interval that has a double value associated

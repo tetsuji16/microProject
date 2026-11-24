@@ -28,7 +28,7 @@ import java.util.function.Consumer;
 
 import javax.swing.SwingUtilities;
 
-import com.microproject.pm.dependency.DependencyWarningNotifications;
+import com.microproject.model.dependency.DependencyWarningNotifications;
 import com.microproject.util.Alert;
 
 /** Desktop presenter for dependency warnings. */

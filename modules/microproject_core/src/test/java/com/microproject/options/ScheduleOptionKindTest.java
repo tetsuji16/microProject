@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.scheduling.SchedulingType;
+import com.microproject.schedule.SchedulingType;
 
 class ScheduleOptionKindTest {
 	@Test

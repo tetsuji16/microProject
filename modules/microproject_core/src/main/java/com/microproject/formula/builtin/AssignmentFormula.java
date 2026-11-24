@@ -24,7 +24,7 @@
 package com.microproject.formula.builtin;
 
 import com.microproject.field.InvalidFormulaException;
-import com.microproject.pm.assignment.Assignment;
+import com.microproject.model.assignment.Assignment;
 import com.microproject.formula.Formula;
 
 public class AssignmentFormula extends Formula {

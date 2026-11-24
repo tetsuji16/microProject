@@ -36,9 +36,9 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.ui.view.views.ResourceView;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectFactory;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectFactory;
 import com.microproject.ui.testsupport.GuiAcceptanceSupport;
 import com.microproject.ui.testsupport.RibbonGuiSupport;
 import com.microproject.ui.testsupport.WindowAcceptanceAssertions;

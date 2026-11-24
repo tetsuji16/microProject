@@ -40,16 +40,16 @@ import com.microproject.ui.view.model.event.CacheListener;
 import com.microproject.ui.view.model.event.CompositeCacheEvent;
 import com.microproject.ui.view.model.transform.NodeCacheTransformer;
 import com.microproject.association.InvalidAssociationException;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.hierarchy.HierarchyUtils;
-import com.microproject.grouping.core.model.NodeModel;
-import com.microproject.grouping.core.model.WalkersNodeModel;
-import com.microproject.grouping.core.transform.TransformList;
-import com.microproject.grouping.core.transform.ViewTransformerEvent;
-import com.microproject.grouping.core.transform.ViewTransformerListener;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.SubProj;
-import com.microproject.pm.task.Task;
+import com.microproject.node.Node;
+import com.microproject.node.hierarchy.HierarchyUtils;
+import com.microproject.node.model.NodeModel;
+import com.microproject.node.model.WalkersNodeModel;
+import com.microproject.node.transform.TransformList;
+import com.microproject.node.transform.ViewTransformerEvent;
+import com.microproject.node.transform.ViewTransformerListener;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.SubProj;
+import com.microproject.model.task.Task;
 import com.microproject.ui.view.spreadsheet.command.TaskCommandGateway;
 import com.microproject.i18n.Messages;
 import com.microproject.util.Alert;
@@ -105,7 +105,7 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
     }
 
 	/** The view transform this cache displays through; shared by every view of the same name. */
-	public com.microproject.grouping.core.transform.ViewTransformer getViewTransformer() {
+	public com.microproject.node.transform.ViewTransformer getViewTransformer() {
 		return ((NodeCacheTransformer) visibleNodes.getTransformer()).getTransformer();
 	}
 

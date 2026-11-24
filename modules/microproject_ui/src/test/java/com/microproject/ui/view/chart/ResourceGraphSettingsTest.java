@@ -31,9 +31,9 @@ import com.microproject.ui.view.chart.ResourceGraphSettings.GraphType;
 import com.microproject.ui.view.chart.ResourceGraphSettings.Item;
 import com.microproject.ui.view.chart.ResourceGraphSettings.Pattern;
 import com.microproject.ui.view.chart.ResourceGraphSettings.ShowAs;
-import com.microproject.pm.resource.ResourcePool;
+import com.microproject.model.resource.ResourcePool;
 import com.microproject.ui.view.timescale.CoordinatesConverter;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 
 /** Persistence of the Resource Graph Format settings and the Previous/Next Resource navigation. */

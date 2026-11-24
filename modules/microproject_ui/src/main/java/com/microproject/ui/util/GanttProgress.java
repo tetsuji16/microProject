@@ -23,10 +23,10 @@
  *******************************************************************************/
 package com.microproject.ui.util;
 
-import com.microproject.pm.scheduling.Schedule;
-import com.microproject.pm.task.TaskSpecificFields;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProgressLineSettings;
+import com.microproject.schedule.Schedule;
+import com.microproject.model.task.TaskSpecificFields;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProgressLineSettings;
 import com.microproject.util.DateTime;
 import java.util.ArrayList;
 import java.util.Calendar;

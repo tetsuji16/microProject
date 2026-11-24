@@ -43,7 +43,7 @@ import com.microproject.ui.view.xbs.XbsLayout;
 import com.microproject.ui.view.xbs.XbsRenderer;
 import com.microproject.configuration.Dictionary;
 import com.microproject.view.configuration.BarStyles;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 
 public class NetworkSVGRenderer implements SVGRenderer, CacheListener, Cloneable{
 	public static final int PERT=1;

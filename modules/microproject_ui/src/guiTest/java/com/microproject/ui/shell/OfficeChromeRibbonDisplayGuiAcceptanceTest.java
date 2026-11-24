@@ -314,8 +314,8 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		Environment.setNewLook(true);
 		try {
 			com.microproject.undo.DataFactoryUndoController undo = new com.microproject.undo.DataFactoryUndoController();
-			com.microproject.pm.task.Project project = com.microproject.pm.task.Project.createProject(
-				com.microproject.pm.resource.ResourcePool.createRourcePool("ribbon-customization-acceptance", undo), undo);
+			com.microproject.model.task.Project project = com.microproject.model.task.Project.createProject(
+				com.microproject.model.resource.ResourcePool.createRourcePool("ribbon-customization-acceptance", undo), undo);
 			project.initialize(false, false);
 			project.recalculate();
 			undo.clear();
@@ -382,9 +382,9 @@ class OfficeChromeRibbonDisplayGuiAcceptanceTest {
 		}
 	}
 
-	private static int taskCount(com.microproject.pm.task.Project project) {
+	private static int taskCount(com.microproject.model.task.Project project) {
 		int count = 0;
-		java.util.Iterator<com.microproject.pm.task.Task> iterator = project.getTaskOutlineIterator();
+		java.util.Iterator<com.microproject.model.task.Task> iterator = project.getTaskOutlineIterator();
 		while (iterator.hasNext()) {
 			iterator.next();
 			count++;

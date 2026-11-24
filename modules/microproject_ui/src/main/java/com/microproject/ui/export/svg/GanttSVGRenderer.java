@@ -49,10 +49,10 @@ import com.microproject.print.PrintSettings;
 import com.microproject.configuration.Settings;
 import com.microproject.view.configuration.GraphicConfiguration;
 import com.microproject.view.configuration.SpreadSheetFieldArray;
-import com.microproject.pm.snapshot.Snapshottable;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.task.TaskSnapshot;
+import com.microproject.model.snapshot.Snapshottable;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
+import com.microproject.model.task.TaskSnapshot;
 import com.microproject.ui.privacy.PrivacyDisplayMode;
 import com.microproject.workspace.SavableToWorkspace;
 

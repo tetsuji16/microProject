@@ -33,39 +33,39 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectFactory;
-import com.microproject.pm.ccpm.CriticalChainService;
-import com.microproject.pm.ccpm.CriticalChainBufferHistory;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectFactory;
+import com.microproject.schedule.ccpm.CriticalChainService;
+import com.microproject.schedule.ccpm.CriticalChainBufferHistory;
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.collaboration.OperationLog;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.BaselineRollupOptions;
-import com.microproject.pm.task.TaskSnapshot;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.BaselineRollupOptions;
+import com.microproject.model.task.TaskSnapshot;
+import com.microproject.model.task.Task;
 import com.microproject.view.network.PertManualPositions;
-import com.microproject.pm.task.TaskSplitInterval;
-import com.microproject.pm.task.TaskModeService;
-import com.microproject.pm.task.TaskProgressService;
-import com.microproject.pm.task.RespectLinksService;
-import com.microproject.pm.task.DefaultSubProj;
-import com.microproject.pm.task.ScheduleDiagnosticsService;
-import com.microproject.pm.task.UpdateProjectRequest;
+import com.microproject.model.task.TaskSplitInterval;
+import com.microproject.model.task.TaskModeService;
+import com.microproject.model.task.TaskProgressService;
+import com.microproject.model.task.RespectLinksService;
+import com.microproject.model.task.DefaultSubProj;
+import com.microproject.model.task.ScheduleDiagnosticsService;
+import com.microproject.model.task.UpdateProjectRequest;
 import com.microproject.command.UpdateProjectCommand;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.dependency.DependencyService;
-import com.microproject.pm.dependency.DependencyType;
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.assignment.AssignmentService;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.resource.ResourceType;
-import com.microproject.pm.snapshot.Snapshottable;
-import com.microproject.pm.resource.SharedResourcePoolService;
-import com.microproject.pm.resource.TeamPlannerService;
-import com.microproject.pm.resource.ResourceLevelingService;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.dependency.DependencyService;
+import com.microproject.model.dependency.DependencyType;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.assignment.AssignmentService;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.resource.ResourceType;
+import com.microproject.model.snapshot.Snapshottable;
+import com.microproject.model.resource.SharedResourcePoolService;
+import com.microproject.model.resource.TeamPlannerService;
+import com.microproject.model.resource.ResourceLevelingService;
 import com.microproject.undo.DataFactoryUndoController;
-import com.microproject.grouping.core.NodeFactory;
+import com.microproject.node.NodeFactory;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.field.Field;
 import com.microproject.view.configuration.SpreadSheetFieldArray;
@@ -153,7 +153,7 @@ class MpoFileImporterTest {
 	@Test
 	void mpoRoundTripPreservesFixedDateSsFiftyPercentDurationLag() throws Exception {
 		Project project = projectForRoundTrip();
-		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+		project.setWorkCalendar(com.microproject.model.calendar.CalendarService.getInstance().getStandardInstance()
 			.copyForBaselineSnapshot());
 		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
 		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
@@ -215,7 +215,7 @@ class MpoFileImporterTest {
 	@Test
 	void mpoRoundTripPreservesFixedDateSsNegativeFiftyPercentDurationLag() throws Exception {
 		Project project = projectForRoundTrip();
-		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+		project.setWorkCalendar(com.microproject.model.calendar.CalendarService.getInstance().getStandardInstance()
 			.copyForBaselineSnapshot());
 		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
 		long mondayTwelve = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 12);
@@ -283,7 +283,7 @@ class MpoFileImporterTest {
 	@Test
 	void mpoRoundTripPreservesFixedDateFsFiftyPercentDurationLag() throws Exception {
 		Project project = projectForRoundTrip();
-		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+		project.setWorkCalendar(com.microproject.model.calendar.CalendarService.getInstance().getStandardInstance()
 			.copyForBaselineSnapshot());
 		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
 		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
@@ -345,7 +345,7 @@ class MpoFileImporterTest {
 	@Test
 	void mpoRoundTripPreservesFixedDateFfFiftyPercentDurationLag() throws Exception {
 		Project project = projectForRoundTrip();
-		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+		project.setWorkCalendar(com.microproject.model.calendar.CalendarService.getInstance().getStandardInstance()
 			.copyForBaselineSnapshot());
 		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
 		long mondayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 13);
@@ -407,7 +407,7 @@ class MpoFileImporterTest {
 	@Test
 	void mpoRoundTripPreservesFixedDateFfNegativeFiftyPercentDurationLag() throws Exception {
 		Project project = projectForRoundTrip();
-		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+		project.setWorkCalendar(com.microproject.model.calendar.CalendarService.getInstance().getStandardInstance()
 			.copyForBaselineSnapshot());
 		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
 		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
@@ -477,7 +477,7 @@ class MpoFileImporterTest {
 	@Test
 	void mpoRoundTripPreservesFixedDateFsNegativeFiftyPercentDurationLag() throws Exception {
 		Project project = projectForRoundTrip();
-		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+		project.setWorkCalendar(com.microproject.model.calendar.CalendarService.getInstance().getStandardInstance()
 			.copyForBaselineSnapshot());
 		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
 		long mondayTwelve = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 12);
@@ -543,7 +543,7 @@ class MpoFileImporterTest {
 	@Test
 	void mpoRoundTripPreservesFixedDateSfFiftyPercentDurationLag() throws Exception {
 		Project project = projectForRoundTrip();
-		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+		project.setWorkCalendar(com.microproject.model.calendar.CalendarService.getInstance().getStandardInstance()
 			.copyForBaselineSnapshot());
 		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
 		long mondayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 13);
@@ -609,7 +609,7 @@ class MpoFileImporterTest {
 	@Test
 	void mpoRoundTripPreservesFixedDateSfNegativeFiftyPercentDurationLag() throws Exception {
 		Project project = projectForRoundTrip();
-		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+		project.setWorkCalendar(com.microproject.model.calendar.CalendarService.getInstance().getStandardInstance()
 			.copyForBaselineSnapshot());
 		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
 		long mondayThirteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 13);
@@ -680,7 +680,7 @@ class MpoFileImporterTest {
 	@Test
 	void mpoRoundTripPreservesFixedDateFsFourElapsedHourLag() throws Exception {
 		Project project = projectForRoundTrip();
-		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+		project.setWorkCalendar(com.microproject.model.calendar.CalendarService.getInstance().getStandardInstance()
 			.copyForBaselineSnapshot());
 		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
 		long mondayTwelve = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 12);
@@ -741,7 +741,7 @@ class MpoFileImporterTest {
 	@Test
 	void mpoRoundTripPreservesFixedDateFsNegativeFourElapsedHourLag() throws Exception {
 		Project project = projectForRoundTrip();
-		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+		project.setWorkCalendar(com.microproject.model.calendar.CalendarService.getInstance().getStandardInstance()
 			.copyForBaselineSnapshot());
 		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
 		long mondayFourteen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 14);
@@ -804,7 +804,7 @@ class MpoFileImporterTest {
 	@Test
 	void mpoRoundTripPreservesFixedDateSsNegativeFourElapsedHourLag() throws Exception {
 		Project project = projectForRoundTrip();
-		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+		project.setWorkCalendar(com.microproject.model.calendar.CalendarService.getInstance().getStandardInstance()
 			.copyForBaselineSnapshot());
 		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
 		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
@@ -875,7 +875,7 @@ class MpoFileImporterTest {
 	@Test
 	void mpoRoundTripPreservesFixedDateFfNegativeFourElapsedHourLag() throws Exception {
 		Project project = projectForRoundTrip();
-		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+		project.setWorkCalendar(com.microproject.model.calendar.CalendarService.getInstance().getStandardInstance()
 			.copyForBaselineSnapshot());
 		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
 		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
@@ -946,7 +946,7 @@ class MpoFileImporterTest {
 	@Test
 	void mpoRoundTripPreservesFixedDateSfNegativeFourElapsedHourLag() throws Exception {
 		Project project = projectForRoundTrip();
-		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+		project.setWorkCalendar(com.microproject.model.calendar.CalendarService.getInstance().getStandardInstance()
 			.copyForBaselineSnapshot());
 		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
 		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
@@ -1016,7 +1016,7 @@ class MpoFileImporterTest {
 	@Test
 	void mpoRoundTripPreservesFixedDateSsFourElapsedHourLag() throws Exception {
 		Project project = projectForRoundTrip();
-		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+		project.setWorkCalendar(com.microproject.model.calendar.CalendarService.getInstance().getStandardInstance()
 			.copyForBaselineSnapshot());
 		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
 		long mondayTwelve = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 12);
@@ -1077,7 +1077,7 @@ class MpoFileImporterTest {
 	@Test
 	void mpoRoundTripPreservesFixedDateFfFourElapsedHourLag() throws Exception {
 		Project project = projectForRoundTrip();
-		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+		project.setWorkCalendar(com.microproject.model.calendar.CalendarService.getInstance().getStandardInstance()
 			.copyForBaselineSnapshot());
 		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
 		long mondayTwelve = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 12);
@@ -1139,7 +1139,7 @@ class MpoFileImporterTest {
 	@Test
 	void mpoRoundTripPreservesFixedDateSfFourElapsedHourLag() throws Exception {
 		Project project = projectForRoundTrip();
-		project.setWorkCalendar(com.microproject.pm.calendar.CalendarService.getInstance().getStandardInstance()
+		project.setWorkCalendar(com.microproject.model.calendar.CalendarService.getInstance().getStandardInstance()
 			.copyForBaselineSnapshot());
 		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
 		long mondayTen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 10);
@@ -1268,9 +1268,9 @@ class MpoFileImporterTest {
 		original.setStartDate(start);
 		predecessor.setDuration(eightHours);
 		successor.setDuration(fourHours);
-		predecessor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, start);
+		predecessor.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, start);
 		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.SF, 0L, this);
-		successor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, successorStart);
+		successor.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, successorStart);
 		original.recalculate();
 		long predecessorEnd = java.time.Instant.parse("2030-06-03T17:00:00Z").toEpochMilli();
 		long successorEnd = java.time.Instant.parse("2030-06-04T13:00:00Z").toEpochMilli();
@@ -1291,7 +1291,7 @@ class MpoFileImporterTest {
 		}
 		assertNotNull(restoredPredecessor);
 		assertNotNull(restoredSuccessor);
-		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, restoredSuccessor.getConstraintTypeKind());
+		assertEquals(com.microproject.schedule.ConstraintType.Kind.SNET, restoredSuccessor.getConstraintTypeKind());
 		assertEquals(successorStart, restoredSuccessor.getConstraintDate());
 		assertEquals(start, restoredPredecessor.getStart());
 		assertEquals(predecessorEnd, restoredPredecessor.getEnd());
@@ -1318,8 +1318,8 @@ class MpoFileImporterTest {
 		long fourHours = 4L * 60L * 60L * 1000L;
 		long eightHours = 8L * 60L * 60L * 1000L;
 		project.setStartDate(mondayEight);
-		var calendar = (com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar();
-		calendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(tuesdayMidnight));
+		var calendar = (com.microproject.model.calendar.WorkingCalendar) project.getWorkCalendar();
+		calendar.addOrReplaceException(new com.microproject.model.calendar.WorkDay(tuesdayMidnight));
 		NormalTask predecessor = (NormalTask) firstTask(project);
 		predecessor.setName("MPO SF lag predecessor");
 		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
@@ -1329,9 +1329,9 @@ class MpoFileImporterTest {
 		predecessor.setDuration(fourHours);
 		successor.setDuration(fourHours);
 		unrelated.setDuration(fourHours);
-		predecessor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayThirteen);
-		successor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
-		unrelated.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		predecessor.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, mondayThirteen);
+		successor.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, mondayEight);
+		unrelated.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, mondayEight);
 		Dependency dependency = DependencyService.getInstance().newDependency(
 			predecessor, successor, DependencyType.SF, eightHours, this);
 		project.recalculate();
@@ -1341,7 +1341,7 @@ class MpoFileImporterTest {
 		assertEquals(wednesdayThirteen, successor.getEnd());
 		assertEquals(mondayEight, unrelated.getStart());
 		assertEquals(mondayThirteen, unrelated.getEnd());
-		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, successor.getConstraintTypeKind());
+		assertEquals(com.microproject.schedule.ConstraintType.Kind.SNET, successor.getConstraintTypeKind());
 		assertEquals(mondayEight, successor.getConstraintDate());
 		assertEquals(DependencyType.SF, dependency.getDependencyType());
 		assertEquals(eightHours, dependency.getLag());
@@ -1362,9 +1362,9 @@ class MpoFileImporterTest {
 		assertEquals(wednesdayThirteen, restoredSuccessor.getEnd());
 		assertEquals(mondayEight, restoredUnrelated.getStart());
 		assertEquals(mondayThirteen, restoredUnrelated.getEnd());
-		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, restoredSuccessor.getConstraintTypeKind());
+		assertEquals(com.microproject.schedule.ConstraintType.Kind.SNET, restoredSuccessor.getConstraintTypeKind());
 		assertEquals(mondayEight, restoredSuccessor.getConstraintDate());
-		assertFalse(((com.microproject.pm.calendar.WorkingCalendar) reopened.getWorkCalendar())
+		assertFalse(((com.microproject.model.calendar.WorkingCalendar) reopened.getWorkCalendar())
 			.getConcreteInstance().getWorkDay(tuesdayMidnight).isWorking());
 		assertEquals(1, restoredPredecessor.getSuccessorList().size());
 		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
@@ -1423,10 +1423,10 @@ class MpoFileImporterTest {
 		long fridaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 7, 17);
 		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
 		long twelveHourLead = -12L * 60L * 60L * 1000L;
-		project.setWorkCalendar(((com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar()).makeScratchCopy());
-		var calendar = (com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar();
+		project.setWorkCalendar(((com.microproject.model.calendar.WorkingCalendar) project.getWorkCalendar()).makeScratchCopy());
+		var calendar = (com.microproject.model.calendar.WorkingCalendar) project.getWorkCalendar();
 		calendar.setName("MPO project FS Tuesday exception");
-		calendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(tuesdayMidnight));
+		calendar.addOrReplaceException(new com.microproject.model.calendar.WorkDay(tuesdayMidnight));
 		setProjectStart(project, mondayEight);
 		NormalTask predecessor = (NormalTask) firstTask(project);
 		predecessor.setName("MPO FS lead predecessor");
@@ -1437,9 +1437,9 @@ class MpoFileImporterTest {
 		predecessor.setDuration(oneDay);
 		successor.setDuration(oneDay);
 		unrelated.setDuration(oneDay);
-		predecessor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, fridayEight);
-		successor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
-		unrelated.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		predecessor.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, fridayEight);
+		successor.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, mondayEight);
+		unrelated.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, mondayEight);
 		Dependency dependency = DependencyService.getInstance().newDependency(
 			predecessor, successor, DependencyType.FS, twelveHourLead, this);
 		project.recalculate();
@@ -1451,7 +1451,7 @@ class MpoFileImporterTest {
 		assertEquals(fridayThirteen, successor.getEnd());
 		assertEquals(mondayEight, unrelated.getStart());
 		assertEquals(mondaySeventeen, unrelated.getEnd());
-		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, successor.getConstraintTypeKind());
+		assertEquals(com.microproject.schedule.ConstraintType.Kind.SNET, successor.getConstraintTypeKind());
 		assertEquals(mondayEight, successor.getConstraintDate());
 		assertEquals(DependencyType.FS, dependency.getDependencyType());
 		assertEquals(twelveHourLead, dependency.getLag());
@@ -1472,9 +1472,9 @@ class MpoFileImporterTest {
 		assertEquals(fridayThirteen, restoredSuccessor.getEnd());
 		assertEquals(mondayEight, restoredUnrelated.getStart());
 		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
-		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, restoredSuccessor.getConstraintTypeKind());
+		assertEquals(com.microproject.schedule.ConstraintType.Kind.SNET, restoredSuccessor.getConstraintTypeKind());
 		assertEquals(mondayEight, restoredSuccessor.getConstraintDate());
-		assertFalse(((com.microproject.pm.calendar.WorkingCalendar) reopened.getWorkCalendar())
+		assertFalse(((com.microproject.model.calendar.WorkingCalendar) reopened.getWorkCalendar())
 			.getConcreteInstance().getWorkDay(tuesdayMidnight).isWorking());
 		assertEquals(1, restoredPredecessor.getSuccessorList().size());
 		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
@@ -1496,8 +1496,8 @@ class MpoFileImporterTest {
 		long wednesdaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 5, 17);
 		long eightHours = 8L * 60L * 60L * 1000L;
 		long twelveHourLead = -12L * 60L * 60L * 1000L;
-		var calendar = (com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar();
-		calendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(tuesdayMidnight));
+		var calendar = (com.microproject.model.calendar.WorkingCalendar) project.getWorkCalendar();
+		calendar.addOrReplaceException(new com.microproject.model.calendar.WorkDay(tuesdayMidnight));
 		setProjectStart(project, mondayEight);
 		NormalTask predecessor = (NormalTask) firstTask(project);
 		predecessor.setName("MPO FF lead predecessor");
@@ -1508,9 +1508,9 @@ class MpoFileImporterTest {
 		predecessor.setDuration(eightHours);
 		successor.setDuration(eightHours);
 		unrelated.setDuration(eightHours);
-		predecessor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, wednesdayEight);
-		successor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
-		unrelated.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		predecessor.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, wednesdayEight);
+		successor.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, mondayEight);
+		unrelated.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, mondayEight);
 		Dependency dependency = DependencyService.getInstance().newDependency(
 			predecessor, successor, DependencyType.FF, twelveHourLead, this);
 		project.recalculate();
@@ -1522,7 +1522,7 @@ class MpoFileImporterTest {
 		assertEquals(mondaySeventeen, unrelated.getEnd());
 		assertEquals(DependencyType.FF, dependency.getDependencyType());
 		assertEquals(twelveHourLead, dependency.getLag());
-		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, successor.getConstraintTypeKind());
+		assertEquals(com.microproject.schedule.ConstraintType.Kind.SNET, successor.getConstraintTypeKind());
 		assertEquals(mondayEight, successor.getConstraintDate());
 		assertFalse(calendar.getConcreteInstance().getWorkDay(tuesdayMidnight).isWorking(),
 			"Tuesday remains a nonworking project-calendar exception");
@@ -1542,9 +1542,9 @@ class MpoFileImporterTest {
 		assertEquals(mondaySeventeen, restoredSuccessor.getEnd());
 		assertEquals(mondayEight, restoredUnrelated.getStart());
 		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
-		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, restoredSuccessor.getConstraintTypeKind());
+		assertEquals(com.microproject.schedule.ConstraintType.Kind.SNET, restoredSuccessor.getConstraintTypeKind());
 		assertEquals(mondayEight, restoredSuccessor.getConstraintDate());
-		assertFalse(((com.microproject.pm.calendar.WorkingCalendar) reopened.getWorkCalendar())
+		assertFalse(((com.microproject.model.calendar.WorkingCalendar) reopened.getWorkCalendar())
 			.getConcreteInstance().getWorkDay(tuesdayMidnight).isWorking(),
 			"MPO reload preserves the Tuesday nonworking exception");
 		assertEquals(1, restoredPredecessor.getSuccessorList().size());
@@ -1571,10 +1571,10 @@ class MpoFileImporterTest {
 		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
 		long twelveHourLead = -12L * 60L * 60L * 1000L;
 		long twoHours = 2L * 60L * 60L * 1000L;
-		project.setWorkCalendar(((com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar()).makeScratchCopy());
-		var calendar = (com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar();
+		project.setWorkCalendar(((com.microproject.model.calendar.WorkingCalendar) project.getWorkCalendar()).makeScratchCopy());
+		var calendar = (com.microproject.model.calendar.WorkingCalendar) project.getWorkCalendar();
 		calendar.setName("MPO project FF Tuesday exception with SNET");
-		calendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(tuesdayMidnight));
+		calendar.addOrReplaceException(new com.microproject.model.calendar.WorkDay(tuesdayMidnight));
 		setProjectStart(project, mondayEight);
 		NormalTask predecessor = (NormalTask) firstTask(project);
 		predecessor.setName("MPO FF lead SNET predecessor");
@@ -1585,9 +1585,9 @@ class MpoFileImporterTest {
 		predecessor.setDuration(oneDay);
 		successor.setDuration(oneDay);
 		unrelated.setDuration(oneDay);
-		predecessor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, wednesdayEight);
-		successor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
-		unrelated.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		predecessor.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, wednesdayEight);
+		successor.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, mondayEight);
+		unrelated.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, mondayEight);
 		successor.setDuration(twoHours);
 		Dependency dependency = DependencyService.getInstance().newDependency(
 			predecessor, successor, DependencyType.FF, twelveHourLead, this);
@@ -1601,7 +1601,7 @@ class MpoFileImporterTest {
 		assertTrue(successor.getEnd() >= mondayTwelve, "FF successor finish meets the required Monday 12:00 boundary");
 		assertEquals(mondayEight, unrelated.getStart());
 		assertEquals(mondaySeventeen, unrelated.getEnd());
-		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, successor.getConstraintTypeKind());
+		assertEquals(com.microproject.schedule.ConstraintType.Kind.SNET, successor.getConstraintTypeKind());
 		assertEquals(mondayEight, successor.getConstraintDate());
 		assertEquals(DependencyType.FF, dependency.getDependencyType());
 		assertEquals(twelveHourLead, dependency.getLag());
@@ -1622,9 +1622,9 @@ class MpoFileImporterTest {
 		assertEquals(mondayThirteen, restoredSuccessor.getEnd());
 		assertEquals(mondayEight, restoredUnrelated.getStart());
 		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
-		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, restoredSuccessor.getConstraintTypeKind());
+		assertEquals(com.microproject.schedule.ConstraintType.Kind.SNET, restoredSuccessor.getConstraintTypeKind());
 		assertEquals(mondayEight, restoredSuccessor.getConstraintDate());
-		assertFalse(((com.microproject.pm.calendar.WorkingCalendar) reopened.getWorkCalendar())
+		assertFalse(((com.microproject.model.calendar.WorkingCalendar) reopened.getWorkCalendar())
 			.getConcreteInstance().getWorkDay(tuesdayMidnight).isWorking());
 		assertEquals(1, restoredPredecessor.getSuccessorList().size());
 		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
@@ -1649,10 +1649,10 @@ class MpoFileImporterTest {
 		long fridaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 7, 17);
 		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
 		long twelveHourLead = -12L * 60L * 60L * 1000L;
-		project.setWorkCalendar(((com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar()).makeScratchCopy());
-		var calendar = (com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar();
+		project.setWorkCalendar(((com.microproject.model.calendar.WorkingCalendar) project.getWorkCalendar()).makeScratchCopy());
+		var calendar = (com.microproject.model.calendar.WorkingCalendar) project.getWorkCalendar();
 		calendar.setName("MPO project SF Tuesday exception");
-		calendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(tuesdayMidnight));
+		calendar.addOrReplaceException(new com.microproject.model.calendar.WorkDay(tuesdayMidnight));
 		setProjectStart(project, mondayEight);
 		NormalTask predecessor = (NormalTask) firstTask(project);
 		predecessor.setName("MPO SF lead predecessor");
@@ -1663,9 +1663,9 @@ class MpoFileImporterTest {
 		predecessor.setDuration(oneDay);
 		successor.setDuration(oneDay);
 		unrelated.setDuration(oneDay);
-		predecessor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, fridayEight);
-		successor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
-		unrelated.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		predecessor.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, fridayEight);
+		successor.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, mondayEight);
+		unrelated.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, mondayEight);
 		Dependency dependency = DependencyService.getInstance().newDependency(
 			predecessor, successor, DependencyType.SF, twelveHourLead, this);
 		project.recalculate();
@@ -1677,7 +1677,7 @@ class MpoFileImporterTest {
 		assertEquals(wednesdayThirteen, successor.getEnd());
 		assertEquals(mondayEight, unrelated.getStart());
 		assertEquals(mondaySeventeen, unrelated.getEnd());
-		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, successor.getConstraintTypeKind());
+		assertEquals(com.microproject.schedule.ConstraintType.Kind.SNET, successor.getConstraintTypeKind());
 		assertEquals(mondayEight, successor.getConstraintDate());
 		assertEquals(DependencyType.SF, dependency.getDependencyType());
 		assertEquals(twelveHourLead, dependency.getLag());
@@ -1698,9 +1698,9 @@ class MpoFileImporterTest {
 		assertEquals(wednesdayThirteen, restoredSuccessor.getEnd());
 		assertEquals(mondayEight, restoredUnrelated.getStart());
 		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
-		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, restoredSuccessor.getConstraintTypeKind());
+		assertEquals(com.microproject.schedule.ConstraintType.Kind.SNET, restoredSuccessor.getConstraintTypeKind());
 		assertEquals(mondayEight, restoredSuccessor.getConstraintDate());
-		assertFalse(((com.microproject.pm.calendar.WorkingCalendar) reopened.getWorkCalendar())
+		assertFalse(((com.microproject.model.calendar.WorkingCalendar) reopened.getWorkCalendar())
 			.getConcreteInstance().getWorkDay(tuesdayMidnight).isWorking());
 		assertEquals(1, restoredPredecessor.getSuccessorList().size());
 		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
@@ -1727,8 +1727,8 @@ class MpoFileImporterTest {
 		long fridaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 7, 17);
 		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
 		long twelveHourLead = -12L * 60L * 60L * 1000L;
-		var calendar = (com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar();
-		calendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(tuesdayMidnight));
+		var calendar = (com.microproject.model.calendar.WorkingCalendar) project.getWorkCalendar();
+		calendar.addOrReplaceException(new com.microproject.model.calendar.WorkDay(tuesdayMidnight));
 		setProjectStart(project, mondayEight);
 		NormalTask predecessor = (NormalTask) firstTask(project);
 		predecessor.setName("MPO SS lead predecessor");
@@ -1739,9 +1739,9 @@ class MpoFileImporterTest {
 		predecessor.setDuration(oneDay);
 		successor.setDuration(oneDay);
 		unrelated.setDuration(oneDay);
-		predecessor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, fridayEight);
-		successor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
-		unrelated.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		predecessor.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, fridayEight);
+		successor.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, mondayEight);
+		unrelated.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, mondayEight);
 		Dependency dependency = DependencyService.getInstance().newDependency(
 			predecessor, successor, DependencyType.SS, twelveHourLead, this);
 		project.recalculate();
@@ -1753,7 +1753,7 @@ class MpoFileImporterTest {
 		assertEquals(thursdayThirteen, successor.getEnd());
 		assertEquals(mondayEight, unrelated.getStart());
 		assertEquals(mondaySeventeen, unrelated.getEnd());
-		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, successor.getConstraintTypeKind());
+		assertEquals(com.microproject.schedule.ConstraintType.Kind.SNET, successor.getConstraintTypeKind());
 		assertEquals(mondayEight, successor.getConstraintDate());
 		assertEquals(DependencyType.SS, dependency.getDependencyType());
 		assertEquals(twelveHourLead, dependency.getLag());
@@ -1774,9 +1774,9 @@ class MpoFileImporterTest {
 		assertEquals(thursdayThirteen, restoredSuccessor.getEnd());
 		assertEquals(mondayEight, restoredUnrelated.getStart());
 		assertEquals(mondaySeventeen, restoredUnrelated.getEnd());
-		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, restoredSuccessor.getConstraintTypeKind());
+		assertEquals(com.microproject.schedule.ConstraintType.Kind.SNET, restoredSuccessor.getConstraintTypeKind());
 		assertEquals(mondayEight, restoredSuccessor.getConstraintDate());
-		assertFalse(((com.microproject.pm.calendar.WorkingCalendar) reopened.getWorkCalendar())
+		assertFalse(((com.microproject.model.calendar.WorkingCalendar) reopened.getWorkCalendar())
 			.getConcreteInstance().getWorkDay(tuesdayMidnight).isWorking());
 		assertEquals(1, restoredPredecessor.getSuccessorList().size());
 		Dependency restoredDependency = (Dependency) restoredPredecessor.getSuccessorList().iterator().next();
@@ -1794,11 +1794,11 @@ class MpoFileImporterTest {
 		long mondayEight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 8);
 		long mondaySeventeen = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 3, 17);
 		long tuesdayMidnight = mpoCalendarTimestamp(2030, java.util.Calendar.JUNE, 4, 0);
-		project.setWorkCalendar(((com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar()).makeScratchCopy());
-		((com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar()).setName(
+		project.setWorkCalendar(((com.microproject.model.calendar.WorkingCalendar) project.getWorkCalendar()).makeScratchCopy());
+		((com.microproject.model.calendar.WorkingCalendar) project.getWorkCalendar()).setName(
 			"MPO project Tuesday exception");
-		((com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(
-			new com.microproject.pm.calendar.WorkDay(tuesdayMidnight));
+		((com.microproject.model.calendar.WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(
+			new com.microproject.model.calendar.WorkDay(tuesdayMidnight));
 		setProjectStart(project, mondayEight);
 		NormalTask predecessor = (NormalTask) firstTask(project);
 		predecessor.setName("MPO SNET lag predecessor");
@@ -1807,8 +1807,8 @@ class MpoFileImporterTest {
 		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
 		predecessor.setDuration(oneDay);
 		successor.setDuration(oneDay);
-		predecessor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
-		successor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, snet);
+		predecessor.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, mondayEight);
+		successor.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, snet);
 		project.recalculate();
 		assertEquals(mondayEight, predecessor.getStart());
 		assertEquals(mondaySeventeen, predecessor.getEnd());
@@ -1858,11 +1858,11 @@ class MpoFileImporterTest {
 			"recalculated schedule after pre-recalculation dependency boundary "
 				+ restoredDependencyBoundaryBeforeRecalculation);
 		assertEquals(expectedSuccessorFinish, restoredSuccessor.getEnd());
-		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET,
+		assertEquals(com.microproject.schedule.ConstraintType.Kind.SNET,
 			restoredSuccessor.getConstraintTypeKind());
 		assertEquals(snet, restoredSuccessor.getConstraintDate());
 		assertEquals("MPO project Tuesday exception", reopened.getWorkCalendar().getName());
-		assertTrue(java.util.Arrays.stream(((com.microproject.pm.calendar.WorkingCalendar)
+		assertTrue(java.util.Arrays.stream(((com.microproject.model.calendar.WorkingCalendar)
 			reopened.getWorkCalendar()).getExceptionDays())
 			.anyMatch(exception -> exception.getStart() == tuesdayMidnight));
 		assertEquals(DependencyType.FS, restoredDependency.getDependencyType());
@@ -1888,8 +1888,8 @@ class MpoFileImporterTest {
 		long oneDay = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
 		predecessor.setDuration(oneDay);
 		successor.setDuration(oneDay);
-		predecessor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, predecessorStart);
-		successor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, snet);
+		predecessor.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, predecessorStart);
+		successor.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, snet);
 		project.recalculate();
 		assertEquals(predecessorStart, predecessor.getStart());
 		assertEquals(expectedPredecessorFinish, predecessor.getEnd());
@@ -1917,7 +1917,7 @@ class MpoFileImporterTest {
 		assertEquals(expectedPredecessorFinish, restoredPredecessor.getEnd());
 		assertEquals(tuesdayEight, restoredSuccessor.getStart());
 		assertEquals(expectedSuccessorFinish, restoredSuccessor.getEnd());
-		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET,
+		assertEquals(com.microproject.schedule.ConstraintType.Kind.SNET,
 			restoredSuccessor.getConstraintTypeKind());
 		assertEquals(snet, restoredSuccessor.getConstraintDate());
 		assertEquals(1, restoredPredecessor.getSuccessorList().size());
@@ -1943,8 +1943,8 @@ class MpoFileImporterTest {
 		predecessor.setDuration(predecessorDurationDays
 			* com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
 		successor.setDuration(com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
-		predecessor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
-		successor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, tuesdayEight);
+		predecessor.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, mondayEight);
+		successor.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, tuesdayEight);
 		project.recalculate();
 		Dependency dependency = DependencyService.getInstance().newDependency(
 			predecessor, successor, DependencyType.FF, 0L, this);
@@ -1967,7 +1967,7 @@ class MpoFileImporterTest {
 		assertEquals(expectedPredecessorFinish, restoredPredecessor.getEnd());
 		assertEquals(expectedSuccessorStart, restoredSuccessor.getStart());
 		assertEquals(expectedSuccessorFinish, restoredSuccessor.getEnd());
-		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET,
+		assertEquals(com.microproject.schedule.ConstraintType.Kind.SNET,
 			restoredSuccessor.getConstraintTypeKind());
 		assertEquals(tuesdayEight, restoredSuccessor.getConstraintDate());
 		assertEquals(1, restoredPredecessor.getSuccessorList().size());
@@ -1998,8 +1998,8 @@ class MpoFileImporterTest {
 		successor.setName("SetFields SS successor");
 		predecessor.setDuration(fourWorkingHours);
 		successor.setDuration(fourWorkingHours);
-		predecessor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
-		successor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		predecessor.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, mondayEight);
+		successor.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, mondayEight);
 		predecessor.getCurrentSchedule().setStart(mondayEight);
 		successor.getCurrentSchedule().setStart(mondayEight);
 		project.recalculate();
@@ -2051,23 +2051,23 @@ class MpoFileImporterTest {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("calendar-mpo", undo), undo);
 		project.initialize(false, false);
-		project.setWorkCalendar(((com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar()).makeScratchCopy());
-		((com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar()).setName("MPO project Tuesday exception");
-		((com.microproject.pm.calendar.WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(
-			new com.microproject.pm.calendar.WorkDay(tuesday));
+		project.setWorkCalendar(((com.microproject.model.calendar.WorkingCalendar) project.getWorkCalendar()).makeScratchCopy());
+		((com.microproject.model.calendar.WorkingCalendar) project.getWorkCalendar()).setName("MPO project Tuesday exception");
+		((com.microproject.model.calendar.WorkingCalendar) project.getWorkCalendar()).addOrReplaceException(
+			new com.microproject.model.calendar.WorkDay(tuesday));
 		setProjectStart(project, mondayEight);
 		NormalTask predecessor = (NormalTask) project.createLocalTaskNode(null).getImpl();
 		predecessor.setName("Calendar SS predecessor");
 		NormalTask successor = (NormalTask) project.createLocalTaskNode(null).getImpl();
 		successor.setName("Calendar SS successor");
-		var predecessorCalendar = com.microproject.pm.calendar.WorkingCalendar.getInstanceBasedOn(project.getWorkCalendar());
+		var predecessorCalendar = com.microproject.model.calendar.WorkingCalendar.getInstanceBasedOn(project.getWorkCalendar());
 		predecessorCalendar.setName("MPO predecessor Wednesday exception");
-		predecessorCalendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(wednesday));
+		predecessorCalendar.addOrReplaceException(new com.microproject.model.calendar.WorkDay(wednesday));
 		predecessor.setWorkCalendar(predecessorCalendar);
 		predecessor.setDuration(fourHours);
 		successor.setDuration(fourHours);
-		predecessor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
-		successor.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, mondayEight);
+		predecessor.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, mondayEight);
+		successor.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, mondayEight);
 		assertNull(successor.getWorkCalendar(), "source successor inherits the project calendar");
 		predecessor.getCurrentSchedule().setStart(mondayEight);
 		successor.getCurrentSchedule().setStart(mondayEight);
@@ -2103,13 +2103,13 @@ class MpoFileImporterTest {
 		emptySchedule.putArray("tasks");
 		noScheduleSidecar.put(MpoFileImporter.TASK_SCHEDULES_ENTRY, mapper.writeValueAsBytes(emptySchedule));
 		updateEntryChecksum(noScheduleSidecar, MpoFileImporter.TASK_SCHEDULES_ENTRY);
-		int calendarsBefore = com.microproject.pm.calendar.CalendarService.getInstance().getDerivedCalendars().size();
+		int calendarsBefore = com.microproject.model.calendar.CalendarService.getInstance().getDerivedCalendars().size();
 		loadFromBytes(zip(noScheduleSidecar).toByteArray());
-		int calendarsAfterWithoutSidecar = com.microproject.pm.calendar.CalendarService.getInstance()
+		int calendarsAfterWithoutSidecar = com.microproject.model.calendar.CalendarService.getInstance()
 			.getDerivedCalendars().size();
 		assertThrows(IOException.class, () -> loadFromBytes(zip(lateMalformed).toByteArray()),
 			"a late malformed task must reject the complete schedule sidecar");
-		int calendarsAfterMalformed = com.microproject.pm.calendar.CalendarService.getInstance()
+		int calendarsAfterMalformed = com.microproject.model.calendar.CalendarService.getInstance()
 			.getDerivedCalendars().size();
 		assertEquals(calendarsAfterWithoutSidecar - calendarsBefore,
 			calendarsAfterMalformed - calendarsAfterWithoutSidecar,
@@ -2123,9 +2123,9 @@ class MpoFileImporterTest {
 		assertNull(restoredSuccessor.getWorkCalendar(), "restored successor inherits the project calendar");
 		assertSame(reopened.getWorkCalendar(), restoredPredecessor.getWorkCalendar().getBaseCalendar(),
 			"explicit task calendar must inherit from the restored project calendar instance");
-		assertTrue(java.util.Arrays.stream(((com.microproject.pm.calendar.WorkingCalendar)
+		assertTrue(java.util.Arrays.stream(((com.microproject.model.calendar.WorkingCalendar)
 			reopened.getWorkCalendar()).getExceptionDays()).anyMatch(day -> day.getStart() == tuesday));
-		assertTrue(java.util.Arrays.stream(((com.microproject.pm.calendar.WorkingCalendar)
+		assertTrue(java.util.Arrays.stream(((com.microproject.model.calendar.WorkingCalendar)
 			restoredPredecessor.getWorkCalendar()).getExceptionDays()).anyMatch(day -> day.getStart() == wednesday));
 		assertFalse(metadata.path("tasks").findValues("taskUid").isEmpty());
 		assertFalse(metadata.path("tasks").findParents("calendar").stream()
@@ -2182,15 +2182,15 @@ class MpoFileImporterTest {
 		assertEquals(125.0d, ((NormalTask) firstTask(reopened)).getBaselineCost(0), 0.00001d,
 			"MPO migration restores the released writer's model-currency baseline contour");
 		NormalTask nativeTask = (NormalTask) firstTask(reopened);
-		com.microproject.pm.assignment.Assignment nativeAssignment =
-			(com.microproject.pm.assignment.Assignment) nativeTask.getAssignments().iterator().next();
+		com.microproject.model.assignment.Assignment nativeAssignment =
+			(com.microproject.model.assignment.Assignment) nativeTask.getAssignments().iterator().next();
 		assertEquals(7.5d, nativeAssignment.getResource().getCostPerUse(), 0.00001d,
 			"The released standard MSPDI resource writer already stored CostPerUse in hundredths");
 		Project external = new com.microproject.exchange.mpx.MspImporter().importProject(
 			new ByteArrayInputStream(entries.get(MpoFileImporter.PROJECT_ENTRY)), "xml", (progress, label) -> { });
 		assertEquals(1.25d, ((NormalTask) firstTask(external)).getBaselineCost(0), 0.00001d,
 			"The same literal 125 in ordinary MSPDI means 1.25 normalized currency units");
-		assertEquals(7.5d, ((com.microproject.pm.assignment.Assignment) ((NormalTask) firstTask(external))
+		assertEquals(7.5d, ((com.microproject.model.assignment.Assignment) ((NormalTask) firstTask(external))
 			.getAssignments().iterator().next()).getResource().getCostPerUse(), 0.00001d,
 			"Ordinary MSPDI resource CostPerUse keeps the standard hundredths conversion");
 		ByteArrayOutputStream upgraded = new ByteArrayOutputStream();
@@ -2677,7 +2677,7 @@ class MpoFileImporterTest {
 		task.setUniqueId(780101L);
 		Resource resource = original.getResourcePool().newResourceInstance();
 		resource.setName("Notes resource");
-		((com.microproject.pm.resource.ResourceImpl) resource).setUniqueId(780102L);
+		((com.microproject.model.resource.ResourceImpl) resource).setUniqueId(780102L);
 		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
 		assignment.setNotes("割り当てメモ\nSecond line & details");
 		Object savedDetail = assignment.backupDetail();
@@ -2686,7 +2686,7 @@ class MpoFileImporterTest {
 		assertEquals("割り当てメモ\nSecond line & details", assignment.getNotes());
 		Resource other = original.getResourcePool().newResourceInstance();
 		other.setName("Other resource");
-		((com.microproject.pm.resource.ResourceImpl) other).setUniqueId(780103L);
+		((com.microproject.model.resource.ResourceImpl) other).setUniqueId(780103L);
 		AssignmentService.getInstance().newAssignment(task, other, 1D, 0L, this);
 		long resourceId = resource.getUniqueId();
 		long otherId = other.getUniqueId();
@@ -2718,10 +2718,10 @@ class MpoFileImporterTest {
 		resource.setName("Leveling resource");
 		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
 		long manualFrom = assignment.getEffectiveWorkCalendar().add(assignment.getStart(),
-			com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR, false);
+			com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR, false);
 		long manualTo = assignment.getEffectiveWorkCalendar().add(manualFrom,
-			com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR, false);
-		assertTrue(com.microproject.pm.scheduling.ScheduleService.getInstance().split(this, assignment, manualFrom,
+			com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR, false);
+		assertTrue(com.microproject.schedule.ScheduleService.getInstance().split(this, assignment, manualFrom,
 			manualTo, null));
 		assertEquals(assignment.getWork(null), assignment.getWorkContour().calcTotalWork(assignment.getDurationMillis()),
 			"manual assignment contour must match scalar work before leveling");
@@ -2729,12 +2729,12 @@ class MpoFileImporterTest {
 		String beforeContour = assignment.getWorkContour().toString(beforeDuration);
 		long beforeStart = assignment.getStart();
 		long beforeEnd = assignment.getEnd();
-		List<com.microproject.pm.task.TaskSplitInterval> manualTaskSplits = task.getManualTaskSplitIntervals();
+		List<com.microproject.model.task.TaskSplitInterval> manualTaskSplits = task.getManualTaskSplitIntervals();
 		long from = assignment.getEffectiveWorkCalendar().add(assignment.getStart(),
-			5L * com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR, false);
+			5L * com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR, false);
 		long to = assignment.getEffectiveWorkCalendar().add(from,
-			com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR, false);
-		assertTrue(com.microproject.pm.scheduling.ScheduleService.getInstance().splitForLeveling(this, assignment, from, to));
+			com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR, false);
+		assertTrue(com.microproject.schedule.ScheduleService.getInstance().splitForLeveling(this, assignment, from, to));
 		assertEquals(assignment.getWork(null), assignment.getWorkContour().calcTotalWork(assignment.getDurationMillis()),
 			"manual and generated split contours must match scalar work before MPO export");
 		ByteArrayOutputStream archive = new ByteArrayOutputStream();
@@ -2764,7 +2764,7 @@ class MpoFileImporterTest {
 		assertNotNull(legacyAssignment, "v1 sidecar must still load and restore assignment provenance");
 		assertNotNull(legacyAssignment.getLevelingSplitState(), "v1 provenance must remain available for Clear");
 		legacyAssignment.extend(legacyAssignment.getStart(), legacyAssignment.getEnd(),
-			com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR);
+			com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR);
 		assertThrows(IllegalStateException.class,
 			() -> new ResourceLevelingService().clear(legacyReopened, null, null),
 			"v1 sidecars without the normalization marker must retain strict contour-edit rejection");
@@ -2854,7 +2854,7 @@ class MpoFileImporterTest {
 		long blockerStart = blocker.getStart();
 		long blockerEnd = blocker.getEnd();
 		long blockerDelay = blocker.getLevelingDelay();
-		long actualWork = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long actualWork = com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
 		long totalWork = target.getWork(null);
 		long remainingWork = totalWork - actualWork;
 		ResourceLevelingService service = new ResourceLevelingService();
@@ -2866,12 +2866,12 @@ class MpoFileImporterTest {
 		assertEquals(1, plan.assignmentSplits().size(), "Apply must split the selected assignment around the fixed blocker");
 		plan.apply(undo.getEditSupport());
 		assertNotNull(target.getLevelingSplitState());
-		var actualProfile = com.microproject.pm.assignment.contour.PersonalContour.getInstance(
-			new com.microproject.pm.assignment.contour.AbstractContourBucket[] {
-				com.microproject.pm.assignment.contour.PersonalContourBucket.getInstance(actualWork, 1.0D) });
-		var remainingProfile = com.microproject.pm.assignment.contour.PersonalContour.getInstance(
-			new com.microproject.pm.assignment.contour.AbstractContourBucket[] {
-				com.microproject.pm.assignment.contour.PersonalContourBucket.getInstance(remainingWork, 1.0D) });
+		var actualProfile = com.microproject.model.assignment.contour.PersonalContour.getInstance(
+			new com.microproject.model.assignment.contour.AbstractContourBucket[] {
+				com.microproject.model.assignment.contour.PersonalContourBucket.getInstance(actualWork, 1.0D) });
+		var remainingProfile = com.microproject.model.assignment.contour.PersonalContour.getInstance(
+			new com.microproject.model.assignment.contour.AbstractContourBucket[] {
+				com.microproject.model.assignment.contour.PersonalContourBucket.getInstance(remainingWork, 1.0D) });
 		target.setImportedTimephasedWork(actualProfile, remainingProfile);
 		long statusDate = targetTask.getEnd();
 		original.setStatusDate(statusDate);
@@ -2903,12 +2903,12 @@ class MpoFileImporterTest {
 		Assignment editedContourAssignment = (Assignment) editedContourTask.getAssignments().iterator().next();
 		var editedBuckets = editedContourAssignment.getWorkContour().getContourBuckets();
 		assertEquals(2, editedBuckets.length);
-		var firstBucket = (com.microproject.pm.assignment.contour.PersonalContourBucket) editedBuckets[0];
-		var lastBucket = (com.microproject.pm.assignment.contour.PersonalContourBucket) editedBuckets[1];
+		var firstBucket = (com.microproject.model.assignment.contour.PersonalContourBucket) editedBuckets[0];
+		var lastBucket = (com.microproject.model.assignment.contour.PersonalContourBucket) editedBuckets[1];
 		long redistributedWork = firstBucket.calcWork() - firstBucket.getDuration();
-		editedBuckets[0] = com.microproject.pm.assignment.contour.PersonalContourBucket.getInstance(
+		editedBuckets[0] = com.microproject.model.assignment.contour.PersonalContourBucket.getInstance(
 			firstBucket.getDuration(), 1.0D);
-		editedBuckets[1] = com.microproject.pm.assignment.contour.PersonalContourBucket.getInstance(
+		editedBuckets[1] = com.microproject.model.assignment.contour.PersonalContourBucket.getInstance(
 			lastBucket.getDuration(), lastBucket.getUnits() + (double) redistributedWork / lastBucket.getDuration());
 		assertNotEquals(restored.getWorkContour().toString(restored.getDurationMillis()),
 			editedContourAssignment.getWorkContour().toString(editedContourAssignment.getDurationMillis()));
@@ -2978,12 +2978,12 @@ class MpoFileImporterTest {
 		blockerTask.setStart(original.getEffectiveWorkCalendar().add(original.getStart(), day, false));
 		Resource resource = pool.newResourceInstance();
 		resource.setName("Manual split resource");
-		((com.microproject.pm.resource.ResourceImpl) resource).setBookingTypeKind(
-			com.microproject.pm.resource.BookingType.Kind.COMMITTED);
+		((com.microproject.model.resource.ResourceImpl) resource).setBookingTypeKind(
+			com.microproject.model.resource.BookingType.Kind.COMMITTED);
 		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
 		long durationBefore = assignment.getDurationMillis();
-		long from = assignment.getStart() + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
-		long to = from + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long from = assignment.getStart() + com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long to = from + com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
 		Resource other = pool.newResourceInstance();
 		other.setName("Other resource");
 		AssignmentService.getInstance().newAssignment(task, other, 1D, 0L, this);
@@ -3018,8 +3018,8 @@ class MpoFileImporterTest {
 		long manualTo = task.getEffectiveWorkCalendar().add(manualFrom, day, false);
 		long levelingFrom = task.getEffectiveWorkCalendar().add(start, 3L * day, false);
 		long levelingTo = task.getEffectiveWorkCalendar().add(levelingFrom, day, false);
-		assertTrue(com.microproject.pm.scheduling.ScheduleService.getInstance().split(this, task, manualFrom, manualTo, null));
-		assertTrue(com.microproject.pm.scheduling.ScheduleService.getInstance().splitForLeveling(this, task, levelingFrom, levelingTo));
+		assertTrue(com.microproject.schedule.ScheduleService.getInstance().split(this, task, manualFrom, manualTo, null));
+		assertTrue(com.microproject.schedule.ScheduleService.getInstance().splitForLeveling(this, task, levelingFrom, levelingTo));
 
 		ByteArrayOutputStream archive = new ByteArrayOutputStream();
 		assertTrue(new MpoFileImporter().saveProject(original, archive));
@@ -3028,7 +3028,7 @@ class MpoFileImporterTest {
 		assertEquals(task.getManualTaskSplitIntervals(), restored.getManualTaskSplitIntervals());
 		assertEquals(task.getLevelingTaskSplitIntervals(), restored.getLevelingTaskSplitIntervals());
 
-		new com.microproject.pm.resource.ResourceLevelingService().clear(reopened);
+		new com.microproject.model.resource.ResourceLevelingService().clear(reopened);
 		assertEquals(task.getManualTaskSplitIntervals(), restored.getTaskSplitIntervals(),
 			"clear after MPO reload must retain manual gaps and remove only generated leveling gaps");
 		assertTrue(restored.getLevelingTaskSplitIntervals().isEmpty());
@@ -3040,7 +3040,7 @@ class MpoFileImporterTest {
 		NormalTask task = (NormalTask) firstTask(original);
 		long start = task.getStart();
 		long finish = task.getEnd();
-		long shift = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long shift = com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
 		task.setManuallyScheduled(true);
 		task.setManualDates(start + shift, finish + shift);
 		task.setLevelingDelay(com.microproject.datatype.Duration.millis(shift));
@@ -3053,7 +3053,7 @@ class MpoFileImporterTest {
 		assertEquals(start + shift, restored.getManualStart());
 		assertEquals(start, restored.getLevelingManualDateState().originalStart());
 
-		new com.microproject.pm.resource.ResourceLevelingService().clear(reopened);
+		new com.microproject.model.resource.ResourceLevelingService().clear(reopened);
 
 		assertEquals(start, restored.getManualStart(), "Clear after MPO reload restores the pre-leveling date");
 		assertEquals(finish, restored.getManualFinish());
@@ -3068,13 +3068,13 @@ class MpoFileImporterTest {
 		task.setDuration(4L * day);
 		long start = task.getStart();
 		long finish = task.getEnd();
-		long shift = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long shift = com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
 		task.setManuallyScheduled(true);
 		task.setManualDates(start + shift, finish + shift);
 		task.setLevelingManualDateState(new Task.LevelingManualDateState(start, finish, start + shift, finish + shift));
 		long manualFrom = task.getEffectiveWorkCalendar().add(start, day, false);
 		long manualTo = task.getEffectiveWorkCalendar().add(manualFrom, day, false);
-		assertTrue(com.microproject.pm.scheduling.ScheduleService.getInstance().split(this, task, manualFrom, manualTo, null));
+		assertTrue(com.microproject.schedule.ScheduleService.getInstance().split(this, task, manualFrom, manualTo, null));
 		ByteArrayOutputStream archive = new ByteArrayOutputStream();
 		assertTrue(new MpoFileImporter().saveProject(original, archive));
 		Map<String, byte[]> entries = readEntries(archive.toByteArray());
@@ -3099,7 +3099,7 @@ class MpoFileImporterTest {
 
 	@Test
 	void levelingSplitProvenanceDoesNotChangeLegacyTaskSerializationDescriptor() {
-		ObjectStreamClass taskDescriptor = ObjectStreamClass.lookup(com.microproject.pm.task.Task.class);
+		ObjectStreamClass taskDescriptor = ObjectStreamClass.lookup(com.microproject.model.task.Task.class);
 		assertEquals(786665335611L, taskDescriptor.getSerialVersionUID());
 		assertTrue(java.util.Arrays.stream(taskDescriptor.getFields())
 			.noneMatch(field -> field.getName().equals("levelingCanSplit")
@@ -3130,7 +3130,7 @@ class MpoFileImporterTest {
 		var model = project.getTaskModel();
 		var summaryNode = model.search(summary);
 		assertTrue(model.relocate(List.of(model.search(first), model.search(second)), summaryNode, 0,
-			com.microproject.grouping.core.model.NodeModel.SILENT));
+			com.microproject.node.model.NodeModel.SILENT));
 		summary.setWbsChildrenNodes(model.getHierarchy().getChildren(summaryNode));
 		first.setWbsParent(summary);
 		second.setWbsParent(summary);
@@ -3148,19 +3148,19 @@ class MpoFileImporterTest {
 		first.setIgnoreResourceCalendar(false);
 		second.setIgnoreResourceCalendar(false);
 		summary.setFixedCost(7.0d);
-		summary.setFixedCostAccrual(com.microproject.pm.costing.Accrual.Kind.START.code());
+		summary.setFixedCostAccrual(com.microproject.model.costing.Accrual.Kind.START.code());
 		Resource resource = project.getResourcePool().newResourceInstance();
 		long firstCalendarException = start + 10L * day;
 		long secondCalendarException = start + 20L * day;
-		com.microproject.pm.calendar.WorkingCalendar firstCalendar =
-			com.microproject.pm.calendar.WorkingCalendar.getInstanceBasedOn(project.getWorkCalendar());
+		com.microproject.model.calendar.WorkingCalendar firstCalendar =
+			com.microproject.model.calendar.WorkingCalendar.getInstanceBasedOn(project.getWorkCalendar());
 		firstCalendar.setName("Baseline profile calendar one");
-		firstCalendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(firstCalendarException,
+		firstCalendar.addOrReplaceException(new com.microproject.model.calendar.WorkDay(firstCalendarException,
 			firstCalendarException + day, "First profile exception"));
-		((com.microproject.pm.resource.ResourceImpl) resource).setWorkCalendar(firstCalendar);
+		((com.microproject.model.resource.ResourceImpl) resource).setWorkCalendar(firstCalendar);
 		Assignment firstAssignment = AssignmentService.getInstance().newAssignment(first, resource, 1D, 0L,
 			MpoFileImporterTest.class);
-		assertTrue(java.util.Arrays.stream(((com.microproject.pm.calendar.WorkingCalendar)
+		assertTrue(java.util.Arrays.stream(((com.microproject.model.calendar.WorkingCalendar)
 			firstAssignment.getEffectiveWorkCalendar()).getConcreteInstance().getExceptionDays())
 			.anyMatch(exception -> exception.getStart() == firstCalendarException),
 			"Fixture assignment must resolve the first resource-calendar exception");
@@ -3177,13 +3177,13 @@ class MpoFileImporterTest {
 			"The first saved profile lost its exception: profile=" + firstProfile.profileId() + " resource="
 				+ firstProfile.resourceUniqueId() + " calendar=" + firstProfile.calendarCopy().getName() + " exceptions="
 				+ java.util.Arrays.toString(java.util.Arrays.stream(firstProfile.calendarCopy().getExceptionDays())
-					.mapToLong(com.microproject.pm.calendar.WorkDay::getStart).toArray()));
-		com.microproject.pm.calendar.WorkingCalendar secondCalendar =
-			com.microproject.pm.calendar.WorkingCalendar.getInstanceBasedOn(project.getWorkCalendar());
+					.mapToLong(com.microproject.model.calendar.WorkDay::getStart).toArray()));
+		com.microproject.model.calendar.WorkingCalendar secondCalendar =
+			com.microproject.model.calendar.WorkingCalendar.getInstanceBasedOn(project.getWorkCalendar());
 		secondCalendar.setName("Baseline profile calendar two");
-		secondCalendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(secondCalendarException,
+		secondCalendar.addOrReplaceException(new com.microproject.model.calendar.WorkDay(secondCalendarException,
 			secondCalendarException + day, "Second profile exception"));
-		((com.microproject.pm.resource.ResourceImpl) resource).setWorkCalendar(secondCalendar);
+		((com.microproject.model.resource.ResourceImpl) resource).setWorkCalendar(secondCalendar);
 		Assignment secondAssignment = AssignmentService.getInstance().newAssignment(second, resource, 1D, 0L,
 			MpoFileImporterTest.class);
 		secondAssignment.setWork(16L * 60L * 60L * 1000L, null);
@@ -3437,7 +3437,7 @@ class MpoFileImporterTest {
 		assertEquals(540.0d, restored.getBaselineCost(Snapshottable.BASELINE,
 			baselineWindowStart, baselineWindowEnd), 0.001d,
 			"MPO reload preserves the 500 assignment plus 40 fixed-cost summary baseline total");
-		assertEquals(com.microproject.pm.costing.Accrual.Kind.START.code(), restoredBaseline.getFixedCostAccrual());
+		assertEquals(com.microproject.model.costing.Accrual.Kind.START.code(), restoredBaseline.getFixedCostAccrual());
 		assertEquals(0, restored.getAssignments().stream()
 			.filter(value -> !((Assignment) value).isDefault()).count(),
 			"Saved baseline profiles must not become current assignments");
@@ -3447,9 +3447,9 @@ class MpoFileImporterTest {
 		java.util.Set<Long> restoredCalendarExceptions = new java.util.HashSet<>();
 		for (Object value : restoredBaseline.getAssignments()) {
 			Assignment profile = (Assignment) value;
-			com.microproject.pm.calendar.WorkingCalendar profileCalendar =
-				(com.microproject.pm.calendar.WorkingCalendar) profile.getEffectiveWorkCalendar();
-			for (com.microproject.pm.calendar.WorkDay exception : profileCalendar.getConcreteInstance().getExceptionDays()) {
+			com.microproject.model.calendar.WorkingCalendar profileCalendar =
+				(com.microproject.model.calendar.WorkingCalendar) profile.getEffectiveWorkCalendar();
+			for (com.microproject.model.calendar.WorkDay exception : profileCalendar.getConcreteInstance().getExceptionDays()) {
 				restoredCalendarExceptions.add(Long.valueOf(exception.getStart()));
 				if (exception.getStart() == firstCalendarException) {
 					assertEquals(5.0D, profile.getRate().getValue(),
@@ -3471,23 +3471,23 @@ class MpoFileImporterTest {
 		NormalTask task = (NormalTask) firstTask(project);
 		task.setFixedCost(99.0d);
 		int[] accruals = {
-			com.microproject.pm.costing.Accrual.Kind.START.code(),
-			com.microproject.pm.costing.Accrual.Kind.PRORATED.code(),
-			com.microproject.pm.costing.Accrual.Kind.END.code(),
-			com.microproject.pm.costing.Accrual.Kind.START.code(),
-			com.microproject.pm.costing.Accrual.Kind.PRORATED.code(),
-			com.microproject.pm.costing.Accrual.Kind.END.code(),
-			com.microproject.pm.costing.Accrual.Kind.START.code(),
-			com.microproject.pm.costing.Accrual.Kind.PRORATED.code(),
-			com.microproject.pm.costing.Accrual.Kind.END.code(),
-			com.microproject.pm.costing.Accrual.Kind.START.code(),
-			com.microproject.pm.costing.Accrual.Kind.END.code()
+			com.microproject.model.costing.Accrual.Kind.START.code(),
+			com.microproject.model.costing.Accrual.Kind.PRORATED.code(),
+			com.microproject.model.costing.Accrual.Kind.END.code(),
+			com.microproject.model.costing.Accrual.Kind.START.code(),
+			com.microproject.model.costing.Accrual.Kind.PRORATED.code(),
+			com.microproject.model.costing.Accrual.Kind.END.code(),
+			com.microproject.model.costing.Accrual.Kind.START.code(),
+			com.microproject.model.costing.Accrual.Kind.PRORATED.code(),
+			com.microproject.model.costing.Accrual.Kind.END.code(),
+			com.microproject.model.costing.Accrual.Kind.START.code(),
+			com.microproject.model.costing.Accrual.Kind.END.code()
 		};
 		for (int slot = 0; slot <= 10; slot++) {
 			TaskSnapshot snapshot = new TaskSnapshot();
 			snapshot.getHasAssignments();
-			com.microproject.pm.criticalpath.TaskSchedule schedule = new com.microproject.pm.criticalpath.TaskSchedule(
-				task, com.microproject.pm.criticalpath.TaskSchedule.Kind.CURRENT);
+			com.microproject.schedule.criticalpath.TaskSchedule schedule = new com.microproject.schedule.criticalpath.TaskSchedule(
+				task, com.microproject.schedule.criticalpath.TaskSchedule.Kind.CURRENT);
 			schedule.setStart(0L);
 			schedule.setFinish(0L);
 			schedule.setRawDuration(0L);
@@ -3534,15 +3534,15 @@ class MpoFileImporterTest {
 		task.getCurrentSchedule().setFinish(start + 8L * hour);
 		task.getCurrentSchedule().setRawDuration(8L * hour);
 		task.setFixedCost(240.0d);
-		task.setFixedCostAccrual(com.microproject.pm.costing.Accrual.Kind.PRORATED);
-		int slot = com.microproject.pm.snapshot.Snapshottable.BASELINE_1;
+		task.setFixedCostAccrual(com.microproject.model.costing.Accrual.Kind.PRORATED);
+		int slot = com.microproject.model.snapshot.Snapshottable.BASELINE_1;
 		task.saveCurrentToSnapshot(Integer.valueOf(slot));
 		double expectedFirstHalf = task.getBaselineCost(slot, start, start + 4L * hour);
 		assertEquals(120.0d, expectedFirstHalf, 0.001d);
 
-		com.microproject.pm.calendar.WorkingCalendar changed =
-			((com.microproject.pm.calendar.WorkingCalendar) task.getEffectiveWorkCalendar()).copyForBaselineSnapshot();
-		for (int day = 0; day < com.microproject.pm.calendar.WorkWeek.DAYS_IN_WEEK; day++)
+		com.microproject.model.calendar.WorkingCalendar changed =
+			((com.microproject.model.calendar.WorkingCalendar) task.getEffectiveWorkCalendar()).copyForBaselineSnapshot();
+		for (int day = 0; day < com.microproject.model.calendar.WorkWeek.DAYS_IN_WEEK; day++)
 			changed.setWeekDay(day, null);
 		task.setWorkCalendar(changed);
 		assertEquals(expectedFirstHalf, task.getBaselineCost(slot, start, start + 4L * hour), 0.001d,
@@ -3597,13 +3597,13 @@ class MpoFileImporterTest {
 		NormalTask secondTask = (NormalTask) original.createLocalTaskNode(null).getImpl();
 		secondTask.setName("Materialized after blank row");
 		secondTask.setUniqueId(9_823_471L);
-		com.microproject.grouping.core.model.NodeModel taskModel = original.getTaskModel();
-		com.microproject.grouping.core.Node secondNode = taskModel.search(secondTask);
-		com.microproject.grouping.core.Node blankRow = NodeFactory.getInstance().createVoidNode();
+		com.microproject.node.model.NodeModel taskModel = original.getTaskModel();
+		com.microproject.node.Node secondNode = taskModel.search(secondTask);
+		com.microproject.node.Node blankRow = NodeFactory.getInstance().createVoidNode();
 		Object outlineRoot = taskModel.getHierarchy().getRoot();
-		taskModel.add((com.microproject.grouping.core.Node) outlineRoot, blankRow,
+		taskModel.add((com.microproject.node.Node) outlineRoot, blankRow,
 			taskModel.getIndexOfChild(outlineRoot, secondNode),
-			com.microproject.grouping.core.model.NodeModel.SILENT);
+			com.microproject.node.model.NodeModel.SILENT);
 		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
 		task.setDuration(3L * day);
 		secondTask.setDuration(2L * day);
@@ -3616,7 +3616,7 @@ class MpoFileImporterTest {
 		long secondStart = secondTask.getStart() - 2L * day;
 		long secondFinish = secondStart + 5L * day;
 		long constraintDate = start + 30L * 60L * 1000L;
-		task.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, constraintDate);
+		task.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, constraintDate);
 		task.getCurrentSchedule().setStart(start);
 		task.getCurrentSchedule().setFinish(finish);
 		task.setActualStartNoEvent(start);
@@ -3636,13 +3636,13 @@ class MpoFileImporterTest {
 		assertEquals(start, restored.getStart());
 		assertEquals(finish, restored.getEnd());
 		assertEquals(start, restored.getActualStart());
-		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, restored.getConstraintTypeKind());
+		assertEquals(com.microproject.schedule.ConstraintType.Kind.SNET, restored.getConstraintTypeKind());
 		assertEquals(constraintDate, restored.getConstraintDate());
 		assertNotNull(restoredSecond, "the high-runtime-UID task after a blank row must be restored");
-		com.microproject.grouping.core.Node previousRow = null;
+		com.microproject.node.Node previousRow = null;
 		Object reopenedRoot = reopened.getTaskOutline().getHierarchy().getRoot();
 		for (java.util.Iterator<?> rows = reopened.getTaskOutline().iterator(); rows.hasNext();) {
-			com.microproject.grouping.core.Node row = (com.microproject.grouping.core.Node) rows.next();
+			com.microproject.node.Node row = (com.microproject.node.Node) rows.next();
 			if (row.getImpl() == restoredSecond) break;
 			if (row != reopenedRoot) previousRow = row;
 		}
@@ -3748,13 +3748,13 @@ class MpoFileImporterTest {
 		java.lang.reflect.Field portfolioField = ProjectFactory.class.getDeclaredField("portfolio");
 		portfolioField.setAccessible(true);
 		Object originalPortfolio = portfolioField.get(factory);
-		com.microproject.pm.resource.ResourcePoolFactory resourcePoolFactory = com.microproject.pm.resource.ResourcePoolFactory.getInstance();
-		List<com.microproject.pm.resource.ResourcePool> originalPools = new ArrayList<>(resourcePoolFactory.getResourcePools());
+		com.microproject.model.resource.ResourcePoolFactory resourcePoolFactory = com.microproject.model.resource.ResourcePoolFactory.getInstance();
+		List<com.microproject.model.resource.ResourcePool> originalPools = new ArrayList<>(resourcePoolFactory.getResourcePools());
 		Project originalChild = null;
 		Project master = null;
 		Project replacement = null;
 		try {
-			portfolioField.set(factory, new com.microproject.pm.task.Portfolio(factory));
+			portfolioField.set(factory, new com.microproject.model.task.Portfolio(factory));
 			originalChild = projectForRoundTrip();
 			master = projectForRoundTrip();
 			originalChild.setUniqueId(java.util.UUID.randomUUID().getMostSignificantBits() & Long.MAX_VALUE);
@@ -3769,15 +3769,15 @@ class MpoFileImporterTest {
 			master.setMaster(true);
 			DefaultSubProj reference = new DefaultSubProj(master, originalChild.getUniqueId());
 			reference.setReferenceId("00000000-0000-0000-0000-000000000082");
-			reference.setLoadStatus(com.microproject.pm.task.SubProj.LoadStatus.INVALID);
+			reference.setLoadStatus(com.microproject.model.task.SubProj.LoadStatus.INVALID);
 			reference.setSubprojectFile(childFile.getAbsolutePath());
 			master.connectTask(reference);
-			com.microproject.grouping.core.Node referenceNode = NodeFactory.getInstance().createNode(reference);
+			com.microproject.node.Node referenceNode = NodeFactory.getInstance().createNode(reference);
 			master.addToDefaultOutline(null, referenceNode);
 			factory.addProject(master, false, false);
 			factory.addProject(originalChild, false, false);
 			master.getSubprojectHandler().addSubproject(originalChild, referenceNode, true, false);
-			reference.setLoadStatus(com.microproject.pm.task.SubProj.LoadStatus.INVALID);
+			reference.setLoadStatus(com.microproject.model.task.SubProj.LoadStatus.INVALID);
 
 			Project diskChild = projectForRoundTrip();
 			diskChild.setFileName(childFile.getAbsolutePath());
@@ -3895,7 +3895,7 @@ class MpoFileImporterTest {
 		Project reopened = loadFromBytes(zip(entries).toByteArray());
 		DefaultSubProj restored = findSubproject(reopened);
 		org.junit.jupiter.api.Assertions.assertNotNull(restored);
-		assertEquals(com.microproject.pm.task.SubProj.LoadStatus.INVALID, restored.getLoadStatus());
+		assertEquals(com.microproject.model.task.SubProj.LoadStatus.INVALID, restored.getLoadStatus());
 	}
 
 	@Test
@@ -3914,7 +3914,7 @@ class MpoFileImporterTest {
 		Map<String, byte[]> entries = readEntries(archive.toByteArray());
 		entries.keySet().removeIf(name -> name.startsWith(MpoFileImporter.EMBEDDED_PROJECT_PREFIX));
 		Project reopened = loadFromBytes(zip(entries).toByteArray());
-		assertEquals(com.microproject.pm.task.SubProj.LoadStatus.MISSING, findSubproject(reopened).getLoadStatus());
+		assertEquals(com.microproject.model.task.SubProj.LoadStatus.MISSING, findSubproject(reopened).getLoadStatus());
 	}
 
 	@Test
@@ -3948,8 +3948,8 @@ class MpoFileImporterTest {
 			if (task instanceof DefaultSubProj reference) references.add(reference);
 		}
 		assertEquals(2, references.size());
-		org.junit.jupiter.api.Assertions.assertTrue(references.stream().anyMatch(reference -> reference.getLoadStatus() == com.microproject.pm.task.SubProj.LoadStatus.INVALID));
-		org.junit.jupiter.api.Assertions.assertTrue(references.stream().anyMatch(reference -> reference.getLoadStatus() == com.microproject.pm.task.SubProj.LoadStatus.NOT_LOADED
+		org.junit.jupiter.api.Assertions.assertTrue(references.stream().anyMatch(reference -> reference.getLoadStatus() == com.microproject.model.task.SubProj.LoadStatus.INVALID));
+		org.junit.jupiter.api.Assertions.assertTrue(references.stream().anyMatch(reference -> reference.getLoadStatus() == com.microproject.model.task.SubProj.LoadStatus.NOT_LOADED
 				&& new File(reference.getSubprojectFile()).isFile()));
 	}
 
@@ -3981,7 +3981,7 @@ class MpoFileImporterTest {
 		entries.put(embeddedEntry, malformedArchive);
 
 		Project reopened = loadFromBytes(zip(entries).toByteArray());
-		assertEquals(com.microproject.pm.task.SubProj.LoadStatus.INVALID, findSubproject(reopened).getLoadStatus());
+		assertEquals(com.microproject.model.task.SubProj.LoadStatus.INVALID, findSubproject(reopened).getLoadStatus());
 	}
 
 	@Test
@@ -4009,7 +4009,7 @@ class MpoFileImporterTest {
 		entries.put(embeddedEntry, alteredArchive);
 
 		Project reopened = loadFromBytes(zip(entries).toByteArray());
-		assertEquals(com.microproject.pm.task.SubProj.LoadStatus.INVALID, findSubproject(reopened).getLoadStatus());
+		assertEquals(com.microproject.model.task.SubProj.LoadStatus.INVALID, findSubproject(reopened).getLoadStatus());
 	}
 
 	@Test
@@ -4038,7 +4038,7 @@ class MpoFileImporterTest {
 		ResourcePool pool = ResourcePool.createRourcePool("shared-pool", undo);
 		Resource resource = pool.createScriptedResource();
 		resource.setResourceTypeKind(ResourceType.Kind.WORK);
-		((com.microproject.pm.resource.ResourceImpl) resource).setUniqueId(88001L);
+		((com.microproject.model.resource.ResourceImpl) resource).setUniqueId(88001L);
 		Project poolProject = Project.createProject(pool, undo);
 		File poolFile = File.createTempFile("mpo-shared-pool-", ".mpo");
 		poolFile.deleteOnExit();
@@ -4107,7 +4107,7 @@ class MpoFileImporterTest {
 	private static void assertMalformedBaselineMetadataPreservesTarget(Project target,
 		com.fasterxml.jackson.databind.ObjectMapper mapper, com.fasterxml.jackson.databind.JsonNode malformed) throws Exception {
 		java.util.Map<String, java.util.List<Long>> originalProfileIds = new java.util.LinkedHashMap<>();
-		java.util.Map<String, com.microproject.pm.calendar.WorkCalendar> originalFixedCostCalendars =
+		java.util.Map<String, com.microproject.model.calendar.WorkCalendar> originalFixedCostCalendars =
 			new java.util.LinkedHashMap<>();
 		for (com.fasterxml.jackson.databind.JsonNode taskNode : malformed.path("tasks")) {
 			long taskUid = taskNode.path("taskUid").longValue();
@@ -4178,7 +4178,7 @@ class MpoFileImporterTest {
 		NormalTask sourceTask = (NormalTask) source.createLocalTaskNode(null).getImpl();
 		sourceTask.setName("Local cross-project successor");
 		DependencyService.getInstance().newDependency(targetTask, sourceTask,
-				com.microproject.pm.dependency.DependencyType.Kind.FS.code(), 0L, this);
+				com.microproject.model.dependency.DependencyType.Kind.FS.code(), 0L, this);
 		source.setSharedResourcePoolFile(targetFile.getAbsolutePath());
 		File sourceFile = File.createTempFile("mpo-portable-source-", ".mpo");
 		sourceFile.deleteOnExit();
@@ -4210,7 +4210,7 @@ class MpoFileImporterTest {
 		}
 		org.junit.jupiter.api.Assertions.assertNotNull(restoredTask);
 		org.junit.jupiter.api.Assertions.assertEquals(1, restoredTask.getPredecessorList().size());
-		Task restoredExternal = (Task) ((com.microproject.pm.dependency.Dependency)
+		Task restoredExternal = (Task) ((com.microproject.model.dependency.Dependency)
 				restoredTask.getPredecessorList().iterator().next()).getPredecessor();
 		org.junit.jupiter.api.Assertions.assertNotNull(restoredExternal.getExternalProjectFile(),
 				() -> "restored external task=" + restoredExternal.getName() + ", external="
@@ -4349,7 +4349,7 @@ class MpoFileImporterTest {
 		NormalTask task = (NormalTask) firstTask(project);
 		Resource resource = project.getResourcePool().newResourceInstance();
 		resource.setName("Legacy assignment resource");
-		com.microproject.pm.assignment.Assignment assignment =
+		com.microproject.model.assignment.Assignment assignment =
 			AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, null, false);
 		long delay = 2L * 60L * 60L * 1000L;
 		assignment.setLevelingDelay(delay);
@@ -4370,8 +4370,8 @@ class MpoFileImporterTest {
 		reader.setProjectFactory(ProjectFactory.getInstance());
 		Project loaded = reader.loadProject(new ByteArrayInputStream(zip(entries).toByteArray()));
 		NormalTask loadedTask = (NormalTask) firstTask(loaded);
-		com.microproject.pm.assignment.Assignment loadedAssignment =
-			(com.microproject.pm.assignment.Assignment) loadedTask.getAssignments().iterator().next();
+		com.microproject.model.assignment.Assignment loadedAssignment =
+			(com.microproject.model.assignment.Assignment) loadedTask.getAssignments().iterator().next();
 		org.junit.jupiter.api.Assertions.assertEquals("Legacy assignment resource", loadedAssignment.getResource().getName());
 		org.junit.jupiter.api.Assertions.assertEquals(delay, loadedAssignment.getLevelingDelay());
 	}
@@ -5325,7 +5325,7 @@ class MpoFileImporterTest {
 		NormalTask task = (NormalTask) firstTask(original);
 		task.setLevelingCanSplit(false);
 		task.setLevelAssignments(false);
-		com.microproject.pm.resource.Resource resource = original.getResourcePool().newResourceInstance();
+		com.microproject.model.resource.Resource resource = original.getResourcePool().newResourceInstance();
 		resource.setName("Leveling resource");
 		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
 		assignment.setLevelingDelay(8L * 60L * 60L * 1000L);
@@ -5339,7 +5339,7 @@ class MpoFileImporterTest {
 		Assignment loadedAssignment = (Assignment) ((NormalTask) firstTask(loaded)).getAssignments().iterator().next();
 		assertEquals(8L * 60L * 60L * 1000L,
 			com.microproject.datatype.Duration.millis(loadedAssignment.getLevelingDelay()));
-		new com.microproject.pm.resource.ResourceLevelingService().clear(loaded);
+		new com.microproject.model.resource.ResourceLevelingService().clear(loaded);
 		assertEquals(0L, com.microproject.datatype.Duration.millis(loadedAssignment.getLevelingDelay()),
 			"Clear after native reload removes generated assignment leveling delay");
 
@@ -5412,7 +5412,7 @@ class MpoFileImporterTest {
 		ccpm.setIncludeProposedResources(true);
 		ccpm.setLevelManuallyScheduledTasks(true);
 		ccpm.setLevelAssignments(false);
-		ccpm.setSensitivity(com.microproject.pm.resource.ResourceLevelingService.Sensitivity.HOUR);
+		ccpm.setSensitivity(com.microproject.model.resource.ResourceLevelingService.Sensitivity.HOUR);
 		new CriticalChainService().restoreBaseline(original, new CriticalChainService.Baseline(1L, 2L, 0.4D,
 			java.util.List.of(), java.util.Map.of(), java.util.Map.of()));
 		File mpo = File.createTempFile("mpo-roundtrip", ".mpo");
@@ -5438,7 +5438,7 @@ class MpoFileImporterTest {
 		org.junit.jupiter.api.Assertions.assertTrue(restored.isIncludeProposedResources());
 		org.junit.jupiter.api.Assertions.assertTrue(restored.isLevelManuallyScheduledTasks());
 		org.junit.jupiter.api.Assertions.assertFalse(restored.isLevelAssignments());
-		org.junit.jupiter.api.Assertions.assertEquals(com.microproject.pm.resource.ResourceLevelingService.Sensitivity.HOUR,
+		org.junit.jupiter.api.Assertions.assertEquals(com.microproject.model.resource.ResourceLevelingService.Sensitivity.HOUR,
 			restored.getSensitivity());
 		org.junit.jupiter.api.Assertions.assertEquals(2L, new CriticalChainService().findBaseline(reader.getProject()).projectBufferMillis());
 		byte[] operations = readEntries(java.nio.file.Files.readAllBytes(mpo.toPath())).get("operations/log.jsonl");
@@ -5477,7 +5477,7 @@ class MpoFileImporterTest {
 			"MPO files written before the option existed must keep manual tasks fixed by default");
 		org.junit.jupiter.api.Assertions.assertTrue(new CriticalChainService().settings(reopened).isLevelAssignments(),
 			"MPO files written before the option existed default to individual assignment leveling");
-		org.junit.jupiter.api.Assertions.assertEquals(com.microproject.pm.resource.ResourceLevelingService.Sensitivity.DAY,
+		org.junit.jupiter.api.Assertions.assertEquals(com.microproject.model.resource.ResourceLevelingService.Sensitivity.DAY,
 			new CriticalChainService().settings(reopened).getSensitivity(),
 			"MPO settings written before sensitivity must retain the day product default");
 	}
@@ -5525,7 +5525,7 @@ class MpoFileImporterTest {
 			Object value = tasks.next();
 			if (value instanceof NormalTask task && !task.getAssignments().isEmpty()) {
 				Object assignment = task.getAssignments().get(0);
-				if (assignment instanceof com.microproject.pm.assignment.Assignment a)
+				if (assignment instanceof com.microproject.model.assignment.Assignment a)
 					loadedResource = a.getResource();
 			}
 		}
@@ -5694,7 +5694,7 @@ class MpoFileImporterTest {
 	@Test
 	void taskSchedulingModeSurvivesMpoRoundTrip() throws Exception {
 		Project original = projectForRoundTrip();
-		com.microproject.pm.task.Task task = firstTask(original);
+		com.microproject.model.task.Task task = firstTask(original);
 		task.setManuallyScheduled(true);
 		Project restored = load(writeTempMpo(original));
 		assertTrue(firstTask(restored).isManuallyScheduled(),
@@ -5995,27 +5995,27 @@ class MpoFileImporterTest {
 		ResourcePool pool = original.getResourcePool();
 		pool.setLocal(true);
 		pool.addProject(original);
-		com.microproject.grouping.core.model.NodeModel resourceModel = pool.getResourceOutline();
+		com.microproject.node.model.NodeModel resourceModel = pool.getResourceOutline();
 		resourceModel.setUndoController(pool.getUndoController());
 		Resource resource = pool.createScriptedResource();
 		resource.setName("Initial Resource");
 		AssignmentService.getInstance().newAssignment((NormalTask) firstTask(original), resource, 1.0D, 0L, this);
-		com.microproject.grouping.core.Node resourceNode = resourceModel.search(resource);
+		com.microproject.node.Node resourceNode = resourceModel.search(resource);
 		resourceModel.setFieldValue(com.microproject.configuration.Configuration.getFieldFromId("Field.name"),
-			resourceNode, this, "Published Resource", null, com.microproject.grouping.core.model.NodeModel.NORMAL);
+			resourceNode, this, "Published Resource", null, com.microproject.node.model.NodeModel.NORMAL);
 		resourceModel.setFieldValue(com.microproject.configuration.Configuration.getFieldFromId("Field.standardRate"),
 			resourceNode, this, new com.microproject.datatype.Rate(
 				137.5D / com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
 				com.microproject.datatype.TimeUnit.HOURS), null,
-			com.microproject.grouping.core.model.NodeModel.NORMAL);
+			com.microproject.node.model.NodeModel.NORMAL);
 		long futureEffectiveDate = java.time.LocalDate.of(2027, 1, 1).atStartOfDay(java.time.ZoneOffset.UTC)
 			.toInstant().toEpochMilli();
-		com.microproject.pm.costing.CostRate futureDefaultRate = (com.microproject.pm.costing.CostRate)
+		com.microproject.model.costing.CostRate futureDefaultRate = (com.microproject.model.costing.CostRate)
 			resource.getCostRateTable(0).newValueObject(futureEffectiveDate);
 		futureDefaultRate.setStandardRate(new com.microproject.datatype.Rate(
 			150.0D / com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
 			com.microproject.datatype.TimeUnit.HOURS));
-		com.microproject.pm.costing.CostRate alternateTableDefault = (com.microproject.pm.costing.CostRate)
+		com.microproject.model.costing.CostRate alternateTableDefault = (com.microproject.model.costing.CostRate)
 			resource.getCostRateTable(1).getList().getFirst();
 		alternateTableDefault.setStandardRate(new com.microproject.datatype.Rate(
 			25.0D / com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
@@ -6024,7 +6024,7 @@ class MpoFileImporterTest {
 			40.0D / com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
 			com.microproject.datatype.TimeUnit.HOURS));
 		alternateTableDefault.setCostPerUse(7.5D);
-		com.microproject.pm.costing.CostRate futureRate = (com.microproject.pm.costing.CostRate)
+		com.microproject.model.costing.CostRate futureRate = (com.microproject.model.costing.CostRate)
 			resource.getCostRateTable(1).newValueObject(futureEffectiveDate);
 		futureRate.setStandardRate(new com.microproject.datatype.Rate(
 			30.0D / com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
@@ -6044,7 +6044,7 @@ class MpoFileImporterTest {
 		byte[] bytes = saveMpo(original);
 		String projectXml = new String(readEntries(bytes).get(MpoFileImporter.PROJECT_ENTRY), StandardCharsets.UTF_8);
 		org.mpxj.Resource mpxResource = new org.mpxj.ProjectFile().addResource();
-		com.microproject.exchange.serialize.MPXConverter.toMPXResource((com.microproject.pm.resource.ResourceImpl) resource,
+		com.microproject.exchange.serialize.MPXConverter.toMPXResource((com.microproject.model.resource.ResourceImpl) resource,
 			mpxResource);
 		assertEquals(com.microproject.exchange.serialize.MPXConverter.toMPXRate(resource.getStandardRate()),
 			mpxResource.getStandardRate());
@@ -6053,28 +6053,28 @@ class MpoFileImporterTest {
 		assertTrue(projectXml.contains("<RateTable>0</RateTable>"), projectXml);
 		assertTrue(projectXml.contains("<RateTable>1</RateTable>"), projectXml);
 		Project restored = loadFromBytes(bytes);
-		com.microproject.pm.assignment.Assignment restoredAssignment =
-			(com.microproject.pm.assignment.Assignment) ((NormalTask) firstTask(restored)).getAssignments().iterator().next();
+		com.microproject.model.assignment.Assignment restoredAssignment =
+			(com.microproject.model.assignment.Assignment) ((NormalTask) firstTask(restored)).getAssignments().iterator().next();
 		Resource restoredResource = restoredAssignment.getResource();
 		assertEquals("Published Resource", restoredResource.getName());
 		assertEquals(expectedInternalRate, restoredResource.getStandardRate().getValue(), 0.0000001D,
 			"MPO reload must restore the current-date A-table scalar from the source XML");
 		assertEquals(displayedRate, com.microproject.datatype.RateFormat.getInstance(null, false, false, true)
 			.format(restoredResource.getStandardRate()).toString());
-		com.microproject.pm.costing.CostRate restoredFutureDefault = (com.microproject.pm.costing.CostRate)
+		com.microproject.model.costing.CostRate restoredFutureDefault = (com.microproject.model.costing.CostRate)
 			restoredResource.getCostRateTable(0).findActive(futureEffectiveDate);
 		assertEquals(futureEffectiveDate, restoredFutureDefault.getEffectiveDate());
 		assertEquals(150.0D / com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
 			restoredFutureDefault.getStandardRate().getValue(), 0.0000001D,
 			"applying the current-date scalar must preserve the future A-table interval");
-		com.microproject.pm.costing.CostRate restoredAlternateDefault = (com.microproject.pm.costing.CostRate)
+		com.microproject.model.costing.CostRate restoredAlternateDefault = (com.microproject.model.costing.CostRate)
 			restoredResource.getCostRateTable(1).getList().getFirst();
 		assertEquals(25.0D / com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
 			restoredAlternateDefault.getStandardRate().getValue(), 0.0000001D);
 		assertEquals(40.0D / com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
 			restoredAlternateDefault.getOvertimeRate().getValue(), 0.0000001D);
 		assertEquals(7.5D, restoredAlternateDefault.getCostPerUse(), 0.0000001D);
-		com.microproject.pm.costing.CostRate restoredFutureRate = (com.microproject.pm.costing.CostRate)
+		com.microproject.model.costing.CostRate restoredFutureRate = (com.microproject.model.costing.CostRate)
 			restoredResource.getCostRateTable(1).findActive(futureEffectiveDate);
 		assertEquals(futureEffectiveDate, restoredFutureRate.getEffectiveDate());
 		assertEquals(30.0D / com.microproject.datatype.Duration.timeUnitFactor(com.microproject.datatype.TimeUnit.HOURS),
@@ -6248,7 +6248,7 @@ class MpoFileImporterTest {
 		var model = hierarchy.getTaskModel();
 		var summaryNode = model.search(summary);
 		assertTrue(model.relocate(List.of(model.search(child)), summaryNode, 0,
-			com.microproject.grouping.core.model.NodeModel.SILENT));
+			com.microproject.node.model.NodeModel.SILENT));
 		summary.setWbsChildrenNodes(model.getHierarchy().getChildren(summaryNode));
 		child.setWbsParent(summary);
 		Map<String, byte[]> parentMetadata = readEntries(saveProjectBytes(hierarchy));
@@ -6410,9 +6410,9 @@ class MpoFileImporterTest {
 	@Test
 	void progressLineSettingsSurviveMpoRoundTrip() throws Exception {
 		Project original = projectForRoundTrip();
-		var expected = new com.microproject.pm.task.ProgressLineSettings(true,
-			com.microproject.pm.task.ProgressLineSettings.ReferenceDate.CURRENT_DATE,
-			true, 3, com.microproject.pm.task.ProgressLineSettings.IntervalUnit.MONTH);
+		var expected = new com.microproject.model.task.ProgressLineSettings(true,
+			com.microproject.model.task.ProgressLineSettings.ReferenceDate.CURRENT_DATE,
+			true, 3, com.microproject.model.task.ProgressLineSettings.IntervalUnit.MONTH);
 		original.setProgressLineSettings(expected);
 		Project restored = load(writeTempMpo(original));
 		assertEquals(expected, restored.getProgressLineSettings());
@@ -6521,7 +6521,7 @@ class MpoFileImporterTest {
 	private static void assignPositiveUniqueIds(Project project) {
 		long next = 1L;
 		for (java.util.Iterator<?> tasks = project.getTaskOutlineIterator(); tasks.hasNext(); next++) {
-			((com.microproject.pm.task.Task) tasks.next()).setUniqueId(next);
+			((com.microproject.model.task.Task) tasks.next()).setUniqueId(next);
 		}
 	}
 
@@ -6992,7 +6992,7 @@ class MpoFileImporterTest {
 		org.junit.jupiter.api.Assertions.assertEquals(0D, findByName(loaded, "基幹機能の実装").getPercentComplete(), 0.00001D);
 		org.junit.jupiter.api.Assertions.assertEquals(0D, findByName(loaded, "結合テスト").getPercentComplete(), 0.00001D);
 		for (java.util.Iterator<?> tasks = loaded.getTaskOutlineIterator(); tasks.hasNext();) {
-			com.microproject.pm.task.Task task = (com.microproject.pm.task.Task) tasks.next();
+			com.microproject.model.task.Task task = (com.microproject.model.task.Task) tasks.next();
 			org.junit.jupiter.api.Assertions.assertFalse(task.isManuallyScheduled(), task.getName());
 			org.junit.jupiter.api.Assertions.assertFalse(ScheduleDiagnosticsService.hasDependencyConflict(task), task.getName());
 		}
@@ -7007,7 +7007,7 @@ class MpoFileImporterTest {
 		for (String name : new String[] { "CCPM path comparison English.mpo", "CCPM path comparison 日本語.mpo" }) {
 			Project loaded = load(findSample(name));
 			for (java.util.Iterator<?> tasks = loaded.getTaskOutlineIterator(); tasks.hasNext();) {
-				com.microproject.pm.task.Task task = (com.microproject.pm.task.Task) tasks.next();
+				com.microproject.model.task.Task task = (com.microproject.model.task.Task) tasks.next();
 				org.junit.jupiter.api.Assertions.assertFalse(task.isManuallyScheduled(), name + ": " + task.getName());
 				org.junit.jupiter.api.Assertions.assertFalse(ScheduleDiagnosticsService.hasDependencyConflict(task),
 					name + ": " + task.getName());
@@ -7018,7 +7018,7 @@ class MpoFileImporterTest {
 	@Test
 	void japaneseCcpmSampleStartsWithoutImportedCompletion() throws Exception {
 		Project loaded = load(findSample("CCPM path comparison 日本語.mpo"));
-		com.microproject.pm.task.Task completedTask = findByName(loaded, "操作手順書");
+		com.microproject.model.task.Task completedTask = findByName(loaded, "操作手順書");
 		org.junit.jupiter.api.Assertions.assertNotNull(completedTask);
 		org.junit.jupiter.api.Assertions.assertEquals(0D, completedTask.getPercentComplete(), 0.00001D);
 		org.junit.jupiter.api.Assertions.assertEquals(0D, ((NormalTask) completedTask).getPercentWorkComplete(), 0.00001D);
@@ -7042,7 +7042,7 @@ class MpoFileImporterTest {
 		CriticalChainBufferHistory.Point point = new CriticalChainBufferHistory.Point(
 			java.time.Instant.parse("2026-09-11T00:00:00Z"), "planner", "Planner", 40D, 70D, "RED", "baseline-1");
 		history.add(point);
-		assertTrue(new com.microproject.pm.ccpm.CriticalChainBufferHistoryService()
+		assertTrue(new com.microproject.schedule.ccpm.CriticalChainBufferHistoryService()
 			.retract(original, point.observationId(), "Accidental status refresh", "planner", "Planner").changed());
 
 		ByteArrayOutputStream archive = new ByteArrayOutputStream();
@@ -7108,15 +7108,15 @@ class MpoFileImporterTest {
 		throw new AssertionError("Missing POD sample: " + name);
 	}
 
-	private static com.microproject.pm.task.Task firstTask(Project project) {
+	private static com.microproject.model.task.Task firstTask(Project project) {
 		java.util.Iterator<?> tasks = project.getTaskOutlineIterator();
 		if (!tasks.hasNext()) throw new AssertionError("Expected a task");
-		return (com.microproject.pm.task.Task) tasks.next();
+		return (com.microproject.model.task.Task) tasks.next();
 	}
 
-	private static com.microproject.pm.task.Task findByName(Project project, String name) {
+	private static com.microproject.model.task.Task findByName(Project project, String name) {
 		for (java.util.Iterator<?> tasks = project.getTaskOutlineIterator(); tasks.hasNext();) {
-			com.microproject.pm.task.Task task = (com.microproject.pm.task.Task) tasks.next();
+			com.microproject.model.task.Task task = (com.microproject.model.task.Task) tasks.next();
 			if (java.util.Objects.equals(name, task.getName())) return task;
 		}
 		throw new AssertionError("Expected task: " + name);

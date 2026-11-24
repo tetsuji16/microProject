@@ -21,13 +21,13 @@ import java.util.zip.ZipInputStream;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.exchange.MpoFileImporter;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.availability.Availability;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.resource.ResourceImpl;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.availability.Availability;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.resource.ResourceImpl;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
 import com.microproject.exchange.serialize.MPXConverter;
 import com.microproject.undo.DataFactoryUndoController;
 

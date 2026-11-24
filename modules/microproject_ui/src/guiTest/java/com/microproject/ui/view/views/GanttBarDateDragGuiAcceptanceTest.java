@@ -51,11 +51,11 @@ import org.junit.jupiter.api.Test;
 import com.microproject.view.configuration.SpreadSheetCategories;
 import com.microproject.configuration.Dictionary;
 import com.microproject.view.configuration.BarStyles;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.assignment.AssignmentService;
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.dependency.DependencyService;
-import com.microproject.pm.dependency.DependencyType;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.assignment.AssignmentService;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.dependency.DependencyService;
+import com.microproject.model.dependency.DependencyType;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.ui.view.gantt.Gantt;
 import com.microproject.ui.view.gantt.GanttInteractor;
@@ -72,9 +72,9 @@ import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
 import com.microproject.ui.view.spreadsheet.SpreadSheetUtils;
 import com.microproject.ui.view.timescale.CoordinatesConverter;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
 import com.microproject.i18n.Messages;
 import com.microproject.ui.testsupport.GuiAcceptanceSupport;
 import com.microproject.ui.testsupport.RibbonGuiSupport;
@@ -839,7 +839,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		logScheduleState("after-start-redo", fixture);
 		capture(robot, "gantt-resize-after-start-redo.png");
 		assertEquals(resizedStart, fixture.predecessor.getStart(), "one Redo must restore the resized start");
-		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, fixture.predecessor.getConstraintTypeKind(),
+		assertEquals(com.microproject.schedule.ConstraintType.Kind.SNET, fixture.predecessor.getConstraintTypeKind(),
 			"start resize must retain its start constraint after Redo");
 		assertEquals(resizedStart, fixture.predecessor.getConstraintDate(),
 			"start resize must retain its constraint date after Redo");
@@ -949,7 +949,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		long originalStart = fixture.predecessor.getStart();
 		long originalEnd = fixture.predecessor.getEnd();
 		long originalDuration = fixture.predecessor.getDurationMillis();
-		List<com.microproject.pm.task.TaskSplitInterval> originalSplits = fixture.predecessor.getTaskSplitIntervals();
+		List<com.microproject.model.task.TaskSplitInterval> originalSplits = fixture.predecessor.getTaskSplitIntervals();
 		List<String> originalTaskIntervals = taskIntervals(fixture.predecessor);
 		long splitAt = originalStart + (originalEnd - originalStart) / 3L;
 		long resumeAt = fixture.predecessor.getEffectiveWorkCalendar().add(splitAt,
@@ -1427,7 +1427,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 		return field;
 	}
 
-	private long totalSplitMillis(List<com.microproject.pm.task.TaskSplitInterval> intervals) {
+	private long totalSplitMillis(List<com.microproject.model.task.TaskSplitInterval> intervals) {
 		return intervals.stream().mapToLong(interval -> interval.endOffset() - interval.startOffset()).sum();
 	}
 
@@ -1765,7 +1765,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 				throw new AssertionError(gesture + " point must hit the rendered target task bar: date=" + requestedDate
 					+ " screen=" + screenPoint + " local=" + local + " hit=" + hit + " hitObject="
 					+ (hit == null ? null : hit.getObject()) + " hitTaskId="
-					+ (hitNode == null ? null : ((com.microproject.pm.task.Task)hitNode.getNode().getImpl()).getUniqueId())
+					+ (hitNode == null ? null : ((com.microproject.model.task.Task)hitNode.getNode().getImpl()).getUniqueId())
 					+ " expectedTaskId=" + fixture.predecessor.getUniqueId() + " row=" + row
 					+ " renderedBounds=" + renderedBounds);
 			long mappedDate = (long)gantt.getCoord().toTime(local.x);
@@ -1982,7 +1982,7 @@ class GanttBarDateDragGuiAcceptanceTest {
 			: DateTime.calendarInstance(2026, java.util.Calendar.JUNE, 8).getTimeInMillis();
 		predecessor.getCurrentSchedule().setStart(predecessorStart);
 		if (predecessorStartOverride != null) predecessor.setScheduleConstraint(
-			com.microproject.pm.scheduling.ConstraintType.Kind.SNET, predecessorStart);
+			com.microproject.schedule.ConstraintType.Kind.SNET, predecessorStart);
 		predecessor.setDuration(3L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
 		if (assignPredecessor) {
 			var resource = project.getResourcePool().newResourceInstance();

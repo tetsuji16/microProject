@@ -26,15 +26,15 @@ import com.microproject.configuration.Configuration;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.field.Field;
 import com.microproject.field.ObjectRef;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.NodeModelDataFactory;
-import com.microproject.grouping.core.model.WalkersNodeModel;
+import com.microproject.node.Node;
+import com.microproject.node.model.NodeModelDataFactory;
+import com.microproject.node.model.WalkersNodeModel;
 import com.microproject.options.CalendarOption;
 import com.microproject.options.EditOption;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.scheduling.ConstraintType;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.schedule.ConstraintType;
 import com.microproject.undo.DataFactoryUndoController;
 
 class TaskConstraintFieldVerifierTransactionTest {

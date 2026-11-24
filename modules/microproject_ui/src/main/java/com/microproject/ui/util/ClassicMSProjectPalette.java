@@ -29,7 +29,7 @@ import java.awt.Paint;
 import java.awt.geom.Rectangle2D;
 
 import com.microproject.view.configuration.BarFormat;
-import com.microproject.pm.scheduling.Schedule;
+import com.microproject.schedule.Schedule;
 
 /**
  * Classic MS Project-inspired color palette for backward compatibility.

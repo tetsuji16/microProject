@@ -23,7 +23,7 @@
  *******************************************************************************/
 package com.microproject.options;
 
-import com.microproject.pm.snapshot.Snapshottable;
+import com.microproject.model.snapshot.Snapshottable;
 
 /**
  * Corresponds to Calculation tab on options dialog in MSProject

@@ -80,8 +80,8 @@ public class PertLayout extends AbstractNetworkLayout {
 				if (texturedShape==null) continue;
 
 				// Check if this task has a manual position
-				Long taskUid = current.getNode().getImpl() instanceof com.microproject.pm.task.Task
-					? ((com.microproject.pm.task.Task) current.getNode().getImpl()).getUniqueId()
+				Long taskUid = current.getNode().getImpl() instanceof com.microproject.model.task.Task
+					? ((com.microproject.model.task.Task) current.getNode().getImpl()).getUniqueId()
 					: null;
 				PertManualPositions.Position manualPos = taskUid != null ? manualPositions.get(taskUid) : null;
 

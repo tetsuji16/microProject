@@ -4,7 +4,7 @@
  *******************************************************************************/
 package com.microproject.ui.frame;
 
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.i18n.Messages;
 
 /** The one place that assembles a document window title. */

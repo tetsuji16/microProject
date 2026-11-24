@@ -32,11 +32,11 @@ import com.microproject.ui.dialog.options.CalendarDialogBox;
 import com.microproject.options.CalendarOption;
 import com.microproject.ui.frame.GraphicManager;
 import com.microproject.ui.frame.MainRibbonFrame;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.calendar.WorkingCalendar;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.model.calendar.WorkingCalendar;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.ui.testsupport.DialogLayoutAssertions;
 import com.microproject.ui.testsupport.GuiAcceptanceSupport;
@@ -61,7 +61,7 @@ class WindowSizeContractSweepGuiAcceptanceTest {
 	private Project project;
 	private NormalTask task;
 	private Resource resource;
-	private List<com.microproject.grouping.core.Node> taskNodes;
+	private List<com.microproject.node.Node> taskNodes;
 	private DataFactoryUndoController undo;
 
 	@AfterEach
@@ -260,7 +260,7 @@ class WindowSizeContractSweepGuiAcceptanceTest {
 		project.setForward(true);
 		task = project.createScriptedTask();
 		task.setName("Window size contract task");
-		taskNodes = List.of(com.microproject.grouping.core.NodeFactory.getInstance().createNode(task));
+		taskNodes = List.of(com.microproject.node.NodeFactory.getInstance().createNode(task));
 		resource = pool.createScriptedResource();
 		resource.setName("Window size contract resource");
 		SwingUtilities.invokeAndWait(() -> {

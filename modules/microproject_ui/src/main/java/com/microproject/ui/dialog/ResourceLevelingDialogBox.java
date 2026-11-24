@@ -52,11 +52,11 @@ import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
 import javax.swing.table.AbstractTableModel;
 
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.resource.ResourceLevelingService;
-import com.microproject.pm.ccpm.CriticalChainService;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.resource.ResourceLevelingService;
+import com.microproject.schedule.ccpm.CriticalChainService;
 import com.microproject.ui.help.HelpUtil;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.ui.view.views.CriticalChainBufferChartPanel;
 import com.microproject.ui.view.views.CriticalChainGraphPanel;
 import com.microproject.ui.util.FlatUiSupport;

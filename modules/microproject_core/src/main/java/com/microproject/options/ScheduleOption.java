@@ -24,7 +24,7 @@
 package com.microproject.options;
 
 import com.microproject.datatype.TimeUnit;
-import com.microproject.pm.scheduling.SchedulingType;
+import com.microproject.schedule.SchedulingType;
 
 /**
  * Corresponds to Schedule tab on options dialog in MSProject

@@ -25,7 +25,7 @@ package com.microproject.ui.view.spreadsheet.selection.event;
 
 import java.util.List;
 
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 import com.microproject.ui.view.event.GraphicEvent;
 
 /**

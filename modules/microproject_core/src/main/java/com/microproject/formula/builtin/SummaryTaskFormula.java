@@ -23,8 +23,8 @@
  *******************************************************************************/
 package com.microproject.formula.builtin;
 
-import com.microproject.pm.task.Task;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Task;
+import com.microproject.model.task.Project;
 import com.microproject.field.InvalidFormulaException;
 
 public class SummaryTaskFormula extends TaskFormula {

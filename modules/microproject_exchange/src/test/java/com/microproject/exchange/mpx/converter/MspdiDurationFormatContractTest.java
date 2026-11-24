@@ -17,8 +17,8 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.exchange.MicrosoftImporter;
 import com.microproject.exchange.MpoFileImporter;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
 
 /**
  * Document-derived MSPDI duration contracts using hand-authored values.

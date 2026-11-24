@@ -34,7 +34,7 @@ import java.util.LinkedHashSet;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.options.CalendarOption;
-import com.microproject.pm.task.RecurringTaskSpec;
+import com.microproject.model.task.RecurringTaskSpec;
 import com.microproject.util.DateTime;
 
 class RecurringTaskDialogTest {

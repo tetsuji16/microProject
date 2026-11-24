@@ -240,7 +240,7 @@ public class Main {
 		RuntimeErrorLogging.configure(RuntimeErrorLogging.defaultLogDirectory(
 				System.getenv("LOCALAPPDATA"), System.getProperty("os.name", ""), System.getProperty("user.home", ".")));
 		startEdtWatchdog();
-		Logger.getLogger("com.microproject.pm.calendar.WorkWeek").setLevel(Level.WARNING);
+		Logger.getLogger("com.microproject.model.calendar.WorkWeek").setLevel(Level.WARNING);
 		Logger.getLogger("org.openide.util").setLevel(Level.SEVERE);
 		Logger.getLogger("org.openide.util.ImageUtilities").setLevel(Level.SEVERE);
 		Logger.getLogger("org.openide.util.ImageUtilities$CachedLookupLoader").setLevel(Level.SEVERE);

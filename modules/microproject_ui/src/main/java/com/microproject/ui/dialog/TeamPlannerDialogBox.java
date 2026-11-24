@@ -61,13 +61,13 @@ import javax.swing.JSlider;
 import javax.swing.ToolTipManager;
 
 import com.microproject.options.CalendarOption;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.resource.ResourceImpl;
-import com.microproject.pm.resource.TeamPlannerService;
-import com.microproject.pm.task.Task;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.resource.ResourceImpl;
+import com.microproject.model.resource.TeamPlannerService;
+import com.microproject.model.task.Task;
 import com.microproject.ui.help.HelpUtil;
 import com.microproject.ui.util.PopupDialogSupport;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.ui.util.FlatUiSupport;
 import com.microproject.ui.util.FlatLafDialog;
 import com.microproject.util.MarkupEscape;

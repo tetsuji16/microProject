@@ -27,7 +27,7 @@ import java.awt.geom.GeneralPath;
 import java.io.Serializable;
 
 import com.microproject.ui.view.graph.LinkRouting;
-import com.microproject.pm.dependency.DependencyType;
+import com.microproject.model.dependency.DependencyType;
 
 /**
  *

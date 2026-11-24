@@ -33,15 +33,15 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.dependency.DependencyService;
-import com.microproject.pm.dependency.DependencyType;
+import com.microproject.model.dependency.DependencyService;
+import com.microproject.model.dependency.DependencyType;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.pert.PertChart;
 import com.microproject.view.network.PertManualPositions;
 import com.microproject.ui.view.views.PertView;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
 import com.microproject.ui.testsupport.GuiAcceptanceSupport;
 import com.microproject.ui.testsupport.GuiRobot;
 import com.microproject.ui.testsupport.GuiJourney;
@@ -180,7 +180,7 @@ class PertInteractionGuiAcceptanceTest {
 		int targetX = origin.x + (int) targetCenter.getX();
 		int targetY = origin.y + (int) targetCenter.getY();
 		assertTrue(targetTask.getPredecessorList().stream().noneMatch(dependency ->
-			((com.microproject.pm.dependency.Dependency) dependency).getPredecessor() == sourceTask),
+			((com.microproject.model.dependency.Dependency) dependency).getPredecessor() == sourceTask),
 			"sibling fixture nodes must not start with a dependency between them");
 		robot.mouseMove(edgeX, edgeY);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
@@ -194,7 +194,7 @@ class PertInteractionGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> !targetTask.getPredecessorList().isEmpty(),
 			"physical drag from a PERT box edge did not create a dependency");
 		assertTrue(targetTask.getPredecessorList().stream().anyMatch(dependency ->
-			((com.microproject.pm.dependency.Dependency) dependency).getPredecessor() == sourceTask),
+			((com.microproject.model.dependency.Dependency) dependency).getPredecessor() == sourceTask),
 			"edge drag should create the source-to-target dependency");
 	}
 

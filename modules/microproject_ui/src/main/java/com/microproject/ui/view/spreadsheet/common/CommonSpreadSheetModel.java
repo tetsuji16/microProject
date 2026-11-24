@@ -55,8 +55,8 @@ import com.microproject.field.FieldContext;
 import com.microproject.view.configuration.ActionList;
 import com.microproject.view.configuration.CellFormat;
 import com.microproject.view.configuration.CellStyle;
-import com.microproject.grouping.core.Node;
-import com.microproject.pm.assignment.Assignment;
+import com.microproject.node.Node;
+import com.microproject.model.assignment.Assignment;
 /**
  *  
  */

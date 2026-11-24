@@ -107,7 +107,7 @@ public class SimpleEditor extends DefaultCellEditor   {
 				useFormat = DurationFormat.getInstance();
 				if ("Field.duration".equals(field.getId()) && model.getFieldContext() != null) {
 					Object rowObject = model.getObjectInRow(row);
-					if (rowObject instanceof com.microproject.pm.task.NormalTask)
+					if (rowObject instanceof com.microproject.model.task.NormalTask)
 						component.setText(field.getText(rowObject, model.getFieldContext()));
 				}
 			}

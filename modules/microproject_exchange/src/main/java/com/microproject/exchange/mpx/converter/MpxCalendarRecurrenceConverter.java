@@ -10,7 +10,7 @@ import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 
-import com.microproject.pm.calendar.CalendarRecurrence;
+import com.microproject.model.calendar.CalendarRecurrence;
 
 import org.mpxj.RecurringData;
 import org.mpxj.RecurrenceType;

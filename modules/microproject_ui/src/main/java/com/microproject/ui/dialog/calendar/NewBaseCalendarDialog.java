@@ -42,8 +42,8 @@ import com.microproject.ui.dialog.AbstractDialog;
 import com.microproject.ui.help.HelpUtil;
 import com.microproject.configuration.Settings;
 import com.microproject.document.Document;
-import com.microproject.pm.calendar.CalendarService;
-import com.microproject.pm.calendar.WorkingCalendar;
+import com.microproject.model.calendar.CalendarService;
+import com.microproject.model.calendar.WorkingCalendar;
 import com.microproject.i18n.Messages;
 import com.microproject.ui.util.FlatUiSupport;
 

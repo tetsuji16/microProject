@@ -24,10 +24,10 @@ import org.mpxj.RecurringData;
 import org.mpxj.RecurrenceType;
 
 import com.microproject.exchange.serialize.MPXConverter;
-import com.microproject.pm.calendar.CalendarService;
-import com.microproject.pm.calendar.WorkDay;
-import com.microproject.pm.calendar.WorkingCalendar;
-import com.microproject.pm.calendar.CalendarRecurrence;
+import com.microproject.model.calendar.CalendarService;
+import com.microproject.model.calendar.WorkDay;
+import com.microproject.model.calendar.WorkingCalendar;
+import com.microproject.model.calendar.CalendarRecurrence;
 import com.microproject.util.DateTime;
 
 class MpxCalendarWorkingHoursTest {

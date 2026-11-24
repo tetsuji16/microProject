@@ -25,8 +25,8 @@ package com.microproject.document;
 
 import com.microproject.association.Association;
 import com.microproject.field.Field;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.task.NormalTask;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.task.NormalTask;
 import com.microproject.undo.NodeUndoInfo;
 import com.microproject.util.DeferredEventBatch;
 import com.microproject.util.ListenerRegistry;

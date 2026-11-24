@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microproject.document.ObjectEventManager;
-import com.microproject.pm.scheduling.ScheduleEventManager;
+import com.microproject.schedule.ScheduleEventManager;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;

@@ -24,7 +24,7 @@
 package com.microproject.formula.builtin;
 
 import com.microproject.field.InvalidFormulaException;
-import com.microproject.pm.resource.Resource;
+import com.microproject.model.resource.Resource;
 import com.microproject.formula.Formula;
 
 public class ResourceNodeFormula extends Formula {

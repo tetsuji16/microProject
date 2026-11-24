@@ -13,7 +13,7 @@ import javax.swing.JPanel;
 import com.microproject.ui.dialog.ViewSettingsState;
 import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.undo.UndoController;
 import com.microproject.workspace.WorkspaceSetting;
 

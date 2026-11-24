@@ -24,8 +24,8 @@
 package com.microproject.ui.view.gantt;
 
 import com.microproject.ui.view.model.cache.GraphicNode;
-import com.microproject.pm.scheduling.IntervalConsumer;
-import com.microproject.pm.scheduling.ScheduleIntervalGenerator;
+import com.microproject.schedule.IntervalConsumer;
+import com.microproject.schedule.ScheduleIntervalGenerator;
 
 /**
  *

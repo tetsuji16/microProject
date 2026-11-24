@@ -16,12 +16,12 @@ import com.microproject.configuration.Configuration;
 import com.microproject.configuration.Dictionary;
 import com.microproject.configuration.ReportDefinition;
 import com.microproject.view.configuration.SpreadSheetFieldArray;
-import com.microproject.grouping.core.model.WalkersNodeModel;
-import com.microproject.grouping.core.transform.filtering.PredicatedNodeFilterIterator;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.resource.ResourceImpl;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
+import com.microproject.node.model.WalkersNodeModel;
+import com.microproject.node.transform.filtering.PredicatedNodeFilterIterator;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.resource.ResourceImpl;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
 import com.microproject.i18n.Messages;
 
 /** Report data selection shared by preview, printing, PDF and CSV. */

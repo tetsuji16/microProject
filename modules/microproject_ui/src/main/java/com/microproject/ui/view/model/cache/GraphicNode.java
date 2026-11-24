@@ -32,17 +32,17 @@ import java.util.List;
 import javax.swing.text.html.HTMLDocument.HTMLReader.IsindexAction;
 
 import com.microproject.ui.view.timescale.CoordinatesConverter;
-import com.microproject.pm.scheduling.IntervalConsumer;
+import com.microproject.schedule.IntervalConsumer;
 import com.microproject.view.configuration.GraphicConfiguration;
-import com.microproject.grouping.core.GroupNodeImpl;
-import com.microproject.grouping.core.LazyParent;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.transform.HierarchicObject;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.scheduling.Schedule;
-import com.microproject.pm.scheduling.ScheduleInterval;
-import com.microproject.pm.scheduling.ScheduleService;
-import com.microproject.pm.task.Task;
+import com.microproject.node.GroupNodeImpl;
+import com.microproject.node.LazyParent;
+import com.microproject.node.Node;
+import com.microproject.node.transform.HierarchicObject;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.schedule.Schedule;
+import com.microproject.schedule.ScheduleInterval;
+import com.microproject.schedule.ScheduleService;
+import com.microproject.model.task.Task;
 import com.microproject.ui.util.GanttProgress;
 /**
  *

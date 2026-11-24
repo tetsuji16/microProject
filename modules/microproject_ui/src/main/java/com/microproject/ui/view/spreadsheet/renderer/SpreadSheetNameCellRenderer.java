@@ -37,8 +37,8 @@ import com.microproject.ui.view.spreadsheet.SpreadSheet;
 import com.microproject.ui.view.spreadsheet.SpreadSheetParams;
 import com.microproject.ui.view.spreadsheet.SpreadSheetModel;
 import com.microproject.field.Field;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.resource.Resource;
+import com.microproject.model.task.Task;
+import com.microproject.model.resource.Resource;
 import com.microproject.ui.privacy.PrivacyDisplayMode;
 
 /**

@@ -10,9 +10,9 @@ import com.microproject.document.ObjectEvent;
 import com.microproject.ui.dialog.ProjectInformationDialog;
 import com.microproject.ui.dialog.ResourceInformationDialog;
 import com.microproject.ui.dialog.TaskInformationDialog;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
 import com.microproject.ui.view.spreadsheet.selection.event.SelectionNodeEvent;
 
 /** Owns reusable project, task, and resource information dialog lifecycles. */

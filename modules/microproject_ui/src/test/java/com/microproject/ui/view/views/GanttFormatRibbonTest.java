@@ -24,18 +24,18 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.view.configuration.SpreadSheetFieldArray;
-import com.microproject.grouping.core.transform.ViewTransformer;
+import com.microproject.node.transform.ViewTransformer;
 import com.microproject.options.CalendarOption;
-import com.microproject.pm.dependency.DependencyService;
-import com.microproject.pm.dependency.DependencyType;
+import com.microproject.model.dependency.DependencyService;
+import com.microproject.model.dependency.DependencyType;
 import com.microproject.ui.view.gantt.Gantt;
 import com.microproject.ui.view.gantt.GanttBarColorScheme;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.task.TaskPathAnalyzer;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
+import com.microproject.model.task.TaskPathAnalyzer;
 import com.microproject.undo.DataFactoryUndoController;
 
 /** Behaviour behind the Gantt Chart Format ribbon controls that works on a Gantt view without a full frame. */

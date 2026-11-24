@@ -24,7 +24,7 @@
 package com.microproject.formula.builtin;
 
 import com.microproject.field.InvalidFormulaException;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.Task;
 import com.microproject.formula.Formula;
 
 public abstract class TaskFormula extends Formula {

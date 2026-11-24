@@ -45,10 +45,10 @@ import com.microproject.ui.view.gantt.Gantt;
 import com.microproject.ui.view.graph.GraphPopupMenu;
 import com.microproject.view.configuration.BarStyle;
 import com.microproject.view.configuration.GanttBarFormatOverrides.BarFormat;
-import com.microproject.grouping.core.transform.TransformList;
-import com.microproject.grouping.core.transform.filtering.BaseFilter;
+import com.microproject.node.transform.TransformList;
+import com.microproject.node.transform.filtering.BaseFilter;
 import com.microproject.i18n.Messages;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.Task;
 
 
 /**

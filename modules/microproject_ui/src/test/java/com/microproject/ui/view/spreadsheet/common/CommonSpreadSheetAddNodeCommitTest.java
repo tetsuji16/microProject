@@ -38,15 +38,15 @@ import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.view.configuration.SpreadSheetCategories;
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.model.cache.NodeModelCacheFactory;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
 import com.microproject.ui.view.spreadsheet.SpreadSheetUtils;
 import com.microproject.ui.view.spreadsheet.renderer.NameCellComponent;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 
 class CommonSpreadSheetAddNodeCommitTest {
@@ -115,7 +115,7 @@ class CommonSpreadSheetAddNodeCommitTest {
 		Node root = (Node) project.getTaskModel().getRoot();
 		for (Enumeration<?> children = root.children(); children.hasMoreElements();) {
 			Node node = (Node) children.nextElement();
-			if (node.getImpl() instanceof com.microproject.pm.task.Task task)
+			if (node.getImpl() instanceof com.microproject.model.task.Task task)
 				names.add(task.getName());
 			else
 				names.add("");

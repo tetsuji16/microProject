@@ -38,7 +38,7 @@ import com.microproject.ui.menu.MenuManager;
 import com.microproject.ui.view.chart.ChartInfo;
 import com.microproject.ui.view.chart.ChartLegend;
 import com.microproject.ui.view.chart.ChartMode;
-import com.microproject.pm.resource.Resource;
+import com.microproject.model.resource.Resource;
 import com.microproject.ui.view.chart.TimeChartPanel;
 import com.microproject.ui.frame.DocumentFrame;
 import com.microproject.ui.view.model.cache.NodeModelCache;

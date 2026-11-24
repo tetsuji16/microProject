@@ -28,10 +28,10 @@ import java.util.SortedSet;
 
 import com.microproject.configuration.Settings;
 import com.microproject.view.configuration.GraphicConfiguration;
-import com.microproject.pm.snapshot.DataSnapshot;
-import com.microproject.pm.snapshot.Snapshottable;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
+import com.microproject.model.snapshot.DataSnapshot;
+import com.microproject.model.snapshot.Snapshottable;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
 
 /** Gantt row sizing derived from the active project and view configuration. */
 public final class GanttRowHeight {

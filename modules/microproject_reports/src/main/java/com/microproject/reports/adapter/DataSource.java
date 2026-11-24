@@ -31,13 +31,13 @@ import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
 import com.microproject.field.ObjectRef;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.NodeModel;
-import com.microproject.grouping.core.model.NodeModelDataFactory;
-import com.microproject.grouping.core.model.WalkersNodeModel;
-import com.microproject.grouping.core.transform.filtering.PredicatedNodeFilterIterator;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.time.MutableInterval;
+import com.microproject.node.Node;
+import com.microproject.node.model.NodeModel;
+import com.microproject.node.model.NodeModelDataFactory;
+import com.microproject.node.model.WalkersNodeModel;
+import com.microproject.node.transform.filtering.PredicatedNodeFilterIterator;
+import com.microproject.model.task.Project;
+import com.microproject.model.time.MutableInterval;
 
 /** Resolves configured project fields for report rows independently of a renderer. */
 public class DataSource implements ObjectRef {

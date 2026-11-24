@@ -43,7 +43,7 @@ import com.microproject.field.Field;
 import com.microproject.view.configuration.ActionList;
 import com.microproject.view.configuration.CellStyle;
 import com.microproject.view.configuration.GraphicConfiguration;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.timescale.TimeScaleListener;
 import com.microproject.ui.util.FlatUiSupport;
 

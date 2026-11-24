@@ -42,14 +42,14 @@ import com.microproject.datatype.DurationDefaults;
 import com.microproject.datatype.TimeUnit;
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
-import com.microproject.grouping.core.model.NodeModel;
-import com.microproject.grouping.core.model.NodeModelDataFactory;
-import com.microproject.grouping.core.model.WalkersNodeModel;
-import com.microproject.grouping.core.transform.filtering.PredicatedNodeFilterIterator;
-import com.microproject.grouping.core.Node;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
+import com.microproject.node.model.NodeModel;
+import com.microproject.node.model.NodeModelDataFactory;
+import com.microproject.node.model.WalkersNodeModel;
+import com.microproject.node.transform.filtering.PredicatedNodeFilterIterator;
+import com.microproject.node.Node;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 
 class DataSourceTest {

@@ -30,11 +30,11 @@ import javax.swing.SpinnerNumberModel;
 import javax.swing.ListSelectionModel;
 import javax.swing.event.ListSelectionEvent;
 
-import com.microproject.pm.calendar.CalendarRecurrence;
-import com.microproject.pm.calendar.RecurringCalendarException;
-import com.microproject.pm.calendar.WorkDay;
-import com.microproject.pm.calendar.WorkingCalendar;
-import com.microproject.pm.calendar.WorkingHours;
+import com.microproject.model.calendar.CalendarRecurrence;
+import com.microproject.model.calendar.RecurringCalendarException;
+import com.microproject.model.calendar.WorkDay;
+import com.microproject.model.calendar.WorkingCalendar;
+import com.microproject.model.calendar.WorkingHours;
 import com.microproject.i18n.Messages;
 import com.microproject.util.DateTime;
 import static com.microproject.ui.dialog.calendar.CalendarEditorSupport.dateSpinner;

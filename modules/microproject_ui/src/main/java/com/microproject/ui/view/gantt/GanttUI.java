@@ -27,7 +27,7 @@ import com.microproject.ui.view.graph.GraphUI;
 import com.microproject.ui.view.graph.GraphZone;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.timescale.CoordinatesConverter;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.Task;
 
 /**
  *

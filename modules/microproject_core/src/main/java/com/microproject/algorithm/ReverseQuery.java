@@ -26,10 +26,10 @@ package com.microproject.algorithm;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.microproject.pm.assignment.HasTimeDistributedData;
-import com.microproject.pm.assignment.functor.AssignmentFieldClosureCollection;
-import com.microproject.pm.assignment.functor.DateAtValueFunctor;
-import com.microproject.pm.time.HasStartAndEnd;
+import com.microproject.model.assignment.HasTimeDistributedData;
+import com.microproject.model.assignment.functor.AssignmentFieldClosureCollection;
+import com.microproject.model.assignment.functor.DateAtValueFunctor;
+import com.microproject.model.time.HasStartAndEnd;
 
 /**
  * A reverse query is one which calculates a date given a value instead of vice-versa.

@@ -24,13 +24,13 @@
 package com.microproject.exchange.mpx.converter;
 
 import com.microproject.exchange.ImportedCalendarService;
-import com.microproject.pm.calendar.WorkCalendar;
-import com.microproject.pm.calendar.WorkDay;
-import com.microproject.pm.calendar.WorkingCalendar;
-import com.microproject.pm.calendar.WorkingHours;
-import com.microproject.pm.calendar.WorkWeek;
-import com.microproject.pm.calendar.WorkWeekPeriod;
-import com.microproject.pm.calendar.RecurringCalendarException;
+import com.microproject.model.calendar.WorkCalendar;
+import com.microproject.model.calendar.WorkDay;
+import com.microproject.model.calendar.WorkingCalendar;
+import com.microproject.model.calendar.WorkingHours;
+import com.microproject.model.calendar.WorkWeek;
+import com.microproject.model.calendar.WorkWeekPeriod;
+import com.microproject.model.calendar.RecurringCalendarException;
 import com.microproject.util.DateTime;
 
 import org.mpxj.ProjectCalendar;
@@ -46,7 +46,7 @@ import org.mpxj.ProjectCalendarWeek;
  */
 public class MpxCalendarConverter {
 	public void from(ProjectCalendar mpxCalendar, WorkingCalendar calendar, MpxImportState state){
-		java.util.IdentityHashMap<ProjectCalendarException, com.microproject.pm.calendar.CalendarRecurrence> recurrenceRules
+		java.util.IdentityHashMap<ProjectCalendarException, com.microproject.model.calendar.CalendarRecurrence> recurrenceRules
 			= new java.util.IdentityHashMap<>();
 		for (ProjectCalendarException mpxException : mpxCalendar.getCalendarExceptions()) {
 			if (mpxException.getRecurring() != null) {
@@ -117,7 +117,7 @@ public class MpxCalendarConverter {
 		// exceptions
 		MpxExceptionConverter exceptionConverter = new MpxExceptionConverter();
 		for (ProjectCalendarException mpxException : mpxCalendar.getCalendarExceptions()) {
-			com.microproject.pm.calendar.CalendarRecurrence recurrence = recurrenceRules.get(mpxException);
+			com.microproject.model.calendar.CalendarRecurrence recurrence = recurrenceRules.get(mpxException);
 			// MPXJ represents calendar dates using the host-local calendar day;
 			// map the date fields back to the model's UTC day keys explicitly.
 			long from = recurrence == null

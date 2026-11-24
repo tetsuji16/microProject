@@ -38,15 +38,15 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import com.microproject.configuration.Dictionary;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.DefaultNodeModel;
-import com.microproject.grouping.core.transform.ViewTransformer;
-import com.microproject.grouping.core.transform.sorting.TaskSortSpec;
+import com.microproject.node.Node;
+import com.microproject.node.model.DefaultNodeModel;
+import com.microproject.node.transform.ViewTransformer;
+import com.microproject.node.transform.sorting.TaskSortSpec;
 import com.microproject.options.CalendarOption;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
 import com.microproject.undo.DataFactoryUndoController;
 
 /**

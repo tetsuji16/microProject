@@ -30,10 +30,10 @@ import java.util.Map;
 import javax.swing.AbstractListModel;
 import javax.swing.ComboBoxModel;
 
-import com.microproject.grouping.core.transform.CommonTransformFactory;
-import com.microproject.grouping.core.transform.TransformList;
-import com.microproject.grouping.core.transform.ViewConfiguration;
-import com.microproject.grouping.core.transform.ViewTransformer;
+import com.microproject.node.transform.CommonTransformFactory;
+import com.microproject.node.transform.TransformList;
+import com.microproject.node.transform.ViewConfiguration;
+import com.microproject.node.transform.ViewTransformer;
 import com.microproject.i18n.Messages;
 
 /**

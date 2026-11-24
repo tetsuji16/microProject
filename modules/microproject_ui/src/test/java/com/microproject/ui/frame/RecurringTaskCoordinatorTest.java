@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.options.CalendarOption;
-import com.microproject.pm.task.RecurringTaskSpec;
+import com.microproject.model.task.RecurringTaskSpec;
 import com.microproject.util.DateTime;
 
 class RecurringTaskCoordinatorTest {

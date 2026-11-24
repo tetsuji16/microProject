@@ -41,7 +41,7 @@ import com.microproject.view.configuration.GanttBarFormatOverrides.BarFormat;
 import com.microproject.ui.view.gantt.BarColorEditorPanel;
 import com.microproject.ui.view.gantt.Gantt;
 import com.microproject.ui.view.gantt.GanttRenderer;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.Task;
 import com.microproject.i18n.Messages;
 
 /** Owns the General tab layout and the editable Gantt bar-color controls. */

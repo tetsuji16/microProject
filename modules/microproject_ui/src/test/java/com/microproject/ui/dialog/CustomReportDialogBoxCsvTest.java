@@ -17,17 +17,17 @@ import org.jfree.data.gantt.TaskSeriesCollection;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.assignment.AssignmentService;
-import com.microproject.pm.resource.ResourceImpl;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.assignment.AssignmentService;
+import com.microproject.model.resource.ResourceImpl;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
 import com.microproject.field.Field;
 import com.microproject.datatype.Rate;
 import com.microproject.datatype.TimeUnit;
-import com.microproject.pm.snapshot.Snapshottable;
+import com.microproject.model.snapshot.Snapshottable;
 import com.microproject.undo.DataFactoryUndoController;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -214,10 +214,10 @@ class CustomReportDialogBoxCsvTest {
 	}
 
 	private void attach(NormalTask parent, NormalTask... children) {
-		java.util.ArrayList<com.microproject.grouping.core.Node> nodes = new java.util.ArrayList<>();
+		java.util.ArrayList<com.microproject.node.Node> nodes = new java.util.ArrayList<>();
 		for (NormalTask child : children) {
 			child.setWbsParent(parent);
-			nodes.add(com.microproject.grouping.core.NodeFactory.getInstance().createNode(child));
+			nodes.add(com.microproject.node.NodeFactory.getInstance().createNode(child));
 		}
 		parent.setWbsChildrenNodes(nodes);
 	}

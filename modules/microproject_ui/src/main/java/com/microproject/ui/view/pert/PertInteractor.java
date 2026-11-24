@@ -30,9 +30,9 @@ import com.microproject.ui.view.model.cache.GraphicDependency;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.network.NetworkInteractor;
 import com.microproject.association.InvalidAssociationException;
-import com.microproject.pm.dependency.DependencyService;
-import com.microproject.pm.dependency.DependencyType;
-import com.microproject.pm.dependency.HasDependencies;
+import com.microproject.model.dependency.DependencyService;
+import com.microproject.model.dependency.DependencyType;
+import com.microproject.model.dependency.HasDependencies;
 import com.microproject.util.Alert;
 
 /**

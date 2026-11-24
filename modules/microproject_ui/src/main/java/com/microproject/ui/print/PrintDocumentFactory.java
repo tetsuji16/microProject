@@ -43,8 +43,8 @@ import com.microproject.ui.view.views.ProjectView;
 import com.microproject.ui.view.views.ResourceView;
 import com.microproject.ui.view.views.TreeView;
 import com.microproject.view.configuration.SpreadSheetFieldArray;
-import com.microproject.grouping.core.transform.ViewTransformer;
-import com.microproject.pm.task.Portfolio;
+import com.microproject.node.transform.ViewTransformer;
+import com.microproject.model.task.Portfolio;
 
 public class PrintDocumentFactory {
 	protected static PrintDocumentFactory instance;

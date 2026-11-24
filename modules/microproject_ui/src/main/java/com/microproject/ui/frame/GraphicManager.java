@@ -132,16 +132,16 @@ import com.microproject.document.ObjectEvent;
 import com.microproject.persistence.ResourceMappingForm;
 import com.microproject.field.Field;
 import com.microproject.view.configuration.SpreadSheetFieldArray;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.VoidNodeImpl;
-import com.microproject.grouping.core.model.NodeModel;
-import com.microproject.grouping.core.model.DefaultNodeModel;
-import com.microproject.grouping.core.transform.CommonTransformFactory;
-import com.microproject.grouping.core.transform.ViewTransformer;
-import com.microproject.grouping.core.transform.filtering.NodeFilter;
-import com.microproject.grouping.core.transform.filtering.ResourceInTeamFilter;
-import com.microproject.grouping.core.transform.sorting.NodeSorter;
-import com.microproject.grouping.core.transform.sorting.TaskSortSpec;
+import com.microproject.node.Node;
+import com.microproject.node.VoidNodeImpl;
+import com.microproject.node.model.NodeModel;
+import com.microproject.node.model.DefaultNodeModel;
+import com.microproject.node.transform.CommonTransformFactory;
+import com.microproject.node.transform.ViewTransformer;
+import com.microproject.node.transform.filtering.NodeFilter;
+import com.microproject.node.transform.filtering.ResourceInTeamFilter;
+import com.microproject.node.transform.sorting.NodeSorter;
+import com.microproject.node.transform.sorting.TaskSortSpec;
 import com.microproject.job.Job;
 import com.microproject.job.JobQueue;
 import com.microproject.job.JobRunnable;
@@ -151,9 +151,9 @@ import com.microproject.ui.menu.MenuActionsMap;
 import com.microproject.ui.menu.MenuManager;
 import com.microproject.ui.menu.ProjectMenuActionMap;
 import com.microproject.options.CalendarOption;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.dependency.DependencyService;
-import com.microproject.pm.dependency.DependencyType;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.dependency.DependencyService;
+import com.microproject.model.dependency.DependencyType;
 import com.microproject.ui.view.IconManager;
 import com.microproject.ui.view.TabbedNavigation;
 import com.microproject.ui.view.collaboration.CollaborationHelper;
@@ -179,16 +179,16 @@ import com.microproject.ui.view.views.ProjectsDialog;
 import com.microproject.ui.view.views.ResourceView;
 import com.microproject.ui.view.views.UsageDetailView;
 import com.microproject.ui.view.views.Searchable;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.resource.SharedResourcePoolService;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.DefaultSubProj;
-import com.microproject.pm.task.ProjectFactory;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.SubProj;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.task.TaskPathAnalyzer;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.resource.SharedResourcePoolService;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.DefaultSubProj;
+import com.microproject.model.task.ProjectFactory;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.SubProj;
+import com.microproject.model.task.Task;
+import com.microproject.model.task.TaskPathAnalyzer;
 import com.microproject.ui.view.gantt.GanttBarColorScheme;
 import com.microproject.preference.ConfigurationFile;
 import com.microproject.preference.GlobalPreferences;
@@ -1554,14 +1554,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (activeSheet != null && activeSheet.isHeaderColumnSelectionActive())
 			return InformationSelection.empty(InformationSelectionKind.HEADER);
 		if (activeSheet != null && activeSheet.getSelectedRows().length > 0) {
-			List<com.microproject.grouping.core.Node> activeSelection = activeSheet.getSelectedNodes();
+			List<com.microproject.node.Node> activeSelection = activeSheet.getSelectedNodes();
 			if (activeSelection == null || activeSelection.isEmpty())
 				return InformationSelection.empty(InformationSelectionKind.NONE);
 			if (activeSelection.size() != 1)
 				return InformationSelection.empty(InformationSelectionKind.MULTIPLE);
 			Object impl = activeSelection.get(0).getImpl();
 			if (impl instanceof Task) {
-				List<com.microproject.grouping.core.Node> selectedTasks = frame.getSelectedTaskNodes(false, false);
+				List<com.microproject.node.Node> selectedTasks = frame.getSelectedTaskNodes(false, false);
 				if (selectedTasks.size() != 1 || selectedTasks.get(0).getImpl() != impl)
 					return InformationSelection.empty(InformationSelectionKind.NONE);
 			}
@@ -2849,7 +2849,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				com.microproject.ui.dialog.UsabilityStrings.text("ccpm.clearTitle"),
 				JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.YES_OPTION) return;
 			Project project = getCurrentFrame().getProject();
-			new com.microproject.pm.ccpm.CriticalChainService().clear(project);
+			new com.microproject.schedule.ccpm.CriticalChainService().clear(project);
 			getMenuManager().setActionSelected(ACTION_TOGGLE_CRITICAL_CHAIN, false);
 			getCurrentFrame().repaint();
 			setButtonState(null, project);
@@ -2883,7 +2883,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			if (!isDocumentActive()) return;
 			Project project = getCurrentFrame().getProject();
-			com.microproject.pm.ccpm.CriticalChainService service = new com.microproject.pm.ccpm.CriticalChainService();
+			com.microproject.schedule.ccpm.CriticalChainService service = new com.microproject.schedule.ccpm.CriticalChainService();
 			if (service.findSettings(project) == null || service.findBaseline(project) == null) return;
 			boolean visible = com.microproject.ui.view.gantt.CriticalChainDisplayState.toggle(project);
 			getMenuManager().setActionSelected(ACTION_TOGGLE_CRITICAL_CHAIN, visible);
@@ -3414,7 +3414,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		DocumentFrame frame = getCurrentFrame();
 		if (frame != null)
 			for (Object node : frame.getSelectedTaskNodes(false, false))
-				if (node instanceof com.microproject.grouping.core.Node selected)
+				if (node instanceof com.microproject.node.Node selected)
 					types.add(com.microproject.ui.view.network.NetworkDisplayOptions.boxType(selected.getImpl()));
 		return types.isEmpty()
 			? java.util.List.of(com.microproject.ui.view.network.NetworkDisplayOptions.BoxType.values())
@@ -4184,8 +4184,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 					.withActiveView(frame.getTopViewId()));
 				return;
 			}
-			com.microproject.grouping.core.transform.ViewConfiguration view =
-				com.microproject.grouping.core.transform.ViewConfiguration.getView(frame.getTopViewId());
+			com.microproject.node.transform.ViewConfiguration view =
+				com.microproject.node.transform.ViewConfiguration.getView(frame.getTopViewId());
 			if (view == null || view.getTransform() == null) {
 				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(commandId, "no-sortable-view"));
 				return;
@@ -4356,8 +4356,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			DocumentFrame frame = getCurrentFrame();
 			if (type == 0 || frame == null)
 				return null;
-			com.microproject.grouping.core.transform.ViewConfiguration view =
-				com.microproject.grouping.core.transform.ViewConfiguration.getView(frame.getTopViewId());
+			com.microproject.node.transform.ViewConfiguration view =
+				com.microproject.node.transform.ViewConfiguration.getView(frame.getTopViewId());
 			if (view == null || view.getTransform() == null)
 				return null;
 			TransformComboBoxModel model = new TransformComboBoxModel(type);
@@ -4561,12 +4561,12 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			if (!isDocumentActive()) return;
 			DocumentFrame frame = getCurrentFrame();
-			com.microproject.grouping.core.transform.ViewConfiguration view =
-				com.microproject.grouping.core.transform.ViewConfiguration.getView(frame.getTopViewId());
+			com.microproject.node.transform.ViewConfiguration view =
+				com.microproject.node.transform.ViewConfiguration.getView(frame.getTopViewId());
 			if (view == null || view.getTransform() == null) return;
 			if (!view.getTransform().isNoneFilter()) {
 				view.getTransform().setUserFilterId(
-					com.microproject.grouping.core.transform.ViewTransformer.FILTER_NONE_ID);
+					com.microproject.node.transform.ViewTransformer.FILTER_NONE_ID);
 				frame.setComboBoxesViewName(frame.getTopViewId());
 			}
 			setButtonState(frame.getSelectedImpl(), frame.getProject());
@@ -5346,7 +5346,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (!isDocumentActive())
 			return;
 		TransformComboBox combo = new TransformComboBox(getMenuManager(), actionId, type);
-		combo.setView(com.microproject.grouping.core.transform.ViewConfiguration.getView(getTopViewId()));
+		combo.setView(com.microproject.node.transform.ViewConfiguration.getView(getTopViewId()));
 		if (combo.getItemCount() == 0)
 			return;
 		if (combo.getSelectedIndex() < 0)
@@ -5615,23 +5615,23 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (ganttView == null || getCurrentFrame() == null || getCurrentFrame().getProject() == null)
 			return;
 		Project project = getCurrentFrame().getProject();
-		com.microproject.pm.task.ProgressLineSettings current = project.getProgressLineSettings();
+		com.microproject.model.task.ProgressLineSettings current = project.getProgressLineSettings();
 		if (current == null)
-			current = new com.microproject.pm.task.ProgressLineSettings(ganttView.isProgressLineEnabled(),
-				com.microproject.pm.task.ProgressLineSettings.ReferenceDate.STATUS_DATE,
-				false, 1, com.microproject.pm.task.ProgressLineSettings.IntervalUnit.WEEK);
+			current = new com.microproject.model.task.ProgressLineSettings(ganttView.isProgressLineEnabled(),
+				com.microproject.model.task.ProgressLineSettings.ReferenceDate.STATUS_DATE,
+				false, 1, com.microproject.model.task.ProgressLineSettings.IntervalUnit.WEEK);
 		MenuManager manager = getMenuManager();
 		JCheckBox showReference = new JCheckBox(manager.getString("ProgressLines.showCurrent"), current.showCurrentLine());
 		JRadioButton statusDate = new JRadioButton(manager.getString("ProgressLines.statusDate"),
-			current.referenceDate() == com.microproject.pm.task.ProgressLineSettings.ReferenceDate.STATUS_DATE);
+			current.referenceDate() == com.microproject.model.task.ProgressLineSettings.ReferenceDate.STATUS_DATE);
 		JRadioButton currentDate = new JRadioButton(manager.getString("ProgressLines.currentDate"),
-			current.referenceDate() == com.microproject.pm.task.ProgressLineSettings.ReferenceDate.CURRENT_DATE);
+			current.referenceDate() == com.microproject.model.task.ProgressLineSettings.ReferenceDate.CURRENT_DATE);
 		ButtonGroup referenceDates = new ButtonGroup();
 		referenceDates.add(statusDate);
 		referenceDates.add(currentDate);
 		JCheckBox showRecurring = new JCheckBox(manager.getString("ProgressLines.showRecurring"), current.showRecurringLines());
 		JSpinner interval = new JSpinner(new SpinnerNumberModel(current.recurringInterval(), 1,
-			com.microproject.pm.task.ProgressLineSettings.MAX_RECURRING_INTERVAL, 1));
+			com.microproject.model.task.ProgressLineSettings.MAX_RECURRING_INTERVAL, 1));
 		JComboBox<String> unit = new JComboBox<>(new String[] { manager.getString("ProgressLines.day"),
 			manager.getString("ProgressLines.week"), manager.getString("ProgressLines.month") });
 		unit.setSelectedIndex(current.recurringIntervalUnit().ordinal());
@@ -5684,24 +5684,24 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		dialog.setAlwaysOnTop(false);
 		if (choice[0] != JOptionPane.OK_OPTION)
 			return;
-		var updated = new com.microproject.pm.task.ProgressLineSettings(showReference.isSelected(),
+		var updated = new com.microproject.model.task.ProgressLineSettings(showReference.isSelected(),
 			statusDate.isSelected()
-				? com.microproject.pm.task.ProgressLineSettings.ReferenceDate.STATUS_DATE
-				: com.microproject.pm.task.ProgressLineSettings.ReferenceDate.CURRENT_DATE,
+				? com.microproject.model.task.ProgressLineSettings.ReferenceDate.STATUS_DATE
+				: com.microproject.model.task.ProgressLineSettings.ReferenceDate.CURRENT_DATE,
 			showRecurring.isSelected(), ((Number) interval.getValue()).intValue(),
-			com.microproject.pm.task.ProgressLineSettings.IntervalUnit.values()[unit.getSelectedIndex()]);
+			com.microproject.model.task.ProgressLineSettings.IntervalUnit.values()[unit.getSelectedIndex()]);
 		applyProgressLineSettings(project, ganttView, updated, true);
 	}
 
 	boolean applyProgressLineSettings(Project project, GanttView ganttView,
-		com.microproject.pm.task.ProgressLineSettings updated, boolean postUndo) {
+		com.microproject.model.task.ProgressLineSettings updated, boolean postUndo) {
 		if (project == null || ganttView == null || project.isReadOnly())
 			return false;
-		com.microproject.pm.task.ProgressLineSettings previous = project.getProgressLineSettings();
-		com.microproject.pm.task.ProgressLineSettings effectivePrevious = previous == null
-			? new com.microproject.pm.task.ProgressLineSettings(ganttView.getGantt().isProgressLineEnabled(),
-				com.microproject.pm.task.ProgressLineSettings.ReferenceDate.STATUS_DATE,
-				false, 1, com.microproject.pm.task.ProgressLineSettings.IntervalUnit.WEEK)
+		com.microproject.model.task.ProgressLineSettings previous = project.getProgressLineSettings();
+		com.microproject.model.task.ProgressLineSettings effectivePrevious = previous == null
+			? new com.microproject.model.task.ProgressLineSettings(ganttView.getGantt().isProgressLineEnabled(),
+				com.microproject.model.task.ProgressLineSettings.ReferenceDate.STATUS_DATE,
+				false, 1, com.microproject.model.task.ProgressLineSettings.IntervalUnit.WEEK)
 			: previous;
 		if (effectivePrevious.equals(updated))
 			return false;
@@ -5712,7 +5712,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (postUndo && project.getUndoController() != null) {
 			project.getUndoController().getEditSupport().postEdit(new AbstractUndoableEdit() {
 				private static final long serialVersionUID = 1L;
-				private void restore(com.microproject.pm.task.ProgressLineSettings settings, boolean enabled) {
+				private void restore(com.microproject.model.task.ProgressLineSettings settings, boolean enabled) {
 					mutateProgressLineSettings(project, settings);
 					ganttView.getGantt().setProgressLineEnabled(enabled);
 					ganttView.getGantt().repaint();
@@ -5730,7 +5730,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	private static void mutateProgressLineSettings(Project project,
-		com.microproject.pm.task.ProgressLineSettings settings) {
+		com.microproject.model.task.ProgressLineSettings settings) {
 		project.runModelMutation(markApplied -> {
 			markApplied.run();
 			project.setProgressLineSettings(settings);
@@ -5935,11 +5935,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		// After hierarchy Undo/Redo the lead node supplied by the selection event
 		// may still describe the pre-mutation row.  Command enablement must use the
 		// same stable task selection that execution uses, not that stale singleton.
-		List<com.microproject.grouping.core.Node> selectedTaskNodes = getCurrentFrame() == null
+		List<com.microproject.node.Node> selectedTaskNodes = getCurrentFrame() == null
 			? java.util.List.of() : getCurrentFrame().getSelectedTaskNodes(false, true);
-		List<com.microproject.grouping.core.Node> hierarchyTaskNodes = getCurrentFrame() == null
+		List<com.microproject.node.Node> hierarchyTaskNodes = getCurrentFrame() == null
 			? java.util.List.of() : getCurrentFrame().getSelectedTaskNodes(true, true);
-		List<com.microproject.grouping.core.Node> pureHierarchyTaskNodes = getCurrentFrame() == null
+		List<com.microproject.node.Node> pureHierarchyTaskNodes = getCurrentFrame() == null
 			? java.util.List.of() : getCurrentFrame().getSelectedTaskNodes(true, false);
 		boolean isTask = currentImpl instanceof Task || !selectedTaskNodes.isEmpty();
 		boolean isLinkedSubproject = selectedSubprojectReference() != null;
@@ -5990,7 +5990,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			!readOnly && getCurrentFrame() != null && getCurrentFrame().hasTaskSelection(true, 1, false));
 		getMenuManager().setActionEnabled(ACTION_NEXT_OVERALLOCATION,
 			getCurrentFrame() != null && getCurrentFrame().canNavigateToNextOverallocatedTask());
-		boolean hasCcpmPlan = project != null && new com.microproject.pm.ccpm.CriticalChainService().findBaseline(project) != null;
+		boolean hasCcpmPlan = project != null && new com.microproject.schedule.ccpm.CriticalChainService().findBaseline(project) != null;
 		getMenuManager().setActionEnabled(ACTION_CCPM_SETTINGS,!readOnly && project != null);
 		getMenuManager().setActionEnabled(ACTION_CCPM_CLEAR,!readOnly && hasCcpmPlan);
 		getMenuManager().setActionEnabled(ACTION_CCPM_BUFFER_STATUS,project != null);

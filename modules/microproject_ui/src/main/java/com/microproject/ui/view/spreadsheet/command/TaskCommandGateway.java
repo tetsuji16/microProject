@@ -16,17 +16,17 @@ import java.util.function.BooleanSupplier;
 import com.microproject.undo.EditSupport;
 
 import com.microproject.ui.view.collaboration.CollaborationHelper;
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.field.FieldParseException;
-import com.microproject.grouping.core.model.NodeModel;
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.dependency.DependencyService;
-import com.microproject.pm.scheduling.Schedule;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectTaskSnapshot;
-import com.microproject.pm.task.Task;
+import com.microproject.node.model.NodeModel;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.dependency.DependencyService;
+import com.microproject.schedule.Schedule;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectTaskSnapshot;
+import com.microproject.model.task.Task;
 import com.microproject.ui.view.model.cache.ProjectionRowKey;
 import com.microproject.ui.view.model.cache.RevisionedProjectionIndex;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
@@ -193,7 +193,7 @@ public final class TaskCommandGateway {
 
 		Node anchor = selectedNodes.isEmpty() ? null : selectedNodes.getFirst();
 		Node parent = anchor == null ? null : (Node) anchor.getParent();
-		int position = anchor == null || parent == null ? 0 : ((com.microproject.grouping.core.NodeBridge) parent).getIndex(anchor);
+		int position = anchor == null || parent == null ? 0 : ((com.microproject.node.NodeBridge) parent).getIndex(anchor);
 		progress.markApplied();
 		boolean pasted = sheetModel.getCache().pasteNodes(parent, new ArrayList<>(intent.copiedRoots()), position);
 		List<Long> affectedTaskIds = pasted ? project.getTaskList().stream()

@@ -43,9 +43,9 @@ import org.junit.jupiter.api.Test;
 import com.microproject.configuration.Dictionary;
 import com.microproject.view.configuration.BarFormat;
 import com.microproject.view.configuration.shape.PredefinedShape;
-import com.microproject.pm.scheduling.Schedule;
-import com.microproject.pm.scheduling.ScheduleInterval;
-import com.microproject.pm.task.TaskSpecificFields;
+import com.microproject.schedule.Schedule;
+import com.microproject.schedule.ScheduleInterval;
+import com.microproject.model.task.TaskSpecificFields;
 import com.microproject.i18n.Messages;
 import com.microproject.ui.util.GanttProgress;
 

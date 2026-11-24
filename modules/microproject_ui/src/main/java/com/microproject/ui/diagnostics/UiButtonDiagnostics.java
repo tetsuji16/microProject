@@ -32,11 +32,11 @@ import com.microproject.ui.view.spreadsheet.common.CommonSpreadSheet;
 import com.microproject.ui.view.spreadsheet.common.CommonSpreadSheetModel;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.views.BaseView;
-import com.microproject.grouping.core.Node;
-import com.microproject.pm.key.HasKey;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectHierarchyQueries;
-import com.microproject.pm.task.Task;
+import com.microproject.node.Node;
+import com.microproject.model.key.HasKey;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectHierarchyQueries;
+import com.microproject.model.task.Task;
 import com.microproject.ui.dialog.AbstractDialog;
 import com.microproject.ribbon.RibbonCommandResult;
 

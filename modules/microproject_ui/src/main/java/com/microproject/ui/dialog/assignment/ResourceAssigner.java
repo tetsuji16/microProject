@@ -23,7 +23,7 @@
  *******************************************************************************/
 package com.microproject.ui.dialog.assignment;
 
-import com.microproject.pm.resource.Resource;
+import com.microproject.model.resource.Resource;
 
 
 /**

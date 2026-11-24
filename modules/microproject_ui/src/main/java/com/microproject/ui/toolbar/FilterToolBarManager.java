@@ -33,7 +33,7 @@ import javax.swing.JToolBar;
 import com.microproject.ui.help.HelpUtil;
 import com.microproject.ui.menu.MenuActionConstants;
 import com.microproject.ui.menu.MenuManager;
-import com.microproject.grouping.core.transform.ViewConfiguration;
+import com.microproject.node.transform.ViewConfiguration;
 
 public class FilterToolBarManager implements MenuActionConstants{
 	private MenuManager menuManager;

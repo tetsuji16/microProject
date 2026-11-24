@@ -23,8 +23,8 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectFactory;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectFactory;
 import com.microproject.util.SafeObjectInput;
 
 /**

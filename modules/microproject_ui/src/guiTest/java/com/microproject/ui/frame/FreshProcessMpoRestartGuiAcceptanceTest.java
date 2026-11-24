@@ -46,8 +46,8 @@ import com.microproject.configuration.Init;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
 import com.microproject.ui.view.spreadsheet.SpreadSheetModel;
 import com.microproject.ui.view.spreadsheet.renderer.NameCellComponent;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
 import com.microproject.session.SessionFactory;
 import com.microproject.job.JobQueue;
 import com.microproject.ui.testsupport.GuiAcceptanceSupport;
@@ -550,7 +550,7 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 		List<String> rows = new ArrayList<>();
 		Object root = project.getTaskOutline().getHierarchy().getRoot();
 		for (var iterator = project.getTaskOutline().iterator(); iterator.hasNext();) {
-			com.microproject.grouping.core.Node node = (com.microproject.grouping.core.Node) iterator.next();
+			com.microproject.node.Node node = (com.microproject.node.Node) iterator.next();
 			if (node == root) continue;
 			if (node.isVoid()) rows.add("");
 			else if (node.getImpl() instanceof Task task) rows.add(task.getName());
@@ -567,7 +567,7 @@ class FreshProcessMpoRestartGuiAcceptanceTest {
 			int otherCount = 0;
 			Object root = project.getTaskOutline().getHierarchy().getRoot();
 			for (var iterator = project.getTaskOutline().iterator(); iterator.hasNext();) {
-				com.microproject.grouping.core.Node node = (com.microproject.grouping.core.Node) iterator.next();
+				com.microproject.node.Node node = (com.microproject.node.Node) iterator.next();
 				if (node == root) continue;
 				Object impl = node.getImpl();
 				classes.merge("isVoid=" + node.isVoid() + "; node=" + node.getClass().getName()

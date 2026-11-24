@@ -12,7 +12,7 @@ import java.nio.file.Path;
 import java.util.Objects;
 import java.util.function.Supplier;
 
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.port.ExportPort;
 import com.microproject.port.ImportPort;
 import com.microproject.port.PortDiagnostic;

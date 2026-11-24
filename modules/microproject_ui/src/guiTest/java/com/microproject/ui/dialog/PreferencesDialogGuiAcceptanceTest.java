@@ -526,10 +526,10 @@ class PreferencesDialogGuiAcceptanceTest {
 		prepareFormats();
 		testPreferences.applyFormatPreferences();
 		com.microproject.undo.DataFactoryUndoController undo = new com.microproject.undo.DataFactoryUndoController();
-		com.microproject.pm.task.Project project = com.microproject.pm.task.Project.createProject(
-			com.microproject.pm.resource.ResourcePool.createRourcePool("format-live", undo), undo);
+		com.microproject.model.task.Project project = com.microproject.model.task.Project.createProject(
+			com.microproject.model.resource.ResourcePool.createRourcePool("format-live", undo), undo);
 		project.initialize(false, false);
-		com.microproject.pm.task.NormalTask task = project.createScriptedTask();
+		com.microproject.model.task.NormalTask task = project.createScriptedTask();
 		task.setName("Format live");
 		task.setStart(com.microproject.util.DateTime.calendarInstance(2026, java.util.Calendar.SEPTEMBER, 7).getTimeInMillis());
 		com.microproject.ui.view.spreadsheet.SpreadSheet[] sheet = new com.microproject.ui.view.spreadsheet.SpreadSheet[1];
@@ -550,7 +550,7 @@ class PreferencesDialogGuiAcceptanceTest {
 					"Spreadsheet.Task.formatLive", true);
 				com.microproject.ui.view.spreadsheet.SpreadSheetModel model =
 					(com.microproject.ui.view.spreadsheet.SpreadSheetModel) sheet[0].getModel();
-				com.microproject.grouping.core.Node node = (com.microproject.grouping.core.Node) cache.getModel().search(task);
+				com.microproject.node.Node node = (com.microproject.node.Node) cache.getModel().search(task);
 				cell[0] = model.findGraphicNodeRow(cache.getGraphicNode(node));
 				for (int column = 0; column < model.getColumnCount(); column++) {
 					com.microproject.field.Field field = model.getFieldInColumn(column);

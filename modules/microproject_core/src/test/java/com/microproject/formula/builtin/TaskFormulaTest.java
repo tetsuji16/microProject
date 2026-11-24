@@ -27,8 +27,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Task;
 
 class TaskFormulaTest {
 	@Test

@@ -111,16 +111,16 @@ import com.microproject.view.configuration.GraphicConfiguration;
 import com.microproject.ui.view.spreadsheet.renderer.SpreadSheetColumnHeaderRenderer;
 import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.view.configuration.SpreadSheetCategories;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.ProjectSummaryRow;
-import com.microproject.grouping.core.NodeBridge;
-import com.microproject.grouping.core.NodeFactory;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.Node;
+import com.microproject.node.ProjectSummaryRow;
+import com.microproject.node.NodeBridge;
+import com.microproject.node.NodeFactory;
+import com.microproject.node.model.NodeModel;
 import com.microproject.options.GeneralOption;
-import com.microproject.pm.resource.ResourceImpl;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
+import com.microproject.model.resource.ResourceImpl;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
 import com.microproject.i18n.Messages;
 import com.microproject.ui.dialog.ColumnDialog;
 import com.microproject.undo.UndoController;
@@ -384,7 +384,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		if (nodes.isEmpty())
 			return false;
 		for (Node node : nodes)
-			if (node == null || !(node.getImpl() instanceof com.microproject.pm.task.Task))
+			if (node == null || !(node.getImpl() instanceof com.microproject.model.task.Task))
 				return false;
 		return true;
 	}

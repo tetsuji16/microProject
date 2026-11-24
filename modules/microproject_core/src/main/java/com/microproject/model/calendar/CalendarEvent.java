@@ -1,0 +1,93 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.model.calendar;
+import java.io.Serializable;
+import java.util.Objects;
+
+import com.microproject.model.time.ImmutableInterval;
+
+/**
+ * An immutable calendar event 
+ */
+public class CalendarEvent extends ImmutableInterval implements Serializable {
+	static final long serialVersionUID = 26373991911119L;
+	private static String DEFAULT_DESCRIPTION = "Default";
+	private String description;
+	/**
+	 * Constructor taking two dates 
+	 */
+	public CalendarEvent(long start, long end, String description)  {
+		super(start,end);
+		this.description = description;
+	}
+
+	public CalendarEvent(long start, long end) {
+		this(start,end,DEFAULT_DESCRIPTION);
+	}
+	
+/**
+ * Constructor for an event which takes place on one day
+ * @param date
+ */
+	public CalendarEvent(long date, String description) {
+		this(date,date, description);
+	}
+
+	public CalendarEvent(long date) {
+		this(date, DEFAULT_DESCRIPTION);
+	}
+	
+	public boolean equals(Object other) {
+		if (!(other instanceof CalendarEvent event))
+			return false;
+		if (!super.equals(event))
+			return false;
+		return Objects.equals(description, event.description);
+	}
+
+	@Override
+	protected boolean canEqual(Object other) {
+		return other instanceof CalendarEvent && other.getClass() == getClass();
+	}
+
+	@Override
+	public int hashCode() {
+		return 31 * super.hashCode() + (description == null ? 0 : description.hashCode());
+	}
+
+	public int compare(Object event1, Object event2) {
+		if (!(event1 instanceof CalendarEvent first) || !(event2 instanceof CalendarEvent second))
+			return 0;
+		return super.compare(first, second);
+	}
+
+
+	/**
+	 * @return Returns the description.
+	 */
+	public String getDescription() {
+		return description;
+	}
+
+}

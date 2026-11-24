@@ -31,7 +31,7 @@ import javax.swing.JComponent;
 import com.microproject.ui.dialog.AbstractDialog;
 import com.microproject.ui.dialog.ButtonPanel;
 import com.microproject.ui.frame.GraphicManager;
-import com.microproject.pm.task.Portfolio;
+import com.microproject.model.task.Portfolio;
 import com.microproject.i18n.Messages;
 
 public class ProjectsDialog extends AbstractDialog{

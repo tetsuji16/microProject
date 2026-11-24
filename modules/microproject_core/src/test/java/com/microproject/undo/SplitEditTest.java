@@ -24,7 +24,7 @@ import java.lang.reflect.Proxy;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.scheduling.Schedule;
+import com.microproject.schedule.Schedule;
 import com.microproject.persistence.data.DataObject;
 
 class SplitEditTest {

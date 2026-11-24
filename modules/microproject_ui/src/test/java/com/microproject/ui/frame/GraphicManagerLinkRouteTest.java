@@ -45,8 +45,8 @@ import com.microproject.ui.dialog.ProjectDialog;
 import com.microproject.ui.frame.workspace.FrameHolder;
 import com.microproject.ui.frame.workspace.FrameManager;
 import com.microproject.document.ObjectEvent;
-import com.microproject.pm.task.DefaultSubProj;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.DefaultSubProj;
+import com.microproject.model.task.Project;
 import com.microproject.ribbon.RibbonCommandResult;
 
 import sun.misc.Unsafe;
@@ -388,11 +388,11 @@ class GraphicManagerLinkRouteTest {
 		GraphicManager graphicManager = new GraphicManager(new JPanel()) {
 			@Override public boolean isDocumentWritable() { return true; }
 			@Override public DocumentFrame getCurrentFrame() { return documentFrame; }
-			@Override public boolean activateSubproject(com.microproject.pm.task.SubProj value) {
+			@Override public boolean activateSubproject(com.microproject.model.task.SubProj value) {
 				opened.add((DefaultSubProj) value);
 				return true;
 			}
-			@Override public boolean removeLinkedSubproject(com.microproject.pm.task.SubProj value) {
+			@Override public boolean removeLinkedSubproject(com.microproject.model.task.SubProj value) {
 				removed.add((DefaultSubProj) value);
 				return true;
 			}

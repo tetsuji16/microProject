@@ -37,7 +37,7 @@ import com.microproject.document.ObjectEvent;
 import com.microproject.view.configuration.BarFormat;
 import com.microproject.view.configuration.BarStyles;
 import com.microproject.view.configuration.TexturedShape;
-import com.microproject.pm.scheduling.ScheduleEvent;
+import com.microproject.schedule.ScheduleEvent;
 
 /**
  *

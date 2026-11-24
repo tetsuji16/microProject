@@ -13,9 +13,9 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.grouping.core.Node;
-import com.microproject.pm.dependency.DependencyService;
-import com.microproject.pm.dependency.DependencyType;
+import com.microproject.node.Node;
+import com.microproject.model.dependency.DependencyService;
+import com.microproject.model.dependency.DependencyType;
 import com.microproject.ui.view.model.cache.GraphicDependency;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.model.cache.NodeModelCache;
@@ -24,9 +24,9 @@ import com.microproject.ui.view.model.cache.ReferenceNodeModelCache;
 import com.microproject.ui.view.network.NetworkParams;
 import com.microproject.view.network.PertManualPositions;
 import com.microproject.ui.view.pert.PertLayout;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.model.resource.ResourcePool;
 import com.microproject.undo.DataFactoryUndoController;
 
 class PertLayoutGeometryTest {

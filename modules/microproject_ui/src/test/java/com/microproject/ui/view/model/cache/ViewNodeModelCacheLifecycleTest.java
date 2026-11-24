@@ -19,12 +19,12 @@ import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 import com.microproject.ui.view.graph.GraphModel;
 import com.microproject.ui.view.network.Network;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 
 class ViewNodeModelCacheLifecycleTest {
@@ -52,7 +52,7 @@ class ViewNodeModelCacheLifecycleTest {
 			graphicNode.setDirty(true);
 		});
 		Thread publisher = new Thread(() -> project.fireScheduleChanged("background-test",
-				com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE));
+				com.microproject.schedule.ScheduleEvent.SCHEDULE));
 		publisher.start();
 		publisher.join();
 		SwingUtilities.invokeAndWait(() -> { });
@@ -73,7 +73,7 @@ class ViewNodeModelCacheLifecycleTest {
 					project.getTaskModel());
 			assertTrue(reference.nodeCache.getCacheSize() > 0);
 			Thread publisher = new Thread(() -> {
-				project.fireScheduleChanged("background-test", com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+				project.fireScheduleChanged("background-test", com.microproject.schedule.ScheduleEvent.SCHEDULE);
 				callbackReturned.countDown();
 			});
 			publisher.start();
@@ -109,8 +109,8 @@ class ViewNodeModelCacheLifecycleTest {
 			notifications.set(0);
 			GraphicNode node = reference.getGraphicNode(project.getTaskModel().search(task));
 			node.setDirty(true);
-			com.microproject.pm.scheduling.ScheduleEvent stale = new com.microproject.pm.scheduling.ScheduleEvent(
-				"stale-publication", com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+			com.microproject.schedule.ScheduleEvent stale = new com.microproject.schedule.ScheduleEvent(
+				"stale-publication", com.microproject.schedule.ScheduleEvent.SCHEDULE);
 			stale.setPublicationRevision(1L);
 			reference.scheduleChanged(stale);
 			assertEquals(2L, view.getVisibleNodes().getProjectionIndex().modelRevision());
@@ -144,8 +144,8 @@ class ViewNodeModelCacheLifecycleTest {
 			// Both publications are produced off the EDT and queued in the given completion order.
 			long[] order = newestFirst ? new long[] { newer, older } : new long[] { older, newer };
 			for (long revision : order) {
-				com.microproject.pm.scheduling.ScheduleEvent event = new com.microproject.pm.scheduling.ScheduleEvent(
-						"out-of-order", com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+				com.microproject.schedule.ScheduleEvent event = new com.microproject.schedule.ScheduleEvent(
+						"out-of-order", com.microproject.schedule.ScheduleEvent.SCHEDULE);
 				event.setPublicationRevision(revision);
 				Thread publisher = new Thread(() -> reference.scheduleChanged(event));
 				publisher.start();
@@ -171,7 +171,7 @@ class ViewNodeModelCacheLifecycleTest {
 				.createFilteredCache(reference, "structure-table", null);
 		ViewNodeModelCache gantt = (ViewNodeModelCache) NodeModelCacheFactory.getInstance()
 				.createFilteredCache(reference, "structure-gantt", null);
-		var model = (com.microproject.grouping.core.model.DefaultNodeModel) project.getTaskModel();
+		var model = (com.microproject.node.model.DefaultNodeModel) project.getTaskModel();
 		SwingUtilities.invokeAndWait(() -> {
 			reference.update();
 			assertProjectionsAgree(table, gantt, "First", "Second");
@@ -179,10 +179,10 @@ class ViewNodeModelCacheLifecycleTest {
 			reference.update();
 			assertProjectionsAgree(table, gantt, "First", "Second", "Inserted");
 			model.indent(java.util.List.of(model.search(second)), 1,
-					com.microproject.grouping.core.model.NodeModel.SILENT);
+					com.microproject.node.model.NodeModel.SILENT);
 			reference.update();
 			assertProjectionsAgree(table, gantt, "First", "Second", "Inserted");
-			model.remove(model.search(inserted), com.microproject.grouping.core.model.NodeModel.SILENT);
+			model.remove(model.search(inserted), com.microproject.node.model.NodeModel.SILENT);
 			reference.update();
 			assertProjectionsAgree(table, gantt, "First", "Second");
 		});
@@ -219,7 +219,7 @@ class ViewNodeModelCacheLifecycleTest {
 		int[] afterRebind = new int[1];
 		SwingUtilities.invokeAndWait(() -> {
 			Thread publisher = new Thread(() -> {
-				project.fireScheduleChanged("old-binding", com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+				project.fireScheduleChanged("old-binding", com.microproject.schedule.ScheduleEvent.SCHEDULE);
 				callbackReturned.countDown();
 			});
 			publisher.start();

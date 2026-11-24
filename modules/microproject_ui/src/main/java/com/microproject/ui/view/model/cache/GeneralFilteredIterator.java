@@ -28,7 +28,7 @@ import java.util.function.Predicate;
 
 import org.apache.commons.collections4.iterators.FilterIterator;
 
-import com.microproject.grouping.core.transform.filtering.PredicatedNodeFilterIterator;
+import com.microproject.node.transform.filtering.PredicatedNodeFilterIterator;
 
 /**
  *

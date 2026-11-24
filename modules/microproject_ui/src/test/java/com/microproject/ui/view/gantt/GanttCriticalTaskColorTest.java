@@ -11,11 +11,11 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.options.CalculationOption;
 import com.microproject.options.CalendarOption;
-import com.microproject.pm.criticalpath.TaskSchedule;
-import com.microproject.pm.ccpm.CriticalChainService;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
+import com.microproject.schedule.criticalpath.TaskSchedule;
+import com.microproject.schedule.ccpm.CriticalChainService;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 
 /**

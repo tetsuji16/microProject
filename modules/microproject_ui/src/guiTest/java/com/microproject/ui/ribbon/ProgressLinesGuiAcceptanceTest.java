@@ -27,9 +27,9 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.ui.menu.testsupport.UiComponentWalker;
-import com.microproject.pm.task.ProgressLineSettings;
+import com.microproject.model.task.ProgressLineSettings;
 import com.microproject.ui.frame.DocumentFrame;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.util.DateTime;
 import com.microproject.ui.testsupport.GuiJourney;
 import com.microproject.ui.testsupport.GuiAcceptanceSupport;

@@ -42,21 +42,21 @@ import com.microproject.exchange.mpx.converter.MpxImportState;
 import com.microproject.exchange.MicrosoftImporter;
 import com.microproject.job.Job;
 import com.microproject.job.JobQueue;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.assignment.AssignmentService;
-import com.microproject.pm.costing.Accrual;
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.dependency.DependencyService;
-import com.microproject.pm.dependency.DependencyType;
-import com.microproject.pm.resource.ResourceImpl;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.scheduling.ConstraintType;
-import com.microproject.pm.scheduling.ScheduleService;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectFactory;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.scheduling.SchedulingType;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.assignment.AssignmentService;
+import com.microproject.model.costing.Accrual;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.dependency.DependencyService;
+import com.microproject.model.dependency.DependencyType;
+import com.microproject.model.resource.ResourceImpl;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.schedule.ConstraintType;
+import com.microproject.schedule.ScheduleService;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectFactory;
+import com.microproject.model.task.Task;
+import com.microproject.schedule.SchedulingType;
 import com.microproject.session.LocalSession;
 import com.microproject.session.SaveOptions;
 import com.microproject.session.SessionFactory;
@@ -149,11 +149,11 @@ class MpxExportTrackingTest {
 		assertBaselineDuration(importedTask.getBaselineDuration(0), 2.0d,
 			com.microproject.datatype.TimeUnit.DAYS);
 		long baselineStart = com.microproject.exchange.converter.type.DateUTCConverter.toModelTime(baselineZeroStart);
-		com.microproject.pm.task.TaskSnapshot baselineZero = (com.microproject.pm.task.TaskSnapshot)
+		com.microproject.model.task.TaskSnapshot baselineZero = (com.microproject.model.task.TaskSnapshot)
 			importedTask.getSnapshot(Integer.valueOf(0));
 		assertEquals(1.6D, baselineZero.getFixedCost(), 0.00001D);
 		assertNotNull(baselineZero.getFixedCostCalendar());
-		assertEquals(com.microproject.pm.costing.Accrual.Kind.PRORATED.code(), baselineZero.getFixedCostAccrual());
+		assertEquals(com.microproject.model.costing.Accrual.Kind.PRORATED.code(), baselineZero.getFixedCostAccrual());
 		assertTrue(baselineZero.getFixedCostCalendar().compare(baselineStart + java.util.concurrent.TimeUnit.HOURS.toMillis(13),
 			baselineStart, false) > 0L, "the captured baseline calendar must count the partial interval as work");
 		assertEquals(1.6D, importedTask.getBaselineCost(0, baselineStart,
@@ -162,14 +162,14 @@ class MpxExportTrackingTest {
 			baselineStart + java.util.concurrent.TimeUnit.HOURS.toMillis(13)), 0.00001D,
 			"an imported MSPDI fixed-cost baseline must accrue against its captured task calendar");
 		assertEquals(com.microproject.exchange.converter.type.DateUTCConverter.toModelTime(baselineOneStart),
-			((com.microproject.pm.task.TaskSnapshot) importedTask.getSnapshot(Integer.valueOf(1)))
+			((com.microproject.model.task.TaskSnapshot) importedTask.getSnapshot(Integer.valueOf(1)))
 				.getCurrentSchedule().getStart());
-		assertEquals(0L, ((com.microproject.pm.task.TaskSnapshot) importedTask.getSnapshot(Integer.valueOf(1)))
+		assertEquals(0L, ((com.microproject.model.task.TaskSnapshot) importedTask.getSnapshot(Integer.valueOf(1)))
 			.getCurrentSchedule().getFinish(), "an absent finish must stay absent");
-		assertEquals(0L, ((com.microproject.pm.task.TaskSnapshot) importedTask.getSnapshot(Integer.valueOf(2)))
+		assertEquals(0L, ((com.microproject.model.task.TaskSnapshot) importedTask.getSnapshot(Integer.valueOf(2)))
 			.getCurrentSchedule().getRawDuration(), "zero duration is a valid milestone baseline");
 		assertEquals(com.microproject.exchange.converter.type.DateUTCConverter.toModelTime(baselineTenStart),
-			((com.microproject.pm.task.TaskSnapshot) importedTask.getSnapshot(Integer.valueOf(10)))
+			((com.microproject.model.task.TaskSnapshot) importedTask.getSnapshot(Integer.valueOf(10)))
 				.getCurrentSchedule().getStart());
 
 		ByteArrayOutputStream roundTripXml = new ByteArrayOutputStream();
@@ -195,7 +195,7 @@ class MpxExportTrackingTest {
 		assertEquals(baselineTenFinish, MpxDates.toDate(roundTripTask.getBaselineFinish(10)));
 		Project modelRoundTrip = new com.microproject.exchange.mpx.MspImporter().importProject(
 			new ByteArrayInputStream(roundTripXml.toByteArray()), "xml", (progress, label) -> {});
-		assertEquals(1.6D, ((com.microproject.pm.task.TaskSnapshot)
+		assertEquals(1.6D, ((com.microproject.model.task.TaskSnapshot)
 			taskNamed(modelRoundTrip, "Baseline contract").getSnapshot(Integer.valueOf(0))).getFixedCost(), 0.00001D,
 			"reimport must retain the normalized baseline fixed-cost amount emitted in canonical MSPDI");
 		assertEquals(2.0d, roundTripTask.getBaselineDuration(10).getDuration(), 0.00001d);
@@ -208,15 +208,15 @@ class MpxExportTrackingTest {
 		NormalTask reopenedTask = taskNamed(reopened, "Baseline contract");
 		assertEquals(importedTask.getBaselineStart(), reopenedTask.getBaselineStart());
 		assertEquals(importedTask.getBaselineFinish(), reopenedTask.getBaselineFinish());
-		assertEquals(((com.microproject.pm.task.TaskSnapshot) importedTask.getSnapshot(Integer.valueOf(1)))
+		assertEquals(((com.microproject.model.task.TaskSnapshot) importedTask.getSnapshot(Integer.valueOf(1)))
 			.getCurrentSchedule().getStart(),
-			((com.microproject.pm.task.TaskSnapshot) reopenedTask.getSnapshot(Integer.valueOf(1)))
+			((com.microproject.model.task.TaskSnapshot) reopenedTask.getSnapshot(Integer.valueOf(1)))
 			.getCurrentSchedule().getStart());
 		assertEquals(importedTask.getBaselineDuration(0), reopenedTask.getBaselineDuration(0));
 		assertEquals(importedTask.getBaselineDuration(2), reopenedTask.getBaselineDuration(2));
-		assertEquals(((com.microproject.pm.task.TaskSnapshot) importedTask.getSnapshot(Integer.valueOf(10)))
+		assertEquals(((com.microproject.model.task.TaskSnapshot) importedTask.getSnapshot(Integer.valueOf(10)))
 			.getCurrentSchedule().getFinish(),
-			((com.microproject.pm.task.TaskSnapshot) reopenedTask.getSnapshot(Integer.valueOf(10)))
+			((com.microproject.model.task.TaskSnapshot) reopenedTask.getSnapshot(Integer.valueOf(10)))
 			.getCurrentSchedule().getFinish());
 		assertEquals(importedTask.getCurrentSchedule().getStart(), reopenedTask.getCurrentSchedule().getStart());
 	}
@@ -537,7 +537,7 @@ class MpxExportTrackingTest {
 		Project flat = importMspdi(flatXml);
 		NormalTask flatTask = taskNamed(flat, "Assignment baseline task");
 		Assignment flatAssignment = (Assignment) flatTask.getAssignments().iterator().next();
-		assertEquals(com.microproject.pm.assignment.contour.ContourTypes.Kind.FLAT,
+		assertEquals(com.microproject.model.assignment.contour.ContourTypes.Kind.FLAT,
 			flatAssignment.getWorkContourTypeKind());
 		assertEquals(8L * 60L * 60L * 1000L, flatAssignment.getWork(null));
 		assertEquals(0L, flatAssignment.getActualWork(null));
@@ -554,7 +554,7 @@ class MpxExportTrackingTest {
 			Project imported = importMspdi(contourXml);
 			NormalTask task = taskNamed(imported, "Assignment baseline task");
 			Assignment assignment = (Assignment) task.getAssignments().iterator().next();
-			assertEquals(com.microproject.pm.assignment.contour.ContourTypes.Kind.fromCode(code),
+			assertEquals(com.microproject.model.assignment.contour.ContourTypes.Kind.fromCode(code),
 				assignment.getWorkContourTypeKind());
 			assertEquals(expectedWork, assignment.getWork(null), "contour " + code);
 			assertEquals(sourceStart, assignment.getStart(), "start contour " + code);
@@ -708,7 +708,7 @@ class MpxExportTrackingTest {
 		Project imported = importMspdi(xml);
 		Assignment modelAssignment = (Assignment) taskNamed(imported, "Assignment baseline task").getAssignments().iterator().next();
 		assertEquals(8L * 60L * 60L * 1000L, modelAssignment.getWork(null));
-		assertEquals(com.microproject.pm.assignment.contour.ContourTypes.Kind.CONTOURED.code(),
+		assertEquals(com.microproject.model.assignment.contour.ContourTypes.Kind.CONTOURED.code(),
 			modelAssignment.getWorkContourType());
 		var buckets = modelAssignment.getWorkContour().getContourBuckets();
 		assertEquals(2, buckets.length);
@@ -745,8 +745,8 @@ class MpxExportTrackingTest {
 
 	@Test
 	void assignmentBaselineTimephasedWorkRoundTripsThroughMpoAndMspdi() throws Exception {
-		assertTrue(com.microproject.pm.assignment.TimeDistributedHelper.isCost(
-			com.microproject.pm.assignment.TimeDistributedConstants.BASELINE_COST));
+		assertTrue(com.microproject.model.assignment.TimeDistributedHelper.isCost(
+			com.microproject.model.assignment.TimeDistributedConstants.BASELINE_COST));
 		int[] expectedWorkTypes = { 4, 16, 22, 28, 34, 40, 46, 52, 58, 64, 70 };
 		for (int slot = 0; slot < expectedWorkTypes.length; slot++) {
 			assertEquals(expectedWorkTypes[slot], MpxImportState.assignmentBaselineWorkType(slot));
@@ -1423,8 +1423,8 @@ class MpxExportTrackingTest {
 		String resourceCostMspdi = mspdi.substring(0, resourceStart) + resourceXml
 			+ mspdi.substring(resourceEnd);
 		Project resourceCostProject = importMspdi(resourceCostMspdi);
-		com.microproject.pm.resource.Resource fractionalResource =
-			com.microproject.pm.resource.ResourcePool.findResourceByName("Fractional Cost Resource",
+		com.microproject.model.resource.Resource fractionalResource =
+			com.microproject.model.resource.ResourcePool.findResourceByName("Fractional Cost Resource",
 				resourceCostProject.getResourcePool());
 		assertNotNull(fractionalResource);
 		assertEquals(0.001d, fractionalResource.getCostPerUse(),
@@ -1437,7 +1437,7 @@ class MpxExportTrackingTest {
 			"the canonical MSPDI writer emits resource cost-per-use in hundredths");
 		Project resourceCostReopened = new com.microproject.exchange.MpoFileImporter()
 			.loadProject(new ByteArrayInputStream(resourceCostMpo.toByteArray()));
-		assertEquals(0.001d, com.microproject.pm.resource.ResourcePool.findResourceByName(
+		assertEquals(0.001d, com.microproject.model.resource.ResourcePool.findResourceByName(
 			"Fractional Cost Resource", resourceCostReopened.getResourcePool()).getCostPerUse(),
 			0.0000001d, "MPO reimport preserves normalized resource cost-per-use");
 	}
@@ -1447,8 +1447,8 @@ class MpxExportTrackingTest {
 		Task successor = imported.findByUniqueId(4);
 		predecessor.getCurrentSchedule().setStart(modelWallTime("2018-10-22T08:00:00"));
 		predecessor.getCurrentSchedule().setFinish(modelWallTime("2018-10-22T17:00:00"));
-		com.microproject.pm.dependency.Dependency dependency =
-			(com.microproject.pm.dependency.Dependency) successor.getPredecessorList().get(0);
+		com.microproject.model.dependency.Dependency dependency =
+			(com.microproject.model.dependency.Dependency) successor.getPredecessorList().get(0);
 		assertEquals(8L * 60L * 60L * 1000L, dependency.getLeadValue(), "one MSP workday is eight scheduled hours");
 		assertEquals(modelWallTime("2018-10-24T08:00:00"),
 			dependency.calcForwardDependencyDate(predecessor.getStart(), predecessor.getEnd(), true),
@@ -1462,8 +1462,8 @@ class MpxExportTrackingTest {
 			.loadProject(new ByteArrayInputStream(mpo.toByteArray()));
 		Task reopenedPredecessor = reopened.findByUniqueId(3);
 		Task reopenedSuccessor = reopened.findByUniqueId(4);
-		com.microproject.pm.dependency.Dependency reopenedDependency =
-			(com.microproject.pm.dependency.Dependency) reopenedSuccessor.getPredecessorList().get(0);
+		com.microproject.model.dependency.Dependency reopenedDependency =
+			(com.microproject.model.dependency.Dependency) reopenedSuccessor.getPredecessorList().get(0);
 		assertEquals(8L * 60L * 60L * 1000L, reopenedDependency.getLeadValue(), "MPO-reopened one-workday lag");
 		assertEquals(modelWallTime("2018-10-24T08:00:00"),
 			reopenedDependency.calcForwardDependencyDate(reopenedPredecessor.getStart(),
@@ -1511,8 +1511,8 @@ class MpxExportTrackingTest {
 		for (int index = 0; index < predecessorUids.length; index++) {
 			Task successor = project.findByUniqueId(successorUids[index]);
 			assertEquals(1, successor.getPredecessorList().size(), "predecessor count for UID " + successorUids[index]);
-			com.microproject.pm.dependency.Dependency dependency =
-				(com.microproject.pm.dependency.Dependency) successor.getPredecessorList().get(0);
+			com.microproject.model.dependency.Dependency dependency =
+				(com.microproject.model.dependency.Dependency) successor.getPredecessorList().get(0);
 			assertEquals(predecessorUids[index], ((Task) dependency.getPredecessor()).getUniqueId());
 			assertEquals(dependencyTypes[index], dependency.getDependencyType(), "dependency type at pair " + index);
 			assertEquals(expectedLagMillis[index], dependency.getLag(), "dependency lag at pair " + index);
@@ -1553,7 +1553,7 @@ class MpxExportTrackingTest {
 		NormalTask totalCostTask = (NormalTask) taskNamed(project, "Baseline Cost - Task");
 		assertEquals(1.0d, totalCostTask.getBaselineCost(0), 0.00001d,
 			"baseline total cost is preserved separately from baseline fixed cost");
-		assertEquals(0.0d, ((com.microproject.pm.task.TaskSnapshot) totalCostTask.getSnapshot(Integer.valueOf(0)))
+		assertEquals(0.0d, ((com.microproject.model.task.TaskSnapshot) totalCostTask.getSnapshot(Integer.valueOf(0)))
 			.getFixedCost(), 0.00001d,
 			"task total cost does not become own baseline fixed cost");
 		assertEquals(2.0d, taskNamed(project, "Baseline1 Cost - Task").getBaselineCost(1), 0.00001d);
@@ -1578,9 +1578,9 @@ class MpxExportTrackingTest {
 	}
 
 	private void assertMppBaselineFixedCost(Project project, String name, int slot, double expected) {
-		com.microproject.pm.snapshot.DataSnapshot baseline = taskNamed(project, name).getSnapshot(Integer.valueOf(slot));
-		assertInstanceOf(com.microproject.pm.task.TaskSnapshot.class, baseline, name + " baseline slot " + slot);
-		assertEquals(expected, ((com.microproject.pm.task.TaskSnapshot) baseline).getFixedCost(),
+		com.microproject.model.snapshot.DataSnapshot baseline = taskNamed(project, name).getSnapshot(Integer.valueOf(slot));
+		assertInstanceOf(com.microproject.model.task.TaskSnapshot.class, baseline, name + " baseline slot " + slot);
+		assertEquals(expected, ((com.microproject.model.task.TaskSnapshot) baseline).getFixedCost(),
 			"MPXJ v11.5.4 TaskBaselinesTest fixed cost at slot " + slot);
 	}
 
@@ -1591,12 +1591,12 @@ class MpxExportTrackingTest {
 		long sundayKey = modelWallTime("2019-05-05T00:00:00");
 		long saturdayKey = modelWallTime("2019-05-11T00:00:00");
 		for (String resourceName : List.of("Resource One", "Resource Two")) {
-			com.microproject.pm.resource.Resource resource =
-				com.microproject.pm.resource.ResourcePool.findResourceByName(resourceName, project.getResourcePool());
+			com.microproject.model.resource.Resource resource =
+				com.microproject.model.resource.ResourcePool.findResourceByName(resourceName, project.getResourcePool());
 			assertNotNull(resource, "MPP14 calendar fixture resource " + resourceName);
 			assertEquals(resourceName, resource.getWorkCalendar().getName(), "resource calendar for " + resourceName);
-			var calendar = (com.microproject.pm.calendar.WorkingCalendar) resource.getWorkCalendar();
-			var monday = com.microproject.pm.calendar.CalendarService.getInstance()
+			var calendar = (com.microproject.model.calendar.WorkingCalendar) resource.getWorkCalendar();
+			var monday = com.microproject.model.calendar.CalendarService.getInstance()
 				.getDay(calendar, mondayKey);
 			assertTrue(monday.isWorking(), "effective Monday date key resolves to work");
 			assertEquals(eightHours, monday.getWorkingHours().getDuration(),
@@ -1605,13 +1605,13 @@ class MpxExportTrackingTest {
 			var secondPeriod = monday.getWorkingHours().getInterval(1);
 			assertNotNull(firstPeriod);
 			assertNotNull(secondPeriod);
-			assertEquals(com.microproject.pm.calendar.WorkingHours.hourTime(8), firstPeriod.getStart(),
+			assertEquals(com.microproject.model.calendar.WorkingHours.hourTime(8), firstPeriod.getStart(),
 				"first period starts at 08:00");
-			assertEquals(com.microproject.pm.calendar.WorkingHours.hourTime(12), firstPeriod.getEnd(),
+			assertEquals(com.microproject.model.calendar.WorkingHours.hourTime(12), firstPeriod.getEnd(),
 				"first period ends at 12:00");
-			assertEquals(com.microproject.pm.calendar.WorkingHours.hourTime(13), secondPeriod.getStart(),
+			assertEquals(com.microproject.model.calendar.WorkingHours.hourTime(13), secondPeriod.getStart(),
 				"second period starts at 13:00");
-			assertEquals(com.microproject.pm.calendar.WorkingHours.hourTime(17), secondPeriod.getEnd(),
+			assertEquals(com.microproject.model.calendar.WorkingHours.hourTime(17), secondPeriod.getEnd(),
 				"second period ends at 17:00");
 			assertEquals(fourHours, firstPeriod.getElapsedDuration(), "first period is 08:00–12:00");
 			assertEquals(fourHours, secondPeriod.getElapsedDuration(), "second period is 13:00–17:00");
@@ -1624,37 +1624,37 @@ class MpxExportTrackingTest {
 				modelWallTime("2019-05-11T08:00:00"), false), "Saturday daytime is nonworking");
 			assertEquals(0L, calendar.compare(modelWallTime("2019-05-05T17:00:00"),
 				modelWallTime("2019-05-05T08:00:00"), false), "Sunday daytime is nonworking");
-			assertFalse(com.microproject.pm.calendar.CalendarService.getInstance()
+			assertFalse(com.microproject.model.calendar.CalendarService.getInstance()
 				.getDay(calendar, sundayKey).isWorking(), "Sunday date key is nonworking");
-			assertFalse(com.microproject.pm.calendar.CalendarService.getInstance()
+			assertFalse(com.microproject.model.calendar.CalendarService.getInstance()
 				.getDay(calendar, saturdayKey).isWorking(), "Saturday date key is nonworking");
 		}
 	}
 
 	private void assertProject2019CalendarInheritanceTracksBaseChange(Project project) throws Exception {
-		com.microproject.pm.resource.Resource resource = com.microproject.pm.resource.ResourcePool.findResourceByName(
+		com.microproject.model.resource.Resource resource = com.microproject.model.resource.ResourcePool.findResourceByName(
 			"Resource One", project.getResourcePool());
 		assertNotNull(resource);
-		com.microproject.pm.calendar.WorkCalendar base = resource.getWorkCalendar().getBaseCalendar();
-		assertInstanceOf(com.microproject.pm.calendar.WorkingCalendar.class, base);
-		var standard = (com.microproject.pm.calendar.WorkingCalendar) base;
-		com.microproject.pm.calendar.WorkDay originalMonday = standard.getWeekDay(1);
-		com.microproject.pm.calendar.WorkingHours sixHourDay = new com.microproject.pm.calendar.WorkingHours();
-		sixHourDay.setInterval(0, com.microproject.pm.calendar.WorkingHours.hourTime(8),
-			com.microproject.pm.calendar.WorkingHours.hourTime(11));
-		sixHourDay.setInterval(1, com.microproject.pm.calendar.WorkingHours.hourTime(13),
-			com.microproject.pm.calendar.WorkingHours.hourTime(16));
-		com.microproject.pm.calendar.WorkDay changedMonday = new com.microproject.pm.calendar.WorkDay();
+		com.microproject.model.calendar.WorkCalendar base = resource.getWorkCalendar().getBaseCalendar();
+		assertInstanceOf(com.microproject.model.calendar.WorkingCalendar.class, base);
+		var standard = (com.microproject.model.calendar.WorkingCalendar) base;
+		com.microproject.model.calendar.WorkDay originalMonday = standard.getWeekDay(1);
+		com.microproject.model.calendar.WorkingHours sixHourDay = new com.microproject.model.calendar.WorkingHours();
+		sixHourDay.setInterval(0, com.microproject.model.calendar.WorkingHours.hourTime(8),
+			com.microproject.model.calendar.WorkingHours.hourTime(11));
+		sixHourDay.setInterval(1, com.microproject.model.calendar.WorkingHours.hourTime(13),
+			com.microproject.model.calendar.WorkingHours.hourTime(16));
+		com.microproject.model.calendar.WorkDay changedMonday = new com.microproject.model.calendar.WorkDay();
 		changedMonday.setWorkingHours(sixHourDay);
 		try {
 			standard.setWeekDay(1, changedMonday);
 			standard.invalidate();
 			for (String resourceName : List.of("Resource One", "Resource Two")) {
-				com.microproject.pm.resource.Resource derived = com.microproject.pm.resource.ResourcePool.findResourceByName(
+				com.microproject.model.resource.Resource derived = com.microproject.model.resource.ResourcePool.findResourceByName(
 					resourceName, project.getResourcePool());
-				var derivedCalendar = (com.microproject.pm.calendar.WorkingCalendar) derived.getWorkCalendar();
+				var derivedCalendar = (com.microproject.model.calendar.WorkingCalendar) derived.getWorkCalendar();
 				assertEquals(6L * 60L * 60L * 1000L,
-					com.microproject.pm.calendar.CalendarService.getInstance().getDay(derivedCalendar,
+					com.microproject.model.calendar.CalendarService.getInstance().getDay(derivedCalendar,
 						modelWallTime("2019-05-06T00:00:00")).getWorkingHours().getDuration(),
 					"derived resource calendar follows the edited base weekday");
 			}
@@ -1751,7 +1751,7 @@ class MpxExportTrackingTest {
 		org.mpxj.Resource unassigned = savedSource.getResources().stream()
 			.filter(resource -> resource.getID() != null && resource.getID().intValue() == 0)
 			.findFirst().orElseThrow();
-		assertEquals(com.microproject.pm.resource.EnterpriseResource.UNASSIGNED_ID,
+		assertEquals(com.microproject.model.resource.EnterpriseResource.UNASSIGNED_ID,
 			unassigned.getUniqueID().intValue(), "unassigned resource must retain its sentinel UID");
 		assertTrue(savedSource.getResourceAssignments().stream().allMatch(assignment ->
 			assignment.getResourceUniqueID().equals(unassigned.getUniqueID())),
@@ -1775,10 +1775,10 @@ class MpxExportTrackingTest {
 		Project project = Project.createProject(pool, undo);
 		project.initialize(false, false);
 		pool.addProject(project);
-		var baseCalendar = com.microproject.pm.calendar.WorkingCalendar.getStandardBasedInstance();
+		var baseCalendar = com.microproject.model.calendar.WorkingCalendar.getStandardBasedInstance();
 		baseCalendar.setName("MPO committed Saturday calendar");
 		baseCalendar.setUniqueId(-9000111L);
-		var taskCalendar = com.microproject.pm.calendar.WorkingCalendar.getInstanceBasedOn(baseCalendar);
+		var taskCalendar = com.microproject.model.calendar.WorkingCalendar.getInstanceBasedOn(baseCalendar);
 		project.setWorkCalendar(taskCalendar);
 		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
 		project.getSchedulingAlgorithm().addObject(task);
@@ -1805,16 +1805,16 @@ class MpxExportTrackingTest {
 		taskCalendar.getConcreteInstance();
 		baseCalendar.getConcreteInstance();
 
-		var staged = com.microproject.pm.calendar.CalendarService.getInstance().makeScratchCopy(baseCalendar);
-		var saturdayHours = new com.microproject.pm.calendar.WorkingHours();
-		saturdayHours.setInterval(0, com.microproject.pm.calendar.WorkingHours.hourTime(8),
-			com.microproject.pm.calendar.WorkingHours.hourTime(12));
-		saturdayHours.setInterval(1, com.microproject.pm.calendar.WorkingHours.hourTime(13),
-			com.microproject.pm.calendar.WorkingHours.hourTime(17));
-		var saturday = new com.microproject.pm.calendar.WorkDay();
+		var staged = com.microproject.model.calendar.CalendarService.getInstance().makeScratchCopy(baseCalendar);
+		var saturdayHours = new com.microproject.model.calendar.WorkingHours();
+		saturdayHours.setInterval(0, com.microproject.model.calendar.WorkingHours.hourTime(8),
+			com.microproject.model.calendar.WorkingHours.hourTime(12));
+		saturdayHours.setInterval(1, com.microproject.model.calendar.WorkingHours.hourTime(13),
+			com.microproject.model.calendar.WorkingHours.hourTime(17));
+		var saturday = new com.microproject.model.calendar.WorkDay();
 		saturday.setWorkingHours(saturdayHours);
 		staged.setWeekDay(java.util.Calendar.SATURDAY - 1, saturday);
-		assertTrue(com.microproject.pm.calendar.CalendarService.getInstance().commitCalendars(
+		assertTrue(com.microproject.model.calendar.CalendarService.getInstance().commitCalendars(
 			java.util.Map.of(baseCalendar, staged), undo.getEditSupport()));
 		assertEquals(expectedAfterCommit, task.getEnd(), "calendar commit must recalculate before returning");
 		assertEquals(expectedAfterCommit, assignment.getEnd());
@@ -1859,12 +1859,12 @@ class MpxExportTrackingTest {
 		long earlierStart = calendar.adjustInsideCalendar(originalStart
 			- 3L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay(), false);
 		ScheduleService.getInstance().setInterval(this, task, earlierStart, originalFinish,
-			new com.microproject.pm.scheduling.ScheduleInterval(originalStart, originalFinish), null);
+			new com.microproject.schedule.ScheduleInterval(originalStart, originalFinish), null);
 		task.setScheduleConstraint(ConstraintType.Kind.SNET, task.getStart());
 		long resizedStart = task.getStart();
 		long laterFinish = originalFinish + com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
 		ScheduleService.getInstance().setInterval(this, task, resizedStart, laterFinish,
-			new com.microproject.pm.scheduling.ScheduleInterval(resizedStart, originalFinish), null);
+			new com.microproject.schedule.ScheduleInterval(resizedStart, originalFinish), null);
 		project.recalculate();
 		task.setPercentComplete(0.4d);
 		project.recalculate();
@@ -1872,7 +1872,7 @@ class MpxExportTrackingTest {
 		long requested = initialProgress + (task.getEnd() - initialProgress) / 6L;
 		assertTrue(ScheduleService.getInstance().setCompleted(this, task, requested, null));
 		long progressBeforeSplit = task.getCompletedThrough();
-		List<com.microproject.pm.scheduling.ScheduleInterval> taskIntervals = new java.util.ArrayList<>();
+		List<com.microproject.schedule.ScheduleInterval> taskIntervals = new java.util.ArrayList<>();
 		task.consumeIntervals(taskIntervals::add);
 		long remainingWorkStart = Math.max(progressBeforeSplit, task.getResume());
 		long splitAt = taskIntervals.stream().mapToLong(interval -> {
@@ -1929,7 +1929,7 @@ class MpxExportTrackingTest {
 
 	private void assertMpp9ContourManifest(Project project) {
 		Assignment assignment = (Assignment) taskNamed(project, "Task Sixteen").getAssignments().iterator().next();
-		assertEquals(com.microproject.pm.assignment.contour.ContourTypes.Kind.CONTOURED.code(),
+		assertEquals(com.microproject.model.assignment.contour.ContourTypes.Kind.CONTOURED.code(),
 			assignment.getWorkContourType(), "the MPP fixture's manually shaped work must stay a custom contour");
 		assertEquals(55L * 60L * 60L * 1000L, assignment.getWork(null));
 		assertEquals(0L, assignment.getActualWork(null));
@@ -1941,7 +1941,7 @@ class MpxExportTrackingTest {
 		};
 		for (int index = 0; index < workdays.length; index++) {
 			com.microproject.field.FieldContext interval = new com.microproject.field.FieldContext();
-			interval.setInterval(new com.microproject.pm.time.ImmutableInterval(
+			interval.setInterval(new com.microproject.model.time.ImmutableInterval(
 				modelWallTime(workdays[index] + "T08:00:00"), modelWallTime(workdays[index] + "T17:00:00")));
 			assertEquals((index + 1L) * 60L * 60L * 1000L, assignment.getWork(interval),
 				"upstream MPP9 manifest workday " + workdays[index]);
@@ -2147,7 +2147,7 @@ class MpxExportTrackingTest {
 		assertEquals(2L * 60L * 60L * 1000L, nonPrefixAssignment.actualWork(firstAfternoon, firstFinish));
 		assertEquals(2L * 60L * 60L * 1000L, nonPrefixAssignment.remainingWork(firstMorning, firstLunch));
 		assertEquals(0L, nonPrefixAssignment.remainingWork(firstAfternoon, firstFinish));
-		Assignment cloned = new Assignment((com.microproject.pm.assignment.AssignmentDetail) nonPrefixAssignment.getDetail().clone());
+		Assignment cloned = new Assignment((com.microproject.model.assignment.AssignmentDetail) nonPrefixAssignment.getDetail().clone());
 		assertTrue(cloned.hasImportedTimephasedWork());
 		assertEquals(2L * 60L * 60L * 1000L, cloned.actualWork(firstAfternoon, firstFinish));
 		long nextDayStart = nonPrefixAssignment.getEffectiveWorkCalendar().add(nonPrefixAssignment.getStart(),
@@ -2156,13 +2156,13 @@ class MpxExportTrackingTest {
 		assertTrue(cloned.hasImportedTimephasedWork(), "Moving an assignment preserves its relative timephased history");
 		assertEquals(2L * 60L * 60L * 1000L,
 			cloned.actualWork(modelWallTime("2026-10-13T13:00:00"), modelWallTime("2026-10-13T17:00:00")));
-		Assignment extended = new Assignment((com.microproject.pm.assignment.AssignmentDetail) nonPrefixAssignment.getDetail().clone());
+		Assignment extended = new Assignment((com.microproject.model.assignment.AssignmentDetail) nonPrefixAssignment.getDetail().clone());
 		long extendedFinish = extended.getEffectiveWorkCalendar().add(extended.getEnd(), 8L * 60L * 60L * 1000L, true);
 		extended.setEnd(extendedFinish);
 		assertTrue(extended.hasImportedTimephasedWork(), "Extending the assignment preserves imported work history");
 		assertEquals(2L * 60L * 60L * 1000L, extended.getActualWork(null));
 		assertEquals(6L * 60L * 60L * 1000L, extended.getRemainingWork());
-		Assignment editedRemaining = new Assignment((com.microproject.pm.assignment.AssignmentDetail) nonPrefixAssignment.getDetail().clone());
+		Assignment editedRemaining = new Assignment((com.microproject.model.assignment.AssignmentDetail) nonPrefixAssignment.getDetail().clone());
 		editedRemaining.setRemainingWork(4L * 60L * 60L * 1000L + 30L * 60L * 1000L, null);
 		assertTrue(editedRemaining.hasImportedTimephasedWork(), "Changing remaining work preserves imported interval profiles");
 		assertEquals(2L * 60L * 60L * 1000L, editedRemaining.getActualWork(null));
@@ -2178,7 +2178,7 @@ class MpxExportTrackingTest {
 		long secondDayEditEnd = editedRemaining.getEffectiveWorkCalendar().add(editedRemaining.getStart(),
 			13L * 60L * 60L * 1000L, false);
 		assertEquals(3L * 60L * 60L * 1000L, editedRemaining.remainingWork(secondDayStart, secondDayEditEnd));
-		Assignment editedUnits = new Assignment((com.microproject.pm.assignment.AssignmentDetail) nonPrefixAssignment.getDetail().clone());
+		Assignment editedUnits = new Assignment((com.microproject.model.assignment.AssignmentDetail) nonPrefixAssignment.getDetail().clone());
 		editedUnits.forceUnits(0.5d);
 		assertTrue(editedUnits.hasImportedTimephasedWork(), "A units edit retains imported interval profiles");
 		assertEquals(0L, editedUnits.actualWork(firstMorning, firstLunch));
@@ -2497,7 +2497,7 @@ class MpxExportTrackingTest {
 		assertEquals(32L * 60L * 60L * 1000L, importedAssignment.getActualWork(null));
 		assertEquals(2L * 60L * 60L * 1000L, importedAssignment.getRemainingWork());
 		assertEquals(1.0d, importedAssignment.getUnits(), 0.00001d);
-		assertEquals(com.microproject.pm.scheduling.SchedulingType.Kind.FIXED_DURATION.code(),
+		assertEquals(com.microproject.schedule.SchedulingType.Kind.FIXED_DURATION.code(),
 			importedTask.getSchedulingType());
 		assertEquals(modelWallTime("2026-10-12T08:00:00"), importedAssignment.getStart());
 		assertEquals(modelWallTime("2026-10-16T10:00:00"), importedAssignment.getEnd());
@@ -2513,7 +2513,7 @@ class MpxExportTrackingTest {
 		Project imported = importMspdi(sourceXml);
 		NormalTask task = taskNamed(imported, "Assignment baseline task");
 		Assignment assignment = (Assignment) task.getAssignments().iterator().next();
-		assertEquals(com.microproject.pm.scheduling.SchedulingType.Kind.FIXED_DURATION.code(), task.getSchedulingType());
+		assertEquals(com.microproject.schedule.SchedulingType.Kind.FIXED_DURATION.code(), task.getSchedulingType());
 		assertEquals(0L, assignment.getWork(null));
 		assertEquals(0L, assignment.getActualWork(null));
 		assertEquals(0L, assignment.getRemainingWork());
@@ -2657,7 +2657,7 @@ class MpxExportTrackingTest {
 
 		MicrosoftImporter importer = new MicrosoftImporter();
 		importer.setFileName("leveling-delay.xml");
-		importer.setProjectFactory(com.microproject.pm.task.ProjectFactory.getInstance());
+		importer.setProjectFactory(com.microproject.model.task.ProjectFactory.getInstance());
 		Project reloaded = importer.loadProject(new ByteArrayInputStream(output.toByteArray()));
 		NormalTask reloadedTask = (NormalTask) reloaded.getTasks().stream()
 				.filter(task -> task.getId() == source.getId()).findFirst().orElseThrow();

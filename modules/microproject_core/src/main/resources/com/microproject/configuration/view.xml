@@ -1181,20 +1181,20 @@
 
 	<transform>
 		<filters id="Filters.hidden">
-			<filter id="Filter.Common" definition="com.microproject.grouping.core.transform.filtering.BaseFilter"  showAssignments="false"/>
-			<filter id="Filter.Gantt" definition="com.microproject.grouping.core.transform.filtering.BaseFilter" arguments="true" showAssignments="false"/>
-			<filter id="Filter.OfflineCommon" definition="com.microproject.grouping.core.transform.filtering.BaseFilter" showEndEmptyLines="false" showAssignments="false"/>
-			<filter id="Filter.OfflineGantt" definition="com.microproject.grouping.core.transform.filtering.BaseFilter" arguments="true" showEndEmptyLines="false" showAssignments="false"/>
-			<filter id="Filter.Graph" definition="com.microproject.grouping.core.transform.filtering.BaseFilter" showEmptyLines="false" showAssignments="false"/>
-			<filter id="Filter.ResourceUsageDetail" definition="com.microproject.grouping.core.transform.filtering.ResourceInTeamFilter"/>
-			<filter id="Filter.RBS" definition="com.microproject.grouping.core.transform.filtering.ResourceInTeamFilter" showAssignments="false" showEndEmptyLines="false"/>
-			<filter id="Filter.Charts" definition="com.microproject.grouping.core.transform.filtering.ResourceInTeamFilter" showAssignments="false" showEndEmptyLines="false" preserveHierarchy="true"/>
-			<filter id="Filter.TaskUsage" definition="com.microproject.grouping.core.transform.filtering.SelectionFilter"  arguments="true" showEmptyLines="false"/>
-			<filter id="Filter.ResourceUsage" definition="com.microproject.grouping.core.transform.filtering.SelectionFilter"  arguments="false" showEmptyLines="false"/>
-			<filter id="Filter.BelongsToTaskCollection" definition="com.microproject.grouping.core.transform.filtering.BelongsToCollectionFilter" showEmptyLines="false"  preserveHierarchy="false"/>
-			<filter id="Filter.BelongsToResourceCollection" definition="com.microproject.grouping.core.transform.filtering.BelongsToCollectionFilter" showEmptyLines="false"  preserveHierarchy="false"/>
-			<filter id="Filter.WhoDoesWhatReport" definition="com.microproject.grouping.core.transform.filtering.AssignmentCompositionFilter" showEmptyLines="true"/>
-			<filter id="Filter.ResourceInTeamInternal" definition="com.microproject.grouping.core.transform.filtering.ResourceInTeamFilter" showEndEmptyLines="false" preserveHierarchy="false"/>
+			<filter id="Filter.Common" definition="com.microproject.node.transform.filtering.BaseFilter"  showAssignments="false"/>
+			<filter id="Filter.Gantt" definition="com.microproject.node.transform.filtering.BaseFilter" arguments="true" showAssignments="false"/>
+			<filter id="Filter.OfflineCommon" definition="com.microproject.node.transform.filtering.BaseFilter" showEndEmptyLines="false" showAssignments="false"/>
+			<filter id="Filter.OfflineGantt" definition="com.microproject.node.transform.filtering.BaseFilter" arguments="true" showEndEmptyLines="false" showAssignments="false"/>
+			<filter id="Filter.Graph" definition="com.microproject.node.transform.filtering.BaseFilter" showEmptyLines="false" showAssignments="false"/>
+			<filter id="Filter.ResourceUsageDetail" definition="com.microproject.node.transform.filtering.ResourceInTeamFilter"/>
+			<filter id="Filter.RBS" definition="com.microproject.node.transform.filtering.ResourceInTeamFilter" showAssignments="false" showEndEmptyLines="false"/>
+			<filter id="Filter.Charts" definition="com.microproject.node.transform.filtering.ResourceInTeamFilter" showAssignments="false" showEndEmptyLines="false" preserveHierarchy="true"/>
+			<filter id="Filter.TaskUsage" definition="com.microproject.node.transform.filtering.SelectionFilter"  arguments="true" showEmptyLines="false"/>
+			<filter id="Filter.ResourceUsage" definition="com.microproject.node.transform.filtering.SelectionFilter"  arguments="false" showEmptyLines="false"/>
+			<filter id="Filter.BelongsToTaskCollection" definition="com.microproject.node.transform.filtering.BelongsToCollectionFilter" showEmptyLines="false"  preserveHierarchy="false"/>
+			<filter id="Filter.BelongsToResourceCollection" definition="com.microproject.node.transform.filtering.BelongsToCollectionFilter" showEmptyLines="false"  preserveHierarchy="false"/>
+			<filter id="Filter.WhoDoesWhatReport" definition="com.microproject.node.transform.filtering.AssignmentCompositionFilter" showEmptyLines="true"/>
+			<filter id="Filter.ResourceInTeamInternal" definition="com.microproject.node.transform.filtering.ResourceInTeamFilter" showEndEmptyLines="false" preserveHierarchy="false"/>
 		</filters>
 		<filters id="Filters.user">
 			<filter id="Filter.None"/>

@@ -17,8 +17,8 @@ import javax.swing.JComponent;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.contrib.calendar.ContribIntervals;
-import com.microproject.pm.calendar.WorkingCalendar;
-import com.microproject.pm.calendar.WorkingHours;
+import com.microproject.model.calendar.WorkingCalendar;
+import com.microproject.model.calendar.WorkingHours;
 import com.microproject.ui.frame.GraphicManager;
 import com.microproject.i18n.Messages;
 import com.microproject.ui.testsupport.HeadlessDialogPanels;

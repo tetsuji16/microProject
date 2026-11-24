@@ -29,8 +29,8 @@ import java.awt.geom.Rectangle2D;
 import com.microproject.view.configuration.GraphicConfiguration;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.timescale.CoordinatesConverter;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.scheduling.ScheduleInterval;
+import com.microproject.model.task.Task;
+import com.microproject.schedule.ScheduleInterval;
 
 /**
  * Shared geometry helper for Gantt selection and hit-test rectangles.

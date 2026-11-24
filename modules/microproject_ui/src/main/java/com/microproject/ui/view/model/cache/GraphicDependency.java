@@ -25,8 +25,8 @@ package com.microproject.ui.view.model.cache;
 
 import java.awt.geom.GeneralPath;
 
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.dependency.DependencyType;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.dependency.DependencyType;
 
 /**
  *

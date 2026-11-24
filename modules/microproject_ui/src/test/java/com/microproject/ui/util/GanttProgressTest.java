@@ -33,9 +33,9 @@ import java.lang.reflect.Proxy;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.scheduling.Schedule;
-import com.microproject.pm.task.ProgressLineSettings;
-import com.microproject.pm.task.TaskSpecificFields;
+import com.microproject.schedule.Schedule;
+import com.microproject.model.task.ProgressLineSettings;
+import com.microproject.model.task.TaskSpecificFields;
 import com.microproject.util.DateTime;
 
 class GanttProgressTest {

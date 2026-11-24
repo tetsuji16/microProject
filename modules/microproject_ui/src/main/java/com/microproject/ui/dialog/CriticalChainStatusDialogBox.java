@@ -25,13 +25,13 @@ import java.time.format.DateTimeFormatter;
 import java.time.Instant;
 import java.text.MessageFormat;
 
-import com.microproject.pm.ccpm.CriticalChainService;
-import com.microproject.pm.ccpm.CriticalChainBufferHistory;
-import com.microproject.pm.ccpm.CriticalChainBufferHistoryService;
-import com.microproject.pm.ccpm.CriticalChainReportService;
+import com.microproject.schedule.ccpm.CriticalChainService;
+import com.microproject.schedule.ccpm.CriticalChainBufferHistory;
+import com.microproject.schedule.ccpm.CriticalChainBufferHistoryService;
+import com.microproject.schedule.ccpm.CriticalChainReportService;
 import com.microproject.ui.view.views.CriticalChainBufferChartPanel;
 import com.microproject.ui.view.views.CriticalChainGraphPanel;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.ui.menu.MenuActionConstants;
 import com.microproject.ui.util.FlatUiSupport;
 import com.microproject.ui.util.FlatLafDialog;

@@ -28,7 +28,7 @@ import java.awt.Graphics2D;
 
 import com.microproject.ui.view.graph.GraphParams;
 import com.microproject.ui.view.model.cache.ReferenceNodeModelCache;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 
 public interface SVGRenderer {
 	public void init(Project project, ReferenceNodeModelCache refCache);

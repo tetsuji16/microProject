@@ -26,7 +26,7 @@ package com.microproject.interval;
 import java.io.Serializable;
 import java.util.Comparator;
 
-import com.microproject.pm.time.MutableHasStartAndEnd;
+import com.microproject.model.time.MutableHasStartAndEnd;
 import com.microproject.util.DateTime;
 
 /**

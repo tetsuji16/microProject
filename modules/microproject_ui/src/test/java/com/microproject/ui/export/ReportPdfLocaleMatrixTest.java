@@ -28,13 +28,13 @@ import com.microproject.configuration.Dictionary;
 import com.microproject.configuration.ReportDefinition;
 import com.microproject.field.Field;
 import com.microproject.view.configuration.SpreadSheetFieldArray;
-import com.microproject.grouping.core.model.NodeModel;
-import com.microproject.grouping.core.transform.filtering.PredicatedNodeFilterIterator;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.assignment.AssignmentService;
-import com.microproject.pm.resource.ResourceImpl;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
+import com.microproject.node.model.NodeModel;
+import com.microproject.node.transform.filtering.PredicatedNodeFilterIterator;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.assignment.AssignmentService;
+import com.microproject.model.resource.ResourceImpl;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
 import com.microproject.ui.print.GraphPageable;
 import com.microproject.reports.adapter.DataSourceProvider;
 import com.microproject.reports.adapter.ReportDataSource;
@@ -220,7 +220,7 @@ class ReportPdfLocaleMatrixTest {
 
 	private static Project fixtureProject() {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
-		Project project = Project.createProject(com.microproject.pm.resource.ResourcePool.createRourcePool("m2-4", undo), undo);
+		Project project = Project.createProject(com.microproject.model.resource.ResourcePool.createRourcePool("m2-4", undo), undo);
 		project.initialize(false, false);
 		project.setStartDate(java.time.LocalDate.of(2026, 10, 19)
 			.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli());
@@ -265,7 +265,7 @@ class ReportPdfLocaleMatrixTest {
 		@Override public boolean hasNext() {
 			while (!prepared && delegate.hasNext()) {
 				Object candidate = delegate.next();
-				Object value = candidate instanceof com.microproject.grouping.core.Node node ? node.getImpl() : candidate;
+				Object value = candidate instanceof com.microproject.node.Node node ? node.getImpl() : candidate;
 				if (predicate.test(value)) { next = candidate; prepared = true; }
 			}
 			return prepared;
@@ -273,7 +273,7 @@ class ReportPdfLocaleMatrixTest {
 		@Override public Object next() {
 			if (!hasNext()) throw new java.util.NoSuchElementException();
 			prepared = false;
-			return !nodeBased && next instanceof com.microproject.grouping.core.Node node ? node.getImpl() : next;
+			return !nodeBased && next instanceof com.microproject.node.Node node ? node.getImpl() : next;
 		}
 	}
 }

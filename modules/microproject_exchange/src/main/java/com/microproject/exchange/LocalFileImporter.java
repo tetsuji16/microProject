@@ -45,7 +45,7 @@ import javax.swing.SwingUtilities;
 import com.microproject.job.Job;
 import com.microproject.port.SaveFailureFeedback;
 import com.microproject.job.JobRunnable;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.persistence.data.DataUtil;
 import com.microproject.persistence.data.DocumentData;
 import com.microproject.session.LoadOptions;

@@ -46,7 +46,7 @@ import com.microproject.util.Alert;
 import com.microproject.util.BrowserControl;
 import com.microproject.util.UiDispatch;
 import com.microproject.job.JobQueueUiServices;
-import com.microproject.grouping.core.transform.TransformParameterDialogServices;
+import com.microproject.node.transform.TransformParameterDialogServices;
 import com.microproject.ui.dialog.TransformParameterDialog;
 import com.microproject.util.DebugUtils;
 import com.microproject.util.Environment;

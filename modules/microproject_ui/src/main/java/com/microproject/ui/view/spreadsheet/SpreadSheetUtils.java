@@ -44,13 +44,13 @@ import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
 import com.microproject.view.configuration.SpreadSheetCategories;
 import com.microproject.view.configuration.SpreadSheetFieldArray;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.NodeModel;
-import com.microproject.grouping.core.model.NodeModelDataFactory;
-import com.microproject.grouping.core.model.NodeModelFactory;
-import com.microproject.grouping.core.transform.ViewTransformer;
-import com.microproject.grouping.core.transform.filtering.BelongsToCollectionFilter;
-import com.microproject.grouping.core.transform.filtering.NodeFilter;
+import com.microproject.node.Node;
+import com.microproject.node.model.NodeModel;
+import com.microproject.node.model.NodeModelDataFactory;
+import com.microproject.node.model.NodeModelFactory;
+import com.microproject.node.transform.ViewTransformer;
+import com.microproject.node.transform.filtering.BelongsToCollectionFilter;
+import com.microproject.node.transform.filtering.NodeFilter;
 import com.microproject.i18n.Messages;
 
 /**

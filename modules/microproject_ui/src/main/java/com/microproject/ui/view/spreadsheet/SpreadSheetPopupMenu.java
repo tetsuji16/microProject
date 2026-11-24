@@ -37,9 +37,9 @@ import com.microproject.ui.menu.MenuManager;
 import com.microproject.view.configuration.SpreadSheetCategories;
 import com.microproject.ui.view.IconManager;
 import com.microproject.ui.frame.GraphicManager;
-import com.microproject.pm.task.ScheduleDiagnosticsService;
-import com.microproject.pm.task.SubProj;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.ScheduleDiagnosticsService;
+import com.microproject.model.task.SubProj;
+import com.microproject.model.task.Task;
 import com.microproject.i18n.Messages;
 
 /**

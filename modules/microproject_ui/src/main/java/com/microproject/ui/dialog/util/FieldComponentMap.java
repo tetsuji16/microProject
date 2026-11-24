@@ -37,11 +37,11 @@ import com.microproject.ui.help.HelpUtil;
 import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
 import com.microproject.field.ObjectRef;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.NodeModel;
-import com.microproject.grouping.core.model.NodeModelDataFactory;
-import com.microproject.grouping.core.model.WalkersNodeModel;
-import com.microproject.pm.task.BelongsToDocument;
+import com.microproject.node.Node;
+import com.microproject.node.model.NodeModel;
+import com.microproject.node.model.NodeModelDataFactory;
+import com.microproject.node.model.WalkersNodeModel;
+import com.microproject.model.task.BelongsToDocument;
 /**
  *
  */

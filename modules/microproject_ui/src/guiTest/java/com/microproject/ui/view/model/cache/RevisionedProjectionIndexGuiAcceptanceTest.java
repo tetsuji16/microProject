@@ -35,18 +35,18 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.configuration.Dictionary;
 import com.microproject.view.configuration.BarStyles;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.transform.ViewTransformer;
-import com.microproject.grouping.core.transform.sorting.NodeSorter;
+import com.microproject.node.Node;
+import com.microproject.node.transform.ViewTransformer;
+import com.microproject.node.transform.sorting.NodeSorter;
 import com.microproject.ui.view.gantt.Gantt;
 import com.microproject.ui.view.gantt.GanttUI;
 import com.microproject.ui.view.graph.GraphZone;
 import com.microproject.ui.view.timescale.CoordinatesConverter;
 import com.microproject.options.CalendarOption;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.ui.testsupport.GuiAcceptanceSupport;
 

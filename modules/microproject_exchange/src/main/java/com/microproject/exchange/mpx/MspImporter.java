@@ -64,25 +64,25 @@ import com.microproject.datatype.DurationDefaults;
 import com.microproject.exchange.ImportedCalendarService;
 import com.microproject.exchange.MspdiProjectBoundary;
 import com.microproject.exchange.BoundedInput;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.NodeFactory;
-import com.microproject.pm.calendar.CalendarService;
-import com.microproject.pm.calendar.WorkCalendar;
-import com.microproject.pm.calendar.WorkingCalendar;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.resource.EnterpriseResource;
-import com.microproject.pm.resource.ResourceImpl;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.BulkScheduleBuilder;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.task.TaskSnapshot;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.SubProj;
-import com.microproject.pm.task.DefaultSubProj;
-import com.microproject.pm.criticalpath.TaskSchedule;
+import com.microproject.node.Node;
+import com.microproject.node.NodeFactory;
+import com.microproject.model.calendar.CalendarService;
+import com.microproject.model.calendar.WorkCalendar;
+import com.microproject.model.calendar.WorkingCalendar;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.resource.EnterpriseResource;
+import com.microproject.model.resource.ResourceImpl;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.BulkScheduleBuilder;
+import com.microproject.model.task.Task;
+import com.microproject.model.task.TaskSnapshot;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.SubProj;
+import com.microproject.model.task.DefaultSubProj;
+import com.microproject.schedule.criticalpath.TaskSchedule;
 import com.microproject.session.FileHelper;
 import com.microproject.undo.DataFactoryUndoController;
 
@@ -184,9 +184,9 @@ public class MspImporter {
 
 	private static void collectImportedBaselineFixedCosts(NormalTask summary, int slot,
 		java.util.List<TaskSnapshot.FixedCostProfile> profiles) {
-		java.util.Collection<com.microproject.grouping.core.Node> children = summary.getWbsChildrenNodes();
+		java.util.Collection<com.microproject.node.Node> children = summary.getWbsChildrenNodes();
 		if (children == null) return;
-		for (com.microproject.grouping.core.Node node : children) {
+		for (com.microproject.node.Node node : children) {
 			if (!(node.getImpl() instanceof NormalTask child)) continue;
 			if (child.getSnapshot(Integer.valueOf(slot)) instanceof TaskSnapshot childSnapshot) {
 				TaskSnapshot.FixedCostProfile profile = childSnapshot.captureOwnFixedCostProfile(

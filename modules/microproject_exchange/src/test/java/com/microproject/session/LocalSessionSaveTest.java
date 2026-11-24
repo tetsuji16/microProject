@@ -26,10 +26,10 @@ import org.junit.jupiter.api.io.TempDir;
 
 import com.microproject.job.Job;
 import com.microproject.job.JobQueue;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectEvent;
-import com.microproject.pm.task.ProjectListener;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectEvent;
+import com.microproject.model.task.ProjectListener;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.UiDispatch;
 import com.microproject.util.UiDispatcher;

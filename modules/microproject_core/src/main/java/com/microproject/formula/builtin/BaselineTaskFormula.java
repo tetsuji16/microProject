@@ -23,7 +23,7 @@
  *******************************************************************************/
 package com.microproject.formula.builtin;
 
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.Task;
 
 public class BaselineTaskFormula extends TaskFormula {
 	public boolean evaluateTask(Task task){

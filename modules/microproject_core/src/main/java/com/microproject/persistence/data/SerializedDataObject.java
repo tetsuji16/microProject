@@ -23,7 +23,7 @@
  *******************************************************************************/
 package com.microproject.persistence.data;
 
-import com.microproject.pm.key.uniqueid.UniqueIdException;
+import com.microproject.model.key.uniqueid.UniqueIdException;
 import com.microproject.session.SessionFactory;
 
 

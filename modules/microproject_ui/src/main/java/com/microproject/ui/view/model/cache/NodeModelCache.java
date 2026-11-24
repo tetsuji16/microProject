@@ -30,9 +30,9 @@ import javax.swing.tree.TreeModel;
 
 import com.microproject.ui.view.model.event.CacheListener;
 import com.microproject.association.InvalidAssociationException;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.NodeModel;
-import com.microproject.grouping.core.model.WalkersNodeModel;
+import com.microproject.node.Node;
+import com.microproject.node.model.NodeModel;
+import com.microproject.node.model.WalkersNodeModel;
 /**
  * This class lies between the SpreadSheet and the SpreadSheetModel.
  * It holds the states directly linked to the view.

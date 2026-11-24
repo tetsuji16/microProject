@@ -64,23 +64,23 @@ import org.junit.jupiter.api.Test;
 import com.microproject.ui.dialog.BaselineDialog;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.field.Field;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.NodeFactory;
-import com.microproject.grouping.core.transform.grouping.NodeGroup;
+import com.microproject.node.Node;
+import com.microproject.node.NodeFactory;
+import com.microproject.node.transform.grouping.NodeGroup;
 import com.microproject.ui.menu.MenuActionConstants;
 import com.microproject.ui.menu.MenuActionMapSupport;
 import com.microproject.ui.menu.MenuManager;
 import com.microproject.options.CalendarOption;
 import com.microproject.collaboration.CollaborationSession;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.assignment.AssignmentService;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.DefaultSubProj;
-import com.microproject.pm.snapshot.Snapshottable;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Task;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.assignment.AssignmentService;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.DefaultSubProj;
+import com.microproject.model.snapshot.Snapshottable;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Task;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.ui.view.views.Searchable;
 import com.microproject.ui.view.views.BaseView;
@@ -88,7 +88,7 @@ import com.microproject.ui.view.spreadsheet.SpreadSheet;
 import com.microproject.ui.view.model.transform.NodeCacheTransformer;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.model.cache.NodeModelCache;
-import com.microproject.pm.scheduling.ScheduleInterval;
+import com.microproject.schedule.ScheduleInterval;
 import com.microproject.util.Environment;
 import com.microproject.ui.frame.workspace.FrameManager;
 import com.microproject.ui.frame.workspace.NamedFrame;
@@ -1634,9 +1634,9 @@ class RibbonButtonBehaviorTest {
 	@Test
 	void progressLineSettingsRespectReadOnlyAndParticipateInUndoRedo() throws Exception {
 		Harness harness = newHarness();
-		var settings = new com.microproject.pm.task.ProgressLineSettings(true,
-			com.microproject.pm.task.ProgressLineSettings.ReferenceDate.CURRENT_DATE,
-			true, 2, com.microproject.pm.task.ProgressLineSettings.IntervalUnit.WEEK);
+		var settings = new com.microproject.model.task.ProgressLineSettings(true,
+			com.microproject.model.task.ProgressLineSettings.ReferenceDate.CURRENT_DATE,
+			true, 2, com.microproject.model.task.ProgressLineSettings.IntervalUnit.WEEK);
 		SwingUtilities.invokeAndWait(() -> {
 			harness.undoController.clear();
 			harness.frame.getGanttView().getGantt().setProgressLineEnabled(true);
@@ -1672,9 +1672,9 @@ class RibbonButtonBehaviorTest {
 			harness.manager.doUndoRedo(false);
 			assertEquals(settings, harness.project.getProgressLineSettings());
 			harness.project.setReadOnly(true);
-			var different = new com.microproject.pm.task.ProgressLineSettings(false,
-				com.microproject.pm.task.ProgressLineSettings.ReferenceDate.STATUS_DATE,
-				false, 1, com.microproject.pm.task.ProgressLineSettings.IntervalUnit.DAY);
+			var different = new com.microproject.model.task.ProgressLineSettings(false,
+				com.microproject.model.task.ProgressLineSettings.ReferenceDate.STATUS_DATE,
+				false, 1, com.microproject.model.task.ProgressLineSettings.IntervalUnit.DAY);
 			assertFalse(harness.manager.applyProgressLineSettings(harness.project, harness.frame.getGanttView(), different, true));
 			assertEquals(settings, harness.project.getProgressLineSettings(), "read-only projects must keep their settings");
 		});

@@ -21,8 +21,8 @@ import java.util.Map;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
-import com.microproject.pm.ccpm.CriticalChainService;
-import com.microproject.pm.task.Project;
+import com.microproject.schedule.ccpm.CriticalChainService;
+import com.microproject.model.task.Project;
 import com.microproject.ui.dialog.UsabilityStrings;
 import com.microproject.ui.util.ColorLuminance;
 import com.microproject.ui.util.FlatUiSupport;

@@ -23,7 +23,7 @@
  *******************************************************************************/
 package com.microproject.session;
 
-import com.microproject.pm.resource.ResourcePool;
+import com.microproject.model.resource.ResourcePool;
 
 public class CreateOptions {
 	protected ResourcePool resourcePool;

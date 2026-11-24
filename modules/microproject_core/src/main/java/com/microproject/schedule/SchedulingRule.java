@@ -1,0 +1,41 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.schedule;
+
+import com.microproject.model.assignment.Allocation;
+
+/**
+ * @stereotype strategy
+ * 
+ * In a... If you revise units... If you revise duration... If you revise work... 
+ * Fixed-units task Duration is recalculated. Work is recalculated. Duration is recalculated. 
+ * Fixed-work task Duration is recalculated. Units are recalculated. Duration is recalculated. 
+ * Fixed-duration task Work is recalculated. Work is recalculated. Units are recalculated. 
+ */
+public interface SchedulingRule {
+	public void adjustRemainingUnits(Allocation allocation, double newRemainingUnits, double oldRemainingUnits, boolean doChildren, boolean conserveTotalUnits);
+	public void adjustRemainingDuration(Allocation allocation, long newRemainingDuration, boolean doChildren);
+	public void adjustRemainingWork(Allocation allocation, long newRemainingWork, boolean doChildren);
+	public void adjustRemainingWork(Allocation allocation, long newRemainingWork, long oldRemainingWork, boolean doChildren);
+}

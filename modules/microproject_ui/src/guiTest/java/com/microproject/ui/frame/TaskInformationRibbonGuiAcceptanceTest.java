@@ -121,19 +121,19 @@ import com.microproject.exchange.MpoFileImporter;
 import com.microproject.exchange.LocalFileImporter;
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.field.Field;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.transform.CommonTransformFactory;
-import com.microproject.grouping.core.transform.sorting.TaskSortSpec;
-import com.microproject.grouping.core.transform.ViewConfiguration;
-import com.microproject.grouping.core.transform.ViewTransformer;
+import com.microproject.node.Node;
+import com.microproject.node.transform.CommonTransformFactory;
+import com.microproject.node.transform.sorting.TaskSortSpec;
+import com.microproject.node.transform.ViewConfiguration;
+import com.microproject.node.transform.ViewTransformer;
 import com.microproject.job.JobQueue;
 import com.microproject.job.Job;
 import com.microproject.ui.menu.testsupport.UiComponentWalker;
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.dependency.DependencyService;
-import com.microproject.pm.dependency.DependencyType;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.dependency.DependencyService;
+import com.microproject.model.dependency.DependencyType;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.assignment.AssignmentService;
 import com.microproject.ui.view.gantt.Gantt;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.model.cache.NodeModelCache;
@@ -154,10 +154,10 @@ import com.microproject.ui.view.views.PertView;
 import com.microproject.ui.view.views.TreeView;
 import com.microproject.view.configuration.BarFormat;
 import com.microproject.view.configuration.TexturedShape;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.resource.Resource;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.resource.Resource;
 import com.microproject.options.CalendarOption;
-import com.microproject.pm.calendar.WorkingCalendar;
+import com.microproject.model.calendar.WorkingCalendar;
 import com.microproject.configuration.ReportDefinition;
 import com.microproject.ui.view.views.ResourceView;
 import com.microproject.ui.theme.MicroProjectTheme;
@@ -166,12 +166,12 @@ import com.microproject.ui.print.GraphPageable;
 import com.microproject.ui.print.PrintDocumentFactory;
 import com.microproject.reports.render.ReportPreview;
 import com.microproject.ui.report.ReportView;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectTaskKey;
-import com.microproject.pm.task.ProjectFactory;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.snapshot.Snapshottable;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectTaskKey;
+import com.microproject.model.task.ProjectFactory;
+import com.microproject.model.task.Task;
+import com.microproject.model.snapshot.Snapshottable;
 import com.microproject.i18n.Messages;
 import com.microproject.session.SessionFactory;
 import com.microproject.ui.testsupport.GuiAcceptanceSupport;
@@ -334,10 +334,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 	}
 
 	/** Leveling that adjusts individual assignments stores its delay on the assignments; the task start moves with it. */
-	private static long levelingDelay(com.microproject.pm.task.Task task) {
+	private static long levelingDelay(com.microproject.model.task.Task task) {
 		long total = com.microproject.datatype.Duration.millis(task.getLevelingDelay());
 		if (task instanceof NormalTask normal) for (Object value : normal.getAssignments())
-			total += com.microproject.datatype.Duration.millis(((com.microproject.pm.assignment.Assignment) value).getLevelingDelay());
+			total += com.microproject.datatype.Duration.millis(((com.microproject.model.assignment.Assignment) value).getLevelingDelay());
 		return total;
 	}
 
@@ -1724,7 +1724,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		long day = CalendarOption.getInstance().getMillisPerDay();
 		long constraintDate = CalendarOption.getInstance().makeValidEnd(project.getStart() + 5L * day, false);
 		task.setDuration(day);
-		task.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, constraintDate);
+		task.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, constraintDate);
 		NormalTask successor = project.createScriptedTask();
 		successor.setName("Constraint successor acceptance");
 		successor.setDuration(2L * day);
@@ -1774,7 +1774,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"Robot click did not open Task Information Advanced");
 		JComboBox<?> constraintType = findConstraintTypeCombo(dialog);
 		assertNotNull(constraintType, "Advanced must expose the constraint type combo");
-		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET.code(), task.getConstraintType());
+		assertEquals(com.microproject.schedule.ConstraintType.Kind.SNET.code(), task.getConstraintType());
 		assertEquals(constraintDate, task.getConstraintDate(), "fixture constraint date must be deterministic");
 		DialogScreenshotArtifacts.capture(dialog, "issue-794-constraint-type-advanced-before-edit");
 		click(robot, constraintType);
@@ -1787,7 +1787,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		press(robot, KeyEvent.VK_ENTER);
 		press(robot, KeyEvent.VK_TAB);
 		GuiAcceptanceSupport.await(() -> task.getConstraintType()
-			== com.microproject.pm.scheduling.ConstraintType.Kind.ASAP.code(),
+			== com.microproject.schedule.ConstraintType.Kind.ASAP.code(),
 			"physical Advanced combo selection did not apply As Soon As Possible");
 		GuiAcceptanceSupport.await(() -> Messages.getString("ConstraintType.ASAP")
 			.equals(String.valueOf(constraintType.getSelectedItem())),
@@ -1813,7 +1813,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> !dialog.isVisible(), "Robot did not close Task Information before project Undo");
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
 		GuiAcceptanceSupport.await(() -> task.getConstraintType()
-			== com.microproject.pm.scheduling.ConstraintType.Kind.SNET.code(), "Ctrl+Z did not restore SNET");
+			== com.microproject.schedule.ConstraintType.Kind.SNET.code(), "Ctrl+Z did not restore SNET");
 		assertEquals(constraintDate, task.getConstraintDate(), "Undo must restore the SNET constraint date");
 		assertEquals(beforeTargetStart, task.getStart());
 		assertEquals(beforeTargetFinish, task.getEnd());
@@ -1823,7 +1823,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertEquals(beforeUnrelatedFinish, unrelated.getEnd());
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
 		GuiAcceptanceSupport.await(() -> task.getConstraintType()
-			== com.microproject.pm.scheduling.ConstraintType.Kind.ASAP.code(), "Ctrl+Y did not restore ASAP");
+			== com.microproject.schedule.ConstraintType.Kind.ASAP.code(), "Ctrl+Y did not restore ASAP");
 		assertEquals(0L, task.getConstraintDate());
 		assertEquals(afterTargetStart, task.getStart());
 		assertEquals(afterTargetFinish, task.getEnd());
@@ -1840,7 +1840,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			.findFirst().orElseThrow();
 		assertEquals(task.getId(), reopenedTask.getId(), "MPO reload must retain the task's serialized UID");
 		NormalTask reopenedSuccessor = taskNamed(reopened, successor.getName());
-		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.ASAP.code(), reopenedTask.getConstraintType());
+		assertEquals(com.microproject.schedule.ConstraintType.Kind.ASAP.code(), reopenedTask.getConstraintType());
 		assertEquals(0L, reopenedTask.getConstraintDate());
 		assertEquals(afterTargetStart, reopenedTask.getStart());
 		assertEquals(afterTargetFinish, reopenedTask.getEnd());
@@ -1868,7 +1868,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		long intendedConstraintDate = CalendarOption.getInstance().makeValidEnd(originalConstraintDate + 14L * day, false);
 		long[] editedConstraintDate = { intendedConstraintDate };
 		task.setDuration(day);
-		task.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.SNET, originalConstraintDate);
+		task.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.SNET, originalConstraintDate);
 		NormalTask successor = project.createScriptedTask();
 		successor.setName("Constraint date successor acceptance");
 		successor.setDuration(2L * day);
@@ -1936,7 +1936,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertEquals(committedText, dateFormat.format(new java.util.Date(editedConstraintDate[0])),
 			"physical Advanced constraint date entry must match the model's displayed date");
 		assertNotEquals(originalConstraintDate, editedConstraintDate[0]);
-		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET.code(), task.getConstraintType());
+		assertEquals(com.microproject.schedule.ConstraintType.Kind.SNET.code(), task.getConstraintType());
 		assertTrue(task.getStart() >= editedConstraintDate[0], "SNET target must honor its edited constraint date");
 		assertEquals(task.getEffectiveWorkCalendar().adjustInsideCalendar(task.getConstraintDate(), false), task.getStart(),
 			"SNET task start must be normalized to the first effective-calendar working time at or after its constraint");
@@ -2076,7 +2076,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			.findFirst().orElseThrow();
 		assertEquals(task.getId(), reopenedTask.getId(), "MPO reload must retain the task's serialized UID");
 		assertEquals(editedConstraintDate[0], reopenedTask.getConstraintDate());
-		assertEquals(com.microproject.pm.scheduling.ConstraintType.Kind.SNET.code(), reopenedTask.getConstraintType());
+		assertEquals(com.microproject.schedule.ConstraintType.Kind.SNET.code(), reopenedTask.getConstraintType());
 		assertEquals(editedTargetStart, reopenedTask.getStart());
 		assertEquals(editedTargetFinish, reopenedTask.getEnd());
 		NormalTask reopenedSuccessor = taskNamed(reopened, successor.getName());
@@ -2972,7 +2972,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		ChangeWorkingTimeDialogBox dialog = java.util.Arrays.stream(Window.getWindows())
 			.filter(candidate -> candidate instanceof ChangeWorkingTimeDialogBox && candidate.isShowing())
 			.map(ChangeWorkingTimeDialogBox.class::cast).findFirst().orElseThrow();
-		com.microproject.pm.calendar.WorkingCalendar calendar = (com.microproject.pm.calendar.WorkingCalendar)
+		com.microproject.model.calendar.WorkingCalendar calendar = (com.microproject.model.calendar.WorkingCalendar)
 			manager.getCurrentFrame().getProject().getWorkCalendar();
 		int exceptionCount = calendar.getExceptionDays().length;
 		int workWeekCount = calendar.getWorkWeekPeriods().size();
@@ -3868,16 +3868,16 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> {
 			CommonSpreadSheetModel model = (CommonSpreadSheetModel) sheet.getModel();
 			for (int row = 0; row < sheet.getRowCount(); row++)
-				if (model.getNode(row) != null && model.getNode(row).getNode().getImpl() instanceof com.microproject.grouping.core.GroupNodeImpl)
+				if (model.getNode(row) != null && model.getNode(row).getNode().getImpl() instanceof com.microproject.node.GroupNodeImpl)
 					return true;
 			return false;
 		}, "physical View > Group did not create a virtual group row");
 		CommonSpreadSheetModel groupedModel = (CommonSpreadSheetModel) sheet.getModel();
 		int groupRow = -1;
-		com.microproject.grouping.core.Node groupNode = null;
+		com.microproject.node.Node groupNode = null;
 		for (int row = 0; row < sheet.getRowCount(); row++) {
 			if (groupedModel.getNode(row) != null
-					&& groupedModel.getNode(row).getNode().getImpl() instanceof com.microproject.grouping.core.GroupNodeImpl) {
+					&& groupedModel.getNode(row).getNode().getImpl() instanceof com.microproject.node.GroupNodeImpl) {
 				groupRow = row;
 				groupNode = groupedModel.getNode(row).getNode();
 				break;
@@ -3958,7 +3958,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> {
 			CommonSpreadSheetModel model = (CommonSpreadSheetModel) sheet.getModel();
 			for (int row = 0; row < sheet.getRowCount(); row++)
-				if (model.getNode(row) != null && model.getNode(row).getNode().getImpl() instanceof com.microproject.grouping.core.GroupNodeImpl)
+				if (model.getNode(row) != null && model.getNode(row).getNode().getImpl() instanceof com.microproject.node.GroupNodeImpl)
 					return false;
 			return true;
 		}, "group Hide test did not restore the ungrouped task view");
@@ -4488,7 +4488,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		var taskModel = project.getTaskModel();
 		var summaryNode = taskModel.search(summary);
 		assertTrue(taskModel.relocate(List.of(taskModel.search(task)), summaryNode, 0,
-			com.microproject.grouping.core.model.NodeModel.SILENT));
+			com.microproject.node.model.NodeModel.SILENT));
 		summary.setWbsChildrenNodes(taskModel.getHierarchy().getChildren(summaryNode));
 		task.setWbsParent(summary);
 		Resource resource = project.getResourcePool().createScriptedResource();
@@ -4536,7 +4536,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"A completed Save Baseline command must preserve the user's selected task row");
 		assertTrue(rowForTask(sheet, task) >= 0, "Baseline mutation must keep the task visible");
 		long originalBaselineStart = task.getBaselineStart(Snapshottable.BASELINE);
-		int originalSummaryBaselineProfileCount = ((com.microproject.pm.task.TaskSnapshot)
+		int originalSummaryBaselineProfileCount = ((com.microproject.model.task.TaskSnapshot)
 			summary.getSnapshot(Snapshottable.BASELINE))
 			.captureBaselineProfiles(summary, Snapshottable.BASELINE).size();
 		Assignment.BaselineValues originalBaselineValues = assignment.getBaselineValues(Snapshottable.BASELINE);
@@ -4579,8 +4579,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		SwingUtilities.invokeAndWait(() -> summaryRollupSelected[0] = summaryRollupCheckbox.isSelected());
 		assertTrue(summaryRollupSelected[0], "The physical summary-roll-up checkbox must remain selected");
 		AtomicInteger baselineEventCount = new AtomicInteger();
-		com.microproject.pm.scheduling.ScheduleEventListener baselineListener = event -> {
-			if (com.microproject.pm.scheduling.ScheduleEvent.BASELINE.equals(event.getType())) baselineEventCount.incrementAndGet();
+		com.microproject.schedule.ScheduleEventListener baselineListener = event -> {
+			if (com.microproject.schedule.ScheduleEvent.BASELINE.equals(event.getType())) baselineEventCount.incrementAndGet();
 		};
 		AtomicInteger undoEditCount = new AtomicInteger();
 		com.microproject.undo.EditListener undoListener = edit -> undoEditCount.incrementAndGet();
@@ -4656,7 +4656,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			baselineLabels.getString("dialog.yes")));
 		GuiAcceptanceSupport.await(() -> !overwriteDialog.isShowing()
 				&& task.getBaselineStart(Snapshottable.BASELINE) == overwrittenBaselineStart
-				&& ((com.microproject.pm.task.TaskSnapshot) summary.getSnapshot(Snapshottable.BASELINE))
+				&& ((com.microproject.model.task.TaskSnapshot) summary.getSnapshot(Snapshottable.BASELINE))
 					.captureBaselineProfiles(summary, Snapshottable.BASELINE).size() == 1
 				&& baselineEventCount.get() == eventCountBeforeConfirmation + 1 && undoEditCount.get() == 1,
 			"Save Baseline did not overwrite the task and roll its baseline up to the summary");
@@ -4670,7 +4670,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"The overwritten leaf Baseline Cost includes its replacement Fixed Cost");
 		assertEquals(25.0d, summary.getBaselineCost(Snapshottable.BASELINE), 0.001d,
 			"The rolled-up summary includes descendant Baseline Cost and its own Fixed Cost once");
-		assertEquals(1, ((com.microproject.pm.task.TaskSnapshot) summary.getSnapshot(Snapshottable.BASELINE))
+		assertEquals(1, ((com.microproject.model.task.TaskSnapshot) summary.getSnapshot(Snapshottable.BASELINE))
 			.captureBaselineProfiles(summary, Snapshottable.BASELINE).size(),
 			"The summary receives one detached child baseline profile");
 		assertNotEquals(originalBaselineValues, overwrittenBaselineValues,
@@ -4678,7 +4678,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
 		GuiAcceptanceSupport.await(() -> task.getBaselineStart(Snapshottable.BASELINE) == originalBaselineStart
-				&& ((com.microproject.pm.task.TaskSnapshot) summary.getSnapshot(Snapshottable.BASELINE))
+				&& ((com.microproject.model.task.TaskSnapshot) summary.getSnapshot(Snapshottable.BASELINE))
 					.captureBaselineProfiles(summary, Snapshottable.BASELINE).size() == originalSummaryBaselineProfileCount
 				&& originalBaselineValues.equals(assignment.getBaselineValues(Snapshottable.BASELINE)),
 			"Undo did not restore the overwritten task and summary baseline snapshots");
@@ -4698,14 +4698,14 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			"MPO reopen preserves the restored leaf total Baseline Cost");
 		NormalTask restoredSummary = (NormalTask) taskNamed(restoredReload, summary.getName());
 		assertEquals(originalSummaryBaselineProfileCount,
-			((com.microproject.pm.task.TaskSnapshot) restoredSummary.getSnapshot(Snapshottable.BASELINE))
+			((com.microproject.model.task.TaskSnapshot) restoredSummary.getSnapshot(Snapshottable.BASELINE))
 				.captureBaselineProfiles(restoredSummary, Snapshottable.BASELINE).size(),
 			"Undo snapshot MPO reload must restore the summary profile list");
 		Assignment restoredAssignment = (Assignment) restoredTask.getAssignments().iterator().next();
 		assertEquals(originalBaselineValues, restoredAssignment.getBaselineValues(Snapshottable.BASELINE));
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
 		GuiAcceptanceSupport.await(() -> task.getBaselineStart(Snapshottable.BASELINE) == overwrittenBaselineStart
-				&& ((com.microproject.pm.task.TaskSnapshot) summary.getSnapshot(Snapshottable.BASELINE))
+				&& ((com.microproject.model.task.TaskSnapshot) summary.getSnapshot(Snapshottable.BASELINE))
 					.captureBaselineProfiles(summary, Snapshottable.BASELINE).size() == 1
 				&& overwrittenBaselineValues.equals(assignment.getBaselineValues(Snapshottable.BASELINE)),
 			"Redo did not restore the replacement task and summary baseline snapshots");
@@ -4721,7 +4721,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		NormalTask reloadedSummary = (NormalTask) taskNamed(reloaded, summary.getName());
 		assertEquals(25.0d, reloadedSummary.getBaselineCost(Snapshottable.BASELINE), 0.001d,
 			"MPO reopen preserves the rolled-up summary total Baseline Cost");
-		assertEquals(1, ((com.microproject.pm.task.TaskSnapshot) reloadedSummary.getSnapshot(Snapshottable.BASELINE))
+		assertEquals(1, ((com.microproject.model.task.TaskSnapshot) reloadedSummary.getSnapshot(Snapshottable.BASELINE))
 			.captureBaselineProfiles(reloadedSummary, Snapshottable.BASELINE).size(),
 			"MPO reopen must retain the summary's detached rolled-up profile");
 		Assignment reloadedAssignment = (Assignment) reloadedTask.getAssignments().iterator().next();
@@ -5833,7 +5833,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		int insertedRow = rowForTask(sheet, second) + 1;
 		assertSame(insertedNode, sheet.getNodeAtRow(insertedRow),
 			"the visible row immediately after the selected range must be the inserted placeholder Node");
-		assertTrue(insertedNode.getImpl() instanceof com.microproject.grouping.core.VoidNodeImpl,
+		assertTrue(insertedNode.getImpl() instanceof com.microproject.node.VoidNodeImpl,
 			"the first newly inserted task row must start blank");
 		click(robot, cellOnScreen(sheet, insertedRow, nameColumn(sheet)));
 		GuiAcceptanceSupport.await(sheet::isFocusOwner, "the new task name cell did not receive focus");
@@ -6749,11 +6749,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		JComboBox<?> typeChoice = UiComponentWalker.flatten(edgeDialog).stream()
 			.filter(JComboBox.class::isInstance).map(JComboBox.class::cast).findFirst()
 			.orElseThrow(() -> new AssertionError("DependencyDialog type list is missing"));
-		com.microproject.pm.dependency.DependencyType.Kind initialTargetKind =
-			com.microproject.pm.dependency.DependencyType.Kind.SS;
+		com.microproject.model.dependency.DependencyType.Kind initialTargetKind =
+			com.microproject.model.dependency.DependencyType.Kind.SS;
 		int targetTypeIndex = java.util.stream.IntStream.range(0, typeChoice.getItemCount())
 			.filter(index -> Integer.valueOf(initialTargetKind.code()).equals(
-				com.microproject.pm.dependency.DependencyType.mapStringToValue(
+				com.microproject.model.dependency.DependencyType.mapStringToValue(
 					String.valueOf(typeChoice.getItemAt(index)))))
 			.findFirst().orElseThrow(() -> new AssertionError("DependencyDialog has no SS link type"));
 		click(robot, typeChoice);
@@ -6766,11 +6766,11 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		int changedType = linkedDependency.getDependencyType();
 		long changedSuccessorStart = successor.getStart();
 		long changedSuccessorFinish = successor.getEnd();
-		com.microproject.pm.dependency.DependencyType.Kind changedKind =
-			com.microproject.pm.dependency.DependencyType.Kind.fromCode(changedType);
+		com.microproject.model.dependency.DependencyType.Kind changedKind =
+			com.microproject.model.dependency.DependencyType.Kind.fromCode(changedType);
 		assertEquals(changedKind.code(), changedType, "the selected alternate must resolve to an exact dependency kind");
-		if (changedKind == com.microproject.pm.dependency.DependencyType.Kind.SS
-				|| changedKind == com.microproject.pm.dependency.DependencyType.Kind.FS) {
+		if (changedKind == com.microproject.model.dependency.DependencyType.Kind.SS
+				|| changedKind == com.microproject.model.dependency.DependencyType.Kind.FS) {
 			assertNotEquals(originalSuccessorStart, changedSuccessorStart,
 				"changing to SS/FS must recalculate the successor start");
 		} else {
@@ -6793,9 +6793,9 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		// Exercise the remaining documented FF and SF link types through the same
 		// physical Gantt edge and DependencyDialog route. Link scheduling rules are
 		// derived from Microsoft Project Desktop documentation, not an MSP run.
-		for (com.microproject.pm.dependency.DependencyType.Kind targetKind : List.of(
-				com.microproject.pm.dependency.DependencyType.Kind.FF,
-				com.microproject.pm.dependency.DependencyType.Kind.SF)) {
+		for (com.microproject.model.dependency.DependencyType.Kind targetKind : List.of(
+				com.microproject.model.dependency.DependencyType.Kind.FF,
+				com.microproject.model.dependency.DependencyType.Kind.SF)) {
 			long priorStart = successor.getStart();
 			long priorFinish = successor.getEnd();
 			int priorType = linkedDependency.getDependencyType();
@@ -6814,7 +6814,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				.orElseThrow(() -> new AssertionError("DependencyDialog type list is missing for " + targetKind));
 			int targetIndex = java.util.stream.IntStream.range(0, typeCombo.getItemCount())
 				.filter(index -> Integer.valueOf(targetKind.code()).equals(
-					com.microproject.pm.dependency.DependencyType.mapStringToValue(
+					com.microproject.model.dependency.DependencyType.mapStringToValue(
 						String.valueOf(typeCombo.getItemAt(index)))))
 				.findFirst().orElseThrow(() -> new AssertionError("DependencyDialog is missing " + targetKind));
 			click(robot, typeCombo);
@@ -6827,13 +6827,13 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			long targetStart = successor.getStart();
 			long targetFinish = successor.getEnd();
 			assertEquals(targetKind.code(), linkedDependency.getDependencyType(), "dependency kind code mismatch for " + targetKind);
-			if (targetKind == com.microproject.pm.dependency.DependencyType.Kind.FF
-					|| targetKind == com.microproject.pm.dependency.DependencyType.Kind.SF) {
-				long requiredPredecessorDate = targetKind == com.microproject.pm.dependency.DependencyType.Kind.FF
+			if (targetKind == com.microproject.model.dependency.DependencyType.Kind.FF
+					|| targetKind == com.microproject.model.dependency.DependencyType.Kind.SF) {
+				long requiredPredecessorDate = targetKind == com.microproject.model.dependency.DependencyType.Kind.FF
 					? predecessor.getEnd() : predecessor.getStart();
 				assertTrue(targetFinish >= requiredPredecessorDate,
 					targetKind + " successor finish must be on or after the predecessor's "
-						+ (targetKind == com.microproject.pm.dependency.DependencyType.Kind.FF ? "finish" : "start"));
+						+ (targetKind == com.microproject.model.dependency.DependencyType.Kind.FF ? "finish" : "start"));
 			} else {
 				assertNotEquals(priorStart, targetStart, targetKind + " must recalculate successor start");
 			}
@@ -6932,8 +6932,8 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			.filter(JComboBox.class::isInstance).map(JComboBox.class::cast).findFirst()
 			.orElseThrow(() -> new AssertionError("DependencyDialog type list is missing for FS lead setup"));
 		int fsTypeIndex = java.util.stream.IntStream.range(0, fsTypeChoice.getItemCount())
-			.filter(index -> Integer.valueOf(com.microproject.pm.dependency.DependencyType.Kind.FS.code()).equals(
-				com.microproject.pm.dependency.DependencyType.mapStringToValue(
+			.filter(index -> Integer.valueOf(com.microproject.model.dependency.DependencyType.Kind.FS.code()).equals(
+				com.microproject.model.dependency.DependencyType.mapStringToValue(
 					String.valueOf(fsTypeChoice.getItemAt(index)))))
 			.findFirst().orElseThrow(() -> new AssertionError("DependencyDialog is missing FS for lead setup"));
 		click(robot, fsTypeChoice);
@@ -6942,7 +6942,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		press(robot, KeyEvent.VK_ENTER);
 		click(robot, findVisibleButton(fsDialog, Messages.getString("ButtonText.OK")));
 		GuiAcceptanceSupport.await(() -> linkedDependency.getDependencyType()
-			== com.microproject.pm.dependency.DependencyType.Kind.FS.code(),
+			== com.microproject.model.dependency.DependencyType.Kind.FS.code(),
 			"physical DependencyDialog did not apply FS before lead editing");
 		long positiveSuccessorStart = successor.getStart();
 		long positiveSuccessorFinish = successor.getEnd();
@@ -6982,7 +6982,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		long leadLag = linkedDependency.getLag();
 		long leadSuccessorStart = successor.getStart();
 		long leadSuccessorFinish = successor.getEnd();
-		assertEquals(com.microproject.pm.dependency.DependencyType.Kind.FS.code(), linkedDependency.getDependencyType(),
+		assertEquals(com.microproject.model.dependency.DependencyType.Kind.FS.code(), linkedDependency.getDependencyType(),
 			"the physical lead edit must retain FS type");
 		assertEquals(-workdayMillis, com.microproject.datatype.Duration.millis(leadLag),
 			"entering -1d must set one project workday of lead");
@@ -7013,13 +7013,13 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Z);
 		GuiAcceptanceSupport.await(() -> com.microproject.datatype.Duration.millis(linkedDependency.getLag())
 				== com.microproject.datatype.Duration.millis(changedLag)
-			&& linkedDependency.getDependencyType() == com.microproject.pm.dependency.DependencyType.Kind.FS.code()
+			&& linkedDependency.getDependencyType() == com.microproject.model.dependency.DependencyType.Kind.FS.code()
 			&& successor.getStart() == positiveSuccessorStart && successor.getEnd() == positiveSuccessorFinish,
 			"one Undo did not restore the prior dependency type, lag, and successor schedule");
 		press(robot, KeyEvent.VK_CONTROL, KeyEvent.VK_Y);
 		GuiAcceptanceSupport.await(() -> com.microproject.datatype.Duration.millis(linkedDependency.getLag())
 				== com.microproject.datatype.Duration.millis(leadLag)
-			&& linkedDependency.getDependencyType() == com.microproject.pm.dependency.DependencyType.Kind.FS.code()
+			&& linkedDependency.getDependencyType() == com.microproject.model.dependency.DependencyType.Kind.FS.code()
 			&& successor.getStart() == leadSuccessorStart && successor.getEnd() == leadSuccessorFinish,
 			"one Redo did not restore the FS negative lag and successor schedule");
 		ByteArrayOutputStream leadSnapshot = new ByteArrayOutputStream();
@@ -7033,7 +7033,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertEquals(reloadedLeadSuccessor, reloadedLead.getSuccessor(), "MPO reload changed the lead successor identity");
 		assertEquals(com.microproject.datatype.Duration.millis(leadLag),
 			com.microproject.datatype.Duration.millis(reloadedLead.getLag()), "MPO reload lost the negative lag");
-		assertEquals(com.microproject.pm.dependency.DependencyType.Kind.FS.code(), reloadedLead.getDependencyType(),
+		assertEquals(com.microproject.model.dependency.DependencyType.Kind.FS.code(), reloadedLead.getDependencyType(),
 			"MPO reload changed the lead dependency type");
 		assertEquals(leadSuccessorStart, reloadedLeadSuccessor.getStart(), "MPO reload changed the lead successor start");
 		assertEquals(leadSuccessorFinish, reloadedLeadSuccessor.getEnd(), "MPO reload changed the lead successor finish");
@@ -7361,7 +7361,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		selected.setName("Clear leveling selected");
 		NormalTask other = project.createScriptedTask();
 		other.setName("Clear leveling other");
-		long hour = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long hour = com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
 		long workday = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
 		selected.setDuration(workday);
 		other.setDuration(workday);
@@ -8211,7 +8211,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		AssignmentService.getInstance().newAssignment(first, resource, 1.0, 0L, getClass());
 		AssignmentService.getInstance().newAssignment(second, resource, 1.0, 0L, getClass());
 		project.recalculate();
-		assertTrue(new com.microproject.pm.resource.TeamPlannerService().overallocatedTasks(project).containsAll(List.of(first, second)),
+		assertTrue(new com.microproject.model.resource.TeamPlannerService().overallocatedTasks(project).containsAll(List.of(first, second)),
 			"the acceptance fixture must contain two genuinely overallocated tasks");
 		long firstStart = first.getStart();
 		long firstFinish = first.getEnd();
@@ -8247,10 +8247,10 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		assertEquals(secondStart, second.getStart());
 		assertEquals(secondFinish, second.getEnd());
 		SwingUtilities.invokeAndWait(() -> {
-			((com.microproject.pm.resource.ResourceImpl) resource).setMaximumUnits(2.0);
+			((com.microproject.model.resource.ResourceImpl) resource).setMaximumUnits(2.0);
 			project.recalculate();
 		});
-		assertTrue(new com.microproject.pm.resource.TeamPlannerService().overallocatedTasks(project).isEmpty(),
+		assertTrue(new com.microproject.model.resource.TeamPlannerService().overallocatedTasks(project).isEmpty(),
 			"the empty-result state must have no remaining overallocated task");
 		click(robot, next);
 		String noCandidateMessage = com.microproject.ui.dialog.UsabilityStrings.text("resource.nextOverallocation.noneVisible");

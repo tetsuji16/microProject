@@ -1,0 +1,60 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ ******************************************************************************/
+package com.microproject.node.transform.filtering;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+import com.microproject.field.InvalidFormulaException;
+import com.microproject.node.NodeFactory;
+import com.microproject.model.task.NormalTask;
+
+class BaseFilterTest {
+	@Test
+	void filterListPreservesElementTypeIdentityOrderAndInPlaceMutation() {
+		NodeFilter evenNumbers = new NodeFilter() {
+			@Override
+			public boolean test(Object value) {
+				return value instanceof Integer number && number % 2 == 0;
+			}
+		};
+		List<Integer> values = new ArrayList<>(List.of(1, 2, 3, 4));
+
+		List<Integer> filtered = evenNumbers.filterList(values);
+
+		assertSame(values, filtered);
+		assertEquals(List.of(2, 4), filtered);
+	}
+
+	@Test
+	void excludesHiddenTasksButKeepsVisibleTasks() {
+		BaseFilter filter = new BaseFilter("false");
+		NormalTask visible = new NormalTask();
+		NormalTask hidden = new NormalTask();
+		hidden.setHiddenTask(true);
+
+		assertTrue(filter.test(NodeFactory.getInstance().createNode(visible)));
+		assertFalse(filter.test(NodeFactory.getInstance().createNode(hidden)));
+	}
+
+	@Test
+	void formulaGeneratedFilterImplementsStandardPredicate() throws InvalidFormulaException {
+		NodeFilterFactory factory = new NodeFilterFactory();
+		factory.setType("Task");
+		factory.setFormulaText("return Task instanceof com.microproject.model.task.Task;");
+		NodeFilter filter = (NodeFilter) factory.getTransform();
+
+		assertTrue(filter.test(NodeFactory.getInstance().createNode(new NormalTask())));
+		assertFalse(filter.test(NodeFactory.getInstance().createNode(new Object())));
+	}
+}

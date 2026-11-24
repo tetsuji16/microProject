@@ -18,7 +18,7 @@
  */
 package com.microproject.undo;
 
-import com.microproject.pm.scheduling.Schedule;
+import com.microproject.schedule.Schedule;
 import com.microproject.persistence.data.DataObject;
 
 final class UndoEditPresentationName {

@@ -28,7 +28,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import com.microproject.collaboration.ProjectMergeService;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 
 public final class PackagedImportSmokeMain {
 	private PackagedImportSmokeMain() {

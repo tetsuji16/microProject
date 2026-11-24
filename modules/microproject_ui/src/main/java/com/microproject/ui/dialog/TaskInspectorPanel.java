@@ -26,13 +26,13 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.SwingConstants;
 
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.calendar.WorkingCalendar;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.calendar.WorkingCalendar;
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.DurationFormat;
-import com.microproject.pm.task.ScheduleDiagnosticsService;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.ScheduleDiagnosticsService;
+import com.microproject.model.task.Task;
 import com.microproject.i18n.Messages;
 
 /** Read-only, selection-following schedule facts for the selected task. */
@@ -121,7 +121,7 @@ public final class TaskInspectorPanel extends JPanel {
 	}
 
 	private String assignmentSummary(Task selected) {
-		if (!(selected instanceof com.microproject.pm.task.NormalTask normal) || normal.getAssignments().isEmpty())
+		if (!(selected instanceof com.microproject.model.task.NormalTask normal) || normal.getAssignments().isEmpty())
 			return "\n" + Messages.getString("TaskInspector.Assignments") + ": " + Messages.getString("TaskInspector.None");
 		StringBuilder value = new StringBuilder("\n").append(Messages.getString("TaskInspector.Assignments")).append(':');
 		for (var association : normal.getAssignments()) {
@@ -150,7 +150,7 @@ public final class TaskInspectorPanel extends JPanel {
 	}
 
 	private String subtasks(Task selected) {
-		Collection<com.microproject.grouping.core.Node> children = selected.getWbsChildrenNodes();
+		Collection<com.microproject.node.Node> children = selected.getWbsChildrenNodes();
 		if (children == null || children.isEmpty()) return Messages.getString("TaskInspector.None");
 		List<String> names = new ArrayList<>();
 		for (var child : children) {
@@ -192,8 +192,8 @@ public final class TaskInspectorPanel extends JPanel {
 	}
 
 	private static boolean isFixedConstraint(Task task) {
-		return task.getConstraintTypeKind() != com.microproject.pm.scheduling.ConstraintType.Kind.ASAP
-			&& task.getConstraintTypeKind() != com.microproject.pm.scheduling.ConstraintType.Kind.ALAP;
+		return task.getConstraintTypeKind() != com.microproject.schedule.ConstraintType.Kind.ASAP
+			&& task.getConstraintTypeKind() != com.microproject.schedule.ConstraintType.Kind.ALAP;
 	}
 
 	private static String date(long value) {

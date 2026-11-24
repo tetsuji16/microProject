@@ -31,8 +31,8 @@ import java.util.Collection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.Project;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.Project;
 import com.microproject.session.Session;
 
 public class DataUtil {

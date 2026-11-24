@@ -17,8 +17,8 @@ import java.io.ObjectStreamClass;
 
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.exchange.MpoFileImporter;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.Project;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 
 import org.junit.jupiter.api.Test;

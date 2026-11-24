@@ -7,7 +7,7 @@ package com.microproject.ui.view.spreadsheet.command;
 import java.util.Objects;
 
 import com.microproject.field.Field;
-import com.microproject.pm.task.ProjectTaskKey;
+import com.microproject.model.task.ProjectTaskKey;
 
 /** A parsed spreadsheet edit addressed to one durable task row in one projection revision. */
 public record TaskFieldEditIntent(ProjectTaskKey taskKey, int occurrence, long projectionRevision,

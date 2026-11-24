@@ -32,7 +32,7 @@ import javax.swing.table.TableCellRenderer;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.spreadsheet.SpreadSheetParams;
 import com.microproject.field.Field;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.Task;
 import com.microproject.ui.privacy.PrivacyDisplayMode;
 
 /**

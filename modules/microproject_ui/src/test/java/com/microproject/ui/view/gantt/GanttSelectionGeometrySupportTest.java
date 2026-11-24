@@ -29,7 +29,7 @@ import java.awt.geom.GeneralPath;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.dependency.DependencyType;
+import com.microproject.model.dependency.DependencyType;
 import com.microproject.ui.view.link_routing.DefaultGanttLinkRouting;
 
 class GanttSelectionGeometrySupportTest {

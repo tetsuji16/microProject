@@ -45,20 +45,20 @@ import com.microproject.algorithm.buffer.SeriesCallback;
 import com.microproject.field.Field;
 import com.microproject.interval.ValueObjectForInterval;
 import com.microproject.options.CalendarOption;
-import com.microproject.pm.availability.Availability;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.assignment.HasAssignments;
-import com.microproject.pm.assignment.HasTimeDistributedData;
-import com.microproject.pm.assignment.TimeDistributedConstants;
-import com.microproject.pm.assignment.contour.AbstractContourBucket;
-import com.microproject.pm.assignment.contour.ContourBucketIntervalGenerator;
-import com.microproject.pm.calendar.WorkCalendar;
-import com.microproject.pm.calendar.WorkDay;
-import com.microproject.pm.calendar.WorkRange;
+import com.microproject.model.availability.Availability;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.assignment.HasAssignments;
+import com.microproject.model.assignment.HasTimeDistributedData;
+import com.microproject.model.assignment.TimeDistributedConstants;
+import com.microproject.model.assignment.contour.AbstractContourBucket;
+import com.microproject.model.assignment.contour.ContourBucketIntervalGenerator;
+import com.microproject.model.calendar.WorkCalendar;
+import com.microproject.model.calendar.WorkDay;
+import com.microproject.model.calendar.WorkRange;
 import com.microproject.util.DateTime;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.resource.ResourceImpl;
-import com.microproject.pm.task.Project;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.resource.ResourceImpl;
+import com.microproject.model.task.Project;
 import com.microproject.timescale.TimeInterval;
 import com.microproject.timescale.TimeIterator;
 import com.microproject.util.Environment;
@@ -341,7 +341,7 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 			return;
 		var availabilityTable = resource.getAvailabilityTable();
 		List<ValueObjectForInterval> availabilityValues = availabilityTable.getList();
-		com.microproject.pm.calendar.CalendarDefinition definition = calendar.getConcreteInstance();
+		com.microproject.model.calendar.CalendarDefinition definition = calendar.getConcreteInstance();
 		for (long day = DateTime.dayFloor(from); day < to; day = DateTime.nextDay(day)) {
 			WorkDay workDay = definition.getWorkDay(day);
 			if (workDay == null) workDay = WorkDay.getDefaultWorkDay();
@@ -385,7 +385,7 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 			long from, long to, double units, Resource resource) {
 		if (calendar == null || from >= to)
 			return;
-		com.microproject.pm.calendar.CalendarDefinition definition = calendar.getConcreteInstance();
+		com.microproject.model.calendar.CalendarDefinition definition = calendar.getConcreteInstance();
 		for (long day = DateTime.dayFloor(from); day < to; day = DateTime.nextDay(day)) {
 			WorkDay workDay = definition.getWorkDay(day);
 			if (workDay == null)

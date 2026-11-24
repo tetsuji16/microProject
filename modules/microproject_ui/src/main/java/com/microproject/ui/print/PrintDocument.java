@@ -43,7 +43,7 @@ import javax.print.attribute.standard.MediaSizeName;
 
 import com.microproject.ui.export.svg.SVGRenderer;
 import com.microproject.ui.view.graph.GraphParams;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.print.ExtendedPageFormat;
 import com.microproject.print.FitToSettings;
 import com.microproject.print.GanttSettings;
