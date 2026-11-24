@@ -30,7 +30,7 @@ import java.util.List;
 import javax.swing.JScrollPane;
 import javax.swing.JViewport;
 
-
+import com.microproject.node.Node;
 import com.microproject.ui.help.HelpUtil;
 import com.microproject.ui.menu.MenuActionConstants;
 import com.microproject.ui.menu.MenuManager;
@@ -181,12 +181,12 @@ public class TreeView extends JScrollPane implements BaseView {
 		return (selected instanceof GraphicNode) ? (GraphicNode) selected : null;
 	}
 
-	public List getSelectedNodes() {
+	public List<Node> getSelectedNodes() {
 		GraphicNode selectedNode = getSelectedGraphicNode();
 		if (selectedNode == null || selectedNode.getNode() == null) {
 			return null;
 		}
-		ArrayList nodes = new ArrayList(1);
+		ArrayList<Node> nodes = new ArrayList<>(1);
 		nodes.add(selectedNode.getNode());
 		return nodes;
 	}

@@ -337,31 +337,25 @@ public class DocumentFrame extends NamedFrame implements
 
 	}
 
-	List getSelectedNodes(boolean excludeReadOnly) {
+	List<Node> getSelectedNodes(boolean excludeReadOnly) {
 		CommonSpreadSheet spreadSheet = getTopSpreadSheet();
-		List nodes = null;
+		List<Node> nodes = null;
 		if (spreadSheet != null) {
 			nodes = spreadSheet.getSelectedNodes();
-			if (nodes != null && nodes.size() == 0) {
+			if (nodes != null && nodes.isEmpty()) {
 				Node currentNode = spreadSheet.getCurrentRowNode();
 				if (currentNode != null) {
-					nodes = new ArrayList(1);
+					nodes = new ArrayList<>(1);
 					nodes.add(currentNode);
 				}
 			}
 		} else if (activeTopView instanceof TreeView) {
 			nodes = ((TreeView) activeTopView).getSelectedNodes();
 		}
-		if (nodes == null || nodes.size() == 0)
+		if (nodes == null || nodes.isEmpty())
 			return null;
 		if (excludeReadOnly) {
-			Iterator i = nodes.iterator();
-			while (i.hasNext()) {
-				Node n = (Node)i.next();
-				Object obj = n.getImpl();
-				if (ClassUtils.isObjectReadOnly(obj))
-					i.remove();
-			}
+			nodes.removeIf(n -> ClassUtils.isObjectReadOnly(n.getImpl()));
 		}
 
 		return nodes;
@@ -479,7 +473,7 @@ public class DocumentFrame extends NamedFrame implements
 
 	boolean doUpdateTasksDialog() {
 		finishAnyOperations();
-		List nodes = getSelectedNodes(true); //nodes, not impls!
+		List<Node> nodes = getSelectedNodes(true); //nodes, not impls!
 		if (nodes == null)
 			return false;
 
