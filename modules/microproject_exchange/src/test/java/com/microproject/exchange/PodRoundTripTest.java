@@ -74,8 +74,8 @@ import com.microproject.datatype.TimeUnit;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
-import com.microproject.server.data.ProjectData;
-import com.microproject.server.data.Serializer;
+import com.microproject.persistence.data.ProjectData;
+import com.microproject.exchange.serialize.Serializer;
 
 public class PodRoundTripTest {
 	@Test
@@ -142,7 +142,7 @@ public class PodRoundTripTest {
 	}
 
 	private static byte[] serializePodDocument(Project project) throws Exception {
-		var documentData = new com.microproject.server.data.DataUtil().serializeDocument(project);
+		var documentData = new com.microproject.persistence.data.DataUtil().serializeDocument(project);
 		documentData.setMaster(true);
 		documentData.setLocal(true);
 		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
@@ -1074,7 +1074,7 @@ public class PodRoundTripTest {
 
 	/**
 	 * Issue #227/#268 regression: a .pod file's payload (the serialized
-	 * {@link com.microproject.server.data.ProjectData}) must be deterministic across
+	 * {@link com.microproject.persistence.data.ProjectData}) must be deterministic across
 	 * consecutive load/save round-trips. Previously the local id counter
 	 * (LocalSession.localSeed) advanced on every load and its minted values leaked
 	 * into the saved file, so the output drifted by a handful of bytes each

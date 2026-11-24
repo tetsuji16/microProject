@@ -38,7 +38,7 @@ import java.util.List;
 import java.util.Map;
 
 
-import com.microproject.core.pm.exchange.MspImporter;
+import com.microproject.exchange.mpx.MspImporter;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.scheduling.ScheduleFrom;
 import com.microproject.pm.task.Task;
@@ -59,9 +59,9 @@ import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
-import com.microproject.server.data.EnterpriseResourceData;
-import com.microproject.server.data.MSPDISerializer;
-import com.microproject.server.data.Serializer;
+import com.microproject.exchange.serialize.EnterpriseResourceData;
+import com.microproject.exchange.serialize.MSPDISerializer;
+import com.microproject.exchange.serialize.Serializer;
 import com.microproject.session.Session;
 import com.microproject.session.SessionFactory;
 import com.microproject.strings.Messages;

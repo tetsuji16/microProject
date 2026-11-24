@@ -36,7 +36,7 @@ import com.microproject.pm.task.BelongsToDocument;
 import com.microproject.pm.task.HasProject;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
-import com.microproject.server.data.DataObject;
+import com.microproject.persistence.data.DataObject;
 import com.microproject.strings.Messages;
 import java.util.logging.Level;
 import java.util.logging.Logger;

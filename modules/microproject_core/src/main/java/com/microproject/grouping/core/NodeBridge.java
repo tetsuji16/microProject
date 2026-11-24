@@ -35,7 +35,7 @@ import com.microproject.grouping.core.model.NodeModelUtil;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.task.Task;
-import com.microproject.server.data.DataObject;
+import com.microproject.persistence.data.DataObject;
 
 /**
  * Bridge of the bridge pattern

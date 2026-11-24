@@ -45,7 +45,7 @@ import com.microproject.field.FieldParseException;
 import com.microproject.field.ObjectRef;
 import com.microproject.field.Select;
 import com.microproject.field.CanBeDirty;
-import com.microproject.server.data.DataObject;
+import com.microproject.persistence.data.DataObject;
 import com.microproject.options.EditOption;
 import com.microproject.undo.FieldEdit;
 import com.microproject.undo.TaskConstraintEdit;

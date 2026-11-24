@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.server.data.DataObject;
+import com.microproject.persistence.data.DataObject;
 
 class NodeBridgeDirtyStateTest {
 	@Test

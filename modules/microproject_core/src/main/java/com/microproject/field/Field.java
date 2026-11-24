@@ -76,7 +76,7 @@ import com.microproject.pm.task.TaskSheetScheduleWorkflow;
 import com.microproject.pm.time.Interval;
 import com.microproject.scripting.ScriptedFormula;
 import com.microproject.scripting.FormulaFactory;
-import com.microproject.server.data.DataObject;
+import com.microproject.persistence.data.DataObject;
 import com.microproject.strings.Messages;
 import com.microproject.util.ClassUtils;
 import java.util.logging.Logger;

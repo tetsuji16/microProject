@@ -207,7 +207,7 @@ final class MpoManifest {
 				catch (NumberFormatException exception) { throw new IOException("Invalid legacy assignment baseline cost type", exception); }
 				boolean baselineCost = false;
 				for (int slot = 0; slot <= 10; slot++)
-					if (type == com.microproject.core.pm.exchange.converters.mpx.MpxImportState
+					if (type == com.microproject.exchange.mpx.converter.MpxImportState
 							.assignmentBaselineCostType(slot)) { baselineCost = true; break; }
 				if (!baselineCost) continue;
 				String value;

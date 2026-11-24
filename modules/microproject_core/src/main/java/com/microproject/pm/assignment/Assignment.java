@@ -118,7 +118,7 @@ import com.microproject.pm.time.HasStartAndEnd;
 import com.microproject.pm.time.ImmutableInterval;
 import com.microproject.pm.time.Interval;
 import com.microproject.pm.time.MutableInterval;
-import com.microproject.server.data.DataObject;
+import com.microproject.persistence.data.DataObject;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 import com.microproject.util.Environment;

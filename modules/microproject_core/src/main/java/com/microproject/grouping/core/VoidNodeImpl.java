@@ -26,7 +26,7 @@ package com.microproject.grouping.core;
 import java.util.LinkedList;
 
 import com.microproject.pm.key.HasId;
-import com.microproject.server.data.DataObject;
+import com.microproject.persistence.data.DataObject;
 import com.microproject.session.SessionFactory;
 
 /**

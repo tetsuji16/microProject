@@ -25,8 +25,8 @@ package com.microproject.pm.key;
 
 import java.io.Serializable;
 
-import com.microproject.server.data.CommonDataObject;
-import com.microproject.server.data.DataObject;
+import com.microproject.persistence.data.CommonDataObject;
+import com.microproject.persistence.data.DataObject;
 import com.microproject.session.Session;
 import com.microproject.session.SessionFactory;
 

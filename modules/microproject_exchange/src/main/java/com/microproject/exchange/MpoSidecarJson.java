@@ -109,7 +109,7 @@ final class MpoSidecarJson {
 
 	static SerializedProjectXml serializeProject(Project project) throws IOException {
 		ByteArrayOutputStream xml = new ByteArrayOutputStream();
-		com.microproject.server.data.MSPDISerializer serializer = new com.microproject.server.data.MSPDISerializer();
+		com.microproject.exchange.serialize.MSPDISerializer serializer = new com.microproject.exchange.serialize.MSPDISerializer();
 		try {
 			serializer.saveProjectOrThrow(project, xml);
 			return new SerializedProjectXml(xml.toByteArray(), serializer.exportedAssignmentUniqueIds());
@@ -725,7 +725,7 @@ final class MpoSidecarJson {
 	}
 
 	static java.util.Map<Long, Long> resourceIdentitiesForMpo(Project project) throws IOException {
-		return com.microproject.server.data.MPXConverter.exportedResourceIdentities(project);
+		return com.microproject.exchange.serialize.MPXConverter.exportedResourceIdentities(project);
 	}
 
 	static void restoreBaselineProfiles(Project project, byte[] bytes) throws IOException {

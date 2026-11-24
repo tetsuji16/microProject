@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.job.Job;
 import com.microproject.pm.task.Project;
-import com.microproject.server.data.ProjectData;
+import com.microproject.persistence.data.ProjectData;
 
 class AbstractSessionTest {
 	@Test

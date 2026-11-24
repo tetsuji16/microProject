@@ -48,7 +48,7 @@ import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
-import com.microproject.server.data.Serializer;
+import com.microproject.exchange.serialize.Serializer;
 
 import org.mpxj.ProjectFile;
 import org.mpxj.ProjectProperties;
@@ -183,7 +183,7 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 
 	private String serializeMicroProjectXml(Project project) throws Exception {
 		ByteArrayOutputStream xml = new ByteArrayOutputStream();
-		ProjectFile projectFile = new com.microproject.server.data.MSPDISerializer().serializeProject(project);
+		ProjectFile projectFile = new com.microproject.exchange.serialize.MSPDISerializer().serializeProject(project);
 		new MSPDIWriter().write(projectFile, xml);
 		return xml.toString(StandardCharsets.UTF_8.name());
 	}
