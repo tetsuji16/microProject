@@ -94,7 +94,7 @@ public final class AssignmentInformationDialog extends AbstractDialog {
 		builder.add(contour, cc.xy(3, 3));
 		JPanel notesPanel = new JPanel(new BorderLayout(0, 4));
 		notesPanel.add(new JScrollPane(notes), BorderLayout.CENTER);
-		builder.addLabel(Messages.getString("AssignmentInformationDialog.notes"), cc.xy(1, 5, CellConstraints.TOP, CellConstraints.DEFAULT));
+		builder.addLabel(Messages.getString("AssignmentInformationDialog.notes"), cc.xy(1, 5, CellConstraints.DEFAULT, CellConstraints.TOP));
 		builder.add(notesPanel, cc.xy(3, 5));
 		return builder.getPanel();
 	}

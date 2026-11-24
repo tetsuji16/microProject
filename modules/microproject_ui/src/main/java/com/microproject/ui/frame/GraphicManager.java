@@ -2408,10 +2408,12 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				publishTaskCommandOutcome(this, RibbonCommandResult.rejected("RibbonAssignmentInformation", rejection));
 				return;
 			}
-			finishAnyOperations();
-			traceUi("assignment-information presenting selection=" + selection.kind()
-				+ " activeView=" + frame.getTopViewId() + " editable=" + isDocumentWritable());
+			String stage = "finish-operations";
 			try {
+				finishAnyOperations();
+				stage = "dialog-presentation";
+				traceUi("assignment-information presenting selection=" + selection.kind()
+					+ " activeView=" + frame.getTopViewId() + " editable=" + isDocumentWritable());
 				boolean visible = presentAssignmentInformationDialog(selection.assignment());
 				RibbonCommandResult result = visible
 					? new RibbonCommandResult("RibbonAssignmentInformation", RibbonCommandResult.Status.DISPATCHED,
@@ -2420,8 +2422,12 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 						"dialog-not-visible", List.of(), List.of(), frame.getTopViewId());
 				publishTaskCommandOutcome(this, result);
 			} catch (RuntimeException | Error failure) {
-				publishTaskCommandOutcome(this, RibbonCommandResult.failed("RibbonAssignmentInformation", failure)
-					.withActiveView(frame.getTopViewId()));
+				StackTraceElement origin = failure.getStackTrace().length == 0 ? null : failure.getStackTrace()[0];
+				String reason = stage + ":" + failure.getClass().getSimpleName()
+					+ ":" + Objects.toString(failure.getMessage(), "")
+					+ (origin == null ? "" : " @ " + origin);
+				publishTaskCommandOutcome(this, new RibbonCommandResult("RibbonAssignmentInformation",
+					RibbonCommandResult.Status.FAILED, reason, List.of(), List.of(), frame.getTopViewId()));
 				throw failure;
 			}
 		}
@@ -2435,7 +2441,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			@Override public void windowOpened(WindowEvent event) { opened.set(true); }
 		});
 		dialog.doModal();
-		return opened.get();
+		return dialog.isShowing() || opened.get();
 	}
 	public class RibbonTaskInspectorAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
