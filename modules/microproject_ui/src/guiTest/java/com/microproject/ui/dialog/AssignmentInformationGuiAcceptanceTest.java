@@ -43,6 +43,7 @@ import com.microproject.ui.testsupport.GuiAcceptanceSupport;
 import com.microproject.ui.testsupport.GuiJourney;
 import com.microproject.ui.testsupport.GuiJourney.InputMechanism;
 import com.microproject.ui.testsupport.RibbonGuiSupport;
+import com.microproject.ui.testsupport.DialogLayoutAssertions;
 import com.microproject.undo.DataFactoryUndoController;
 
 /** Verifies the real selected-assignment ribbon route, edit, undo and cancellation. */
@@ -136,6 +137,9 @@ class AssignmentInformationGuiAcceptanceTest {
 				captureRouteFailure(frame, manager, sheet, assignment, info);
 				throw failure;
 			}
+			assertTrue(dialog.getTitle().startsWith(Messages.getString("AssignmentInformationDialog.title")),
+				"The dialog title must use the active locale");
+			DialogLayoutAssertions.assertTextControlsAtPreferredHeight(dialog.getContentPane(), "Task Usage assignment information");
 			JSpinner spinner = (JSpinner) named(dialog, "assignmentUnits");
 			javax.swing.JFormattedTextField unitsField = ((JSpinner.DefaultEditor) spinner.getEditor()).getTextField();
 			click(robot, unitsField);
@@ -192,6 +196,8 @@ class AssignmentInformationGuiAcceptanceTest {
 				captureRouteFailure(frame, manager, resourceSheet, assignment, resourceInfo);
 				throw failure;
 			}
+			DialogLayoutAssertions.assertTextControlsAtPreferredHeight(resourceDialog.getContentPane(),
+				"Resource Usage assignment information");
 			robot.keyPress(java.awt.event.KeyEvent.VK_ESCAPE);
 			robot.keyRelease(java.awt.event.KeyEvent.VK_ESCAPE);
 			GuiAcceptanceSupport.await(() -> !resourceDialog.isShowing(), "Escape must cancel the dialog");
