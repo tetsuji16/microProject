@@ -25,7 +25,7 @@ package com.microproject.exchange.mpx.converter;	import org.mpxj.Relation;
 
 	import com.microproject.association.InvalidAssociationException;
 	import com.microproject.exchange.mpx.converter.type.MpxDependencyTypeConverter;
-	import com.microproject.pm.dependency.Dependency;
+	import com.microproject.model.dependency.Dependency;
 import com.microproject.model.dependency.DependencyService;
 import com.microproject.model.dependency.DependencyType;
 import com.microproject.model.task.Task;

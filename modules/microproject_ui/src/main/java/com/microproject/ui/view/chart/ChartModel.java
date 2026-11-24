@@ -341,7 +341,7 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 			return;
 		var availabilityTable = resource.getAvailabilityTable();
 		List<ValueObjectForInterval> availabilityValues = availabilityTable.getList();
-		com.microproject.pm.calendar.CalendarDefinition definition = calendar.getConcreteInstance();
+		com.microproject.model.calendar.CalendarDefinition definition = calendar.getConcreteInstance();
 		for (long day = DateTime.dayFloor(from); day < to; day = DateTime.nextDay(day)) {
 			WorkDay workDay = definition.getWorkDay(day);
 			if (workDay == null) workDay = WorkDay.getDefaultWorkDay();
@@ -385,7 +385,7 @@ public class ChartModel implements TimeDistributedConstants, Serializable {
 			long from, long to, double units, Resource resource) {
 		if (calendar == null || from >= to)
 			return;
-		com.microproject.pm.calendar.CalendarDefinition definition = calendar.getConcreteInstance();
+		com.microproject.model.calendar.CalendarDefinition definition = calendar.getConcreteInstance();
 		for (long day = DateTime.dayFloor(from); day < to; day = DateTime.nextDay(day)) {
 			WorkDay workDay = definition.getWorkDay(day);
 			if (workDay == null)

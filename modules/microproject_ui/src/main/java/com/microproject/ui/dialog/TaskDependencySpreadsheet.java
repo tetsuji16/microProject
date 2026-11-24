@@ -112,7 +112,7 @@ final class TaskDependencySpreadsheet extends SpreadSheet {
 		if (rowObject == null || ((SpreadSheetModel) getModel()).getFieldInColumn(col + 1) != clickField)
 			return;
 		Task endpoint = endpoint(rowObject);
-		if (endpoint instanceof com.microproject.pm.task.NormalTask normalTask) {
+		if (endpoint instanceof com.microproject.model.task.NormalTask normalTask) {
 			dialog.setObject(normalTask);
 			dialog.updateAll();
 			normalTask.getDocument().getObjectSelectionEventManager().fire(this, normalTask);

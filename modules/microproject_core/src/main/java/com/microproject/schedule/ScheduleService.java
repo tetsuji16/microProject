@@ -353,7 +353,7 @@ public class ScheduleService {
 		List<String> state = new ArrayList<>();
 		appendSplitIntervals(state, "schedule", schedule);
 		if (schedule instanceof Assignment assignment && assignment.getLevelingSplitState() != null) {
-			for (com.microproject.pm.task.TaskSplitInterval interval : assignment.getLevelingSplitState().generatedGaps())
+			for (com.microproject.model.task.TaskSplitInterval interval : assignment.getLevelingSplitState().generatedGaps())
 				state.add("leveling:" + interval.startOffset() + ":" + interval.endOffset());
 		}
 		if (schedule instanceof NormalTask task) {

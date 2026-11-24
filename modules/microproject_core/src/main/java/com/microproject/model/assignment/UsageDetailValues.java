@@ -57,7 +57,7 @@ public final class UsageDetailValues {
 			long from = Math.max(start, interval.getStart());
 			long to = Math.min(end, interval.getEnd());
 			if (from < to) {
-				double units = ((com.microproject.pm.availability.Availability) interval).getMaximumUnits();
+				double units = ((com.microproject.model.availability.Availability) interval).getMaximumUnits();
 				capacity += Math.max(0L, calendar.compare(to, from, false)) * Math.max(0D, units);
 			}
 		}

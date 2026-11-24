@@ -388,11 +388,11 @@ class GraphicManagerLinkRouteTest {
 		GraphicManager graphicManager = new GraphicManager(new JPanel()) {
 			@Override public boolean isDocumentWritable() { return true; }
 			@Override public DocumentFrame getCurrentFrame() { return documentFrame; }
-			@Override public boolean activateSubproject(com.microproject.pm.task.SubProj value) {
+			@Override public boolean activateSubproject(com.microproject.model.task.SubProj value) {
 				opened.add((DefaultSubProj) value);
 				return true;
 			}
-			@Override public boolean removeLinkedSubproject(com.microproject.pm.task.SubProj value) {
+			@Override public boolean removeLinkedSubproject(com.microproject.model.task.SubProj value) {
 				removed.add((DefaultSubProj) value);
 				return true;
 			}

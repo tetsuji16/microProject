@@ -53,7 +53,7 @@ class DefaultSubProjTest {
 	void subprojectPlaceholderHonorsTheTaskContract() {
 		com.microproject.undo.DataFactoryUndoController undoController = new com.microproject.undo.DataFactoryUndoController();
 		Project project = Project.createProject(
-				com.microproject.pm.resource.ResourcePool.createRourcePool("test", undoController), undoController);
+				com.microproject.model.resource.ResourcePool.createRourcePool("test", undoController), undoController);
 		DefaultSubProj subproject = new DefaultSubProj(project, 42L);
 
 		assertTrue(subproject instanceof NormalTask);

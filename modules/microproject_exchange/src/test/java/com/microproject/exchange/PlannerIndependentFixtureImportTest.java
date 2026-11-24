@@ -50,7 +50,7 @@ class PlannerIndependentFixtureImportTest {
 		assertEquals(0.0, tasks.get(0).getPercentComplete());
 		assertEquals(0.0, tasks.get(1).getPercentComplete());
 		assertEquals(1, tasks.get(1).getPredecessorList().size());
-		assertEquals(tasks.get(0), ((com.microproject.pm.dependency.Dependency) tasks.get(1).getPredecessorList().get(0)).getPredecessor());
+		assertEquals(tasks.get(0), ((com.microproject.model.dependency.Dependency) tasks.get(1).getPredecessorList().get(0)).getPredecessor());
 		assertEquals("Default", reopened.getWorkCalendar().getName());
 		assertDefaultCalendarWeek(reopened.getWorkCalendar());
 		List<Resource> resources = reopened.getResourcePool().getResourceList();

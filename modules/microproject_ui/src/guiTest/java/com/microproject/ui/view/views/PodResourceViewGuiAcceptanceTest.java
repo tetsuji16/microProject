@@ -86,12 +86,12 @@ class PodResourceViewGuiAcceptanceTest {
 			int ganttRow = onEdt(() -> {
 				for (int i = 0; i < gantt.getRowCount(); i++) {
 					Object impl = ((SpreadSheetModel) gantt.getModel()).getNodeForDisplayRow(i).getImpl();
-					if (impl instanceof com.microproject.pm.task.Task task && task.getName() != null && !task.getName().isBlank()) return i;
+					if (impl instanceof com.microproject.model.task.Task task && task.getName() != null && !task.getName().isBlank()) return i;
 				}
 				return -1;
 			});
 			assertTrue(ganttRow >= 0, "sample must expose an actual task");
-			com.microproject.pm.task.Task task = onEdt(() -> (com.microproject.pm.task.Task)
+			com.microproject.model.task.Task task = onEdt(() -> (com.microproject.model.task.Task)
 				((SpreadSheetModel) gantt.getModel()).getNodeForDisplayRow(ganttRow).getImpl());
 			String oldTaskName = onEdt(task::getName);
 			physicalEditName(robot, gantt, ganttRow, ganttNameColumn, "Edited Task");

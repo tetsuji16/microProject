@@ -69,7 +69,7 @@ class TaskInformationDialogDependencyTest {
 		NormalTask localCandidate = addTask(firstProject);
 		NormalTask crossProjectCandidate = addTask(secondProject);
 
-		List<com.microproject.pm.task.Task> candidates = TaskDependencyChoices.linkableTasks(
+		List<com.microproject.model.task.Task> candidates = TaskDependencyChoices.linkableTasks(
 				current, true, List.of(firstProject, secondProject));
 
 		assertEquals(2, candidates.size());

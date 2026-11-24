@@ -194,7 +194,7 @@ class MspdiBaselineMatrixContractTest {
 	}
 
 	private record ImportStage(String name, long currentTaskFinish, long currentAssignmentFinish, long currentAssignmentWork,
-		com.microproject.pm.scheduling.ConstraintType.Kind constraint,
+		com.microproject.schedule.ConstraintType.Kind constraint,
 		Object currentTaskSchedule, Object taskBaselineSchedule, Object currentAssignment,
 		Object assignmentBaseline, long taskBaselineFinish, long assignmentBaselineFinish) { }
 

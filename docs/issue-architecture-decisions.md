@@ -59,7 +59,7 @@ can be merged. Current caller and boundary checks distinguish these pairs:
   consumers differ; preserve both until the JAXB configuration boundary is
   migrated.
 - `com.microproject.core.nodes.HasId` uses `NodeId` for outline graph identity;
-  `com.microproject.pm.key.HasId` uses `long` for project task/resource identity.
+  `com.microproject.model.key.HasId` uses `long` for project task/resource identity.
   The APIs are not substitutable and are consumed by different model layers.
 - `com.microproject.core.time.TimeInterval` and its `DefaultTimeIntervals`
   collection represent mutable data intervals with union/intersection

@@ -46,7 +46,7 @@ import org.mpxj.ProjectCalendarWeek;
  */
 public class MpxCalendarConverter {
 	public void from(ProjectCalendar mpxCalendar, WorkingCalendar calendar, MpxImportState state){
-		java.util.IdentityHashMap<ProjectCalendarException, com.microproject.pm.calendar.CalendarRecurrence> recurrenceRules
+		java.util.IdentityHashMap<ProjectCalendarException, com.microproject.model.calendar.CalendarRecurrence> recurrenceRules
 			= new java.util.IdentityHashMap<>();
 		for (ProjectCalendarException mpxException : mpxCalendar.getCalendarExceptions()) {
 			if (mpxException.getRecurring() != null) {
@@ -117,7 +117,7 @@ public class MpxCalendarConverter {
 		// exceptions
 		MpxExceptionConverter exceptionConverter = new MpxExceptionConverter();
 		for (ProjectCalendarException mpxException : mpxCalendar.getCalendarExceptions()) {
-			com.microproject.pm.calendar.CalendarRecurrence recurrence = recurrenceRules.get(mpxException);
+			com.microproject.model.calendar.CalendarRecurrence recurrence = recurrenceRules.get(mpxException);
 			// MPXJ represents calendar dates using the host-local calendar day;
 			// map the date fields back to the model's UTC day keys explicitly.
 			long from = recurrence == null

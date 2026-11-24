@@ -450,7 +450,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		project.initialize(false, false);
 		long projectStart = com.microproject.util.DateTime.dayFloor(System.currentTimeMillis());
 		setProjectStart(project, projectStart);
-		com.microproject.pm.task.NormalTask task = (com.microproject.pm.task.NormalTask) project.createLocalTaskNode(null).getImpl();
+		com.microproject.model.task.NormalTask task = (com.microproject.model.task.NormalTask) project.createLocalTaskNode(null).getImpl();
 		task.setName("Work-week persistence task");
 		task.getCurrentSchedule().setStart(projectStart);
 		task.setDuration(8L * 60L * 60L * 1000L);
@@ -556,7 +556,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		WorkingCalendar projectCalendar = WorkingCalendar.getStandardBasedInstance();
 		projectCalendar.setName("GUI Project Exception Calendar");
 		project.setWorkCalendar(projectCalendar);
-		com.microproject.pm.task.NormalTask task = (com.microproject.pm.task.NormalTask) project
+		com.microproject.model.task.NormalTask task = (com.microproject.model.task.NormalTask) project
 			.createLocalTaskNode(null).getImpl();
 		task.setName("Task-specific calendar fixture");
 		WorkingCalendar taskCalendar = WorkingCalendar.getInstanceBasedOn(projectCalendar);
@@ -693,7 +693,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 			WorkingCalendar loadedProjectCalendar = (WorkingCalendar) importer.getProject().getWorkCalendar();
 			assertTrue(loadedProjectCalendar.getExceptionDays().length > 0,
 				"POD save/reload must preserve the project-calendar edit alongside the resource calendar edit");
-			var loadedTask = (com.microproject.pm.task.NormalTask) importer.getProject().getTaskOutlineIterator().next();
+			var loadedTask = (com.microproject.model.task.NormalTask) importer.getProject().getTaskOutlineIterator().next();
 			WorkingCalendar loadedTaskCalendar = (WorkingCalendar) loadedTask.getTaskCalendar();
 			assertTrue(loadedTaskCalendar.getExceptionDays().length > 0,
 				"POD save/reload must preserve the task-specific calendar edit");
@@ -1143,7 +1143,7 @@ class ChangeWorkingTimeDialogGuiAcceptanceTest {
 		return null;
 	}
 
-	private static java.util.List<com.microproject.pm.calendar.WorkWeekPeriod> calendarWorkWeeks(
+	private static java.util.List<com.microproject.model.calendar.WorkWeekPeriod> calendarWorkWeeks(
 			ChangeWorkingTimeDialogBox value) {
 		return value.getScratchCalendar().getWorkWeekPeriods();
 	}

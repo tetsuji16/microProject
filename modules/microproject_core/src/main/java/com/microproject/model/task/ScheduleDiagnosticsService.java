@@ -82,8 +82,8 @@ public final class ScheduleDiagnosticsService {
 				"The task is not complete although its scheduled finish is in the past.",
 				"Update actual progress or reschedule the remaining work after the status date."));
 		}
-		for (var slot : project == null ? List.<com.microproject.pm.resource.TeamPlannerService.Slot>of()
-				: new com.microproject.pm.resource.TeamPlannerService().slots(project)) {
+		for (var slot : project == null ? List.<com.microproject.model.resource.TeamPlannerService.Slot>of()
+				: new com.microproject.model.resource.TeamPlannerService().slots(project)) {
 			if (slot.task() == task && slot.overallocated()) {
 				result.add(new Issue(Type.OVERALLOCATED_RESOURCE, Severity.WARNING, "Assigned resource is overallocated",
 					"Concurrent assignments exceed the resource's maximum units.",

@@ -220,7 +220,7 @@ class ReportPdfLocaleMatrixTest {
 
 	private static Project fixtureProject() {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
-		Project project = Project.createProject(com.microproject.pm.resource.ResourcePool.createRourcePool("m2-4", undo), undo);
+		Project project = Project.createProject(com.microproject.model.resource.ResourcePool.createRourcePool("m2-4", undo), undo);
 		project.initialize(false, false);
 		project.setStartDate(java.time.LocalDate.of(2026, 10, 19)
 			.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli());

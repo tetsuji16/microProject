@@ -152,7 +152,7 @@ public class Portfolio implements Document, NodeModelDataFactory {
 	}
 	private void addProjectCoordinated(Project project){
     	nodeModel.add(NodeFactory.getInstance().createNode(project),NodeModel.SILENT);
-		com.microproject.pm.resource.ResourcePoolFactory.getInstance().registerPool(project.getResourcePool());
+		com.microproject.model.resource.ResourcePoolFactory.getInstance().registerPool(project.getResourcePool());
     	handleExternalTasks(project,true, false); 		// external link handling
 
     	objectEventManager.fireCreateEvent(this,project);
@@ -209,14 +209,14 @@ public class Portfolio implements Document, NodeModelDataFactory {
 			catch (RuntimeException | Error closeFailure) { failure.addSuppressed(closeFailure); }
 			throw failure;
 		}
-		com.microproject.pm.resource.ResourcePoolFactory pools = com.microproject.pm.resource.ResourcePoolFactory.getInstance();
-		com.microproject.pm.resource.SharedResourcePoolService.ResolutionScope sharedPoolTransaction =
-			com.microproject.pm.resource.SharedResourcePoolService.getInstance().beginResolutionTransaction();
+		com.microproject.model.resource.ResourcePoolFactory pools = com.microproject.model.resource.ResourcePoolFactory.getInstance();
+		com.microproject.model.resource.SharedResourcePoolService.ResolutionScope sharedPoolTransaction =
+			com.microproject.model.resource.SharedResourcePoolService.getInstance().beginResolutionTransaction();
 		boolean replacementPoolRegistered = pools.getResourcePools().contains(replacement.getResourcePool());
 		try {
 			previous.getResourcePool().removeProject(previous);
 			nodeModel.replaceImpl(node, replacement, this, NodeModel.SILENT);
-			com.microproject.pm.resource.ResourcePoolFactory.getInstance().registerPool(replacement.getResourcePool());
+			com.microproject.model.resource.ResourcePoolFactory.getInstance().registerPool(replacement.getResourcePool());
 			replacement.getResourcePool().addProject(replacement);
 			afterProjectMembershipReplacement.run();
 			handleExternalTasks(replacement, true, false);

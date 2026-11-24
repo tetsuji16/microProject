@@ -84,7 +84,7 @@ import java.util.logging.Logger;
  */
 public class MicrosoftImporter extends FileImporter {
 	private static final Logger logger = Logger.getLogger(MicrosoftImporter.class.getName());
-	protected com.microproject.pm.task.Project plProject= null;
+	protected com.microproject.model.task.Project plProject= null;
 	protected Map<Object, Object> taskMap = new HashMap<>(); // keeps track of mapping mpx tasks to project model tasks
 	private Map<Number, Object> resourceMap = new HashMap<>(); // keeps track of mapping mpx resources to project model resources
 	public static boolean ADD_SUMMARY_TASK = false; //Environment.isAddSummaryTask(); // whether to automatically add an extra project summary task or not //claur

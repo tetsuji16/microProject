@@ -210,7 +210,7 @@ public final class SharedResourcePoolService {
 		ResourcePool pool, ResourcePool.PoolState poolState,
 		java.util.List<AssignmentService.SharedPoolAssignmentState> assignments) {
 		static SharedPoolSnapshot capture(Project sharer, Project poolProject, ResourcePool sharerPool, ResourcePool pool) {
-			java.util.IdentityHashMap<com.microproject.pm.task.NormalTask, Object> tasks = new java.util.IdentityHashMap<>();
+			java.util.IdentityHashMap<com.microproject.model.task.NormalTask, Object> tasks = new java.util.IdentityHashMap<>();
 			java.util.ArrayList<AssignmentService.SharedPoolAssignmentState> assignments = new java.util.ArrayList<>();
 			java.util.IdentityHashMap<Assignment, Boolean> seen = new java.util.IdentityHashMap<>();
 			for (ResourcePool sourcePool : pool == sharerPool ? java.util.List.of(sharerPool) : java.util.List.of(sharerPool, pool))
@@ -218,7 +218,7 @@ public final class SharedResourcePoolService {
 				for (Object value : resource.getAssignments()) {
 					Assignment assignment = (Assignment)value;
 					if (seen.put(assignment, Boolean.TRUE) != null
-							|| !(assignment.getTask() instanceof com.microproject.pm.task.NormalTask task)) continue;
+							|| !(assignment.getTask() instanceof com.microproject.model.task.NormalTask task)) continue;
 					tasks.computeIfAbsent(task, ignored -> task.backupDetail());
 					assignments.add(new AssignmentService.SharedPoolAssignmentState(assignment, resource,
 						assignment.backupDetail(), task, tasks.get(task)));

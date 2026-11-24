@@ -59,7 +59,7 @@ class DependencyGraphTest {
 		NormalTask root = task(project), left = task(project), right = task(project), end = task(project);
 		link(root, left); link(root, right); link(left, end); link(right, end);
 
-		List<com.microproject.pm.task.Task> order = DependencyGraph.topologicalOrder(List.of(root, left, right, end));
+		List<com.microproject.model.task.Task> order = DependencyGraph.topologicalOrder(List.of(root, left, right, end));
 		assertEquals(List.of(root, left, right, end), order);
 	}
 

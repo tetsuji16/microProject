@@ -36,7 +36,7 @@ public class DateAtValueFunctor implements CalculationVisitor{
 	double value;
 	long date;
 	
-	public static DateAtValueFunctor getInstance(double value, com.microproject.pm.assignment.functor.AssignmentFieldClosureCollection childList) {
+	public static DateAtValueFunctor getInstance(double value, com.microproject.model.assignment.functor.AssignmentFieldClosureCollection childList) {
 		return new DateAtValueFunctor(value, childList);
 	}
 

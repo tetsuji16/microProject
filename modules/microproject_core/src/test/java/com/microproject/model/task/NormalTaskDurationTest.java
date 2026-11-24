@@ -888,7 +888,7 @@ class NormalTaskDurationTest {
 		long oldEnd = task.getEnd();
 		long newEnd = task.getEffectiveWorkCalendar().add(oldEnd, 2L * day(), false);
 
-		com.microproject.pm.scheduling.ScheduleService.getInstance()
+		com.microproject.schedule.ScheduleService.getInstance()
 			.setInterval(this, task, start, newEnd, new ScheduleInterval(start, oldEnd), null);
 		project.recalculate();
 

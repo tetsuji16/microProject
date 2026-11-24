@@ -231,7 +231,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	private transient IdentityFacade identityFacade = new IdentityFacade();
 	/**
 	 * Issue #227: created timestamp persisted on the object (not the transient
-	 * identityFacade) so it survives load/save round-trips. See com.microproject.pm.task.Task#created.
+	 * identityFacade) so it survives load/save round-trips. See com.microproject.model.task.Task#created.
 	 */
 	protected Date created = new Date();
 	/**
@@ -360,7 +360,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			if (hasFacts) result = resultWhenEventsWereEmitted.apply(result);
 			changed = changedResult.test(result) || hasFacts;
 			if (changed && !hasFacts)
-				fireScheduleChanged(this, com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+				fireScheduleChanged(this, com.microproject.schedule.ScheduleEvent.SCHEDULE);
 		} catch (RuntimeException | Error failure) {
 			// The operation already ran; publish its facts and release the barrier.
 			finishModelCommandFailure(mutation, initialPendingEvents, true, failure);
@@ -447,7 +447,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		try {
 			boolean hasFacts = pendingEventCount() > initialPendingEvents;
 			if (applied && !hasFacts)
-				fireScheduleChanged(this, com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+				fireScheduleChanged(this, com.microproject.schedule.ScheduleEvent.SCHEDULE);
 			if (applied || hasFacts) {
 				PendingEventBatch pending = commitEventBatch(mutation, true);
 				try {
@@ -1697,7 +1697,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	/** Detaches both observer batches so a committed revision cannot mix with a later mutation. */
 	public PendingEventBatch detachEventBatch(boolean publish) {
 		com.microproject.document.ObjectEventManager.PendingBatch objectEvents = objectEventManager.detachBatch(publish);
-		com.microproject.pm.scheduling.ScheduleEventManager.PendingBatch scheduleEvents = scheduleEventManager.detachBatch(publish);
+		com.microproject.schedule.ScheduleEventManager.PendingBatch scheduleEvents = scheduleEventManager.detachBatch(publish);
 		List<AdditionalPendingBatch> additionalEvents = new ArrayList<>();
 		com.microproject.undo.EditSupport.Group undoGroup = null;
 		synchronized (this) {
@@ -1746,7 +1746,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		boolean changed) {
 		PendingEventBatch detached = detachEventBatch(true);
 		com.microproject.document.ObjectEventManager.PendingBatch objectEvents = detached.objectEvents();
-		com.microproject.pm.scheduling.ScheduleEventManager.PendingBatch scheduleEvents = detached.scheduleEvents();
+		com.microproject.schedule.ScheduleEventManager.PendingBatch scheduleEvents = detached.scheduleEvents();
 		if (changed && ((objectEvents != null && !objectEvents.isPublishable())
 				|| (scheduleEvents != null && !scheduleEvents.isPublishable()))) {
 			// A nested operation rolled back its accumulated facts. Do not publish
@@ -1754,7 +1754,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 			// schedule invalidation instead.
 			objectEvents = null;
 			scheduleEventManager.beginBatch();
-			scheduleEventManager.fire(this, com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+			scheduleEventManager.fire(this, com.microproject.schedule.ScheduleEvent.SCHEDULE);
 			scheduleEvents = scheduleEventManager.detachBatch(true);
 		}
 		List<AdditionalPendingBatch> additionalEvents = new ArrayList<>(detached.additionalEvents());
@@ -1857,7 +1857,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	public record PendingEventBatch(
 		long revision,
 		com.microproject.document.ObjectEventManager.PendingBatch objectEvents,
-		com.microproject.pm.scheduling.ScheduleEventManager.PendingBatch scheduleEvents,
+		com.microproject.schedule.ScheduleEventManager.PendingBatch scheduleEvents,
 		List<AdditionalPendingBatch> additionalEvents,
 		com.microproject.undo.EditSupport.Group undoGroup,
 		boolean coordinatedPublication) { }

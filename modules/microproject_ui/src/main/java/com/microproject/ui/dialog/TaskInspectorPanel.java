@@ -121,7 +121,7 @@ public final class TaskInspectorPanel extends JPanel {
 	}
 
 	private String assignmentSummary(Task selected) {
-		if (!(selected instanceof com.microproject.pm.task.NormalTask normal) || normal.getAssignments().isEmpty())
+		if (!(selected instanceof com.microproject.model.task.NormalTask normal) || normal.getAssignments().isEmpty())
 			return "\n" + Messages.getString("TaskInspector.Assignments") + ": " + Messages.getString("TaskInspector.None");
 		StringBuilder value = new StringBuilder("\n").append(Messages.getString("TaskInspector.Assignments")).append(':');
 		for (var association : normal.getAssignments()) {
@@ -192,8 +192,8 @@ public final class TaskInspectorPanel extends JPanel {
 	}
 
 	private static boolean isFixedConstraint(Task task) {
-		return task.getConstraintTypeKind() != com.microproject.pm.scheduling.ConstraintType.Kind.ASAP
-			&& task.getConstraintTypeKind() != com.microproject.pm.scheduling.ConstraintType.Kind.ALAP;
+		return task.getConstraintTypeKind() != com.microproject.schedule.ConstraintType.Kind.ASAP
+			&& task.getConstraintTypeKind() != com.microproject.schedule.ConstraintType.Kind.ALAP;
 	}
 
 	private static String date(long value) {

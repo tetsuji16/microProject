@@ -134,7 +134,7 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	private transient HasKeyImpl hasKey = new HasKeyImpl(true,this); //local ids only for assignments
 	/**
 	 * Issue #227: created timestamp persisted on the object (not the transient
-	 * hasKey) so it survives load/save round-trips. See com.microproject.pm.task.Task#created.
+	 * hasKey) so it survives load/save round-trips. See com.microproject.model.task.Task#created.
 	 */
 	protected Date created = new Date();
 
@@ -1943,8 +1943,8 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 			return;
 		}
 		Assignment baseline = detail.getTask().getBaselineAssignment(getResource(), baselineId, true);
-		com.microproject.pm.task.TaskSnapshot snapshot =
-			(com.microproject.pm.task.TaskSnapshot) detail.getTask().getSnapshot(baselineId);
+		com.microproject.model.task.TaskSnapshot snapshot =
+			(com.microproject.model.task.TaskSnapshot) detail.getTask().getSnapshot(baselineId);
 		TaskSchedule snapshotSchedule = snapshot.getCurrentSchedule();
 		if (snapshotSchedule != null && (snapshotSchedule.getStart() != 0L || snapshotSchedule.getEnd() != 0L))
 			baseline.setTaskSchedule(snapshotSchedule);
@@ -2004,12 +2004,12 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 	}
 
 	private void clearImportedBaselineValuesForBaselineMutation() {
-		if (!detail.isBaseline() || !(detail.getTask() instanceof com.microproject.pm.task.NormalTask task))
+		if (!detail.isBaseline() || !(detail.getTask() instanceof com.microproject.model.task.NormalTask task))
 			return;
-		com.microproject.pm.resource.Resource resource = getResource();
+		com.microproject.model.resource.Resource resource = getResource();
 		for (int slot = 0; slot <= 10; slot++) {
-			com.microproject.pm.task.TaskSnapshot snapshot =
-				(com.microproject.pm.task.TaskSnapshot) task.getSnapshot(Integer.valueOf(slot));
+			com.microproject.model.task.TaskSnapshot snapshot =
+				(com.microproject.model.task.TaskSnapshot) task.getSnapshot(Integer.valueOf(slot));
 			if (snapshot != null && snapshot.findAssignment(resource) == this) {
 				Assignment current = task.findAssignment(resource);
 				if (current != null && current != this)
@@ -2023,8 +2023,8 @@ public final class Assignment implements Schedule, Association, Allocation, Dela
 		checkBaselineSlot(slot);
 		Integer baselineId = Integer.valueOf(slot);
 		clearImportedBaselineValues(slot);
-		com.microproject.pm.task.TaskSnapshot snapshot =
-			(com.microproject.pm.task.TaskSnapshot) detail.getTask().getSnapshot(baselineId);
+		com.microproject.model.task.TaskSnapshot snapshot =
+			(com.microproject.model.task.TaskSnapshot) detail.getTask().getSnapshot(baselineId);
 		if (snapshot != null) {
 			Assignment baseline = snapshot.findAssignment(getResource());
 			if (baseline != null)

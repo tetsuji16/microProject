@@ -94,8 +94,8 @@ public class NodeFactory {
 	}
 	public Node createTestNode(){
 		try{
-			com.microproject.pm.task.Project project = Project.createProject(null,new DataFactoryUndoController());
-			com.microproject.pm.task.NormalTask task = project.newNormalTaskInstance();
+			com.microproject.model.task.Project project = Project.createProject(null,new DataFactoryUndoController());
+			com.microproject.model.task.NormalTask task = project.newNormalTaskInstance();
 			task.setName("this is the task name");
 			return new NodeBridge(task);
 		}catch (Exception e) {return null;}

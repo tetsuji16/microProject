@@ -228,7 +228,7 @@ class LegacyReportBaselineTest {
 
 	static Project fixtureProject() {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
-		Project project = Project.createProject(com.microproject.pm.resource.ResourcePool.createRourcePool("issue-753", undo), undo);
+		Project project = Project.createProject(com.microproject.model.resource.ResourcePool.createRourcePool("issue-753", undo), undo);
 		project.initialize(false, false);
 		assertTrue(project.getBaseCalendar() == CalendarService.getInstance().getDefaultInstance(),
 			"fixture uses the built-in default calendar regardless of its localized display name");

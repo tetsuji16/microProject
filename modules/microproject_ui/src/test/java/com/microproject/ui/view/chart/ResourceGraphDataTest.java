@@ -233,7 +233,7 @@ class ResourceGraphDataTest {
 		ResourcePool pool = ResourcePool.createRourcePool("resource-graph-shift-test", undo);
 		Project project = Project.createProject(pool, undo);
 		project.initialize(false, false);
-		long holidayDate = DateTime.nextDay(DateTime.dayFloor(project.getStart()) + 2L * com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_DAY);
+		long holidayDate = DateTime.nextDay(DateTime.dayFloor(project.getStart()) + 2L * com.microproject.model.calendar.WorkCalendar.MILLIS_IN_DAY);
 		WorkingCalendar early = shiftCalendar(project, 8, 12, holidayDate);
 		WorkingCalendar late = shiftCalendar(project, 13, 17, holidayDate);
 		Resource earlyResource = pool.createScriptedResource();

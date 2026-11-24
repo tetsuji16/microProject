@@ -149,7 +149,7 @@ class MpoMspdiConsolidationGoldenTest {
 		task.setFontBold(true);
 		task.setFontItalic(true);
 		task.setFontStrikethrough(true);
-		Assignment assignment = (Assignment) ((com.microproject.pm.task.NormalTask) task).getAssignments().iterator().next();
+		Assignment assignment = (Assignment) ((com.microproject.model.task.NormalTask) task).getAssignments().iterator().next();
 		assertTrue(assignment.getBaselineAssignment(Integer.valueOf(0), false).getWorkContour().isPersonal());
 		return project;
 	}

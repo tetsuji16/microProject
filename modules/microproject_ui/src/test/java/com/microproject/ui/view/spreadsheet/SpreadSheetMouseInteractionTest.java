@@ -355,13 +355,13 @@ class SpreadSheetMouseInteractionTest {
 			NormalTask second = fixture.secondTask();
 			first.setDuration(2L * com.microproject.options.CalendarOption.getInstance().getMillisPerDay());
 			try {
-				com.microproject.pm.dependency.DependencyService.getInstance().newDependency(
-				first, second, com.microproject.pm.dependency.DependencyType.FS, 0L, this);
+				com.microproject.model.dependency.DependencyService.getInstance().newDependency(
+				first, second, com.microproject.model.dependency.DependencyType.FS, 0L, this);
 			} catch (Exception failure) {
 				throw new AssertionError(failure);
 			}
 			second.setManualDates(first.getStart(), first.getEnd());
-			assertTrue(com.microproject.pm.task.ScheduleDiagnosticsService.showsWarning(second));
+			assertTrue(com.microproject.model.task.ScheduleDiagnosticsService.showsWarning(second));
 
 			popup.setRow(findRow(sheet, first));
 			assertFalse(menuItem(popup, "fixInTaskInspector").isVisible());

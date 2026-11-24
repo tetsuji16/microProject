@@ -52,7 +52,7 @@ import com.microproject.persistence.data.DataObject;
  */
 public interface Resource extends HasCalendar, HasKey, BelongsToDocument, Cost, HasAssignments, ResourceSpecificFields, HasTimeDistributedData, TimeDistributedFields, UsageDetailFields,EarnedValueValues, EarnedValueFields, HasNotes, HasBaseCalendar, DataObject, CanSupplyRateUnit,Cloneable, BelongsToHierarchy, CustomFields, UpdatesFromTimesheet {
     /**
-     * @associates <{com.microproject.pm.resource.ResourceType}> 
+     * @associates <{com.microproject.model.resource.ResourceType}>
      */
     /** @deprecated use {@link #getResourceTypeKind()} for typed access. */
     @Deprecated
@@ -86,7 +86,7 @@ public interface Resource extends HasCalendar, HasKey, BelongsToDocument, Cost, 
     }
     
     public CostRateTable getCostRateTable(int costRateIndex);
-    default CostRateTable getCostRateTable(com.microproject.pm.costing.CostRateIndex.Kind costRateIndex) {
+    default CostRateTable getCostRateTable(com.microproject.model.costing.CostRateIndex.Kind costRateIndex) {
         return getCostRateTable(java.util.Objects.requireNonNull(costRateIndex, "costRateIndex").code());
     }
     public void addAssignment(Assignment assignment);
@@ -96,8 +96,8 @@ public interface Resource extends HasCalendar, HasKey, BelongsToDocument, Cost, 
      * @link aggregation
      * @supplierCardinality 0..* 
      */
-    /*# com.microproject.pm.assignment.Assignment lnkAssignment; */
-    /*# com.microproject.pm.costing.Accrual lnkAccrual; */
+    /*# com.microproject.model.assignment.Assignment lnkAssignment; */
+    /*# com.microproject.model.costing.Accrual lnkAccrual; */
 	public AvailabilityTable getAvailabilityTable();
 	public RateFormat getRateFormat(); 
 	public boolean isAssignment(); // for formulas

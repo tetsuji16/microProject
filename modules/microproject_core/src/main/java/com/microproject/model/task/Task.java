@@ -116,7 +116,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
      * @link aggregation
      * @supplierCardinality 0..*
      */
-    /*# com.microproject.pm.assignment.Assignment lnkAssignment; */
+    /*# com.microproject.model.assignment.Assignment lnkAssignment; */
 	transient Project project;
 	/** Runtime-only: true when Duration was the field last entered through the task sheet; not persisted. */
 	transient boolean durationPinnedByScheduleEdit;
@@ -2243,7 +2243,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
  * Get a task's position in the predecessor-ordered list of the critical path.  Parent tasks will have a pair indicating the parent start and parent end
  * @return
  */	public String getPredecessorOrder() {
-		int pos[] = ((com.microproject.pm.criticalpath.CriticalPath)project.getSchedulingAlgorithm()).findTaskPosition(this);
+		int pos[] = ((com.microproject.schedule.criticalpath.CriticalPath)project.getSchedulingAlgorithm()).findTaskPosition(this);
 		String result = "" + pos[0];
 		if (pos.length ==2)
 			result += ", " + pos[1];

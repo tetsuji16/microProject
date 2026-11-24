@@ -298,7 +298,7 @@ class ResourceTableEditDirtyTest {
 		var table = f.resource().getAvailabilityTable();
 		edit(f, table, table.getList(), "availabilitySpreadsheet", "Spreadsheet.availability",
 			"Field.maximumUnits", Double.valueOf(0.5d));
-		assertEquals(0.5d, ((com.microproject.pm.availability.Availability) table.getList().get(0)).getMaximumUnits());
+		assertEquals(0.5d, ((com.microproject.model.availability.Availability) table.getList().get(0)).getMaximumUnits());
 		assertTrue(f.project().needsSaving(), "availability edit must prompt to save");
 	}
 
@@ -308,7 +308,7 @@ class ResourceTableEditDirtyTest {
 		var table = f.resource().getCostRateTable(0);
 		edit(f, table, table.getList(), "costRates", "Spreadsheet.costRates", "Field.costPerUse",
 			Double.valueOf(12.0d));
-		assertEquals(12.0d, ((com.microproject.pm.costing.CostRate) table.getList().get(0)).getCostPerUse());
+		assertEquals(12.0d, ((com.microproject.model.costing.CostRate) table.getList().get(0)).getCostPerUse());
 		assertTrue(f.project().needsSaving(), "cost rate edit must prompt to save");
 	}
 }

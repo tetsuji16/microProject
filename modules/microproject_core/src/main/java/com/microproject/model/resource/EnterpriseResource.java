@@ -122,7 +122,7 @@ public class EnterpriseResource implements Resource {
 	private transient HasKeyImpl hasKey;
 	/**
 	 * Issue #227: created timestamp persisted on the object (not the transient
-	 * hasKey) so it survives load/save round-trips. See com.microproject.pm.task.Task#created.
+	 * hasKey) so it survives load/save round-trips. See com.microproject.model.task.Task#created.
 	 */
 	protected Date created = new Date();
 	protected transient ResourcePool resourcePool;
@@ -510,7 +510,7 @@ public class EnterpriseResource implements Resource {
 	 * @return
 	 */
 	public double cost(long start, long end) {
-		return com.microproject.pm.assignment.TimeDistributedDataConsolidator.cost(start, end, activeAssignments());
+		return com.microproject.model.assignment.TimeDistributedDataConsolidator.cost(start, end, activeAssignments());
 	}
 	/**
 	 * @param start
@@ -518,7 +518,7 @@ public class EnterpriseResource implements Resource {
 	 * @return
 	 */
 	public long work(long start, long end) {
-		return com.microproject.pm.assignment.TimeDistributedDataConsolidator.work(start, end, activeAssignments(), true);
+		return com.microproject.model.assignment.TimeDistributedDataConsolidator.work(start, end, activeAssignments(), true);
 	}
 	/**
 	 * @param context
@@ -536,10 +536,10 @@ public class EnterpriseResource implements Resource {
 			CalculatedValues values) {
 		// Inactive tasks leave the active plan, while their actual and baseline
 		// timephased values remain available for history and reporting.
-		boolean currentPlan = type == com.microproject.pm.assignment.HasTimeDistributedData.WORK
-				|| type == com.microproject.pm.assignment.HasTimeDistributedData.REMAINING_WORK
-				|| type == com.microproject.pm.assignment.HasTimeDistributedData.COST
-				|| type == com.microproject.pm.assignment.HasTimeDistributedData.REMAINING_COST;
+		boolean currentPlan = type == com.microproject.model.assignment.HasTimeDistributedData.WORK
+				|| type == com.microproject.model.assignment.HasTimeDistributedData.REMAINING_WORK
+				|| type == com.microproject.model.assignment.HasTimeDistributedData.COST
+				|| type == com.microproject.model.assignment.HasTimeDistributedData.REMAINING_COST;
 		List<Assignment> assignmentsToInclude = currentPlan ? activeAssignments()
 				: hasAssignments.getAssignments().stream().filter(Assignment.class::isInstance)
 					.map(Assignment.class::cast).toList();

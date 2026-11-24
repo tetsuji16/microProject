@@ -68,7 +68,7 @@ class ScheduleServiceSplitTest {
 		long originalStart = task.getStart();
 		long originalEnd = task.getEnd();
 		long originalDuration = task.getDurationMillis();
-		List<com.microproject.pm.task.TaskSplitInterval> originalDetails = task.getTaskSplitIntervals();
+		List<com.microproject.model.task.TaskSplitInterval> originalDetails = task.getTaskSplitIntervals();
 		long splitFrom = task.getEffectiveWorkCalendar().add(originalStart,
 			CalendarOption.getInstance().getMillisPerDay(), false);
 		long splitTo = task.getEffectiveWorkCalendar().add(splitFrom,
@@ -77,7 +77,7 @@ class ScheduleServiceSplitTest {
 		AtomicInteger objectEvents = new AtomicInteger();
 		AtomicInteger scheduleEvents = new AtomicInteger();
 		ObjectEvent.Listener objectListener = event -> objectEvents.incrementAndGet();
-		com.microproject.pm.scheduling.ScheduleEventListener scheduleListener = event -> scheduleEvents.incrementAndGet();
+		com.microproject.schedule.ScheduleEventListener scheduleListener = event -> scheduleEvents.incrementAndGet();
 		project.addObjectListener(objectListener);
 		project.addScheduleListener(scheduleListener);
 		try {
@@ -120,7 +120,7 @@ class ScheduleServiceSplitTest {
 		Assignment assignment = sourceAssignment;
 		ScheduleService failingService = new ScheduleService() {
 			@Override
-			void applyOrdinarySplit(com.microproject.pm.scheduling.Schedule schedule, Object source, long from, long to) {
+			void applyOrdinarySplit(com.microproject.schedule.Schedule schedule, Object source, long from, long to) {
 				super.applyOrdinarySplit(schedule, source, from, to);
 				throw new IllegalStateException("assignment split application failed");
 			}
@@ -142,7 +142,7 @@ class ScheduleServiceSplitTest {
 		AtomicInteger objectEvents = new AtomicInteger();
 		AtomicInteger scheduleEvents = new AtomicInteger();
 		ObjectEvent.Listener objectListener = event -> objectEvents.incrementAndGet();
-		com.microproject.pm.scheduling.ScheduleEventListener scheduleListener = event -> scheduleEvents.incrementAndGet();
+		com.microproject.schedule.ScheduleEventListener scheduleListener = event -> scheduleEvents.incrementAndGet();
 		project.addObjectListener(objectListener);
 		project.addScheduleListener(scheduleListener);
 		try {
@@ -195,7 +195,7 @@ class ScheduleServiceSplitTest {
 		AtomicInteger objectEvents = new AtomicInteger();
 		AtomicInteger scheduleEvents = new AtomicInteger();
 		ObjectEvent.Listener objectListener = event -> objectEvents.incrementAndGet();
-		com.microproject.pm.scheduling.ScheduleEventListener scheduleListener = event -> scheduleEvents.incrementAndGet();
+		com.microproject.schedule.ScheduleEventListener scheduleListener = event -> scheduleEvents.incrementAndGet();
 		project.addObjectListener(objectListener);
 		project.addScheduleListener(scheduleListener);
 		try {
@@ -232,7 +232,7 @@ class ScheduleServiceSplitTest {
 		Assignment assignment = original;
 		ScheduleService failingService = new ScheduleService() {
 			@Override
-			protected void applyInterval(com.microproject.pm.scheduling.Schedule schedule, Object source,
+			protected void applyInterval(com.microproject.schedule.Schedule schedule, Object source,
 					long start, long end, ScheduleInterval interval) {
 				super.applyInterval(schedule, source, start, end, interval);
 				if (schedule == assignment) throw new IllegalStateException("assignment interval application failed");
@@ -250,7 +250,7 @@ class ScheduleServiceSplitTest {
 		AtomicInteger objectEvents = new AtomicInteger();
 		AtomicInteger scheduleEvents = new AtomicInteger();
 		ObjectEvent.Listener objectListener = event -> objectEvents.incrementAndGet();
-		com.microproject.pm.scheduling.ScheduleEventListener scheduleListener = event -> scheduleEvents.incrementAndGet();
+		com.microproject.schedule.ScheduleEventListener scheduleListener = event -> scheduleEvents.incrementAndGet();
 		project.addObjectListener(objectListener);
 		project.addScheduleListener(scheduleListener);
 		try {
@@ -494,7 +494,7 @@ class ScheduleServiceSplitTest {
 		long endWithBoth = task.getEnd();
 
 		new ResourceLevelingService().clear(project, undoController.getEditSupport());
-		assertEquals(List.of(new com.microproject.pm.task.TaskSplitInterval(manualFrom - start, manualTo - start)),
+		assertEquals(List.of(new com.microproject.model.task.TaskSplitInterval(manualFrom - start, manualTo - start)),
 			task.getTaskSplitIntervals(), "clear must preserve the manual interval even where it overlapped a generated split");
 		assertTrue(task.getEnd() < endWithBoth);
 		assertTrue(undoController.canUndo(), "clear must be undoable when it removes generated split state");
@@ -521,7 +521,7 @@ class ScheduleServiceSplitTest {
 		long generatedFrom = task.getEffectiveWorkCalendar().add(start, day, false);
 		long generatedTo = task.getEffectiveWorkCalendar().add(generatedFrom, day, false);
 		assertTrue(ScheduleService.getInstance().splitForLeveling(this, task, generatedFrom, generatedTo));
-		List<com.microproject.pm.task.TaskSplitInterval> visibleBeforeManual = task.getTaskSplitIntervals();
+		List<com.microproject.model.task.TaskSplitInterval> visibleBeforeManual = task.getTaskSplitIntervals();
 		long finishBeforeManual = task.getEnd();
 		undoController.discardAllEdits();
 

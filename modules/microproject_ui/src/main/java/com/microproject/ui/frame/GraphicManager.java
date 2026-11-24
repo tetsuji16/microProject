@@ -2849,7 +2849,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 				com.microproject.ui.dialog.UsabilityStrings.text("ccpm.clearTitle"),
 				JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.YES_OPTION) return;
 			Project project = getCurrentFrame().getProject();
-			new com.microproject.pm.ccpm.CriticalChainService().clear(project);
+			new com.microproject.schedule.ccpm.CriticalChainService().clear(project);
 			getMenuManager().setActionSelected(ACTION_TOGGLE_CRITICAL_CHAIN, false);
 			getCurrentFrame().repaint();
 			setButtonState(null, project);
@@ -2883,7 +2883,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			if (!isDocumentActive()) return;
 			Project project = getCurrentFrame().getProject();
-			com.microproject.pm.ccpm.CriticalChainService service = new com.microproject.pm.ccpm.CriticalChainService();
+			com.microproject.schedule.ccpm.CriticalChainService service = new com.microproject.schedule.ccpm.CriticalChainService();
 			if (service.findSettings(project) == null || service.findBaseline(project) == null) return;
 			boolean visible = com.microproject.ui.view.gantt.CriticalChainDisplayState.toggle(project);
 			getMenuManager().setActionSelected(ACTION_TOGGLE_CRITICAL_CHAIN, visible);
@@ -5615,23 +5615,23 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (ganttView == null || getCurrentFrame() == null || getCurrentFrame().getProject() == null)
 			return;
 		Project project = getCurrentFrame().getProject();
-		com.microproject.pm.task.ProgressLineSettings current = project.getProgressLineSettings();
+		com.microproject.model.task.ProgressLineSettings current = project.getProgressLineSettings();
 		if (current == null)
-			current = new com.microproject.pm.task.ProgressLineSettings(ganttView.isProgressLineEnabled(),
-				com.microproject.pm.task.ProgressLineSettings.ReferenceDate.STATUS_DATE,
-				false, 1, com.microproject.pm.task.ProgressLineSettings.IntervalUnit.WEEK);
+			current = new com.microproject.model.task.ProgressLineSettings(ganttView.isProgressLineEnabled(),
+				com.microproject.model.task.ProgressLineSettings.ReferenceDate.STATUS_DATE,
+				false, 1, com.microproject.model.task.ProgressLineSettings.IntervalUnit.WEEK);
 		MenuManager manager = getMenuManager();
 		JCheckBox showReference = new JCheckBox(manager.getString("ProgressLines.showCurrent"), current.showCurrentLine());
 		JRadioButton statusDate = new JRadioButton(manager.getString("ProgressLines.statusDate"),
-			current.referenceDate() == com.microproject.pm.task.ProgressLineSettings.ReferenceDate.STATUS_DATE);
+			current.referenceDate() == com.microproject.model.task.ProgressLineSettings.ReferenceDate.STATUS_DATE);
 		JRadioButton currentDate = new JRadioButton(manager.getString("ProgressLines.currentDate"),
-			current.referenceDate() == com.microproject.pm.task.ProgressLineSettings.ReferenceDate.CURRENT_DATE);
+			current.referenceDate() == com.microproject.model.task.ProgressLineSettings.ReferenceDate.CURRENT_DATE);
 		ButtonGroup referenceDates = new ButtonGroup();
 		referenceDates.add(statusDate);
 		referenceDates.add(currentDate);
 		JCheckBox showRecurring = new JCheckBox(manager.getString("ProgressLines.showRecurring"), current.showRecurringLines());
 		JSpinner interval = new JSpinner(new SpinnerNumberModel(current.recurringInterval(), 1,
-			com.microproject.pm.task.ProgressLineSettings.MAX_RECURRING_INTERVAL, 1));
+			com.microproject.model.task.ProgressLineSettings.MAX_RECURRING_INTERVAL, 1));
 		JComboBox<String> unit = new JComboBox<>(new String[] { manager.getString("ProgressLines.day"),
 			manager.getString("ProgressLines.week"), manager.getString("ProgressLines.month") });
 		unit.setSelectedIndex(current.recurringIntervalUnit().ordinal());
@@ -5684,24 +5684,24 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		dialog.setAlwaysOnTop(false);
 		if (choice[0] != JOptionPane.OK_OPTION)
 			return;
-		var updated = new com.microproject.pm.task.ProgressLineSettings(showReference.isSelected(),
+		var updated = new com.microproject.model.task.ProgressLineSettings(showReference.isSelected(),
 			statusDate.isSelected()
-				? com.microproject.pm.task.ProgressLineSettings.ReferenceDate.STATUS_DATE
-				: com.microproject.pm.task.ProgressLineSettings.ReferenceDate.CURRENT_DATE,
+				? com.microproject.model.task.ProgressLineSettings.ReferenceDate.STATUS_DATE
+				: com.microproject.model.task.ProgressLineSettings.ReferenceDate.CURRENT_DATE,
 			showRecurring.isSelected(), ((Number) interval.getValue()).intValue(),
-			com.microproject.pm.task.ProgressLineSettings.IntervalUnit.values()[unit.getSelectedIndex()]);
+			com.microproject.model.task.ProgressLineSettings.IntervalUnit.values()[unit.getSelectedIndex()]);
 		applyProgressLineSettings(project, ganttView, updated, true);
 	}
 
 	boolean applyProgressLineSettings(Project project, GanttView ganttView,
-		com.microproject.pm.task.ProgressLineSettings updated, boolean postUndo) {
+		com.microproject.model.task.ProgressLineSettings updated, boolean postUndo) {
 		if (project == null || ganttView == null || project.isReadOnly())
 			return false;
-		com.microproject.pm.task.ProgressLineSettings previous = project.getProgressLineSettings();
-		com.microproject.pm.task.ProgressLineSettings effectivePrevious = previous == null
-			? new com.microproject.pm.task.ProgressLineSettings(ganttView.getGantt().isProgressLineEnabled(),
-				com.microproject.pm.task.ProgressLineSettings.ReferenceDate.STATUS_DATE,
-				false, 1, com.microproject.pm.task.ProgressLineSettings.IntervalUnit.WEEK)
+		com.microproject.model.task.ProgressLineSettings previous = project.getProgressLineSettings();
+		com.microproject.model.task.ProgressLineSettings effectivePrevious = previous == null
+			? new com.microproject.model.task.ProgressLineSettings(ganttView.getGantt().isProgressLineEnabled(),
+				com.microproject.model.task.ProgressLineSettings.ReferenceDate.STATUS_DATE,
+				false, 1, com.microproject.model.task.ProgressLineSettings.IntervalUnit.WEEK)
 			: previous;
 		if (effectivePrevious.equals(updated))
 			return false;
@@ -5712,7 +5712,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		if (postUndo && project.getUndoController() != null) {
 			project.getUndoController().getEditSupport().postEdit(new AbstractUndoableEdit() {
 				private static final long serialVersionUID = 1L;
-				private void restore(com.microproject.pm.task.ProgressLineSettings settings, boolean enabled) {
+				private void restore(com.microproject.model.task.ProgressLineSettings settings, boolean enabled) {
 					mutateProgressLineSettings(project, settings);
 					ganttView.getGantt().setProgressLineEnabled(enabled);
 					ganttView.getGantt().repaint();
@@ -5730,7 +5730,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	private static void mutateProgressLineSettings(Project project,
-		com.microproject.pm.task.ProgressLineSettings settings) {
+		com.microproject.model.task.ProgressLineSettings settings) {
 		project.runModelMutation(markApplied -> {
 			markApplied.run();
 			project.setProgressLineSettings(settings);
@@ -5990,7 +5990,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			!readOnly && getCurrentFrame() != null && getCurrentFrame().hasTaskSelection(true, 1, false));
 		getMenuManager().setActionEnabled(ACTION_NEXT_OVERALLOCATION,
 			getCurrentFrame() != null && getCurrentFrame().canNavigateToNextOverallocatedTask());
-		boolean hasCcpmPlan = project != null && new com.microproject.pm.ccpm.CriticalChainService().findBaseline(project) != null;
+		boolean hasCcpmPlan = project != null && new com.microproject.schedule.ccpm.CriticalChainService().findBaseline(project) != null;
 		getMenuManager().setActionEnabled(ACTION_CCPM_SETTINGS,!readOnly && project != null);
 		getMenuManager().setActionEnabled(ACTION_CCPM_CLEAR,!readOnly && hasCcpmPlan);
 		getMenuManager().setActionEnabled(ACTION_CCPM_BUFFER_STATUS,project != null);

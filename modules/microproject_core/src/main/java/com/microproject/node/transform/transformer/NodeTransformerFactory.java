@@ -45,7 +45,7 @@ public class NodeTransformerFactory extends CommonTransformFactory{
 	    classText.append("package com.microproject.node.transform.transformer;\n");
 	    classText.append("import com.microproject.node.Node;\n");
 	    classText.append("import com.microproject.datatype.*;\n");
-	    classText.append("import com.microproject.pm.assignment.Assignment;\n");
+	    classText.append("import com.microproject.model.assignment.Assignment;\n");
 		String className = GroovyClassCompiler.scriptClassName("TransformerFormula", type + "\n" + formulaText);
 	    classText.append("public class ").append(className).append(" extends NodeTransformer{\n");
 	    classText.append("\tpublic Object evaluate(Object ").append(type).append("){\n")

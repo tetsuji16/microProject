@@ -51,7 +51,7 @@ class AssignmentCompositionFilterTest {
 
 	private Assignment createAssignment() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
-		var resourcePool = com.microproject.pm.resource.ResourcePool.createRourcePool("filter-test", undoController);
+		var resourcePool = com.microproject.model.resource.ResourcePool.createRourcePool("filter-test", undoController);
 		Project project = Project.createProject(resourcePool, undoController);
 		project.initialize(false, false);
 		NormalTask task = new NormalTask(project);

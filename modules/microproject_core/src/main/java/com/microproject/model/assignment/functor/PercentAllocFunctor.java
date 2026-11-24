@@ -60,7 +60,7 @@ public class PercentAllocFunctor extends AssignmentFieldFunctor {
 		super.initialize();
 		work = 0;
 	}
-	public static PercentAllocFunctor getInstance(com.microproject.pm.assignment.Assignment assignment, com.microproject.pm.calendar.WorkCalendar workCalendar, com.microproject.pm.assignment.contour.ContourBucketIntervalGenerator contourBucketIntervalGenerator, boolean threshold) {
+	public static PercentAllocFunctor getInstance(com.microproject.model.assignment.Assignment assignment, com.microproject.model.calendar.WorkCalendar workCalendar, com.microproject.model.assignment.contour.ContourBucketIntervalGenerator contourBucketIntervalGenerator, boolean threshold) {
 		return new PercentAllocFunctor(assignment, workCalendar, contourBucketIntervalGenerator,threshold);
 	}	
 }

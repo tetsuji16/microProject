@@ -152,7 +152,7 @@ public final class BaselineAssignmentProfile {
 	public static AbstractContour restoreContour(Contour contour) {
 		ContourTypes.Kind kind = ContourTypes.Kind.fromCode(contour.type());
 		return kind == ContourTypes.Kind.CONTOURED
-			? com.microproject.pm.assignment.contour.PersonalContour.getInstance(buckets(contour))
+			? com.microproject.model.assignment.contour.PersonalContour.getInstance(buckets(contour))
 			: ContourFactory.getInstance(kind);
 	}
 

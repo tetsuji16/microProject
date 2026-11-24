@@ -105,10 +105,10 @@ public class MPXConverter {
 	public static int nameFieldWidth = Configuration.getFieldFromId("Field.name").getTextWidth();
 	private static final ThreadLocal<ExportIdAllocator> EXPORT_IDS = new ThreadLocal<ExportIdAllocator>();
 
-	public static void beginExport(com.microproject.pm.task.Project project) {
+	public static void beginExport(com.microproject.model.task.Project project) {
 		ExportIdAllocator allocator = new ExportIdAllocator();
 		// Reserve persisted UIDs before assigning IDs to new, negative-ID tasks.
-		for (com.microproject.pm.task.Task task : project.getTaskList()) {
+		for (com.microproject.model.task.Task task : project.getTaskList()) {
 			if (task.getUniqueId() > 0 && task.getUniqueId() <= Integer.MAX_VALUE) {
 				allocator.get(IdNamespace.TASK, task.getUniqueId());
 			}
@@ -134,7 +134,7 @@ public class MPXConverter {
 		long uid = resource.getExternalId();
 		if (uid <= 0L) uid = resource.getUniqueId();
 		if (uid <= 0L) uid = resource.getId();
-		return resource.isDefault() ? com.microproject.pm.resource.EnterpriseResource.UNASSIGNED_ID
+		return resource.isDefault() ? com.microproject.model.resource.EnterpriseResource.UNASSIGNED_ID
 			: exportId(IdNamespace.RESOURCE, uid);
 	}
 
@@ -295,7 +295,7 @@ public class MPXConverter {
 		mpxResource.setNotes(removeInvalidChars(sourceResource.getNotes()));
 		mpxResource.setAccrueAt(AccrueType.getInstance(sourceResource.getAccrueAt()));
 		for (int tableIndex = 0; tableIndex < org.mpxj.CostRateTable.MAX_TABLES; tableIndex++) {
-			com.microproject.pm.costing.CostRateTable sourceTable = sourceResource.getCostRateTableIfPresent(tableIndex);
+			com.microproject.model.costing.CostRateTable sourceTable = sourceResource.getCostRateTableIfPresent(tableIndex);
 			org.mpxj.CostRateTable targetTable = new org.mpxj.CostRateTable();
 			if (sourceTable != null) {
 				for (ValueObjectForInterval value : sourceTable.getList()) {
@@ -511,7 +511,7 @@ public class MPXConverter {
 	}
 
 	private static long appendProfileTimephasedWork(List<TimephasedWork> destination,
-		com.microproject.pm.assignment.contour.AbstractContourBucket[] buckets, long start, long assignmentDuration,
+		com.microproject.model.assignment.contour.AbstractContourBucket[] buckets, long start, long assignmentDuration,
 		WorkCalendar calendar) {
 		long cursor = calendarStart(start, calendar);
 		long total = 0L;

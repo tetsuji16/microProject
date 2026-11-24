@@ -97,7 +97,7 @@ class UpdateProjectRequestTest {
 		NormalTask task = project.createScriptedTask();
 		task.setDuration(com.microproject.options.CalendarOption.getInstance().getMillisPerDay() * 4L);
 		var resource = project.getResourcePool().createScriptedResource();
-		var assignment = com.microproject.pm.assignment.AssignmentService.getInstance()
+		var assignment = com.microproject.model.assignment.AssignmentService.getInstance()
 			.newAssignment(task, resource, 1.0d, 0L, this);
 		assignment.setWork(com.microproject.options.CalendarOption.getInstance().getMillisPerDay() * 4L, null);
 		project.recalculate();

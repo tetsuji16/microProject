@@ -105,7 +105,7 @@ class MpoTaskOperationServiceTest {
 			Set.of(linkId), "task.update", UUID.randomUUID().toString(), Map.of(
 				"legacyUniqueId", replayed.summary().getUniqueId(), "percentComplete", 1D));
 
-		com.microproject.pm.dependency.DependencyService.getInstance().newDependency(expected.predecessor(),
+		com.microproject.model.dependency.DependencyService.getInstance().newDependency(expected.predecessor(),
 			expected.child(), DependencyType.Kind.FS, 0L, null);
 		expected.summary().setPercentComplete(1D);
 		new MpoTaskOperationService().apply(replayed.project(), List.of(summaryProgress, link));

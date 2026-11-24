@@ -1259,7 +1259,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		if (coord == null)
 			return;
 		Project project = coord.getProject();
-		com.microproject.pm.task.ProgressLineSettings settings = project.getProgressLineSettings();
+		com.microproject.model.task.ProgressLineSettings settings = project.getProgressLineSettings();
 		java.awt.Rectangle visibleChart = gantt.getVisibleRect();
 		long visibleStart = visibleChart.width > 0 ? (long) coord.toTime(visibleChart.x) : coord.getOrigin();
 		long visibleEnd = visibleChart.width > 0

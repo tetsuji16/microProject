@@ -14,21 +14,23 @@ Relocate grouping.core, server.access and pm packages as specified, preserving P
 
 | ID | Required result/evidence | State | Evidence |
 |---|---|---|---|
-| A1 | old package search empty outside relocation table/inventory | open | pending |
-| A2 | historical MPO and POD fixtures read | open | pending |
-| A3 | fixed POD bytes unchanged | open | pending |
+| A1 | old package search empty outside relocation table/inventory | pass | exact git grep on integration tree |
+| A2 | historical MPO and POD fixtures read | pass | focused inventory and fixture tests |
+| A3 | fixed POD bytes unchanged | pass | fixed hashes and descriptor inventory test |
 | A4 | scheduling tests pass without changing expectations | open | pending |
 | A5 | required build and GUI acceptance pass | open | pending |
 | A6 | prescribed compile, architecture, tests, clean build and inventory | open | pending |
 
 ## Current slice
 
-**Next slice:** relocate pm model and scheduling packages with historical class mappings.
-**Done when:** production and test compilation and historical fixtures pass.
-**Then:** run complete scheduling, exchange and application tests.
+**Next slice:** complete clean build and assess exact candidate CI.
+**Done when:** clean build, build check, GUI acceptance and review pass.
+**Then:** merge and proceed to #1314.
 
 ## Remaining blockers
 
-- A1–A6 pending.
+- A4–A6: scheduling/full tests, clean build and exact candidate CI pending.
 
 - Node/access relocation: architecture checks, ClassRelocationsTest, persisted class inventory and fixed POD/MPO fixture tests passed.
+
+- Model and scheduling relocation: all-module compile, architecture, GUI compilation, fixed POD/MPO and persisted class inventory tests passed. Source inventory and 24 maintenance-script tests passed. Clean build is running.

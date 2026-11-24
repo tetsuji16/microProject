@@ -809,7 +809,7 @@ class DependencyServiceTest {
 		project.beginEventBatch();
 		project.getObjectEventManager().fireUpdateEvent(this, first);
 		int pendingBefore = project.getObjectEventManager().pendingEventCount();
-		project.fireScheduleChanged(this, com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+		project.fireScheduleChanged(this, com.microproject.schedule.ScheduleEvent.SCHEDULE);
 		int pendingProjectEventsBefore = project.pendingEventCount();
 		List<Association> firstPredecessors = new ArrayList<>(first.getPredecessorList());
 		List<Association> firstSuccessors = new ArrayList<>(first.getSuccessorList());
@@ -862,7 +862,7 @@ class DependencyServiceTest {
 		project.beginEventBatch();
 		project.getObjectEventManager().fireUpdateEvent(this, first);
 		int pendingBefore = project.getObjectEventManager().pendingEventCount();
-		project.fireScheduleChanged(this, com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+		project.fireScheduleChanged(this, com.microproject.schedule.ScheduleEvent.SCHEDULE);
 		int pendingProjectEventsBefore = project.pendingEventCount();
 		List<Association> firstPredecessors = new ArrayList<>(first.getPredecessorList());
 		List<Association> firstSuccessors = new ArrayList<>(first.getSuccessorList());
@@ -1005,7 +1005,7 @@ class DependencyServiceTest {
 		project.beginEventBatch();
 		project.getObjectEventManager().fireUpdateEvent(this, oldPredecessor);
 		int pendingObjectEvents = project.getObjectEventManager().pendingEventCount();
-		project.fireScheduleChanged(this, com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+		project.fireScheduleChanged(this, com.microproject.schedule.ScheduleEvent.SCHEDULE);
 		int pendingProjectEvents = project.pendingEventCount();
 		predecessor.failNextEndSentinelUpdate();
 
@@ -1250,7 +1250,7 @@ class DependencyServiceTest {
 				DependencyType.FS, 0L, this);
 		project.beginEventBatch();
 		project.getObjectEventManager().fireUpdateEvent(this, predecessor);
-		project.fireScheduleChanged(this, com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+		project.fireScheduleChanged(this, com.microproject.schedule.ScheduleEvent.SCHEDULE);
 		List<Association> predecessorPredecessors = new ArrayList<>(predecessor.getPredecessorList());
 		List<Association> predecessorSuccessors = new ArrayList<>(predecessor.getSuccessorList());
 		List<Association> successorPredecessors = new ArrayList<>(successor.getPredecessorList());

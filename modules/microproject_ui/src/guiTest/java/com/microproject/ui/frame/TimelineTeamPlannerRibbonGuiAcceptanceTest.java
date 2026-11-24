@@ -111,7 +111,7 @@ class TimelineTeamPlannerRibbonGuiAcceptanceTest {
 		confirmDialog(robot, dialog -> { });
 		// Add to Timeline is enabled from the Timeline selection, so it must act on the Timeline's
 		// selected task, not on the (empty) table selection.
-		com.microproject.pm.task.Task target = project.getTasks().getFirst();
+		com.microproject.model.task.Task target = project.getTasks().getFirst();
 		boolean onTimeline = onEdt(target::isDisplayOnTimeline);
 		onEdt(() -> { timeline.selectTasks(java.util.List.of(target)); return null; });
 		onEdt(() -> { manager.getAction(com.microproject.ribbon.CommandId.TASK_ADD_TO_TIMELINE.actionId()).actionPerformed(

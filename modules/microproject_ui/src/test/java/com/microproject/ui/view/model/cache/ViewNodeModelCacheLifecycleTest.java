@@ -52,7 +52,7 @@ class ViewNodeModelCacheLifecycleTest {
 			graphicNode.setDirty(true);
 		});
 		Thread publisher = new Thread(() -> project.fireScheduleChanged("background-test",
-				com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE));
+				com.microproject.schedule.ScheduleEvent.SCHEDULE));
 		publisher.start();
 		publisher.join();
 		SwingUtilities.invokeAndWait(() -> { });
@@ -73,7 +73,7 @@ class ViewNodeModelCacheLifecycleTest {
 					project.getTaskModel());
 			assertTrue(reference.nodeCache.getCacheSize() > 0);
 			Thread publisher = new Thread(() -> {
-				project.fireScheduleChanged("background-test", com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+				project.fireScheduleChanged("background-test", com.microproject.schedule.ScheduleEvent.SCHEDULE);
 				callbackReturned.countDown();
 			});
 			publisher.start();
@@ -109,8 +109,8 @@ class ViewNodeModelCacheLifecycleTest {
 			notifications.set(0);
 			GraphicNode node = reference.getGraphicNode(project.getTaskModel().search(task));
 			node.setDirty(true);
-			com.microproject.pm.scheduling.ScheduleEvent stale = new com.microproject.pm.scheduling.ScheduleEvent(
-				"stale-publication", com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+			com.microproject.schedule.ScheduleEvent stale = new com.microproject.schedule.ScheduleEvent(
+				"stale-publication", com.microproject.schedule.ScheduleEvent.SCHEDULE);
 			stale.setPublicationRevision(1L);
 			reference.scheduleChanged(stale);
 			assertEquals(2L, view.getVisibleNodes().getProjectionIndex().modelRevision());
@@ -144,8 +144,8 @@ class ViewNodeModelCacheLifecycleTest {
 			// Both publications are produced off the EDT and queued in the given completion order.
 			long[] order = newestFirst ? new long[] { newer, older } : new long[] { older, newer };
 			for (long revision : order) {
-				com.microproject.pm.scheduling.ScheduleEvent event = new com.microproject.pm.scheduling.ScheduleEvent(
-						"out-of-order", com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+				com.microproject.schedule.ScheduleEvent event = new com.microproject.schedule.ScheduleEvent(
+						"out-of-order", com.microproject.schedule.ScheduleEvent.SCHEDULE);
 				event.setPublicationRevision(revision);
 				Thread publisher = new Thread(() -> reference.scheduleChanged(event));
 				publisher.start();
@@ -219,7 +219,7 @@ class ViewNodeModelCacheLifecycleTest {
 		int[] afterRebind = new int[1];
 		SwingUtilities.invokeAndWait(() -> {
 			Thread publisher = new Thread(() -> {
-				project.fireScheduleChanged("old-binding", com.microproject.pm.scheduling.ScheduleEvent.SCHEDULE);
+				project.fireScheduleChanged("old-binding", com.microproject.schedule.ScheduleEvent.SCHEDULE);
 				callbackReturned.countDown();
 			});
 			publisher.start();

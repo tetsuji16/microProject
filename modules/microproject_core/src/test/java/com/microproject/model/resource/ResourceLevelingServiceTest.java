@@ -146,8 +146,8 @@ class ResourceLevelingServiceTest {
 			ResourceLevelingService.Sensitivity.DAY, false, true);
 		ResourceLevelingService service = new ResourceLevelingService();
 		service.preview(fixture.project, List.of(fixture.resource), options).apply();
-		long editedStart = manual.getManualStart() + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
-		manual.setManualDates(editedStart, manual.getManualFinish() + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR);
+		long editedStart = manual.getManualStart() + com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		manual.setManualDates(editedStart, manual.getManualFinish() + com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR);
 
 		service.clear(fixture.project, List.of(manual), null);
 
@@ -188,7 +188,7 @@ class ResourceLevelingServiceTest {
 		manual.setManuallyScheduled(true);
 		long originalStart = manual.getManualStart();
 		long originalFinish = manual.getManualFinish();
-		long shift = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long shift = com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
 		manual.setManualDates(originalStart + shift, originalFinish + shift);
 		manual.setLevelingManualDateState(new Task.LevelingManualDateState(originalStart, originalFinish,
 			originalStart + shift, originalFinish + shift));
@@ -255,7 +255,7 @@ class ResourceLevelingServiceTest {
 	@Test
 	void applyRejectsChangesToEffectiveCalendarRulesEvenWhenCalendarIdentityIsUnchanged() {
 		Fixture fixture = fixture();
-		var calendar = com.microproject.pm.calendar.WorkingCalendar.getStandardBasedInstance();
+		var calendar = com.microproject.model.calendar.WorkingCalendar.getStandardBasedInstance();
 		fixture.resource.setWorkCalendar(calendar);
 		NormalTask first = task(fixture.project, "First", 1L);
 		NormalTask second = task(fixture.project, "Second", 1L);
@@ -274,7 +274,7 @@ class ResourceLevelingServiceTest {
 	@Test
 	void applyRejectsAddedCalendarExceptionOutsideCurrentTaskDates() {
 		Fixture fixture = fixture();
-		var calendar = com.microproject.pm.calendar.WorkingCalendar.getStandardBasedInstance();
+		var calendar = com.microproject.model.calendar.WorkingCalendar.getStandardBasedInstance();
 		fixture.resource.setWorkCalendar(calendar);
 		NormalTask first = task(fixture.project, "First", 1L);
 		NormalTask second = task(fixture.project, "Second", 1L);
@@ -282,8 +282,8 @@ class ResourceLevelingServiceTest {
 		AssignmentService.getInstance().newAssignment(second, fixture.resource, 1D, 0L, this);
 		ResourceLevelingService.Plan stale = new ResourceLevelingService().preview(
 			fixture.project, List.of(fixture.resource), wholeTaskOptions());
-		long later = second.getEnd() + 30L * com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_DAY;
-		calendar.addOrReplaceException(new com.microproject.pm.calendar.WorkDay(later, later, "Later exception"));
+		long later = second.getEnd() + 30L * com.microproject.model.calendar.WorkCalendar.MILLIS_IN_DAY;
+		calendar.addOrReplaceException(new com.microproject.model.calendar.WorkDay(later, later, "Later exception"));
 		assertThrows(IllegalStateException.class, stale::apply);
 		assertEquals(0L, second.getLevelingDelay());
 	}
@@ -291,7 +291,7 @@ class ResourceLevelingServiceTest {
 	@Test
 	void emptyPlanStillRejectsChangedCalendarRules() {
 		Fixture fixture = fixture();
-		var calendar = com.microproject.pm.calendar.WorkingCalendar.getStandardBasedInstance();
+		var calendar = com.microproject.model.calendar.WorkingCalendar.getStandardBasedInstance();
 		fixture.resource.setWorkCalendar(calendar);
 		NormalTask task = task(fixture.project, "Only task", 1L);
 		AssignmentService.getInstance().newAssignment(task, fixture.resource, 1D, 0L, this);
@@ -360,7 +360,7 @@ class ResourceLevelingServiceTest {
 	@Test
 	void minuteAndHourUseTheirOwnWorkBucketsWhileDayAggregationFits() {
 		Fixture fixture = fixture();
-		long oneHour = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long oneHour = com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
 		long overlapStart = fixture.project.getEffectiveWorkCalendar().add(fixture.project.getStart(), oneHour, false);
 		NormalTask first = task(fixture.project, "Short first", 1L);
 		NormalTask second = task(fixture.project, "Short second", 1L);
@@ -421,7 +421,7 @@ class ResourceLevelingServiceTest {
 	@Test
 	void hourlySensitivityUsesTimephasedContourWorkInsteadOfConstantAssignmentUnits() {
 		Fixture fixture = fixture();
-		long hour = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long hour = com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
 		fixture.resource.setMaximumUnits(0.75D);
 		NormalTask contoured = task(fixture.project, "Back-loaded", 1L);
 		NormalTask candidate = task(fixture.project, "Early hour", 1L);
@@ -444,7 +444,7 @@ class ResourceLevelingServiceTest {
 	@Test
 	void hourlySensitivityDoesNotCountAssignmentWorkInsideTaskOwnedSplitGaps() {
 		Fixture fixture = fixture();
-		long hour = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long hour = com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
 		NormalTask first = task(fixture.project, "Task with manual gap", 1L);
 		NormalTask second = task(fixture.project, "Gap occupant", 1L);
 		Assignment firstAssignment = AssignmentService.getInstance().newAssignment(first, fixture.resource, 1D, 0L, this);
@@ -466,7 +466,7 @@ class ResourceLevelingServiceTest {
 	@Test
 	void shiftedCandidateRetainsItsContourAtTheNewScheduledStart() {
 		Fixture fixture = fixture();
-		long hour = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long hour = com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
 		fixture.resource.setMaximumUnits(0.5D);
 		NormalTask blocker = task(fixture.project, "Earlier assignment", 1L);
 		NormalTask candidateTask = task(fixture.project, "Shifted back-loaded", 1L);
@@ -510,7 +510,7 @@ class ResourceLevelingServiceTest {
 
 	@Test
 	void minuteSensitivityBoundsLongRangeBeforeBuildingPeriodBuckets() {
-		long minute = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_MINUTE;
+		long minute = com.microproject.model.calendar.WorkCalendar.MILLIS_IN_MINUTE;
 		assertTrue(ResourceLevelingService.exceedsBucketLimit(0L, 100_001L * minute,
 			ResourceLevelingService.Sensitivity.MINUTE));
 		assertFalse(ResourceLevelingService.exceedsBucketLimit(0L, 100_000L * minute,
@@ -520,7 +520,7 @@ class ResourceLevelingServiceTest {
 	@Test
 	void candidateWhoseOwnLoadExceedsCapacityDoesNotTreatLongMaxAsADate() {
 		Fixture fixture = fixture();
-		long hour = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long hour = com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
 		fixture.resource.setMaximumUnits(0.25D);
 		NormalTask task = task(fixture.project, "Cannot fit", 1L);
 		AssignmentService.getInstance().newAssignment(task, fixture.resource, 0.5D, 0L, this);
@@ -697,8 +697,8 @@ class ResourceLevelingServiceTest {
 		Fixture fixture = fixture();
 		NormalTask selected = task(fixture.project, "Selected", 1L);
 		NormalTask untouched = task(fixture.project, "Untouched", 1L);
-		long from = selected.getStart() + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
-		long to = from + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long from = selected.getStart() + com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long to = from + com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
 		selected.splitForLeveling(this, from, to);
 		selected.split(this, from, to);
 		untouched.splitForLeveling(this, untouched.getStart() + 3_600_000L, untouched.getStart() + 7_200_000L);
@@ -767,8 +767,8 @@ class ResourceLevelingServiceTest {
 		second.getCurrentSchedule().setStart(fixture.project.getStart());
 		second.setDuration(CalendarOption.getInstance().getMillisPerDay());
 		for (NormalTask target : List.of(first, second)) {
-			long from = target.getStart() + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
-			target.splitForLeveling(this, from, from + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR);
+			long from = target.getStart() + com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
+			target.splitForLeveling(this, from, from + com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR);
 			target.setLevelingDelay(com.microproject.datatype.Duration.millis(86_400_000L));
 		}
 		var undo = fixture.project.getUndoController();
@@ -839,20 +839,20 @@ class ResourceLevelingServiceTest {
 		NormalTask manuallySplitTask = task(fixture.project, "Manual work", 3L);
 		Assignment manuallySplitAssignment = AssignmentService.getInstance().newAssignment(
 			manuallySplitTask, otherResource, 1D, 0L, this);
-		long otherGap = manuallySplitTask.getStart() + 3L * com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
-		manuallySplitTask.split(this, otherGap, otherGap + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR);
-		long assignmentGap = manuallySplitAssignment.getStart() + 2L * com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long otherGap = manuallySplitTask.getStart() + 3L * com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		manuallySplitTask.split(this, otherGap, otherGap + com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR);
+		long assignmentGap = manuallySplitAssignment.getStart() + 2L * com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
 		manuallySplitAssignment.split(this, assignmentGap,
-			assignmentGap + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR);
+			assignmentGap + com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR);
 		String manualAssignmentContour = manuallySplitAssignment.getWorkContour()
 			.toString(manuallySplitAssignment.getDurationMillis());
 		long manualAssignmentDuration = manuallySplitAssignment.getDurationMillis();
-		List<com.microproject.pm.task.TaskSplitInterval> unrelatedManualSplits = manuallySplitTask.getManualTaskSplitIntervals();
+		List<com.microproject.model.task.TaskSplitInterval> unrelatedManualSplits = manuallySplitTask.getManualTaskSplitIntervals();
 		String originalContour = target.getWorkContour().toString(target.getDurationMillis());
 		long originalDuration = target.getDurationMillis();
 		long assignmentStart = target.getStart();
 		long assignmentEnd = target.getEnd();
-		List<com.microproject.pm.task.TaskSplitInterval> manualTaskSplits = longTask.getManualTaskSplitIntervals();
+		List<com.microproject.model.task.TaskSplitInterval> manualTaskSplits = longTask.getManualTaskSplitIntervals();
 		long taskStart = longTask.getStart();
 		long taskEnd = longTask.getEnd();
 		long taskDuration = longTask.getDuration();
@@ -968,8 +968,8 @@ class ResourceLevelingServiceTest {
 		second.getCurrentSchedule().setStart(fixture.project.getStart());
 		second.setDuration(CalendarOption.getInstance().getMillisPerDay());
 		for (NormalTask target : List.of(first, second)) {
-			long from = target.getStart() + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
-			target.splitForLeveling(this, from, from + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR);
+			long from = target.getStart() + com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
+			target.splitForLeveling(this, from, from + com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR);
 			target.setLevelingDelay(com.microproject.datatype.Duration.millis(86_400_000L));
 		}
 		var undo = fixture.project.getUndoController();
@@ -1133,8 +1133,8 @@ class ResourceLevelingServiceTest {
 			fixture.project.getStart(), day, false);
 		blocker.setStart(oneDayLater);
 		Assignment target = AssignmentService.getInstance().newAssignment(longTask, fixture.resource, 1D, 0L, this);
-		long manualGapStart = target.getStart() + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
-		target.split(this, manualGapStart, manualGapStart + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR);
+		long manualGapStart = target.getStart() + com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		target.split(this, manualGapStart, manualGapStart + com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR);
 		ResourceImpl otherResource = fixture.project.getResourcePool().newResourceInstance();
 		otherResource.setName("Other");
 		Assignment unaffected = AssignmentService.getInstance().newAssignment(longTask, otherResource, 1D, 0L, this);
@@ -1189,8 +1189,8 @@ class ResourceLevelingServiceTest {
 		AssignmentService.getInstance().newAssignment(longTask, fixture.resource, 1D, 0L, this);
 		AssignmentService.getInstance().newAssignment(blocker, fixture.resource, 1D, 0L, this);
 		fixture.project.recalculate();
-		com.microproject.pm.ccpm.CriticalChainService.Settings defaults =
-			new com.microproject.pm.ccpm.CriticalChainService.Settings();
+		com.microproject.schedule.ccpm.CriticalChainService.Settings defaults =
+			new com.microproject.schedule.ccpm.CriticalChainService.Settings();
 		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(fixture.project,
 			List.of(fixture.resource), new ResourceLevelingService.Options(defaults.getLevelingOrder(),
 				defaults.isOnlyWithinAvailableSlack(), defaults.isAllowTaskSplits(), Long.MIN_VALUE, Long.MAX_VALUE,
@@ -1217,7 +1217,7 @@ class ResourceLevelingServiceTest {
 		assertEquals(1, plan.assignmentSplits().size());
 		plan.apply();
 		String generatedContour = target.getWorkContour().toString(target.getDurationMillis());
-		target.extend(target.getStart(), target.getEnd(), com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR);
+		target.extend(target.getStart(), target.getEnd(), com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR);
 		String userContour = target.getWorkContour().toString(target.getDurationMillis());
 
 		assertThrows(IllegalStateException.class, () -> service.clear(fixture.project));
@@ -1272,14 +1272,14 @@ class ResourceLevelingServiceTest {
 		assertNotNull(target.getLevelingSplitState());
 
 		long totalWork = target.getWork(null);
-		long actualWork = com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long actualWork = com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
 		target.setImportedTimephasedWork(
-			com.microproject.pm.assignment.contour.PersonalContour.getInstance(new com.microproject.pm.assignment.contour.AbstractContourBucket[] {
-				com.microproject.pm.assignment.contour.PersonalContourBucket.getInstance(actualWork, 1.0D) }),
-			com.microproject.pm.assignment.contour.PersonalContour.getInstance(new com.microproject.pm.assignment.contour.AbstractContourBucket[] {
-				com.microproject.pm.assignment.contour.PersonalContourBucket.getInstance(totalWork - actualWork, 1.0D) }));
+			com.microproject.model.assignment.contour.PersonalContour.getInstance(new com.microproject.model.assignment.contour.AbstractContourBucket[] {
+				com.microproject.model.assignment.contour.PersonalContourBucket.getInstance(actualWork, 1.0D) }),
+			com.microproject.model.assignment.contour.PersonalContour.getInstance(new com.microproject.model.assignment.contour.AbstractContourBucket[] {
+				com.microproject.model.assignment.contour.PersonalContourBucket.getInstance(totalWork - actualWork, 1.0D) }));
 		assertTrue(target.hasImportedTimephasedWork());
-		fixture.project.setStatusDate(targetTask.getStart() + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR);
+		fixture.project.setStatusDate(targetTask.getStart() + com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR);
 		long expectedActual = target.getActualWork(null);
 		long expectedRemaining = target.getRemainingWork();
 		long expectedWork = target.getWork(null);
@@ -1421,9 +1421,9 @@ class ResourceLevelingServiceTest {
 			failInvariantAfterClear = true;
 			return changed;
 		}
-		@Override public java.util.List<com.microproject.pm.task.TaskSplitInterval> getLevelingTaskSplitIntervals() {
+		@Override public java.util.List<com.microproject.model.task.TaskSplitInterval> getLevelingTaskSplitIntervals() {
 			if (failInvariantAfterClear && super.getLevelingTaskSplitIntervals().isEmpty())
-				return java.util.List.of(new com.microproject.pm.task.TaskSplitInterval(0L, 1L));
+				return java.util.List.of(new com.microproject.model.task.TaskSplitInterval(0L, 1L));
 			return super.getLevelingTaskSplitIntervals();
 		}
 	}

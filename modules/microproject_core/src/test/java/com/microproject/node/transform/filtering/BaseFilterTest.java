@@ -51,7 +51,7 @@ class BaseFilterTest {
 	void formulaGeneratedFilterImplementsStandardPredicate() throws InvalidFormulaException {
 		NodeFilterFactory factory = new NodeFilterFactory();
 		factory.setType("Task");
-		factory.setFormulaText("return Task instanceof com.microproject.pm.task.Task;");
+		factory.setFormulaText("return Task instanceof com.microproject.model.task.Task;");
 		NodeFilter filter = (NodeFilter) factory.getTransform();
 
 		assertTrue(filter.test(NodeFactory.getInstance().createNode(new NormalTask())));

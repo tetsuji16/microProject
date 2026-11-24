@@ -246,12 +246,12 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 		Sheet sheet = workbook.createSheet(TASKS_SHEET);
 		writeRow(sheet, 0, "UniqueID", "ID", "ParentUniqueID", "Name", "Notes", "Start", "Finish", "PercentComplete", "WBS");
 		int rowIndex = 1;
-		for (com.microproject.pm.task.Task taskValue : project.getTaskList()) {
+		for (com.microproject.model.task.Task taskValue : project.getTaskList()) {
 			if (!(taskValue instanceof NormalTask)) {
 				continue;
 			}
 			NormalTask task = (NormalTask) taskValue;
-			com.microproject.pm.task.Task parent = task.getWbsParentTask();
+			com.microproject.model.task.Task parent = task.getWbsParentTask();
 			writeRow(sheet, rowIndex++,
 				valueOf(task.getUniqueId()),
 				valueOf(task.getId()),
@@ -294,7 +294,7 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 		if (pool == null) {
 			return;
 		}
-		for (com.microproject.pm.resource.Resource resourceValue : pool.getResourceList()) {
+		for (com.microproject.model.resource.Resource resourceValue : pool.getResourceList()) {
 			if (!(resourceValue instanceof ResourceImpl)) {
 				continue;
 			}
@@ -336,7 +336,7 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 		Sheet sheet = workbook.createSheet(ASSIGNMENTS_SHEET);
 		writeRow(sheet, 0, "TaskUniqueID", "ResourceUniqueID", "Units", "Delay", "LevelingDelay", "WorkContour");
 		int rowIndex = 1;
-		for (com.microproject.pm.task.Task taskValue : project.getTaskList()) {
+		for (com.microproject.model.task.Task taskValue : project.getTaskList()) {
 			if (!(taskValue instanceof NormalTask task)) {
 				continue;
 			}
@@ -379,7 +379,7 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 		Sheet sheet = workbook.createSheet(DEPENDENCIES_SHEET);
 		writeRow(sheet, 0, "SuccessorUniqueID", "PredecessorUniqueID", "Type", "Lag");
 		int rowIndex = 1;
-		for (com.microproject.pm.task.Task taskValue : project.getTaskList()) {
+		for (com.microproject.model.task.Task taskValue : project.getTaskList()) {
 			if (!(taskValue instanceof NormalTask task)) {
 				continue;
 			}
@@ -420,13 +420,13 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 		writeProjectCalendar(sheet, rowIndex++, project.getWorkCalendar());
 		ResourcePool pool = project.getResourcePool();
 		if (pool != null) {
-			for (com.microproject.pm.resource.Resource resourceValue : pool.getResourceList()) {
+			for (com.microproject.model.resource.Resource resourceValue : pool.getResourceList()) {
 				if (resourceValue instanceof ResourceImpl resource) {
 					writeProjectCalendar(sheet, rowIndex++, resource.getWorkCalendar());
 				}
 			}
 		}
-		for (com.microproject.pm.task.Task task : project.getTaskList()) {
+		for (com.microproject.model.task.Task task : project.getTaskList()) {
 			if (task instanceof NormalTask normalTask) {
 				writeProjectCalendar(sheet, rowIndex++, normalTask.getWorkCalendar());
 			}
@@ -535,7 +535,7 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 			if (interval == null) {
 				continue;
 			}
-			com.microproject.pm.calendar.WorkRange range = (com.microproject.pm.calendar.WorkRange) interval;
+			com.microproject.model.calendar.WorkRange range = (com.microproject.model.calendar.WorkRange) interval;
 			if (result.length() > 0) {
 				result.append(';');
 			}

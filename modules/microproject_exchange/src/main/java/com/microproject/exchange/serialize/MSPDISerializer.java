@@ -195,7 +195,7 @@ public class MSPDISerializer implements ProjectSerializer {
 		// New resources can be assigned before the UI has inserted them into a
 		// resource outline. They are still valid pool members and must be
 		// serialized; otherwise their assignments are exported as unassigned.
-		for (com.microproject.pm.resource.Resource resource : project.getResourcePool().getResourceList()) {
+		for (com.microproject.model.resource.Resource resource : project.getResourcePool().getResourceList()) {
 			ResourceImpl resourceImpl = (ResourceImpl) resource;
 			if (!resourceLinker.getTransformationMap().containsKey(resourceImpl)) {
 				resourceLinker.addTransformedObjects(resourceImpl);
@@ -382,11 +382,11 @@ public class MSPDISerializer implements ProjectSerializer {
 		}
 		collectCalendar(project.getWorkCalendar(), calendars, visited);
 		if (project.getResourcePool() != null) {
-			for (com.microproject.pm.resource.Resource resource : project.getResourcePool().getResourceList()) {
+			for (com.microproject.model.resource.Resource resource : project.getResourcePool().getResourceList()) {
 				collectCalendar(resource.getWorkCalendar(), calendars, visited);
 			}
 		}
-		for (com.microproject.pm.task.Task task : project.getTaskList()) {
+		for (com.microproject.model.task.Task task : project.getTaskList()) {
 			collectCalendar(task.getWorkCalendar(), calendars, visited);
 		}
 		return calendars;
@@ -769,7 +769,7 @@ public class MSPDISerializer implements ProjectSerializer {
 
 	private static List<ExactCostRow> baselineTimephasedCostRows(Assignment baseline) throws IOException {
 		List<ExactCostRow> result = new ArrayList<>();
-		com.microproject.pm.calendar.WorkCalendar calendar = baseline.getEffectiveWorkCalendar();
+		com.microproject.model.calendar.WorkCalendar calendar = baseline.getEffectiveWorkCalendar();
 		long start = calendar.adjustInsideCalendar(baseline.getStart(), false);
 		long finish = baseline.getFinish();
 		long cursor = start;

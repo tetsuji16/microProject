@@ -60,7 +60,7 @@ project data. Do not treat issue tracker state as proof of behavior. #794
 remains open.
 
 The Phase 1 initial-command Robot gate was rerun after this build with
-`.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest -Locale ja -Scale 1.0`.
+`.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest -Locale ja -Scale 1.0`.
 It passed 59/59 on the installed current worktree, including the physical
 virtual-group Hide journey. The runner reported
 2560×1440; the resolution was not changed. This

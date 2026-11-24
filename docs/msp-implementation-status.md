@@ -131,7 +131,7 @@ and result.
 |---|---|---|
 | #793 M1 | Swing renderer/ADR retained. The public v2 archive has 48 PNGs, per-image manifest hashes/source paths/dimensions and six locale/scale legs; all images were reviewed 2026-10-14. The dated document-derived source comparison is in the [ribbon audit](RIBBON_MSP_PARITY_AUDIT_JA.md); Microsoft references do not supply observed client build/environment facts, and no pixel-parity claim is made. Test [GUI run 531](https://github.com/tetsuji16/ProjectLibre/actions/runs/38500386903) passed physical keyboard and AccessibleContext assertions; #816's next-arrow/caption/proxy/popup Robot method passed GUI run [38505114590](https://github.com/tetsuji16/ProjectLibre/actions/runs/38505114590). The narrow row is partially cropped before scrolling and fully reachable afterward. | **COMPLETE for visual-only M1 via document-derived comparison**, following the user-authorized `AGENTS.md` evidence rule. Report/Chart/Table Tools functionality and corresponding command implementation remain tracked by #794/#453/#769, not claimed as ribbon parity here. Numeric bounds are asserted by test where applicable; the historical screenshot archive has no serialized numeric bounds. |
 | #794 M2.1 Editing/hierarchy/sorting | Resource name header toggle and numeric Standard Rate sort in both directions; empty names and equal keys retain stable order; selected resource identity and unchanged model order; Sort Order menu route; physical ja/100% evidence. Issue #750 closed for this reviewed scope; the later Windows GUI run [38728563004](https://github.com/tetsuji16/ProjectLibre/actions/runs/38728563004) passed both resource header/menu acceptance and `TaskInformationRibbonGuiAcceptanceTest.physicalTaskSortSupportsAscendingStartAndDescendingFinishForViewAndOutline`. Task sort PRs [#815](https://github.com/tetsuji16/ProjectLibre/pull/815)/[#827](https://github.com/tetsuji16/ProjectLibre/pull/827) cover task multi-key directions, stable ties, missing/empty values, flat Keep Outline projection, selection/Gantt alignment, unchanged model/schedule, and separately confirmed permanent ordering with renumber, Undo/Redo and MPO evidence. New `ViewNodeModelCacheHierarchyDependencyTest.taskSortAppliesToFilteredRowsWithinConfiguredGroupsWithoutChangingModelOrder` checks that active filtering excludes completed tasks, two nonempty Duration buckets remain visible in configured order, visible task names sort inside each bucket, selection maps through the filtered projection, and project task order remains unchanged. This composition is an Office-consistent product rule derived from Microsoft sort/filter/group documentation, not measured MSP behavior. The focused UI test passed on the current patch. #761 is ready for primary closure review after this fixture merges; broader resource sort parity remains M2.1/#794 work. [Microsoft `Application.Sort`](https://learn.microsoft.com/en-us/office/vba/api/project.application.sort) documents its `Renumber` argument for task sorting, so permanent resource renumbering is not an applicable requirement. PR [#855](https://github.com/tetsuji16/ProjectLibre/pull/855) merged as `735a49c3d` and adds resource Key1–Key3 sorting through the single `ResourceView.applySortOrder` pipeline (dialog, header, Workspace), unit coverage for text/number/date, empty and equal values in both directions, a filter→group→sort resource projection fixture, and a physical Key1+Key2 Robot journey (dialog, visible order breaks the Name tie, Workspace save/restore of both keys, unchanged model). PR evidence covers Windows ja/100%, en/100%, ja/125%, ja/150%, en/125%, and en/150%; all six locale/scale legs now have physical journey evidence, with screen resolution held at 2560×1440. It also makes structural paste atomic (journaled rollback of hierarchy, task registration and the multiple-transaction bracket, with an injected-failure test) and fixes listener add/remove symmetry and Windows/Office Enter/default-button behavior in dialogs. | Resource multi-key implementation/tests are merged. Remaining M2.1 work includes #414 input-path consolidation. The installed-layout blank-project open/edit/save/reload path has now been manually verified at 2560×1440 and recorded in U-30. The current final-head full GUI gate passed the Japanese 100% full functional suite and the selected Japanese/English visual classes across all six locale/UI-scale conditions, but does not close these narrower M2.1 gaps. The final-head GUI audit also includes M2.3 leveling findings. |
-| #794 M2.2 Scheduling/dependencies/transactions | Update Project prevalidation/rollback, linked-task Undo/Redo, and project-local observer batching have evidence. On apply rollback, neither ScheduleEvent nor ObjectEvent observers see transient state; success and COMMIT-stage failure publish committed schedule state. `ModelTransactionTest` verifies VALIDATE/AUTHORIZE/CAPTURE/APPLY stage reporting and no partial state/commit, plus SCHEDULE/INVARIANT rollback and COMMIT semantics. Core full tests passed and the Japanese physical Project-menu route passed on Windows (session 8861). PR [#813](https://github.com/tetsuji16/ProjectLibre/pull/813) adds six fixed-date dependency cases: FS/SS with 8h lag and FS/SS/FF/SF with positive 4h lag across Tuesday/Wednesday calendar exceptions; 40 core tests passed with Build and GUI checks. This is focused coverage, not the full varied-calendar/constraint matrix. #409 has partial evidence: project mutation scopes detach revision-tagged event facts before dispatch, the UI cache reconciles the current dependency graph before notifying views, `DefaultNodeModel` hierarchy commands use the shared Project mutation boundary, and single-project/single-pool `AssignmentService.newAssignments`/`replaceAssignment` enlist pool facts in that same revisioned publication. `replaceAssignment` now compensates partially attached replacements and restores source/task/assignment details on RuntimeException/Error inside `runAtomicModelCommand` with the pool event manager enlisted; the deterministic failure tests cover failure after source removal and after the first replacement, including before/after resource-link attach. Exact verification on 2026-10-19: `.\gradlew.bat :microproject_core:test --tests "com.microproject.pm.assignment.AssignmentServiceTest" --console=plain --no-daemon --max-workers=1` passed 24 tests (0 failures/errors/skips), and `git diff --check` passed (one existing LF-to-CRLF warning for this status file). Undo groups are reserved in model commit order and activated during post-unlock publication, so delayed assignment edits remain one command and overlapping publications cannot merge or reorder history. `NodeIndentEdit` routes Undo/Redo through `NodeModel`. The focused `DefaultNodeModelTest` and full core/UI module tests passed on 2026-10-13. GUI run 38339764343 (GUI486) passed task link/unlink and drag-between-bars dependency journeys; its assignment replace/Redo timeout was from the pre-fix head. This remains partial: targeted shared-pool/multi-project assignment writers now have focused core coverage, but the remaining public/legacy writer inventory, coherent immutable snapshots across every published model, and physical structural/assignment Undo evidence on the final head remain open. | Independent expected dates for remaining FS/SS/FF/SF lag combinations under varied calendars/constraints; verify only intended tasks move; warning/result behavior; Undo/Redo and MPO reopen for remaining mutation families; inject failures across mutation callers and prove model, Undo history and observers are unchanged. #409 remains partial: inventory and route every remaining public model writer through the shared barrier, verify coherent immutable snapshots for every published value, and complete physical structural/assignment Undo evidence on the final head. #403 linked-child replacement has focused success, injected-rollback, and updated-child MPO save/reopen coverage. `ProjectFactorySubprojectReplacementTest.setAfterProjectMembershipReplacement` verifies rollback when `Portfolio.replaceProject` fails after membership changes. |
+| #794 M2.2 Scheduling/dependencies/transactions | Update Project prevalidation/rollback, linked-task Undo/Redo, and project-local observer batching have evidence. On apply rollback, neither ScheduleEvent nor ObjectEvent observers see transient state; success and COMMIT-stage failure publish committed schedule state. `ModelTransactionTest` verifies VALIDATE/AUTHORIZE/CAPTURE/APPLY stage reporting and no partial state/commit, plus SCHEDULE/INVARIANT rollback and COMMIT semantics. Core full tests passed and the Japanese physical Project-menu route passed on Windows (session 8861). PR [#813](https://github.com/tetsuji16/ProjectLibre/pull/813) adds six fixed-date dependency cases: FS/SS with 8h lag and FS/SS/FF/SF with positive 4h lag across Tuesday/Wednesday calendar exceptions; 40 core tests passed with Build and GUI checks. This is focused coverage, not the full varied-calendar/constraint matrix. #409 has partial evidence: project mutation scopes detach revision-tagged event facts before dispatch, the UI cache reconciles the current dependency graph before notifying views, `DefaultNodeModel` hierarchy commands use the shared Project mutation boundary, and single-project/single-pool `AssignmentService.newAssignments`/`replaceAssignment` enlist pool facts in that same revisioned publication. `replaceAssignment` now compensates partially attached replacements and restores source/task/assignment details on RuntimeException/Error inside `runAtomicModelCommand` with the pool event manager enlisted; the deterministic failure tests cover failure after source removal and after the first replacement, including before/after resource-link attach. Exact verification on 2026-10-19: `.\gradlew.bat :microproject_core:test --tests "com.microproject.model.assignment.AssignmentServiceTest" --console=plain --no-daemon --max-workers=1` passed 24 tests (0 failures/errors/skips), and `git diff --check` passed (one existing LF-to-CRLF warning for this status file). Undo groups are reserved in model commit order and activated during post-unlock publication, so delayed assignment edits remain one command and overlapping publications cannot merge or reorder history. `NodeIndentEdit` routes Undo/Redo through `NodeModel`. The focused `DefaultNodeModelTest` and full core/UI module tests passed on 2026-10-13. GUI run 38339764343 (GUI486) passed task link/unlink and drag-between-bars dependency journeys; its assignment replace/Redo timeout was from the pre-fix head. This remains partial: targeted shared-pool/multi-project assignment writers now have focused core coverage, but the remaining public/legacy writer inventory, coherent immutable snapshots across every published model, and physical structural/assignment Undo evidence on the final head remain open. | Independent expected dates for remaining FS/SS/FF/SF lag combinations under varied calendars/constraints; verify only intended tasks move; warning/result behavior; Undo/Redo and MPO reopen for remaining mutation families; inject failures across mutation callers and prove model, Undo history and observers are unchanged. #409 remains partial: inventory and route every remaining public model writer through the shared barrier, verify coherent immutable snapshots for every published value, and complete physical structural/assignment Undo evidence on the final head. #403 linked-child replacement has focused success, injected-rollback, and updated-child MPO save/reopen coverage. `ProjectFactorySubprojectReplacementTest.setAfterProjectMembershipReplacement` verifies rollback when `Portfolio.replaceProject` fails after membership changes. |
 | #794 M2.3 Resources/assignments/progress/baselines | Resource sort is view-only. Assignment work/cost and baseline work/cost import, edit/persistence slices have core/exchange evidence, including MPO reopen. Whole-project Clear Baseline now has physical route, Undo/Redo and MPO evidence. Baseline 1 Entire Project recapture now verifies the overwrite prompt, Baseline 0/current-value preservation, Undo/Redo and MPO in both states. Proposed-resource leveling has physical opt-in, Apply, Undo/Redo and exact assignment-start MPO round trip. Assignment Replace now verifies task Work/Actual Work/Remaining Work/Cost against assignment totals before and after Replace, physical Undo/Redo, and MPO reopen. Manual assignment split preservation across Clear Leveling now has physical GUI, Undo/Redo, and MPO round-trip evidence. Mark on Track now uses an explicit mid-task status date and verifies exact work-calendar progress, physical Undo/Redo and exact MPO persistence. Update Project now covers an assigned partial-progress task completed through a fixed date, with task/assignment actuals, Undo/Redo and MPO checks. Level Selection and Level All have separate physical scope, selection, Undo/Redo, and MPO coverage. | Remaining leveling sensitivity default/provenance; other status-date/actual-progress transitions; other numbered baseline slots and field/scope combinations; Undo/Redo and MPO reopen for each changed workflow. |
 | #794 M2.4 Views/ribbon/context/reports/print/files | Current sort and Save As physical routes; Task Information report physical selection, CSV equality to every rendered row, distinct date/duration values, nonblank rendering of every pageable page, no model mutation, and date/duration/cost MPO reload checks. Project Details now verifies rendered Work/Cost labels and values against the project fields, physical CSV row equality, printable page rendering, and no model mutation. | Reconcile each #453/#769 command inventory row to source/status/enablement/physical route/visible result; view-only commands must preserve model; persistence where applicable; locale/DPI for changed routes; report coverage for other definitions, print page-boundary plus English/Japanese labels. Task Information has no Work/Cost columns. Newly observed unassigned-task Work drift across MPO reload is tracked by [#868](https://github.com/tetsuji16/ProjectLibre/issues/868). Unsupported commands must be absent and documented. |
 
@@ -176,7 +176,7 @@ check delegates to `DocumentFrame.canOutdent`. A regression test verifies that
 mixed selection disables both hierarchy actions while Link/Unlink remain
 enabled when enough editable tasks are selected. On 2026-10-18, the focused
 headless verification passed on this working tree:
-`.\gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.frames.ActiveTaskSelectionResolverTest" --tests "com.microproject.pm.graphic.frames.RibbonButtonBehaviorTest" --tests "com.microproject.pm.graphic.frames.GraphicManagerLinkRouteTest" --console=plain` (BUILD SUCCESSFUL). Information button enablement and execution also used separate selection extraction. A typed `InformationSelection` snapshot now supplies general, Task, and Resource information enablement and is re-resolved by the execution route; only execution emits the existing multi-selection warning. `RibbonButtonBehaviorTest.informationEnablementUsesOneTypedSelectionSnapshotForEverySelectionKind` covers task, resource, assignment, project, multiple, and header-column selections. The full focused verification was rerun with `--rerun-tasks` on 2026-10-18: `RibbonButtonBehaviorTest` plus the resolver and Link route tests passed (BUILD SUCCESSFUL, 54 seconds). This confirms those focused
+`.\gradlew.bat :microproject_ui:test --tests "com.microproject.model.graphic.frames.ActiveTaskSelectionResolverTest" --tests "com.microproject.model.graphic.frames.RibbonButtonBehaviorTest" --tests "com.microproject.model.graphic.frames.GraphicManagerLinkRouteTest" --console=plain` (BUILD SUCCESSFUL). Information button enablement and execution also used separate selection extraction. A typed `InformationSelection` snapshot now supplies general, Task, and Resource information enablement and is re-resolved by the execution route; only execution emits the existing multi-selection warning. `RibbonButtonBehaviorTest.informationEnablementUsesOneTypedSelectionSnapshotForEverySelectionKind` covers task, resource, assignment, project, multiple, and header-column selections. The full focused verification was rerun with `--rerun-tasks` on 2026-10-18: `RibbonButtonBehaviorTest` plus the resolver and Link route tests passed (BUILD SUCCESSFUL, 54 seconds). This confirms those focused
 contracts, not Phase 1's complete physical Robot gate. The typed selection is
 re-resolved at dispatch so it reflects the live selection; only dispatch emits
 the existing multiple-selection warning. The headless test covers task,
@@ -408,7 +408,7 @@ The current-tree `:microproject_ui:test --console=plain` suite also passed
 The focused checks were `:microproject_ui:test --tests
 com.microproject.dialog.util.ComponentFactoryTextStateTest --console=plain`
 and `:microproject_ui:guiTest --tests
-com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.robotClickOnTaskPropertiesInformationOpensTaskInformation
+com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.robotClickOnTaskPropertiesInformationOpensTaskInformation
 -PguiTestLocale=ja -PguiTestUiScale=1 --max-workers=1 --console=plain`;
 both passed on the final current source.
 
@@ -569,7 +569,7 @@ save/restore preserves both keys while resource model order stays unchanged.
 The second test verifies physical Standard Rate editing, Undo/Redo and MPO
 round-trip. JUnit and stdout/stderr evidence are under
 `modules/microproject_ui/build/reports/guiTest-artifacts/`, in the
-`focused-com.microproject.pm.graphic.views.ResourceHeaderSortingGuiAcceptanceTest-en-1-25-*`
+`focused-com.microproject.model.graphic.views.ResourceHeaderSortingGuiAcceptanceTest-en-1-25-*`
 and `...-en-1-5-*` artifacts. stderr contained Java native-access warnings
 only; no deferred/unhandled exception was reported. This fills the two missing
 English scale legs for this focused route; it does not complete other M2.1 or
@@ -578,8 +578,8 @@ M2 package rows.
 Exact commands:
 
 ```powershell
-.\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.pm.graphic.views.ResourceHeaderSortingGuiAcceptanceTest -Locale en -Scale 1.25
-.\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.pm.graphic.views.ResourceHeaderSortingGuiAcceptanceTest -Locale en -Scale 1.5
+.\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.model.graphic.views.ResourceHeaderSortingGuiAcceptanceTest -Locale en -Scale 1.25
+.\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.model.graphic.views.ResourceHeaderSortingGuiAcceptanceTest -Locale en -Scale 1.5
 ```
 
 #### U-32 #414 Gantt wheel ownership (2026-10-19)
@@ -601,14 +601,14 @@ focused UI unit tests passed 20 tests; the physical U-32 gate completed 1 test
 with 0 failures/errors/skips. Its stderr and deferred GUI exception scan
 passed (stderr contains only the Java native-access warning and deprecation
 note). Artifacts are
-`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalGanttWheelModifiersHaveOneScrollOwnerAndOneStep-ja-1-0.{stdout.log,stderr.log,failure.png}`.
+`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.model.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalGanttWheelModifiersHaveOneScrollOwnerAndOneStep-ja-1-0.{stdout.log,stderr.log,failure.png}`.
 The first test attempt exposed an incorrect test assumption that horizontal
 Gantt motion must also move the task table's independent horizontal viewport;
 that assertion was removed. No desktop resolution was changed. The suite
 verifies the three wheel routes for this fixture, not the remaining #414
 consolidation and acceptance rows.
 
-Exact command: `.\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalGanttWheelModifiersHaveOneScrollOwnerAndOneStep -Locale ja -Scale 1.0`.
+Exact command: `.\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.model.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalGanttWheelModifiersHaveOneScrollOwnerAndOneStep -Locale ja -Scale 1.0`.
 
 Final-head Phase 6 strict rerun after wheel-listener ownership consolidation
 (2026-10-19): `.\.github\scripts\run-gui-acceptance.ps1 -Suite full`
@@ -633,15 +633,15 @@ save/reload of the exact moved start. The focused journey passed; the full
 fixture class then passed 7 tests with 0 failures, errors, or skips. The GUI
 runner's deferred-exception scan passed; stderr contains only the known Java
 restricted-native-access warning, with no stack trace. The final screenshot is
-`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest-ja-1-0-a77676e698804fb2b9c2132ed2cab63d/gantt-edge-auto-scroll.png`.
+`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.model.graphic.views.GanttBarDateDragGuiAcceptanceTest-ja-1-0-a77676e698804fb2b9c2132ed2cab63d/gantt-edge-auto-scroll.png`.
 The chart-bar hit-region fixture helper now searches the complete chart width
 so long-range timelines remain testable. No production change was needed.
 
 Exact commands:
 
 ```powershell
-.\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotDragToChartEdgeAutoScrollsAndPersistsMovedTaskDate -Locale ja -Scale 1.0
-.\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest -Locale ja -Scale 1.0
+.\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.model.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotDragToChartEdgeAutoScrollsAndPersistsMovedTaskDate -Locale ja -Scale 1.0
+.\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.model.graphic.views.GanttBarDateDragGuiAcceptanceTest -Locale ja -Scale 1.0
 ```
 
 #### U-34 日本語IME再変換の環境診断 (2026-10-19)
@@ -661,13 +661,13 @@ Convertのeditor-local bindingとアプリActionは各1回実行され、`InputC
 通常のU-26 GUI test classは次で成功した（1 test、failure/error/skip 0）。
 
 ```powershell
-.\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.pm.graphic.spreadsheet.common.U26SpreadsheetInputTransactionGuiAcceptanceTest -Locale ja -Scale 1.0
+.\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.model.graphic.spreadsheet.common.U26SpreadsheetInputTransactionGuiAcceptanceTest -Locale ja -Scale 1.0
 ```
 
 診断JUnit XMLは
-`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.spreadsheet.common.U26SpreadsheetInputTransactionGuiAcceptanceTest.temporaryPhysicalImeProbe-ja-1-0-junit/TEST-com.microproject.pm.graphic.spreadsheet.common.U26SpreadsheetInputTransactionGuiAcceptanceTest.xml`、
+`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.model.graphic.spreadsheet.common.U26SpreadsheetInputTransactionGuiAcceptanceTest.temporaryPhysicalImeProbe-ja-1-0-junit/TEST-com.microproject.model.graphic.spreadsheet.common.U26SpreadsheetInputTransactionGuiAcceptanceTest.xml`、
 再実行ログは
-`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.spreadsheet.common.U26SpreadsheetInputTransactionGuiAcceptanceTest-ja-1-0.stdout.log`。
+`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.model.graphic.spreadsheet.common.U26SpreadsheetInputTransactionGuiAcceptanceTest-ja-1-0.stdout.log`。
 後者の成功はIME再変換を検証していない。
 
 Current-tree module verification was rerun sequentially after an initial run
@@ -691,7 +691,7 @@ selection models but was not detached when `CommonSpreadSheet.cleanUp()` ran.
 registrations. `SpreadSheetCornerLifecycleTest.cleanupRemovesCornerFromBothSelectionModels`
 checks the two listener lists and verifies that selection changes after cleanup
 do not call the corner. Verified on the current working tree with
-`.\gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.spreadsheet.*" --console=plain`
+`.\gradlew.bat :microproject_ui:test --tests "com.microproject.model.graphic.spreadsheet.*" --console=plain`
 (BUILD SUCCESSFUL) and `git diff --check`. This closes only that listener-detach
 gap; the #414 net-reduction/input-route review and installDist manual acceptance,
 and the remaining M2 workflow rows, remain open.
@@ -715,7 +715,7 @@ installed. The test starts with zero selected tasks, right-clicks an unselected
 task row with Robot, and verifies stable task identity, full-row selection,
 popup invoker/row/column and exactly one visible event. The focused Japanese
 100% Windows GUI run passed with
-`.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalRowHeaderPopupSelectsTheClickedTaskAndOpensOnce" '-PguiTestLocale=ja' '-PguiTestUiScale=1' --max-workers=1 --no-daemon --console=plain`.
+`.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.model.graphic.views.TaskTableGanttGridGuiAcceptanceTest.physicalRowHeaderPopupSelectsTheClickedTaskAndOpensOnce" '-PguiTestLocale=ja' '-PguiTestUiScale=1' --max-workers=1 --no-daemon --console=plain`.
 This is physical route/selection/popup evidence; it does not claim a popup
 mutation or Undo result because the lightweight GUI fixture's DocumentFrame
 does not own the fixture table.
@@ -795,7 +795,7 @@ The Resource sort physical journey passed on Windows at Japanese locale and
 100% UI scale after refreshing the runnable distribution with
 `.\gradlew.bat :microproject_ui:installDist --rerun-tasks --no-daemon --max-workers=1 --console=plain`,
 then running
-`.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.views.ResourceHeaderSortingGuiAcceptanceTest.physicalHeaderClickSortsAndTogglesWithoutMutatingResources" -PguiTestLocale=ja -PguiTestUiScale=1 --max-workers=1 --no-daemon --console=plain`.
+`.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.model.graphic.views.ResourceHeaderSortingGuiAcceptanceTest.physicalHeaderClickSortsAndTogglesWithoutMutatingResources" -PguiTestLocale=ja -PguiTestUiScale=1 --max-workers=1 --no-daemon --console=plain`.
 The journey checks physical header sorting, mouse and Space activation of the
 Sort menu arrow, the shared Sort Order action/dialog, numeric Standard Rate
 ascending results, stable empty/equal text and numeric keys, selection identity,
@@ -809,9 +809,9 @@ date order with an equal-date tie, unchanged task dates and outline order,
 spreadsheet/Gantt row identity, and the Gantt selection highlight after a real
 table click. The resource and task journeys were rerun together after moving
 their physical combo selection to the shared GUI test helper. Exact command:
-`.\gradlew.bat :microproject_ui:installDist :microproject_ui:guiTest --tests 'com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalViewSortOrdersTasksByStartDateAndKeepsGanttRowsAligned' --tests 'com.microproject.pm.graphic.views.ResourceHeaderSortingGuiAcceptanceTest.physicalHeaderClickSortsAndTogglesWithoutMutatingResources' -PguiTestLocale=ja -PguiTestUiScale=1 --max-workers=1 --no-daemon --console=plain` (BUILD SUCCESSFUL; both tests passed). Later PR #815/#827 adds physical ascending-start and descending-finish, multi-key, and permanent-order evidence; empty/missing-date, flat Keep Outline, and filter/group projection cases are now covered by the tests summarized above. Broader resource sort parity remains open. Gradle evidence is in
-`modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.pm.graphic.views.ResourceHeaderSortingGuiAcceptanceTest.xml`
-and `modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.xml`, plus `modules/microproject_ui/build/reports/tests/guiTest/index.html`.
+`.\gradlew.bat :microproject_ui:installDist :microproject_ui:guiTest --tests 'com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalViewSortOrdersTasksByStartDateAndKeepsGanttRowsAligned' --tests 'com.microproject.model.graphic.views.ResourceHeaderSortingGuiAcceptanceTest.physicalHeaderClickSortsAndTogglesWithoutMutatingResources' -PguiTestLocale=ja -PguiTestUiScale=1 --max-workers=1 --no-daemon --console=plain` (BUILD SUCCESSFUL; both tests passed). Later PR #815/#827 adds physical ascending-start and descending-finish, multi-key, and permanent-order evidence; empty/missing-date, flat Keep Outline, and filter/group projection cases are now covered by the tests summarized above. Broader resource sort parity remains open. Gradle evidence is in
+`modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.model.graphic.views.ResourceHeaderSortingGuiAcceptanceTest.xml`
+and `modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.xml`, plus `modules/microproject_ui/build/reports/tests/guiTest/index.html`.
 
 The task sort journey now also covers the opt-in permanent-order route. It
 physically selects a task by row header, checks the permanent option, cancels
@@ -820,7 +820,7 @@ Undo availability. It then confirms, verifies stable outline order, renumbered
 IDs, selected task identity and table/Gantt alignment, saves/reopens MPO, and
 performs one Undo/Redo. The run passed after refreshing `installDist`, with
 JDK 25 at ja/100%:
-`.\gradlew.bat :microproject_ui:guiTest --tests 'com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalViewSortOrdersTasksByStartDateAndKeepsGanttRowsAligned' -PguiTestSuite=full -PguiTestLocale=ja -PguiTestUiScale=1 --console=plain --no-daemon`.
+`.\gradlew.bat :microproject_ui:guiTest --tests 'com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalViewSortOrdersTasksByStartDateAndKeepsGanttRowsAligned' -PguiTestSuite=full -PguiTestLocale=ja -PguiTestUiScale=1 --console=plain --no-daemon`.
 The run also confirmed the selection must be restored after the view projection
 refresh; this uses the existing `SpreadSheet.restoreTaskRowSelection` path and
 guards the deferred EDT callback against a changed or closed document. This
@@ -839,7 +839,7 @@ working times superseding the project calendar in [How Project schedules
 tasks](https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes)
 and [Task calendar (Task field)](https://support.microsoft.com/en-us/project/task-calendar-task-field).
 The focused test class passed 47 tests (0 failures, errors, or skips) with
-`.\gradlew.bat :microproject_core:test --tests "com.microproject.pm.scheduling.TaskLinkAndBarScheduleTransitionsTest" --rerun-tasks --console=plain --no-daemon --max-workers=1`;
+`.\gradlew.bat :microproject_core:test --tests "com.microproject.schedule.TaskLinkAndBarScheduleTransitionsTest" --rerun-tasks --console=plain --no-daemon --max-workers=1`;
 `git diff --check` passed. No GUI, Robot, or display-resolution test ran.
 
 The full core and UI unit suites passed after the permanent task sort changes:
@@ -886,7 +886,7 @@ injected sentinel-update failure regression checks graph restoration, no
 revision advance, unchanged pending object/schedule observer facts, no observer
 publication, and preserved Undo history. Both
 `./gradlew.bat :microproject_core:test --tests
-"com.microproject.pm.dependency.DependencyServiceTest" --console=plain` and
+"com.microproject.model.dependency.DependencyServiceTest" --console=plain` and
 `./gradlew.bat :microproject_core:test --console=plain` passed on the current
 working tree. This is one failure-atomicity slice; remaining mutation-family
 failure injection and final-head physical GUI acceptance remain open.
@@ -912,7 +912,7 @@ duration format conversions because those edits reset progress in this fixture.
 The full GUI gate passed on the same product code before this test-only
 assertion strengthening; the focused journey is the evidence for the updated
 U-26 test via
-`.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.pm.graphic.spreadsheet.common.U26SpreadsheetInputTransactionGuiAcceptanceTest -Locale ja -Scale 1.0`.
+`.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.model.graphic.spreadsheet.common.U26SpreadsheetInputTransactionGuiAcceptanceTest -Locale ja -Scale 1.0`.
 Japanese IME reconversion remains an environment-dependent open investigation
 tracked by #866.
 
@@ -1019,10 +1019,10 @@ registered both on the document root pane. Dispatch calls `GanttView.zoomIn`
 or `zoomOut` only while the active top view is Gantt or Tracking Gantt; other
 views and missing documents are no-ops. The focused UI suite passed 14 tests
 (6 `GanttWheelZoomTest`, 8 `MicrosoftShortcutsRootPaneTest`, 0 failures) with
-`.\gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.gantt.GanttWheelZoomTest" --tests "com.microproject.pm.graphic.frames.MicrosoftShortcutsRootPaneTest" --console=plain --no-daemon --max-workers=1`, and
+`.\gradlew.bat :microproject_ui:test --tests "com.microproject.model.graphic.gantt.GanttWheelZoomTest" --tests "com.microproject.model.graphic.frames.MicrosoftShortcutsRootPaneTest" --console=plain --no-daemon --max-workers=1`, and
 `.\gradlew.bat :microproject_ui:compileGuiTestJava --console=plain --no-daemon --max-workers=1` passed. The focused Robot journey passed
 1/1 via `.\gradlew.bat :microproject_ui:guiTest --max-workers=1 --console=plain -PguiTestLocale=ja --tests
-"com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotCtrlNumpadDivideAndMultiplyZoomActiveGanttFromGanttAndSpreadsheetFocus"`
+"com.microproject.model.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotCtrlNumpadDivideAndMultiplyZoomActiveGanttFromGanttAndSpreadsheetFocus"`
 after its `installDist` dependency regenerated the runnable layout. It
 physically pressed Ctrl+Numpad Divide and Ctrl+Numpad Multiply in the same
 journey, observed exactly one document-root action dispatch for each key, and
@@ -1050,9 +1050,9 @@ External task refresh now stages matched values before applying them under one a
 After the fix, the focused headless suite passed 17 tests (6
 `GanttWheelZoomTest`, 8 `MicrosoftShortcutsRootPaneTest`, and 3
 `SpreadSheetEditingBindingsTest`) with `.\gradlew.bat :microproject_ui:test
---tests "com.microproject.pm.graphic.spreadsheet.SpreadSheetEditingBindingsTest"
---tests "com.microproject.pm.graphic.gantt.GanttWheelZoomTest" --tests
-"com.microproject.pm.graphic.frames.MicrosoftShortcutsRootPaneTest"
+--tests "com.microproject.model.graphic.spreadsheet.SpreadSheetEditingBindingsTest"
+--tests "com.microproject.model.graphic.gantt.GanttWheelZoomTest" --tests
+"com.microproject.model.graphic.frames.MicrosoftShortcutsRootPaneTest"
 :microproject_ui:compileGuiTestJava --console=plain --no-daemon --max-workers=1`.
 After the spreadsheet-focus routing fix, the full
 `.\gradlew.bat :microproject_ui:test --console=plain --no-daemon --max-workers=1`
@@ -1085,7 +1085,7 @@ lower bound for an FS-linked task and positive lag delays its successor:
 [How Project schedules tasks](https://support.microsoft.com/en-us/project/how-project-schedules-tasks-behind-the-scenes)
 and [Add lead or lag time to a task](https://support.microsoft.com/en-us/project/add-lead-or-lag-time-to-a-task).
 The focused class passed 46 tests with
-`.\gradlew.bat :microproject_core:test --tests "com.microproject.pm.scheduling.TaskLinkAndBarScheduleTransitionsTest" --console=plain --no-daemon --max-workers=1`;
+`.\gradlew.bat :microproject_core:test --tests "com.microproject.schedule.TaskLinkAndBarScheduleTransitionsTest" --console=plain --no-daemon --max-workers=1`;
 `git diff --check` passed. This did not change product code or desktop
 resolution; other M2.2 mutation families and final-head GUI acceptance remain
 open.
@@ -1098,7 +1098,7 @@ dependency fields, dependency/task/project dirty flags, mutation revision,
 pending event counts, and Undo/Redo availability and labels all remain
 unchanged after rejection. Focused JDK 25 test passed (1 test, 0
 failures/errors) with
-`.\gradlew.bat :microproject_core:test --tests "com.microproject.pm.dependency.DependencyServiceTest.setFieldsRollsBackLagWhenDependencyTypeChangeIsRejected" --console=plain --no-daemon --max-workers=1`;
+`.\gradlew.bat :microproject_core:test --tests "com.microproject.model.dependency.DependencyServiceTest.setFieldsRollsBackLagWhenDependencyTypeChangeIsRejected" --console=plain --no-daemon --max-workers=1`;
 `git diff --check` passed. No GUI or display-resolution test ran; wider
 dependency mutation-family and physical acceptance remain open.
 
@@ -1128,7 +1128,7 @@ Microsoft's [Create or update a baseline or an interim plan in Project
 desktop](https://support.microsoft.com/en-us/project/create-or-update-a-baseline-or-an-interim-plan-in-project-desktop)
 documents the numbered baseline clear action and whole-project scope. The
 focused Japanese/100% GUI test passed (1 test, 0 failures) with
-`.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.clearBaselineRibbonRouteUndoRedoAndMpoRoundTripPreserveCurrentValues -Locale ja -Scale 1.0`;
+`.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.clearBaselineRibbonRouteUndoRedoAndMpoRoundTripPreserveCurrentValues -Locale ja -Scale 1.0`;
 `git diff --check` passed. No display resolution was changed. Other M2.3
 workflows and final-head GUI acceptance remain open.
 
@@ -1180,7 +1180,7 @@ the dialog captures its preview state; no production code changed. The focused
 GUI command passed (1 test, 0 failures):
 `.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.dialog.ResourceLevelingDialogGuiAcceptanceTest.clearLevelingKeepsUserAssignmentSplitAndSupportsPhysicalUndoRedoAndMpo -Locale ja -Scale 1.0`.
 Core contour/Undo/Redo and MPO round-trip regressions passed with
-`.\gradlew.bat :microproject_core:test --tests "com.microproject.pm.assignment.AssignmentContourBehaviorTest.assignmentSplitKeepsPersonalContourWorkAndRequestedGapExact" --console=plain --no-daemon --max-workers=1`
+`.\gradlew.bat :microproject_core:test --tests "com.microproject.model.assignment.AssignmentContourBehaviorTest.assignmentSplitKeepsPersonalContourWorkAndRequestedGapExact" --console=plain --no-daemon --max-workers=1`
 and
 `.\gradlew.bat :microproject_exchange:test --tests "com.microproject.exchange.MpoFileImporterTest.manualAssignmentSplitSurvivesMpoSaveAndReloadWithExactWorkAndGap" --console=plain --no-daemon --max-workers=1`.
 `git diff --check` passed. GUI locale was Japanese, scale 1.0, and the runner
@@ -1205,9 +1205,9 @@ not an empirical Microsoft Project run.
 
 Verification passed:
 
-- `.\gradlew.bat :microproject_core:test --tests "com.microproject.pm.task.TaskProgressServiceTest" --console=plain --no-daemon --max-workers=1` — core progress service cases.
+- `.\gradlew.bat :microproject_core:test --tests "com.microproject.model.task.TaskProgressServiceTest" --console=plain --no-daemon --max-workers=1` — core progress service cases.
 - `.\gradlew.bat :microproject_exchange:test --tests "com.microproject.exchange.MpoFileImporterTest.mpoTaskPercentCompleteOperationReplayPreservesFractionalPrecision" --tests "com.microproject.exchange.MpoFileImporterTest.leafTaskPercentCompleteSurvivesMpoSaveReloadAndNoOpSave" --tests "com.microproject.exchange.MpoFileImporterTest.mpoTaskScheduleWithoutPercentCompleteRetainsLegacyLoadBehavior" --tests "com.microproject.exchange.MpoFileImporterTest.mpoTaskScheduleRejectsInvalidLeafPercentCompleteMetadata" --console=plain --no-daemon --max-workers=1` — 4 passed, 0 failed.
-- `.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest -Locale ja -Scale 1.0` — 56 passed, 0 failed. This class run covers additional GUI routes because the runner accepts class filters only.
+- `.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest -Locale ja -Scale 1.0` — 56 passed, 0 failed. This class run covers additional GUI routes because the runner accepts class filters only.
 - `git diff --check` passed. GUI locale ja, scale 1.0, display 2560×1440; no resolution change.
 
 Other M2.3 workflows and final-head GUI acceptance remain open.
@@ -1238,7 +1238,7 @@ values. MPO save/reload is checked for both history states. Microsoft's
 documents numbered baseline selection, Entire Project scope, and overwrite
 confirmation. This is microProject physical evidence, not an empirical MSP run.
 The focused Japanese/100% command passed (1 test, 0 failures):
-`.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.recaptureBaselineOneEntireProjectPreservesBaselineZeroAndCurrentValuesAcrossUndoRedoAndMpo -Locale ja -Scale 1.0`.
+`.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.recaptureBaselineOneEntireProjectPreservesBaselineZeroAndCurrentValuesAcrossUndoRedoAndMpo -Locale ja -Scale 1.0`.
 `git diff --check` passed; resolution was not changed.
 
 ### 2026-10-19 — Update Project completes partially worked assignments
@@ -1259,9 +1259,9 @@ support the actual/remaining fields and note that finish-date behavior depends
 on calculation preferences.
 
 The core command
-`.\gradlew.bat :microproject_core:test --tests "com.microproject.pm.task.UpdateProjectRequestTest.completingPartiallyWorkedAssignedTaskSetsExactActualsAndUndoRestoresThem" --console=plain`
+`.\gradlew.bat :microproject_core:test --tests "com.microproject.model.task.UpdateProjectRequestTest.completingPartiallyWorkedAssignedTaskSetsExactActualsAndUndoRestoresThem" --console=plain`
 passed (1 test). The focused Japanese/100% GUI command passed (1 test):
-`.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.updateProjectMenuRouteUsesDeferredDialogFixture -Locale ja -Scale 1.0`.
+`.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.updateProjectMenuRouteUsesDeferredDialogFixture -Locale ja -Scale 1.0`.
 `git diff --check` passed; resolution was not changed. Other M2.3 workflows
 and final-head GUI acceptance remain open.
 
@@ -1277,7 +1277,7 @@ output consistency for those fields or for other report definitions.
 
 Verification passed:
 
-- `.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalReportPrintPreviewShowsEveryPageThroughTheSharedGraphPageableRoute -Locale ja -Scale 1.0` — 1 passed, 0 failed.
+- `.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalReportPrintPreviewShowsEveryPageThroughTheSharedGraphPageableRoute -Locale ja -Scale 1.0` — 1 passed, 0 failed.
 - `git diff --check` passed. Display was 2560×1440; resolution was not changed.
 
 During fixture development, an unassigned normal task's implicit Work changed
@@ -1299,7 +1299,7 @@ the remaining M2.4 command, report, print, or persistence inventory.
 
 Verification passed:
 
-- `.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalProjectDetailsReportShowsProjectWorkAndCostAndExportsTheSameValues -Locale ja -Scale 1.0` — 1 passed, 0 failed.
+- `.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalProjectDetailsReportShowsProjectWorkAndCostAndExportsTheSameValues -Locale ja -Scale 1.0` — 1 passed, 0 failed.
 - Display was 2560×1440; resolution was not changed.
 
 ### 2026-10-19 — Phase 0 inventory and current-head Phase 1 recheck
@@ -1311,7 +1311,7 @@ remaining evidence questions. `installDist` was rebuilt from the current dirty
 worktree with `--rerun-tasks` (BUILD SUCCESSFUL, 20 tasks executed).
 
 Then ran
-`.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest -Locale ja -Scale 1.0`;
+`.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest -Locale ja -Scale 1.0`;
 the runner reported 2560×1440 and the class passed 58/58, 0 failures/errors or
 skips. This includes the Phase 1 physical Task Information, Link/Unlink,
 Indent/Outdent, Expand/Collapse, Hide/Show, editor shortcut, and selection
@@ -1340,10 +1340,10 @@ journey also passed its model, rendered-card, Undo/Redo, and MPO checks.
 
 Verification passed:
 
-- `:microproject_core:test --tests "com.microproject.pm.dependency.DependencyServiceTest" --console=plain --no-daemon --max-workers=1` — passed.
-- `:microproject_ui:test --tests "com.microproject.pm.graphic.spreadsheet.command.TaskCommandGatewayTest" --console=plain --no-daemon --max-workers=1` — passed.
+- `:microproject_core:test --tests "com.microproject.model.dependency.DependencyServiceTest" --console=plain --no-daemon --max-workers=1` — passed.
+- `:microproject_ui:test --tests "com.microproject.model.graphic.spreadsheet.command.TaskCommandGatewayTest" --console=plain --no-daemon --max-workers=1` — passed.
 - `.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.dialog.TaskInformationCrossProjectGuiAcceptanceTest -Locale ja -Scale 1.0` — 4 passed.
-- `.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.calendarDependencyMarkerOpensTheLinkDialogAndCanRemoveTheLink -Locale ja -Scale 1.0` — 1 passed.
+- `.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.calendarDependencyMarkerOpensTheLinkDialogAndCanRemoveTheLink -Locale ja -Scale 1.0` — 1 passed.
 - Display was 2560×1440; resolution was not changed.
 
 The multi-link Task ribbon Unlink route passed its focused physical journey on
@@ -1411,8 +1411,8 @@ covers partial failure.
 Verification passed on the unchanged 2560×1440 desktop at Japanese locale and
 UI scale 1.0; no display resolution was changed:
 
-- `\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.copyCutPasteThroughRibbonUseTheSharedEditPipeline -Locale ja -Scale 1.0` — 1 passed.
-- `.\gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.spreadsheet.command.TaskCommandGatewayTest" --tests "com.microproject.pm.graphic.spreadsheet.common.transfer.NodeListTransferablePasteFailureTest" --console=plain --no-daemon --max-workers=1` — passed.
+- `\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.copyCutPasteThroughRibbonUseTheSharedEditPipeline -Locale ja -Scale 1.0` — 1 passed.
+- `.\gradlew.bat :microproject_ui:test --tests "com.microproject.model.graphic.spreadsheet.command.TaskCommandGatewayTest" --tests "com.microproject.model.graphic.spreadsheet.common.transfer.NodeListTransferablePasteFailureTest" --console=plain --no-daemon --max-workers=1` — passed.
 
 This closes only the Paste Insert evidence slice. Issue #408 remains open for
 shared mutation outcomes/refresh; parent issue #794 remains open for the other
@@ -1445,8 +1445,8 @@ affected task IDs, and active view `Gantt`. The focused Robot run passed on the
 unchanged 2560×1440 desktop, Japanese locale, UI scale 1.0. The focused command
 gateway class passed 13 tests; production and GUI test compilation passed:
 
-- `.\gradlew.bat :microproject_ui:compileJava :microproject_ui:compileGuiTestJava :microproject_ui:test --tests "com.microproject.pm.graphic.spreadsheet.command.TaskCommandGatewayTest" --console=plain --no-daemon --max-workers=1`
-- `.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotDragMovesBarAndRecalculatesFfSuccessor -Locale ja -Scale 1.0`
+- `.\gradlew.bat :microproject_ui:compileJava :microproject_ui:compileGuiTestJava :microproject_ui:test --tests "com.microproject.model.graphic.spreadsheet.command.TaskCommandGatewayTest" --console=plain --no-daemon --max-workers=1`
+- `.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.model.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotDragMovesBarAndRecalculatesFfSuccessor -Locale ja -Scale 1.0`
 
 This closes only schedule-gesture result publication. Shared result handling for
 other mutation families and the complete #408 view-refresh criteria remain
@@ -1462,7 +1462,7 @@ are covered in the existing stable-intent spreadsheet test; mutation,
 model-event refresh, Undo, and MPO round-trip remain on their existing paths.
 
 The focused test passed:
-`.\gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.spreadsheet.command.TaskCommandGatewayTest.spreadsheetModelRoutesTaskFieldInputThroughStableIntent" --console=plain`
+`.\gradlew.bat :microproject_ui:test --tests "com.microproject.model.graphic.spreadsheet.command.TaskCommandGatewayTest.spreadsheetModelRoutesTaskFieldInputThroughStableIntent" --console=plain`
 and `git diff --check` passed for the touched files. The physical U-26 Robot
 journey was not rerun for this result-publication change. No display resolution
 was changed. Other shared mutation families and final-head GUI acceptance
@@ -1547,9 +1547,9 @@ dependency mutation and model-event refresh path is unchanged.
 Verification passed on Windows 11, JDK 25.0.4.1, Japanese locale, UI scale
 1.0, and the existing 2560×1440 display:
 
-- `.\gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.gantt.GanttInteractorDragTest" --console=plain`
+- `.\gradlew.bat :microproject_ui:test --tests "com.microproject.model.graphic.gantt.GanttInteractorDragTest" --console=plain`
 - `.\gradlew.bat :microproject_ui:compileGuiTestJava --console=plain `
-- `.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotDragBetweenBarsCreatesDependencyAndUndoRestoresModel" --max-workers=1 --console=plain "-PguiTestLocale=ja" "-PguiTestUiScale=1.0" `
+- `.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.model.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotDragBetweenBarsCreatesDependencyAndUndoRestoresModel" --max-workers=1 --console=plain "-PguiTestLocale=ja" "-PguiTestUiScale=1.0" `
 
 The focused GUI XML reports one test, zero skips, failures, or errors. No
 display resolution was changed. This closes only dependency-gesture result
@@ -1570,7 +1570,7 @@ names through a stub provider.
 Verification passed:
 
 - `.\gradlew.bat :microproject_ui:compileGuiTestJava --console=plain`
-- `.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.frames.MultipleLocalProjectOpenGuiAcceptanceTest.nativeFileOpenChooserSelectsTwoProjectsAndKeepsExistingProject" --max-workers=1 --console=plain "-PguiTestLocale=ja" "-PguiTestUiScale=1.0"`
+- `.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.model.graphic.frames.MultipleLocalProjectOpenGuiAcceptanceTest.nativeFileOpenChooserSelectsTwoProjectsAndKeepsExistingProject" --max-workers=1 --console=plain "-PguiTestLocale=ja" "-PguiTestUiScale=1.0"`
 - GUI result XML: 1 test, 0 skips, failures, or errors; `git diff --check` passed.
 
 The physical run used the existing 2560×1440 desktop; no resolution change
@@ -1591,7 +1591,7 @@ for this row selection, as Ctrl-click selected only one Usage row.
 Verification passed:
 
 - `.\gradlew.bat :microproject_ui:compileGuiTestJava --console=plain` — passed.
-- `.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalSelectedTasksZoomFitsBothSeparatedGanttTasksWithoutChangingModelOrUndo" --max-workers=1 --console=plain --no-daemon "-PguiTestLocale=ja" "-PguiTestUiScale=1.0"` — 1 Robot test passed.
+- `.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.physicalSelectedTasksZoomFitsBothSeparatedGanttTasksWithoutChangingModelOrUndo" --max-workers=1 --console=plain --no-daemon "-PguiTestLocale=ja" "-PguiTestUiScale=1.0"` — 1 Robot test passed.
 - `git diff --check` — passed.
 
 The desktop resolution was not changed. This closes the four-view
@@ -1686,7 +1686,7 @@ frame-selection fallback; existing Hide Selected coverage continues to exercise
 group expansion.
 
 Focused headless verification passed:
-`.\gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.frames.ActiveTaskSelectionResolverTest" --tests "com.microproject.pm.graphic.frames.TaskVisibilitySelectionResolverTest" --console=plain --no-daemon --max-workers=1`
+`.\gradlew.bat :microproject_ui:test --tests "com.microproject.model.graphic.frames.ActiveTaskSelectionResolverTest" --tests "com.microproject.model.graphic.frames.TaskVisibilitySelectionResolverTest" --console=plain --no-daemon --max-workers=1`
 (7 tests total: 6 resolver tests and 1 visibility/group-expansion test; 0 failures,
 0 errors, 0 skipped). `git diff --check` passed. No
 resolution changes or physical keyboard events were used. Physical GUI gates
@@ -1705,7 +1705,7 @@ IDs and empty affected IDs, the active view on rejected one-task Link, and the
 active view and empty affected IDs on a rejected read-only hierarchy command.
 
 Focused verification passed:
-`.\gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.frames.RibbonButtonBehaviorTest" --console=plain --no-daemon --max-workers=1`
+`.\gradlew.bat :microproject_ui:test --tests "com.microproject.model.graphic.frames.RibbonButtonBehaviorTest" --console=plain --no-daemon --max-workers=1`
 
 ### M2.1 Expand/Collapse mixed-selection route consistency (#794, 2026-10-19)
 
@@ -1719,7 +1719,7 @@ and both direct routes leave the table row projection and task hierarchy
 unchanged; `ActiveTaskSelectionResolverTest` covers mixed row ordering.
 
 Focused verification passed:
-`.\gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.frames.ActiveTaskSelectionResolverTest" --tests "com.microproject.pm.graphic.frames.RibbonButtonBehaviorTest" --console=plain --no-daemon --max-workers=1`
+`.\gradlew.bat :microproject_ui:test --tests "com.microproject.model.graphic.frames.ActiveTaskSelectionResolverTest" --tests "com.microproject.model.graphic.frames.RibbonButtonBehaviorTest" --console=plain --no-daemon --max-workers=1`
 (52 tests: 6 resolver and 46 ribbon behavior; 0 failures, 0 errors, 0 skipped).
 No Robot GUI input or display-resolution changes were used.
 (43 tests total, 0 failures, 0 errors, 0 skipped). GUI/Robot input and display-
@@ -1733,7 +1733,7 @@ affected IDs empty. The headless ribbon test checks rejected routing and the
 no-selection case; GUI acceptance now expects empty affected IDs after the
 dialog is visibly opened.
 
-`.\gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.frames.RibbonButtonBehaviorTest" --console=plain --no-daemon --max-workers=1`
+`.\gradlew.bat :microproject_ui:test --tests "com.microproject.model.graphic.frames.RibbonButtonBehaviorTest" --console=plain --no-daemon --max-workers=1`
 passed (43 tests; 0 failures, 0 errors, 0 skipped).
 `.\gradlew.bat :microproject_ui:compileGuiTestJava --console=plain --no-daemon --max-workers=1`
 passed. Robot GUI acceptance was not executed and display resolution was not
@@ -1784,7 +1784,7 @@ revision and event remain while the second group's links, Undo, revision and
 events are restored or discarded.
 
 Focused verification passed:
-`.\gradlew.bat :microproject_core:test --tests "com.microproject.pm.assignment.AssignmentServiceTest" --console=plain --no-daemon --max-workers=1`
+`.\gradlew.bat :microproject_core:test --tests "com.microproject.model.assignment.AssignmentServiceTest" --console=plain --no-daemon --max-workers=1`
 (32 tests; 0 failures, 0 errors, 0 skipped). GUI/Robot and display-resolution
 tests were not run.
 
@@ -1832,7 +1832,7 @@ resource has actually attached; the successful path still refreshes both
 resources in a single pool revision.
 
 Focused verification passed:
-`.\gradlew.bat :microproject_core:test --tests "com.microproject.pm.assignment.AssignmentServiceTest" --console=plain --no-daemon --max-workers=1`
+`.\gradlew.bat :microproject_core:test --tests "com.microproject.model.assignment.AssignmentServiceTest" --console=plain --no-daemon --max-workers=1`
 (31 tests; 0 failures, 0 errors, 0 skipped; rerun with `--rerun-tasks`). GUI/Robot and display-resolution
 tests were not run.
 
@@ -1846,7 +1846,7 @@ commands against a selected task and verifies the result contract and that the
 table row count does not change.
 
 Focused verification passed:
-`.\gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.frames.RibbonButtonBehaviorTest" --console=plain --no-daemon --max-workers=1`
+`.\gradlew.bat :microproject_ui:test --tests "com.microproject.model.graphic.frames.RibbonButtonBehaviorTest" --console=plain --no-daemon --max-workers=1`
 (46 tests; 0 failures, 0 errors, 0 skipped). No Robot GUI input or
 display-resolution changes were used.
 
@@ -1859,7 +1859,7 @@ table-row selection and verifies both commands reject without changing the
 row projection or selected task's WBS parent.
 
 Focused verification passed:
-`.\gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.frames.RibbonButtonBehaviorTest" --console=plain --no-daemon --max-workers=1`
+`.\gradlew.bat :microproject_ui:test --tests "com.microproject.model.graphic.frames.RibbonButtonBehaviorTest" --console=plain --no-daemon --max-workers=1`
 (46 tests; 0 failures, 0 errors, 0 skipped). No Robot GUI input or
 display-resolution changes were used.
 
@@ -1872,7 +1872,7 @@ selected stable task ID, reports no affected IDs, and includes the active view.
 Changed and no-change outcomes retain their existing affected task IDs.
 
 Focused verification passed:
-`.\gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.frames.RibbonButtonBehaviorTest" --console=plain --no-daemon --max-workers=1`
+`.\gradlew.bat :microproject_ui:test --tests "com.microproject.model.graphic.frames.RibbonButtonBehaviorTest" --console=plain --no-daemon --max-workers=1`
 (44 tests; 0 failures, 0 errors, 0 skipped). No Robot GUI input or
 display-resolution changes were used.
 
@@ -1891,7 +1891,7 @@ explicitly checks empty affected IDs. Non-ribbon callers retain their separate
 UI failure warning when the dialog is not visible.
 
 Focused verification passed:
-`.\gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.frames.RibbonButtonBehaviorTest" --console=plain --no-daemon --max-workers=1`
+`.\gradlew.bat :microproject_ui:test --tests "com.microproject.model.graphic.frames.RibbonButtonBehaviorTest" --console=plain --no-daemon --max-workers=1`
 (46 tests; 0 failures, 0 errors, 0 skipped).
 `.\gradlew.bat :microproject_ui:compileGuiTestJava --console=plain --no-daemon --max-workers=1`
 passed. Robot GUI acceptance was not executed and display resolution was not
@@ -1915,7 +1915,7 @@ verifies Hide Selected reports and hides only the bottom row's stable task ID.
 Existing top-sheet and virtual-group visibility coverage remains in place.
 
 Focused verification passed:
-`.\gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.frames.RibbonButtonBehaviorTest" --console=plain --no-daemon --max-workers=1`
+`.\gradlew.bat :microproject_ui:test --tests "com.microproject.model.graphic.frames.RibbonButtonBehaviorTest" --console=plain --no-daemon --max-workers=1`
 (47 tests; 0 failures, 0 errors, 0 skipped). `git diff --check` passed. No
 display-resolution changes were used.
 
@@ -1944,7 +1944,7 @@ failure rollback, event/revision suppression, and successful retry. The legacy
 Display resolution was not changed.
 
 Focused verification passed:
-`.\gradlew.bat :microproject_core:test --tests "com.microproject.pm.dependency.DependencyServiceTest" --console=plain`
+`.\gradlew.bat :microproject_core:test --tests "com.microproject.model.dependency.DependencyServiceTest" --console=plain`
 (42 tests; 0 failures, 0 errors, 0 skipped). `git diff --check` passed.
 
 ### M2.2 SNET + FF zero-lag boundary (#794, 2026-10-20)
@@ -1960,7 +1960,7 @@ The FF contract is asserted through the successor finish boundary because
 `Dependency.getDate(true)` represents the calculated successor start for FF.
 
 Focused verification passed:
-`.\gradlew.bat :microproject_core:test --tests "com.microproject.pm.scheduling.TaskLinkAndBarScheduleTransitionsTest" --console=plain --no-daemon --max-workers=1`
+`.\gradlew.bat :microproject_core:test --tests "com.microproject.schedule.TaskLinkAndBarScheduleTransitionsTest" --console=plain --no-daemon --max-workers=1`
 (49 tests; 0 failures, 0 errors, 0 skipped). Further SNET + SF coverage,
 varied calendars/lags, persistence and mutation-family cases remain; this one
 boundary slice does not close M2.2.
@@ -2148,7 +2148,7 @@ injects a one-time failure after the SNET date setter mutates state and verifies
 the prior constraint, undo availability, mutation revision, and ObjectEvent
 count are unchanged. The post-commit observer-failure/Undo behavior remains
 covered separately. `./gradlew.bat :microproject_core:test --tests
-"com.microproject.pm.scheduling.ScheduleServiceConstraintTest" --console=plain`
+"com.microproject.schedule.ScheduleServiceConstraintTest" --console=plain`
 passed 7 tests; `git diff --check` passed.
 
 ### M2.2 dependency field application rollback (#794, 2026-10-20)
@@ -2180,9 +2180,9 @@ gap are recorded in `docs/work/issue-794.md`.
 
 Sol reran the three recent M2.2 rollback families together on the integrated
 worktree: `./gradlew.bat :microproject_core:test --tests
-"com.microproject.pm.scheduling.ScheduleServiceConstraintTest" --tests
-"com.microproject.pm.dependency.DependencyServiceTest" --tests
-"com.microproject.pm.task.TaskModeServiceTest" --console=plain --no-daemon
+"com.microproject.schedule.ScheduleServiceConstraintTest" --tests
+"com.microproject.model.dependency.DependencyServiceTest" --tests
+"com.microproject.model.task.TaskModeServiceTest" --console=plain --no-daemon
 --max-workers=1` passed (56 tests total; 0 failures/errors). `git diff --check`
 passed; only expected documentation LF-to-CRLF notices were reported.
 
@@ -2241,15 +2241,15 @@ scope per the recorded 2026-10-12 decision above.
 
 ### M2.3 Baseline 1 Selected Tasks Robot route (#794, 2026-10-20)
 
-Added `TaskInformationRibbonGuiAcceptanceTest.recaptureBaselineOneSelectedTasksPreservesUnselectedAndBaselineZeroAcrossUndoRedoAndMpo`. It physically selects Baseline 1 + Selected Tasks, confirms overwrite, checks selected and non-selected scope, Baseline 0/current values, Ctrl+Z/Ctrl+Y, and MPO reload for undone/redone state. `compileGuiTestJava` passed in the GUI runner; both physical attempts were stopped before route input by the pre-existing `ProjectLibre へようこそ` window (PID 52244, Java, bounds overlap the test window). The guarded runner retained failure and did not retry/suppress it. Exact targeted command: `.\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.recaptureBaselineOneSelectedTasksPreservesUnselectedAndBaselineZeroAcrossUndoRedoAndMpo -Locale ja -Scale 1.0`. JUnit: `modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.xml`; latest overlap evidence: `modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.recaptureBaselineOneSelectedTasksPreservesUnselectedAndBaselineZeroAcrossUndoRedoAndMpo-ja-1-0-bda2a5fbeb294a4d9f9065ed9a71901c/`. On a later run, after normally closing the welcome dialog and minimizing the empty workspace app frame, the test passed (1 test, 0 failures/errors/skips); no display setting was changed. Artifacts: `modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.recaptureBaselineOneSelectedTasksPreservesUnselectedAndBaselineZeroAcrossUndoRedoAndMpo-ja-1-0-57326019b2774286821f2e7dc0c54624/`. Physical route verified overwrite confirmation, Undo/Redo, and MPO reload.
+Added `TaskInformationRibbonGuiAcceptanceTest.recaptureBaselineOneSelectedTasksPreservesUnselectedAndBaselineZeroAcrossUndoRedoAndMpo`. It physically selects Baseline 1 + Selected Tasks, confirms overwrite, checks selected and non-selected scope, Baseline 0/current values, Ctrl+Z/Ctrl+Y, and MPO reload for undone/redone state. `compileGuiTestJava` passed in the GUI runner; both physical attempts were stopped before route input by the pre-existing `ProjectLibre へようこそ` window (PID 52244, Java, bounds overlap the test window). The guarded runner retained failure and did not retry/suppress it. Exact targeted command: `.\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.recaptureBaselineOneSelectedTasksPreservesUnselectedAndBaselineZeroAcrossUndoRedoAndMpo -Locale ja -Scale 1.0`. JUnit: `modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.xml`; latest overlap evidence: `modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.recaptureBaselineOneSelectedTasksPreservesUnselectedAndBaselineZeroAcrossUndoRedoAndMpo-ja-1-0-bda2a5fbeb294a4d9f9065ed9a71901c/`. On a later run, after normally closing the welcome dialog and minimizing the empty workspace app frame, the test passed (1 test, 0 failures/errors/skips); no display setting was changed. Artifacts: `modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.recaptureBaselineOneSelectedTasksPreservesUnselectedAndBaselineZeroAcrossUndoRedoAndMpo-ja-1-0-57326019b2774286821f2e7dc0c54624/`. Physical route verified overwrite confirmation, Undo/Redo, and MPO reload.
 
-Supporting model check: `ProjectScheduleBehaviorTest.overwritingSelectedBaselineRestoresPriorAndAbsentTaskSnapshotsOnUndoRedo` passed via `.\gradlew.bat :microproject_core:test --tests "com.microproject.pm.task.ProjectScheduleBehaviorTest.overwritingSelectedBaselineRestoresPriorAndAbsentTaskSnapshotsOnUndoRedo" --console=plain --no-daemon --max-workers=1`. It covers selected-scope overwrite, outside-selection and unrelated-slot preservation, assignment baselines, and Undo/Redo; it does not substitute for the blocked Robot route.
+Supporting model check: `ProjectScheduleBehaviorTest.overwritingSelectedBaselineRestoresPriorAndAbsentTaskSnapshotsOnUndoRedo` passed via `.\gradlew.bat :microproject_core:test --tests "com.microproject.model.task.ProjectScheduleBehaviorTest.overwritingSelectedBaselineRestoresPriorAndAbsentTaskSnapshotsOnUndoRedo" --console=plain --no-daemon --max-workers=1`. It covers selected-scope overwrite, outside-selection and unrelated-slot preservation, assignment baselines, and Undo/Redo; it does not substitute for the blocked Robot route.
 
 ### M2.3 Mark on Track assigned-task progress preservation (#794, 2026-10-20)
 
-`TaskProgressServiceTest.markOnTrackPreservesImportedAssignmentProgressAndWorkAcrossUndoRedo` confirms that Status Date updates task-level percent-complete while independent assignment percent, Actual Work, and Remaining Work stay unchanged before/after apply, Undo, and Redo. The focused `TaskProgressServiceTest` class passed via `.\gradlew.bat :microproject_core:test --tests "com.microproject.pm.task.TaskProgressServiceTest" --console=plain --no-daemon --max-workers=1`. This is the Mark on Track command contract; Update Project has separate assigned-actuals coverage. No product code changed.
+`TaskProgressServiceTest.markOnTrackPreservesImportedAssignmentProgressAndWorkAcrossUndoRedo` confirms that Status Date updates task-level percent-complete while independent assignment percent, Actual Work, and Remaining Work stay unchanged before/after apply, Undo, and Redo. The focused `TaskProgressServiceTest` class passed via `.\gradlew.bat :microproject_core:test --tests "com.microproject.model.task.TaskProgressServiceTest" --console=plain --no-daemon --max-workers=1`. This is the Mark on Track command contract; Update Project has separate assigned-actuals coverage. No product code changed.
 
-The physical run later passed after clearing that verified workspace-app interference: the welcome dialog was normally closed and the empty app frame was minimized; no display setting changed. Exact command `.\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.recaptureBaselineOneSelectedTasksPreservesUnselectedAndBaselineZeroAcrossUndoRedoAndMpo -Locale ja -Scale 1.0` passed (1 test, 0 failures/errors/skips). JUnit is `modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.xml`; run artifacts are under `modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.recaptureBaselineOneSelectedTasksPreservesUnselectedAndBaselineZeroAcrossUndoRedoAndMpo-ja-1-0-57326019b2774286821f2e7dc0c54624/`. The Robot route passed the overwrite confirmation and physical Undo/Redo; both MPO reload states preserve selected Baseline 1, the non-selected task's slot, Baseline 0, and selected current values.
+The physical run later passed after clearing that verified workspace-app interference: the welcome dialog was normally closed and the empty app frame was minimized; no display setting changed. Exact command `.\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.recaptureBaselineOneSelectedTasksPreservesUnselectedAndBaselineZeroAcrossUndoRedoAndMpo -Locale ja -Scale 1.0` passed (1 test, 0 failures/errors/skips). JUnit is `modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.xml`; run artifacts are under `modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.recaptureBaselineOneSelectedTasksPreservesUnselectedAndBaselineZeroAcrossUndoRedoAndMpo-ja-1-0-57326019b2774286821f2e7dc0c54624/`. The Robot route passed the overwrite confirmation and physical Undo/Redo; both MPO reload states preserve selected Baseline 1, the non-selected task's slot, Baseline 0, and selected current values.
 
 
 ### M2.3 Mark on Track assignment persistence through MPO (#794, 2026-10-20)
@@ -2275,12 +2275,12 @@ The first Robot attempt used the new `ClassicMenuRootPaneShortcutGuiAcceptanceTe
 fixture and failed before route input while awaiting the task spreadsheet; its
 captured screen showed WindowsTerminal covering the application, and the runner
 recorded `GUI_ENVIRONMENT_CONTENDED` (PID 72400). Artifact directory:
-`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.frames.ClassicMenuRootPaneShortcutGuiAcceptanceTest.physicalIndentShortcutMutatesOnceWithClassicDocumentMenuAndUndoRedo-en-1-0-adf16515bfd74283a815e0905d317235/`.
+`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.model.graphic.frames.ClassicMenuRootPaneShortcutGuiAcceptanceTest.physicalIndentShortcutMutatesOnceWithClassicDocumentMenuAndUndoRedo-en-1-0-adf16515bfd74283a815e0905d317235/`.
 Review found the fixture read `getCurrentFrame()` immediately after adding the
 project; it now retains the returned `DocumentFrame`, awaits visibility, and
 passes its root-pane map to `MenuManager` before constructing the menu. The
 corrected test compiled with `.\gradlew.bat :microproject_ui:compileGuiTestJava --console=plain --no-daemon --max-workers=1`; GUI was not rerun because contention remained. The original command was
-`.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.pm.graphic.frames.ClassicMenuRootPaneShortcutGuiAcceptanceTest.physicalIndentShortcutMutatesOnceWithClassicDocumentMenuAndUndoRedo -Locale en -Scale 1.0`; it is not physical route evidence.
+`.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.model.graphic.frames.ClassicMenuRootPaneShortcutGuiAcceptanceTest.physicalIndentShortcutMutatesOnceWithClassicDocumentMenuAndUndoRedo -Locale en -Scale 1.0`; it is not physical route evidence.
 
 ### M2.1 #414 physical classic-menu shortcut route (#794, 2026-10-20)
 
@@ -2317,7 +2317,7 @@ confirmed Escape's two ancestor entries resolved to enabled
 all root-pane keys against both spreadsheet map chains; only focused Escape to
 `cancelEdit` is allowed for in-editor cancellation, and ancestor Escape must be
 absent. Focused UI verification passed 30 tests (0 failures/errors/skips):
-`.\gradlew.bat :microproject_ui:test --tests "com.microproject.pm.graphic.frames.MicrosoftShortcutsRootPaneTest" --tests "com.microproject.pm.graphic.UiInputArchitectureTest" --tests "com.microproject.pm.graphic.spreadsheet.SpreadSheetEditingBindingsTest" --tests "com.microproject.pm.graphic.spreadsheet.common.CommonSpreadSheetSelectionStateTest" --tests "com.microproject.pm.graphic.spreadsheet.common.CommonTableEscapeKeyTest" --console=plain --no-daemon --max-workers=1`.
+`.\gradlew.bat :microproject_ui:test --tests "com.microproject.model.graphic.frames.MicrosoftShortcutsRootPaneTest" --tests "com.microproject.model.graphic.UiInputArchitectureTest" --tests "com.microproject.model.graphic.spreadsheet.SpreadSheetEditingBindingsTest" --tests "com.microproject.model.graphic.spreadsheet.common.CommonSpreadSheetSelectionStateTest" --tests "com.microproject.model.graphic.spreadsheet.common.CommonTableEscapeKeyTest" --console=plain --no-daemon --max-workers=1`.
 `compileGuiTestJava` passed, and `git diff --check` passed.
 
 Physical verification used the existing
@@ -2326,18 +2326,18 @@ journey at English/100%, 2560×1440. Ctrl+Space selected the full source row;
 a physical Name-cell click restored ordinary row selection. With continuous
 Format Painter active, F2 opened the Name editor; Escape canceled editing and
 left Format Painter armed; a later Escape stopped it. Final run passed 1/1:
-`.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.formatPainterCopiesTaskTextStyleOnceOrContinuouslyWithUndoAndMpoReload -Locale en -Scale 1.0`.
-JUnit: `modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.xml`;
+`.\.github\scripts\run-gui-acceptance.ps1 -TestFilter com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.formatPainterCopiesTaskTextStyleOnceOrContinuouslyWithUndoAndMpoReload -Locale en -Scale 1.0`.
+JUnit: `modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.xml`;
 run directory:
-`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.formatPainterCopiesTaskTextStyleOnceOrContinuouslyWithUndoAndMpoReload-en-1-0-f7f23b720c4242ee88cfeed2b1023050/`.
+`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.formatPainterCopiesTaskTextStyleOnceOrContinuouslyWithUndoAndMpoReload-en-1-0-f7f23b720c4242ee88cfeed2b1023050/`.
 
 The first focused Robot attempt was stopped before input by a foreign
 WindowsTerminal window (PID 72400); the overlapping attempt artifacts remain
-under `modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.formatPainterCopiesTaskTextStyleOnceOrContinuouslyWithUndoAndMpoReload-en-1-0-5b60afed4e4648d9b883bdaf608bbc04/`. An uncontended run then exposed a
+under `modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.formatPainterCopiesTaskTextStyleOnceOrContinuouslyWithUndoAndMpoReload-en-1-0-5b60afed4e4648d9b883bdaf608bbc04/`. An uncontended run then exposed a
 fixture mistake: it selected the non-editable Indicator column before F2. The
 failure screenshot showed the selected source row; the fixture was corrected
 to click Name and then passed. That diagnostic run is retained under
-`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.formatPainterCopiesTaskTextStyleOnceOrContinuouslyWithUndoAndMpoReload-en-1-0-a16f9b1bc09a4a31a722b9b3a62ed7e2/`. No resolution or display scale changed.
+`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest.formatPainterCopiesTaskTextStyleOnceOrContinuouslyWithUndoAndMpoReload-en-1-0-a16f9b1bc09a4a31a722b9b3a62ed7e2/`. No resolution or display scale changed.
 
 ### U-32 physical keypad zoom re-verification (2026-10-20)
 
@@ -2348,12 +2348,12 @@ dispatch per chord and inverse zoom steps, and verified unchanged task dates,
 task-table viewport, and Gantt vertical viewport. The GUI runner regenerated
 `installDist`. Command:
 
-`& .\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotCtrlNumpadDivideAndMultiplyZoomActiveGanttFromGanttAndSpreadsheetFocus -Locale ja -Scale 1.0`
+`& .\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.model.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotCtrlNumpadDivideAndMultiplyZoomActiveGanttFromGanttAndSpreadsheetFocus -Locale ja -Scale 1.0`
 
 Result: 1 test, 0 failures/errors/skips. JUnit:
-`modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.xml`.
+`modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.model.graphic.views.GanttBarDateDragGuiAcceptanceTest.xml`.
 Artifact:
-`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotCtrlNumpadDivideAndMultiplyZoomActiveGanttFromGanttAndSpreadsheetFocus-ja-1-0-fd8c8336e33c45fbb36f2b86aa46ebc6/`.
+`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.model.graphic.views.GanttBarDateDragGuiAcceptanceTest.robotCtrlNumpadDivideAndMultiplyZoomActiveGanttFromGanttAndSpreadsheetFocus-ja-1-0-fd8c8336e33c45fbb36f2b86aa46ebc6/`.
 The run temporarily minimized and restored the overlapping WindowsTerminal
 window (PID 72400); no screen geometry or UI scale changed.
 
@@ -2365,10 +2365,10 @@ that the active view stayed Resource View, Gantt zoom and viewport were
 unchanged, and predecessor/successor start/end values were preserved. Windows
 11, 2560×1440, Japanese/100% UI scale; no display settings changed. Command:
 
-`.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest" --console=plain`
+`.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.model.graphic.views.GanttBarDateDragGuiAcceptanceTest" --console=plain`
 
 Result: GUI compilation succeeded; 9 tests passed, 0 failures/errors/skips.
-JUnit: `modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.pm.graphic.views.GanttBarDateDragGuiAcceptanceTest.xml`.
+JUnit: `modules/microproject_ui/build/test-results/guiTest/TEST-com.microproject.model.graphic.views.GanttBarDateDragGuiAcceptanceTest.xml`.
 
 ### M2.1 #408 U-26 GraphicManager physical outcome and reversibility (2026-10-20)
 
@@ -2382,10 +2382,10 @@ value show 10%, Undo/Redo show 0%/10%, and the existing MPO reload assertions
 remain in the journey.
 
 Verification passed: `compileGuiTestJava`; full GUI runner command
-`& .\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.pm.graphic.spreadsheet.common.U26SpreadsheetInputTransactionGuiAcceptanceTest -Locale ja -Scale 1.0`;
+`& .\.github\scripts\run-gui-acceptance.ps1 -Suite full -TestFilter com.microproject.model.graphic.spreadsheet.common.U26SpreadsheetInputTransactionGuiAcceptanceTest -Locale ja -Scale 1.0`;
 JUnit 1 passed, 0 failures/errors/skips. The run was Japanese at 100% on the
 unchanged 2560×1440 desktop. Artifact:
-`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.pm.graphic.spreadsheet.common.U26SpreadsheetInputTransactionGuiAcceptanceTest-ja-1-0-ec8e471d416547cd83318f64f2c8fcfe/`.
+`modules/microproject_ui/build/reports/guiTest-artifacts/focused-com.microproject.model.graphic.spreadsheet.common.U26SpreadsheetInputTransactionGuiAcceptanceTest-ja-1-0-ec8e471d416547cd83318f64f2c8fcfe/`.
 The first attempt contended with WindowsTerminal PID 72400; the window was
 minimized/restored before the successful rerun. No display change was made.
 
@@ -2397,7 +2397,7 @@ worktree evidence and remaining M2.1 criteria are tracked in
 
 Added `TwoDocumentShortcutIsolationGuiAcceptanceTest.physicalCtrlDeleteAndUndoStayWithEachActiveDocument` and U-36 in `TEST_PLAN.md`. With two independent project windows open, Robot physically selected each task Name cell and sent the document-root Ctrl+Delete, Ctrl+Z, and Ctrl+Y routes. Assertions prove the inactive document's task value is preserved after clear, undo and redo, and the selected row still resolves to its own task after switching back. Uses the existing GraphicManager shortcut/action pipeline; no duplicate command wiring was added.
 
-Verification passed: `compileGuiTestJava`; `.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.frames.TwoDocumentShortcutIsolationGuiAcceptanceTest" --console=plain` (1 test passed, 0 failures/errors/skips). Worktree HEAD `40f5ee8d575a3327e727b9f62182c07aa55d2178`; Windows 11, Java 25.0.4.1, ja-JP, 100% UI scale, 2560×1440, unchanged resolution. The first attempt failed because the two windows overlapped and the click intended for Alpha landed without activating it; the failure artifact showed Beta covering it. The passing run places windows apart before physical interaction. #414 and M2.1 remain open for their other routes and gates.
+Verification passed: `compileGuiTestJava`; `.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.model.graphic.frames.TwoDocumentShortcutIsolationGuiAcceptanceTest" --console=plain` (1 test passed, 0 failures/errors/skips). Worktree HEAD `40f5ee8d575a3327e727b9f62182c07aa55d2178`; Windows 11, Java 25.0.4.1, ja-JP, 100% UI scale, 2560×1440, unchanged resolution. The first attempt failed because the two windows overlapped and the click intended for Alpha landed without activating it; the failure artifact showed Beta covering it. The passing run places windows apart before physical interaction. #414 and M2.1 remain open for their other routes and gates.
 
 ### M2.2 Task progress batch failure atomicity (#794, 2026-10-21)
 
@@ -2410,7 +2410,7 @@ Undo/Redo state and names, zero object/schedule notifications, and original
 exception identity.
 
 Focused `.\gradlew.bat :microproject_core:test --tests
-"com.microproject.pm.task.TaskProgressServiceTest" --console=plain --no-daemon
+"com.microproject.model.task.TaskProgressServiceTest" --console=plain --no-daemon
 --max-workers=1` passed 10 tests. Full `.\gradlew.bat :microproject_core:test
 --console=plain --no-daemon --max-workers=1` passed 1,119 tests across 240
 suites (0 failures/errors/skips); `git diff --check` passed. Tested HEAD:

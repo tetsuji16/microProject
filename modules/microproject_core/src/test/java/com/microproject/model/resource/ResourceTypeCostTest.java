@@ -69,8 +69,8 @@ class ResourceTypeCostTest {
 
 	private EnterpriseResource createResource() {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
-		com.microproject.pm.resource.ResourcePool resourcePool =
-			com.microproject.pm.resource.ResourcePool.createRourcePool("test", undoController);
+		com.microproject.model.resource.ResourcePool resourcePool =
+			com.microproject.model.resource.ResourcePool.createRourcePool("test", undoController);
 		Project project = Project.createProject(resourcePool, undoController);
 		project.initialize(false, false);
 		return new EnterpriseResource(resourcePool);

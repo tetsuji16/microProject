@@ -319,7 +319,7 @@ public class MpxAssignmentConverter {
 	}
 
 	private void validateNoWorkingOverlap(List<WorkInterval> intervals,
-		com.microproject.pm.calendar.WorkCalendar calendar, String kind) {
+		com.microproject.model.calendar.WorkCalendar calendar, String kind) {
 		for (int first = 0; first < intervals.size(); first++) {
 			WorkInterval left = intervals.get(first);
 			if (left.work() == 0L)
@@ -337,7 +337,7 @@ public class MpxAssignmentConverter {
 	}
 
 	private long segmentWork(List<WorkInterval> intervals, long segmentStart, long segmentEnd,
-			com.microproject.pm.calendar.WorkCalendar calendar) {
+			com.microproject.model.calendar.WorkCalendar calendar) {
 		long result = 0L;
 		for (WorkInterval interval : intervals) {
 			long overlapStart = Math.max(segmentStart, interval.start());

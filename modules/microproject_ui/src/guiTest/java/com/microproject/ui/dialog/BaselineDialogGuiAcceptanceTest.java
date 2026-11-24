@@ -107,7 +107,7 @@ class BaselineDialogGuiAcceptanceTest {
 		pool.setLocal(true);
 		Project project = Project.createProject(pool, undo);
 		project.setName("Clear Baseline GUI");
-		com.microproject.pm.task.NormalTask task = project.createScriptedTask();
+		com.microproject.model.task.NormalTask task = project.createScriptedTask();
 		task.setName("Baseline fixture task");
 		project.saveCurrentToSnapshot(Integer.valueOf(Snapshottable.BASELINE), false, java.util.List.of(task));
 		SwingUtilities.invokeAndWait(() -> manager.addProjectFrame(project));

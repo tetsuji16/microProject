@@ -306,12 +306,12 @@ class AssignmentContourBehaviorTest {
 		long actualBefore = assignment.getActualWork(null);
 		long remainingBefore = assignment.getRemainingWork();
 		String originalContour = assignment.getWorkContour().toString(assignment.getDurationMillis());
-		long gapStart = assignment.getStart() + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
-		long gapEnd = gapStart + com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long gapStart = assignment.getStart() + com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long gapEnd = gapStart + com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
 		var undoController = project.getUndoController();
 		undoController.discardAllEdits();
 
-		assertTrue(com.microproject.pm.scheduling.ScheduleService.getInstance().split(this, assignment, gapStart, gapEnd,
+		assertTrue(com.microproject.schedule.ScheduleService.getInstance().split(this, assignment, gapStart, gapEnd,
 			undoController.getEditSupport()));
 		project.recalculate();
 
@@ -322,7 +322,7 @@ class AssignmentContourBehaviorTest {
 			"personal contour buckets must sum to the exact scalar assignment work");
 		List<ScheduleInterval> intervals = assignmentIntervals(assignment);
 		assertEquals(2, intervals.size(), "manual split must retain two working intervals around its gap");
-		assertEquals(com.microproject.pm.calendar.WorkCalendar.MILLIS_IN_HOUR,
+		assertEquals(com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR,
 			assignment.getEffectiveWorkCalendar().compare(intervals.getLast().getStart(), intervals.getFirst().getEnd(), false),
 			"manual split must retain the exact one-hour gap");
 		String splitContour = assignment.getWorkContour().toString(assignment.getDurationMillis());

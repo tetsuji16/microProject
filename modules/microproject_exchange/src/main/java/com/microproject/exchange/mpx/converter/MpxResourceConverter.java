@@ -71,7 +71,7 @@ public class MpxResourceConverter {
 			// MPXJ and the domain both number tables A-E as 0-4.
 			org.mpxj.CostRateTable sourceTable = mpxResource.getCostRateTable(tableIndex);
 			if (sourceTable == null || sourceTable.isEmpty()) continue;
-			com.microproject.pm.costing.CostRateTable targetTable = resource.getCostRateTable(tableIndex);
+			com.microproject.model.costing.CostRateTable targetTable = resource.getCostRateTable(tableIndex);
 			for (org.mpxj.CostRateTableEntry sourceEntry : sourceTable) {
 				Date startDate = MpxDates.toDate(sourceEntry.getStartDate());
 				CostRate targetEntry;

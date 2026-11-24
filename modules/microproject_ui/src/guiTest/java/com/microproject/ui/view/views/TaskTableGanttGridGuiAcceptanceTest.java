@@ -1978,7 +1978,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		robot.setAutoDelay(40);
 		AtomicReference<Gantt.BarClick> click = new AtomicReference<>();
 		GraphicNode node = (GraphicNode) fixture.gantt.getModel().getCache().getElementAt(0);
-		com.microproject.pm.task.Task task = (com.microproject.pm.task.Task) node.getNode().getImpl();
+		com.microproject.model.task.Task task = (com.microproject.model.task.Task) node.getNode().getImpl();
 		SwingUtilities.invokeAndWait(() -> {
 			task.setPercentComplete(0.0d);
 			fixture.gantt.setProgressLineEnabled(true);
@@ -2499,7 +2499,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	}
 
 	private static com.microproject.node.Node findTaskNode(Project project, String name) {
-		java.util.Iterator<com.microproject.pm.task.Task> iterator = project.getTaskOutlineIterator();
+		java.util.Iterator<com.microproject.model.task.Task> iterator = project.getTaskOutlineIterator();
 		while (iterator.hasNext()) {
 			var task = iterator.next();
 			if (name.equals(task.getName()))

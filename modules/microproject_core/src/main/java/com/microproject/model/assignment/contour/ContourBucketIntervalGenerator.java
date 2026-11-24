@@ -58,8 +58,8 @@ public class ContourBucketIntervalGenerator implements IntervalGenerator {
 
 		assignmentDuration = assignment.getDurationMillis();
 		boolean importedWorkProfile = assignment.hasImportedTimephasedWork()
-			&& (type == com.microproject.pm.assignment.HasTimeDistributedData.ACTUAL_WORK
-				|| type == com.microproject.pm.assignment.HasTimeDistributedData.REMAINING_WORK);
+			&& (type == com.microproject.model.assignment.HasTimeDistributedData.ACTUAL_WORK
+				|| type == com.microproject.model.assignment.HasTimeDistributedData.REMAINING_WORK);
 		assignmentActualDuration = importedWorkProfile ? 0L : assignment.getActualDuration();
 		long assignmentStart = assignment.getStart();
 		end = assignmentStart; // treat 0th bucket as all time before contour begins

@@ -1189,7 +1189,7 @@ public class MpoFileImporter extends FileImporter {
 			CriticalChainService.Settings settings = new CriticalChainService.Settings();
 			settings.setEnabled(bool(root, "enabled"));
 			settings.setBufferFraction(number(root, "bufferFraction"));
-			settings.setLevelingOrder(com.microproject.pm.resource.ResourceLevelingService.Order.valueOf(text(root, "levelingOrder")));
+			settings.setLevelingOrder(com.microproject.model.resource.ResourceLevelingService.Order.valueOf(text(root, "levelingOrder")));
 			settings.setOnlyWithinAvailableSlack(bool(root, "onlyWithinAvailableSlack"));
 			settings.setAllowTaskSplits(bool(root, "allowTaskSplits"));
 			settings.setLevelAssignments(root.has("levelAssignments") ? bool(root, "levelAssignments") : true);
@@ -1198,8 +1198,8 @@ public class MpoFileImporter extends FileImporter {
 			settings.setLevelManuallyScheduledTasks(root.has("levelManuallyScheduledTasks")
 				? bool(root, "levelManuallyScheduledTasks") : false);
 			settings.setSensitivity(root.has("sensitivity")
-				? com.microproject.pm.resource.ResourceLevelingService.Sensitivity.valueOf(text(root, "sensitivity"))
-				: com.microproject.pm.resource.ResourceLevelingService.Sensitivity.DAY);
+				? com.microproject.model.resource.ResourceLevelingService.Sensitivity.valueOf(text(root, "sensitivity"))
+				: com.microproject.model.resource.ResourceLevelingService.Sensitivity.DAY);
 			CriticalChainService service = new CriticalChainService();
 			MpoManifest.applySettings(service.settings(project), settings);
 			JsonNode baseline = root.get("baseline");

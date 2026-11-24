@@ -149,7 +149,7 @@ final class MpoOperationState {
 		operations.add(new OperationLog.Operation(java.util.UUID.randomUUID().toString(), actorId, sequence,
 				java.util.Set.of(), kind, entityId, payload));
 	}
-	static Long parentId(com.microproject.pm.task.Task task) { return task.getWbsParentTask() == null ? null : Long.valueOf(task.getWbsParentTask().getUniqueId()); }
+	static Long parentId(com.microproject.model.task.Task task) { return task.getWbsParentTask() == null ? null : Long.valueOf(task.getWbsParentTask().getUniqueId()); }
 	static String dependencyKey(Dependency dependency) { return dependency.getPredecessorId() + ":" + dependency.getSuccessorId() + ":" + dependency.getDependencyType() + ":" + dependency.getLag(); }
 	// Lag is mutable relationship data, not part of the relationship identity.
 	// Keeping it out of entityId lets concurrent lag changes conflict instead of

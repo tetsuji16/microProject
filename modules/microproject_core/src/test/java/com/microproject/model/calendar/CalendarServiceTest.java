@@ -145,7 +145,7 @@ class CalendarServiceTest {
 		java.util.GregorianCalendar fridayStart = DateTime.calendarInstance(2099, Calendar.OCTOBER, 16);
 		fridayStart.set(Calendar.HOUR_OF_DAY, 8);
 		long fridayAhead = fridayStart.getTimeInMillis();
-		task.setScheduleConstraint(com.microproject.pm.scheduling.ConstraintType.Kind.MSO, fridayAhead);
+		task.setScheduleConstraint(com.microproject.schedule.ConstraintType.Kind.MSO, fridayAhead);
 		task.getCurrentSchedule().setStart(fridayAhead);
 		assignment.setWork(2L * 8L * 60L * 60L * 1000L, null);
 		task.setDuration(2L * 8L * 60L * 60L * 1000L);

@@ -170,7 +170,7 @@ public class UpdateProjectCommand extends Command {
 		long taskEndBeforeUpdate = task.getEnd();
 		if (task.updateProjectTask(request.statusDate(), request.updateWorkAsCompleteThrough(),
 			request.setFractionalPercentComplete())) {
-			if (task instanceof com.microproject.pm.task.NormalTask normal) {
+			if (task instanceof com.microproject.model.task.NormalTask normal) {
 				double exportedProgress = request.updateWorkAsCompleteThrough()
 					&& !request.setFractionalPercentComplete()
 					&& request.statusDate() >= taskEndBeforeUpdate ? 1D : task.getPercentComplete();

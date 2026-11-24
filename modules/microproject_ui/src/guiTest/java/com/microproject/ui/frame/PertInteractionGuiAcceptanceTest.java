@@ -180,7 +180,7 @@ class PertInteractionGuiAcceptanceTest {
 		int targetX = origin.x + (int) targetCenter.getX();
 		int targetY = origin.y + (int) targetCenter.getY();
 		assertTrue(targetTask.getPredecessorList().stream().noneMatch(dependency ->
-			((com.microproject.pm.dependency.Dependency) dependency).getPredecessor() == sourceTask),
+			((com.microproject.model.dependency.Dependency) dependency).getPredecessor() == sourceTask),
 			"sibling fixture nodes must not start with a dependency between them");
 		robot.mouseMove(edgeX, edgeY);
 		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
@@ -194,7 +194,7 @@ class PertInteractionGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> !targetTask.getPredecessorList().isEmpty(),
 			"physical drag from a PERT box edge did not create a dependency");
 		assertTrue(targetTask.getPredecessorList().stream().anyMatch(dependency ->
-			((com.microproject.pm.dependency.Dependency) dependency).getPredecessor() == sourceTask),
+			((com.microproject.model.dependency.Dependency) dependency).getPredecessor() == sourceTask),
 			"edge drag should create the source-to-target dependency");
 	}
 

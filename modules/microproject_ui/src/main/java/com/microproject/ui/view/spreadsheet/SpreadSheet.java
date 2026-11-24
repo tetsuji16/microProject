@@ -384,7 +384,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		if (nodes.isEmpty())
 			return false;
 		for (Node node : nodes)
-			if (node == null || !(node.getImpl() instanceof com.microproject.pm.task.Task))
+			if (node == null || !(node.getImpl() instanceof com.microproject.model.task.Task))
 				return false;
 		return true;
 	}

@@ -526,10 +526,10 @@ class PreferencesDialogGuiAcceptanceTest {
 		prepareFormats();
 		testPreferences.applyFormatPreferences();
 		com.microproject.undo.DataFactoryUndoController undo = new com.microproject.undo.DataFactoryUndoController();
-		com.microproject.pm.task.Project project = com.microproject.pm.task.Project.createProject(
-			com.microproject.pm.resource.ResourcePool.createRourcePool("format-live", undo), undo);
+		com.microproject.model.task.Project project = com.microproject.model.task.Project.createProject(
+			com.microproject.model.resource.ResourcePool.createRourcePool("format-live", undo), undo);
 		project.initialize(false, false);
-		com.microproject.pm.task.NormalTask task = project.createScriptedTask();
+		com.microproject.model.task.NormalTask task = project.createScriptedTask();
 		task.setName("Format live");
 		task.setStart(com.microproject.util.DateTime.calendarInstance(2026, java.util.Calendar.SEPTEMBER, 7).getTimeInMillis());
 		com.microproject.ui.view.spreadsheet.SpreadSheet[] sheet = new com.microproject.ui.view.spreadsheet.SpreadSheet[1];

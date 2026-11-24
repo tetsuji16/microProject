@@ -155,8 +155,8 @@ class MicrosoftShortcutsRootPaneTest {
 			InputMap rootMap = harness.panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
 			harness.manager.applyMicrosoftShortcuts(rootMap, harness.panel.getActionMap());
 			com.microproject.undo.DataFactoryUndoController undo = new com.microproject.undo.DataFactoryUndoController();
-			com.microproject.pm.task.Project project = com.microproject.pm.task.Project.createProject(
-				com.microproject.pm.resource.ResourcePool.createRourcePool("input-scope-test", undo), undo);
+			com.microproject.model.task.Project project = com.microproject.model.task.Project.createProject(
+				com.microproject.model.resource.ResourcePool.createRourcePool("input-scope-test", undo), undo);
 			SpreadSheet sheet = new SpreadSheet();
 			com.microproject.ui.view.spreadsheet.time.TimeSpreadSheet timeSheet =
 				new com.microproject.ui.view.spreadsheet.time.TimeSpreadSheet(project);

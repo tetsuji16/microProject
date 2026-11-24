@@ -372,7 +372,7 @@ class DefaultNodeModelTest {
 		model.add(root, node, NodeModel.SILENT);
 		DefaultNodeModel.RemovalSnapshot snapshot = DefaultNodeModel.RemovalSnapshot.capture(Arrays.asList(node));
 		DefaultNodeModel.RemovalSnapshot.SubprojectState state = snapshot.getSubprojects().get(0);
-		com.microproject.pm.task.ProjectFactory factory = com.microproject.pm.task.ProjectFactory.getInstance();
+		com.microproject.model.task.ProjectFactory factory = com.microproject.model.task.ProjectFactory.getInstance();
 
 		factory.addClosingProject(subproject.getUniqueId());
 		state.restoreAfterClose(parentProject);
@@ -889,8 +889,8 @@ class DefaultNodeModelTest {
 		NodeSorter byTaskName = new NodeSorter() {
 			@Override
 			public int compare(Object left, Object right) {
-				return ((com.microproject.pm.task.Task) ((Node) left).getImpl()).getName()
-					.compareTo(((com.microproject.pm.task.Task) ((Node) right).getImpl()).getName());
+				return ((com.microproject.model.task.Task) ((Node) left).getImpl()).getName()
+					.compareTo(((com.microproject.model.task.Task) ((Node) right).getImpl()).getName());
 			}
 		};
 		assertTrue(model.sortOutlineBy(byTaskName, NodeModel.NORMAL));
@@ -936,8 +936,8 @@ class DefaultNodeModelTest {
 			public int compare(Object left, Object right) {
 				if (((Node) left).getParent() == parentNode)
 					throw new IllegalStateException("nested comparison failed before mutation");
-				return ((com.microproject.pm.task.Task) ((Node) right).getImpl()).getName()
-					.compareTo(((com.microproject.pm.task.Task) ((Node) left).getImpl()).getName());
+				return ((com.microproject.model.task.Task) ((Node) right).getImpl()).getName()
+					.compareTo(((com.microproject.model.task.Task) ((Node) left).getImpl()).getName());
 			}
 		};
 		assertThrows(IllegalStateException.class, () -> model.sortOutlineBy(failingNestedSort, NodeModel.NORMAL));
@@ -1129,7 +1129,7 @@ class DefaultNodeModelTest {
 		}
 	}
 
-	private static final class TestSubProj implements com.microproject.pm.task.SubProj {
+	private static final class TestSubProj implements com.microproject.model.task.SubProj {
 		private final Project subproject;
 		private TestSubProj() { this(null); }
 		private TestSubProj(Project subproject) { this.subproject = subproject; }
@@ -1191,7 +1191,7 @@ class DefaultNodeModelTest {
 	private List<Long> taskIds(Project project) {
 		List<Long> ids = new ArrayList<>();
 		for (Iterator<?> iterator = project.getTaskOutlineIterator(); iterator.hasNext();)
-			ids.add(Long.valueOf(((com.microproject.pm.task.Task) iterator.next()).getId()));
+			ids.add(Long.valueOf(((com.microproject.model.task.Task) iterator.next()).getId()));
 		return ids;
 	}
 

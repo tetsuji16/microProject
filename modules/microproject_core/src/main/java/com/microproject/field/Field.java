@@ -459,7 +459,7 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		if (f != null) {
 			if (context != null && context.getDurationDefaults() != null
 					&& f instanceof DurationFormat durationFormat && value instanceof Duration duration) {
-				if ("Field.duration".equals(getId()) && object instanceof com.microproject.pm.task.NormalTask task)
+				if ("Field.duration".equals(getId()) && object instanceof com.microproject.model.task.NormalTask task)
 					duration = task.getDurationForDisplay();
 				return durationFormat.format(duration, context.getDurationDefaults());
 			}

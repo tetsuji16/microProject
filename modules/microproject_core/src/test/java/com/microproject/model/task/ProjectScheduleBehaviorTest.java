@@ -893,14 +893,14 @@ class ProjectScheduleBehaviorTest {
 		setPlan(proratedCost, start, 8L * hour, 200.0d);
 		setPlan(endCost, start, 8L * hour, -300.0d);
 		setPlan(milestoneCost, start, 0L, 25.0d);
-		startCost.setFixedCostAccrual(com.microproject.pm.costing.Accrual.Kind.START);
-		proratedCost.setFixedCostAccrual(com.microproject.pm.costing.Accrual.Kind.PRORATED);
-		endCost.setFixedCostAccrual(com.microproject.pm.costing.Accrual.Kind.END);
-		milestoneCost.setFixedCostAccrual(com.microproject.pm.costing.Accrual.Kind.PRORATED);
+		startCost.setFixedCostAccrual(com.microproject.model.costing.Accrual.Kind.START);
+		proratedCost.setFixedCostAccrual(com.microproject.model.costing.Accrual.Kind.PRORATED);
+		endCost.setFixedCostAccrual(com.microproject.model.costing.Accrual.Kind.END);
+		milestoneCost.setFixedCostAccrual(com.microproject.model.costing.Accrual.Kind.PRORATED);
 		summary.setFixedCost(50.0d);
-		summary.setFixedCostAccrual(com.microproject.pm.costing.Accrual.Kind.END);
+		summary.setFixedCostAccrual(com.microproject.model.costing.Accrual.Kind.END);
 		nestedSummary.setFixedCost(40.0d);
-		nestedSummary.setFixedCostAccrual(com.microproject.pm.costing.Accrual.Kind.START);
+		nestedSummary.setFixedCostAccrual(com.microproject.model.costing.Accrual.Kind.START);
 		int slot = Snapshottable.BASELINE_1;
 		project.saveCurrentToSnapshot(Integer.valueOf(slot), true, null, new BaselineRollupOptions(true, false));
 
@@ -926,8 +926,8 @@ class ProjectScheduleBehaviorTest {
 		assertThrows(IllegalArgumentException.class, () -> summary.setFixedCost(Double.POSITIVE_INFINITY),
 			"A fixed-cost currency value cannot be infinite");
 
-		com.microproject.pm.calendar.WorkingCalendar changed =
-			((com.microproject.pm.calendar.WorkingCalendar) proratedCost.getEffectiveWorkCalendar()).copyForBaselineSnapshot();
+		com.microproject.model.calendar.WorkingCalendar changed =
+			((com.microproject.model.calendar.WorkingCalendar) proratedCost.getEffectiveWorkCalendar()).copyForBaselineSnapshot();
 		changed.setWeekDay(0, null);
 		proratedCost.setWorkCalendar(changed);
 		assertEquals(100.0d, proratedCost.getBaselineCost(slot, start, start + 4L * hour), 0.001d,

@@ -128,14 +128,14 @@ class RespectLinksServiceTest {
 		predecessor.setManualDates(start, finish);
 		successor.setManualDates(base, project.getWorkCalendar().add(base, day, false));
 		DependencyService.getInstance().newDependency(predecessor, successor, DependencyType.Kind.FF, day, this);
-		long required = ((com.microproject.pm.dependency.Dependency) successor.getPredecessorList().iterator().next())
+		long required = ((com.microproject.model.dependency.Dependency) successor.getPredecessorList().iterator().next())
 			.getEffectiveWorkCalendar().add(predecessor.getEnd(), day, true);
 		successor.setManuallyScheduled(false);
 		project.recalculate();
 		assertTrue(successor.getEnd() >= required, "manual=" + successor.isManuallyScheduled() + " start=" + successor.getStart()
 			+ " end=" + successor.getEnd() + " early=" + successor.getEarlyStart() + "/" + successor.getEarlyFinish()
 			+ " dep=" + successor.getPredecessorList().iterator().next() + " depDate="
-			+ ((com.microproject.pm.dependency.Dependency) successor.getPredecessorList().iterator().next()).getDate(true)
+			+ ((com.microproject.model.dependency.Dependency) successor.getPredecessorList().iterator().next()).getDate(true)
 			+ " predecessor=" + predecessor.isManuallyScheduled() + "/" + predecessor.getStart() + "/" + predecessor.getEnd()
 			+ " required=" + required);
 	}

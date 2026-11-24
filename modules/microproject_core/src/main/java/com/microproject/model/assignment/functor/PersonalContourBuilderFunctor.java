@@ -43,7 +43,7 @@ public class PersonalContourBuilderFunctor extends AssignmentFieldFunctor{
 	private CollectionIntervalGenerator replacementGenerator;
 	private long activeDate = 0;
 	AbstractContourBucket previous = null;
-	public static PersonalContourBuilderFunctor getInstance(Assignment assignment, WorkCalendar workCalendar, com.microproject.pm.assignment.contour.ContourBucketIntervalGenerator contourBucketIntervalGenerator, CollectionIntervalGenerator replacementGenerator, Collection collection) {
+	public static PersonalContourBuilderFunctor getInstance(Assignment assignment, WorkCalendar workCalendar, com.microproject.model.assignment.contour.ContourBucketIntervalGenerator contourBucketIntervalGenerator, CollectionIntervalGenerator replacementGenerator, Collection collection) {
 		return new PersonalContourBuilderFunctor(assignment, workCalendar, contourBucketIntervalGenerator, replacementGenerator, collection);
 	}
 

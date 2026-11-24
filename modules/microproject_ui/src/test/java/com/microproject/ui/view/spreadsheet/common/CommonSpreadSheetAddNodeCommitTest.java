@@ -115,7 +115,7 @@ class CommonSpreadSheetAddNodeCommitTest {
 		Node root = (Node) project.getTaskModel().getRoot();
 		for (Enumeration<?> children = root.children(); children.hasMoreElements();) {
 			Node node = (Node) children.nextElement();
-			if (node.getImpl() instanceof com.microproject.pm.task.Task task)
+			if (node.getImpl() instanceof com.microproject.model.task.Task task)
 				names.add(task.getName());
 			else
 				names.add("");

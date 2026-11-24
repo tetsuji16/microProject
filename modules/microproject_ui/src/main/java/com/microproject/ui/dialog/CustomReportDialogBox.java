@@ -254,7 +254,7 @@ public final class CustomReportDialogBox extends FlatLafDialog implements Schedu
 			groupKeys.add(grouped ? groupValue(task) : null);
 		}
 		for (Task task : aggregation.tasks()) {
-			if (task instanceof com.microproject.pm.task.NormalTask normal) {
+			if (task instanceof com.microproject.model.task.NormalTask normal) {
 				totalCost += normal.getCost(null);
 				totalWork += normal.getWork(null);
 			}
@@ -304,7 +304,7 @@ public final class CustomReportDialogBox extends FlatLafDialog implements Schedu
 		double actualWork = 0D;
 		double remainingWork = 0D;
 		for (Task task : aggregateTasks(tasks).tasks()) {
-			if (task instanceof com.microproject.pm.task.NormalTask normal) {
+			if (task instanceof com.microproject.model.task.NormalTask normal) {
 				work += hours(normal.getWork(null));
 				actualWork += hours(normal.getActualWork(null));
 				remainingWork += hours(normal.getRemainingWork(null));
@@ -323,7 +323,7 @@ public final class CustomReportDialogBox extends FlatLafDialog implements Schedu
 		visible.addAll(visibleTasks);
 		double summaryOwnFixedCost = 0D;
 		for (Task task : visibleTasks) {
-			if (task instanceof com.microproject.pm.task.NormalTask normal && task.isSummary()
+			if (task instanceof com.microproject.model.task.NormalTask normal && task.isSummary()
 					&& !normal.hasRealAssignments() && hasVisibleDescendant(task, visible)) {
 				summaryOwnFixedCost += normal.getFixedCost(null);
 			} else {
@@ -352,7 +352,7 @@ public final class CustomReportDialogBox extends FlatLafDialog implements Schedu
 		TaskSeries current = new TaskSeries(t("report.currentSchedule"));
 		TaskSeries baseline = new TaskSeries(t("report.baselineSchedule"));
 		for (Task task : tasks) {
-			if (!(task instanceof com.microproject.pm.task.NormalTask normal))
+			if (!(task instanceof com.microproject.model.task.NormalTask normal))
 				continue;
 			addScheduleTask(current, task.getName(), task.getStart(), task.getEnd());
 			addScheduleTask(baseline, task.getName(), normal.getBaselineStartOrZero(), normal.getBaselineFinishOrZero());
@@ -396,7 +396,7 @@ public final class CustomReportDialogBox extends FlatLafDialog implements Schedu
 	private long effectiveStatusDate() { long status = project.getStatusDate(); return status > 0L ? status : System.currentTimeMillis(); }
 	private String groupValue(Task task) {
 		if (group.getSelectedIndex() == 1) return task.isInactiveTask() ? t("report.inactive") : task.isComplete() ? t("report.complete") : task.inProgress() ? t("report.inProgress") : t("report.notStarted");
-		if (!(task instanceof com.microproject.pm.task.NormalTask normal)) return t("report.unassigned");
+		if (!(task instanceof com.microproject.model.task.NormalTask normal)) return t("report.unassigned");
 		List<String> names = new ArrayList<>(); for (Object value : normal.getAssignments()) { Assignment assignment = (Assignment) value; if (assignment.getResource() != null) names.add(assignment.getResource().getName()); }
 		return names.isEmpty() ? t("report.unassigned") : String.join(", ", names);
 	}
