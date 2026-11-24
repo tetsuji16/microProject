@@ -1299,6 +1299,53 @@ class RibbonButtonBehaviorTest {
 	}
 
 	@Test
+	void assignmentInformationIsEnabledOnlyForAnEditableAssignmentInUsageViews() throws Exception {
+		Harness harness = newHarness();
+		harness.setTaskInformation(true, true);
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.activateView(MenuActionConstants.ACTION_TASK_USAGE_DETAIL);
+			harness.selectNone();
+			harness.manager.setButtonState(null, harness.project);
+			assertFalse(harness.manager.getAction("RibbonAssignmentInformation").isEnabled(),
+				"Assignment Information must be disabled with no selected assignment row");
+
+			harness.selectSingle(harness.assignmentNode);
+			harness.manager.setButtonState(harness.assignment, harness.project);
+			assertTrue(harness.manager.getAction("RibbonAssignmentInformation").isEnabled(),
+				"Task Usage must enable Assignment Information for its selected assignment");
+
+			harness.frame.activateView(MenuActionConstants.ACTION_RESOURCE_USAGE_DETAIL);
+			harness.selectSingle(harness.assignmentNode);
+			harness.manager.setButtonState(harness.assignment, harness.project);
+			assertTrue(harness.manager.getAction("RibbonAssignmentInformation").isEnabled(),
+				"Resource Usage must enable Assignment Information for its selected assignment");
+
+			harness.project.setReadOnly(true);
+			harness.manager.setButtonState(harness.assignment, harness.project);
+			assertFalse(harness.manager.getAction("RibbonAssignmentInformation").isEnabled(),
+				"Read-only projects must disable Assignment Information");
+		});
+	}
+
+	@Test
+	void assignmentInformationActionDispatchesTheResolvedAssignmentToItsPresenter() throws Exception {
+		Harness harness = newHarness();
+		harness.setTaskInformation(true, true);
+		SwingUtilities.invokeAndWait(() -> {
+			harness.frame.activateView(MenuActionConstants.ACTION_TASK_USAGE_DETAIL);
+			harness.selectSingle(harness.assignmentNode);
+			harness.manager.setButtonState(harness.assignment, harness.project);
+			Action action = harness.manager.getAction("RibbonAssignmentInformation");
+			action.actionPerformed(new ActionEvent(action, ActionEvent.ACTION_PERFORMED, "RibbonAssignmentInformation"));
+			assertEquals(harness.assignment, harness.manager.assignmentInformationTarget,
+				"The document action must present the exact selected assignment");
+			assertEquals(RibbonCommandResult.Status.DISPATCHED,
+				harness.manager.getLastRibbonCommandResult().status());
+			assertEquals("TaskUsageDetail", harness.manager.getLastRibbonCommandResult().activeViewId());
+		});
+	}
+
+	@Test
 	void informationEnablementUsesOneTypedSelectionSnapshotForEverySelectionKind() throws Exception {
 		Harness harness = newHarness();
 		harness.setTaskInformation(true, false);
@@ -2326,10 +2373,10 @@ class RibbonButtonBehaviorTest {
 			"RibbonReportDashboards", "RibbonReportResources", "RibbonReportInProgress", "RibbonReportCustom",
 			"RibbonReportRecent", "RibbonTeamPlanner", "RibbonTimescaleGallery", "RibbonSwitchWindows");
 		// Task-tab commands added for #769/#453; behavior is asserted in TaskTabRibbonCommandsTest.
-		add(map, Strategy.STRUCTURAL_ONLY,
-			"RibbonInsertMilestone", "RibbonInsertSummary", "RibbonClear", "RibbonSelectAll", "RibbonTaskDetails",
-			"RibbonPercentComplete0", "RibbonPercentComplete25", "RibbonPercentComplete50",
-			"RibbonPercentComplete75", "RibbonPercentComplete100");
+				add(map, Strategy.STRUCTURAL_ONLY,
+					"RibbonInsertMilestone", "RibbonInsertSummary", "RibbonClear", "RibbonSelectAll", "RibbonTaskDetails",
+					"RibbonPercentComplete0", "RibbonPercentComplete25", "RibbonPercentComplete50",
+					"RibbonPercentComplete75", "RibbonPercentComplete100", "RibbonAssignmentInformation");
 		return map;
 	}
 
@@ -2460,6 +2507,7 @@ class RibbonButtonBehaviorTest {
 		private boolean taskInformationRouteAccepted;
 		private boolean taskInformationVisible;
 		private RuntimeException taskInformationFailure;
+		private Assignment assignmentInformationTarget;
 
 		RecordingGraphicManager(JPanel panel, List<Call> calls) {
 			super(panel);
@@ -2525,6 +2573,12 @@ class RibbonButtonBehaviorTest {
 			if (taskInformationFailure != null)
 				throw taskInformationFailure;
 			return taskInformationVisible;
+		}
+
+		@Override
+		protected boolean presentAssignmentInformationDialog(Assignment assignment) {
+			assignmentInformationTarget = assignment;
+			return true;
 		}
 
 		@Override
