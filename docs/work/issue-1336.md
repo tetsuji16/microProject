@@ -61,3 +61,20 @@ without user action.
 - `scripts/test_source_inventory.py --check`: PASS.
 - Rendered page before/after compared as images; the squashed glyphs are upright after the change.
 - `GUI acceptance`: required before merge.
+
+## Integrated print-route verification
+
+- A project with saved percentage scaling produced a blank Backstage preview because
+  `GraphPageable` did not initialize its page grid for that scaling mode. A focused
+  test failed before initializing that grid and passes with the correction.
+- Backstage page setup now packs the dialog before showing it, and refreshes its
+  preview and page count when the dialog closes after a settings change.
+- On Windows with a copy of `samples/CCPM path comparison English.mpo`, the File >
+  Print route showed the task table, Page Setup opened, and selecting fit-to-width
+  changed the displayed page count from 1 / 2 to 1 / 1 with the chart visible.
+  Screenshots and the initial thread dump are stored in the temporary directory
+  as `microproject-pr1347-before.png`, `microproject-pr1347-after.png`, and
+  `microproject-pr1347-thread-dump.txt`.
+- The Page Setup form still clips some labels and its paper-size controls at the
+  tested window size. That existing layout defect is not evidence of a successful
+  layout check and needs separate diagnosis before a GUI-quality closure claim.

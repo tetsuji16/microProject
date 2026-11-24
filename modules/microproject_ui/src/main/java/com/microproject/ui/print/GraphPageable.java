@@ -100,6 +100,8 @@ public class GraphPageable extends PrintDocument implements ViewPrintableParams{
 			saveZoom();
 			if (!scaleToSelected){
 				updateZoom(fitToSettings.getColumns(), fitToSettings.getRows());
+			} else {
+				update();
 			}
 
 	    }

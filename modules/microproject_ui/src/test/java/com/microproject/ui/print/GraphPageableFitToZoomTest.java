@@ -8,9 +8,14 @@ package com.microproject.ui.print;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import javax.print.PrintService;
 import javax.print.attribute.standard.MediaPrintableArea;
 import javax.print.attribute.standard.MediaSizeName;
+import javax.swing.JLabel;
+import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Test;
 
@@ -21,6 +26,8 @@ import com.microproject.model.task.Project;
 import com.microproject.model.resource.ResourcePool;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.print.ExtendedPageFormat;
+import com.microproject.print.PrintSettings;
+import com.microproject.print.ScaleToSettings;
 
 /**
  * Issue #1336: fitting a drawing to a page grid must not stretch it. A Gantt chart fitted to "1 page wide by
@@ -64,8 +71,40 @@ class GraphPageableFitToZoomTest {
 				"an automatic page height must follow the width scale");
 	}
 
+	@Test
+	void savedPercentageScalingInitializesPagesBeforePreview() {
+		GraphPageable document = document(true);
+		assertTrue(document.getNumberOfPages() > 0, "saved percentage scaling must initialize the preview pages");
+	}
+
+	@Test
+	void backstagePreviewRefreshesPageCountAfterFitChanges() throws Exception {
+		GraphPageable document = document(true);
+		assertTrue(document.getNumberOfPages() > 1, "fixture must start with multiple pages");
+		JLabel label = new JLabel();
+		Class<?> panelType = Class.forName("com.microproject.ui.ribbon.ModernRibbonPanel$BackstagePrintPreviewPanel");
+		var constructor = panelType.getDeclaredConstructor(GraphPageable.class, JLabel.class);
+		constructor.setAccessible(true);
+		var refresh = panelType.getDeclaredMethod("refreshDocument");
+		refresh.setAccessible(true);
+		SwingUtilities.invokeAndWait(() -> {
+			try {
+				Object panel = constructor.newInstance(document, label);
+				document.updateZoom(1, 1);
+				refresh.invoke(panel);
+				assertEquals("1 / 1", label.getText());
+			} catch (ReflectiveOperationException failure) {
+				throw new AssertionError(failure);
+			}
+		});
+	}
+
 	/** A landscape page with a dozen tasks, so the drawing is both taller and wider than one page. */
 	private static GraphPageable document() {
+		return document(false);
+	}
+
+	private static GraphPageable document(boolean percentageScaling) {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("fit-to-zoom", undo), undo);
 		project.initialize(false, false);
@@ -74,6 +113,12 @@ class GraphPageableFitToZoomTest {
 			task.setName("Fit to zoom task " + index + " 日本語のタスク名");
 		}
 		project.recalculate();
+		if (percentageScaling) {
+			PrintSettings settings = new PrintSettings();
+			settings.setScalingSettings(new ArrayList<>(List.of(new ScaleToSettings())));
+			settings.setScalingIndex(0);
+			project.setTmpSettings(settings);
+		}
 		var referenceCache = NodeModelCacheFactory.createTaskNodeModelCache(project, project.getTaskModel());
 		var cache = NodeModelCacheFactory.getInstance().createFilteredCache(referenceCache, "OfflineGantt", null);
 		GanttSVGRenderer renderer = new GanttSVGRenderer();
