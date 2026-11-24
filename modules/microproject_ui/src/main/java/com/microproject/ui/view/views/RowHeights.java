@@ -38,6 +38,8 @@ public final class RowHeights {
     private final Map<Integer, Integer> overrides = new HashMap<>();
     private final Map<Object, Integer> keyedOverrides = new HashMap<>();
     private List<?> rowKeys = List.of();
+    private Object boundProjectionSource;
+    private long boundTopologyRevision = Long.MIN_VALUE;
     private int[] cumulativeHeights; // cumulativeHeights[i] = sum of heights of rows 0..i-1
     private int rowCount = 0;
     private boolean cacheValid = false;
@@ -65,6 +67,8 @@ public final class RowHeights {
         copy.overrides.putAll(overrides);
         copy.keyedOverrides.putAll(keyedOverrides);
         copy.rowKeys = new ArrayList<>(rowKeys);
+        copy.boundProjectionSource = boundProjectionSource;
+        copy.boundTopologyRevision = boundTopologyRevision;
         copy.invalidateCache();
         return copy;
     }
@@ -73,9 +77,14 @@ public final class RowHeights {
     public RowHeights withDefaultHeight(int height) {
         RowHeights copy = new RowHeights(height, rowCount);
         copy.keyedOverrides.putAll(keyedOverrides);
-        copy.keyedOverrides.entrySet().removeIf(entry -> entry.getValue() == height);
         if (rowKeys.size() == rowCount) {
-            copy.setRowKeys(rowKeys);
+            copy.rowKeys = rowKeys;
+            copy.boundProjectionSource = boundProjectionSource;
+            copy.boundTopologyRevision = boundTopologyRevision;
+            copy.keyedOverrides.entrySet().removeIf(entry -> entry.getValue() == height);
+            overrides.forEach((row, rowHeight) -> {
+                if (rowHeight != height) copy.overrides.put(row, rowHeight);
+            });
         } else {
             for (Map.Entry<Integer, Integer> entry : overrides.entrySet()) {
                 if (entry.getValue() != height) copy.setRowHeight(entry.getKey(), entry.getValue());
@@ -89,19 +98,38 @@ public final class RowHeights {
         if (keys == null) throw new IllegalArgumentException("keys must not be null");
         List<?> newKeys = new ArrayList<>(keys);
         if (rowCount == newKeys.size() && rowKeys.equals(newKeys)) return;
-        if (rowKeys.size() == rowCount) {
+        rebindRowKeys(newKeys);
+        boundProjectionSource = null;
+        boundTopologyRevision = Long.MIN_VALUE;
+    }
+
+    /** Rebinds only when this source's visible projection topology changes. */
+    public void bindToProjection(Object source, long topologyRevision, List<?> keys) {
+        if (source == null || keys == null) throw new IllegalArgumentException("projection source and keys are required");
+        if (boundProjectionSource == source && boundTopologyRevision == topologyRevision
+                && rowCount == keys.size()) return;
+        rebindRowKeys(keys);
+        boundProjectionSource = source;
+        boundTopologyRevision = topologyRevision;
+    }
+
+    private void rebindRowKeys(List<?> keys) {
+        if (rowKeys.size() == rowCount && !overrides.isEmpty()) {
             for (Map.Entry<Integer, Integer> entry : overrides.entrySet()) {
                 int row = entry.getKey();
                 if (row < rowKeys.size()) keyedOverrides.put(rowKeys.get(row), entry.getValue());
             }
         }
-        rowKeys = newKeys;
-        rowCount = newKeys.size();
+        // Projection row keys are immutable snapshots, so retain the reference without copying it.
+        rowKeys = keys;
+        rowCount = keys.size();
         overrides.clear();
-        for (int row = 0; row < rowKeys.size(); row++) {
-            Integer height = keyedOverrides.get(rowKeys.get(row));
-            if (height != null && height != defaultHeight) overrides.put(row, height);
-            else if (height != null) keyedOverrides.remove(rowKeys.get(row));
+        if (!keyedOverrides.isEmpty()) {
+            for (int row = 0; row < rowKeys.size(); row++) {
+                Integer height = keyedOverrides.get(rowKeys.get(row));
+                if (height != null && height != defaultHeight) overrides.put(row, height);
+                else if (height != null) keyedOverrides.remove(rowKeys.get(row));
+            }
         }
         invalidateCache();
     }
@@ -116,6 +144,8 @@ public final class RowHeights {
         }
         this.rowCount = rowCount;
         if (rowKeys.size() != rowCount) rowKeys = List.of();
+        boundProjectionSource = null;
+        boundTopologyRevision = Long.MIN_VALUE;
         invalidateCache();
     }
 

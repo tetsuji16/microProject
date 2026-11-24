@@ -64,19 +64,53 @@ public class RowHeightsTest {
     @Test
     public void keyedOverridesFollowRowsAcrossReorderFilterAndDefaultChanges() {
         RowHeights heights = new RowHeights(20, 3);
-        heights.setRowKeys(java.util.List.of("task-a", "task-b", "task-c"));
+        Object source = new Object();
+        heights.bindToProjection(source, 1, java.util.List.of("task-a", "task-b", "task-c"));
         heights.setRowHeight(1, 44);
 
-        heights.setRowKeys(java.util.List.of("task-c", "task-a", "task-b"));
+        heights.bindToProjection(source, 2, java.util.List.of("task-c", "task-a", "task-b"));
         assertEquals(44, heights.heightOf(2), "sorting must keep the height with its row key");
-        heights.setRowKeys(java.util.List.of("task-c", "task-a"));
-        heights.setRowKeys(java.util.List.of("task-b", "task-a", "task-c"));
+        heights.bindToProjection(source, 3, java.util.List.of("task-c", "task-a"));
+        heights.bindToProjection(source, 4, java.util.List.of("task-b", "task-a", "task-c"));
         assertEquals(44, heights.heightOf(0), "temporarily filtered rows must recover their override");
 
         RowHeights changedDefault = heights.withDefaultHeight(28);
         assertEquals(28, changedDefault.heightOf(1));
         assertEquals(44, changedDefault.heightOf(0));
         assertEquals(28, changedDefault.getDefaultHeight());
+    }
+
+    @Test
+    public void stableProjectionRevisionSkipsRowKeyIterationOnHotPath() {
+        final int rowCount = 50_000;
+        java.util.concurrent.atomic.AtomicInteger reads = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.List<Integer> keys = new java.util.AbstractList<>() {
+            @Override public Integer get(int index) {
+                reads.incrementAndGet();
+                return index;
+            }
+            @Override public int size() { return rowCount; }
+        };
+        Object source = new Object();
+        RowHeights heights = new RowHeights(20, rowCount);
+        heights.bindToProjection(source, 7, keys);
+        assertEquals(0, reads.get(), "override-free binding must not traverse projected keys");
+        heights.setRowHeight(10, 40);
+
+        reads.set(0);
+        heights.bindToProjection(source, 7, keys);
+        assertEquals(0, reads.get(), "repeated geometry queries must not traverse all projected rows");
+
+        java.util.List<Integer> reversedKeys = new java.util.AbstractList<>() {
+            @Override public Integer get(int index) {
+                reads.incrementAndGet();
+                return rowCount - index - 1;
+            }
+            @Override public int size() { return rowCount; }
+        };
+        heights.bindToProjection(source, 8, reversedKeys);
+        assertTrue(reads.get() >= rowCount, "a changed projection revision must rebind keyed overrides");
+        assertEquals(40, heights.heightOf(rowCount - 11));
     }
 
     @Test

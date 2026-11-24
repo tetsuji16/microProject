@@ -275,9 +275,7 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		if (cache != null) {
 			var projection = cache.getVisibleNodes().getProjectionIndex();
 			if (projection.size() == getRowCount()) {
-				List<Object> keys = new ArrayList<>(projection.size());
-				for (int row = 0; row < projection.size(); row++) keys.add(projection.keyAt(row));
-				rowHeights.setRowKeys(keys);
+				rowHeights.bindToProjection(cache, projection.topologyRevision(), projection.rowKeys());
 				return;
 			}
 		}

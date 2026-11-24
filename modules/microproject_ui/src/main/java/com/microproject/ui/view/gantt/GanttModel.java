@@ -117,9 +117,7 @@ public class GanttModel extends GraphModel implements TimeScaleListener, Seriali
     public RowHeights getRowHeights() {
         if (cache != null) {
             var projection = cache.getVisibleNodes().getProjectionIndex();
-            java.util.ArrayList<Object> keys = new java.util.ArrayList<>(projection.size());
-            for (int row = 0; row < projection.size(); row++) keys.add(projection.keyAt(row));
-            rowHeights.setRowKeys(keys);
+            rowHeights.bindToProjection(cache, projection.topologyRevision(), projection.rowKeys());
         }
         return rowHeights;
     }
