@@ -24,7 +24,7 @@
 package com.microproject.pm.assignment;
 
 import com.microproject.configuration.Configuration;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 public interface TimeDistributedConstants {
 	public static final Object PERCENT_ALLOC = Messages.getString("Field.percentAlloc");

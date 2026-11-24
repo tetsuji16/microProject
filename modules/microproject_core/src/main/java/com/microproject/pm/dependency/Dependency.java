@@ -37,7 +37,7 @@ import com.microproject.pm.task.HasProject;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.persistence.data.DataObject;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.Collection;

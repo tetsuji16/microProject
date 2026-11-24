@@ -40,7 +40,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.ui.view.views.synchro.ScrollPaneSynchronizer;
 import com.microproject.ui.view.views.synchro.Synchronizer;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 class SplittedViewLifecycleTest {
 	@Test

@@ -39,8 +39,8 @@ import org.junit.jupiter.api.parallel.Resources;
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.collaboration.CollaborationUserIdentity;
 import com.microproject.exchange.MpoFileImporter;
-import com.microproject.graphic.configuration.CellStyles;
-import com.microproject.init.Init;
+import com.microproject.view.configuration.CellStyles;
+import com.microproject.configuration.Init;
 import com.microproject.job.JobQueue;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
@@ -65,7 +65,7 @@ import com.microproject.util.UiDispatch;
 import com.microproject.util.UiServices;
 import com.microproject.ui.util.SwingAlertPresenter;
 import com.microproject.ui.util.SwingUiDispatcher;
-import com.microproject.temporary.TemporaryRoot;
+import com.microproject.util.temporary.TemporaryRoot;
 import com.microproject.workspace.WorkspaceSetting;
 
 /** Verifies that a physical Save reports a shared-workspace conflict and still saves the MPO. */

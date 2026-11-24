@@ -4,6 +4,8 @@
  *******************************************************************************/
 package com.microproject.exchange;
 
+import com.microproject.persistence.FileImporter;
+
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;

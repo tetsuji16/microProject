@@ -34,8 +34,8 @@ import com.microproject.ui.view.graph.LinkRouting;
 import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.timescale.CoordinatesConverter;
 import com.microproject.configuration.Dictionary;
-import com.microproject.graphic.configuration.BarStyles;
-import com.microproject.graphic.configuration.GraphicConfiguration;
+import com.microproject.view.configuration.BarStyles;
+import com.microproject.view.configuration.GraphicConfiguration;
 import com.microproject.ui.util.FlatUiSupport;
 
 public class GanttParamsImpl implements GanttParams, Serializable,Cloneable {

@@ -15,7 +15,7 @@ import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.ui.dialog.util.ComponentFactory;
 import com.microproject.ui.dialog.util.ExtDateField;
 import com.microproject.pm.task.Project;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /** MSP Project &gt; Move Project date entry point. */
 public final class MoveProjectDialog extends AbstractDialog {

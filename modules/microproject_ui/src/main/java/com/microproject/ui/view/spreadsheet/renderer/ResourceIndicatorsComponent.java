@@ -26,10 +26,10 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 
 import com.microproject.ui.view.IconManager;
-import com.microproject.company.ApplicationUser;
-import com.microproject.company.UserUtil;
-import com.microproject.graphic.configuration.HasResourceIndicators;
-import com.microproject.strings.Messages;
+import com.microproject.user.ApplicationUser;
+import com.microproject.user.UserUtil;
+import com.microproject.view.configuration.HasResourceIndicators;
+import com.microproject.i18n.Messages;
 /**
  *  
  */

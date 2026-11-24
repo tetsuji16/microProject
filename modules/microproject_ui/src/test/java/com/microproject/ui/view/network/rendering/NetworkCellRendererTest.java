@@ -30,7 +30,7 @@ import java.lang.reflect.Proxy;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.graphic.configuration.BarStyles;
+import com.microproject.view.configuration.BarStyles;
 import com.microproject.grouping.core.NodeFactory;
 import com.microproject.ui.view.graph.GraphParams;
 import com.microproject.ui.view.model.cache.GraphicNode;

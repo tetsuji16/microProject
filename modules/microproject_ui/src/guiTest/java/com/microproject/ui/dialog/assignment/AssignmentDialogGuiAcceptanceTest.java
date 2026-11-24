@@ -271,7 +271,7 @@ class AssignmentDialogGuiAcceptanceTest {
 		click(robot, cellBounds(replacementSheet, rowForResource(replacementSheet, replacement), nameColumn(replacementSheet)));
 		GuiAcceptanceSupport.await(() -> replaceDialog.getSelectedResources().contains(replacement),
 			"Robot click did not select the replacement resource");
-		click(robot, bounds(buttonByText(replaceDialog, com.microproject.strings.Messages.getString("ButtonText.OK"))));
+		click(robot, bounds(buttonByText(replaceDialog, com.microproject.i18n.Messages.getString("ButtonText.OK"))));
 
 		GuiAcceptanceSupport.await(() -> task.findAssignment(replacement) != null,
 			"Replace did not create the replacement assignment");

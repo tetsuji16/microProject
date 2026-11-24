@@ -42,8 +42,8 @@ import com.microproject.configuration.Dictionary;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
-import com.microproject.graphic.configuration.SpreadSheetCategories;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetCategories;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.grouping.core.model.NodeModelDataFactory;
@@ -51,7 +51,7 @@ import com.microproject.grouping.core.model.NodeModelFactory;
 import com.microproject.grouping.core.transform.ViewTransformer;
 import com.microproject.grouping.core.transform.filtering.BelongsToCollectionFilter;
 import com.microproject.grouping.core.transform.filtering.NodeFilter;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /**
  * Helper methods for working with spreadsheets

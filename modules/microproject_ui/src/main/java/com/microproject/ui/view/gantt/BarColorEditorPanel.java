@@ -37,8 +37,8 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
-import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
-import com.microproject.strings.Messages;
+import com.microproject.view.configuration.GanttBarFormatOverrides.BarFormat;
+import com.microproject.i18n.Messages;
 
 /**
  * Shared editor and preview for a task's start, middle and end bar colors.

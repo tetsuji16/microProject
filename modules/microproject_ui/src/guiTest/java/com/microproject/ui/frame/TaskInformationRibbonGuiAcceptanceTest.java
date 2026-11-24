@@ -152,8 +152,8 @@ import com.microproject.ui.view.chart.TimeChartPanel;
 import com.microproject.ui.view.views.UsageDetailView;
 import com.microproject.ui.view.views.PertView;
 import com.microproject.ui.view.views.TreeView;
-import com.microproject.graphic.configuration.BarFormat;
-import com.microproject.graphic.configuration.TexturedShape;
+import com.microproject.view.configuration.BarFormat;
+import com.microproject.view.configuration.TexturedShape;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.resource.Resource;
 import com.microproject.options.CalendarOption;
@@ -172,7 +172,7 @@ import com.microproject.pm.task.ProjectTaskKey;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.snapshot.Snapshottable;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.session.SessionFactory;
 import com.microproject.ui.testsupport.GuiAcceptanceSupport;
 import com.microproject.ui.testsupport.WindowAcceptanceAssertions;
@@ -878,7 +878,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				return reportCsvOutput.toString();
 			}
 		});
-		String exportCsvLabel = com.microproject.strings.Messages.getString("ReportView.ExportCsv");
+		String exportCsvLabel = com.microproject.i18n.Messages.getString("ReportView.ExportCsv");
 		AbstractButton exportCsv = UiComponentWalker.flatten(reportView).stream()
 			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
 			.filter(button -> exportCsvLabel.equals(button.getText()) && button.isShowing())
@@ -1034,7 +1034,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				return reportCsvOutput.toString();
 			}
 		});
-		String exportLabel = com.microproject.strings.Messages.getString("ReportView.ExportCsv");
+		String exportLabel = com.microproject.i18n.Messages.getString("ReportView.ExportCsv");
 		AbstractButton export = UiComponentWalker.flatten(reportView).stream().filter(AbstractButton.class::isInstance)
 			.map(AbstractButton.class::cast).filter(button -> exportLabel.equals(button.getText()) && button.isShowing())
 			.findFirst().orElseThrow(() -> new AssertionError("CSV export button was not rendered"));
@@ -9118,7 +9118,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GraphicNode graphicNode = node == null ? null : (GraphicNode) cache.getGraphicNode(node);
 		return graphicNode == null ? "missing" : "identity=" + System.identityHashCode(graphicNode)
 			+ ",collapsed=" + graphicNode.isCollapsed() + ",composite=" + graphicNode.isComposite()
-			+ ",collapseLevel=" + com.microproject.graphic.configuration.GraphicConfiguration.getInstance().getCollapseLevel();
+			+ ",collapseLevel=" + com.microproject.view.configuration.GraphicConfiguration.getInstance().getCollapseLevel();
 	}
 
 	private static boolean isTaskCollapsed(SpreadSheet sheet, NormalTask task) {

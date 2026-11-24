@@ -25,7 +25,7 @@ import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.task.Task;
-import com.microproject.temporary.TemporaryRoot;
+import com.microproject.util.temporary.TemporaryRoot;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.exchange.serialize.MPXConverter;
 import org.junit.jupiter.api.Test;

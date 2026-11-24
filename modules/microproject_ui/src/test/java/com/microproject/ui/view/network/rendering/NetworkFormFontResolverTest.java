@@ -34,11 +34,11 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.graphic.configuration.FormBoxLayout;
-import com.microproject.graphic.configuration.BarFormat;
-import com.microproject.graphic.configuration.FormBox;
-import com.microproject.graphic.configuration.FormFormat;
-import com.microproject.graphic.configuration.TexturedShape;
+import com.microproject.view.configuration.FormBoxLayout;
+import com.microproject.view.configuration.BarFormat;
+import com.microproject.view.configuration.FormBox;
+import com.microproject.view.configuration.FormFormat;
+import com.microproject.view.configuration.TexturedShape;
 import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.ui.theme.MicroProjectThemeTokens;
 import com.microproject.util.Environment;

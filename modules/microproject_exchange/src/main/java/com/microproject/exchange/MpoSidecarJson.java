@@ -36,7 +36,7 @@ import com.microproject.pm.resource.Resource;
 import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.pm.task.TaskSnapshot;
 import com.microproject.field.Field;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.pm.assignment.TimeDistributedHelper;
 import com.microproject.view.network.PertManualPositions;
 
@@ -98,7 +98,7 @@ final class MpoSidecarJson {
 		fields.setManualWidths(manualWidths);
 		fields.setHeaderWraps(headerWraps);
 		fields.setAlignments(alignments);
-		fields.setCategory(com.microproject.graphic.configuration.SpreadSheetCategories.taskSpreadsheetCategory);
+		fields.setCategory(com.microproject.view.configuration.SpreadSheetCategories.taskSpreadsheetCategory);
 		fields.setName(project.getName());
 		project.setFieldArray(fields);
 	}

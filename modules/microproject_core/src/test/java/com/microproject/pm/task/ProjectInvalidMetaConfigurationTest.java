@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.resource.ResourcePool;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.undo.DataFactoryUndoController;
 
 class ProjectInvalidMetaConfigurationTest {

@@ -19,7 +19,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.company.ApplicationUser;
+import com.microproject.user.ApplicationUser;
 import com.microproject.ui.testsupport.GuiAcceptanceSupport;
 import com.microproject.util.Environment;
 

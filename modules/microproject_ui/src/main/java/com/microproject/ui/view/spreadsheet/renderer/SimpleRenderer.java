@@ -39,7 +39,7 @@ import javax.swing.table.DefaultTableCellRenderer;
 
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.TaskFontStyle;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.ui.view.spreadsheet.SpreadSheetColumnModel;
 import com.microproject.ui.view.spreadsheet.SpreadSheetParams;
 import com.microproject.ui.view.spreadsheet.common.CommonSpreadSheetModel;

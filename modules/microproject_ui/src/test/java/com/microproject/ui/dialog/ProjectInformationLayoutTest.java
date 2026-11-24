@@ -16,7 +16,7 @@ import javax.swing.JTabbedPane;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.testsupport.HeadlessDialogPanels;
 import com.microproject.ui.testsupport.HeadlessLayoutAssertions;
 import com.microproject.pm.resource.ResourcePool;

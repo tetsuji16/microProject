@@ -28,7 +28,7 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 
 import com.microproject.pm.time.ImmutableInterval;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.DateTime;
 
 /**

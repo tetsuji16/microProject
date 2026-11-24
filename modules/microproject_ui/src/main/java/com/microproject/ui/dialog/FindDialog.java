@@ -60,7 +60,7 @@ import com.microproject.ui.view.views.Searchable;
 import com.microproject.configuration.Configuration;
 import com.microproject.document.ObjectEvent;
 import com.microproject.field.Field;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.util.FlatUiSupport;
 import com.microproject.util.Alert;
 import com.microproject.util.BrowserControl;

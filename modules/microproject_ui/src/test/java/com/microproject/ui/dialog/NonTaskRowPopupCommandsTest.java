@@ -43,7 +43,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.configuration.Dictionary;
 import com.microproject.ui.menu.MenuActionConstants;
-import com.microproject.graphic.configuration.SpreadSheetCategories;
+import com.microproject.view.configuration.SpreadSheetCategories;
 import com.microproject.options.GeneralOption;
 import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.model.cache.NodeModelCacheFactory;

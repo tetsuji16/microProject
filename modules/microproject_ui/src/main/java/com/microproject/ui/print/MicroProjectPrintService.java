@@ -31,7 +31,7 @@ import com.microproject.ui.view.graph.GraphParams;
 import com.microproject.ui.view.spreadsheet.SpreadSheetParams;
 import com.microproject.ui.view.spreadsheet.SpreadSheetParamsImpl;
 import com.microproject.ui.print.ExtendedPrintService;
-import com.microproject.graphic.configuration.GraphicConfiguration;
+import com.microproject.view.configuration.GraphicConfiguration;
 
 public class MicroProjectPrintService implements ExtendedPrintService {
 

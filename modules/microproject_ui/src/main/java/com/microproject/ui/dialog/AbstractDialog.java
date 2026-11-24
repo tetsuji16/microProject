@@ -67,7 +67,7 @@ import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.model.cache.ReferenceNodeModelCache;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.configuration.Settings;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.BrowserControl;
 import com.microproject.ui.util.FlatUiSupport;
 import com.microproject.ui.util.FlatLafDialog;

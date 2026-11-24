@@ -26,7 +26,7 @@ package com.microproject.script;
 import java.util.Iterator;
 
 import com.microproject.field.Field;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 
 public class FieldArrayUtil {
 	public static final String HIDDEN_SUFFIX="_Hidden";

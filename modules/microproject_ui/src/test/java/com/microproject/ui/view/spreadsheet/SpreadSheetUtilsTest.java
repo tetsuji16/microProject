@@ -39,8 +39,8 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.field.Field;
-import com.microproject.graphic.configuration.SpreadSheetCategories;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetCategories;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.model.cache.NodeModelCacheFactory;
 import com.microproject.ui.view.model.cache.ReferenceNodeModelCache;

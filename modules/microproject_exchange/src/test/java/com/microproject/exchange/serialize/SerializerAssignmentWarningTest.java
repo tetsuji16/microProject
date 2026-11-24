@@ -19,7 +19,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.task.Project;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.SafeObjectInput;
 
 /** A POD assignment that cannot be restored must be reported, not silently defaulted. */

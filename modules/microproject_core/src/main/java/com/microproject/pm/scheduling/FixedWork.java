@@ -25,7 +25,7 @@ package com.microproject.pm.scheduling;
 
 import com.microproject.datatype.Duration;
 import com.microproject.pm.assignment.Allocation;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /**
  * @stereotype strategy 

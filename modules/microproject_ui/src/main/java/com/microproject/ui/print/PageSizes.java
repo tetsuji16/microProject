@@ -39,7 +39,7 @@ import javax.print.attribute.standard.MediaSizeName;
 import javax.swing.AbstractListModel;
 import javax.swing.ComboBoxModel;
 
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.print.ExtendedPageFormat;
 import com.microproject.print.PDFPrintService;
 

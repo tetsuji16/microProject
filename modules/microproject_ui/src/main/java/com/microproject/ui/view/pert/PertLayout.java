@@ -38,8 +38,8 @@ import com.microproject.ui.view.network.NetworkDisplayOptions;
 import com.microproject.ui.view.network.NetworkParams;
 import com.microproject.view.network.PertManualPositions;
 import com.microproject.ui.view.network.layout.AbstractNetworkLayout;
-import com.microproject.graphic.configuration.GraphicConfiguration;
-import com.microproject.graphic.configuration.TexturedShape;
+import com.microproject.view.configuration.GraphicConfiguration;
+import com.microproject.view.configuration.TexturedShape;
 
 /**
 *

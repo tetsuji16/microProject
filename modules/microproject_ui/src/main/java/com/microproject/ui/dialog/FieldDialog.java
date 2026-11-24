@@ -54,7 +54,7 @@ import com.microproject.pm.scheduling.ScheduleEventListener;
 import com.microproject.pm.task.BelongsToDocument;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.DataUtils;
 
 

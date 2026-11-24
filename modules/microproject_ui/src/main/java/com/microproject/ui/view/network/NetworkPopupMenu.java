@@ -32,8 +32,8 @@ import javax.swing.JMenu;
 
 import com.microproject.ui.view.graph.GraphInteractor;
 import com.microproject.ui.view.graph.GraphPopupMenu;
-import com.microproject.graphic.configuration.BarStyle;
-import com.microproject.strings.Messages;
+import com.microproject.view.configuration.BarStyle;
+import com.microproject.i18n.Messages;
 
 
 /**

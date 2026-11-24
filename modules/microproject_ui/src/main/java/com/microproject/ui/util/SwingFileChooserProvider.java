@@ -38,7 +38,7 @@ import com.formdev.flatlaf.util.SystemFileChooser.FileFilter;
 import com.formdev.flatlaf.util.SystemFileChooser.FileNameExtensionFilter;
 import com.microproject.session.FileHelper;
 import com.microproject.preference.ConfigurationFile;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.UiServices;
 
 public final class SwingFileChooserProvider implements UiServices.FileChooserProvider {

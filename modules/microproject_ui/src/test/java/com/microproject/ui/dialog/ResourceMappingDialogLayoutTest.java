@@ -15,8 +15,8 @@ import javax.swing.JComponent;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.exchange.ResourceMappingForm;
-import com.microproject.strings.Messages;
+import com.microproject.persistence.ResourceMappingForm;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.testsupport.HeadlessDialogPanels;
 import com.microproject.ui.testsupport.HeadlessLayoutAssertions;
 

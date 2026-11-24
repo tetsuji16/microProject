@@ -32,7 +32,7 @@ import java.util.logging.Logger;
 import javax.swing.event.EventListenerList;
 
 import com.microproject.ui.view.model.cache.GraphicNode;
-import com.microproject.graphic.configuration.GraphicConfiguration;
+import com.microproject.view.configuration.GraphicConfiguration;
 import com.microproject.pm.scheduling.ScheduleEvent;
 import com.microproject.pm.scheduling.ScheduleEventListener;
 import com.microproject.pm.scheduling.ScheduleInterval;

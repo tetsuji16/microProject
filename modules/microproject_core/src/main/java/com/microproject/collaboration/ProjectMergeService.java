@@ -352,7 +352,7 @@ public class ProjectMergeService {
 		long startedAt = System.nanoTime();
 		EmbeddedPodXmlInputStream stream = new EmbeddedPodXmlInputStream(
 			new BufferedInputStream(new FileInputStream(fileName), EmbeddedPodXmlInputStream.BUFFER_SIZE),
-			com.microproject.exchange.PodFormatIdentifiers.EMBEDDED_XML_SEPARATOR.getBytes(StandardCharsets.UTF_8));
+			com.microproject.persistence.PodFormatIdentifiers.EMBEDDED_XML_SEPARATOR.getBytes(StandardCharsets.UTF_8));
 		boolean handedOff = false;
 		try {
 			if (!stream.locateSeparator()) {

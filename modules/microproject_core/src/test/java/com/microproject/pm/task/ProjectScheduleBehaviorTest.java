@@ -41,7 +41,7 @@ import com.microproject.field.FieldContext;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
 import com.microproject.grouping.core.model.AssignmentNodeModel;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.criticalpath.SchedulingAlgorithm;
 import com.microproject.pm.assignment.Assignment;

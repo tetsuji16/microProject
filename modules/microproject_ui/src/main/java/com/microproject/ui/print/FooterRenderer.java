@@ -30,7 +30,7 @@ import javax.swing.JLabel;
 
 import com.microproject.ui.view.Renderer;
 import com.microproject.ui.view.graph.GraphParams;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 public class FooterRenderer extends Renderer {
 

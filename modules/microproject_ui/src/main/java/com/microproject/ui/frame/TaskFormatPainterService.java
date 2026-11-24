@@ -14,7 +14,7 @@ import javax.swing.undo.AbstractUndoableEdit;
 
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.transaction.ModelTransaction;
 import com.microproject.transaction.ProjectMutationState;
 import com.microproject.undo.EditSupport;

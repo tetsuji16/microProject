@@ -21,9 +21,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
-import com.microproject.temporary.TemporaryCleanupQueue;
-import com.microproject.temporary.ProcessIdentity;
-import com.microproject.temporary.TemporaryRoot;
+import com.microproject.util.temporary.TemporaryCleanupQueue;
+import com.microproject.util.temporary.ProcessIdentity;
+import com.microproject.util.temporary.TemporaryRoot;
 import com.microproject.util.SafeFileReplace;
 
 /**

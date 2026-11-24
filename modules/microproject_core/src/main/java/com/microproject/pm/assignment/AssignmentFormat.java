@@ -40,7 +40,7 @@ import com.microproject.field.FieldParseException;
 import com.microproject.options.GeneralOption;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.task.Task;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 
 public class AssignmentFormat extends AssociationFormat {

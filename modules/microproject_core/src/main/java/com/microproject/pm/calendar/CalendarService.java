@@ -40,7 +40,7 @@ import com.microproject.document.ObjectEventManager;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.time.HasStartAndEnd;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.timescale.CalendarUtil;
 import com.microproject.transaction.ProjectMutationState;
 import com.microproject.undo.CalendarEdit;

@@ -67,7 +67,7 @@ import com.microproject.session.LocalSession;
 import com.microproject.session.SaveOptions;
 import com.microproject.session.Session;
 import com.microproject.session.SessionFactory;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Alert;
 import com.microproject.util.Environment;

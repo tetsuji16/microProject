@@ -46,7 +46,7 @@ import com.microproject.ui.view.TaskFontStyle;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.spreadsheet.SpreadSheetParams;
 import com.microproject.ui.view.spreadsheet.common.CommonSpreadSheetModel;
-import com.microproject.graphic.configuration.CellFormat;
+import com.microproject.view.configuration.CellFormat;
 import com.microproject.ui.util.FlatUiSupport;
 /**
  *

@@ -44,13 +44,13 @@ import com.microproject.ui.view.spreadsheet.SpreadSheetModel;
 import com.microproject.document.Document;
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
-import com.microproject.graphic.configuration.CellStyle;
+import com.microproject.view.configuration.CellStyle;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.grouping.core.transform.sorting.NodeSorter;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.undo.UndoController;
 import com.microproject.util.Alert;
 import com.microproject.workspace.WorkspaceSetting;
@@ -195,7 +195,7 @@ public class ResourceView extends JScrollPane implements BaseView {
         };
 		spreadSheet.setSpreadSheetCategory(spreadsheetCategory); // for columns - must do first
 		
-		com.microproject.graphic.configuration.SpreadSheetFieldArray fields = SpreadsheetViewSupport.getResourceFields();
+		com.microproject.view.configuration.SpreadSheetFieldArray fields = SpreadsheetViewSupport.getResourceFields();
 		if (((ResourcePool)document).isMaster()){
 			fields=fields.clone();
 			fields.removeField("Field.userRole"); //$NON-NLS-1$

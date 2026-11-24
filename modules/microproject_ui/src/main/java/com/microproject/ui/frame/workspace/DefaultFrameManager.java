@@ -63,7 +63,7 @@ import com.microproject.ui.frame.MainRibbonFrame;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.session.LoadOptions;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.shell.MicroProjectShell;
 import com.microproject.util.Environment;
 import com.microproject.workspace.WorkspaceSetting;

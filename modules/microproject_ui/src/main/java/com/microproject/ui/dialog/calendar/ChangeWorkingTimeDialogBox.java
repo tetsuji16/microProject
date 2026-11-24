@@ -90,7 +90,7 @@ import com.microproject.pm.calendar.WorkingHours;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.time.HasStartAndEnd;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.undo.UndoController;
 import com.microproject.util.UiServices;
 import com.microproject.util.Alert;

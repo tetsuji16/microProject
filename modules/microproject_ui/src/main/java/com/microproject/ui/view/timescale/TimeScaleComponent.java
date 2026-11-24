@@ -44,7 +44,7 @@ import javax.swing.UIManager;
 
 import com.microproject.ui.frame.GraphicManager;
 import com.microproject.ui.view.gantt.GanttParams;
-import com.microproject.graphic.configuration.GraphicConfiguration;
+import com.microproject.view.configuration.GraphicConfiguration;
 import com.microproject.timescale.TimeInterval;
 import com.microproject.timescale.TimeIterator;
 import com.microproject.util.Environment;

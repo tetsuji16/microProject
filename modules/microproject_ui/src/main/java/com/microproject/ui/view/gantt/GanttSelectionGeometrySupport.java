@@ -26,7 +26,7 @@ package com.microproject.ui.view.gantt;
 import java.awt.Shape;
 import java.awt.geom.Rectangle2D;
 
-import com.microproject.graphic.configuration.GraphicConfiguration;
+import com.microproject.view.configuration.GraphicConfiguration;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.timescale.CoordinatesConverter;
 import com.microproject.pm.task.Task;

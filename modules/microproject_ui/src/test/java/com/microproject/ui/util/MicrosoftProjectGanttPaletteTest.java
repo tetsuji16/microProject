@@ -11,7 +11,7 @@ import java.awt.Color;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.graphic.configuration.BarFormat;
+import com.microproject.view.configuration.BarFormat;
 
 class MicrosoftProjectGanttPaletteTest {
 	private final MicrosoftProjectGanttPalette palette = new MicrosoftProjectGanttPalette();

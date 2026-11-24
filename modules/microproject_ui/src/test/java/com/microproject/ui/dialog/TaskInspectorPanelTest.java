@@ -24,13 +24,13 @@ import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 class TaskInspectorPanelTest {
 	@Test
 	void predecessorProjectionFeedbackHasEnglishAndJapaneseResourceValues() {
-		ResourceBundle english = ResourceBundle.getBundle("com.microproject.strings.client", Locale.ROOT);
-		ResourceBundle japanese = ResourceBundle.getBundle("com.microproject.strings.client", Locale.JAPANESE);
+		ResourceBundle english = ResourceBundle.getBundle("com.microproject.i18n.client", Locale.ROOT);
+		ResourceBundle japanese = ResourceBundle.getBundle("com.microproject.i18n.client", Locale.JAPANESE);
 		String key = "TaskInspector.PredecessorHidden";
 
 		assertEquals("The predecessor is hidden by the current filter or grouping.", english.getString(key));
@@ -124,9 +124,9 @@ class TaskInspectorPanelTest {
 	@Test
 	void indicatorCheckBoxLabelHasEnglishAndJapaneseValues() {
 		assertEquals("Show warning and suggestion indicators for this task",
-			ResourceBundle.getBundle("com.microproject.strings.client", Locale.ROOT).getString("TaskInspector.ShowIndicators"));
+			ResourceBundle.getBundle("com.microproject.i18n.client", Locale.ROOT).getString("TaskInspector.ShowIndicators"));
 		assertEquals("このタスクの警告と提案のインジケーターを表示する",
-			ResourceBundle.getBundle("com.microproject.strings.client", Locale.JAPANESE).getString("TaskInspector.ShowIndicators"));
+			ResourceBundle.getBundle("com.microproject.i18n.client", Locale.JAPANESE).getString("TaskInspector.ShowIndicators"));
 	}
 
 	private static javax.swing.JCheckBox findCheckBox(Container root) {

@@ -42,7 +42,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import com.microproject.field.Field;
-import com.microproject.graphic.configuration.SpreadSheetCategories;
+import com.microproject.view.configuration.SpreadSheetCategories;
 import com.microproject.grouping.core.Node;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.dependency.Dependency;
@@ -57,7 +57,7 @@ import com.microproject.ui.view.spreadsheet.editor.DateEditor;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.ui.util.SwingAlertPresenter;

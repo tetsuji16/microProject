@@ -27,7 +27,7 @@ import java.awt.Color;
 import java.awt.Paint;
 import java.awt.geom.Rectangle2D;
 
-import com.microproject.graphic.configuration.BarFormat;
+import com.microproject.view.configuration.BarFormat;
 import com.microproject.pm.scheduling.Schedule;
 
 /**

@@ -40,7 +40,7 @@ import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.ui.view.model.cache.GraphicDependency;
 import com.microproject.pm.key.HasName;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.util.FlatUiSupport;
 
 /**

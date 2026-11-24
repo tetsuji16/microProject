@@ -51,7 +51,7 @@ import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.pm.costing.CostRateTable;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceImpl;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.util.FlatUiSupport;
 
 /**

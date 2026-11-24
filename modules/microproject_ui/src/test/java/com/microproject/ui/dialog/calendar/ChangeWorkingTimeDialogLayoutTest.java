@@ -20,7 +20,7 @@ import com.microproject.contrib.calendar.ContribIntervals;
 import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.calendar.WorkingHours;
 import com.microproject.ui.frame.GraphicManager;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.testsupport.HeadlessDialogPanels;
 import com.microproject.ui.testsupport.HeadlessLayoutAssertions;
 

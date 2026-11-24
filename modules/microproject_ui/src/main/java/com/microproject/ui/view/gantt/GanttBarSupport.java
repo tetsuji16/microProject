@@ -29,7 +29,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 
-import com.microproject.graphic.configuration.BarFormat;
+import com.microproject.view.configuration.BarFormat;
 import com.microproject.pm.scheduling.Schedule;
 import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.util.DisplayMath;

@@ -34,7 +34,7 @@ import com.microproject.grouping.core.transform.CommonTransformFactory;
 import com.microproject.grouping.core.transform.TransformList;
 import com.microproject.grouping.core.transform.ViewConfiguration;
 import com.microproject.grouping.core.transform.ViewTransformer;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /**
  * 

@@ -10,7 +10,7 @@ import com.microproject.job.JobQueue;
 import com.microproject.job.JobRunnable;
 import com.microproject.ui.print.GraphPageable;
 import com.microproject.session.SessionFactory;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 final class PageableExportJob {
 	private PageableExportJob() { }

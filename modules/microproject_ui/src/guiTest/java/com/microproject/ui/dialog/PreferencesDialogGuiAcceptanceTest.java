@@ -540,13 +540,13 @@ class PreferencesDialogGuiAcceptanceTest {
 		try {
 			SwingUtilities.invokeAndWait(() -> {
 				sheet[0] = new com.microproject.ui.view.spreadsheet.SpreadSheet();
-				sheet[0].setSpreadSheetCategory(com.microproject.graphic.configuration.SpreadSheetCategories.taskSpreadsheetCategory);
+				sheet[0].setSpreadSheetCategory(com.microproject.view.configuration.SpreadSheetCategories.taskSpreadsheetCategory);
 				com.microproject.ui.view.model.cache.NodeModelCache cache =
 					com.microproject.ui.view.model.cache.NodeModelCacheFactory.getInstance().createFilteredCache(
 						com.microproject.ui.view.model.cache.NodeModelCacheFactory.createTaskNodeModelCache(project,
 							project.getTaskModel()), "format-live-cache", null);
 				com.microproject.ui.view.spreadsheet.SpreadSheetUtils.setFieldsAndContext(sheet[0], cache,
-					com.microproject.graphic.configuration.SpreadSheetCategories.taskSpreadsheetCategory,
+					com.microproject.view.configuration.SpreadSheetCategories.taskSpreadsheetCategory,
 					"Spreadsheet.Task.formatLive", true);
 				com.microproject.ui.view.spreadsheet.SpreadSheetModel model =
 					(com.microproject.ui.view.spreadsheet.SpreadSheetModel) sheet[0].getModel();

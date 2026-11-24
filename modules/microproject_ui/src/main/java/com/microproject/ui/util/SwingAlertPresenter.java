@@ -21,7 +21,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
 import com.microproject.ui.frame.GraphicManager;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.Alert;
 import com.microproject.util.AlertPresenter;
 

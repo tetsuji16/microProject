@@ -57,7 +57,7 @@ import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.resource.ResourcePoolFactory;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.TaskSnapshot;
-import com.microproject.temporary.TemporaryRoot;
+import com.microproject.util.temporary.TemporaryRoot;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.workspace.WorkspaceSetting;
 

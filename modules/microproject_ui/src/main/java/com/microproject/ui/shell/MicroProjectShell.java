@@ -51,7 +51,7 @@ import com.microproject.ui.frame.MainRibbonFrame;
 import com.microproject.ui.frame.workspace.DefaultFrameManager;
 import com.microproject.ui.frame.workspace.FrameManager;
 import com.microproject.ui.theme.LafManager;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.toolbar.FilterToolBarManager;
 import com.microproject.ui.util.FlatUiSupport;
 

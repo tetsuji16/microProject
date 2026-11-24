@@ -32,7 +32,7 @@ import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 import org.apache.commons.collections4.bidimap.UnmodifiableBidiMap;
 
 import com.microproject.datatype.DurationFormat;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 
 /**

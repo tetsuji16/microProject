@@ -52,9 +52,9 @@ import com.microproject.ui.view.spreadsheet.SpreadSheetColumnModel;
 import com.microproject.ui.view.spreadsheet.SpreadSheetUtils;
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
-import com.microproject.graphic.configuration.ActionList;
-import com.microproject.graphic.configuration.CellFormat;
-import com.microproject.graphic.configuration.CellStyle;
+import com.microproject.view.configuration.ActionList;
+import com.microproject.view.configuration.CellFormat;
+import com.microproject.view.configuration.CellStyle;
 import com.microproject.grouping.core.Node;
 import com.microproject.pm.assignment.Assignment;
 /**

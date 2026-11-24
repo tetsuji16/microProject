@@ -40,9 +40,9 @@ import javax.swing.WindowConstants;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.graphic.configuration.CellStyles;
+import com.microproject.view.configuration.CellStyles;
 import com.microproject.ui.dialog.TaskInformationDialog;
-import com.microproject.init.Init;
+import com.microproject.configuration.Init;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
 import com.microproject.ui.view.spreadsheet.SpreadSheetModel;
 import com.microproject.ui.view.spreadsheet.renderer.NameCellComponent;
@@ -61,7 +61,7 @@ import com.microproject.ui.util.SwingFileChooserProvider;
 import com.microproject.util.UiServices;
 import com.microproject.ui.util.SwingAlertPresenter;
 import com.microproject.ui.util.SwingUiDispatcher;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.UiDispatch;
 
 /** Two separately invoked GUI phases prove an MPO remains interactive across a JVM restart. */

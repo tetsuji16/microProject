@@ -49,7 +49,7 @@ import com.microproject.ui.menu.MenuActionConstants;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
 import com.microproject.ui.view.spreadsheet.SpreadSheetPopupMenu;
 import com.microproject.pm.task.Project;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.testsupport.GuiAcceptanceSupport;
 import com.microproject.ui.testsupport.ResourceIntervalTableFixture;
 

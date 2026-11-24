@@ -55,7 +55,7 @@ import com.microproject.pm.task.Task;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.task.ProjectTaskSnapshot;
 import com.microproject.pm.scheduling.ScheduleService;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.transaction.ModelTransaction;
 import com.microproject.transaction.ProjectMutationState;
 import static com.microproject.util.IdentityCollections.addIdentity;

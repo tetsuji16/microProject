@@ -45,7 +45,7 @@ import javax.swing.plaf.basic.BasicSplitPaneUI;
 
 import com.microproject.ui.view.views.synchro.ScrollPaneSynchronizer;
 import com.microproject.ui.view.views.synchro.Synchronizer;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.util.FlatUiSupport;
 
 /**

@@ -40,7 +40,7 @@ import org.junit.jupiter.api.Test;
  * abbreviations, so existing habits and documented examples (3d, 24h, 9ed) keep working.
  */
 class DurationUnitNamesTest {
-	private static final String BUNDLE = "com.microproject.strings.client";
+	private static final String BUNDLE = "com.microproject.i18n.client";
 	private static final int LONG_STYLE = 2; // EditOption's default view style
 	private static final int COMPACT_STYLE = 3; // DurationFormat.formatCompact
 

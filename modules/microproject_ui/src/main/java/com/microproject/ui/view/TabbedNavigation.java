@@ -65,7 +65,7 @@ import com.microproject.ui.menu.MenuManager;
 import com.microproject.ui.menu.MenuTextKeys;
 import com.microproject.ui.frame.DocumentFrame;
 import com.microproject.ui.frame.GraphicManager;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.util.FlatUiSupport;
 import com.microproject.util.Environment;
 import com.microproject.ui.util.FlatLafSupport;

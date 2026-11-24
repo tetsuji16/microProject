@@ -5,7 +5,7 @@
  *******************************************************************************/
 package com.microproject.ui.view.gantt;
 
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /** Shared choice list for the default and per-task milestone shape controls. */
 public enum MilestoneShapeChoice {

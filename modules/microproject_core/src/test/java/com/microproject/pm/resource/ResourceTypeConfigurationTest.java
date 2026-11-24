@@ -12,7 +12,7 @@ import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.configuration.Configuration;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 class ResourceTypeConfigurationTest {
 	@Test

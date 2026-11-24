@@ -5,6 +5,8 @@
 ******************************************************************************/
 package com.microproject.exchange;
 
+import com.microproject.persistence.FileImporter;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.BufferedReader;
@@ -76,13 +78,13 @@ import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.pm.task.TaskSnapshot;
 import com.microproject.field.Field;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.pm.assignment.TimeDistributedHelper;
 import com.microproject.transaction.ProjectMutationState;
 import com.microproject.session.LocalSession;
 import com.microproject.session.SessionFactory;
-import com.microproject.strings.Messages;
-import com.microproject.temporary.TemporaryCleanupQueue;
+import com.microproject.i18n.Messages;
+import com.microproject.util.temporary.TemporaryCleanupQueue;
 import com.microproject.util.MarkupEscape;
 import com.microproject.util.RetirableFileLock;
 import com.microproject.util.SafeFileReplace;

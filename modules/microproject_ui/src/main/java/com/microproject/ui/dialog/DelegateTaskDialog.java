@@ -35,7 +35,7 @@ import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.ui.dialog.util.FieldComponentMap;
 import com.microproject.configuration.Settings;
 import com.microproject.pm.task.Task;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.util.FlatUiSupport;
 import com.microproject.util.DataUtils;
 

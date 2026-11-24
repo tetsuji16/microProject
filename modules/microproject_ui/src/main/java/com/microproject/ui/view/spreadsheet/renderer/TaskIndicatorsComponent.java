@@ -28,12 +28,12 @@ import javax.swing.JLabel;
 import com.microproject.ui.view.IconManager;
 import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
-import com.microproject.graphic.configuration.HasTaskIndicators;
+import com.microproject.view.configuration.HasTaskIndicators;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.ScheduleDiagnosticsService;
 import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Task;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 /**
  *  
  */

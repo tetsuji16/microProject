@@ -36,8 +36,8 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
-import com.microproject.graphic.configuration.SpreadSheetCategories;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetCategories;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.options.TimesheetOption;
 
 class TimesheetInfrastructureTest {

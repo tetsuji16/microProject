@@ -27,7 +27,7 @@ import com.microproject.configuration.Configuration;
 import com.microproject.configuration.Dictionary;
 import com.microproject.configuration.ReportDefinition;
 import com.microproject.field.Field;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.grouping.core.transform.filtering.PredicatedNodeFilterIterator;
 import com.microproject.pm.assignment.Assignment;
@@ -42,7 +42,7 @@ import com.microproject.reports.model.ReportLayout;
 import com.microproject.reports.model.ReportModel;
 import com.microproject.reports.model.ReportModelFactory;
 import com.microproject.reports.render.ReportPrintable;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.undo.DataFactoryUndoController;
 
 /**

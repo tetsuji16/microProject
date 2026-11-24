@@ -77,7 +77,7 @@ import com.microproject.pm.assignment.HasTimeDistributedData;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.Project;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.util.ColorLuminance;
 import com.microproject.util.Environment;
 import com.microproject.workspace.SavableToWorkspace;

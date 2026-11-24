@@ -28,8 +28,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.exchange.ResourceMappingForm;
-import com.microproject.strings.Messages;
+import com.microproject.persistence.ResourceMappingForm;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.testsupport.DialogLayoutAssertions;
 import com.microproject.ui.testsupport.GuiAcceptanceSupport;
 

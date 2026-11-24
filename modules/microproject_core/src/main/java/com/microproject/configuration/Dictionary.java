@@ -29,18 +29,18 @@ import java.util.HashMap;
 
 import org.apache.commons.digester3.Digester;
 
-import com.microproject.graphic.configuration.ActionLists;
-import com.microproject.graphic.configuration.BarFormat;
-import com.microproject.graphic.configuration.BarStyle;
-import com.microproject.graphic.configuration.BarStyles;
-import com.microproject.graphic.configuration.CellStyles;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.ActionLists;
+import com.microproject.view.configuration.BarFormat;
+import com.microproject.view.configuration.BarStyle;
+import com.microproject.view.configuration.BarStyles;
+import com.microproject.view.configuration.CellStyles;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.grouping.core.transform.TransformList;
 import com.microproject.grouping.core.transform.ViewConfiguration;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.script.ContextStore;
-import com.microproject.scripting.FormulaFactory;
-import com.microproject.strings.Messages;
+import com.microproject.formula.FormulaFactory;
+import com.microproject.i18n.Messages;
 import com.microproject.util.ClassUtils;
 import com.microproject.util.Environment;
 

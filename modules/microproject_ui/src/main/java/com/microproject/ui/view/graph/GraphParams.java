@@ -26,8 +26,8 @@ package com.microproject.ui.view.graph;
 import java.awt.Rectangle;
 
 import com.microproject.ui.view.model.cache.NodeModelCache;
-import com.microproject.graphic.configuration.BarStyles;
-import com.microproject.graphic.configuration.GraphicConfiguration;
+import com.microproject.view.configuration.BarStyles;
+import com.microproject.view.configuration.GraphicConfiguration;
 
 public interface GraphParams {
 	public NodeModelCache getCache();

@@ -42,7 +42,7 @@ import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.graphic.configuration.SpreadSheetCategories;
+import com.microproject.view.configuration.SpreadSheetCategories;
 import com.microproject.field.Field;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeFactory;
@@ -55,7 +55,7 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.task.Task;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.menu.MenuManager;
 import com.microproject.undo.DataFactoryUndoController;
 

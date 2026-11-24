@@ -39,7 +39,7 @@ import com.microproject.algorithm.TimeIteratorGenerator;
 import com.microproject.algorithm.buffer.CalculatedValues;
 import com.microproject.algorithm.buffer.GroupedCalculatedValues;
 import com.microproject.association.AssociationList;
-import com.microproject.company.ApplicationUser;
+import com.microproject.user.ApplicationUser;
 import com.microproject.configuration.CircularDependencyException;
 import com.microproject.datatype.ImageLink;
 import com.microproject.datatype.Rate;
@@ -68,7 +68,7 @@ import com.microproject.pm.costing.CostRateTables;
 import com.microproject.pm.costing.EarnedValueCalculator;
 import com.microproject.pm.key.HasKeyImpl;
 import com.microproject.pm.task.Task;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /**
  * A global resource that belongs to the enterprise resource pool

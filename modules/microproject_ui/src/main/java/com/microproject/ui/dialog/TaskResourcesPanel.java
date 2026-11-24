@@ -39,7 +39,7 @@ import com.microproject.ui.frame.DocumentFrame;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Task;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /** Owns the Task Information Resources tab and its task-to-resource list. */
 final class TaskResourcesPanel extends JPanel {

@@ -67,7 +67,7 @@ import com.microproject.options.CalendarOption;
 import com.microproject.options.EditOption;
 import com.microproject.pm.task.AccessControlPolicy;
 import com.microproject.pm.task.Project;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.Alert;
 import com.microproject.util.ClassUtils;
 import com.microproject.util.DateTime;

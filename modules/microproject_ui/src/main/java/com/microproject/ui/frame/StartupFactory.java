@@ -133,7 +133,7 @@ public abstract class StartupFactory {
 		final GraphicManager gm = SwingUiDispatcher.callAndWait(() -> {
 			GraphicManager newGraphicManager = new GraphicManager(container);
 			newGraphicManager.setRestartAction(() -> restart(newGraphicManager));
-			Environment.setUser(new com.microproject.company.DefaultUser());
+			Environment.setUser(new com.microproject.user.DefaultUser());
 			newGraphicManager.setConnected(true);
 			newGraphicManager.initLookAndFeel();
 			SessionFactory.getInstance().setJobQueue(newGraphicManager.getJobQueue());
@@ -201,7 +201,7 @@ public abstract class StartupFactory {
 	}
 
 	public void doLoadConfig() {
-		com.microproject.init.Init.initialize();
+		com.microproject.configuration.Init.initialize();
 	}
 	public void doPostInitView(Container container) {
 	}

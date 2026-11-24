@@ -456,7 +456,7 @@ final class RibbonCommandGuiFixture implements AutoCloseable {
 		return onEdt(() -> UiComponentWalker.flatten(dialog).stream()
 			.filter(JTabbedPane.class::isInstance).map(JTabbedPane.class::cast)
 			.anyMatch(tabs -> "Notes".equals(tabs.getTitleAt(tabs.getSelectedIndex()))
-				|| com.microproject.strings.Messages.getString("ResourceInformationDialog.Notes")
+				|| com.microproject.i18n.Messages.getString("ResourceInformationDialog.Notes")
 					.equals(tabs.getTitleAt(tabs.getSelectedIndex()))));
 	}
 

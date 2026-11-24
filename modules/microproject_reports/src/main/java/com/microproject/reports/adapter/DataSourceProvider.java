@@ -15,14 +15,14 @@ import com.microproject.field.Field;
 import com.microproject.configuration.Configuration;
 import com.microproject.configuration.Dictionary;
 import com.microproject.configuration.ReportDefinition;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.grouping.core.model.WalkersNodeModel;
 import com.microproject.grouping.core.transform.filtering.PredicatedNodeFilterIterator;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /** Report data selection shared by preview, printing, PDF and CSV. */
 public final class DataSourceProvider {

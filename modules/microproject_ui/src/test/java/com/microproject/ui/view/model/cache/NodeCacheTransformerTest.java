@@ -22,7 +22,7 @@ import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Task;
-import com.microproject.scripting.formulas.SummaryTaskFormula;
+import com.microproject.formula.builtin.SummaryTaskFormula;
 import com.microproject.undo.DataFactoryUndoController;
 
 class NodeCacheTransformerTest {

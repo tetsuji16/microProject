@@ -27,7 +27,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 import com.microproject.pm.time.MutableInterval;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /**
  * @stereotype strategy 

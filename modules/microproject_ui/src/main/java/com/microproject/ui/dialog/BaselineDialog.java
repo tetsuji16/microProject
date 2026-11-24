@@ -39,7 +39,7 @@ import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.configuration.Settings;
 import com.microproject.pm.snapshot.SnapshottableImpl;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.util.FlatUiSupport;
 
 public final class BaselineDialog extends AbstractDialog {

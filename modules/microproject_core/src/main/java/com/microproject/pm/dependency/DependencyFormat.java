@@ -36,7 +36,7 @@ import com.microproject.configuration.Settings;
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.DurationFormat;
 import com.microproject.pm.task.Task;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 
 public class DependencyFormat extends AssociationFormat {

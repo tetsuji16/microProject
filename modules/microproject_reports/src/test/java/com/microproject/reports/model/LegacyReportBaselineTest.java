@@ -25,7 +25,7 @@ import com.microproject.configuration.Configuration;
 import com.microproject.configuration.Dictionary;
 import com.microproject.configuration.ReportDefinition;
 import com.microproject.field.Field;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.grouping.core.transform.filtering.PredicatedNodeFilterIterator;
 import com.microproject.pm.assignment.Assignment;

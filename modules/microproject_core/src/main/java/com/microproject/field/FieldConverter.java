@@ -39,7 +39,7 @@ import com.microproject.datatype.DurationFormat;
 import com.microproject.datatype.Money;
 import com.microproject.datatype.Work;
 import com.microproject.options.EditOption;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.DateTime;
 /**
  * Converts field values while applying application-specific types and validation.

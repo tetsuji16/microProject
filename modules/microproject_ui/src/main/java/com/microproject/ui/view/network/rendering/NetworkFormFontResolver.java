@@ -25,7 +25,7 @@ package com.microproject.ui.view.network.rendering;
 
 import java.awt.Font;
 
-import com.microproject.graphic.configuration.FormBoxLayout;
+import com.microproject.view.configuration.FormBoxLayout;
 import com.microproject.util.Environment;
 import com.microproject.ui.util.FontUtil;
 

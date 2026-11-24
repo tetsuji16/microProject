@@ -43,7 +43,7 @@ import com.microproject.document.ObjectEvent;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.util.FlatUiSupport;
 import com.microproject.ui.util.PhysicalButtonRoute;
 /**

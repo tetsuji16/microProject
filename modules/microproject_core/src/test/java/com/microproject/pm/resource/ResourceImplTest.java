@@ -33,7 +33,7 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.company.ApplicationUser;
+import com.microproject.user.ApplicationUser;
 import com.microproject.field.FieldContext;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.costing.Accrual;

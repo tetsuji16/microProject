@@ -33,7 +33,7 @@ import javax.swing.text.html.HTMLDocument.HTMLReader.IsindexAction;
 
 import com.microproject.ui.view.timescale.CoordinatesConverter;
 import com.microproject.pm.scheduling.IntervalConsumer;
-import com.microproject.graphic.configuration.GraphicConfiguration;
+import com.microproject.view.configuration.GraphicConfiguration;
 import com.microproject.grouping.core.GroupNodeImpl;
 import com.microproject.grouping.core.LazyParent;
 import com.microproject.grouping.core.Node;

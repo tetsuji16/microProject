@@ -36,7 +36,7 @@ import com.microproject.ui.view.spreadsheet.SpreadSheet;
 import com.microproject.ui.view.spreadsheet.SpreadSheetModel;
 import com.microproject.ui.view.spreadsheet.SpreadSheetUtils;
 import com.microproject.ui.view.views.UsageDetailView;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /** Canonical creation, refresh, and document-cache wiring for assignment lists. */
 final class AssignmentSpreadsheetSupport {

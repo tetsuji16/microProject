@@ -26,7 +26,7 @@ import org.apache.commons.collections4.BidiMap;
 import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 import org.apache.commons.collections4.bidimap.UnmodifiableBidiMap;
 
-import com.microproject.strings.*;
+import com.microproject.i18n.*;
 
 /**
  * @stereotype enumeration 

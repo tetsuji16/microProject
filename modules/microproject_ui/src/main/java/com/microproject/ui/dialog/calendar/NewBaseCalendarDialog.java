@@ -44,7 +44,7 @@ import com.microproject.configuration.Settings;
 import com.microproject.document.Document;
 import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.calendar.WorkingCalendar;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.util.FlatUiSupport;
 
 public final class NewBaseCalendarDialog extends AbstractDialog {

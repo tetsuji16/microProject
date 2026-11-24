@@ -54,7 +54,7 @@ import java.util.function.Predicate;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.field.Field;
-import com.microproject.graphic.configuration.SpreadSheetCategories;
+import com.microproject.view.configuration.SpreadSheetCategories;
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.ui.menu.MenuActionConstants;
 import com.microproject.ui.view.model.cache.NodeModelCache;

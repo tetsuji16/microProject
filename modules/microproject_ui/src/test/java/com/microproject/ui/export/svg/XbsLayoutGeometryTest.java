@@ -47,9 +47,9 @@ class XbsLayoutGeometryTest {
 		NodeModelCache cache = NodeModelCacheFactory.getInstance().createFilteredCache(reference, "WBS", null);
 		try {
 			tree.setCache(cache);
-			tree.setBarStyles((com.microproject.graphic.configuration.BarStyles)
+			tree.setBarStyles((com.microproject.view.configuration.BarStyles)
 				com.microproject.configuration.Dictionary.get(
-					com.microproject.graphic.configuration.BarStyles.category, "WBS"));
+					com.microproject.view.configuration.BarStyles.category, "WBS"));
 			cache.update();
 			((com.microproject.ui.view.network.NetworkModel) tree.getModel()).updateCellBounds();
 			GraphicNode leafNode = (GraphicNode) cache.getGraphicNode(model.search(leaf));

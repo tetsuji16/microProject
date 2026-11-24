@@ -50,8 +50,8 @@ import javax.swing.table.TableColumn;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.FormLayout;
-import com.microproject.exchange.ResourceMappingForm;
-import com.microproject.strings.Messages;
+import com.microproject.persistence.ResourceMappingForm;
+import com.microproject.i18n.Messages;
 import com.microproject.util.ClassUtils;
 import com.microproject.ui.util.FlatUiSupport;
 

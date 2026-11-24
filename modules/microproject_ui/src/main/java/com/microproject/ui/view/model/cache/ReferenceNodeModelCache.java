@@ -40,7 +40,7 @@ import com.microproject.association.Association;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.document.Document;
 import com.microproject.document.ObjectEvent;
-import com.microproject.graphic.configuration.GraphicConfiguration;
+import com.microproject.view.configuration.GraphicConfiguration;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.event.HierarchyEvent;
 import com.microproject.grouping.core.event.HierarchyListener;

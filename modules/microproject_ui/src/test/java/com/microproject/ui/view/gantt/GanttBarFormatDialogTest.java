@@ -39,9 +39,9 @@ import javax.swing.JComboBox;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
+import com.microproject.view.configuration.GanttBarFormatOverrides.BarFormat;
 import com.microproject.ui.view.gantt.BarColorField;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 class GanttBarFormatDialogTest {
 	@Test
@@ -102,7 +102,7 @@ class GanttBarFormatDialogTest {
 	private static String readEnglishString(String key) {
 		try (java.io.InputStream in = GanttBarFormatDialogTest.class
 				.getClassLoader()
-				.getResourceAsStream("com/microproject/strings/client.properties")) {
+				.getResourceAsStream("com/microproject/i18n/client.properties")) {
 			java.util.Properties props = new java.util.Properties();
 			props.load(in);
 			return props.getProperty(key);

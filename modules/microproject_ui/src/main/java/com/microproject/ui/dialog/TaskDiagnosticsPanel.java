@@ -32,7 +32,7 @@ import javax.swing.table.DefaultTableModel;
 
 import com.microproject.pm.task.ScheduleDiagnosticsService;
 import com.microproject.pm.task.Task;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /** Read-only diagnostics table for a task's current schedule. */
 final class TaskDiagnosticsPanel extends JScrollPane {

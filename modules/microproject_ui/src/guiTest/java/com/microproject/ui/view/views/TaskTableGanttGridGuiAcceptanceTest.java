@@ -65,14 +65,14 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.graphic.configuration.SpreadSheetCategories;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetCategories;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.configuration.Dictionary;
 import com.microproject.configuration.Configuration;
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.DurationFormat;
 import com.microproject.datatype.TimeUnit;
-import com.microproject.graphic.configuration.BarStyles;
+import com.microproject.view.configuration.BarStyles;
 import com.microproject.ui.view.gantt.Gantt;
 import com.microproject.ui.view.gantt.GanttUI;
 import com.microproject.ui.frame.DocumentFrame;
@@ -1467,7 +1467,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			return false;
 		}, "physical header right-click did not open the custom-column popup");
 
-		JMenuItem rename = menuItemWithText(popup[0], com.microproject.strings.Messages.getString("RenameDialog.Rename"));
+		JMenuItem rename = menuItemWithText(popup[0], com.microproject.i18n.Messages.getString("RenameDialog.Rename"));
 		clickComponent(robot, rename);
 		Window dialog = awaitWindowWith(JTextField.class, "Rename dialog did not open from the physical custom-column popup");
 		DialogLayoutAssertions.assertFixedSizeForm(dialog, dialog, "Custom column Rename dialog (#724)");
@@ -1579,8 +1579,8 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	void physicalTaskModeColumnShowsTextAndIsChosenFromAList() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		final String fieldId = "Field.manuallyScheduled";
-		final String manualLabel = com.microproject.strings.Messages.getString("TaskMode.manual");
-		final String autoLabel = com.microproject.strings.Messages.getString("TaskMode.auto");
+		final String manualLabel = com.microproject.i18n.Messages.getString("TaskMode.manual");
+		final String autoLabel = com.microproject.i18n.Messages.getString("TaskMode.auto");
 		Fixture fixture = createFixture(3);
 		showFixture(fixture, true);
 		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
@@ -1599,7 +1599,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing() && fixture.sheet.getColumnCount() > 1,
 			"task table was not ready for the Task Mode column check");
 		int column = findColumn(fixture.sheet, fieldId);
-		assertEquals(com.microproject.strings.Messages.getString("Field.manuallyScheduled"), fixture.sheet.getColumnName(column),
+		assertEquals(com.microproject.i18n.Messages.getString("Field.manuallyScheduled"), fixture.sheet.getColumnName(column),
 			"the column header is the localized Task Mode");
 		GraphicNode node = (GraphicNode) fixture.gantt.getModel().getCache().getElementAt(0);
 		NormalTask task = (NormalTask) node.getNode().getImpl();
@@ -2142,7 +2142,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			frame.requestFocus();
 		});
 		GuiAcceptanceSupport.await(() -> hasVisibleColumns(fixture.sheet, 3), "task table was not ready for header wrapping");
-		int baseHeight = com.microproject.graphic.configuration.GraphicConfiguration.getInstance().getColumnHeaderHeight();
+		int baseHeight = com.microproject.view.configuration.GraphicConfiguration.getInstance().getColumnHeaderHeight();
 		String fieldId = "Field.percentWorkComplete";
 		int[] columnValue = new int[1];
 		SwingUtilities.invokeAndWait(() -> {
@@ -2342,7 +2342,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 			for (Component component : popup[0].getComponents())
 				if (component instanceof javax.swing.JCheckBoxMenuItem check) item[0] = check;
 			assertTrue(item[0] != null, "the column popup must offer the Header Text Wrapping check box");
-			assertEquals(com.microproject.strings.Messages.getString("SpreadSheetColumnMenu.HeaderWrap"), item[0].getText());
+			assertEquals(com.microproject.i18n.Messages.getString("SpreadSheetColumnMenu.HeaderWrap"), item[0].getText());
 			assertEquals(expectChecked, item[0].isSelected(), "the check box must show the column's current wrapping");
 		});
 		clickComponent(robot, item[0]);

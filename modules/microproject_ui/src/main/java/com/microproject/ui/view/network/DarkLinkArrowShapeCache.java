@@ -26,7 +26,7 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Objects;
 
-import com.microproject.graphic.configuration.TexturedShape;
+import com.microproject.view.configuration.TexturedShape;
 
 /** Caches dark themed arrow copies without mutating user-configured link shapes. */
 final class DarkLinkArrowShapeCache {

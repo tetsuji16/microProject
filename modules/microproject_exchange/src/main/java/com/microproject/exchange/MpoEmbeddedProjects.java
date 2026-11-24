@@ -22,7 +22,7 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Task;
-import com.microproject.temporary.TemporaryCleanupQueue;
+import com.microproject.util.temporary.TemporaryCleanupQueue;
 import com.microproject.util.MarkupEscape;
 import com.microproject.util.SafeFileReplace;
 

@@ -43,7 +43,7 @@ import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.ui.frame.GraphicManager;
 import com.microproject.field.Field;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 public final class ColumnDialog extends AbstractDialog {
 	private static final long serialVersionUID = 1L;

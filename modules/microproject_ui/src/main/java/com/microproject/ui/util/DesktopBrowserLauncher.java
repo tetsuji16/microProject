@@ -39,7 +39,7 @@ import javax.swing.SwingUtilities;
 
 import com.microproject.ui.frame.DocumentFrame;
 import com.microproject.ui.frame.GraphicManager;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.BrowserControl.BrowserLauncher;
 import com.microproject.util.ExternalLinkPolicy;
 

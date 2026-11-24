@@ -43,11 +43,11 @@ import com.microproject.ui.view.graph.GraphInteractor;
 import com.microproject.ui.view.graph.GraphModel;
 import com.microproject.ui.view.gantt.Gantt;
 import com.microproject.ui.view.graph.GraphPopupMenu;
-import com.microproject.graphic.configuration.BarStyle;
-import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
+import com.microproject.view.configuration.BarStyle;
+import com.microproject.view.configuration.GanttBarFormatOverrides.BarFormat;
 import com.microproject.grouping.core.transform.TransformList;
 import com.microproject.grouping.core.transform.filtering.BaseFilter;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.pm.task.Task;
 
 

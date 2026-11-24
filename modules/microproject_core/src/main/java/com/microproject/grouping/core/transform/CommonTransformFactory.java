@@ -29,7 +29,7 @@ import java.util.function.Consumer;
 import org.apache.commons.collections4.Transformer;
 
 import com.microproject.field.InvalidFormulaException;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /**
  *

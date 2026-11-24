@@ -59,7 +59,7 @@ import com.microproject.ui.view.spreadsheet.renderer.SpreadSheetNameCellRenderer
 import com.microproject.configuration.Configuration;
 import com.microproject.field.BooleanText;
 import com.microproject.field.Field;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 
 /**
  *

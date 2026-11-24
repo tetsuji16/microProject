@@ -40,7 +40,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.interval.ValueObjectForIntervalTable;
 import com.microproject.pm.task.Project;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.testsupport.GuiAcceptanceSupport;
 import com.microproject.ui.testsupport.GuiJourney;
 import com.microproject.ui.testsupport.ResourceIntervalTableFixture;

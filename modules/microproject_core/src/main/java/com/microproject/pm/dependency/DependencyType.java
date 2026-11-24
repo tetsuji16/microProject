@@ -31,7 +31,7 @@ import java.util.Locale;
 
 import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 
 
