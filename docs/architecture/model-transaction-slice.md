@@ -124,7 +124,18 @@ remains pending rather than inferred from these module tests.
   bound views. Reentrant publication and full writer coverage remain open.
 - #410 still needs a transaction boundary for broader task/resource/calendar,
   dependency, hierarchy, and ID-allocation cascades, plus authorization lease
-  and post-commit-effect audits.
+  and post-commit-effect audits. One bounded slice is now in place: the
+  hierarchy move/relocate command captures `ProjectOutlineSnapshot` (parent and
+  sibling index per task) before it applies, restores it when a hierarchy
+  listener fails after the move, and runs through
+  `Project.runAtomicModelCommand` so the failed batch is discarded and the
+  revision stays unchanged. A relocation posts its Undo entry only after the
+  hierarchy accepted the move, so a listener failure in between previously left
+  a changed outline with no Undo entry. Core hierarchy entry points
+  (`DefaultNodeModel.relocate/indent/sortOutlineBy`) still run through
+  `runModelMutation` and remain non-atomic for their other callers; moving that
+  boundary into core, and the remaining task/resource/calendar, dependency and
+  ID-allocation cascades, stay open.
 - #411 still requires immutable value projections and removal of supported
   renderer paths that read mutable `GraphicNode` state. The current tree has no
   `GraphicNode.row` field or `GanttRenderer.setRow` call, but Gantt rendering

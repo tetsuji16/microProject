@@ -25,6 +25,7 @@ import com.microproject.model.dependency.Dependency;
 import com.microproject.model.dependency.DependencyService;
 import com.microproject.schedule.Schedule;
 import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectOutlineSnapshot;
 import com.microproject.model.task.ProjectTaskSnapshot;
 import com.microproject.model.task.Task;
 import com.microproject.ui.view.model.cache.ProjectionRowKey;
@@ -124,11 +125,12 @@ public final class TaskCommandGateway {
 				|| sheetModel.getCache() == null
 				|| !(sheetModel.getCache().getModel().getDataFactory() instanceof Project project))
 			return new TaskCommandResult(TaskCommandResult.Status.INVALID_INTENT, "hierarchy-edit-requires-project-model");
-		return withProjectMutation(project, progress -> executeHierarchyEditInProject(sheet, intent, progress));
+		return withAtomicProjectMutation(project,
+			progress -> executeHierarchyEditInProject(sheet, intent, project, progress));
 	}
 
 	private static TaskCommandResult executeHierarchyEditInProject(SpreadSheet sheet, TaskHierarchyEditIntent intent,
-			MutationProgress progress) {
+			Project project, MutationProgress progress) {
 		PreparedHierarchyEdit prepared = prepare(sheet, intent);
 		if (prepared.rejection() != null)
 			return prepared.rejection();
@@ -139,10 +141,23 @@ public final class TaskCommandGateway {
 			locks.add(prepared.anchor());
 		if (!CollaborationHelper.tryLockNodes(null, locks, sheet, "move task"))
 			return new TaskCommandResult(TaskCommandResult.Status.LOCKED, "collaboration-lock-denied");
+		ProjectOutlineSnapshot before = ProjectOutlineSnapshot.capture(project);
 		progress.markApplied();
-		boolean changed = intent.operation() == TaskHierarchyEditIntent.Operation.MOVE
-			? prepared.cache().moveNodes(prepared.graphicNodes(), intent.direction())
-			: prepared.cache().relocateNodes(prepared.graphicNodes(), prepared.anchor(), intent.after());
+		boolean changed;
+		try {
+			changed = intent.operation() == TaskHierarchyEditIntent.Operation.MOVE
+				? prepared.cache().moveNodes(prepared.graphicNodes(), intent.direction())
+				: prepared.cache().relocateNodes(prepared.graphicNodes(), prepared.anchor(), intent.after());
+		} catch (RuntimeException | Error failure) {
+			// The hierarchy applies the move before it posts the relocation Undo entry,
+			// so a listener failure in between leaves a changed outline with no edit.
+			try {
+				before.restore(project);
+			} catch (RuntimeException | Error restoreFailure) {
+				if (restoreFailure != failure) failure.addSuppressed(restoreFailure);
+			}
+			throw failure;
+		}
 		return TaskCommandResult.of(changed ? TaskCommandResult.Status.CHANGED : TaskCommandResult.Status.REJECTED);
 	}
 
@@ -516,6 +531,20 @@ public final class TaskCommandGateway {
 	private static <E extends Exception> TaskCommandResult withProjectMutation(Project project,
 			ProjectMutation<TaskCommandResult, E> command) throws E {
 		return project.runModelCommand(markApplied -> command.run(new MutationProgress(markApplied)),
+			result -> result.status() == TaskCommandResult.Status.CHANGED,
+			result -> result.status() == TaskCommandResult.Status.CHANGED ? result
+				: TaskCommandResult.of(TaskCommandResult.Status.CHANGED));
+	}
+
+	/**
+	 * Runs a command whose model changes are restored by the callee when it fails.
+	 * Discarding the pending event batch as well keeps a failed structural edit from
+	 * publishing facts about a state that no longer exists, and leaves the project
+	 * revision unchanged so bound views are not told a new revision was committed.
+	 */
+	private static <E extends Exception> TaskCommandResult withAtomicProjectMutation(Project project,
+			ProjectMutation<TaskCommandResult, E> command) throws E {
+		return project.runAtomicModelCommand(markApplied -> command.run(new MutationProgress(markApplied)),
 			result -> result.status() == TaskCommandResult.Status.CHANGED,
 			result -> result.status() == TaskCommandResult.Status.CHANGED ? result
 				: TaskCommandResult.of(TaskCommandResult.Status.CHANGED));
