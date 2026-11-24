@@ -114,7 +114,7 @@ public class PodRoundTripTest {
 		positions.putPosition(task.getUniqueId(), new PertManualPositions.Position(777, 333));
 		savePodFile(stateProject, output);
 		byte[] withPertState = readAll(output);
-		byte[] separator = com.microproject.exchange.PodFormatIdentifiers.EMBEDDED_XML_SEPARATOR
+		byte[] separator = com.microproject.persistence.PodFormatIdentifiers.EMBEDDED_XML_SEPARATOR
 			.getBytes(java.nio.charset.StandardCharsets.UTF_8);
 		int baselineSerializedEnd = indexOf(baseline, separator);
 		int pertSerializedEnd = indexOf(withPertState, separator);

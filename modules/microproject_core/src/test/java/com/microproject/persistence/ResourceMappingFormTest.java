@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2026 microProject
  *******************************************************************************/
-package com.microproject.exchange;
+package com.microproject.persistence;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;

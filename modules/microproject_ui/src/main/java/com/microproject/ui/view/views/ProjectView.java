@@ -75,7 +75,7 @@ public class ProjectView extends JScrollPane implements BaseView, ObjectEvent.Li
 		spreadSheet.setSpreadSheetCategory(spreadsheetCategory); // for columns - must do first
 		
 		cache=NodeModelCacheFactory.getInstance().createDefaultCache(model,document,NodeModelCache.PROJECT_TYPE,getViewName(),null);
-		com.microproject.graphic.configuration.SpreadSheetFieldArray fields = SpreadsheetViewSupport.getProjectFields();
+		com.microproject.view.configuration.SpreadSheetFieldArray fields = SpreadsheetViewSupport.getProjectFields();
 		spreadSheet.setCache(cache,fields,fields.getCellStyle(),fields.getActionList());
 
 		JViewport viewport = createViewport();

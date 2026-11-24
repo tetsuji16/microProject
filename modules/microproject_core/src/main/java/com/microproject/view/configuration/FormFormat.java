@@ -79,13 +79,13 @@ public class FormFormat{
 	
 	public static void addDigesterEvents(Digester digester){
 	    //layout
-		digester.addObjectCreate("*/bar/format/form/layout", "com.microproject.graphic.configuration.FormBoxLayout");
+		digester.addObjectCreate("*/bar/format/form/layout", "com.microproject.view.configuration.FormBoxLayout");
 	    digester.addSetProperties("*/bar/format/form/layout");
-	    digester.addSetNext("*/bar/format/form/layout", "addLayout", "com.microproject.graphic.configuration.FormBoxLayout");
+	    digester.addSetNext("*/bar/format/form/layout", "addLayout", "com.microproject.view.configuration.FormBoxLayout");
 	    //box
-		digester.addObjectCreate("*/bar/format/form/box", "com.microproject.graphic.configuration.FormBox");
+		digester.addObjectCreate("*/bar/format/form/box", "com.microproject.view.configuration.FormBox");
 	    digester.addSetProperties("*/bar/format/form/box");
-	    digester.addSetNext("*/bar/format/form/box", "addBox", "com.microproject.graphic.configuration.FormBox");
+	    digester.addSetNext("*/bar/format/form/box", "addBox", "com.microproject.view.configuration.FormBox");
 	}
 
 

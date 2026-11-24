@@ -101,7 +101,7 @@ class DocumentStatusBarTest {
 
 	@Test
 	void englishHierarchyUsesRequestedTitleCaseWithoutStatusPosition() {
-		ResourceBundle english = ResourceBundle.getBundle("com.microproject.strings.client", Locale.ENGLISH);
+		ResourceBundle english = ResourceBundle.getBundle("com.microproject.i18n.client", Locale.ENGLISH);
 		String[] keys = {"Day", "Hours", "Week", "Days", "Month", "Quarter", "HalfYear", "Year"};
 		String[] values = {"Day", "{0} Hours", "Week", "{0} Days", "Month", "Quarter", "Half Year", "Year"};
 		for (int i = 0; i < keys.length; i++) assertEquals(values[i], english.getString("StatusBar.Interval." + keys[i]));
@@ -174,7 +174,7 @@ class DocumentStatusBarTest {
 
 	@Test
 	void japaneseStatusLabelsDescribeCountsAndZoomLevels() {
-		ResourceBundle japanese = ResourceBundle.getBundle("com.microproject.strings.client", Locale.JAPANESE);
+		ResourceBundle japanese = ResourceBundle.getBundle("com.microproject.i18n.client", Locale.JAPANESE);
 		assertEquals("選択中のタスク数: {0}", japanese.getString("StatusBar.SelectedTasks"));
 		assertEquals("ズーム: {0}", japanese.getString("StatusBar.ZoomSemantic"));
 		assertEquals("{0} ＞ {1}", japanese.getString("StatusBar.ScaleHierarchy"));

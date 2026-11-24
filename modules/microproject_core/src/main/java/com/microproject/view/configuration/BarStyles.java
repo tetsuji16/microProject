@@ -343,14 +343,14 @@ public class BarStyles implements NamedItem {
 
 	public static void addDigesterEvents(Digester digester){
 		// main properties of bar
-		digester.addFactoryCreate("*/bar/styles", "com.microproject.graphic.configuration.BarStylesFactory");
+		digester.addFactoryCreate("*/bar/styles", "com.microproject.view.configuration.BarStylesFactory");
 	    digester.addSetProperties("*/bar/styles");
 		digester.addSetNext("*/bar/styles", "add", "com.microproject.configuration.NamedItem");
 
 		// start section
-		digester.addObjectCreate("*/bar/styles/style", "com.microproject.graphic.configuration.BarStyle");
+		digester.addObjectCreate("*/bar/styles/style", "com.microproject.view.configuration.BarStyle");
 	    digester.addSetProperties("*/bar/styles/style");
-	    digester.addSetNext("*/bar/styles/style", "addStyle", "com.microproject.graphic.configuration.BarStyle");
+	    digester.addSetNext("*/bar/styles/style", "addStyle", "com.microproject.view.configuration.BarStyle");
 
 	}
 }

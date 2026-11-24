@@ -2,7 +2,7 @@
  * MIT License
  * Copyright (c) 2026 microProject
  ******************************************************************************/
-package com.microproject.exchange;
+package com.microproject.persistence;
 
 import java.util.Map;
 import java.util.Objects;
@@ -24,6 +24,9 @@ import java.util.Objects;
 public final class ClassRelocations {
 	/** Old binary class name to new binary class name. */
 	private static final Map<String, String> RELOCATIONS = Map.ofEntries(
+		Map.entry("com.microproject.graphic.configuration.BarStyles", "com.microproject.view.configuration.BarStyles"),
+		Map.entry("com.microproject.graphic.configuration.GanttBarFormatOverrides", "com.microproject.view.configuration.GanttBarFormatOverrides"),
+		Map.entry("com.microproject.graphic.configuration.SpreadSheetFieldArray", "com.microproject.view.configuration.SpreadSheetFieldArray"),
 		Map.entry("com.microproject.server.data.AssignmentData", "com.microproject.exchange.serialize.AssignmentData"),
 		Map.entry("com.microproject.server.data.ByteArrayObject", "com.microproject.exchange.serialize.ByteArrayObject"),
 		Map.entry("com.microproject.server.data.CalendarData", "com.microproject.persistence.data.CalendarData"),

@@ -52,15 +52,15 @@ public class ActionLists extends FormulaCatalog<ActionList, ActionListFactory> {
 
 	public static void addDigesterEvents(Digester digester){
 		// main properties of bar
-		digester.addObjectCreate("*/actionLists", "com.microproject.graphic.configuration.ActionLists");
+		digester.addObjectCreate("*/actionLists", "com.microproject.view.configuration.ActionLists");
 	    digester.addSetProperties("*/actionLists");
 		digester.addSetNext("*/actionLists", "add", "com.microproject.configuration.NamedItem");
 
 		// start section
-		digester.addObjectCreate("*/actionLists/actionList", "com.microproject.graphic.configuration.ActionListFactory");
+		digester.addObjectCreate("*/actionLists/actionList", "com.microproject.view.configuration.ActionListFactory");
 	    digester.addSetProperties("*/actionLists/actionList");
 	    digester.addCallMethod("*/actionLists/actionList/formulaText","setFormulaText",0);
-	    digester.addSetNext("*/actionLists/actionList", "addActionList", "com.microproject.graphic.configuration.ActionListFactory");
+	    digester.addSetNext("*/actionLists/actionList", "addActionList", "com.microproject.view.configuration.ActionListFactory");
 	    
 	}
 	

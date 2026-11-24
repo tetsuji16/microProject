@@ -90,7 +90,7 @@ public class Messages {
 							if (bundle==null)
 								continue;
 							buns.add(bundle);
-							foundBundles.add("com.microproject.strings."+directoryBundleNames[i]);
+							foundBundles.add("com.microproject.i18n."+directoryBundleNames[i]);
 						}catch (Exception e) {
 							logger.log(java.util.logging.Level.WARNING, "Failed to load directory bundle " + directoryBundleNames[i], e);
 						}
@@ -167,7 +167,7 @@ public class Messages {
     public static Properties getTipProperties() {
     	ResourceBundle bundle;
     	try {
-    		bundle = ResourceBundle.getBundle("com.microproject.strings.client", Locale.getDefault(), ClassLoaderUtils.getLocalClassLoader());
+			bundle = ResourceBundle.getBundle("com.microproject.i18n.client", Locale.getDefault(), ClassLoaderUtils.getLocalClassLoader());
     	} catch (MissingResourceException e) {
     		if (bundles != null && bundles.size() > 1) {
     			bundle = bundles.get(1);

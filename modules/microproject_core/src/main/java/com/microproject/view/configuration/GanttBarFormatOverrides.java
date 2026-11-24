@@ -72,7 +72,7 @@ public final class GanttBarFormatOverrides implements Serializable {
 		private final Integer startRgb;
 		private final Integer middleRgb;
 		private final Integer endRgb;
-		/** A safe {@link com.microproject.graphic.configuration.shape.PredefinedShape} name for milestones. */
+		/** A safe {@link com.microproject.view.configuration.shape.PredefinedShape} name for milestones. */
 		private final String milestoneShapeName;
 
 		public BarFormat(Integer startRgb, Integer middleRgb, Integer endRgb) {

@@ -100,7 +100,7 @@ class LicenseDialogResourceTest {
 	private void assertAboutCopyrightUsesMitNotice() throws Exception {
 		for (String bundle : new String[] {"client", "client_ja", "client_de", "client_fr", "client_zh_CN", "client_sv"}) {
 			Properties strings = new Properties();
-			strings.load(new StringReader(readResource("com/microproject/strings/" + bundle + ".properties")));
+			strings.load(new StringReader(readResource("com/microproject/i18n/" + bundle + ".properties")));
 			String notice = strings.getProperty("AboutDialog.copyright");
 			assertTrue(notice.startsWith("Copyright (c) 2026 microProject. "), bundle);
 			assertTrue(notice.contains("MIT"), bundle);

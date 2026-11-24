@@ -85,8 +85,8 @@ class ClientBundleProductNameTest {
 
 	@Test
 	void japaneseWelcomeDialogTitleMatchesMainWindowProductName() {
-		ResourceBundle base = ResourceBundle.getBundle("com.microproject.strings.client", Locale.ROOT);
-		ResourceBundle japanese = ResourceBundle.getBundle("com.microproject.strings.client", Locale.JAPANESE);
+		ResourceBundle base = ResourceBundle.getBundle("com.microproject.i18n.client", Locale.ROOT);
+		ResourceBundle japanese = ResourceBundle.getBundle("com.microproject.i18n.client", Locale.JAPANESE);
 
 		assertEquals("Welcome to microProject", base.getString("Text.welcomeToPod"));
 		assertEquals("microProject へようこそ", japanese.getString("Text.welcomeToPod"));

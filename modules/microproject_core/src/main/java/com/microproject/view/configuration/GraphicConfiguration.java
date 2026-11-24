@@ -65,9 +65,9 @@ public class GraphicConfiguration {
 	}
 	
 	public static void addDigesterEvents(Digester digester){
-		digester.addObjectCreate("*/graphic", "com.microproject.graphic.configuration.GraphicConfiguration");
+		digester.addObjectCreate("*/graphic", "com.microproject.view.configuration.GraphicConfiguration");
 	    digester.addSetProperties("*/graphic");
-		digester.addSetNext("*/graphic", "setGraphicConfiguation", "com.microproject.graphic.configuration.GraphicConfiguration");
+		digester.addSetNext("*/graphic", "setGraphicConfiguation", "com.microproject.view.configuration.GraphicConfiguration");
 
 	}
 	

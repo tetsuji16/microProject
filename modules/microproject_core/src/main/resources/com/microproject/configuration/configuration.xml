@@ -48,7 +48,7 @@
 
 
 	<fieldDictionary>
-		<class name="com.microproject.graphic.configuration.HasIndicators">
+		<class name="com.microproject.view.configuration.HasIndicators">
 			<field property="indicators" id="Field.indicators" graphical="true"
 				readOnly="true" sum="This" />
 		</class>
@@ -794,11 +794,11 @@
 	<script>
 		<class name="java.lang.Object" />
 		<class name="com.microproject.ui.view.model.cache.GraphicNode" />
-		<class name="com.microproject.graphic.configuration.CellStyle" />
-		<class name="com.microproject.graphic.configuration.CellFormat" />
+		<class name="com.microproject.view.configuration.CellStyle" />
+		<class name="com.microproject.view.configuration.CellFormat" />
 		<class name="com.microproject.grouping.core.model.NodeModel" />
 		<class name="com.microproject.util.Environment" />
-		<class name="com.microproject.graphic.configuration.ActionList" />
+		<class name="com.microproject.view.configuration.ActionList" />
 		<class name="java.lang.String" />
 		<class
 			name="com.microproject.grouping.core.transform.filtering.NodeFilter" />

@@ -384,7 +384,7 @@ public class FormComponent extends JPanel{
 		themed.setShape(shape.getShape());
 		themed.setPaint(fill);
 		themed.setColor(accent);
-		themed.setStroke(com.microproject.graphic.configuration.shape.PredefinedStroke.find("FRAMED"));
+		themed.setStroke(com.microproject.view.configuration.shape.PredefinedStroke.find("FRAMED"));
 		themed.setShapeScaleX(shape.getShapeScaleX());
 		themed.setShapeScaleY(shape.getShapeScaleY());
 		themedShapeCache.put(shape, new ThemedShape(sourcePaint, fill, accent, themed));

@@ -2,7 +2,7 @@
  * MIT License
  * Copyright (c) 2026 microProject
  ******************************************************************************/
-package com.microproject.exchange;
+package com.microproject.persistence;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -20,8 +20,8 @@ import com.microproject.persistence.relocationfixture.after.Moved;
 import com.microproject.util.SafeObjectInput;
 
 class ClassRelocationsTest {
-	private static final String BEFORE = "com.microproject.exchange.relocationfixture.before.Moved";
-	private static final String AFTER = "com.microproject.exchange.relocationfixture.after.Moved";
+	private static final String BEFORE = "com.microproject.persistence.relocationfixture.before.Moved";
+	private static final String AFTER = "com.microproject.persistence.relocationfixture.after.Moved";
 
 	@Test
 	void unknownNamesAreReturnedUnchanged() {
@@ -43,7 +43,7 @@ class ClassRelocationsTest {
 
 	@Test
 	void legacyPrefixIsReplacedBeforeTheTableIsConsulted() throws Exception {
-		String legacy = "com.projectlibre1.exchange.relocationfixture.before.Moved";
+		String legacy = "com.projectlibre1.persistence.relocationfixture.before.Moved";
 		try (AutoCloseable ignored = ClassRelocations.overrideForTesting(Map.of(BEFORE, AFTER))) {
 			assertEquals(AFTER, PodFormatIdentifiers.remapClassName(legacy));
 			assertEquals("[L" + AFTER + "$Part;", PodFormatIdentifiers.remapClassName("[L" + legacy + "$Part;"));
@@ -69,7 +69,7 @@ class ClassRelocationsTest {
 		byte[] stream = streamWrittenBeforeMove();
 		try (var input = SafeObjectInput.create(new ByteArrayInputStream(stream))) {
 			Object[] read = (Object[]) input.readObject();
-			assertInstanceOf(com.microproject.exchange.relocationfixture.before.Moved.class, read[0]);
+			assertInstanceOf(com.microproject.persistence.relocationfixture.before.Moved.class, read[0]);
 		}
 	}
 
@@ -77,7 +77,7 @@ class ClassRelocationsTest {
 	void relocationToAClassWithADifferentSimpleNameIsRejected() throws Exception {
 		byte[] stream = streamWrittenBeforeMove();
 		try (AutoCloseable ignored = ClassRelocations.overrideForTesting(
-				Map.of(BEFORE, "com.microproject.exchange.ClassRelocationsTest"));
+				Map.of(BEFORE, "com.microproject.persistence.ClassRelocationsTest"));
 				var input = SafeObjectInput.create(new ByteArrayInputStream(stream))) {
 			assertThrows(InvalidClassException.class, input::readObject);
 		}
@@ -103,13 +103,13 @@ class ClassRelocationsTest {
 	}
 
 	private static byte[] streamWrittenBeforeMove() throws Exception {
-		var first = new com.microproject.exchange.relocationfixture.before.Moved();
+		var first = new com.microproject.persistence.relocationfixture.before.Moved();
 		first.name = "task";
-		first.part = new com.microproject.exchange.relocationfixture.before.Moved.Part();
+		first.part = new com.microproject.persistence.relocationfixture.before.Moved.Part();
 		first.part.value = 42;
-		var second = new com.microproject.exchange.relocationfixture.before.Moved();
+		var second = new com.microproject.persistence.relocationfixture.before.Moved();
 		second.name = "second";
-		var array = new com.microproject.exchange.relocationfixture.before.Moved[] { second };
+		var array = new com.microproject.persistence.relocationfixture.before.Moved[] { second };
 		var bytes = new ByteArrayOutputStream();
 		try (var output = new ObjectOutputStream(bytes)) {
 			output.writeObject(new Object[] { first, array });

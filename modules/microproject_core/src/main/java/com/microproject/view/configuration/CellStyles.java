@@ -52,15 +52,15 @@ public class CellStyles extends FormulaCatalog<CellStyle, CellStyleFactory> {
 
 	public static void addDigesterEvents(Digester digester){
 		// main properties of bar
-		digester.addObjectCreate("*/cellstyles", "com.microproject.graphic.configuration.CellStyles");
+		digester.addObjectCreate("*/cellstyles", "com.microproject.view.configuration.CellStyles");
 	    digester.addSetProperties("*/cellstyles");
 		digester.addSetNext("*/cellstyles", "add", "com.microproject.configuration.NamedItem");
 
 		// start section
-		digester.addObjectCreate("*/cellstyles/style", "com.microproject.graphic.configuration.CellStyleFactory");
+		digester.addObjectCreate("*/cellstyles/style", "com.microproject.view.configuration.CellStyleFactory");
 	    digester.addSetProperties("*/cellstyles/style");
 	    digester.addCallMethod("*/cellstyles/style/formulaText","setFormulaText",0);
-	    digester.addSetNext("*/cellstyles/style", "addStyle", "com.microproject.graphic.configuration.CellStyleFactory");
+	    digester.addSetNext("*/cellstyles/style", "addStyle", "com.microproject.view.configuration.CellStyleFactory");
 	    
 	}
 	

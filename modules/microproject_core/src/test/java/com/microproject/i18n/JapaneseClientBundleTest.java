@@ -52,8 +52,8 @@ class JapaneseClientBundleTest {
 
 	@Test
 	void japaneseBundleContainsEveryBaseMessageKey() throws IOException {
-		Properties base = load("/com/microproject/strings/client.properties");
-		Properties japanese = load("/com/microproject/strings/client_ja.properties");
+		Properties base = load("/com/microproject/i18n/client.properties");
+		Properties japanese = load("/com/microproject/i18n/client_ja.properties");
 		List<String> missing = new ArrayList<>();
 		for (String key : base.stringPropertyNames())
 			if (!japanese.containsKey(key))
@@ -63,8 +63,8 @@ class JapaneseClientBundleTest {
 
 	@Test
 	void projectAndSharedPoolLabelsResolveFromJapaneseBundle() {
-		ResourceBundle base = ResourceBundle.getBundle("com.microproject.strings.client", Locale.ROOT);
-		ResourceBundle japanese = ResourceBundle.getBundle("com.microproject.strings.client", Locale.JAPANESE);
+		ResourceBundle base = ResourceBundle.getBundle("com.microproject.i18n.client", Locale.ROOT);
+		ResourceBundle japanese = ResourceBundle.getBundle("com.microproject.i18n.client", Locale.JAPANESE);
 
 		assertEquals("プロジェクト", japanese.getString("File.projects"));
 		assertEquals("共有リソースプール", japanese.getString("SharedResourcePool.title"));

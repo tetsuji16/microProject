@@ -2,7 +2,7 @@
  * MIT License
  * Copyright (c) 2026 microProject
  ******************************************************************************/
-package com.microproject.exchange;
+package com.microproject.persistence;
 
 /** Frozen identifiers used at the POD compatibility boundary. */
 public final class PodFormatIdentifiers {

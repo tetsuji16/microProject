@@ -93,7 +93,7 @@ class BooleanTextTest {
 	}
 
 	private static UnaryOperator<String> messages(Locale locale) {
-		ResourceBundle bundle = ResourceBundle.getBundle("com.microproject.strings.client", locale,
+		ResourceBundle bundle = ResourceBundle.getBundle("com.microproject.i18n.client", locale,
 			ResourceBundle.Control.getNoFallbackControl(ResourceBundle.Control.FORMAT_PROPERTIES));
 		assertEquals(locale, bundle.getLocale(), "the bundle for " + locale + " must exist");
 		return bundle::getString;

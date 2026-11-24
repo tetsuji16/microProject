@@ -98,7 +98,7 @@ final class MpoSidecarJson {
 		fields.setManualWidths(manualWidths);
 		fields.setHeaderWraps(headerWraps);
 		fields.setAlignments(alignments);
-		fields.setCategory(com.microproject.graphic.configuration.SpreadSheetCategories.taskSpreadsheetCategory);
+		fields.setCategory(com.microproject.view.configuration.SpreadSheetCategories.taskSpreadsheetCategory);
 		fields.setName(project.getName());
 		project.setFieldArray(fields);
 	}

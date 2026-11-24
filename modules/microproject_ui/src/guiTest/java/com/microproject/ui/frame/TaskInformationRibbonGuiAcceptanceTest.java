@@ -878,7 +878,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				return reportCsvOutput.toString();
 			}
 		});
-		String exportCsvLabel = com.microproject.strings.Messages.getString("ReportView.ExportCsv");
+		String exportCsvLabel = com.microproject.i18n.Messages.getString("ReportView.ExportCsv");
 		AbstractButton exportCsv = UiComponentWalker.flatten(reportView).stream()
 			.filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
 			.filter(button -> exportCsvLabel.equals(button.getText()) && button.isShowing())
@@ -1034,7 +1034,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 				return reportCsvOutput.toString();
 			}
 		});
-		String exportLabel = com.microproject.strings.Messages.getString("ReportView.ExportCsv");
+		String exportLabel = com.microproject.i18n.Messages.getString("ReportView.ExportCsv");
 		AbstractButton export = UiComponentWalker.flatten(reportView).stream().filter(AbstractButton.class::isInstance)
 			.map(AbstractButton.class::cast).filter(button -> exportLabel.equals(button.getText()) && button.isShowing())
 			.findFirst().orElseThrow(() -> new AssertionError("CSV export button was not rendered"));
@@ -9118,7 +9118,7 @@ class TaskInformationRibbonGuiAcceptanceTest {
 		GraphicNode graphicNode = node == null ? null : (GraphicNode) cache.getGraphicNode(node);
 		return graphicNode == null ? "missing" : "identity=" + System.identityHashCode(graphicNode)
 			+ ",collapsed=" + graphicNode.isCollapsed() + ",composite=" + graphicNode.isComposite()
-			+ ",collapseLevel=" + com.microproject.graphic.configuration.GraphicConfiguration.getInstance().getCollapseLevel();
+			+ ",collapseLevel=" + com.microproject.view.configuration.GraphicConfiguration.getInstance().getCollapseLevel();
 	}
 
 	private static boolean isTaskCollapsed(SpreadSheet sheet, NormalTask task) {

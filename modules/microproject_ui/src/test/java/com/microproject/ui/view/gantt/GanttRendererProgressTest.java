@@ -72,9 +72,9 @@ class GanttRendererProgressTest {
 
 	@Test
 	void ganttBarSupportClassifiesTaskAndBaselineBars() {
-		com.microproject.graphic.configuration.BarFormat task = new com.microproject.graphic.configuration.BarFormat();
+		com.microproject.view.configuration.BarFormat task = new com.microproject.view.configuration.BarFormat();
 		task.setId("Bar.task");
-		com.microproject.graphic.configuration.BarFormat baseline = new com.microproject.graphic.configuration.BarFormat();
+		com.microproject.view.configuration.BarFormat baseline = new com.microproject.view.configuration.BarFormat();
 		baseline.setId("Bar.baseline");
 
 		assertTrue(GanttBarSupport.shouldUseModernCapsuleBar(task));
@@ -102,7 +102,7 @@ class GanttRendererProgressTest {
 
 	@Test
 	void assignmentBarsCanPaintWorkProgress() {
-		com.microproject.graphic.configuration.BarFormat assignment = new com.microproject.graphic.configuration.BarFormat();
+		com.microproject.view.configuration.BarFormat assignment = new com.microproject.view.configuration.BarFormat();
 		assignment.setId("Bar.assignment");
 		assignment.setMain(true);
 		assertTrue(GanttRendererSupport.shouldPaintProgressOverlay(schedule(0.50d), assignment));

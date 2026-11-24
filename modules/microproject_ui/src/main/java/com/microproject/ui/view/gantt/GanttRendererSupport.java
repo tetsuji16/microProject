@@ -62,10 +62,10 @@ final class GanttRendererSupport {
 	}
 
 	static String resolveMilestoneShapeName(String individualShapeName, String defaultShapeName) {
-		String individual = com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat
+		String individual = com.microproject.view.configuration.GanttBarFormatOverrides.BarFormat
 				.normalizeMilestoneShapeName(individualShapeName);
 		return individual == null
-				? com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat.normalizeMilestoneShapeName(defaultShapeName)
+				? com.microproject.view.configuration.GanttBarFormatOverrides.BarFormat.normalizeMilestoneShapeName(defaultShapeName)
 				: individual;
 	}
 
@@ -101,7 +101,7 @@ final class GanttRendererSupport {
 		return GanttBarSupport.shouldUseUniformEndpointColor(format) ? statusColor : accentColor;
 	}
 
-	static Color resolveEndpointColor(com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat format,
+	static Color resolveEndpointColor(com.microproject.view.configuration.GanttBarFormatOverrides.BarFormat format,
 			Color defaultColor, boolean start) {
 		Integer rgb = start ? format.getStartRgb() : format.getEndRgb();
 		return rgb == null ? defaultColor : new Color(rgb);

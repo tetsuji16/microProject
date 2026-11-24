@@ -195,7 +195,7 @@ public class ResourceView extends JScrollPane implements BaseView {
         };
 		spreadSheet.setSpreadSheetCategory(spreadsheetCategory); // for columns - must do first
 		
-		com.microproject.graphic.configuration.SpreadSheetFieldArray fields = SpreadsheetViewSupport.getResourceFields();
+		com.microproject.view.configuration.SpreadSheetFieldArray fields = SpreadsheetViewSupport.getResourceFields();
 		if (((ResourcePool)document).isMaster()){
 			fields=fields.clone();
 			fields.removeField("Field.userRole"); //$NON-NLS-1$

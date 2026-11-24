@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *******************************************************************************/
-package com.microproject.exchange;
+package com.microproject.persistence;
 
 import java.util.ArrayList;
 import java.util.HashMap;

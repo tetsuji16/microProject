@@ -102,7 +102,7 @@ public class BarStyle implements Predicate<Object> {
 	
 	void build() {
 		if (formulaText == null&&formulaClass == null)
-			formulaClass="com.microproject.scripting.formulas.TrueFormula";
+			formulaClass="com.microproject.formula.builtin.TrueFormula";
 		if (formulaClass!=null)
 			formula=FormulaFactory.addNormal(formulaClass,name);
 		else if (formulaText!=null)

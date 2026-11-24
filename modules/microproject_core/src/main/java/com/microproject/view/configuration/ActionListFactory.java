@@ -42,7 +42,7 @@ public class ActionListFactory implements FormulaCatalog.Factory<ActionList> {
 
 	public ActionList getActionList() throws InvalidFormulaException{
 	    StringBuilder classText = new StringBuilder();
-	    classText.append("package com.microproject.graphic.configuration;\n");
+	    classText.append("package com.microproject.view.configuration;\n");
 	    classText.append("import com.microproject.grouping.core.model.NodeModel;\n");
 	    classText.append("import com.microproject.util.Environment;\n");
 		String className = GroovyClassCompiler.scriptClassName("ActionList", type + "\n" + formulaText);

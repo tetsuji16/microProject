@@ -7,8 +7,6 @@ com.microproject.exchange.serialize.EnterpriseResourceData
 com.microproject.exchange.serialize.LinkData
 com.microproject.exchange.serialize.ResourceData
 com.microproject.exchange.serialize.TaskData
-com.microproject.graphic.configuration.GanttBarFormatOverrides
-com.microproject.graphic.configuration.SpreadSheetFieldArray$Workspace
 com.microproject.interval.ValueObjectForInterval
 com.microproject.interval.ValueObjectForIntervalTable
 com.microproject.options.CalendarOption
@@ -44,3 +42,5 @@ com.microproject.pm.task.SummaryEnvelope
 com.microproject.pm.task.Task
 com.microproject.pm.time.ImmutableInterval
 com.microproject.pm.time.Interval
+com.microproject.view.configuration.GanttBarFormatOverrides
+com.microproject.view.configuration.SpreadSheetFieldArray$Workspace

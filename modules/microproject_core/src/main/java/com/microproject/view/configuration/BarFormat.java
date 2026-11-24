@@ -201,29 +201,29 @@ public class BarFormat implements NamedItem {
  */
 	public static void addDigesterEvents(Digester digester){
 		// main properties of bar
-		digester.addObjectCreate("*/bar/format", "com.microproject.graphic.configuration.BarFormat");
+		digester.addObjectCreate("*/bar/format", "com.microproject.view.configuration.BarFormat");
 	    digester.addSetProperties("*/bar/format");
 		digester.addSetNext("*/bar/format", "add", "com.microproject.configuration.NamedItem"); // add to dictionary
 		
 		// start section
-		digester.addObjectCreate("*/bar/format/start", "com.microproject.graphic.configuration.TexturedShape");
+		digester.addObjectCreate("*/bar/format/start", "com.microproject.view.configuration.TexturedShape");
 	    digester.addSetProperties("*/bar/format/start");
-	    digester.addSetNext("*/bar/format/start", "setStart", "com.microproject.graphic.configuration.TexturedShape");
+	    digester.addSetNext("*/bar/format/start", "setStart", "com.microproject.view.configuration.TexturedShape");
 	    
 	    //middle section
-		digester.addObjectCreate("*/bar/format/middle", "com.microproject.graphic.configuration.TexturedShape");
+		digester.addObjectCreate("*/bar/format/middle", "com.microproject.view.configuration.TexturedShape");
 	    digester.addSetProperties("*/bar/format/middle");
-	    digester.addSetNext("*/bar/format/middle", "setMiddle", "com.microproject.graphic.configuration.TexturedShape");
+	    digester.addSetNext("*/bar/format/middle", "setMiddle", "com.microproject.view.configuration.TexturedShape");
 	    
 	    //end section
-		digester.addObjectCreate("*/bar/format/end", "com.microproject.graphic.configuration.TexturedShape");
+		digester.addObjectCreate("*/bar/format/end", "com.microproject.view.configuration.TexturedShape");
 	    digester.addSetProperties("*/bar/format/end");
-	    digester.addSetNext("*/bar/format/end", "setEnd", "com.microproject.graphic.configuration.TexturedShape");
+	    digester.addSetNext("*/bar/format/end", "setEnd", "com.microproject.view.configuration.TexturedShape");
 	    
 	    //end section
-		digester.addObjectCreate("*/bar/format/form", "com.microproject.graphic.configuration.FormFormat");
+		digester.addObjectCreate("*/bar/format/form", "com.microproject.view.configuration.FormFormat");
 	    digester.addSetProperties("*/bar/format/form");
-	    digester.addSetNext("*/bar/format/form", "setForm", "com.microproject.graphic.configuration.FormFormat");
+	    digester.addSetNext("*/bar/format/form", "setForm", "com.microproject.view.configuration.FormFormat");
 		
 	    FormFormat.addDigesterEvents(digester);
 	    

@@ -22,7 +22,7 @@ fun architectureSourceBoundaryViolations(sourceFile: File, forbiddenPackages: Li
 
 fun corePresentationReferences(sourceFile: File, sourceRoot: File): Set<String> {
     val relativePath = sourceFile.relativeTo(sourceRoot).invariantSeparatorsPath
-    val presentationType = Regex("(?<![A-Za-z0-9_$])(?:javax\\.swing|java\\.awt|com\\.microproject\\.(?:graphic|print|dialog))(?:[A-Za-z0-9_$.]*)(?![A-Za-z0-9_$])")
+    val presentationType = Regex("(?<![A-Za-z0-9_$])(?:javax\\.swing|java\\.awt|com\\.microproject\\.(?:view\\.configuration|print|dialog))(?:[A-Za-z0-9_$.]*)(?![A-Za-z0-9_$])")
     return sourceFile.readLines().flatMap { line ->
         presentationType.findAll(line.substringBefore("//")).map { match ->
             "$relativePath\t${match.value}"
@@ -286,7 +286,7 @@ tasks.register("verifyArchitectureBoundaries") {
         // compatibility adapter narrow and explicit; all other legacy FQNs are
         // still rejected, including new reflection/package leaks.
         val legacyNamespaceAllowlist = mapOf(
-            "modules/microproject_core/src/main/java/com/microproject/exchange/PodFormatIdentifiers.java" to setOf(
+            "modules/microproject_core/src/main/java/com/microproject/persistence/PodFormatIdentifiers.java" to setOf(
                 "com.projectlibre1", "com.projectlibre1.exchange.LocalFileImporter", "com.projectlibre.exchange.LocalFileImporter"
             ),
         )

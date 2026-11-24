@@ -363,7 +363,7 @@ public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem
 	public String mapFieldTo;
 	//root node needs to be Dictionary
 	public static void addDigesterEvents(Digester digester){
-		digester.addObjectCreate("*/spreadsheet", "com.microproject.graphic.configuration.SpreadSheetFieldArray");
+		digester.addObjectCreate("*/spreadsheet", "com.microproject.view.configuration.SpreadSheetFieldArray");
 	    digester.addSetProperties("*/spreadsheet");
 		digester.addSetNext("*/spreadsheet", "add", "com.microproject.configuration.NamedItem");
 	    digester.addSetProperties("*/spreadsheet/columns/column");

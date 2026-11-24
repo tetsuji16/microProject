@@ -237,33 +237,33 @@
 
 
 		<styles id="Styles.Bar.standard">
-			<style id="Styles.Bar.Row.task" formatId="Bar.task" formulaClass="com.microproject.scripting.formulas.NonCriticalTaskFormula"/>
-			<style id="Styles.Bar.Row.critical" formatId="Bar.critical" formulaClass="com.microproject.scripting.formulas.CriticalTaskFormula"/>
+			<style id="Styles.Bar.Row.task" formatId="Bar.task" formulaClass="com.microproject.formula.builtin.NonCriticalTaskFormula"/>
+			<style id="Styles.Bar.Row.critical" formatId="Bar.critical" formulaClass="com.microproject.formula.builtin.CriticalTaskFormula"/>
 <!--
 			<style id="Styles.Bar.Row.late" name="late" formatId="Bar.late" type="task" formulaText="task.getBaselineDuration(0) != 0 &amp;&amp; task.durationMillis > 1.1 *task.getBaselineDuration(0)" />
 -->		
-			<style id="Styles.Bar.Row.summary" formatId="Bar.summary" formulaClass="com.microproject.scripting.formulas.SummaryTaskFormula"/>
-			<style id="Styles.Bar.Row.milestone" formatId="Bar.milestone" formulaClass="com.microproject.scripting.formulas.MilestoneTaskFormula"/>
-			<style id="Styles.Bar.Row.deadline" formatId="Bar.deadline" formulaClass="com.microproject.scripting.formulas.DeadlineTaskFormula"/>
-			<style id="Styles.Bar.Row.assignment" formatId="Bar.assignment" formulaClass="com.microproject.scripting.formulas.AssignmentFormula"/>
-			<style id="Styles.Bar.Row.baseline" formatId="Bar.baseline" formulaClass="com.microproject.scripting.formulas.BaselineTaskFormula"/>
-			<style id="Styles.Bar.Row.baseline1" formatId="Bar.baseline1" formulaClass="com.microproject.scripting.formulas.BaselineTaskFormula"/>
-			<style id="Styles.Bar.Row.baseline2" formatId="Bar.baseline2" formulaClass="com.microproject.scripting.formulas.BaselineTaskFormula"/>
-			<style id="Styles.Bar.Row.baseline3" formatId="Bar.baseline3" formulaClass="com.microproject.scripting.formulas.BaselineTaskFormula"/>
-			<style id="Styles.Bar.Row.baseline4" formatId="Bar.baseline4" formulaClass="com.microproject.scripting.formulas.BaselineTaskFormula"/>
-			<style id="Styles.Bar.Row.baseline5" formatId="Bar.baseline5" formulaClass="com.microproject.scripting.formulas.BaselineTaskFormula"/>
-			<style id="Styles.Bar.Row.baseline6" formatId="Bar.baseline6" formulaClass="com.microproject.scripting.formulas.BaselineTaskFormula"/>
-			<style id="Styles.Bar.Row.baseline7" formatId="Bar.baseline7" formulaClass="com.microproject.scripting.formulas.BaselineTaskFormula"/>
-			<style id="Styles.Bar.Row.baseline8" formatId="Bar.baseline8" formulaClass="com.microproject.scripting.formulas.BaselineTaskFormula"/>
-			<style id="Styles.Bar.Row.baseline9" formatId="Bar.baseline9" formulaClass="com.microproject.scripting.formulas.BaselineTaskFormula"/>
-			<style id="Styles.Bar.Row.baseline10" formatId="Bar.baseline10" formulaClass="com.microproject.scripting.formulas.BaselineTaskFormula"/>
-				<style id="Styles.Bar.Row.totalSlack" formatId="Bar.totalSlack" formulaClass="com.microproject.scripting.formulas.NormalTaskFormula" active="false"/>
+			<style id="Styles.Bar.Row.summary" formatId="Bar.summary" formulaClass="com.microproject.formula.builtin.SummaryTaskFormula"/>
+			<style id="Styles.Bar.Row.milestone" formatId="Bar.milestone" formulaClass="com.microproject.formula.builtin.MilestoneTaskFormula"/>
+			<style id="Styles.Bar.Row.deadline" formatId="Bar.deadline" formulaClass="com.microproject.formula.builtin.DeadlineTaskFormula"/>
+			<style id="Styles.Bar.Row.assignment" formatId="Bar.assignment" formulaClass="com.microproject.formula.builtin.AssignmentFormula"/>
+			<style id="Styles.Bar.Row.baseline" formatId="Bar.baseline" formulaClass="com.microproject.formula.builtin.BaselineTaskFormula"/>
+			<style id="Styles.Bar.Row.baseline1" formatId="Bar.baseline1" formulaClass="com.microproject.formula.builtin.BaselineTaskFormula"/>
+			<style id="Styles.Bar.Row.baseline2" formatId="Bar.baseline2" formulaClass="com.microproject.formula.builtin.BaselineTaskFormula"/>
+			<style id="Styles.Bar.Row.baseline3" formatId="Bar.baseline3" formulaClass="com.microproject.formula.builtin.BaselineTaskFormula"/>
+			<style id="Styles.Bar.Row.baseline4" formatId="Bar.baseline4" formulaClass="com.microproject.formula.builtin.BaselineTaskFormula"/>
+			<style id="Styles.Bar.Row.baseline5" formatId="Bar.baseline5" formulaClass="com.microproject.formula.builtin.BaselineTaskFormula"/>
+			<style id="Styles.Bar.Row.baseline6" formatId="Bar.baseline6" formulaClass="com.microproject.formula.builtin.BaselineTaskFormula"/>
+			<style id="Styles.Bar.Row.baseline7" formatId="Bar.baseline7" formulaClass="com.microproject.formula.builtin.BaselineTaskFormula"/>
+			<style id="Styles.Bar.Row.baseline8" formatId="Bar.baseline8" formulaClass="com.microproject.formula.builtin.BaselineTaskFormula"/>
+			<style id="Styles.Bar.Row.baseline9" formatId="Bar.baseline9" formulaClass="com.microproject.formula.builtin.BaselineTaskFormula"/>
+			<style id="Styles.Bar.Row.baseline10" formatId="Bar.baseline10" formulaClass="com.microproject.formula.builtin.BaselineTaskFormula"/>
+				<style id="Styles.Bar.Row.totalSlack" formatId="Bar.totalSlack" formulaClass="com.microproject.formula.builtin.NormalTaskFormula" active="false"/>
 			<style id="Styles.showLinks" formatId="Link.link1" type="dependency" link="true"/>
-			<style id="Styles.Annotation.normal" formatId="Annotation.normal" formulaClass="com.microproject.scripting.formulas.NormalTaskFormula" annotation="true" />
-			<style id="Styles.Annotation.critical" formatId="Annotation.normal" formulaClass="com.microproject.scripting.formulas.CriticalTaskFormula" annotation="true" />
-			<style id="Styles.Annotation.summary" formatId="Annotation.normal" formulaClass="com.microproject.scripting.formulas.SummaryTaskFormula" annotation="true" />
-			<style id="Styles.Annotation.assignment" formatId="Annotation.normal" formulaClass="com.microproject.scripting.formulas.AssignmentFormula" annotation="true" />
-			<style id="Styles.Annotation.milestone" formatId="Annotation.milestone" formulaClass="com.microproject.scripting.formulas.MilestoneTaskFormula" annotation="true" />
+			<style id="Styles.Annotation.normal" formatId="Annotation.normal" formulaClass="com.microproject.formula.builtin.NormalTaskFormula" annotation="true" />
+			<style id="Styles.Annotation.critical" formatId="Annotation.normal" formulaClass="com.microproject.formula.builtin.CriticalTaskFormula" annotation="true" />
+			<style id="Styles.Annotation.summary" formatId="Annotation.normal" formulaClass="com.microproject.formula.builtin.SummaryTaskFormula" annotation="true" />
+			<style id="Styles.Annotation.assignment" formatId="Annotation.normal" formulaClass="com.microproject.formula.builtin.AssignmentFormula" annotation="true" />
+			<style id="Styles.Annotation.milestone" formatId="Annotation.milestone" formulaClass="com.microproject.formula.builtin.MilestoneTaskFormula" annotation="true" />
 			<style id="Styles.Calendar.nonWorking" formatId="Calendar.nonWorking" calendar="true" />
 			<style id="Styles.Gantt.showRows" formatId="Grid.showRows" horizontalGrid="true" active="false" />
 
@@ -287,8 +287,8 @@
 		</styles>
 
 		<styles id="Styles.RBS.standard" zoomX="1.25;1.25;*;1.25;1.25" zoomY="1.7;1.25;*;1.25;1.25">
-			<style id="Styles.RBS.Row.resource" formatId="RBS.resource" formulaClass="com.microproject.scripting.formulas.ResourceNodeFormula"/>
-			<style id="Styles.RBS.Row.summary" formatId="RBS.summary" formulaClass="com.microproject.scripting.formulas.SummaryNodeFormula"/>
+			<style id="Styles.RBS.Row.resource" formatId="RBS.resource" formulaClass="com.microproject.formula.builtin.ResourceNodeFormula"/>
+			<style id="Styles.RBS.Row.summary" formatId="RBS.summary" formulaClass="com.microproject.formula.builtin.SummaryNodeFormula"/>
 			<style id="Styles.showLinks" formatId="Link.link1" type="dependency" link="true"/>
 		</styles>
 
