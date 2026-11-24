@@ -55,7 +55,7 @@ class AssignmentInformationGuiAcceptanceTest {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("assignment-info-gui", undo), undo);
 		project.initialize(false, false);
-		var resource = project.getResourcePool().newResourceInstance();
+		var resource = project.getResourcePool().createScriptedResource();
 		resource.setName("Resource 1");
 		NormalTask task = project.createScriptedTask();
 		task.setName("Task 1");

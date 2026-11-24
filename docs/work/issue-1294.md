@@ -23,9 +23,10 @@
 | Failed-edit Undo/history | `AssignmentInformationDialogTest.headlessEditServiceRestoresAllFieldsWhenAFieldMutationFails` asserts model rollback, retained `canUndo`, and the existing prior edit remains the top/only Undo entry. | Pass locally on candidate changes. |
 | Modeless visibility reporting | Dialog is constructed nonmodal, so `WindowOpened` can be delivered after `doModal()` returns. Presenter now reports `dialog.isShowing() || opened.get()`. | Included in `4fdfc120b`; physical acceptance pending. |
 | Physical OK follow-through | First fixed-candidate run opened the dialog and accepted units input, then the GUI fixture passed an absent `named(..., "ok")` component (AbstractDialog buttons have no component name) to Robot, causing test-side NPE. The fixture now resolves the localized visible OK button and clicks it with Robot. | Test fixture correction compiles locally; rerun pending. |
+| Resource Usage fixture | The next physical run completed Task Usage edit/Undo, but the Resource Usage view had no assignment row because the fixture created its resource with `newResourceInstance()` without adding it to the resource outline. Other GUI journeys use `createScriptedResource()` for visible view data; fixture now does the same. | Pending exact-head rerun. |
 | Local Robot attempt | External foreground window blocked before input; no app closed. | Environment blocked |
 | Required exact-head Build/GUI checks | Latest diagnostic candidate | Pending after push |
 
 ## Remaining work
-- Push the GUI fixture correction, then inspect exact-head Build and Windows GUI acceptance results; confirm the physical usage-format route opens, edits, undoes, and cancels as specified.
+- Push the Resource Usage fixture correction, then inspect exact-head Build and Windows GUI acceptance results; confirm the physical usage-format route opens, edits, undoes, and cancels as specified.
 - Do not close issue until physical route and required checks pass.
