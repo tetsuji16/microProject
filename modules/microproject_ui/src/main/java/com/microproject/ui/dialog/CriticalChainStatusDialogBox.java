@@ -1,0 +1,299 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ ******************************************************************************/
+package com.microproject.ui.dialog;
+
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Frame;
+
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.SwingUtilities;
+import javax.swing.JTextField;
+import javax.swing.JComponent;
+import javax.swing.KeyStroke;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
+import java.awt.GridLayout;
+import java.time.format.DateTimeFormatter;
+import java.time.Instant;
+import java.text.MessageFormat;
+
+import com.microproject.schedule.ccpm.CriticalChainService;
+import com.microproject.schedule.ccpm.CriticalChainBufferHistory;
+import com.microproject.schedule.ccpm.CriticalChainBufferHistoryService;
+import com.microproject.schedule.ccpm.CriticalChainReportService;
+import com.microproject.ui.view.views.CriticalChainBufferChartPanel;
+import com.microproject.ui.view.views.CriticalChainGraphPanel;
+import com.microproject.model.task.Project;
+import com.microproject.ui.menu.MenuActionConstants;
+import com.microproject.ui.util.FlatUiSupport;
+import com.microproject.ui.util.FlatLafDialog;
+import com.microproject.ui.util.PopupDialogSupport;
+import com.microproject.ui.util.PhysicalButtonRoute;
+import com.microproject.util.UiServices;
+
+/** Read-only CCPM result surface used by the Report and View ribbon commands. */
+public final class CriticalChainStatusDialogBox extends FlatLafDialog {
+	private static final long serialVersionUID = 1L;
+	private final Project project;
+	private CriticalChainBufferChartPanel bufferChart;
+	private JButton retractObservation;
+	private final JLabel feedback = new JLabel(" ");
+	private boolean settingsOpening;
+	private javax.swing.SwingWorker<CriticalChainService.ResourceWorkResult, Void> analysisWorker;
+
+	public enum Surface { BUFFER_STATUS, NETWORK }
+
+	public static void show(Frame owner, Project project, Surface surface) {
+		if (java.awt.GraphicsEnvironment.isHeadless()) return;
+		new CriticalChainStatusDialogBox(owner, project, surface).setVisible(true);
+	}
+
+	private CriticalChainStatusDialogBox(Frame owner, Project project, Surface surface) {
+		super(owner, UsabilityStrings.text(surface == Surface.NETWORK ? "ccpm.networkTitle" : "ccpm.bufferTitle"), true);
+		this.project = project;
+		FlatUiSupport.styleDialogRoot(getRootPane());
+		PopupDialogSupport.bindEscapeToDispose(this);
+		setLayout(new BorderLayout());
+		installUndoRedoBindings();
+
+		CriticalChainService service = new CriticalChainService();
+		CriticalChainService.Settings settings = service.findSettings(project);
+		if (settings == null || !settings.isEnabled() || service.findBaseline(project) == null) {
+			add(new JLabel(UsabilityStrings.text("ccpm.noAppliedPlan")), BorderLayout.CENTER);
+		} else {
+			JPanel content = new JPanel(new BorderLayout());
+			content.add(new JLabel(UsabilityStrings.text("ccpm.loading")), BorderLayout.CENTER);
+			add(content, BorderLayout.CENTER);
+			loadAnalysis(service, project, surface, content);
+		}
+
+		JButton close = new JButton(UsabilityStrings.text("common.close"));
+		getRootPane().setDefaultButton(close); // Enter presses the primary command (Windows/Office dialog rule)
+		close.addActionListener(event -> dispose());
+		JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+		boolean hasAppliedPlan = settings != null && settings.isEnabled() && service.findBaseline(project) != null;
+		if (!hasAppliedPlan) {
+			JButton configure = new JButton(UsabilityStrings.text("ccpm.configure"));
+			configure.setToolTipText(UsabilityStrings.text("ccpm.configureTooltip"));
+			configure.getAccessibleContext().setAccessibleDescription(
+				UsabilityStrings.text("ccpm.configureTooltip"));
+			configure.addActionListener(event -> openSettingsAndReturn(owner, project, surface));
+			configure.addMouseListener(new java.awt.event.MouseAdapter() {
+				@Override public void mousePressed(java.awt.event.MouseEvent event) {
+					if (javax.swing.SwingUtilities.isLeftMouseButton(event) && isDisplayable())
+						openSettingsAndReturn(owner, project, surface);
+				}
+				@Override public void mouseReleased(java.awt.event.MouseEvent event) {
+					if (javax.swing.SwingUtilities.isLeftMouseButton(event) && isDisplayable())
+						openSettingsAndReturn(owner, project, surface);
+				}
+			});
+			PhysicalButtonRoute.install(this, configure, () -> openSettingsAndReturn(owner, project, surface), () -> settingsOpening);
+			buttons.add(configure);
+		}
+		if (hasAppliedPlan) {
+			JButton csv = new JButton("CSV");
+			csv.addActionListener(event -> exportReport(project, false));
+			JButton html = new JButton("HTML");
+			html.addActionListener(event -> exportReport(project, true));
+			buttons.add(csv); buttons.add(html);
+			if (surface == Surface.BUFFER_STATUS && project != null && !project.isReadOnly()) {
+				retractObservation = new JButton(UsabilityStrings.text("ccpm.retractObservation"));
+				retractObservation.setActionCommand(MenuActionConstants.ACTION_CCPM_BUFFER_OBSERVATION_RETRACT);
+				retractObservation.setToolTipText(UsabilityStrings.text("ccpm.retractObservationTooltip"));
+				retractObservation.setEnabled(false);
+				retractObservation.addActionListener(event -> retractSelectedObservation());
+				buttons.add(retractObservation);
+			}
+		}
+		buttons.add(close);
+		JPanel south = new JPanel(new BorderLayout());
+		south.add(feedback, BorderLayout.CENTER);
+		south.add(buttons, BorderLayout.EAST);
+		add(south, BorderLayout.SOUTH);
+		// Keep the export and close buttons on screen at a large display scale, where 820 px is
+		// wider than the usable area of a 1024x768 screen.
+		DialogSizing.applyInitialSize(this, new Dimension(660, 420), new Dimension(820, 510), owner);
+	}
+
+	private void installUndoRedoBindings() {
+		JComponent root = getRootPane();
+		var input = root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+		var actions = root.getActionMap();
+		input.put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK), "ccpm-undo");
+		input.put(KeyStroke.getKeyStroke(KeyEvent.VK_Y, InputEvent.CTRL_DOWN_MASK), "ccpm-redo");
+		actions.put("ccpm-undo", new javax.swing.AbstractAction() {
+			@Override public void actionPerformed(java.awt.event.ActionEvent event) {
+				if (project != null && project.getUndoController().canUndo()) {
+					project.getUndoController().undo();
+					if (bufferChart != null) bufferChart.reloadHistory();
+				}
+			}
+		});
+		actions.put("ccpm-redo", new javax.swing.AbstractAction() {
+			@Override public void actionPerformed(java.awt.event.ActionEvent event) {
+				if (project != null && project.getUndoController().canRedo()) {
+					project.getUndoController().redo();
+					if (bufferChart != null) bufferChart.reloadHistory();
+				}
+			}
+		});
+	}
+
+	private void openSettingsAndReturn(Frame owner, Project project, Surface surface) {
+		if (settingsOpening) return;
+		settingsOpening = true;
+		dispose();
+		// Do not open the next modal dialog from the action that is still closing
+		// this one.  That nested modal loop can consume the physical button release
+		// under FlatLaf and leave the settings surface undisplayed.
+		SwingUtilities.invokeLater(() -> {
+			ResourceLevelingDialogBox.getCriticalChainInstance(owner, project).setVisible(true);
+			if (project != null) {
+				new CriticalChainStatusDialogBox(owner, project, surface).setVisible(true);
+			}
+		});
+	}
+
+	@Override public void dispose() {
+		if (analysisWorker != null) analysisWorker.cancel(true);
+		super.dispose();
+	}
+
+	private void loadAnalysis(CriticalChainService service, Project project, Surface surface, JPanel content) {
+		// Capture and the remaining model operations stay on the EDT. Only the
+		// immutable resource interval sweep and buffer aggregation run in the worker.
+		SwingUtilities.invokeLater(() -> {
+			if (!isDisplayable()) return;
+			try {
+				CriticalChainService.PendingAnalysis pending = service.prepareAnalysis(project);
+				if (pending == null) { showAnalysisMessage(content, "ccpm.noAppliedPlan"); return; }
+				CriticalChainService.ResourceWork work = pending.work();
+				analysisWorker = new javax.swing.SwingWorker<>() {
+					@Override protected CriticalChainService.ResourceWorkResult doInBackground() { return work.compute(); }
+					@Override protected void done() {
+						if (!isDisplayable() || isCancelled()) return;
+						try {
+							CriticalChainService.Analysis analysis = service.finishAnalysis(pending, get());
+							if (analysis == null) { showAnalysisMessage(content, "ccpm.analysisStale"); return; }
+							content.removeAll();
+							if (surface == Surface.NETWORK) {
+								CriticalChainGraphPanel graph = new CriticalChainGraphPanel(project);
+								graph.setAnalysis(analysis);
+								content.add(new JScrollPane(graph), BorderLayout.CENTER);
+							} else {
+								bufferChart = new CriticalChainBufferChartPanel(project);
+								bufferChart.setSelectionListener(ignored -> updateRetractionEnabled());
+								bufferChart.setAnalysis(analysis, true);
+								content.add(bufferChart, BorderLayout.CENTER);
+								updateRetractionEnabled();
+							}
+							content.revalidate(); content.repaint();
+						} catch (Exception failure) {
+							showAnalysisMessage(content, duplicateTaskIdentityFailure(failure)
+								? "ccpm.duplicateTaskId" : "ccpm.analysisFailed");
+						}
+					}
+				};
+				analysisWorker.execute();
+			} catch (Exception failure) {
+				showAnalysisMessage(content, duplicateTaskIdentityFailure(failure)
+					? "ccpm.duplicateTaskId" : "ccpm.analysisFailed");
+			}
+		});
+	}
+
+	private static boolean duplicateTaskIdentityFailure(Throwable failure) {
+		for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+			if (cause instanceof CriticalChainService.DuplicateTaskIdentityException) return true;
+		}
+		return false;
+	}
+
+	private static void showAnalysisMessage(JPanel content, String key) {
+		content.removeAll();
+		content.add(new JLabel(UsabilityStrings.text(key)), BorderLayout.CENTER);
+		content.revalidate(); content.repaint();
+	}
+
+	private void updateRetractionEnabled() {
+		if (retractObservation == null) return;
+		retractObservation.setEnabled(bufferChart != null && bufferChart.selectedPoint() != null
+			&& project != null && !project.isReadOnly());
+	}
+
+	private void retractSelectedObservation() {
+		if (bufferChart == null || bufferChart.selectedPoint() == null || project == null || project.isReadOnly()) {
+			updateRetractionEnabled();
+			return;
+		}
+		CriticalChainBufferHistory.Point point = bufferChart.selectedPoint();
+		JTextField reason = new JTextField(28);
+		JPanel form = new JPanel(new GridLayout(0, 2, 6, 6));
+		form.add(new JLabel(UsabilityStrings.text("ccpm.observationTime")));
+		form.add(new JLabel(DateTimeFormatter.ISO_INSTANT.format(point.observedAt())));
+		form.add(new JLabel(UsabilityStrings.text("ccpm.observationValues")));
+		form.add(new JLabel(Math.round(point.progressPercent()) + "% / " + Math.round(point.consumptionPercent()) + "% (" + point.zone() + ")"));
+		form.add(new JLabel(UsabilityStrings.text("ccpm.retractionReason")));
+		form.add(reason);
+		boolean latest = false;
+		CriticalChainBufferHistory history = project.findTransientDocumentState(CriticalChainBufferHistory.class);
+		if (history != null) latest = history.points().stream().max(java.util.Comparator.comparing(CriticalChainBufferHistory.Point::observedAt))
+			.map(value -> value.observationId().equals(point.observationId())).orElse(false);
+		String message = latest ? UsabilityStrings.text("ccpm.retractLatestWarning") : UsabilityStrings.text("ccpm.retractPrompt");
+		int choice = javax.swing.JOptionPane.showConfirmDialog(this, new Object[] { message, form },
+			UsabilityStrings.text("ccpm.retractTitle"), javax.swing.JOptionPane.OK_CANCEL_OPTION,
+			javax.swing.JOptionPane.WARNING_MESSAGE);
+		if (choice != javax.swing.JOptionPane.OK_OPTION) return;
+		CriticalChainBufferHistoryService.Outcome outcome = new CriticalChainBufferHistoryService().retract(project,
+			point.observationId(), reason.getText(), "local", "Local user");
+		if (!outcome.changed()) {
+			feedback.setText(retractionFailureMessage(outcome));
+			updateRetractionEnabled();
+			return;
+		}
+		bufferChart.reloadHistory();
+		feedback.setText(MessageFormat.format(UsabilityStrings.text("ccpm.retractSuccess"),
+			reason.getText().trim(), DateTimeFormatter.ISO_INSTANT.format(Instant.now())));
+		updateRetractionEnabled();
+	}
+
+	static String retractionFailureMessage(CriticalChainBufferHistoryService.Outcome outcome) {
+		if (outcome == null)
+			return UsabilityStrings.text("ccpm.retractRejected");
+		if (outcome.status() == CriticalChainBufferHistoryService.Status.FAILED)
+			return UsabilityStrings.text("ccpm.retractFailed");
+		String reason = outcome.reason() == null ? "" : outcome.reason();
+		return switch (reason) {
+			case "reason-required" -> UsabilityStrings.text("ccpm.retractReasonRequired");
+			case "read-only" -> UsabilityStrings.text("ccpm.retractReadOnly");
+			case "history-empty" -> UsabilityStrings.text("ccpm.retractHistoryEmpty");
+			case "observation-not-found" -> UsabilityStrings.text("ccpm.retractNotFound");
+			default -> UsabilityStrings.text("ccpm.retractRejected");
+		};
+	}
+
+	private void exportReport(Project project, boolean html) {
+		String extension = html ? "html" : "csv";
+		String selectedFile = UiServices.getFileChooserProvider().chooseFileName(
+			new UiServices.FileChooserOptions(true, "ccpm-report." + extension, "Export CCPM report",
+				html ? "HTML (*.html)" : "CSV (*.csv)", extension), this);
+		if (selectedFile == null) return;
+		try {
+			CriticalChainBufferHistory history = project.findTransientDocumentState(CriticalChainBufferHistory.class);
+			CriticalChainReportService reports = new CriticalChainReportService();
+			if (html) reports.writeHtml(java.nio.file.Path.of(selectedFile), project.getName(), history);
+			else reports.writeCsv(java.nio.file.Path.of(selectedFile), history);
+		} catch (java.io.IOException exception) {
+			javax.swing.JOptionPane.showMessageDialog(this, exception.getMessage(), "CCPM report", javax.swing.JOptionPane.ERROR_MESSAGE);
+		}
+	}
+}

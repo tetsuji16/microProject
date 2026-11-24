@@ -30,16 +30,16 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.TimeUnit;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.dependency.DependencyType;
-import com.microproject.pm.calendar.CalendarService;
-import com.microproject.pm.calendar.WorkDay;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectFactory;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.calendar.WorkingCalendar;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.dependency.DependencyType;
+import com.microproject.model.calendar.CalendarService;
+import com.microproject.model.calendar.WorkDay;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectFactory;
+import com.microproject.model.task.Task;
+import com.microproject.model.calendar.WorkingCalendar;
 
 class MpoHistoricalFixtureTest {
 	private static final String FIXTURE = "ccpm-sample-previous-release.mpo";
@@ -75,7 +75,10 @@ class MpoHistoricalFixtureTest {
 
 		ByteArrayOutputStream saved = new ByteArrayOutputStream();
 		assertTrue(new MpoFileImporter().saveProject(imported, saved));
-		assertFixedScheduleSemantics(load(saved.toByteArray()));
+		Project reopened = load(saved.toByteArray());
+		assertFixedScheduleSemantics(reopened);
+		assertEquals(resourceNames(imported), resourceNames(reopened),
+			"the previous-writer fixture must preserve every resource name and count");
 	}
 
 	@Test
@@ -259,12 +262,12 @@ class MpoHistoricalFixtureTest {
 		assertTrue(successor.isFontBold() && successor.isFontItalic() && successor.isFontStrikethrough());
 		assertFalse(successor.isLevelingCanSplit());
 		assertFalse(successor.isLevelAssignments());
-		assertEquals(List.of(new com.microproject.pm.task.TaskSplitInterval(14_400_000L, 18_000_000L)),
+		assertEquals(List.of(new com.microproject.model.task.TaskSplitInterval(14_400_000L, 18_000_000L)),
 			successor.getManualTaskSplitIntervals());
-		com.microproject.pm.task.TaskSnapshot snapshot = (com.microproject.pm.task.TaskSnapshot) successor
-			.getSnapshot(Integer.valueOf(com.microproject.pm.snapshot.Snapshottable.BASELINE));
+		com.microproject.model.task.TaskSnapshot snapshot = (com.microproject.model.task.TaskSnapshot) successor
+			.getSnapshot(Integer.valueOf(com.microproject.model.snapshot.Snapshottable.BASELINE));
 		assertNotNull(snapshot);
-		var profiles = snapshot.captureBaselineProfiles(successor, com.microproject.pm.snapshot.Snapshottable.BASELINE);
+		var profiles = snapshot.captureBaselineProfiles(successor, com.microproject.model.snapshot.Snapshottable.BASELINE);
 		assertEquals(1, profiles.size());
 		var profile = profiles.get(0);
 		assertEquals(21L, profile.profileId());
@@ -273,13 +276,13 @@ class MpoHistoricalFixtureTest {
 		assertEquals(modelTime("2030-06-04T17:00:00"), profile.finish());
 		assertEquals(28_800_000L, profile.duration());
 		assertEquals(1.0D, profile.units(), 0.00001D);
-		assertEquals(List.of(new com.microproject.pm.assignment.BaselineAssignmentProfile.Bucket(28_800_000L, 1.0D)),
+		assertEquals(List.of(new com.microproject.model.assignment.BaselineAssignmentProfile.Bucket(28_800_000L, 1.0D)),
 			profile.workContour().buckets());
-		var baselineCalendar = (com.microproject.pm.calendar.WorkingCalendar) profile.calendarCopy();
+		var baselineCalendar = (com.microproject.model.calendar.WorkingCalendar) profile.calendarCopy();
 		assertEquals("Fixture Mon-Fri 08:00-12:00 13:00-17:00", baselineCalendar.getName());
-		assertEquals(com.microproject.pm.calendar.WorkingHours.hourTime(8),
+		assertEquals(com.microproject.model.calendar.WorkingHours.hourTime(8),
 			baselineCalendar.getWeekDay(2).getWorkingHours().getInterval(0).getStart());
-		assertEquals(com.microproject.pm.calendar.WorkingHours.hourTime(17),
+		assertEquals(com.microproject.model.calendar.WorkingHours.hourTime(17),
 			baselineCalendar.getWeekDay(2).getWorkingHours().getInterval(1).getEnd());
 	}
 
@@ -328,7 +331,7 @@ class MpoHistoricalFixtureTest {
 		assertEquals(eightHours, predecessor.getDuration());
 		assertEquals(eightHours, Duration.millis(predecessor.getRawDuration()));
 		assertEquals(0.0D, predecessor.getPercentComplete(), 0.00001D);
-		assertEquals(com.microproject.pm.scheduling.ConstraintType.SNET, predecessor.getConstraintType());
+		assertEquals(com.microproject.schedule.ConstraintType.SNET, predecessor.getConstraintType());
 		assertEquals(monday0800, predecessor.getConstraintDate());
 		assertFalse(predecessor.isManuallyScheduled());
 		assertEquals(42L, predecessor.getWorkCalendar().getUniqueId());
@@ -344,7 +347,7 @@ class MpoHistoricalFixtureTest {
 		assertEquals(eightHours, successor.getDuration());
 		assertEquals(eightHours, Duration.millis(successor.getRawDuration()));
 		assertEquals(0.25D, successor.getPercentComplete(), 0.00001D);
-		assertEquals(com.microproject.pm.scheduling.ConstraintType.SNET, successor.getConstraintType());
+		assertEquals(com.microproject.schedule.ConstraintType.SNET, successor.getConstraintType());
 		assertEquals(tuesday0800, successor.getConstraintDate());
 		assertFalse(successor.isManuallyScheduled());
 		assertEquals(42L, successor.getWorkCalendar().getUniqueId());
@@ -357,6 +360,11 @@ class MpoHistoricalFixtureTest {
 		assertEquals(4201L, ((Task) predecessorLink.getPredecessor()).getUniqueId());
 		assertEquals(DependencyType.Kind.FS, predecessorLink.getDependencyKind());
 		assertEquals(0L, predecessorLink.getLag());
+	}
+
+	private static List<String> resourceNames(Project project) {
+		return project.getResourcePool().getResourceList().stream().map(resource -> resource.getName())
+			.sorted(java.util.Comparator.nullsFirst(java.util.Comparator.naturalOrder())).toList();
 	}
 
 	private static long modelTime(String floatingWallTime) {

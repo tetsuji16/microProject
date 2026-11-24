@@ -55,12 +55,12 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
 
-import com.microproject.menu.MenuManager;
-import com.microproject.pm.graphic.IconManager;
-import com.microproject.dialog.UsabilityStrings;
-import com.microproject.util.FlatUiSupport;
+import com.microproject.ui.menu.MenuManager;
+import com.microproject.ui.view.IconManager;
+import com.microproject.ui.dialog.UsabilityStrings;
+import com.microproject.ui.util.FlatUiSupport;
 import com.microproject.util.Environment;
-import com.microproject.util.FlatLafSupport;
+import com.microproject.ui.util.FlatLafSupport;
 import com.microproject.ui.ribbon.RibbonController;
 import com.microproject.ui.ribbon.RibbonDisplayMode;
 import com.microproject.ui.ribbon.RibbonDisplayPreferences;
@@ -486,7 +486,7 @@ final class OfficeChromePanel extends JPanel {
 		javax.swing.Action options = menuManager.getActionFromId(OPTIONS_COMMAND_ID);
 		if (options == null) return;
 		options.actionPerformed(new java.awt.event.ActionEvent(this, java.awt.event.ActionEvent.ACTION_PERFORMED,
-			com.microproject.dialog.PreferencesDialogBox.CATEGORY_QUICK_ACCESS));
+			com.microproject.ui.dialog.PreferencesDialogBox.CATEGORY_QUICK_ACCESS));
 	}
 
 	/** Ends this shell's life: stops following the frame title and releases its command controls. */

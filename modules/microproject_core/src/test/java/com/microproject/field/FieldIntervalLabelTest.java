@@ -29,8 +29,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-import org.junit.jupiter.api.Test;	import com.microproject.pm.time.Interval;
-	import com.microproject.pm.time.MutableInterval;
+import org.junit.jupiter.api.Test;	import com.microproject.model.time.Interval;
+	import com.microproject.model.time.MutableInterval;
 
 
 /**

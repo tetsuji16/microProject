@@ -5,6 +5,6 @@
  ******************************************************************************/
 package com.microproject.exchange;
 
-import com.microproject.pm.assignment.Assignment;
+import com.microproject.model.assignment.Assignment;
 
 record SerializedProjectXml(byte[] xml, java.util.Map<Assignment, Integer> assignmentUids) { }

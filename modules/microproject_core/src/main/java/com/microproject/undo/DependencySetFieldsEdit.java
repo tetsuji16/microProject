@@ -30,8 +30,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.microproject.association.InvalidAssociationException;
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.dependency.DependencyService;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.dependency.DependencyService;
 
 /**
  *

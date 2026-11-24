@@ -12,7 +12,7 @@ import java.io.IOException;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.port.SaveFailureFeedback;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 class LocalSessionSaveFailureMessageTest {
 	@Test

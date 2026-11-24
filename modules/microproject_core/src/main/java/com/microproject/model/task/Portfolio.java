@@ -1,0 +1,466 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.model.task;
+
+import java.util.ArrayList;
+import java.util.function.Consumer;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.function.Predicate;
+import java.util.logging.Logger;
+
+import com.microproject.document.Document;
+import com.microproject.document.ObjectEventManager;
+import com.microproject.document.ObjectSelectionEventManager;
+import com.microproject.document.ObjectEvent.Listener;
+import com.microproject.node.Node;
+import com.microproject.node.NodeFactory;
+import com.microproject.node.model.NodeModel;
+import com.microproject.node.model.NodeModelDataFactory;
+import com.microproject.node.model.NodeModelFactory;
+import com.microproject.node.summaries.DeepChildSearcher;
+import com.microproject.job.Job;
+import com.microproject.job.JobRunnable;
+import com.microproject.model.calendar.WorkCalendar;
+import com.microproject.model.calendar.CalendarService;
+import com.microproject.model.calendar.WorkingCalendar;
+import com.microproject.model.resource.SharedResourcePoolService;
+import com.microproject.session.SessionFactory;
+import com.microproject.i18n.Messages;
+import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.util.Alert;
+
+/**
+ *
+ */
+public class Portfolio implements Document, NodeModelDataFactory {
+	private static final Logger logger = Logger.getLogger(Portfolio.class.getName());
+	NodeModel nodeModel;
+	ObjectEventManager objectEventManager;
+	private transient ObjectSelectionEventManager objectSelectionEventManager = new ObjectSelectionEventManager();
+	boolean creating = false;
+	private transient boolean dirty;
+	private Runnable afterProjectMembershipReplacement = () -> {};
+	private Runnable afterExternalTaskRebinding = () -> {};
+	private Runnable afterSharedResourcePoolResolution = () -> {};
+	ProjectFactory projectFactory = null;
+	/**
+	 *
+	 */
+	public Portfolio(ProjectFactory projectFactory) {
+		super();
+		this.projectFactory = projectFactory;
+		objectEventManager = new ObjectEventManager();
+		nodeModel = NodeModelFactory.getInstance().createNodeModel(this);
+		nodeModel.getHierarchy().setNbEndVoidNodes(0);
+	}
+
+	public Project findByUniqueId(long uniqueId) {
+		return (Project) DeepChildSearcher.searchForUniqueId(nodeModel,uniqueId);
+	}
+
+	private class ResourcePoolFinder implements Predicate<Object> {
+		public boolean test(Object arg) {
+			Project project = (Project)arg;
+			if (project.isMaster() && !project.isReadOnly())
+				return true;
+			return false;
+		};
+	}
+
+	public boolean isResourcePoolOpenAndWritable() {
+		Project p = (Project) DeepChildSearcher.search(nodeModel,new ResourcePoolFinder());
+		return (p != null);
+	}
+
+
+	void addProject(final Project project,boolean createJob,boolean verify) {
+		if (!verify){
+			_addProject(project);
+			return;
+		}
+		Job job=null;
+		if (creating)
+			return;
+		Node oldNode=nodeModel.search(project,comparator);
+		if (oldNode!=null){
+			if (!shouldReplaceExistingProject(Alert.confirm(Messages.getString("Message.projectAlreadyExists")))){
+				//TODO be sure all references are removed
+				return;
+			}else{
+				job=getRemoveProjectJob((Project)oldNode.getImpl(),true);
+				if (job!=null&&!createJob){
+					// Do not wait synchronously here; it deadlocks the shared job queue.
+					SessionFactory.getInstance().getLocalSession().schedule(job);
+				}
+			}
+		}
+
+		if (!createJob){
+			_addProject(project);
+			return;
+		}
+
+		Job addProjectJob=new Job(SessionFactory.getInstance().getLocalSession().getJobQueue(),"addProject","Adding project...",false);
+	   	addProjectJob.addSwingRunnable(new JobRunnable("Local: addProject",1.0f){
+    		public Object run() throws Exception{
+    			_addProject(project);
+    			setProgress(1.0f);
+    			return null;
+    		}
+    	});
+//    	job.addExceptionRunnable(new JobRunnable("Local: exception"){
+//    		public Object run() throws Exception{
+//    			return null;
+//    		}
+//    	});
+	   	if (job==null) job=addProjectJob;
+	   	else job.addJob(addProjectJob);
+		SessionFactory.getInstance().getLocalSession().schedule(job);
+
+	}
+
+	static boolean shouldReplaceExistingProject(int confirmation) {
+		return confirmation == Alert.YES_OPTION;
+	}
+
+	private void _addProject(Project project){
+		com.microproject.transaction.ProjectMutationState.coordinated(() -> addProjectCoordinated(project));
+	}
+	private void addProjectCoordinated(Project project){
+    	nodeModel.add(NodeFactory.getInstance().createNode(project),NodeModel.SILENT);
+		com.microproject.model.resource.ResourcePoolFactory.getInstance().registerPool(project.getResourcePool());
+    	handleExternalTasks(project,true, false); 		// external link handling
+
+    	objectEventManager.fireCreateEvent(this,project);
+    	project.getResourcePool().addProject(project);
+		resolveSharedResourcePools();
+	}
+
+	/**
+	 * Atomically replaces an already-open linked child while retaining its
+	 * portfolio node.  Keeping the node (and therefore its position below the
+	 * master) prevents a discard/reload from becoming a second standalone
+	 * document or from invalidating the master reference.
+	 */
+	boolean replaceProject(Project previous, Project replacement) {
+		return replaceProject(previous, replacement, true);
+	}
+	boolean replaceProject(Project previous, Project replacement, boolean publishUpdate) {
+		return com.microproject.transaction.ProjectMutationState.coordinated(
+			() -> replaceProjectCoordinated(previous, replacement, publishUpdate));
+	}
+	void setAfterProjectMembershipReplacement(Runnable hook) {
+		afterProjectMembershipReplacement = hook == null ? () -> {} : hook;
+	}
+	void setAfterExternalTaskRebinding(Runnable hook) {
+		afterExternalTaskRebinding = hook == null ? () -> {} : hook;
+	}
+	void setAfterSharedResourcePoolResolution(Runnable hook) {
+		afterSharedResourcePoolResolution = hook == null ? () -> {} : hook;
+	}
+	private boolean replaceProjectCoordinated(Project previous, Project replacement, boolean publishUpdate) {
+		if (previous == null || replacement == null)
+			return false;
+		Node node = nodeModel.search(previous, comparator);
+		if (node == null)
+			return false;
+		com.microproject.transaction.ProjectMutationState.Checkpoint mutationCheckpoint =
+			com.microproject.transaction.ProjectMutationState.checkpoint();
+		// One entry per project, not per node: a project reachable through more than
+		// one portfolio node must open exactly one mutation scope, or the extra scope
+		// is never closed and the process-wide coordinator stays held.
+		List<Project> projectsBeforeReplacement = new ArrayList<>(distinctProjects());
+		java.util.IdentityHashMap<Project, Integer> externalResolutionCheckpoints = new java.util.IdentityHashMap<>();
+		java.util.IdentityHashMap<Project, com.microproject.transaction.ProjectMutationState.Scope> externalMutationScopes = new java.util.IdentityHashMap<>();
+		List<com.microproject.transaction.ProjectMutationState.Scope> openedScopes = new ArrayList<>(projectsBeforeReplacement.size());
+		try {
+			for (Project project : projectsBeforeReplacement) {
+				externalResolutionCheckpoints.put(project, project.beginExternalTaskResolutionTransaction());
+				com.microproject.transaction.ProjectMutationState.Scope scope = project.getMutationState().begin();
+				openedScopes.add(scope);
+				externalMutationScopes.put(project, scope);
+			}
+		} catch (RuntimeException | Error failure) {
+			try { com.microproject.transaction.ProjectMutationState.closeAll(openedScopes); }
+			catch (RuntimeException | Error closeFailure) { failure.addSuppressed(closeFailure); }
+			throw failure;
+		}
+		com.microproject.model.resource.ResourcePoolFactory pools = com.microproject.model.resource.ResourcePoolFactory.getInstance();
+		com.microproject.model.resource.SharedResourcePoolService.ResolutionScope sharedPoolTransaction =
+			com.microproject.model.resource.SharedResourcePoolService.getInstance().beginResolutionTransaction();
+		boolean replacementPoolRegistered = pools.getResourcePools().contains(replacement.getResourcePool());
+		try {
+			previous.getResourcePool().removeProject(previous);
+			nodeModel.replaceImpl(node, replacement, this, NodeModel.SILENT);
+			com.microproject.model.resource.ResourcePoolFactory.getInstance().registerPool(replacement.getResourcePool());
+			replacement.getResourcePool().addProject(replacement);
+			afterProjectMembershipReplacement.run();
+			handleExternalTasks(replacement, true, false);
+			afterExternalTaskRebinding.run();
+			resolveSharedResourcePools();
+			afterSharedResourcePoolResolution.run();
+			sharedPoolTransaction.commit();
+			for (Project project : projectsBeforeReplacement)
+				if (project.retainedExternalTaskResolutionCount() > externalResolutionCheckpoints.get(project))
+					externalMutationScopes.get(project).commit(true);
+			for (Project project : projectsBeforeReplacement)
+				project.commitExternalTaskResolutionTransaction(externalResolutionCheckpoints.get(project));
+		} catch (RuntimeException | Error failure) {
+			try { sharedPoolTransaction.rollback(); }
+			catch (RuntimeException | Error rollbackFailure) { failure.addSuppressed(rollbackFailure); }
+			for (Project project : projectsBeforeReplacement) {
+				try { project.rollbackExternalTaskResolutionTransaction(externalResolutionCheckpoints.get(project)); }
+				catch (RuntimeException | Error rollbackFailure) { failure.addSuppressed(rollbackFailure); }
+			}
+			try {
+				replacement.getResourcePool().removeProject(replacement);
+				nodeModel.replaceImpl(node, previous, this, NodeModel.SILENT);
+				previous.getResourcePool().addProject(previous);
+				if (!replacementPoolRegistered)
+					pools.getResourcePools().remove(replacement.getResourcePool());
+			} catch (RuntimeException | Error rollbackFailure) {
+				failure.addSuppressed(rollbackFailure);
+			}
+			try { com.microproject.transaction.ProjectMutationState.rollback(mutationCheckpoint); }
+			catch (RuntimeException | Error rollbackFailure) { failure.addSuppressed(rollbackFailure); }
+			throw failure;
+		} finally {
+			try {
+				sharedPoolTransaction.close();
+			} finally {
+				com.microproject.transaction.ProjectMutationState.closeAll(openedScopes);
+			}
+		}
+		if (publishUpdate)
+			publishProjectReplacement(replacement);
+		return true;
+	}
+	void publishProjectReplacement(Project replacement) {
+		objectEventManager.fireUpdateEvent(this, replacement);
+	}
+
+	private void resolveSharedResourcePools() {
+		List<Project> projects = new ArrayList<>();
+		forProjects(projects::add);
+		for (Project project : projects)
+			SharedResourcePoolService.getInstance().resolve(project, projects);
+	}
+
+	void handleExternalTasks(final Project project, final boolean opening, final boolean saving) {
+		// external link handling
+		forProjects(p -> {
+			if (p != project)
+				p.handleExternalTasks(project, opening, saving);
+		});
+
+	}
+	public void addSubproject(final Project child, Project parent, Project owning) {
+		// parent is no longer used.
+		Node childNode = nodeModel.search(child);
+		boolean modified = false;
+		if (childNode == null) {
+			addProject(child,false,true);
+			childNode = nodeModel.search(child);
+		} else {
+			modified = true;
+			objectEventManager.fireCreateEvent(this,child); // for mainframe to get rid of any open one
+		}
+		Node owningNode = nodeModel.search(owning);
+		nodeModel.getHierarchy().move(childNode, owningNode, NodeModel.SILENT);
+
+		objectEventManager.fireCreateEvent(this,child); // fire a second time too for projects view
+	}
+
+
+
+
+	public static final Comparator<Object> comparator = new ImplComparator();
+	public static class ImplComparator implements Comparator<Object> {
+		ImplComparator() {}
+		@Override
+		public int compare(Object node, Object impl) {
+			if (node == null) // why  is node null?
+				return impl == null ? 0 : 1;
+			if (((Node)node).getImpl().equals(impl))
+				return 0;
+			else
+				return 1;
+		}
+	}
+
+
+	public Job getRemoveProjectJob(final Project project,boolean calledFromSwing) {
+		return projectFactory.getRemoveProjectJob(project,true,true,calledFromSwing);
+	}
+
+	public Job getRemoveAllProjectsJob(JobRunnable exitRunnable,boolean calledFromSwing,boolean[] closeStatus){
+		boolean exitOnClose=true;
+		if (closeStatus!=null&&closeStatus.length>0) closeStatus[0]=true;
+	final Job job=new Job(SessionFactory.getInstance().getLocalSession().getJobQueue(),"removeAllProjects","Removing projects...",true);
+		List<Node> toRemove = new ArrayList<>();
+		for (Iterator<Node> i=nodeModel.iterator(); i.hasNext();){
+			Node node=i.next();
+			if (!node.isRoot()) toRemove.add(node);
+		}
+		for (Node node : toRemove){
+			Project p = (Project)node.getImpl();
+			if (p.isOpenedAsSubproject()) // subprojects are saved with their parents
+				continue;
+			Job rJob=getRemoveProjectJob(p,calledFromSwing);
+			if (rJob==null) {
+				if (calledFromSwing) exitOnClose=false; //close cancelled.
+				if (closeStatus!=null&&closeStatus.length>0){
+					logger.fine("Close cancelled");
+					closeStatus[0]=false;
+				}
+			}
+			else job.addJob(rJob);
+		}
+		if (exitOnClose) job.addRunnable(exitRunnable,!calledFromSwing,false,calledFromSwing,false);
+		return job;
+	}
+
+	public void addObjectListener(Listener listener) {
+		objectEventManager.addListener(listener);
+	}
+	public void removeObjectListener(Listener listener) {
+		objectEventManager.removeListener(listener);
+	}
+	public ObjectEventManager getObjectEventManager() {
+		return objectEventManager;
+	}
+
+
+	public Object createUnvalidatedObject(NodeModel nodeModel, Object parent) {
+		creating = true;
+		Project project = projectFactory.createProject();
+		creating = false;
+		return project;
+	}
+	public void addUnvalidatedObject(Object object,NodeModel nodeModel, Object parent) {
+	}
+	public void validateObject(Object newlyCreated, NodeModel nodeModel, Object eventSource, Object hierarchyInfo,boolean isNew) {
+	}
+	public void remove(Object toRemove, NodeModel nodeModel,boolean deep,boolean undo,boolean removeDependencies){
+		//removeProject((Project) toRemove);
+	}
+
+	public NodeModel getNodeModel() {
+		return nodeModel;
+	}
+
+	private java.util.Collection<Project> distinctProjects() {
+		java.util.Set<Project> projects = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+		List<Project> ordered = new ArrayList<>();
+		forProjects(project -> { if (projects.add(project)) ordered.add(project); });
+		return ordered;
+	}
+
+	public void forProjects(Consumer<? super Project> c){
+		for (Iterator<Node> iterator = getNodeModel().iterator(); iterator.hasNext();) {
+			if (iterator.next().getImpl() instanceof Project project)
+				c.accept(project);
+		}
+	}
+
+	public Collection<Project> getDirtyProjectList() {
+		final ArrayList<Project> list = new ArrayList<>();
+		forProjects(project -> {
+			if (project.needsSaving())
+				list.add(project);
+		});
+		return list;
+	}
+
+	public Collection<Project> getWritableProjectList() {
+		final ArrayList<Project> list = new ArrayList<>();
+		forProjects(project -> {
+			if (!project.isReadOnly())
+				list.add(project);
+		});
+		return list;
+	}
+
+	public void fireUpdateEvent(Object source, Object object) {
+		objectEventManager.fireUpdateEvent(source,object);
+	}
+
+	public int fireMultipleTransaction(int id, boolean begin) {
+		return 0;
+	}
+
+	public WorkCalendar getDefaultCalendar() {
+		return CalendarService.getInstance().getDefaultInstance();
+	}
+
+
+	public final boolean isGroupDirty() {
+		return dirty;
+	}
+	public final void setGroupDirty(boolean dirty) {
+		this.dirty = dirty;
+	}
+
+	public ArrayList<WorkingCalendar> extractCalendars() {
+		return WorkingCalendar.extractCalendars(nodeModel.getHierarchy());
+	}
+
+	public DataFactoryUndoController getUndoController() {
+		return null;
+	}
+	public void rollbackUnvalidated(NodeModel nodeModel, Object object) {
+	}
+
+	public void initOutline(NodeModel nodeModel){}
+
+	public NodeModelDataFactory getFactoryToUseForChildOfParent(Object impl) {
+		return this;
+	}
+
+	public void setAllChildrenDirty(boolean dirty) {
+		setGroupDirty(dirty);
+		forProjects(project -> project.setGroupDirty(dirty));
+	}
+
+	public boolean containsAssignments(){
+		if (nodeModel == null)
+			return false;
+		final boolean[] result = new boolean[] {false};
+		forProjects(project -> result[0] |= project.containsAssignments());
+		return result[0];
+	}
+	public boolean evaluate(Object arg0) {
+		return false;
+	}
+
+	public ObjectSelectionEventManager getObjectSelectionEventManager() {
+		if (objectSelectionEventManager == null)
+			objectSelectionEventManager = new ObjectSelectionEventManager();
+		return objectSelectionEventManager;
+	}
+
+}

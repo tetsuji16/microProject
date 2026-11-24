@@ -6,7 +6,7 @@ and explicitly separates measured results from unresolved hypotheses.
 
 ## How to run
 
-The harness is `modules/microproject_core/src/test/java/com/microproject/pm/scheduling/LargeProjectSchedulingProfile.java`.
+The harness is `modules/microproject_core/src/test/java/com/microproject/schedule/LargeProjectSchedulingProfile.java`.
 It is skipped by the normal `test` task and runs only with `-Dmicroproject.profile=true`
 (`microproject.profile*` system properties are forwarded to the test JVM by `modules/microproject_core/build.gradle.kts`).
 

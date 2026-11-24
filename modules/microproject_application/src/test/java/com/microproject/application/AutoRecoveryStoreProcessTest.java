@@ -123,7 +123,7 @@ class AutoRecoveryStoreProcessTest {
 	private Process start(String action, String name) throws Exception {
 		String cp = Path.of(AutoRecoveryStoreProcessTest.class.getProtectionDomain().getCodeSource().getLocation().toURI())
 			+ System.getProperty("path.separator") + Path.of(AutoRecoveryStore.class.getProtectionDomain().getCodeSource().getLocation().toURI())
-			+ System.getProperty("path.separator") + Path.of(com.microproject.temporary.TemporaryCleanupQueue.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+			+ System.getProperty("path.separator") + Path.of(com.microproject.util.temporary.TemporaryCleanupQueue.class.getProtectionDomain().getCodeSource().getLocation().toURI());
 		Process process = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", "java").toString(), "-cp", cp,
 			AutoRecoveryStoreProcessTest.class.getName(), directory.toString(), action, name)
 			.redirectErrorStream(true).redirectOutput(directory.resolve(name + ".log").toFile()).start();

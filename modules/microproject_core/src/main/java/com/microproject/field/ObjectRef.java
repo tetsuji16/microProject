@@ -25,9 +25,9 @@ package com.microproject.field;
 
 import java.util.Collection;
 
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.NodeModelDataFactory;
-import com.microproject.grouping.core.model.WalkersNodeModel;
+import com.microproject.node.Node;
+import com.microproject.node.model.NodeModelDataFactory;
+import com.microproject.node.model.WalkersNodeModel;
 
 /**
  *

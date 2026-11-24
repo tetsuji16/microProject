@@ -1,0 +1,247 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.view.spreadsheet.common;
+
+import java.awt.Cursor;
+import java.awt.Graphics;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.event.ActionEvent;
+import java.awt.event.MouseEvent;
+
+import javax.swing.AbstractAction;
+import javax.swing.InputMap;
+import javax.swing.JTable;
+import javax.swing.JComponent;
+import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
+import javax.swing.event.MouseInputAdapter;
+import javax.swing.table.DefaultTableColumnModel;
+
+import com.microproject.ui.menu.MenuActionConstants;
+import com.microproject.ui.view.spreadsheet.SpreadSheet;
+import com.microproject.ui.view.spreadsheet.SpreadSheetPopupMenu;
+import com.microproject.ui.view.spreadsheet.command.TaskHierarchyEditIntent;
+import com.microproject.ui.input.PopupTriggerController;
+import com.microproject.i18n.Messages;
+import com.microproject.util.Alert;
+import java.awt.Dimension;
+import com.microproject.ui.util.FlatUiSupport;
+
+/**
+ * Row header (ID column) of the task spreadsheet.
+ *
+ * <p>Pressing the row header selects task rows and keeps the Gantt chart's row
+ * highlight in sync (issue #179). Dragging a valid drop target requests an
+ * explicit confirmation before relocating the captured task identities. The
+ * move buttons and keyboard shortcuts use the same hierarchy command gateway.
+ */
+public class SpreadSheetRowHeader extends JTable {
+	protected CommonSpreadSheet table;
+	private boolean mouseHandlersInstalled;
+	//	protected SpreadSheetPopupMenu popup=null;
+	public SpreadSheetRowHeader(CommonSpreadSheet table) {
+		super();
+		getAccessibleContext().setAccessibleName(Messages.getString("SpreadSheet.rowHeaderAccessibleName"));
+		getAccessibleContext().setAccessibleDescription(Messages.getString("SpreadSheet.rowHeaderAccessibleDescription"));
+		setGridColor(FlatUiSupport.tableGridColor());
+		this.table=table;
+		setFont(FlatUiSupport.headerFont());
+		setForeground(FlatUiSupport.headerForeground());
+		setBackground(FlatUiSupport.spreadsheetHeaderBackground());
+		setBorder(FlatUiSupport.tableHeaderBorder());
+		setShowHorizontalLines(true);
+		setShowVerticalLines(false);
+		setIntercellSpacing(new Dimension(0, 0));
+		setRowMargin(0);
+		// #414: the row header has no editor; document keys (clipboard, Space selection, F2, Escape)
+		// resolve only through the root-pane map, not through JTable defaults.
+		CommonSpreadSheet.removeRootPaneShortcutDuplicates(this,
+			KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_F2, 0),
+			KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0));
+	}
+
+	public SpreadSheetPopupMenu getPopup(){
+//		if (popup==null){
+//			SpreadSheet spreadSheet=(SpreadSheet)table;
+//			popup = spreadSheet.hasRowPopup() ? new SpreadSheetPopupMenu(spreadSheet) : null;
+//		}
+//		return popup;
+		return ((SpreadSheet)table).getPopup();
+	}
+//	public void clearPopup(){
+//		popup=null;
+//	}
+
+	public void setModel(CommonSpreadSheetModel spreadSheetModel, DefaultTableColumnModel spreadSheetColumnModel) {
+	    setModel(spreadSheetModel);
+	    setColumnModel(spreadSheetColumnModel);
+	    if (table.getSelection() != null) {
+	    	setSelectionModel(table.getSelection().getRowSelection());
+	    }
+
+		setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+
+		if (table instanceof SpreadSheet){
+			final SpreadSheet spreadSheet=(SpreadSheet)table;
+			if (!mouseHandlersInstalled){
+				mouseHandlersInstalled=true;
+				MouseInputAdapter handler=new MouseInputAdapter() {
+					private final PopupTriggerController popupTriggers = new PopupTriggerController();
+					private Point pressPoint;
+					private int pressRow = -1;
+					private boolean dragging;
+					private int targetRow = -1;
+					private boolean dropAfter;
+					private boolean validDrop;
+					private TaskHierarchyEditIntent.SelectionSnapshot dragSelection;
+					private TaskHierarchyEditIntent dragIntent;
+					public void mousePressed(MouseEvent e) {
+						boolean popupTrigger = popupTriggers.mousePressed(e);
+						if (popupTrigger){
+							showTaskPopup(e);
+						}else if (SwingUtilities.isLeftMouseButton(e)){
+							int row = rowAtPoint(e.getPoint());
+							if (row < 0) {
+								return;
+							}
+							boolean keepExisting=isRowSelected(row)&&getSelectedRowCount()>1&&!e.isControlDown()&&!e.isShiftDown();
+							selectRowForMove(row,e.isShiftDown(),e.isControlDown(),keepExisting);
+							dragSelection = spreadSheet.captureHierarchySelection();
+							// The row header is only a selection affordance.  Keep keyboard
+							// input on the task table so Ctrl+C/V and typed edits continue
+							// through the document's single root-pane shortcut routing.
+							spreadSheet.requestFocusInWindow();
+							pressRow=row;
+							pressPoint=e.getPoint();
+							dragging=false;
+							targetRow=-1;
+							validDrop=false;
+							dragIntent=null;
+							if (e.getClickCount()==2){
+								spreadSheet.doDoubleClick(row,0);
+//								Component comp=SpreadSheetRowHeader.this;
+//								while(!((comp=comp.getParent()) instanceof MainFrame));
+//								MainFrame mainFrame=(MainFrame)comp;
+//								mainFrame.doInformationDialog(false);
+//
+							}
+						}
+					}
+					public void mouseDragged(MouseEvent e) {
+						if (pressPoint==null||(e.getModifiersEx()&MouseEvent.BUTTON1_DOWN_MASK)==0) return;
+						if (!dragging&&pressPoint.distance(e.getPoint())<4.0d) return;
+						dragging=true;
+						int currentRow=rowAtPoint(e.getPoint());
+						if (currentRow>=0&&pressRow>=0){
+							targetRow=currentRow;
+							Rectangle bounds=getCellRect(currentRow,0,true);
+							dropAfter=e.getY()>=bounds.y+bounds.height/2;
+							dragIntent=spreadSheet.createRelocationIntent(dragSelection,targetRow,dropAfter);
+							validDrop=spreadSheet.canMoveTaskRowsTo(dragIntent);
+							setCursor(validDrop ? Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR) : Cursor.getDefaultCursor());
+						}
+					}
+					public void mouseReleased(MouseEvent e) {
+						boolean popupTrigger = popupTriggers.mouseReleased(e) == PopupTriggerController.ReleaseOutcome.SHOW;
+						if (dragging && validDrop && confirmDragMove(spreadSheet))
+							spreadSheet.moveTaskRowsTo(dragIntent);
+						if (popupTrigger)
+							showTaskPopup(e);
+						pressPoint=null;
+						pressRow=-1;
+						dragging=false;
+						targetRow=-1;
+						validDrop=false;
+						dragSelection=null;
+						dragIntent=null;
+						setCursor(Cursor.getDefaultCursor());
+						repaint();
+					}
+				};
+				addMouseListener(handler);
+				addMouseMotionListener(handler);
+			}
+		}
+
+	}
+
+	/**
+	 * A row-header drag is easy to start accidentally while selecting several
+	 * rows.  Keep the explicit Move Up/Down commands confirmation-free, but ask
+	 * before the mouse drag performs the structural move.
+	 */
+	private static boolean confirmDragMove(SpreadSheet spreadSheet) {
+		if (java.awt.GraphicsEnvironment.isHeadless()) {
+			return true;
+		}
+		return Alert.okCancel(Messages.getString("Message.confirmMoveRows"));
+	}
+
+	private void showTaskPopup(MouseEvent e) {
+		if (!(table instanceof SpreadSheet spreadSheet))
+			return;
+		int row = rowAtPoint(e.getPoint());
+		if (row < 0)
+			return;
+		spreadSheet.requestFocusInWindow();
+		spreadSheet.showPopupForCell(row, 0, this, e);
+	}
+
+	private void selectRowForMove(int row,boolean extend,boolean toggle,boolean keepExisting){
+		if (table instanceof SpreadSheet spreadSheet) {
+			spreadSheet.selectTaskRowsFromGesture(row, toggle, extend, true, keepExisting);
+			return;
+		}
+		table.setRowHeaderSelectionActive(true);
+		if (extend){
+			int anchor=getSelectionModel().getAnchorSelectionIndex();
+			if (anchor<0) anchor=row;
+			getSelectionModel().setSelectionInterval(Math.min(anchor,row),Math.max(anchor,row));
+		}else if (toggle){
+			if (isRowSelected(row)) getSelectionModel().removeSelectionInterval(row,row);
+			else getSelectionModel().addSelectionInterval(row,row);
+		}else if (!keepExisting){
+			getSelectionModel().setSelectionInterval(row,row);
+		}
+		if (table.getColumnCount()>0)
+			table.getColumnModel().getSelectionModel().setSelectionInterval(0,table.getColumnCount()-1);
+	}
+
+	public CommonSpreadSheet getSpreadSheet(){
+		return table;
+	}
+	public void updateUI() {
+		super.updateUI();
+		setFont(FlatUiSupport.headerFont());
+		setForeground(FlatUiSupport.headerForeground());
+		setBackground(FlatUiSupport.spreadsheetHeaderBackground());
+		setGridColor(FlatUiSupport.tableGridColor());
+		setBorder(FlatUiSupport.tableHeaderBorder());
+		setShowHorizontalLines(true);
+		setShowVerticalLines(false);
+		setIntercellSpacing(new Dimension(0, 0));
+		setRowMargin(0);
+	}
+}

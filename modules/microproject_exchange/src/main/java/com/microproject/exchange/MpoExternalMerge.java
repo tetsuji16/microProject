@@ -16,7 +16,7 @@ import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 import java.util.Map;
 import com.microproject.collaboration.OperationLog;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 
 /**
 	* Merges externally changed MPO archives with the local document and owns the

@@ -8,12 +8,12 @@ package com.microproject.exchange;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import com.microproject.collaboration.OperationLog;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.task.TaskSnapshot;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Task;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.task.TaskSnapshot;
 
 final class MpoOperationState {
 	byte[] json; String documentId; String actorId = java.util.UUID.randomUUID().toString();
@@ -149,7 +149,7 @@ final class MpoOperationState {
 		operations.add(new OperationLog.Operation(java.util.UUID.randomUUID().toString(), actorId, sequence,
 				java.util.Set.of(), kind, entityId, payload));
 	}
-	static Long parentId(com.microproject.pm.task.Task task) { return task.getWbsParentTask() == null ? null : Long.valueOf(task.getWbsParentTask().getUniqueId()); }
+	static Long parentId(com.microproject.model.task.Task task) { return task.getWbsParentTask() == null ? null : Long.valueOf(task.getWbsParentTask().getUniqueId()); }
 	static String dependencyKey(Dependency dependency) { return dependency.getPredecessorId() + ":" + dependency.getSuccessorId() + ":" + dependency.getDependencyType() + ":" + dependency.getLag(); }
 	// Lag is mutable relationship data, not part of the relationship identity.
 	// Keeping it out of entityId lets concurrent lag changes conflict instead of

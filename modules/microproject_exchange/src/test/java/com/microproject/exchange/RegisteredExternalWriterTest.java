@@ -53,8 +53,8 @@ class RegisteredExternalWriterTest {
 	private static ProjectFile literalProject() {
 		ProjectFile project = new ProjectFile();
 		java.util.Date start = java.util.Date.from(java.time.Instant.parse("2026-01-05T08:00:00Z"));
-		project.getProjectProperties().setStartDate(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(start));
-		project.getProjectProperties().setFinishDate(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(java.util.Date.from(
+		project.getProjectProperties().setStartDate(com.microproject.exchange.mpx.converter.MpxDates.toLocalDateTime(start));
+		project.getProjectProperties().setFinishDate(com.microproject.exchange.mpx.converter.MpxDates.toLocalDateTime(java.util.Date.from(
 			java.time.Instant.parse("2026-01-05T17:00:00Z"))));
 		org.mpxj.ProjectCalendar calendar = project.addDefaultBaseCalendar();
 		project.getProjectProperties().setDefaultCalendar(calendar);
@@ -62,8 +62,8 @@ class RegisteredExternalWriterTest {
 		task.setName("Bounded task");
 		task.setUniqueID(1);
 		task.setPercentageComplete(40);
-		task.setStart(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(start));
-		task.setFinish(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(java.util.Date.from(java.time.Instant.parse("2026-01-05T17:00:00Z"))));
+		task.setStart(com.microproject.exchange.mpx.converter.MpxDates.toLocalDateTime(start));
+		task.setFinish(com.microproject.exchange.mpx.converter.MpxDates.toLocalDateTime(java.util.Date.from(java.time.Instant.parse("2026-01-05T17:00:00Z"))));
 		return project;
 	}
 

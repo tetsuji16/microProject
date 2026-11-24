@@ -1,0 +1,333 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.view.spreadsheet.renderer;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.Insets;
+import java.awt.image.BufferedImage;
+import java.util.Date;
+
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JTable;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+import javax.swing.border.Border;
+import javax.swing.border.CompoundBorder;
+import javax.swing.border.MatteBorder;
+import javax.swing.table.DefaultTableModel;
+
+import org.junit.jupiter.api.Test;
+
+import com.microproject.field.BooleanText;
+import com.microproject.ui.view.spreadsheet.common.CommonSpreadSheet;
+import com.microproject.ui.view.spreadsheet.common.SpreadSheetRowHeader;
+import com.microproject.ui.util.FlatUiSupport;
+
+class SpreadsheetGridBorderTest {
+	private static final class PlainTable extends JTable {
+		private static final long serialVersionUID = 1L;
+	}
+
+	@Test
+	void rowHeaderUsesOneNativeHorizontalGridLine() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			CommonSpreadSheet sheet = new CommonSpreadSheet();
+			SpreadSheetRowHeader rowHeader = new SpreadSheetRowHeader(sheet);
+
+			rowHeader.updateUI();
+
+			assertTrue(rowHeader.getShowHorizontalLines());
+			assertFalse(rowHeader.getShowVerticalLines());
+			assertEquals(sheet.getGridColor(), rowHeader.getGridColor());
+
+			JComponent component = (JComponent) new SpreadSheetRowHeaderRenderer()
+				.getTableCellRendererComponent(rowHeader, "1", false, false, 0, 0);
+			assertFalse(hasBottomSeparator(component.getBorder(), rowHeader.getGridColor()));
+		});
+	}
+
+	@Test
+	void spreadsheetTablesUseNativeGridLinesInBothDirections() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			CommonSpreadSheet sheet = new CommonSpreadSheet();
+			assertTrue(sheet.getShowHorizontalLines());
+			assertTrue(sheet.getShowVerticalLines());
+		});
+	}
+
+	@Test
+	void nativeGridPaintsAContinuousSinglePixelIntersection() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			PlainTable table = new PlainTable();
+			table.setModel(new DefaultTableModel(2, 2));
+			FlatUiSupport.applySpreadsheetTableStyle(table);
+			Color gridColor = new Color(0xCC, 0x22, 0x99);
+			table.setGridColor(gridColor);
+			table.setRowHeight(20);
+			table.getColumnModel().getColumn(0).setPreferredWidth(40);
+			table.getColumnModel().getColumn(1).setPreferredWidth(40);
+			table.setSize(80, 40);
+			table.doLayout();
+
+			BufferedImage image = new BufferedImage(80, 40, BufferedImage.TYPE_INT_ARGB);
+			Graphics2D graphics = image.createGraphics();
+			try {
+				table.paint(graphics);
+			} finally {
+				graphics.dispose();
+			}
+
+			int horizontalY = table.getCellRect(0, 0, true).y
+				+ table.getCellRect(0, 0, true).height - 1;
+			int verticalX = table.getCellRect(0, 0, true).x
+				+ table.getCellRect(0, 0, true).width - 1;
+			assertEquals(gridColor.getRGB(), image.getRGB(verticalX, horizontalY));
+			assertEquals(gridColor.getRGB(), image.getRGB(verticalX - 1, horizontalY));
+			assertEquals(gridColor.getRGB(), image.getRGB(verticalX, horizontalY - 1));
+		});
+	}
+
+	@Test
+	void rowHeaderDoesNotDrawVerticalGridLines() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			CommonSpreadSheet sheet = new CommonSpreadSheet();
+			SpreadSheetRowHeader rowHeader = new SpreadSheetRowHeader(sheet);
+
+			assertFalse(rowHeader.getShowVerticalLines());
+		});
+	}
+
+	@Test
+	void indicatorsRendererLeavesGridPaintingToTable() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			CommonSpreadSheet sheet = new CommonSpreadSheet();
+			Color separatorColor = sheet.getGridColor();
+
+			assertFalse(hasBottomSeparator(IndicatorsRenderer.resolveCellBorder(sheet, false, false), separatorColor));
+			assertFalse(hasBottomSeparator(IndicatorsRenderer.resolveCellBorder(sheet, true, false), separatorColor));
+			assertFalse(hasBottomSeparator(IndicatorsRenderer.resolveCellBorder(sheet, false, true), separatorColor));
+		});
+	}
+
+	@Test
+	void cellBordersAreNotShrunkByAnExtraRowSeparator() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			PlainTable table = new PlainTable();
+			table.setModel(new DefaultTableModel(new Object[][] { { "Task", new Date() } }, new Object[] { "Name", "Date" }));
+			FlatUiSupport.applySpreadsheetTableStyle(table);
+			assertFalse(hasBottomSeparator(
+				CellUtility.resolveCellBorder(false, true, false), table.getGridColor()));
+		});
+	}
+
+	@Test
+	void yesNoRendererLeavesGridPaintingToTable() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			PlainTable table = new PlainTable();
+			table.setModel(new DefaultTableModel(new Object[][] { { Boolean.TRUE } }, new Object[] { "Done" }));
+			FlatUiSupport.applySpreadsheetTableStyle(table);
+			Color separatorColor = table.getGridColor();
+
+			JComponent component = (JComponent) new YesNoRenderer()
+				.getTableCellRendererComponent(table, Boolean.TRUE, false, false, 0, 0);
+
+			assertFalse(hasBottomSeparator(component.getBorder(), separatorColor));
+		});
+	}
+
+	@Test
+	void yesNoRendererShowsTheFieldLabelNotACheckBox() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			PlainTable table = new PlainTable();
+			table.setModel(new DefaultTableModel(1, 1));
+			FlatUiSupport.applySpreadsheetTableStyle(table);
+
+			YesNoRenderer yesNo = new YesNoRenderer("Field.marked");
+			JLabel yes = (JLabel) yesNo.getTableCellRendererComponent(table, Boolean.TRUE, false, false, 0, 0);
+			assertEquals(BooleanText.label("Field.marked", Boolean.TRUE), yes.getText());
+			assertNull(yes.getIcon(), "an ordinary Yes/No cell has no icon");
+			assertEquals(SwingConstants.CENTER, yes.getHorizontalAlignment());
+			assertEquals(BooleanText.label("Field.marked", Boolean.FALSE),
+				((JLabel) yesNo.getTableCellRendererComponent(table, Boolean.FALSE, false, false, 0, 0)).getText());
+
+			YesNoRenderer taskMode = new YesNoRenderer(BooleanText.TASK_MODE_FIELD_ID);
+			JLabel manual = (JLabel) taskMode.getTableCellRendererComponent(table, Boolean.TRUE, false, false, 0, 0);
+			assertEquals(BooleanText.label(BooleanText.TASK_MODE_FIELD_ID, Boolean.TRUE), manual.getText());
+			assertNotNull(manual.getIcon(), "Task Mode shows an icon before the text");
+			assertEquals(SwingConstants.LEFT, manual.getHorizontalAlignment());
+			String manualText = manual.getText(); // the renderer reuses one label
+			JLabel auto = (JLabel) taskMode.getTableCellRendererComponent(table, Boolean.FALSE, false, false, 0, 0);
+			assertEquals(BooleanText.label(BooleanText.TASK_MODE_FIELD_ID, Boolean.FALSE), auto.getText());
+			assertNotNull(auto.getIcon());
+			assertNotEquals(manualText, auto.getText());
+		});
+	}
+
+	@Test
+	void yesNoRendererAcceptsSerializedBooleanValuesWithoutThrowing() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			PlainTable table = new PlainTable();
+			table.setModel(new DefaultTableModel(new Object[][] { { "true" } }, new Object[] { "Done" }));
+			JLabel component = (JLabel) new YesNoRenderer()
+				.getTableCellRendererComponent(table, "true", false, false, 0, 0);
+
+			assertEquals(BooleanText.label(null, Boolean.TRUE), component.getText());
+		});
+	}
+
+	@Test
+	void yesNoRendererPaintsNothingForAnEmptyRow() throws Exception {
+		// Issue #894: a row without a task has no value (null); the shared renderer
+		// must draw nothing there and still draw the label again for a real task row.
+		SwingUtilities.invokeAndWait(() -> {
+			PlainTable table = new PlainTable();
+			table.setModel(new DefaultTableModel(1, 1));
+			FlatUiSupport.applySpreadsheetTableStyle(table);
+			YesNoRenderer renderer = new YesNoRenderer(BooleanText.TASK_MODE_FIELD_ID);
+
+			JComponent taskRow = (JComponent) renderer.getTableCellRendererComponent(table, Boolean.FALSE, false, false, 0, 0);
+			assertTrue(foregroundPixels(taskRow, table.getBackground()) > 0, "a task row draws its icon and label");
+
+			JLabel emptyRow = (JLabel) renderer.getTableCellRendererComponent(table, null, false, false, 0, 0);
+			assertEquals("", emptyRow.getText());
+			assertNull(emptyRow.getIcon());
+			assertEquals(0, foregroundPixels(emptyRow, table.getBackground()), "an empty row draws nothing");
+
+			JComponent again = (JComponent) renderer.getTableCellRendererComponent(table, Boolean.TRUE, false, false, 0, 0);
+			assertTrue(foregroundPixels(again, table.getBackground()) > 0, "the reused renderer draws the cell again");
+		});
+	}
+
+	/** Counts pixels inside the border that differ from the cell background. */
+	private static int foregroundPixels(JComponent component, Color background) {
+		int width = 40;
+		int height = 20;
+		component.setSize(width, height);
+		component.doLayout();
+		BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+		Graphics2D graphics = image.createGraphics();
+		try {
+			graphics.setColor(background);
+			graphics.fillRect(0, 0, width, height);
+			component.paint(graphics);
+		} finally {
+			graphics.dispose();
+		}
+		Insets insets = component.getInsets();
+		int count = 0;
+		for (int y = insets.top; y < height - insets.bottom; y++)
+			for (int x = insets.left; x < width - insets.right; x++)
+				if ((image.getRGB(x, y) & 0xFFFFFF) != (background.getRGB() & 0xFFFFFF))
+					count++;
+		return count;
+	}
+
+	@Test
+	void specialRendererOverlayPaintsGridWithoutShrinkingSelectionBorder() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			PlainTable table = new PlainTable();
+			table.setModel(new DefaultTableModel(1, 1));
+			FlatUiSupport.applySpreadsheetTableStyle(table);
+			Color gridColor = new Color(0xCC, 0x22, 0x99);
+			table.setGridColor(gridColor);
+			Border activeBorder = FlatUiSupport.spreadsheetActiveCellBorder();
+			Border activeOverlay = CellUtility.withRowGridOverlay(table, activeBorder);
+			Border gridOverlay = CellUtility.withRowGridOverlay(table, null);
+
+			assertEquals(activeBorder.getBorderInsets(table), activeOverlay.getBorderInsets(table));
+
+			BufferedImage image = new BufferedImage(40, 20, BufferedImage.TYPE_INT_ARGB);
+			Graphics2D graphics = image.createGraphics();
+			try {
+				gridOverlay.paintBorder(table, graphics, 0, 0, 40, 20);
+			} finally {
+				graphics.dispose();
+			}
+			Insets insets = activeOverlay.getBorderInsets(table);
+			assertEquals(1, insets.bottom);
+			assertEquals(gridColor.getRGB(), image.getRGB(20, 19));
+
+			graphics = image.createGraphics();
+			try {
+				activeOverlay.paintBorder(table, graphics, 0, 0, 40, 20);
+			} finally {
+				graphics.dispose();
+			}
+			assertEquals(FlatUiSupport.spreadsheetActiveCellBorderColor().getRGB(), image.getRGB(0, 19));
+		});
+	}
+
+	@Test
+	void opaqueIndicatorPanelKeepsRowGridAfterSetAppearance() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			PlainTable table = new PlainTable();
+			table.setModel(new DefaultTableModel(2, 1));
+			FlatUiSupport.applySpreadsheetTableStyle(table);
+			Color gridColor = new Color(0xCC, 0x22, 0x99);
+			table.setGridColor(gridColor);
+			table.setRowHeight(20);
+			table.getColumnModel().getColumn(0).setPreferredWidth(120);
+
+			// Simulates the icon (Indicators) cell path: an OPAQUE custom panel whose
+			// surface hides the table's native grid line unless the border carries
+			// the row-grid overlay applied centrally by CellUtility.setAppearance.
+			javax.swing.JPanel opaqueCell = new javax.swing.JPanel();
+			opaqueCell.setOpaque(true);
+			opaqueCell.setBackground(table.getBackground());
+			CellUtility.setBorderWithRowGrid(table, opaqueCell,
+				CellUtility.resolveCellBorder(false, false, false));
+			opaqueCell.setSize(40, 20);
+
+			BufferedImage image = new BufferedImage(40, 20, BufferedImage.TYPE_INT_ARGB);
+			Graphics2D graphics = image.createGraphics();
+			try {
+				opaqueCell.paint(graphics);
+			} finally {
+				graphics.dispose();
+			}
+			assertEquals(gridColor.getRGB(), image.getRGB(20, 19),
+				"bottom row grid line must be painted below an opaque icon cell (issue #349)");
+		});
+	}
+
+	private static boolean hasBottomSeparator(Border border, Color expectedColor) {
+		if (border instanceof MatteBorder matteBorder) {
+			return matteBorder.getBorderInsets().bottom > 0 && expectedColor.equals(matteBorder.getMatteColor());
+		}
+		if (border instanceof CompoundBorder compoundBorder) {
+			return hasBottomSeparator(compoundBorder.getOutsideBorder(), expectedColor)
+				|| hasBottomSeparator(compoundBorder.getInsideBorder(), expectedColor);
+		}
+		return false;
+	}
+}

@@ -29,12 +29,12 @@ import javax.swing.undo.AbstractUndoableEdit;
 import javax.swing.undo.CannotRedoException;
 import javax.swing.undo.CannotUndoException;
 
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectTaskSnapshot;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.scheduling.Schedule;
-import com.microproject.pm.scheduling.ScheduleInterval;
-import com.microproject.pm.scheduling.ScheduleService;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectTaskSnapshot;
+import com.microproject.model.task.Task;
+import com.microproject.schedule.Schedule;
+import com.microproject.schedule.ScheduleInterval;
+import com.microproject.schedule.ScheduleService;
 
 /**
  *

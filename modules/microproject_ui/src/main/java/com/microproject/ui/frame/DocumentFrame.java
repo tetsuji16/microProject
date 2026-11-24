@@ -1,0 +1,3484 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.frame;
+
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.BorderLayout;
+import java.awt.GridLayout;
+import java.awt.event.ActionEvent;
+import java.util.ArrayList;
+import java.util.function.Consumer;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.IdentityHashMap;
+import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import javax.swing.JOptionPane;
+import javax.swing.JSplitPane;
+
+import javax.swing.JRadioButtonMenuItem;
+import javax.swing.SwingUtilities;
+import javax.swing.undo.UndoableEdit;
+
+
+import com.microproject.ui.dialog.BaselineDialog;
+import com.microproject.ui.dialog.DelegateTaskDialog;
+import com.microproject.ui.dialog.DependencyDialog;
+import com.microproject.ui.dialog.FindDialog;
+import com.microproject.ui.dialog.ResourceLevelingDialogBox;
+import com.microproject.ui.dialog.TeamPlannerDialogBox;
+import com.microproject.ui.dialog.TimelineDialogBox;
+import com.microproject.ui.dialog.UsabilityStrings;
+import com.microproject.ui.dialog.CalendarViewDialogBox;
+import com.microproject.ui.dialog.CustomFieldsDialogBox;
+import com.microproject.ui.dialog.CustomReportDialogBox;
+import com.microproject.ui.report.ReportView;
+import com.microproject.ui.dialog.MoveProjectDialog;
+import com.microproject.ui.dialog.StatusDateDialog;
+import com.microproject.ui.dialog.TaskInspectorPanel;
+import com.microproject.ui.dialog.UpdateProjectDialogBox;
+import com.microproject.ui.dialog.UpdateTaskDialog;
+import com.microproject.ui.dialog.calendar.ChangeWorkingTimeDialogBox;
+import com.microproject.ui.menu.MenuActionConstants;
+import com.microproject.ui.menu.MenuActionsMap;
+import com.microproject.ui.menu.MenuManager;
+import com.microproject.ui.view.IconManager;
+import com.microproject.ui.view.collaboration.CollaborationHelper;
+import com.microproject.ui.frame.workspace.NamedFrame;
+import com.microproject.ui.view.model.cache.NodeModelCache;
+import com.microproject.ui.view.model.cache.NodeModelCacheFactory;
+import com.microproject.ui.view.model.cache.ReferenceNodeModelCache;
+import com.microproject.ui.view.model.cache.GraphicNode;
+import com.microproject.ui.view.spreadsheet.SpreadSheet;
+import com.microproject.ui.view.spreadsheet.SpreadSheetModel;
+import com.microproject.ui.view.spreadsheet.command.TaskCommandGateway;
+import com.microproject.ui.view.spreadsheet.command.TaskCommandResult;
+import com.microproject.ui.view.spreadsheet.command.TaskDependencyIntent;
+import com.microproject.ui.view.spreadsheet.command.TaskHierarchyEditIntent;
+import com.microproject.ui.view.spreadsheet.common.CommonSpreadSheet;
+import com.microproject.ui.view.spreadsheet.selection.event.SelectionNodeEvent;
+import com.microproject.ui.view.spreadsheet.selection.event.SelectionNodeListener;
+import com.microproject.ui.view.timescale.CoordinatesConverter;
+import com.microproject.ui.view.views.BaseView;
+import com.microproject.ui.view.views.ChartView;
+import com.microproject.ui.view.chart.ChartMode;
+import com.microproject.ui.view.views.DockableProjectToolView;
+import com.microproject.ui.view.gantt.Gantt;
+import com.microproject.ui.view.views.GanttView;
+import com.microproject.ui.view.views.MainView;
+import com.microproject.ui.view.views.PertView;
+import com.microproject.ui.view.views.ProjectView;
+import com.microproject.ui.view.views.ResourceView;
+import com.microproject.ui.view.views.Searchable;
+import com.microproject.ui.view.views.TreeView;
+import com.microproject.ui.view.views.UsageDetailView;
+import com.microproject.ui.toolbar.FilterToolBarManager;
+import com.microproject.association.InvalidAssociationException;
+import com.microproject.command.UpdateProjectCommand;
+import com.microproject.configuration.Configuration;
+import com.microproject.document.ObjectEvent;
+import com.microproject.document.ObjectSelectionEvent;
+import com.microproject.document.ObjectSelectionListener;
+import com.microproject.field.Field;
+import com.microproject.node.Node;
+import com.microproject.node.ProjectSummaryRow;
+import com.microproject.node.NodeList;
+import com.microproject.node.model.WalkersNodeModel;
+import com.microproject.node.model.NodeModel;
+import com.microproject.node.transform.ViewTransformer;
+import com.microproject.node.transform.filtering.NodeFilter;
+import com.microproject.node.transform.filtering.ResourceInTeamFilter;
+import com.microproject.job.JobQueue;
+import com.microproject.model.calendar.CalendarService;
+import com.microproject.model.calendar.HasCalendar;
+import com.microproject.model.calendar.WorkingCalendar;
+import com.microproject.model.dependency.DependencyService;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.dependency.HasDependencies;
+import com.microproject.ui.view.undo.SwingUndoAdapter;
+import com.microproject.model.resource.ResourceImpl;
+import com.microproject.model.resource.ResourceLevelingService;
+import com.microproject.model.resource.TeamPlannerService;
+import com.microproject.model.task.Portfolio;
+import com.microproject.model.task.TaskMoveService;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.BaselineRollupOptions;
+import com.microproject.model.task.ProjectEvent;
+import com.microproject.model.task.ProjectFactory;
+import com.microproject.model.task.ProjectListener;
+import com.microproject.model.task.Task;
+import com.microproject.model.task.UpdateProjectRequest;
+import com.microproject.i18n.Messages;
+import com.microproject.timescale.TimeScale;
+import com.microproject.preference.GlobalPreferences;
+import com.microproject.session.LoadOptions;
+import com.microproject.undo.UndoController;
+import com.microproject.undo.EditListener;
+import com.microproject.undo.ProjectStartDateEdit;
+import com.microproject.util.Alert;
+import com.microproject.util.ArrayUtils;
+import com.microproject.util.ClassUtils;
+import com.microproject.util.DataUtils;
+import com.microproject.util.Environment;
+import com.microproject.ui.util.PopupDialogSupport;
+import com.microproject.workspace.SavableToWorkspace;
+import com.microproject.workspace.WorkspaceSetting;
+import com.microproject.ribbon.CommandId;
+import com.microproject.ribbon.RibbonCommandResult;
+import static com.microproject.util.IdentityCollections.addIdentity;
+
+/**
+ *
+ */
+@SuppressWarnings("unchecked")
+public class DocumentFrame extends NamedFrame implements
+		SelectionNodeListener, EditListener, MenuActionConstants, ObjectEvent.Listener, ProjectListener, SavableToWorkspace, ObjectSelectionListener {
+	private static final long serialVersionUID = 2075764134837908178L;
+	private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(DocumentFrame.class.getName());
+	protected MainView mainView;
+	private JSplitPane taskInspectorSplit;
+	private TaskInspectorPanel taskInspectorPanel;
+	protected final DocumentStatusBar statusBar = new DocumentStatusBar();
+	protected GanttView ganttView;
+	protected UsageDetailView taskUsageDetailView;
+	protected UsageDetailView resourceUsageDetailView;
+	protected PertView pertView;
+	protected TreeView wbsView;
+	protected TreeView rbsView;
+	protected ChartView chartView;
+	protected ChartView histogramView;
+	protected ResourceView resourceView;
+	protected ProjectView projectView;
+	protected UsageDetailView taskUsageView;
+	protected UsageDetailView resourceUsageView;
+	protected DockableProjectToolView timelineView;
+	protected DockableProjectToolView calendarView;
+	protected DockableProjectToolView teamPlannerView;
+	protected ReportView reportView;
+	// Column selection belongs to this document frame.  Keeping it static leaks
+	// one document's tracking layout into every other open document.
+	private FindDialog findDialog = null;
+	protected CoordinatesConverter coord;
+	protected Project project;
+	private ReferenceNodeModelCache taskNodeModelCache;
+	private ReferenceNodeModelCache resourceNodeModelCache;
+	protected GraphicManager graphicManager;
+	protected MenuManager menuManager;
+	MenuActionsMap actionsMap = null;
+	BaseView activeTopView = null;
+	BaseView activeBottomView = null;
+	/** True while the Resource Graph in the bottom pane holds the user's focus, so its contextual tab shows. */
+	private boolean bottomPaneActive;
+	private java.awt.event.AWTEventListener bottomPaneListener;
+	private CalendarViewDialogBox calendarViewDialog;
+	/** Result of the last typed task command route, consumed by menu/ribbon actions. */
+	private RibbonCommandResult lastTaskCommandResult;
+
+	/** Returns the semantic outcome most recently published by the task route. */
+	public RibbonCommandResult getLastTaskCommandResult() {
+		return lastTaskCommandResult;
+	}
+
+	// keep state of pushed buttons so i can reset them when a view is reactivated
+	String lastTopButton = null;
+	String lastBottomButton = ACTION_NO_SUB_WINDOW;
+	private String lastBottomViewName;
+	private static final String[] BOTTOM_VIEW_ACTIONS = {
+		ACTION_HISTOGRAM,
+		ACTION_CHARTS,
+		ACTION_TASK_USAGE,
+		ACTION_RESOURCE_USAGE
+	};
+	Workspace workspace;
+	FilterToolBarManager filterToolBarManager = null;
+	JobQueue jobQueue = null;
+	private JRadioButtonMenuItem menuItem = null;
+	public GraphicManager getGraphicManager() {
+		return graphicManager;
+	}
+
+	protected NodeModel getTaskModel() {
+		return project.getTaskModel();
+	}
+
+	protected NodeModel getResourceModel() {
+		return project.getResourceModel();
+	}
+
+	public JobQueue getJobQueue(){
+		if (jobQueue==null){
+			jobQueue=new JobQueue("GraphicManager",true);
+		}
+		return jobQueue;
+	}
+
+	public ReferenceNodeModelCache getTaskNodeModelCache() {
+		if (taskNodeModelCache == null)
+			taskNodeModelCache = NodeModelCacheFactory.createTaskNodeModelCache(project, getTaskModel());
+		return taskNodeModelCache;
+	}
+	public ReferenceNodeModelCache getResourceNodeModelCache() {
+		if (resourceNodeModelCache == null)
+			resourceNodeModelCache = NodeModelCacheFactory.createResourceNodeModelCache(project.getResourcePool(), getResourceModel());
+		return resourceNodeModelCache;
+	}
+
+
+	public ReferenceNodeModelCache getReferenceCache(boolean task) {
+		ReferenceNodeModelCache cache = (task) ? getTaskNodeModelCache()
+				: getResourceNodeModelCache();
+		return cache;
+	}
+
+	public NodeModelCache createCache(boolean task, String viewName) {
+		return NodeModelCacheFactory.getInstance().createFilteredCache(
+				getReferenceCache(task), viewName,null);
+	}
+
+
+
+	public DocumentFrame(GraphicManager parentFrame, final Project project,String id) {
+		super(id, IconManager.getHalfSizedIcon("view.gantt"));
+
+		this.graphicManager = parentFrame;
+		this.menuManager = graphicManager.getMenuManager();
+		filterToolBarManager = Environment.isNewLook() ? FilterToolBarManager.create(menuManager) : graphicManager.getFilterToolBarManager();
+
+		this.project = project;
+		coord = new CoordinatesConverter(project);
+		coord.addTimeScaleListener(event -> updateStatusBarZoom());
+
+		project.addObjectListener(this); // for project name changes
+		getGraphicManager().getPreferences().addObjectListener(this);
+
+		project.getObjectSelectionEventManager().addListener(this);
+		setPreferredSize(new Dimension(800, 600));
+		setMainView(true);
+
+	}
+	private void updateStatusBarZoom() {
+		var timescales = coord.getTimescaleManager();
+		int count = timescales.getScaleCount();
+		int index = timescales.getCurrentScaleIndex();
+		TimeScale scale = count > 0 && index >= 0 && index < count ? timescales.getScale() : null;
+		statusBar.setZoom(index, count, scale);
+	}
+
+	private void setMainView(boolean activate) {
+		if (mainView != null)
+			remove(mainView); // any previous
+		mainView = new MainView();
+		mainView.setDividerDoubleClickHandler(this::deactivateBottomView);
+		mainView.setBorder(null);
+		setLayout(new BorderLayout()); // main view fills the center, status bar below
+		taskInspectorPanel = new TaskInspectorPanel(this::navigateInspectorPredecessor,
+			task -> getGraphicManager().setTaskModeAutomatic(task),
+			task -> getGraphicManager().canSetTaskModeAutomatic(task),
+			(task, ignore) -> setIgnoreWarnings(List.of(task), ignore),
+			task -> project != null && !project.isReadOnly() && !task.isReadOnly());
+		taskInspectorPanel.setVisible(false);
+		taskInspectorSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, taskInspectorPanel, mainView);
+		taskInspectorSplit.setBorder(null);
+		taskInspectorSplit.setDividerSize(0);
+		taskInspectorSplit.setResizeWeight(0.0);
+		taskInspectorSplit.setDividerLocation(0);
+		add(taskInspectorSplit, BorderLayout.CENTER);
+		add(statusBar, BorderLayout.SOUTH);
+		updateStatusBarZoom();
+
+//		toolBarListener = new ToolBarListener();
+//		registerToolBarActions();
+
+
+		// wait until everything is initialized before activating the gantt view
+		if (activate) {
+			SwingUtilities.invokeLater(() -> {
+				if (GraphicManager.getLastWorkspace() == null) {
+					if (isEditingResourcePool()) {
+						activateResourceView();
+						getGraphicManager().setAllButResourceDisabled(true);
+
+					} else {
+						activateGanttView();
+						getGraphicManager().setAllButResourceDisabled(false);
+					}
+				}
+				getGraphicManager().setButtonState(null,project); // disable buttons at first
+			});
+		}
+
+	}
+
+	List getSelectedNodes(boolean excludeReadOnly) {
+		CommonSpreadSheet spreadSheet = getTopSpreadSheet();
+		List nodes = null;
+		if (spreadSheet != null) {
+			nodes = spreadSheet.getSelectedNodes();
+			if (nodes != null && nodes.size() == 0) {
+				Node currentNode = spreadSheet.getCurrentRowNode();
+				if (currentNode != null) {
+					nodes = new ArrayList(1);
+					nodes.add(currentNode);
+				}
+			}
+		} else if (activeTopView instanceof TreeView) {
+			nodes = ((TreeView) activeTopView).getSelectedNodes();
+		}
+		if (nodes == null || nodes.size() == 0)
+			return null;
+		if (excludeReadOnly) {
+			Iterator i = nodes.iterator();
+			while (i.hasNext()) {
+				Node n = (Node)i.next();
+				Object obj = n.getImpl();
+				if (ClassUtils.isObjectReadOnly(obj))
+					i.remove();
+			}
+		}
+
+		return nodes;
+	}
+
+	Object getSelectedImpl() {
+		CommonSpreadSheet spreadSheet = getTopSpreadSheet();
+		if (spreadSheet != null)
+			return spreadSheet.getCurrentRowImpl();
+		if (activeTopView instanceof TreeView)
+			return ((TreeView) activeTopView).getSelectedImpl();
+		return null;
+	}
+
+	boolean doBaselineDialog(boolean save) {
+		finishAnyOperations();
+		List<Object> selectedTasks = getSelectedImpls(true);
+		List<Node> selectedTaskNodes = new ArrayList<>(getSelectedTaskNodes(true, true));
+
+		BaselineDialog baselineDialog = BaselineDialog.getInstance(getGraphicManager().getFrame(),
+				null, save,hasAtLeastOneTaskSelected());
+		if (save) {
+			baselineDialog.setBeforeAccept(form -> {
+				List<?> target = form.isEntireProject() ? null : selectedTasks;
+			BaselineRollupOptions options = form.isEntireProject() ? BaselineRollupOptions.NONE
+				: new BaselineRollupOptions(form.isRollupToSummaryTasks(), form.isRollupFromSubtasks());
+				if (!getProject().hasBaselineData(form.getBaselineNumber(), form.isEntireProject(), target, options))
+					return true;
+				return PopupDialogSupport.showConfirmDialog(baselineDialog,
+					UsabilityStrings.text("baseline.overwritePrompt"), UsabilityStrings.text("baseline.overwriteTitle"),
+					JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE) == JOptionPane.YES_OPTION;
+			});
+		}
+		if (!baselineDialog.doModal())
+			return false;
+		boolean entireProject = baselineDialog.getForm().isEntireProject();
+		List<Object> selection = entireProject ? null : selectedTasks;
+		boolean applied = applyBaseline(getProject(), save, baselineDialog.getForm(), selection);
+		if (applied && !selectedTaskNodes.isEmpty()) {
+			SpreadSheet sheet = getActiveSpreadSheet();
+			if (sheet != null) sheet.restoreTaskRowSelection(selectedTaskNodes);
+		}
+		return applied;
+	}
+
+	/**
+	 * Applies a confirmed baseline dialog choice.  Keeping this operation separate
+	 * from the Swing dialog makes the command path testable all the way through
+	 * the project snapshot write, rather than only as far as opening a dialog.
+	 */
+	static boolean applyBaseline(Project project, boolean save, BaselineDialog.Form form, List<?> selection) {
+		if (project == null || form == null) {
+			return false;
+		}
+		Integer baselineNumber = Integer.valueOf(form.getBaselineNumber());
+		boolean entireProject = form.isEntireProject();
+		BaselineRollupOptions rollupOptions = save && !entireProject
+			? new BaselineRollupOptions(form.isRollupToSummaryTasks(), form.isRollupFromSubtasks())
+			: BaselineRollupOptions.NONE;
+		var change = save
+			? project.saveCurrentToSnapshot(baselineNumber, entireProject, selection, rollupOptions)
+			: project.clearSnapshot(baselineNumber, entireProject, selection);
+		String presentationName = save
+			? "SaveSnapshot: Project " + project.getName() + "(" + project.getUniqueId() + ")"
+			: "ClearSnapshot";
+		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), change, presentationName);
+//		getProject().fireBaselineChanged(baselineDialog, null, baselineNumber,
+//				save);
+		return true;
+	}
+
+
+	void doChangeWorkingTimeDialog(boolean restrict) {
+		finishAnyOperations();
+		Object rowObject = getSelectedImpl();
+		WorkingCalendar wc = null;
+		List documentCalendars = null;
+		if (rowObject instanceof HasCalendar hasCalendar) {
+			wc = (WorkingCalendar) hasCalendar.getWorkCalendar();
+			if (rowObject instanceof ResourceImpl resource) {
+				documentCalendars = resource.getResourcePool().extractCalendars();
+			}
+		}
+		if (wc == null)
+			wc = (WorkingCalendar) getProject().getWorkCalendar();
+		CalendarService service = CalendarService.getInstance();
+
+
+		ChangeWorkingTimeDialogBox dlg = ChangeWorkingTimeDialogBox
+				.getInstance(getGraphicManager().getFrame(), project,wc, documentCalendars,restrict,this.getUndoController());
+		dlg.doModal();
+	}
+
+
+	void doLevelResourcesDialog() {
+		finishAnyOperations();
+		if (java.awt.GraphicsEnvironment.isHeadless())
+			return;
+		ResourceLevelingDialogBox.getInstance(getGraphicManager().getFrame(), project).setVisible(true);
+	}
+
+	void doCriticalChainDialog() {
+		finishAnyOperations();
+		if (java.awt.GraphicsEnvironment.isHeadless())
+			return;
+		ResourceLevelingDialogBox.getCriticalChainInstance(getGraphicManager().getFrame(), project).setVisible(true);
+	}
+
+
+	void doDelegateTasksDialog() {
+		finishAnyOperations();
+		activateTopView(getTeamPlannerView(), ACTION_DELEGATE_TASKS);
+
+	}
+
+	boolean doUpdateTasksDialog() {
+		finishAnyOperations();
+		List nodes = getSelectedNodes(true); //nodes, not impls!
+		if (nodes == null)
+			return false;
+
+		UpdateTaskDialog dlg = UpdateTaskDialog.getInstance(getGraphicManager().getFrame(),
+				nodes);
+		dlg.setLocationRelativeTo(getGraphicManager().getFrame());
+		return dlg.doModal();
+
+	}
+
+	private RibbonCommandResult doUpdateProjectDialog(String commandId) {
+		finishAnyOperations();
+		boolean hasSelectedTasks = hasAtLeastOneTaskSelected();
+		UpdateProjectDialogBox.Form form = new UpdateProjectDialogBox.Form();
+		java.util.Date effectiveStatusDate = new java.util.Date(project.getStatusDate());
+		form.setUpdateDate(effectiveStatusDate);
+		form.setRescheduleDate(effectiveStatusDate);
+		form.setEntireProject(!hasSelectedTasks);
+		UpdateProjectDialogBox dlg = UpdateProjectDialogBox.getInstance(
+				getGraphicManager().getFrame(), form, hasSelectedTasks);
+		if (dlg.doModal()) {
+			UpdateProjectRequest request;
+			try {
+				request = new UpdateProjectRequest(
+						com.microproject.util.DateTime.nextDay(dlg.getForm().getActiveDate().getTime()),
+						dlg.getForm().getUpdate().booleanValue(), dlg.getForm().getProgress().booleanValue(),
+						dlg.getForm().getEntireProject().booleanValue());
+			} catch (IllegalArgumentException | NullPointerException invalidInput) {
+				return RibbonCommandResult.rejected(commandId, "invalid-input").withActiveView("task");
+			}
+			UpdateProjectCommand cmd = new UpdateProjectCommand(project, request);
+			List<Task> targets;
+			if (request.entireProject()) {
+				List<Task> projectTasks = project.getTaskList();
+				targets = new ArrayList<>(projectTasks.size());
+				targets.addAll(projectTasks);
+			} else {
+				List<?> selectedImpls = getSelectedImpls(true);
+				targets = new ArrayList<>(selectedImpls.size());
+				for (Object value : selectedImpls) if (value instanceof Task task) targets.add(task);
+			}
+			List<Long> changed = cmd.execute(targets, project.getUndoController().getEditSupport());
+			return (changed.isEmpty() ? RibbonCommandResult.noChange(commandId)
+				: RibbonCommandResult.changed(commandId, changed)).withActiveView("task");
+		}
+		return RibbonCommandResult.rejected(commandId, "dialog-cancelled").withActiveView("task");
+	}
+
+	void doDefineCodeDialog() {
+		finishAnyOperations();
+		List<?> selectedImpls = getSelectedImpls(false);
+		List<Task> selected = new ArrayList<>(selectedImpls.size());
+		for (Object value : selectedImpls) if (value instanceof Task task) selected.add(task);
+		new CustomFieldsDialogBox(getGraphicManager().getFrame(), project, selected).setVisible(true);
+	}
+
+	void doRecurringTaskDialog() {
+		finishAnyOperations();
+		new RecurringTaskCoordinator().openDialogAndInsert(this);
+	}
+
+	/** Top view shown before the timeline, so hiding the timeline returns to it. */
+	private String topViewBeforeTimeline;
+
+	/**
+	 * Timeline check box: shows the timeline pane, or hides it by returning to the view that
+	 * was shown before it. The pressed state follows the active top view (activateTopView /
+	 * deactivateTopView), never the button's own toggling.
+	 */
+	void toggleTimelineView() {
+		finishAnyOperations();
+		if (activeTopView != null && activeTopView == timelineView) {
+			String restore = topViewBeforeTimeline == null || ACTION_TIMELINE.equals(topViewBeforeTimeline)
+				? ACTION_GANTT : topViewBeforeTimeline;
+			activateView(restore);
+			return;
+		}
+		if (lastTopButton != null && !ACTION_TIMELINE.equals(lastTopButton))
+			topViewBeforeTimeline = lastTopButton;
+		activateTopView(getTimelineView(), ACTION_TIMELINE);
+	}
+
+	void doCalendarViewDialog() {
+		if (!SwingUtilities.isEventDispatchThread()) {
+			SwingUtilities.invokeLater(this::doCalendarViewDialog);
+			return;
+		}
+		finishAnyOperations();
+		try {
+			if (calendarViewDialog == null || !calendarViewDialog.isDisplayable())
+				calendarViewDialog = new CalendarViewDialogBox(getGraphicManager().getFrame(), project);
+			calendarViewDialog.setLocationRelativeTo(getGraphicManager().getFrame());
+			calendarViewDialog.setVisible(true);
+			calendarViewDialog.toFront();
+			calendarViewDialog.requestFocus();
+		} catch (RuntimeException exception) {
+			logger.log(Level.WARNING, "Calendar view could not be displayed", exception);
+			Alert.error(exception.getMessage(), this);
+		}
+	}
+
+	void doCustomReportDialog() {
+		finishAnyOperations();
+		getGraphicManager().showReportView();
+	}
+
+	/**
+	 * Routes a task command through the same typed pipeline used by all
+	 * presentations.  The legacy do* methods remain virtual and callable by
+	 * integrations; a subclass which overrides one of them is treated as a
+	 * dispatched legacy adapter when it does not publish a semantic result.
+	 */
+	public RibbonCommandResult routeTaskCommand(CommandId command) {
+		java.util.Objects.requireNonNull(command, "command");
+		lastTaskCommandResult = null;
+		switch (command) {
+		case INSERT -> lastTaskCommandResult = insertTaskRows(command);
+		case INSERT_MILESTONE -> lastTaskCommandResult = insertTaskKind(command, false);
+		case INSERT_SUMMARY -> lastTaskCommandResult = insertTaskKind(command, true);
+		case DELETE -> lastTaskCommandResult = executeTaskTableMutation(command, this::doDelete, true);
+		case CUT -> lastTaskCommandResult = executeSpreadsheetClipboardCommand(command, this::doCut);
+		case COPY -> lastTaskCommandResult = executeSpreadsheetClipboardCommand(command, this::doCopy);
+		case PASTE -> lastTaskCommandResult = executeTaskTableMutation(command, this::doPaste, true);
+		case PASTE_INSERT -> lastTaskCommandResult = executeTaskTableMutation(command, this::doPasteInsert, true);
+		case LINK -> doLinkTasks();
+		case UNLINK -> doUnlinkTasks();
+		case INDENT -> doIndent();
+		case OUTDENT -> doOutdent();
+		case EXPAND -> lastTaskCommandResult = executeTaskTableMutation(command, this::doExpand, true,
+			resolveTaskSelection(false, false));
+		case COLLAPSE -> lastTaskCommandResult = executeTaskTableMutation(command, this::doCollapse, true,
+			resolveTaskSelection(false, false));
+		case HIDE_SELECTED -> lastTaskCommandResult = applyTaskVisibility(command, true);
+		case SHOW_ALL -> lastTaskCommandResult = applyTaskVisibility(command, false);
+		case TASK_MODE_MANUAL -> lastTaskCommandResult = applyTaskMode(command, com.microproject.model.task.TaskModeService.Mode.MANUAL);
+		case TASK_MODE_AUTOMATIC -> lastTaskCommandResult = applyTaskMode(command, com.microproject.model.task.TaskModeService.Mode.AUTOMATIC);
+		case INACTIVATE_TASK -> lastTaskCommandResult = applyInactivateTask(command);
+		case RESPECT_LINKS -> lastTaskCommandResult = applyRespectLinks(command);
+		case TASK_MOVE_FORWARD_DAY -> lastTaskCommandResult = applyTaskMove(command, TaskMoveService.DAY);
+		case TASK_MOVE_FORWARD_WEEK -> lastTaskCommandResult = applyTaskMove(command, TaskMoveService.WEEK);
+		case TASK_MOVE_FORWARD_FOUR_WEEKS -> lastTaskCommandResult = applyTaskMove(command, TaskMoveService.FOUR_WEEKS);
+		case TASK_MOVE_BACK_DAY -> lastTaskCommandResult = applyTaskMove(command, -TaskMoveService.DAY);
+		case TASK_MOVE_BACK_WEEK -> lastTaskCommandResult = applyTaskMove(command, -TaskMoveService.WEEK);
+		case TASK_MOVE_BACK_FOUR_WEEKS -> lastTaskCommandResult = applyTaskMove(command, -TaskMoveService.FOUR_WEEKS);
+		case TASK_MOVE_FORWARD_CUSTOM -> lastTaskCommandResult = applyCustomTaskMove(command, 1);
+		case TASK_MOVE_BACK_CUSTOM -> lastTaskCommandResult = applyCustomTaskMove(command, -1);
+		case TASK_ADD_TO_TIMELINE -> lastTaskCommandResult = applyAddToTimeline(command);
+		case RESOURCE_LEVEL_ALL -> lastTaskCommandResult = applyResourceLevelAll(command);
+		case RESOURCE_LEVEL_RESOURCE -> lastTaskCommandResult = applyResourceLevelResources(command);
+		case RESOURCE_LEVEL_SELECTION -> lastTaskCommandResult = applyResourceLevelSelection(command);
+		case RESOURCE_CLEAR_LEVEL_ALL -> lastTaskCommandResult = clearResourceLeveling(command, false);
+		case RESOURCE_CLEAR_LEVEL_SELECTION -> lastTaskCommandResult = clearResourceLeveling(command, true);
+		case NEXT_OVERALLOCATION -> lastTaskCommandResult = selectNextOverallocatedTask(command);
+		case STATUS_DATE -> lastTaskCommandResult = applyStatusDate(command);
+		case MARK_ON_TRACK -> lastTaskCommandResult = applyMarkOnTrack(command);
+		case PERCENT_COMPLETE_0 -> lastTaskCommandResult = applyPercentComplete(command, 0D);
+		case PERCENT_COMPLETE_25 -> lastTaskCommandResult = applyPercentComplete(command, 0.25D);
+		case PERCENT_COMPLETE_50 -> lastTaskCommandResult = applyPercentComplete(command, 0.5D);
+		case PERCENT_COMPLETE_75 -> lastTaskCommandResult = applyPercentComplete(command, 0.75D);
+		case PERCENT_COMPLETE_100 -> lastTaskCommandResult = applyPercentComplete(command, 1D);
+		case UPDATE_PROJECT -> lastTaskCommandResult = openUpdateProject(command);
+		}
+		if (lastTaskCommandResult == null)
+			lastTaskCommandResult = RibbonCommandResult.dispatched(command.actionId());
+		lastTaskCommandResult = lastTaskCommandResult.withActiveView(getTopViewId());
+		syncTaskStateToggles();
+		return lastTaskCommandResult;
+	}
+
+	/** Single reason for every collaboration-lock rejection of a task command. */
+	private static final String LOCK_DENIED_REASON = "collaboration-lock-denied";
+
+	private RibbonCommandResult applyTaskVisibility(CommandId command, boolean hide) {
+		List<Long> selectedTaskIds = getSelectedTaskIds();
+		if (project == null)
+			return RibbonCommandResult.rejected(command.actionId(), "no-active-document")
+				.withSelectedTaskIds(selectedTaskIds).withActiveView(getTopViewId());
+		if (project.isReadOnly())
+			return RibbonCommandResult.rejected(command.actionId(), "document-read-only")
+				.withSelectedTaskIds(selectedTaskIds).withActiveView(getTopViewId());
+
+		List<Node> selectedNodes = hide ? getSelectedVisibilityTaskNodes() : List.of();
+		List<Task> affectedTasks = hide
+			? TaskVisibilityService.tasksToHide(selectedNodes)
+			: TaskVisibilityService.tasksToShow(project);
+		List<Long> affectedTaskIds = affectedTasks.stream().map(Task::getUniqueId)
+			.filter(id -> id != null).toList();
+		if (hide && affectedTasks.isEmpty())
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+				"no-selection", selectedTaskIds, List.of(), getTopViewId());
+		if (!CollaborationHelper.tryLockNodes(project, affectedTasks, this, hide ? "hide" : "show"))
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+				LOCK_DENIED_REASON, selectedTaskIds, List.of(), getTopViewId());
+
+		int changed = hide
+			? TaskVisibilityService.hideTasks(project, affectedTasks, getUndoController())
+			: TaskVisibilityService.showTasks(project, affectedTasks, getUndoController());
+		getGraphicManager().setButtonState(getSelectedImpl(), project);
+		GraphicManager.traceUi((hide ? "hide-selected" : "show-all")
+			+ " result changedTasks=" + changed);
+		return new RibbonCommandResult(command.actionId(),
+			changed > 0 ? RibbonCommandResult.Status.CHANGED : RibbonCommandResult.Status.NO_CHANGE,
+			"", selectedTaskIds, affectedTaskIds, getTopViewId());
+	}
+
+	private RibbonCommandResult insertTaskRows(CommandId command) {
+		SpreadSheet sheet = getActiveSpreadSheet();
+		if (sheet == null)
+			return executeLegacyWithoutTable(command, () -> addNodeForImpl(null));
+		if (project == null || project.isReadOnly())
+			return RibbonCommandResult.rejected(command.actionId(), "document-read-only");
+		if (sheet.isHeaderColumnSelectionActive())
+			return RibbonCommandResult.rejected(command.actionId(), "task-row-selection-required");
+		int[] selectedRows = sheet.getSelectedRows();
+		if (selectedRows.length == 0) {
+			Object root = project.getTaskModel().getRoot();
+			int beforeNodes = project.getTaskModel().getChildCount(root);
+			try {
+				addNodeForImpl(null);
+				if (project.getTaskModel().getChildCount(root) == beforeNodes)
+					sheet.insertOneTaskRowAtCurrentRow();
+			} catch (RuntimeException failure) {
+				return RibbonCommandResult.failed(command.actionId(), failure);
+			}
+			if (lastTaskCommandResult != null) return lastTaskCommandResult;
+			return project.getTaskModel().getChildCount(root) != beforeNodes
+				? RibbonCommandResult.changed(command.actionId()).withActiveView("task")
+				: RibbonCommandResult.noChange(command.actionId()).withActiveView("task");
+		}
+		List<Node> selected = new ArrayList<>(sheet.getSelectedNodes());
+		String siblingRejection = selected.size() != selectedRows.length
+			? "invalid-task-row-selection" : siblingTaskRowsRejection(selected, false);
+		if (siblingRejection != null)
+			return RibbonCommandResult.rejected(command.actionId(), siblingRejection);
+		List<Node> inserted = sheet.insertTaskRowsAfter(selected.get(selected.size() - 1), selected.size());
+		if (inserted.size() != selected.size())
+			return RibbonCommandResult.rejected(command.actionId(), "insertion-not-allowed");
+		sheet.restoreTaskRowSelection(inserted);
+		refreshUndoButtonsSafely();
+		return RibbonCommandResult.changed(command.actionId(), taskIds(selected)).withActiveView("task");
+	}
+
+	/** Reject reason for a non-empty row selection that is not editable sibling tasks, else null. */
+	private static String siblingTaskRowsRejection(List<Node> selected, boolean rejectReadOnly) {
+		if (selected.stream().anyMatch(node -> !(node.getImpl() instanceof Task task)
+				|| (rejectReadOnly && task.isReadOnly())))
+			return "invalid-task-row-selection";
+		Node parent = (Node) selected.get(0).getParent();
+		if (parent == null || selected.stream().anyMatch(node -> node.getParent() != parent))
+			return "selection-spans-task-groups";
+		return null;
+	}
+
+	/**
+	 * Task &gt; Insert &gt; Milestone / Summary Task. Milestone inserts one zero-duration
+	 * task directly above the selected row; Summary inserts a task above the selected
+	 * contiguous sibling rows and indents those rows under it. Both use the canonical
+	 * Insert row path and the canonical Indent path, grouped as one Undo edit.
+	 */
+	private RibbonCommandResult insertTaskKind(CommandId command, boolean summary) {
+		SpreadSheet sheet = getActiveSpreadSheet();
+		if (sheet == null || project == null)
+			return RibbonCommandResult.rejected(command.actionId(), "no-task-view");
+		if (project.isReadOnly())
+			return RibbonCommandResult.rejected(command.actionId(), "document-read-only");
+		finishAnyOperations();
+		if (sheet.isHeaderColumnSelectionActive())
+			return RibbonCommandResult.rejected(command.actionId(), "task-row-selection-required");
+		List<Node> selected = new ArrayList<>(sheet.getSelectedNodes());
+		// A milestone on blank rows fills the current blank row instead of being rejected.
+		if (!summary && !selected.isEmpty() && selected.stream().allMatch(Node::isVoid))
+			selected.clear();
+		if (summary && selected.isEmpty())
+			return RibbonCommandResult.rejected(command.actionId(), "no-selection");
+		if (!selected.isEmpty()) {
+			String siblingRejection = siblingTaskRowsRejection(selected, true);
+			if (siblingRejection != null)
+				return RibbonCommandResult.rejected(command.actionId(), siblingRejection);
+			if (summary) {
+				int[] rows = sheet.nodesToRows(selected);
+				if (rows.length != selected.size())
+					return RibbonCommandResult.rejected(command.actionId(), "selection-not-visible");
+				int[] sorted = rows.clone();
+				java.util.Arrays.sort(sorted);
+				for (int i = 1; i < sorted.length; i++)
+					if (sorted[i] != sorted[i - 1] + 1)
+						return RibbonCommandResult.rejected(command.actionId(), "selection-not-contiguous");
+			}
+		}
+		List<Long> selectedIds = taskIds(selected);
+		if (!selected.isEmpty() && !CollaborationHelper.tryLockNodes(project, selected, this,
+				summary ? "insert summary" : "insert milestone"))
+			return rejectedWithSelection(command, LOCK_DENIED_REASON, selectedIds);
+		var editSupport = project.getUndoController() == null ? null : project.getUndoController().getEditSupport();
+		if (editSupport != null)
+			editSupport.beginUpdate();
+		Node inserted;
+		try {
+			if (selected.isEmpty()) {
+				inserted = sheet.insertOneTaskRowAtCurrentRowOrBlank();
+				if (inserted == null)
+					return RibbonCommandResult.rejected(command.actionId(), "insertion-not-allowed");
+			} else {
+				inserted = sheet.insertTaskRowBefore(selected.get(0));
+				if (inserted == null)
+					return RibbonCommandResult.rejected(command.actionId(), "insertion-not-allowed")
+						.withSelectedTaskIds(selectedIds);
+			}
+			// Insert creates a placeholder row; committing the name through the cell-edit
+			// route is what turns it into a real task, as when a user types into the row.
+			if (inserted.isVoid() && !sheet.commitTaskNameAtRow(inserted, com.microproject.ui.dialog.UsabilityStrings.text(
+					summary ? "insert.summary.name" : "insert.milestone.name")))
+				throw new IllegalStateException("inserted row could not be turned into a task");
+			if (summary) {
+				sheet.restoreTaskRowSelection(selected);
+				int[] rows = sheet.nodesToRows(selected);
+				if (rows.length != selected.size())
+					throw new IllegalStateException("selection lost after insertion");
+				sheet.executeAction(MenuActionConstants.ACTION_INDENT, rows);
+			} else {
+				((Task) inserted.getImpl()).setDuration(0L);
+			}
+		} catch (RuntimeException failure) {
+			return RibbonCommandResult.failed(command.actionId(), failure).withSelectedTaskIds(selectedIds);
+		} finally {
+			if (editSupport != null)
+				editSupport.endUpdate();
+		}
+		sheet.restoreTaskRowSelection(List.of(inserted));
+		refreshUndoButtonsSafely();
+		Long newId = ((Task) inserted.getImpl()).getUniqueId();
+		return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.CHANGED, "", selectedIds,
+			List.of(newId), getTopViewId());
+	}
+
+	/**
+	 * One typed boundary for commands that mutate persisted state of the selected tasks.
+	 * Canonical rejection order: no-active-document, document-read-only, the selection
+	 * resolver's reason (no-selection, task-read-only, task-row-selection-required,
+	 * no-task-selection), then collaboration-lock-denied. Every rejection carries the
+	 * selected task ids and the active view.
+	 *
+	 * <p>Lock rationale (decided per command): Percent, Task Mode, Inactivate, Respect
+	 * Links and Mark on Track mutate persisted task fields, so they lock their target
+	 * tasks exactly like field edits in TaskCommandGateway ({@code lockLabel} non-null).
+	 * Link/Unlink lock inside TaskCommandGateway and must not lock again here; Level and
+	 * Clear Leveling lock the plan's affected tasks after preview because the mutated set
+	 * differs from the selection. Pass {@code null} to skip locking.
+	 */
+	private EditableTaskTargets resolveEditableTaskTargets(CommandId command, String lockLabel) {
+		ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(true, true);
+		List<Task> tasks = taskImpls(selection.nodes());
+		RibbonCommandResult rejection = editableTaskRejection(command, selection, 1);
+		if (rejection == null && lockLabel != null
+				&& !CollaborationHelper.tryLockNodes(project, tasks, this, lockLabel))
+			rejection = rejectedWithSelection(command, LOCK_DENIED_REASON, selection.stableTaskIds());
+		return new EditableTaskTargets(selection.nodes(), tasks, selection.stableTaskIds(), rejection);
+	}
+
+	/**
+	 * Shared document/selection precondition: null when the command may proceed.
+	 * {@code minimumCount <= 0} checks only the document (Level All / Clear All).
+	 */
+	private RibbonCommandResult editableTaskRejection(CommandId command,
+			ActiveTaskSelectionResolver.Selection selection, int minimumCount) {
+		String reason = project == null ? "no-active-document"
+			: project.isReadOnly() ? "document-read-only"
+			: hasProjectSummaryRowSelected() ? "project-summary-row-selected"
+			: minimumCount <= 0 || selection.isEligible(minimumCount) ? null
+			: selection.rejectionReason().isEmpty() ? "selection-too-small" : selection.rejectionReason();
+		return reason == null ? null : rejectedWithSelection(command, reason, selection.stableTaskIds());
+	}
+
+	/** True when the active task sheet selection includes the synthetic whole-project row. */
+	public boolean hasProjectSummaryRowSelected() {
+		SpreadSheet sheet = getActiveSpreadSheet();
+		return sheet != null && sheet.getSelectedNodes().stream()
+				.anyMatch(node -> node instanceof ProjectSummaryRow);
+	}
+
+	private RibbonCommandResult rejectedWithSelection(CommandId command, String reason, List<Long> selectedIds) {
+		return RibbonCommandResult.rejected(command.actionId(), reason)
+			.withSelectedTaskIds(selectedIds).withActiveView(getTopViewId());
+	}
+
+	private static List<Task> taskImpls(List<Node> nodes) {
+		return nodes.stream().map(Node::getImpl).filter(Task.class::isInstance).map(Task.class::cast).toList();
+	}
+
+	/** Targets for a command enabled on the Timeline selection: the Timeline's selected tasks, not the sheet rows. */
+	private EditableTaskTargets resolveTimelineTaskTargets(CommandId command, String lockLabel) {
+		List<Task> tasks = selectedFormattableTasks();
+		List<Long> ids = tasks.stream().map(Task::getUniqueId).toList();
+		RibbonCommandResult rejection = null;
+		if (project == null) rejection = rejectedWithSelection(command, "no-active-document", ids);
+		else if (project.isReadOnly()) rejection = rejectedWithSelection(command, "document-read-only", ids);
+		else if (tasks.isEmpty()) rejection = rejectedWithSelection(command, "selection-too-small", ids);
+		else if (!CollaborationHelper.tryLockNodes(project, tasks, this, lockLabel))
+			rejection = rejectedWithSelection(command, LOCK_DENIED_REASON, ids);
+		return new EditableTaskTargets(List.of(), tasks, ids, rejection);
+	}
+
+	/**
+	 * Targets of the commands whose enablement follows the Timeline selection (Move, Add to Timeline):
+	 * the Timeline's selected tasks while the Timeline is the top view, otherwise the table selection.
+	 */
+	private EditableTaskTargets resolveViewTaskTargets(CommandId command, String lockLabel) {
+		return ACTION_TIMELINE.equals(getTopViewId())
+			? resolveTimelineTaskTargets(command, lockLabel)
+			: resolveEditableTaskTargets(command, lockLabel);
+	}
+
+	private void restoreTaskRows(List<Node> nodes) {
+		SpreadSheet sheet = getActiveSpreadSheet();
+		if (sheet != null) sheet.restoreTaskRowSelection(nodes);
+	}
+
+	private record EditableTaskTargets(List<Node> nodes, List<Task> tasks, List<Long> selectedIds,
+			RibbonCommandResult rejection) {
+	}
+
+	/** Task &gt; Schedule 0/25/50/75/100% Complete on the selected editable tasks. */
+	private RibbonCommandResult applyPercentComplete(CommandId command, double fraction) {
+		EditableTaskTargets targets = resolveEditableTaskTargets(command, "set percent complete");
+		if (targets.rejection() != null) return targets.rejection();
+		var result = new com.microproject.model.task.TaskProgressService().setPercentComplete(project, targets.tasks(), fraction);
+		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), result.change());
+		restoreTaskRows(targets.nodes());
+		List<Long> affectedTaskIds = targets.tasks().stream().map(Task::getUniqueId).toList();
+		return (result.changedCount() > 0 ? RibbonCommandResult.changed(command.actionId(), affectedTaskIds)
+				: RibbonCommandResult.noChange(command.actionId(), affectedTaskIds)).withActiveView("task");
+	}
+
+	/**
+	 * Pressed state of the selected-task toggles (Manually Schedule, Auto Schedule, Inactivate)
+	 * comes from the model of the selected tasks, never from the button's own toggling: a
+	 * toggle is pressed only when every selected task is in that state, so mixed selections
+	 * and empty selections are not pressed.
+	 */
+	void syncTaskStateToggles() {
+		if (menuManager == null)
+			return;
+		List<Task> selected = activeTopView == null ? List.of() : taskImpls(resolveTaskSelection(false, true).nodes());
+		boolean any = !selected.isEmpty();
+		menuManager.setActionSelected(ACTION_TASK_MODE_MANUAL, any && selected.stream().allMatch(Task::isManuallyScheduled));
+		menuManager.setActionSelected(ACTION_TASK_MODE_AUTOMATIC, any && selected.stream().noneMatch(Task::isManuallyScheduled));
+		menuManager.setActionSelected(ACTION_INACTIVATE_TASK, any && selected.stream().allMatch(Task::isInactiveTask));
+	}
+
+	private RibbonCommandResult applyTaskMode(CommandId command, com.microproject.model.task.TaskModeService.Mode mode) {
+		EditableTaskTargets targets = resolveEditableTaskTargets(command, "change task mode");
+		if (targets.rejection() != null) return targets.rejection();
+		var result = new com.microproject.model.task.TaskModeService().apply(targets.tasks(), mode);
+		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), result.change());
+		restoreTaskRows(targets.nodes());
+		return taskSelectionOutcome(command, result.change().hasChanged()
+			? RibbonCommandResult.Status.CHANGED : RibbonCommandResult.Status.NO_CHANGE, targets.selectedIds());
+	}
+
+	private RibbonCommandResult taskSelectionOutcome(CommandId command, RibbonCommandResult.Status status,
+			List<Long> selectedTaskIds) {
+		return new RibbonCommandResult(command.actionId(), status, "", selectedTaskIds, selectedTaskIds, getTopViewId());
+	}
+
+	/** Task &gt; Move: shifts the selected tasks by working days (manual dates, or a Start No Earlier Than constraint). */
+	private RibbonCommandResult applyTaskMove(CommandId command, int workingDays) {
+		EditableTaskTargets targets = resolveViewTaskTargets(command, "move task");
+		if (targets.rejection() != null) return targets.rejection();
+		try {
+			var result = new TaskMoveService().moveByWorkingDays(project, targets.tasks(), workingDays);
+			if (!result.change().hasChanged())
+				return taskSelectionOutcome(command, RibbonCommandResult.Status.NO_CHANGE, targets.selectedIds());
+			SwingUndoAdapter.post(project.getUndoController().getEditSupport(), result.change());
+			restoreTaskRows(targets.nodes());
+			return taskSelectionOutcome(command, RibbonCommandResult.Status.CHANGED, targets.selectedIds());
+		} catch (RuntimeException failure) {
+			return RibbonCommandResult.failed(command.actionId(), failure).withSelectedTaskIds(targets.selectedIds());
+		}
+	}
+
+	private RibbonCommandResult applyCustomTaskMove(CommandId command, int direction) {
+		if (project == null || project.isReadOnly())
+			return RibbonCommandResult.rejected(command.actionId(), project == null ? "no-active-document" : "document-read-only");
+		Object answer = javax.swing.JOptionPane.showInputDialog(this, Messages.getString("TaskMove.customPrompt"),
+			Messages.getString("TaskMove.customTitle"), javax.swing.JOptionPane.QUESTION_MESSAGE, null, null, "1");
+		if (answer == null)
+			return RibbonCommandResult.noChange(command.actionId(), getSelectedTaskIds()).withActiveView("task");
+		int days;
+		try {
+			days = Integer.parseInt(answer.toString().trim());
+		} catch (NumberFormatException invalid) {
+			return RibbonCommandResult.rejected(command.actionId(), "invalid-number");
+		}
+		if (days <= 0 || days > 36500)
+			return RibbonCommandResult.rejected(command.actionId(), "invalid-number");
+		return applyTaskMove(command, days * direction);
+	}
+
+	/** Task &gt; Properties &gt; Add to Timeline: puts the selected tasks on, or when all already are, takes them off the timeline. */
+	private RibbonCommandResult applyAddToTimeline(CommandId command) {
+		EditableTaskTargets targets = resolveViewTaskTargets(command, "add to timeline");
+		if (targets.rejection() != null) return targets.rejection();
+		boolean value = !targets.tasks().stream().allMatch(Task::isDisplayOnTimeline);
+		List<Task> changed = targets.tasks().stream().filter(task -> task.isDisplayOnTimeline() != value).toList();
+		if (changed.isEmpty())
+			return taskSelectionOutcome(command, RibbonCommandResult.Status.NO_CHANGE, targets.selectedIds());
+		com.microproject.model.task.ReversibleModelChange change = com.microproject.model.task.ReversibleModelChange.changed(
+			() -> { changed.forEach(task -> task.setDisplayOnTimeline(!value)); refreshEmbeddedTimeline(); },
+			() -> { changed.forEach(task -> task.setDisplayOnTimeline(value)); refreshEmbeddedTimeline(); });
+		changed.forEach(task -> task.setDisplayOnTimeline(value));
+		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), change);
+		refreshEmbeddedTimeline();
+		restoreTaskRows(targets.nodes());
+		return taskSelectionOutcome(command, RibbonCommandResult.Status.CHANGED, targets.selectedIds());
+	}
+
+	/** Repaints the embedded Timeline pane, when one is shown, after its displayed-task set changed. */
+	private void refreshEmbeddedTimeline() {
+		TimelineDialogBox timeline = getEmbeddedTimelineDialog();
+		if (timeline != null) timeline.reloadTasks();
+	}
+
+	private RibbonCommandResult applyInactivateTask(CommandId command) {
+		EditableTaskTargets targets = resolveEditableTaskTargets(command, "inactivate");
+		if (targets.rejection() != null) return targets.rejection();
+		var result = new com.microproject.model.task.TaskInactivationService().toggle(targets.tasks());
+		if (!result.change().hasChanged())
+			return taskSelectionOutcome(command, RibbonCommandResult.Status.NO_CHANGE, targets.selectedIds());
+		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), result.change());
+		restoreTaskRows(targets.nodes());
+		return taskSelectionOutcome(command, RibbonCommandResult.Status.CHANGED, targets.selectedIds());
+	}
+
+	private RibbonCommandResult applyRespectLinks(CommandId command) {
+		EditableTaskTargets targets = resolveEditableTaskTargets(command, "respect links");
+		if (targets.rejection() != null) return targets.rejection();
+		try {
+			var result = new com.microproject.model.task.RespectLinksService().apply(project, targets.tasks());
+			if (!result.change().hasChanged())
+				return taskSelectionOutcome(command, RibbonCommandResult.Status.NO_CHANGE, targets.selectedIds());
+			SwingUndoAdapter.post(project.getUndoController().getEditSupport(), result.change());
+			restoreTaskRows(targets.nodes());
+			return taskSelectionOutcome(command, RibbonCommandResult.Status.CHANGED, targets.selectedIds());
+		} catch (RuntimeException failure) {
+			return RibbonCommandResult.failed(command.actionId(), failure).withSelectedTaskIds(targets.selectedIds());
+		}
+	}
+
+	private RibbonCommandResult selectNextOverallocatedTask(CommandId command) {
+		List<Long> selectedIds = getSelectedTaskIds();
+		if (project == null)
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+				"no-active-document", selectedIds, List.of(), getTopViewId());
+		SpreadSheet sheet = getActiveSpreadSheet();
+		if (!canNavigateToNextOverallocatedTask() || sheet == null)
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+				"task-view-required", selectedIds, List.of(), getTopViewId());
+
+		java.util.Set<Task> overallocatedTasks = java.util.Collections.newSetFromMap(
+			new java.util.IdentityHashMap<>());
+		overallocatedTasks.addAll(new TeamPlannerService().overallocatedTasks(project));
+		List<OverallocatedTaskRow> visibleCandidates = new ArrayList<>();
+		for (int viewRow = 0; viewRow < sheet.getRowCount(); viewRow++) {
+			int modelRow = sheet.convertRowIndexToModel(viewRow);
+			Node node = sheet.getNodeAtRow(modelRow);
+			if (node != null && node.getImpl() instanceof Task task && overallocatedTasks.contains(task))
+				visibleCandidates.add(new OverallocatedTaskRow(viewRow, task));
+		}
+		if (visibleCandidates.isEmpty()) {
+			JOptionPane.showMessageDialog(getGraphicManager().getFrame(),
+				com.microproject.ui.dialog.UsabilityStrings.text("resource.nextOverallocation.noneVisible"),
+				com.microproject.ui.dialog.UsabilityStrings.text("resource.nextOverallocation.title"),
+				JOptionPane.INFORMATION_MESSAGE);
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.NO_CHANGE,
+				"no-visible-overallocation", selectedIds, List.of(), getTopViewId());
+		}
+
+		int[] selectedRows = sheet.getSelectedRows();
+		int currentViewRow = selectedRows.length == 0 ? -1
+			: java.util.Arrays.stream(selectedRows).max().orElse(-1);
+		OverallocatedTaskRow target = visibleCandidates.stream()
+			.filter(candidate -> candidate.viewRow() > currentViewRow).findFirst()
+			.orElse(visibleCandidates.get(0));
+		if (selectedRows.length == 1 && selectedRows[0] == target.viewRow()) {
+			sheet.scrollRectToVisible(sheet.getCellRect(target.viewRow(), 0, true));
+			return RibbonCommandResult.noChange(command.actionId(), List.of(target.task().getUniqueId()))
+				.withActiveView(getTopViewId());
+		}
+		sheet.selectRowAndAllColumns(target.viewRow());
+		sheet.scrollRectToVisible(sheet.getCellRect(target.viewRow(), 0, true));
+		doScrollToTask();
+		return RibbonCommandResult.changed(command.actionId(), List.of(target.task().getUniqueId()))
+			.withActiveView(getTopViewId());
+	}
+
+	private record OverallocatedTaskRow(int viewRow, Task task) { }
+
+	public boolean canNavigateToNextOverallocatedTask() {
+		if (project == null || getActiveSpreadSheet() == null) return false;
+		return switch (getTopViewId()) {
+			case ACTION_GANTT, ACTION_TRACKING_GANTT, ACTION_TASK_SHEET, ACTION_NETWORK, ACTION_WBS,
+				ACTION_TASK_USAGE, ACTION_TASK_USAGE_DETAIL -> true;
+			default -> false;
+		};
+	}
+
+	private RibbonCommandResult applyResourceLevelSelection(CommandId command) {
+		ActiveTaskSelectionResolver.Selection snapshot = resolveTaskSelection(true, false);
+		List<Node> selectedNodes = new ArrayList<>(snapshot.nodes());
+		List<Long> selectedIds = snapshot.stableTaskIds();
+		RibbonCommandResult rejection = editableTaskRejection(command, snapshot, 1);
+		if (rejection != null) return rejection;
+
+		List<Task> selectedTasks = selectedNodes.stream().map(Node::getImpl)
+			.filter(Task.class::isInstance).map(Task.class::cast).toList();
+		finishAnyOperations();
+		ResourceLevelingService.Plan plan;
+		try {
+			plan = new ResourceLevelingService().previewSelectedTasks(project, null,
+				ResourceLevelingService.Options.defaults(), selectedTasks);
+		} catch (RuntimeException failure) {
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.FAILED,
+				failure.getClass().getSimpleName(), selectedIds, List.of(), getTopViewId());
+		}
+		return applyResourceLevelingPlan(command, plan, selectedIds, selectedNodes, null);
+	}
+
+	/** Test seam: replaces the resource picker dialog; receives all resources and returns the chosen ones. */
+	java.util.function.Function<List<com.microproject.model.resource.Resource>, List<com.microproject.model.resource.Resource>> levelResourcePicker;
+
+	/** Resource &gt; Level &gt; Level Resource: levels only the resources picked in a dialog, as one undoable edit. */
+	private RibbonCommandResult applyResourceLevelResources(CommandId command) {
+		if (project == null || project.isReadOnly())
+			return RibbonCommandResult.rejected(command.actionId(), project == null ? "no-active-document" : "document-read-only");
+		finishAnyOperations();
+		List<com.microproject.model.resource.Resource> all = new ArrayList<>(project.getResourcePool().getResourceList());
+		if (all.isEmpty())
+			return RibbonCommandResult.noChange(command.actionId(), getSelectedTaskIds()).withActiveView(getTopViewId());
+		List<com.microproject.model.resource.Resource> chosen;
+		if (levelResourcePicker != null)
+			chosen = levelResourcePicker.apply(all);
+		else if (java.awt.GraphicsEnvironment.isHeadless())
+			return RibbonCommandResult.rejected(command.actionId(), "dialog-unavailable");
+		else
+			chosen = pickResourcesToLevel(all);
+		if (chosen == null || chosen.isEmpty())
+			return RibbonCommandResult.noChange(command.actionId(), getSelectedTaskIds()).withActiveView(getTopViewId());
+		List<Long> selectedIds = getSelectedTaskIds();
+		SelectionSnapshot selectionSnapshot = SelectionSnapshot.capture(getActiveSpreadSheet(), List.of());
+		ResourceLevelingService.Plan plan;
+		try {
+			plan = new ResourceLevelingService().preview(project, chosen, ResourceLevelingService.Options.defaults());
+		} catch (RuntimeException failure) {
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.FAILED,
+				failure.getClass().getSimpleName(), selectedIds, List.of(), getTopViewId());
+		}
+		return applyResourceLevelingPlan(command, plan, selectedIds, selectionSnapshot.selectedNodes, selectionSnapshot);
+	}
+
+	private List<com.microproject.model.resource.Resource> pickResourcesToLevel(List<com.microproject.model.resource.Resource> all) {
+		javax.swing.DefaultListModel<String> model = new javax.swing.DefaultListModel<>();
+		for (com.microproject.model.resource.Resource resource : all)
+			model.addElement(String.valueOf(resource.getName()));
+		javax.swing.JList<String> list = new javax.swing.JList<>(model);
+		list.setVisibleRowCount(Math.min(12, Math.max(4, all.size())));
+		javax.swing.JPanel panel = new javax.swing.JPanel(new java.awt.BorderLayout(0, 6));
+		panel.add(new javax.swing.JLabel(Messages.getString("LevelResource.prompt")), java.awt.BorderLayout.NORTH);
+		panel.add(new javax.swing.JScrollPane(list), java.awt.BorderLayout.CENTER);
+		int answer = JOptionPane.showConfirmDialog(this, panel, Messages.getString("LevelResource.title"),
+			JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+		if (answer != JOptionPane.OK_OPTION) return List.of();
+		List<com.microproject.model.resource.Resource> chosen = new ArrayList<>();
+		for (int index : list.getSelectedIndices()) chosen.add(all.get(index));
+		return chosen;
+	}
+
+	private RibbonCommandResult applyResourceLevelAll(CommandId command) {
+		ActiveTaskSelectionResolver.Selection current = resolveTaskSelection(true, true);
+		List<Long> selectedIds = current.stableTaskIds();
+		RibbonCommandResult rejection = editableTaskRejection(command, current, 0);
+		if (rejection != null) return rejection;
+
+		finishAnyOperations();
+		SelectionSnapshot selectionSnapshot = SelectionSnapshot.capture(getActiveSpreadSheet(), List.of());
+		ResourceLevelingService.Plan plan;
+		try {
+			plan = new ResourceLevelingService().preview(project, null, ResourceLevelingService.Options.defaults());
+		} catch (RuntimeException failure) {
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.FAILED,
+				failure.getClass().getSimpleName(), selectedIds, List.of(), getTopViewId());
+		}
+		return applyResourceLevelingPlan(command, plan, selectedIds, selectionSnapshot.selectedNodes, selectionSnapshot);
+	}
+
+	private RibbonCommandResult applyResourceLevelingPlan(CommandId command, ResourceLevelingService.Plan plan,
+		List<Long> selectedIds, List<Node> selectedNodes, SelectionSnapshot selectionSnapshot) {
+		// Level Assignments stores delays/splits on assignments, so a plan can mutate without any task-level change.
+		List<Task> affectedTasks = new ArrayList<>();
+		plan.changes().stream().map(ResourceLevelingService.Change::task).forEach(task -> addIdentity(affectedTasks, task));
+		plan.splits().stream().map(ResourceLevelingService.Split::task).forEach(task -> addIdentity(affectedTasks, task));
+		plan.assignmentChanges().stream().map(ResourceLevelingService.AssignmentChange::assignment)
+			.map(com.microproject.model.assignment.Assignment::getTask).forEach(task -> addIdentity(affectedTasks, task));
+		plan.assignmentSplits().stream().map(ResourceLevelingService.AssignmentSplit::assignment)
+			.map(com.microproject.model.assignment.Assignment::getTask).forEach(task -> addIdentity(affectedTasks, task));
+		List<Long> affectedIds = affectedTasks.stream().map(Task::getUniqueId)
+			.filter(java.util.Objects::nonNull).distinct().toList();
+		if (!plan.hasChanges()) {
+			if (plan.unresolved().isEmpty()) {
+				statusBar.setMessage(com.microproject.ui.dialog.UsabilityStrings.text("leveling.noChanges"));
+				return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.NO_CHANGE,
+					"no-leveling-changes", selectedIds, List.of(), getTopViewId());
+			}
+			statusBar.setMessage(com.microproject.ui.dialog.UsabilityStrings.text("leveling.unresolved"));
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+				"unresolved-overallocation", selectedIds, List.of(), getTopViewId());
+		}
+		if (!plan.isComplete()) {
+			int answer = JOptionPane.showConfirmDialog(this,
+				com.microproject.ui.dialog.UsabilityStrings.text("leveling.partial"),
+				com.microproject.ui.dialog.UsabilityStrings.text("leveling.title"),
+				JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+			if (answer != JOptionPane.YES_OPTION)
+				return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+					"partial-leveling-cancelled", selectedIds, List.of(), getTopViewId());
+		}
+		if (!CollaborationHelper.tryLockNodes(project, affectedTasks, this,
+			CommandId.RESOURCE_LEVEL_ALL == command ? "level all tasks" : "level selected tasks"))
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+				"collaboration-lock-denied", selectedIds, List.of(), getTopViewId());
+		com.microproject.undo.EditSupport edits = project.getUndoController().getEditSupport();
+		if (edits == null)
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+				"undo-unavailable", selectedIds, List.of(), getTopViewId());
+		try {
+			plan.apply(edits);
+			if (selectionSnapshot != null) {
+				// Level All is a momentary command; restore the user's current row/cell
+				// selection after schedule recalculation changes the view projection.
+				selectionSnapshot.restore();
+			} else {
+				SpreadSheet sheet = getActiveSpreadSheet();
+				if (sheet != null) sheet.restoreTaskRowSelection(selectedNodes);
+			}
+			refreshUndoButtonsSafely();
+			statusBar.setMessage(java.text.MessageFormat.format(
+				com.microproject.ui.dialog.UsabilityStrings.text("leveling.applied"), affectedIds.size(),
+				plan.splits().size() + plan.assignmentSplits().size()));
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.CHANGED,
+				"", selectedIds, affectedIds, getTopViewId());
+		} catch (RuntimeException failure) {
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.FAILED,
+				failure.getClass().getSimpleName(), selectedIds, List.of(), getTopViewId());
+		}
+	}
+
+	private RibbonCommandResult clearResourceLeveling(CommandId command, boolean selectedOnly) {
+		ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(true, false);
+		List<Long> selectedIds = selection.stableTaskIds();
+		RibbonCommandResult rejection = editableTaskRejection(command, selection, selectedOnly ? 1 : 0);
+		if (rejection != null) return rejection;
+
+		finishAnyOperations();
+		List<Task> targets = selectedOnly
+			? selection.nodes().stream().map(Node::getImpl).filter(Task.class::isInstance).map(Task.class::cast).toList()
+			: null;
+		ResourceLevelingService service = new ResourceLevelingService();
+		List<Task> changedTasks = service.tasksWithLevelingState(project, targets);
+		if (changedTasks.isEmpty())
+			return RibbonCommandResult.noChange(command.actionId(), selectedIds).withActiveView(getTopViewId());
+		if (changedTasks.stream().anyMatch(Task::isReadOnly))
+			return RibbonCommandResult.rejected(command.actionId(), "task-read-only").withSelectedTaskIds(selectedIds);
+		com.microproject.undo.EditSupport edits = project.getUndoController().getEditSupport();
+		if (edits == null)
+			return RibbonCommandResult.rejected(command.actionId(), "undo-unavailable").withSelectedTaskIds(selectedIds);
+
+		String scope = selectedOnly
+			? com.microproject.ui.dialog.UsabilityStrings.text("leveling.clear.scopeSelection")
+			: com.microproject.ui.dialog.UsabilityStrings.text("leveling.clear.scopeAll");
+		String prompt = java.text.MessageFormat.format(
+			com.microproject.ui.dialog.UsabilityStrings.text("leveling.clear.confirm"), scope, changedTasks.size());
+		int answer = JOptionPane.showConfirmDialog(this, prompt,
+			com.microproject.ui.dialog.UsabilityStrings.text("leveling.title"), JOptionPane.YES_NO_OPTION,
+			JOptionPane.WARNING_MESSAGE);
+		if (answer != JOptionPane.YES_OPTION)
+			return RibbonCommandResult.rejected(command.actionId(), "clear-leveling-cancelled").withSelectedTaskIds(selectedIds);
+		if (!CollaborationHelper.tryLockNodes(project, changedTasks, this,
+			selectedOnly ? "clear leveling for selected tasks" : "clear leveling for all tasks"))
+			return RibbonCommandResult.rejected(command.actionId(), "collaboration-lock-denied").withSelectedTaskIds(selectedIds);
+		SelectionSnapshot viewSelection = SelectionSnapshot.capture(getActiveSpreadSheet(), List.of());
+		try {
+			List<Task> affected = service.clear(project, targets, edits);
+			viewSelection.restore();
+			refreshUndoButtonsSafely();
+			return affected.isEmpty()
+				? RibbonCommandResult.noChange(command.actionId(), selectedIds).withActiveView(getTopViewId())
+				: new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.CHANGED, "", selectedIds,
+					affected.stream().map(Task::getUniqueId).filter(java.util.Objects::nonNull).toList(), getTopViewId());
+		} catch (RuntimeException failure) {
+			return RibbonCommandResult.failed(command.actionId(), failure).withSelectedTaskIds(selectedIds);
+		}
+	}
+
+	private RibbonCommandResult applyStatusDate(CommandId command) {
+		if (project == null || project.isReadOnly()) return RibbonCommandResult.rejected(command.actionId(), "document-read-only");
+		long before = project.isStatusDateSet() ? project.getStatusDate() : 0L;
+		StatusDateDialog dialog = StatusDateDialog.getInstance(getGraphicManager().getFrame(), project);
+		dialog.setLocationRelativeTo(getGraphicManager().getFrame());
+		if (!dialog.doModal()) return RibbonCommandResult.noChange(command.actionId());
+		var service = new com.microproject.model.task.TaskProgressService();
+		var result = dialog.isNotSet()
+			? service.clearStatusDate(project)
+			: service.setStatusDate(project, dialog.getSelectedStatusDate().getTime());
+		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), result.change());
+		getGraphicManager().refreshStatusDateControl();
+		long after = project.isStatusDateSet() ? project.getStatusDate() : 0L;
+		return (before == after ? RibbonCommandResult.noChange(command.actionId())
+				: RibbonCommandResult.changed(command.actionId())).withActiveView("task");
+	}
+
+	private RibbonCommandResult applyMarkOnTrack(CommandId command) {
+		EditableTaskTargets targets = resolveEditableTaskTargets(command, "mark on track");
+		if (targets.rejection() != null) return targets.rejection();
+		var result = new com.microproject.model.task.TaskProgressService().markOnTrack(project, targets.tasks());
+		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), result.change());
+		restoreTaskRows(targets.nodes());
+		List<Long> affectedTaskIds = targets.tasks().stream().map(Task::getUniqueId).toList();
+		return (result.changedCount() > 0 ? RibbonCommandResult.changed(command.actionId(), affectedTaskIds)
+				: RibbonCommandResult.noChange(command.actionId(), affectedTaskIds)).withActiveView("task");
+	}
+
+	private RibbonCommandResult openUpdateProject(CommandId command) {
+		if (project == null || project.isReadOnly()) return RibbonCommandResult.rejected(command.actionId(), "document-read-only");
+		return doUpdateProjectDialog(command.actionId());
+	}
+
+	/**
+	 * Executes a task-table command after capturing one stable selection and
+	 * compares the table projection before/after. Legacy do* methods remain the
+	 * mutation adapters, so menu, popup, ribbon and shortcut routes share this
+	 * result without breaking older integrations that override those methods.
+	 */
+	private RibbonCommandResult executeTaskTableMutation(CommandId command, Runnable operation,
+			boolean requiresSelection) {
+		return executeTaskTableMutation(command, operation, requiresSelection, null);
+	}
+
+	private RibbonCommandResult executeTaskTableMutation(CommandId command, Runnable operation,
+			boolean requiresSelection, ActiveTaskSelectionResolver.Selection commandSelection) {
+		SpreadSheet sheet = getActiveSpreadSheet();
+		if (commandSelection != null && requiresSelection && !commandSelection.isEligible(1))
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+				commandSelection.rejectionReason(), commandSelection.stableTaskIds(), List.of(), getTopViewId());
+		if (sheet == null)
+			return executeLegacyWithoutTable(command, operation);
+		List<Node> selection = new ArrayList<>(commandSelection == null
+			? getSelectedTaskNodes(false, true) : commandSelection.nodes());
+		if (requiresSelection && selection.isEmpty())
+			return RibbonCommandResult.rejected(command.actionId(), "no-selection");
+		if (project == null || project.isReadOnly()) {
+			List<Long> selectedIds = commandSelection == null
+				? taskIds(selection) : commandSelection.stableTaskIds();
+			return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.REJECTED,
+				"document-read-only", selectedIds, List.of(), getTopViewId());
+		}
+		int beforeRows = sheet.getRowCount();
+		int beforeTasks = project.getTaskList().size();
+		try {
+			operation.run();
+		} catch (RuntimeException failure) {
+			return RibbonCommandResult.failed(command.actionId(), failure);
+		}
+		int afterRows = sheet.getRowCount();
+		int afterTasks = project.getTaskList().size();
+		if (lastTaskCommandResult != null)
+			return lastTaskCommandResult;
+		List<Long> ids = taskIds(selection);
+		RibbonCommandResult result = beforeRows != afterRows || beforeTasks != afterTasks
+			? RibbonCommandResult.changed(command.actionId(), ids)
+			: command == CommandId.COPY
+				? RibbonCommandResult.dispatched(command.actionId())
+				: RibbonCommandResult.noChange(command.actionId(), ids);
+		return command == CommandId.EXPAND || command == CommandId.COLLAPSE
+			? result.withSelectedTaskIds(ids)
+			: result;
+	}
+
+	/**
+	 * Cut and Copy are spreadsheet commands, not task-only commands: the resource
+	 * sheet also exposes them and its transfer handler accepts resource rows.
+	 */
+	private RibbonCommandResult executeSpreadsheetClipboardCommand(CommandId command, Runnable operation) {
+		SpreadSheet sheet = getActiveSpreadSheet();
+		if (sheet == null)
+			return executeLegacyWithoutTable(command, operation);
+		finishAnyOperations();
+		sheet = getActiveSpreadSheet();
+		if (sheet == null)
+			return RibbonCommandResult.rejected(command.actionId(), "no-active-spreadsheet");
+		List<Node> selection = new ArrayList<>(sheet.getSelectedNodes());
+		if (selection.isEmpty())
+			return RibbonCommandResult.rejected(command.actionId(), "no-selection");
+		if (command == CommandId.CUT && (project == null || project.isReadOnly()))
+			return RibbonCommandResult.rejected(command.actionId(), "document-read-only");
+		int beforeRows = sheet.getRowCount();
+		int beforeTasks = project == null ? 0 : project.getTaskList().size();
+		try {
+			operation.run();
+		} catch (RuntimeException failure) {
+			return RibbonCommandResult.failed(command.actionId(), failure);
+		}
+		if (lastTaskCommandResult != null)
+			return lastTaskCommandResult;
+		if (command == CommandId.COPY)
+			return RibbonCommandResult.dispatched(command.actionId());
+		int afterRows = sheet.getRowCount();
+		int afterTasks = project == null ? 0 : project.getTaskList().size();
+		List<Long> ids = taskIds(selection);
+		return beforeRows != afterRows || beforeTasks != afterTasks
+			? RibbonCommandResult.changed(command.actionId(), ids)
+			: RibbonCommandResult.noChange(command.actionId(), ids);
+	}
+
+	private RibbonCommandResult executeLegacyWithoutTable(CommandId command, Runnable operation) {
+		try {
+			operation.run();
+			return RibbonCommandResult.dispatched(command.actionId());
+		} catch (RuntimeException failure) {
+			return RibbonCommandResult.failed(command.actionId(), failure);
+		}
+	}
+
+	private static List<Long> taskIds(List<Node> nodes) {
+		return ActiveTaskSelectionResolver.resolve(nodes, false, false, true).stableTaskIds();
+	}
+
+	private void publishTaskCommandResult(CommandId command, RibbonCommandResult.Status status,
+			String reason, List<Node> nodes) {
+		List<Long> selectedTaskIds = ActiveTaskSelectionResolver.resolve(nodes, false, false, true)
+			.stableTaskIds();
+		List<Long> affectedTaskIds = status == RibbonCommandResult.Status.REJECTED
+			|| status == RibbonCommandResult.Status.FAILED ? List.of() : selectedTaskIds;
+		lastTaskCommandResult = new RibbonCommandResult(command.actionId(), status, reason,
+			selectedTaskIds, affectedTaskIds, getTopViewId());
+	}
+
+	private void publishTaskCommandResultWithSelectedIds(CommandId command, RibbonCommandResult.Status status,
+			String reason, List<Long> selectedTaskIds) {
+		lastTaskCommandResult = new RibbonCommandResult(command.actionId(), status, reason,
+			selectedTaskIds, List.of(), getTopViewId());
+	}
+
+	public void doLinkTasks() {
+		// Capture the selection before finishing an editor.  Stopping a cell
+		// editor can clear the JTable selection, which previously made the
+		// ribbon command silently return even though it was enabled.
+		ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(true, true);
+		List<Node> taskNodes = new ArrayList<>(selection.nodes());
+		SpreadSheet sheet = getActiveSpreadSheet();
+		TaskHierarchyEditIntent.SelectionSnapshot snapshot = sheet == null ? null : sheet.captureTaskDependencySelection();
+		String selectionReason = selection.rejectionReason().isEmpty()
+			? "selection-too-small" : selection.rejectionReason();
+		publishTaskCommandResultWithSelectedIds(CommandId.LINK, RibbonCommandResult.Status.REJECTED,
+			selectionReason, selection.stableTaskIds());
+		if (taskNodes.size() > 1)
+			undoRedoSelection = new ArrayList<>(taskNodes);
+		GraphicManager.traceUi("link start selectedTasks=" + taskNodes.size()
+				+ " undo=" + canUndoState() + " redo=" + canRedoState());
+		finishAnyOperations();
+		try {
+			// Same read-only/selection resolution as the other task commands; Link keeps its own
+			// min-count and locks inside TaskCommandGateway (no second lock here).
+			RibbonCommandResult rejection = editableTaskRejection(CommandId.LINK, selection, 2);
+			if (rejection != null) {
+				lastTaskCommandResult = rejection;
+				GraphicManager.traceUi("link rejected reason=" + rejection.reason() + " selectedTasks=" + taskNodes.size());
+				return;
+			}
+			if (snapshot == null) {
+				publishTaskCommandResult(CommandId.LINK, RibbonCommandResult.Status.REJECTED,
+					"task-selection-not-stable", taskNodes);
+				GraphicManager.traceUi("link rejected reason=task-selection-not-stable selectedTasks=" + taskNodes.size());
+				return;
+			}
+			TaskCommandResult result = TaskCommandGateway.execute(sheet,
+				new TaskDependencyIntent(TaskDependencyIntent.Operation.LINK, snapshot.tasks(),
+					snapshot.projectionRevision(), null), this);
+			publishDependencyCommandResult(CommandId.LINK, result, taskNodes);
+			if (result.status() == TaskCommandResult.Status.CHANGED
+					|| result.status() == TaskCommandResult.Status.NO_CHANGE)
+				sheet.restoreTaskRowSelection(taskNodes);
+			refreshUndoButtonsSafely();
+			GraphicManager.traceUi("link complete selectedTasks=" + taskNodes.size()
+				+ " result=" + result.status() + " undo=" + canUndoState() + " redo=" + canRedoState());
+		} catch (InvalidAssociationException e) {
+			publishTaskCommandResult(CommandId.LINK, RibbonCommandResult.Status.REJECTED,
+				"invalid-association", taskNodes);
+			GraphicManager.traceUi("link rejected reason=invalid-association message=" + e.getMessage());
+			Alert.error(e.getMessage(),this);
+		}
+	}
+	public void doUnlinkTasks() {
+		ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(true, true);
+		List<Node> taskNodes = new ArrayList<>(selection.nodes());
+		SpreadSheet sheet = getActiveSpreadSheet();
+		TaskHierarchyEditIntent.SelectionSnapshot snapshot = sheet == null ? null : sheet.captureTaskDependencySelection();
+		String selectionReason = selection.rejectionReason().isEmpty()
+			? "no-selection" : selection.rejectionReason();
+		publishTaskCommandResultWithSelectedIds(CommandId.UNLINK, RibbonCommandResult.Status.REJECTED,
+			selectionReason, selection.stableTaskIds());
+		if (taskNodes.size() > 1)
+			undoRedoSelection = new ArrayList<>(taskNodes);
+		GraphicManager.traceUi("unlink start selectedTasks=" + taskNodes.size()
+				+ " undo=" + canUndoState() + " redo=" + canRedoState());
+		finishAnyOperations();
+		RibbonCommandResult rejection = editableTaskRejection(CommandId.UNLINK, selection, 1);
+		if (rejection != null) {
+			lastTaskCommandResult = rejection;
+			GraphicManager.traceUi("unlink rejected reason=" + rejection.reason());
+			return;
+		}
+		if (snapshot == null) {
+			publishTaskCommandResult(CommandId.UNLINK, RibbonCommandResult.Status.REJECTED,
+				"task-selection-not-stable", taskNodes);
+			GraphicManager.traceUi("unlink rejected reason=task-selection-not-stable selectedTasks=" + taskNodes.size());
+			return;
+		}
+		TaskDependencyIntent.DependencyTarget selectedDependencyTarget = null;
+		if (taskNodes.size() == 1 && taskNodes.getFirst().getImpl() instanceof HasDependencies dependencies
+				&& !java.awt.GraphicsEnvironment.isHeadless()) {
+			List<Dependency> incident = DependencyService.getInstance()
+				.getIncidentDependencies(dependencies);
+			if (incident.size() > 1) {
+				Dependency selected = DependencyDialog.chooseDependency(this, incident);
+				if (selected == null) {
+					publishTaskCommandResult(CommandId.UNLINK, RibbonCommandResult.Status.REJECTED,
+						"dependency-not-selected", taskNodes);
+					GraphicManager.traceUi("unlink cancelled reason=dependency-not-selected");
+					return;
+				}
+				selectedDependencyTarget = TaskDependencyIntent.DependencyTarget.from(selected);
+			}
+		}
+		TaskCommandResult result;
+		try {
+			result = TaskCommandGateway.execute(sheet,
+				new TaskDependencyIntent(TaskDependencyIntent.Operation.UNLINK, snapshot.tasks(),
+					snapshot.projectionRevision(), selectedDependencyTarget), this);
+		} catch (InvalidAssociationException unexpectedValidationFailure) {
+			publishTaskCommandResult(CommandId.UNLINK, RibbonCommandResult.Status.REJECTED,
+				"invalid-association", taskNodes);
+			Alert.error(unexpectedValidationFailure.getMessage(), this);
+			return;
+		}
+		publishDependencyCommandResult(CommandId.UNLINK, result, taskNodes);
+		if (result.status() == TaskCommandResult.Status.CHANGED
+				|| result.status() == TaskCommandResult.Status.NO_CHANGE)
+			sheet.restoreTaskRowSelection(taskNodes);
+		refreshUndoButtonsSafely();
+		GraphicManager.traceUi("unlink complete selectedTasks=" + taskNodes.size()
+				+ " result=" + result.status() + " undo=" + canUndoState() + " redo=" + canRedoState());
+	}
+
+	private void publishDependencyCommandResult(CommandId command, TaskCommandResult result, List<Node> taskNodes) {
+		String reason = switch (result.status()) {
+		case LOCKED -> LOCK_DENIED_REASON;
+		case STALE_PROJECTION -> "stale-projection";
+		case MISSING_TASK -> result.reason();
+		case INVALID_INTENT -> result.reason();
+		case REJECTED -> result.reason();
+		default -> "";
+		};
+		RibbonCommandResult.Status status = switch (result.status()) {
+		case CHANGED -> RibbonCommandResult.Status.CHANGED;
+		case NO_CHANGE -> RibbonCommandResult.Status.NO_CHANGE;
+		default -> RibbonCommandResult.Status.REJECTED;
+		};
+		publishTaskCommandResult(command, status, reason, taskNodes);
+	}
+
+	public void doUndoRedo(boolean isUndo) {
+		if (!isActive())
+			return;
+		GraphicManager.traceUi((isUndo ? "undo" : "redo") + " start canUndo=" + canUndoState() + " canRedo=" + canRedoState());
+		SelectionSnapshot selectionSnapshot = SelectionSnapshot.capture(getActiveSpreadSheet(), undoRedoSelection);
+		if (selectionSnapshot.selectedNodes.size() > 1)
+			undoRedoSelection = new ArrayList<>(selectionSnapshot.selectedNodes);
+		finishAnyOperations();
+		UndoController undoController=getUndoController();
+		if (undoController!=null){
+			if (isUndo)
+				undoController.undo();
+			else
+				undoController.redo();
+			refreshUndoButtons();
+			selectionSnapshot.restore();
+			// Restoring the same row can leave Swing's selection model unchanged,
+			// therefore no SelectionNodeEvent is emitted.  Recompute command
+			// enablement explicitly so hierarchy actions reflect the post-undo model.
+			getGraphicManager().setButtonState(getSelectedImpl(), project);
+			// Node-cache projection may finish on the next EDT turn. Refresh once
+			// more after that projection so ribbon state cannot lag the model.
+			SwingUtilities.invokeLater(() -> getGraphicManager().setButtonState(getSelectedImpl(), project));
+			GraphicManager.traceUi((isUndo ? "undo" : "redo") + " complete canUndo=" + canUndoState() + " canRedo=" + canRedoState()
+					+ " selectedTasks=" + getSelectedTaskNodes(false, true).size());
+		}
+	}
+
+	private boolean canUndoState() {
+		UndoController controller = getUndoController();
+		return controller != null && controller.canUndo();
+	}
+
+	private boolean canRedoState() {
+		UndoController controller = getUndoController();
+		return controller != null && controller.canRedo();
+	}
+
+	private static final class SelectionSnapshot {
+		private final CommonSpreadSheet spreadSheet;
+		private final List<Node> selectedNodes;
+		private final Node node;
+		private final Object impl;
+		private final int row;
+		private final int column;
+
+		private SelectionSnapshot(CommonSpreadSheet spreadSheet, Node node, Object impl, int row, int column,
+				List<Node> selectedNodes) {
+			this.spreadSheet = spreadSheet;
+			this.node = node;
+			this.impl = impl;
+			this.row = row;
+			this.column = column;
+			this.selectedNodes = selectedNodes;
+		}
+
+		private static SelectionSnapshot capture(CommonSpreadSheet spreadSheet, List<Node> fallbackSelection) {
+			if (spreadSheet == null)
+				return new SelectionSnapshot(null, null, null, -1, -1, Collections.emptyList());
+			int row = spreadSheet.getCurrentRow();
+			if (row < 0)
+				return new SelectionSnapshot(spreadSheet, null, null, -1, -1,
+						selectedOrFallback(spreadSheet.getSelectedNodes(), fallbackSelection));
+			int column = spreadSheet.getCurrentViewColumn();
+			CommonSpreadSheet.PendingUndoSelection pendingUndoSelection = spreadSheet.consumePendingUndoSelection(row, column);
+			if (pendingUndoSelection != null) {
+				return new SelectionSnapshot(spreadSheet, pendingUndoSelection.node(), pendingUndoSelection.impl(),
+						pendingUndoSelection.row(), pendingUndoSelection.column(),
+						selectedOrFallback(spreadSheet.getSelectedNodes(), fallbackSelection));
+			}
+			Node node = spreadSheet.getCurrentRowNode();
+			Object impl = (node == null) ? null : node.getImpl();
+			return new SelectionSnapshot(spreadSheet, node, impl, row, column,
+					selectedOrFallback(spreadSheet.getSelectedNodes(), fallbackSelection));
+		}
+
+		private static List<Node> selectedOrFallback(List<Node> selected, List<Node> fallback) {
+			return selected == null || selected.isEmpty() ? new ArrayList<>(fallback) : selected;
+		}
+
+		private void restore() {
+			if (spreadSheet == null)
+				return;
+			if (spreadSheet instanceof SpreadSheet taskSheet && selectedNodes != null && selectedNodes.size() > 1) {
+				restoreMultiSelectionWhenRowsAreReady(taskSheet, 0);
+				return;
+			}
+			if (column < 0)
+				return;
+			SwingUtilities.invokeLater(() -> {
+				int targetRow = resolveRow();
+				if (targetRow < 0 || targetRow >= spreadSheet.getRowCount() || column >= spreadSheet.getColumnCount())
+					return;
+				spreadSheet.requestFocusInWindow();
+				spreadSheet.changeSelection(targetRow, column, false, false);
+				spreadSheet.scrollRectToVisible(spreadSheet.getCellRect(targetRow, column, true));
+			});
+		}
+
+		private void restoreMultiSelectionWhenRowsAreReady(SpreadSheet taskSheet, int attempt) {
+			if (selectedNodes == null || selectedNodes.isEmpty())
+				return;
+			if (taskSheet.getModel() instanceof SpreadSheetModel model) {
+				List<Integer> rows = new ArrayList<>(selectedNodes.size());
+				for (Node selectedNode : selectedNodes) {
+					int row = -1;
+					for (int currentRow = 0; currentRow < taskSheet.getRowCount(); currentRow++) {
+						GraphicNode rowNode = model.getNode(currentRow);
+						if (rowNode != null && rowNode.getNode().getImpl() == selectedNode.getImpl()) {
+							row = currentRow;
+							break;
+						}
+					}
+					if (row < 0) {
+						retryMultiSelection(taskSheet, attempt);
+						return;
+					}
+					rows.add(row);
+				}
+				taskSheet.requestFocusInWindow();
+				taskSheet.clearSelection();
+				taskSheet.setRowHeaderSelectionActive(true);
+				taskSheet.getSelectionModel().setSelectionInterval(rows.getFirst(), rows.getFirst());
+				for (int index = 1; index < rows.size(); index++)
+					taskSheet.getSelectionModel().addSelectionInterval(rows.get(index), rows.get(index));
+				if (taskSheet.getColumnCount() > 0)
+					taskSheet.getColumnModel().getSelectionModel().setSelectionInterval(0, taskSheet.getColumnCount() - 1);
+				return;
+			}
+			retryMultiSelection(taskSheet, attempt);
+		}
+
+		private void retryMultiSelection(SpreadSheet taskSheet, int attempt) {
+			// Undo/redo fires the model event synchronously, but the spreadsheet cache
+			// is rebuilt by a later EDT event.  Restoring immediately can therefore
+			// clear a valid multi-selection and leave the ribbon command disabled.
+			if (attempt >= 40)
+				return;
+			javax.swing.Timer retry = new javax.swing.Timer(25,
+				event -> restoreMultiSelectionWhenRowsAreReady(taskSheet, attempt + 1));
+			retry.setRepeats(false);
+			retry.start();
+		}
+
+		private int resolveRow() {
+			if (!(spreadSheet.getModel() instanceof SpreadSheetModel))
+				return row;
+			SpreadSheetModel model = (SpreadSheetModel) spreadSheet.getModel();
+			if (node != null) {
+				for (int currentRow = 0; currentRow < spreadSheet.getRowCount(); currentRow++) {
+					Node rowNode = model.getNode(currentRow).getNode();
+					if (rowNode == node)
+						return currentRow;
+				}
+			}
+			if (impl != null) {
+				for (int currentRow = 0; currentRow < spreadSheet.getRowCount(); currentRow++) {
+					Node rowNode = model.getNode(currentRow).getNode();
+					if (rowNode != null && rowNode.getImpl() == impl)
+						return currentRow;
+				}
+			}
+			return row;
+		}
+	}
+	public void doZoomIn() {
+		if (activeTopView != null)
+			activeTopView.zoomIn();
+	}
+	public void doZoomOut() {
+		if (activeTopView != null)
+			activeTopView.zoomOut();
+	}
+	public void doScrollToTask() {
+		SpreadSheet ss = getActiveSpreadSheet();
+		if (ss != null) {
+			if (!hasTaskSelection(true, 1, false))
+				return;
+			focusSingleTaskSelectionAnchor(ss);
+		}
+		if (activeTopView != null)
+			activeTopView.scrollToTask();
+	}
+
+	public boolean canZoomIn() {
+		return activeTopView==null?false:activeTopView.canZoomIn();
+	}
+	public boolean canZoomOut() {
+		return activeTopView==null?false:activeTopView.canZoomOut();
+	}
+	public boolean canScrollToTask() {
+		return activeTopView==null?false:activeTopView.canScrollToTask();
+	}
+	public int getScale() {
+		return activeTopView==null?-1:activeTopView.getScale();
+	}
+
+	public void doOutdent() {
+		doHierarchyIndent(MenuActionConstants.ACTION_OUTDENT, "outdent");
+	}
+
+	private void doHierarchyIndent(String actionId, String diagnosticId) {
+		SpreadSheet ss = getActiveSpreadSheet();
+		CommandId command = MenuActionConstants.ACTION_INDENT.equals(actionId) ? CommandId.INDENT : CommandId.OUTDENT;
+		if (ss !=null) {
+			finishAnyOperations();
+			// Ending a reused cell editor can synchronously commit and restore the
+			// row selection. Resolve the typed selection after that lifecycle step;
+			// resolving before it leaves the second name-cell edit with the prior
+			// task as the command target.
+			// The table is the authoritative selection owner while an editor is
+			// focused.  Resolve it directly after commit; the frame selection
+			// provider may still expose the previous editor row for one event turn.
+			ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(true, false);
+			List<Node> taskNodes = new ArrayList<>(selection.nodes());
+			// The editor commit above may rebuild the outline and invalidate the
+			// pre-commit JTable row indexes.  Resolve rows from this same stable
+			// node snapshot so mutation and selection restoration target one set.
+			int[] selectedRows = ss.nodesToRows(taskNodes);
+			GraphicManager.traceUi(diagnosticId + " start selectedTasks=" + taskNodes.size()
+				+ " rows=" + selectedRows.length + " undo=" + canUndoState() + " redo=" + canRedoState());
+			if (project == null || project.isReadOnly()) {
+				publishTaskCommandResultWithSelectedIds(command, RibbonCommandResult.Status.REJECTED,
+					"document-read-only", selection.stableTaskIds());
+				GraphicManager.traceUi(diagnosticId + " rejected reason=document-read-only");
+				return;
+			}
+			if (!selection.isEligible(1)) {
+				publishTaskCommandResultWithSelectedIds(command, RibbonCommandResult.Status.REJECTED,
+					selection.rejectionReason(), selection.stableTaskIds());
+				GraphicManager.traceUi(diagnosticId + " rejected reason=" + selection.rejectionReason());
+				return;
+			}
+			if (selectedRows.length != taskNodes.size()) {
+				publishTaskCommandResult(command, RibbonCommandResult.Status.REJECTED,
+					"selection-not-visible", taskNodes);
+				GraphicManager.traceUi(diagnosticId + " rejected reason=selection-not-visible");
+				return;
+			}
+			if (command == CommandId.OUTDENT && taskNodes.stream().noneMatch(DocumentFrame::canOutdent)) {
+				publishTaskCommandResult(command, RibbonCommandResult.Status.REJECTED,
+					"cannot-outdent", taskNodes);
+				GraphicManager.traceUi(diagnosticId + " rejected reason=cannot-outdent");
+				return;
+			}
+			if (!CollaborationHelper.tryLockNodes(getProject(), taskNodes, this, diagnosticId)) {
+				publishTaskCommandResult(command, RibbonCommandResult.Status.REJECTED,
+					LOCK_DENIED_REASON, taskNodes);
+				GraphicManager.traceUi(diagnosticId + " rejected reason=" + LOCK_DENIED_REASON + " selectedTasks=" + taskNodes.size());
+				return;
+			}
+			ss.executeAction(actionId, selectedRows);
+			ss.restoreTaskRowSelection(taskNodes);
+			publishTaskCommandResult(command, RibbonCommandResult.Status.CHANGED, "", taskNodes);
+			refreshUndoButtonsSafely();
+			GraphicManager.traceUi(diagnosticId + " complete selectedTasks=" + taskNodes.size()
+					+ " undo=" + canUndoState() + " redo=" + canRedoState());
+		}
+	}
+
+	private void refreshUndoButtonsSafely() {
+		if (menuManager != null)
+			refreshUndoButtons();
+	}
+	public void doExpand() {
+		SpreadSheet ss = getActiveSpreadSheet();
+		if (ss !=null) {
+			focusSingleTaskSelectionAnchor(ss);
+			ss.executeAction(MenuActionConstants.ACTION_EXPAND);
+		}
+	}
+	public void doCollapse() {
+		SpreadSheet ss = getActiveSpreadSheet();
+		if (ss !=null) {
+			focusSingleTaskSelectionAnchor(ss);
+			ss.executeAction(MenuActionConstants.ACTION_COLLAPSE);
+		}
+	}
+
+	public void doIndent() {
+		doHierarchyIndent(MenuActionConstants.ACTION_INDENT, "indent");
+	}
+
+	static boolean canOutdent(Node node) {
+		// The outline level is a derived display value and can lag one EDT turn
+		// behind a hierarchy mutation.  The parent link is the authoritative model
+		// state for this command; using it keeps ribbon enablement and the canonical
+		// command precondition in sync immediately after Indent/Redo.
+		return node != null && !node.isRoot() && node.getImpl() instanceof Task task
+				&& task.getWbsParentTask() != null;
+	}
+	public boolean canMoveSelectedTasks(int direction) {
+		SpreadSheet spreadSheet=getActiveSpreadSheet();
+		return spreadSheet != null && spreadSheet.canMoveSelectedTaskRows(direction,true);
+	}
+
+	void doMoveProjectDialog() {
+		finishAnyOperations();
+		if (project == null || project.isReadOnly() || !project.isForward())
+			return;
+		MoveProjectDialog dialog = MoveProjectDialog.getInstance(getGraphicManager().getFrame(), project);
+		dialog.setLocationRelativeTo(getGraphicManager().getFrame());
+		if (dialog.doModal() && dialog.getSelectedStartDate() != null)
+			moveProject(dialog.getSelectedStartDate().getTime());
+	}
+
+	/**
+	 * Canonical mutation path for every Move Project entry point. The Project
+	 * setter adjusts the date to the working calendar and recalculates tasks;
+	 * this method owns document dirtiness and the single undo unit.
+	 */
+	public boolean moveProject(long requestedStartDate) {
+		if (project == null || project.isReadOnly() || !project.isForward())
+			return false;
+		long before = project.getStartDate();
+		project.setStartDate(requestedStartDate);
+		long after = project.getStartDate();
+		if (before == after)
+			return false;
+		if (project.getUndoController() != null)
+			project.getUndoController().getEditSupport().postEdit(new ProjectStartDateEdit(project, before, after));
+		project.setDirty(true);
+		repaint();
+		refreshUndoButtons();
+		return true;
+	}
+	public void doMoveSelectedTasks(int direction) {
+		SpreadSheet spreadSheet=getActiveSpreadSheet();
+		if (spreadSheet != null) spreadSheet.moveSelectedTaskRows(direction);
+	}
+	public void doDelete() {
+		EditCommandPipeline.execute(this, MenuActionConstants.ACTION_DELETE);
+	}
+	public void doClearContents() {
+		EditCommandPipeline.execute(this, MenuActionConstants.ACTION_CLEAR_CONTENTS);
+	}
+
+	/** Edit > Fill: copies the first (Down/Right) or last (Up/Left) selected cells across the selection. */
+	public void doFill(String fillAction) {
+		EditCommandPipeline.execute(this, fillAction);
+	}
+
+	public void doCut() {
+		EditCommandPipeline.execute(this, MenuActionConstants.ACTION_CUT);
+			//NodeListTransferHandler.getCutAction(ss).actionPerformed(new ActionEvent(this,0,null));
+			//ss.executeAction(SpreadSheet.CUT);
+	}
+	public void doCopy() {
+		EditCommandPipeline.execute(this, MenuActionConstants.ACTION_COPY);
+			//NodeListTransferHandler.getCopyAction(ss).actionPerformed(new ActionEvent(this,0,null));
+			//ss.executeAction(SpreadSheet.COPY);
+	}
+	public void doPaste() {
+		SpreadSheet spreadSheet = getActiveSpreadSheet();
+		if (spreadSheet != null) {
+			spreadSheet.clearLastTaskPasteOutcome();
+			spreadSheet.setTaskPasteOutcomePublicationDeferred(true);
+		}
+		boolean changed;
+		try {
+			changed = EditCommandPipeline.execute(this, MenuActionConstants.ACTION_PASTE);
+		} finally {
+			if (spreadSheet != null) spreadSheet.setTaskPasteOutcomePublicationDeferred(false);
+		}
+		RibbonCommandResult outcome = spreadSheet == null ? null : spreadSheet.getLastTaskPasteOutcome();
+		lastTaskCommandResult = outcome != null ? outcome : changed
+			? RibbonCommandResult.changed(CommandId.PASTE.actionId())
+			: RibbonCommandResult.rejected(CommandId.PASTE.actionId(), "paste-not-applied");
+			//NodeListTransferHandler.getPasteAction(ss).actionPerformed(new ActionEvent(this,0,null));
+			//ss.executeAction(SpreadSheet.PASTE);
+	}
+	public void doPasteInsert() {
+		SpreadSheet spreadSheet = getActiveSpreadSheet();
+		if (spreadSheet != null) {
+			spreadSheet.clearLastTaskPasteOutcome();
+			spreadSheet.setTaskPasteOutcomePublicationDeferred(true);
+		}
+		boolean changed;
+		try {
+			changed = EditCommandPipeline.execute(this, MenuActionConstants.ACTION_PASTE_INSERT);
+		} finally {
+			if (spreadSheet != null) spreadSheet.setTaskPasteOutcomePublicationDeferred(false);
+		}
+		RibbonCommandResult outcome = spreadSheet == null ? null : spreadSheet.getLastTaskPasteOutcome();
+		lastTaskCommandResult = outcome != null ? outcome : changed
+			? RibbonCommandResult.changed(CommandId.PASTE_INSERT.actionId())
+			: RibbonCommandResult.rejected(CommandId.PASTE_INSERT.actionId(), "paste-not-applied");
+	}
+
+
+	public GanttView getGanttView() {
+		if (ganttView == null) {
+			ganttView = new GanttView(this, graphicManager.getMenuManager(),mainView.getSynchronizer());
+			ganttView.init(getTaskNodeModelCache(), getTaskModel(), coord);
+			ganttView.setSpreadsheetGridVisible(getGraphicManager().getPreferences().isShowRowLines());
+			Gantt gantt = ganttView.getGantt();
+			if (gantt != null)
+				gantt.getInteractor().setModeListener(statusBar::setMode);
+			if (restoreWorkspaceFor(ganttView) == null)
+				ganttView.fitProjectRangeOnInitialDisplay();
+		}
+		return ganttView;
+	}
+
+	public UsageDetailView getTaskUsageDetailView() {
+		if (taskUsageDetailView == null) {
+			taskUsageDetailView = new UsageDetailView(this, graphicManager
+					.getMenuManager(),mainView.getSynchronizer());
+			taskUsageDetailView.init(getTaskNodeModelCache(), true, coord,
+					false,  ACTION_TASK_USAGE_DETAIL,addTransformerInitializationClosure());
+			restoreWorkspaceFor(taskUsageDetailView);
+		}
+		return taskUsageDetailView;
+	}
+
+	public UsageDetailView getResourceUsageDetailView() {
+		if (resourceUsageDetailView == null) {
+			resourceUsageDetailView = new UsageDetailView(this, graphicManager
+					.getMenuManager(),mainView.getSynchronizer());
+			resourceUsageDetailView.init(getResourceNodeModelCache(), false,
+					coord, false, ACTION_RESOURCE_USAGE_DETAIL,addTransformerInitializationClosure());
+			restoreWorkspaceFor(resourceUsageDetailView);
+		}
+		return resourceUsageDetailView;
+	}
+
+	public PertView getPertView() {
+		if (pertView == null) {
+			pertView = new PertView(this, graphicManager.getMenuManager());
+			pertView.init(getTaskNodeModelCache(), getTaskModel());
+			restoreWorkspaceFor(pertView);
+		}
+		return pertView;
+	}
+
+	public TreeView getWBSView() {
+		if (wbsView == null) {
+			wbsView = new TreeView(this, graphicManager.getMenuManager());
+			wbsView.init(getTaskNodeModelCache(), getTaskModel(), ACTION_WBS,addTransformerInitializationClosure());
+			restoreWorkspaceFor(wbsView);
+		}
+		return wbsView;
+	}
+
+	public TreeView getRBSView() {
+		if (rbsView == null) {
+			rbsView = new TreeView(this, graphicManager.getMenuManager());
+			rbsView.init(getResourceNodeModelCache(), getResourceModel(),
+							ACTION_RBS,addTransformerInitializationClosure());
+			restoreWorkspaceFor(rbsView);
+		}
+		return rbsView;
+	}
+
+	public BaseView getReportView() {
+		if (reportView == null) {
+			reportView = new ReportView(this);
+			reportView.init(coord);
+			restoreWorkspaceFor(reportView);
+		}
+		return reportView;
+	}
+
+	public ChartView getChartView() {
+		if (chartView == null) {
+			chartView = new ChartView(this, ChartMode.REPORT_CHART, graphicManager.getMenuManager(),mainView.getSynchronizer(),addTransformerInitializationClosure());
+			chartView.init(coord);
+			restoreWorkspaceFor(chartView);
+		}
+		return chartView;
+	}
+
+	public ChartView getHistogramView() {
+		if (histogramView == null) {
+			histogramView = new ChartView(this, ChartMode.RESOURCE_GRAPH, graphicManager
+					.getMenuManager(),mainView.getSynchronizer(),addTransformerInitializationClosure());
+			histogramView.init(coord);
+			histogramView.setResourceSelectionListener(() -> SwingUtilities.invokeLater(() -> {
+				if (bottomPaneActive && activeBottomView == histogramView)
+					getGraphicManager().syncGanttViewRibbonState();
+			}));
+			restoreWorkspaceFor(histogramView);
+		}
+		return histogramView;
+	}
+
+	public ResourceView getResourceView() {
+		if (resourceView == null) {
+			resourceView = new ResourceView(getResourceNodeModelCache(),
+					getResourceModel(), project.getResourcePool(),!true &&project.isReadOnly(),graphicManager.isEditingMasterProject());
+			restoreWorkspaceFor(resourceView);
+		}
+		return resourceView;
+	}
+
+	public ProjectView getProjectView() {
+		if (projectView == null) {
+			Portfolio portfolio = getGraphicManager().getProjectFactory().getPortfolio();
+			projectView = new ProjectView(portfolio.getNodeModel(), portfolio);
+			restoreWorkspaceFor(projectView);
+		}
+		return projectView;
+	}
+
+	public DockableProjectToolView getTimelineView() {
+		if (timelineView == null) {
+			timelineView = new DockableProjectToolView(project, ACTION_TIMELINE,
+				TimelineDialogBox.createEmbeddedPanel(getGraphicManager().getFrame(), project));
+			restoreWorkspaceFor(timelineView);
+			TimelineDialogBox timelineDialog = getEmbeddedTimelineDialog();
+			if (timelineDialog != null)
+				timelineDialog.setSelectionListener(() -> {
+					getGraphicManager().syncGanttViewRibbonState();
+					getGraphicManager().setButtonState(getSelectedImpl(), project);
+				});
+		}
+		return timelineView;
+	}
+
+	/** The embedded Timeline view's dialog when that view has been created (active or not), else null. */
+	public TimelineDialogBox getEmbeddedTimelineDialog() {
+		if (timelineView == null) return null;
+		for (java.awt.Component child : timelineView.getComponents())
+			if (child instanceof javax.swing.JComponent component
+					&& component.getClientProperty(TimelineDialogBox.DIALOG_PROPERTY) instanceof TimelineDialogBox dialog)
+				return dialog;
+		return null;
+	}
+
+	/** The embedded Team Planner view's dialog when that view has been created (active or not), else null. */
+	public TeamPlannerDialogBox getEmbeddedTeamPlannerDialog() {
+		if (teamPlannerView == null) return null;
+		for (java.awt.Component child : teamPlannerView.getComponents())
+			if (child instanceof javax.swing.JComponent component
+					&& component.getClientProperty(TeamPlannerDialogBox.DIALOG_PROPERTY) instanceof TeamPlannerDialogBox dialog)
+				return dialog;
+		return null;
+	}
+
+	public DockableProjectToolView getCalendarView() {
+		if (calendarView == null) {
+			calendarView = new DockableProjectToolView(project, ACTION_CALENDAR_VIEW,
+				CalendarViewDialogBox.createEmbeddedPanel(getGraphicManager().getFrame(), project));
+			restoreWorkspaceFor(calendarView);
+		}
+		return calendarView;
+	}
+
+	/** The embedded Calendar view's dialog when that view has been created (active or not), else null. */
+	public CalendarViewDialogBox getEmbeddedCalendarDialog() {
+		if (calendarView == null) return null;
+		for (java.awt.Component child : calendarView.getComponents())
+			if (child instanceof javax.swing.JComponent component
+					&& component.getClientProperty(CalendarViewDialogBox.DIALOG_PROPERTY) instanceof CalendarViewDialogBox dialog)
+				return dialog;
+		return null;
+	}
+
+	public DockableProjectToolView getTeamPlannerView() {
+		if (teamPlannerView == null) {
+			teamPlannerView = new DockableProjectToolView(project, ACTION_DELEGATE_TASKS,
+				TeamPlannerDialogBox.createEmbeddedPanel(getGraphicManager().getFrame(), project));
+			restoreWorkspaceFor(teamPlannerView);
+			TeamPlannerDialogBox planner = getEmbeddedTeamPlannerDialog();
+			if (planner != null)
+				planner.setSelectionListener(() -> {
+					getGraphicManager().syncGanttViewRibbonState();
+					getGraphicManager().setButtonState(getSelectedImpl(), project);
+				});
+		}
+		return teamPlannerView;
+	}
+
+	public UsageDetailView getTaskUsageView() {
+		if (taskUsageView == null) {
+			taskUsageView = new UsageDetailView(this, graphicManager
+					.getMenuManager(),mainView.getSynchronizer());
+			taskUsageView.init(getTaskNodeModelCache(), true, coord, true,
+					ACTION_TASK_USAGE,addTransformerInitializationClosure());
+			restoreWorkspaceFor(taskUsageView);
+		}
+		return taskUsageView;
+	}
+
+	public UsageDetailView getResourceUsageView() {
+		if (resourceUsageView == null) {
+			resourceUsageView = new UsageDetailView(this, graphicManager
+					.getMenuManager(),mainView.getSynchronizer());
+			resourceUsageView.init(getResourceNodeModelCache(), false, coord,
+					true, ACTION_RESOURCE_USAGE,addTransformerInitializationClosure());
+			restoreWorkspaceFor(resourceUsageView);
+		}
+		return resourceUsageView;
+	}
+
+	public void toggleMinWidth() {
+		boolean normalMinWidth = (activeTopView == null || activeTopView.hasNormalMinWidth())
+			&& (activeBottomView == null || activeBottomView.hasNormalMinWidth());
+		coord.toggleMinWidth(normalMinWidth);
+	}
+
+
+	public boolean activateView(String viewName) {
+		if (viewName == null || viewName.length() == 0) {
+			activateGanttView();
+			return true;
+		}
+		BaseView topView = null;
+		BaseView bottomView = null;
+		boolean top = true;
+		if (viewName.equals(ACTION_GANTT)) {
+			activateGanttView();
+			return top;
+		} else if (viewName.equals(ACTION_TRACKING_GANTT)) {
+			activateTrackingGanttView();
+			return top;
+		} else if (viewName.equals(ACTION_TASK_SHEET)) {
+			activateTaskSheetView();
+			return top;
+		} else if (viewName.equals(ACTION_TASK_USAGE_DETAIL))
+			topView = getTaskUsageDetailView();
+		else if (viewName.equals(ACTION_RESOURCE_USAGE_DETAIL))
+			topView = getResourceUsageDetailView();
+		else if (viewName.equals(ACTION_NETWORK))
+			topView = getPertView();
+		else if (viewName.equals(ACTION_WBS))
+			topView = getWBSView();
+		else if (viewName.equals(ACTION_RBS))
+			topView = getRBSView();
+		else if (viewName.equals(ACTION_REPORT)) {
+			topView = getReportView();
+			if (topView == null)
+				topView = getGanttView();
+		}
+		else if (viewName.equals(ACTION_RESOURCES))
+			topView = getResourceView();
+		else if (viewName.equals(ACTION_PROJECTS))
+			topView = getProjectView();
+		else if (viewName.equals(ACTION_TIMELINE))
+			topView = getTimelineView();
+		else if (viewName.equals(ACTION_CALENDAR_VIEW))
+			topView = getCalendarView();
+		else if (viewName.equals(ACTION_DELEGATE_TASKS))
+			topView = getTeamPlannerView();
+		else if (viewName.equals(ACTION_HISTOGRAM))
+			bottomView = getHistogramView();
+		else if (viewName.equals(ACTION_CHARTS))
+			bottomView = getChartView();
+		else if (viewName.equals(ACTION_TASK_USAGE))
+			bottomView = getTaskUsageView();
+		else if (viewName.equals(ACTION_RESOURCE_USAGE))
+			bottomView = getResourceUsageView();
+		else if (viewName.equals(ACTION_DETAILS)) {
+			if (activeBottomView != null)
+				deactivateBottomView();
+			else {
+				boolean topIsResource = activeTopView != null && activeTopView.showsResources() && !activeTopView.showsTasks();
+				String restoreName = lastBottomViewName;
+				if (restoreName == null || ACTION_NO_SUB_WINDOW.equals(restoreName)
+					|| !isBottomViewNameCompatibleWithTop(restoreName, topIsResource)) {
+					restoreName = topIsResource ? ACTION_RESOURCE_USAGE : ACTION_TASK_USAGE;
+				}
+				activateBottomView(getBottomViewForRestore(restoreName), restoreName);
+			}
+		}
+		else if (viewName.equals(ACTION_NO_SUB_WINDOW))
+			deactivateBottomView();
+
+		if (topView != null) {
+			activateTopView(topView,viewName);
+		}
+
+		if (bottomView != null) {
+			activateBottomView(bottomView,viewName);
+			top = false;
+		}
+		return top;
+	}
+	private void activateTopView(BaseView view,String viewName) {
+		showWaitCursor(true);
+		if (findDialog != null)
+			findDialog.setVisible(false);
+		CommonSpreadSheet ss = getTopSpreadSheet();
+		if (ss != null)
+			ss.removeSelectionNodeListener(this);
+		deactivateTopView();
+		activeTopView = view;
+		mainView.setTop((Component)view);
+		view.onActivate(true);
+		ss = view.getSpreadSheet();
+		if (ss != null)
+			ss.addSelectionNodeListener(this);
+
+		toggleMinWidth();
+		menuManager.setActionSelected(viewName,true);
+		lastTopButton = viewName;
+		setComboBoxesViewName(view.getViewName());
+		getGraphicManager().setTaskInformation(view.showsTasks(),view.showsResources());
+		refreshUndoButtons();
+		getGraphicManager().setEnabledDocumentMenuActions(true);
+		bottomPaneActive = false;
+		getGraphicManager().updateRibbonContext(getRibbonContextViewId());
+		showWaitCursor(false);
+//this doesn't have any effect		setFrameIcon(menuManager.getToolButtonFromId(viewName).getIcon());
+
+	}
+
+	void deactivateTopView() {
+		if (activeTopView == null)
+			return;
+		if (lastTopButton != null)
+			menuManager.setActionSelected(lastTopButton,false);
+		// deactivate current ss listener
+		CommonSpreadSheet ss = getTopSpreadSheet();
+		if (ss != null)
+			ss.removeSelectionNodeListener(this);
+
+		mainView.removeTop();
+		activeTopView.onActivate(false);
+		activeTopView = null;
+		toggleMinWidth();
+		getGraphicManager().setTaskInformation(false, false);
+		refreshUndoButtons();
+		getGraphicManager().setEnabledDocumentMenuActions(false);
+	}
+
+	public void activateResourceView() {
+		activateTopView(getResourceView(),ACTION_RESOURCES);
+	}
+
+	public void activateGanttView() {
+		getGanttView().setBarStyles("standard");
+		getGanttView().setTracking(false);
+		getGanttView().setTaskSheet(false);
+		activateTopView(getGanttView(),ACTION_GANTT);
+	}
+	public void activateTrackingGanttView() {
+		getGanttView().setBarStyles("Tracking");
+		getGanttView().setTracking(true);
+		getGanttView().setTaskSheet(false);
+		activateTopView(getGanttView(),ACTION_TRACKING_GANTT);
+	}
+	/** The Task Sheet is the Gantt task table with the chart collapsed. */
+	public void activateTaskSheetView() {
+		getGanttView().setBarStyles("standard");
+		getGanttView().setTracking(false);
+		getGanttView().setTaskSheet(true);
+		activateTopView(getGanttView(),ACTION_TASK_SHEET);
+	}
+
+	public void activateBottomView(BaseView view,String viewName) {
+		if (view == null || ACTION_NO_SUB_WINDOW.equals(viewName)) {
+			deactivateBottomView();
+			return;
+		}
+
+		boolean sameView = activeBottomView == view
+				&& mainView.getBottomComponent() == view
+				&& viewName.equals(lastBottomButton);
+		if (sameView) {
+			setBottomActionSelected(viewName);
+			return;
+		}
+
+		if (activeBottomView != null && activeBottomView != view)
+			activeBottomView.onActivate(false);
+		if (mainView.getBottomComponent() != view) {
+			mainView.removeBottom();
+			mainView.setBottom((Component) view);
+		}
+		activeBottomView = view;
+		view.onActivate(true);
+		lastBottomButton = viewName;
+		lastBottomViewName = viewName;
+		setBottomActionSelected(viewName);
+		toggleMinWidth();
+		refreshUndoButtons();
+		trackBottomPaneFocus(view == histogramView);
+
+		if (view instanceof SelectionNodeListener selectionListener)
+			pushCurrentSelectionToBottomView(selectionListener);
+
+	}
+
+	private void pushCurrentSelectionToBottomView(SelectionNodeListener selectionListener) {
+		if (selectionListener == null)
+			return;
+		CommonSpreadSheet topSpreadSheet = getTopSpreadSheet();
+		if (topSpreadSheet != null) {
+			selectionListener.selectionChanged(new SelectionNodeEvent(
+				topSpreadSheet,
+				SelectionNodeEvent.SELECTION_CHANGED,
+				topSpreadSheet.getSelectedNodes(),
+				topSpreadSheet.getCurrentRowNode(),
+				topSpreadSheet.getSpreadSheetCategory()));
+			return;
+		}
+		if (lastSelectionEvent != null)
+			selectionListener.selectionChanged(lastSelectionEvent);
+	}
+
+	public void deactivateBottomView() {
+		if (activeBottomView != null)
+			lastBottomViewName = lastBottomButton;
+		if (activeBottomView != null)
+			activeBottomView.onActivate(false);
+		if (mainView.getBottomComponent() != null)
+			mainView.removeBottom();
+		lastBottomButton = ACTION_NO_SUB_WINDOW;
+		activeBottomView = null;
+		setBottomActionSelected(ACTION_NO_SUB_WINDOW);
+		toggleMinWidth();
+		refreshUndoButtons();
+		trackBottomPaneFocus(false);
+	}
+
+	/** Starts or stops following which pane the user presses, for the Resource Graph contextual tab. */
+	private void trackBottomPaneFocus(boolean histogramActive) {
+		boolean before = bottomPaneActive;
+		if (bottomPaneListener != null) {
+			java.awt.Toolkit.getDefaultToolkit().removeAWTEventListener(bottomPaneListener);
+			bottomPaneListener = null;
+		}
+		bottomPaneActive = histogramActive;
+		if (histogramActive) {
+			bottomPaneListener = event -> {
+				boolean pressed = event.getID() == java.awt.event.MouseEvent.MOUSE_PRESSED;
+				boolean focused = event.getID() == java.awt.event.FocusEvent.FOCUS_GAINED;
+				if (!(pressed || focused) || !(event.getSource() instanceof Component source))
+					return;
+				boolean inGraph = histogramView != null && SwingUtilities.isDescendingFrom(source, histogramView);
+				boolean inFrame = SwingUtilities.isDescendingFrom(source, mainView);
+				if (!inFrame) // the ribbon controls of the graph lie outside the frame: keep the graph context
+					return;
+				if (inGraph != bottomPaneActive) {
+					bottomPaneActive = inGraph;
+					getGraphicManager().updateRibbonContext(getRibbonContextViewId());
+				}
+				if (inGraph)
+					SwingUtilities.invokeLater(() -> getGraphicManager().syncGanttViewRibbonState());
+			};
+			java.awt.Toolkit.getDefaultToolkit().addAWTEventListener(bottomPaneListener,
+				java.awt.AWTEvent.MOUSE_EVENT_MASK | java.awt.AWTEvent.FOCUS_EVENT_MASK);
+		}
+		if (before != bottomPaneActive)
+			getGraphicManager().updateRibbonContext(getRibbonContextViewId());
+	}
+
+	/** The view whose contextual ribbon tab applies: the Resource Graph while its pane is active, else the top view. */
+	String getRibbonContextViewId() {
+		if (bottomPaneActive && histogramView != null && activeBottomView == histogramView)
+			return ACTION_HISTOGRAM;
+		return getTopViewId();
+	}
+
+	/** The Resource Graph view while it is the active pane, otherwise null. */
+	public ChartView getActiveResourceGraphView() {
+		return ACTION_HISTOGRAM.equals(getRibbonContextViewId()) ? histogramView : null;
+	}
+
+	private void setBottomActionSelected(String selectedAction) {
+		for (String action : BOTTOM_VIEW_ACTIONS)
+			menuManager.setActionSelected(action, action.equals(selectedAction));
+		menuManager.setActionSelected(ACTION_NO_SUB_WINDOW,
+			ACTION_NO_SUB_WINDOW.equals(selectedAction));
+		menuManager.setActionSelected(ACTION_DETAILS,
+			selectedAction != null && !ACTION_NO_SUB_WINDOW.equals(selectedAction));
+	}
+
+	private BaseView getBottomViewForRestore(String restoreName) {
+		return switch (restoreName) {
+			case ACTION_HISTOGRAM -> getHistogramView();
+			case ACTION_CHARTS -> getChartView();
+			case ACTION_RESOURCE_USAGE -> getResourceUsageView();
+			default -> getTaskUsageView();
+		};
+	}
+
+	/**
+	 * Details restores the last bottom view only when it matches the kind of the top view, so a resource view
+	 * never shows task usage. Histogram and Charts apply to both kinds; an unknown name falls back to compatible.
+	 */
+	private boolean isBottomViewNameCompatibleWithTop(String bottomViewName, boolean topIsResource) {
+		if (ACTION_HISTOGRAM.equals(bottomViewName) || ACTION_CHARTS.equals(bottomViewName))
+			return true;
+		if (ACTION_TASK_USAGE.equals(bottomViewName))
+			return !topIsResource;
+		if (ACTION_RESOURCE_USAGE.equals(bottomViewName))
+			return topIsResource;
+		return true;
+	}
+
+
+	/**
+	 * @return Returns the mainView.
+	 */
+	public MainView getMainView() {
+		return mainView;
+	}
+
+	/**
+	 * @return Returns the project.
+	 */
+	public Project getProject() {
+		return project;
+	}
+
+	/**
+	 * @return Returns the topSpreadSheet.
+	 */
+	public SpreadSheet getTopSpreadSheet() {
+		CommonSpreadSheet ss = null;
+		if (activeTopView != null)
+			ss = activeTopView.getSpreadSheet();
+		return (SpreadSheet) ss;
+	}
+
+	public void showStatusMessage(String message) {
+		statusBar.setMessage(message);
+	}
+
+	/**
+	 * @return Returns the topSpreadSheet.
+	 */
+	public SpreadSheet getActiveSpreadSheet() {
+		SpreadSheet ss = getTopSpreadSheet();
+		if (ss == null) {
+			if (activeBottomView != null)
+				ss = activeBottomView.getSpreadSheet();
+
+		}
+		return ss;
+	}
+
+
+	protected SelectionNodeEvent lastSelectionEvent=null;
+	private TaskFormatPainterService.TaskTextFormat formatPainterStyle;
+	private Task formatPainterSource;
+	private boolean formatPainterContinuous;
+	/**
+	 * React to selection changed events and forward them on to any bottom
+	 * window
+	 */
+	public void selectionChanged(SelectionNodeEvent e) {
+		applyFormatPainterToSelection(e);
+		lastSelectionEvent=e;
+		syncTaskStateToggles();
+		statusBar.setSelectedCount(e.getNodes() == null ? 0 : e.getNodes().size());
+		Component bottom = mainView.getBottomComponent();
+		if (bottom != null && bottom instanceof SelectionNodeListener)
+			((SelectionNodeListener) bottom).selectionChanged(e);
+		graphicManager.selectionChanged(e);
+		if (taskInspectorPanel != null && taskInspectorPanel.isVisible()) {
+			Object selected = e.getCurrentNode() == null ? null : e.getCurrentNode().getImpl();
+			taskInspectorPanel.showTask(selected instanceof Task task ? task : null);
+		}
+	}
+
+	public void showTaskInspector(boolean show) {
+		if (taskInspectorPanel == null || taskInspectorSplit == null) return;
+		taskInspectorPanel.setVisible(show);
+		if (show) {
+			Object selected = lastSelectionEvent == null || lastSelectionEvent.getCurrentNode() == null
+				? null : lastSelectionEvent.getCurrentNode().getImpl();
+			taskInspectorPanel.showTask(selected instanceof Task task ? task : null);
+			taskInspectorSplit.setDividerSize(6);
+			taskInspectorSplit.setDividerLocation(300);
+		} else {
+			taskInspectorSplit.setDividerSize(0);
+			taskInspectorSplit.setDividerLocation(0);
+		}
+		taskInspectorSplit.revalidate();
+		taskInspectorSplit.repaint();
+	}
+
+	public void toggleTaskInspector() {
+		showTaskInspector(!taskInspectorVisible());
+	}
+
+	/** Inspect Task: shows the inspector for the current selection. */
+	public void inspectTask() {
+		showTaskInspector(true);
+	}
+
+	/** Fix in Task Inspector: selects the task and opens the inspector on it. */
+	public void fixTaskInInspector(Task task) {
+		Node node = findTaskNode(project, task);
+		SpreadSheet sheet = getActiveSpreadSheet();
+		if (node != null && sheet != null && sheet.taskNodeToViewRow(node) >= 0)
+			sheet.restoreTaskRowSelection(List.of(node));
+		showTaskInspector(true);
+		if (taskInspectorPanel != null && task != null)
+			taskInspectorPanel.showTask(task);
+	}
+
+	/** Undoable Ignore Warnings change; false when nothing changed or the change was refused. */
+	public boolean setIgnoreWarnings(List<Task> tasks, boolean ignore) {
+		if (project == null || project.isReadOnly() || tasks == null || tasks.isEmpty()) return false;
+		try {
+			var result = new com.microproject.model.task.TaskWarningsService().setIgnoreWarnings(project, tasks, ignore);
+			return finishWarningsChange(result.change());
+		} catch (RuntimeException refused) {
+			GraphicManager.traceUi("ignore-warnings refused " + refused);
+			return false;
+		}
+	}
+
+	/** Show Ignored Problems: clears Ignore Warnings on every task of the project. */
+	public boolean showIgnoredProblems() {
+		if (project == null || project.isReadOnly()) return false;
+		try {
+			return finishWarningsChange(new com.microproject.model.task.TaskWarningsService().showIgnoredProblems(project).change());
+		} catch (RuntimeException refused) {
+			GraphicManager.traceUi("show-ignored-problems refused " + refused);
+			return false;
+		}
+	}
+
+	private boolean finishWarningsChange(com.microproject.model.task.ReversibleModelChange change) {
+		if (!change.hasChanged()) return false;
+		SwingUndoAdapter.post(project.getUndoController().getEditSupport(), change);
+		refreshTaskDiagnostics();
+		return true;
+	}
+
+	/** Repaints the sheets and refreshes the inspector after warnings, suggestions or Ignore Warnings change. */
+	void refreshTaskDiagnostics() {
+		if (taskInspectorPanel != null && taskInspectorPanel.isVisible() && lastSelectionEvent != null
+				&& lastSelectionEvent.getCurrentNode() != null
+				&& lastSelectionEvent.getCurrentNode().getImpl() instanceof Task selected)
+			taskInspectorPanel.showTask(selected);
+		repaint();
+	}
+
+	boolean taskInspectorVisible() { return taskInspectorPanel != null && taskInspectorPanel.isVisible(); }
+	TaskInspectorPanel getTaskInspectorPanel() { return taskInspectorPanel; }
+	JSplitPane getTaskInspectorSplit() { return taskInspectorSplit; }
+
+	private void navigateInspectorPredecessor(Task task) {
+		SpreadSheet sheet = getActiveSpreadSheet();
+		Node node = findTaskNode(project, task);
+		if (sheet == null || node == null) {
+			taskInspectorPanel.showFeedback(Messages.getString("TaskInspector.PredecessorUnavailable"));
+			return;
+		}
+		int viewRow = sheet.taskNodeToViewRow(node);
+		if (viewRow < 0) {
+			taskInspectorPanel.showFeedback(Messages.getString("TaskInspector.PredecessorHidden"));
+			return;
+		}
+		sheet.restoreTaskRowSelection(List.of(node));
+	}
+
+	static Node findTaskNode(Project project, Task task) {
+		return project == null || task == null ? null : project.getTaskModel().search(task);
+	}
+
+	boolean canStartFormatPainter() {
+		if (formatPainterStyle != null)
+			return true;
+		if (project == null || project.isReadOnly() || getActiveSpreadSheet() == null)
+			return false;
+		ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(true, false);
+		return selection.isEligible(1) && selection.nodes().size() == 1;
+	}
+
+	void startOrPromoteFormatPainter() {
+		if (formatPainterStyle != null) {
+			if (!formatPainterContinuous) {
+				formatPainterContinuous = true;
+				getMenuManager().setActionSelected("RibbonFormatPainter", true);
+			} else {
+				cancelFormatPainter();
+			}
+			return;
+		}
+		finishAnyOperations();
+		if (project == null || project.isReadOnly())
+			return;
+		ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(true, false);
+		if (!selection.isEligible(1) || selection.nodes().size() != 1
+				|| !(selection.nodes().getFirst().getImpl() instanceof Task source)
+				|| source.getProject() != project || source.isReadOnly())
+			return;
+		formatPainterSource = source;
+		formatPainterStyle = TaskFormatPainterService.capture(source);
+		formatPainterContinuous = false;
+		getMenuManager().setActionSelected("RibbonFormatPainter", true);
+		GraphicManager.traceUi("format-painter armed sourceTask=" + source.getUniqueId());
+	}
+
+	/** The writable tasks of the active table selection that the Task &gt; Font group formats. */
+	private List<Node> selectedFormattableSpreadsheetNodes() {
+		if (project == null || project.isReadOnly() || getActiveSpreadSheet() == null)
+			return List.of();
+		ActiveTaskSelectionResolver.Selection selection = resolveTaskSelection(true, false);
+		if (!selection.isEligible(1))
+			return List.of();
+		List<Node> nodes = new ArrayList<>(selection.nodes().size());
+		for (Node node : selection.nodes()) {
+			if (!(node.getImpl() instanceof Task task) || task.getProject() != project || task.isReadOnly())
+				return List.of();
+			nodes.add(node);
+		}
+		return nodes;
+	}
+
+	/**
+	 * The writable tasks the Font group formats: the selected tasks of the Timeline chooser while the
+	 * Timeline view is active, otherwise the selected rows of the active table.
+	 */
+	private List<Task> selectedFormattableTasks() {
+		if (project == null || project.isReadOnly())
+			return List.of();
+		if (ACTION_TIMELINE.equals(getTopViewId())) {
+			TimelineDialogBox timeline = getEmbeddedTimelineDialog();
+			if (timeline == null)
+				return List.of();
+			List<Task> tasks = timeline.getSelectedTasks();
+			for (Task task : tasks)
+				if (task.getProject() != project || task.isReadOnly())
+					return List.of();
+			return tasks;
+		}
+		List<Task> tasks = new ArrayList<>();
+		for (Node node : selectedFormattableSpreadsheetNodes())
+			tasks.add((Task) node.getImpl());
+		return tasks;
+	}
+
+	boolean canFormatSelectedTaskText() {
+		return !selectedFormattableTasks().isEmpty();
+	}
+
+	/** True when every selected task is bold (the pressed state of the Bold button). */
+	boolean isSelectedTaskTextBold() {
+		List<Task> nodes = selectedFormattableTasks();
+		return !nodes.isEmpty() && nodes.stream().allMatch(Task::isFontBold);
+	}
+
+	/** True when every selected task is italic (the pressed state of the Italic button). */
+	boolean isSelectedTaskTextItalic() {
+		List<Task> nodes = selectedFormattableTasks();
+		return !nodes.isEmpty() && nodes.stream().allMatch(Task::isFontItalic);
+	}
+
+	/** Bold on the selected tasks unless all of them already are, then off. One undoable edit. */
+	void toggleSelectedTaskBold() {
+		boolean value = !isSelectedTaskTextBold();
+		applyToSelectedTaskText(format -> format.withBold(value), "task-font-bold");
+	}
+
+	/** Italic on the selected tasks unless all of them already are, then off. One undoable edit. */
+	void toggleSelectedTaskItalic() {
+		boolean value = !isSelectedTaskTextItalic();
+		applyToSelectedTaskText(format -> format.withItalic(value), "task-font-italic");
+	}
+
+	/** Asks for a color and applies it as the text color of the selected tasks. One undoable edit. */
+	void chooseSelectedTaskFontColor() {
+		List<Task> nodes = selectedFormattableTasks();
+		if (nodes.isEmpty())
+			return;
+		Integer current = nodes.getFirst().getFontColor();
+		java.awt.Color chosen = javax.swing.JColorChooser.showDialog(this,
+			Messages.getString("TaskInformationDialog.FontColor"), current == null ? java.awt.Color.BLACK : new java.awt.Color(current));
+		if (chosen != null) {
+			Integer rgb = chosen.getRGB() & 0xFFFFFF;
+			applySelectedTaskFontColor(rgb);
+		}
+	}
+
+	void applySelectedTaskFontColor(Integer rgb) {
+		applyToSelectedTaskText(format -> format.withColor(rgb), "task-font-color");
+	}
+
+	/** True when every selected task is underlined (the pressed state of the Underline button). */
+	boolean isSelectedTaskTextUnderline() {
+		List<Task> nodes = selectedFormattableTasks();
+		return !nodes.isEmpty() && nodes.stream().allMatch(Task::isFontUnderline);
+	}
+
+	/** True when every selected task is on the timeline (the pressed state of Add to Timeline). */
+	boolean isSelectedTaskOnTimeline() {
+		List<Task> nodes = selectedFormattableTasks();
+		return !nodes.isEmpty() && nodes.stream().allMatch(Task::isDisplayOnTimeline);
+	}
+
+	/** Underline on the selected tasks unless all of them already are, then off. One undoable edit. */
+	void toggleSelectedTaskUnderline() {
+		boolean value = !isSelectedTaskTextUnderline();
+		applyToSelectedTaskText(format -> format.withUnderline(value), "task-font-underline");
+	}
+
+	/** Asks for a color and applies it as the cell background fill of the selected tasks. One undoable edit. */
+	void chooseSelectedTaskBackground() {
+		List<Task> nodes = selectedFormattableTasks();
+		if (nodes.isEmpty())
+			return;
+		Integer current = nodes.getFirst().getFontBackground();
+		java.awt.Color chosen = javax.swing.JColorChooser.showDialog(this,
+			Messages.getString("TaskFill.title"), current == null ? java.awt.Color.WHITE : new java.awt.Color(current));
+		if (chosen != null) {
+			Integer rgb = chosen.getRGB() & 0xFFFFFF;
+			applySelectedTaskBackground(rgb);
+		}
+	}
+
+	void applySelectedTaskBackground(Integer rgb) {
+		applyToSelectedTaskText(format -> format.withBackground(rgb), "task-font-fill");
+	}
+
+	/** Font family of the lead selected task, or null without a formattable selection. */
+	String selectedTaskFontFamily() {
+		List<Task> nodes = selectedFormattableTasks();
+		return nodes.isEmpty() ? null : nodes.getFirst().getFontFamily();
+	}
+
+	/** Font size of the lead selected task, or 0 without a formattable selection. */
+	int selectedTaskFontSize() {
+		List<Task> nodes = selectedFormattableTasks();
+		return nodes.isEmpty() ? 0 : nodes.getFirst().getFontSize();
+	}
+
+	void setSelectedTaskFontFamily(String family) {
+		applyToSelectedTaskText(format -> format.withFamily(family), "task-font-family");
+	}
+
+	void setSelectedTaskFontSize(int size) {
+		applyToSelectedTaskText(format -> format.withSize(size), "task-font-size");
+	}
+
+	private void applyToSelectedTaskText(java.util.function.UnaryOperator<TaskFormatPainterService.TaskTextFormat> change,
+			String reason) {
+		finishAnyOperations();
+		List<Task> nodes = selectedFormattableTasks();
+		if (nodes.isEmpty() || !CollaborationHelper.tryLockNodes(project, nodes, this, reason))
+			return;
+		TaskFormatPainterService.applyChange(project, nodes, change, getUndoController());
+	}
+
+	void cancelFormatPainter() {
+		if (formatPainterStyle == null)
+			return;
+		formatPainterStyle = null;
+		formatPainterSource = null;
+		formatPainterContinuous = false;
+		getMenuManager().setActionSelected("RibbonFormatPainter", false);
+		GraphicManager.traceUi("format-painter cancelled");
+	}
+
+	private void applyFormatPainterToSelection(SelectionNodeEvent event) {
+		if (formatPainterStyle == null || event == null || event.getNodes() == null || event.getNodes().isEmpty())
+			return;
+		ActiveTaskSelectionResolver.Selection selection = ActiveTaskSelectionResolver.resolve(
+			new ArrayList<>(event.getNodes()), false, false, false);
+		if (!selection.isEligible(1)) {
+			if (!formatPainterContinuous)
+				cancelFormatPainter();
+			return;
+		}
+		List<Task> targets = new ArrayList<>(selection.nodes().size());
+		List<Node> targetNodes = new ArrayList<>(selection.nodes().size());
+		boolean selectedOtherTask = false;
+		for (Node node : selection.nodes()) {
+			if (!(node.getImpl() instanceof Task task) || task.getProject() != project || task.isReadOnly()) {
+				if (!formatPainterContinuous)
+					cancelFormatPainter();
+				return;
+			}
+			if (task == formatPainterSource)
+				continue;
+			selectedOtherTask = true;
+			if (TaskFormatPainterService.capture(task).equals(formatPainterStyle))
+				continue;
+			targets.add(task);
+			targetNodes.add(node);
+		}
+		if (targets.isEmpty()) {
+			if (selectedOtherTask && !formatPainterContinuous)
+				cancelFormatPainter();
+			return;
+		}
+		if (project == null || project.isReadOnly()
+				|| !CollaborationHelper.tryLockNodes(project, targetNodes, this,
+					"format-painter")) {
+			if (!formatPainterContinuous)
+				cancelFormatPainter();
+			return;
+		}
+		List<Long> changed = TaskFormatPainterService.apply(project, targets, formatPainterStyle,
+			getUndoController());
+		GraphicManager.traceUi("format-painter applied targets=" + changed.size()
+			+ " continuous=" + formatPainterContinuous);
+		if (!formatPainterContinuous)
+			cancelFormatPainter();
+	}
+
+	/**
+	 * @return Returns the menuManager.
+	 */
+	public MenuManager getMenuManager() {
+		return menuManager;
+	}
+
+	private boolean hasAtLeastOneTaskSelected() {
+		return DataUtils.nodeListContainsImplOfType(getSelectedNodes(true), Task.class);
+	}
+
+	protected List<Node> getSelectedTaskNodes(boolean excludeReadOnly, boolean allowMixedSelection) {
+		return resolveTaskSelection(excludeReadOnly, allowMixedSelection).nodes();
+	}
+
+	List<Long> getSelectedTaskIds() {
+		return resolveTaskSelection(true, true).stableTaskIds();
+	}
+
+	private ActiveTaskSelectionResolver.Selection resolveTaskSelection(boolean excludeReadOnly,
+			boolean allowMixedSelection) {
+		TaskSelectionOwner owner = activeTaskSelectionOwner(excludeReadOnly);
+		// The active table owns the user's physical row selection whenever it has
+		// one. The frame-level provider can lag during editor commit or projection
+		// refresh, so consulting it first made command enablement disagree with the
+		// rows the command would mutate. Keep this as the one resolver used by both
+		// enablement and execution.
+		return ActiveTaskSelectionResolver.resolve(owner.nodes(), owner.headerColumnSelectionActive(),
+			excludeReadOnly, allowMixedSelection);
+	}
+
+	private TaskSelectionOwner activeTaskSelectionOwner(boolean excludeReadOnly) {
+		SpreadSheet activeSheet = getActiveSpreadSheet();
+		List<Node> nodes = ActiveTaskSelectionResolver.preferPhysicalRowSelection(
+			activeSheet != null && activeSheet.getSelectedRows().length > 0,
+			activeSheet == null ? null : activeSheet.getSelectedNodes(),
+			getSelectedNodes(excludeReadOnly));
+		return new TaskSelectionOwner(activeSheet, nodes,
+			activeSheet != null && activeSheet.isHeaderColumnSelectionActive());
+	}
+
+	private record TaskSelectionOwner(SpreadSheet spreadSheet, List<Node> nodes,
+			boolean headerColumnSelectionActive) {
+	}
+
+	/**
+	 * Returns stable domain tasks for Hide Selected Tasks. Group rows are virtual
+	 * nodes created by the view transformer, so their grouped members must be
+	 * resolved before applying the persistent visibility state.
+	 */
+	protected List<Node> getSelectedVisibilityTaskNodes() {
+		TaskSelectionOwner owner = activeTaskSelectionOwner(true);
+		SpreadSheet spreadSheet = owner.spreadSheet();
+		if (owner.headerColumnSelectionActive())
+			return Collections.emptyList();
+		// Visibility is also valid for a virtual grouping row.  Do not filter it
+		// through getSelectedTaskNodes() first: that would discard the group before
+		// TaskVisibilitySelectionResolver can expand its member tasks.
+		// Match ordinary task commands: the active spreadsheet owns a physical
+		// row selection even while the frame-level selection event is stale.
+		List<Node> selected = owner.nodes();
+		if (selected == null || selected.isEmpty()) return Collections.emptyList();
+		if (spreadSheet == null || !(spreadSheet.getModel() instanceof SpreadSheetModel model))
+			return TaskVisibilitySelectionResolver.resolve(selected, null);
+		WalkersNodeModel viewModel = model.getCache().getWalkersModel();
+		return TaskVisibilitySelectionResolver.resolve(selected, viewModel);
+	}
+
+	protected boolean hasTaskSelection(boolean excludeReadOnly, int minCount, boolean allowMixedSelection) {
+		return resolveTaskSelection(excludeReadOnly, allowMixedSelection).isEligible(minCount);
+	}
+
+	protected boolean canPasteIntoCurrentSelection() {
+		SpreadSheet spreadSheet = getActiveSpreadSheet();
+		return spreadSheet != null && spreadSheet.getCurrentRow() >= 0;
+	}
+
+	private void focusSingleTaskSelectionAnchor(SpreadSheet spreadSheet) {
+		if (spreadSheet == null)
+			return;
+		int row = spreadSheet.getCurrentRow();
+		if (row < 0 || row >= spreadSheet.getRowCount())
+			return;
+		int column = spreadSheet.getCurrentViewColumn();
+		if (column < 0)
+			column = 0;
+		if (column >= spreadSheet.getColumnCount())
+			column = Math.max(0, spreadSheet.getColumnCount() - 1);
+		spreadSheet.getSelectionModel().setSelectionInterval(row, row);
+		if (spreadSheet.getColumnCount() > 0) {
+			spreadSheet.getColumnModel().getSelectionModel().setSelectionInterval(column, column);
+		}
+	}
+	public void editPosted(UndoableEdit edit) {
+		UndoController undoController = activeTopView == null ? null : activeTopView.getUndoController();
+		if (undoController == null || !undoController.getEditSupport().hasPendingHistory()) refreshUndoButtonsSafely();
+	}
+
+	@Override
+	public void historySettled() {
+		if (SwingUtilities.isEventDispatchThread()) refreshUndoButtonsSafely();
+		else SwingUtilities.invokeLater(this::refreshUndoButtonsSafely);
+	}
+
+	protected UndoController currentUndoController=null;
+	/** Stable task selection carried across the asynchronous undo/redo projection. */
+	private List<Node> undoRedoSelection = Collections.emptyList();
+	public UndoController getUndoController(){
+		return currentUndoController;
+	}
+
+	void refreshViewButtons(boolean enable) {
+		if (enable)
+			refreshUndoButtons();
+		if (lastTopButton != null)
+			menuManager.setActionSelected(lastTopButton,enable);
+		setBottomActionSelected(enable ? lastBottomButton : null);
+		if (enable)
+			syncPrivacyMaskToggle();
+
+	}
+
+	/** Privacy Mask is pressed while this document's presentation is masked; the state is the document's, not the button's. */
+	void syncPrivacyMaskToggle() {
+		if (menuManager != null)
+			menuManager.setActionSelected(ACTION_TOGGLE_PRIVACY_MASK,
+				com.microproject.ui.privacy.PrivacyDisplayMode.isMasked(project));
+	}
+	public void refreshUndoButtons() {
+		UndoController undoController = null;
+		if (activeTopView != null)
+			undoController = activeTopView.getUndoController();
+
+		if (undoController!=currentUndoController){
+			if (currentUndoController!=null)
+				currentUndoController.getEditSupport().removeEditListener(this);
+			if (undoController!=null)
+				undoController.getEditSupport().addEditListener(this);
+			currentUndoController=undoController;
+		}
+
+		boolean canUndo = false;
+		boolean canRedo = false;
+//		String undoText = "";
+//		String redoText = "";
+
+		if (undoController != null){
+			canUndo = undoController.canUndo();
+			canRedo = undoController.canRedo();
+//			undoText = undoController.getUndoManager().getUndoPresentationName();
+//			redoText = undoController.getUndoManager().getRedoPresentationName();
+		}
+		menuManager.setActionEnabled(ACTION_UNDO,canUndo);
+		menuManager.setActionEnabled(ACTION_REDO,canRedo);
+		getGraphicManager().refreshStatusDateControl();
+		syncTaskStateToggles();
+
+	}
+
+	public Node addNodeForImpl(Object impl) {
+		return addNodeForImpl(impl,NodeModel.NORMAL);
+	}
+	public Node addNodeForImpl(Object impl,int eventType) {
+		SpreadSheet spreadSheet = getTopSpreadSheet();
+		if (impl == null) {
+			spreadSheet.executeAction(MenuActionConstants.ACTION_NEW);
+			return null;
+		} else {
+			return spreadSheet.addNodeForImpl(impl,eventType);
+		}
+	}
+
+/**
+ * sees if currently selected row belongs to main project. used to see if can insert a subproject. subprojects can
+ * only be inserted into master project
+ * @return
+ */	public boolean isCurrentRowInMainProject() {
+        CommonSpreadSheet spreadSheet=getTopSpreadSheet();
+        if (spreadSheet == null)
+        	return true;
+	    int row = spreadSheet.getCurrentRow();
+	    if (row == -1)
+	    	return true;
+		Node current = spreadSheet.getCurrentRowNode();
+        SpreadSheetModel model=(SpreadSheetModel)spreadSheet.getModel();
+		LinkedList<Node> previousNodes = model.getPreviousVisibleNodesFromRow(row);
+		if (previousNodes == null)
+			return true;
+		previousNodes.add(current); // treat current node first since going backwards
+		ListIterator<Node> i = previousNodes.listIterator(previousNodes.size());
+		while (i.hasPrevious()) {
+			Object o = i.previous().getImpl();
+			if (o instanceof Task) {
+				if (((Task)o).isInSubproject())
+					return false;
+				return project == ((Task)o).getOwningProject();
+			}
+		}
+
+		return true;
+	}
+
+	public List<Object> getSelectedImpls(boolean excludeReadOnly) {
+		return NodeList.nodeListToImplList(getSelectedNodes(excludeReadOnly));
+	}
+
+
+	public void finishAnyOperations() {
+		if (!isActive())
+			return;
+		CommonSpreadSheet topSpreadSheet=getTopSpreadSheet();
+		if (topSpreadSheet!=null)
+			topSpreadSheet.finishCurrentOperations();
+	}
+
+	public void setComboBoxesViewName(String view) {
+		if (!Environment.isPlugin() && filterToolBarManager != null)
+			filterToolBarManager.setComboBoxesViewName(view);
+	}
+
+	public void showWaitCursor(boolean show) {
+		getGraphicManager().showWaitCursor(show);
+	}
+
+	private final java.util.concurrent.atomic.AtomicBoolean calendarRefreshPending = new java.util.concurrent.atomic.AtomicBoolean();
+
+	public void objectChanged(ObjectEvent objectEvent) { // rename tab if project changes
+		if ((objectEvent.getObject() instanceof Task || objectEvent.getObject() instanceof Dependency)
+				&& (calendarViewDialog != null || calendarView != null)
+				&& calendarRefreshPending.compareAndSet(false, true)) {
+			SwingUtilities.invokeLater(() -> {
+				calendarRefreshPending.set(false);
+				if (calendarViewDialog != null) calendarViewDialog.refreshProjectView();
+				CalendarViewDialogBox embedded = getEmbeddedCalendarDialog();
+				if (embedded != null) embedded.refreshProjectView();
+			});
+		}
+		if (objectEvent.getObject() instanceof Project && objectEvent.isUpdate()) { //Only for projects
+			if (objectEvent.getField() == Configuration.getFieldFromId("Field.name")) {
+				getGraphicManager().setTabNameAndTitle(this,project);
+			}
+//			else if (objectEvent.getField() == Configuration.getFieldFromId("Field.showProjectResourcesOnly")) {
+//				for (ResourceInTeamFilter filter : resourcesInTeamFilters) {
+//					filter.setFilterTeam(project.isShowProjectResourcesOnly());
+//				}
+//			}
+
+		}
+		else if (objectEvent.getObject() instanceof GlobalPreferences && objectEvent.isUpdate()) {
+			//if (objectEvent.getField() == Configuration.getFieldFromId("Field.showProjectResourcesOnly")) {
+				for (ResourceInTeamFilter filter : resourcesInTeamFilters) {
+					filter.setFilterTeam(getGraphicManager().getPreferences().isShowProjectResourcesOnly());
+				}
+				ResourceInTeamFilter filter=getGraphicManager().getAssignmentDialogTransformerInitializationClosure();
+				if (filter!=null){
+					filter.setFilterTeam(getGraphicManager().getPreferences().isShowProjectResourcesOnly());
+				}
+				refreshTaskDiagnostics();
+				if (ganttView != null)
+					ganttView.setSpreadsheetGridVisible(getGraphicManager().getPreferences().isShowRowLines());
+				if (ganttView != null)
+					ganttView.getGantt().setDefaultMilestoneShape(getGraphicManager().getPreferences().getDefaultMilestoneShape());
+			//}
+
+		}
+
+	}
+
+	private ArrayList<ResourceInTeamFilter> resourcesInTeamFilters=new ArrayList<ResourceInTeamFilter>();
+
+	public Consumer<Object> addTransformerInitializationClosure(){
+		return new Consumer<Object>() { public void accept(Object arg) {
+				ViewTransformer transformer=(ViewTransformer)arg;
+		        NodeFilter hiddenFilter=transformer.getHiddenFilter();
+		        if (hiddenFilter!=null&& hiddenFilter instanceof ResourceInTeamFilter){
+		        	ResourceInTeamFilter rf=(ResourceInTeamFilter)hiddenFilter;
+		        	rf.setFilterTeam(getGraphicManager().getPreferences().isShowProjectResourcesOnly());
+		        	resourcesInTeamFilters.add(rf);
+		        }
+			}
+		};
+	}
+
+	void onClose() {
+		project = null; // get rid of reference
+	}
+
+	boolean isPrintable() {
+		return activeTopView != null && activeTopView.isPrintable();
+	}
+
+	final CoordinatesConverter getCoord() {
+		return coord;
+	}
+
+	public void nameChanged(final ProjectEvent e) {
+		setTabNameAndTitle(e.getProject());
+	}
+	public void groupDirtyChanged(final ProjectEvent e) {
+		setTabNameAndTitle(e.getProject());
+		getGraphicManager().refreshSaveStatus(false);
+	}
+    void setTabNameAndTitle(Project project) {
+    	boolean show = isShowTitleBar();
+
+   		getGraphicManager().setTitle(false);
+		setTabTitle(project.getName());
+		setShowTitleBar(show);
+//		if (parentFrame.getCurrentFrame() == this)
+//			parentFrame.setTitle(Messages.getString("Text.ApplicationTitle") + " - " + project.getName());
+    }
+    String getTopViewId() {
+    	if (lastTopButton == null)
+    		return ACTION_GANTT;
+    	return lastTopButton;
+    }
+
+
+	public void cleanUp() {
+		logger.fine("Document Frame Cleanup");
+		if (bottomPaneListener != null) {
+			java.awt.Toolkit.getDefaultToolkit().removeAWTEventListener(bottomPaneListener);
+			bottomPaneListener = null;
+		}
+		// Embedded MPOF files are owned by the document lifetime.  Release them
+		// before dropping the model reference so Windows can delete open handles.
+		getGraphicManager().closeProjectArtifacts(project);
+		if (calendarViewDialog != null) {
+			calendarViewDialog.dispose();
+			calendarViewDialog = null;
+		}
+		if (project != null) {
+			project.removeProjectListener(this);
+			project.removeObjectListener(this);
+			project.removeScheduleListener(coord);
+		}
+		// Registered in the constructor; the preferences outlive every document.
+		getGraphicManager().getPreferences().removeObjectListener(this);
+		if (getUndoController() != null &&  getUndoController().getEditSupport() != null)
+			getUndoController().getEditSupport().removeEditListener(this);
+		if (coord != null)
+			coord.removeTimeScaleListener(mainView);
+		forAllViews(v -> {
+			if (v instanceof BaseView view) {
+				NodeModelCache viewCache = view.getCache();
+				view.cleanUp();
+				if (viewCache != null)
+					viewCache.close();
+			}
+		});
+		if (taskNodeModelCache != null) {
+			taskNodeModelCache.close();
+			taskNodeModelCache = null;
+		}
+		if (resourceNodeModelCache != null) {
+			resourceNodeModelCache.close();
+			resourceNodeModelCache = null;
+		}
+    	resetViews();
+    	if (jobQueue != null)
+    		jobQueue.cancel();
+    	jobQueue =null;
+		project = null;
+		coord = null;
+		resetViews();
+	}
+
+	void resetViews() {
+		ganttView = null;
+		taskUsageDetailView = null;
+		resourceUsageDetailView = null;
+		pertView = null;
+		wbsView = null;
+		rbsView = null;
+		chartView = null;
+		histogramView = null;
+		resourceView = null;
+		projectView = null;
+		taskUsageView = null;
+		resourceUsageView = null;
+		timelineView = null;
+		calendarView = null;
+		teamPlannerView = null;
+		reportView = null;
+		activeTopView = null;
+		activeBottomView = null;
+		lastBottomButton = ACTION_NO_SUB_WINDOW;
+		lastBottomViewName = null;
+	}
+	private void forAllViews(Consumer<Object> c) {
+		Object[] views = {
+			ganttView,
+			taskUsageDetailView,
+			resourceUsageDetailView,
+			pertView,
+			wbsView,
+			rbsView,
+			chartView,
+			histogramView,
+			resourceView,
+			projectView,
+			taskUsageView,
+			resourceUsageView,
+			reportView,
+			timelineView,
+			calendarView,
+			teamPlannerView
+		};
+		ArrayUtils.forAllDo(views,c);
+	}
+
+	public void restoreWorkspace(WorkspaceSetting w, int context) {
+		Workspace ws = (Workspace)w;
+		List<BaseView> existingViews = new ArrayList<>();
+		forAllViews(view -> {
+			if (view instanceof BaseView baseView)
+				existingViews.add(baseView);
+		});
+		Map<ChartView, ChartView.SelectionState> chartSelections = new IdentityHashMap<>();
+		for (BaseView view : existingViews) {
+			if (view instanceof ChartView chartView)
+				chartSelections.put(chartView, chartView.snapshotSelection());
+		}
+		workspace = ws;
+		setMainView(false);
+		if (project == null) {
+			project = ProjectFactory.getInstance().findFromId(ws.projectId);
+			if (project == null){
+				LoadOptions opt=new LoadOptions();
+				opt.setId(ws.projectId);
+				opt.setSync(true);
+				project = ProjectFactory.getInstance().openProject(opt);
+			}
+		}
+		coord.restoreWorkspace(ws.getCoord(), context);
+
+		activateView(resolveRestoredTopViewName(ws.topViewName));
+		activateView(ws.bottomViewName);
+		if (activeTopView == null) {
+			activateGanttView();
+		}
+		mainView.restoreWorkspace(ws.mainView, context);
+		// Lazy view construction restores its workspace in the getter. Reapply only to views
+		// that existed before this restore, once each, so a same-session workspace reload also
+		// updates cached views without restoring newly-created views twice.
+		for (BaseView view : existingViews) {
+			restoreWorkspaceFor(view);
+			if (view instanceof ChartView chartView)
+				chartView.restoreSelection(chartSelections.get(chartView));
+		}
+
+	}
+
+	private String resolveRestoredTopViewName(String viewName) {
+		if (viewName == null || viewName.length() == 0) {
+			return ACTION_GANTT;
+		}
+		if (ACTION_REPORT.equals(viewName) && getReportView() == null) {
+			return ACTION_GANTT;
+		}
+		return viewName;
+	}
+
+	private WorkspaceSetting restoreWorkspaceFor(BaseView view) {
+		WorkspaceSetting ws = getWorkspaceFor(view);
+		if (ws != null)
+			view.restoreWorkspace(ws, SavableToWorkspace.VIEW);
+		return ws;
+	}
+	private WorkspaceSetting getWorkspaceFor(BaseView view) {
+		if (workspace == null || workspace.views == null)
+			return null;
+		return (WorkspaceSetting) workspace.views.get(view.getViewName());
+	}
+
+	private void saveViewWorkspace(Workspace ws, String name, BaseView view) {
+		if (view != null)
+			ws.views.put(name, view.createWorkspace(SavableToWorkspace.VIEW));
+	}
+	public WorkspaceSetting createWorkspace(int context) {
+		Workspace ws = new Workspace();
+		ws.projectId = getProject().getUniqueId();
+		ws.topViewName = getTopViewId();
+		ws.bottomViewName = lastBottomButton;
+		ws.coord = coord.createWorkspace(context);
+		ws.mainView = mainView.createWorkspace(context);
+		ws.saveViewWorkspace(ACTION_GANTT,ganttView);
+		ws.saveViewWorkspace(ACTION_TASK_USAGE_DETAIL,taskUsageDetailView);
+		ws.saveViewWorkspace(ACTION_RESOURCE_USAGE_DETAIL,resourceUsageDetailView);
+		ws.saveViewWorkspace(ACTION_NETWORK,pertView);
+		ws.saveViewWorkspace(ACTION_WBS,wbsView);
+		ws.saveViewWorkspace(ACTION_RBS,rbsView);
+		ws.saveViewWorkspace(ACTION_CHARTS,chartView);
+		ws.saveViewWorkspace(ACTION_HISTOGRAM,histogramView);
+		ws.saveViewWorkspace(ACTION_RESOURCES,resourceView);
+		ws.saveViewWorkspace(ACTION_PROJECTS,projectView);
+		ws.saveViewWorkspace(ACTION_TASK_USAGE,taskUsageView);
+		ws.saveViewWorkspace(ACTION_RESOURCE_USAGE,resourceUsageView);
+		ws.saveViewWorkspace(ACTION_REPORT,reportView);
+		ws.saveViewWorkspace(ACTION_TIMELINE,timelineView);
+		ws.saveViewWorkspace(ACTION_CALENDAR_VIEW,calendarView);
+		ws.saveViewWorkspace(ACTION_DELEGATE_TASKS,teamPlannerView);
+		return ws;
+	}
+
+	public static class Workspace implements WorkspaceSetting  {
+		private static final long serialVersionUID = 8836549717587108911L;
+		long projectId;
+		String topViewName;
+		String bottomViewName;
+		WorkspaceSetting coord;
+		WorkspaceSetting mainView;
+		HashMap views = new HashMap(20);
+		public void saveViewWorkspace(String name, BaseView view) {
+			if (views  == null)
+				views = new HashMap(20);
+			if (view != null)
+				views.put(name, view.createWorkspace(SavableToWorkspace.VIEW));
+		}
+		public final String getBottomViewName() {
+			return bottomViewName;
+		}
+		public final void setBottomViewName(String bottomViewName) {
+			this.bottomViewName = bottomViewName;
+		}
+		public final String getTopViewName() {
+			return topViewName;
+		}
+		public final void setTopViewName(String topViewName) {
+			this.topViewName = topViewName;
+		}
+		public final long getProjectId() {
+			return projectId;
+		}
+		public final void setProjectId(long projectId) {
+			this.projectId = projectId;
+		}
+		public WorkspaceSetting getCoord() {
+			return coord;
+		}
+		public void setCoord(WorkspaceSetting coord) {
+			this.coord = coord;
+		}
+		public HashMap getViews() {
+			return views;
+		}
+		public void setViews(HashMap views) {
+			this.views = views;
+		}
+		public WorkspaceSetting getMainView() {
+			return mainView;
+		}
+		public void setMainView(WorkspaceSetting mainView) {
+			this.mainView = mainView;
+		}
+	}
+
+	public FilterToolBarManager getFilterToolBarManager() {
+		return filterToolBarManager;
+	}
+
+	public BaseView getActiveBottomView() {
+		return activeBottomView;
+	}
+
+	CalendarViewDialogBox getCalendarViewDialog() {
+		return calendarViewDialog;
+	}
+
+	public BaseView getActiveTopView() {
+		return activeTopView;
+	}
+
+	public void setMenuItem(JRadioButtonMenuItem mi) {
+		this.menuItem = mi;
+
+	}
+
+	public JRadioButtonMenuItem getMenuItem() {
+		return menuItem;
+	}
+	public void setActive(boolean active) {
+		super.setActive(active);
+		if (isEditingResourcePool()) {
+			getGraphicManager().setAllButResourceDisabled(true);
+
+		} else {
+			getGraphicManager().setAllButResourceDisabled(false);
+		}
+
+	}
+
+	boolean isEditingResourcePool() {
+		return project != null && (project.isResourcePoolProject()
+				|| (project.isMaster() && !project.isLocal()));
+
+	}
+	public void doFind(Searchable searchable, Field field) {
+		doFind(searchable, field, null);
+	}
+	public void doFind(Searchable searchable, Field field, String initialQuery) {
+		doFind(searchable, field, initialQuery, false);
+	}
+	public void doFind(Searchable searchable, Field field, String initialQuery, boolean replaceMode) {
+		if (!isActive())
+			return;
+
+    	if (findDialog == null) {
+    		findDialog = FindDialog.getInstance(this,searchable,field);
+    		findDialog.pack();
+    		findDialog.setModal(false);
+		}
+		findDialog.setReplaceMode(replaceMode);
+		findDialog.init(searchable, field, initialQuery);
+    	findDialog.setLocationRelativeTo(this);//to center on screen
+        findDialog.setVisible(true);
+
+	}
+
+	public void objectSelected(ObjectSelectionEvent e) {
+		CommonSpreadSheet spreadSheet = getTopSpreadSheet();
+		spreadSheet.selectObject(e.getObject());
+		doScrollToTask();
+	}
+}

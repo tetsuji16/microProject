@@ -7,7 +7,7 @@ package com.microproject.port;
 import java.nio.file.Path;
 import java.util.Objects;
 
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 
 /** Core-owned export boundary; concrete file formats live in exchange. */
 public interface ExportPort {

@@ -26,13 +26,13 @@ import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.menu.testsupport.UiComponentWalker;
-import com.microproject.pm.task.ProgressLineSettings;
-import com.microproject.pm.graphic.frames.DocumentFrame;
-import com.microproject.pm.task.Project;
+import com.microproject.ui.menu.testsupport.UiComponentWalker;
+import com.microproject.model.task.ProgressLineSettings;
+import com.microproject.ui.frame.DocumentFrame;
+import com.microproject.model.task.Project;
 import com.microproject.util.DateTime;
-import com.microproject.testsupport.GuiJourney;
-import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.ui.testsupport.GuiJourney;
+import com.microproject.ui.testsupport.GuiAcceptanceSupport;
 
 /** Physical dialog journey for the Progress Lines ribbon command. */
 class ProgressLinesGuiAcceptanceTest {

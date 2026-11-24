@@ -1,0 +1,192 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.model.task;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.LinkedHashSet;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+import com.microproject.datatype.Duration;
+import com.microproject.options.CalendarOption;
+import com.microproject.model.calendar.CalendarService;
+import com.microproject.model.calendar.WorkCalendar;
+import com.microproject.util.DateTime;
+
+class RecurringTaskGeneratorTest {
+	@Test
+	void dailyRecurringUsesOccurrenceCountLimit() {
+		RecurringTaskSpec spec = new RecurringTaskSpec(
+			"Daily",
+			start(2026, Calendar.JUNE, 1),
+			Duration.setAsEstimated(CalendarOption.getInstance().getMillisPerDay(), true),
+			RecurringTaskSpec.PatternType.DAILY,
+			RecurringTaskSpec.RangeType.END_AFTER_OCCURRENCES,
+			0L,
+			3,
+			null);
+
+		List<RecurringTaskGenerator.Occurrence> occurrences =
+			RecurringTaskGenerator.generateOccurrences(spec, defaultCalendar());
+
+		assertEquals(3, occurrences.size());
+		assertEquals(start(2026, Calendar.JUNE, 1), occurrences.get(0).getStart());
+		assertEquals(start(2026, Calendar.JUNE, 2), occurrences.get(1).getStart());
+		assertEquals(start(2026, Calendar.JUNE, 3), occurrences.get(2).getStart());
+	}
+
+	@Test
+	void occurrenceGenerationStillStopsAtSafetyLimitForVeryLargeCount() {
+		RecurringTaskSpec spec = new RecurringTaskSpec(
+			"Large daily range",
+			start(2026, Calendar.JUNE, 1),
+			0L,
+			RecurringTaskSpec.PatternType.DAILY,
+			RecurringTaskSpec.RangeType.END_AFTER_OCCURRENCES,
+			0L,
+			Integer.MAX_VALUE,
+			null);
+
+		assertThrows(IllegalStateException.class,
+			() -> RecurringTaskGenerator.generateOccurrences(spec, defaultCalendar()));
+	}
+
+	@Test
+	void weeklyRecurringUsesSelectedWeekdaysOnly() {
+		RecurringTaskSpec spec = new RecurringTaskSpec(
+			"Weekly",
+			start(2026, Calendar.JUNE, 1),
+			0L,
+			RecurringTaskSpec.PatternType.WEEKLY,
+			RecurringTaskSpec.RangeType.END_AFTER_OCCURRENCES,
+			0L,
+			4,
+			new LinkedHashSet<Integer>(Arrays.asList(Calendar.MONDAY, Calendar.WEDNESDAY)));
+
+		List<RecurringTaskGenerator.Occurrence> occurrences =
+			RecurringTaskGenerator.generateOccurrences(spec, defaultCalendar());
+
+		assertEquals(4, occurrences.size());
+		assertEquals(start(2026, Calendar.JUNE, 1), occurrences.get(0).getStart());
+		assertEquals(start(2026, Calendar.JUNE, 3), occurrences.get(1).getStart());
+		assertEquals(start(2026, Calendar.JUNE, 8), occurrences.get(2).getStart());
+		assertEquals(start(2026, Calendar.JUNE, 10), occurrences.get(3).getStart());
+	}
+
+	@Test
+	void monthlyRecurringKeepsSameDayOfMonthWhenAvailable() {
+		RecurringTaskSpec spec = new RecurringTaskSpec(
+			"Monthly",
+			start(2026, Calendar.JANUARY, 13),
+			0L,
+			RecurringTaskSpec.PatternType.MONTHLY,
+			RecurringTaskSpec.RangeType.END_AFTER_OCCURRENCES,
+			0L,
+			3,
+			null);
+
+		List<RecurringTaskGenerator.Occurrence> occurrences =
+			RecurringTaskGenerator.generateOccurrences(spec, defaultCalendar());
+
+		assertEquals(3, occurrences.size());
+		assertEquals(start(2026, Calendar.JANUARY, 13), occurrences.get(0).getStart());
+		assertEquals(start(2026, Calendar.FEBRUARY, 13), occurrences.get(1).getStart());
+		assertEquals(start(2026, Calendar.MARCH, 13), occurrences.get(2).getStart());
+	}
+
+	@Test
+	void endByDateStopsAtBoundary() {
+		RecurringTaskSpec spec = new RecurringTaskSpec(
+			"Boundary",
+			start(2026, Calendar.JUNE, 1),
+			0L,
+			RecurringTaskSpec.PatternType.DAILY,
+			RecurringTaskSpec.RangeType.END_BY_DATE,
+			end(2026, Calendar.JUNE, 3),
+			0,
+			null);
+
+		List<RecurringTaskGenerator.Occurrence> occurrences =
+			RecurringTaskGenerator.generateOccurrences(spec, defaultCalendar());
+
+		assertEquals(3, occurrences.size());
+		assertEquals(start(2026, Calendar.JUNE, 3), occurrences.get(2).getStart());
+	}
+
+	@Test
+	void nonZeroDurationProducesLaterFinish() {
+		long oneDay = Duration.setAsEstimated(CalendarOption.getInstance().getMillisPerDay(), true);
+		RecurringTaskSpec spec = new RecurringTaskSpec(
+			"Duration",
+			start(2026, Calendar.JUNE, 1),
+			oneDay,
+			RecurringTaskSpec.PatternType.DAILY,
+			RecurringTaskSpec.RangeType.END_AFTER_OCCURRENCES,
+			0L,
+			1,
+			null);
+
+		List<RecurringTaskGenerator.Occurrence> occurrences =
+			RecurringTaskGenerator.generateOccurrences(spec, defaultCalendar());
+
+		assertEquals(1, occurrences.size());
+		assertTrue(occurrences.get(0).getFinish() > occurrences.get(0).getStart());
+	}
+
+	@Test
+	void weeklyRecurringRequiresAtLeastOneWeekday() {
+		assertThrows(IllegalArgumentException.class,
+			() -> new RecurringTaskSpec(
+				"Invalid",
+				start(2026, Calendar.JUNE, 1),
+				0L,
+				RecurringTaskSpec.PatternType.WEEKLY,
+				RecurringTaskSpec.RangeType.END_AFTER_OCCURRENCES,
+				0L,
+				1,
+				new LinkedHashSet<Integer>()));
+	}
+
+	private WorkCalendar defaultCalendar() {
+		return CalendarService.getInstance().getDefaultInstance();
+	}
+
+	private long start(int year, int month, int dayOfMonth) {
+		return CalendarOption.getInstance().makeValidStart(
+			DateTime.calendarInstance(year, month, dayOfMonth).getTimeInMillis(),
+			true);
+	}
+
+	private long end(int year, int month, int dayOfMonth) {
+		return CalendarOption.getInstance().makeValidEnd(
+			DateTime.calendarInstance(year, month, dayOfMonth).getTimeInMillis(),
+			true);
+	}
+}

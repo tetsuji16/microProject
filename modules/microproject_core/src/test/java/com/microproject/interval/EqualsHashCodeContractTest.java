@@ -34,15 +34,15 @@ import com.microproject.core.nodes.NodeId;
 import com.microproject.core.time.DefaultTimeInterval;
 import com.microproject.core.time.DefaultTimeIntervals;
 import com.microproject.datatype.Duration;
-import com.microproject.pm.calendar.WorkDay;
-import com.microproject.pm.calendar.WorkingCalendar;
-import com.microproject.pm.calendar.WorkingHours;
-import com.microproject.pm.calendar.WorkRange;
-import com.microproject.pm.calendar.WorkRangeException;
-import com.microproject.pm.key.HasCommonKeyImpl;
-import com.microproject.pm.key.HasKeyImpl;
-import com.microproject.pm.key.HasUniqueIdImpl;
-import com.microproject.pm.time.Interval;
+import com.microproject.model.calendar.WorkDay;
+import com.microproject.model.calendar.WorkingCalendar;
+import com.microproject.model.calendar.WorkingHours;
+import com.microproject.model.calendar.WorkRange;
+import com.microproject.model.calendar.WorkRangeException;
+import com.microproject.model.key.HasCommonKeyImpl;
+import com.microproject.model.key.HasKeyImpl;
+import com.microproject.model.key.HasUniqueIdImpl;
+import com.microproject.model.time.Interval;
 
 /**
  * Locks the equals/hashCode contract for the value classes that previously

@@ -10,7 +10,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.scheduling.Schedule;
+import com.microproject.schedule.Schedule;
 
 class ScheduleBackupEditTest {
 	@Test

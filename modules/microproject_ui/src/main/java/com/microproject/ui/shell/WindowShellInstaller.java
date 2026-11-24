@@ -8,9 +8,9 @@ package com.microproject.ui.shell;
 import javax.swing.JFrame;
 import javax.swing.JRootPane;
 
-import com.microproject.util.FlatUiSupport;
+import com.microproject.ui.util.FlatUiSupport;
 import com.microproject.util.Environment;
-import com.microproject.util.FlatLafSupport;
+import com.microproject.ui.util.FlatLafSupport;
 
 /**
  * Configures the one supported top-level window shell for the Office ribbon.

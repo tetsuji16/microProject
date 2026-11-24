@@ -29,7 +29,7 @@ import java.util.List;
 import com.microproject.job.Job;
 import com.microproject.job.JobQueue;
 import com.microproject.job.JobRunnable;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 
 public abstract class AbstractSession implements Session{
 	protected JobQueue jobQueue=null;

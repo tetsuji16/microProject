@@ -109,8 +109,8 @@ class MicroProjectThemeTest {
 			Color text = tokens.backstageNavigationForeground();
 			for (Color surface : new Color[] { tokens.backstageNavigationBackground(),
 				tokens.backstageNavigationHoverBackground(), tokens.backstageNavigationSelectedBackground() }) {
-				double a = com.microproject.util.ColorLuminance.relativeLuminance(text);
-				double b = com.microproject.util.ColorLuminance.relativeLuminance(surface);
+				double a = com.microproject.ui.util.ColorLuminance.relativeLuminance(text);
+				double b = com.microproject.ui.util.ColorLuminance.relativeLuminance(surface);
 				double contrast = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 				assertTrue(contrast >= 4.5, "contrast " + contrast + " on " + surface);
 			}

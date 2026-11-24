@@ -42,10 +42,10 @@ public class VersionUtils {
 		}
 		if (version==null){
 			try {
-				ResourceBundle bundle=ResourceBundle.getBundle("com.microproject.strings.version",Locale.ENGLISH,ClassLoaderUtils.getLocalClassLoader()); //$NON-NLS-1$
+				ResourceBundle bundle=ResourceBundle.getBundle("com.microproject.i18n.version",Locale.ENGLISH,ClassLoaderUtils.getLocalClassLoader()); //$NON-NLS-1$
 				if (bundle!=null) version=bundle.getString("microproject.version");
 			} catch (Exception e) {
-				logger.log(Level.FINE, "Failed to load version from com.microproject.strings.version", e);
+				logger.log(Level.FINE, "Failed to load version from com.microproject.i18n.version", e);
 			}
 		}
 		if (version!=null)

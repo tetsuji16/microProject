@@ -1,0 +1,261 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.view.spreadsheet.editor;
+
+import java.awt.Component;
+import java.lang.ref.WeakReference;
+import java.awt.event.InputMethodEvent;
+import java.awt.event.InputMethodListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
+import java.util.EventObject;
+import java.util.function.IntFunction;
+
+import javax.swing.JComponent;
+import javax.swing.JTable;
+import javax.swing.event.CellEditorListener;
+import javax.swing.table.TableCellEditor;
+import javax.swing.text.JTextComponent;
+
+import com.microproject.ui.menu.MenuActionConstants;
+import com.microproject.ui.frame.GraphicManager;
+import com.microproject.ui.view.spreadsheet.SpreadSheet;
+import com.microproject.ui.view.spreadsheet.SpreadSheetModel;
+import com.microproject.ui.view.spreadsheet.renderer.CellUtility;
+/**
+ * Adapter to modify defaults editors behaviour
+ */
+public class SpreadSheetCellEditorAdapter implements TableCellEditor {
+	/** The single previous-table record for every spreadsheet editor; weak so a closed document's table is not retained. */
+	private static WeakReference<JTable> lastTableRef = new WeakReference<>(null);
+	private static final String COMPOSITION_PROPERTY = ImeTextInputSupport.COMPOSITION_PROPERTY;
+	private static final String COMPOSITION_LISTENER_INSTALLED_PROPERTY = "microproject.compositionListenerInstalled";
+	private static final String NAME_UNDO_ACTION = "spreadsheet.nameColumnUndo";
+	private static final String NAME_REDO_ACTION = "spreadsheet.nameColumnRedo";
+	protected TableCellEditor editor;
+	private JComponent activeEditorComponent;
+	private boolean activeDurationField;
+	public SpreadSheetCellEditorAdapter(TableCellEditor editor) {
+		this.editor=editor;
+		
+	}
+	/** The wrapped editor, for callers that must know which kind of editor a column uses. */
+	public TableCellEditor getDelegate() {
+		return editor;
+	}
+
+	/**
+	 * Swing's table editing path can consume VK_CONVERT before the active text
+	 * component reaches the input method, so the editor gets a local Convert
+	 * binding routed through {@link ImeTextInputSupport#requestReconversion}.
+	 */
+	protected void prepareEditorComponent(JComponent edit) {
+		activeEditorComponent = edit;
+		edit.enableInputMethods(true);
+		ImeTextInputSupport.installReconversionAction(edit);
+		installCompositionTracking(edit);
+	}
+
+	protected void clearActiveEditorComponent() {
+		if (activeEditorComponent != null) {
+			activeEditorComponent.putClientProperty(COMPOSITION_PROPERTY, Boolean.FALSE);
+		}
+		activeEditorComponent = null;
+		activeDurationField = false;
+	}
+	
+	
+	
+	/**
+	 * @see javax.swing.table.TableCellEditor#getTableCellEditorComponent(javax.swing.JTable, java.lang.Object, boolean, int, int)
+	 */
+	public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
+		trackEditingTable(table);
+		activeDurationField = isDurationField(table, column);
+		
+		JComponent component=(JComponent)editor.getTableCellEditorComponent(table,value,isSelected,row,column);
+		CellUtility.setAppearance(table,value,isSelected,true,row,column,component);
+		
+		if (table instanceof SpreadSheet){
+			JComponent edit = (component instanceof DateEditor.ExtDateField) ? ((DateEditor.ExtDateField)component).getTextField() : component;
+			prepareEditorComponent(edit);
+		} else {
+			prepareEditorComponent(component);
+		}
+		
+		return component;
+	}
+
+	protected static JTable lastTable() {
+		return lastTableRef.get();
+	}
+
+	/**
+	 * Single entry point for name and non-name editors: when editing moves to another
+	 * table, the previous table's editor is stopped and its selection cleared.
+	 */
+	protected static void trackEditingTable(JTable table) {
+		JTable previous = lastTableRef.get();
+		if (table != null && previous != null && table != previous) {
+			if (previous.isEditing()) {
+				TableCellEditor lastEditor = previous.getCellEditor();
+				if (lastEditor != null) lastEditor.stopCellEditing();
+			}
+			previous.clearSelection();
+		}
+		lastTableRef = new WeakReference<>(table);
+	}
+
+	private static boolean isDurationField(JTable table, int column) {
+		if (!(table != null && table.getModel() instanceof SpreadSheetModel model))
+			return false;
+		return isDurationField(column, model::getFieldInViewColumn, index -> null);
+	}
+
+	/** Resolves only the column being edited; adjacent duration columns must not affect percent parsing. */
+	static boolean isDurationField(int column, IntFunction<com.microproject.field.Field> viewField, IntFunction<com.microproject.field.Field> modelField) {
+		if (column < 0)
+			return false;
+		com.microproject.field.Field field = viewField.apply(column);
+		if (field == null)
+			field = modelField.apply(column);
+		return field != null && (field.isDuration() || "Field.duration".equals(field.getId()));
+	}
+
+	protected boolean isComposing(InputMethodEvent event) {
+		return ImeTextInputSupport.isComposing(event);
+	}
+
+	/** Keeps the listener owned by the editor adapter; only the state calculation is shared. */
+	protected void installCompositionTracking(final JComponent edit) {
+		if (Boolean.TRUE.equals(edit.getClientProperty(COMPOSITION_LISTENER_INSTALLED_PROPERTY))) return;
+		edit.putClientProperty(COMPOSITION_LISTENER_INSTALLED_PROPERTY, Boolean.TRUE);
+		edit.putClientProperty(COMPOSITION_PROPERTY, Boolean.FALSE);
+		edit.addInputMethodListener(new InputMethodListener() {
+			@Override public void inputMethodTextChanged(InputMethodEvent event) {
+				ImeTextInputSupport.updateCompositionState(edit, event);
+			}
+			@Override public void caretPositionChanged(InputMethodEvent event) { }
+		});
+	}
+
+	protected boolean isCompositionActive(JComponent edit) {
+		return ImeTextInputSupport.isCompositionActive(edit);
+	}
+
+	/**
+	 * @see javax.swing.CellEditor#addCellEditorListener(javax.swing.event.CellEditorListener)
+	 */
+	public void addCellEditorListener(CellEditorListener l) {
+		editor.addCellEditorListener(l);
+	}
+	/**
+	 * @see javax.swing.CellEditor#cancelCellEditing()
+	 */
+	public void cancelCellEditing() {
+		clearActiveEditorComponent();
+		editor.cancelCellEditing();
+	}
+	/**
+	 * @see javax.swing.CellEditor#getCellEditorValue()
+	 */
+	public Object getCellEditorValue() {
+		if (activeDurationField && activeEditorComponent instanceof JTextComponent text) {
+			try {
+				return parseDuration(text.getText());
+			} catch (java.text.ParseException e) {
+				return null;
+			}
+		}
+		JTable editingTable = lastTable();
+		if (editingTable != null && editingTable.getModel() instanceof SpreadSheetModel model) {
+			int viewColumn = editingTable.getEditingColumn();
+			com.microproject.field.Field field = viewColumn < 0 ? null : model.getFieldInViewColumn(viewColumn);
+			if (field != null && (field.isDuration() || "Field.duration".equals(field.getId()))
+					&& activeEditorComponent instanceof JTextComponent text) {
+				try {
+					return parseDuration(text.getText());
+				} catch (java.text.ParseException e) {
+					return null;
+				}
+			}
+		}
+		Object value=editor.getCellEditorValue();
+		return value;
+	}
+
+	private Object parseDuration(String text) throws java.text.ParseException {
+		com.microproject.datatype.DurationFormat format = (com.microproject.datatype.DurationFormat)
+			com.microproject.datatype.DurationFormat.getInstance();
+		JTable editingTable = lastTable();
+		if (editingTable != null && editingTable.getModel() instanceof SpreadSheetModel model
+				&& model.getFieldContext() != null
+				&& model.getFieldContext().getDurationDefaults() != null)
+			return format.parseObject(text, new java.text.ParsePosition(0), model.getFieldContext().getDurationDefaults());
+		return format.parseObject(text);
+	}
+	/**
+	 * Special behavior here to be able to control edition and trigger it by JTable.editCellAt
+	 * 
+	 * @see javax.swing.CellEditor#isCellEditable(java.util.EventObject)
+	 */
+	public boolean isCellEditable(EventObject event) {
+		if (event == null)
+			return true;
+		if (event instanceof MouseEvent)
+			return ((MouseEvent)event).getClickCount() >= 2;
+		if (event instanceof InputMethodEvent)
+			return true;
+		if (event instanceof KeyEvent) {
+			KeyEvent keyEvent = (KeyEvent)event;
+			return keyEvent.getID() == KeyEvent.KEY_TYPED
+				|| (keyEvent.getID() == KeyEvent.KEY_PRESSED && keyEvent.getKeyCode() == KeyEvent.VK_CONVERT);
+		}
+		return true;
+	}
+	/**
+	 * @see javax.swing.CellEditor#removeCellEditorListener(javax.swing.event.CellEditorListener)
+	 */
+	public void removeCellEditorListener(CellEditorListener l) {
+		editor.removeCellEditorListener(l);
+	}
+	/**
+	 * @see javax.swing.CellEditor#shouldSelectCell(java.util.EventObject)
+	 */
+	public boolean shouldSelectCell(EventObject event){
+		return editor.shouldSelectCell(event);
+	}
+	/**
+	 * @see javax.swing.CellEditor#stopCellEditing()
+	 */
+	public boolean stopCellEditing() {
+		if (activeEditorComponent != null && isCompositionActive(activeEditorComponent))
+			return false;
+		boolean stopped = editor.stopCellEditing();
+		if (stopped)
+			clearActiveEditorComponent();
+		return stopped;
+	}
+	
+}

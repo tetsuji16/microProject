@@ -53,11 +53,11 @@ import com.microproject.exchange.MpoConflictRecoveryException;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.exchange.MpoConflictRecoveryException;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.resource.ResourcePoolFactory;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.TaskSnapshot;
-import com.microproject.temporary.TemporaryRoot;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.resource.ResourcePoolFactory;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.TaskSnapshot;
+import com.microproject.util.temporary.TemporaryRoot;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.workspace.WorkspaceSetting;
 
@@ -177,7 +177,7 @@ class CollaborationConflictTest {
 		AtomicInteger reloads = new AtomicInteger();
 		CollaborationSession session = new CollaborationSession(project, projectFile.getAbsolutePath(), "alice");
 		session.setExternalReloadHandler(new CollaborationSession.ExternalProjectReloadHandler() {
-			public void reload(com.microproject.pm.task.Project changedProject) {
+			public void reload(com.microproject.model.task.Project changedProject) {
 				reloads.incrementAndGet();
 			}
 		});
@@ -202,14 +202,14 @@ class CollaborationConflictTest {
 		AtomicInteger reloads = new AtomicInteger();
 		CollaborationSession session = new CollaborationSession(project, projectFile.getAbsolutePath(), "alice");
 		session.setExternalReloadHandler(new CollaborationSession.ExternalProjectReloadHandler() {
-			public void reload(com.microproject.pm.task.Project changedProject) {
+			public void reload(com.microproject.model.task.Project changedProject) {
 				reloads.incrementAndGet();
 			}
 		});
 		long now = System.currentTimeMillis();
 		session.pollAt(now);
-		com.microproject.pm.task.Task localTask =
-			(com.microproject.pm.task.Task) project.getTasks().get(0);
+		com.microproject.model.task.Task localTask =
+			(com.microproject.model.task.Task) project.getTasks().get(0);
 		assertTrue(session.tryAcquireTaskLock(localTask));
 		assertTrue(session.getLocalLocks().contains(Long.valueOf(localTask.getUniqueId())));
 
@@ -231,7 +231,7 @@ class CollaborationConflictTest {
 		AtomicInteger reloads = new AtomicInteger();
 		CollaborationSession session = new CollaborationSession(project, projectFile.getAbsolutePath(), "alice");
 		session.setExternalReloadHandler(new CollaborationSession.ExternalProjectReloadHandler() {
-			public void reload(com.microproject.pm.task.Project changedProject) {
+			public void reload(com.microproject.model.task.Project changedProject) {
 				reloads.incrementAndGet();
 			}
 		});
@@ -269,8 +269,8 @@ class CollaborationConflictTest {
 		Project bobProject = mergeService.loadExternalProject(sharedMpo.getAbsolutePath());
 		assertNotNull(aliceProject);
 		assertNotNull(bobProject);
-		com.microproject.pm.task.Task aliceTask = (com.microproject.pm.task.Task) aliceProject.getTasks().get(0);
-		com.microproject.pm.task.Task bobTask = (com.microproject.pm.task.Task) bobProject.getTasks().get(0);
+		com.microproject.model.task.Task aliceTask = (com.microproject.model.task.Task) aliceProject.getTasks().get(0);
+		com.microproject.model.task.Task bobTask = (com.microproject.model.task.Task) bobProject.getTasks().get(0);
 		long taskId = aliceTask.getUniqueId();
 		CollaborationSession alice = new CollaborationSession(aliceProject, sharedMpo.getAbsolutePath(), "alice");
 		CollaborationSession bob = new CollaborationSession(bobProject, sharedMpo.getAbsolutePath(), "bob");
@@ -315,10 +315,10 @@ class CollaborationConflictTest {
 			assertArrayEquals(bobCommittedArchive, Files.readAllBytes(sharedMpo.toPath()),
 					"the shared MPO remains Bob's committed version instead of being silently overwritten");
 			Project sharedAfterConflict = mergeService.loadExternalProject(sharedMpo.getAbsolutePath());
-			assertEquals("Bob committed edit", ((com.microproject.pm.task.Task) sharedAfterConflict.getTasks().get(0)).getName());
+			assertEquals("Bob committed edit", ((com.microproject.model.task.Task) sharedAfterConflict.getTasks().get(0)).getName());
 			assertTrue(Files.isRegularFile(recoveryCopy));
 			Project recoveredAlice = mergeService.loadExternalProject(recoveryCopy.toString());
-			assertEquals("Alice unsaved edit", ((com.microproject.pm.task.Task) recoveredAlice.getTasks().get(0)).getName(),
+			assertEquals("Alice unsaved edit", ((com.microproject.model.task.Task) recoveredAlice.getTasks().get(0)).getName(),
 					"the recovery copy contains Alice's protected unsaved value");
 		} finally {
 			if (recoveryCopy != null) Files.deleteIfExists(recoveryCopy);
@@ -342,10 +342,10 @@ class CollaborationConflictTest {
 		Project remote = new ProjectMergeService().loadExternalProject(shared.getAbsolutePath());
 		assertNotNull(local);
 		assertNotNull(remote);
-		com.microproject.pm.task.Task localLocked = (com.microproject.pm.task.Task) local.getTasks().get(0);
-		com.microproject.pm.task.Task localIndependent = (com.microproject.pm.task.Task) local.getTasks().get(1);
-		com.microproject.pm.task.Task remoteLocked = (com.microproject.pm.task.Task) remote.findByUniqueId(localLocked.getUniqueId());
-		com.microproject.pm.task.Task remoteIndependent = (com.microproject.pm.task.Task) remote.findByUniqueId(localIndependent.getUniqueId());
+		com.microproject.model.task.Task localLocked = (com.microproject.model.task.Task) local.getTasks().get(0);
+		com.microproject.model.task.Task localIndependent = (com.microproject.model.task.Task) local.getTasks().get(1);
+		com.microproject.model.task.Task remoteLocked = (com.microproject.model.task.Task) remote.findByUniqueId(localLocked.getUniqueId());
+		com.microproject.model.task.Task remoteIndependent = (com.microproject.model.task.Task) remote.findByUniqueId(localIndependent.getUniqueId());
 		assertNotNull(remoteLocked);
 		assertNotNull(remoteIndependent);
 
@@ -390,7 +390,7 @@ class CollaborationConflictTest {
 			MpoConflictRecoveryException conflict = assertThrows(MpoConflictRecoveryException.class, localWriter::exportFile,
 				"the existing MPO journal must report the divergent same-field edits rather than replacing either branch");
 			recoveryCopy = conflict.recoveryCopy();
-			assertEquals("Alice unsaved value", ((com.microproject.pm.task.Task) new ProjectMergeService()
+			assertEquals("Alice unsaved value", ((com.microproject.model.task.Task) new ProjectMergeService()
 				.loadExternalProject(recoveryCopy.toString()).findByUniqueId(localLocked.getUniqueId())).getName(),
 				"the MPO recovery copy must preserve the lease-lost local value");
 		} finally {
@@ -405,13 +405,13 @@ class CollaborationConflictTest {
 		File changed = createProjectFile(extension, "Renamed Task", "Unchanged Task");
 
 		ProjectMergeService mergeService = new ProjectMergeService();
-		com.microproject.pm.task.Project baselineProject = mergeService.loadExternalProject(original.getAbsolutePath());
+		com.microproject.model.task.Project baselineProject = mergeService.loadExternalProject(original.getAbsolutePath());
 		assertNotNull(baselineProject);
 		assertTrue(baselineProject.getTasks().size() >= 2);
 
 		Map<Long, ProjectMergeService.TaskState> lockedTaskStates = new LinkedHashMap<Long, ProjectMergeService.TaskState>();
-		com.microproject.pm.task.Task first = (com.microproject.pm.task.Task) baselineProject.getTasks().get(0);
-		com.microproject.pm.task.Task second = (com.microproject.pm.task.Task) baselineProject.getTasks().get(1);
+		com.microproject.model.task.Task first = (com.microproject.model.task.Task) baselineProject.getTasks().get(0);
+		com.microproject.model.task.Task second = (com.microproject.model.task.Task) baselineProject.getTasks().get(1);
 		assertNotNull(first);
 		assertNotNull(second);
 
@@ -442,8 +442,8 @@ class CollaborationConflictTest {
 		File changed = createWorkbookWithDurations("Renamed Task", "Externally Changed Task", 4.0, 5.0);
 		ProjectMergeService mergeService = new ProjectMergeService();
 		Project target = mergeService.loadExternalProject(original.getAbsolutePath());
-		com.microproject.pm.task.Task first = (com.microproject.pm.task.Task) target.getTasks().get(0);
-		com.microproject.pm.task.Task second = (com.microproject.pm.task.Task) target.getTasks().get(1);
+		com.microproject.model.task.Task first = (com.microproject.model.task.Task) target.getTasks().get(0);
+		com.microproject.model.task.Task second = (com.microproject.model.task.Task) target.getTasks().get(1);
 		target.getUndoController().discardAllEdits();
 		List<String> undoHistory = List.copyOf(target.getUndoController().getEditNames());
 		AtomicInteger publications = new AtomicInteger();
@@ -477,8 +477,8 @@ class CollaborationConflictTest {
 			}
 		};
 		Project target = mergeService.loadExternalProject(original.getAbsolutePath());
-		com.microproject.pm.task.Task first = (com.microproject.pm.task.Task) target.getTasks().get(0);
-		com.microproject.pm.task.Task second = (com.microproject.pm.task.Task) target.getTasks().get(1);
+		com.microproject.model.task.Task first = (com.microproject.model.task.Task) target.getTasks().get(0);
+		com.microproject.model.task.Task second = (com.microproject.model.task.Task) target.getTasks().get(1);
 		first.setName("Original first name");
 		first.setNotes("Original first notes");
 		first.setUniqueIdPredecessors(Long.toString(second.getUniqueId()));
@@ -486,7 +486,7 @@ class CollaborationConflictTest {
 		first.setEnd(first.getEnd() + 86400000L);
 		first.setPercentComplete(0.4D);
 		TaskSnapshot baseline = new TaskSnapshot();
-		baseline.setCurrentSchedule((com.microproject.pm.criticalpath.TaskSchedule) first.getCurrentSchedule().clone());
+		baseline.setCurrentSchedule((com.microproject.schedule.criticalpath.TaskSchedule) first.getCurrentSchedule().clone());
 		first.setSnapshot(Integer.valueOf(0), baseline);
 		String predecessor = first.getUniqueIdPredecessors();
 		long start = first.getStart();
@@ -561,8 +561,8 @@ class CollaborationConflictTest {
 		CollaborationSession session = new CollaborationSession(null, podFile.getAbsolutePath(), "alice");
 		session.pollAt(System.currentTimeMillis());
 		Project lockProject = new ProjectMergeService().loadExternalProject(podFile.getAbsolutePath());
-		com.microproject.pm.task.Task podTask =
-			(com.microproject.pm.task.Task) lockProject.getTasks().get(0);
+		com.microproject.model.task.Task podTask =
+			(com.microproject.model.task.Task) lockProject.getTasks().get(0);
 		assertTrue(session.tryAcquireTaskLock(podTask));
 		try {
 			session.saveWorkspace(new TestWorkspaceSetting("gantt"));
@@ -650,10 +650,10 @@ class CollaborationConflictTest {
 			"POD merge must use the native document identity");
 		assertEquals(localProject.getTasks().size(), mergeProject.getTasks().size());
 		for (int i = 0; i < localProject.getTasks().size(); i++) {
-			com.microproject.pm.task.Task localTask =
-				(com.microproject.pm.task.Task) localProject.getTasks().get(i);
-			com.microproject.pm.task.Task mergeTask =
-				(com.microproject.pm.task.Task) mergeProject.getTasks().get(i);
+			com.microproject.model.task.Task localTask =
+				(com.microproject.model.task.Task) localProject.getTasks().get(i);
+			com.microproject.model.task.Task mergeTask =
+				(com.microproject.model.task.Task) mergeProject.getTasks().get(i);
 			assertEquals(localTask.getUniqueId(), mergeTask.getUniqueId());
 			assertEquals(localTask.getName(), mergeTask.getName());
 		}
@@ -664,11 +664,11 @@ class CollaborationConflictTest {
 		File changed = createProjectFile(extension, "Renamed Task", "Externally Changed Task");
 
 		ProjectMergeService mergeService = new ProjectMergeService();
-		com.microproject.pm.task.Project target = mergeService.loadExternalProject(original.getAbsolutePath());
+		com.microproject.model.task.Project target = mergeService.loadExternalProject(original.getAbsolutePath());
 		assertNotNull(target);
 
-		com.microproject.pm.task.Task first = (com.microproject.pm.task.Task) target.getTasks().get(0);
-		com.microproject.pm.task.Task second = (com.microproject.pm.task.Task) target.getTasks().get(1);
+		com.microproject.model.task.Task first = (com.microproject.model.task.Task) target.getTasks().get(0);
+		com.microproject.model.task.Task second = (com.microproject.model.task.Task) target.getTasks().get(1);
 		Set<Long> locked = new LinkedHashSet<Long>();
 		locked.add(Long.valueOf(first.getUniqueId()));
 
@@ -697,7 +697,7 @@ class CollaborationConflictTest {
 	private File createPodFile(String firstTaskName, String secondTaskName) throws Exception {
 		File seed = createWorkbook(firstTaskName, secondTaskName);
 		ProjectMergeService mergeService = new ProjectMergeService();
-		com.microproject.pm.task.Project project = mergeService.loadExternalProject(seed.getAbsolutePath());
+		com.microproject.model.task.Project project = mergeService.loadExternalProject(seed.getAbsolutePath());
 		assertNotNull(project);
 
 		File file = Files.createTempFile(tempDir, "collaboration", ".pod").toFile();
@@ -728,11 +728,11 @@ class CollaborationConflictTest {
 		// (for example end + 1 day) would depend on the calendar day the suite runs.
 		java.util.Date monday = java.util.Date.from(java.time.LocalDateTime.of(2026, 10, 19, 8, 0)
 			.atZone(java.time.ZoneId.systemDefault()).toInstant());
-		project.getProjectProperties().setStartDate(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(monday));
+		project.getProjectProperties().setStartDate(com.microproject.exchange.mpx.converter.MpxDates.toLocalDateTime(monday));
 		Task first = project.addTask();
 		first.setName(firstTaskName);
 		first.setUniqueID(Integer.valueOf(1));
-		first.setStart(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(monday));
+		first.setStart(com.microproject.exchange.mpx.converter.MpxDates.toLocalDateTime(monday));
 		first.setNotes("Locked notes");
 		if (firstDurationDays != null)
 			first.setDuration(org.mpxj.Duration.getInstance(firstDurationDays.doubleValue(), org.mpxj.TimeUnit.DAYS));
@@ -740,7 +740,7 @@ class CollaborationConflictTest {
 		Task second = project.addTask();
 		second.setName(secondTaskName);
 		second.setUniqueID(Integer.valueOf(2));
-		second.setStart(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(monday));
+		second.setStart(com.microproject.exchange.mpx.converter.MpxDates.toLocalDateTime(monday));
 		if (secondDurationDays != null)
 			second.setDuration(org.mpxj.Duration.getInstance(secondDurationDays.doubleValue(), org.mpxj.TimeUnit.DAYS));
 

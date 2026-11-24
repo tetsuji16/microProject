@@ -1,0 +1,728 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.schedule.criticalpath;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Logger;
+import java.util.ListIterator;
+
+import org.apache.commons.lang3.builder.ToStringBuilder;
+
+import com.microproject.association.Association;
+import com.microproject.configuration.Configuration;
+import com.microproject.document.Document;
+import com.microproject.document.ObjectEvent;
+import com.microproject.field.Field;
+import com.microproject.options.ScheduleOption;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.calendar.CalendarDefinition;
+import com.microproject.model.calendar.WorkingCalendar;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.dependency.DependencyService;
+import com.microproject.model.dependency.DependencyType;
+import com.microproject.schedule.ConstraintType;
+import com.microproject.schedule.ScheduleEvent;
+import com.microproject.model.task.BelongsToDocument;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.SubProj;
+import com.microproject.model.task.Task;
+import com.microproject.i18n.Messages;
+import com.microproject.transaction.MultipleTransaction;
+import com.microproject.util.DateTime;
+import com.microproject.util.Environment;
+/**
+ * The critical path calculation
+ */
+public class CriticalPath implements SchedulingAlgorithm {
+	private static final Logger logger = Logger.getLogger(CriticalPath.class.getName());
+	PredecessorTaskList predecessorTaskList = new PredecessorTaskList(this);
+	private CriticalPathFields fieldUpdater = null;
+	NormalTask finishSentinel;
+	NormalTask startSentinel;
+	Project project;
+	boolean suspendUpdates = false; // flag to suspend updates when multiple objects are treated
+	boolean needsReset = false; // flag to indicate that a reset is pending during suspended updates
+	private final List<Task> deferredTaskOrderRebuild = new ArrayList<>();
+	private final Set<Task> deferredTaskOrderSet = Collections.newSetFromMap(new IdentityHashMap<>());
+	private final Set<Task> deferredDependencyInvalidationSeeds = Collections.newSetFromMap(new IdentityHashMap<>());
+	/**
+	 * The single start task named by every calculation request deferred while updates
+	 * are suspended, or null.  {@link #deferredFullCalculation} is set as soon as a
+	 * request names no task or a different task, so the batch falls back to a pass
+	 * from the boundary sentinel.
+	 */
+	private Task deferredCalculationTask = null;
+	private boolean deferredFullCalculation = false;
+	private final Map<Task, Dependency> startSentinelDependencyIndex = new IdentityHashMap<>();
+	private final Map<Task, Dependency> finishSentinelDependencyIndex = new IdentityHashMap<>();
+	long earliestStart;
+	long latestFinish;
+	private boolean criticalPathJustChanged = false;
+	private static Task traceTask;
+	TaskSchedule.CalculationContext context;
+	private static CriticalPath lastInstance;
+	private static Field constraintTypeField = null;
+	private static Field getConstraintTypeField() {
+		if (constraintTypeField == null)
+			constraintTypeField = Configuration.getFieldFromId("Field.constraintType");
+		return constraintTypeField;
+	}
+	public CriticalPath(Project project) {
+		this.project = project;
+		project.setSchedulingAlgorithm(this); 
+//		project.addObjectListener(this);
+//		project.getMultipleTransactionManager().addListener(this);
+		fieldUpdater = CriticalPathFields.getInstance(this,project);
+
+		startSentinel = new NormalTask(true,project); //local
+		startSentinel.setDuration(0);
+		startSentinel.setName("<Start>"); // name doesn't matter - useful for debugging purposes
+
+		finishSentinel = new NormalTask(true,project); //local
+		finishSentinel.setDuration(0);
+		finishSentinel.setName("<End>"); // name doesn't matter - useful for debugging purposes
+
+
+		setForward(isForward());
+		setProjectBoundaries();
+		initEarliestAndLatest();
+	}
+	private void setProjectBoundaries() {
+		// update sentinels based on read in project
+		
+		if (isForward())  {
+			startSentinel.setWindowEarlyStart(project.getStartConstraint());
+			finishSentinel.setWindowLateFinish(0); //no end constraint
+		} else {
+			startSentinel.setWindowEarlyStart(0); // no start constraint
+			finishSentinel.setWindowLateFinish(project.getEnd());
+		}
+		predecessorTaskList.getList().add(0,new PredecessorTaskList.TaskReference(startSentinel));
+		predecessorTaskList.getList().add(new PredecessorTaskList.TaskReference(finishSentinel));
+	}
+
+	public void initialize(Object object) {
+		project = (Project) object;
+		predecessorTaskList.getList().clear(); // get rid of sentinels that are in lis
+		predecessorTaskList.addAll(project.getTaskList());
+		rebuildBoundaryDependencyIndexes();
+		initSentinelsFromTasks();
+		setProjectBoundaries(); // put back sentinels
+		
+		calculate(false);
+	}
+	
+	
+/**
+ * Initialize the sentinels so that the start sentinel has all start tasks as successors, and the end sentinel has all end tasks as predecessors
+ *
+ */
+	private void initSentinelsFromTasks() {
+		ListIterator<PredecessorTaskList.TaskReference> i = predecessorTaskList.listIterator();
+		Task task;
+		while (i.hasNext()) {
+			task = i.next().getTask();
+			if (task.getPredecessorList().size() == 0)
+				addStartSentinelDependency(task);
+			if (task.getSuccessorList().size() == 0)
+				addEndSentinelDependency(task);
+		}
+	}
+	
+	public String getName() {
+		return Messages.getString("Text.forwardScheduled");
+	}
+	private boolean isHonorRequiredDates() {
+		return ScheduleOption.getInstance().isHonorRequiredDates();
+	}
+
+	private int getFreshCalculationStateCount() {
+		return predecessorTaskList.getFreshCalculationStateCount();
+	}
+	private int getNextCalculationStateCount() {
+		return predecessorTaskList.getNextCalculationStateCount();
+	}
+	public int getCalculationStateCount() {
+		return predecessorTaskList.getCalculationStateCount();
+	}
+	private Task getBeginSentinel(boolean forward) {
+		return forward ? startSentinel : finishSentinel;
+	}
+	private Task getEndSentinel(boolean forward) {
+		return forward ? finishSentinel : startSentinel;
+	}
+
+	
+	/**
+	 * Run the critical path.  There are three possibilities:
+	 * 1) The task that is modified does not affect the Critical Path.  In this case, only a single pass is performed and dates are set
+	 * 2) The CP is modified, but the project contains no ALAP tasks.  In which case early and current dates are set in the first pass, and late in the second
+	 * 3) The CP is modified and the project has ALAP tasks.  In which case, after both forward and backward passes are perfomed, a third pass sets current dates
+	 * @param startTask
+	 */
+	private void fastCalc(Task startTask) {
+		try (CalendarDefinition.AddCacheScope _ = CalendarDefinition.beginAddCacheScope()) {
+			fastCalcInAddCacheScope(startTask);
+		}
+	}
+
+	private void fastCalcInAddCacheScope(Task startTask) {
+		lastInstance =this;
+		Task beginSentinel = getBeginSentinel(isForward());
+		Task endSentinel = getEndSentinel(isForward());
+
+		long firstBoundary = isForward() ? project.getStartConstraint() : -project.getEnd();
+		boolean hasReverseScheduledTasks = predecessorTaskList.hasReverseScheduledTasks();
+
+		context = new TaskSchedule.CalculationContext();
+		context.stateCount = getNextCalculationStateCount();
+		context.honorRequiredDates = isHonorRequiredDates();
+		context.forward = isForward();
+		context.boundary = firstBoundary;
+		context.sentinel = endSentinel;
+		context.sentinelDependencyIndex = sentinelDependencyIndex(endSentinel);
+		context.earlyOnly = false;
+		context.assign = false;
+		TaskSchedule.Kind assignedScheduleType = isForward() ? TaskSchedule.Kind.EARLY : TaskSchedule.Kind.LATE;
+		context.scheduleType = assignedScheduleType;
+		context.pass = 0;
+		boolean affectsCriticalPath = (startTask == beginSentinel) || startTask.getSchedule(context.scheduleType).affectsCriticalPath(context);
+		
+		boolean worstCase = affectsCriticalPath && hasReverseScheduledTasks;
+		context.earlyOnly = worstCase;
+		context.assign = true;
+		context.pass = 1;
+		criticalPathJustChanged = affectsCriticalPath;
+		doPass(startTask,context); // always assign in first pass.  Dates may change in third pass
+		
+		// A localized forward pass moves the task's own late dates and its predecessors' late finishes even off the critical path.
+		{
+			context.stateCount = getNextCalculationStateCount(); // backward pass treats next increment
+			context.sentinel = endSentinel;
+			long secondBoundary = -endSentinel.getSchedule(context.scheduleType).getBegin(); // sent bounds of end sentinel for backward pass
+			context.boundary = secondBoundary;
+			context.sentinel = beginSentinel;
+			context.sentinelDependencyIndex = sentinelDependencyIndex(beginSentinel);
+			context.forward = !context.forward;
+			context.assign = false;
+			context.scheduleType = context.scheduleType.opposite();
+			context.pass++;
+			doPass(null,context);
+
+			//set project fields
+			project.setStart(startSentinel.getEarlyStart());
+			project.setEnd(finishSentinel.getEarlyFinish());
+			
+			if (affectsCriticalPath && hasReverseScheduledTasks) {
+				context.stateCount = getNextCalculationStateCount(); // backward pass treats next increment
+				context.forward = !context.forward;
+				context.boundary = firstBoundary;
+				context.sentinel = endSentinel;
+				context.sentinelDependencyIndex = sentinelDependencyIndex(endSentinel);
+				context.earlyOnly = false;
+				context.assign = true;
+			context.scheduleType = context.scheduleType.opposite();
+				context.pass++;
+				doPass(null,context);
+				
+			}
+			
+		}
+		if (startTask != beginSentinel)
+			refreshEarliestAndLatest(assignedScheduleType); // a localized pass only widens the extrema
+		getFreshCalculationStateCount(); // For next time;
+	}
+	/**
+	 * Recomputes the project extrema from the current schedules of every task, exactly as a
+	 * full pass would, so that a localized pass whose task finishes earlier shrinks them.
+	 */
+	private void refreshEarliestAndLatest(TaskSchedule.Kind kind) {
+		initEarliestAndLatest();
+		boolean projectForward = project.isForward();
+		for (PredecessorTaskList.TaskReference taskReference : predecessorTaskList.getList()) {
+			Task task = taskReference.getTask();
+			if (isSentinel(task) || !(projectForward || !task.isWbsParent()))
+				continue;
+			TaskSchedule schedule = task.getSchedule(kind);
+			if (schedule.getBegin() != 0L)
+				earliestStart = Math.min(earliestStart, schedule.getStart());
+			if (schedule.getEnd() != 0)
+				latestFinish = Math.max(latestFinish, schedule.getFinish());
+		}
+	}
+	
+	private void doPass(Task startTask, TaskSchedule.CalculationContext context) {
+		if (startTask != null) {
+			startTask.getSchedule(context.scheduleType).invalidate();
+			startTask.setCalculationStateCount(getCalculationStateCount());
+		}
+
+		PredecessorTaskList.TaskReference taskReference;
+		boolean forward = context.forward;
+		ListIterator<PredecessorTaskList.TaskReference> i = forward ? predecessorTaskList.listIterator() : predecessorTaskList.reverseIterator();
+		Task task;
+		TaskSchedule schedule;
+
+//		int count = 0;
+//		long z = System.currentTimeMillis();
+		boolean projectForward = project.isForward();
+		while (forward ? i.hasNext() : i.hasPrevious()) {
+			taskReference = forward ? i.next() : i.previous();
+			traceTask = task = taskReference.getTask();
+			context.taskReferenceKind = taskReference.getKind();
+			schedule = task.getSchedule(context.scheduleType);
+			if (!forward)
+				context.taskReferenceKind = context.taskReferenceKind.opposite();
+				
+			if (task.isReverseScheduled()) {//  reverse scheduled must always be calculated
+				schedule.invalidate();
+				task.setCalculationStateCount(context.stateCount);
+			}
+			if (task.getCalculationStateCount() >= context.stateCount) {
+				schedule.calcDates(context);
+				if (context.assign && (projectForward || !task.isWbsParent())) { // in reverse scheduling, I see some parents have 0 or 1 as their dates. This is a workaround.
+					if (schedule.getBegin() != 0L && !isSentinel(task))
+						earliestStart = Math.min(earliestStart, schedule.getStart());
+					if (schedule.getEnd() != 0 && !isSentinel(task))
+						latestFinish = Math.max(latestFinish, schedule.getFinish());
+				}
+			}
+		}
+	}
+
+	public void calculate(boolean update) {
+		calculate(update,null);
+	}
+	
+	public void initEarliestAndLatest() {
+		long date = project.getStartConstraint();
+		if (date == 0)
+			date = DateTime.midnightToday(); // this repairs empty start bug
+		earliestStart = latestFinish = date;
+	}
+	private void _calculate(boolean update, Task task) {
+		long t = System.currentTimeMillis();
+		if (predecessorTaskList.getList().size() < 3) {// if no tasks, nothing to calculate.  This is needed to avoid a null pointer execption because of sentinels not having any preds/succs
+			if (isForward())
+				project.setEnd(project.getStartConstraint());
+			else
+				project.setStart(project.getEnd());
+			return;
+
+		}
+		if (task == null) {
+			task = getBeginSentinel(isForward());
+		}
+		fastCalc(task);
+		if (update)
+			fireScheduleChanged();
+	}
+	private void calculate(final boolean update, final Task task) {
+		if (suspendUpdates) {
+			if (task == null || (deferredCalculationTask != null && deferredCalculationTask != task))
+				deferredFullCalculation = true;
+			else
+				deferredCalculationTask = task;
+			return;
+		}
+		_calculate(update,task);
+		// Keep scheduling synchronous because callers require immediate updates (bug 225).
+	}
+
+	public int getDefaultTaskConstraintType() {
+		return getDefaultTaskConstraintKind().code();
+	}
+
+	public ConstraintType.Kind getDefaultTaskConstraintKind() {
+		return ConstraintType.Kind.ASAP;
+	}
+
+
+		
+	private void fireScheduleChanged() {
+		(project).fireScheduleChanged(this, ScheduleEvent.SCHEDULE);
+	}
+
+	private boolean updating = false;
+	private synchronized CriticalPathFields getOrClearUpdater(boolean get) {
+		if (get) {
+			if (updating){
+				logger.fine("interrupting update thread");
+				fieldUpdater.interrupt(); // interrupt existing thread
+				fieldUpdater = CriticalPathFields.getInstance(this,project); // make new one
+			}
+			updating = true;
+			return fieldUpdater;
+		} else {
+			updating = false;
+			return null;
+
+		}
+	}
+	
+	/**
+	 * Respond to object create/delete events
+	 */
+	public void objectChanged(ObjectEvent objectEvent) {
+		if (!project.isInitialized() && !Environment.isImporting()) {
+			// Importers can publish model events before the project initialization
+			// barrier.  The event cannot be recalculated safely yet; ignore it at
+			// fine level and let the normal post-import initialization rebuild CP.
+			logger.fine("Ignoring critical-path event before project initialization");
+			return;
+		}
+		if (objectEvent.getSource() == this)
+			return;
+		Object changedObject = objectEvent.getObject();
+		Task task = null;
+		if (changedObject instanceof Task changedTask) {
+			if (objectEvent.isCreate()) {
+				if (suspendUpdates) {
+					deferTaskOrderRebuild(changedTask);
+					return;
+				}
+				predecessorTaskList
+						.arrangeTask(changedTask);
+				return; // let the hierarchy event that follow run the CP
+			} else if (objectEvent.isDelete()) {
+				predecessorTaskList.removeTask(changedTask);
+				reset(); // Fix of bug 91 31/8/05.  This ensures the ancestors of this task that are no longer parents will be replaced as single entries in pred list
+			} else if (objectEvent.isUpdate()) {
+				task = changedTask;
+				Field field = objectEvent.getField();
+				if (field != null && !fieldUpdater.inputContains(field))
+					return;
+				if (field == getConstraintTypeField()) {
+					reset();
+					task.invalidateSchedules();
+					task.markTaskAsNeedingRecalculation();
+				}
+			}
+			calculate(true,task);
+
+		} else if (changedObject instanceof Dependency dependency) { // dependency added or
+														  // removed
+			if (!dependency.refersToDocument(project))
+				return;
+			if (!objectEvent.isUpdate()) {
+				reset(); // refresh predecssor list - the whold thing may change drastically no matter what the link because of parents
+			}
+			task = (Task)dependency.getPredecessor();
+			Task successor = (Task) dependency.getSuccessor(); // the successor needs to be scheduled
+			if (suspendUpdates) {
+				task.invalidateSchedules();
+				successor.invalidateSchedules();
+				deferredDependencyInvalidationSeeds.add(task);
+				deferredDependencyInvalidationSeeds.add(successor);
+				if (successor.isSubproject()) {
+					SubProj sub = (SubProj) successor;
+					if (sub.isSubprojectOpen()) sub.getSubproject().markAllTasksAsNeedingRecalculation(true);
+				}
+				return;
+			}
+
+			// Invalidate the changed link and only the dependency/WBS closure it can affect.
+			task.invalidateSchedules();
+			if (successor.isSubproject()) { // special case for subprojects - need to reset all
+				SubProj sub = (SubProj)successor;
+				if (sub.isSubprojectOpen())
+					sub.getSubproject().markAllTasksAsNeedingRecalculation(true);
+			} 
+			successor.invalidateSchedules();
+			Task.markDependentClosureAsNeedingRecalculation(List.of(task, successor));
+			calculate(true,null); // Run both passes, since the CP might be modified and it's hard to tell if so
+		} else if (changedObject == project) { // if whole project changed, such
+											   // as hierarchy event
+			reset();
+			calculate(true,null);
+		} else if (changedObject instanceof WorkingCalendar) { // if whole project changed, such
+			//TODO for now just invalidating all projects, eventually be smarter
+			project.markAllTasksAsNeedingRecalculation(false);
+			calculate(true,null);
+		} else if (changedObject instanceof Assignment assignment) {
+			task = assignment.getTask();
+			if (task.getProject().getSchedulingAlgorithm() != this)
+				return;
+//			if (((NormalTask)task).isEffortDriven())
+			calculate(true,task);
+		} else if (changedObject instanceof BelongsToDocument belongsToDocument){ // for other things, such as assignment entry
+			if (belongsToDocument.getDocument() instanceof Project proj) {
+				if (proj.getSchedulingAlgorithm() != this)
+					return;
+			}
+			Field field = objectEvent.getField();
+			if (field != null && fieldUpdater.inputContains(field))
+				calculate(true,null);
+		}
+	}
+
+	public void reset() {
+		if (suspendUpdates) {
+			needsReset = true;
+			return;
+		}
+		
+		needsReset = false;
+		initEarliestAndLatest();
+		predecessorTaskList.rearrangeAll();
+	}
+
+	public void addEndSentinelDependency(Task task) {
+		if (task.getOwningProject() == project && !task.isExternal() && !finishSentinelDependencyIndex.containsKey(task)) {
+			Dependency dependency = Dependency.getInstance(task, finishSentinel, DependencyType.Kind.FS, 0L);
+			finishSentinel.getPredecessorList().getList().add(dependency);
+			finishSentinelDependencyIndex.put(task, dependency);
+		}
+	}
+	public boolean removeEndSentinelDependency(Task task) {
+		if (task.getOwningProject() == project && !task.isExternal()) {
+			Dependency dependency = finishSentinelDependencyIndex.remove(task);
+			if (dependency != null) return finishSentinel.getPredecessorList().remove(dependency);
+			return DependencyService.getInstance().removeEndSentinel(finishSentinel,task);
+		}
+		return false;
+	}
+	public void addStartSentinelDependency(Task task) {
+		if (task.getOwningProject() == project && !task.isExternal() && !startSentinelDependencyIndex.containsKey(task)) {
+			Dependency dependency = Dependency.getInstance(startSentinel, task, DependencyType.Kind.SS, 0L);
+			startSentinel.getSuccessorList().getList().add(dependency);
+			startSentinelDependencyIndex.put(task, dependency);
+		}
+	}
+	public boolean removeStartSentinelDependency(Task task) {
+		if (task.getOwningProject() == project && !task.isExternal()) {
+			Dependency dependency = startSentinelDependencyIndex.remove(task);
+			if (dependency != null) return startSentinel.getSuccessorList().remove(dependency);
+			return DependencyService.getInstance().removeStartSentinel(startSentinel,task);
+		}
+		return false;
+	}
+
+	private Map<Task, Dependency> sentinelDependencyIndex(Task sentinel) {
+		if (sentinel == startSentinel) return startSentinelDependencyIndex;
+		if (sentinel == finishSentinel) return finishSentinelDependencyIndex;
+		return Map.of();
+	}
+
+	@Override
+	public void rebuildBoundaryDependencyIndexes() {
+		startSentinelDependencyIndex.clear();
+		for (Association association : startSentinel.getSuccessorList()) {
+			Dependency dependency = (Dependency) association;
+			startSentinelDependencyIndex.put((Task) dependency.getSuccessor(), dependency);
+		}
+		finishSentinelDependencyIndex.clear();
+		for (Association association : finishSentinel.getPredecessorList()) {
+			Dependency dependency = (Dependency) association;
+			finishSentinelDependencyIndex.put((Task) dependency.getPredecessor(), dependency);
+		}
+	}
+	
+	public long getStartConstraint() {
+		return startSentinel.getConstraintDate();
+	}
+	public void setStartConstraint(long date) {
+		startSentinel.setScheduleConstraint(ConstraintType.Kind.SNET, date);
+		markBoundsAsDirty();
+		}
+	public void setEndConstraint(long date) {
+		finishSentinel.setScheduleConstraint(ConstraintType.Kind.FNLT, date);
+		markBoundsAsDirty();
+	}
+	public void markBoundsAsDirty() {
+		startSentinel.markTaskAsNeedingRecalculation();
+		finishSentinel.markTaskAsNeedingRecalculation();
+		
+		// mark all tasks without preds or without succs as dirty 
+		// the purpose of this is to handle cases where a task that determines the project bounds is deleted.
+		
+		for (Association association : startSentinel.getSuccessorList()) {
+			Task task = (Task) ((Dependency) association).getTask(false);
+			task.invalidateSchedules();
+			task.markTaskAsNeedingRecalculation();
+		}
+
+		for (Association association : finishSentinel.getPredecessorList()) {
+			Task task = (Task) ((Dependency) association).getTask(true);
+			task.invalidateSchedules();
+			task.markTaskAsNeedingRecalculation();
+		}
+		
+	}
+	/**
+	 * Marks only boundary sentinels after a task mutation has already dirtied its
+	 * dependent and WBS closure. The full boundary scan is reserved for structural
+	 * changes and explicit project-boundary edits.
+	 */
+	@Override
+	public void markDependentBoundsAsDirty() {
+		startSentinel.markTaskAsNeedingRecalculation();
+		finishSentinel.markTaskAsNeedingRecalculation();
+	}
+	@Override
+	public boolean hasOnlySentinelDependencies(Task task) {
+		for (Association association : task.getPredecessorList())
+			if (((Dependency) association).getPredecessor() != startSentinel
+					&& ((Dependency) association).getPredecessor() != finishSentinel) return false;
+		for (Association association : task.getSuccessorList())
+			if (((Dependency) association).getSuccessor() != startSentinel
+					&& ((Dependency) association).getSuccessor() != finishSentinel) return false;
+		return true;
+	}
+	public boolean isForward() {
+		return project.isForward();
+	}
+	
+	public void setForward(boolean forward) {
+		if (forward) {
+			setStartConstraint(project.getStartConstraint());
+			finishSentinel.setRawConstraintType(ConstraintType.Kind.ASAP);
+		}
+		else {
+			setEndConstraint(project.getEnd());
+			startSentinel.setRawConstraintType(ConstraintType.Kind.ASAP);
+		}
+		startSentinel.setForward(forward);
+		finishSentinel.setForward(forward);
+	}
+	public void multipleTransaction(MultipleTransaction objectEvent) {
+		if (objectEvent.isFinalEnd()) {
+			suspendUpdates = false;
+			// A batch whose deferred requests all named one task, with no structural
+			// change pending, is recalculated from that task as an unbatched event would be.
+			Task startTask = deferredFullCalculation || needsReset || !deferredTaskOrderRebuild.isEmpty()
+					|| !deferredDependencyInvalidationSeeds.isEmpty() ? null : deferredCalculationTask;
+			deferredCalculationTask = null;
+			deferredFullCalculation = false;
+			if (!deferredTaskOrderRebuild.isEmpty()) {
+				predecessorTaskList.addAll(project.getTaskList());
+				setProjectBoundaries();
+				deferredTaskOrderRebuild.clear();
+				deferredTaskOrderSet.clear();
+				needsReset = false;
+			} else if (needsReset) {
+				reset();
+			}
+			if (!deferredDependencyInvalidationSeeds.isEmpty()) {
+				List<Task> seeds = List.copyOf(deferredDependencyInvalidationSeeds);
+				deferredDependencyInvalidationSeeds.clear();
+				Task.markDependentClosureAsNeedingRecalculation(seeds);
+			}
+			calculate(true,startTask);
+		} else {
+			if (!suspendUpdates) {
+				deferredCalculationTask = null;
+				deferredFullCalculation = false;
+			}
+			suspendUpdates = true;
+		}
+		
+	}
+	public boolean getMarkerStatus() {
+		return predecessorTaskList.getMarkerStatus();
+	}
+	public void addObject(Object task) {
+		NormalTask newTask  = (NormalTask)task;
+		if (newTask.getSuccessorList().isEmpty()) { // if pred has no successors, tell end sentinel about it
+			addEndSentinelDependency(newTask);
+		} else { // make sure not in sentinel's list
+			removeEndSentinelDependency(newTask);
+		}
+		if (newTask.getPredecessorList().isEmpty()) { // if pred has no successors, tell end sentinel about it
+			addStartSentinelDependency(newTask);
+		} else { // make sure not in sentinel's list
+			removeStartSentinelDependency(newTask);
+		}
+		
+		
+		newTask.markTaskAsNeedingRecalculation();
+		if (suspendUpdates)
+			deferTaskOrderRebuild(newTask);
+		else
+			predecessorTaskList.arrangeTask(newTask);
+	}
+
+	private void deferTaskOrderRebuild(Task task) {
+		if (deferredTaskOrderSet.add(task)) deferredTaskOrderRebuild.add(task);
+	}
+	
+	public void addSubproject(Task subproject) {
+		predecessorTaskList.addSubproject(subproject);
+	}
+	public Document getMasterDocument() {
+		return project;
+	}
+	
+	public void dumpPredecessorList() {
+		predecessorTaskList.dump();
+	}
+	public final long getEarliestStart() {
+		return earliestStart;
+	}
+	public final long getLatestFinish() {
+		return latestFinish;
+	}
+	private boolean isSentinel(Task task) {
+		return task == startSentinel || task == finishSentinel;
+	}
+	public final Project getProject() {
+		return project;
+	}
+	public boolean isCriticalPathJustChanged() {
+		return criticalPathJustChanged;
+	}
+	public CriticalPathFields getFieldUpdater() {
+		return fieldUpdater;
+	}
+	public void setEarliestAndLatest(long earliest, long latest) {
+		this.earliestStart = earliest;
+		this.latestFinish = latest;
+	}
+	public int[] findTaskPosition(Task t) { // for debugging
+		return predecessorTaskList.findTaskPosition(t);
+	}
+	
+	public static String getTrace() {
+		CriticalPath instance = lastInstance;
+		if (instance == null)
+			return "CriticalPath trace unavailable: no scheduling calculation has run.";
+
+		StringBuilder buf = new StringBuilder();
+		buf.append(ToStringBuilder.reflectionToString(instance));
+		Task task = traceTask;
+		buf.append("\nProject: ").append(instance.project).append(" Task: ").append(task);
+		if (task == null)
+			buf.append(" (no task is being traced)");
+		else
+			buf.append(" reverse=").append(task.isReverseScheduled()).append(" parent =").append(task.isParent());
+		return buf.toString();
+	}
+	
+}

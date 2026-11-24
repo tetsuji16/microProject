@@ -1,0 +1,792 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject that the Software is furnished to "AS IS", WITHOUT
+ * WARRANTY OF ANY KIND, either express or implied. INCLUDING BUT NOT LIMITED TO THE
+ * WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.frame;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.awt.event.ActionEvent;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.ResourceBundle;
+
+import javax.swing.AbstractAction;
+import javax.swing.Action;
+import javax.swing.JComponent;
+import javax.swing.InputMap;
+import javax.swing.JPanel;
+import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
+import com.microproject.ui.view.spreadsheet.SpreadSheet;
+import com.microproject.ui.view.spreadsheet.common.CommonSpreadSheet;
+
+import org.junit.jupiter.api.Test;
+
+import com.microproject.ui.menu.ExtToolBarFactory;
+import com.microproject.ui.menu.MenuActionConstants;
+import com.microproject.ui.menu.MenuActionMapSupport;
+import com.microproject.ui.menu.MenuManager;
+import com.microproject.ui.menu.MenuRibbonCommandSource;
+import com.microproject.ui.menu.testsupport.MenuDefinitionSupport;
+import com.microproject.ui.frame.workspace.FrameManager;
+import com.microproject.ui.frame.workspace.NamedFrame;
+import com.microproject.ui.frame.workspace.Workspace;
+import com.microproject.ui.ribbon.SwingRibbonFactory;
+import com.microproject.workspace.WorkspaceSetting;
+
+/**
+ * Regression coverage for issue #47: the Microsoft Project keyboard shortcuts must
+ * resolve on the document window's root pane. In the ribbon UI the menu-item
+ * accelerators never dispatch, so the global (root-pane) shortcut layer is the only
+ * path that makes Ctrl+X/C/V/Delete/Link/Unlink/Indent/Outdent/Information etc. work
+ * from the keyboard.
+ *
+ * <p>The wiring is exercised through {@code GraphicManager.applyMicrosoftShortcuts},
+ * which writes to an arbitrary InputMap/ActionMap (no window required). This test
+ * drives that seam directly so it runs headless.
+ */
+class MicrosoftShortcutsRootPaneTest {
+	private static final String COMMANDS_PROPERTY = "test.ribbonCommands";
+
+	@Test
+	void documentF2IsRemovedWhenTableSetupBindsItToTheFocusedMap() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			FocusedF2BindingSpreadSheet.bindingSeeded = false;
+			KeyStroke f2 = KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0);
+			SpreadSheet sheet = new FocusedF2BindingSpreadSheet();
+			assertTrue(FocusedF2BindingSpreadSheet.bindingSeeded,
+				"the test must install an ETable macOS-style focused F2 binding during UI setup");
+			assertNull(sheet.getInputMap(JComponent.WHEN_FOCUSED).get(f2),
+				"the spreadsheet must leave document F2 ownership on the root pane");
+		});
+	}
+
+	private static final class FocusedF2BindingSpreadSheet extends SpreadSheet {
+		private static final long serialVersionUID = 1L;
+		private static boolean bindingSeeded;
+
+		@Override
+		public void updateUI() {
+			super.updateUI();
+			getInputMap(JComponent.WHEN_FOCUSED)
+				.put(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0), "startEditing");
+			bindingSeeded = true;
+		}
+	}
+
+	@Test
+	void documentShortcutsAreNotOwnedBySpreadsheetInputMaps() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ShortcutHarness harness = new ShortcutHarness();
+			InputMap rootMap = harness.panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+			harness.manager.applyMicrosoftShortcuts(rootMap, harness.panel.getActionMap());
+			SpreadSheet sheet = new SpreadSheet();
+			CommonSpreadSheet commonSheet = new CommonSpreadSheet();
+			java.util.List<String> conflicts = new java.util.ArrayList<>();
+			checkRootPaneOwnedMapConflicts(rootMap, sheet, "SpreadSheet", conflicts);
+			checkRootPaneOwnedMapConflicts(rootMap, commonSheet, "CommonSpreadSheet", conflicts);
+			checkNoAncestorEscapeBinding(sheet, "SpreadSheet", conflicts);
+			checkNoAncestorEscapeBinding(commonSheet, "CommonSpreadSheet", conflicts);
+			assertTrue(conflicts.isEmpty(), "root-pane shortcuts must have one owner: " + conflicts);
+		});
+	}
+
+	private static void checkNoAncestorEscapeBinding(JComponent child, String name,
+			java.util.List<String> conflicts) {
+		KeyStroke escape = KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0);
+		for (InputMap map = child.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+				map != null; map = map.getParent()) {
+			Object key = map.get(escape);
+			if (key != null)
+				conflicts.add(name + " ancestor Escape action=" + key);
+		}
+	}
+
+	private static void checkRootPaneOwnedMapConflicts(InputMap rootMap, JComponent child, String name,
+			java.util.List<String> conflicts) {
+		KeyStroke escape = KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0);
+		KeyStroke[] rootOwnedKeys = rootMap.keys();
+		for (int condition : new int[] {JComponent.WHEN_FOCUSED, JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT}) {
+			for (InputMap map = child.getInputMap(condition); map != null; map = map.getParent()) {
+				for (KeyStroke key : rootOwnedKeys)
+					if (map.get(key) != null) {
+						Object localAction = map.get(key);
+						boolean editorEscape = condition == JComponent.WHEN_FOCUSED && key.equals(escape)
+							&& "cancelEdit".equals(localAction);
+						if (!editorEscape)
+							conflicts.add(name + " condition=" + condition + " key=" + key + " action=" + localAction);
+					}
+			}
+		}
+	}
+
+	/**
+	 * #414: a document shortcut KeyStroke has exactly one owner, the root-pane WHEN_IN_FOCUSED_WINDOW map.
+	 * Walks spreadsheet, row header, time spreadsheet and Gantt plus every ancestor up to (not including)
+	 * the root map, across WHEN_FOCUSED and WHEN_ANCESTOR_OF_FOCUSED_COMPONENT.
+	 */
+	@Test
+	void noDocumentShortcutIsAlsoBoundInAnyComponentOrAncestorScope() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ShortcutHarness harness = new ShortcutHarness();
+			InputMap rootMap = harness.panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+			harness.manager.applyMicrosoftShortcuts(rootMap, harness.panel.getActionMap());
+			com.microproject.undo.DataFactoryUndoController undo = new com.microproject.undo.DataFactoryUndoController();
+			com.microproject.model.task.Project project = com.microproject.model.task.Project.createProject(
+				com.microproject.model.resource.ResourcePool.createRourcePool("input-scope-test", undo), undo);
+			SpreadSheet sheet = new SpreadSheet();
+			com.microproject.ui.view.spreadsheet.time.TimeSpreadSheet timeSheet =
+				new com.microproject.ui.view.spreadsheet.time.TimeSpreadSheet(project);
+			com.microproject.ui.view.gantt.Gantt gantt = new com.microproject.ui.view.gantt.Gantt(project, "Gantt");
+			try {
+				java.util.List<JComponent> scopes = new java.util.ArrayList<>();
+				javax.swing.JScrollPane sheetPane = new javax.swing.JScrollPane(sheet);
+				javax.swing.JScrollPane ganttPane = new javax.swing.JScrollPane(gantt);
+				JPanel host = new JPanel();
+				host.add(sheetPane);
+				host.add(ganttPane);
+				harness.panel.add(host);
+				scopes.add(sheet);
+				scopes.add(sheet.getRowHeader());
+				scopes.add(timeSheet);
+				scopes.add(gantt);
+				// Editor-local allowlist: key -> {WHEN_FOCUSED action names that are cell-editor only}.
+				// Escape/cancelEdit: aborts the in-cell editor; the root-pane Escape is for the document.
+				java.util.Map<KeyStroke, java.util.Set<String>> allowed = java.util.Map.of(
+					KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), java.util.Set.of("cancelEdit"));
+				KeyStroke[] rootKeys = rootMap.keys();
+				java.util.List<String> conflicts = new java.util.ArrayList<>();
+				for (JComponent leaf : scopes) {
+					for (java.awt.Component c = leaf; c instanceof JComponent jc && c != harness.panel; c = c.getParent()) {
+						for (int condition : new int[] {JComponent.WHEN_FOCUSED,
+								JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT}) {
+							for (InputMap map = jc.getInputMap(condition); map != null; map = map.getParent())
+								for (KeyStroke key : rootKeys) {
+									Object action = map.get(key);
+									if (action == null)
+										continue;
+									boolean editorLocal = condition == JComponent.WHEN_FOCUSED
+										&& allowed.getOrDefault(key, java.util.Set.of()).contains(String.valueOf(action));
+									if (!editorLocal)
+										conflicts.add(jc.getClass().getSimpleName() + " (from " + leaf.getClass().getSimpleName()
+											+ ") condition=" + condition + " key=" + key + " action=" + action);
+								}
+						}
+					}
+				}
+				assertTrue(conflicts.isEmpty(), "root-pane shortcuts must have one owner: " + conflicts);
+			} finally {
+				gantt.cleanUp();
+			}
+		});
+	}
+
+	/**
+	 * Issue #973: a ribbon screen tip advertises exactly the key the document
+	 * root pane dispatches for that command, and nothing when there is none.
+	 */
+	@Test
+	void ribbonScreenTipsShowTheRegisteredShortcutOfEveryCommandThatHasOne() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ShortcutHarness harness = new ShortcutHarness();
+			InputMap shortcuts = new InputMap();
+			harness.manager.applyMicrosoftShortcuts(shortcuts, harness.panel.getActionMap());
+			MenuManager menus = harness.manager.getMenuManager();
+			menus.setDocumentShortcuts(shortcuts);
+			JPanel ribbon = menus.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+
+			java.util.List<String> problems = new java.util.ArrayList<>();
+			java.util.Map<String, String> hinted = new java.util.TreeMap<>();
+			java.util.ArrayDeque<java.awt.Component> pending = new java.util.ArrayDeque<>();
+			pending.add(ribbon);
+			while (!pending.isEmpty()) {
+				java.awt.Component component = pending.poll();
+				if (component instanceof java.awt.Container container)
+					pending.addAll(java.util.Arrays.asList(container.getComponents()));
+				if (!(component instanceof javax.swing.AbstractButton button))
+					continue;
+				String commandId = button.getActionCommand();
+				String tooltip = button.getToolTipText();
+				if (commandId == null || !commandId.startsWith("Ribbon"))
+					continue;
+				java.util.function.UnaryOperator<String> actionKey = id -> {
+					String resolved = menus.getActionStringFromId(id);
+					return resolved == null ? id : resolved;
+				};
+				KeyStroke key = com.microproject.ui.menu.ShortcutHints.primary(shortcuts,
+					actionKey.apply(commandId), actionKey);
+				if (tooltip == null) {
+					if (key != null)
+						problems.add(commandId + " has a registered key but no screen tip");
+					continue;
+				}
+				if (key == null) {
+					if (tooltip.matches(".*</b> \\((Ctrl|Cmd|Alt|Shift)\\+[^)]*\\).*"))
+						problems.add(commandId + " advertises an unregistered key: " + tooltip);
+					continue;
+				}
+				String hint = "(" + com.microproject.ui.menu.ShortcutHints.describe(key) + ")";
+				hinted.put(commandId, hint);
+				if (!tooltip.contains("</b> " + hint) || tooltip.indexOf(hint) != tooltip.lastIndexOf(hint))
+					problems.add(commandId + " must show exactly one " + hint + " after its name but was: " + tooltip);
+			}
+			assertTrue(problems.isEmpty(), "ribbon screen tips must match the registered shortcuts: " + problems);
+			assertEquals("(Alt+Shift+Up)", hinted.get("RibbonMoveTaskUp"), "hinted commands: " + hinted);
+			assertEquals("(Ctrl+X)", hinted.get("RibbonCut"), "hinted commands: " + hinted);
+			assertEquals("(Ctrl+C)", hinted.get("RibbonCopy"), "hinted commands: " + hinted);
+			assertEquals("(Ctrl+V)", hinted.get("RibbonPaste"), "hinted commands: " + hinted);
+			assertTrue(hinted.size() >= 8, "the built ribbon must expose its shortcut commands: " + hinted);
+		});
+	}
+
+	/**
+	 * Issue #973: the translated ribbon keeps the one-line "name (key)" shape. The
+	 * Japanese screen tip shows the translated name and the same key the document root
+	 * pane dispatches, and every hinted command still advertises exactly one key.
+	 *
+	 * <p>This fixture builds the standard ribbon from the Japanese menu bundles without a
+	 * document action map, so commands that need one (the clipboard group) are absent;
+	 * {@link #ribbonScreenTipsShowTheRegisteredShortcutOfEveryCommandThatHasOne()} covers
+	 * them in the root locale.</p>
+	 */
+	@Test
+	void japaneseRibbonScreenTipsKeepTheShortcutAfterTheTranslatedName() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ShortcutHarness harness = new ShortcutHarness();
+			InputMap shortcuts = new InputMap();
+			harness.manager.applyMicrosoftShortcuts(shortcuts, harness.panel.getActionMap());
+			JPanel ribbon = japaneseRibbon(shortcuts);
+			com.microproject.ui.menu.MenuRibbonCommandSource commands =
+				(com.microproject.ui.menu.MenuRibbonCommandSource) ribbon.getClientProperty(COMMANDS_PROPERTY);
+
+			java.util.List<String> problems = new java.util.ArrayList<>();
+			java.util.Map<String, String> tooltips = new java.util.TreeMap<>();
+			java.util.ArrayDeque<java.awt.Component> pending = new java.util.ArrayDeque<>();
+			pending.add(ribbon);
+			while (!pending.isEmpty()) {
+				java.awt.Component component = pending.poll();
+				if (component instanceof java.awt.Container container)
+					pending.addAll(java.util.Arrays.asList(container.getComponents()));
+				if (!(component instanceof javax.swing.AbstractButton button))
+					continue;
+				String commandId = button.getActionCommand();
+				String tooltip = button.getToolTipText();
+				if (commandId == null || !commandId.startsWith("Ribbon"))
+					continue;
+				KeyStroke key = commands.getShortcut(commandId);
+				if (tooltip == null) {
+					if (key != null)
+						problems.add(commandId + " has a registered key but no screen tip");
+					continue;
+				}
+				tooltips.put(commandId, tooltip);
+				if (key == null) {
+					if (tooltip.contains("</b> ("))
+						problems.add(commandId + " advertises an unregistered key: " + tooltip);
+					continue;
+				}
+				String hint = "(" + com.microproject.ui.menu.ShortcutHints.describe(key) + ")";
+				if (!tooltip.contains("</b> " + hint) || tooltip.indexOf(hint) != tooltip.lastIndexOf(hint))
+					problems.add(commandId + " must show exactly one " + hint + " after its name but was: " + tooltip);
+			}
+			assertTrue(problems.isEmpty(), "the Japanese ribbon must keep every key hint: " + problems);
+			assertEquals("<html><b>クリア</b> (Ctrl+Delete)<br>選択したセルの内容をクリアします</html>",
+				tooltips.get("RibbonClear"));
+			assertEquals("<html><b>検索</b> (Ctrl+F)<br>検索</html>", tooltips.get("RibbonFind"));
+			assertEquals("<html><b>リンク</b> (Ctrl+F2)<br>リンク</html>", tooltips.get("RibbonLink"));
+			assertEquals("<html><b>上へ移動</b> (Alt+Shift+Up)<br>タスクを上へ移動</html>",
+				tooltips.get("RibbonMoveTaskUp"));
+			assertEquals("<html><b>レベル下げ</b> (Ctrl+.)<br>レベル下げ</html>", tooltips.get("RibbonIndent"));
+		});
+	}
+
+	private static JPanel japaneseRibbon(InputMap shortcuts) {
+		ResourceBundle[] bundles = MenuDefinitionSupport.ribbonBundles(Locale.JAPANESE);
+		MenuRibbonCommandSource commands = new MenuRibbonCommandSource(
+			new ExtToolBarFactory(MenuActionMapSupport.noopActionMap(), bundles));
+		commands.setDocumentShortcuts(shortcuts);
+		JPanel ribbon = new SwingRibbonFactory(commands, bundles).createPanel(MenuManager.STANDARD_RIBBON, () -> { });
+		ribbon.putClientProperty(COMMANDS_PROPERTY, commands);
+		return ribbon;
+	}
+
+	@Test
+	void shortcutRegistrationDoesNotOverwriteAKeyWithAnotherAction() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ShortcutHarness harness = new ShortcutHarness();
+			RecordingInputMap inputMap = new RecordingInputMap();
+			harness.manager.applyMicrosoftShortcuts(inputMap, harness.panel.getActionMap());
+
+			assertTrue(inputMap.conflicts.isEmpty(),
+				"one keystroke must not be registered to multiple action IDs: " + inputMap.conflicts);
+		});
+	}
+
+	@Test
+	void eachShortcutKeyIsRegisteredOnlyOnce() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ShortcutHarness harness = new ShortcutHarness();
+			RecordingInputMap inputMap = new RecordingInputMap();
+			harness.manager.applyMicrosoftShortcuts(inputMap, harness.panel.getActionMap());
+
+			assertTrue(inputMap.duplicateWrites.isEmpty(),
+				"the registration layer must write each KeyStroke once: " + inputMap.duplicateWrites);
+		});
+	}
+
+	@Test
+	void keypadZoomShortcutsAreRootPaneActionsAndNoOpWithoutAnActiveDocument() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ShortcutHarness harness = new ShortcutHarness();
+			harness.manager.applyMicrosoftShortcuts(
+				harness.panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW), harness.panel.getActionMap());
+			KeyStroke divide = KeyStroke.getKeyStroke(KeyEvent.VK_DIVIDE, InputEvent.CTRL_DOWN_MASK);
+			KeyStroke multiply = KeyStroke.getKeyStroke(KeyEvent.VK_MULTIPLY, InputEvent.CTRL_DOWN_MASK);
+			assertEquals("GanttKeypadZoomIn", harness.bindingFor(divide));
+			assertEquals("GanttKeypadZoomOut", harness.bindingFor(multiply));
+			assertNotNull(harness.actionFor(divide));
+			assertNotNull(harness.actionFor(multiply));
+			// No frame is active in this headless harness. Dispatch must safely do nothing.
+			assertFalse(harness.actionFor(divide).isEnabled());
+			assertFalse(harness.actionFor(multiply).isEnabled());
+			harness.actionFor(divide).actionPerformed(new ActionEvent(harness.panel, 0, "zoom-in"));
+			harness.actionFor(multiply).actionPerformed(new ActionEvent(harness.panel, 0, "zoom-out"));
+		});
+	}
+
+	@Test
+	void keypadZoomDispatchIsIgnoredWhenTheActiveTopViewIsNotGantt() {
+		java.util.concurrent.atomic.AtomicBoolean nonGanttViewCalled = new java.util.concurrent.atomic.AtomicBoolean();
+		com.microproject.ui.view.views.BaseView nonGanttView = (com.microproject.ui.view.views.BaseView)
+			java.lang.reflect.Proxy.newProxyInstance(
+				com.microproject.ui.view.views.BaseView.class.getClassLoader(),
+				new Class<?>[] {com.microproject.ui.view.views.BaseView.class},
+				(proxy, method, arguments) -> {
+					nonGanttViewCalled.set(true);
+					return null;
+				});
+
+		GraphicManager.dispatchGanttKeypadZoom(nonGanttView, true);
+		GraphicManager.dispatchGanttKeypadZoom(nonGanttView, false);
+		assertFalse(nonGanttViewCalled.get(), "a non-Gantt active view must be left untouched");
+	}
+
+	/** A plain Swing component supplies the InputMap/ActionMap without a window. */
+	private static final class ShortcutHarness {
+		final DispatchPanel panel = new DispatchPanel();
+		final InputMapCapturingGraphicManager manager;
+
+		ShortcutHarness() {
+			manager = new InputMapCapturingGraphicManager(panel);
+		}
+
+		Object bindingFor(KeyStroke key) {
+			return panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).get(key);
+		}
+
+		Action actionFor(KeyStroke key) {
+			return panel.getActionMap().get(bindingFor(key));
+		}
+	}
+
+	/**
+	 * A JPanel that exposes the protected key-dispatch path Swing itself uses
+	 * ({@code JComponent.processKeyBinding}), so a test can prove a keystroke reaches its
+	 * bound action without standing up a real, focused window. The production wiring during
+	 * a real keypress goes through the same method via the KeyboardFocusManager.
+	 */
+	private static final class DispatchPanel extends JPanel {
+		private static final long serialVersionUID = 1L;
+
+		boolean dispatch(KeyStroke ks, KeyEvent e) {
+			return processKeyBinding(ks, e, WHEN_IN_FOCUSED_WINDOW, true);
+		}
+	}
+
+	/** Records registrations before InputMap's last-write-wins behavior can hide conflicts. */
+	private static final class RecordingInputMap extends InputMap {
+		private final Map<KeyStroke, Object> registrations = new HashMap<>();
+		private final java.util.List<String> conflicts = new java.util.ArrayList<>();
+		private final java.util.List<String> duplicateWrites = new java.util.ArrayList<>();
+
+		@Override
+		public void put(KeyStroke keyStroke, Object actionMapKey) {
+			if (registrations.containsKey(keyStroke))
+				duplicateWrites.add(keyStroke + " registered again as " + actionMapKey);
+			Object previous = registrations.put(keyStroke, actionMapKey);
+			if (previous != null && !previous.equals(actionMapKey)) {
+				conflicts.add(keyStroke + " was registered as both " + previous + " and " + actionMapKey);
+			}
+			super.put(keyStroke, actionMapKey);
+		}
+	}
+
+	private static final class InputMapCapturingGraphicManager extends GraphicManager {
+		private final FrameManager frameManager = new StubFrameManager();
+
+		InputMapCapturingGraphicManager(JPanel panel) {
+			super(panel);
+			// MenuManager is lazily created by the production wiring; resolve it so the
+			// shortcut action lookup (menuManager.getActionFromId) has something to read.
+			getMenuManager();
+		}
+
+		@Override
+		public FrameManager getFrameManager() {
+			return frameManager;
+		}
+	}
+
+	// Minimal FrameManager stub so the document window can be activated without a real desktop.
+	private static final class StubFrameManager implements FrameManager {
+		private static final long serialVersionUID = 1L;
+		private final Workspace workspace = new Workspace();
+
+		@Override public void showFrame(NamedFrame frame) { }
+		@Override public void addFrame(NamedFrame frame) { }
+		@Override public void removeFrame(NamedFrame frame) { }
+		@Override public Workspace getWorkspace() { return workspace; }
+		@Override public void activateFrame(NamedFrame frame) { }
+		@Override public java.awt.Component getSelectedFrame() { return null; }
+		@Override public void setTabTitle(NamedFrame frame, String tabTitle) { }
+		@Override public void update() { }
+		@Override public void cleanUp() { }
+		@Override public java.util.AbstractList getAllFrames() {
+			return new java.util.AbstractList<Object>() {
+				@Override public Object get(int index) { return null; }
+				@Override public int size() { return 0; }
+			};
+		}
+		@Override public WorkspaceSetting createWorkspace(int arg) { return null; }
+		@Override public void restoreWorkspace(WorkspaceSetting setting, int context) { }
+	}
+
+	@Test
+	void microsoftShortcutsResolveOnRootPane() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ShortcutHarness harness = new ShortcutHarness();
+			harness.manager.applyMicrosoftShortcuts(
+					harness.panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
+					harness.panel.getActionMap());
+
+			int ctrl = InputEvent.CTRL_DOWN_MASK;
+
+			assertEquals(MenuActionConstants.ACTION_CUT,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_X, ctrl)), "Ctrl+X must cut");
+			assertEquals(MenuActionConstants.ACTION_COPY,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_C, ctrl)), "Ctrl+C must copy");
+			assertEquals(MenuActionConstants.ACTION_PASTE,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_V, ctrl)), "Ctrl+V must paste");
+			assertEquals(MenuActionConstants.ACTION_FILL_DOWN,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_D, ctrl)), "Ctrl+D must fill down");
+			assertEquals(MenuActionConstants.ACTION_LINK,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F2, ctrl)), "Ctrl+F2 must link");
+			assertEquals(MenuActionConstants.ACTION_UNLINK,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F2, ctrl | InputEvent.SHIFT_DOWN_MASK)),
+					"Ctrl+Shift+F2 must unlink");
+
+			assertEquals(MenuActionConstants.ACTION_GOTO,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0)), "F5 must go to");
+			assertEquals(MenuActionConstants.ACTION_FIND,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F5, InputEvent.SHIFT_DOWN_MASK)),
+					"Shift+F5 must find");
+			assertEquals(MenuActionConstants.ACTION_SCROLL_TO_TASK,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F5,
+						InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+					"Ctrl+Shift+F5 must scroll to the selected task");
+			assertEquals(MenuActionConstants.ACTION_MICROPROJECT_DOCUMENTATION,
+				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0)), "F1 must open help");
+			assertEquals("ToggleRibbonDisplayMode",
+				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F1, InputEvent.CTRL_DOWN_MASK)),
+				"Ctrl+F1 must toggle ribbon commands through the document root pane");
+			assertEquals(MenuActionConstants.ACTION_CLEAR_FILTER,
+				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F3, 0)),
+				"F3 must show all tasks in the active view, not open Find");
+			assertEquals(MenuActionConstants.ACTION_NEW,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_INSERT, 0)), "Insert must add a task");
+			assertEquals(MenuActionConstants.ACTION_DELETE,
+				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0)), "Delete must delete");
+			assertEquals(MenuActionConstants.ACTION_MOVE_TASK_UP,
+				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_UP,
+					InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+				"Alt+Shift+Up must move the selected task up");
+			assertEquals(MenuActionConstants.ACTION_MOVE_TASK_DOWN,
+				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN,
+					InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+				"Alt+Shift+Down must move the selected task down");
+			assertEquals(MenuActionConstants.ACTION_CLEAR_CONTENTS,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, ctrl)),
+					"Ctrl+Delete must clear selected field values, not delete rows");
+			assertEquals("EditField",
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0)), "F2 must edit the field");
+			assertEquals(MenuActionConstants.ACTION_INFORMATION,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F2, InputEvent.SHIFT_DOWN_MASK)),
+					"Shift+F2 must open information");
+
+			// Microsoft Project outline keys
+			assertEquals(MenuActionConstants.ACTION_INDENT,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT,
+							InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+					"Alt+Shift+Right must indent");
+			assertEquals(MenuActionConstants.ACTION_OUTDENT,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT,
+							InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+					"Alt+Shift+Left must outdent");
+			assertEquals(MenuActionConstants.ACTION_EXPAND,
+				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS,
+						InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+					"Alt+Shift+= must expand");
+			assertEquals(MenuActionConstants.ACTION_EXPAND,
+				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_ADD,
+						InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+					"Alt+Shift+Numpad Plus must expand");
+			assertEquals(MenuActionConstants.ACTION_COLLAPSE,
+				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_MINUS,
+						InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+					"Alt+Shift+- must collapse");
+			assertEquals(MenuActionConstants.ACTION_COLLAPSE,
+				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT,
+						InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+					"Alt+Shift+Numpad Minus must collapse");
+			assertEquals(null,
+				harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_CONVERT, 0)),
+					"Japanese IME Convert must remain editor-local");
+
+			// Microsoft Project selection / row shortcuts
+			assertEquals("SelectRow",
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, InputEvent.CTRL_DOWN_MASK)),
+					"Ctrl+Space must select the row");
+			assertEquals("SelectColumn",
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, InputEvent.SHIFT_DOWN_MASK)),
+					"Shift+Space must select the column");
+			assertEquals("SelectAll",
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+					"Ctrl+Shift+Space must select the whole sheet");
+			assertEquals("DeleteRow",
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, InputEvent.CTRL_DOWN_MASK)),
+					"Ctrl+Minus must delete the selected row");
+
+			// Critical Chain (CCPM) shortcuts — reachable from the keyboard without
+			// colliding with MS Project's reserved keys (Ctrl+B=Bold, Ctrl+Shift+B=
+			// set work to 100%, Ctrl+Shift+P=task information, etc.).
+			assertEquals(MenuActionConstants.ACTION_CCPM_BUFFER_STATUS,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_K, ctrl | InputEvent.SHIFT_DOWN_MASK)),
+					"Ctrl+Shift+K must open the CCPM remaining-buffer chart");
+			assertEquals(MenuActionConstants.ACTION_CCPM_NETWORK,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_N, ctrl | InputEvent.SHIFT_DOWN_MASK)),
+					"Ctrl+Shift+N must open the CCPM network");
+			assertEquals(MenuActionConstants.ACTION_CCPM_SETTINGS,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_C, ctrl | InputEvent.ALT_DOWN_MASK)),
+					"Ctrl+Alt+C must open CCPM settings");
+			assertEquals(MenuActionConstants.ACTION_TOGGLE_CRITICAL_CHAIN,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_J, ctrl | InputEvent.SHIFT_DOWN_MASK)),
+					"Ctrl+Shift+J must toggle the critical-chain Gantt overlay");
+
+			// MS Project-conformant editing shortcuts.
+			assertEquals(MenuActionConstants.ACTION_FONT,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_F, ctrl | InputEvent.SHIFT_DOWN_MASK)),
+					"Ctrl+Shift+F must open the Font dialog");
+			assertEquals(MenuActionConstants.ACTION_INFORMATION,
+					harness.bindingFor(KeyStroke.getKeyStroke(KeyEvent.VK_P, ctrl | InputEvent.SHIFT_DOWN_MASK)),
+					"Ctrl+Shift+P must open Task Information");
+
+			// The bound action objects must actually exist in the action map.
+			assertNotNull(harness.panel.getActionMap().get(MenuActionConstants.ACTION_CUT));
+			assertNotNull(harness.panel.getActionMap().get(MenuActionConstants.ACTION_PASTE));
+			assertNotNull(harness.panel.getActionMap().get(MenuActionConstants.ACTION_LINK));
+			assertNotNull(harness.panel.getActionMap().get(MenuActionConstants.ACTION_INDENT));
+		});
+	}
+
+	@Test
+	void editShortcutsReuseTheMenuActions() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ShortcutHarness harness = new ShortcutHarness();
+			harness.manager.applyMicrosoftShortcuts(
+					harness.panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
+					harness.panel.getActionMap());
+
+			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_PASTE),
+					harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_V, InputEvent.CTRL_DOWN_MASK)),
+					"Ctrl+V must use the same paste action as the menu");
+			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_NEW),
+					harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_INSERT, 0)),
+					"Insert must use the same new-task action as the menu");
+			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_DELETE),
+					harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0)),
+					"Delete must use the same delete action as the menu");
+			assertNotNull(harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, InputEvent.CTRL_DOWN_MASK)),
+					"Ctrl+Delete must install its dedicated clear-contents command action");
+			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_MICROPROJECT_DOCUMENTATION),
+				harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0)),
+				"F1 must use the same help action as the ribbon and menu");
+			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_CLEAR_FILTER),
+				harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_F3, 0)),
+				"F3 must use the same Show All Tasks action as the ribbon and menu");
+			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_SCROLL_TO_TASK),
+					harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_F5,
+						InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+					"Ctrl+Shift+F5 must use the same Scroll to Task action as the ribbon and menu");
+			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_LINK),
+				harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_F2, InputEvent.CTRL_DOWN_MASK)),
+				"Ctrl+F2 must use the same Link action as the menu");
+			assertSame(harness.manager.getMenuManager().getActionFromId(MenuActionConstants.ACTION_UNLINK),
+				harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_F2,
+					InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+				"Ctrl+Shift+F2 must use the same Unlink action as the menu");
+			// Indent/Outdent deliberately use focused-editor adapters here so a reused
+			// JTable editor does not suppress the root-pane shortcut from stale Action
+			// enablement. Their Robot acceptance journeys verify that both adapters
+			// reach DocumentFrame's canonical hierarchy transaction.
+			assertNotNull(harness.panel.getActionMap().get("DeleteRow"),
+					"Ctrl+Minus must keep its row-delete action separate from Delete");
+		});
+	}
+
+	@Test
+	void expandAndCollapseShortcutVariantsShareOneCommandAction() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ShortcutHarness harness = new ShortcutHarness();
+			harness.manager.applyMicrosoftShortcuts(
+				harness.panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
+				harness.panel.getActionMap());
+
+			int ctrl = InputEvent.CTRL_DOWN_MASK;
+			assertSame(harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, ctrl)),
+				harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS,
+					InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+				"expand shortcut variants must use one command action");
+			assertSame(harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, ctrl)),
+				harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_MINUS,
+					InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+				"collapse shortcut variants must use one command action");
+			assertSame(harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_ADD,
+				InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+				harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS,
+					InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+				"top-row and numpad expand keys must use one command action");
+			assertSame(harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT,
+				InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+				harness.actionFor(KeyStroke.getKeyStroke(KeyEvent.VK_MINUS,
+					InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)),
+				"top-row and numpad collapse keys must use one command action");
+		});
+	}
+
+	/**
+	 * The binding-resolution test above is a false negative for issue #47: it proves the
+	 * keystroke maps to the right action constant, but never proves a real keypress
+	 * dispatches to that action. If the action were unresolved (null) or disabled, the
+	 * shortcut would still "resolve" yet do nothing when the user presses Ctrl+V — exactly
+	 * the "paste doesn't work" symptom. This test drives the same dispatch path Swing uses
+	 * ({@code JComponent.processKeyBinding}) and asserts the Ctrl+X/C/V keystrokes actually
+	 * invoke the routed clipboard actions. The menu button and the keyboard both resolve to
+	 * the same {@code ACTION_PASTE/COPY/CUT} constants, so a keypress reaching the action is
+	 * the end-to-end proof the Microsoft Project keyboard shortcuts are functional.
+	 */
+	@Test
+	void microsoftShortcutKeyPressInvokesRoutedAction() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ShortcutHarness harness = new ShortcutHarness();
+			harness.manager.applyMicrosoftShortcuts(
+					harness.panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
+					harness.panel.getActionMap());
+
+			// Spy on the routed clipboard actions (the real ones come from the menu manager).
+			// The menu button uses the very same constants, so proving a keypress reaches them
+			// proves the keyboard path is equivalent to the (working) menu button.
+			boolean[] cut = {false}, copy = {false}, paste = {false}, help = {false};
+			harness.panel.getActionMap().put(MenuActionConstants.ACTION_CUT, recordingSpy(cut));
+			harness.panel.getActionMap().put(MenuActionConstants.ACTION_COPY, recordingSpy(copy));
+			harness.panel.getActionMap().put(MenuActionConstants.ACTION_PASTE, recordingSpy(paste));
+			harness.panel.getActionMap().put(MenuActionConstants.ACTION_MICROPROJECT_DOCUMENTATION, recordingSpy(help));
+
+			int ctrl = InputEvent.CTRL_DOWN_MASK;
+
+			KeyEvent cutEvent = new KeyEvent(harness.panel, KeyEvent.KEY_PRESSED,
+					System.currentTimeMillis(), ctrl, KeyEvent.VK_X, KeyEvent.CHAR_UNDEFINED);
+			boolean cutHandled = harness.panel.dispatch(
+					KeyStroke.getKeyStroke(KeyEvent.VK_X, ctrl), cutEvent);
+			assertTrue(cutHandled, "Ctrl+X must dispatch to an action");
+			assertTrue(cut[0], "Ctrl+X must invoke ACTION_CUT");
+
+			KeyEvent copyEvent = new KeyEvent(harness.panel, KeyEvent.KEY_PRESSED,
+					System.currentTimeMillis(), ctrl, KeyEvent.VK_C, KeyEvent.CHAR_UNDEFINED);
+			assertTrue(harness.panel.dispatch(
+					KeyStroke.getKeyStroke(KeyEvent.VK_C, ctrl), copyEvent), "Ctrl+C must dispatch to an action");
+			assertTrue(copy[0], "Ctrl+C must invoke ACTION_COPY");
+
+			KeyEvent pasteEvent = new KeyEvent(harness.panel, KeyEvent.KEY_PRESSED,
+					System.currentTimeMillis(), ctrl, KeyEvent.VK_V, KeyEvent.CHAR_UNDEFINED);
+			assertTrue(harness.panel.dispatch(
+					KeyStroke.getKeyStroke(KeyEvent.VK_V, ctrl), pasteEvent), "Ctrl+V must dispatch to an action");
+			assertTrue(paste[0], "Ctrl+V must invoke ACTION_PASTE");
+
+			KeyEvent helpEvent = new KeyEvent(harness.panel, KeyEvent.KEY_PRESSED,
+					System.currentTimeMillis(), 0, KeyEvent.VK_F1, KeyEvent.CHAR_UNDEFINED);
+			assertTrue(harness.panel.dispatch(
+					KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0), helpEvent), "F1 must dispatch to an action");
+			assertTrue(help[0], "F1 must invoke the documentation action");
+		});
+	}
+
+	@Test
+	void aShortcutKeyPressInvokesItsActionOnlyOnce() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			ShortcutHarness harness = new ShortcutHarness();
+			harness.manager.applyMicrosoftShortcuts(
+				harness.panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
+				harness.panel.getActionMap());
+			int[] invocationCount = {0};
+			harness.panel.getActionMap().put(MenuActionConstants.ACTION_COPY, new AbstractAction() {
+				private static final long serialVersionUID = 1L;
+
+				@Override
+				public void actionPerformed(ActionEvent event) {
+					invocationCount[0]++;
+				}
+			});
+
+			int ctrl = InputEvent.CTRL_DOWN_MASK;
+			KeyEvent copyEvent = new KeyEvent(harness.panel, KeyEvent.KEY_PRESSED,
+				System.currentTimeMillis(), ctrl, KeyEvent.VK_C, KeyEvent.CHAR_UNDEFINED);
+			assertTrue(harness.panel.dispatch(KeyStroke.getKeyStroke(KeyEvent.VK_C, ctrl), copyEvent));
+			assertEquals(1, invocationCount[0],
+				"Ctrl+C must resolve through the root-pane shortcut layer exactly once");
+		});
+	}
+
+	private static Action recordingSpy(boolean[] flag) {
+		return new AbstractAction() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				flag[0] = true;
+			}
+		};
+	}
+}

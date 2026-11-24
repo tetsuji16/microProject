@@ -20,9 +20,9 @@ import java.util.zip.ZipInputStream;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
 
 /**
  * Golden bytes for the MPO and MSPDI writers (issue #982). The digests were captured on the
@@ -134,7 +134,7 @@ class MpoMspdiConsolidationGoldenTest {
 				+ "<Finish>2026-10-06T17:00:00</Finish><Unit>2</Unit><Value>0.3</Value></TimephasedData>"
 				+ "<Number>0</Number><Start>2026-10-05T08:00:00</Start><Finish>2026-10-06T17:00:00</Finish>"
 				+ "<Work>PT8H0M0S</Work></Baseline>");
-		Project project = new com.microproject.core.pm.exchange.MspImporter().importProject(
+		Project project = new com.microproject.exchange.mpx.MspImporter().importProject(
 			new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)), "xml", (progress, label) -> {});
 		Task task = null;
 		for (Task candidate : project.getTaskList())
@@ -149,7 +149,7 @@ class MpoMspdiConsolidationGoldenTest {
 		task.setFontBold(true);
 		task.setFontItalic(true);
 		task.setFontStrikethrough(true);
-		Assignment assignment = (Assignment) ((com.microproject.pm.task.NormalTask) task).getAssignments().iterator().next();
+		Assignment assignment = (Assignment) ((com.microproject.model.task.NormalTask) task).getAssignments().iterator().next();
 		assertTrue(assignment.getBaselineAssignment(Integer.valueOf(0), false).getWorkContour().isPersonal());
 		return project;
 	}

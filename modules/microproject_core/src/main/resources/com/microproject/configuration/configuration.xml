@@ -22,7 +22,7 @@
 		</int>
 		<int>
 			<name>
-				com.microproject.grouping.core.hierarchy.MutableNodeHierarchy.DEFAULT_NB_END_VOID_NODES
+				com.microproject.node.hierarchy.MutableNodeHierarchy.DEFAULT_NB_END_VOID_NODES
 			</name>
 			<value>50</value>
 		</int>
@@ -48,18 +48,18 @@
 
 
 	<fieldDictionary>
-		<class name="com.microproject.graphic.configuration.HasIndicators">
+		<class name="com.microproject.view.configuration.HasIndicators">
 			<field property="indicators" id="Field.indicators" graphical="true"
 				readOnly="true" sum="This" />
 		</class>
 
-		<class name="com.microproject.pm.time.MutableHasStartAndEnd">
+		<class name="com.microproject.model.time.MutableHasStartAndEnd">
 			<field property="start" id="Field.start" date="true" startValue="true"
 				groupSum="Minimum" />
 			<field property="end" id="Field.finish" date="true" endValue="true"
 				groupSum="Maximum" />
 		</class>
-		<class name="com.microproject.pm.scheduling.Schedule">
+		<class name="com.microproject.schedule.Schedule">
 			<field property="actualStart" id="Field.actualStart"
 				date="true" startValue="true"/>
 			<field property="actualFinish" id="Field.actualFinish"
@@ -75,7 +75,7 @@
 			<field property="elapsedDuration" id="Field.elapsedDuration"
 				duration="true" readOnly="true" />
 		</class>
-		<class name="com.microproject.pm.scheduling.TimeSheetSchedule">
+		<class name="com.microproject.schedule.TimeSheetSchedule">
 			<field property="remainingDuration"
 				id="Field.remainingDuration" duration="true" />
 			<field property="complete" id="Field.complete" />
@@ -85,7 +85,7 @@
 			</field>
 		</class>
 
-		<class name="com.microproject.pm.criticalpath.ScheduleWindow">
+		<class name="com.microproject.schedule.criticalpath.ScheduleWindow">
 			<field property="constraintType"
 				id="Field.constraintType">
 				<select name="constraintType">
@@ -119,7 +119,7 @@
 				readOnly="true" duration="true" />
 			<field property="deadline" id="Field.deadline" date="true" dateOnly="true" endValue="true" />
 		</class>
-		<class name="com.microproject.pm.assignment.TimeDistributedFields">
+		<class name="com.microproject.model.assignment.TimeDistributedFields">
 			<field property="cost" id="Field.cost" readOnly="true"
 				vector="true" money="true" sum="Sum">
 				<permission roles="Administrator;ProjectManager"/>
@@ -155,14 +155,14 @@
 				vector="true" duration="true" work="true" sum="Sum" readOnly="true" />
 		</class>
 		<class
-			name="com.microproject.grouping.core.hierarchy.BelongsToHierarchy">
+			name="com.microproject.node.hierarchy.BelongsToHierarchy">
 			<!-- since there is currently no way to show other hierarchies, I have limited the number of indexed fields to 1 instead of 11 -->
 			<field property="parentId" id="Field.parentId#" indexes="1"
 				zeroBasedIndex="true"
 				boundsField="com.microproject.configuration.Settings.NUM_HIERARCHIES"
 				readOnly="true" />
 		</class>
-		<class name="com.microproject.pm.assignment.UsageDetailFields">
+		<class name="com.microproject.model.assignment.UsageDetailFields">
 			<field property="cumulativeWork" id="Field.cumulativeWork" readOnly="true"
 				vector="true" duration="true" work="true" sum="Sum" />
 			<field property="overallocation" id="Field.overallocation" readOnly="true"
@@ -170,7 +170,7 @@
 			<field property="remainingAvailability" id="Field.remainingAvailability" readOnly="true"
 				vector="true" duration="true" work="true" sum="Sum" />
 		</class>
-		<class name="com.microproject.pm.costing.BasicEarnedValueFields">
+		<class name="com.microproject.model.costing.BasicEarnedValueFields">
 			<field property="acwp" id="Field.acwp" readOnly="true" help="Earned_Value"
 				vector="true" money="true" sum="Sum" >
 				<permission roles="Administrator;ProjectManager"/>
@@ -193,7 +193,7 @@
 			<field property="startOffset" id="Field.startOffset"
 				readOnly="true" vector="false" duration="true" sum="This" />
 		</class>
-		<class name="com.microproject.pm.costing.EarnedValueFields">
+		<class name="com.microproject.model.costing.EarnedValueFields">
 			<field property="cv" id="Field.cv" readOnly="true" help="Earned_Value"
 				vector="true" money="true" sum="Sum" >
 				<permission roles="Administrator;ProjectManager"/>
@@ -235,12 +235,12 @@
 				<permission roles="Administrator;ProjectManager"/>
 			</field>
 		</class>
-		<class name="com.microproject.pm.task.HasNotes">
+		<class name="com.microproject.model.task.HasNotes">
 			<field property="notes" id="Field.notes" memo="true" />
 		</class>
 
 
-		<class name="com.microproject.pm.task.NormalTask">
+		<class name="com.microproject.model.task.NormalTask">
 			<field property="schedulingType" id="Field.taskType">
 				<select name="taskType">
 					<option key="SchedulingType.FixedUnits" value="0" />
@@ -253,7 +253,7 @@
 				readOnly="true" />
 			
 		</class>
-		<class name="com.microproject.pm.snapshot.BaselineScheduleFields">
+		<class name="com.microproject.model.snapshot.BaselineScheduleFields">
 			<!-- baseline fields are read only.  This is good PM practice.  MSP allows you to modify them, which is dangerous -->
 			<field property="baselineStart" id="Field.baseline#Start" help="Baselines"
 				date="true" indexes="11" zeroBasedIndex="true" readOnly="true" startValue="true"/>
@@ -263,14 +263,14 @@
 				id="Field.baseline#Duration" duration="true" indexes="11" help="Baselines"
 				zeroBasedIndex="true" readOnly="true" />
 		</class>
-		<class name="com.microproject.pm.costing.EarnedValueTaskSpecific">
+		<class name="com.microproject.model.costing.EarnedValueTaskSpecific">
 			<field property="physicalPercentComplete"
 				id="Field.physicalPercentComplete" percent="true">
 				<range minimum="0" maximum="1" step="0.05" />
 			</field>
 
 		</class>
-		<class name="com.microproject.pm.scheduling.pert.Pert">
+		<class name="com.microproject.schedule.pert.Pert">
 			<field property="expectedFinish" id="Field.expectedFinish"
 				date="true" readOnly="true" />
 			<field property="expectedStart" id="Field.expectedStart"
@@ -290,7 +290,7 @@
 			<field property="optimisticDuration"
 				id="Field.optimisticDuration" duration="true" />
 		</class>
-		<class name="com.microproject.pm.costing.CostFields">
+		<class name="com.microproject.model.costing.CostFields">
 			<!--			
 				<field property="actualCost" id="Field.actualCost" readOnly="true" vector="true" money="true"/>			
 				<field property="baselineCost" id="Field.baselineCost" vector="true" money="true"/>
@@ -336,7 +336,7 @@
 				indexes="30"
 				boundsField="com.microproject.field.CustomFieldsImpl.NUM_TEXT" />
 		</class>
-		<class name="com.microproject.pm.costing.Cost">
+		<class name="com.microproject.model.costing.Cost">
 			<field property="costPerUse" id="Field.costPerUse"
 				money="true" />
 			<field property="overtimeRate" id="Field.overtimeRate"
@@ -346,31 +346,31 @@
 			<field property="effectiveDate" id="Field.effectiveDate"
 				date="true" startValue="true" dateOnly="true" />
 		</class>
-		<class name="com.microproject.pm.key.HasName">
+		<class name="com.microproject.model.key.HasName">
 			<field property="name" id="Field.name" nameField="true" textWidth="254"
 				referencedIdProperty="uniqueId" />
 		</class>
 
-		<class name="com.microproject.pm.key.HasId">
+		<class name="com.microproject.model.key.HasId">
 			<field property="id" id="Field.id" readOnly="true"
 				hideZeroValues="true" /><!-- temporary solution-->
 		</class>
-		<class name="com.microproject.pm.key.HasKey">
+		<class name="com.microproject.model.key.HasKey">
 			<field property="created" id="Field.created"
 				readOnly="true" />
 			<field property="uniqueId" id="Field.uniqueId"
 				readOnly="true" />
 		</class>
-		<class name="com.microproject.pm.assignment.Allocation">
+		<class name="com.microproject.model.assignment.Allocation">
 			<field property="units" id="Field.assignmentUnits"
 				percent="true" readOnly="true" />
 		</class>
-		<class name="com.microproject.pm.task.HasPriority">
+		<class name="com.microproject.model.task.HasPriority">
 			<field property="priority" id="Field.priority">
 				<range minimum="0" maximum="1000" step="20" />
 			</field>
 		</class>
-		<class name="com.microproject.pm.task.TaskSpecificFields">
+		<class name="com.microproject.model.task.TaskSpecificFields">
 			<field property="levelingCanSplit" id="Field.levelingCanSplit" />
 			<field property="levelAssignments" id="Field.levelAssignments" />
 			<field property="ignoreWarnings" id="Field.ignoreWarnings" />
@@ -392,8 +392,8 @@
 			<field property="taskCalendar" id="Field.taskCalendar"
 				dynamicOptions="true" help="Calendars">
 				<choice
-					list="com.microproject.pm.calendar.CalendarService.allBaseCalendars"
-					finder="com.microproject.pm.calendar.CalendarService.findBaseCalendar"
+					list="com.microproject.model.calendar.CalendarService.allBaseCalendars"
+					finder="com.microproject.model.calendar.CalendarService.findBaseCalendar"
 					allowNull="true" />
 			</field>
 			<field property="wbsParent" id="Field.wbsParent"
@@ -426,11 +426,11 @@
 			<field property="ignoreResourceCalendar"
 				id="Field.ignoreResourceCalendar" />
 		</class>
-		<class name="com.microproject.pm.scheduling.SchedulingFields">
+		<class name="com.microproject.schedule.SchedulingFields">
 			<field property="effortDriven" id="Field.effortDriven" />
 		</class>
 		<class
-			name="com.microproject.pm.assignment.AssignmentSpecificFields">
+			name="com.microproject.model.assignment.AssignmentSpecificFields">
 			<field property="taskName" id="Field.assignmentTaskName"
 				readOnly="true" referencedObjectProperty="task" hasToolTip="true" />
 			<field property="resourceName"
@@ -467,7 +467,7 @@
 
 
 		</class>
-		<class name="com.microproject.pm.assignment.timesheet.UpdatesFromTimesheet">
+		<class name="com.microproject.model.assignment.timesheet.UpdatesFromTimesheet">
 			<field property="lastTimesheetUpdate" id="Field.lastTimesheetUpdate"
 				date="true" readOnly="true" />
 			<field property="pendingTimesheetUpdate" id="Field.pendingTimesheetUpdate"
@@ -476,7 +476,7 @@
 				readOnly="true" />
 		</class>
 
-		<class name="com.microproject.pm.assignment.HasRequestDemandType">
+		<class name="com.microproject.model.assignment.HasRequestDemandType">
 			<field property="requestDemandType"
 				id="Field.requestDemandType">
 				<select name="requestDemandType">
@@ -486,16 +486,16 @@
 				</select>
 			</field>
 		</class>
-		<class name="com.microproject.pm.calendar.HasBaseCalendar">
+		<class name="com.microproject.model.calendar.HasBaseCalendar">
 			<field property="baseCalendar" id="Field.baseCalendar"
 				dynamicOptions="true"  help="Calendars">
 				<choice
-					list="com.microproject.pm.calendar.CalendarService.allBaseCalendars"
-					finder="com.microproject.pm.calendar.CalendarService.findBaseCalendar"
+					list="com.microproject.model.calendar.CalendarService.allBaseCalendars"
+					finder="com.microproject.model.calendar.CalendarService.findBaseCalendar"
 					allowNull="false" />
 			</field>
 		</class>
-		<class name="com.microproject.pm.resource.ResourceSpecificFields">
+		<class name="com.microproject.model.resource.ResourceSpecificFields">
 			<field property="remainingOvertimeCost"
 				id="Field.remainingOvertimeCost" money="true" readOnly="true" />
 			<field property="rbsCode" id="Field.rbsCode" />
@@ -509,7 +509,7 @@
 			<field property="externalId" id="Field.externalId" />
 		</class>
 
-		<class name="com.microproject.pm.availability.HasAvailability">
+		<class name="com.microproject.model.availability.HasAvailability">
 			<field property="maximumUnits" id="Field.maximumUnits"
 				percent="true" groupSum="Same"
 				errorMessage="Message.invaliidUnits">
@@ -521,7 +521,7 @@
 				date="true" dateOnly="true" endValue="true"/>
 
 		</class>
-		<class name="com.microproject.pm.costing.HasExpenseType">
+		<class name="com.microproject.model.costing.HasExpenseType">
 			<field property="expenseType" id="Field.expenseType">
 				<select name="expenseType">
 					<option key="ExpenseType.NONE" value="0" />
@@ -534,7 +534,7 @@
 			</field>
 		</class>
 
-		<class name="com.microproject.pm.resource.Resource">
+		<class name="com.microproject.model.resource.Resource">
 			<field property="accrueAt" id="Field.accrueAt"
 				groupSum="Same">
 				<select name="accrueAt">
@@ -559,7 +559,7 @@
 			</field>
 
 		</class>
-		<class name="com.microproject.pm.resource.ResourceImpl">
+		<class name="com.microproject.model.resource.ResourceImpl">
 			<field property="extendedRole" id="Field.userRole">
 				<select name="userRole">
 					<option key="ClientRole.Inactive" value="0" />
@@ -579,7 +579,7 @@
 		</class>
 
 
-		<class name="com.microproject.pm.task.Task">
+		<class name="com.microproject.model.task.Task">
 			<field property="sourceProject" id="Field.sourceProject"
 				readOnly="true" />
 			<field property="manuallyScheduled" id="Field.manuallyScheduled" />
@@ -611,11 +611,11 @@
 			<field property="predecessorOrder" id="Field.predecessorOrder" readOnly="true" />
  		-->
 		</class>
-		<class name="com.microproject.pm.task.Task">
+		<class name="com.microproject.model.task.Task">
 			<field property="subprojectFile" id="Field.subprojectFile" readOnly="true" />
 			<field property="subprojectStatus" id="Field.subprojectStatus" readOnly="true" />
 		</class>
-		<class name="com.microproject.pm.task.ProjectSpecificFields">
+		<class name="com.microproject.model.task.ProjectSpecificFields">
 			<field property="statusDate" id="Field.statusDate"
 				date="true" endValue="true" dateOnly="true"/>
 			<field property="manager" id="Field.manager" />
@@ -672,7 +672,7 @@
 
 		</class>
 		
-		<class name="com.microproject.pm.dependency.Dependency">
+		<class name="com.microproject.model.dependency.Dependency">
 			<field property="predecessorName" id="Field.predecessorName"
 				readOnly="true" referencedObjectProperty="predecessor" />
 			<field property="successorName" id="Field.successorName"
@@ -692,11 +692,11 @@
 				</select>
 			</field>
 		</class>
-		<class name="com.microproject.pm.scheduling.CanBeLeveled">
+		<class name="com.microproject.schedule.CanBeLeveled">
 			<field property="levelingDelay" id="Field.levelingDelay"
 				duration="true" />
 		</class>
-		<class name="com.microproject.pm.scheduling.Delayable">
+		<class name="com.microproject.schedule.Delayable">
 			<field property="delay" id="Field.delay" duration="true" />
 		</class>
 
@@ -704,7 +704,7 @@
 
 
 		<!-- for assignment dialog -->
-		<class name="com.microproject.pm.assignment.AssignmentEntry">
+		<class name="com.microproject.model.assignment.AssignmentEntry">
 			<field property="name" id="Field.assignmentEntryName"
 				readOnly="true" />
 			<field property="rate" id="Field.assignmentEntryRate"
@@ -716,7 +716,7 @@
 		</class>
 
 		<class
-			name="com.microproject.pm.costing.EarnedValueIndicatorFields">
+			name="com.microproject.model.costing.EarnedValueIndicatorFields">
 			<field property="scheduleStatusIndicator"
 				id="Field.scheduleStatusIndicator" url="status" image="true" graphical="true"
 				readOnly="true" />
@@ -728,7 +728,7 @@
 		</class>
 
 
-		<class name="com.microproject.pm.costing.HasCostRateIndex">
+		<class name="com.microproject.model.costing.HasCostRateIndex">
 			<field property="costRateIndex"
 				id="Field.costRateTable">
 				<select name="costRateTable">
@@ -793,21 +793,21 @@
 
 	<script>
 		<class name="java.lang.Object" />
-		<class name="com.microproject.pm.graphic.model.cache.GraphicNode" />
-		<class name="com.microproject.graphic.configuration.CellStyle" />
-		<class name="com.microproject.graphic.configuration.CellFormat" />
-		<class name="com.microproject.grouping.core.model.NodeModel" />
+		<class name="com.microproject.ui.view.model.cache.GraphicNode" />
+		<class name="com.microproject.view.configuration.CellStyle" />
+		<class name="com.microproject.view.configuration.CellFormat" />
+		<class name="com.microproject.node.model.NodeModel" />
 		<class name="com.microproject.util.Environment" />
-		<class name="com.microproject.graphic.configuration.ActionList" />
+		<class name="com.microproject.view.configuration.ActionList" />
 		<class name="java.lang.String" />
 		<class
-			name="com.microproject.grouping.core.transform.filtering.NodeFilter" />
+			name="com.microproject.node.transform.filtering.NodeFilter" />
 		<class
-			name="com.microproject.grouping.core.transform.sorting.NodeSorter" />
+			name="com.microproject.node.transform.sorting.NodeSorter" />
 		<class
-			name="com.microproject.grouping.core.transform.transformer.NodeTransformer" />
-		<class name="com.microproject.grouping.core.Node" />
-		<class name="com.microproject.pm.assignment.Assignment" />
+			name="com.microproject.node.transform.transformer.NodeTransformer" />
+		<class name="com.microproject.node.Node" />
+		<class name="com.microproject.model.assignment.Assignment" />
 		<class name="com.microproject.datatype.Duration" />
 		<class name="com.microproject.datatype.DurationFormat" />
 		<class name="java.lang.System" />

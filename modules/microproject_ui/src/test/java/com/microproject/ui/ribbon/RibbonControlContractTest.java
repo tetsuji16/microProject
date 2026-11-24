@@ -55,11 +55,11 @@ import javax.swing.event.PopupMenuListener;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.menu.ExtToolBarFactory;
-import com.microproject.menu.MenuActionMapSupport;
-import com.microproject.menu.MenuManager;
-import com.microproject.menu.MenuRibbonCommandSource;
-import com.microproject.menu.testsupport.MenuDefinitionSupport;
+import com.microproject.ui.menu.ExtToolBarFactory;
+import com.microproject.ui.menu.MenuActionMapSupport;
+import com.microproject.ui.menu.MenuManager;
+import com.microproject.ui.menu.MenuRibbonCommandSource;
+import com.microproject.ui.menu.testsupport.MenuDefinitionSupport;
 import com.microproject.ribbon.RibbonActivation;
 import com.microproject.ribbon.RibbonControlKind;
 import com.microproject.ribbon.SwingRibbonModel;
@@ -453,13 +453,13 @@ class RibbonControlContractTest {
 			RibbonControlPopups.install(large, specification(RibbonControlKind.SPLIT_BUTTON), commandSource(), key -> null);
 			large.setSize(80, 61);
 			JButton largeArrow = assertInstanceOf(JButton.class, large.getClientProperty(RibbonControlPopups.ARROW_BUTTON_PROPERTY));
-			assertEquals(new java.awt.Rectangle(0, 30, 80, 31), com.microproject.util.FlatUiSupport.ribbonSplitArrowBounds(large));
+			assertEquals(new java.awt.Rectangle(0, 30, 80, 31), com.microproject.ui.util.FlatUiSupport.ribbonSplitArrowBounds(large));
 
 			JButton small = countingButton(new AtomicInteger());
 			small.putClientProperty(RibbonButtonStyler.SIZE_PROPERTY, "small");
 			RibbonControlPopups.install(small, specification(RibbonControlKind.SPLIT_BUTTON), commandSource(), key -> null);
 			small.setSize(80, 22);
-			assertEquals(new java.awt.Rectangle(62, 0, 18, 22), com.microproject.util.FlatUiSupport.ribbonSplitArrowBounds(small));
+			assertEquals(new java.awt.Rectangle(62, 0, 18, 22), com.microproject.ui.util.FlatUiSupport.ribbonSplitArrowBounds(small));
 			assertNotNull(largeArrow);
 		});
 		// Resizing is delivered through the event queue.
