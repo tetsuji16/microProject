@@ -20,7 +20,7 @@ Out of scope:
 - MSPDI/MPP export
 - Gantt bar text style chooser changes
 
-Blockers: none
+Blockers: Full `build` initially failed 5 UI tests (spreadsheet editor font family, two task constraint MPO round-trips, and two external-refresh lock assertions). All five passed when isolated by their test/class; standalone `:microproject_ui:test` then passed 1,892 tests. Keep original tests enabled; exact SHA CI remains the integration gate.
 
 ## Acceptance
 
@@ -29,8 +29,8 @@ Blockers: none
 | AC1 | `SheetTextStylesTest` proves `MARKED_TASKS` wins over `CRITICAL_TASKS` for a task matching both | done | `markedTasksTakePriorityOverCriticalTasks`, tested SHA pending push |
 | AC2 | MPO round-trip test: save 2 categories and a marked task, reload, values match | done | `mpoRoundTripPreservesSheetTextStylesAndMarkedTasks`, tested SHA pending push |
 | AC3 | MPO archive without `sheetTextStyles` loads with `isEmpty() == true` | done | `olderMpoFixtureWithoutSheetTextStylesLoadsWithAnEmptyStyleSet` using `testdata/mpo/v024-1265-previous-writer.mpo`; `samples/CCPM sample English.mpo` is corrupt (ZipException invalid entry size) |
-| AC4 | POD read/write tests unchanged and all pass | done | `build`; both new POD-owned properties are transient and a focused reflection assertion enforces this |
-| AC5 | `git diff --check` passes; `build` and module tests pass | done | full `build` and `git diff --cached --check` pass; exact SHA CI pending |
+| AC4 | POD read/write tests unchanged and all pass | done | both new POD-owned properties are transient; reflection regression test; core/exchange suites passed |
+| AC5 | `git diff --check` passes; `build` and module tests pass | pending | core/exchange suites and standalone UI suite pass; full `build` has five UI failures on first run, isolated UI suite rerun passed |
 
 ## Current slice
 
@@ -40,7 +40,7 @@ Blockers: none
 
 **Done when:** All AC1–AC5 pass locally.
 
-**Next:** Push the integration merge and verify CI `build` and `GUI acceptance` on that exact SHA. The full local `build` currently has 5 UI test failures outside this issue (spreadsheet name editor font family, 2 task constraint MPO round trips, and 2 external-refresh lock assertions); the required `:microproject_core:test` and `:microproject_exchange:test` suites passed.
+**Next:** Push the integration merge and verify CI `build` and `GUI acceptance` on that exact SHA. Full build's 5 transient UI failures did not reproduce in isolated tests or standalone UI suite (1,892 tests); no assertions were weakened.
 
 ## Remaining blockers
 
@@ -52,6 +52,7 @@ Blockers: none
 - `.\gradlew.bat :microproject_exchange:test --tests "com.microproject.exchange.MpoFileImporterTest.mpoRoundTripPreservesSheetTextStylesAndMarkedTasks" --tests "com.microproject.exchange.MpoFileImporterTest.olderMpoFixtureWithoutSheetTextStylesLoadsWithAnEmptyStyleSet" --console=plain`: PASS
 - `.\gradlew.bat :microproject_core:test :microproject_exchange:test --console=plain`: PASS
 - `.\gradlew.bat build --console=plain`: PASS (5m16s)
-- `git diff --cached --check`: PASS
+- `git diff --check origin/master...HEAD`: PASS after correcting the three inherited trailing-whitespace lines
 - Physical GUI/manual: N/A (core/exchange change only)
+- `.\gradlew.bat :microproject_ui:test --console=plain`: PASS, 1,892 tests; rerun after failures from full multi-module build
 - CI: pending on updated candidate SHA
