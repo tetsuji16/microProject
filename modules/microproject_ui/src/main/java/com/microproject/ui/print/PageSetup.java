@@ -72,6 +72,8 @@ import com.microproject.print.PDFPrintService;
 import com.microproject.print.PageSize;
 import com.microproject.print.PrintSettings;
 import com.microproject.print.PrintSettingsManager;
+import com.microproject.print.ScaleToSettings;
+import com.microproject.print.ScalingSettings;
 import com.microproject.print.ViewSettings;
 /**
  *
@@ -85,6 +87,15 @@ public class PageSetup{
 	private GraphPageable document;
 	private ExtendedPageFormat pageFormat;
 	private ExtendedPrintService extendedPrintService;
+	private final ExtendedPageFormat initialPageFormat;
+	private final javax.print.PrintService initialPrintService;
+	private final double initialZoomX;
+	private final double initialZoomY;
+	private final boolean initialScaleToSelected;
+	private final boolean initialShowSpreadsheet;
+	private final boolean initialShowGantt;
+	private final boolean initialLeftPartVisible;
+	private final boolean initialRightPartVisible;
 
 	public static PageSetup getInstance(GraphPageable document) {
 		return new PageSetup(document);
@@ -93,6 +104,15 @@ public class PageSetup{
 		this.document=document;
 		pageFormat=document.getPageFormat();
 		extendedPrintService=ExtendedPrintServiceFactory.getExtendedPrintService();
+		initialPageFormat=(ExtendedPageFormat)pageFormat.clone();
+		initialPrintService=document.getPrintService();
+		initialZoomX=document.getTotalZoomX();
+		initialZoomY=document.getTotalZoomY();
+		initialScaleToSelected=document.isScaleToSelected();
+		initialShowSpreadsheet=document.isShowSpreadsheet();
+		initialShowGantt=document.isShowGantt();
+		initialLeftPartVisible=document.getRenderer().getParams().isLeftPartVisible();
+		initialRightPartVisible=document.getRenderer().getParams().isRightPartVisible();
 	}
 
 
@@ -564,7 +584,6 @@ public class PageSetup{
 		initFont(saveSettings);
 		updatePageSize(true);
 		updateOrientation();
-		updateFitTo();
 		endUpdate();
 	}
 
@@ -572,6 +591,8 @@ public class PageSetup{
 		PrintSettings printSettings=new PrintSettings();
 		printSettings.setPageFormat((ExtendedPageFormat)document.getPageFormat().clone());
 		printSettings.setPdfService(document.getPrintService() instanceof PDFPrintService);
+		printSettings.setPrintServiceName(document.getPrintService()==null?null:document.getPrintService().getName());
+		captureScalingSettings(printSettings);
 
 		ArrayList<ViewSettings> viewSettings = null;
 		if (printSpreadSheet!=null&&printGantt!=null){
@@ -591,6 +612,51 @@ public class PageSetup{
 
 		PrintSettingsManager.saveSettings(printSettings,local?null:document.getRenderer().getProject(),persist);
 
+	}
+
+	/** Commits page setup dialog edits to the in-memory settings used by the next print document. */
+	public void saveDialogSettings(){
+		saveSettings(true,false);
+	}
+
+	private void captureScalingSettings(PrintSettings printSettings){
+		ScaleToSettings scaleSettings=new ScaleToSettings();
+		scaleSettings.setWidth(((Number)scaleToWidth.getValue()).doubleValue());
+		scaleSettings.setHeight(((Number)scaleToHeight.getValue()).doubleValue());
+		scaleSettings.setConstrainProportions(constrainProportions.isSelected());
+		FitToSettings fitSettings=new FitToSettings();
+		fitSettings.setColumns(((Number)fitToWidth.getValue()).intValue());
+		fitSettings.setRows(isFitHeightAutomatic()?FitToSettings.AUTOMATIC:
+				((Number)fitToHeight.getValue()).intValue());
+		ArrayList<ScalingSettings> scalingSettings=new ArrayList<>(2);
+		scalingSettings.add(scaleSettings);
+		scalingSettings.add(fitSettings);
+		printSettings.setScalingSettings(scalingSettings);
+		printSettings.setScalingIndex(scaleTo.isSelected()?0:1);
+
+		// Keep the live preview document in step with settings that a newly-created print document will read.
+		document.setScaleToSettings(scaleSettings);
+		document.setFitToSettings(fitSettings);
+		document.setScaleToSelected(scaleTo.isSelected());
+		if (printSpreadSheet!=null&&printGantt!=null){
+			document.setShowSpreadsheet(printSpreadSheet.isSelected());
+			document.setShowGantt(printGantt.isSelected());
+		}
+	}
+
+	/** Restores the live preview state when the page setup dialog is cancelled or dismissed. */
+	public void cancelDialogChanges(){
+		document.setPrintService(initialPrintService,false);
+		document.setPageFormat((ExtendedPageFormat)initialPageFormat.clone());
+		document.setTotalZoomX(initialZoomX);
+		document.setTotalZoomY(initialZoomY);
+		document.setScaleToSelected(initialScaleToSelected);
+		document.setShowSpreadsheet(initialShowSpreadsheet);
+		document.setShowGantt(initialShowGantt);
+		document.getRenderer().getParams().setLeftPartVisible(initialLeftPartVisible);
+		document.getRenderer().getParams().setRightPartVisible(initialRightPartVisible);
+		document.saveZoom();
+		document.update();
 	}
 
 	private boolean isBigPage(){
@@ -672,17 +738,9 @@ public class PageSetup{
 		if (fitTo.isSelected()) updateZoom();
 		document.update();
 		document.getPrintPreviewFrame().updatePanel();
-		beginUpdate();
-		updateFitTo();
-		endUpdate();
-	}
-	public void updateFitTo(){
-		GraphParams params=document.getRenderer().getParams();
-		if (!isFitHeightAutomatic()) fitToWidth.setValue(params.getPrintCols());
-		fitToHeight.setValue(params.getPrintRows());
 	}
 
-	private void updateZoom(){
+	void updateZoom(){
 		document.updateZoom(((Number)fitToWidth.getValue()).intValue(),getRequestedFitToRows());
 	}
 
