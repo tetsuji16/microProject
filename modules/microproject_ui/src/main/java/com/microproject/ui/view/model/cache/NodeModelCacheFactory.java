@@ -27,7 +27,7 @@ import java.util.function.Consumer;
 
 
 import com.microproject.document.Document;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.model.NodeModel;
 
 /**
  *

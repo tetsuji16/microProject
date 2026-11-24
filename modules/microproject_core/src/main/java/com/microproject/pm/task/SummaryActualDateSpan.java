@@ -6,7 +6,7 @@ package com.microproject.pm.task;
 
 import java.util.Collection;
 
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 
 /** Calculates the actual progress span contributed by WBS children. */
 record SummaryActualDateSpan(long start, long finish) {

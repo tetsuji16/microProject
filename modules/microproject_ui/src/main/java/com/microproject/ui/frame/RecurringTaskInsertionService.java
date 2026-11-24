@@ -27,9 +27,9 @@ import java.util.List;
 
 import com.microproject.undo.EditSupport;
 
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.NodeFactory;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.Node;
+import com.microproject.node.NodeFactory;
+import com.microproject.node.model.NodeModel;
 import com.microproject.ui.view.spreadsheet.common.CommonSpreadSheet;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;

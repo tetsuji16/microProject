@@ -35,8 +35,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.NodeFactory;
+import com.microproject.node.Node;
+import com.microproject.node.NodeFactory;
 import com.microproject.collaboration.ProjectMergeService;
 import com.microproject.ui.frame.workspace.DefaultFrameManager;
 import com.microproject.pm.resource.ResourcePool;

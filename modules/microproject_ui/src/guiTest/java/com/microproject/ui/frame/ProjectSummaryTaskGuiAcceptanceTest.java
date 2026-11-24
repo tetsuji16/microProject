@@ -31,7 +31,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.exchange.MpoFileImporter;
-import com.microproject.grouping.core.ProjectSummaryRow;
+import com.microproject.node.ProjectSummaryRow;
 import com.microproject.ui.menu.MenuActionConstants;
 import com.microproject.ui.view.gantt.Gantt;
 import com.microproject.ui.view.graph.GraphZone;

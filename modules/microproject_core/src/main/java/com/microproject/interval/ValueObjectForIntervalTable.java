@@ -33,8 +33,8 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.microproject.grouping.core.model.NodeModel;
-import com.microproject.grouping.core.model.NodeModelDataFactory;
+import com.microproject.node.model.NodeModel;
+import com.microproject.node.model.NodeModelDataFactory;
 import com.microproject.i18n.Messages;
 import com.microproject.util.DateTime;
 

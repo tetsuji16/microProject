@@ -13,10 +13,10 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.NodeFactory;
-import com.microproject.grouping.core.model.WalkersNodeModel;
-import com.microproject.grouping.core.transform.grouping.NodeGroup;
+import com.microproject.node.Node;
+import com.microproject.node.NodeFactory;
+import com.microproject.node.model.WalkersNodeModel;
+import com.microproject.node.transform.grouping.NodeGroup;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;

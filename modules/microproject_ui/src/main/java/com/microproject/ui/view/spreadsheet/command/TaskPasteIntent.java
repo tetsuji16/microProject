@@ -7,7 +7,7 @@ package com.microproject.ui.view.spreadsheet.command;
 import java.util.List;
 import java.util.Objects;
 
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 import com.microproject.ui.view.model.cache.ProjectionRowKey;
 
 /** A task-row paste addressed to the selection snapshot in one visible projection. */

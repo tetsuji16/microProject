@@ -29,11 +29,11 @@ import javax.swing.undo.AbstractUndoableEdit;
 import javax.swing.undo.CannotRedoException;
 import javax.swing.undo.CannotUndoException;
 
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.DefaultNodeModel.RemovalSnapshot;
-import com.microproject.grouping.core.model.DefaultNodeModel.RemovalSnapshot.Entry;
-import com.microproject.grouping.core.model.DefaultNodeModel.RemovalSnapshot.SubprojectState;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.Node;
+import com.microproject.node.model.DefaultNodeModel.RemovalSnapshot;
+import com.microproject.node.model.DefaultNodeModel.RemovalSnapshot.Entry;
+import com.microproject.node.model.DefaultNodeModel.RemovalSnapshot.SubprojectState;
+import com.microproject.node.model.NodeModel;
 import com.microproject.pm.task.Project;
 
 /**

@@ -15,8 +15,8 @@ import java.awt.geom.Point2D;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.Node;
+import com.microproject.node.model.NodeModel;
 import com.microproject.ui.view.model.cache.GraphicDependency;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.model.cache.NodeModelCache;

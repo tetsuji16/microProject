@@ -39,9 +39,9 @@ import javax.swing.tree.TreeNode;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.NodeException;
-import com.microproject.grouping.core.NodeVisitor;
+import com.microproject.node.Node;
+import com.microproject.node.NodeException;
+import com.microproject.node.NodeVisitor;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.resource.ResourcePool;

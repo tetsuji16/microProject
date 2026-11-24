@@ -1,0 +1,443 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.node.hierarchy;
+
+import java.lang.reflect.Array;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Deque;
+import java.util.Enumeration;
+import java.util.EventListener;
+import java.util.Iterator;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.NoSuchElementException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.function.Consumer;
+
+import javax.swing.tree.TreeNode;
+
+import java.util.function.Predicate;
+
+import com.microproject.node.LazyParent;
+import com.microproject.node.Node;
+import com.microproject.node.NodeBridge;
+import com.microproject.node.event.HierarchyEvent;
+import com.microproject.node.event.HierarchyListener;
+import com.microproject.pm.key.HasKey;
+import com.microproject.util.ListenerRegistry;
+
+/**
+ *
+ */
+public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
+    private static final Logger logger = Logger.getLogger(AbstractMutableNodeHierarchy.class.getName());
+	public abstract Object getRoot();
+	public Object getChild(Object parent, int index) {
+		return ((Node)parent).getChildAt(index);
+	}
+	public int getChildCount(Object parent) {
+		return ((Node)parent).getChildCount();
+	}
+	public int getIndexOfChild(Object parent, Object child) {
+		return ((Node)parent).getIndex((Node)child);
+	}
+    public int getIndexOfNode(Node key, boolean skipVoid) {
+    	return getIndexOfNode((Node)getRoot(),key,new Counter(),skipVoid);
+    }
+  
+	public Iterator<Node> iterator(Node rootNode){
+		NodeBridge r = rootNode instanceof NodeBridge nodeBridge
+				? nodeBridge
+				: (NodeBridge) getRoot();
+		Enumeration<?> nodes = r.preorderEnumeration();
+		return new Iterator<>() {
+			@Override
+			public boolean hasNext() {
+				return nodes.hasMoreElements();
+			}
+
+			@Override
+			public Node next() {
+				return (Node) nodes.nextElement();
+			}
+
+			@Override
+			public void remove() {
+				throw new UnsupportedOperationException();
+			}
+		};
+	}
+	public Iterator<Node> iterator(){
+		return iterator(null);
+	}
+	
+    private final class ShallowPreorderIterator implements Iterator<Node> {
+        private final Deque<Enumeration<? extends TreeNode>> stack = new ArrayDeque<>();
+        private final int maxLevel;
+        private final Deque<Integer> levelStack = new ArrayDeque<>();
+
+        private ShallowPreorderIterator(TreeNode rootNode, int maxLevel, boolean returnRoot) {
+            stack.push(Collections.enumeration(List.of(rootNode)));
+            levelStack.push(0);
+            this.maxLevel = maxLevel;
+            if (!returnRoot && hasNext()) next();
+        }
+
+        public boolean hasNext() {
+            return !stack.isEmpty() && stack.peek().hasMoreElements();
+        }
+
+        public Node next() {
+            if (!hasNext())
+                throw new NoSuchElementException();
+            Enumeration<? extends TreeNode> enumer = stack.peek();
+            int level = levelStack.peek();
+            TreeNode node = enumer.nextElement();
+            Enumeration<? extends TreeNode> children = level == maxLevel ? null : node.children();
+
+            if (!enumer.hasMoreElements()) {
+                stack.pop();
+                levelStack.pop();
+            }
+            if (children != null && children.hasMoreElements()) {
+                stack.push(children);
+                levelStack.push(level + 1);
+            }
+            return (Node) node;
+        }
+		public void remove() {
+			throw new UnsupportedOperationException("Remove not supported");
+		}
+    }
+
+	
+	public Iterator<Node> shallowIterator(int maxLevel,boolean returnRoot){
+		return new ShallowPreorderIterator((TreeNode)getRoot(),maxLevel,returnRoot);
+	}
+	
+
+    
+    private class Counter { // an int object that is mutable
+    	int count = 0;
+    }
+    
+    private int getIndexOfNode(Node node, Node key, Counter counter, boolean skipVoid) {
+    	if (key == node)
+    		return counter.count;
+    	if (!skipVoid || !node.isVirtual())
+    		counter.count++;
+		List<?> children = getChildren(node);
+		if (children == null)
+			return -1;
+		int found = -1;
+		for (Object child : children) {
+			if ((found = getIndexOfNode((Node) child, key, counter, skipVoid)) != -1)
+				break;
+    	}
+    	return found;
+    	
+    }
+    public void visitAll(Consumer<Object> visitor) {
+    	visitAll(null,visitor);
+    }
+    public void visitAll(Node parent, Consumer<Object> visitor) {
+        if (parent != null)
+            visitor.accept(parent);
+        List<?> children = getChildren(parent);
+        if (children != null) {
+            for (Object child : children) {
+                visitAll((Node) child, visitor);
+            }
+        }
+    }
+    //doesn't visit parent
+    public void visitAllLevelOrder(Node parent, boolean skipLazyParents, Consumer<Object> visitor) {
+    	visitAllLevelOrder(true,parent,skipLazyParents,visitor);
+    }
+
+   	public void visitAllLevelOrder(boolean first, Node parent, boolean skipLazyParents, Consumer<Object> visitor) {
+   		// when saving a project, we do not want to save the children of subproject tasks, except when 
+   		// saving a suproject itself, in which case, the root element will be a subproject task and first will be true
+    	if (!first && skipLazyParents && parent != null && parent.getImpl() instanceof LazyParent) 
+    		return;
+        List<?> children = getChildren(parent);
+        if (children != null) {
+            for (Object child : children) {
+                visitor.accept(child);
+            }
+            for (Object child : children) {
+                visitAllLevelOrder(false, (Node) child, skipLazyParents, visitor);
+            }
+        }
+    }
+   	
+    public void visitAll(Node parent, boolean skipLazyParents, Consumer<Object> visitor) {
+    	visitAll(true,parent,skipLazyParents,visitor);
+    }
+   	public void visitAll(boolean first, Node parent, boolean skipLazyParents, Consumer<Object> visitor) {
+   		// when saving a project, we do not want to save the children of subproject tasks, except when 
+   		// saving a suproject itself, in which case, the root element will be a subproject task and first will be true
+    	if (!first && skipLazyParents && parent != null && parent.getImpl() instanceof LazyParent) 
+    		return;
+        List<?> children = getChildren(parent);
+        if (children != null) {
+            for (Object child : children) {
+                Node node = (Node) child;
+                visitor.accept(node);
+                visitAll(false, node, skipLazyParents, visitor);
+            }
+        }
+    }
+   	
+    public void visitLeaves(Node node, Consumer<Object> visitor) {
+        if (node.isLeaf()) visitor.accept(node);
+        else for (Enumeration<?> children = node.children(); children.hasMoreElements();) {
+            visitLeaves((Node) children.nextElement(), visitor);
+        }
+    }
+
+
+/**
+ * Get next non virtual node
+ */    
+    public Node getNext(Node current) {
+    	Node node = current;
+    	while (true) {
+    		node = getNext(node,true);
+			if (node == null || (!node.isVirtual() && !node.isRoot()))
+				break;
+    	}
+    	return node;
+    }
+    
+    private Node getNext(Node current, boolean doChildren) {
+        List<?> children;
+    	if (doChildren) { // if haven't visited children yet
+    		children = getChildren(current);
+       		if (children != null && children.size() > 0) // if parent, next is first child
+    			return (Node)children.get(0);
+    	}
+       	if (current == null) // null parent has no parent
+       		return null;
+   		Node parent =getParent(current);
+		children = getChildren(parent);
+		Iterator<?> i = children.iterator();
+        while (i.hasNext()) { // get next element after this one.  If it is the last then try its parent
+        	if (i.next() == current) {
+        		if (i.hasNext())
+        			return (Node)i.next();
+        		else
+        			return getNext(parent,false);
+        	}
+        }
+        return null;
+    }
+    public Node getPrevious(Node current) {
+    	Node node = current;
+    	while (true) {
+    		node = getPrevious(node,true);
+			if (node == null || (!node.isVirtual() && !node.isRoot()))
+				break;
+    	}
+    	return node;
+    }
+    
+    private Node getPrevious(Node current, boolean doChildren) {
+        if (current == null || current.isRoot()) // the root has no preceding visible node
+            return null;
+        List<?> children;
+
+    	Node parent =getParent(current);
+		children = getChildren(parent);
+    	if (doChildren) { // if haven't visited children yet
+			ListIterator<?> i = children.listIterator(children.size()); // reverse iterator
+	        while (i.hasPrevious()) { // get next element after this one.  If it is the last then try its parent
+	        	if (i.previous() == current) {
+	        		if (i.hasPrevious())
+	        			return getPrevious((Node)i.previous(),false);
+	        		else
+	        			return parent;
+	        	}
+	        }
+    	}
+
+		children = getChildren(current);
+   		if (children != null && children.size() > 0) // if parent, previous is last child
+			return getPrevious((Node)children.get(children.size()-1),doChildren);
+   		
+   		return current;
+    }
+
+	
+    public void dump() {
+        dump(null, "", line -> logger.log(Level.FINE, "{0}", line));
+   }
+    public void dump(final StringBuffer buf) {
+        dump(null, "", line -> buf.append(line).append('\n'));
+   }
+    
+    private void dump(Node parent, String indent, Consumer<String> c) {
+    	if (parent != null)
+    		c.accept(indent + ">"+parent.toString());
+        List<?> children = getChildren(parent);
+    	if (children != null) {
+            for (Object child : children) {
+                dump((Node) child, indent + "--", c);
+            }
+    	}
+    }
+	
+    
+	public abstract Object clone();
+	
+	
+	
+	
+	
+	protected final ListenerRegistry<HierarchyListener> hierarchyListeners = new ListenerRegistry<>();
+
+	public void addHierarchyListener(HierarchyListener l) {
+		hierarchyListeners.add(l);
+	}
+	public void removeHierarchyListener(HierarchyListener l) {
+		hierarchyListeners.remove(l);
+	}
+	public HierarchyListener[] getHierarchyListeners() {
+		return hierarchyListeners.snapshot().toArray(HierarchyListener[]::new);
+	}
+    public EventListener[] getHierarchyListeners(Class listenerType) { 
+		if (listenerType == null)
+			throw new NullPointerException("listenerType");
+		if (listenerType != HierarchyListener.class)
+			return (EventListener[]) Array.newInstance(listenerType, 0);
+		return hierarchyListeners.snapshot().toArray(HierarchyListener[]::new);
+    }
+    
+	protected void fireStructureChanged(Object source) {
+		HierarchyEvent e = null;
+		for (HierarchyListener listener : hierarchyListeners.snapshot()) {
+			if (e == null)
+				e = new HierarchyEvent(source, HierarchyEvent.STRUCTURE_CHANGED, null);
+			listener.structureChanged(e);
+		}
+	}
+	protected void fireNodesChanged(Object source, Object[] nodes,Object[] oldNodes,Object flag) {
+		HierarchyEvent e = null;
+		for (HierarchyListener listener : hierarchyListeners.snapshot()) {
+			if (e == null)
+				e = new HierarchyEvent(source, HierarchyEvent.NODES_CHANGED, nodes, oldNodes, flag);
+			listener.nodesChanged(e);
+		}
+	}
+	protected void fireNodesChanged(Object source, Object[] nodes, Object[] oldNodes, Object flag,
+			java.util.Map<Object, Object[]> previousParentChildren) {
+		HierarchyEvent e = new HierarchyEvent(source, HierarchyEvent.NODES_CHANGED, nodes, oldNodes, flag);
+		e.setPreviousParentChildren(previousParentChildren);
+		for (HierarchyListener listener : hierarchyListeners.snapshot()) listener.nodesChanged(e);
+	}
+	protected void fireNodesInserted(Object source, Object[] nodes,Object[] oldNodes,Object flag) {
+		HierarchyEvent e = null;
+		for (HierarchyListener listener : hierarchyListeners.snapshot()) {
+			if (e == null)
+				e = new HierarchyEvent(source, HierarchyEvent.NODES_INSERTED, nodes, oldNodes, flag);
+			listener.nodesInserted(e);
+		}
+	}
+	protected void fireNodesInserted(Object source, Object[] nodes, Object[] oldNodes, Object flag,
+			java.util.Map<Object, Object[]> previousParentChildren) {
+		HierarchyEvent e = new HierarchyEvent(source, HierarchyEvent.NODES_INSERTED, nodes, oldNodes, flag);
+		e.setPreviousParentChildren(previousParentChildren);
+		for (HierarchyListener listener : hierarchyListeners.snapshot()) listener.nodesInserted(e);
+	}
+	protected void fireNodesRemoved(Object source, Object[] nodes,Object[] oldNodes,Object flag) {
+		HierarchyEvent e = null;
+		for (HierarchyListener listener : hierarchyListeners.snapshot()) {
+			if (e == null)
+				e = new HierarchyEvent(source, HierarchyEvent.NODES_REMOVED, nodes, oldNodes, flag);
+			listener.nodesRemoved(e);
+		}
+	}
+	protected void fireNodesChanged(Object source, Object[] nodes) {
+//		dump();
+	    fireNodesChanged(source,nodes,null,null);
+	}
+	protected void fireNodesInserted(Object source, Object[] nodes) {
+//		dump();
+	    fireNodesInserted(source,nodes,null,null);
+	}
+	protected void fireNodesRemoved(Object source, Object[] nodes) {
+//		dump();
+	    fireNodesRemoved(source,nodes,null,null);
+	}
+	/**
+	 * Convenience method to convert hierarchy to nodes or implementations in depth-first order.
+	 * @return
+	 */
+	public List<?> toList(final boolean isNode, final Predicate<Object> filter) {
+		final ArrayList<Object> list = new ArrayList<>();
+    	visitAll(new Consumer<Object>() { public void accept(Object node) {
+				if (filter != null  && !filter.test(((Node) node).getImpl()))
+					return;
+				if (isNode) 
+					list.add(node);
+				else
+					list.add(((Node) node).getImpl());
+			}});
+    	return list;
+    }
+	
+	
+	public void renumber(){
+		visitAll(new Consumer<Object>(){
+			private int index=0;
+			public void accept(Object o) {
+				Node node=(Node)o;
+				if (node.hasNumber()){
+					HasKey impl=(HasKey)node.getImpl();
+					if (impl.getId()!=++index){
+						impl.setId(index);
+					}
+				}
+			}
+		});
+	}
+	
+	
+	protected int updateLevel=0;
+	protected synchronized void beginUpdate(){
+		updateLevel++;
+	}
+	protected synchronized void endUpdate(){
+		updateLevel--;
+	}
+	protected synchronized int getUpdateLevel(){
+		return updateLevel;
+	}
+
+
+}

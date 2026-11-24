@@ -46,10 +46,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.microproject.field.FieldParseException;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.OutlineCollection;
+import com.microproject.node.Node;
+import com.microproject.node.OutlineCollection;
 import com.microproject.port.SessionImporter;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.model.NodeModel;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.resource.ResourcePoolFactory;

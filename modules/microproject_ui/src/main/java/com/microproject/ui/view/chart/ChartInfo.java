@@ -38,7 +38,7 @@ import com.microproject.ui.view.timescale.CoordinatesConverter;
 import com.microproject.ui.view.views.ChartView;
 import com.microproject.document.ObjectEvent;
 import com.microproject.view.configuration.SpreadSheetFieldArray;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.model.NodeModel;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.scheduling.ScheduleEvent;
 import com.microproject.pm.scheduling.ScheduleEventListener;

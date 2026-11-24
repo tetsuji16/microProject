@@ -5,8 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.NodeFactory;
+import com.microproject.node.Node;
+import com.microproject.node.NodeFactory;
 
 class ResourceViewChildPolicyTest {
 	@Test

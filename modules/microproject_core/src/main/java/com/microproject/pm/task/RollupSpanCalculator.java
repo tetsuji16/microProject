@@ -25,7 +25,7 @@ package com.microproject.pm.task;
 
 import java.util.Collection;
 
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 
 /** Calculates task and project schedule spans from their visible WBS children. */
 final class RollupSpanCalculator {

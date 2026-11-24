@@ -25,7 +25,7 @@ package com.microproject.pm.resource;
 
 import java.util.ArrayList;
 
-import com.microproject.grouping.core.model.DefaultNodeModel;
+import com.microproject.node.model.DefaultNodeModel;
 import com.microproject.undo.DataFactoryUndoController;
 
 

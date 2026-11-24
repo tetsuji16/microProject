@@ -28,8 +28,8 @@ import java.util.List;
 
 import com.microproject.exchange.serialize.SerializeOptions;
 import com.microproject.persistence.data.SerializedDataObject;
-import com.microproject.grouping.core.hierarchy.NodeHierarchy;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.hierarchy.NodeHierarchy;
+import com.microproject.node.model.NodeModel;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectHierarchyQueries;
 import com.microproject.pm.task.Task;

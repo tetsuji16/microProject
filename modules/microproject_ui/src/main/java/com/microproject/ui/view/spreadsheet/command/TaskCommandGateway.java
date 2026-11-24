@@ -16,11 +16,11 @@ import java.util.function.BooleanSupplier;
 import com.microproject.undo.EditSupport;
 
 import com.microproject.ui.view.collaboration.CollaborationHelper;
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.field.FieldParseException;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.model.NodeModel;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.scheduling.Schedule;

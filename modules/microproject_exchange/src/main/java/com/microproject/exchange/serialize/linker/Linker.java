@@ -33,8 +33,8 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.hierarchy.NodeHierarchy;
+import com.microproject.node.Node;
+import com.microproject.node.hierarchy.NodeHierarchy;
 import com.microproject.pm.assignment.Assignment;
 
 /**

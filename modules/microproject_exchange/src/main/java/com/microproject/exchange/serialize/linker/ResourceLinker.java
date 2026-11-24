@@ -29,8 +29,8 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.hierarchy.NodeHierarchy;
+import com.microproject.node.Node;
+import com.microproject.node.hierarchy.NodeHierarchy;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.task.Project;

@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.grouping.core.hierarchy.BelongsToHierarchy;
+import com.microproject.node.hierarchy.BelongsToHierarchy;
 
 class FieldComparisonTest {
 	@Test

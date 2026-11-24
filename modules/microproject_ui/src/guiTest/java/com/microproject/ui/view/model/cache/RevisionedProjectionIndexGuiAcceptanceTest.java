@@ -35,9 +35,9 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.configuration.Dictionary;
 import com.microproject.view.configuration.BarStyles;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.transform.ViewTransformer;
-import com.microproject.grouping.core.transform.sorting.NodeSorter;
+import com.microproject.node.Node;
+import com.microproject.node.transform.ViewTransformer;
+import com.microproject.node.transform.sorting.NodeSorter;
 import com.microproject.ui.view.gantt.Gantt;
 import com.microproject.ui.view.gantt.GanttUI;
 import com.microproject.ui.view.graph.GraphZone;

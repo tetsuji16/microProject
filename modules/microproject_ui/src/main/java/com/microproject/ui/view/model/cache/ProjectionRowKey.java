@@ -4,7 +4,7 @@
  ******************************************************************************/
 package com.microproject.ui.view.model.cache;
 
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 import com.microproject.pm.task.ProjectTaskKey;
 import com.microproject.pm.task.Task;
 

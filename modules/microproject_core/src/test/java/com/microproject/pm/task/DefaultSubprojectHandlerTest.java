@@ -35,8 +35,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.NodeFactory;
+import com.microproject.node.Node;
+import com.microproject.node.NodeFactory;
 import com.microproject.field.Field;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.undo.DataFactoryUndoController;

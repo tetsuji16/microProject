@@ -31,9 +31,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.NodeModelUtil;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.Node;
+import com.microproject.node.model.NodeModelUtil;
+import com.microproject.node.model.NodeModel;
 import com.microproject.util.FilePathUtils;
 
 public class DefaultSubprojectHandler implements SubprojectHandler {

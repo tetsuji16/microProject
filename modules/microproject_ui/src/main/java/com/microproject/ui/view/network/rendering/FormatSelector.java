@@ -33,7 +33,7 @@ import java.util.Map;
 import com.microproject.ui.view.graph.GraphParams;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.view.configuration.BarFormat;
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 /**
  *
  */

@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.configuration.Dictionary;
 import com.microproject.view.configuration.BarStyles;
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.model.cache.NodeModelCacheFactory;
 import com.microproject.ui.view.model.cache.ReferenceNodeModelCache;

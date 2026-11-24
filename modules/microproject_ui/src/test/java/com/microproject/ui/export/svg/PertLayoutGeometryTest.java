@@ -13,7 +13,7 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.ui.view.model.cache.GraphicDependency;

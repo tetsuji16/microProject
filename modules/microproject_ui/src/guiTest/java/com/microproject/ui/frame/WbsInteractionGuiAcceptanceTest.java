@@ -27,8 +27,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.Node;
+import com.microproject.node.model.NodeModel;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.views.TreeView;
 import com.microproject.pm.resource.ResourcePool;

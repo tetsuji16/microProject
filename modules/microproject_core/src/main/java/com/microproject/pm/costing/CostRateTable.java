@@ -27,7 +27,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
 
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.model.NodeModel;
 import com.microproject.interval.ValueObjectForInterval;
 import com.microproject.interval.ValueObjectForIntervalTable;
 import com.microproject.undo.DataFactoryUndoController;

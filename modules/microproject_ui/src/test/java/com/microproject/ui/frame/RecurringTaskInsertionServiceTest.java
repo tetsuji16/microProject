@@ -34,8 +34,8 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.Node;
+import com.microproject.node.model.NodeModel;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;

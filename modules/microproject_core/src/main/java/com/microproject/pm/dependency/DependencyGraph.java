@@ -25,7 +25,7 @@ package com.microproject.pm.dependency;
 
 import com.microproject.association.Association;
 import com.microproject.configuration.CircularDependencyException;
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 import com.microproject.pm.task.Task;
 
 import java.util.ArrayDeque;

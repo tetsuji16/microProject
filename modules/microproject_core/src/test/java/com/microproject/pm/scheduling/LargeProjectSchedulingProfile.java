@@ -33,9 +33,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 import com.microproject.options.CalendarOption;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.NodeFactory;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.Node;
+import com.microproject.node.NodeFactory;
+import com.microproject.node.model.NodeModel;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;

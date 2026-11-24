@@ -50,10 +50,10 @@ import com.microproject.ui.view.spreadsheet.selection.event.SelectionNodeListene
 import com.microproject.ui.view.views.GanttView;
 import com.microproject.configuration.Settings;
 import com.microproject.document.ObjectEvent;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.NodeList;
-import com.microproject.grouping.core.transform.filtering.NodeFilter;
-import com.microproject.grouping.core.transform.filtering.NotAssignmentFilter;
+import com.microproject.node.Node;
+import com.microproject.node.NodeList;
+import com.microproject.node.transform.filtering.NodeFilter;
+import com.microproject.node.transform.filtering.NotAssignmentFilter;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.resource.Resource;

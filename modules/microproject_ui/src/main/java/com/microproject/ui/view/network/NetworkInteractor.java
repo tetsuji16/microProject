@@ -39,7 +39,7 @@ import com.microproject.ui.view.graph.GraphUI;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.network.rendering.FieldChange;
 import com.microproject.field.FieldParseException;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.model.NodeModel;
 import com.microproject.undo.EditSupport;
 import com.microproject.undo.UndoController;
 import com.microproject.view.network.PertManualPositions;

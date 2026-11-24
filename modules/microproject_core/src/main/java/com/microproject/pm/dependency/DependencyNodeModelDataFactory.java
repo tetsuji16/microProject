@@ -26,8 +26,8 @@ package com.microproject.pm.dependency;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.microproject.grouping.core.model.NodeModel;
-import com.microproject.grouping.core.model.NodeModelDataFactory;
+import com.microproject.node.model.NodeModel;
+import com.microproject.node.model.NodeModelDataFactory;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.pm.task.Project;
 

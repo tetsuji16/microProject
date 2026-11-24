@@ -19,7 +19,7 @@ import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 import com.microproject.ui.view.graph.GraphModel;
 import com.microproject.ui.view.network.Network;
 import com.microproject.pm.resource.ResourcePool;

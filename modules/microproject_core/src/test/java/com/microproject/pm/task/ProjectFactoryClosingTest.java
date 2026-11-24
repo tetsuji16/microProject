@@ -42,12 +42,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.pm.resource.ResourcePool;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.NodeFactory;
-import com.microproject.grouping.core.event.HierarchyListener;
-import com.microproject.grouping.core.event.HierarchyEvent;
-import com.microproject.grouping.core.model.DefaultNodeModel;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.Node;
+import com.microproject.node.NodeFactory;
+import com.microproject.node.event.HierarchyListener;
+import com.microproject.node.event.HierarchyEvent;
+import com.microproject.node.model.DefaultNodeModel;
+import com.microproject.node.model.NodeModel;
 import com.microproject.session.SaveOptions;
 import com.microproject.session.LocalSession;
 import com.microproject.util.Environment;

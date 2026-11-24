@@ -44,10 +44,10 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 
 import com.microproject.field.Field;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.NodeModel;
-import com.microproject.grouping.core.transform.ViewTransformer;
-import com.microproject.grouping.core.transform.filtering.ColumnValueFilter;
+import com.microproject.node.Node;
+import com.microproject.node.model.NodeModel;
+import com.microproject.node.transform.ViewTransformer;
+import com.microproject.node.transform.filtering.ColumnValueFilter;
 import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.model.cache.VisibleNodes;

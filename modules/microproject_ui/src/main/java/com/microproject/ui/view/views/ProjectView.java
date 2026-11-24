@@ -34,7 +34,7 @@ import com.microproject.ui.view.model.cache.NodeModelCacheFactory;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
 import com.microproject.document.Document;
 import com.microproject.document.ObjectEvent;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.model.NodeModel;
 import com.microproject.pm.task.Project;
 import com.microproject.undo.UndoController;
 import com.microproject.workspace.WorkspaceSetting;

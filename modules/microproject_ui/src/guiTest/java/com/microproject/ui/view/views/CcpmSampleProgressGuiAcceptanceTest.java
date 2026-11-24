@@ -76,7 +76,7 @@ import com.microproject.ui.theme.MicroProjectThemeTokens;
 import com.microproject.ui.util.FlatLafSupport;
 import com.microproject.pm.scheduling.ConstraintType;
 import com.microproject.options.CalendarOption;
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 import com.microproject.ui.testsupport.GuiAcceptanceSupport;
 
 /** Robot acceptance coverage for the checked-in CCPM sample's visible progress state. */

@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.view.configuration.SpreadSheetFieldArray;
-import com.microproject.grouping.core.transform.ViewTransformer;
+import com.microproject.node.transform.ViewTransformer;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;

@@ -29,7 +29,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import com.microproject.datatype.Duration;
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.util.DisplayMath;
 

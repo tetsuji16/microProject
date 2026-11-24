@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.grouping.core.model.AssignmentNodeModel;
+import com.microproject.node.model.AssignmentNodeModel;
 import com.microproject.undo.DataFactoryUndoController;
 
 class ResourcePoolIdentityTest {

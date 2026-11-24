@@ -9,7 +9,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 
 /** Side-effect-free hierarchy queries shared by UI and exchange callers. */
 public final class ProjectHierarchyQueries {

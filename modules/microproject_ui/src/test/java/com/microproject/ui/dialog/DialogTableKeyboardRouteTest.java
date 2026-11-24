@@ -50,7 +50,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.configuration.Dictionary;
-import com.microproject.grouping.core.model.NodeModelDataFactory;
+import com.microproject.node.model.NodeModelDataFactory;
 import com.microproject.interval.ValueObjectForIntervalTable;
 import com.microproject.options.GeneralOption;
 import com.microproject.ui.view.spreadsheet.DialogSpreadSheetShortcuts;

@@ -36,9 +36,9 @@ import com.microproject.ui.dialog.XbsDependencyDialog;
 import com.microproject.ui.view.graph.GraphUI;
 import com.microproject.ui.view.model.cache.GraphicDependency;
 import com.microproject.ui.view.network.NetworkInteractor;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.NodeBridge;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.Node;
+import com.microproject.node.NodeBridge;
+import com.microproject.node.model.NodeModel;
 
 /**
  *

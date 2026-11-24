@@ -38,7 +38,7 @@ import org.junit.jupiter.api.Test;
 import com.microproject.ui.dialog.TaskInformationDialog;
 import com.microproject.field.Field;
 import com.microproject.view.configuration.SpreadSheetCategories;
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 import com.microproject.ui.frame.GraphicManager;
 import com.microproject.ui.frame.DocumentFrame;
 import com.microproject.ui.frame.workspace.FrameHolder;

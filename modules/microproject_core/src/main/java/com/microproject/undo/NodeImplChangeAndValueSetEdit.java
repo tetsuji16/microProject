@@ -36,8 +36,8 @@ import java.util.logging.Logger;
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
 import com.microproject.field.FieldParseException;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.Node;
+import com.microproject.node.model.NodeModel;
 
 /**
  *

@@ -40,8 +40,8 @@ import javax.swing.undo.AbstractUndoableEdit;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.NodeModelDataFactory;
+import com.microproject.node.Node;
+import com.microproject.node.model.NodeModelDataFactory;
 import com.microproject.ui.menu.MenuActionConstants;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
 import com.microproject.ui.view.spreadsheet.SpreadSheetModel;

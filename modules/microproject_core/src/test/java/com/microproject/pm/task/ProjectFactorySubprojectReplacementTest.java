@@ -9,8 +9,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.NodeFactory;
+import com.microproject.node.Node;
+import com.microproject.node.NodeFactory;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.resource.ResourcePoolFactory;
 import com.microproject.pm.resource.ResourcePool;

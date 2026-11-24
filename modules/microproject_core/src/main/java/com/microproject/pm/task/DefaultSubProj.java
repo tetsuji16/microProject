@@ -27,8 +27,8 @@ import java.io.File;
 import java.util.Map;
 
 import com.microproject.field.FieldContext;
-import com.microproject.grouping.core.LazyParent;
-import com.microproject.grouping.core.Node;
+import com.microproject.node.LazyParent;
+import com.microproject.node.Node;
 
 public class DefaultSubProj extends NormalTask implements SubProj, LazyParent {
 	private static final long serialVersionUID = 1L;

@@ -32,8 +32,8 @@ import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.field.Field;
 import com.microproject.pm.scheduling.IntervalConsumer;
 import com.microproject.pm.scheduling.ScheduleIntervalGenerator;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.Node;
+import com.microproject.node.model.NodeModel;
 import com.microproject.pm.scheduling.ScheduleInterval;
 
 /**

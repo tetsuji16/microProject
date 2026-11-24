@@ -21,7 +21,7 @@ import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.util.DateTime;
 import com.microproject.undo.DataFactoryUndoController;
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 
 class TaskProgressServiceTest {
 	@Test

@@ -34,7 +34,7 @@ import java.util.logging.Logger;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 
 import com.microproject.datatype.Duration;
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 import com.microproject.association.Association;
 import com.microproject.association.AssociationList;
 import com.microproject.pm.dependency.Dependency;

@@ -23,7 +23,7 @@
  *******************************************************************************/
 package com.microproject.undo;
 
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 
 public class NodeUndoInfo {
 	protected Node node;

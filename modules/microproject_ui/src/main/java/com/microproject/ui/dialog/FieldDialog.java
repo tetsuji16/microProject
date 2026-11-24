@@ -45,7 +45,7 @@ import com.microproject.ui.view.spreadsheet.selection.event.SelectionNodeEvent;
 import com.microproject.ui.view.spreadsheet.selection.event.SelectionNodeListener;
 import com.microproject.document.Document;
 import com.microproject.document.ObjectEvent;
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 import com.microproject.field.Field;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.scheduling.Schedule;

@@ -6,7 +6,7 @@ import java.lang.reflect.Proxy;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.grouping.core.summaries.DivisionSummaryVisitor;
+import com.microproject.node.summaries.DivisionSummaryVisitor;
 
 class ScheduleUtilTest {
 	@Test

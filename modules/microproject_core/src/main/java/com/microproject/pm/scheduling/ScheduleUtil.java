@@ -24,7 +24,7 @@
 package com.microproject.pm.scheduling;
 
 import com.microproject.datatype.Duration;
-import com.microproject.grouping.core.summaries.DivisionSummaryVisitor;
+import com.microproject.node.summaries.DivisionSummaryVisitor;
 
 public class ScheduleUtil {
 	

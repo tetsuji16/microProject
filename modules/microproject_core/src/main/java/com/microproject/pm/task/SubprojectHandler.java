@@ -25,7 +25,7 @@ package com.microproject.pm.task;
 
 import java.util.Collection;
 
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 
 public interface SubprojectHandler {
 	void switchToResourcesOfProject(Project useMe);

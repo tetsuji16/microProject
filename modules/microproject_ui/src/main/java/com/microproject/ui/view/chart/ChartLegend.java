@@ -67,11 +67,11 @@ import com.microproject.ui.view.spreadsheet.selection.event.SelectionNodeListene
 import com.microproject.ui.view.swing.Util;
 import com.microproject.ui.toolbar.TransformComboBox;
 import com.microproject.ui.toolbar.TransformComboBoxModel;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.NodeList;
-import com.microproject.grouping.core.model.NodeModel;
-import com.microproject.grouping.core.transform.CommonTransformFactory;
-import com.microproject.grouping.core.transform.ViewConfiguration;
+import com.microproject.node.Node;
+import com.microproject.node.NodeList;
+import com.microproject.node.model.NodeModel;
+import com.microproject.node.transform.CommonTransformFactory;
+import com.microproject.node.transform.ViewConfiguration;
 import com.microproject.pm.assignment.HasAssignmentsImpl;
 import com.microproject.pm.assignment.HasTimeDistributedData;
 import com.microproject.pm.resource.Resource;

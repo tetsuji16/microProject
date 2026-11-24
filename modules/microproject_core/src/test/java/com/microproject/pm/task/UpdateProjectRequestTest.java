@@ -22,7 +22,7 @@ import com.microproject.datatype.Duration;
 import com.microproject.field.FieldContext;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.undo.DataFactoryUndoController;
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.undo.EditSupport;

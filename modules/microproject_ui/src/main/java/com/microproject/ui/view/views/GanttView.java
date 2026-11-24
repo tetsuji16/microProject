@@ -69,7 +69,7 @@ import com.microproject.configuration.Dictionary;
 import com.microproject.field.FieldContext;
 import com.microproject.view.configuration.BarStyles;
 import com.microproject.view.configuration.GraphicConfiguration;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.model.NodeModel;
 import com.microproject.pm.scheduling.ScheduleEvent;
 import com.microproject.pm.scheduling.ScheduleEventListener;
 import com.microproject.pm.task.Project;

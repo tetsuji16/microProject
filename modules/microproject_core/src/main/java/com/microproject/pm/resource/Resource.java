@@ -26,7 +26,7 @@ package com.microproject.pm.resource;
 import com.microproject.datatype.CanSupplyRateUnit;
 import com.microproject.datatype.RateFormat;
 import com.microproject.field.CustomFields;
-import com.microproject.grouping.core.hierarchy.BelongsToHierarchy;
+import com.microproject.node.hierarchy.BelongsToHierarchy;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.HasAssignments;
 import com.microproject.pm.assignment.HasTimeDistributedData;

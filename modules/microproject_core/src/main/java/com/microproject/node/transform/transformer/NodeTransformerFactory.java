@@ -1,0 +1,75 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.node.transform.transformer;
+
+import com.microproject.field.InvalidFormulaException;
+import com.microproject.node.transform.CommonTransform;
+import com.microproject.node.transform.CommonTransformFactory;
+import com.microproject.formula.GroovyClassCompiler;
+
+/**
+ *
+ */
+public class NodeTransformerFactory extends CommonTransformFactory{
+	protected String type = null; 
+	
+	public CommonTransform getTransform() throws InvalidFormulaException{
+	    CommonTransform t=getTransformFromDefinition();
+	    if (t!=null){
+			setProperties(t);
+	        return t;
+	    }
+	    if (formulaText==null) return null;
+	    StringBuilder classText = new StringBuilder();
+	    classText.append("package com.microproject.grouping.core.transform.transformer;\n");
+	    classText.append("import com.microproject.grouping.core.Node;\n");
+	    classText.append("import com.microproject.datatype.*;\n");
+	    classText.append("import com.microproject.pm.assignment.Assignment;\n");
+		String className = GroovyClassCompiler.scriptClassName("TransformerFormula", type + "\n" + formulaText);
+	    classText.append("public class ").append(className).append(" extends NodeTransformer{\n");
+	    classText.append("\tpublic Object evaluate(Object ").append(type).append("){\n")
+	    		.append("\t\t").append(formulaText).append("\n\t}\n");
+	    classText.append("}\n");
+		try {
+			t = GroovyClassCompiler.compileAndInstantiate(classText.toString(), NodeTransformer.class);
+			setProperties(t);
+			return t;
+		} catch (Exception e) {
+			throw new InvalidFormulaException(e);
+		}
+	}
+
+    public String getType() {
+        return type;
+    }
+    public void setType(String type) {
+        this.type = type;
+    }
+    
+    
+    
+    
+    
+
+}

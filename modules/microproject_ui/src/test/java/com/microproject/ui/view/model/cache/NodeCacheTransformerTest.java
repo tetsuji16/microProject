@@ -14,9 +14,9 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.NodeFactory;
-import com.microproject.grouping.core.transform.ViewTransformer;
+import com.microproject.node.Node;
+import com.microproject.node.NodeFactory;
+import com.microproject.node.transform.ViewTransformer;
 import com.microproject.ui.view.model.transform.NodeCacheTransformer;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.Project;

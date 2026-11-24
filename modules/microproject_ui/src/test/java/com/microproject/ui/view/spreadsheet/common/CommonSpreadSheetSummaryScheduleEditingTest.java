@@ -35,7 +35,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.datatype.Duration;
 import com.microproject.view.configuration.SpreadSheetCategories;
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 import com.microproject.options.CalendarOption;
 import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.model.cache.NodeModelCacheFactory;

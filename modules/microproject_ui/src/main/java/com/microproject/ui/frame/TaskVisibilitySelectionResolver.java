@@ -10,9 +10,9 @@ import java.util.Collection;
 import java.util.IdentityHashMap;
 import java.util.List;
 
-import com.microproject.grouping.core.GroupNodeImpl;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.WalkersNodeModel;
+import com.microproject.node.GroupNodeImpl;
+import com.microproject.node.Node;
+import com.microproject.node.model.WalkersNodeModel;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.pm.task.Task;
 

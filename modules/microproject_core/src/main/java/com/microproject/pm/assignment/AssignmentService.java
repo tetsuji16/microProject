@@ -40,7 +40,7 @@ import com.microproject.undo.EditSupport;
 import com.microproject.association.AssociationList;
 import com.microproject.configuration.Settings;
 import com.microproject.datatype.TimeUnit;
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceImpl;
 import com.microproject.pm.resource.ResourcePool;

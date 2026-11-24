@@ -10,8 +10,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.NodeFactory;
+import com.microproject.node.Node;
+import com.microproject.node.NodeFactory;
 
 class ResourceFieldSorterTest {
 	/** Row = {text, number, date, identity}; null cells model empty values. */

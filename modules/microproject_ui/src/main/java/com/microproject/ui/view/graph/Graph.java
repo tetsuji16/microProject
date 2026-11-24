@@ -37,8 +37,8 @@ import com.microproject.field.Field;
 import com.microproject.field.FieldConverter;
 import com.microproject.view.configuration.BarStyles;
 import com.microproject.view.configuration.GraphicConfiguration;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.WalkersNodeModel;
+import com.microproject.node.Node;
+import com.microproject.node.model.WalkersNodeModel;
 import com.microproject.pm.task.Project;
 import com.microproject.ui.util.FlatUiSupport;
 

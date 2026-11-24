@@ -18,7 +18,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import com.microproject.configuration.Configuration;
 import com.microproject.datatype.Duration;
 import com.microproject.field.FieldContext;
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.dependency.DependencyService;

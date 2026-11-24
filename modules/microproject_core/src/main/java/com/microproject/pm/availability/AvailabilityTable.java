@@ -28,7 +28,7 @@ import java.io.ObjectInputStream;
 import java.io.Serializable;
 
 import com.microproject.field.FieldContext;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.model.NodeModel;
 import com.microproject.interval.InvalidValueObjectForIntervalException;
 import com.microproject.interval.ValueObjectForInterval;
 import com.microproject.interval.ValueObjectForIntervalTable;

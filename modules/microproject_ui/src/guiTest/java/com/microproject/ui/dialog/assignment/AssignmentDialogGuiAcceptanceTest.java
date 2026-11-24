@@ -53,7 +53,7 @@ import org.junit.jupiter.api.Test;
 import com.microproject.collaboration.CollaborationSession;
 import com.microproject.datatype.Rate;
 import com.microproject.exchange.MpoFileImporter;
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentEntry;

@@ -28,8 +28,8 @@ import java.util.function.Consumer;
 import java.util.Iterator;
 
 
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.TypedNodeIterator;
+import com.microproject.node.Node;
+import com.microproject.node.TypedNodeIterator;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.key.HasKey;
 import com.microproject.pm.resource.Resource;

@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.configuration.Dictionary;
 import com.microproject.datatype.Rate;
-import com.microproject.grouping.core.transform.ViewTransformer;
+import com.microproject.node.transform.ViewTransformer;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.model.cache.NodeModelCacheFactory;
 import com.microproject.ui.view.model.cache.ReferenceNodeModelCache;

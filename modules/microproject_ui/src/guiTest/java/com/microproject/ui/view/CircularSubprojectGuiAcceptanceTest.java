@@ -34,8 +34,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.NodeFactory;
+import com.microproject.node.Node;
+import com.microproject.node.NodeFactory;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.DefaultSubProj;
 import com.microproject.pm.task.Project;

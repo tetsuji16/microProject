@@ -32,8 +32,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.NodeFactory;
+import com.microproject.node.Node;
+import com.microproject.node.NodeFactory;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourceImpl;

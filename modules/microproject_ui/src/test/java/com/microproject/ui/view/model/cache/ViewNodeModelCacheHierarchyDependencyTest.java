@@ -37,12 +37,12 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.document.ObjectEvent;
 import com.microproject.configuration.Dictionary;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.DefaultNodeModel;
-import com.microproject.grouping.core.model.NodeModel;
-import com.microproject.grouping.core.transform.ViewTransformer;
-import com.microproject.grouping.core.transform.filtering.BaseFilter;
-import com.microproject.grouping.core.transform.sorting.TaskSortSpec;
+import com.microproject.node.Node;
+import com.microproject.node.model.DefaultNodeModel;
+import com.microproject.node.model.NodeModel;
+import com.microproject.node.transform.ViewTransformer;
+import com.microproject.node.transform.filtering.BaseFilter;
+import com.microproject.node.transform.sorting.TaskSortSpec;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;

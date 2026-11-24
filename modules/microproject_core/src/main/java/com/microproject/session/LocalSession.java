@@ -48,7 +48,7 @@ import com.microproject.port.SessionImporterProvider;
 import com.microproject.port.SessionImporterRegistry;
 import com.microproject.port.PortRegistry;
 import com.microproject.port.SaveFailureFeedback;
-import com.microproject.grouping.core.model.DefaultNodeModel;
+import com.microproject.node.model.DefaultNodeModel;
 import com.microproject.job.Job;
 import com.microproject.job.JobRunnable;
 import com.microproject.pm.resource.ResourcePool;

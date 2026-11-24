@@ -71,7 +71,7 @@ import com.microproject.datatype.DurationDefaults;
 import com.microproject.datatype.Rate;
 import com.microproject.interval.ValueObjectForInterval;
 import com.microproject.field.CustomFields;
-import com.microproject.grouping.core.VoidNodeImpl;
+import com.microproject.node.VoidNodeImpl;
 import com.microproject.options.CalendarOption;
 import com.microproject.options.ScheduleOption;
 import com.microproject.pm.assignment.Assignment;

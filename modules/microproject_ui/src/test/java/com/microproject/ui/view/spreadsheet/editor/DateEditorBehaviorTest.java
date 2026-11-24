@@ -40,7 +40,7 @@ import javax.swing.table.DefaultTableModel;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.view.configuration.SpreadSheetCategories;
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.model.cache.NodeModelCacheFactory;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;

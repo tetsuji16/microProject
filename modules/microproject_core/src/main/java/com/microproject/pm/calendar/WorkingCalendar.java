@@ -40,8 +40,8 @@ import java.util.logging.Logger;
 
 
 import com.microproject.configuration.CircularDependencyException;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.hierarchy.NodeHierarchy;
+import com.microproject.node.Node;
+import com.microproject.node.hierarchy.NodeHierarchy;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.key.HasCommonKeyImpl;
 import com.microproject.i18n.Messages;

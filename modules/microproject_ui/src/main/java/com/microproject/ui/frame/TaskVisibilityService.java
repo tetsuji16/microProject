@@ -13,7 +13,7 @@ import java.util.List;
 
 import javax.swing.undo.AbstractUndoableEdit;
 
-import com.microproject.grouping.core.Node;
+import com.microproject.node.Node;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.ProjectHierarchyQueries;
 import com.microproject.pm.task.Task;

@@ -65,7 +65,7 @@ import com.microproject.pm.resource.SharedResourcePoolService;
 import com.microproject.pm.resource.TeamPlannerService;
 import com.microproject.pm.resource.ResourceLevelingService;
 import com.microproject.undo.DataFactoryUndoController;
-import com.microproject.grouping.core.NodeFactory;
+import com.microproject.node.NodeFactory;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.field.Field;
 import com.microproject.view.configuration.SpreadSheetFieldArray;

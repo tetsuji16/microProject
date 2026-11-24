@@ -47,13 +47,13 @@ import java.util.logging.Logger;
 
 
 import com.microproject.collaboration.CollaborationSession;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.NodeBridge;
-import com.microproject.grouping.core.model.AssignmentNodeModel;
-import com.microproject.grouping.core.model.DefaultNodeModel;
-import com.microproject.grouping.core.model.NodeModel;
-import com.microproject.grouping.core.model.NodeModelUtil;
-import com.microproject.grouping.core.summaries.DeepChildWalker;
+import com.microproject.node.Node;
+import com.microproject.node.NodeBridge;
+import com.microproject.node.model.AssignmentNodeModel;
+import com.microproject.node.model.DefaultNodeModel;
+import com.microproject.node.model.NodeModel;
+import com.microproject.node.model.NodeModelUtil;
+import com.microproject.node.summaries.DeepChildWalker;
 import com.microproject.job.Job;
 import com.microproject.job.JobQueue;
 import com.microproject.job.JobRunnable;

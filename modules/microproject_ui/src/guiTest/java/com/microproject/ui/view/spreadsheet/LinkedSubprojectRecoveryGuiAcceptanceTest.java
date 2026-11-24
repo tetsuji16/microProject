@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.view.configuration.SpreadSheetCategories;
-import com.microproject.grouping.core.NodeFactory;
+import com.microproject.node.NodeFactory;
 import com.microproject.ui.menu.MenuManager;
 import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.model.cache.NodeModelCacheFactory;

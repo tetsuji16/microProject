@@ -74,8 +74,8 @@ import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.datatype.Rate;
 import com.microproject.datatype.TimeUnit;
 import com.microproject.undo.DataFactoryUndoController;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.Node;
+import com.microproject.node.model.NodeModel;
 import com.microproject.persistence.data.ProjectData;
 import com.microproject.exchange.serialize.Serializer;
 

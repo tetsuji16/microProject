@@ -46,7 +46,7 @@ import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.assignment.contour.ContourTypes;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;
-import com.microproject.grouping.core.NodeFactory;
+import com.microproject.node.NodeFactory;
 import com.microproject.pm.scheduling.ScheduleService;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;

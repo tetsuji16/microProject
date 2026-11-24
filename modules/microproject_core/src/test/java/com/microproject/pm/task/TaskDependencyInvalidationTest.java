@@ -35,9 +35,9 @@ import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyType;
 import com.microproject.pm.resource.ResourcePool;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.NodeFactory;
-import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.node.Node;
+import com.microproject.node.NodeFactory;
+import com.microproject.node.model.NodeModel;
 import com.microproject.undo.DataFactoryUndoController;
 
 class TaskDependencyInvalidationTest {
