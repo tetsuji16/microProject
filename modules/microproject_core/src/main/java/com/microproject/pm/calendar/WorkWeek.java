@@ -25,7 +25,7 @@ package com.microproject.pm.calendar;
 
 import java.io.Serializable;
 
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 public class WorkWeek implements Cloneable,Serializable {
 	static final long serialVersionUID = 2555674567677L;

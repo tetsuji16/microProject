@@ -27,7 +27,7 @@ import java.util.Iterator;
 import java.util.SortedSet;
 
 import com.microproject.configuration.Settings;
-import com.microproject.graphic.configuration.GraphicConfiguration;
+import com.microproject.view.configuration.GraphicConfiguration;
 import com.microproject.pm.snapshot.DataSnapshot;
 import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.pm.task.Project;

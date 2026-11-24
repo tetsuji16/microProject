@@ -44,7 +44,7 @@ import com.microproject.job.Job;
 import com.microproject.job.JobQueue;
 import com.microproject.job.JobRunnable;
 import com.microproject.session.SessionFactory;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.Alert;
 import com.microproject.print.ExtendedPageFormat;
 import com.microproject.print.PDFPrintService;

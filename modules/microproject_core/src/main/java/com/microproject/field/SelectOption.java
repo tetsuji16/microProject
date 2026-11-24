@@ -29,7 +29,7 @@ import org.apache.commons.text.translate.EntityArrays;
 import org.apache.commons.text.translate.LookupTranslator;
 import org.apache.commons.text.translate.NumericEntityEscaper;
 
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.ClassUtils;
 
 import java.util.logging.Level;

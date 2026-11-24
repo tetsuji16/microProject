@@ -47,7 +47,7 @@ import com.microproject.ui.view.spreadsheet.renderer.SpreadSheetCellRendererAdap
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.Money;
 import com.microproject.datatype.Work;
-import com.microproject.graphic.configuration.GraphicConfiguration;
+import com.microproject.view.configuration.GraphicConfiguration;
 import com.microproject.ui.util.FlatUiSupport;
 
 /**

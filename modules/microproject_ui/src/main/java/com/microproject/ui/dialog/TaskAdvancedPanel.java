@@ -29,7 +29,7 @@ import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.ui.dialog.util.FieldComponentMap;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /** Owns the Advanced tab's task-specific field layout. */
 final class TaskAdvancedPanel {

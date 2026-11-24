@@ -29,7 +29,7 @@ import javax.swing.JComponent;
 
 import com.microproject.ui.help.HelpUtil;
 import com.microproject.ui.print.PageSetup;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 /**
  *
  */

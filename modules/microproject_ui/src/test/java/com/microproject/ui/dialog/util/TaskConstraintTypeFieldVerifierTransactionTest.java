@@ -33,7 +33,7 @@ import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.scheduling.ConstraintType;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.undo.DataFactoryUndoController;
 
 class TaskConstraintTypeFieldVerifierTransactionTest {

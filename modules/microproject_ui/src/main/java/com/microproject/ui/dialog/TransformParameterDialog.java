@@ -39,7 +39,7 @@ import com.microproject.ui.dialog.util.ComponentFactory;
 import com.microproject.ui.dialog.util.ExtDateField;
 import com.microproject.grouping.core.transform.CommonTransform;
 import com.microproject.grouping.core.transform.TransformParameter;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.util.FlatUiSupport;
 import com.microproject.util.DateTime;
 

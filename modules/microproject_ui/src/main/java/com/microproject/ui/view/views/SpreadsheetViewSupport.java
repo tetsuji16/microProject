@@ -24,10 +24,10 @@
 package com.microproject.ui.view.views;
 
 import com.microproject.configuration.Dictionary;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
-import com.microproject.graphic.configuration.SpreadSheetCategories;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetCategories;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 final class SpreadsheetViewSupport {
 	private SpreadsheetViewSupport() {

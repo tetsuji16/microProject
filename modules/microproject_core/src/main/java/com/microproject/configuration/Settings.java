@@ -31,7 +31,7 @@ import java.util.Locale;
 import java.util.Properties;
 import java.util.StringTokenizer;
 
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /**
  * Stores global constants related to the application settings. Some are also read in from config

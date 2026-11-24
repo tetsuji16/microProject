@@ -41,8 +41,8 @@ import com.microproject.ui.view.IconManager;
 import com.microproject.ui.frame.GraphicManager;
 import com.microproject.ui.view.spreadsheet.common.CommonSpreadSheet;
 import com.microproject.field.Field;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
-import com.microproject.strings.Messages;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
+import com.microproject.i18n.Messages;
 import com.microproject.util.Alert;
 
 /**

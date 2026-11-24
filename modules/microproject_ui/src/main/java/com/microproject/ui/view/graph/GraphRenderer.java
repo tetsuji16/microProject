@@ -32,8 +32,8 @@ import javax.swing.JComponent;
 
 import com.microproject.ui.view.Renderer;
 import com.microproject.ui.view.model.cache.GraphicNode;
-import com.microproject.graphic.configuration.shape.Colors;
-import com.microproject.graphic.configuration.shape.PredefinedStroke;
+import com.microproject.view.configuration.shape.Colors;
+import com.microproject.view.configuration.shape.PredefinedStroke;
 
 public abstract class GraphRenderer extends Renderer{
 	public static Stroke DISABLED_LINK_STROKE = PredefinedStroke.SPARSE_DASHED;

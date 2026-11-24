@@ -28,7 +28,7 @@ import java.util.function.Consumer;
 import java.io.InputStream;
 
 
-import com.microproject.exchange.ResourceMappingForm;
+import com.microproject.persistence.ResourceMappingForm;
 
 public class LoadOptions {
 	protected boolean local;

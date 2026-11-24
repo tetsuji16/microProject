@@ -38,7 +38,7 @@ import javax.swing.table.TableCellEditor;
 import com.microproject.ui.frame.GraphicManager;
 import com.microproject.ui.view.spreadsheet.SpreadSheetModel;
 import com.microproject.field.Field;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.Alert;
 import com.microproject.ui.util.DateFieldSupport;
 import com.microproject.ui.util.FlatUiSupport;

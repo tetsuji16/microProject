@@ -32,7 +32,7 @@ import com.microproject.ui.dialog.AbstractDialog;
 import com.microproject.ui.dialog.ButtonPanel;
 import com.microproject.ui.frame.GraphicManager;
 import com.microproject.pm.task.Portfolio;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 public class ProjectsDialog extends AbstractDialog{
 	private static final long serialVersionUID = 1234142818258607810L;

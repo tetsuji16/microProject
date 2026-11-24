@@ -73,7 +73,7 @@ import com.microproject.ui.testsupport.GuiAcceptanceSupport;
 import com.microproject.ui.testsupport.DialogLayoutAssertions;
 import com.microproject.ui.testsupport.DialogScreenshotArtifacts;
 import com.microproject.ui.testsupport.WindowAcceptanceAssertions;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.exchange.LocalFileImporter;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.pm.task.ProjectFactory;

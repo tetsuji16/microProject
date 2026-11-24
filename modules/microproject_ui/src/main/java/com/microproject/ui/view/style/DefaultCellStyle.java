@@ -24,8 +24,8 @@
 package com.microproject.ui.view.style;
 
 import com.microproject.ui.view.model.cache.GraphicNode;
-import com.microproject.graphic.configuration.CellFormat;
-import com.microproject.graphic.configuration.CellStyle;
+import com.microproject.view.configuration.CellFormat;
+import com.microproject.view.configuration.CellStyle;
 
 
 public class DefaultCellStyle implements CellStyle {

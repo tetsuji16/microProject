@@ -33,7 +33,7 @@ import com.microproject.ui.view.gantt.GanttParams;
 import com.microproject.ui.view.spreadsheet.SpreadSheetParamsImpl.PageInfo;
 import com.microproject.ui.view.spreadsheet.common.SpreadSheetRowHeaderColumnModel;
 import com.microproject.field.FieldContext;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 
 public interface SpreadSheetParams extends GanttParams {
 	public String getSpreadsheetCategory();

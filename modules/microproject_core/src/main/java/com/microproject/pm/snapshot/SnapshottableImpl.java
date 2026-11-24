@@ -31,7 +31,7 @@ import java.io.Serializable;
 import com.microproject.configuration.Settings;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.TaskSnapshot;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /**
  *

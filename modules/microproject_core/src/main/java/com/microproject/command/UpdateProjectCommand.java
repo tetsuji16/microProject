@@ -32,7 +32,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.swing.undo.AbstractUndoableEdit;
 import com.microproject.undo.EditSupport;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.DateTime;
 import com.microproject.transaction.ModelTransaction;
 import com.microproject.transaction.ProjectMutationState;

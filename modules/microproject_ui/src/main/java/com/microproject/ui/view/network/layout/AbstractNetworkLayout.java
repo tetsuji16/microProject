@@ -34,9 +34,9 @@ import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.model.event.CompositeCacheEvent;
 import com.microproject.ui.view.network.NetworkParams;
 import com.microproject.document.ObjectEvent;
-import com.microproject.graphic.configuration.BarFormat;
-import com.microproject.graphic.configuration.BarStyles;
-import com.microproject.graphic.configuration.TexturedShape;
+import com.microproject.view.configuration.BarFormat;
+import com.microproject.view.configuration.BarStyles;
+import com.microproject.view.configuration.TexturedShape;
 import com.microproject.pm.scheduling.ScheduleEvent;
 
 /**

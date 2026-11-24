@@ -33,7 +33,7 @@ import com.microproject.document.ObjectEvent;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.PercentFormat;
-import com.microproject.graphic.configuration.SpreadSheetCategories;
+import com.microproject.view.configuration.SpreadSheetCategories;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.ui.view.model.cache.NodeModelCache;

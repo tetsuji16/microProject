@@ -29,7 +29,7 @@ import com.microproject.pm.calendar.HasCalendar;
 import com.microproject.pm.snapshot.BaselineScheduleFields;
 import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.pm.time.HasStartAndEnd;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.DateTime;
 
 /**

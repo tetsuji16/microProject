@@ -37,7 +37,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.ui.dialog.TaskInformationDialog;
 import com.microproject.field.Field;
-import com.microproject.graphic.configuration.SpreadSheetCategories;
+import com.microproject.view.configuration.SpreadSheetCategories;
 import com.microproject.grouping.core.Node;
 import com.microproject.ui.frame.GraphicManager;
 import com.microproject.ui.frame.DocumentFrame;
@@ -48,7 +48,7 @@ import com.microproject.ui.view.model.cache.NodeModelCacheFactory;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
 

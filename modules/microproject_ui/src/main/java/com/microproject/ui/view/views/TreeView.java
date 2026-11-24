@@ -43,7 +43,7 @@ import com.microproject.ui.view.model.cache.ReferenceNodeModelCache;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
 import com.microproject.ui.view.xbs.Xbs;
 import com.microproject.configuration.Dictionary;
-import com.microproject.graphic.configuration.BarStyles;
+import com.microproject.view.configuration.BarStyles;
 import com.microproject.grouping.core.model.NodeModel;
 import com.microproject.pm.task.Project;
 import com.microproject.undo.UndoController;

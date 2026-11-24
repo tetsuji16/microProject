@@ -55,7 +55,7 @@ import com.microproject.ui.view.timescale.CoordinatesConverter;
 import com.microproject.ui.view.timescale.ScaledComponent;
 import com.microproject.datatype.Money;
 import com.microproject.field.Field;
-import com.microproject.graphic.configuration.shape.PredefinedStroke;
+import com.microproject.view.configuration.shape.PredefinedStroke;
 import com.microproject.pm.assignment.HasTimeDistributedData;
 
 public class TimeChartPanel extends ChartPanel implements Scrollable, ScaledComponent {

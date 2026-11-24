@@ -29,7 +29,7 @@ import javax.swing.table.DefaultTableColumnModel;
 import javax.swing.table.TableColumn;
 
 import com.microproject.ui.view.spreadsheet.renderer.SpreadSheetRowHeaderRenderer;
-import com.microproject.graphic.configuration.GraphicConfiguration;
+import com.microproject.view.configuration.GraphicConfiguration;
 /**
  *
  */

@@ -24,7 +24,7 @@ import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 class TaskInspectorPanelTest {
 	@Test

@@ -37,7 +37,7 @@ import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.grouping.core.model.NodeModel;
-import com.microproject.graphic.configuration.SpreadSheetCategories;
+import com.microproject.view.configuration.SpreadSheetCategories;
 import com.microproject.pm.task.Project;
 
 class SpreadSheetColumnUndoLifecycleTest {

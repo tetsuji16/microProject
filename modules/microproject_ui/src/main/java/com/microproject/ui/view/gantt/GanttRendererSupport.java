@@ -29,8 +29,8 @@ import java.awt.Color;
 import java.awt.Shape;
 
 import com.microproject.field.Field;
-import com.microproject.graphic.configuration.BarFormat;
-import com.microproject.graphic.configuration.shape.PredefinedShape;
+import com.microproject.view.configuration.BarFormat;
+import com.microproject.view.configuration.shape.PredefinedShape;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.preference.GlobalPreferences;
 import com.microproject.ui.util.FlatUiSupport;

@@ -38,7 +38,7 @@ import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.ui.dialog.util.ComponentFactory;
 import com.microproject.ui.dialog.util.ExtDateField;
 import com.microproject.options.CalendarOption;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /**
  *

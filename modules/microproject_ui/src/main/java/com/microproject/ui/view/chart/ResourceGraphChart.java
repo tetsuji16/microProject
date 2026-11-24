@@ -32,7 +32,7 @@ import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
 
 import com.microproject.datatype.Money;
-import com.microproject.graphic.configuration.shape.PredefinedStroke;
+import com.microproject.view.configuration.shape.PredefinedStroke;
 import com.microproject.ui.view.chart.ResourceGraphData.ValueKind;
 import com.microproject.ui.view.chart.ResourceGraphSettings.BarStyle;
 import com.microproject.ui.view.chart.ResourceGraphSettings.ShowAs;

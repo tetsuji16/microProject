@@ -40,7 +40,7 @@ import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 
 import com.microproject.field.Field;
-import com.microproject.graphic.configuration.BarFormat;
+import com.microproject.view.configuration.BarFormat;
 
 class GanttAnnotationAndMilestoneGeometryTest {
 	private record GeometryCase(String name, double center, double shapeHeight, double selectionSquare,

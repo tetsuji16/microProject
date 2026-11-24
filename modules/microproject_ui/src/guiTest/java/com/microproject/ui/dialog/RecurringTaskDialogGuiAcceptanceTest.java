@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.ui.testsupport.GuiAcceptanceSupport;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /** Robot coverage for the recurring-task form's scrollable layout and Cancel route. */
 class RecurringTaskDialogGuiAcceptanceTest {

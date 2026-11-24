@@ -53,7 +53,7 @@ import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.model.cache.VisibleNodes;
 import com.microproject.ui.view.model.transform.NodeCacheTransformer;
 import com.microproject.ui.view.spreadsheet.common.CommonSpreadSheet;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /**
  * Per-column auto-filter dialog (issue #205): lists the distinct values of a

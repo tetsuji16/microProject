@@ -46,7 +46,7 @@ import com.microproject.ui.dialog.DependencyDialog;
 import com.microproject.ui.view.IconManager;
 import com.microproject.ui.view.model.cache.GraphicDependency;
 import com.microproject.ui.view.model.cache.GraphicNode;
-import com.microproject.graphic.configuration.GraphicConfiguration;
+import com.microproject.view.configuration.GraphicConfiguration;
 import com.microproject.ui.input.PopupTriggerController;
 
 /**

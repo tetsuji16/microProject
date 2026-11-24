@@ -39,9 +39,9 @@ import javax.swing.JComboBox;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
+import com.microproject.view.configuration.GanttBarFormatOverrides.BarFormat;
 import com.microproject.ui.view.gantt.BarColorField;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 class GanttBarFormatDialogTest {
 	@Test

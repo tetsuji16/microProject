@@ -8,7 +8,7 @@ import java.util.Locale;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /**
  * Regression test for issue #353: in the "Change Working Time" dialog the

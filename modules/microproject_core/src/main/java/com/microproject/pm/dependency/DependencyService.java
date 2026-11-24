@@ -44,7 +44,7 @@ import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
 import com.microproject.transaction.ProjectMutationState;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.undo.DependencyCreationEdit;
 import com.microproject.undo.DependencyDeletionEdit;

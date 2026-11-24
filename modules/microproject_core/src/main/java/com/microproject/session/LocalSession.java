@@ -57,7 +57,7 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.ccpm.CriticalChainService;
 import com.microproject.pm.task.ProjectFactory;
 import com.microproject.persistence.data.ProjectData;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Alert;
 import com.microproject.util.Environment;

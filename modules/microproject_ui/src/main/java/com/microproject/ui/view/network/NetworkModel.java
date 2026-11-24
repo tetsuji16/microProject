@@ -31,7 +31,7 @@ import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.model.event.CompositeCacheEvent;
 import com.microproject.ui.view.network.layout.NetworkLayout;
 import com.microproject.association.InvalidAssociationException;
-import com.microproject.graphic.configuration.BarStyles;
+import com.microproject.view.configuration.BarStyles;
 import com.microproject.pm.task.Project;
 
 /**

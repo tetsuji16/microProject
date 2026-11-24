@@ -136,7 +136,7 @@ import com.microproject.pm.task.ProjectFactory;
 import com.microproject.pm.task.ProjectListener;
 import com.microproject.pm.task.Task;
 import com.microproject.pm.task.UpdateProjectRequest;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.timescale.TimeScale;
 import com.microproject.preference.GlobalPreferences;
 import com.microproject.session.LoadOptions;

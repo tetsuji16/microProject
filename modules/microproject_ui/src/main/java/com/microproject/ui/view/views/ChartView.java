@@ -50,7 +50,7 @@ import com.microproject.ui.view.spreadsheet.selection.event.SelectionNodeListene
 import com.microproject.ui.view.timescale.CoordinatesConverter;
 import com.microproject.ui.view.timescale.ScaledScrollPane;
 import com.microproject.ui.view.views.synchro.Synchronizer;
-import com.microproject.graphic.configuration.GraphicConfiguration;
+import com.microproject.view.configuration.GraphicConfiguration;
 import com.microproject.undo.UndoController;
 import com.microproject.workspace.WorkspaceSetting;
 

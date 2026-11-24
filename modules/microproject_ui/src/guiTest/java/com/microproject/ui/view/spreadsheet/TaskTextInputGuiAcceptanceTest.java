@@ -34,7 +34,7 @@ import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import com.microproject.field.Field;
-import com.microproject.graphic.configuration.SpreadSheetCategories;
+import com.microproject.view.configuration.SpreadSheetCategories;
 import com.microproject.grouping.core.Node;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.ui.view.model.cache.NodeModelCache;

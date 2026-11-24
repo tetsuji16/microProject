@@ -68,7 +68,7 @@ import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.grouping.core.NodeFactory;
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.field.Field;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;

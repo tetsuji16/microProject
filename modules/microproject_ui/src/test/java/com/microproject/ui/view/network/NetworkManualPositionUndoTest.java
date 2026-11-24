@@ -17,7 +17,7 @@ import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.configuration.Dictionary;
-import com.microproject.graphic.configuration.BarStyles;
+import com.microproject.view.configuration.BarStyles;
 import com.microproject.grouping.core.Node;
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.model.cache.NodeModelCacheFactory;

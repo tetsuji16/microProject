@@ -23,7 +23,7 @@
  *******************************************************************************/
 package com.microproject.configuration;
 
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 
 
 /**

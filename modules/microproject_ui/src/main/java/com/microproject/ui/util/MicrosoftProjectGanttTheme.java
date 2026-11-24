@@ -7,7 +7,7 @@ package com.microproject.ui.util;
 
 import java.awt.Color;
 
-import com.microproject.graphic.configuration.BarFormat;
+import com.microproject.view.configuration.BarFormat;
 import com.microproject.pm.scheduling.Schedule;
 
 /** MS Project-compatible colors used by the default Gantt chart palette. */

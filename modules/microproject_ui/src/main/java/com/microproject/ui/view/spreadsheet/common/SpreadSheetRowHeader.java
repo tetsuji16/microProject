@@ -44,7 +44,7 @@ import com.microproject.ui.view.spreadsheet.SpreadSheet;
 import com.microproject.ui.view.spreadsheet.SpreadSheetPopupMenu;
 import com.microproject.ui.view.spreadsheet.command.TaskHierarchyEditIntent;
 import com.microproject.ui.input.PopupTriggerController;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.Alert;
 import java.awt.Dimension;
 import com.microproject.ui.util.FlatUiSupport;

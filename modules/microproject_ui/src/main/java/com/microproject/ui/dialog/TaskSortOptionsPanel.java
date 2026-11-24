@@ -37,7 +37,7 @@ import javax.swing.JPanel;
 
 import com.microproject.grouping.core.transform.CommonTransformFactory;
 import com.microproject.grouping.core.transform.sorting.TaskSortSpec;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /** Secondary and tertiary keys plus the view-only Keep Outline option. */
 public final class TaskSortOptionsPanel extends JPanel {

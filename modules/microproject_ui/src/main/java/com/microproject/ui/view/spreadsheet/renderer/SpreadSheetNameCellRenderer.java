@@ -32,7 +32,7 @@ import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.spreadsheet.OutlineNumbering;
 import com.microproject.ui.view.spreadsheet.SpreadSheetColumnModel;
 import com.microproject.ui.view.spreadsheet.common.CommonSpreadSheetModel;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
 import com.microproject.ui.view.spreadsheet.SpreadSheetParams;
 import com.microproject.ui.view.spreadsheet.SpreadSheetModel;

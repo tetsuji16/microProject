@@ -1,0 +1,530 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.view.configuration;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
+
+import org.apache.commons.digester3.Digester;
+
+import com.microproject.configuration.Configuration;
+import com.microproject.configuration.Dictionary;
+import com.microproject.configuration.NamedItem;
+import com.microproject.field.Field;
+import com.microproject.pm.assignment.TimeDistributedHelper;
+import com.microproject.i18n.Messages;
+import com.microproject.workspace.SavableToWorkspace;
+import com.microproject.workspace.WorkspaceSetting;
+
+/**
+ *
+ */
+public class SpreadSheetFieldArray extends ArrayList<Field> implements NamedItem, Cloneable, WorkspaceSetting {
+	private static final long serialVersionUID = 6310711336308730391L;
+	transient Map<String, String> map = new LinkedHashMap<>();
+	transient boolean userCreated = false;
+	ArrayList<Integer> widths = null;//new ArrayList<Integer>();
+	ArrayList<Boolean> manualWidths = null;
+	/**
+	 * Per-column header wrapping (Microsoft Project "Header Wrapping"); null or a missing
+	 * entry means wrapping is on.  Transient on purpose: the POD wire format stays frozen,
+	 * so POD files load with the default and only MPO persists the switch.
+	 */
+	transient ArrayList<Boolean> headerWraps = null;
+	/**
+	 * Per-column data alignment override (see the ALIGN_* constants); null or a missing entry
+	 * means the column keeps its type-based default.  Transient for the same reason as
+	 * {@link #headerWraps}: only MPO persists it.
+	 */
+	transient ArrayList<Integer> alignments = null;
+	public static final int ALIGN_DEFAULT = 0;
+	public static final int ALIGN_LEFT = 1;
+	public static final int ALIGN_CENTER = 2;
+	public static final int ALIGN_RIGHT = 3;
+	@Override
+	public SpreadSheetFieldArray clone() {
+		SpreadSheetFieldArray copy = (SpreadSheetFieldArray) super.clone();
+		copy.map = new LinkedHashMap<>(map);
+		copy.widths = widths == null ? null : new ArrayList<>(widths);
+		copy.manualWidths = manualWidths == null ? null : new ArrayList<>(manualWidths);
+		copy.headerWraps = headerWraps == null ? null : new ArrayList<>(headerWraps);
+		copy.alignments = alignments == null ? null : new ArrayList<>(alignments);
+		return copy;
+	}
+
+	private void readObject(ObjectInputStream input) throws IOException, ClassNotFoundException {
+		input.defaultReadObject();
+		map = new LinkedHashMap<>();
+	}
+
+	public SpreadSheetFieldArray() {
+
+	}
+
+	public SpreadSheetFieldArray makeUserDefinedCopy() {
+		SpreadSheetFieldArray newOne = clone();
+		newOne.setId(null); // it's user defined
+		newOne.setName(Dictionary.generateUniqueName(this));
+		newOne.userCreated = true;
+		return newOne;
+	}
+	public SpreadSheetFieldArray makeEditableVersion() {
+		SpreadSheetFieldArray f = this;
+		if (!f.isUserDefined()) {
+			f = f.makeUserDefinedCopy();
+			Dictionary.add(f);
+		}
+		return f;
+	}
+	public SpreadSheetFieldArray insertField(int position,Field field) {
+		SpreadSheetFieldArray f = makeEditableVersion();
+		f.alignColumnMetadata();
+		f.add(position,field);
+		f.insertColumnMetadata(position);
+		return f;
+	}
+
+	public SpreadSheetFieldArray removeField(int position) {
+		SpreadSheetFieldArray f = makeEditableVersion();
+		f.alignColumnMetadata();
+		f.remove(position);
+		f.removeColumnMetadata(position);
+		return f;
+	}
+	/** Same editable-copy contract as {@link #insertField}: returns the array carrying the new wrap flag. */
+	public SpreadSheetFieldArray withHeaderWrap(int position, boolean wrap) {
+		SpreadSheetFieldArray f = makeEditableVersion();
+		f.alignColumnMetadata();
+		ArrayList<Boolean> flags = new ArrayList<>(f.size());
+		for (int index = 0; index < f.size(); index++)
+			flags.add(index == position ? Boolean.valueOf(wrap) : Boolean.valueOf(f.isHeaderWrap(index)));
+		f.setHeaderWraps(flags);
+		return f;
+	}
+
+	/** Same editable-copy contract as {@link #withHeaderWrap}: returns the array carrying the new alignment. */
+	public SpreadSheetFieldArray withAlignment(int position, int alignment) {
+		SpreadSheetFieldArray f = makeEditableVersion();
+		f.alignColumnMetadata();
+		ArrayList<Integer> values = new ArrayList<>(f.size());
+		for (int index = 0; index < f.size(); index++)
+			values.add(index == position ? Integer.valueOf(alignment) : Integer.valueOf(f.getAlignment(index)));
+		f.setAlignments(values);
+		return f;
+	}
+
+	public SpreadSheetFieldArray move(int oldPosition, int newPosition) {
+		SpreadSheetFieldArray f = makeEditableVersion();
+		f.alignColumnMetadata();
+		Field field = f.remove(oldPosition);
+		f.add(newPosition,field);
+		f.moveColumnMetadata(oldPosition, newPosition);
+		return f;
+
+
+	}
+
+	/** Keeps persisted column metadata aligned with its field before changing layout. */
+	private void alignColumnMetadata() {
+		alignMetadata(widths, -1);
+		alignMetadata(manualWidths, false);
+		alignMetadata(headerWraps, true);
+		alignMetadata(alignments, ALIGN_DEFAULT);
+	}
+
+	private <T> void alignMetadata(ArrayList<T> metadata, T defaultValue) {
+		if (metadata == null)
+			return;
+		while (metadata.size() < size())
+			metadata.add(defaultValue);
+		while (metadata.size() > size())
+			metadata.remove(metadata.size() - 1);
+	}
+
+	private void insertColumnMetadata(int position) {
+		if (widths != null)
+			widths.add(position, -1);
+		if (manualWidths != null)
+			manualWidths.add(position, false);
+		if (headerWraps != null)
+			headerWraps.add(position, true);
+		if (alignments != null)
+			alignments.add(position, ALIGN_DEFAULT);
+	}
+
+	private void removeColumnMetadata(int position) {
+		if (widths != null)
+			widths.remove(position);
+		if (manualWidths != null)
+			manualWidths.remove(position);
+		if (headerWraps != null)
+			headerWraps.remove(position);
+		if (alignments != null)
+			alignments.remove(position);
+	}
+
+	private void moveColumnMetadata(int oldPosition, int newPosition) {
+		moveMetadata(widths, oldPosition, newPosition);
+		moveMetadata(manualWidths, oldPosition, newPosition);
+		moveMetadata(headerWraps, oldPosition, newPosition);
+		moveMetadata(alignments, oldPosition, newPosition);
+	}
+
+	private <T> void moveMetadata(ArrayList<T> metadata, int oldPosition, int newPosition) {
+		if (metadata == null)
+			return;
+		T value = metadata.remove(oldPosition);
+		metadata.add(newPosition, value);
+	}
+
+//	public void setWidth(int column, int width) {
+//		widths.set(column,width);
+//	}
+	/**
+	 * Equality is based on name, not on contents
+	 */
+	public boolean equals(Object other) {
+		if (!(other instanceof SpreadSheetFieldArray fields))
+			return false;
+		return Objects.equals(name, fields.getName());
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hashCode(name);
+	}
+	private String name = null;
+	private String category;
+	private String cellStyleId;
+	private String actionListId;
+	private String id = null;
+
+    public String getCellStyleId() {
+        return cellStyleId;
+    }
+    public void setCellStyleId(String cellStyleId) {
+        this.cellStyleId = cellStyleId;
+    }
+    public CellStyle getCellStyle(){
+        CellStyles cellStyles=CellStyles.getInstance();
+        if (cellStyles == null) {
+            return new CellStyle() {
+                public CellFormat getCellFormat(Object node) {
+                    return null;
+                }
+            };
+        }
+        if (cellStyleId==null||cellStyleId.length()==0)
+            return safeDefaultStyle(cellStyles);
+        CellStyle style=cellStyles.getStyle(cellStyleId);
+        if (style==null) style=safeDefaultStyle(cellStyles);
+        return style;
+    }
+
+    private CellStyle safeDefaultStyle(CellStyles cellStyles) {
+        CellStyle defaultStyle = cellStyles.getDefaultStyle();
+        if (defaultStyle != null) {
+            return defaultStyle;
+        }
+        return new CellStyle() {
+            public CellFormat getCellFormat(Object node) {
+                return null;
+            }
+        };
+    }
+
+    public String getActionListId() {
+        return actionListId;
+    }
+    public void setActionListId(String actionListId) {
+        this.actionListId = actionListId;
+    }
+    public ActionList getActionList(){
+        ActionLists actionLists=ActionLists.getInstance();
+        if (actionLists == null) {
+            return new ActionList() {
+                public String getList(Object nodeModel) {
+                    return null;
+                }
+            };
+        }
+        if (actionListId==null||actionListId.length()==0)
+            return safeDefaultActionList(actionLists);
+        ActionList actionList=actionLists.getActionList(actionListId);
+        if (actionList==null) actionList=safeDefaultActionList(actionLists);
+        return actionList;
+    }
+
+    private ActionList safeDefaultActionList(ActionLists actionLists) {
+        ActionList defaultActionList = actionLists.getDefaultActionList();
+        if (defaultActionList != null) {
+            return defaultActionList;
+        }
+        return new ActionList() {
+            public String getList(Object nodeModel) {
+                return null;
+            }
+        };
+    }
+
+	/**
+	 * @return Returns the name.
+	 */
+	public String getName() {
+		return name;
+	}
+
+	public void setId(String messageId) {
+		this.id = messageId;
+		if (name == null)
+			setName(Messages.getString(messageId));
+	}
+	/**
+	 * @param name The name to set.
+	 */
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public String toString() {
+		return getName();
+	}
+	/**
+	 * @return Returns the category.
+	 */
+	public String getCategory() {
+		return category;
+	}
+	/**
+	 * @param category The category to set.
+	 */
+	public void setCategory(String category) {
+		this.category = category;
+	}
+
+
+	public boolean isUserDefined() {
+		return id == null;
+	}
+
+
+	public void addField(String fieldId) {
+		Field field = Configuration.getFieldFromId(fieldId);
+		if (field != null) {
+			if (mapFieldTo != null) {
+				map.put(fieldId,mapFieldTo);
+				mapFieldTo = null;
+			}
+
+			add(field);
+			//widths.add(field.getColumnWidth());
+		} else {
+		}
+	}
+	public void removeField(String fieldId) {
+		if (fieldId==null) return;
+		map.remove(fieldId);
+		for (int i = 0; i < size(); i++) {
+			Field field=get(i);
+			if (fieldId.equals(field.getId())) {
+				remove(i);
+				//widths.remove(i);
+			}
+
+		}
+	}
+
+	public String mapFieldTo;
+	//root node needs to be Dictionary
+	public static void addDigesterEvents(Digester digester){
+		digester.addObjectCreate("*/spreadsheet", "com.microproject.graphic.configuration.SpreadSheetFieldArray");
+	    digester.addSetProperties("*/spreadsheet");
+		digester.addSetNext("*/spreadsheet", "add", "com.microproject.configuration.NamedItem");
+	    digester.addSetProperties("*/spreadsheet/columns/column");
+		digester.addCallMethod("*/spreadsheet/columns/column", "addField", 	0);
+
+	}
+	public static final SpreadSheetFieldArray getFromId(String category, String id) {
+		SpreadSheetFieldArray result = (SpreadSheetFieldArray) Dictionary.get(category, Messages.getString(id));
+		if (result == null)
+			result = (SpreadSheetFieldArray) Dictionary.get(category, id);
+		return result;
+	}
+
+	public final String getMapFieldTo() {
+		return mapFieldTo;
+	}
+
+	public final void setMapFieldTo(String mapFieldTo) {
+		this.mapFieldTo = mapFieldTo;
+	}
+
+	public final String getMappedValue(String key) {
+		return map.get(key);
+	}
+
+	public static Object[] toIdArray(Object[] fieldArray) {
+		Object[] result = new Object[fieldArray.length];
+		for (int i = 0; i < fieldArray.length; i++)
+			result[i] = TimeDistributedHelper.getIdForObject(fieldArray[i]);
+		return result;
+	}
+
+	public static Object[] fromIdArray(Object[] fieldArray) {
+		Object[] result = new Object[fieldArray.length];
+		for (int i = 0; i < fieldArray.length; i++)
+			result[i] = TimeDistributedHelper.getObjectFromId((String) fieldArray[i]);
+		return result;
+	}
+
+	public static Collection<String> toIdArray(Collection<?> fieldArray) {
+		ArrayList<String> result = new ArrayList<>(fieldArray.size());
+		for (Object field : fieldArray) {
+			result.add(TimeDistributedHelper.getIdForObject(field));
+		}
+		return result;
+	}
+	public static Collection<Field> fromIdArray(Collection<?> fieldArray) {
+		ArrayList<Field> result = new ArrayList<>(fieldArray.size());
+		for (Object id : fieldArray) {
+			Object field = TimeDistributedHelper.getObjectFromId((String) id);
+			if (field instanceof Field)
+				result.add((Field) field);
+		}
+		return result;
+	}
+
+	public boolean isUserCreated() {
+		return userCreated;
+	}
+
+	public void setUserCreated(boolean userCreated) {
+		this.userCreated = userCreated;
+	}
+
+	public int getWidth(int column) {
+		return (widths!=null&&column>=0&&column<widths.size())?widths.get(column):-1;
+	}
+
+	public boolean isManualWidth(int column) {
+		return manualWidths != null && column >= 0 && column < manualWidths.size()
+				&& Boolean.TRUE.equals(manualWidths.get(column));
+	}
+
+
+
+
+	/** Whether the heading of this field-array column may wrap onto several lines (default true). */
+	public boolean isHeaderWrap(int column) {
+		return headerWraps == null || column < 0 || column >= headerWraps.size()
+				|| !Boolean.FALSE.equals(headerWraps.get(column));
+	}
+
+	/** Alignment override of this field-array column: one of the ALIGN_* constants (default ALIGN_DEFAULT). */
+	public int getAlignment(int column) {
+		if (alignments == null || column < 0 || column >= alignments.size() || alignments.get(column) == null)
+			return ALIGN_DEFAULT;
+		int value = alignments.get(column);
+		return value < ALIGN_DEFAULT || value > ALIGN_RIGHT ? ALIGN_DEFAULT : value;
+	}
+
+	public ArrayList<Integer> getAlignments() {
+		return alignments;
+	}
+
+	/** Stores the per-column alignments; an all-default list is stored as null so defaults stay implicit. */
+	public void setAlignments(ArrayList<Integer> alignments) {
+		this.alignments = alignments == null || alignments.stream().allMatch(value -> value == null || value == ALIGN_DEFAULT)
+				? null : alignments;
+	}
+
+	public ArrayList<Boolean> getHeaderWraps() {
+		return headerWraps;
+	}
+
+	/** Stores the per-column wrap flags; an all-true list is stored as null so defaults stay implicit. */
+	public void setHeaderWraps(ArrayList<Boolean> headerWraps) {
+		this.headerWraps = headerWraps == null || headerWraps.stream().allMatch(value -> !Boolean.FALSE.equals(value))
+				? null : headerWraps;
+	}
+
+	public WorkspaceSetting createWorkspace(int context) {
+		Workspace ws = new Workspace();
+		ws.fields.addAll(toIdArray(this));
+		if (widths!=null) ws.widths.addAll(widths);
+		if (manualWidths!=null) ws.manualWidths.addAll(manualWidths);
+		return ws;
+	}
+
+	public void restoreWorkspace(WorkspaceSetting w, int context) {
+		Workspace ws = (Workspace) w;
+		addAll(fromIdArray(ws.fields));
+		if (ws.version>0.0f&&ws.widths!=null&&ws.widths.size()>0){
+			widths=new ArrayList<>(ws.widths.size());
+			widths.addAll(ws.widths);
+		}
+		if (ws.version>1.0f&&ws.manualWidths!=null&&ws.manualWidths.size()>0) {
+			manualWidths = new ArrayList<Boolean>(ws.manualWidths.size());
+			manualWidths.addAll(ws.manualWidths);
+		}
+	}
+	public static class Workspace implements WorkspaceSetting {
+		private static final long serialVersionUID = -4517935309304612237L;
+		ArrayList<Integer> widths = new ArrayList<>();
+		ArrayList<Boolean> manualWidths = new ArrayList<>();
+		ArrayList<String> fields = new ArrayList<>();
+		float version=2.0f;
+	}
+
+	public ArrayList<Integer> getWidths() {
+		return widths;
+	}
+
+	public void setWidths(ArrayList<Integer> widths) {
+		this.widths = widths;
+	}
+
+	public ArrayList<Boolean> getManualWidths() {
+		return manualWidths;
+	}
+
+	public void setManualWidths(ArrayList<Boolean> manualWidths) {
+		this.manualWidths = manualWidths;
+	}
+
+	public static SpreadSheetFieldArray restore(WorkspaceSetting spreadsheetWorkspace,String name,int context){
+		SpreadSheetFieldArray fieldArray = new SpreadSheetFieldArray();
+		fieldArray.setCategory(SpreadSheetCategories.taskSpreadsheetCategory);
+		fieldArray.restoreWorkspace(spreadsheetWorkspace, context);
+		fieldArray.setName(name);
+		Dictionary.add(fieldArray);
+		return fieldArray;
+	}
+
+}

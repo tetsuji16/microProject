@@ -38,7 +38,7 @@ import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.ui.view.IconManager;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.BrowserControl;
 import com.microproject.ui.util.FlatUiSupport;
 import com.microproject.util.ClassLoaderUtils;

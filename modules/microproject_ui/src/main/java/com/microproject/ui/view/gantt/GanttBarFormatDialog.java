@@ -35,9 +35,9 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 
-import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
+import com.microproject.view.configuration.GanttBarFormatOverrides.BarFormat;
 import com.microproject.pm.task.Task;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.util.PopupDialogSupport;
 import com.microproject.ui.util.FlatUiSupport;
 

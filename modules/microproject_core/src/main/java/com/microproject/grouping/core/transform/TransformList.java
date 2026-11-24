@@ -35,7 +35,7 @@ import com.microproject.configuration.NamedItem;
 import com.microproject.field.InvalidFormulaException;
 import com.microproject.grouping.core.transform.filtering.NodeFilter;
 import com.microproject.grouping.core.transform.filtering.NotVoidFilter;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 

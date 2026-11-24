@@ -25,7 +25,7 @@ package com.microproject.pm.assignment.timesheet;
 
 import java.util.Collection;
 
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 public class TimesheetHelper {
 	public static boolean applyTimesheet(Collection<?> children, Collection<?> fieldArray, long timesheetUpdateDate) {

@@ -26,7 +26,7 @@ package com.microproject.grouping.core.transform.filtering;
 import com.microproject.field.InvalidFormulaException;
 import com.microproject.grouping.core.transform.CommonTransform;
 import com.microproject.grouping.core.transform.CommonTransformFactory;
-import com.microproject.scripting.GroovyClassCompiler;
+import com.microproject.formula.GroovyClassCompiler;
 
 /**
  *

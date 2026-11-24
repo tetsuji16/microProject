@@ -103,7 +103,7 @@ import com.microproject.configuration.Settings;
 import com.microproject.ui.menu.MenuManager;
 import com.microproject.pm.snapshot.SnapshottableImpl;
 import com.microproject.preference.ConfigurationFile;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.Alert;
 import com.microproject.ui.util.FlatUiSupport;
 

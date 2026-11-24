@@ -112,7 +112,7 @@ import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.ui.frame.DocumentFrame;
 import com.microproject.ui.frame.GraphicManager;
 import com.microproject.pm.task.Project;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.input.PopupTriggerController;
 import com.microproject.ui.ribbon.backstage.BackstageAccountPage;
 import com.microproject.ui.ribbon.backstage.BackstageExportPage;

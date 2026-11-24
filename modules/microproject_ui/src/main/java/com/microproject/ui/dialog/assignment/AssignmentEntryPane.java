@@ -46,7 +46,7 @@ import com.microproject.ui.view.spreadsheet.renderer.RateRenderer;
 import com.microproject.configuration.Dictionary;
 import com.microproject.datatype.Rate;
 import com.microproject.field.Field;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.ui.util.FlatUiSupport;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.NodeList;
@@ -61,7 +61,7 @@ import com.microproject.pm.resource.Resource;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /**
  *

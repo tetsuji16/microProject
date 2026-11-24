@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.UnaryOperator;
 
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /**
  * Display text and parsing for Yes/No fields (issue #899).

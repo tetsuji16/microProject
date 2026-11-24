@@ -30,8 +30,8 @@ import java.util.SortedSet;
 import javax.swing.JScrollPane;
 import javax.swing.JViewport;
 
-import com.microproject.graphic.configuration.BarStyles;
-import com.microproject.graphic.configuration.BarStyle;
+import com.microproject.view.configuration.BarStyles;
+import com.microproject.view.configuration.BarStyle;
 import com.microproject.ui.view.gantt.Gantt;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
 import com.microproject.ui.util.FlatUiSupport;

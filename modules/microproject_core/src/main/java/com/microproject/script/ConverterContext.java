@@ -23,11 +23,11 @@
  *******************************************************************************/
 package com.microproject.script;
 
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.grouping.core.transform.TransformList;
 import com.microproject.grouping.core.transform.filtering.NodeFilter;
 import com.microproject.script.object.TimeIntervals;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 
 

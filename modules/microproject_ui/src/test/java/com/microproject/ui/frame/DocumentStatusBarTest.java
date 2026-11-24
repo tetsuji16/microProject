@@ -10,7 +10,7 @@ import java.text.MessageFormat;
 import java.util.Arrays;
 
 import org.junit.jupiter.api.Test;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.configuration.Configuration;
 import com.microproject.timescale.TimeScale;
 

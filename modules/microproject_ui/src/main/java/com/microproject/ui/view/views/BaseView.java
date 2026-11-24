@@ -26,7 +26,7 @@ package com.microproject.ui.view.views;
 import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
 import com.microproject.ui.print.GraphPageable;
-import com.microproject.graphic.configuration.SpreadSheetCategories;
+import com.microproject.view.configuration.SpreadSheetCategories;
 import com.microproject.undo.UndoController;
 import com.microproject.workspace.SavableToWorkspace;
 

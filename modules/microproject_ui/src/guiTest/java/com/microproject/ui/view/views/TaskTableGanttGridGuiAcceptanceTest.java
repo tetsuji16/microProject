@@ -65,14 +65,14 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.graphic.configuration.SpreadSheetCategories;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetCategories;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.configuration.Dictionary;
 import com.microproject.configuration.Configuration;
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.DurationFormat;
 import com.microproject.datatype.TimeUnit;
-import com.microproject.graphic.configuration.BarStyles;
+import com.microproject.view.configuration.BarStyles;
 import com.microproject.ui.view.gantt.Gantt;
 import com.microproject.ui.view.gantt.GanttUI;
 import com.microproject.ui.frame.DocumentFrame;

@@ -33,10 +33,10 @@ import javax.swing.JRadioButtonMenuItem;
 import com.microproject.ui.dialog.RenameDialog;
 import com.microproject.ui.view.spreadsheet.common.CommonSpreadSheet;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.configuration.Dictionary;
 import com.microproject.configuration.NamedItem;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /**
  *

@@ -23,6 +23,8 @@
  *******************************************************************************/
 package com.microproject.exchange;
 
+import com.microproject.persistence.PodFormatIdentifiers;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -46,8 +48,8 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.graphic.configuration.GanttBarFormatOverrides;
-import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
+import com.microproject.view.configuration.GanttBarFormatOverrides;
+import com.microproject.view.configuration.GanttBarFormatOverrides.BarFormat;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.assignment.AssignmentService;
 import com.microproject.pm.costing.ExpenseType;

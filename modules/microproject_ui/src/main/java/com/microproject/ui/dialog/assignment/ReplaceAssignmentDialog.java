@@ -35,7 +35,7 @@ import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.ui.dialog.AbstractDialog;
 import com.microproject.ui.frame.DocumentFrame;
 import com.microproject.pm.resource.Resource;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.util.FlatUiSupport;
 
 public final class ReplaceAssignmentDialog extends AbstractDialog implements CommonAssignmentDialog{

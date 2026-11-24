@@ -15,7 +15,7 @@ import javax.swing.SpinnerDateModel;
 
 import com.microproject.pm.calendar.WorkRangeException;
 import com.microproject.pm.calendar.WorkingHours;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.DateTime;
 
 /** Date and time-of-day helpers shared by the calendar exception and work-week editors. */

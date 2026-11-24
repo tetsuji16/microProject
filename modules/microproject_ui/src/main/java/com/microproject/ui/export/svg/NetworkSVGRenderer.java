@@ -42,7 +42,7 @@ import com.microproject.ui.view.timescale.CoordinatesConverter;
 import com.microproject.ui.view.xbs.XbsLayout;
 import com.microproject.ui.view.xbs.XbsRenderer;
 import com.microproject.configuration.Dictionary;
-import com.microproject.graphic.configuration.BarStyles;
+import com.microproject.view.configuration.BarStyles;
 import com.microproject.pm.task.Project;
 
 public class NetworkSVGRenderer implements SVGRenderer, CacheListener, Cloneable{

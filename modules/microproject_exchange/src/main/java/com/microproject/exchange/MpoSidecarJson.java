@@ -36,7 +36,7 @@ import com.microproject.pm.resource.Resource;
 import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.pm.task.TaskSnapshot;
 import com.microproject.field.Field;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.pm.assignment.TimeDistributedHelper;
 import com.microproject.view.network.PertManualPositions;
 

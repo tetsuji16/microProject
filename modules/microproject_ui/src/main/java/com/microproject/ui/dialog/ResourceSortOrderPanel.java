@@ -17,7 +17,7 @@ import javax.swing.JPanel;
 
 import com.microproject.field.Field;
 import com.microproject.ui.view.views.ResourceView;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /** Sort Order chooser with up to three keys (Microsoft Application.Sort Key1-Key3), sharing ResourceView's view-only sort contract. */
 public final class ResourceSortOrderPanel extends JPanel {

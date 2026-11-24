@@ -31,7 +31,7 @@ import java.awt.Rectangle;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.graphic.configuration.BarFormat;
+import com.microproject.view.configuration.BarFormat;
 import com.microproject.pm.dependency.Dependency;
 import com.microproject.pm.dependency.DependencyService;
 import com.microproject.pm.dependency.DependencyType;

@@ -53,7 +53,7 @@ import com.microproject.pm.task.NormalTask;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Task;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.transaction.MultipleTransaction;
 import com.microproject.util.DateTime;
 import com.microproject.util.Environment;

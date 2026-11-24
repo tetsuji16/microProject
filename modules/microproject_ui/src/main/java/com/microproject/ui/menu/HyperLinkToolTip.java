@@ -36,7 +36,7 @@ import javax.swing.plaf.ToolTipUI;
 
 import com.microproject.ui.help.HelpUtil;
 import com.microproject.configuration.Settings;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.BrowserControl;
  
 /**

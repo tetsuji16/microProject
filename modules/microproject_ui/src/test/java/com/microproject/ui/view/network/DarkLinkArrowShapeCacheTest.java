@@ -28,9 +28,9 @@ import java.awt.Stroke;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.graphic.configuration.TexturedShape;
-import com.microproject.graphic.configuration.shape.PredefinedShape;
-import com.microproject.graphic.configuration.shape.PredefinedStroke;
+import com.microproject.view.configuration.TexturedShape;
+import com.microproject.view.configuration.shape.PredefinedShape;
+import com.microproject.view.configuration.shape.PredefinedStroke;
 
 class DarkLinkArrowShapeCacheTest {
 	@Test

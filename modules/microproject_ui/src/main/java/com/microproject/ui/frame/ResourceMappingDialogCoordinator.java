@@ -9,7 +9,7 @@ import java.awt.Component;
 import javax.swing.JOptionPane;
 
 import com.microproject.ui.dialog.ResourceMappingDialog;
-import com.microproject.exchange.ResourceMappingForm;
+import com.microproject.persistence.ResourceMappingForm;
 
 /** Owns the reusable modal resource mapping dialog lifecycle. */
 final class ResourceMappingDialogCoordinator {

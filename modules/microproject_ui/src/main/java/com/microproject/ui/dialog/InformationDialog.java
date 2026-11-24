@@ -43,7 +43,7 @@ import com.microproject.ui.view.IconManager;
 import com.microproject.ui.frame.GraphicManager;
 import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.util.FlatUiSupport;
 
 /**

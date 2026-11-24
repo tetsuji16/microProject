@@ -35,7 +35,7 @@ import com.microproject.pm.calendar.RecurringCalendarException;
 import com.microproject.pm.calendar.WorkDay;
 import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.calendar.WorkingHours;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.DateTime;
 import static com.microproject.ui.dialog.calendar.CalendarEditorSupport.dateSpinner;
 import static com.microproject.ui.dialog.calendar.CalendarEditorSupport.formatTime;

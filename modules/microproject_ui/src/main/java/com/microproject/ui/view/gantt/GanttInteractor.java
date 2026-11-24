@@ -39,7 +39,7 @@ import javax.swing.JViewport;
 import javax.swing.Popup;
 import javax.swing.PopupFactory;
 import javax.swing.SwingUtilities;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.timescale.TimeScale;
 import com.microproject.undo.EditSupport;
 

@@ -23,7 +23,7 @@ import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.configuration.FieldDictionary;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.grouping.core.transform.ViewTransformer;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.dependency.DependencyService;

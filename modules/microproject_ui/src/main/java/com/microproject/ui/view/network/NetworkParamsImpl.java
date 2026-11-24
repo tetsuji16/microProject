@@ -37,8 +37,8 @@ import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.network.layout.NetworkLayout;
 import com.microproject.ui.view.network.layout.NetworkLayoutEvent;
 import com.microproject.ui.view.link_routing.DefaultNetworkLinkRouting;
-import com.microproject.graphic.configuration.BarStyles;
-import com.microproject.graphic.configuration.GraphicConfiguration;
+import com.microproject.view.configuration.BarStyles;
+import com.microproject.view.configuration.GraphicConfiguration;
 import com.microproject.pm.task.Project;
 
 public class NetworkParamsImpl implements NetworkParams,Cloneable {

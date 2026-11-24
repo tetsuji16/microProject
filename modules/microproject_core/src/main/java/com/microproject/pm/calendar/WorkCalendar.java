@@ -25,7 +25,7 @@ package com.microproject.pm.calendar;
 
 import com.microproject.configuration.NamedItem;
 import com.microproject.persistence.data.DataObject;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 public interface WorkCalendar extends Cloneable, NamedItem, DataObject {
 	static final long MILLIS_IN_DAY = (1000L * 60 * 60 * 24);

@@ -12,7 +12,7 @@ import javax.swing.WindowConstants;
 
 import com.microproject.reports.render.ReportPreview;
 import com.microproject.reports.render.ReportPrintable;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.Alert;
 
 /** Standard printer-job bridge for a report's Pageable pages. */

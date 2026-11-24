@@ -57,7 +57,7 @@ import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.resource.ResourcePoolFactory;
 import com.microproject.pm.task.ProjectStatus;
 import com.microproject.pm.task.ProjectType;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.Alert;
 import com.microproject.util.DateTime;
 import com.microproject.util.Environment;

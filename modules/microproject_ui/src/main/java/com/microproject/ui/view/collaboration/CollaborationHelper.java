@@ -38,7 +38,7 @@ import com.microproject.grouping.core.Node;
 import com.microproject.pm.assignment.Assignment;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.Alert;
 import com.microproject.ui.util.PopupDialogSupport;
 

@@ -41,8 +41,8 @@ import javax.swing.table.TableColumnModel;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.ui.view.spreadsheet.selection.SpreadSheetSelectionModel;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
-import com.microproject.strings.Messages;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.util.FlatUiSupport;
 
 class CommonSpreadSheetSelectionStateTest {

@@ -41,12 +41,12 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.configuration.Dictionary;
-import com.microproject.graphic.configuration.BarFormat;
-import com.microproject.graphic.configuration.shape.PredefinedShape;
+import com.microproject.view.configuration.BarFormat;
+import com.microproject.view.configuration.shape.PredefinedShape;
 import com.microproject.pm.scheduling.Schedule;
 import com.microproject.pm.scheduling.ScheduleInterval;
 import com.microproject.pm.task.TaskSpecificFields;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.util.GanttProgress;
 
 class GanttRendererProgressTest {

@@ -32,7 +32,7 @@ import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.ui.dialog.util.FieldComponentMap;
 import com.microproject.ui.view.gantt.BarColorField;
 import com.microproject.pm.task.Task;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /** Owns task text-style controls and their task-specific font-color state. */
 final class TaskTextStylePanel {

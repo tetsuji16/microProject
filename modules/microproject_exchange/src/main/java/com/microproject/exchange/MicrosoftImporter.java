@@ -22,6 +22,9 @@
  * SOFTWARE.
  *******************************************************************************/
 package com.microproject.exchange;
+
+import com.microproject.persistence.ResourceMappingForm;
+import com.microproject.persistence.FileImporter;
 import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -29,7 +32,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import com.microproject.session.FileHelper;
 import com.microproject.util.SafeFileReplace;
-import com.microproject.temporary.TemporaryCleanupQueue;
+import com.microproject.util.temporary.TemporaryCleanupQueue;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.function.Consumer;
@@ -64,7 +67,7 @@ import com.microproject.exchange.serialize.MSPDISerializer;
 import com.microproject.exchange.serialize.Serializer;
 import com.microproject.session.Session;
 import com.microproject.session.SessionFactory;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.Alert;
 import com.microproject.util.Environment;
 

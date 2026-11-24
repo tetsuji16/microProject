@@ -38,8 +38,8 @@ import org.junit.jupiter.api.TestFactory;
 
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.field.Field;
-import com.microproject.graphic.configuration.SpreadSheetCategories;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetCategories;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 
 class SpreadsheetCategoryAndColumnOrderTest {
 	private record CategoryCase(String name, String category, Supplier<List> expected) {}

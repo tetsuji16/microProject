@@ -32,7 +32,7 @@ import java.util.Locale;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 class FileHelperEdgeCaseTest {
 	@Test

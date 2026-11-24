@@ -62,7 +62,7 @@ import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.ui.export.svg.SVGRenderer;
 import com.microproject.ui.view.graph.GraphParams;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.Alert;
 import com.microproject.ui.util.FlatUiSupport;
 import com.microproject.print.ExtendedPageFormat;

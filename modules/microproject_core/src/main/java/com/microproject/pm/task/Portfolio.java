@@ -49,7 +49,7 @@ import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.resource.SharedResourcePoolService;
 import com.microproject.session.SessionFactory;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.util.Alert;
 

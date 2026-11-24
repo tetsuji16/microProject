@@ -44,7 +44,7 @@ import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.hierarchy.NodeHierarchy;
 import com.microproject.options.CalendarOption;
 import com.microproject.pm.key.HasCommonKeyImpl;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.DateTime;
 import com.microproject.transaction.ProjectMutationState;
 /**

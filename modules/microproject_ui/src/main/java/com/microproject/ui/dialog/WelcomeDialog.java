@@ -54,7 +54,7 @@ import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.ui.help.HelpUtil;
 import com.microproject.ui.menu.MenuManager;
 import com.microproject.ui.view.IconManager;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.Environment;
 import com.microproject.application.RecentProjectStore;
 import com.microproject.util.MarkupEscape;

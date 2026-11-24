@@ -11,7 +11,7 @@ import java.util.TreeSet;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.graphic.configuration.GraphicConfiguration;
+import com.microproject.view.configuration.GraphicConfiguration;
 import com.microproject.pm.resource.ResourcePool;
 import com.microproject.pm.snapshot.DataSnapshot;
 import com.microproject.pm.snapshot.Snapshottable;

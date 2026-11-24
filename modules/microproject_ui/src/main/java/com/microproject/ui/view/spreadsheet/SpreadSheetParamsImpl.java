@@ -39,9 +39,9 @@ import com.microproject.ui.view.graph.GraphParams;
 import com.microproject.ui.view.spreadsheet.common.SpreadSheetRowHeaderColumnModel;
 import com.microproject.configuration.Dictionary;
 import com.microproject.field.FieldContext;
-import com.microproject.graphic.configuration.SpreadSheetCategories;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
-import com.microproject.strings.Messages;
+import com.microproject.view.configuration.SpreadSheetCategories;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
+import com.microproject.i18n.Messages;
 
 public class SpreadSheetParamsImpl extends GanttParamsImpl implements SpreadSheetParams {
 	private static final long serialVersionUID = -2753662832778898847L;

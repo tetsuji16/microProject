@@ -15,7 +15,7 @@ import com.jgoodies.forms.layout.FormLayout;
 import com.microproject.ui.dialog.util.ComponentFactory;
 import com.microproject.ui.dialog.util.ExtDateField;
 import com.microproject.pm.task.Project;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /** The MSP Project &gt; Status Date editor, including the documented NA value. */
 public final class StatusDateDialog extends AbstractDialog {

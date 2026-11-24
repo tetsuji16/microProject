@@ -36,7 +36,7 @@ import com.microproject.util.BrowserControl;
 import com.microproject.util.Environment;
 import com.microproject.util.SafeFileReplace;
 import com.microproject.util.VersionUtils;
-import com.microproject.temporary.TemporaryCleanupQueue;
+import com.microproject.util.temporary.TemporaryCleanupQueue;
 
 /**
  * Lightweight update checker (#338, plan D). Queries the GitHub Releases

@@ -51,7 +51,7 @@ import com.microproject.pm.task.Project;
 import com.microproject.pm.task.SubProj;
 import com.microproject.pm.task.Task;
 import com.microproject.ui.view.spreadsheet.command.TaskCommandGateway;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 import com.microproject.util.Alert;
 
 /**

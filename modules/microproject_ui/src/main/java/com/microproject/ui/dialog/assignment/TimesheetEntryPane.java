@@ -38,8 +38,8 @@ import javax.swing.JViewport;
 
 import com.microproject.association.Association;
 import com.microproject.field.Field;
-import com.microproject.graphic.configuration.GraphicConfiguration;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.GraphicConfiguration;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModelDataFactory;
 import com.microproject.options.TimesheetOption;

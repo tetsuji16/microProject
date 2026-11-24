@@ -30,7 +30,7 @@ import java.awt.event.ActionListener;
 import javax.swing.JPopupMenu;
 import javax.swing.JRadioButtonMenuItem;
 
-import com.microproject.graphic.configuration.BarStyle;
+import com.microproject.view.configuration.BarStyle;
 
 
 /**

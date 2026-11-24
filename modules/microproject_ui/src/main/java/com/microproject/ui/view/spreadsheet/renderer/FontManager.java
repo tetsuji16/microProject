@@ -30,7 +30,7 @@ import java.util.Map;
 
 import javax.swing.UIManager;
 
-import com.microproject.graphic.configuration.CellFormat;
+import com.microproject.view.configuration.CellFormat;
 import com.microproject.ui.util.FlatUiSupport;
 
 /**

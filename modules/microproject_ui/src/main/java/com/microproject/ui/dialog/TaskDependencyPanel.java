@@ -36,7 +36,7 @@ import javax.swing.JScrollPane;
 
 import com.microproject.ui.help.HelpUtil;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /** Owns the shared predecessor/successor tab layout and its selection controls. */
 final class TaskDependencyPanel extends JPanel {
