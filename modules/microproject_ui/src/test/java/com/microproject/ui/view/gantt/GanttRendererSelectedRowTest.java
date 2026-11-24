@@ -118,6 +118,10 @@ class GanttRendererSelectedRowTest {
 
 			assertSame(gantt.getCache().getElementAt(row), ui.getTaskRowAt(rowMiddle),
 				"hit testing below a taller row must resolve the visible task row");
+			assertEquals(null, ui.getTaskRowAt(gantt.getRowHeights().totalHeight(gantt.getCache().getSize())),
+				"the area below the final row must remain outside task hit testing");
+			assertEquals(-1, ui.getRowAt(gantt.getRowHeights().totalHeight(gantt.getCache().getSize())),
+				"row-level gestures must preserve the old out-of-range result");
 			assertEquals(gantt.getRowHeights().heightOf(1), ui.getBarY(row) - ui.getBarY(1), 0.0,
 				"the next Gantt bar must follow the taller spreadsheet row");
 		} finally {

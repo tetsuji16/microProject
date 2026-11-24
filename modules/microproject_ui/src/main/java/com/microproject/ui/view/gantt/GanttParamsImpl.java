@@ -180,6 +180,12 @@ public class GanttParamsImpl implements GanttParams, Serializable,Cloneable {
 			}
 			return rowHeights;
 		}
+		public void setRowHeights(RowHeights rowHeights) {
+			this.rowHeights = rowHeights == null ? null : rowHeights.copy();
+			if (this.rowHeights != null && cache != null) {
+				this.rowHeights.setRowCount(cache.getSize());
+			}
+		}
 
 	public boolean isGridLinesVisible() {
 		return gridLinesVisible;

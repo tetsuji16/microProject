@@ -61,7 +61,7 @@ public class GanttUI extends GraphUI{
     }
 
 	public GraphZone getNodeAt(double x,double y){
-		int row=((Gantt) graph).getRowHeights().rowAt((int) Math.floor(y));
+		int row=getRowAt(y);
 		if (row<0||row>=graph.getModel().getCache().getSize()) return null;
 		GraphicNode node=(GraphicNode)graph.getModel().getCache().getElementAt(row);
 		double y0=getBarY(row)+node.getGanttShapeOffset();//row*rowHeight+config.getGanttBarYOffset();
@@ -96,12 +96,20 @@ public class GanttUI extends GraphUI{
 	 * click in calendar whitespace can never start moving a task bar.
 	 */
 	public GraphicNode getTaskRowAt(double y) {
-		int row = ((Gantt) graph).getRowHeights().rowAt((int) Math.floor(y));
+		Gantt gantt = (Gantt) graph;
+		int row = getRowAt(y);
 		if (row < 0 || graph.getModel().getCache() == null || row >= graph.getModel().getCache().getSize()) {
 			return null;
 		}
 		Object element = graph.getModel().getCache().getElementAt(row);
 		return element instanceof GraphicNode node ? node : null;
+	}
+
+	/** Returns -1 for y coordinates outside the actual row area. */
+	public int getRowAt(double y) {
+		Gantt gantt = (Gantt) graph;
+		if (gantt.getCache() == null || y < 0 || y >= gantt.getRowHeights().totalHeight(gantt.getCache().getSize())) return -1;
+		return gantt.getRowHeights().rowAt((int) Math.floor(y));
 	}
 
 

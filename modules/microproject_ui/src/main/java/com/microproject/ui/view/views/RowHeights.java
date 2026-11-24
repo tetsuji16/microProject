@@ -55,6 +55,14 @@ public final class RowHeights {
         return defaultHeight;
     }
 
+    /** Returns an independent copy of this row-height state. */
+    public RowHeights copy() {
+        RowHeights copy = new RowHeights(defaultHeight, rowCount);
+        copy.overrides.putAll(overrides);
+        copy.invalidateCache();
+        return copy;
+    }
+
     /** Sets the number of rows and invalidates the cache. */
     public void setRowCount(int rowCount) {
         if (rowCount < 0) {

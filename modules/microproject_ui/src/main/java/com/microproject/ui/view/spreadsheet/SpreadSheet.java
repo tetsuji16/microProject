@@ -62,6 +62,7 @@ import javax.swing.JRootPane;
 import javax.swing.KeyStroke;
 import javax.swing.RootPaneContainer;
 import javax.swing.SwingUtilities;
+import javax.swing.tree.TreePath;
 import javax.swing.event.TableColumnModelEvent;
 import javax.swing.event.TableColumnModelListener;
 import javax.swing.table.JTableHeader;
@@ -102,6 +103,7 @@ import com.microproject.ui.view.spreadsheet.renderer.NameCellComponent;
 import com.microproject.ui.view.spreadsheet.selection.SpreadSheetListSelectionModel;
 import com.microproject.ui.view.spreadsheet.selection.SpreadSheetSelectionModel;
 import com.microproject.ui.view.spreadsheet.selection.event.HeaderMouseListener;
+import com.microproject.ui.view.views.RowHeights;
 import com.microproject.datatype.Hyperlink;
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
@@ -134,6 +136,7 @@ import com.microproject.util.BrowserControl;
 public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	private static final Logger logger = Logger.getLogger(SpreadSheet.class.getName());
 	private static final Map<NodeModel, Map<String, List<WeakReference<SpreadSheet>>>> ACTIVE_LAYOUT_TARGETS = new WeakHashMap<>();
+	private RowHeights rowHeights;
 	private NodeModel registeredLayoutModel;
 	private String registeredLayoutCategory;
 	private static final long serialVersionUID = 5958334223191182318L;
@@ -185,6 +188,79 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		// only remove the duplicate keyboard bindings here.
 		removeRootPaneShortcutDuplicates(this);
 		installClipboardPasteBindings();
+	}
+
+	@Override
+	public void setRowHeight(int rowHeight) {
+		super.setRowHeight(rowHeight);
+		if (rowHeights != null) rowHeights = new RowHeights(rowHeight, getRowCount());
+	}
+
+	@Override
+	public void setRowHeight(int row, int rowHeight) {
+		if (row < 0 || row >= getRowCount()) return;
+		ensureRowHeights();
+		rowHeights.setRowHeight(row, rowHeight);
+		revalidate();
+		repaint();
+	}
+
+	@Override
+	public int getRowHeight(int row) {
+		if (row < 0 || row >= getRowCount()) return super.getRowHeight(row);
+		ensureRowHeights();
+		return rowHeights.heightOf(row);
+	}
+
+	@Override
+	public Rectangle getCellRect(int row, int column, boolean includeSpacing) {
+		Rectangle bounds = super.getCellRect(row, column, includeSpacing);
+		if (row < 0 || row >= getRowCount()) return bounds;
+		ensureRowHeights();
+		bounds.y = rowHeights.yOf(row);
+		bounds.height = rowHeights.heightOf(row);
+		if (!includeSpacing) {
+			bounds.y += getRowMargin() / 2;
+			bounds.height -= getRowMargin();
+		}
+		return bounds;
+	}
+
+	@Override
+	public int rowAtPoint(Point point) {
+		if (point == null || point.y < 0) return -1;
+		ensureRowHeights();
+		if (point.y >= rowHeights.totalHeight(getRowCount())) return -1;
+		return rowHeights.rowAt(point.y);
+	}
+
+	@Override
+	public TreePath getClosestPathForLocation(int x, int y) {
+		int row = rowAtPoint(new Point(x, y));
+		int modelRow = row < 0 ? -1 : convertRowIndexToModel(row);
+		return modelRow < 0 || getOutlineModel() == null ? null : getOutlineModel().getLayout().getPathForRow(modelRow);
+	}
+
+	@Override
+	public Rectangle getPathBounds(TreePath path) {
+		if (path == null || getOutlineModel() == null) return null;
+		int modelRow = getOutlineModel().getLayout().getRowForPath(path);
+		int viewRow = modelRow < 0 ? -1 : convertRowIndexToView(modelRow);
+		return viewRow < 0 ? null : getCellRect(viewRow, 0, true);
+	}
+
+	@Override
+	public Dimension getPreferredSize() {
+		Dimension preferred = super.getPreferredSize();
+		if (rowHeights != null && rowHeights.getRowCount() == getRowCount()) {
+			preferred.height = rowHeights.totalHeight(getRowCount());
+		}
+		return preferred;
+	}
+
+	private void ensureRowHeights() {
+		if (rowHeights == null) rowHeights = new RowHeights(super.getRowHeight(), getRowCount());
+		else if (rowHeights.getRowCount() != getRowCount()) rowHeights.setRowCount(getRowCount());
 	}
 
 	@Override

@@ -50,21 +50,24 @@ final class TaskGanttSyncSupport {
 	}
 
 	static void applyRowHeight(SpreadSheet spreadSheet, Gantt gantt, int rowHeight) {
-		applyRowHeight(spreadSheet, gantt, new RowHeights(rowHeight));
+		int rowCount = spreadSheet != null ? spreadSheet.getRowCount()
+				: gantt != null && gantt.getCache() != null ? gantt.getCache().getSize() : 0;
+		applyRowHeight(spreadSheet, gantt, new RowHeights(rowHeight, rowCount));
 	}
 
 	static void applyRowHeight(SpreadSheet spreadSheet, Gantt gantt, RowHeights rowHeights) {
 		if (spreadSheet != null) {
-			// Apply per-row heights to the JTable
+			spreadSheet.setRowHeight(rowHeights.getDefaultHeight());
 			for (int row = 0; row < rowHeights.getRowCount(); row++) {
 				spreadSheet.setRowHeight(row, rowHeights.heightOf(row));
 			}
 		}
 		if (gantt != null) {
-			// Update Gantt's RowHeights
+			gantt.setRowHeight(rowHeights.getDefaultHeight());
 			RowHeights ganttRowHeights = gantt.getRowHeights();
+			ganttRowHeights.setRowCount(gantt.getCache() == null ? 0 : gantt.getCache().getSize());
 			for (int row = 0; row < rowHeights.getRowCount(); row++) {
-				if (rowHeights.heightOf(row) != ganttRowHeights.getDefaultHeight()) {
+				if (row < ganttRowHeights.getRowCount() && rowHeights.heightOf(row) != ganttRowHeights.getDefaultHeight()) {
 					ganttRowHeights.setRowHeight(row, rowHeights.heightOf(row));
 				}
 			}
