@@ -147,6 +147,28 @@ class TeamPlannerCanvasTest {
 		assertEquals(18, TeamPlannerDialogBox.TeamPlannerCanvas.visibleLabelStartX(15));
 	}
 
+	@Test
+	void nextDayBoundaryResolvesMidnightGapsIndependently() {
+		java.util.TimeZone previous = java.util.TimeZone.getDefault();
+		try {
+			java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("America/Sao_Paulo"));
+			java.time.ZoneId zone = java.time.ZoneId.systemDefault();
+			long skippedMidnightDay = java.time.LocalDate.of(2018, 11, 4)
+				.atStartOfDay(zone).toInstant().toEpochMilli();
+			long nextDayStart = java.time.LocalDate.of(2018, 11, 5)
+				.atStartOfDay(zone).toInstant().toEpochMilli();
+			long followingDayStart = java.time.LocalDate.of(2018, 11, 6)
+				.atStartOfDay(zone).toInstant().toEpochMilli();
+
+			assertEquals(nextDayStart, TeamPlannerDialogBox.TeamPlannerCanvas.nextTimescaleStart(
+				skippedMidnightDay, TeamPlannerViewSettings.Timescale.DAYS));
+			assertEquals(followingDayStart, TeamPlannerDialogBox.TeamPlannerCanvas.nextTimescaleStart(
+				nextDayStart, TeamPlannerViewSettings.Timescale.DAYS));
+		} finally {
+			java.util.TimeZone.setDefault(previous);
+		}
+	}
+
 	private static TeamPlannerDialogBox.TeamPlannerCanvas canvas(Fixture fixture) throws Exception {
 		TeamPlannerDialogBox.TeamPlannerCanvas[] canvas = new TeamPlannerDialogBox.TeamPlannerCanvas[1];
 		SwingUtilities.invokeAndWait(() -> {

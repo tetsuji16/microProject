@@ -652,11 +652,11 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 			ZonedDateTime time = Instant.ofEpochMilli(start).atZone(ZoneId.systemDefault());
 			return switch (unit) {
 				case HOURS -> time.plusHours(1).toInstant().toEpochMilli();
-				case DAYS -> time.plusDays(1).toInstant().toEpochMilli();
-				case WEEKS -> time.plusWeeks(1).toInstant().toEpochMilli();
-				case MONTHS -> time.plusMonths(1).toInstant().toEpochMilli();
-				case QUARTERS -> time.plusMonths(3).toInstant().toEpochMilli();
-				case YEARS -> time.plusYears(1).toInstant().toEpochMilli();
+				case DAYS -> startOfDay(time.toLocalDate().plusDays(1));
+				case WEEKS -> startOfDay(time.toLocalDate().plusWeeks(1));
+				case MONTHS -> startOfDay(time.toLocalDate().plusMonths(1));
+				case QUARTERS -> startOfDay(time.toLocalDate().plusMonths(3));
+				case YEARS -> startOfDay(time.toLocalDate().plusYears(1));
 			};
 		}
 
