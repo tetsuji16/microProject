@@ -51,7 +51,7 @@ class SerialVersionUidPinTest {
 	@Test
 	void serializableClassesDeclareSerialVersionUid() throws Exception {
 		Path classes = classesDirectory();
-		ClassLoader loader = com.microproject.server.data.SerializeUtil.class.getClassLoader();
+		ClassLoader loader = com.microproject.exchange.serialize.SerializeUtil.class.getClassLoader();
 		List<String> offenders = new ArrayList<>();
 		try (Stream<Path> files = Files.walk(classes.resolve("com/microproject"))) {
 			for (Path file : (Iterable<Path>) files.filter(p -> p.toString().endsWith(".class"))::iterator) {
@@ -66,7 +66,7 @@ class SerialVersionUidPinTest {
 	}
 
 	private static Path classesDirectory() throws URISyntaxException, IOException {
-		Path location = Path.of(com.microproject.server.data.SerializeUtil.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+		Path location = Path.of(com.microproject.exchange.serialize.SerializeUtil.class.getProtectionDomain().getCodeSource().getLocation().toURI());
 		assertTrue(Files.isDirectory(location), "expected compiled class directory but found " + location);
 		return location;
 	}

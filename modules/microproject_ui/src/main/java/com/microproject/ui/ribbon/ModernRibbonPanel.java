@@ -99,20 +99,20 @@ import com.microproject.ribbon.RibbonCommandResult;
 import com.microproject.ribbon.SwingRibbonModel;
 import com.microproject.ribbon.RibbonTheme;
 import com.microproject.application.RecentProjectStore;
-import com.microproject.dialog.PageSetupDialog;
-import com.microproject.dialog.UpdateChecker;
-import com.microproject.dialog.UsabilityStrings;
+import com.microproject.ui.dialog.PageSetupDialog;
+import com.microproject.ui.dialog.UpdateChecker;
+import com.microproject.ui.dialog.UsabilityStrings;
 import com.microproject.preference.GlobalPreferences;
-import com.microproject.print.GraphPageable;
+import com.microproject.ui.print.GraphPageable;
 import com.microproject.print.PDFPrintService;
-import com.microproject.print.PageSetup;
-import com.microproject.print.PrintDocument;
-import com.microproject.print.PrintDocumentFactory;
-import com.microproject.pm.calendar.WorkCalendar;
-import com.microproject.pm.graphic.frames.DocumentFrame;
-import com.microproject.pm.graphic.frames.GraphicManager;
-import com.microproject.pm.task.Project;
-import com.microproject.strings.Messages;
+import com.microproject.ui.print.PageSetup;
+import com.microproject.ui.print.PrintDocument;
+import com.microproject.ui.print.PrintDocumentFactory;
+import com.microproject.model.calendar.WorkCalendar;
+import com.microproject.ui.frame.DocumentFrame;
+import com.microproject.ui.frame.GraphicManager;
+import com.microproject.model.task.Project;
+import com.microproject.i18n.Messages;
 import com.microproject.ui.input.PopupTriggerController;
 import com.microproject.ui.ribbon.backstage.BackstageAccountPage;
 import com.microproject.ui.ribbon.backstage.BackstageExportPage;
@@ -124,8 +124,8 @@ import com.microproject.ui.ribbon.backstage.BackstageHomePage;
 import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.ui.theme.MicroProjectThemeTokens;
 import com.microproject.ui.theme.ThemeManager;
-import com.microproject.util.ColorLuminance;
-import com.microproject.util.FlatUiSupport;
+import com.microproject.ui.util.ColorLuminance;
+import com.microproject.ui.util.FlatUiSupport;
 import com.microproject.util.VersionUtils;
 
 public final class ModernRibbonPanel extends JPanel implements RibbonController {
@@ -2675,7 +2675,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		// that case; only use Action.NAME after the updater has supplied a real
 		// value such as "NA 状況報告日:".
 		if ("RibbonStatusDate".equals(buttonId) && dynamicName instanceof String name && !name.isBlank()
-			&& !com.microproject.menu.MenuActionConstants.ACTION_STATUS_DATE.equals(name))
+			&& !com.microproject.ui.menu.MenuActionConstants.ACTION_STATUS_DATE.equals(name))
 			text = name;
 		if (text != null) {
 			button.setText(text);
@@ -2690,7 +2690,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		if (text != null || description != null) {
 			// The key shown is the one registered for the command, never a separately
 			// maintained string, so the screen tip cannot disagree with the binding.
-			button.setToolTipText(com.microproject.menu.ShortcutHints.screenTip(text,
+			button.setToolTipText(com.microproject.ui.menu.ShortcutHints.screenTip(text,
 				commandSource.getShortcut(buttonId), description));
 		}
 		button.setAlignmentY(Component.TOP_ALIGNMENT);

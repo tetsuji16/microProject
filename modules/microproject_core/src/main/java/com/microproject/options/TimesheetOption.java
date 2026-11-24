@@ -24,9 +24,9 @@
 package com.microproject.options;
 
 import com.microproject.configuration.Dictionary;
-import com.microproject.graphic.configuration.SpreadSheetCategories;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
-import com.microproject.strings.Messages;
+import com.microproject.view.configuration.SpreadSheetCategories;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
+import com.microproject.i18n.Messages;
 
 /**
  *

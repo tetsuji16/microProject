@@ -38,14 +38,14 @@ import org.junit.jupiter.api.Test;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.NodeModel;
-import com.microproject.pm.dependency.DependencyService;
-import com.microproject.pm.dependency.DependencyType;
+import com.microproject.node.Node;
+import com.microproject.node.model.NodeModel;
+import com.microproject.model.dependency.DependencyService;
+import com.microproject.model.dependency.DependencyType;
 import com.microproject.options.CalendarOption;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 
 public class MsProjectTaskMoveCompatibilityTest {

@@ -6,7 +6,7 @@ package com.microproject.exchange;
 
 import java.nio.file.Path;
 
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.port.ProjectArtifactLifecyclePort;
 import com.microproject.session.LocalSession;
 

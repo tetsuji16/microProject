@@ -49,7 +49,7 @@ class AutoRecoveryLegacyProcessTest {
 	private Process start(String name) throws Exception {
 		String separator = System.getProperty("path.separator");
 		String cp = location(AutoRecoveryLegacyProcessTest.class) + separator + location(AutoRecoveryStore.class)
-			+ separator + location(com.microproject.temporary.TemporaryCleanupQueue.class);
+			+ separator + location(com.microproject.util.temporary.TemporaryCleanupQueue.class);
 		return new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", "java").toString(), "-cp", cp,
 			AutoRecoveryLegacyProcessTest.class.getName(), directory.toString(), name)
 			.redirectErrorStream(true).redirectOutput(directory.resolve(name + ".log").toFile()).start();

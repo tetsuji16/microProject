@@ -23,7 +23,7 @@
  *******************************************************************************/
 package com.microproject.algorithm.buffer;
 
-import com.microproject.pm.calendar.WorkCalendar;
+import com.microproject.model.calendar.WorkCalendar;
 
 /**
  * Inteface for buffers used to hold dates and values that are calculated by one of the algorithms.  They are

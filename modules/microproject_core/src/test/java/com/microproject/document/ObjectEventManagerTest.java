@@ -19,11 +19,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 import com.microproject.field.Field;
-import com.microproject.pm.assignment.Assignment;
+import com.microproject.model.assignment.Assignment;
 import com.microproject.association.Association;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.undo.NodeUndoInfo;
 

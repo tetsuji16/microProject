@@ -10,7 +10,7 @@ if (-not $resolvedWorkspace.StartsWith($resolvedTemporaryRoot, [System.StringCom
 New-Item -ItemType Directory -Path $resolvedWorkspace | Out-Null
 $env:MICROPROJECT_ISSUE967_WORKSPACE = $resolvedWorkspace
 $runner = Join-Path $repositoryRoot '.github/scripts/run-gui-acceptance.ps1'
-$testClass = 'com.microproject.pm.graphic.frames.FreshProcessMpoRestartGuiAcceptanceTest'
+$testClass = 'com.microproject.ui.frame.FreshProcessMpoRestartGuiAcceptanceTest'
 $success = $false
 Push-Location $repositoryRoot
 try {

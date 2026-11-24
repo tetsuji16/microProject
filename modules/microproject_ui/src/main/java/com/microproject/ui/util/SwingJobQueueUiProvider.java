@@ -28,7 +28,7 @@ import java.awt.Component;
 
 import com.microproject.job.JobProgressMonitor;
 import com.microproject.job.JobQueueUiProvider;
-import com.microproject.pm.graphic.frames.GraphicManager;
+import com.microproject.ui.frame.GraphicManager;
 
 /** Provides Swing progress dialogs and parent windows for job queues. */
 public final class SwingJobQueueUiProvider implements JobQueueUiProvider {

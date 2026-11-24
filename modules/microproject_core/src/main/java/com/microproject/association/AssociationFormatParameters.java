@@ -23,7 +23,7 @@
  *******************************************************************************/
 package com.microproject.association;
 
-import com.microproject.pm.dependency.HasDependencies;
+import com.microproject.model.dependency.HasDependencies;
 
 /**
  * Used to customize the formatting and parsing of associations

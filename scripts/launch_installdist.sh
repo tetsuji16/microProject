@@ -41,7 +41,7 @@ done < <(ls -1 "$LIB_DIR"/*.jar | sort)
   echo --enable-native-access=ALL-UNNAMED
   echo -classpath
   ( IFS=';'; echo "${paths[*]}" )
-  echo com.microproject.main.Main
+  echo com.microproject.ui.app.Main
 } > "$ARG_FILE"
 
 echo "Launching with $JAVA_EXE"

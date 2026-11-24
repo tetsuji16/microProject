@@ -15,12 +15,12 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.core.pm.exchange.MspImporter;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
+import com.microproject.exchange.mpx.MspImporter;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
 
 class MspdiResourceImportTest {
 	@Test

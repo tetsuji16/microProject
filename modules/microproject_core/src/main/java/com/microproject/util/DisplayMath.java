@@ -23,8 +23,8 @@
  *******************************************************************************/
 package com.microproject.util;
 
-import com.microproject.pm.scheduling.Schedule;
-import com.microproject.pm.scheduling.ScheduleInterval;
+import com.microproject.schedule.Schedule;
+import com.microproject.schedule.ScheduleInterval;
 
 public final class DisplayMath {
 	private DisplayMath() {

@@ -15,7 +15,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 
 class MpoExtractionLifecycleTest {
 	@TempDir Path temporaryDirectory;

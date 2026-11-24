@@ -9,7 +9,7 @@ import java.nio.file.Path;
 import java.util.Objects;
 
 import com.microproject.port.SaveFailureFeedback;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /**
  * Signals the only non-atomic edge of the MPOF transaction: the archive has

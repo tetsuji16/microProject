@@ -20,7 +20,7 @@ class PortApiTest {
 		ProjectArtifactLifecyclePort port = new ProjectArtifactLifecyclePort() {
 			public String formatKey() { return "mpo"; }
 			public void setWorkspaceRoot(Path root) { }
-			public void close(com.microproject.pm.task.Project project) { }
+			public void close(com.microproject.model.task.Project project) { }
 			public void closeAll() { }
 		};
 		registry.registerArtifactLifecycle(port);
@@ -34,7 +34,7 @@ class PortApiTest {
 		PortRegistry registry = new PortRegistry();
 		ImportPort port = new ImportPort() {
 			public String formatKey() { return "pod"; }
-			public PortResult<com.microproject.pm.task.Project> importProject(ImportRequest request) { return PortResult.success(null); }
+			public PortResult<com.microproject.model.task.Project> importProject(ImportRequest request) { return PortResult.success(null); }
 		};
 		registry.registerImport(port);
 		assertEquals(port, registry.importPort("pod"));
@@ -45,7 +45,7 @@ class PortApiTest {
 	@Test
 	void requestAndDiagnosticsAreImmutableAndStructured() {
 		ImportPort.ImportRequest request = new ImportPort.ImportRequest(Path.of("plan.pod"),
-				com.microproject.pm.task.ProjectFactory.getInstance());
+				com.microproject.model.task.ProjectFactory.getInstance());
 		assertFalse(request.source().isAbsolute() && request.source().toString().isBlank());
 		PortResult<Void> result = PortResult.failure(new PortDiagnostic(PortDiagnostic.Severity.ERROR,
 				"FORMAT_UNSUPPORTED", "Unsupported format", "plan.xyz"));

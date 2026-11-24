@@ -27,9 +27,9 @@ import javax.swing.undo.AbstractUndoableEdit;
 import javax.swing.undo.CannotRedoException;
 import javax.swing.undo.CannotUndoException;
 
-import com.microproject.grouping.core.Node;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.assignment.AssignmentService;
+import com.microproject.node.Node;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.assignment.AssignmentService;
 
 /**
  *

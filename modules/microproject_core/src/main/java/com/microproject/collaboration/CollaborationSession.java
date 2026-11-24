@@ -48,8 +48,8 @@ import java.util.logging.Logger;
 
 import com.microproject.collaboration.CollaborationMetadataStore.Metadata;
 import com.microproject.collaboration.CollaborationMetadataStore.UserRecord;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
 import com.microproject.session.FileHelper;
 import com.microproject.util.SafeObjectInput;
 import com.microproject.workspace.WorkspaceSetting;

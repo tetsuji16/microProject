@@ -27,8 +27,8 @@ import javax.swing.undo.AbstractUndoableEdit;
 import javax.swing.undo.CannotRedoException;
 import javax.swing.undo.CannotUndoException;
 
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.dependency.DependencyService;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.dependency.DependencyService;
 
 /**
  *

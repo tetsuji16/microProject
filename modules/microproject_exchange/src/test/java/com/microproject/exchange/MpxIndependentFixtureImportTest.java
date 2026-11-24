@@ -15,16 +15,16 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.core.pm.exchange.MspImporter;
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.dependency.DependencyType;
-import com.microproject.pm.calendar.WorkCalendar;
-import com.microproject.pm.calendar.WorkDay;
-import com.microproject.pm.calendar.WorkRange;
-import com.microproject.pm.calendar.WorkingCalendar;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectFactory;
-import com.microproject.pm.task.Task;
+import com.microproject.exchange.mpx.MspImporter;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.dependency.DependencyType;
+import com.microproject.model.calendar.WorkCalendar;
+import com.microproject.model.calendar.WorkDay;
+import com.microproject.model.calendar.WorkRange;
+import com.microproject.model.calendar.WorkingCalendar;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectFactory;
+import com.microproject.model.task.Task;
 import org.mpxj.RelationType;
 import org.mpxj.TimeUnit;
 

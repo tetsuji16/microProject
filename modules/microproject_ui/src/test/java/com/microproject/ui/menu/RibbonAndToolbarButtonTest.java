@@ -1,0 +1,997 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.menu;
+
+import static com.microproject.ui.menu.testsupport.ButtonVisibilityValidator.assertAttachedButtonsAreVisible;
+import static com.microproject.ui.menu.testsupport.ButtonVisibilityValidator.assertValidSwingButton;
+import static com.microproject.ui.menu.testsupport.MenuDefinitionSupport.displayedRibbonUiButtonIds;
+import static com.microproject.ui.menu.testsupport.MenuDefinitionSupport.menuBundle;
+import static com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonBandIds;
+import static com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonBandsByTask;
+import static com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds;
+import static com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonUiButtonIds;
+import static com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonButtonIdsForTask;
+import static com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonBundles;
+import static com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonTaskIds;
+import static com.microproject.ui.menu.testsupport.MenuDefinitionSupport.toolBarButtonIds;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Insets;
+import java.awt.Rectangle;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.ResourceBundle;
+import java.util.Set;
+
+import javax.swing.AbstractButton;
+import javax.swing.AbstractAction;
+import javax.swing.Action;
+import javax.swing.JLabel;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
+import javax.swing.JToggleButton;
+import javax.swing.JToolBar;
+import javax.swing.SwingUtilities;
+
+import org.junit.jupiter.api.Test;
+
+import com.microproject.ui.menu.MenuActionMapSupport;
+import com.microproject.ui.menu.MenuActionConstants;
+import com.microproject.ui.menu.testsupport.UiComponentWalker;
+import com.microproject.ui.frame.GraphicManager;
+import com.microproject.ui.util.FlatUiSupport;
+import com.microproject.ribbon.CustomRibbonBandGenerator;
+import com.microproject.ribbon.RibbonCommandInvocation;
+import com.microproject.ribbon.RibbonCommandResult;
+import com.microproject.ribbon.RibbonCommandSource;
+import com.microproject.ui.ribbon.SwingRibbonFactory;
+import com.microproject.ribbon.SwingRibbonModel;
+import com.microproject.ui.ribbon.ModernRibbonPanel;
+
+class RibbonAndToolbarButtonTest {
+	@Test
+	void standardRibbonButtonsCanBeConstructedInDefaultLocale() throws Exception {
+		ExtToolBarFactory factory = new ExtToolBarFactory(MenuActionMapSupport.noopActionMap(), ribbonBundles(Locale.ROOT));
+		SwingUtilities.invokeAndWait(() -> {
+			for (String id : ribbonUiButtonIds()) {
+				AbstractButton button = factory.createJButton(id);
+				assertValidSwingButton(id, button, true);
+			}
+		});
+	}
+
+	@Test
+	void standardRibbonButtonsCanBeConstructedInJapaneseLocale() throws Exception {
+		ExtToolBarFactory factory = new ExtToolBarFactory(MenuActionMapSupport.noopActionMap(), ribbonBundles(Locale.JAPANESE));
+		SwingUtilities.invokeAndWait(() -> {
+			for (String id : ribbonUiButtonIds()) {
+				AbstractButton button = factory.createJButton(id);
+				assertValidSwingButton(id, button, true);
+			}
+		});
+	}
+
+	@Test
+	void standardRibbonCreatesAttachedVisibleButtons() throws Exception {
+		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		SwingUtilities.invokeAndWait(() -> {
+			JPanel ribbon = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			((ModernRibbonPanel) ribbon.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY))
+				.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask",
+					"TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask",
+					"TaskSheetFormatRibbonTask", "TaskUsageFormatRibbonTask", "ResourceSheetFormatRibbonTask", "ResourceUsageFormatRibbonTask", "ResourceGraphFormatRibbonTask"));
+			assertAttachedButtonsAreVisible(ribbon, MenuManager.STANDARD_RIBBON);
+		});
+	}
+
+	@Test
+	void standardRibbonBuildsAStructuredMsProjectLikeModel() throws Exception {
+		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		SwingUtilities.invokeAndWait(() -> {
+			SwingRibbonFactory factory = new SwingRibbonFactory(
+				new MenuRibbonCommandSource(manager.getToolBarFactory()), ribbonBundles(Locale.getDefault()));
+			SwingRibbonModel model = factory.createModel(MenuManager.STANDARD_RIBBON);
+			assertEquals(ribbonTaskIds().size(), model.getTabs().size());
+
+			List<String> titles = model.getTabs().stream()
+				.map(SwingRibbonModel.RibbonTab::getTitle)
+				.toList();
+			List<String> expectedTitles = ribbonTaskIds().stream()
+				.map(id -> menuBundle(Locale.getDefault()).getString(id + ".title"))
+				.toList();
+			assertEquals(expectedTitles, titles);
+			assertFalse(model.getTabs().get(0).getBands().isEmpty());
+
+			JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			assertEquals(1, host.getComponentCount());
+			assertEquals(FlatUiSupport.ribbonChromeBackground(), host.getBackground());
+		});
+	}
+
+	@Test
+	void menuManagerPropagatesCustomBandGeneratorsIntoTheModelAndPanel() throws Exception {
+		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		CustomRibbonBandGenerator generator = bandId ->
+			"GanttBarStylesRibbonBand".equals(bandId) ? customBand("Layout from generator") : null;
+
+		SwingUtilities.invokeAndWait(() -> {
+			SwingRibbonModel model = manager.getRibbon(MenuManager.STANDARD_RIBBON, generator);
+			SwingRibbonModel.RibbonBand layoutBand = model.getTabs().stream()
+				.filter(tab -> tab.getId().equals("FormatRibbonTask"))
+				.flatMap(tab -> tab.getBands().stream())
+				.filter(band -> band.getId().equals("GanttBarStylesRibbonBand"))
+				.findFirst()
+				.orElseThrow();
+			assertTrue(layoutBand.isCustomBand());
+			assertEquals(SwingRibbonModel.RibbonBandKind.CUSTOM, layoutBand.getKind());
+			assertNotNull(layoutBand.getCustomBandProvider());
+
+			JPanel panel = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, generator, null);
+			((ModernRibbonPanel) panel.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY))
+				.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
+			String formatTitle = com.microproject.ui.menu.testsupport.MenuDefinitionSupport
+				.menuBundle(Locale.getDefault())
+				.getString("FormatRibbonTask.title");
+			findButtonByText(panel, formatTitle).doClick();
+			assertNotNull(findLabelByText(panel, "Layout from generator"));
+		});
+	}
+
+	@Test
+	void japaneseRibbonBandsReserveEnoughWidthForBandTitles() throws Exception {
+			SwingRibbonFactory factory = new SwingRibbonFactory(
+				new MenuRibbonCommandSource(new ExtToolBarFactory(MenuActionMapSupport.noopActionMap(), ribbonBundles(Locale.JAPANESE))),
+				ribbonBundles(Locale.JAPANESE));
+		SwingUtilities.invokeAndWait(() -> {
+			SwingRibbonModel model = factory.createModel(MenuManager.STANDARD_RIBBON);
+			for (SwingRibbonModel.RibbonTab tab : model.getTabs()) {
+				for (SwingRibbonModel.RibbonBand band : tab.getBands()) {
+					assertTrue(band.getTitle() != null && !band.getTitle().isBlank(), () -> band.getId() + " has no title");
+					assertFalse(band.getButtons().isEmpty(), () -> band.getId() + " has no buttons");
+				}
+			}
+		});
+	}
+
+	@Test
+	void standardRibbonRegistersButtonsByActionId() throws Exception {
+		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		SwingUtilities.invokeAndWait(() -> {
+			JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			com.microproject.ui.menu.testsupport.MenuDefinitionSupport.visitBackstagePages(host, page -> { });
+			AbstractButton saveButton = manager.getToolButtonsFromId("RibbonSaveProject").stream()
+				.map(AbstractButton.class::cast)
+				.filter(button -> "RibbonSaveProject".equals(button.getActionCommand()))
+				.findFirst().orElseThrow();
+			AbstractButton openButton = firstButton(manager.getToolButtonsFromId("RibbonOpenProject"));
+			assertNotNull(saveButton);
+			assertNotNull(openButton);
+			assertEquals("RibbonSaveProject", saveButton.getActionCommand());
+			assertEquals("RibbonOpenProject", openButton.getActionCommand());
+			assertEquals("officeBackstageNav-save", saveButton.getName(),
+				"Save is a direct Backstage navigation command, not a ribbon-band button");
+		});
+	}
+
+	@Test
+	void transientRibbonPopupButtonsShareActionsWithoutDuplicateRegistration() throws Exception {
+		ExtToolBarFactory factory = new ExtToolBarFactory(
+			MenuActionMapSupport.noopActionMap(), ribbonBundles(Locale.ROOT));
+		SwingUtilities.invokeAndWait(() -> {
+			AbstractButton registered = factory.createJButton("RibbonScrollToTask");
+			String actionId = factory.getActionStringFromId("RibbonScrollToTask");
+			int registeredCount = factory.getButtonsFromId(actionId).size();
+			AbstractButton popup = factory.createUnregisteredJButton("RibbonScrollToTask");
+
+			assertSame(registered.getAction(), popup.getAction());
+			assertEquals(registeredCount, factory.getButtonsFromId(actionId).size());
+		});
+	}
+
+	@Test
+	void transientRibbonButtonDoesNotCopyPopupOnlyAction() throws Exception {
+		ExtToolBarFactory factory = new ExtToolBarFactory(
+			MenuActionMapSupport.noopActionMap(), ribbonBundles(Locale.ROOT));
+		SwingUtilities.invokeAndWait(() -> {
+			AbstractButton registered = factory.createJButton("RibbonGantt");
+			javax.swing.Action popupOpener = new javax.swing.AbstractAction() {
+				@Override public void actionPerformed(java.awt.event.ActionEvent event) { }
+			};
+			popupOpener.putValue(ExtToolBarFactory.POPUP_OPENER_ACTION_PROPERTY, Boolean.TRUE);
+			registered.setAction(popupOpener);
+			AbstractButton transientButton = factory.createUnregisteredJButton("RibbonGantt");
+			assertNotSame(popupOpener, transientButton.getAction(),
+				"a popup opener is not the underlying Gantt command");
+		});
+	}
+
+	@Test
+	void displayedRibbonButtonsUseSharedCommandStateStyling() throws Exception {
+		MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+		SwingUtilities.invokeAndWait(() -> {
+			JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			AbstractButton saveButton = firstButton(manager.getToolButtonsFromId("RibbonSaveProject"));
+			AbstractButton progressLines = firstButton(manager.getToolButtonsFromId("RibbonToggleProgressLine"));
+			assertNotNull(saveButton);
+			assertNotNull(progressLines);
+			assertTrue(hasRibbonCommandRole(saveButton));
+			assertTrue(hasRibbonCommandRole(progressLines));
+			assertFalse(saveButton instanceof JToggleButton);
+			assertFalse(progressLines instanceof JToggleButton,
+				"Progress Lines opens a dialog and must not retain toggle selection state");
+			assertNotNull(findFirstRibbonTabButton(host));
+			assertEquals(
+				FlatUiSupport.BUTTON_STYLE_ROLE_RIBBON_TAB,
+				findFirstRibbonTabButton(host).getClientProperty(FlatUiSupport.BUTTON_STYLE_ROLE_PROPERTY));
+		});
+	}
+
+	@Test
+	void standardRibbonButtonsResolveAgainstLiveActionWiring() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			GraphicManager graphicManager = new GraphicManager(new JPanel());
+			MenuManager menuManager = graphicManager.getMenuManager();
+			JPanel host = menuManager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			com.microproject.ui.menu.testsupport.MenuDefinitionSupport.visitBackstagePages(host, page -> { });
+
+			assertButtonsResolveAgainstLiveActionWiring(graphicManager, menuManager, ribbonUiButtonIds(), "ribbon");
+		});
+	}
+
+	@Test
+	void ribbonViewToolbarButtonsCanBeConstructed() throws Exception {
+		assertToolbarButtonsCanBeConstructed(MenuManager.RIBBON_VIEW_BAR);
+	}
+
+	@Test
+	void printPreviewToolbarButtonsCanBeConstructed() throws Exception {
+		assertToolbarButtonsCanBeConstructed(MenuManager.PRINT_PREVIEW_TOOL_BAR);
+	}
+
+	@Test
+	void displayedRibbonUiInventoryCoversRibbonAndRelatedToolbarsWithoutDuplicates() {
+		Set<String> expected = new LinkedHashSet<>(ribbonUiButtonIds());
+		expected.addAll(toolBarButtonIds(MenuManager.RIBBON_VIEW_BAR));
+		expected.addAll(toolBarButtonIds(MenuManager.PRINT_PREVIEW_TOOL_BAR));
+		assertEquals(expected, displayedRibbonUiButtonIds());
+	}
+
+	@Test
+	void relatedToolbarButtonsResolveAgainstLiveActionWiring() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			GraphicManager graphicManager = new GraphicManager(new JPanel());
+			MenuManager menuManager = graphicManager.getMenuManager();
+			menuManager.getToolBar(MenuManager.RIBBON_VIEW_BAR);
+
+			assertButtonsResolveAgainstLiveActionWiring(
+				graphicManager,
+				menuManager,
+				toolBarButtonIds(MenuManager.RIBBON_VIEW_BAR),
+				MenuManager.RIBBON_VIEW_BAR);
+		});
+	}
+
+	@Test
+	void printPreviewToolbarButtonsUseDedicatedPrintPreviewActionIds() throws Exception {
+		ExtToolBarFactory factory = new ExtToolBarFactory(
+			strictActionMap(Set.of(
+				MenuActionConstants.ACTION_PRINTPREVIEW_FIRST,
+				MenuActionConstants.ACTION_PRINTPREVIEW_BACK,
+				MenuActionConstants.ACTION_PRINTPREVIEW_FORWARD,
+				MenuActionConstants.ACTION_PRINTPREVIEW_UP,
+				MenuActionConstants.ACTION_PRINTPREVIEW_DOWN,
+				MenuActionConstants.ACTION_PRINTPREVIEW_LAST,
+				MenuActionConstants.ACTION_PRINTPREVIEW_ZOOMIN,
+				MenuActionConstants.ACTION_PRINTPREVIEW_ZOOMRESET,
+				MenuActionConstants.ACTION_PRINTPREVIEW_ZOOMOUT,
+				MenuActionConstants.ACTION_PRINTPREVIEW_PRINT,
+				MenuActionConstants.ACTION_PRINTPREVIEW_PDF,
+				MenuActionConstants.ACTION_PRINTPREVIEW_FORMAT)),
+			ribbonBundles(Locale.ROOT));
+		SwingUtilities.invokeAndWait(() -> {
+			for (String id : toolBarButtonIds(MenuManager.PRINT_PREVIEW_TOOL_BAR)) {
+				assertValidSwingButton(id, factory.createJButton(id), true);
+			}
+			JToolBar toolBar = factory.createJToolBar(MenuManager.PRINT_PREVIEW_TOOL_BAR);
+			assertAttachedButtonsAreVisible(toolBar, MenuManager.PRINT_PREVIEW_TOOL_BAR);
+		});
+	}
+
+	@Test
+	void japaneseBundleStillProvidesLabelsForDisplayedRibbonUiButtons() {
+		var japaneseBundle = menuBundle(Locale.JAPANESE);
+		for (String id : displayedRibbonUiButtonIds()) {
+			assertTrue(
+				com.microproject.ui.menu.testsupport.MenuDefinitionSupport.hasLocalizedLabel(japaneseBundle, id),
+				() -> id + " is missing Japanese text and tooltip");
+		}
+	}
+
+	private static void assertToolbarButtonsCanBeConstructed(String toolbarId) throws Exception {
+		ExtToolBarFactory factory = new ExtToolBarFactory(MenuActionMapSupport.noopActionMap(), ribbonBundles(Locale.JAPANESE));
+		SwingUtilities.invokeAndWait(() -> {
+			for (String id : toolBarButtonIds(toolbarId)) {
+				AbstractButton button = factory.createJButton(id);
+				assertValidSwingButton(id, button, true);
+				assertEquals(
+					FlatUiSupport.BUTTON_STYLE_ROLE_TOOLBAR,
+					button.getClientProperty(FlatUiSupport.BUTTON_STYLE_ROLE_PROPERTY),
+					() -> id + " is missing the shared toolbar command-button style");
+			}
+			JToolBar toolBar = factory.createJToolBar(toolbarId);
+			assertFalse(toolBar.isFloatable());
+			assertTrue(toolBar.isRollover());
+			assertAttachedButtonsAreVisible(toolBar, toolbarId);
+		});
+	}
+
+	@Test
+	void ribbonButtonsCanHaveSelectionStateUpdatedWithoutClassCast() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+			manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			AbstractButton progressLines = firstButton(manager.getToolButtonsFromId("RibbonToggleProgressLine"));
+			assertNotNull(progressLines);
+			assertFalse(progressLines instanceof JToggleButton);
+			assertFalse(progressLines.isSelected());
+
+			org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> {
+				manager.setActionSelected("Projects", true);
+				manager.setActionSelected("Report", true);
+				manager.setActionEnabled("Projects", true);
+				manager.setActionVisible("Report", true);
+			});
+			assertFalse(progressLines.isSelected(),
+				"a dialog command has no persistent selected state after generic action-state updates");
+		});
+	}
+
+	@Test
+	void standardRibbonUsesMsProjectStyleTaskOrder() {
+		assertEquals(
+			List.of(
+				"FileRibbonTask",
+				"TaskRibbonTask",
+				"ResourceRibbonTask",
+				"ReportRibbonTask",
+				"ProjectRibbonTask",
+				"ViewRibbonTask",
+				"HelpRibbonTask",
+				"FormatRibbonTask",
+				"NetworkFormatRibbonTask",
+				"CalendarFormatRibbonTask",
+				"TimelineFormatRibbonTask",
+				"TeamPlannerFormatRibbonTask",
+				"TaskSheetFormatRibbonTask",
+				"TaskUsageFormatRibbonTask",
+				"ResourceSheetFormatRibbonTask",
+				"ResourceUsageFormatRibbonTask",
+				"ResourceGraphFormatRibbonTask"),
+			ribbonTaskIds());
+	}
+
+	@Test
+	void viewRibbonTaskOwnsItsViewButtonsExclusively() {
+		Set<String> viewButtons = ribbonButtonIdsForTask("ViewRibbonTask");
+		Set<String> taskButtons = ribbonButtonIdsForTask("TaskRibbonTask");
+		Set<String> resourceButtons = ribbonButtonIdsForTask("ResourceRibbonTask");
+		Set<String> reportButtons = ribbonButtonIdsForTask("ReportRibbonTask");
+
+		for (String buttonId : viewButtons) {
+			assertFalse(taskButtons.contains(buttonId), () -> "View button leaked into TaskRibbonTask: " + buttonId);
+			assertFalse(resourceButtons.contains(buttonId), () -> "View button leaked into ResourceRibbonTask: " + buttonId);
+			assertFalse(reportButtons.contains(buttonId), () -> "View button leaked into ReportRibbonTask: " + buttonId);
+		}
+	}
+
+	@Test
+	void preferencesRibbonBandIsOwnedByTheFileBackstageDefinition() {
+		var owners = new ArrayList<String>();
+		for (Map.Entry<String, java.util.List<String>> entry : ribbonBandsByTask().entrySet()) {
+			if (entry.getValue().contains("PreferencesRibbonBand")) {
+				owners.add(entry.getKey());
+			}
+		}
+		assertEquals(List.of("FileRibbonTask"), owners);
+	}
+
+	@Test
+	void reportButtonsDoNotRemainInViewRibbonTask() {
+		Set<String> reportButtons = ribbonButtonIdsForTask("ReportRibbonTask");
+		Set<String> viewButtons = ribbonButtonIdsForTask("ViewRibbonTask");
+		assertTrue(reportButtons.contains("RibbonReport"));
+		assertTrue(reportButtons.contains("RibbonHistogram"));
+		assertTrue(reportButtons.contains("RibbonCharts"));
+		assertFalse(viewButtons.contains("RibbonReport"));
+		assertFalse(viewButtons.contains("RibbonHistogram"));
+		assertFalse(viewButtons.contains("RibbonCharts"));
+	}
+
+	@Test
+	void formatRibbonIncludesDisplayAndBarBands() {
+		assertEquals(
+			List.of("GanttFormatRibbonBand", "SheetColumnsRibbonBand", "GanttBarStylesRibbonBand", "GanttStylesRibbonBand",
+				"SheetShowHideRibbonBand", "GanttFormatExtrasRibbonBand"),
+			ribbonBandIds("FormatRibbonTask"));
+		assertEquals(List.of("NetworkDisplayRibbonBand", "NetworkFormatRibbonBand", "NetworkShowHideRibbonBand", "NetworkLayoutRibbonBand"), ribbonBandIds("NetworkFormatRibbonTask"));
+		assertEquals(List.of("CalendarFormatRibbonBand", "CalendarLayoutRibbonBand", "CalendarShowHideRibbonBand"), ribbonBandIds("CalendarFormatRibbonTask"));
+		assertEquals(List.of("TimelineTextStylesRibbonBand", "TimelineFontRibbonBand", "TimelineShowHideRibbonBand", "TimelineInsertRibbonBand",
+			"TimelineSelectionRibbonBand", "TimelineCopyRibbonBand"), ribbonBandIds("TimelineFormatRibbonTask"));
+		assertEquals(List.of("TeamPlannerFormatRibbonBand", "TeamPlannerStylesRibbonBand", "TeamPlannerScheduleRibbonBand", "TeamPlannerShowHideRibbonBand"),
+			ribbonBandIds("TeamPlannerFormatRibbonTask"));
+		assertEquals(List.of("ResourceGraphFormatRibbonBand", "ResourceGraphNavigateRibbonBand", "ResourceGraphDataRibbonBand", "ResourceGraphShowHideRibbonBand"),
+			ribbonBandIds("ResourceGraphFormatRibbonTask"));
+		assertEquals(List.of("RibbonResourceGraphTextStyles", "RibbonResourceGraphGridlines", "RibbonResourceGraphBarStyles"),
+			com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("ResourceGraphFormatRibbonBand"));
+		assertEquals(List.of("RibbonNetworkLinkLabels", "RibbonNetworkStraightLinks", "RibbonNetworkProgressMarks", "RibbonSummaryTasks"),
+			com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("NetworkShowHideRibbonBand"));
+		assertEquals(List.of("RibbonNetworkBoxFieldsCollapsed"),
+			com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("NetworkDisplayRibbonBand"));
+		assertEquals(List.of("RibbonNetworkBoxFormat", "RibbonNetworkBoxStyles", "RibbonNetworkLayout"),
+			com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("NetworkFormatRibbonBand"));
+		assertEquals(List.of("RibbonCalendarLayoutNow", "RibbonCalendarWeekHeightBestFit", "RibbonCalendarLayout"),
+			com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("CalendarLayoutRibbonBand"));
+		assertEquals(List.of("RibbonCalendarTaskList"),
+			com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("CalendarShowHideRibbonBand"));
+		assertEquals(List.of("RibbonNetworkLayoutNow"),
+			com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("NetworkLayoutRibbonBand"));
+		assertEquals(List.of("RibbonCalendarTextStyles", "RibbonCalendarBarStyles", "RibbonSheetGridlines"),
+			com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("CalendarFormatRibbonBand"));
+		assertEquals(
+			List.of("RibbonTextStyles", "RibbonGridlines", "RibbonLayout"),
+			com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("GanttFormatRibbonBand"));
+		assertEquals(
+			List.of("RibbonInsertColumn", "RibbonAlignLeft", "RibbonAlignCenter", "RibbonAlignRight", "RibbonColumnSettings", "RibbonCustomFields"),
+			com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("SheetColumnsRibbonBand"));
+		assertEquals(
+			List.of("RibbonFormatBarStyles", "RibbonCriticalTasks", "RibbonSlack", "RibbonLateTasks", "RibbonTaskPath", "RibbonShowBaseline", "RibbonSlippage"),
+			com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("GanttBarStylesRibbonBand"));
+		assertEquals(
+			List.of("RibbonGanttStyleGallery", "RibbonBarStyles"),
+			com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("GanttStylesRibbonBand"));
+		assertEquals(
+			List.of("RibbonOutlineNumbers", "RibbonSummaryTasks"),
+			com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("SheetShowHideRibbonBand"));
+		assertEquals(
+			List.of("RibbonSwitchWindows", "RibbonArrangeAll", "RibbonPrivacyMask"),
+			com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonButtonIds("ViewWindowRibbonBand"));
+	}
+
+	@Test
+	void newRibbonButtonsHaveBackingMenuItems() {
+		ResourceBundle internal = com.microproject.ui.menu.testsupport.MenuDefinitionSupport.menuInternalBundle();
+		ResourceBundle labels = menuBundle(Locale.ROOT);
+		for (String id : List.of(
+			"ToggleProgressLine",
+			"LabelResourceNames",
+			"LabelTaskName",
+			"InsertRecurring",
+			"LevelResources",
+			"CCPMSettings",
+			"CCPMClear",
+			"CCPMBufferStatus",
+			"CCPMNetwork",
+			"ToggleCriticalChain",
+			"CalendarOptions",
+			"Expand",
+			"Collapse",
+			"ChooseFilter",
+			"ChooseSort",
+			"ChooseGroup",
+			"Timescale",
+			"Gridlines",
+			"TextStyles",
+			"BarStyles",
+			"Layout",
+			"RibbonPrivacyMask")) {
+			assertTrue(internal.containsKey(id + ".action"), () -> id + " is missing an internal action mapping");
+			assertTrue(labels.containsKey(id + ".text"), () -> id + " is missing menu text");
+		}
+	}
+
+	@Test
+	void transformChooserButtonsMapToTheirOwnActions() {
+		ResourceBundle internal = com.microproject.ui.menu.testsupport.MenuDefinitionSupport.menuInternalBundle();
+		assertEquals("ChooseFilter", internal.getString("ChooseFilter.action"));
+		assertEquals("ChooseSort", internal.getString("ChooseSort.action"));
+		assertEquals("ChooseGroup", internal.getString("ChooseGroup.action"));
+	}
+
+	@Test
+	void toggleTypeRibbonButtonsTrackSelection() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+			manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			for (var entry : java.util.Map.of(
+				"RibbonLabelResourceNames", "LabelResourceNames",
+				"RibbonLabelTaskName", "LabelTaskName",
+					"RibbonToggleCriticalChain", "ToggleCriticalChain").entrySet()) {
+				AbstractButton toggle = firstButton(manager.getToolButtonsFromId(entry.getKey()));
+				assertTrue(toggle instanceof JToggleButton, entry.getKey() + " must expose persistent selection");
+				assertFalse(toggle.isSelected());
+				manager.setActionSelected(entry.getValue(), true);
+				assertTrue(toggle.isSelected());
+				assertEquals(javax.accessibility.AccessibleRole.TOGGLE_BUTTON,
+					toggle.getAccessibleContext().getAccessibleRole());
+			}
+		});
+	}
+
+	@Test
+	void contextualFormatTabUsesTheActiveViewCaption() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+			JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			ModernRibbonPanel panel = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+			panel.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
+			panel.setContextualTabTitles(java.util.Map.of("FormatRibbonTask", "Gantt Chart Format"));
+			assertNotNull(findButtonByText(host, "Gantt Chart Format"));
+			panel.setContextualTabTitles(java.util.Map.of("FormatRibbonTask", "Tracking Gantt Format"));
+			assertNotNull(findButtonByText(host, "Tracking Gantt Format"));
+		});
+	}
+
+	@Test
+	void ribbonDispatchPreservesCompleteSemanticCommandResult() throws Exception {
+		ClickRecordingActionMap actions = new ClickRecordingActionMap();
+		RibbonCommandResult expected = new RibbonCommandResult("RibbonHideSelectedTasks",
+			RibbonCommandResult.Status.CHANGED, "", List.of(7L), List.of(41L), "task");
+		actions.reportResultOnce(expected);
+		MenuRibbonCommandSource source = new MenuRibbonCommandSource(
+			new ExtToolBarFactory(actions, ribbonBundles(Locale.ROOT)));
+		SwingUtilities.invokeAndWait(() -> {
+			AbstractButton button = source.createButton("RibbonHideSelectedTasks");
+			RibbonCommandResult actual = source.dispatch(new RibbonCommandInvocation("RibbonHideSelectedTasks",
+				RibbonCommandInvocation.Origin.RIBBON_BUTTON, this));
+			assertEquals(expected, actual);
+			assertEquals(List.of(7L), button.getAction().getValue(RibbonCommandResult.SELECTED_TASK_IDS_ACTION_PROPERTY));
+			assertEquals(List.of(41L), button.getAction().getValue(RibbonCommandResult.AFFECTED_TASK_IDS_ACTION_PROPERTY));
+			assertEquals(expected, button.getAction().getValue(RibbonCommandResult.RESULT_ACTION_PROPERTY));
+		});
+	}
+
+	@Test
+	void ribbonDispatcherPreservesCommittedInputValue() throws Exception {
+		java.util.concurrent.atomic.AtomicReference<String> received = new java.util.concurrent.atomic.AtomicReference<>();
+		AbstractAction command = new AbstractAction("LinkAction") {
+			@Override public void actionPerformed(java.awt.event.ActionEvent event) { received.set(event.getActionCommand()); }
+		};
+		ProjectMenuActionMap actions = new ProjectMenuActionMap() {
+			@Override public Action getAction(String key) { return command; }
+			@Override public String getStringFromAction(Action action) { return "LinkAction"; }
+		};
+		MenuRibbonCommandSource source = new MenuRibbonCommandSource(
+			new ExtToolBarFactory(actions, ribbonBundles(Locale.ROOT)));
+		SwingUtilities.invokeAndWait(() -> {
+			source.createAction("RibbonLink");
+			source.dispatch(new RibbonCommandInvocation("RibbonLink",
+				RibbonCommandInvocation.Origin.INPUT_CONTROL, this, "chosen-value"));
+		});
+		assertEquals("chosen-value", received.get(), "the shared dispatcher must preserve committed input");
+	}
+
+	@Test
+	void ribbonCanCreateOneSharedDispatcherWithoutRegisteringAButton() throws Exception {
+		java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+		AbstractAction command = new AbstractAction("LinkAction") {
+			@Override public void actionPerformed(java.awt.event.ActionEvent event) { calls.incrementAndGet(); }
+		};
+		ProjectMenuActionMap actions = new ProjectMenuActionMap() {
+			@Override public Action getAction(String key) { return command; }
+			@Override public String getStringFromAction(Action action) { return "LinkAction"; }
+		};
+		MenuRibbonCommandSource source = new MenuRibbonCommandSource(
+			new ExtToolBarFactory(actions, ribbonBundles(Locale.ROOT)));
+		SwingUtilities.invokeAndWait(() -> {
+			Action sharedAction = source.createAction("RibbonLink");
+			assertTrue(source.getButtons("LinkAction").isEmpty(), "Action lookup must not register a hidden Swing button");
+			assertTrue(sharedAction.isEnabled());
+			AbstractButton swingButton = source.createButton("RibbonLink");
+			assertSame(sharedAction, swingButton.getAction(), "all ribbon surfaces use the shared dispatcher Action");
+			actions.getAction("LinkAction").setEnabled(false);
+			assertFalse(sharedAction.isEnabled(), "native adapters observe command enablement changes");
+			actions.getAction("LinkAction").setEnabled(true);
+			assertTrue(sharedAction.isEnabled());
+			swingButton.doClick(0);
+			sharedAction.actionPerformed(new java.awt.event.ActionEvent(this, java.awt.event.ActionEvent.ACTION_PERFORMED,
+				"RibbonLink"));
+			assertEquals(2, calls.get(), "both Swing and native-component adapters reach one command");
+		});
+	}
+
+	@Test
+	void transientRibbonButtonsTrackSharedActionSelectionWithoutRegisteringOrRecursing() throws Exception {
+		java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+		AbstractAction command = new AbstractAction("LinkAction") {
+			@Override public void actionPerformed(java.awt.event.ActionEvent event) {
+				calls.incrementAndGet();
+				putValue(Action.SELECTED_KEY, Boolean.TRUE);
+			}
+		};
+		command.putValue(Action.SELECTED_KEY, Boolean.TRUE);
+		ProjectMenuActionMap actions = new ProjectMenuActionMap() {
+			@Override public Action getAction(String key) { return command; }
+			@Override public String getStringFromAction(Action action) { return "LinkAction"; }
+		};
+		MenuRibbonCommandSource source = new MenuRibbonCommandSource(
+			new ExtToolBarFactory(actions, ribbonBundles(Locale.ROOT)));
+		SwingUtilities.invokeAndWait(() -> {
+			AbstractButton registered = source.createButton("RibbonLink");
+			AbstractButton firstTransient = source.createTransientButton("RibbonLink");
+			assertTrue(firstTransient.isSelected(), "transient button starts from the command's selected state");
+			command.putValue(Action.SELECTED_KEY, Boolean.FALSE);
+			assertFalse(firstTransient.isSelected());
+			command.putValue(Action.SELECTED_KEY, Boolean.TRUE);
+			assertEquals(Boolean.TRUE, registered.getAction().getValue(Action.SELECTED_KEY));
+			assertTrue(firstTransient.isSelected());
+			AbstractButton secondTransient = source.createTransientButton("RibbonLink");
+			assertTrue(secondTransient.isSelected(), "each transient button receives the current shared state");
+			command.putValue(Action.SELECTED_KEY, Boolean.FALSE);
+			assertFalse(firstTransient.isSelected());
+			assertFalse(secondTransient.isSelected());
+			assertTrue(source.getButtons("LinkAction").contains(registered));
+			assertFalse(source.getButtons("LinkAction").contains(firstTransient));
+			firstTransient.doClick(0);
+			assertEquals(1, calls.get(), "a transient button dispatches once without recursing");
+			firstTransient.setSelected(false);
+			assertFalse(firstTransient.isSelected(), "toggle interaction can temporarily clear its own model");
+			RibbonCommandResult result = source.dispatch(new RibbonCommandInvocation("RibbonLink",
+				RibbonCommandInvocation.Origin.RIBBON_BUTTON, firstTransient));
+			assertEquals(RibbonCommandResult.Status.DISPATCHED, result.status());
+			assertTrue(firstTransient.isSelected(), "dispatch restores selection even when the action reasserts the same value");
+			assertEquals(2, calls.get(), "resynchronizing selection does not dispatch again");
+		});
+	}
+
+	@Test
+	void buttonLookupReturnsStableSnapshotDuringRibbonRebuild() throws Exception {
+		ExtToolBarFactory factory = new ExtToolBarFactory(
+			MenuActionMapSupport.noopActionMap(), ribbonBundles(Locale.ROOT));
+		AbstractButton first = factory.createJButton("RibbonScrollToTask");
+		List<AbstractButton> snapshot = factory.getButtonsFromId("RibbonScrollToTask");
+		factory.createJButton("RibbonScrollToTask");
+		factory.unregisterButton(first);
+
+		assertEquals(1, snapshot.size(), "lookup must be a stable snapshot");
+		assertEquals(1, factory.getButtonsFromId("RibbonScrollToTask").size());
+	}
+
+	@Test
+	void menuItemUsesTheSameDebugActionContract() throws Exception {
+		String previous = System.getProperty("microproject.ui.debug");
+		System.setProperty("microproject.ui.debug", "true");
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				com.microproject.ui.menu.resource.ActionMap actionMap = new com.microproject.ui.menu.resource.ActionMap() {
+					@Override public Action getAction(String key) { return new AbstractAction() {
+						@Override public void actionPerformed(java.awt.event.ActionEvent event) { }
+					}; }
+					@Override public String getStringFromAction(Action action) { return "LinkAction"; }
+				};
+				com.microproject.ui.menu.resource.MenuFactory factory =
+					new com.microproject.ui.menu.resource.MenuFactory(actionMap, ribbonBundles(Locale.ROOT));
+				assertTrue(factory.createJMenuItem("RibbonLink").getAction().getClass().getName()
+					.contains("UiButtonDiagnostics"));
+			});
+		} finally {
+			if (previous == null) System.clearProperty("microproject.ui.debug");
+			else System.setProperty("microproject.ui.debug", previous);
+		}
+	}
+
+	@Test
+	void everyVisibleRibbonGroupButtonUsesTheCanonicalGraphicManagerCommandRoute() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			GraphicManager graphicManager = new GraphicManager(new JPanel());
+			MenuManager manager = graphicManager.getMenuManager();
+			JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			ModernRibbonPanel ribbon = (ModernRibbonPanel) host.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+			// Every contextual Format tab, so the buttons only the Network/Calendar tabs carry are visible too.
+			ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask", "NetworkFormatRibbonTask", "CalendarFormatRibbonTask",
+					"TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask",
+				"TaskSheetFormatRibbonTask", "TaskUsageFormatRibbonTask", "ResourceSheetFormatRibbonTask", "ResourceUsageFormatRibbonTask", "ResourceGraphFormatRibbonTask"));
+			ResourceBundle labels = menuBundle(Locale.getDefault());
+
+			for (String tabId : ribbonTaskIds()) {
+				if ("FileRibbonTask".equals(tabId)) {
+					com.microproject.ui.menu.testsupport.MenuDefinitionSupport.visitBackstagePages(host, page -> {
+						for (java.awt.Component component : UiComponentWalker.flatten(page)) {
+							if (component instanceof AbstractButton button && button.getAction() != null) {
+								String actionId = manager.getToolBarFactory().getActionStringFromId(button.getActionCommand());
+								assertTrue(button.getAction() != graphicManager.getAction(actionId),
+									"Backstage must use the same canonical dispatch route as the ribbon");
+							}
+						}
+					});
+					continue;
+				}
+				findButtonByText(host, labels.getString(tabId + ".title")).doClick();
+				for (String bandId : ribbonBandIds(tabId)) {
+					for (String buttonId : ribbonButtonIds(bandId)) {
+						AbstractButton button = findAttachedButtonByCommand(host, buttonId);
+						String actionId = manager.getToolBarFactory().getActionStringFromId(buttonId);
+						assertTrue(button.getAction() != null,
+							() -> buttonId + " in " + bandId + " has no canonical dispatch action");
+						assertTrue(button.getAction() != graphicManager.getAction(actionId),
+							() -> buttonId + " bypasses the ribbon command route for " + actionId);
+					}
+				}
+			}
+		});
+	}
+
+	@Test
+	void ribbonTabClicksUseTheButtonModelAsTheSingleSelectionAppearanceSource() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+			JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			ResourceBundle labels = menuBundle(Locale.getDefault());
+			AbstractButton fileTab = findButtonByText(host, labels.getString("FileRibbonTask.title"));
+			AbstractButton taskTab = findButtonByText(host, labels.getString("TaskRibbonTask.title"));
+
+		assertFalse(fileTab.isSelected());
+		assertTrue(taskTab.isSelected());
+		taskTab.doClick();
+
+			assertTrue(taskTab.isSelected());
+			assertFalse(fileTab.isSelected());
+			assertEquals(FlatUiSupport.tabSelectedForeground(), taskTab.getForeground());
+			assertEquals(FlatUiSupport.tabUnselectedForeground(), fileTab.getForeground());
+		});
+	}
+
+	@Test
+	void largeGanttButtonFitsInsideItsRibbonBandContentArea() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+			JPanel host = manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			host.setSize(1200, host.getPreferredSize().height);
+			layoutRecursively(host);
+
+			// Use the same locale as the ribbon factory.  The unit-test task does not
+			// force Japanese (CI uses English), so a fixed Japanese lookup can fail
+			// before the layout invariant is even exercised.
+			ResourceBundle labels = menuBundle(Locale.getDefault());
+			findButtonByText(host, labels.getString("ViewRibbonTask.title")).doClick();
+			host.setSize(1200, host.getPreferredSize().height);
+			layoutRecursively(host);
+
+			AbstractButton gantt = findAttachedButtonByCommand(host, "RibbonGantt");
+			Component band = findRibbonBand(gantt);
+			Rectangle ganttBounds = SwingUtilities.convertRectangle(gantt.getParent(), gantt.getBounds(), band);
+			Insets insets = ((JComponent) band).getInsets();
+			Rectangle contentBounds = new Rectangle(
+				insets.left,
+				insets.top,
+				band.getWidth() - insets.left - insets.right,
+				band.getHeight() - insets.top - insets.bottom);
+
+			assertTrue(contentBounds.contains(ganttBounds),
+				() -> "RibbonGantt is clipped by its band: button=" + ganttBounds + " content=" + contentBounds);
+		});
+	}
+
+	@Test
+	void teamResourcesRibbonButtonTracksItsFilterState() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			MenuManager manager = MenuManager.getInstance(MenuActionMapSupport.noopActionMap());
+			manager.createRibbonPanel(MenuManager.STANDARD_RIBBON, null);
+			AbstractButton toggle = firstButton(manager.getToolButtonsFromId("RibbonTeamFilter"));
+			assertNotNull(toggle);
+			assertTrue(toggle instanceof JToggleButton);
+
+			manager.setActionSelected("TeamFilter", true);
+			assertTrue(toggle.isSelected());
+			manager.setActionSelected("TeamFilter", false);
+			assertFalse(toggle.isSelected());
+		});
+	}
+
+	private static AbstractButton firstButton(List<?> buttons) {
+		assertNotNull(buttons);
+		assertFalse(buttons.isEmpty());
+		return (AbstractButton) buttons.get(0);
+	}
+
+	private static JPanel customBand(String text) {
+		JPanel panel = new JPanel();
+		panel.add(new JLabel(text));
+		return panel;
+	}
+
+	private static void assertButtonsResolveAgainstLiveActionWiring(
+		com.microproject.ui.menu.ProjectMenuActionMap actionMap,
+		MenuManager menuManager,
+		Set<String> buttonIds,
+		String context) {
+		for (String id : buttonIds) {
+			String actionId = menuManager.getToolBarFactory().getActionStringFromId(id);
+			assertTrue(actionId != null && !actionId.isBlank(), () -> id + " is missing an action mapping for " + context);
+			Action action = assertDoesNotThrow(
+				() -> actionMap.getAction(actionId),
+				() -> id + " does not resolve to a live action for " + context + ": " + actionId);
+			assertNotNull(action, () -> id + " has no live action for " + context + ": " + actionId);
+			List<?> buttons = menuManager.getToolButtonsFromId(id);
+			assertNotNull(buttons, () -> id + " was not registered as a " + context + " button");
+			boolean ribbon = "ribbon".equals(context);
+			assertTrue(buttons.stream().map(AbstractButton.class::cast)
+				.anyMatch(button -> button.getAction() != null && (ribbon ? button.getAction() != action : button.getAction() == action)),
+				() -> id + (ribbon ? " bypasses the canonical ribbon dispatch action for "
+					: " is not wired to its resolved live action for ") + context);
+		}
+	}
+
+	private static com.microproject.ui.menu.ProjectMenuActionMap strictActionMap(Set<String> supportedKeys) {
+		return new com.microproject.ui.menu.ProjectMenuActionMap() {
+			@Override
+			public Action getAction(String key) {
+				if (!supportedKeys.contains(key)) {
+					return null;
+				}
+				return new AbstractAction(key) {
+					@Override
+					public void actionPerformed(java.awt.event.ActionEvent e) {
+					}
+				};
+			}
+
+			@Override
+			public String getStringFromAction(Action action) {
+				Object value = action.getValue(Action.NAME);
+				return value == null ? "" : value.toString();
+			}
+		};
+	}
+
+	private static AbstractButton findButtonByText(JComponent root, String text) {
+		for (var component : com.microproject.ui.menu.testsupport.UiComponentWalker.flatten(root)) {
+			if (component instanceof AbstractButton button && text.equals(button.getText())) {
+				return button;
+			}
+		}
+		throw new AssertionError("Button not found with text: " + text);
+	}
+
+	private static AbstractButton findAttachedButtonByCommand(JComponent root, String command) {
+		for (var component : com.microproject.ui.menu.testsupport.UiComponentWalker.flatten(root)) {
+			if (component instanceof AbstractButton button && command.equals(button.getActionCommand())) {
+				return button;
+			}
+		}
+		throw new AssertionError("Visible ribbon button not found: " + command);
+	}
+
+	private static Component findRibbonBand(Component component) {
+		for (Component current = component; current != null; current = current.getParent()) {
+			if ("microProjectRibbonBand".equals(current.getName())) {
+				return current;
+			}
+		}
+		throw new AssertionError("Ribbon band not found for " + component);
+	}
+
+	private static void layoutRecursively(Component component) {
+		if (!(component instanceof Container container)) {
+			return;
+		}
+		container.doLayout();
+		for (Component child : container.getComponents()) {
+			layoutRecursively(child);
+		}
+	}
+
+	private static JLabel findLabelByText(JComponent root, String text) {
+		for (var component : com.microproject.ui.menu.testsupport.UiComponentWalker.flatten(root)) {
+			if (component instanceof JLabel label && text.equals(label.getText())) {
+				return label;
+			}
+		}
+		throw new AssertionError("Label not found with text: " + text);
+	}
+
+	private static AbstractButton findFirstRibbonTabButton(Component root) {
+		for (Component component : UiComponentWalker.flatten(root)) {
+			if (component instanceof JToggleButton toggle
+				&& FlatUiSupport.BUTTON_STYLE_ROLE_RIBBON_TAB.equals(toggle.getClientProperty(FlatUiSupport.BUTTON_STYLE_ROLE_PROPERTY))) {
+				return toggle;
+			}
+		}
+		return null;
+	}
+
+	private static boolean hasRibbonCommandRole(AbstractButton button) {
+		Object role = button.getClientProperty(FlatUiSupport.BUTTON_STYLE_ROLE_PROPERTY);
+		return FlatUiSupport.BUTTON_STYLE_ROLE_RIBBON_LARGE.equals(role)
+			|| FlatUiSupport.BUTTON_STYLE_ROLE_RIBBON_SMALL.equals(role);
+	}
+
+	private static final class ExternalRouteRecordingGraphicManager extends GraphicManager {
+		private String lastRoute;
+
+		ExternalRouteRecordingGraphicManager() {
+			super(new JPanel());
+		}
+
+		@Override
+		protected boolean beforeExternalRoute(String routeId) {
+			lastRoute = routeId;
+			return false;
+		}
+	}
+
+	private static final class ClickRecordingActionMap implements com.microproject.ui.menu.ProjectMenuActionMap {
+		private final Map<String, Integer> clickCounts = new HashMap<>();
+		private final Map<String, Action> actions = new HashMap<>();
+		private RibbonCommandResult.Status outcomeOnce;
+		private RibbonCommandResult resultOnce;
+
+		@Override
+		public Action getAction(String key) {
+			return actions.computeIfAbsent(key, actionId -> new AbstractAction(actionId) {
+				@Override
+				public void actionPerformed(java.awt.event.ActionEvent event) {
+					clickCounts.merge(actionId, 1, Integer::sum);
+					if (outcomeOnce != null) {
+						putValue(RibbonCommandResult.STATUS_ACTION_PROPERTY, outcomeOnce);
+						outcomeOnce = null;
+					}
+					if (resultOnce != null) {
+						putValue(RibbonCommandResult.RESULT_ACTION_PROPERTY, resultOnce);
+						resultOnce = null;
+					}
+				}
+			});
+		}
+
+		@Override
+		public String getStringFromAction(Action action) {
+			Object name = action.getValue(Action.NAME);
+			return name == null ? "" : name.toString();
+		}
+
+		int clickCount(String actionId) {
+			return clickCounts.getOrDefault(actionId, 0);
+		}
+
+		void reportOutcomeOnce(RibbonCommandResult.Status outcome) {
+			outcomeOnce = outcome;
+		}
+
+		void reportResultOnce(RibbonCommandResult result) {
+			resultOnce = result;
+		}
+	}
+}

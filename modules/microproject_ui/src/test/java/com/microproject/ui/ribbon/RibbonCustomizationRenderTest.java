@@ -32,11 +32,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.menu.ExtToolBarFactory;
-import com.microproject.menu.MenuActionMapSupport;
-import com.microproject.menu.MenuManager;
-import com.microproject.menu.MenuRibbonCommandSource;
-import com.microproject.menu.testsupport.MenuDefinitionSupport;
+import com.microproject.ui.menu.ExtToolBarFactory;
+import com.microproject.ui.menu.MenuActionMapSupport;
+import com.microproject.ui.menu.MenuManager;
+import com.microproject.ui.menu.MenuRibbonCommandSource;
+import com.microproject.ui.menu.testsupport.MenuDefinitionSupport;
 import com.microproject.ribbon.SwingRibbonModel;
 import com.microproject.ui.ribbon.RibbonCustomization.CustomGroup;
 import com.microproject.ui.ribbon.RibbonCustomization.CustomTab;

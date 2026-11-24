@@ -25,7 +25,7 @@ package com.microproject.field;
 
 import java.text.MessageFormat;
 
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /**
  * Stores min and max values as well as optional error message

@@ -5,26 +5,26 @@
 		<format id="Bar.totalSlack" row="1" from="Field.earlyStart" to="Field.lateFinish">
 			<middle shapeName="FULL_HEIGHT" colorName="MONDAY_GROUP_A" paintName="DIAGONAL" strokeName="SOLID"/>
 		</format>
-		<format id="Bar.task" row="1" layer="1" intervalGenerator="com.microproject.pm.graphic.gantt.GanttBarIntervalGenerator" from="Field.start" to="Field.finish">
+		<format id="Bar.task" row="1" layer="1" intervalGenerator="com.microproject.ui.view.gantt.GanttBarIntervalGenerator" from="Field.start" to="Field.finish">
 			<middle shapeName="FULL_HEIGHT" colorName="MONDAY_GROUP_A" paintName="DEFAULT" strokeName="FRAMED"/>
 		</format>
-		<format id="Bar.milestone" row="1" layer="1" intervalGenerator="com.microproject.pm.graphic.gantt.GanttBarIntervalGenerator"  from="Field.finish" to="Field.finish">
+		<format id="Bar.milestone" row="1" layer="1" intervalGenerator="com.microproject.ui.view.gantt.GanttBarIntervalGenerator"  from="Field.finish" to="Field.finish">
 			<start shapeName="DIAMOND" colorName="MONDAY_GROUP_A" paintName="SOLID"/>
 		</format>
-		<format id="Bar.summary" row="1" layer="1" intervalGenerator="com.microproject.pm.graphic.gantt.GanttBarIntervalGenerator"  from="Field.start" to="Field.finish">
+		<format id="Bar.summary" row="1" layer="1" intervalGenerator="com.microproject.ui.view.gantt.GanttBarIntervalGenerator"  from="Field.start" to="Field.finish">
 			<start shapeName="PENTAGON_DOWN" colorName="MONDAY_GROUP_A" paintName="SOLID" />
 			<middle shapeName="FULL_HEIGHT" colorName="MONDAY_GROUP_A" paintName="SOLID" strokeName="SOLID"/>
 			<end shapeName="PENTAGON_DOWN" colorName="MONDAY_GROUP_A" paintName="SOLID"/>
 		</format>
-		<format id="Bar.critical" row="1" layer="1" intervalGenerator="com.microproject.pm.graphic.gantt.GanttBarIntervalGenerator"  from="Field.start" to="Field.finish">
+		<format id="Bar.critical" row="1" layer="1" intervalGenerator="com.microproject.ui.view.gantt.GanttBarIntervalGenerator"  from="Field.start" to="Field.finish">
 			<middle shapeName="FULL_HEIGHT" colorName="MONDAY_GROUP_A" paintName="DEFAULT" strokeName="FRAMED"/>
 		</format>
 <!--
-		<format id="Bar.late"  row="1" layer="1" intervalGenerator="com.microproject.pm.graphic.gantt.GanttBarIntervalGenerator"  from="Field.start" to="Field.finish">
+		<format id="Bar.late"  row="1" layer="1" intervalGenerator="com.microproject.ui.view.gantt.GanttBarIntervalGenerator"  from="Field.start" to="Field.finish">
 			<middle shapeName="FULL_HEIGHT" colorName="PURPLE" paintName="DEFAULT" strokeName="FRAMED"/>
 		</format>
 -->		
-		<format id="Bar.assignment" row="1" layer="1" intervalGenerator="com.microproject.pm.graphic.gantt.GanttBarIntervalGenerator"  from="Field.start" to="Field.finish">
+		<format id="Bar.assignment" row="1" layer="1" intervalGenerator="com.microproject.ui.view.gantt.GanttBarIntervalGenerator"  from="Field.start" to="Field.finish">
 			<middle shapeName="HALF_HEIGHT_CENTER" colorName="MONDAY_GROUP_B" paintName="DEFAULT" strokeName="FRAMED"/>
 		</format>
 
@@ -237,33 +237,33 @@
 
 
 		<styles id="Styles.Bar.standard">
-			<style id="Styles.Bar.Row.task" formatId="Bar.task" formulaClass="com.microproject.scripting.formulas.NonCriticalTaskFormula"/>
-			<style id="Styles.Bar.Row.critical" formatId="Bar.critical" formulaClass="com.microproject.scripting.formulas.CriticalTaskFormula"/>
+			<style id="Styles.Bar.Row.task" formatId="Bar.task" formulaClass="com.microproject.formula.builtin.NonCriticalTaskFormula"/>
+			<style id="Styles.Bar.Row.critical" formatId="Bar.critical" formulaClass="com.microproject.formula.builtin.CriticalTaskFormula"/>
 <!--
 			<style id="Styles.Bar.Row.late" name="late" formatId="Bar.late" type="task" formulaText="task.getBaselineDuration(0) != 0 &amp;&amp; task.durationMillis > 1.1 *task.getBaselineDuration(0)" />
 -->		
-			<style id="Styles.Bar.Row.summary" formatId="Bar.summary" formulaClass="com.microproject.scripting.formulas.SummaryTaskFormula"/>
-			<style id="Styles.Bar.Row.milestone" formatId="Bar.milestone" formulaClass="com.microproject.scripting.formulas.MilestoneTaskFormula"/>
-			<style id="Styles.Bar.Row.deadline" formatId="Bar.deadline" formulaClass="com.microproject.scripting.formulas.DeadlineTaskFormula"/>
-			<style id="Styles.Bar.Row.assignment" formatId="Bar.assignment" formulaClass="com.microproject.scripting.formulas.AssignmentFormula"/>
-			<style id="Styles.Bar.Row.baseline" formatId="Bar.baseline" formulaClass="com.microproject.scripting.formulas.BaselineTaskFormula"/>
-			<style id="Styles.Bar.Row.baseline1" formatId="Bar.baseline1" formulaClass="com.microproject.scripting.formulas.BaselineTaskFormula"/>
-			<style id="Styles.Bar.Row.baseline2" formatId="Bar.baseline2" formulaClass="com.microproject.scripting.formulas.BaselineTaskFormula"/>
-			<style id="Styles.Bar.Row.baseline3" formatId="Bar.baseline3" formulaClass="com.microproject.scripting.formulas.BaselineTaskFormula"/>
-			<style id="Styles.Bar.Row.baseline4" formatId="Bar.baseline4" formulaClass="com.microproject.scripting.formulas.BaselineTaskFormula"/>
-			<style id="Styles.Bar.Row.baseline5" formatId="Bar.baseline5" formulaClass="com.microproject.scripting.formulas.BaselineTaskFormula"/>
-			<style id="Styles.Bar.Row.baseline6" formatId="Bar.baseline6" formulaClass="com.microproject.scripting.formulas.BaselineTaskFormula"/>
-			<style id="Styles.Bar.Row.baseline7" formatId="Bar.baseline7" formulaClass="com.microproject.scripting.formulas.BaselineTaskFormula"/>
-			<style id="Styles.Bar.Row.baseline8" formatId="Bar.baseline8" formulaClass="com.microproject.scripting.formulas.BaselineTaskFormula"/>
-			<style id="Styles.Bar.Row.baseline9" formatId="Bar.baseline9" formulaClass="com.microproject.scripting.formulas.BaselineTaskFormula"/>
-			<style id="Styles.Bar.Row.baseline10" formatId="Bar.baseline10" formulaClass="com.microproject.scripting.formulas.BaselineTaskFormula"/>
-				<style id="Styles.Bar.Row.totalSlack" formatId="Bar.totalSlack" formulaClass="com.microproject.scripting.formulas.NormalTaskFormula" active="false"/>
+			<style id="Styles.Bar.Row.summary" formatId="Bar.summary" formulaClass="com.microproject.formula.builtin.SummaryTaskFormula"/>
+			<style id="Styles.Bar.Row.milestone" formatId="Bar.milestone" formulaClass="com.microproject.formula.builtin.MilestoneTaskFormula"/>
+			<style id="Styles.Bar.Row.deadline" formatId="Bar.deadline" formulaClass="com.microproject.formula.builtin.DeadlineTaskFormula"/>
+			<style id="Styles.Bar.Row.assignment" formatId="Bar.assignment" formulaClass="com.microproject.formula.builtin.AssignmentFormula"/>
+			<style id="Styles.Bar.Row.baseline" formatId="Bar.baseline" formulaClass="com.microproject.formula.builtin.BaselineTaskFormula"/>
+			<style id="Styles.Bar.Row.baseline1" formatId="Bar.baseline1" formulaClass="com.microproject.formula.builtin.BaselineTaskFormula"/>
+			<style id="Styles.Bar.Row.baseline2" formatId="Bar.baseline2" formulaClass="com.microproject.formula.builtin.BaselineTaskFormula"/>
+			<style id="Styles.Bar.Row.baseline3" formatId="Bar.baseline3" formulaClass="com.microproject.formula.builtin.BaselineTaskFormula"/>
+			<style id="Styles.Bar.Row.baseline4" formatId="Bar.baseline4" formulaClass="com.microproject.formula.builtin.BaselineTaskFormula"/>
+			<style id="Styles.Bar.Row.baseline5" formatId="Bar.baseline5" formulaClass="com.microproject.formula.builtin.BaselineTaskFormula"/>
+			<style id="Styles.Bar.Row.baseline6" formatId="Bar.baseline6" formulaClass="com.microproject.formula.builtin.BaselineTaskFormula"/>
+			<style id="Styles.Bar.Row.baseline7" formatId="Bar.baseline7" formulaClass="com.microproject.formula.builtin.BaselineTaskFormula"/>
+			<style id="Styles.Bar.Row.baseline8" formatId="Bar.baseline8" formulaClass="com.microproject.formula.builtin.BaselineTaskFormula"/>
+			<style id="Styles.Bar.Row.baseline9" formatId="Bar.baseline9" formulaClass="com.microproject.formula.builtin.BaselineTaskFormula"/>
+			<style id="Styles.Bar.Row.baseline10" formatId="Bar.baseline10" formulaClass="com.microproject.formula.builtin.BaselineTaskFormula"/>
+				<style id="Styles.Bar.Row.totalSlack" formatId="Bar.totalSlack" formulaClass="com.microproject.formula.builtin.NormalTaskFormula" active="false"/>
 			<style id="Styles.showLinks" formatId="Link.link1" type="dependency" link="true"/>
-			<style id="Styles.Annotation.normal" formatId="Annotation.normal" formulaClass="com.microproject.scripting.formulas.NormalTaskFormula" annotation="true" />
-			<style id="Styles.Annotation.critical" formatId="Annotation.normal" formulaClass="com.microproject.scripting.formulas.CriticalTaskFormula" annotation="true" />
-			<style id="Styles.Annotation.summary" formatId="Annotation.normal" formulaClass="com.microproject.scripting.formulas.SummaryTaskFormula" annotation="true" />
-			<style id="Styles.Annotation.assignment" formatId="Annotation.normal" formulaClass="com.microproject.scripting.formulas.AssignmentFormula" annotation="true" />
-			<style id="Styles.Annotation.milestone" formatId="Annotation.milestone" formulaClass="com.microproject.scripting.formulas.MilestoneTaskFormula" annotation="true" />
+			<style id="Styles.Annotation.normal" formatId="Annotation.normal" formulaClass="com.microproject.formula.builtin.NormalTaskFormula" annotation="true" />
+			<style id="Styles.Annotation.critical" formatId="Annotation.normal" formulaClass="com.microproject.formula.builtin.CriticalTaskFormula" annotation="true" />
+			<style id="Styles.Annotation.summary" formatId="Annotation.normal" formulaClass="com.microproject.formula.builtin.SummaryTaskFormula" annotation="true" />
+			<style id="Styles.Annotation.assignment" formatId="Annotation.normal" formulaClass="com.microproject.formula.builtin.AssignmentFormula" annotation="true" />
+			<style id="Styles.Annotation.milestone" formatId="Annotation.milestone" formulaClass="com.microproject.formula.builtin.MilestoneTaskFormula" annotation="true" />
 			<style id="Styles.Calendar.nonWorking" formatId="Calendar.nonWorking" calendar="true" />
 			<style id="Styles.Gantt.showRows" formatId="Grid.showRows" horizontalGrid="true" active="false" />
 
@@ -287,8 +287,8 @@
 		</styles>
 
 		<styles id="Styles.RBS.standard" zoomX="1.25;1.25;*;1.25;1.25" zoomY="1.7;1.25;*;1.25;1.25">
-			<style id="Styles.RBS.Row.resource" formatId="RBS.resource" formulaClass="com.microproject.scripting.formulas.ResourceNodeFormula"/>
-			<style id="Styles.RBS.Row.summary" formatId="RBS.summary" formulaClass="com.microproject.scripting.formulas.SummaryNodeFormula"/>
+			<style id="Styles.RBS.Row.resource" formatId="RBS.resource" formulaClass="com.microproject.formula.builtin.ResourceNodeFormula"/>
+			<style id="Styles.RBS.Row.summary" formatId="RBS.summary" formulaClass="com.microproject.formula.builtin.SummaryNodeFormula"/>
 			<style id="Styles.showLinks" formatId="Link.link1" type="dependency" link="true"/>
 		</styles>
 
@@ -884,9 +884,9 @@
 
 
 	<cellstyles id="CellStyles.default">
-		<style id="CellStyle.default" formulaClass="com.microproject.graphic.configuration.cellstyles.DefaultCellStyle"/>
-		<style id="CellStyle.resources" formulaClass="com.microproject.graphic.configuration.cellstyles.ResourceCellStyle"/>
-		<style id="CellStyle.assignments" formulaClass="com.microproject.graphic.configuration.cellstyles.AssignmentCellStyle"/>
+		<style id="CellStyle.default" formulaClass="com.microproject.ui.view.style.DefaultCellStyle"/>
+		<style id="CellStyle.resources" formulaClass="com.microproject.ui.view.style.ResourceCellStyle"/>
+		<style id="CellStyle.assignments" formulaClass="com.microproject.ui.view.style.AssignmentCellStyle"/>
 
 		<!--style id="CellStyle.default" type="node" format="format">
 			<formulaText>
@@ -1181,20 +1181,20 @@
 
 	<transform>
 		<filters id="Filters.hidden">
-			<filter id="Filter.Common" definition="com.microproject.grouping.core.transform.filtering.BaseFilter"  showAssignments="false"/>
-			<filter id="Filter.Gantt" definition="com.microproject.grouping.core.transform.filtering.BaseFilter" arguments="true" showAssignments="false"/>
-			<filter id="Filter.OfflineCommon" definition="com.microproject.grouping.core.transform.filtering.BaseFilter" showEndEmptyLines="false" showAssignments="false"/>
-			<filter id="Filter.OfflineGantt" definition="com.microproject.grouping.core.transform.filtering.BaseFilter" arguments="true" showEndEmptyLines="false" showAssignments="false"/>
-			<filter id="Filter.Graph" definition="com.microproject.grouping.core.transform.filtering.BaseFilter" showEmptyLines="false" showAssignments="false"/>
-			<filter id="Filter.ResourceUsageDetail" definition="com.microproject.grouping.core.transform.filtering.ResourceInTeamFilter"/>
-			<filter id="Filter.RBS" definition="com.microproject.grouping.core.transform.filtering.ResourceInTeamFilter" showAssignments="false" showEndEmptyLines="false"/>
-			<filter id="Filter.Charts" definition="com.microproject.grouping.core.transform.filtering.ResourceInTeamFilter" showAssignments="false" showEndEmptyLines="false" preserveHierarchy="true"/>
-			<filter id="Filter.TaskUsage" definition="com.microproject.grouping.core.transform.filtering.SelectionFilter"  arguments="true" showEmptyLines="false"/>
-			<filter id="Filter.ResourceUsage" definition="com.microproject.grouping.core.transform.filtering.SelectionFilter"  arguments="false" showEmptyLines="false"/>
-			<filter id="Filter.BelongsToTaskCollection" definition="com.microproject.grouping.core.transform.filtering.BelongsToCollectionFilter" showEmptyLines="false"  preserveHierarchy="false"/>
-			<filter id="Filter.BelongsToResourceCollection" definition="com.microproject.grouping.core.transform.filtering.BelongsToCollectionFilter" showEmptyLines="false"  preserveHierarchy="false"/>
-			<filter id="Filter.WhoDoesWhatReport" definition="com.microproject.grouping.core.transform.filtering.AssignmentCompositionFilter" showEmptyLines="true"/>
-			<filter id="Filter.ResourceInTeamInternal" definition="com.microproject.grouping.core.transform.filtering.ResourceInTeamFilter" showEndEmptyLines="false" preserveHierarchy="false"/>
+			<filter id="Filter.Common" definition="com.microproject.node.transform.filtering.BaseFilter"  showAssignments="false"/>
+			<filter id="Filter.Gantt" definition="com.microproject.node.transform.filtering.BaseFilter" arguments="true" showAssignments="false"/>
+			<filter id="Filter.OfflineCommon" definition="com.microproject.node.transform.filtering.BaseFilter" showEndEmptyLines="false" showAssignments="false"/>
+			<filter id="Filter.OfflineGantt" definition="com.microproject.node.transform.filtering.BaseFilter" arguments="true" showEndEmptyLines="false" showAssignments="false"/>
+			<filter id="Filter.Graph" definition="com.microproject.node.transform.filtering.BaseFilter" showEmptyLines="false" showAssignments="false"/>
+			<filter id="Filter.ResourceUsageDetail" definition="com.microproject.node.transform.filtering.ResourceInTeamFilter"/>
+			<filter id="Filter.RBS" definition="com.microproject.node.transform.filtering.ResourceInTeamFilter" showAssignments="false" showEndEmptyLines="false"/>
+			<filter id="Filter.Charts" definition="com.microproject.node.transform.filtering.ResourceInTeamFilter" showAssignments="false" showEndEmptyLines="false" preserveHierarchy="true"/>
+			<filter id="Filter.TaskUsage" definition="com.microproject.node.transform.filtering.SelectionFilter"  arguments="true" showEmptyLines="false"/>
+			<filter id="Filter.ResourceUsage" definition="com.microproject.node.transform.filtering.SelectionFilter"  arguments="false" showEmptyLines="false"/>
+			<filter id="Filter.BelongsToTaskCollection" definition="com.microproject.node.transform.filtering.BelongsToCollectionFilter" showEmptyLines="false"  preserveHierarchy="false"/>
+			<filter id="Filter.BelongsToResourceCollection" definition="com.microproject.node.transform.filtering.BelongsToCollectionFilter" showEmptyLines="false"  preserveHierarchy="false"/>
+			<filter id="Filter.WhoDoesWhatReport" definition="com.microproject.node.transform.filtering.AssignmentCompositionFilter" showEmptyLines="true"/>
+			<filter id="Filter.ResourceInTeamInternal" definition="com.microproject.node.transform.filtering.ResourceInTeamFilter" showEndEmptyLines="false" preserveHierarchy="false"/>
 		</filters>
 		<filters id="Filters.user">
 			<filter id="Filter.None"/>

@@ -108,13 +108,27 @@ def old_candidates(current: str) -> list[str]:
     module, rest = parts[1], parts[2]
     rest = re.sub(r"^src/main/(java|resources)/", "src/", rest)
     rest = re.sub(r"^src/test/(java|resources)/", "test/", rest)
-    variants = [rest]
-    variants.append(rest.replace("com/projectlibre1", "com/projity"))
-    variants.append(rest.replace("org/projectlibre1", "org/projity"))
-    variants.append(rest.replace("com/microproject", "com/projity"))
-    variants.append(rest.replace("org/microproject", "org/projity"))
-    variants.append(rest.replace("com/projectlibre1", "com/projity").replace("org/projectlibre1", "org/projity"))
-    variants.append(rest.replace("com/microproject", "com/projity").replace("org/microproject", "org/projity"))
+    # Preserve source provenance across the role-based model package moves.
+    paths = [rest]
+    for current_prefix, old_prefix in (
+        ("com/microproject/model/", "com/microproject/pm/"),
+        ("com/microproject/schedule/criticalpath/", "com/microproject/pm/criticalpath/"),
+        ("com/microproject/schedule/ccpm/", "com/microproject/pm/ccpm/"),
+        ("com/microproject/schedule/", "com/microproject/pm/scheduling/"),
+        ("com/microproject/node/", "com/microproject/grouping/core/"),
+    ):
+        if current_prefix in rest:
+            paths.append(rest.replace(current_prefix, old_prefix, 1))
+            break
+    variants = []
+    for path in paths:
+        variants.extend((path,
+            path.replace("com/projectlibre1", "com/projity"),
+            path.replace("org/projectlibre1", "org/projity"),
+            path.replace("com/microproject", "com/projity"),
+            path.replace("org/microproject", "org/projity"),
+            path.replace("com/projectlibre1", "com/projity").replace("org/projectlibre1", "org/projity"),
+            path.replace("com/microproject", "com/projity").replace("org/microproject", "org/projity")))
     return [f"{MODULE_MAP[module]}/{item}" for item in dict.fromkeys(variants)]
 
 

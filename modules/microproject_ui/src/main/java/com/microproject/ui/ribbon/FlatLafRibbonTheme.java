@@ -9,7 +9,7 @@ import java.awt.Font;
 import java.awt.Graphics2D;
 import javax.swing.AbstractButton;
 import com.microproject.ribbon.RibbonTheme;
-import com.microproject.util.FlatUiSupport;
+import com.microproject.ui.util.FlatUiSupport;
 
 /** FlatLaf-backed adapter; all look-and-feel details stay in the UI module. */
 final class FlatLafRibbonTheme implements RibbonTheme {

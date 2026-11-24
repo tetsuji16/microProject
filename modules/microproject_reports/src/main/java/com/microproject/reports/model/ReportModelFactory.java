@@ -9,7 +9,7 @@ import java.util.List;
 import com.microproject.configuration.ReportColumns;
 import com.microproject.configuration.ReportDefinition;
 import com.microproject.field.Field;
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.reports.adapter.ReportDataSource;
 import com.microproject.reports.adapter.DataSourceProvider;
 

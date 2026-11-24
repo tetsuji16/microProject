@@ -33,7 +33,7 @@ import java.util.regex.Pattern;
 
 import com.microproject.options.EditOption;
 import com.microproject.options.ScheduleOption;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 import java.text.Format;
 

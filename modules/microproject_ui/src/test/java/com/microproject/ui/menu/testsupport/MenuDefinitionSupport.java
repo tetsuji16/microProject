@@ -1,0 +1,202 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.menu.testsupport;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.MissingResourceException;
+import java.util.ResourceBundle;
+import java.util.Set;
+
+import com.microproject.ui.menu.MenuManager;
+
+public final class MenuDefinitionSupport {
+	private static final String MENU_BUNDLE = "com.microproject.ui.menu.menu";
+	private static final String MENU_INTERNAL_BUNDLE = "com.microproject.ui.menu.menuInternal";
+
+	private MenuDefinitionSupport() {
+	}
+
+	/** Visits the lazy File surface without executing its project commands. Call on the EDT. */
+	public static void visitBackstagePages(javax.swing.JPanel ribbonHost,
+			java.util.function.Consumer<javax.swing.JComponent> assertion) {
+		com.microproject.ui.ribbon.ModernRibbonPanel ribbon =
+			(com.microproject.ui.ribbon.ModernRibbonPanel) ribbonHost.getClientProperty(
+				com.microproject.ui.ribbon.ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
+		javax.swing.JComponent[] surface = new javax.swing.JComponent[1];
+		ribbon.setBackstageHost(new com.microproject.ui.ribbon.RibbonBackstageHost() {
+			@Override public void show(javax.swing.JComponent view, Runnable dismiss) { surface[0] = view; }
+			@Override public void hide() { }
+		});
+		String fileTitle = menuBundle(Locale.getDefault()).getString("FileRibbonTask.title");
+		javax.swing.AbstractButton fileTab = UiComponentWalker.flatten(ribbonHost).stream()
+			.filter(javax.swing.AbstractButton.class::isInstance).map(javax.swing.AbstractButton.class::cast)
+			.filter(button -> fileTitle.equals(button.getText())).findFirst().orElseThrow();
+		fileTab.doClick(0);
+		for (java.awt.Component component : UiComponentWalker.flatten(surface[0])) {
+			if (component instanceof javax.swing.AbstractButton navigation
+					&& navigation.getName() != null && navigation.getName().startsWith("officeBackstageNav-")
+					&& navigation.getAction() == null) {
+				navigation.doClick(0);
+				assertion.accept(surface[0]);
+			}
+		}
+		UiComponentWalker.flatten(surface[0]).stream()
+			.filter(javax.swing.AbstractButton.class::isInstance).map(javax.swing.AbstractButton.class::cast)
+			.filter(button -> "officeBackstageBack".equals(button.getName())).findFirst().orElseThrow().doClick(0);
+	}
+
+	public static ResourceBundle menuBundle(Locale locale) {
+		return ResourceBundle.getBundle(MENU_BUNDLE, locale);
+	}
+
+	public static ResourceBundle menuInternalBundle() {
+		return ResourceBundle.getBundle(MENU_INTERNAL_BUNDLE, Locale.ROOT);
+	}
+
+	public static ResourceBundle[] ribbonBundles(Locale locale) {
+		return new ResourceBundle[] { menuInternalBundle(), menuBundle(locale) };
+	}
+
+	public static Set<String> ribbonButtonIds() {
+		ResourceBundle internal = menuInternalBundle();
+		Set<String> ids = new LinkedHashSet<>();
+		for (String taskId : tokens(internal, "StandardRibbon")) {
+			for (String bandId : tokens(internal, taskId)) {
+				for (String token : tokens(internal, bandId)) {
+					String normalized = normalizeButtonToken(token);
+					if (normalized != null) {
+						ids.add(normalized);
+					}
+				}
+			}
+		}
+		return ids;
+	}
+
+	public static Set<String> ribbonUiButtonIds() {
+		ResourceBundle internal = menuInternalBundle();
+		Set<String> ids = new LinkedHashSet<>(ribbonButtonIds());
+		for (String token : tokens(internal, "StandardRibbon.TaskBar")) {
+			String normalized = normalizeButtonToken(token);
+			if (normalized != null) {
+				ids.add(normalized);
+			}
+		}
+		return ids;
+	}
+
+	public static List<String> ribbonTaskIds() {
+		return Collections.unmodifiableList(tokens(menuInternalBundle(), "StandardRibbon"));
+	}
+
+	public static List<String> ribbonBandIds(String taskId) {
+		return Collections.unmodifiableList(tokens(menuInternalBundle(), taskId));
+	}
+
+	public static List<String> ribbonButtonIds(String bandId) {
+		List<String> ids = new ArrayList<>();
+		for (String token : tokens(menuInternalBundle(), bandId)) {
+			String normalized = normalizeButtonToken(token);
+			if (normalized != null) {
+				ids.add(normalized);
+			}
+		}
+		return Collections.unmodifiableList(ids);
+	}
+
+	public static Set<String> ribbonButtonIdsForTask(String taskId) {
+		Set<String> ids = new LinkedHashSet<>();
+		for (String bandId : ribbonBandIds(taskId)) {
+			ids.addAll(ribbonButtonIds(bandId));
+		}
+		return Collections.unmodifiableSet(ids);
+	}
+
+	public static Map<String, List<String>> ribbonBandsByTask() {
+		Map<String, List<String>> result = new LinkedHashMap<>();
+		for (String taskId : ribbonTaskIds()) {
+			result.put(taskId, ribbonBandIds(taskId));
+		}
+		return Collections.unmodifiableMap(result);
+	}
+
+	public static Set<String> toolBarButtonIds(String toolbarId) {
+		ResourceBundle internal = menuInternalBundle();
+		Set<String> ids = new LinkedHashSet<>();
+		for (String token : tokens(internal, toolbarId)) {
+			String normalized = normalizeButtonToken(token);
+			if (normalized != null) {
+				ids.add(normalized);
+			}
+		}
+		return ids;
+	}
+
+	public static Set<String> displayedRibbonUiButtonIds() {
+		Set<String> ids = new LinkedHashSet<>(ribbonUiButtonIds());
+		ids.addAll(toolBarButtonIds(MenuManager.RIBBON_VIEW_BAR));
+		ids.addAll(toolBarButtonIds(MenuManager.PRINT_PREVIEW_TOOL_BAR));
+		return Collections.unmodifiableSet(ids);
+	}
+
+	public static boolean hasLocalizedLabel(ResourceBundle bundle, String id) {
+		return hasKey(bundle, id + ".text") || hasKey(bundle, id + ".tooltip");
+	}
+
+	private static List<String> tokens(ResourceBundle bundle, String key) {
+		String value = bundle.getString(key);
+		String[] pieces = value.trim().split("\\s+");
+		List<String> tokens = new ArrayList<>();
+		for (String piece : pieces) {
+			if (!piece.isBlank()) {
+				tokens.add(piece);
+			}
+		}
+		return tokens;
+	}
+
+	private static String normalizeButtonToken(String token) {
+		if (token == null || token.isBlank() || "-".equals(token) || "|".equals(token) || "\\".equals(token)) {
+			return null;
+		}
+		if (token.endsWith(".TOP") || token.endsWith(".LOW")) {
+			return token.substring(0, token.lastIndexOf('.'));
+		}
+		return token;
+	}
+
+	private static boolean hasKey(ResourceBundle bundle, String key) {
+		try {
+			return bundle.getString(key) != null;
+		} catch (MissingResourceException ex) {
+			return false;
+		}
+	}
+}

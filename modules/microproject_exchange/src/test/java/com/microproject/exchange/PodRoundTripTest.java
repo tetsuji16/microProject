@@ -23,6 +23,8 @@
  *******************************************************************************/
 package com.microproject.exchange;
 
+import com.microproject.persistence.PodFormatIdentifiers;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -46,36 +48,36 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.graphic.configuration.GanttBarFormatOverrides;
-import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.assignment.AssignmentService;
-import com.microproject.pm.costing.ExpenseType;
-import com.microproject.pm.costing.EarnedValueMethodType;
-import com.microproject.pm.costing.EarnedValueCalculator;
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.dependency.DependencyService;
-import com.microproject.pm.dependency.DependencyType;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectStatus;
-import com.microproject.pm.task.ProjectType;
-import com.microproject.pm.task.DefaultSubProj;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.task.RollupSpan;
-import com.microproject.pm.task.ProjectFactory;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.graphic.network.PertManualPositions;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.resource.ResourceType;
-import com.microproject.pm.snapshot.Snapshottable;
+import com.microproject.view.configuration.GanttBarFormatOverrides;
+import com.microproject.view.configuration.GanttBarFormatOverrides.BarFormat;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.assignment.AssignmentService;
+import com.microproject.model.costing.ExpenseType;
+import com.microproject.model.costing.EarnedValueMethodType;
+import com.microproject.model.costing.EarnedValueCalculator;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.dependency.DependencyService;
+import com.microproject.model.dependency.DependencyType;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectStatus;
+import com.microproject.model.task.ProjectType;
+import com.microproject.model.task.DefaultSubProj;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Task;
+import com.microproject.model.task.RollupSpan;
+import com.microproject.model.task.ProjectFactory;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.view.network.PertManualPositions;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.resource.ResourceType;
+import com.microproject.model.snapshot.Snapshottable;
 import com.microproject.datatype.Rate;
 import com.microproject.datatype.TimeUnit;
 import com.microproject.undo.DataFactoryUndoController;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.NodeModel;
-import com.microproject.server.data.ProjectData;
-import com.microproject.server.data.Serializer;
+import com.microproject.node.Node;
+import com.microproject.node.model.NodeModel;
+import com.microproject.persistence.data.ProjectData;
+import com.microproject.exchange.serialize.Serializer;
 
 public class PodRoundTripTest {
 	@Test
@@ -112,7 +114,7 @@ public class PodRoundTripTest {
 		positions.putPosition(task.getUniqueId(), new PertManualPositions.Position(777, 333));
 		savePodFile(stateProject, output);
 		byte[] withPertState = readAll(output);
-		byte[] separator = com.microproject.exchange.PodFormatIdentifiers.EMBEDDED_XML_SEPARATOR
+		byte[] separator = com.microproject.persistence.PodFormatIdentifiers.EMBEDDED_XML_SEPARATOR
 			.getBytes(java.nio.charset.StandardCharsets.UTF_8);
 		int baselineSerializedEnd = indexOf(baseline, separator);
 		int pertSerializedEnd = indexOf(withPertState, separator);
@@ -142,7 +144,7 @@ public class PodRoundTripTest {
 	}
 
 	private static byte[] serializePodDocument(Project project) throws Exception {
-		var documentData = new com.microproject.server.data.DataUtil().serializeDocument(project);
+		var documentData = new com.microproject.persistence.data.DataUtil().serializeDocument(project);
 		documentData.setMaster(true);
 		documentData.setLocal(true);
 		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
@@ -241,14 +243,14 @@ public class PodRoundTripTest {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("empty-work-week", undo), undo);
 		project.initialize(false, false);
-		com.microproject.pm.calendar.WorkingCalendar calendar =
-			com.microproject.pm.calendar.WorkingCalendar.getStandardBasedInstance();
+		com.microproject.model.calendar.WorkingCalendar calendar =
+			com.microproject.model.calendar.WorkingCalendar.getStandardBasedInstance();
 		calendar.setName("Empty project work week");
 		long start = com.microproject.util.DateTime.calendarInstance(2026, java.util.Calendar.SEPTEMBER, 21)
 			.getTimeInMillis();
-		com.microproject.pm.calendar.WorkWeek week = new com.microproject.pm.calendar.WorkWeek();
-		week.setWeekDay(java.util.Calendar.MONDAY - 1, com.microproject.pm.calendar.WorkDay.getNonWorkingDay());
-		calendar.addOrReplaceWorkWeekPeriod(new com.microproject.pm.calendar.WorkWeekPeriod("Shutdown week", start,
+		com.microproject.model.calendar.WorkWeek week = new com.microproject.model.calendar.WorkWeek();
+		week.setWeekDay(java.util.Calendar.MONDAY - 1, com.microproject.model.calendar.WorkDay.getNonWorkingDay());
+		calendar.addOrReplaceWorkWeekPeriod(new com.microproject.model.calendar.WorkWeekPeriod("Shutdown week", start,
 			start + 6L * 24L * 60L * 60L * 1000L, week));
 		project.setWorkCalendar(calendar);
 
@@ -260,7 +262,7 @@ public class PodRoundTripTest {
 			exporter.exportFile();
 			assertTrue("native POD payload must be written without MSPDI task-date bounds", saved.length() > 0);
 			Project reopened = load(saved);
-			assertEquals("Shutdown week", ((com.microproject.pm.calendar.WorkingCalendar) reopened.getWorkCalendar())
+			assertEquals("Shutdown week", ((com.microproject.model.calendar.WorkingCalendar) reopened.getWorkCalendar())
 				.getWorkWeekPeriods().getFirst().getName());
 		} finally {
 			Files.deleteIfExists(saved.toPath());
@@ -272,17 +274,17 @@ public class PodRoundTripTest {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("recurring-calendar-exception", undo), undo);
 		project.initialize(false, false);
-		var calendar = com.microproject.pm.calendar.WorkingCalendar.getStandardBasedInstance();
+		var calendar = com.microproject.model.calendar.WorkingCalendar.getStandardBasedInstance();
 		calendar.setName("Recurring exception calendar");
 		long start = com.microproject.util.DateTime.calendarInstance(2024, java.util.Calendar.JANUARY, 1)
 			.getTimeInMillis();
-		var nonworking = new com.microproject.pm.calendar.WorkDay(start, start, "Annual shutdown");
-		nonworking.setWorkingHours(new com.microproject.pm.calendar.WorkingHours());
-		var recurrence = com.microproject.pm.calendar.CalendarRecurrence.yearly(start, 1, false,
+		var nonworking = new com.microproject.model.calendar.WorkDay(start, start, "Annual shutdown");
+		nonworking.setWorkingHours(new com.microproject.model.calendar.WorkingHours());
+		var recurrence = com.microproject.model.calendar.CalendarRecurrence.yearly(start, 1, false,
 			java.util.Calendar.JANUARY + 1, 1, 1, 1,
-			com.microproject.pm.calendar.CalendarRecurrence.EndMode.AFTER_OCCURRENCES, 0, 3);
+			com.microproject.model.calendar.CalendarRecurrence.EndMode.AFTER_OCCURRENCES, 0, 3);
 		calendar.addOrReplaceRecurringException(
-			new com.microproject.pm.calendar.RecurringCalendarException(nonworking, recurrence));
+			new com.microproject.model.calendar.RecurringCalendarException(nonworking, recurrence));
 		project.setWorkCalendar(calendar);
 
 		File saved = Files.createTempFile("recurring-calendar-exception-", ".pod").toFile();
@@ -292,7 +294,7 @@ public class PodRoundTripTest {
 			exporter.setProject(project);
 			exporter.exportFile();
 			Project reopened = load(saved);
-			var restored = (com.microproject.pm.calendar.WorkingCalendar) reopened.getWorkCalendar();
+			var restored = (com.microproject.model.calendar.WorkingCalendar) reopened.getWorkCalendar();
 			assertEquals(1, restored.getRecurringExceptions().size());
 			assertEquals("Annual shutdown", restored.getRecurringExceptions().getFirst().getTemplate().getDescription());
 			assertEquals(List.of(start,
@@ -316,16 +318,16 @@ public class PodRoundTripTest {
 		Resource resource = pool.createScriptedResource();
 		resource.setName("Resource calendar POD fixture");
 		resource.setResourceTypeKind(ResourceType.Kind.MATERIAL);
-		var calendar = com.microproject.pm.calendar.WorkingCalendar.getInstanceBasedOn(project.getWorkCalendar());
+		var calendar = com.microproject.model.calendar.WorkingCalendar.getInstanceBasedOn(project.getWorkCalendar());
 		calendar.setName("Resource-specific recurring calendar");
 		long start = com.microproject.util.DateTime.calendarInstance(2026, java.util.Calendar.JANUARY, 5)
 			.getTimeInMillis();
-		var template = new com.microproject.pm.calendar.WorkDay(start, start, "Resource shutdown");
-		template.setWorkingHours(new com.microproject.pm.calendar.WorkingHours());
-		var recurrence = com.microproject.pm.calendar.CalendarRecurrence.daily(start, 1, false,
-			com.microproject.pm.calendar.CalendarRecurrence.EndMode.AFTER_OCCURRENCES, 0L, 3);
+		var template = new com.microproject.model.calendar.WorkDay(start, start, "Resource shutdown");
+		template.setWorkingHours(new com.microproject.model.calendar.WorkingHours());
+		var recurrence = com.microproject.model.calendar.CalendarRecurrence.daily(start, 1, false,
+			com.microproject.model.calendar.CalendarRecurrence.EndMode.AFTER_OCCURRENCES, 0L, 3);
 		calendar.addOrReplaceRecurringException(
-			new com.microproject.pm.calendar.RecurringCalendarException(template, recurrence));
+			new com.microproject.model.calendar.RecurringCalendarException(template, recurrence));
 		resource.setWorkCalendar(calendar);
 
 		File saved = Files.createTempFile("resource-calendar-pod-", ".pod").toFile();
@@ -339,7 +341,7 @@ public class PodRoundTripTest {
 				.filter(candidate -> "Resource calendar POD fixture".equals(candidate.getName()))
 				.findFirst().orElseThrow();
 			assertEquals(ResourceType.Kind.MATERIAL, restoredResource.getResourceTypeKind());
-			var restoredCalendar = (com.microproject.pm.calendar.WorkingCalendar) restoredResource.getWorkCalendar();
+			var restoredCalendar = (com.microproject.model.calendar.WorkingCalendar) restoredResource.getWorkCalendar();
 			assertEquals(1, restoredCalendar.getRecurringExceptions().size());
 			assertEquals(recurrence.occurrenceDates(), restoredCalendar.getRecurringExceptions().getFirst()
 				.getRecurrence().occurrenceDates());
@@ -518,7 +520,7 @@ public class PodRoundTripTest {
 
 		DefaultSubProj placeholder = new DefaultSubProj(master, child.getUniqueId());
 		master.connectTask(placeholder);
-		Node placeholderNode = com.microproject.grouping.core.NodeFactory.getInstance().createNode(placeholder);
+		Node placeholderNode = com.microproject.node.NodeFactory.getInstance().createNode(placeholder);
 		master.getTaskOutline().add(placeholderNode, NodeModel.EVENT);
 		master.getSubprojectHandler().addSubproject(child, placeholderNode, true, false);
 
@@ -550,7 +552,7 @@ public class PodRoundTripTest {
 		String expectedReferenceId = "9adf2bb0-e0cf-4d2c-9bbe-93d6df3a87af";
 		placeholder.setReferenceId(expectedReferenceId);
 		master.connectTask(placeholder);
-		Node placeholderNode = com.microproject.grouping.core.NodeFactory.getInstance().createNode(placeholder);
+		Node placeholderNode = com.microproject.node.NodeFactory.getInstance().createNode(placeholder);
 		master.getTaskOutline().add(placeholderNode, NodeModel.EVENT);
 		master.getSubprojectHandler().addSubproject(child, placeholderNode, true, false);
 
@@ -957,23 +959,23 @@ public class PodRoundTripTest {
 	}
 
 	private static String workWeekSignature(Project project) {
-		java.util.IdentityHashMap<com.microproject.pm.calendar.WorkingCalendar, Boolean> calendars = new java.util.IdentityHashMap<>();
+		java.util.IdentityHashMap<com.microproject.model.calendar.WorkingCalendar, Boolean> calendars = new java.util.IdentityHashMap<>();
 		addCalendar(calendars, project.getWorkCalendar());
 		for (Task task : project.getTaskList())
 			if (task instanceof NormalTask normalTask) addCalendar(calendars, normalTask.getWorkCalendar());
-		for (com.microproject.pm.resource.Resource resource : project.getResourcePool().getResourceList())
+		for (com.microproject.model.resource.Resource resource : project.getResourcePool().getResourceList())
 			addCalendar(calendars, resource.getWorkCalendar());
 		return calendars.keySet().stream().map(calendar -> calendar.getName() + ":"
-			+ ((com.microproject.pm.calendar.WorkingCalendar) calendar).getEffectiveWorkWeekPeriods().stream()
+			+ ((com.microproject.model.calendar.WorkingCalendar) calendar).getEffectiveWorkWeekPeriods().stream()
 				.map(period -> period.getName() + ":" + period.getStart() + ":" + period.getEnd())
 				.toList())
 			.sorted().toList().toString();
 	}
 
 	private static void addCalendar(
-		java.util.IdentityHashMap<com.microproject.pm.calendar.WorkingCalendar, Boolean> calendars,
-		com.microproject.pm.calendar.WorkCalendar calendar) {
-		if (calendar instanceof com.microproject.pm.calendar.WorkingCalendar workingCalendar)
+		java.util.IdentityHashMap<com.microproject.model.calendar.WorkingCalendar, Boolean> calendars,
+		com.microproject.model.calendar.WorkCalendar calendar) {
+		if (calendar instanceof com.microproject.model.calendar.WorkingCalendar workingCalendar)
 			calendars.put(workingCalendar, Boolean.TRUE);
 	}
 
@@ -1074,7 +1076,7 @@ public class PodRoundTripTest {
 
 	/**
 	 * Issue #227/#268 regression: a .pod file's payload (the serialized
-	 * {@link com.microproject.server.data.ProjectData}) must be deterministic across
+	 * {@link com.microproject.persistence.data.ProjectData}) must be deterministic across
 	 * consecutive load/save round-trips. Previously the local id counter
 	 * (LocalSession.localSeed) advanced on every load and its minted values leaked
 	 * into the saved file, so the output drifted by a handful of bytes each
