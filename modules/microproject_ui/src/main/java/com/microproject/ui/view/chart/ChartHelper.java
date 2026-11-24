@@ -45,7 +45,7 @@ import org.jfree.chart.renderer.xy.XYStepAreaRenderer;
 import org.jfree.data.xy.XYDataset;
 import org.jfree.chart.ui.RectangleInsets;
 
-import com.microproject.pm.assignment.TimeDistributedConstants;
+import com.microproject.model.assignment.TimeDistributedConstants;
 import com.microproject.util.Environment;
 import com.microproject.ui.util.FlatUiSupport;
 

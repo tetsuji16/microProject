@@ -29,9 +29,9 @@ import java.util.List;
 
 
 import com.microproject.node.Node;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.assignment.HasAssignments;
-import com.microproject.pm.assignment.HasAssignmentsImpl;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.assignment.HasAssignments;
+import com.microproject.model.assignment.HasAssignmentsImpl;
 
 /**
  *

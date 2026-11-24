@@ -26,7 +26,7 @@ package com.microproject.ui.view.undo;
 import javax.swing.undo.AbstractUndoableEdit;
 import com.microproject.undo.EditSupport;
 
-import com.microproject.pm.task.ReversibleModelChange;
+import com.microproject.model.task.ReversibleModelChange;
 
 /** Bridges core model changes to Swing's document undo history. */
 public final class SwingUndoAdapter {

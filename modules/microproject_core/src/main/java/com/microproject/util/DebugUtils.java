@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.microproject.pm.key.HasId;
+import com.microproject.model.key.HasId;
 import com.microproject.persistence.data.DataObject;
 import com.microproject.i18n.Messages;
 

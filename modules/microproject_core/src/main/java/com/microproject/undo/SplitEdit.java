@@ -27,8 +27,8 @@ import javax.swing.undo.AbstractUndoableEdit;
 import javax.swing.undo.CannotRedoException;
 import javax.swing.undo.CannotUndoException;
 
-import com.microproject.pm.scheduling.Schedule;
-import com.microproject.pm.scheduling.ScheduleService;
+import com.microproject.schedule.Schedule;
+import com.microproject.schedule.ScheduleService;
 
 /**
  *

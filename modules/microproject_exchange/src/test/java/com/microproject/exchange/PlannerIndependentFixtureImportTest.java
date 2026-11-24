@@ -16,13 +16,13 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.exchange.mpx.MspImporter;
-import com.microproject.pm.calendar.WorkCalendar;
-import com.microproject.pm.calendar.WorkDay;
-import com.microproject.pm.calendar.WorkingCalendar;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectFactory;
-import com.microproject.pm.task.Task;
+import com.microproject.model.calendar.WorkCalendar;
+import com.microproject.model.calendar.WorkDay;
+import com.microproject.model.calendar.WorkingCalendar;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectFactory;
+import com.microproject.model.task.Task;
 
 class PlannerIndependentFixtureImportTest {
 	private static final String FIXTURE = "/mpxj-v11.5.4/planner-sample.planner";

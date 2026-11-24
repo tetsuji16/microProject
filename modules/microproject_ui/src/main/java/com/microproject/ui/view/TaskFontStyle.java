@@ -14,7 +14,7 @@ import java.util.Map;
 
 import javax.swing.UIManager;
 
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.Task;
 
 /** Resolves optional task text formatting without changing the application defaults. */
 public final class TaskFontStyle {

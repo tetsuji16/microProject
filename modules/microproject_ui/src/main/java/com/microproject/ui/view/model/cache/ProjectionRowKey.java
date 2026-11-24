@@ -5,8 +5,8 @@
 package com.microproject.ui.view.model.cache;
 
 import com.microproject.node.Node;
-import com.microproject.pm.task.ProjectTaskKey;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.ProjectTaskKey;
+import com.microproject.model.task.Task;
 
 /** Stable, tagged identity for one row in a view projection. */
 public sealed interface ProjectionRowKey permits ProjectionRowKey.TaskRow, ProjectionRowKey.SyntheticRow {

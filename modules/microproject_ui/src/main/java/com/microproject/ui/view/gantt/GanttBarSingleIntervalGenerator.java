@@ -30,11 +30,11 @@ import java.util.logging.Logger;
 
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.field.Field;
-import com.microproject.pm.scheduling.IntervalConsumer;
-import com.microproject.pm.scheduling.ScheduleIntervalGenerator;
+import com.microproject.schedule.IntervalConsumer;
+import com.microproject.schedule.ScheduleIntervalGenerator;
 import com.microproject.node.Node;
 import com.microproject.node.model.NodeModel;
-import com.microproject.pm.scheduling.ScheduleInterval;
+import com.microproject.schedule.ScheduleInterval;
 
 /**
  *

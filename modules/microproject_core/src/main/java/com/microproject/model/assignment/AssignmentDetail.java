@@ -1,0 +1,1245 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.model.assignment;
+
+
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
+import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Collection;
+
+import com.microproject.configuration.CircularDependencyException;
+import com.microproject.datatype.Duration;
+import com.microproject.datatype.Rate;
+import com.microproject.datatype.TimeUnit;
+import com.microproject.document.Document;
+import com.microproject.schedule.IntervalConsumer;
+import com.microproject.options.CalendarOption;
+import com.microproject.model.assignment.contour.AbstractContour;
+import com.microproject.model.assignment.contour.AbstractContourBucket;
+import com.microproject.model.assignment.contour.ContourTypes;
+import com.microproject.model.assignment.contour.PersonalContour;
+import com.microproject.model.assignment.contour.PersonalContourBucket;
+import com.microproject.model.assignment.contour.StandardContour;
+import com.microproject.model.availability.Availability;
+import com.microproject.model.calendar.CalendarService;
+import com.microproject.model.calendar.HasCalendar;
+import com.microproject.model.calendar.WorkCalendar;
+import com.microproject.model.calendar.WorkingCalendar;
+import com.microproject.model.costing.CostRateTables;
+import com.microproject.model.costing.CostRateIndex;
+import com.microproject.schedule.criticalpath.TaskSchedule;
+import com.microproject.model.resource.Resource;
+import com.microproject.schedule.Delayable;
+import com.microproject.schedule.DelayableImpl;
+import com.microproject.schedule.Schedule;
+import com.microproject.schedule.ScheduleInterval;
+import com.microproject.schedule.ScheduleUtil;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Task;
+import com.microproject.model.task.TaskSplitInterval;
+import com.microproject.model.time.MutableInterval;
+import com.microproject.util.DateTime;
+/**
+ * Class representing the non-scheduling part of resource assignments.  It is immutable
+ * @stereotype thing 
+ */
+public final class AssignmentDetail implements Schedule, HasCalendar, Cloneable, Serializable, ContourTypes {// , Schedule {
+	static final long serialVersionUID = 867792734923243L;
+	transient Rate rate = new Rate(1.0D,TimeUnit.PERCENT); // units can never be 0!!!
+ 	double percentComplete = 0;
+ 	long duration = 0;
+	private int workContourType; // these are only used for serializing the contour.  They are not "up to date" otherwise
+	private int costContourType;
+ 	private transient AbstractContour workContour = StandardContour.FLAT_CONTOUR;
+	private transient AbstractContour costContour = StandardContour.FLAT_CONTOUR;
+	private transient AbstractContour importedActualWorkContour;
+	private transient AbstractContour importedRemainingWorkContour;
+
+	private WorkingCalendar actualExceptionsCalendar = null; // for when user enters actual work during non-work time of calendar
+	private transient WorkingCalendar intersectionCalendar = null;
+	private transient TaskSchedule taskSchedule = null;
+
+	private transient Resource resource;
+	private transient Task task;
+	private transient Delayable delayable;
+	private int requestDemandType = RequestDemandType.Kind.NONE.code();
+	private int costRateIndex = CostRateIndex.Kind.A.code();
+	private long overtimeWork = 0; // allowed overtime that is evenly distributed across contour
+	
+	private WorkingCalendar baselineCalendar = null; // only applies if this is a baseline
+	// Kept out of Java serialization so the frozen POD object descriptor/wire remains unchanged.
+	private transient AssignmentLevelingSplitState levelingSplitState;
+	// POD is a frozen legacy format; assignment notes are persisted via MPO/MSPDI.
+	private transient String notes;
+
+	String getNotes() { return notes; }
+	void setNotes(String notes) { this.notes = notes; }
+	/**
+	 * @return Returns the percentComplete.
+	 */
+	public double getPercentComplete() {
+		return percentComplete;
+	}
+	/**
+	 * @param percentComplete The percentComplete to set.
+	 */
+	public void setPercentComplete(double percentComplete) {
+		if (Double.isNaN(percentComplete) || Double.isInfinite(percentComplete))
+			throw new IllegalArgumentException("Percent complete must be finite");
+		if (percentComplete < 0.0D)
+			percentComplete = 0.0D;
+		else if (percentComplete > 1.0D)
+			percentComplete = 1.0D;
+		this.percentComplete = percentComplete;
+		if (getTask() != null) // in case of called from web
+			((NormalTask)getTask()).adjustActualStartFromAssignments();
+	}
+	/**
+	 * @return Returns the duration.
+	 */
+	public long getDuration() {
+		return duration;
+	}
+	
+	void recalculateDuration() {
+		duration = workContour.calcTotalBucketDuration(0);
+	}
+	/**
+	 * @param taskSchedule The taskSchedule to set.
+	 */
+	void setTaskSchedule(TaskSchedule taskSchedule) {
+		this.taskSchedule = taskSchedule;
+	}
+/**
+ * Set just the units and the resource.  This is the case when replacing a resource with another,
+ * such as the default resource assignment being replaced with a true one
+ * @param units
+ * @param resource
+ */	
+	void replaceResourceAndUnits(double units, Resource resource) {
+		this.resource = resource;
+		setUnits(units);
+	}
+	
+	/**
+	 * Construct an assignment.  The arguments are those that are presented in the assign resource dialog
+	 * @param task
+	 * @param resource
+	 * @param units
+	 * @param requestDemandType  -Normally empty
+	 */	
+	AssignmentDetail(Task task,
+					Resource resource,
+					double units,
+					int requestDemandType,
+					long delay) {
+		this.task = task;
+		this.resource = resource;
+		setUnits(units);
+		this.requestDemandType = requestDemandType;
+		this.delayable = new DelayableImpl(delay,0);
+	}
+	
+	private AssignmentDetail() { // used in cloning
+		
+	}
+	/**
+	 * Accessor for units (value of work)
+	 * @return units
+	 */
+	double getUnits() {
+		return rate.getValue();
+	}
+	
+	void setUnits(double units) {
+		rate.setValue(units);
+	}
+
+	/**
+	 * Calculate the overtime value from the overtime work field.  MSProject distributes
+	 * overtime uniformly over the working days of the assignment.
+	 * @return overtime value 
+	 */
+	double calcOvertimeUnits() {
+		long workingDuration = calcWorkingDuration();
+		if (workingDuration == 0) // take care of degenerate case
+			return 0.0;
+		return ((double)overtimeWork) / workingDuration;
+	}
+
+	void setOvertimeWork(long overtimeWork) {
+		this.overtimeWork = overtimeWork;
+	}
+	
+	 
+	/**
+	 * Calculate the total work by multiplying units by the calculated duration
+	 * @return total work.
+	*/
+	long calcWork() {
+		//hk
+		return (long) (getUnits() * calcWorkingDuration());
+	}
+
+	public String toString() {
+		return super.toString();
+	}
+
+	/**
+	 * @return Returns the contour.
+	 */
+	AbstractContour getWorkContour() {
+		return workContour;
+	}
+
+	/**
+	 * Accessor for the assignment's delay
+	 * @return delay
+	 */
+	public long getDelay(){
+		return delayable.getDelay();
+	}
+
+	void setDelay(long delay) {
+		delayable = new DelayableImpl(delay,delayable.getLevelingDelay());
+	}
+	
+	public long getLevelingDelay(){
+		return delayable.getLevelingDelay();
+	}
+
+	void setLevelingDelay(long levelingDelay){
+		delayable = new DelayableImpl(delayable.getDelay(),levelingDelay);
+	}
+
+	public long calcTotalDelay() {
+		return delayable.calcTotalDelay();
+	}
+
+
+	void setContour(Object type, Collection<? extends AbstractContourBucket> bucketList) {
+		AbstractContourBucket[] contour = new AbstractContourBucket[bucketList.size()];
+		bucketList.toArray(contour);
+		setContour(type,contour);
+		
+	}
+	void setContour(Object type, AbstractContourBucket[] buckets) {
+		if (type == HasTimeDistributedData.WORK) {
+			workContour  = PersonalContour.getInstance(buckets);
+		} else if (type == HasTimeDistributedData.COST) {
+			costContour  = PersonalContour.getInstance(buckets);
+		}
+	}
+	void setContour(Object type, AbstractContour contour) {
+		if (type == HasTimeDistributedData.WORK) workContour = contour;
+		else if (type == HasTimeDistributedData.COST) costContour = contour;
+	}
+	
+	/**
+	 * @return Returns the requestDemandType.
+	 */
+	public int getRequestDemandType() {
+		return requestDemandType;
+	}
+	
+	void setRequestDemandType(int requestDemandType) {
+		this.requestDemandType = requestDemandType;
+
+	}
+	void setWorkContour(AbstractContour contour) {
+		this.workContour = contour;
+	}
+	/**
+	 * @param duration The duration to set.
+	 */
+	void adjustRemainingDuration(long newRemainingDuration) {
+		if (newRemainingDuration < 0)
+			newRemainingDuration = 0; // just in case
+		if (getUnits() == 0) // take care of degenerate case
+			newRemainingDuration = 0;
+
+		long actualDuration = getActualDuration();
+		long d = newRemainingDuration + actualDuration;
+		if (actualDuration > 0 && !workContour.isPersonal()) // because the remaining might not have same contour
+			workContour = PersonalContour.makePersonal(workContour,getDuration()); //use previous duration
+		workContour = workContour.adjustDuration(d, actualDuration); // allow a personal contour to adjust itself
+		d = workContour.calcTotalBucketDuration(d); // it is possible that the contour is shorter because we have eliminated a bucket at the end which is after empty time.  The empty time must be removed too
+		setDuration(d);
+	}
+
+	void importBaselineValues(Long start, Long finish, Long work) {
+		long taskStart = getTaskStart();
+		WorkCalendar calendar = getEffectiveWorkCalendar();
+		long targetStart = start == null ? getStart() : start.longValue();
+		if (targetStart < taskStart)
+			throw new IllegalArgumentException("Baseline assignment cannot start before its task baseline");
+		if (finish != null && finish.longValue() < targetStart)
+			throw new IllegalArgumentException("Baseline assignment finish precedes its start");
+		if (work != null && (work.longValue() < 0L || (work.longValue() > 0L && getUnits() <= 0.0D)))
+			throw new IllegalArgumentException("Baseline work must be nonnegative and require positive units");
+
+		long durationFromFinish = finish == null ? -1L
+			: calendar.compare(finish.longValue(), targetStart, false);
+		long durationFromWork = work == null || getUnits() <= 0.0D ? -1L
+			: Math.round(work.longValue() / getUnits());
+
+		if (start != null)
+			setDelay(calendar.compare(targetStart, taskStart, false));
+		if (finish != null || work != null) {
+			long duration = finish != null ? durationFromFinish : durationFromWork;
+			if (duration < 0L)
+				throw new IllegalArgumentException("Baseline work requires a positive-unit assignment or finish date");
+			workContour = workContour.adjustDuration(duration, 0L);
+			duration = workContour.calcTotalBucketDuration(duration);
+			this.duration = duration;
+			if (work != null && finish != null) {
+				long workingDuration = workContour.calcWorkingBucketDuration(duration);
+				if (workingDuration == 0L && work.longValue() > 0L)
+					throw new IllegalArgumentException("Positive baseline work requires working time");
+				rate.setValue(workingDuration == 0L ? 0.0D : ((double) work.longValue()) / workingDuration);
+			}
+		}
+	}
+
+	/**
+	 * @param units The units to set.
+	 */
+	void adjustRemainingUnits(double newUnits) {
+		workContour = workContour.adjustUnits(newUnits/getUnits(), getActualDuration()); // allow a personal contour to adjust itself
+		setUnits(newUnits);
+	}
+
+	void adjustRemainingWork(double multiplier) {
+		long dur;
+		
+		AbstractContour newContour = workContour.contourAdjustWork(multiplier, getActualDuration());
+		if (workContour != newContour) { // adjust the work contour - the case of a personal contour
+			workContour = newContour; // if contour was changed
+			dur =workContour.calcTotalBucketDuration(getDuration()); // cannot perform simple multiplication of duration because non-work periods are NOT multiplied
+		} else {
+			dur = (long) (getActualDuration() + getRemainingDuration() * multiplier);
+		}
+		setDuration(dur);
+		setUnits(getUnits() / multiplier);
+	}
+
+
+	/**
+	 * MSProject displays duration as only the working duration except in fixed duration tasks.
+	 * @return duration with non-work periods excluded
+	 */
+	long calcWorkingDuration() {
+		return workContour.calcWorkingBucketDuration(getDuration());
+	}
+
+	long calcRemainingDurationForTotalWork(long totalWork) {
+		long totalDuration = workContour.calcDurationForWork(totalWork, getUnits());
+		return Math.max(0L, totalDuration - getActualDuration());
+	}
+
+
+	/**
+	 * Allow setting of working duration. MSProject displays working duration (excludes non-work intervals) except when
+	 * task type is fixed duration, in which case it shows duration with non-work intervals
+	 * @param newWorkingDuration
+	 */
+	void adjustWorkingDuration(long newWorkingDuration) {
+		adjustRemainingDuration(getDuration() + (newWorkingDuration - calcWorkingDuration()));
+	}
+
+	
+	/**
+	 * @return Returns the schedule.
+	 */
+	TaskSchedule getTaskSchedule() {
+		if (taskSchedule == null)
+			return getTask().getCurrentSchedule();
+		return taskSchedule;
+	}
+	
+	TaskSchedule getTaskScheduleOfAssignment() {
+		return taskSchedule;
+	}
+	
+	
+	void convertToBaselineAssignment(boolean useDefaultCalendar) {
+		WorkingCalendar calendar = useDefaultCalendar
+			? CalendarService.getInstance().getDefaultInstance()
+			: (WorkingCalendar) getEffectiveWorkCalendar();
+		baselineCalendar = calendar.copyForBaselineSnapshot();
+	}
+	
+	boolean isBaseline() {
+		return baselineCalendar != null;
+	}
+	
+	public WorkCalendar getEffectiveWorkCalendar() {
+		return AssignmentCalendarSupport.resolve(this);
+	}
+
+	WorkingCalendar getActualExceptionsCalendar() {
+		return actualExceptionsCalendar;
+	}
+
+	WorkingCalendar getBaselineCalendar() {
+		return baselineCalendar;
+	}
+
+	void setBaselineCalendarSnapshot(WorkingCalendar calendar) {
+		if (baselineCalendar == null)
+			throw new IllegalStateException("A baseline calendar can only be restored on a baseline assignment");
+		baselineCalendar = java.util.Objects.requireNonNull(calendar, "calendar").copyForBaselineSnapshot();
+	}
+
+	WorkingCalendar getIntersectionCalendar() {
+		return intersectionCalendar;
+	}
+
+	void setIntersectionCalendar(WorkingCalendar calendar) {
+		intersectionCalendar = calendar;
+	}
+	
+	public boolean isInvalidIntersectionCalendar() {
+		return intersectionCalendar == WorkingCalendar.INVALID_INTERSECTION_CALENDAR;
+	}
+
+	/**
+	 * @return Returns the task.
+	 */
+	Task getTask() {
+		return task;
+	}
+
+/**
+ * The assignment start is calculated like this:
+ * Get the task start. 
+ * If the assignment is not started, use the task's dependency date if it's later than the start
+ * Add in any delay
+ */
+	public long getStart() {
+		long delay = this.calcTotalDelay();
+		TaskSchedule ts = getTaskSchedule();
+		long s = ts.getStart();
+		if (percentComplete == 0) { // if no completion, use task dependency date if needed
+			long d = ts.getDependencyDate();
+			if (d > s && !task.startsBeforeProject())
+				s = d;
+		}
+		if (delay > 0)
+			s = getEffectiveWorkCalendar().add(s,delay,false); // use later time
+		return s; 
+	}
+	
+	
+/**
+ * Sets the assignment start. Since the assigment start is an offset (usually 0) from task start, setting a later start means
+ * setting a delay for the assignment.  Also, any levelling delay is cleared
+ */
+	public void setStart(long start) {
+		if (start > getTaskStart()) {
+			long delay = getEffectiveWorkCalendar().compare(start,getTaskStart(),false);
+			setLevelingDelay(0);
+			setDelay(delay);
+		}
+	}
+	
+	long getSplitDuration() {
+		long dependencyStart = getDependencyStart();
+		if (dependencyStart == 0 || getDependencyStart() == getTaskStart())
+			return 0;
+		
+		long remainingStart = Math.max(getTaskStart(),getStop());
+		return Math.max(0,getEffectiveWorkCalendar().compare(getDependencyStart(),remainingStart,false));
+	}
+	
+	long getFinish() {
+		return getEnd();
+	}
+
+
+	/**
+	 * @return Returns the resource.
+	 */
+	Resource getResource() {
+		return resource;
+	}
+	
+	AbstractContourBucket[] getContour(Object type) {
+		if (type == HasTimeDistributedData.ACTUAL_WORK && importedActualWorkContour != null)
+			return importedActualWorkContour.getContourBuckets();
+		if (type == HasTimeDistributedData.REMAINING_WORK && importedRemainingWorkContour != null)
+			return importedRemainingWorkContour.getContourBuckets();
+		return ((type == HasTimeDistributedData.COST) ? costContour : workContour).getContourBuckets();
+	}
+
+	boolean hasImportedTimephasedWork() {
+		return importedActualWorkContour != null && importedRemainingWorkContour != null;
+	}
+
+	void setImportedTimephasedWork(AbstractContour actual, AbstractContour remaining) {
+		if (actual == null || remaining == null)
+			throw new IllegalArgumentException("Imported actual and remaining work profiles are required");
+		importedActualWorkContour = actual;
+		importedRemainingWorkContour = remaining;
+	}
+
+	void restoreImportedTimephasedWorkScaledFrom(AssignmentDetail source, long actualWork, long remainingWork, long duration) {
+		if (!source.hasImportedTimephasedWork())
+			throw new IllegalArgumentException("Source assignment has no imported timephased work profiles");
+		if (actualWork < 0L || remainingWork < 0L || duration < 0L)
+			throw new IllegalArgumentException("Imported timephased work totals cannot be negative");
+		importedActualWorkContour = scaleImportedContour(source.importedActualWorkContour, actualWork, duration);
+		importedRemainingWorkContour = scaleImportedContour(source.importedRemainingWorkContour, remainingWork, duration);
+	}
+
+	private static AbstractContour scaleImportedContour(AbstractContour source, long targetWork, long maxDuration) {
+		AbstractContourBucket[] sourceBuckets = source.getContourBuckets();
+		long sourceTotal = 0L;
+		long totalDuration = 0L;
+		long[] sourceWork = new long[sourceBuckets.length];
+		long[] durations = new long[sourceBuckets.length];
+		for (int index = 0; index < sourceBuckets.length; index++) {
+			durations[index] = sourceBuckets[index].getBucketDuration(0L);
+			if (durations[index] < 0L) throw new IllegalArgumentException("Imported work profile has negative duration");
+			sourceWork[index] = Math.round(sourceBuckets[index].getUnits() * durations[index]);
+			sourceTotal = Math.addExact(sourceTotal, sourceWork[index]);
+			totalDuration = Math.addExact(totalDuration, durations[index]);
+		}
+		if (targetWork > 0L && totalDuration == 0L)
+			throw new IllegalArgumentException("Cannot distribute work across an empty imported profile");
+
+		long[] targetBucketWork = new long[sourceBuckets.length];
+		long cumulativeSource = 0L;
+		long cumulativeDuration = 0L;
+		long previousTarget = 0L;
+		for (int index = 0; index < sourceBuckets.length; index++) {
+			cumulativeSource = Math.addExact(cumulativeSource, sourceWork[index]);
+			cumulativeDuration = Math.addExact(cumulativeDuration, durations[index]);
+			long cumulativeTarget = sourceTotal > 0L
+				? roundedRatio(targetWork, cumulativeSource, sourceTotal)
+				: roundedRatio(targetWork, cumulativeDuration, totalDuration);
+			targetBucketWork[index] = cumulativeTarget - previousTarget;
+			previousTarget = cumulativeTarget;
+		}
+		ArrayList<AbstractContourBucket> scaled = new ArrayList<>(sourceBuckets.length);
+		long remainingDuration = maxDuration;
+		long preservedWork = 0L;
+		for (int index = 0; index < sourceBuckets.length; index++) {
+			long bucketWork = targetBucketWork[index];
+			long duration = Math.min(durations[index], remainingDuration);
+			if (duration == 0L) {
+				if (bucketWork != 0L)
+					throw new IllegalArgumentException("Imported work profile does not fit the edited assignment duration");
+				continue;
+			}
+			double units = (double) bucketWork / duration;
+			if (duration > 0L && (long) (units * duration) < bucketWork)
+				units = Math.nextUp(units);
+			scaled.add(PersonalContourBucket.getInstance(duration, units));
+			preservedWork = Math.addExact(preservedWork, bucketWork);
+			remainingDuration -= duration;
+		}
+		if (preservedWork != targetWork)
+			throw new IllegalArgumentException("Imported work profile could not preserve the edited work total");
+		if (remainingDuration > 0L)
+			scaled.add(PersonalContourBucket.getInstance(remainingDuration, 0.0D));
+		return PersonalContour.getInstance(scaled);
+	}
+
+	void rebuildImportedTotalWorkContour(long assignmentDuration) {
+		if (!hasImportedTimephasedWork())
+			return;
+		AbstractContourBucket[] actual = importedActualWorkContour.getContourBuckets();
+		AbstractContourBucket[] remaining = importedRemainingWorkContour.getContourBuckets();
+		ArrayList<AbstractContourBucket> total = new ArrayList<>(actual.length + remaining.length);
+		int actualIndex = 0;
+		int remainingIndex = 0;
+		long actualLeft = actual.length == 0 ? 0L : actual[0].getBucketDuration(0L);
+		long remainingLeft = remaining.length == 0 ? 0L : remaining[0].getBucketDuration(0L);
+		long left = assignmentDuration;
+		while (left > 0L) {
+			while (actualIndex < actual.length && actualLeft == 0L) {
+				actualIndex++;
+				if (actualIndex < actual.length) actualLeft = actual[actualIndex].getBucketDuration(0L);
+			}
+			while (remainingIndex < remaining.length && remainingLeft == 0L) {
+				remainingIndex++;
+				if (remainingIndex < remaining.length) remainingLeft = remaining[remainingIndex].getBucketDuration(0L);
+			}
+			long span = Math.min(left, Math.min(actualIndex < actual.length ? actualLeft : left,
+				remainingIndex < remaining.length ? remainingLeft : left));
+			if (span <= 0L)
+				break;
+			double actualUnits = actualIndex < actual.length ? actual[actualIndex].getUnits() : 0.0D;
+			double remainingUnits = remainingIndex < remaining.length ? remaining[remainingIndex].getUnits() : 0.0D;
+			total.add(PersonalContourBucket.getInstance(span, actualUnits + remainingUnits));
+			left -= span;
+			if (actualIndex < actual.length && (actualLeft -= span) == 0L) {
+				actualIndex++;
+				if (actualIndex < actual.length) actualLeft = actual[actualIndex].getBucketDuration(0L);
+			}
+			if (remainingIndex < remaining.length && (remainingLeft -= span) == 0L) {
+				remainingIndex++;
+				if (remainingIndex < remaining.length) remainingLeft = remaining[remainingIndex].getBucketDuration(0L);
+			}
+		}
+		if (left > 0L)
+			total.add(PersonalContourBucket.getInstance(left, 0.0D));
+		workContour = PersonalContour.getInstance(total);
+	}
+
+	private static long roundedRatio(long total, long part, long whole) {
+		if (whole == 0L) return 0L;
+		BigInteger numerator = BigInteger.valueOf(total).multiply(BigInteger.valueOf(part));
+		BigInteger divisor = BigInteger.valueOf(whole);
+		return numerator.add(divisor.shiftRight(1)).divide(divisor).longValueExact();
+	}
+
+	void clearImportedTimephasedWork() {
+		importedActualWorkContour = null;
+		importedRemainingWorkContour = null;
+	}
+	/**
+	 * @return Returns the costContour.
+	 */
+	AbstractContour getCostContour() {
+		return costContour;
+	}
+
+	/**
+	 * @return Returns the costRateIndex.
+	 */
+	int getCostRateIndex() {
+		return costRateIndex;
+	}
+
+	CostRateIndex.Kind getCostRateIndexKind() {
+		return CostRateIndex.Kind.fromCodeOrNull(costRateIndex);
+	}
+	
+	void setCostRateIndex(int costRateIndex) {
+		this.costRateIndex = costRateIndex;
+	}
+
+	void setCostRateIndex(CostRateIndex.Kind costRateIndex) {
+		this.costRateIndex = java.util.Objects.requireNonNull(costRateIndex, "costRateIndex").code();
+	}
+
+	Assignment getBaselineAssignment() {
+		if (task == null) // case when just loading assignment in timesheet
+			return null;
+		return task.getBaselineAssignment(resource);
+	}
+
+	Assignment getBaselineAssignment(Object baseline, boolean createIfDoestExist) {
+		if (task == null) // case when just loading assignment in timesheet
+			return null;
+		return task.getBaselineAssignment(resource,baseline, createIfDoestExist);
+	}
+	
+	long effectiveBaselineStart() {
+		Assignment baselineAssignment  = getBaselineAssignment();
+		if (baselineAssignment == null)
+			return getStart();
+		return baselineAssignment.getStart();
+	}
+
+	long effectiveBaselineStart(Object baseline) {
+		Assignment baselineAssignment  = getBaselineAssignment(baseline, false);
+		if (baselineAssignment == null)
+			return getStart();
+		return baselineAssignment.getStart();
+	}
+	long effectiveBaselineFinish(Object baseline) {
+		Assignment baselineAssignment  = getBaselineAssignment(baseline, false);
+		if (baselineAssignment == null)
+			return getFinish();
+		return baselineAssignment.getFinish();
+	}
+	
+	
+
+
+	
+	/** returns the amount of effort that the resource as available to work on the assignment 
+	 * 
+	 * @return
+	 */
+	long getResourceAvailability() {
+		WorkCalendar cal = getEffectiveWorkCalendar();
+		long start = getStart();
+		long finish = getFinish();
+		long availability = 0;
+		for (Object entry : resource.getAvailabilityTable().getList()) {
+			Availability resourceAvailability = (Availability) entry;
+			long overlapStart = Math.max(start, resourceAvailability.getAvailableFrom());
+			long overlapFinish = Math.min(finish, resourceAvailability.getAvailableTo());
+			if (overlapFinish <= overlapStart)
+				continue;
+			long overlapDuration = cal.compare(overlapFinish, overlapStart, false);
+			availability += (long) (resourceAvailability.getMaximumUnits() * overlapDuration);
+		}
+		return availability;
+	}
+	
+	
+	void shift(long start, long end, long shiftDuration) {
+		PersonalContour newContour =PersonalContour.makePersonal(workContour,getDuration());
+		newContour = newContour.shift(start,end,shiftDuration);
+		workContour =newContour;
+		if (workContour.isPersonal())
+			duration = workContour.calcTotalBucketDuration(duration);
+		checkForNegativeDuration();
+	}
+
+	// in rare circumstances duration would go negative. prevent this
+	private void checkForNegativeDuration() {
+		if (duration < 0) {
+			if (getDelay() > 0) // clear out any delay
+				setDelay(0);
+			duration = 0;
+		}
+		
+	}
+	void extend(long end, long extendDuration) {
+		workContour = workContour.extend(end,extendDuration);
+		if (workContour.isPersonal())
+			duration = workContour.calcTotalBucketDuration(duration);
+		else
+			duration += extendDuration;
+		checkForNegativeDuration();
+	}
+	/**
+	 * @param startOffset
+	 * @param extendDuration
+	 */
+	public void extendBefore(long startOffset, long extendDuration) {
+		workContour = workContour.extendBefore(startOffset,extendDuration);
+		if (workContour.isPersonal())
+			duration = workContour.calcTotalBucketDuration(duration);
+		else
+			duration -= extendDuration;
+		checkForNegativeDuration();
+		
+	}
+	
+	public void split(Object eventSource, long from, long to) {
+		applySplit(from, to);
+	}
+
+	public boolean splitForLeveling(Object eventSource, long from, long to) {
+		AssignmentLevelingSplitState previous = levelingSplitState;
+		if (previous != null && !previous.matchesGenerated(workContour, duration))
+			throw new IllegalStateException("Assignment contour changed after leveling; clear or review that edit before leveling again");
+		AbstractContour before = previous == null ? copyContour(workContour) : previous.beforeContourCopy();
+		long beforeDuration = previous == null ? duration : previous.beforeDuration();
+		ArrayList<TaskSplitInterval> gaps = new ArrayList<>();
+		if (previous != null) gaps.addAll(previous.generatedGaps());
+		SplitSpan span = splitSpan(from, to);
+		if (span == null || span.startOffset() >= span.endOffset() || span.splitDuration() <= 0L) return false;
+		long startOffset = span.startOffset();
+		long splitDuration = span.splitDuration();
+		TaskSplitInterval proposedGap = new TaskSplitInterval(startOffset, Math.addExact(startOffset, splitDuration));
+		if (previous != null && previous.generatedGaps().contains(proposedGap)) return false;
+		boolean changed = applySplit(from, to);
+		if (!changed) return false;
+		gaps.add(proposedGap);
+		levelingSplitState = new AssignmentLevelingSplitState(before, beforeDuration,
+			copyContour(workContour), duration, gaps);
+		return true;
+	}
+
+	/** The work offsets (from the task start, minus an existing split) that a split of [from, to) covers. */
+	private record SplitSpan(long splitDuration, long startOffset, long endOffset) { }
+
+	private SplitSpan splitSpan(long from, long to) {
+		from = Math.max(from, getResume());
+		if (from >= to)
+			return null;
+		WorkCalendar calendar = getEffectiveWorkCalendar();
+		long splitDuration = calendar.compare(to, from, false);
+		long taskStart = task == null ? getStart() : task.getStart();
+		long startOffset = calendar.compare(from, taskStart, false);
+		long endOffset = calendar.compare(getEnd(), taskStart, false);
+		if (getResume() != 0 && from >= getResume()) {
+			long existingSplitDuration = getSplitDuration();
+			startOffset -= existingSplitDuration;
+			endOffset -= existingSplitDuration;
+		}
+		return new SplitSpan(splitDuration, startOffset, endOffset);
+	}
+
+	private boolean applySplit(long from, long to) {
+		AbstractContour originalContour = copyContour(workContour);
+		long originalDuration = duration;
+		SplitSpan span = splitSpan(from, to);
+		if (span == null || span.startOffset() >= span.endOffset())
+			return false;
+		if (!workContour.isPersonal()) {
+			workContour = PersonalContour.makePersonal(workContour, getDuration());
+		}
+		shift(span.startOffset(), span.endOffset(), span.splitDuration());
+		return duration != originalDuration || !sameContour(originalContour, workContour, originalDuration, duration);
+	}
+
+	public AssignmentLevelingSplitState getLevelingSplitState() { return levelingSplitState; }
+
+	public void restoreLevelingSplitState(AssignmentLevelingSplitState state) {
+		levelingSplitState = state;
+	}
+
+	public boolean clearLevelingGeneratedSplits() {
+		if (levelingSplitState == null) return false;
+		if (!levelingSplitState.matchesGenerated(workContour, duration))
+			throw new IllegalStateException("Assignment contour changed after leveling; refusing to overwrite the later edit");
+		AbstractContour beforeContour = levelingSplitState.beforeContourCopy();
+		long beforeDuration = levelingSplitState.beforeDuration();
+		workContour = beforeContour;
+		duration = beforeDuration;
+		if (hasImportedTimephasedWork() && importedActualWorkContour.calcTotalWork(0L) == 0L)
+			clearImportedTimephasedWork();
+		levelingSplitState = null;
+		return true;
+	}
+
+	private static AbstractContour copyContour(AbstractContour contour) {
+		return (AbstractContour) contour.clone();
+	}
+
+	private static boolean sameContour(AbstractContour first, AbstractContour second, long firstDuration, long secondDuration) {
+		if (first.getTypeKind() != second.getTypeKind() || first.numBuckets() != second.numBuckets()) return false;
+		AbstractContourBucket[] a = first.getContourBuckets();
+		AbstractContourBucket[] b = second.getContourBuckets();
+		for (int index = 0; index < a.length; index++) {
+			if (a[index] == null || b[index] == null
+				|| a[index].getBucketDuration(firstDuration) != b[index].getBucketDuration(secondDuration)
+				|| Double.doubleToLongBits(a[index].getUnits()) != Double.doubleToLongBits(b[index].getUnits())) return false;
+		}
+		return true;
+	}
+
+	
+	public void removeEmptyBucketAtDuration(long atDuration) {
+		if (workContour.isPersonal()) {
+			workContour = ((PersonalContour)workContour).removeEmptyBucketAtDuration(atDuration);
+		}
+	}
+	
+	
+	MutableInterval getRangeThatIntervalCanBeMoved(long start, long end) {
+		return workContour.getRangeThatIntervalCanBeMoved(start,end);
+	}
+
+	public void setWorkCalendar(WorkCalendar workCalendar) {
+		if (workCalendar == null) {
+			actualExceptionsCalendar = null;
+			return;
+		}
+		if (!(workCalendar instanceof WorkingCalendar)) {
+			throw new IllegalArgumentException("AssignmentDetail requires a WorkingCalendar");
+		}
+		actualExceptionsCalendar = (WorkingCalendar) workCalendar;
+	}
+
+	public WorkCalendar getWorkCalendar() {
+		return getEffectiveWorkCalendar();
+	}
+	
+	public long getDependencyStart() {
+		return getTaskSchedule().getRemainingDependencyDate();
+	}	
+ 
+ 	long getTaskStart() {
+ 		return getTaskSchedule().getStart();
+ 	}
+ 	
+ 	
+ 	
+ 	
+ 	
+ 	
+ 	
+ 	
+ 	
+ 	
+ 	
+ 	
+ 	
+    public void setDuration(long duration) {
+    	long stop = getStop(); // need to preserve completion
+    	if (Duration.millis(duration) < 0)
+    		duration = 0; // just in case
+    	this.duration = duration;
+    	setStop(stop);
+    }
+    public long getActualFinish() {
+    	if (getPercentComplete() < 1.0)
+    		return 0;
+    	return getEnd();
+    }
+    /**
+     * Sets the actual finish.  This entails setting the end, the actual start (in case it's not set yet), the duration
+     * and the actual duration.
+     */
+	public void setActualFinish(long actualFinish) {
+		setEnd(actualFinish);
+		setPercentComplete(1.0D);
+	}    
+ 	
+	public long getEnd() {
+		WorkCalendar cal = getEffectiveWorkCalendar();
+		long finish = cal.add(getStart(),getDuration(),true);
+		if (getPercentComplete() > 0.0 && getPercentComplete() < 1.0) {
+			long dependencyStart = getDependencyStart();
+			if (dependencyStart > getTaskStart()) {
+				long splitDuration  = cal.compare(dependencyStart,getTaskStart(),false);
+				finish = cal.add(finish,splitDuration,true);
+			}
+		}
+		return finish;
+	}
+	
+	public void setEnd(long end) {
+		long remaining = getRemainingDuration();
+		long oldEnd = getEnd();
+		if (oldEnd == end)
+			return;
+		long stop = getStop();
+		if (stop > end)
+			end = stop;
+		long durationDifference = getEffectiveWorkCalendar().compare(end,oldEnd,false);
+		long newRemaining = remaining + durationDifference;
+		if (newRemaining < 0) // test to avoid negative duration
+			newRemaining = 0L;
+		adjustRemainingDuration(newRemaining);
+		
+		
+		setStop(stop);
+	}
+	
+	public long getActualStart() {
+		if (percentComplete == 0)
+			return 0;
+		return getStart();
+	}
+
+	public void setActualStart(long actualStart) {
+		setStart(actualStart);
+		if (percentComplete == 0)
+			setPercentComplete(INSTANT_COMPLETION);
+	}
+	/**
+	 * @return Returns the actualDuration.
+	 */
+	public long getActualDuration() {
+		return  DateTime.closestDate(getDuration() * getPercentComplete());
+	}
+	/**
+	 * @param actualDuration The actualDuration to set. Will fix actual start if needed
+	 */
+	public void setActualDuration(long actualDuration) {
+		if (getDuration() > 0)
+			setPercentComplete(((double)actualDuration)/getDuration());
+	}
+
+	public void clearDuration() {
+		setDuration(0);
+	}
+	public void moveInterval(Object eventSource, long start, long end, ScheduleInterval oldInterval, boolean isChild) {
+		throw new RuntimeException("cannot call moveInterval for an AssignmentDetail");
+	}
+
+	public void moveRemainingToDate(long date) {
+		throw new RuntimeException("cannot call moveRemainingToDate for an AssignmentDetail");
+	}
+	
+	
+	public void consumeIntervals(IntervalConsumer consumer) {
+		throw new RuntimeException("cannot call consumeIntervals for an AssignmentDetail");
+	}
+
+	public long getElapsedDuration() {
+		return Math.round(getEffectiveWorkCalendar().compare(getEnd(), getStart(),true) * CalendarOption.getInstance().getFractionOfDayThatIsWorking());
+	}
+	public long getRemainingDuration() {
+		return DateTime.closestDate( (getDuration() * (1.0D - percentComplete)));
+	}
+
+	public void setRemainingDuration(long remainingDuration) {
+		if (getDuration() == 0L)
+			return;
+		setPercentComplete(1.0D - ((double)remainingDuration)/getDuration());
+	}
+	
+	/**
+	 *  returns calculated completed date.  If there is no advancement, the date is start date
+	 * @return
+	 */
+	public long getStop() {
+		long stop = 0;
+		if (percentComplete > 0.0 && percentComplete != INSTANT_COMPLETION) {
+			stop = getEffectiveWorkCalendar().add(getStart(),getActualDuration(),true); // use earlier date
+		}
+		return stop;
+	}
+
+	public void setDependencyStart(long dependencyStart) {
+		throw new RuntimeException("cannot call setDependencyStart for an AssignmentDetail");	
+	}
+	
+	void removeFillerAfter(long stop) {
+		long stopDuration = getEffectiveWorkCalendar().compare(stop,getStart(),false);
+		workContour = workContour.removeFillerAfter(stopDuration);
+	}
+	
+	public void setStop(long stop) {
+		if (stop < getStart()) // if before start ignore
+			return;
+		if (percentComplete == 1.0 && stop >= getActualFinish()) // adjust to be no later than actual finish
+			return;
+		
+
+		if (stop <= getStart()) { // if getting rid of completion
+			setPercentComplete(0);
+		} else {
+			long actualDuration = getEffectiveWorkCalendar().compare(stop,getStart(),false);
+			
+			long d = getDuration();
+			if (d != 0)
+				setPercentComplete(((double)actualDuration) / d);
+		}
+	}
+	public long getResume() {
+		long resume = 0;
+		
+		if (percentComplete > 0.0)
+			resume = getEffectiveWorkCalendar().add(getStart(),getActualDuration(),false); // use later date
+		resume = Math.max(resume,getDependencyStart());
+		if (workContour.isPersonal()) {
+			
+		}
+
+		return resume;
+	}
+	public void setResume(long resume) {
+		long oldResume = getResume();
+		long shift = getEffectiveWorkCalendar().compare(resume,oldResume,false);
+		if (shift == 0)
+			return;
+		
+		if (resume > oldResume) {
+
+		}
+		
+	}
+
+	long extractDelay() {
+		return workContour.extractDelay();
+	}
+	
+	
+	
+	private static short DEFAULT_VERSION=1;
+	private short version=DEFAULT_VERSION;
+	
+	private void writeObject(ObjectOutputStream s) throws IOException {
+		ContourTypes.Kind workKind = workContour.getTypeKind();
+		ContourTypes.Kind costKind = costContour.getTypeKind();
+		workContourType = workKind.code();
+		costContourType = costKind.code();
+	    s.defaultWriteObject();
+	    rate.serialize(s);
+	    //delayable
+	    s.writeLong(delayable.getDelay());
+	    s.writeLong(delayable.getLevelingDelay());
+	    //personnal contours
+	    if (workKind == ContourTypes.Kind.CONTOURED)
+	    	s.writeObject(workContour.getContourBuckets());
+	    if (costKind == ContourTypes.Kind.CONTOURED)
+	    	s.writeObject(costContour.getContourBuckets());
+	    
+	    if (version>=1){
+	    	s.writeBoolean(taskSchedule==null);
+	    	if (taskSchedule!=null) taskSchedule.serialize(s);
+	    }
+	}
+	private void readObject(ObjectInputStream s) throws IOException, ClassNotFoundException  {
+	    s.defaultReadObject();
+	    rate=Rate.deserialize(s);
+	    //delayable
+	    delayable=new DelayableImpl(s.readLong(),s.readLong());
+	    //personnal contours
+	    ContourTypes.Kind workKind = ContourTypes.Kind.fromCode(workContourType);
+	    ContourTypes.Kind costKind = ContourTypes.Kind.fromCode(costContourType);
+	    if (workKind == ContourTypes.Kind.CONTOURED){
+//	    	try{
+	    		workContour  = PersonalContour.getInstance((AbstractContourBucket[])s.readObject());
+//	    	}catch(Exception e){
+//	    		workContour = StandardContour.getStandardContour(workContourType);
+//	    	}
+	    } else workContour = StandardContour.getStandardContour(workKind);
+	    if (costKind == ContourTypes.Kind.CONTOURED){
+//	    	try{
+		    	costContour  = PersonalContour.getInstance((AbstractContourBucket[])s.readObject());
+//	    	}catch(Exception e){
+//	    		costContour = StandardContour.getStandardContour(costContourType);
+//	    	}
+	    } else costContour = StandardContour.getStandardContour(costKind);
+	    
+	    if (version>=1){
+	    	boolean nullSchedule=s.readBoolean();
+	    	if (!nullSchedule){
+	    		taskSchedule=TaskSchedule.deserialize(s);
+	    		taskSchedule.setTask(task);
+	    	}
+	    }
+	    version=DEFAULT_VERSION;
+	    	
+	}
+	public Object clone() {
+		AssignmentDetail clone = new AssignmentDetail();
+		copyStateTo(clone);
+		return clone;
+	}
+
+	private void copyStateTo(AssignmentDetail target) {
+		target.rate = (Rate) rate.clone();
+		target.percentComplete = percentComplete;
+		target.duration = duration;
+		target.workContour = (AbstractContour) workContour.clone();
+		target.costContour = costContour;
+		target.importedActualWorkContour = importedActualWorkContour == null ? null
+			: (AbstractContour) importedActualWorkContour.clone();
+		target.importedRemainingWorkContour = importedRemainingWorkContour == null ? null
+			: (AbstractContour) importedRemainingWorkContour.clone();
+		target.actualExceptionsCalendar = actualExceptionsCalendar;
+		target.intersectionCalendar = intersectionCalendar;
+		target.taskSchedule = taskSchedule;
+		target.resource = resource;
+		target.task = task;
+		target.delayable = (Delayable) ((DelayableImpl) delayable).clone();
+		target.requestDemandType = requestDemandType;
+		target.costRateIndex = costRateIndex;
+		target.overtimeWork = overtimeWork;
+		target.notes = notes;
+		target.baselineCalendar = baselineCalendar == null ? null : baselineCalendar.copyForBaselineSnapshot();
+		target.levelingSplitState = levelingSplitState == null ? null : new AssignmentLevelingSplitState(
+			levelingSplitState.beforeContourCopy(), levelingSplitState.beforeDuration(),
+			levelingSplitState.generatedContourCopy(), levelingSplitState.generatedDuration(),
+			levelingSplitState.generatedGaps());
+	}
+
+
+	
+    public long getOvertimeWork() {
+        return overtimeWork;
+    }
+    public void setResource(Resource resource) {
+        this.resource = resource;
+    }
+    public void setTask(Task task) {
+        this.task = task;
+    }
+    
+    boolean hasDuration() {
+    	return duration != 0;
+    }
+	public final boolean isTemporal() {
+		return rate.getTimeUnit() != TimeUnit.NON_TEMPORAL;
+	}
+	/**
+	 * @param timeUnit
+	 */
+	void setRateUnit(int timeUnit) {
+		rate.setTimeUnit(timeUnit);
+	}
+	public final Rate getRate() {
+		return rate;
+	}
+	public final void setRate(Rate rate) {
+		this.rate = rate;
+	}
+	public void invalidateAssignmentCalendar() {
+		if (intersectionCalendar != null)
+			intersectionCalendar = null;
+		if (actualExceptionsCalendar != null)
+			actualExceptionsCalendar.invalidate();
+	}
+	public Document invalidateCalendar() {
+		return task.getOwningProject();
+		
+	}
+	@Override
+	public Document getCalendarOwnerDocument() {
+		return task == null ? null : task.getOwningProject();
+	}
+	
+	
+	public boolean isJustModified(){
+		Task task=getTask();
+		if (task==null) return false;
+		else return task.isJustModified();
+	}
+	public void addCalendarTime(long start, long end) {
+		if (actualExceptionsCalendar == null) {
+			WorkCalendar base = getEffectiveWorkCalendar();
+			actualExceptionsCalendar = CalendarService.getInstance().getStandardBasedInstance();
+			try {
+				actualExceptionsCalendar.setBaseCalendar(base);
+			} catch (CircularDependencyException e) {
+				throw new IllegalStateException("Unable to set base calendar", e);
+			}
+		}
+		actualExceptionsCalendar.addCalendarTime(start, end);
+	}
+
+	public void setComplete(boolean complete) {
+		ScheduleUtil.setComplete(this,complete);
+	}
+	public boolean isComplete() {
+		return getPercentComplete() == 1.0D;
+	}
+	public final long getEarliestStop() {
+		return getStop();
+	}
+	public final long getCompletedThrough() {
+		return getStop();
+	}
+	public void setCompletedThrough(long completedThrough) {
+		setStop(completedThrough);
+	}
+
+	
+	public Object backupDetail() {
+		return clone();
+	}
+	public void restoreDetail(Object source,Object detail,boolean isChild) {
+	}
+
+}

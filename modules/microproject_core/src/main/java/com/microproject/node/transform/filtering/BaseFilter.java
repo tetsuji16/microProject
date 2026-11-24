@@ -24,8 +24,8 @@
 package com.microproject.node.transform.filtering;
 
 import com.microproject.node.Node;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.task.Task;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.task.Task;
 
 /**
  * For internal use only

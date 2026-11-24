@@ -52,7 +52,7 @@ import com.microproject.view.configuration.BarFormat;
 import com.microproject.view.configuration.BarStyles;
 import com.microproject.view.configuration.GraphicConfiguration;
 import com.microproject.view.configuration.TexturedShape;
-import com.microproject.pm.dependency.Dependency;
+import com.microproject.model.dependency.Dependency;
 import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.ui.theme.MicroProjectThemeTokens;
 

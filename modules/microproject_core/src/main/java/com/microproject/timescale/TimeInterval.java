@@ -26,7 +26,7 @@ package com.microproject.timescale;
 import java.text.DateFormat;
 import java.util.Date;
 
-import com.microproject.pm.time.HasStartAndEnd;
+import com.microproject.model.time.HasStartAndEnd;
 
 /**
  *

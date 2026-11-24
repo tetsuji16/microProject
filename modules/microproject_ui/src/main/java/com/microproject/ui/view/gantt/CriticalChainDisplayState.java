@@ -5,7 +5,7 @@
  ******************************************************************************/
 package com.microproject.ui.view.gantt;
 
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 
 /** Document-scoped presentation state for the CCPM overlay in Gantt views. */
 public final class CriticalChainDisplayState {

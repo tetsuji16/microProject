@@ -29,8 +29,8 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.NoSuchElementException;
 
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.task.Task;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.task.Task;
 
 /**
  * An Iterator for Node lists which will treat it like an impl list and consider elements of a certain type.

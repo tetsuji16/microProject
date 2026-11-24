@@ -29,8 +29,8 @@ import java.util.Objects;
 import com.microproject.exchange.converter.type.DateUTCConverter;
 import com.microproject.datatype.DurationDefaults;
 import com.microproject.datatype.TimeUnit;
-import com.microproject.pm.calendar.WorkCalendar;
-import com.microproject.pm.task.Project;
+import com.microproject.model.calendar.WorkCalendar;
+import com.microproject.model.task.Project;
 
 import org.mpxj.ProjectCalendar;
 import org.mpxj.ProjectProperties;

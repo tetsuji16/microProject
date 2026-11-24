@@ -20,9 +20,9 @@ import java.util.zip.ZipInputStream;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
 
 /**
  * Golden bytes for the MPO and MSPDI writers (issue #982). The digests were captured on the

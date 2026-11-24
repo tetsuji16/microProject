@@ -56,7 +56,7 @@ import com.microproject.field.Field;
 import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.node.model.NodeModel;
 import com.microproject.node.transform.filtering.PredicatedNodeFilterIterator;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.ui.privacy.PrivacyDisplayMode;
 import com.microproject.reports.adapter.ReportDataSource;
 import com.microproject.reports.adapter.DataSourceProvider;

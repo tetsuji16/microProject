@@ -48,7 +48,7 @@ import com.microproject.view.configuration.GanttBarFormatOverrides.BarFormat;
 import com.microproject.node.transform.TransformList;
 import com.microproject.node.transform.filtering.BaseFilter;
 import com.microproject.i18n.Messages;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.Task;
 
 
 /**

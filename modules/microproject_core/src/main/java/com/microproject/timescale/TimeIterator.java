@@ -25,7 +25,7 @@ package com.microproject.timescale;
 
 import java.util.Calendar;
 
-import com.microproject.pm.time.HasStartAndEnd;
+import com.microproject.model.time.HasStartAndEnd;
 import com.microproject.util.DateTime;
 
 /**

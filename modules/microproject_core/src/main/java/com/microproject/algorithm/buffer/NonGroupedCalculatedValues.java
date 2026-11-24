@@ -28,7 +28,7 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 import com.microproject.options.CalendarOption;
-import com.microproject.pm.calendar.WorkCalendar;
+import com.microproject.model.calendar.WorkCalendar;
 
 
 /**

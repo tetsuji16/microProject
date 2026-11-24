@@ -49,9 +49,9 @@ import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.model.cache.NodeModelCacheFactory;
 import com.microproject.ui.view.spreadsheet.editor.SimpleEditor;
 import com.microproject.ui.view.spreadsheet.editor.SpreadSheetCellEditorAdapter;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.model.resource.ResourcePool;
 import com.microproject.undo.DataFactoryUndoController;
 
 class SpreadSheetHierarchyNavigationTest {

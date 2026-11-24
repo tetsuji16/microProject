@@ -41,7 +41,7 @@ import com.microproject.node.Node;
 import com.microproject.node.model.NodeModel;
 import com.microproject.node.model.NodeModelDataFactory;
 import com.microproject.node.model.WalkersNodeModel;
-import com.microproject.pm.task.BelongsToDocument;
+import com.microproject.model.task.BelongsToDocument;
 /**
  *
  */

@@ -40,7 +40,7 @@ import com.microproject.datatype.DurationDefaults;
 import com.microproject.node.Node;
 import com.microproject.node.model.NodeModelDataFactory;
 import com.microproject.node.model.WalkersNodeModel;
-import com.microproject.pm.task.NormalTask;
+import com.microproject.model.task.NormalTask;
 import com.microproject.persistence.data.DataObject;
 
 class FieldSetValueTest {

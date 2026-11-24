@@ -48,7 +48,7 @@ import com.microproject.node.Node;
 import com.microproject.node.NodeBridge;
 import com.microproject.node.event.HierarchyEvent;
 import com.microproject.node.event.HierarchyListener;
-import com.microproject.pm.key.HasKey;
+import com.microproject.model.key.HasKey;
 import com.microproject.util.ListenerRegistry;
 
 /**

@@ -32,11 +32,11 @@ import com.microproject.exchange.mpx.converter.type.MpxPriorityConverter;
 import com.microproject.exchange.mpx.converter.type.MpxSchedulingTypeConverter;
 import com.microproject.exchange.converter.type.DateUTCConverter;
 import com.microproject.datatype.DurationDefaults;
-import com.microproject.pm.calendar.WorkCalendar;
-import com.microproject.pm.calendar.WorkingCalendar;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.task.TaskSplitInterval;
+import com.microproject.model.calendar.WorkCalendar;
+import com.microproject.model.calendar.WorkingCalendar;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Task;
+import com.microproject.model.task.TaskSplitInterval;
 
 import org.mpxj.Duration;
 import org.mpxj.TaskMode;

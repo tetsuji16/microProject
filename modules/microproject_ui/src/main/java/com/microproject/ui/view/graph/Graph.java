@@ -39,7 +39,7 @@ import com.microproject.view.configuration.BarStyles;
 import com.microproject.view.configuration.GraphicConfiguration;
 import com.microproject.node.Node;
 import com.microproject.node.model.WalkersNodeModel;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.ui.util.FlatUiSupport;
 
 /**

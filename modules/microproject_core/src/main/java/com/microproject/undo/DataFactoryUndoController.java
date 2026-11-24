@@ -26,7 +26,7 @@ package com.microproject.undo;
 import javax.swing.undo.UndoableEdit;
 
 import com.microproject.node.model.NodeModelDataFactory;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 
 /**
  *

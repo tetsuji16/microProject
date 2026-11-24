@@ -55,7 +55,7 @@ import com.microproject.node.transform.grouping.NodeGrouper;
 import com.microproject.node.transform.sorting.NodeSorter;
 import com.microproject.node.transform.sorting.TaskSortSpec;
 import com.microproject.node.transform.transformer.NodeTransformer;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 
 /**
  *

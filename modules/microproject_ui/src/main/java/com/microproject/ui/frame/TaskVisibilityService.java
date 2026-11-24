@@ -14,9 +14,9 @@ import java.util.List;
 import javax.swing.undo.AbstractUndoableEdit;
 
 import com.microproject.node.Node;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectHierarchyQueries;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectHierarchyQueries;
+import com.microproject.model.task.Task;
 import com.microproject.undo.UndoController;
 
 /** Applies task-view visibility as one undoable user operation. */

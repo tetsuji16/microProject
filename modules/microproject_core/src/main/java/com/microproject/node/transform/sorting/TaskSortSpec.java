@@ -31,8 +31,8 @@ import java.util.function.Function;
 
 import com.microproject.node.Node;
 import com.microproject.node.transform.TransformList;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.task.Task;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.task.Task;
 
 /** Immutable task-view sort contract. Keys are evaluated in order; equal rows
  * retain their encounter order through the stable list sort used by callers. */

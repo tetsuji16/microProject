@@ -24,7 +24,7 @@
 package com.microproject.exchange.mpx.converter.type;
 
 import com.microproject.core.fields.FieldTypeConverter;
-import com.microproject.pm.scheduling.SchedulingType;
+import com.microproject.schedule.SchedulingType;
 import com.microproject.exchange.mpxj.MpxjApi;
 
 

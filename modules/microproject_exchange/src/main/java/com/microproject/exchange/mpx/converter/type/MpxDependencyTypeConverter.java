@@ -24,7 +24,7 @@
 package com.microproject.exchange.mpx.converter.type;
 
 import com.microproject.core.fields.FieldTypeConverter;
-import com.microproject.pm.dependency.DependencyType;
+import com.microproject.model.dependency.DependencyType;
 
 
 /**

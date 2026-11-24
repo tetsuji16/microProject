@@ -15,10 +15,10 @@ import java.util.Iterator;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectFactory;
-import com.microproject.pm.task.Task;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectFactory;
+import com.microproject.model.task.Task;
 
 class MpoDependencySchedulingTest {
 	@Test

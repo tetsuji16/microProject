@@ -15,7 +15,7 @@ import java.awt.font.TextAttribute;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.task.NormalTask;
+import com.microproject.model.task.NormalTask;
 
 class TaskFontStyleTest {
 	@Test

@@ -6,7 +6,7 @@
 package com.microproject.exchange;
 
 import com.microproject.collaboration.OperationLog;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 
 record MpoMergePreparation(java.util.List<OperationLog.Operation> replayOperations,
 		java.util.List<OperationLog.Operation> mergedOperations, java.util.Set<String> alreadyAppliedOperationIds,

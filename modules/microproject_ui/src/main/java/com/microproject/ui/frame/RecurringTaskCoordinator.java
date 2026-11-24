@@ -27,7 +27,7 @@ import java.awt.GraphicsEnvironment;
 import java.util.function.BooleanSupplier;
 
 import com.microproject.ui.dialog.RecurringTaskDialog;
-import com.microproject.pm.task.RecurringTaskSpec;
+import com.microproject.model.task.RecurringTaskSpec;
 
 final class RecurringTaskCoordinator {
 	interface SpecProvider {

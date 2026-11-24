@@ -31,9 +31,9 @@ import com.microproject.persistence.data.SerializedDataObjectFactory;
 import java.util.Date;
 import java.util.Map;
 
-import com.microproject.pm.assignment.timesheet.AssignmentWorkflowState;
-import com.microproject.pm.assignment.timesheet.TimesheetStatus;
-import com.microproject.pm.snapshot.Snapshottable;
+import com.microproject.model.assignment.timesheet.AssignmentWorkflowState;
+import com.microproject.model.assignment.timesheet.TimesheetStatus;
+import com.microproject.model.snapshot.Snapshottable;
 
 /**
  *

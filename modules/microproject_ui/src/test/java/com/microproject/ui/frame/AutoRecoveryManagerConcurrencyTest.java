@@ -20,7 +20,7 @@ import java.util.prefs.Preferences;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.application.AutoRecoveryStore;
-import com.microproject.pm.task.ProjectFactory;
+import com.microproject.model.task.ProjectFactory;
 
 class AutoRecoveryManagerConcurrencyTest {
 	@Test

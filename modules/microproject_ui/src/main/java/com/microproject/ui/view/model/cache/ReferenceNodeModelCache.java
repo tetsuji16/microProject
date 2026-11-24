@@ -46,16 +46,16 @@ import com.microproject.node.event.HierarchyEvent;
 import com.microproject.node.event.HierarchyListener;
 import com.microproject.node.hierarchy.NodeHierarchy;
 import com.microproject.node.model.NodeModel;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.dependency.DependencyService;
-import com.microproject.pm.dependency.DependencyType;
-import com.microproject.pm.dependency.HasDependencies;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.scheduling.ScheduleEvent;
-import com.microproject.pm.scheduling.ScheduleEventListener;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.dependency.DependencyService;
+import com.microproject.model.dependency.DependencyType;
+import com.microproject.model.dependency.HasDependencies;
+import com.microproject.model.resource.Resource;
+import com.microproject.schedule.ScheduleEvent;
+import com.microproject.schedule.ScheduleEventListener;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
 /**
  * This class lies between the SpreadSheet and the SpreadSheetModel.
  * It holds the states directly linked to the view.

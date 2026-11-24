@@ -18,9 +18,9 @@ import com.microproject.node.NodeFactory;
 import com.microproject.node.model.WalkersNodeModel;
 import com.microproject.node.transform.grouping.NodeGroup;
 import com.microproject.ui.view.model.cache.GraphicNode;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.resource.ResourcePool;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
+import com.microproject.model.resource.ResourcePool;
 import com.microproject.undo.DataFactoryUndoController;
 
 class TaskVisibilitySelectionResolverTest {

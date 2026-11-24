@@ -9,9 +9,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
 
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
 
 /**
  * Non-destructive, document-scoped presentation state for screenshot sharing.

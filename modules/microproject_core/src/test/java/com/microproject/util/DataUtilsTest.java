@@ -34,11 +34,11 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.node.Node;
 import com.microproject.node.NodeFactory;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.resource.ResourceImpl;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Task;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.resource.ResourceImpl;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Task;
 
 class DataUtilsTest {
 	@Test

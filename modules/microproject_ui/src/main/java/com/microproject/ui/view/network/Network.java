@@ -45,7 +45,7 @@ import com.microproject.ui.view.network.layout.NetworkLayoutEvent;
 import com.microproject.ui.view.network.layout.NetworkLayoutListener;
 import com.microproject.ui.view.link_routing.DefaultNetworkLinkRouting;
 import com.microproject.view.configuration.GraphicConfiguration;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.ui.util.FlatUiSupport;
 import com.microproject.workspace.SavableToWorkspace;
 import com.microproject.workspace.WorkspaceSetting;

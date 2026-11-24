@@ -35,7 +35,7 @@ import com.microproject.undo.EditSupport;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.task.ReversibleModelChange;
+import com.microproject.model.task.ReversibleModelChange;
 
 class SwingUndoAdapterTest {
 	@Test

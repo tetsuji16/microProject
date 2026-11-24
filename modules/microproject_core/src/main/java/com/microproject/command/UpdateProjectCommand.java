@@ -23,9 +23,9 @@
  *******************************************************************************/
 package com.microproject.command;
 
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.task.UpdateProjectRequest;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
+import com.microproject.model.task.UpdateProjectRequest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.LinkedHashMap;
@@ -36,7 +36,7 @@ import com.microproject.i18n.Messages;
 import com.microproject.util.DateTime;
 import com.microproject.transaction.ModelTransaction;
 import com.microproject.transaction.ProjectMutationState;
-import com.microproject.pm.task.ProjectTaskSnapshot;
+import com.microproject.model.task.ProjectTaskSnapshot;
 
 
 /**

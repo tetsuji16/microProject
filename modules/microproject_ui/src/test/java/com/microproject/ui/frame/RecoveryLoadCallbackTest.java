@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import com.microproject.application.AutoRecoveryStore;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.session.LoadOptions;
 
 class RecoveryLoadCallbackTest {

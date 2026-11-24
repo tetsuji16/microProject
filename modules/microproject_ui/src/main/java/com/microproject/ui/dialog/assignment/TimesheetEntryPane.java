@@ -43,15 +43,15 @@ import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.node.Node;
 import com.microproject.node.model.NodeModelDataFactory;
 import com.microproject.options.TimesheetOption;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.assignment.timesheet.TimesheetAssignment;
-import com.microproject.pm.assignment.timesheet.TimesheetStatus;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.assignment.timesheet.TimesheetAssignment;
+import com.microproject.model.assignment.timesheet.TimesheetStatus;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
 import com.microproject.ui.view.spreadsheet.SpreadSheetModel;
 import com.microproject.ui.view.spreadsheet.SpreadSheetUtils;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.snapshot.Snapshottable;
-import com.microproject.pm.task.Project;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.snapshot.Snapshottable;
+import com.microproject.model.task.Project;
 
 public class TimesheetEntryPane extends JScrollPane {
 	private static final long serialVersionUID = 1L;

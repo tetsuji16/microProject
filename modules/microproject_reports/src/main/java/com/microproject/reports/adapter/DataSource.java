@@ -36,8 +36,8 @@ import com.microproject.node.model.NodeModel;
 import com.microproject.node.model.NodeModelDataFactory;
 import com.microproject.node.model.WalkersNodeModel;
 import com.microproject.node.transform.filtering.PredicatedNodeFilterIterator;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.time.MutableInterval;
+import com.microproject.model.task.Project;
+import com.microproject.model.time.MutableInterval;
 
 /** Resolves configured project fields for report rows independently of a renderer. */
 public class DataSource implements ObjectRef {

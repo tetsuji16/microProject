@@ -12,7 +12,7 @@ import java.awt.Color;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.assignment.TimeDistributedConstants;
+import com.microproject.model.assignment.TimeDistributedConstants;
 
 /**
  * Microsoft documents blue and red Resource Graph bars for in-capacity and

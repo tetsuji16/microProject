@@ -28,7 +28,7 @@ import java.util.List;
 
 import com.microproject.job.Job;
 import com.microproject.job.JobQueue;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.persistence.data.ProjectData;
 
 public interface Session {

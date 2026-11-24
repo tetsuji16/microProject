@@ -42,7 +42,7 @@ import com.microproject.view.configuration.ActionList;
 import com.microproject.view.configuration.CellStyle;
 import com.microproject.node.Node;
 import com.microproject.node.model.NodeModel;
-import com.microproject.pm.time.HasStartAndEnd;
+import com.microproject.model.time.HasStartAndEnd;
 import com.microproject.timescale.TimeScaleEvent;
 import com.microproject.timescale.TimeScaleListener;
 import com.microproject.util.Alert;

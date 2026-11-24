@@ -33,10 +33,10 @@ import javax.swing.event.EventListenerList;
 
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.view.configuration.GraphicConfiguration;
-import com.microproject.pm.scheduling.ScheduleEvent;
-import com.microproject.pm.scheduling.ScheduleEventListener;
-import com.microproject.pm.scheduling.ScheduleInterval;
-import com.microproject.pm.task.Project;
+import com.microproject.schedule.ScheduleEvent;
+import com.microproject.schedule.ScheduleEventListener;
+import com.microproject.schedule.ScheduleInterval;
+import com.microproject.model.task.Project;
 import com.microproject.timescale.TimeInterval;
 import com.microproject.timescale.TimeIterator;
 import com.microproject.timescale.TimeScaleEvent;

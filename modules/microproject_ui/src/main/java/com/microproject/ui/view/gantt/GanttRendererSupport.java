@@ -31,7 +31,7 @@ import java.awt.Shape;
 import com.microproject.field.Field;
 import com.microproject.view.configuration.BarFormat;
 import com.microproject.view.configuration.shape.PredefinedShape;
-import com.microproject.pm.task.NormalTask;
+import com.microproject.model.task.NormalTask;
 import com.microproject.preference.GlobalPreferences;
 import com.microproject.ui.util.FlatUiSupport;
 import com.microproject.ui.util.GanttProgress;

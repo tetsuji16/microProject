@@ -13,8 +13,8 @@ import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerDateModel;
 
-import com.microproject.pm.calendar.WorkRangeException;
-import com.microproject.pm.calendar.WorkingHours;
+import com.microproject.model.calendar.WorkRangeException;
+import com.microproject.model.calendar.WorkingHours;
 import com.microproject.i18n.Messages;
 import com.microproject.util.DateTime;
 

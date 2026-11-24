@@ -42,9 +42,9 @@ import com.microproject.ui.view.model.event.CompositeCacheEvent;
 import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
 import com.microproject.view.configuration.BarStyles;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
 import com.microproject.util.Environment;
 
 /**

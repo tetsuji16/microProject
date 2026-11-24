@@ -31,8 +31,8 @@ import com.microproject.interval.InvalidValueObjectForIntervalException;
 import com.microproject.interval.ValueObjectForInterval;
 import com.microproject.exchange.converter.type.DateUTCConverter;
 import com.microproject.core.time.TimeUtil;
-import com.microproject.pm.availability.Availability;
-import com.microproject.pm.availability.AvailabilityTable;
+import com.microproject.model.availability.Availability;
+import com.microproject.model.availability.AvailabilityTable;
 import com.microproject.util.DateTime;
 
 import org.mpxj.Resource;

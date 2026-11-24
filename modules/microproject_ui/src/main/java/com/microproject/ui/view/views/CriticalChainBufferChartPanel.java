@@ -25,9 +25,9 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
 import com.microproject.ui.dialog.UsabilityStrings;
-import com.microproject.pm.ccpm.CriticalChainBufferHistory;
-import com.microproject.pm.ccpm.CriticalChainService;
-import com.microproject.pm.task.Project;
+import com.microproject.schedule.ccpm.CriticalChainBufferHistory;
+import com.microproject.schedule.ccpm.CriticalChainService;
+import com.microproject.model.task.Project;
 import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.ui.theme.ThemeManager;
 import com.microproject.ui.util.ColorLuminance;

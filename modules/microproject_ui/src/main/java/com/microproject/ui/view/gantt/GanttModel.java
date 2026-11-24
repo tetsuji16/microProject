@@ -31,7 +31,7 @@ import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.timescale.CoordinatesConverter;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.view.configuration.GraphicConfiguration;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.timescale.TimeScaleEvent;
 import com.microproject.timescale.TimeScaleListener;
 

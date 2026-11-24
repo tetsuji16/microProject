@@ -25,7 +25,7 @@ package com.microproject.node;
 
 import java.util.LinkedList;
 
-import com.microproject.pm.key.HasId;
+import com.microproject.model.key.HasId;
 import com.microproject.persistence.data.DataObject;
 import com.microproject.session.SessionFactory;
 

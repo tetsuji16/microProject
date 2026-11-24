@@ -32,9 +32,9 @@ import com.microproject.datatype.ImageLink;
 import com.microproject.field.DelegatesFields;
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
-import com.microproject.pm.costing.EarnedValueCalculator;
-import com.microproject.pm.costing.EarnedValueIndicatorFields;
-import com.microproject.pm.key.HasName;
+import com.microproject.model.costing.EarnedValueCalculator;
+import com.microproject.model.costing.EarnedValueIndicatorFields;
+import com.microproject.model.key.HasName;
 
 /**
  *

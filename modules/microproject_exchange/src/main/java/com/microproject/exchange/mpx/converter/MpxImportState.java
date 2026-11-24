@@ -34,11 +34,11 @@ import org.mpxj.ResourceAssignment;
 import org.mpxj.mspdi.schema.TimephasedDataType;
 
 import com.microproject.exchange.ImportedCalendarService;
-import com.microproject.pm.calendar.WorkCalendar;
-import com.microproject.pm.calendar.WorkingCalendar;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.Task;
+import com.microproject.model.calendar.WorkCalendar;
+import com.microproject.model.calendar.WorkingCalendar;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.Task;
 
 /**
  * @author Laurent Chretienneau

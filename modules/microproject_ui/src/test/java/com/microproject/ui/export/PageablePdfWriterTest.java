@@ -36,9 +36,9 @@ import com.microproject.reports.model.ReportModel.Section;
 import com.microproject.reports.render.ReportPrintable;
 import com.microproject.ui.export.svg.GanttSVGRenderer;
 import com.microproject.ui.view.model.cache.NodeModelCacheFactory;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
 import com.microproject.undo.DataFactoryUndoController;
 
 class PageablePdfWriterTest {

@@ -27,7 +27,7 @@ import javax.swing.undo.AbstractUndoableEdit;
 import javax.swing.undo.CannotRedoException;
 import javax.swing.undo.CannotUndoException;
 
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.view.network.PertManualPositions;
 
 /**

@@ -19,7 +19,7 @@ import javax.swing.JComponent;
 import com.microproject.ui.menu.MenuActionConstants;
 import com.microproject.ui.menu.MenuManager;
 import com.microproject.options.EditOption;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.ui.ribbon.ModernRibbonPanel;
 
 /** Updates registered, visible, and transient Status Date controls from the project state. */

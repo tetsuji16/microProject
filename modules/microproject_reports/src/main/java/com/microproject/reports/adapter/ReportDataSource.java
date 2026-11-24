@@ -10,7 +10,7 @@ import java.util.function.Predicate;
 import com.microproject.field.Field;
 import com.microproject.node.model.WalkersNodeModel;
 import com.microproject.node.transform.filtering.PredicatedNodeFilterIterator;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 
 /** Renderer-independent access to report rows and configured field values. */
 public final class ReportDataSource {

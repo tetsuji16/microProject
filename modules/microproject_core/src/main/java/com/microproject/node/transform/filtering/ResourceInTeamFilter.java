@@ -27,8 +27,8 @@ import java.util.function.Consumer;
 
 
 import com.microproject.node.Node;
-import com.microproject.pm.assignment.AssignmentEntry;
-import com.microproject.pm.resource.ResourceImpl;
+import com.microproject.model.assignment.AssignmentEntry;
+import com.microproject.model.resource.ResourceImpl;
 
 /**
  * For internal use only

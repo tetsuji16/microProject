@@ -24,11 +24,11 @@
 package com.microproject.node;
 
 import com.microproject.node.transform.grouping.NodeGroup;
-import com.microproject.pm.resource.EnterpriseResource;
-import com.microproject.pm.resource.ResourceImpl;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
+import com.microproject.model.resource.EnterpriseResource;
+import com.microproject.model.resource.ResourceImpl;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 
 /**

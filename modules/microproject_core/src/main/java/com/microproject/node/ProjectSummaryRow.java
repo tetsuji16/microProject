@@ -4,7 +4,7 @@
  ******************************************************************************/
 package com.microproject.node;
 
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 
 /** A view-only node that exposes a project's values as a summary row. */
 public final class ProjectSummaryRow extends NodeBridge {

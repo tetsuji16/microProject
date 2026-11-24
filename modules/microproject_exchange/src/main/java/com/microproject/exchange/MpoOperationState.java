@@ -8,12 +8,12 @@ package com.microproject.exchange;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import com.microproject.collaboration.OperationLog;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.task.TaskSnapshot;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Task;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.task.TaskSnapshot;
 
 final class MpoOperationState {
 	byte[] json; String documentId; String actorId = java.util.UUID.randomUUID().toString();

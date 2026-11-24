@@ -39,7 +39,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.interval.ValueObjectForIntervalTable;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.i18n.Messages;
 import com.microproject.ui.testsupport.GuiAcceptanceSupport;
 import com.microproject.ui.testsupport.GuiJourney;

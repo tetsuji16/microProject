@@ -30,8 +30,8 @@ import java.util.Comparator;
 import java.util.List;
 
 import com.microproject.view.configuration.BarFormat;
-import com.microproject.pm.scheduling.Schedule;
-import com.microproject.pm.scheduling.ScheduleInterval;
+import com.microproject.schedule.Schedule;
+import com.microproject.schedule.ScheduleInterval;
 import com.microproject.util.DisplayMath;
 
 /**

@@ -28,7 +28,7 @@ import java.util.function.Consumer;
 
 import com.microproject.node.Node;
 import com.microproject.node.model.NodeModel;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 
 /**
  * 

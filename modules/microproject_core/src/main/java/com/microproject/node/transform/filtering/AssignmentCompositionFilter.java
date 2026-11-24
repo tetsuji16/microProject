@@ -24,7 +24,7 @@
 package com.microproject.node.transform.filtering;
 
 import com.microproject.node.Node;
-import com.microproject.pm.assignment.Assignment;
+import com.microproject.model.assignment.Assignment;
 
 /**
  *

@@ -27,9 +27,9 @@ import org.mpxj.LocalTimeRange;
 import org.mpxj.ProjectCalendarException;
 
 import com.microproject.exchange.converter.type.DateHoursMinsConverter;
-import com.microproject.pm.calendar.WorkDay;
-import com.microproject.pm.calendar.WorkRangeException;
-import com.microproject.pm.calendar.WorkingHours;
+import com.microproject.model.calendar.WorkDay;
+import com.microproject.model.calendar.WorkRangeException;
+import com.microproject.model.calendar.WorkingHours;
 
 /**
  * Converts an MPXJ calendar exception into a microproject WorkDay exception.

@@ -37,8 +37,8 @@ import com.microproject.association.AssociationList;
 import com.microproject.ui.help.HelpUtil;
 import com.microproject.ui.frame.DocumentFrame;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Task;
 import com.microproject.i18n.Messages;
 
 /** Owns the Task Information Resources tab and its task-to-resource list. */

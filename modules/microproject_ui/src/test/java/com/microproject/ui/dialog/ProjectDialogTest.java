@@ -39,10 +39,10 @@ import org.junit.jupiter.api.Test;
 
 import com.jgoodies.forms.builder.DefaultFormBuilder;
 import com.jgoodies.forms.layout.FormLayout;
-import com.microproject.pm.costing.ExpenseType;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.ProjectStatus;
-import com.microproject.pm.task.ProjectType;
+import com.microproject.model.costing.ExpenseType;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.ProjectStatus;
+import com.microproject.model.task.ProjectType;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.ui.util.FlatUiSupport;
 

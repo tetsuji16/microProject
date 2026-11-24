@@ -34,7 +34,7 @@ import com.microproject.node.model.DefaultNodeModel.RemovalSnapshot;
 import com.microproject.node.model.DefaultNodeModel.RemovalSnapshot.Entry;
 import com.microproject.node.model.DefaultNodeModel.RemovalSnapshot.SubprojectState;
 import com.microproject.node.model.NodeModel;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 
 /**
  *

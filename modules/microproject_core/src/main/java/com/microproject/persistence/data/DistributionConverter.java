@@ -26,7 +26,7 @@ package com.microproject.persistence.data;
 import java.util.Collections;
 import java.util.List;
 
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 
 /**
  *

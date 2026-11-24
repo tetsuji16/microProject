@@ -23,8 +23,8 @@
  *******************************************************************************/
 package com.microproject.node;
 
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
 
 /**
  * 

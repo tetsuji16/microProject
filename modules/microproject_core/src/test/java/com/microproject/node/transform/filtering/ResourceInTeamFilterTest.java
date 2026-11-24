@@ -16,10 +16,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.node.NodeFactory;
-import com.microproject.pm.assignment.AssignmentEntry;
-import com.microproject.pm.assignment.HasAssignmentsImpl;
-import com.microproject.pm.resource.ResourceImpl;
-import com.microproject.pm.resource.ResourcePool;
+import com.microproject.model.assignment.AssignmentEntry;
+import com.microproject.model.assignment.HasAssignmentsImpl;
+import com.microproject.model.resource.ResourceImpl;
+import com.microproject.model.resource.ResourcePool;
 import com.microproject.undo.DataFactoryUndoController;
 
 class ResourceInTeamFilterTest {

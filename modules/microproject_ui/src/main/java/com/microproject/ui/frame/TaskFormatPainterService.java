@@ -12,8 +12,8 @@ import java.util.function.UnaryOperator;
 
 import javax.swing.undo.AbstractUndoableEdit;
 
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
 import com.microproject.i18n.Messages;
 import com.microproject.transaction.ModelTransaction;
 import com.microproject.transaction.ProjectMutationState;

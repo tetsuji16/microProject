@@ -56,7 +56,7 @@ import com.microproject.ui.view.timescale.ScaledComponent;
 import com.microproject.datatype.Money;
 import com.microproject.field.Field;
 import com.microproject.view.configuration.shape.PredefinedStroke;
-import com.microproject.pm.assignment.HasTimeDistributedData;
+import com.microproject.model.assignment.HasTimeDistributedData;
 
 public class TimeChartPanel extends ChartPanel implements Scrollable, ScaledComponent {
 	private static final long serialVersionUID = 2034704461047717965L;

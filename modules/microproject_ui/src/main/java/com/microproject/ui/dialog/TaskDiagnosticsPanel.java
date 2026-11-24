@@ -30,8 +30,8 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.table.DefaultTableModel;
 
-import com.microproject.pm.task.ScheduleDiagnosticsService;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.ScheduleDiagnosticsService;
+import com.microproject.model.task.Task;
 import com.microproject.i18n.Messages;
 
 /** Read-only diagnostics table for a task's current schedule. */

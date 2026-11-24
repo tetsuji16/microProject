@@ -21,8 +21,8 @@ import java.util.Set;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.Project;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 
 import org.junit.jupiter.api.Test;

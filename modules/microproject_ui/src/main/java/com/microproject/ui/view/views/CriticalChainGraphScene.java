@@ -16,9 +16,9 @@ import java.util.Map;
 import java.util.Set;
 
 import com.microproject.ui.dialog.UsabilityStrings;
-import com.microproject.pm.ccpm.CriticalChainService;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
+import com.microproject.schedule.ccpm.CriticalChainService;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
 
 /**
  * Immutable, UI-neutral projection of a CCPM analysis for the network graph.

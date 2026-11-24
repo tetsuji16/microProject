@@ -32,12 +32,12 @@ import com.microproject.association.AssociationList;
 import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
 import com.microproject.ui.menu.MenuActionConstants;
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.dependency.DependencyNodeModelDataFactory;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.dependency.DependencyNodeModelDataFactory;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
 import com.microproject.ui.view.spreadsheet.SpreadSheetModel;
 import com.microproject.ui.view.spreadsheet.SpreadSheetUtils;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.Task;
 
 /** Shared dependency table behavior for the predecessor and successor views. */
 final class TaskDependencySpreadsheet extends SpreadSheet {

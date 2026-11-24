@@ -69,12 +69,12 @@ import org.jfree.data.gantt.TaskSeriesCollection;
 
 import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.scheduling.ScheduleEvent;
-import com.microproject.pm.scheduling.ScheduleEventListener;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectHierarchyQueries;
-import com.microproject.pm.task.Task;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.schedule.ScheduleEvent;
+import com.microproject.schedule.ScheduleEventListener;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectHierarchyQueries;
+import com.microproject.model.task.Task;
 import com.microproject.util.Alert;
 import com.microproject.util.UiServices;
 import com.microproject.ui.help.HelpUtil;

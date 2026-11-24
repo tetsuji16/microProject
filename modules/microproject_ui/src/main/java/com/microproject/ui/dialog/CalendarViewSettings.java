@@ -9,7 +9,7 @@ import java.util.EnumMap;
 import java.util.Map;
 import java.util.Properties;
 
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.Task;
 
 /**
  * Per-view choices of the Calendar Format tab: bar colour per task type, text styles, week height

@@ -24,9 +24,9 @@
 package com.microproject.exchange.mpx.converter;
 
 import com.microproject.exchange.converter.type.DateHoursMinsConverter;
-import com.microproject.pm.calendar.WorkRange;
-import com.microproject.pm.calendar.WorkRangeException;
-import com.microproject.pm.calendar.WorkingHours;
+import com.microproject.model.calendar.WorkRange;
+import com.microproject.model.calendar.WorkRangeException;
+import com.microproject.model.calendar.WorkingHours;
 
 import org.mpxj.LocalTimeRange;
 import org.mpxj.ProjectCalendarHours;

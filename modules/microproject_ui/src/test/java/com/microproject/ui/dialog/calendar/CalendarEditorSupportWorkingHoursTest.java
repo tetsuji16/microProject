@@ -30,7 +30,7 @@ import javax.swing.JTextField;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.calendar.WorkingHours;
+import com.microproject.model.calendar.WorkingHours;
 
 /** The single slot validator behind both the exception editor and the work-week editor. */
 class CalendarEditorSupportWorkingHoursTest {

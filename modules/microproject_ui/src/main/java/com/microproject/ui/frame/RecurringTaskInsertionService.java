@@ -31,10 +31,10 @@ import com.microproject.node.Node;
 import com.microproject.node.NodeFactory;
 import com.microproject.node.model.NodeModel;
 import com.microproject.ui.view.spreadsheet.common.CommonSpreadSheet;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.RecurringTaskGenerator;
-import com.microproject.pm.task.RecurringTaskSpec;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.RecurringTaskGenerator;
+import com.microproject.model.task.RecurringTaskSpec;
 
 final class RecurringTaskInsertionService {
 	void insertRecurringTasks(DocumentFrame frame, RecurringTaskSpec spec) {

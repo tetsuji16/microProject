@@ -35,7 +35,7 @@ import java.util.function.Consumer;
 
 import com.microproject.node.Node;
 import com.microproject.node.hierarchy.NodeHierarchy;
-import com.microproject.pm.assignment.Assignment;
+import com.microproject.model.assignment.Assignment;
 
 /**
  *

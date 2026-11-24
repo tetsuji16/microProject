@@ -44,11 +44,11 @@ import com.microproject.view.configuration.CellStyle;
 import com.microproject.node.Node;
 import com.microproject.node.ProjectSummaryRow;
 import com.microproject.node.model.NodeModel;
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.dependency.DependencyService;
-import com.microproject.pm.dependency.DependencyType;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.task.Project;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.dependency.DependencyService;
+import com.microproject.model.dependency.DependencyType;
+import com.microproject.model.task.Task;
+import com.microproject.model.task.Project;
 import com.microproject.util.ClassUtils;
 import com.microproject.util.Environment;
 

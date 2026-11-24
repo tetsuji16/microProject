@@ -33,10 +33,10 @@ import java.util.List;
 import com.microproject.node.Node;
 import com.microproject.node.hierarchy.AbstractMutableNodeHierarchy;
 import com.microproject.node.summaries.DeepChildWalker;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.key.HasId;
-import com.microproject.pm.task.SubProj;
-import com.microproject.pm.task.Task;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.key.HasId;
+import com.microproject.model.task.SubProj;
+import com.microproject.model.task.Task;
 
 public class NodeModelUtil {
 	static class NonAssignmentEnumerator implements Consumer<Object> {

@@ -22,18 +22,18 @@ import com.microproject.configuration.Configuration;
 import com.microproject.datatype.Duration;
 import com.microproject.node.Node;
 import com.microproject.node.model.NodeModel;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.task.Task;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.task.Task;
 import com.microproject.util.temporary.TemporaryRoot;
-import com.microproject.pm.task.NormalTask;
+import com.microproject.model.task.NormalTask;
 import com.microproject.exchange.serialize.MPXConverter;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import com.microproject.node.NodeFactory;
-import com.microproject.pm.task.ProjectFactory;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.ProjectFactory;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.task.Project;
 
 class PodSampleResourceRoundTripTest {
 	private static final Path SAMPLE = Path.of("../../samples/Commercial construction project plan2.pod").toAbsolutePath().normalize();

@@ -29,10 +29,10 @@ import com.microproject.datatype.Duration;
 import com.microproject.datatype.DurationDefaults;
 import com.microproject.datatype.Rate;
 import com.microproject.interval.ValueObjectForInterval;
-import com.microproject.pm.costing.CostRate;
-import com.microproject.pm.calendar.WorkCalendar;
-import com.microproject.pm.calendar.WorkingCalendar;
-import com.microproject.pm.resource.Resource;
+import com.microproject.model.costing.CostRate;
+import com.microproject.model.calendar.WorkCalendar;
+import com.microproject.model.calendar.WorkingCalendar;
+import com.microproject.model.resource.Resource;
 
 import org.mpxj.ProjectCalendar;
 

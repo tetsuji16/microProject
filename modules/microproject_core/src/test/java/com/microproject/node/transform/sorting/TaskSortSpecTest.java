@@ -33,7 +33,7 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.task.NormalTask;
+import com.microproject.model.task.NormalTask;
 
 class TaskSortSpecTest {
 	private record Row(int first, int second, String encounter) { }

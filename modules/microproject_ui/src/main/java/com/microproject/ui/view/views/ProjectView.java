@@ -35,7 +35,7 @@ import com.microproject.ui.view.spreadsheet.SpreadSheet;
 import com.microproject.document.Document;
 import com.microproject.document.ObjectEvent;
 import com.microproject.node.model.NodeModel;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.undo.UndoController;
 import com.microproject.workspace.WorkspaceSetting;
 /**

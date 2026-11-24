@@ -45,7 +45,7 @@ import com.microproject.ui.view.xbs.Xbs;
 import com.microproject.configuration.Dictionary;
 import com.microproject.view.configuration.BarStyles;
 import com.microproject.node.model.NodeModel;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.undo.UndoController;
 import com.microproject.workspace.WorkspaceSetting;
 

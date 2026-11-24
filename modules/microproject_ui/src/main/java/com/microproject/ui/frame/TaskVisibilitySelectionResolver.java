@@ -14,7 +14,7 @@ import com.microproject.node.GroupNodeImpl;
 import com.microproject.node.Node;
 import com.microproject.node.model.WalkersNodeModel;
 import com.microproject.ui.view.model.cache.GraphicNode;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.Task;
 
 /** Resolves visible task rows to stable domain tasks for visibility commands. */
 final class TaskVisibilitySelectionResolver {

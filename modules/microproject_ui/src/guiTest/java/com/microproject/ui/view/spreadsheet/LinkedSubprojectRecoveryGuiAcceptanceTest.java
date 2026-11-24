@@ -30,10 +30,10 @@ import com.microproject.node.NodeFactory;
 import com.microproject.ui.menu.MenuManager;
 import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.model.cache.NodeModelCacheFactory;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.DefaultSubProj;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.SubProj;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.DefaultSubProj;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.SubProj;
 import com.microproject.ui.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
 

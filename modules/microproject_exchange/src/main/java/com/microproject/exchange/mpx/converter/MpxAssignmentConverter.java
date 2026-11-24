@@ -35,17 +35,17 @@ import org.mpxj.TimephasedWork;
 import com.microproject.field.FieldContext;
 import com.microproject.core.time.TimeUtil;
 import com.microproject.exchange.mpxj.MpxjApi;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.assignment.TimeDistributedConstants;
-import com.microproject.pm.assignment.contour.AbstractContour;
-import com.microproject.pm.assignment.contour.AbstractContourBucket;
-import com.microproject.pm.assignment.contour.PersonalContour;
-import com.microproject.pm.assignment.contour.PersonalContourBucket;
-import com.microproject.pm.resource.EnterpriseResource;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.resource.ResourceImpl;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.time.ImmutableInterval;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.assignment.TimeDistributedConstants;
+import com.microproject.model.assignment.contour.AbstractContour;
+import com.microproject.model.assignment.contour.AbstractContourBucket;
+import com.microproject.model.assignment.contour.PersonalContour;
+import com.microproject.model.assignment.contour.PersonalContourBucket;
+import com.microproject.model.resource.EnterpriseResource;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.resource.ResourceImpl;
+import com.microproject.model.task.Task;
+import com.microproject.model.time.ImmutableInterval;
 
 /**
  * Converts an MPXJ ResourceAssignment into a microproject Assignment.

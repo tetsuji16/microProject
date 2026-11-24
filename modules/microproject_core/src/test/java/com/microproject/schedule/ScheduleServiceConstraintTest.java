@@ -1,0 +1,366 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.schedule;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.Test;
+
+import com.microproject.document.ObjectEvent;
+
+import com.microproject.options.CalendarOption;
+import com.microproject.model.assignment.AssignmentService;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.resource.ResourceImpl;
+import com.microproject.schedule.ScheduleInterval;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.undo.TaskConstraintEdit;
+
+class ScheduleServiceConstraintTest {
+	@Test
+	void applicationFailureRestoresConstraintWithoutPublishingOrUndo() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask task = new NormalTask(project) {
+			private boolean fail = true;
+			@Override
+			public void setStartNoEarlierThan(long date) {
+				super.setStartNoEarlierThan(date);
+				if (fail) {
+					fail = false;
+					throw new IllegalStateException("constraint application failed");
+				}
+			}
+		};
+		project.connectTask(task);
+		int oldType = task.getConstraintType();
+		long oldDate = task.getConstraintDate();
+		long revision = project.getMutationState().revision();
+		long targetDate = task.getStart() + CalendarOption.getInstance().getMillisPerDay();
+		java.util.concurrent.atomic.AtomicInteger eventCount = new java.util.concurrent.atomic.AtomicInteger();
+		ObjectEvent.Listener listener = event -> eventCount.incrementAndGet();
+		project.addObjectListener(listener);
+		IllegalStateException failure;
+		try {
+			failure = assertThrows(IllegalStateException.class, () -> ScheduleService.getInstance().setConstraint(this,
+				task, ConstraintType.Kind.SNET, targetDate, undoController.getEditSupport()));
+		} finally {
+			project.removeObjectListener(listener);
+		}
+		assertEquals("constraint application failed", failure.getMessage());
+		assertEquals(oldType, task.getConstraintType());
+		assertEquals(oldDate, task.getConstraintDate());
+		assertFalse(undoController.canUndo());
+		assertEquals(revision, project.getMutationState().revision());
+		assertEquals(0, eventCount.get());
+	}
+
+	@Test
+	void publicationFailureLeavesCommittedConstraintWithUndoRedo() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+		long targetDate = task.getEffectiveWorkCalendar().add(task.getStart(),
+			CalendarOption.getInstance().getMillisPerDay(), false);
+		ObjectEvent.Listener throwingListener = event -> { throw new IllegalStateException("publication failed"); };
+		project.addObjectListener(throwingListener);
+
+		try {
+			assertThrows(IllegalStateException.class, () -> ScheduleService.getInstance().setConstraint(this,
+				task, ConstraintType.Kind.SNET, targetDate, undoController.getEditSupport()));
+		} finally {
+			project.removeObjectListener(throwingListener);
+		}
+
+		assertEquals(ConstraintType.SNET, task.getConstraintType());
+		assertEquals(targetDate, task.getConstraintDate());
+		assertTrue(undoController.canUndo());
+		undoController.undo();
+		assertEquals(ConstraintType.ASAP, task.getConstraintType());
+		assertEquals(0L, task.getConstraintDate());
+		undoController.redo();
+		assertEquals(ConstraintType.SNET, task.getConstraintType());
+		assertEquals(targetDate, task.getConstraintDate());
+	}
+
+	@Test
+	void setConstraintUpdatesTypeDateAndUndoRedo() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+
+		long targetDate = task.getEffectiveWorkCalendar().add(task.getStart(), CalendarOption.getInstance().getMillisPerDay(), false);
+
+		boolean changed = ScheduleService.getInstance().setConstraint(this, task, ConstraintType.Kind.SNET, targetDate, undoController.getEditSupport());
+
+		assertTrue(changed);
+		assertEquals(ConstraintType.SNET, task.getConstraintType());
+		assertEquals(targetDate, task.getConstraintDate());
+
+		undoController.undo();
+		assertEquals(ConstraintType.ASAP, task.getConstraintType());
+		assertEquals(0L, task.getConstraintDate());
+
+		undoController.redo();
+		assertEquals(ConstraintType.SNET, task.getConstraintType());
+		assertEquals(targetDate, task.getConstraintDate());
+	}
+
+	@Test
+	void preparedStartConstraintAndIntervalUndoFromOnePreEditSnapshot() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+		task.setDuration(3L * CalendarOption.getInstance().getMillisPerDay());
+		project.recalculate();
+		long originalStart = task.getStart();
+		long originalEnd = task.getEnd();
+		int originalConstraintType = task.getConstraintType();
+		long originalConstraintDate = task.getConstraintDate();
+		long requestedStart = task.getEffectiveWorkCalendar().add(originalStart,
+			-3L * CalendarOption.getInstance().getMillisPerDay(), false);
+		Object beforeEditDetailBackup = task.backupDetail();
+
+		undoController.beginUpdate();
+		task.setScheduleConstraint(ConstraintType.Kind.SNET, requestedStart);
+		ScheduleService.getInstance().setInterval(this, task, requestedStart, originalEnd,
+			new ScheduleInterval(originalStart, originalEnd), undoController.getEditSupport(), beforeEditDetailBackup);
+		undoController.getEditSupport().postEdit(new TaskConstraintEdit(task, originalConstraintType,
+			originalConstraintDate, ConstraintType.Kind.SNET.code(), task.getConstraintDate(), this));
+		undoController.endUpdate();
+
+		undoController.undo();
+		assertEquals(originalStart, task.getStart(), "one Undo must restore the schedule before constraint preparation");
+		assertEquals(originalEnd, task.getEnd());
+		assertEquals(originalConstraintType, task.getConstraintType());
+		assertEquals(originalConstraintDate, task.getConstraintDate());
+
+		undoController.redo();
+		assertEquals(requestedStart, task.getStart());
+		assertEquals(ConstraintType.SNET, task.getConstraintType());
+	}
+
+	@Test
+	void movingMilestoneKeepsZeroDurationAndAllowsStartConstraint() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+		task.setDuration(0L);
+
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		long originalStart = task.getStart();
+		long originalEnd = task.getEnd();
+		long movedStart = task.getEffectiveWorkCalendar().add(originalStart, day, false);
+		ScheduleInterval originalInterval = new ScheduleInterval(originalStart, originalEnd);
+
+		ScheduleService.getInstance().setInterval(this, task, movedStart, movedStart, originalInterval, undoController.getEditSupport());
+		ScheduleService.getInstance().setConstraint(this, task, ConstraintType.Kind.SNET, movedStart, undoController.getEditSupport());
+
+		assertTrue(task.isMilestone());
+		assertEquals(0L, task.getDuration());
+		assertEquals(movedStart, task.getStart());
+		assertEquals(movedStart, task.getConstraintDate());
+		assertEquals(ConstraintType.SNET, task.getConstraintType());
+	}
+
+	@Test
+	void resizingAssignmentlessTaskFromEndKeepsStartAndMovesFinish() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		long start = task.getStart();
+		task.setEnd(task.getEffectiveWorkCalendar().add(start, day, false));
+		long originalEnd = task.getEnd();
+		long movedEnd = CalendarOption.getInstance().makeValidEnd(task.getEffectiveWorkCalendar().add(originalEnd, day, false), true);
+
+		ScheduleService.getInstance().setInterval(this, task, start, movedEnd, new ScheduleInterval(start, originalEnd), undoController.getEditSupport());
+
+		assertEquals(start, task.getStart());
+		assertEquals(movedEnd, task.getEnd());
+		assertTrue(task.getDuration() > 0L);
+	}
+
+	@Test
+	void movingStartOfAssignmentlessTaskPreservesRequestedFinish() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+		task.setDuration(3L * CalendarOption.getInstance().getMillisPerDay());
+		project.recalculate();
+
+		long originalStart = task.getStart();
+		long originalEnd = task.getEnd();
+		long requestedStart = task.getEffectiveWorkCalendar().add(originalStart,
+			-CalendarOption.getInstance().getMillisPerDay(), false);
+		ScheduleInterval originalInterval = new ScheduleInterval(originalStart, originalEnd);
+
+		ScheduleService.getInstance().setInterval(this, task, requestedStart, originalEnd, originalInterval,
+			undoController.getEditSupport());
+
+		assertFalse(task.hasRealAssignments());
+		assertEquals(requestedStart, task.getStart());
+		assertEquals(originalEnd, task.getEnd(), "assignmentless interval update keeps the requested finish");
+	}
+
+	@Test
+	void movingStartOfAssignedTaskShiftsTaskAndKeepsDuration() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+		task.setDuration(3L * CalendarOption.getInstance().getMillisPerDay());
+		project.recalculate();
+		ResourceImpl resource = resourcePool.newResourceInstance();
+		AssignmentService.getInstance().newAssignment(task, resource, 1D, 0L, this);
+		project.recalculate();
+
+		long originalStart = task.getStart();
+		long originalEnd = task.getEnd();
+		long originalDuration = task.getDurationMillis();
+		long requestedStart = task.getEffectiveWorkCalendar().add(originalStart,
+			-CalendarOption.getInstance().getMillisPerDay(), false);
+		long assignmentStart = task.getEarliestAssignmentStart();
+		long assignmentEnd = task.getEnd();
+
+		ScheduleService.getInstance().setInterval(this, task, requestedStart, assignmentEnd,
+			new ScheduleInterval(assignmentStart, assignmentEnd), undoController.getEditSupport());
+
+		assertTrue(task.hasRealAssignments());
+		assertEquals(requestedStart, task.getStart());
+		assertEquals(task.getEffectiveWorkCalendar().add(originalEnd,
+			-CalendarOption.getInstance().getMillisPerDay(), false), task.getEnd(),
+			"the first assignment-driven bar interval moves the task schedule as a whole");
+		assertEquals(originalDuration, task.getDurationMillis());
+	}
+
+	@Test
+	void endResizeRedoRemainsCorrectAfterStartResizeUndoAndRedo() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(3L * day);
+		task.setPercentComplete(0.4d);
+		project.recalculate();
+		long initialStart = task.getStart();
+		long initialEnd = task.getEnd();
+		long movedStart = task.getEffectiveWorkCalendar().add(initialStart, day, false);
+		long movedEnd = task.getEffectiveWorkCalendar().add(initialEnd, day, false);
+
+		undoController.beginUpdate();
+		ScheduleService.getInstance().setInterval(this, task, movedStart, movedEnd,
+			new ScheduleInterval(initialStart, initialEnd), undoController.getEditSupport());
+		ScheduleService.getInstance().setConstraint(this, task, ConstraintType.Kind.SNET, movedStart,
+			undoController.getEditSupport());
+		undoController.endUpdate();
+		undoController.undo();
+		undoController.redo();
+		assertEquals(movedStart, task.getStart());
+		assertEquals(movedEnd, task.getEnd());
+
+		long resizedEnd = task.getEffectiveWorkCalendar().add(task.getEnd(), day, false);
+		undoController.beginUpdate();
+		ScheduleService.getInstance().setInterval(this, task, task.getStart(), resizedEnd,
+			new ScheduleInterval(task.getStart(), task.getEnd()), undoController.getEditSupport());
+		undoController.endUpdate();
+		assertEquals(movedStart, task.getStart(), "finish resize must preserve the task start");
+		assertEquals(resizedEnd, task.getEnd());
+
+		undoController.undo();
+		assertEquals(movedEnd, task.getEnd());
+		undoController.redo();
+		assertEquals(resizedEnd, task.getEnd());
+	}
+
+	@Test
+	void assignmentlessTaskCanMoveAgainAfterConstraintUpdate() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		long firstStart = task.getStart();
+		long firstEnd = task.getEnd();
+		long secondStart = task.getEffectiveWorkCalendar().add(firstStart, day, false);
+		long secondEnd = task.getEffectiveWorkCalendar().add(firstEnd, day, false);
+
+		ScheduleService.getInstance().setInterval(this, task, secondStart, secondEnd, new ScheduleInterval(firstStart, firstEnd), undoController.getEditSupport());
+		ScheduleService.getInstance().setConstraint(this, task, ConstraintType.Kind.SNET, task.getStart(), undoController.getEditSupport());
+
+		long thirdStart = task.getEffectiveWorkCalendar().add(task.getStart(), day, false);
+		long thirdEnd = task.getEffectiveWorkCalendar().add(task.getEnd(), day, false);
+		ScheduleService.getInstance().setInterval(this, task, thirdStart, thirdEnd, new ScheduleInterval(task.getStart(), task.getEnd()), undoController.getEditSupport());
+		ScheduleService.getInstance().setConstraint(this, task, ConstraintType.Kind.SNET, task.getStart(), undoController.getEditSupport());
+
+		assertEquals(thirdStart, task.getStart());
+		assertEquals(thirdEnd, task.getEnd());
+		assertEquals(ConstraintType.SNET, task.getConstraintType());
+		assertEquals(thirdStart, task.getConstraintDate());
+	}
+
+	@Test
+	void unchangedConstraintAndIntervalDoNotCreateUndoEdits() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+
+		ScheduleInterval originalInterval = new ScheduleInterval(task.getStart(), task.getEnd());
+		boolean intervalChanged = ScheduleService.getInstance().setInterval(this, task, task.getStart(), task.getEnd(), originalInterval, undoController.getEditSupport());
+		boolean changed = ScheduleService.getInstance().setConstraint(this, task, task.getConstraintType(), task.getConstraintDate(), undoController.getEditSupport());
+
+		assertFalse(intervalChanged);
+		assertFalse(changed);
+		assertEquals(task.getStart(), originalInterval.getStart());
+		assertEquals(task.getEnd(), originalInterval.getEnd());
+		assertTrue(!undoController.canUndo());
+	}
+}

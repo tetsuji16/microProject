@@ -13,7 +13,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.task.NormalTask;
+import com.microproject.model.task.NormalTask;
 
 class NodeListTest {
 	@Test

@@ -23,7 +23,7 @@
  *******************************************************************************/
 package com.microproject.exchange.serialize;
 
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 
 /**
  *

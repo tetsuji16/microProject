@@ -32,7 +32,7 @@ import com.microproject.document.Document;
 import com.microproject.node.Node;
 import com.microproject.node.NodeFactory;
 import com.microproject.node.hierarchy.MutableNodeHierarchy;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 
 
 /**

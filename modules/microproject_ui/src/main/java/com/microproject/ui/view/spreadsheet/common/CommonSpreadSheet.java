@@ -97,7 +97,7 @@ import com.microproject.ui.view.spreadsheet.selection.event.SelectionNodeListene
 import com.microproject.ui.view.timescale.ScaledScrollPane;
 import com.microproject.ui.view.views.SearchContext;
 import com.microproject.ui.view.views.Searchable;
-import com.microproject.pm.task.ProjectTaskKey;
+import com.microproject.model.task.ProjectTaskKey;
 import com.microproject.configuration.Dictionary;
 import com.microproject.field.Field;
 import com.microproject.field.FieldParseException;

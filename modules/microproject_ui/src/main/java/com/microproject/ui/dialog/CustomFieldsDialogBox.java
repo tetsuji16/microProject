@@ -43,9 +43,9 @@ import javax.swing.table.AbstractTableModel;
 
 import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectHierarchyQueries;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectHierarchyQueries;
+import com.microproject.model.task.Task;
 import com.microproject.util.Alert;
 import com.microproject.ui.help.HelpUtil;
 import com.microproject.ui.util.PopupDialogSupport;

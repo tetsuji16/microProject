@@ -48,9 +48,9 @@ import com.microproject.node.Node;
 import com.microproject.node.event.HierarchyEvent;
 import com.microproject.node.event.HierarchyListener;
 import com.microproject.node.model.NodeModel;
-import com.microproject.pm.costing.CostRateTable;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.resource.ResourceImpl;
+import com.microproject.model.costing.CostRateTable;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.resource.ResourceImpl;
 import com.microproject.i18n.Messages;
 import com.microproject.ui.util.FlatUiSupport;
 

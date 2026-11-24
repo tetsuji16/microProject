@@ -7,7 +7,7 @@ package com.microproject.ui.view.link_routing;
 
 import java.awt.geom.GeneralPath;
 
-import com.microproject.pm.dependency.DependencyType;
+import com.microproject.model.dependency.DependencyType;
 
 /** Network link routing that joins the two boxes with one straight line (Straight Link Styles). */
 public class StraightNetworkLinkRouting extends NetworkLinkRouting {

@@ -38,16 +38,16 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.calendar.WorkCalendar;
-import com.microproject.pm.calendar.WorkDay;
-import com.microproject.pm.calendar.WorkingCalendar;
-import com.microproject.pm.calendar.WorkingHours;
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.resource.ResourceImpl;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.calendar.WorkCalendar;
+import com.microproject.model.calendar.WorkDay;
+import com.microproject.model.calendar.WorkingCalendar;
+import com.microproject.model.calendar.WorkingHours;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.resource.ResourceImpl;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
 import com.microproject.exchange.serialize.Serializer;
 
 import org.mpxj.ProjectFile;

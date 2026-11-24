@@ -27,7 +27,7 @@ import java.util.Date;
 
 import org.jdesktop.swing.calendar.DateSpan;
 
-import com.microproject.pm.time.HasStartAndEnd;
+import com.microproject.model.time.HasStartAndEnd;
 
 public class CalendarInterval extends DateSpan implements HasStartAndEnd {
 	private static final long serialVersionUID = 1399054876191266801L;

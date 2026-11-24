@@ -27,15 +27,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectFactory;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.assignment.AssignmentService;
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.dependency.DependencyService;
-import com.microproject.pm.dependency.DependencyType;
-import com.microproject.pm.resource.Resource;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectFactory;
+import com.microproject.model.task.Task;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.assignment.AssignmentService;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.dependency.DependencyService;
+import com.microproject.model.dependency.DependencyType;
+import com.microproject.model.resource.Resource;
 
 /** Child JVM entry point for proving shared MPO locking and merge across processes. */
 public final class MpoConcurrentSaveProcess {

@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.field.InvalidFormulaException;
 import com.microproject.node.NodeFactory;
-import com.microproject.pm.task.NormalTask;
+import com.microproject.model.task.NormalTask;
 
 class BaseFilterTest {
 	@Test

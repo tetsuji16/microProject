@@ -26,7 +26,7 @@ package com.microproject.ui.view.xbs;
 import com.microproject.ui.view.network.Network;
 import com.microproject.ui.view.network.NetworkModel;
 import com.microproject.ui.view.network.NetworkRenderer;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 
 /**
  *

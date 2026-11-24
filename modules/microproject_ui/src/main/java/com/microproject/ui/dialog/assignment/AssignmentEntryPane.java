@@ -54,13 +54,13 @@ import com.microproject.node.event.HierarchyEvent;
 import com.microproject.node.event.HierarchyListener;
 import com.microproject.node.model.NodeModel;
 import com.microproject.node.model.NodeModelFactory;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.assignment.AssignmentEntry;
-import com.microproject.pm.assignment.HasAssignments;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.assignment.AssignmentEntry;
+import com.microproject.model.assignment.HasAssignments;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
 import com.microproject.i18n.Messages;
 
 /**

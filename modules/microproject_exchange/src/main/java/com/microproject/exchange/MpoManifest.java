@@ -12,10 +12,10 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.microproject.pm.ccpm.CriticalChainService;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.SubProj;
-import com.microproject.pm.assignment.Assignment;
+import com.microproject.schedule.ccpm.CriticalChainService;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.SubProj;
+import com.microproject.model.assignment.Assignment;
 import com.microproject.util.MarkupEscape;
 
 /**

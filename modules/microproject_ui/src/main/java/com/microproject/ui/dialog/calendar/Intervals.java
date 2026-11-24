@@ -33,7 +33,7 @@ import java.util.TreeSet;
 import org.jdesktop.swing.calendar.DateSpan;
 
 import com.microproject.contrib.calendar.ContribIntervals;
-import com.microproject.pm.time.HasStartAndEnd;
+import com.microproject.model.time.HasStartAndEnd;
 import com.microproject.util.DateTime;
 
 /**

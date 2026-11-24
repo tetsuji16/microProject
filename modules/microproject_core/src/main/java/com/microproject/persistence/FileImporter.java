@@ -28,8 +28,8 @@ import java.io.OutputStream;
 
 import com.microproject.job.Job;
 import com.microproject.job.JobQueue;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectFactory;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectFactory;
 
 /**
  * Abstract class for importing and exporting files

@@ -17,8 +17,8 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.ui.menu.MenuActionConstants;
 import com.microproject.ui.view.views.DockableProjectToolView;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.Project;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 
 /** The pure decisions behind the Calendar Format tab and their workspace round trip. */

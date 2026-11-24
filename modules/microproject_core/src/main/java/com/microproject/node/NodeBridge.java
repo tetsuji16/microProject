@@ -32,9 +32,9 @@ import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreeNode;
 
 import com.microproject.node.model.NodeModelUtil;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.task.Task;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.task.Task;
 import com.microproject.persistence.data.DataObject;
 
 /**

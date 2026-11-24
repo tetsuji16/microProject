@@ -12,10 +12,10 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.node.Node;
 import com.microproject.node.NodeFactory;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.resource.ResourceImpl;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.resource.ResourceImpl;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
 import com.microproject.undo.DataFactoryUndoController;
 
 class AssignmentCompositionFilterTest {

@@ -28,12 +28,12 @@ import java.util.List;
 
 import javax.swing.SwingUtilities;
 
-import com.microproject.pm.assignment.Assignment;
+import com.microproject.model.assignment.Assignment;
 import com.microproject.ui.view.timescale.CoordinatesConverter;
 import com.microproject.ui.view.timescale.ScaledScrollPane;
-import com.microproject.pm.resource.Resource;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
 
 /** Shared view-only range resolution and zoom behavior for selected tasks. */
 public final class SelectedTasksTimescaleZoom {

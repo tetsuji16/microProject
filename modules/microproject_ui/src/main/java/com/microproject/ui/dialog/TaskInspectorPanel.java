@@ -26,13 +26,13 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.SwingConstants;
 
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.calendar.WorkingCalendar;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.calendar.WorkingCalendar;
 import com.microproject.datatype.Duration;
 import com.microproject.datatype.DurationFormat;
-import com.microproject.pm.task.ScheduleDiagnosticsService;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.ScheduleDiagnosticsService;
+import com.microproject.model.task.Task;
 import com.microproject.i18n.Messages;
 
 /** Read-only, selection-following schedule facts for the selected task. */

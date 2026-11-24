@@ -45,8 +45,8 @@ import com.microproject.ui.view.spreadsheet.SpreadSheetParams;
 import com.microproject.ui.view.spreadsheet.common.CommonSpreadSheetModel;
 import com.microproject.field.Field;
 import com.microproject.field.FieldConverter;
-import com.microproject.pm.task.ScheduleDiagnosticsService;
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.ScheduleDiagnosticsService;
+import com.microproject.model.task.Task;
 import com.microproject.preference.GlobalPreferences;
 
 /**
