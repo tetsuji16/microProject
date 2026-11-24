@@ -35,6 +35,9 @@ import com.microproject.model.calendar.WorkingHours;
 import com.microproject.model.resource.Resource;
 import com.microproject.model.snapshot.Snapshottable;
 import com.microproject.model.task.TaskSnapshot;
+import com.microproject.model.format.SheetTextFormat;
+import com.microproject.model.format.SheetTextStyleCategory;
+import com.microproject.model.format.SheetTextStyles;
 import com.microproject.field.Field;
 import com.microproject.view.configuration.SpreadSheetFieldArray;
 import com.microproject.model.assignment.TimeDistributedHelper;
@@ -312,6 +315,99 @@ final class MpoSidecarJson {
 					task.setFontBackground(fillColor == null ? null : Integer.valueOf(fillColor.intValue()));
 				};
 			});
+	}
+
+	static byte[] taskMarkedJson(Project project, String taskIdentities) throws IOException {
+		boolean hasMarkedTask = false;
+		for (java.util.Iterator<?> iterator = project.getTaskOutlineIterator(); iterator.hasNext();) {
+			if (((Task) iterator.next()).isMarked()) {
+				hasMarkedTask = true;
+				break;
+			}
+		}
+		if (!hasMarkedTask) return null;
+		return perTaskOptionsJson(project, taskIdentities, "marked task", "marked tasks", task -> !task.isMarked(),
+			(task, node) -> node.put("marked", true));
+	}
+
+	static void restoreTaskMarked(Project project, byte[] bytes) throws IOException {
+		Project.DirtyState dirtyState = project.captureDirtyState();
+		try {
+			restorePerTaskOptions(project, bytes, "Invalid MPO marked tasks", "MPO contains too many marked tasks",
+			"Duplicate MPO marked task identity", "MPO marked tasks reference an unknown task", node -> {
+				JsonNode marked = node.get("marked");
+				if (marked == null || !marked.isBoolean() || !marked.booleanValue())
+					throw new IOException("Invalid MPO marked task value");
+				return task -> {
+					boolean wasDirty = task.isDirty();
+					task.setMarked(true);
+					if (!wasDirty) task.setDirty(false);
+				};
+			});
+		} finally {
+			project.restoreDirtyState(dirtyState);
+		}
+	}
+
+	/** Serializes project-level sheet text styles; an empty set has no sidecar entry. */
+	static byte[] sheetTextStylesJson(Project project) throws IOException {
+		SheetTextStyles styles = project.getSheetTextStyles();
+		if (styles == null || styles.isEmpty()) return null;
+		ObjectNode root = JSON.createObjectNode();
+		root.put("version", 1);
+		for (SheetTextStyleCategory category : SheetTextStyleCategory.values()) {
+			SheetTextFormat format = styles.get(category);
+			if (format == null) continue;
+			ObjectNode node = root.putObject(category.name());
+			if (format.family() != null) node.put("fontFamily", format.family());
+			node.put("fontSize", format.size());
+			if (format.color() != null) node.put("fontColor", format.color());
+			node.put("bold", format.bold());
+			node.put("italic", format.italic());
+			node.put("strikethrough", format.strikethrough());
+			if (format.underline()) node.put("underline", true);
+			if (format.background() != null) node.put("fillColor", format.background());
+		}
+		return root.size() == 1 ? null : JSON.writeValueAsBytes(root);
+	}
+
+	/** Restores project-level sheet text styles. Unknown categories are ignored for forward compatibility. */
+	static void restoreSheetTextStyles(Project project, byte[] bytes) throws IOException {
+		JsonNode root = JSON.readTree(bytes);
+		if (root == null || !root.isObject() || requiredInt(root, "version") != 1)
+			throw new IOException("Invalid mpo sheet text styles version");
+		SheetTextStyles styles = SheetTextStyles.empty();
+		for (SheetTextStyleCategory category : SheetTextStyleCategory.values()) {
+			JsonNode node = root.get(category.name());
+			if (node == null) continue;
+			if (!node.isObject()) throw new IOException("Invalid MPO sheet text style for category " + category.name());
+			JsonNode family = node.get("fontFamily");
+			JsonNode size = node.get("fontSize");
+			JsonNode color = node.get("fontColor");
+			JsonNode bold = node.get("bold");
+			JsonNode italic = node.get("italic");
+			JsonNode strike = node.get("strikethrough");
+			JsonNode underline = node.get("underline");
+			JsonNode fill = node.get("fillColor");
+			if ((family != null && !family.isTextual()) || size == null || !size.isIntegralNumber()
+					|| !size.canConvertToInt() || size.intValue() < 0 || size.intValue() > 72
+					|| !validColor(color) || bold == null || !bold.isBoolean() || italic == null || !italic.isBoolean()
+					|| strike == null || !strike.isBoolean() || (underline != null && !underline.isBoolean())
+					|| !validColor(fill))
+				throw new IOException("Invalid MPO sheet text style values for category " + category.name());
+			styles.set(category, new SheetTextFormat(family == null ? null : family.textValue(), size.intValue(),
+					color == null ? null : color.intValue(), bold.booleanValue(), italic.booleanValue(),
+					strike.booleanValue(), underline != null && underline.booleanValue(),
+					fill == null ? null : fill.intValue()));
+		}
+		Project.DirtyState dirtyState = project.captureDirtyState();
+		project.setSheetTextStyles(styles);
+		project.restoreDirtyState(dirtyState);
+	}
+
+	private static boolean validColor(JsonNode value) {
+		return value == null || value.isIntegralNumber() && value.canConvertToInt()
+				&& value.intValue() >= 0 && value.intValue() <= 0xFFFFFF;
 	}
 
 	/** Validates one per-task record and returns the mutation to apply once its task is found. */

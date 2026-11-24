@@ -131,6 +131,8 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	protected String notes = "";
 	protected String wbs = "";
 	protected boolean markTaskAsMilestone = false;
+	/** MSP-compatible Marked task field. Transient to keep the frozen POD object stream unchanged. */
+	protected transient boolean marked;
 	protected transient CustomFieldsImpl customFields = new CustomFieldsImpl();
 	protected transient HasKeyImpl hasKey;
 	/**
@@ -1116,6 +1118,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 
 		task.debugDependencyOrder=debugDependencyOrder;
 		task.markTaskAsMilestone = markTaskAsMilestone;
+		task.marked = marked;
 		task.hiddenTask = hiddenTask;
 		task.fontFamily = fontFamily;
 		task.fontSize = fontSize;
@@ -1573,6 +1576,15 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	}
 	public void setMarkTaskAsMilestone(boolean markTaskAsMilestone) {
 		this.markTaskAsMilestone = markTaskAsMilestone;
+	}
+	public boolean isMarked() {
+		return marked;
+	}
+	public void setMarked(boolean marked) {
+		if (this.marked == marked)
+			return;
+		this.marked = marked;
+		setDirty(true);
 	}
 	/** @deprecated use {@link #getEarnedValueMethodKind()} for typed access. */
 	@Deprecated

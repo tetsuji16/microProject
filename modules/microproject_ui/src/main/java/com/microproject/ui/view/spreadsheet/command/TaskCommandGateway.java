@@ -251,8 +251,11 @@ public final class TaskCommandGateway {
 				&& (intent.requestedValue() < intent.expectedCompletedThrough()
 					|| !containsSchedulePoint(schedule, intent.requestedValue())))
 			return new TaskCommandResult(TaskCommandResult.Status.STALE_VALUE, "split-point-outside-current-work-interval");
-		if (intent.operation() == TaskScheduleEditIntent.Operation.PROGRESS
-				&& intent.requestedValue() == intent.expectedCompletedThrough())
+		// A gesture that resolves to the value the view already renders is a no-op.
+		// Rejecting it here keeps it out of the scheduling mutation, so it cannot
+		// publish a revision, dirty state or an Undo entry even when the underlying
+		// service would still recalculate and emit events for the same values.
+		if (isNoOpScheduleEdit(intent))
 			return TaskCommandResult.of(TaskCommandResult.Status.NO_CHANGE);
 		if (!CollaborationHelper.tryLockNodes(null, List.of(node), lockParent, "edit"))
 			return new TaskCommandResult(TaskCommandResult.Status.LOCKED, "collaboration-lock-denied");
@@ -269,6 +272,24 @@ public final class TaskCommandGateway {
 			}
 			throw failure;
 		}
+	}
+
+	/**
+	 * Reports whether the captured gesture requests the state the task view already
+	 * shows. Only the endpoint an operation actually edits is compared, because a
+	 * resize keeps the opposite endpoint from the captured interval.
+	 */
+	private static boolean isNoOpScheduleEdit(TaskScheduleEditIntent intent) {
+		return switch (intent.operation()) {
+			case MOVE -> intent.requestedStart() == intent.expectedIntervalStart()
+				&& intent.requestedEnd() == intent.expectedIntervalEnd();
+			case RESIZE_START -> intent.requestedStart() == intent.expectedIntervalStart();
+			case RESIZE_END -> intent.requestedEnd() == intent.expectedIntervalEnd();
+			case PROGRESS -> intent.requestedValue() == intent.expectedCompletedThrough();
+			// A split needs a non-empty nonworking gap; a click without a resume-date
+			// drag must not reach the split mutation.
+			case SPLIT -> intent.requestedEnd() <= intent.requestedStart();
+		};
 	}
 
 	private static boolean containsScheduleInterval(Schedule schedule, long expectedStart, long expectedEnd,
