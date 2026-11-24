@@ -33,6 +33,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -203,12 +204,14 @@ class MspRibbonOrderDiffTest {
 		Map.entry("TaskUsageFormatRibbonTask/SheetFormatRibbonBand", "GroupUsageViewFormat"),
 		Map.entry("TaskUsageFormatRibbonTask/SheetColumnsRibbonBand", "GroupColumns"),
 		Map.entry("TaskUsageFormatRibbonTask/TaskUsageDetailsRibbonBand", "GroupTaskUsageViewDetails"),
-		Map.entry("TaskUsageFormatRibbonTask/SheetShowHideRibbonBand", "GroupTaskUsageShowHide"),
-		Map.entry("ResourceSheetFormatRibbonTask/SheetFormatRibbonBand", "GroupSheetFormat"),
-		Map.entry("ResourceSheetFormatRibbonTask/SheetColumnsRibbonBand", "GroupColumns"),
-		Map.entry("ResourceUsageFormatRibbonTask/SheetFormatRibbonBand", "GroupUsageViewFormat"),
-		Map.entry("ResourceUsageFormatRibbonTask/SheetColumnsRibbonBand", "GroupColumns"),
-		Map.entry("ResourceUsageFormatRibbonTask/ResourceUsageDetailsRibbonBand", "GroupResourceUsageViewDetails"),
+				Map.entry("TaskUsageFormatRibbonTask/AssignmentInformationRibbonBand", "GroupAssignmentProperties"),
+				Map.entry("TaskUsageFormatRibbonTask/SheetShowHideRibbonBand", "GroupTaskUsageShowHide"),
+				Map.entry("ResourceSheetFormatRibbonTask/SheetFormatRibbonBand", "GroupSheetFormat"),
+				Map.entry("ResourceSheetFormatRibbonTask/SheetColumnsRibbonBand", "GroupColumns"),
+				Map.entry("ResourceUsageFormatRibbonTask/SheetFormatRibbonBand", "GroupUsageViewFormat"),
+				Map.entry("ResourceUsageFormatRibbonTask/SheetColumnsRibbonBand", "GroupColumns"),
+				Map.entry("ResourceUsageFormatRibbonTask/ResourceUsageDetailsRibbonBand", "GroupResourceUsageViewDetails"),
+				Map.entry("ResourceUsageFormatRibbonTask/AssignmentInformationRibbonBand", "GroupAssignmentProperties"),
 		Map.entry("NetworkFormatRibbonTask/NetworkDisplayRibbonBand", "GroupNetworkDiagramDisplay"),
 		Map.entry("NetworkFormatRibbonTask/NetworkFormatRibbonBand", "GroupNetworkDiagramFormat"),
 		Map.entry("NetworkFormatRibbonTask/NetworkShowHideRibbonBand", "GroupNetworkDiagramShowHide"),
@@ -249,30 +252,35 @@ class MspRibbonOrderDiffTest {
 
 	/** Extension bands whose mapped controls are ordered like this Microsoft group ("tab/group"). */
 	private static final Map<String, String> BORROWED_GROUPS = Map.of(
-		"ResourceRibbonTask/ClipboardRibbonBand", "TabTask/GroupClipboard");
+			"ResourceRibbonTask/ClipboardRibbonBand", "TabTask/GroupClipboard",
+			"TaskUsageFormatRibbonTask/TaskUsageDetailsRibbonBand", "TabTaskUsageViewFormat/GroupAssignmentProperties",
+			"ResourceUsageFormatRibbonTask/ResourceUsageDetailsRibbonBand", "TabResourceUsageViewFormat/GroupAssignmentProperties");
 
 	/** Microsoft groups of the compared tabs that we have no band for ("tab/group"), with the reason. */
 	private static final Map<String, String> MISSING_GROUPS = Map.ofEntries(
-		Map.entry("TabReportOverview/GroupCompareProject", "Compare Projects; " + PHASE_1B),
-		Map.entry("TabReportOverview/GroupVisualReports",
-			"desktop Visual Reports and local Excel/Visio integration remain unverified"),
-		Map.entry("TabProject/GroupOfficeExtension",
-			OFFICE_ADDIN),
-		Map.entry("TabProject/GroupProofing", "Spelling; " + PHASE_1B),
-		Map.entry("TabGanttChartFormat/GroupDrawings",
-			"no drawing layer: the Gantt has no drawing objects (lines, arrows, shapes, text boxes) to create, edit, order or persist"),
-		Map.entry("TabTimelineViewFormat/GroupSwitchTimeline",
-			"the lower pane offers only the Timeline and Details check boxes; there is no lower-pane view picker, so the Timeline label, the view gallery and More Views have nothing to switch between"),
-		Map.entry("TabTaskUsageViewFormat/GroupAssignmentProperties", ASSIGNMENT_PROPERTIES),
-		Map.entry("TabResourceUsageViewFormat/GroupAssignmentProperties", ASSIGNMENT_PROPERTIES),
-		Map.entry("TabView/GroupMacros",
-			"Microsoft Project-compatible VBA/macros remain unresolved"));
+			Map.entry("TabReportOverview/GroupCompareProject", "Compare Projects; " + PHASE_1B),
+			Map.entry("TabReportOverview/GroupVisualReports",
+				"desktop Visual Reports and local Excel/Visio integration remain unverified"),
+			Map.entry("TabProject/GroupOfficeExtension",
+				OFFICE_ADDIN),
+			Map.entry("TabProject/GroupProofing", "Spelling; " + PHASE_1B),
+			Map.entry("TabGanttChartFormat/GroupDrawings",
+				"no drawing layer: the Gantt has no drawing objects (lines, arrows, shapes, text boxes) to create, edit, order or persist"),
+			Map.entry("TabTimelineViewFormat/GroupSwitchTimeline",
+				"the lower pane offers only the Timeline and Details check boxes; there is no lower-pane view picker, so the Timeline label, the view gallery and More Views have nothing to switch between"),
+			Map.entry("TabView/GroupMacros",
+				"Microsoft Project-compatible VBA/macros remain unresolved"));
 
 	/** Controls Microsoft lists in two groups of one tab; one command implements both and sits in the first group; the second listing is exempt only while the command is mapped somewhere in the tab. */
-	private static final Set<String> MSP_LISTS_TWICE = Set.of("TabNetworkDiagramFormat/NetworkDiagramLayout");
+		private static final Set<String> MSP_LISTS_TWICE = Set.of("TabNetworkDiagramFormat/NetworkDiagramLayout");
 
-	/**
-	 * Top-level Microsoft controls inside a group we implement that no control of that band maps to,
+		/** Controls that Microsoft places in a different group than the band they appear in. Key: "band/control", value: "tab/group". */
+		private static final Map<String, String> CONTROL_BORROWED_GROUPS = Map.of(
+			"TaskUsageFormatRibbonTask/TaskUsageDetailsRibbonBand/RibbonAssignmentInformation", "TabTaskUsageViewFormat/GroupAssignmentProperties",
+			"ResourceUsageFormatRibbonTask/ResourceUsageDetailsRibbonBand/RibbonAssignmentInformation", "TabResourceUsageViewFormat/GroupAssignmentProperties");
+
+		/**
+		 * Top-level Microsoft controls inside a group we implement that no control of that band maps to,
 	 * with the reason. A control counts as present when it or one of its menu children is mapped.
 	 */
 	private static final Map<String, String> MISSING_CONTROLS = Map.ofEntries(
@@ -322,7 +330,9 @@ class MspRibbonOrderDiffTest {
 		Map.entry("TabView/HideWindowMenu", "the frame manager has no hidden-window state to back Hide/Unhide"),
 		Map.entry("HelpTab/OfficeFeedbackHelpTab", "Office feedback service is outside the standalone desktop goal"),
 		Map.entry("HelpTab/ShowTraining", "Microsoft training content is an online service; no local equivalent and no network calls are added"),
-		Map.entry("HelpTab/WhatsNewRecentUpdates", "Microsoft update announcements are an online service; no local equivalent and no network calls are added"));
+		Map.entry("HelpTab/WhatsNewRecentUpdates", "Microsoft update announcements are an online service; no local equivalent and no network calls are added"),
+				Map.entry("TabTaskUsageViewFormat/AssignmentNotes", "Assignment Notes is a separate command not yet implemented"),
+				Map.entry("TabResourceUsageViewFormat/AssignmentNotes", "Assignment Notes is a separate command not yet implemented"));
 
 	private record Extension(String after, String reason) {
 	}
@@ -368,7 +378,7 @@ class MspRibbonOrderDiffTest {
 		Map.entry("RibbonRBS", after("ResourceSheetViewGallery", "RBS view; no Microsoft gallery entry point")),
 		Map.entry("RibbonProjects", after("ResourceSheetViewGallery", "projects view; no Microsoft gallery entry point")),
 		Map.entry("RibbonPrivacyMask", after("WindowsArrangeAll", "window-level display toggle")),
-		Map.entry("RibbonAboutMicroProject", after(END, "product About; no Microsoft control mapped")));
+				Map.entry("RibbonAboutMicroProject", after(END, "product About; no Microsoft control mapped")));
 
 	/** Items of popups (by ribbon id) -> the Microsoft menu child they correspond to. */
 	private static final Map<String, String> ITEM_CONTROLS = Map.ofEntries(
@@ -633,41 +643,56 @@ class MspRibbonOrderDiffTest {
 	}
 
 	@Test
-	void mappedControlsSitInMicrosoftGroupAndRelativeOrder() {
-		List<String> problems = new ArrayList<>();
-		forEachBand((tab, band, controls) -> {
-			String key = tab + "/" + band.getId();
-			String mspTab = TABS.get(tab);
-			String group = BAND_GROUPS.get(key);
-			if (group == null) {
-				String borrowed = BORROWED_GROUPS.get(key);
-				if (borrowed == null) {
-					return;
+		void mappedControlsSitInMicrosoftGroupAndRelativeOrder() {
+			List<String> problems = new ArrayList<>();
+			forEachBand((tab, band, controls) -> {
+				String key = tab + "/" + band.getId();
+				String mspTab = TABS.get(tab);
+				String group = BAND_GROUPS.get(key);
+				if (group == null) {
+					String borrowed = BORROWED_GROUPS.get(key);
+					if (borrowed == null) {
+						return;
+					}
+					mspTab = borrowed.split("/")[0];
+					group = borrowed.split("/")[1];
 				}
-				mspTab = borrowed.split("/")[0];
-				group = borrowed.split("/")[1];
-			}
-			int previous = 0;
-			String previousId = null;
-			for (OurControl control : controls) {
-				if (!control.mapped()) {
-					continue;
+				// Track previous position per effective Microsoft group
+				Map<String, Integer> previousByGroup = new HashMap<>();
+				Map<String, String> previousIdByGroup = new HashMap<>();
+				for (OurControl control : controls) {
+					if (!control.mapped()) {
+						continue;
+					}
+					// Check for control-specific borrowed group
+					String controlKey = key + "/" + control.ribbonId();
+					String controlBorrowed = CONTROL_BORROWED_GROUPS.get(controlKey);
+					String effectiveMspTab = mspTab;
+					String effectiveGroup = group;
+					if (controlBorrowed != null) {
+						effectiveMspTab = controlBorrowed.split("/")[0];
+						effectiveGroup = controlBorrowed.split("/")[1];
+					}
+					OrderRow row = find(effectiveMspTab, effectiveGroup, control.idMso());
+					if (row == null) {
+						problems.add(key + ": " + control.ribbonId() + " maps to " + control.idMso()
+							+ " which Microsoft does not place in " + effectiveGroup + "; it is in " + locate(control.idMso()));
+					} else {
+						String groupKey = effectiveMspTab + "/" + effectiveGroup;
+						Integer previous = previousByGroup.get(groupKey);
+						String previousId = previousIdByGroup.get(groupKey);
+						if (previous != null && row.position() <= previous) {
+							problems.add(key + ": Microsoft orders " + control.idMso() + " before " + previousId + " in " + effectiveGroup
+								+ " (ours: " + control.ribbonId() + " after it)");
+						} else {
+							previousByGroup.put(groupKey, row.position());
+							previousIdByGroup.put(groupKey, control.idMso());
+						}
+					}
 				}
-				OrderRow row = find(mspTab, group, control.idMso());
-				if (row == null) {
-					problems.add(key + ": " + control.ribbonId() + " maps to " + control.idMso()
-						+ " which Microsoft does not place in " + group + "; it is in " + locate(control.idMso()));
-				} else if (row.position() <= previous) {
-					problems.add(key + ": Microsoft orders " + control.idMso() + " before " + previousId + " in " + group
-						+ " (ours: " + control.ribbonId() + " after it)");
-				} else {
-					previous = row.position();
-					previousId = control.idMso();
-				}
-			}
-		});
-		assertTrue(problems.isEmpty(), String.join("\n", problems));
-	}
+			});
+			assertTrue(problems.isEmpty(), String.join("\n", problems));
+		}
 
 	@Test
 	void microsoftControlsWeLackAreReasonedAndStillMissing() {

@@ -33,6 +33,7 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowEvent;
+import java.awt.event.WindowAdapter;
 import java.awt.event.WindowStateListener;
 import java.io.IOException;
 import java.io.File;
@@ -56,6 +57,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.prefs.Preferences;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.swing.AbstractButton;
@@ -117,6 +119,7 @@ import com.microproject.collaboration.CollaborationSession;
 import com.microproject.collaboration.ProjectMergeService;
 import com.microproject.util.ClassLoaderUtils;
 import com.microproject.ui.dialog.AbstractDialog;
+import com.microproject.ui.dialog.AssignmentInformationDialog;
 import com.microproject.ui.dialog.LocaleDialog;
 import com.microproject.ui.dialog.ProjectDialog;
 import com.microproject.ui.dialog.ResourceSortOrderPanel;
@@ -1909,6 +1912,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		actionsMap.addHandler(ACTION_DOCUMENTS, new DocumentsAction());
 		actionsMap.addHandler(ACTION_INFORMATION, new InformationAction());
 		actionsMap.addHandler("RibbonTaskInformation", new RibbonTaskInformationAction());
+		actionsMap.addHandler("RibbonAssignmentInformation", new RibbonAssignmentInformationAction());
 		actionsMap.addHandler("RibbonTaskInspector", new RibbonTaskInspectorAction());
 		actionsMap.addHandler(ACTION_INSPECT_TASK, new InspectTaskAction());
 		actionsMap.addHandler(ACTION_SHOW_TASK_WARNINGS, new ShowTaskWarningsAction());
@@ -2387,6 +2391,57 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			setMeAsLastGraphicManager();
 			showTaskInformationForSelection(this, false);
 		}
+	}
+	public class RibbonAssignmentInformationAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			DocumentFrame frame = getCurrentFrame();
+			InformationSelection selection = informationSelectionSnapshot();
+			String rejection = frame == null ? "no-active-document"
+				: !(frame.getActiveTopView() instanceof UsageDetailView) ? "wrong-view"
+				: selection.kind() != InformationSelectionKind.ASSIGNMENT ? "no-assignment-selection"
+				: !isDocumentWritable() ? "read-only" : null;
+			if (rejection != null) {
+				traceUi("assignment-information rejected reason=" + rejection + " selection=" + selection.kind()
+					+ " activeView=" + (frame == null ? "" : frame.getTopViewId()));
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected("RibbonAssignmentInformation", rejection));
+				return;
+			}
+			String stage = "finish-operations";
+			try {
+				finishAnyOperations();
+				stage = "dialog-presentation";
+				traceUi("assignment-information presenting selection=" + selection.kind()
+					+ " activeView=" + frame.getTopViewId() + " editable=" + isDocumentWritable());
+				boolean visible = presentAssignmentInformationDialog(selection.assignment());
+				RibbonCommandResult result = visible
+					? new RibbonCommandResult("RibbonAssignmentInformation", RibbonCommandResult.Status.DISPATCHED,
+						"", List.of(), List.of(), frame.getTopViewId())
+					: new RibbonCommandResult("RibbonAssignmentInformation", RibbonCommandResult.Status.FAILED,
+						"dialog-not-visible", List.of(), List.of(), frame.getTopViewId());
+				publishTaskCommandOutcome(this, result);
+			} catch (RuntimeException | Error failure) {
+				StackTraceElement origin = failure.getStackTrace().length == 0 ? null : failure.getStackTrace()[0];
+				String reason = stage + ":" + failure.getClass().getSimpleName()
+					+ ":" + Objects.toString(failure.getMessage(), "")
+					+ (origin == null ? "" : " @ " + origin);
+				publishTaskCommandOutcome(this, new RibbonCommandResult("RibbonAssignmentInformation",
+					RibbonCommandResult.Status.FAILED, reason, List.of(), List.of(), frame.getTopViewId()));
+				throw failure;
+			}
+		}
+	}
+
+	/** Presents the assignment dialog and reports whether it actually opened. */
+	protected boolean presentAssignmentInformationDialog(Assignment assignment) {
+		AtomicBoolean opened = new AtomicBoolean();
+		AssignmentInformationDialog dialog = new AssignmentInformationDialog(getFrame(), assignment);
+		dialog.addWindowListener(new WindowAdapter() {
+			@Override public void windowOpened(WindowEvent event) { opened.set(true); }
+		});
+		dialog.doModal();
+		return dialog.isShowing() || opened.get();
 	}
 	public class RibbonTaskInspectorAction extends MenuActionsMap.DocumentMenuAction {
 		private static final long serialVersionUID = 1L;
@@ -5908,6 +5963,10 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_SHOW_IGNORED_PROBLEMS, isDocumentWritable());
 		syncTaskDiagnosticToggles();
 		getMenuManager().setActionEnabled("RibbonResourceInformation", resourceInfoEnabled);
+		boolean assignmentInformationEnabled = getCurrentFrame() != null
+			&& getCurrentFrame().getActiveTopView() instanceof UsageDetailView
+			&& informationSelection.kind() == InformationSelectionKind.ASSIGNMENT && !readOnly;
+		getMenuManager().setActionEnabled("RibbonAssignmentInformation", assignmentInformationEnabled);
 		getMenuManager().setActionEnabled(ACTION_NOTES,infoEnabled);
 		getMenuManager().setActionEnabled(ACTION_INSERT_TASK, !readOnly && (taskType || resourceType)&&(actions==null||actions.contains(ACTION_INSERT_TASK)));
 		getMenuManager().setActionEnabled(ACTION_INSERT_RESOURCE, !readOnly && resourceType && (actions==null||actions.contains(ACTION_INSERT_RESOURCE)));
