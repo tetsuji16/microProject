@@ -106,20 +106,19 @@ public final class NetworkDisplayOptions {
 	/** The outline drawn for a box of the given shape inside bounds. */
 	public static Shape outline(BoxShape shape, Rectangle2D bounds) {
 		double arc = Math.min(bounds.getWidth(), bounds.getHeight()) / 3;
-		switch (shape) {
-			case ROUNDED:
-				return new RoundRectangle2D.Double(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), arc, arc);
-			case DIAMOND:
+		return switch (shape) {
+			case ROUNDED -> new RoundRectangle2D.Double(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), arc, arc);
+			case DIAMOND -> {
 				Path2D.Double path = new Path2D.Double();
 				path.moveTo(bounds.getCenterX(), bounds.getMinY());
 				path.lineTo(bounds.getMaxX(), bounds.getCenterY());
 				path.lineTo(bounds.getCenterX(), bounds.getMaxY());
 				path.lineTo(bounds.getMinX(), bounds.getCenterY());
 				path.closePath();
-				return path;
-			default:
-				return bounds;
-		}
+				yield path;
+			}
+			default -> bounds;
+		};
 	}
 
 	/** Compact text form for the view workspace (plain strings deserialise under the safe object filter). */

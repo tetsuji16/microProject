@@ -178,10 +178,9 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 //	}
 	public int getMaxLevel(){
 		int level=0;
-		GraphicNode node;
-		for (Iterator i=getIterator();i.hasNext();){
-			node=(GraphicNode)i.next();
-			if (node.getLevel()>level) level=node.getLevel();
+		for (Iterator<GraphicNode> i = getIterator(); i.hasNext();){
+			GraphicNode node = i.next();
+			if (node.getLevel() > level) level = node.getLevel();
 		}
 		return level;
 	}
@@ -482,13 +481,11 @@ public class ViewNodeModelCache implements NodeModelCache, ViewTransformerListen
 	}
 
 
-	public void expandNodes(List nodes, boolean expand){
-		if (nodes==null) return;
+	public void expandNodes(List<?> nodes, boolean expand){
+		if (nodes == null) return;
 
-		if (nodes.size()>0) {
-			Iterator i = nodes.iterator();
-			while (i.hasNext()) {
-				GraphicNode gnode = (GraphicNode)i.next();
+		for (Object element : nodes) {
+			if (element instanceof GraphicNode gnode) {
 				if (expand && !gnode.isFetched()) // for subprojects
 					gnode.fetch();
 

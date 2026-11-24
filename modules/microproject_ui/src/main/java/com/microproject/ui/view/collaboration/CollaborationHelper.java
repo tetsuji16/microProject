@@ -78,13 +78,12 @@ public final class CollaborationHelper {
 		return task == null ? null : task.getProject();
 	}
 
-	public static boolean tryLockNodes(Project project, List nodes, Component parent, String actionLabel) {
+	public static boolean tryLockNodes(Project project, List<?> nodes, Component parent, String actionLabel) {
 		if (nodes == null) {
 			return true;
 		}
-		List<Task> tasks = new ArrayList<Task>();
-		for (Iterator i = nodes.iterator(); i.hasNext();) {
-			Object value = i.next();
+		List<Task> tasks = new ArrayList<>();
+		for (Object value : nodes) {
 			if (project == null) {
 				project = getProject(value);
 			}

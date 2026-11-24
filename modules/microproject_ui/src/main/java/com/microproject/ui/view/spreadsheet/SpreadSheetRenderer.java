@@ -73,8 +73,8 @@ public class SpreadSheetRenderer extends Renderer{
 			spreadsheetBounds=new Rectangle(spreadsheetBounds.x,spreadsheetBounds.y,printSpreadsheetBounds.width,printSpreadsheetBounds.height);
 		}
 		int row=row0;
-		for (Iterator i=graphInfo.getCache().getIterator(row0);i.hasNext()&&row<=row1;row++){
-			GraphicNode gnode=(GraphicNode)i.next();
+		for (Iterator<GraphicNode> i = graphInfo.getCache().getIterator(row0); i.hasNext() && row <= row1; row++){
+			GraphicNode gnode = i.next();
 			paintRow(g2, row, row0, h,col0,col1,gnode,spreadsheetBounds);
 			h+=rowH;
 		}

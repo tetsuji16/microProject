@@ -175,18 +175,16 @@ public class TimesheetEntryPane extends JScrollPane {
 				null);
 			timesheetAssignments.add(entry);
 		}
-		Collections.sort(timesheetAssignments, new Comparator<TimesheetAssignment>() {
-			public int compare(TimesheetAssignment left, TimesheetAssignment right) {
-				int byResource = safe(left.getResourceName()).compareToIgnoreCase(safe(right.getResourceName()));
-				if (byResource != 0) {
-					return byResource;
-				}
-				int byTask = safe(left.getTaskName()).compareToIgnoreCase(safe(right.getTaskName()));
-				if (byTask != 0) {
-					return byTask;
-				}
-				return Long.compare(left.getCachedStart(), right.getCachedStart());
+		timesheetAssignments.sort((left, right) -> {
+			int byResource = safe(left.getResourceName()).compareToIgnoreCase(safe(right.getResourceName()));
+			if (byResource != 0) {
+				return byResource;
 			}
+			int byTask = safe(left.getTaskName()).compareToIgnoreCase(safe(right.getTaskName()));
+			if (byTask != 0) {
+				return byTask;
+			}
+			return Long.compare(left.getCachedStart(), right.getCachedStart());
 		});
 	}
 
