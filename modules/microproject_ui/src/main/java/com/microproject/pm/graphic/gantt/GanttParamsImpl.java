@@ -36,6 +36,7 @@ import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.configuration.Dictionary;
 import com.microproject.graphic.configuration.BarStyles;
 import com.microproject.graphic.configuration.GraphicConfiguration;
+import com.microproject.pm.graphic.views.RowHeights;
 import com.microproject.util.FlatUiSupport;
 
 public class GanttParamsImpl implements GanttParams, Serializable,Cloneable {
@@ -109,9 +110,12 @@ public class GanttParamsImpl implements GanttParams, Serializable,Cloneable {
 	}
 	public void setRowHeight(int rowHeight) {
 		this.rowHeight=rowHeight;
+		if (this.rowHeights != null) {
+			this.rowHeights = new RowHeights(rowHeight, cache != null ? cache.getSize() : 0);
+		}
 	}
 	public Rectangle getGanttBounds() {
-		return new Rectangle(0, configuration.getColumnHeaderHeight(), (int) Math.ceil(coord.getWidth()), getRowHeight() * cache.getSize());
+		return new Rectangle(0, configuration.getColumnHeaderHeight(), (int) Math.ceil(coord.getWidth()), getRowHeights().totalHeight(cache.getSize()));
 //		return new Rectangle(0,configuration.getColumnHeaderHeight(),(int)Math.ceil(coord.getWidth()),configuration.getRowHeight()*cache.getSize());
 	}
 	public Rectangle getDrawingBounds() {
@@ -161,12 +165,19 @@ public class GanttParamsImpl implements GanttParams, Serializable,Cloneable {
 		this.rightPartVisible = rightPartVisible;
 	}
 	protected boolean supportLeftAndRightParts=false;
-	public boolean isSupportLeftAndRightParts(){
-		return supportLeftAndRightParts;
-	}
-	public void setSupportLeftAndRightParts(boolean supports){
-		this.supportLeftAndRightParts = supports;
-	}
+		protected RowHeights rowHeights;
+		public boolean isSupportLeftAndRightParts(){
+			return supportLeftAndRightParts;
+		}
+		public void setSupportLeftAndRightParts(boolean supports){
+			this.supportLeftAndRightParts = supports;
+		}
+		public RowHeights getRowHeights() {
+			if (rowHeights == null) {
+				rowHeights = new RowHeights(rowHeight, cache != null ? cache.getSize() : 0);
+			}
+			return rowHeights;
+		}
 
 	public boolean isGridLinesVisible() {
 		return gridLinesVisible;

@@ -28,12 +28,14 @@ import java.io.Serializable;
 
 import com.microproject.pm.graphic.graph.GraphModel;
 import com.microproject.pm.graphic.model.cache.GraphicNode;
+import com.microproject.pm.graphic.model.event.CompositeCacheEvent;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.graphic.configuration.GraphicConfiguration;
 import com.microproject.pm.task.Project;
 import com.microproject.timescale.TimeScaleEvent;
 import com.microproject.timescale.TimeScaleListener;
+import com.microproject.pm.graphic.views.RowHeights;
 
 /**
  *
@@ -44,20 +46,21 @@ public class GanttModel extends GraphModel implements TimeScaleListener, Seriali
 	//timescale
 	protected CoordinatesConverter coord;
     
-	//baselines
-	protected int rowHeight;
-	
-    
-    
-    
-    
+    // Row heights (per-row overrides supported via RowHeights)
+    protected RowHeights rowHeights;
+   
+   
+   
+   
+
 	public GanttModel(Project project,String viewName) {
 		super(project,viewName);
-		rowHeight=GraphicConfiguration.getInstance().getRowHeight();
+		rowHeights = new RowHeights(GraphicConfiguration.getInstance().getRowHeight());
 	}
 
 	
-	
+
+
 	public AffineTransform getTransform(double w){
 		var sx = ((double) (coord.getEnd() - coord.getOrigin())) / w;
 		var sy = 1.0 / getRowHeight();
@@ -65,11 +68,13 @@ public class GanttModel extends GraphModel implements TimeScaleListener, Seriali
 	}
 	
 	
+
 //cache: edges	
 	public void createEdge(GraphicNode startNode,GraphicNode endNode) throws InvalidAssociationException{
 		getCache().createDependency(startNode,endNode);
 	}
-
+	
+	
 	
 	
 	
@@ -80,7 +85,7 @@ public class GanttModel extends GraphModel implements TimeScaleListener, Seriali
     }
     public void setCoord(CoordinatesConverter coord) {
         if (this.coord != null) {
-        	this.coord.removeTimeScaleListener(this);
+       	this.coord.removeTimeScaleListener(this);
         }
         this.coord = coord;
 		coord.addTimeScaleListener(this);
@@ -99,11 +104,23 @@ public class GanttModel extends GraphModel implements TimeScaleListener, Seriali
 	
 	
 	
+	
+	
     public int getRowHeight() {
-        return rowHeight;
+        return rowHeights.getDefaultHeight();
     }
     public void setRowHeight(int rowHeight) {
-        this.rowHeight = rowHeight;
+        rowHeights = new RowHeights(rowHeight, rowHeights.getRowCount());
+    }
+    
+    /** Returns the RowHeights instance for per-row height management. */
+    public RowHeights getRowHeights() {
+        return rowHeights;
+    }
+    
+    /** Sets the number of rows in the RowHeights table. */
+    public void setRowCount(int rowCount) {
+        rowHeights.setRowCount(rowCount);
     }
 
 	
@@ -119,9 +136,9 @@ public class GanttModel extends GraphModel implements TimeScaleListener, Seriali
 //		Schedule schedule=(Schedule)node.getNode().getImpl();
 //		ScheduleService.getInstance().setCompleted(this,schedule,completed);
 //	}
-
+	
+	
 	
 	
 	
 }
-

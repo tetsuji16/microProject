@@ -29,10 +29,12 @@ import java.awt.Rectangle;
 
 import com.microproject.pm.graphic.graph.GraphParams;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
+import com.microproject.pm.graphic.views.RowHeights;
 
 public interface GanttParams extends GraphParams{
 	public int getRowHeight();
 	public void setRowHeight(int rowHeight);
+	public RowHeights getRowHeights();
 	public CoordinatesConverter getCoord();
 	public void setCoord(CoordinatesConverter coord);
 	public Font getColumnHeaderFont();

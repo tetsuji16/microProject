@@ -51,6 +51,7 @@ import com.microproject.pm.graphic.graph.LinkRouting;
 import com.microproject.pm.graphic.network.NetworkParamsImpl;
 import com.microproject.pm.graphic.timescale.CoordinatesConverter;
 import com.microproject.pm.graphic.timescale.ScaledComponent;
+import com.microproject.pm.graphic.views.RowHeights;
 import com.microproject.pm.graphic.views.synchro.ScrollPaneSynchronizer;
 import com.microproject.pm.task.Project;
 import com.microproject.pm.task.Task;
@@ -249,6 +250,14 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 		return ((GanttModel) model).getCoord();
 	}
 
+	@Override
+	public void setCache(com.microproject.pm.graphic.model.cache.NodeModelCache cache) {
+		super.setCache(cache);
+		if (cache != null) {
+			((GanttModel) model).getRowHeights().setRowCount(cache.getSize());
+		}
+	}
+
 	public GanttInteractor getInteractor() {
 		return ((GanttUI) ui).getInteractor();
 	}
@@ -278,7 +287,7 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 
 
 	public int getRow(double y){
-		return (int) (y / (double) getRowHeight());
+		return ((GanttModel)model).getRowHeights().rowAt((int)y);
 	}
 
 
@@ -287,6 +296,11 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	}
 	public void setRowHeight(int rowHeight){
 		((GanttModel)model).setRowHeight(rowHeight);
+	}
+	
+	/** Returns the RowHeights instance for per-row height management. */
+	public RowHeights getRowHeights() {
+		return ((GanttModel)model).getRowHeights();
 	}
 //	public int getColumnHeaderHeight() {
 //		return ((GanttModel)model).getColumnHeaderHeight();
@@ -597,7 +611,7 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 
 	public int getScrollableHeight(int viewportHeight) {
 		int rowCount = getCache() == null ? 0 : getCache().getSize();
-		int bufferedRowsHeight = (rowCount + BOTTOM_SCROLL_BUFFER_ROWS) * getRowHeight();
+		int bufferedRowsHeight = ((GanttModel)model).getRowHeights().totalHeight(rowCount) + BOTTOM_SCROLL_BUFFER_ROWS * getRowHeight();
 		return Math.max(viewportHeight, bufferedRowsHeight);
 	}
 

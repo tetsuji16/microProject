@@ -35,6 +35,7 @@ import com.microproject.graphic.configuration.BarStyle;
 import com.microproject.pm.graphic.gantt.Gantt;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheet;
 import com.microproject.util.FlatUiSupport;
+import com.microproject.pm.graphic.views.RowHeights;
 
 /**
  * Shared support for the Gantt view's left/right pane synchronization.
@@ -49,11 +50,24 @@ final class TaskGanttSyncSupport {
 	}
 
 	static void applyRowHeight(SpreadSheet spreadSheet, Gantt gantt, int rowHeight) {
+		applyRowHeight(spreadSheet, gantt, new RowHeights(rowHeight));
+	}
+
+	static void applyRowHeight(SpreadSheet spreadSheet, Gantt gantt, RowHeights rowHeights) {
 		if (spreadSheet != null) {
-			spreadSheet.setRowHeight(rowHeight);
+			// Apply per-row heights to the JTable
+			for (int row = 0; row < rowHeights.getRowCount(); row++) {
+				spreadSheet.setRowHeight(row, rowHeights.heightOf(row));
+			}
 		}
 		if (gantt != null) {
-			gantt.setRowHeight(rowHeight);
+			// Update Gantt's RowHeights
+			RowHeights ganttRowHeights = gantt.getRowHeights();
+			for (int row = 0; row < rowHeights.getRowCount(); row++) {
+				if (rowHeights.heightOf(row) != ganttRowHeights.getDefaultHeight()) {
+					ganttRowHeights.setRowHeight(row, rowHeights.heightOf(row));
+				}
+			}
 			gantt.synchronizeViewportSize();
 		}
 	}

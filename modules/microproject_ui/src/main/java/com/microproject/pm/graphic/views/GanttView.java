@@ -921,12 +921,16 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	}
 
 	private void applyRowHeight(int rowHeight) {
+		applyRowHeight(new RowHeights(rowHeight));
+	}
+
+	private void applyRowHeight(RowHeights rowHeights) {
 		if (synchronizingRowGeometry) {
 			return;
 		}
 		synchronizingRowGeometry = true;
 		try {
-			TaskGanttSyncSupport.applyRowHeight(spreadSheet, gantt, rowHeight);
+			TaskGanttSyncSupport.applyRowHeight(spreadSheet, gantt, rowHeights);
 			if (leftScrollPane != null) {
 				synchronizeGanttHeightWithSpreadsheet(leftScrollPane.getViewport().getViewSize());
 			}

@@ -29,6 +29,7 @@ import javax.swing.table.TableColumn;
 
 import com.microproject.pm.graphic.graph.GraphParams;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetParams;
+import com.microproject.pm.graphic.views.RowHeights;
 import com.microproject.pm.graphic.spreadsheet.SpreadSheetParamsImpl;
 import com.microproject.print.ExtendedPrintService;
 import com.microproject.graphic.configuration.GraphicConfiguration;
@@ -70,7 +71,9 @@ public class MicroProjectPrintService implements ExtendedPrintService {
 
 	public double getHRatio(int pageCount,double pageHeight,GraphParams params) {
 		if (!(params instanceof SpreadSheetParams sp)) return -1.0;
-		double newPageHeight=(Math.ceil(((double)params.getCache().getSize())/pageCount)*sp.getRowHeight()+GraphicConfiguration.getInstance().getColumnHeaderHeight()+GraphicConfiguration.getInstance().getPrintFooterHeight());
+		RowHeights rowHeights = sp.getRowHeights();
+		double totalRowHeight = rowHeights.totalHeight(params.getCache().getSize());
+		double newPageHeight=(totalRowHeight / pageCount) + GraphicConfiguration.getInstance().getColumnHeaderHeight() + GraphicConfiguration.getInstance().getPrintFooterHeight();
 		return pageHeight/newPageHeight;
 	}
 

@@ -300,7 +300,7 @@ public class GanttInteractor extends GraphInteractor{
 			if (calendarNode != null && calendarNode != lastCalendarRangeNode) {
 				if (getGraph() instanceof Gantt gantt && gantt.getCache() != null) {
 					var projection = gantt.getCache().getVisibleNodes().getProjectionIndex();
-					int row = Math.max(0, e.getY() / Math.max(1, gantt.getRowHeight()));
+					int row = Math.max(0, gantt.getRowHeights().rowAt(e.getY()));
 					var key = row < projection.size() ? projection.keyAt(row) : null;
 					gantt.notifyBarSelection(new Gantt.BarClick(calendarNode, key, false, true));
 				}
@@ -404,7 +404,7 @@ public class GanttInteractor extends GraphInteractor{
 		GraphicNode node=(GraphicNode)selected;
 		Object impl = node.getNode().getImpl();
 		return impl instanceof HasDependencies &&
-				((int)y)/((Gantt)getGraph()).getRowHeight()!=getGraph().getCache().getVisibleNodes()
+				((Gantt)getGraph()).getRowHeights().rowAt((int)y) != getGraph().getCache().getVisibleNodes()
 						.getProjectionIndex().rowForNode(node) ;
     }
 
@@ -1095,7 +1095,7 @@ public class GanttInteractor extends GraphInteractor{
     	if (node == null && !(leftClick && selected == null)) return;
 		var projection = gantt.getCache() == null ? null
 				: gantt.getCache().getVisibleNodes().getProjectionIndex();
-		int row = e == null ? -1 : Math.max(0, e.getY() / Math.max(1, gantt.getRowHeight()));
+		int row = e == null ? -1 : Math.max(0, gantt.getRowHeights().rowAt(e.getY()));
 		var key = projection != null && row < projection.size() ? projection.keyAt(row) : null;
 		gantt.notifyBarSelection(new Gantt.BarClick(node, key, isToggleModifier(e), e != null && e.isShiftDown()));
     }
