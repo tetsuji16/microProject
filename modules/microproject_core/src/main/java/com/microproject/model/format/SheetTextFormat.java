@@ -19,9 +19,16 @@ public record SheetTextFormat(String family, int size, Integer color, boolean bo
     public SheetTextFormat {
         // Normalize: empty string -> null for family
         if (family != null && family.isBlank()) family = null;
-        // Clamp size to a reasonable range; 0 means inherit/default
+        // Zero means inherit/default; unsupported sizes use the existing bounded range.
         if (size < 0) size = 0;
         if (size > 72) size = 72;
+        validateRgb("color", color);
+        validateRgb("background", background);
+    }
+
+    private static void validateRgb(String name, Integer value) {
+        if (value != null && (value.intValue() < 0 || value.intValue() > 0xFFFFFF))
+            throw new IllegalArgumentException(name + " must be a 24-bit RGB value");
     }
 
     /**

@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Modifier;
@@ -134,11 +135,15 @@ class SheetTextStylesTest {
         // Create a critical task (long duration) and a parallel non-critical task (short duration, no dependency)
         NormalTask criticalTask = addTask(project, "Critical", null);
         criticalTask.setDuration(10L * 8L * 60L * 60L * 1000L); // 10 days
+        criticalTask.setMarkTaskAsMilestone(true);
 
         NormalTask nonCriticalTask = addTask(project, "NonCritical", null);
         nonCriticalTask.setDuration(1L * 8L * 60L * 60L * 1000L); // 1 day
         // No dependency - nonCriticalTask runs in parallel, finishes early, has slack
         project.recalculate();
+        assertTrue(criticalTask.isCritical());
+        assertTrue(criticalTask.isMilestone());
+        assertEquals("CriticalFont", SheetTextStyles.resolve(criticalTask).family());
 
         // Non-critical task should not match CRITICAL_TASKS or MILESTONE_TASKS
         SheetTextFormat resolved = SheetTextStyles.resolve(nonCriticalTask);
@@ -326,14 +331,16 @@ class SheetTextStylesTest {
 
         Resource resource = project.getResourcePool().createScriptedResource();
         resource.setName("Test Resource");
+        ((com.microproject.model.resource.ResourceImpl) resource).setMaximumUnits(1D);
+        NormalTask first = addTask(project, "First assignment", null);
+        NormalTask second = addTask(project, "Second assignment", null);
+        com.microproject.model.assignment.AssignmentService.getInstance().newAssignment(first, resource, 0.75D, 0L, this);
+        com.microproject.model.assignment.AssignmentService.getInstance().newAssignment(second, resource, 0.75D, 0L, this);
 
-        // With no assignments, resource is not overallocated, so ALL_RESOURCES should apply
+        assertTrue(com.microproject.model.resource.TeamPlannerService.isOverallocated(resource));
         SheetTextFormat resolved = SheetTextStyles.resolve(resource);
         assertNotNull(resolved);
-        assertEquals("AllResFont", resolved.family());
-        assertEquals(10, resolved.size());
-        assertEquals(Integer.valueOf(0x0000FF), resolved.color());
-        assertTrue(resolved.italic());
+        assertEquals("OverallocFont", resolved.family());
     }
 
     @Test
@@ -409,5 +416,24 @@ class SheetTextStylesTest {
     void formatClampsSizeAbove72() {
         SheetTextFormat format = new SheetTextFormat("Arial", 100, null, false, false, false, false, null);
         assertEquals(72, format.size());
+    }
+
+    @Test
+    void invalidRgbValuesAreRejectedBeforeTheyCanBePersisted() {
+        assertThrows(IllegalArgumentException.class,
+                () -> new SheetTextFormat("Arial", 12, -65536, false, false, false, false, null));
+        assertThrows(IllegalArgumentException.class,
+                () -> new SheetTextFormat("Arial", 12, null, false, false, false, false, 0x1000000));
+    }
+
+    @Test
+    void explicitlyConfiguredDefaultFormatRemainsAStyle() {
+        Project project = newProject();
+        SheetTextStyles styles = SheetTextStyles.empty();
+        SheetTextFormat configuredDefault = new SheetTextFormat(null, 0, null, false, false, false, false, null);
+        styles.set(SheetTextStyleCategory.ALL, configuredDefault);
+        project.setSheetTextStyles(styles);
+
+        assertEquals(configuredDefault, SheetTextStyles.resolve(addTask(project, "Default format", null)));
     }
 }

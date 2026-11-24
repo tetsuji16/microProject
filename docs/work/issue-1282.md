@@ -15,6 +15,8 @@ The task model did not have MSP's Marked field. To meet AC1, add a transient boo
 
 For resource styles, a shared `ResourcePool` can belong to multiple Projects, so `resolve(Resource)` cannot infer which sheet is active. It returns no style when that context is ambiguous; callers must use `resolve(Project, Resource)`. The shared-pool behavior has a core regression test. Project style assignment copies its input and marks the Project dirty only when the value changes; the getter returns a detached copy, so callers must submit an updated value through the setter.
 
+MPO sidecar save merging compares the retained archive baseline with both the local capture and the current target. A sidecar changed remotely while the local capture has a different value is rejected through the existing conflict recovery path; the target archive and local model remain intact for explicit resolution. Equal sidecar values are allowed, and a successful save advances the retained sidecar baseline. Other unknown MPO extension bytes continue to be retained by `MpoExtensions`.
+
 Out of scope:
 - Dialog, ribbon, rendering application (#1283)
 - MSPDI/MPP export

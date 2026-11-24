@@ -48,7 +48,7 @@ public final class SheetTextStyles {
 
     /** Sets the format for {@code category}; {@code null} clears it. */
     public void set(SheetTextStyleCategory category, SheetTextFormat format) {
-        if (format == null || format.isEmpty()) {
+        if (format == null) {
             formats.remove(category);
         } else {
             formats.put(category, format);

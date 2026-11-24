@@ -331,7 +331,9 @@ final class MpoSidecarJson {
 	}
 
 	static void restoreTaskMarked(Project project, byte[] bytes) throws IOException {
-		restorePerTaskOptions(project, bytes, "Invalid MPO marked tasks", "MPO contains too many marked tasks",
+		Project.DirtyState dirtyState = project.captureDirtyState();
+		try {
+			restorePerTaskOptions(project, bytes, "Invalid MPO marked tasks", "MPO contains too many marked tasks",
 			"Duplicate MPO marked task identity", "MPO marked tasks reference an unknown task", node -> {
 				JsonNode marked = node.get("marked");
 				if (marked == null || !marked.isBoolean() || !marked.booleanValue())
@@ -342,6 +344,9 @@ final class MpoSidecarJson {
 					if (!wasDirty) task.setDirty(false);
 				};
 			});
+		} finally {
+			project.restoreDirtyState(dirtyState);
+		}
 	}
 
 	/** Serializes project-level sheet text styles; an empty set has no sidecar entry. */

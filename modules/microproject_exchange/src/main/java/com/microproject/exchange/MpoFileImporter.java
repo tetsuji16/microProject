@@ -496,13 +496,14 @@ public class MpoFileImporter extends FileImporter {
 				.anyMatch(operation -> !merge.alreadyAppliedOperationIds().contains(operation.id()));
 		// Serialization can take seconds, so the full comparison stays off the EDT.
 		verifyLiveModelUnchanged(target, captured);
-		IoAction commit = () -> commitReplacedArchive(target, merge, operationState, appliesExternalOperations);
+		MpoCapture committedCapture = output;
+		IoAction commit = () -> commitReplacedArchive(target, merge, operationState, appliesExternalOperations, committedCapture);
 		if (appliesExternalOperations) runOnEdt(commit);
 		else commit.run();
 	}
 
 	private void commitReplacedArchive(File target, MpoMergePreparation merge,
-			MpoOperationState plan, boolean appliesExternalOperations) throws IOException {
+			MpoOperationState plan, boolean appliesExternalOperations, MpoCapture committedCapture) throws IOException {
 		// Remote operations only touch fields the journal tracks, so this cheap check
 		// on the same EDT step keeps them from overwriting an edit made just before.
 		if (hasUnjournaledChanges(project))
@@ -525,6 +526,12 @@ public class MpoFileImporter extends FileImporter {
 		// can round differently and would then look like an edit on the next save.
 		if (appliesExternalOperations) plan.capture(project);
 		MpoExternalMerge.commitOperationState(project, plan);
+		MpoExtensions extensions = project.getOrCreateTransientDocumentState(MpoExtensions.class, MpoExtensions::new);
+		for (String key : java.util.List.of(TASK_MARKED_ENTRY, SHEET_TEXT_STYLES_ENTRY)) {
+			byte[] value = committedCapture.entries().get(key);
+			if (value == null) extensions.entries.remove(key);
+			else extensions.entries.put(key, value.clone());
+		}
 		committed = true;
 	}
 
@@ -840,18 +847,38 @@ public class MpoFileImporter extends FileImporter {
 					.map(conflict -> new MpoMergePlan.Conflict(conflict.entityId(),
 							"Concurrent " + conflict.kind() + " operations: " + conflict.operationIds()))
 					.toList();
+			java.util.List<OperationLog.Conflict> allConflicts = new java.util.ArrayList<>(conflicts);
+			MpoExtensions baselineExtensions = project.findTransientDocumentState(MpoExtensions.class);
+			for (String key : java.util.List.of(TASK_MARKED_ENTRY, SHEET_TEXT_STYLES_ENTRY)) {
+				byte[] base = baselineExtensions == null ? null : baselineExtensions.entries.get(key);
+				byte[] remote = external.extensions().entries.get(key);
+				byte[] current = captured.entries().get(key);
+				if (!java.util.Arrays.equals(base, remote) && !java.util.Arrays.equals(current, remote)) {
+					String entity = "mpo-sidecar:" + key;
+					allConflicts.add(new OperationLog.Conflict(entity, "sidecar", java.util.List.of()));
+				}
+			}
+			if (allConflicts.size() != conflicts.size()) {
+				java.util.Set<String> alreadyPlanned = planConflicts.stream().map(MpoMergePlan.Conflict::entryName)
+						.collect(java.util.stream.Collectors.toSet());
+				java.util.List<MpoMergePlan.Conflict> extendedConflicts = new java.util.ArrayList<>(planConflicts);
+				for (OperationLog.Conflict conflict : allConflicts) if (alreadyPlanned.add(conflict.entityId()))
+					extendedConflicts.add(new MpoMergePlan.Conflict(conflict.entityId(),
+						"Concurrent MPO sidecar changes require manual resolution"));
+				planConflicts = extendedConflicts;
+			}
 			java.util.List<MpoMergePlan.Operation> plannedOperations = merged.ready().stream()
 					.filter(operation -> external.document().appliedOperationIds().contains(operation.id()))
 					.filter(operation -> !locallyAppliedOperationIds.contains(operation.id()))
 					.map(operation -> new MpoMergePlan.Operation(operation.id(), MpoMergePlan.Action.UPDATE))
 					.toList();
 			MpoMergePlan plan = MpoExternalMerge.planFor(external.snapshot(), plannedOperations, planConflicts);
-			if (!conflicts.isEmpty()) {
+			if (!allConflicts.isEmpty()) {
 				java.util.List<OperationLog.Operation> conflictOperations = new java.util.ArrayList<>(merged.ready());
 				conflictOperations.addAll(merged.pending());
 				Path recoveryCopy = persistRecoveryCopy(target, captured, local, conflictOperations,
 						external.extensions());
-				throw new MpoConflictRecoveryException(recoveryCopy, conflicts);
+				throw new MpoConflictRecoveryException(recoveryCopy, allConflicts);
 			}
 			MpoExternalMerge.validateMergePlan(plan);
 			// The snapshot already contains every local operation.  Replaying that
