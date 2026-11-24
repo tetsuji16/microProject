@@ -32,7 +32,7 @@ after removing the reviewed legacy keys.
 
 ## Locale files and maintenance scope
 
-`Messages` loads `com.microproject.strings.client` through the standard
+`Messages` loads `com.microproject.i18n.client` through the standard
 `ResourceBundle` lookup, so only files named `client.properties` or
 `client_<language>[_<COUNTRY>].properties` can ever be resolved. Numbered
 copies such as `client_es2.properties` and editor temporary files

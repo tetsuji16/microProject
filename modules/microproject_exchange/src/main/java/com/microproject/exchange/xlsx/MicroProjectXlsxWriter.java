@@ -38,17 +38,17 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.calendar.WorkCalendar;
-import com.microproject.pm.calendar.WorkDay;
-import com.microproject.pm.calendar.WorkingCalendar;
-import com.microproject.pm.calendar.WorkingHours;
-import com.microproject.pm.dependency.Dependency;
-import com.microproject.pm.resource.ResourceImpl;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
-import com.microproject.server.data.Serializer;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.calendar.WorkCalendar;
+import com.microproject.model.calendar.WorkDay;
+import com.microproject.model.calendar.WorkingCalendar;
+import com.microproject.model.calendar.WorkingHours;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.resource.ResourceImpl;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.exchange.serialize.Serializer;
 
 import org.mpxj.ProjectFile;
 import org.mpxj.ProjectProperties;
@@ -183,7 +183,7 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 
 	private String serializeMicroProjectXml(Project project) throws Exception {
 		ByteArrayOutputStream xml = new ByteArrayOutputStream();
-		ProjectFile projectFile = new com.microproject.server.data.MSPDISerializer().serializeProject(project);
+		ProjectFile projectFile = new com.microproject.exchange.serialize.MSPDISerializer().serializeProject(project);
 		new MSPDIWriter().write(projectFile, xml);
 		return xml.toString(StandardCharsets.UTF_8.name());
 	}
@@ -246,12 +246,12 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 		Sheet sheet = workbook.createSheet(TASKS_SHEET);
 		writeRow(sheet, 0, "UniqueID", "ID", "ParentUniqueID", "Name", "Notes", "Start", "Finish", "PercentComplete", "WBS");
 		int rowIndex = 1;
-		for (com.microproject.pm.task.Task taskValue : project.getTaskList()) {
+		for (com.microproject.model.task.Task taskValue : project.getTaskList()) {
 			if (!(taskValue instanceof NormalTask)) {
 				continue;
 			}
 			NormalTask task = (NormalTask) taskValue;
-			com.microproject.pm.task.Task parent = task.getWbsParentTask();
+			com.microproject.model.task.Task parent = task.getWbsParentTask();
 			writeRow(sheet, rowIndex++,
 				valueOf(task.getUniqueId()),
 				valueOf(task.getId()),
@@ -294,7 +294,7 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 		if (pool == null) {
 			return;
 		}
-		for (com.microproject.pm.resource.Resource resourceValue : pool.getResourceList()) {
+		for (com.microproject.model.resource.Resource resourceValue : pool.getResourceList()) {
 			if (!(resourceValue instanceof ResourceImpl)) {
 				continue;
 			}
@@ -336,7 +336,7 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 		Sheet sheet = workbook.createSheet(ASSIGNMENTS_SHEET);
 		writeRow(sheet, 0, "TaskUniqueID", "ResourceUniqueID", "Units", "Delay", "LevelingDelay", "WorkContour");
 		int rowIndex = 1;
-		for (com.microproject.pm.task.Task taskValue : project.getTaskList()) {
+		for (com.microproject.model.task.Task taskValue : project.getTaskList()) {
 			if (!(taskValue instanceof NormalTask task)) {
 				continue;
 			}
@@ -379,7 +379,7 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 		Sheet sheet = workbook.createSheet(DEPENDENCIES_SHEET);
 		writeRow(sheet, 0, "SuccessorUniqueID", "PredecessorUniqueID", "Type", "Lag");
 		int rowIndex = 1;
-		for (com.microproject.pm.task.Task taskValue : project.getTaskList()) {
+		for (com.microproject.model.task.Task taskValue : project.getTaskList()) {
 			if (!(taskValue instanceof NormalTask task)) {
 				continue;
 			}
@@ -420,13 +420,13 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 		writeProjectCalendar(sheet, rowIndex++, project.getWorkCalendar());
 		ResourcePool pool = project.getResourcePool();
 		if (pool != null) {
-			for (com.microproject.pm.resource.Resource resourceValue : pool.getResourceList()) {
+			for (com.microproject.model.resource.Resource resourceValue : pool.getResourceList()) {
 				if (resourceValue instanceof ResourceImpl resource) {
 					writeProjectCalendar(sheet, rowIndex++, resource.getWorkCalendar());
 				}
 			}
 		}
-		for (com.microproject.pm.task.Task task : project.getTaskList()) {
+		for (com.microproject.model.task.Task task : project.getTaskList()) {
 			if (task instanceof NormalTask normalTask) {
 				writeProjectCalendar(sheet, rowIndex++, normalTask.getWorkCalendar());
 			}
@@ -535,7 +535,7 @@ public class MicroProjectXlsxWriter implements ProjectWriter {
 			if (interval == null) {
 				continue;
 			}
-			com.microproject.pm.calendar.WorkRange range = (com.microproject.pm.calendar.WorkRange) interval;
+			com.microproject.model.calendar.WorkRange range = (com.microproject.model.calendar.WorkRange) interval;
 			if (result.length() > 0) {
 				result.append(';');
 			}

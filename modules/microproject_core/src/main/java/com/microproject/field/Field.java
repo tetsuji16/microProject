@@ -55,29 +55,29 @@ import com.microproject.datatype.TimeUnit;
 import com.microproject.datatype.Work;
 import com.microproject.document.Document;
 import com.microproject.field.Select.InvalidChoiceException;
-import com.microproject.grouping.core.GroupNodeImpl;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.VoidNodeImpl;
-import com.microproject.grouping.core.hierarchy.BelongsToHierarchy;
-import com.microproject.grouping.core.model.NodeModel;
-import com.microproject.grouping.core.model.WalkersNodeModel;
-import com.microproject.grouping.core.summaries.NodeWalker;
-import com.microproject.grouping.core.summaries.SummaryNames;
-import com.microproject.grouping.core.summaries.SummaryVisitor;
-import com.microproject.grouping.core.summaries.SummaryVisitorFactory;
+import com.microproject.node.GroupNodeImpl;
+import com.microproject.node.Node;
+import com.microproject.node.VoidNodeImpl;
+import com.microproject.node.hierarchy.BelongsToHierarchy;
+import com.microproject.node.model.NodeModel;
+import com.microproject.node.model.WalkersNodeModel;
+import com.microproject.node.summaries.NodeWalker;
+import com.microproject.node.summaries.SummaryNames;
+import com.microproject.node.summaries.SummaryVisitor;
+import com.microproject.node.summaries.SummaryVisitorFactory;
 import com.microproject.options.CalendarOption;
 import com.microproject.options.EditOption;
-import com.microproject.pm.calendar.WorkingCalendar;
-import com.microproject.pm.task.BelongsToDocument;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.SubProj;
-import com.microproject.pm.task.Task;
-import com.microproject.pm.task.TaskSheetScheduleWorkflow;
-import com.microproject.pm.time.Interval;
-import com.microproject.scripting.ScriptedFormula;
-import com.microproject.scripting.FormulaFactory;
-import com.microproject.server.data.DataObject;
-import com.microproject.strings.Messages;
+import com.microproject.model.calendar.WorkingCalendar;
+import com.microproject.model.task.BelongsToDocument;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.SubProj;
+import com.microproject.model.task.Task;
+import com.microproject.model.task.TaskSheetScheduleWorkflow;
+import com.microproject.model.time.Interval;
+import com.microproject.formula.ScriptedFormula;
+import com.microproject.formula.FormulaFactory;
+import com.microproject.persistence.data.DataObject;
+import com.microproject.i18n.Messages;
 import com.microproject.util.ClassUtils;
 import java.util.logging.Logger;
 import java.util.logging.Level;
@@ -459,7 +459,7 @@ public class Field implements SummaryNames, Cloneable, Comparable<Field>, Finder
 		if (f != null) {
 			if (context != null && context.getDurationDefaults() != null
 					&& f instanceof DurationFormat durationFormat && value instanceof Duration duration) {
-				if ("Field.duration".equals(getId()) && object instanceof com.microproject.pm.task.NormalTask task)
+				if ("Field.duration".equals(getId()) && object instanceof com.microproject.model.task.NormalTask task)
 					duration = task.getDurationForDisplay();
 				return durationFormat.format(duration, context.getDurationDefaults());
 			}

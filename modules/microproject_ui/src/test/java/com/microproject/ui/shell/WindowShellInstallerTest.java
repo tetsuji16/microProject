@@ -13,7 +13,7 @@ import javax.swing.JRootPane;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.util.Environment;
-import com.microproject.util.FlatUiSupport;
+import com.microproject.ui.util.FlatUiSupport;
 
 class WindowShellInstallerTest {
 	@Test

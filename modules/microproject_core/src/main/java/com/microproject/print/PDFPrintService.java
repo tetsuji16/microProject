@@ -33,7 +33,7 @@ import javax.print.attribute.PrintServiceAttribute;
 import javax.print.attribute.PrintServiceAttributeSet;
 import javax.print.event.PrintServiceAttributeListener;
 
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 public class PDFPrintService implements PrintService{
 

@@ -11,7 +11,7 @@ import java.util.Objects;
 
 import com.microproject.collaboration.OperationLog;
 import com.microproject.port.SaveFailureFeedback;
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /** Reports a rejected concurrent MPOF save and names its durable recovery copy. */
 public final class MpoConflictRecoveryException extends IOException implements SaveFailureFeedback {

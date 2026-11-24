@@ -31,7 +31,7 @@ import java.util.List;
 
 import org.apache.commons.collections4.Factory;
 
-import com.microproject.pm.time.HasStartAndEnd;
+import com.microproject.model.time.HasStartAndEnd;
 
 
 /**

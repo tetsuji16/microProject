@@ -26,7 +26,7 @@ package com.microproject.field;
 import java.util.function.Supplier;
 
 import com.microproject.datatype.DurationDefaults;
-import com.microproject.pm.time.HasStartAndEnd;
+import com.microproject.model.time.HasStartAndEnd;
 import com.microproject.util.DateTime;
 /**
  * This class holds context specific information necessary for interacting with field data.

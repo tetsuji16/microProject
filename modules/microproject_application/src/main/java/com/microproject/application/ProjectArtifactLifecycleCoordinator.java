@@ -8,7 +8,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Objects;
 
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.port.PortRegistry;
 import com.microproject.port.ProjectArtifactLifecyclePort;
 import com.microproject.session.LocalSession;

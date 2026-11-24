@@ -34,7 +34,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.timescale.TimeIterator;
 import com.microproject.timescale.TimeScale;
-import com.microproject.pm.time.HasStartAndEnd;
+import com.microproject.model.time.HasStartAndEnd;
 
 class TimeIteratorGeneratorTest {
 	private static final long HOUR = 60L * 60L * 1000L;

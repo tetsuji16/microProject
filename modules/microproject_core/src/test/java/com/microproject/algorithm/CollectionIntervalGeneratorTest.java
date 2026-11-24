@@ -33,7 +33,7 @@ import java.util.LinkedHashSet;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.time.HasStartAndEnd;
+import com.microproject.model.time.HasStartAndEnd;
 
 class CollectionIntervalGeneratorTest {
 	@Test

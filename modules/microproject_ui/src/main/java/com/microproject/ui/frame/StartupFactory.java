@@ -1,0 +1,236 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.frame;
+
+import java.awt.Container;
+import java.awt.Window;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.util.HashMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import javax.swing.RootPaneContainer;
+import javax.swing.SwingUtilities;
+
+
+import com.microproject.ui.dialog.UpdateChecker;
+import com.microproject.ui.util.DesktopBrowserLauncher;
+import com.microproject.ui.util.SwingAlertPresenter;
+import com.microproject.ui.util.SwingUiDispatcher;
+import com.microproject.ui.util.SwingJobQueueUiProvider;
+import com.microproject.ui.theme.LafManagerImpl;
+import com.microproject.session.SessionFactory;
+import com.microproject.util.Alert;
+import com.microproject.util.BrowserControl;
+import com.microproject.util.UiDispatch;
+import com.microproject.job.JobQueueUiServices;
+import com.microproject.node.transform.TransformParameterDialogServices;
+import com.microproject.ui.dialog.TransformParameterDialog;
+import com.microproject.util.DebugUtils;
+import com.microproject.util.Environment;
+
+@SuppressWarnings("deprecation")
+public abstract class StartupFactory {
+	private static final Logger logger = Logger.getLogger(StartupFactory.class.getName());
+	static {
+		Alert.setPresenter(new SwingAlertPresenter());
+		BrowserControl.setBrowserLauncher(new DesktopBrowserLauncher());
+		UiDispatch.setDispatcher(new SwingUiDispatcher());
+		JobQueueUiServices.setProvider(new SwingJobQueueUiProvider());
+		TransformParameterDialogServices.setProvider(() -> {
+			TransformParameterDialog dialog = new TransformParameterDialog();
+			return dialog::accept;
+		});
+	}
+	protected String[] projectUrls=null;
+	protected HashMap<String, Object> opts = null;
+
+	protected StartupFactory() {
+	}
+
+	/**
+	 * Used to test restoring of workspace to simulate applet restart
+	 * @param old
+	 * @return
+	 */
+	public GraphicManager restart(GraphicManager old) {
+		RootPaneContainer con = (RootPaneContainer) old.getContainer();
+		old.encodeWorkspace();
+		old.cleanUp();
+		con.getContentPane().removeAll();
+		GraphicManager g = instanceFromExistingSession((Container) con);
+//		g.decodeWorkspace();
+
+		return g;
+	}
+
+	public GraphicManager instanceFromExistingSession(Container container) {
+
+
+		System.gc(); // hope to avoid out of memory problems
+
+		DebugUtils.isMemoryOk(true);
+
+
+		long t=System.currentTimeMillis();
+		final GraphicManager graphicManager = new GraphicManager(container);
+		graphicManager.setRestartAction(() -> restart(graphicManager));
+		SessionFactory.getInstance().setJobQueue(graphicManager.getJobQueue());
+		//if (Environment.isNewLook())
+			graphicManager.initLookAndFeel();
+		Runnable initialize = () -> {
+			graphicManager.beginInitialization();
+			try {
+				graphicManager.initView();
+			} finally {
+				graphicManager.finishInitialization();
+			}
+		};
+		SwingUiDispatcher.runAndWait(initialize);
+//		graphicManager.invalidate();
+		return graphicManager;
+	}
+
+
+	/**
+	 * Starts a new desktop session in {@code container}.
+	 *
+	 * <p>The launcher calls this from the main thread.  Swing components, look-and-feel
+	 * refreshes and the documents opened at startup must be created on the event dispatch
+	 * thread, exactly as they are when a file is opened later from the running application;
+	 * otherwise the first window is built while another thread is laying it out and can come
+	 * up with a view that ignores input until the file is opened again.  Only the
+	 * configuration load stays on its own thread.
+	 */
+	public GraphicManager instanceFromNewSession(Container container,  final boolean doWelcome) {
+		Environment.setClientSide(true);
+
+		Thread loadConfigThread = new Thread(this::doLoadConfig, "loadConfig");
+		loadConfigThread.start();
+
+		final GraphicManager gm = SwingUiDispatcher.callAndWait(() -> {
+			GraphicManager newGraphicManager = new GraphicManager(container);
+			newGraphicManager.setRestartAction(() -> restart(newGraphicManager));
+			Environment.setUser(new com.microproject.user.DefaultUser());
+			newGraphicManager.setConnected(true);
+			newGraphicManager.initLookAndFeel();
+			SessionFactory.getInstance().setJobQueue(newGraphicManager.getJobQueue());
+			return newGraphicManager;
+		});
+
+		try {
+			loadConfigThread.join();
+		} catch (InterruptedException e1) {
+			Thread.currentThread().interrupt();
+			logger.log(Level.WARNING, "Interrupted while waiting for config load", e1);
+		}
+
+		SwingUiDispatcher.runAndWait(() -> {
+			gm.beginInitialization();
+			try {
+				gm.initView();
+				doStartupAction(gm,(projectUrls==null&&gm.getLastFileName()!=null)?new String[]{gm.getLastFileName()}:projectUrls,doWelcome);
+				doPostInitView(gm.getContainer());
+				UpdateChecker.checkInBackground(gm.getPreferences());
+			} finally {
+				gm.finishInitialization();
+				activateStartupWindow(gm.getContainer());
+			}
+		});
+		return gm;
+	}
+
+	/**
+	 * Showing a frame does not guarantee that Windows activates it after the
+	 * startup bootstrap.  Restore the native shell's foreground/focus state so
+	 * the next physical Robot or user click is delivered to the ribbon window.
+	 */
+	private static void activateStartupWindow(Container container) {
+		if (!(container instanceof Window window)) return;
+		Runnable activate = () -> {
+			if (!window.isDisplayable() || !window.isVisible()) return;
+			window.setFocusableWindowState(true);
+			if (!window.isAlwaysOnTop()) window.setAlwaysOnTop(true);
+			window.toFront();
+			window.requestFocus();
+			window.requestFocusInWindow();
+		};
+		window.addWindowListener(new WindowAdapter() {
+			@Override public void windowOpened(WindowEvent event) { activate.run(); }
+		});
+		SwingUtilities.invokeLater(activate);
+		// Windows can reject the first foreground request while the launcher is
+		// still handing off focus. Retry briefly without listening to
+		// windowActivated (that event is emitted by requestFocus itself and would
+		// recurse through DefaultFrameManager).
+		javax.swing.Timer retry = new javax.swing.Timer(100, null);
+		final int[] attempts = {0};
+		retry.addActionListener(event -> {
+			if (!window.isDisplayable() || !window.isVisible() || window.isActive() || ++attempts[0] >= 10) {
+				((javax.swing.Timer) event.getSource()).stop();
+				if (window.isDisplayable() && window.isVisible() && window.isAlwaysOnTop())
+					window.setAlwaysOnTop(false);
+				return;
+			}
+			activate.run();
+		});
+		retry.setInitialDelay(100);
+		retry.start();
+	}
+
+	public void doLoadConfig() {
+		com.microproject.configuration.Init.initialize();
+	}
+	public void doPostInitView(Container container) {
+	}
+
+	public void doStartupAction(final GraphicManager gm, final String[] projectUrls, final boolean welcome) {
+		if (Environment.isClientSide()) {
+			if (projectUrls!=null && projectUrls.length > 0) {
+				// A desktop invocation may contain several file names.  Route all of
+				// them through the same serial local-file flow as File/Open so every
+				// requested project obtains its own registered document window.
+				gm.openLocalProjectsSequentially(projectUrls);
+			}else{
+				gm.offerRecoveryAtStartup(recovered -> {
+					if (recovered) {
+						return;
+					}
+					if (welcome&&!Environment.isPlugin()) {
+						if (!true && !LafManagerImpl.isLafOk()) // for startup glitch - we don't want people to work until restarting.
+							return;
+						gm.doWelcomeDialog();
+					}
+					if (Environment.isPlugin()) gm.doNewProjectNoDialog(opts);
+				});
+
+			}
+		}
+
+	}
+
+
+}
+

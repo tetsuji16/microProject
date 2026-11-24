@@ -13,8 +13,8 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Stream;
 
-import com.microproject.temporary.ProcessIdentity;
-import com.microproject.temporary.TemporaryRoot;
+import com.microproject.util.temporary.ProcessIdentity;
+import com.microproject.util.temporary.TemporaryRoot;
 import com.microproject.util.SafeFileReplace;
 
 /**

@@ -28,12 +28,12 @@ import javax.swing.JLabel;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.graphic.IconManager;
+import com.microproject.ui.view.IconManager;
 import com.microproject.ui.theme.MicroProjectTheme;
 import com.microproject.ui.theme.MicroProjectThemeTokens;
 import com.microproject.ui.theme.ThemeManager;
-import com.microproject.util.ColorLuminance;
-import com.microproject.util.FlatUiSupport;
+import com.microproject.ui.util.ColorLuminance;
+import com.microproject.ui.util.FlatUiSupport;
 
 /**
  * Fixed-ink ribbon icons must stay legible in both themes. The light theme keeps the intended

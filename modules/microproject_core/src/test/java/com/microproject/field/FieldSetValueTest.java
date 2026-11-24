@@ -37,11 +37,11 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.datatype.Hyperlink;
 import com.microproject.datatype.DurationDefaults;
-import com.microproject.grouping.core.Node;
-import com.microproject.grouping.core.model.NodeModelDataFactory;
-import com.microproject.grouping.core.model.WalkersNodeModel;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.server.data.DataObject;
+import com.microproject.node.Node;
+import com.microproject.node.model.NodeModelDataFactory;
+import com.microproject.node.model.WalkersNodeModel;
+import com.microproject.model.task.NormalTask;
+import com.microproject.persistence.data.DataObject;
 
 class FieldSetValueTest {
 	@Test

@@ -1,0 +1,1150 @@
+/*******************************************************************************
+ * MIT License
+ * Copyright (c) 2026 microProject
+ ******************************************************************************/
+package com.microproject.ui.dialog.calendar;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static com.microproject.ui.testsupport.DialogLayoutAssertions.physicallyClick;
+import static com.microproject.ui.testsupport.DialogLayoutAssertions.physicallyScrollIntoView;
+
+import com.microproject.ui.testsupport.GuiJourney;
+import com.microproject.ui.testsupport.GuiJourney.InputMechanism;
+import java.awt.Dimension;
+import java.awt.GraphicsEnvironment;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.Robot;
+import java.awt.Window;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
+import java.io.File;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.awt.image.BufferedImage;
+import java.awt.Graphics2D;
+import java.nio.file.Path;
+import java.nio.file.Files;
+import java.lang.reflect.Field;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
+import java.util.TimeZone;
+import java.util.Locale;
+
+import javax.swing.AbstractButton;
+import javax.swing.JComboBox;
+import javax.swing.JCheckBox;
+import javax.swing.JFrame;
+import javax.swing.JDialog;
+import javax.swing.JList;
+import javax.swing.JLabel;
+import javax.swing.JSpinner;
+import javax.swing.JScrollPane;
+import javax.swing.JScrollBar;
+import javax.swing.JViewport;
+import javax.swing.text.JTextComponent;
+import javax.swing.SwingUtilities;
+import javax.swing.JTabbedPane;
+import javax.swing.JTextArea;
+import javax.swing.JFileChooser;
+import javax.imageio.ImageIO;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.Test;
+
+import com.microproject.ui.dialog.AbstractDialog;
+import com.microproject.model.calendar.WorkingCalendar;
+import com.microproject.model.calendar.CalendarService;
+import com.microproject.model.calendar.DayDescriptor;
+import com.microproject.ui.frame.GraphicManager;
+import com.microproject.ui.frame.MainRibbonFrame;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.task.Project;
+import com.microproject.ui.testsupport.GuiAcceptanceSupport;
+import com.microproject.ui.testsupport.DialogLayoutAssertions;
+import com.microproject.ui.testsupport.DialogScreenshotArtifacts;
+import com.microproject.ui.testsupport.WindowAcceptanceAssertions;
+import com.microproject.i18n.Messages;
+import com.microproject.exchange.LocalFileImporter;
+import com.microproject.exchange.MpoFileImporter;
+import com.microproject.model.task.ProjectFactory;
+import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.ui.util.SwingFileChooserProvider;
+import com.microproject.util.UiServices;
+import com.microproject.ui.util.AlternativeCalendarDisplay;
+
+/** GUI-NC-07: open and cancel the working-time dialog through real mouse input. */
+class ChangeWorkingTimeDialogGuiAcceptanceTest {
+	private static void setProjectStart(Project project, long start) {
+		project.setStart(start);
+		project.setStartConstraint(start);
+	}
+
+	private JFrame frame;
+	private ChangeWorkingTimeDialogBox dialog;
+	private NewBaseCalendarDialog newBaseDialog;
+	private Locale originalFormatLocale;
+	private Locale originalDisplayLocale;
+	private Locale originalDefaultLocale;
+	private UiServices.FileChooserProvider previousChooser;
+	private String previousSystemChooserProperty;
+	private Path importFixture;
+
+	@AfterEach
+	void closeWindows() throws Exception {
+		if (originalDefaultLocale != null)
+			Locale.setDefault(originalDefaultLocale);
+		if (originalFormatLocale != null)
+			Locale.setDefault(Locale.Category.FORMAT, originalFormatLocale);
+		if (originalDisplayLocale != null)
+			Locale.setDefault(Locale.Category.DISPLAY, originalDisplayLocale);
+		UiServices.setFileChooserProvider(previousChooser);
+		if (previousSystemChooserProperty == null) System.clearProperty("flatlaf.useSystemFileChooser");
+		else System.setProperty("flatlaf.useSystemFileChooser", previousSystemChooserProperty);
+		if (importFixture != null) Files.deleteIfExists(importFixture);
+		SwingUtilities.invokeAndWait(() -> {
+			if (dialog != null) {
+				java.util.Arrays.stream(Window.getWindows())
+					.filter(window -> window != dialog && isOwnedBy(window, dialog))
+					.sorted(java.util.Comparator.comparingInt(ChangeWorkingTimeDialogGuiAcceptanceTest::ownerDepth).reversed())
+					.forEach(Window::dispose);
+			}
+			for (Window window : Window.getWindows())
+				if (window instanceof ChangeWorkingTimeDialogBox || window instanceof NewBaseCalendarDialog) window.dispose();
+			if (frame != null) frame.dispose();
+		});
+	}
+
+	@Test
+	void robotCalendarExceptionImportUsesSharedChooserAndCancelLeavesCalendarUnchanged() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for chooser acceptance coverage.");
+		previousChooser = UiServices.getFileChooserProvider();
+		previousSystemChooserProperty = System.getProperty("flatlaf.useSystemFileChooser");
+		System.setProperty("flatlaf.useSystemFileChooser", "false");
+		UiServices.setFileChooserProvider(new SwingFileChooserProvider());
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("calendar-import-chooser", undo);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		WorkingCalendar calendar = WorkingCalendar.getStandardBasedInstance();
+		calendar.setName("Calendar import chooser acceptance");
+		project.setWorkCalendar(calendar);
+		SwingUtilities.invokeAndWait(() -> {
+			frame = new MainRibbonFrame("Calendar import chooser acceptance", null);
+			frame.setSize(1000, 650);
+			GraphicManager manager = new GraphicManager(frame);
+			((MainRibbonFrame) frame).setGraphicManager(manager);
+			manager.initView();
+			manager.addProjectFrame(project);
+			frame.setVisible(true);
+			dialog = ChangeWorkingTimeDialogBox.getInstance(frame, project, calendar, null, false, undo);
+			dialog.projectCalendars.add(calendar);
+			SwingUtilities.invokeLater(dialog::doModal);
+		});
+		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isVisible(), "working-time dialog did not open");
+		int[] exceptionsBefore = new int[1];
+		SwingUtilities.invokeAndWait(() -> exceptionsBefore[0] = dialog.getScratchCalendar().getExceptionDays().length);
+		String importLabel = Messages.getString("ChangeWorkingTimeDialogBox.ImportNonWorkingDays");
+		SwingUtilities.invokeAndWait(() -> {
+			assertEquals(importLabel, dialog.importNonWorkingDays.getText(),
+				"import button must show the active-locale label (issue #862)");
+			assertTrue(dialog.importNonWorkingDays.getWidth() >= dialog.importNonWorkingDays.getPreferredSize().width,
+				"import button label must not be clipped by the dialog layout");
+		});
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		click(robot, dialog.importNonWorkingDays);
+		GuiAcceptanceSupport.await(() -> visibleFileChooser() != null, "calendar import did not open the shared chooser");
+		Window chooser = visibleFileChooser();
+		if (chooser instanceof JDialog chooserDialog)
+			assertEquals(importLabel, chooserDialog.getTitle(), "import chooser title must use the localized label");
+		AbstractButton cancel = findChooserCancel(chooser);
+		assertTrue(cancel != null,
+			"calendar import chooser must expose Cancel");
+		click(robot, cancel);
+		GuiAcceptanceSupport.await(() -> visibleFileChooser() == null, "calendar import Cancel did not close the chooser");
+		assertEquals(exceptionsBefore[0], exceptionCount(),
+			"cancel must not mutate calendar exceptions");
+
+		importFixture = Files.createTempFile("calendar-exceptions-", ".csv");
+		Files.writeString(importFixture, "2026-10-05\n");
+		click(robot, dialog.importNonWorkingDays);
+		GuiAcceptanceSupport.await(() -> visibleFileChooser() != null, "calendar import did not reopen for approval");
+		Window approvedChooser = visibleFileChooser();
+		JFileChooser fileChooser = allComponents(approvedChooser).stream()
+			.filter(JFileChooser.class::isInstance).map(JFileChooser.class::cast).findFirst()
+			.orElseThrow(() -> new AssertionError("calendar import chooser component was not found"));
+		SwingUtilities.invokeAndWait(() -> fileChooser.setSelectedFile(importFixture.toFile()));
+		click(robot, findChooserApprove(approvedChooser));
+		GuiAcceptanceSupport.await(() -> visibleFileChooser() == null, "calendar import approval did not close the chooser");
+		long importedDate = LocalDate.of(2026, 10, 5).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli();
+		GuiAcceptanceSupport.await(() -> containsNonWorkingException(importedDate),
+			"approved CSV import did not add October 5 as a non-working exception");
+		assertEquals(exceptionsBefore[0] + 1, exceptionCount(),
+			"approved CSV import must apply its date to the scratch calendar");
+	}
+
+	private int exceptionCount() throws Exception {
+		int[] count = new int[1];
+		SwingUtilities.invokeAndWait(() -> count[0] = dialog.getScratchCalendar().getExceptionDays().length);
+		return count[0];
+	}
+
+	private boolean containsNonWorkingException(long date) {
+		boolean[] found = new boolean[1];
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				for (var exception : dialog.getScratchCalendar().getExceptionDays())
+					if (exception.getStart() == date && exception.getEnd() == date && !exception.isWorking()) {
+						found[0] = true;
+						break;
+					}
+			});
+		} catch (Exception exception) {
+			throw new AssertionError("could not inspect the imported calendar date on the EDT", exception);
+		}
+		return found[0];
+	}
+
+	@Test
+	void robotNewBaseCalendarDialogKeepsRadioLabelsInsideTheirLayoutCells() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		SwingUtilities.invokeAndWait(() -> {
+			frame = new JFrame("New calendar layout acceptance");
+			frame.setSize(420, 240);
+			frame.setAlwaysOnTop(true);
+			frame.setVisible(true);
+			new GraphicManager(frame).getMenuManager();
+			newBaseDialog = NewBaseCalendarDialog.getInstance(frame, null);
+			SwingUtilities.invokeLater(newBaseDialog::doModal);
+		});
+		GuiAcceptanceSupport.await(() -> newBaseDialog != null && newBaseDialog.isVisible(), "new base calendar dialog did not open");
+		assertTrue(newBaseDialog.createNewBase.getWidth() >= newBaseDialog.createNewBase.getPreferredSize().width,
+				() -> "new-calendar radio label must not be clipped: actual=" + newBaseDialog.createNewBase.getWidth()
+						+ " preferred=" + newBaseDialog.createNewBase.getPreferredSize().width);
+		assertTrue(newBaseDialog.makeACopy.getWidth() >= newBaseDialog.makeACopy.getPreferredSize().width,
+				() -> "copy-calendar radio label must not be clipped: actual=" + newBaseDialog.makeACopy.getWidth()
+						+ " preferred=" + newBaseDialog.makeACopy.getPreferredSize().width);
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		click(robot, cancelButton(newBaseDialog));
+		GuiAcceptanceSupport.await(() -> !newBaseDialog.isVisible(), "Cancel did not close new base calendar dialog");
+	}
+
+	@Test
+	void robotEnglishAlternativeCalendarExplainsGregorianEditDatesAndTooltips() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for calendar acceptance coverage.");
+		originalFormatLocale = Locale.getDefault(Locale.Category.FORMAT);
+		originalDisplayLocale = Locale.getDefault(Locale.Category.DISPLAY);
+		originalDefaultLocale = Locale.getDefault();
+		Locale.setDefault(Locale.US);
+		Locale.setDefault(Locale.Category.FORMAT, Locale.forLanguageTag("en-US-u-ca-islamic-umalqura"));
+		Locale.setDefault(Locale.Category.DISPLAY, Locale.US);
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("gui-working-time-english", undo);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		WorkingCalendar calendar = WorkingCalendar.getStandardBasedInstance();
+		calendar.setName("English calendar explanation");
+		project.setWorkCalendar(calendar);
+		SwingUtilities.invokeAndWait(() -> {
+			frame = new JFrame("English working-time calendar");
+			frame.setSize(1000, 650);
+			frame.setAlwaysOnTop(true);
+			frame.setVisible(true);
+			new GraphicManager(frame).getMenuManager();
+			dialog = ChangeWorkingTimeDialogBox.getInstance(frame, project, calendar, null, false, undo);
+			dialog.projectCalendars.add(calendar);
+			SwingUtilities.invokeLater(dialog::doModal);
+		});
+		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isVisible(), "English working-time dialog did not open");
+		assertEquals(Messages.getString("ChangeWorkingTimeDialogBox.CalendarTab"), dialog.calendarTabs.getTitleAt(0),
+			"the calendar tab label must match the application UI locale while the calendar uses English locale settings");
+		JTextArea[] explanation = new JTextArea[1];
+		Point[] cellPoint = new Point[1];
+		String[] tooltip = new String[1];
+		SwingUtilities.invokeAndWait(() -> {
+			explanation[0] = allComponents(dialog).stream()
+				.filter(component -> "workingTimeCalendarDateExplanation".equals(component.getName()))
+				.filter(JTextArea.class::isInstance).map(JTextArea.class::cast).findFirst().orElseThrow();
+			for (int y = 0; y < dialog.sdCalendar.getHeight() && cellPoint[0] == null; y++) {
+				for (int x = 0; x < dialog.sdCalendar.getWidth(); x++) {
+					if (dialog.sdCalendar.getDayAt(x, y) > 0) {
+						cellPoint[0] = new Point(x, y);
+						tooltip[0] = dialog.sdCalendar.getToolTipText(new MouseEvent(dialog.sdCalendar,
+							MouseEvent.MOUSE_MOVED, System.currentTimeMillis(), 0, x, y, 0, false));
+						break;
+					}
+				}
+			}
+		});
+		assertTrue(explanation[0].isShowing(), "the English date legend must be visible");
+		assertTrue(explanation[0].getText().contains("Hijrah-umalqura")
+			&& explanation[0].getText().contains("locale settings")
+			&& explanation[0].getText().contains("working-time edits use Gregorian dates"),
+			"the legend must name Hijrah, identify locale settings, and explain the Gregorian edit date: "
+				+ explanation[0].getText());
+		String accessibleName = dialog.sdCalendar.getAccessibleContext().getAccessibleName();
+		String accessibleDescription = dialog.sdCalendar.getAccessibleContext().getAccessibleDescription();
+		assertTrue(accessibleName.contains("calendar"), "the calendar must have an accessible English name");
+		assertTrue(accessibleDescription.contains("Hijrah-umalqura")
+			&& accessibleDescription.contains("working-time edits use Gregorian dates"),
+			"the accessible description must communicate the same calendar and edit-date semantics");
+		assertTrue(cellPoint[0] != null && tooltip[0] != null && tooltip[0].contains("Gregorian date:")
+			&& tooltip[0].contains("Selected calendar:"), "a date cell tooltip must show both Gregorian and Hijrah dates");
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
+		Point screenPoint = new Point();
+		SwingUtilities.invokeAndWait(() -> {
+			Point location = dialog.sdCalendar.getLocationOnScreen();
+			screenPoint.setLocation(location.x + cellPoint[0].x, location.y + cellPoint[0].y);
+		});
+		robot.mouseMove(screenPoint.x, screenPoint.y);
+		robot.delay(700);
+		click(robot, cancelButton(dialog));
+		GuiAcceptanceSupport.await(() -> !dialog.isVisible(), "Cancel did not close the English calendar dialog");
+		assertFalse(dialog.isCalendarCommitted(), "the English review route must close without committing calendar edits");
+	}
+
+	@Test
+	@GuiJourney(InputMechanism.DIALOG)
+	void robotOpensWorkingTimeDialogAndCancelsWithoutCommit() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		originalFormatLocale = Locale.getDefault(Locale.Category.FORMAT);
+		Locale.setDefault(Locale.Category.FORMAT, Locale.forLanguageTag("en-US-u-ca-islamic-umalqura"));
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("gui-working-time", undo);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		WorkingCalendar calendar = WorkingCalendar.getStandardBasedInstance();
+		calendar.setName("Visual Exception Calendar");
+		project.setWorkCalendar(calendar);
+		SwingUtilities.invokeAndWait(() -> {
+			frame = new MainRibbonFrame("Working time GUI acceptance", null);
+			frame.setPreferredSize(new Dimension(1000, 650));
+			GraphicManager manager = new GraphicManager(frame);
+			((MainRibbonFrame) frame).setGraphicManager(manager);
+			manager.initView();
+			manager.addProjectFrame(project);
+			frame.pack();
+			frame.setAlwaysOnTop(true);
+			frame.setVisible(true);
+			dialog = ChangeWorkingTimeDialogBox.getInstance(frame, project, calendar, null, false, undo);
+			dialog.projectCalendars.add(calendar);
+			SwingUtilities.invokeLater(dialog::doModal);
+		});
+		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isVisible(), "working-time dialog did not open");
+		constrainDialogHeightForScrollableTabs();
+		long displayedMonth = dialog.sdCalendar.getFirstDisplayedDate();
+		assertTrue(dialog.sdCalendar.getCalendarMonthTitle(displayedMonth, "Gregorian").contains("("),
+			"the working-time calendar should display the selected alternative calendar month");
+		assertSingleReadableCalendarMonth();
+		assertVisibleComponentsFit(dialog, "Change Working Time Calendar tab");
+		DialogScreenshotArtifacts.capture(dialog, "issue-590-change-working-time");
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
+		robot.setAutoDelay(50);
+		scrollCalendarBodyToBottom(robot, dialog.calendarTabs);
+		clickTab(robot, dialog.calendarTabs, 1);
+		assertVisibleComponentsFit(dialog, "Change Working Time Work Weeks tab");
+		AbstractButton workWeekAdd = findButton(dialog.workWeekEditor, "workWeekAddButton");
+		physicallyScrollIntoView(robot, workWeekAdd, "Work Week Add button");
+		click(robot, workWeekAdd);
+		GuiAcceptanceSupport.await(() -> visibleChildDialog() != null, "Work Week Details visual editor did not open");
+		JDialog workWeekDetails = visibleChildDialog();
+		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(workWeekDetails, "Work Week Details visual matrix");
+		assertVisibleComponentsFit(workWeekDetails, "Work Week Details visual matrix");
+		pressEscape(robot);
+		GuiAcceptanceSupport.await(() -> visibleChildDialog() == null, "Escape did not close Work Week Details");
+		clickTab(robot, dialog.calendarTabs, 2);
+		GuiAcceptanceSupport.await(() -> dialog.calendarTabs.getSelectedIndex() == 2, "Exceptions tab did not become active");
+		assertVisibleComponentsFit(dialog, "Change Working Time Exceptions tab");
+		clickScrolled(robot, findButton(dialog.exceptionEditor, "calendarExceptionAddButton"),
+			"Add Exception button");
+		GuiAcceptanceSupport.await(() -> visibleChildDialog() != null, "Add Exception editor did not open");
+		JDialog addEditor = visibleChildDialog();
+		JTextComponent exceptionName = findNamedText(addEditor, "calendarExceptionName");
+		clickComponent(robot, exceptionName);
+		for (int key : new int[] { KeyEvent.VK_L, KeyEvent.VK_A, KeyEvent.VK_Y, KeyEvent.VK_O, KeyEvent.VK_U, KeyEvent.VK_T }) {
+			robot.keyPress(key); robot.keyRelease(key);
+		}
+		click(robot, buttonNamed(addEditor, Messages.getString("ButtonText.OK")));
+		GuiAcceptanceSupport.await(() -> visibleChildDialog() == null, "Add Exception editor did not close");
+		JList<?> exceptions = findNamedList(dialog.exceptionEditor, "calendarExceptionsList");
+		Rectangle[] exceptionCell = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> {
+			exceptionCell[0] = new Rectangle(exceptions.getCellBounds(0, 0));
+		});
+		physicallyClick(robot, exceptions, exceptionCell[0], "First exception row");
+		GuiAcceptanceSupport.await(() -> exceptions.getSelectedIndex() == 0,
+			"physical exception-row click did not select the first exception");
+		AbstractButton details = findButton(dialog.exceptionEditor, "calendarExceptionDetailsButton");
+		GuiAcceptanceSupport.await(details::isEnabled,
+			"Details must be enabled after selecting an editable exception");
+		physicallyClick(robot, details, "Exception Details button");
+		GuiAcceptanceSupport.await(() -> visibleChildDialog() != null, "Exception Details editor did not open");
+		JDialog exceptionDetails = visibleChildDialog();
+		constrainExceptionDetailsForScrollableViewport(exceptionDetails);
+		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(exceptionDetails, "Exception Details visual matrix");
+		assertVisibleComponentsFit(exceptionDetails, "Exception Details visual matrix");
+		JSpinner lowerExceptionControl = findNamedSpinner(exceptionDetails, "calendarExceptionOccurrences");
+		physicallyScrollIntoView(robot, lowerExceptionControl, "Exception occurrence count");
+		pressEscape(robot);
+		GuiAcceptanceSupport.await(() -> visibleChildDialog() == null, "Escape did not close Exception Details");
+		AbstractButton cancel = cancelButton(dialog);
+		click(robot, cancel);
+		GuiAcceptanceSupport.await(() -> !dialog.isVisible(), "Cancel did not close working-time dialog");
+		assertFalse(dialog.isCalendarCommitted(), "Cancel must not commit calendar changes");
+		assertTrue(frame.isVisible(), "Cancel must return to the project window");
+	}
+
+	private void assertSingleReadableCalendarMonth() throws Exception {
+		BufferedImage[] rendered = new BufferedImage[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Calendar first = dateTimeCalendar(dialog.sdCalendar.getFirstDisplayedDate());
+			Calendar last = dateTimeCalendar(dialog.sdCalendar.getLastDisplayedDate());
+			assertEquals(first.get(Calendar.YEAR), last.get(Calendar.YEAR),
+				"the working-time calendar should show one readable month");
+			assertEquals(first.get(Calendar.MONTH), last.get(Calendar.MONTH),
+				"the working-time calendar should show one readable month; first=" + first.getTime()
+					+ ", last=" + last.getTime() + ", size=" + dialog.sdCalendar.getSize());
+			assertTrue(dialog.sdCalendar.getFont().getSize2D() > javax.swing.UIManager.getFont("Label.font").getSize2D(),
+				"calendar text should grow to use the available month area");
+			rendered[0] = new BufferedImage(dialog.sdCalendar.getWidth(), dialog.sdCalendar.getHeight(), BufferedImage.TYPE_INT_ARGB);
+			Graphics2D graphics = rendered[0].createGraphics();
+			dialog.sdCalendar.printAll(graphics);
+			graphics.dispose();
+		});
+		int foregroundPixels = 0;
+		int background = rendered[0].getRGB(0, 0);
+		for (int y = 0; y < rendered[0].getHeight(); y++) {
+			for (int x = 0; x < rendered[0].getWidth(); x++) {
+				if (rendered[0].getRGB(x, y) != background) foregroundPixels++;
+			}
+		}
+		assertTrue(foregroundPixels > 100, "the calendar capture should include rendered month text and date cells");
+		Path artifactDirectory = Path.of(System.getProperty("microproject.gui.artifacts.dir", "build/guiTest-artifacts"));
+		Files.createDirectories(artifactDirectory);
+		ImageIO.write(rendered[0], "png", artifactDirectory.resolve("working-time-calendar-readable.png").toFile());
+	}
+
+	private static Calendar dateTimeCalendar(long value) {
+		Calendar calendar = new GregorianCalendar(TimeZone.getTimeZone("GMT"));
+		calendar.setTimeInMillis(value);
+		return calendar;
+	}
+
+	@Test
+	void robotAddsWorkWeekOnScratchAndCommitsAsOneUndoableEdit() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("gui-work-week", undo);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		long projectStart = com.microproject.util.DateTime.dayFloor(System.currentTimeMillis());
+		setProjectStart(project, projectStart);
+		com.microproject.model.task.NormalTask task = (com.microproject.model.task.NormalTask) project.createLocalTaskNode(null).getImpl();
+		task.setName("Work-week persistence task");
+		task.getCurrentSchedule().setStart(projectStart);
+		task.setDuration(8L * 60L * 60L * 1000L);
+		project.recalculate();
+		WorkingCalendar calendar = WorkingCalendar.getStandardBasedInstance();
+		calendar.setName("GUI Work Week Calendar");
+		project.setWorkCalendar(calendar);
+		SwingUtilities.invokeAndWait(() -> {
+			frame = new MainRibbonFrame("Work week editor acceptance", null);
+			GraphicManager manager = new GraphicManager(frame);
+			((MainRibbonFrame) frame).setGraphicManager(manager);
+			manager.initView();
+			manager.addProjectFrame(project);
+			frame.setSize(new Dimension(1000, 650));
+			frame.setAlwaysOnTop(true);
+			frame.setVisible(true);
+			frame.toFront();
+			frame.requestFocus();
+			dialog = ChangeWorkingTimeDialogBox.getInstance(frame, project, calendar, null, false, undo);
+			dialog.projectCalendars.add(calendar);
+			SwingUtilities.invokeLater(dialog::doModal);
+		});
+		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isVisible(), "working-time dialog did not open");
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		JTabbedPane tabs = dialog.calendarTabs;
+		clickTab(robot, tabs, 1);
+		GuiAcceptanceSupport.await(() -> tabs.getSelectedIndex() == 1, "Work Weeks tab did not become active");
+		AbstractButton addWorkWeek = findButton(dialog.workWeekEditor, "workWeekAddButton");
+		physicallyScrollIntoView(robot, addWorkWeek, "Work Week Add button");
+		click(robot, addWorkWeek);
+		GuiAcceptanceSupport.await(() -> visibleChildDialog() != null, "Work Week Details editor did not open");
+		JDialog details = visibleChildDialog();
+		DialogLayoutAssertions.assertTextControlsAtPreferredHeight(details, "Work Week Details editor");
+		assertVisibleComponentsFit(details, "Work Week Details editor");
+		JTextComponent name = findNamedText(details, "workWeekName");
+		clickComponent(robot, name);
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_A);
+		robot.keyRelease(KeyEvent.VK_A);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		for (int key : new int[] {KeyEvent.VK_S, KeyEvent.VK_U, KeyEvent.VK_M, KeyEvent.VK_M, KeyEvent.VK_E, KeyEvent.VK_R}) {
+			robot.keyPress(key);
+			robot.keyRelease(key);
+		}
+		click(robot, buttonNamed(details, Messages.getString("ButtonText.OK")));
+		GuiAcceptanceSupport.await(() -> visibleChildDialog() == null, "Work Week Details did not close after OK");
+		// The modal can become hidden before its EDT action callback finishes updating the calendar.
+		int[] scratchWorkWeekCount = new int[1];
+		SwingUtilities.invokeAndWait(() -> scratchWorkWeekCount[0] = calendarWorkWeeks(dialog).size());
+		assertEquals(1, scratchWorkWeekCount[0], "detail edits affect only the parent dialog's scratch calendar");
+		click(robot, okButton(dialog));
+		GuiAcceptanceSupport.await(() -> !dialog.isVisible(), "parent OK did not close Change Working Time");
+		assertTrue(dialog.isCalendarCommitted());
+		assertEquals(1, calendar.getWorkWeekPeriods().size(), "parent OK commits the dated weekday pattern");
+		var committedWeek = calendar.getWorkWeekPeriods().getFirst();
+		assertEquals("summer", committedWeek.getName());
+		for (int day = 0; day < 7; day++)
+			assertEquals(day > 0 && day < 6, committedWeek.getWeekDay(day).isWorking(),
+				"the seven day-level work/nonwork choices must commit independently");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> calendar.getWorkWeekPeriods().isEmpty(),
+			"physical Ctrl+Z did not undo the committed work week");
+		assertTrue(calendar.getWorkWeekPeriods().isEmpty(), "one Undo restores the pre-dialog calendar");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> calendar.getWorkWeekPeriods().size() == 1,
+			"physical Ctrl+Y did not redo the committed work week");
+		assertEquals(1, calendar.getWorkWeekPeriods().size(), "one Redo reapplies the work week");
+		File pod = Files.createTempFile("gui-work-week-roundtrip-", ".pod").toFile();
+		try {
+			LocalFileImporter exporter = new LocalFileImporter();
+			exporter.setFileName(pod.getAbsolutePath());
+			exporter.setProject(project);
+			exporter.exportFile();
+			LocalFileImporter importer = new LocalFileImporter();
+			importer.setFileName(pod.getAbsolutePath());
+			importer.setProjectFactory(ProjectFactory.getInstance());
+			importer.importFile();
+			assertEquals("summer", ((WorkingCalendar) importer.getProject().getWorkCalendar())
+				.getWorkWeekPeriods().getFirst().getName(), "native POD reload must preserve the edited work week");
+		} finally {
+			Files.deleteIfExists(pod.toPath());
+		}
+	}
+
+	@Test
+	void robotAddsRecurringExceptionCommitsUndoesRedoesAndPersists() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		originalFormatLocale = Locale.getDefault(Locale.Category.FORMAT);
+		Locale.setDefault(Locale.Category.FORMAT, Locale.forLanguageTag("ja-JP-u-ca-japanese"));
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("gui-calendar-exception", undo);
+		pool.setLocal(true);
+		Project project = Project.createProject(pool, undo);
+		project.setMaster(true);
+		project.initialize(false, false);
+		WorkingCalendar projectCalendar = WorkingCalendar.getStandardBasedInstance();
+		projectCalendar.setName("GUI Project Exception Calendar");
+		project.setWorkCalendar(projectCalendar);
+		com.microproject.model.task.NormalTask task = (com.microproject.model.task.NormalTask) project
+			.createLocalTaskNode(null).getImpl();
+		task.setName("Task-specific calendar fixture");
+		WorkingCalendar taskCalendar = WorkingCalendar.getInstanceBasedOn(projectCalendar);
+		taskCalendar.setName("GUI Task Exception Calendar");
+		task.setTaskCalendar(taskCalendar);
+		Resource resource = pool.createScriptedResource();
+		resource.setName("Recurring exception resource");
+		WorkingCalendar calendar = WorkingCalendar.getInstanceBasedOn(projectCalendar);
+		calendar.setName("GUI Resource Exception Calendar");
+		resource.setWorkCalendar(calendar);
+		SwingUtilities.invokeAndWait(() -> {
+			frame = new MainRibbonFrame("Calendar exception acceptance", null);
+			GraphicManager manager = new GraphicManager(frame);
+			((MainRibbonFrame) frame).setGraphicManager(manager);
+			manager.initView();
+			manager.addProjectFrame(project);
+			frame.setSize(new Dimension(1000, 650));
+			frame.setAlwaysOnTop(true);
+			frame.setVisible(true);
+			frame.toFront();
+			frame.requestFocus();
+			dialog = ChangeWorkingTimeDialogBox.getInstance(frame, project, calendar, pool.extractCalendars(), false, undo);
+			dialog.projectCalendars.add(projectCalendar);
+			dialog.projectCalendars.add(taskCalendar);
+			SwingUtilities.invokeLater(dialog::doModal);
+		});
+		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isVisible(), "working-time dialog did not open");
+		constrainDialogHeightForScrollableTabs();
+		assertTrue(AlternativeCalendarDisplay.calendarLegend(Locale.getDefault(Locale.Category.FORMAT)).contains("小さな数字"),
+			"Japanese alternative-calendar mode must explain the smaller companion dates");
+		assertTrue(dialog.sdCalendar.getAccessibleContext().getAccessibleDescription().contains("曜日・選択・稼働時間の編集"),
+			"the calendar must expose its Gregorian selection rule to accessibility clients");
+		assertTrue(allComponents(dialog).stream().anyMatch(component -> "workingTimeCalendarDateExplanation".equals(component.getName())
+			&& component.isShowing()), "the date legend must be visible in the Calendar tab");
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		long selectedDate = selectDisplayedWorkingDate(robot, calendar);
+		scrollCalendarBodyToBottom(robot, dialog.calendarTabs);
+		clickTab(robot, dialog.calendarTabs, 2);
+		GuiAcceptanceSupport.await(() -> dialog.calendarTabs.getSelectedIndex() == 2, "Exceptions tab did not become active");
+		AbstractButton addException = findButton(dialog.exceptionEditor, "calendarExceptionAddButton");
+		physicallyScrollIntoView(robot, addException, "Calendar Exception Add button");
+		assertVisibleComponentsFit(dialog, "Change Working Time Exceptions tab");
+		click(robot, addException);
+		JDialog addDialog = visibleChildDialog();
+		GuiAcceptanceSupport.await(() -> visibleChildDialog() != null, "Add Exception editor did not open");
+		addDialog = visibleChildDialog();
+		JSpinner start = findNamedSpinner(addDialog, "calendarExceptionStart");
+		JSpinner finish = findNamedSpinner(addDialog, "calendarExceptionFinish");
+		assertEquals(selectedDate, com.microproject.util.DateTime.dayFloor(((java.util.Date) start.getValue()).getTime()),
+			"Add Exception must initialize Start to the date selected on the calendar");
+		assertEquals(selectedDate, com.microproject.util.DateTime.dayFloor(((java.util.Date) finish.getValue()).getTime()),
+			"Add Exception must initialize Finish to the date selected on the calendar");
+		JTextComponent name = findNamedText(addDialog, "calendarExceptionName");
+		clickComponent(robot, name);
+		for (int key : new int[] { KeyEvent.VK_H, KeyEvent.VK_O, KeyEvent.VK_L, KeyEvent.VK_I, KeyEvent.VK_D, KeyEvent.VK_A, KeyEvent.VK_Y }) {
+			robot.keyPress(key); robot.keyRelease(key);
+		}
+		click(robot, buttonNamed(addDialog, Messages.getString("ButtonText.OK")));
+		GuiAcceptanceSupport.await(() -> visibleChildDialog() == null, "Add Exception editor did not close");
+		JList<?> list = findNamedList(dialog.exceptionEditor, "calendarExceptionsList");
+		Rectangle[] exceptionCell = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> {
+			exceptionCell[0] = new Rectangle(list.getCellBounds(0, 0));
+		});
+		physicallyClick(robot, list, exceptionCell[0], "First exception row");
+		physicallyClick(robot, findButton(dialog.exceptionEditor, "calendarExceptionDetailsButton"),
+			"Exception Details button");
+		GuiAcceptanceSupport.await(() -> visibleChildDialog() != null, "Exception Details editor did not open");
+		JDialog details = visibleChildDialog();
+		assertVisibleComponentsFit(details, "Exception Details editor");
+		JCheckBox recurring = findNamedCheckBox(details, "calendarExceptionRecurring");
+		showInScrollPane(recurring);
+		click(robot, recurring);
+		click(robot, buttonNamed(details, Messages.getString("ButtonText.OK")));
+		GuiAcceptanceSupport.await(() -> visibleChildDialog() == null, "Exception Details editor did not close");
+		assertEquals(1, dialog.getScratchCalendar().getRecurringExceptions().size(), "recurrence edit is staged until parent OK");
+		assertTrue(calendar.getRecurringExceptions().isEmpty(), "the live calendar must remain unchanged before parent OK");
+		selectCalendarWithRobot(robot, dialog, projectCalendar);
+		clickScrolled(robot, findButton(dialog.exceptionEditor, "calendarExceptionAddButton"),
+			"Add Exception button");
+		GuiAcceptanceSupport.await(() -> visibleChildDialog() != null, "project calendar Add Exception editor did not open");
+		JDialog projectAddDialog = visibleChildDialog();
+		JTextComponent projectExceptionName = findNamedText(projectAddDialog, "calendarExceptionName");
+		clickComponent(robot, projectExceptionName);
+		for (int key : new int[] { KeyEvent.VK_P, KeyEvent.VK_R, KeyEvent.VK_O, KeyEvent.VK_J, KeyEvent.VK_E, KeyEvent.VK_C, KeyEvent.VK_T }) {
+			robot.keyPress(key); robot.keyRelease(key);
+		}
+		click(robot, buttonNamed(projectAddDialog, Messages.getString("ButtonText.OK")));
+		GuiAcceptanceSupport.await(() -> visibleChildDialog() == null, "project calendar exception Add editor did not close");
+		assertTrue(projectCalendar.getExceptionDays().length == 0, "project-calendar edits must remain staged before parent OK");
+		selectCalendarWithRobot(robot, dialog, taskCalendar);
+		clickScrolled(robot, findButton(dialog.exceptionEditor, "calendarExceptionAddButton"),
+			"Add Exception button");
+		GuiAcceptanceSupport.await(() -> visibleChildDialog() != null, "task calendar Add Exception editor did not open");
+		JDialog taskAddDialog = visibleChildDialog();
+		JTextComponent taskExceptionName = findNamedText(taskAddDialog, "calendarExceptionName");
+		clickComponent(robot, taskExceptionName);
+		for (int key : new int[] { KeyEvent.VK_T, KeyEvent.VK_A, KeyEvent.VK_S, KeyEvent.VK_K }) {
+			robot.keyPress(key); robot.keyRelease(key);
+		}
+		click(robot, buttonNamed(taskAddDialog, Messages.getString("ButtonText.OK")));
+		GuiAcceptanceSupport.await(() -> visibleChildDialog() == null, "task calendar exception Add editor did not close");
+		assertTrue(taskCalendar.getExceptionDays().length == 0, "task-calendar edits must remain staged before parent OK");
+		click(robot, okButton(dialog));
+		GuiAcceptanceSupport.await(() -> !dialog.isVisible(), "parent OK did not close Change Working Time");
+		assertTrue(dialog.isCalendarCommitted());
+		assertTrue(projectCalendar.getExceptionDays().length > 0, "parent OK must commit the project calendar edit");
+		assertTrue(taskCalendar.getExceptionDays().length > 0, "parent OK must commit the task calendar edit");
+		var rule = calendar.getRecurringExceptions().getFirst().getRecurrence();
+		assertEquals(10, rule.occurrenceDates().size(), "the default recurrence count must be represented by ten daily occurrences");
+		assertTrue(calendar.getExceptionDays().length == 0, "generated recurrence dates must not be flattened into one-off exceptions");
+		robot.keyPress(KeyEvent.VK_CONTROL); robot.keyPress(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_Z); robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> calendar.getRecurringExceptions().isEmpty()
+			&& projectCalendar.getExceptionDays().length == 0 && taskCalendar.getExceptionDays().length == 0,
+			"one physical Ctrl+Z must undo all staged calendar edits");
+		robot.keyPress(KeyEvent.VK_CONTROL); robot.keyPress(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_Y); robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> calendar.getRecurringExceptions().size() == 1
+			&& projectCalendar.getExceptionDays().length > 0 && taskCalendar.getExceptionDays().length > 0,
+			"one physical Ctrl+Y must redo all staged calendar edits");
+		File pod = Files.createTempFile("gui-calendar-exception-", ".pod").toFile();
+		try {
+			LocalFileImporter exporter = new LocalFileImporter();
+			exporter.setFileName(pod.getAbsolutePath()); exporter.setProject(project); exporter.exportFile();
+			LocalFileImporter importer = new LocalFileImporter();
+			importer.setFileName(pod.getAbsolutePath()); importer.setProjectFactory(ProjectFactory.getInstance()); importer.importFile();
+			Resource loadedResource = importer.getProject().getResourcePool().getResourceList().stream()
+				.filter(candidate -> "Recurring exception resource".equals(candidate.getName())).findFirst().orElseThrow();
+			WorkingCalendar loaded = (WorkingCalendar) loadedResource.getWorkCalendar();
+			assertEquals(rule.occurrenceDates(), loaded.getRecurringExceptions().getFirst().getRecurrence().occurrenceDates(),
+				"POD save/reload must preserve the recurrence rule without flattening");
+			WorkingCalendar loadedProjectCalendar = (WorkingCalendar) importer.getProject().getWorkCalendar();
+			assertTrue(loadedProjectCalendar.getExceptionDays().length > 0,
+				"POD save/reload must preserve the project-calendar edit alongside the resource calendar edit");
+			var loadedTask = (com.microproject.model.task.NormalTask) importer.getProject().getTaskOutlineIterator().next();
+			WorkingCalendar loadedTaskCalendar = (WorkingCalendar) loadedTask.getTaskCalendar();
+			assertTrue(loadedTaskCalendar.getExceptionDays().length > 0,
+				"POD save/reload must preserve the task-specific calendar edit");
+		} finally { Files.deleteIfExists(pod.toPath()); }
+	}
+
+	private static void assertVisibleComponentsFit(JDialog value, String surface) throws Exception {
+		final String[] violation = new String[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Point dialogLocation = value.getLocationOnScreen();
+			Rectangle dialogBounds = new Rectangle(dialogLocation.x, dialogLocation.y,
+					value.getWidth(), value.getHeight());
+			for (Component component : allComponents(value)) {
+				if (!isLayoutProbe(component) || !component.isShowing() || component == value)
+					continue;
+				Rectangle bounds = component.getBounds();
+				if (bounds.width <= 0 || bounds.height <= 0)
+					continue;
+				Point location = component.getLocationOnScreen();
+				Rectangle screenBounds = new Rectangle(location.x, location.y, bounds.width, bounds.height);
+				boolean clippedByScrollableViewport = false;
+				for (Container parent = component.getParent(); parent != null && parent != value; parent = parent.getParent()) {
+					if (parent instanceof JViewport viewport) {
+						Point viewportLocation = viewport.getLocationOnScreen();
+						Rectangle viewportBounds = new Rectangle(viewportLocation, viewport.getExtentSize());
+						if (!viewportBounds.contains(screenBounds)) {
+							JScrollPane scroll = javax.swing.SwingUtilities.getAncestorOfClass(JScrollPane.class, viewport)
+								instanceof JScrollPane candidate ? candidate : null;
+							java.awt.Dimension viewSize = viewport.getViewSize();
+							java.awt.Dimension extent = viewport.getExtentSize();
+							Component view = viewport.getView();
+							Rectangle viewBounds = new Rectangle(0, 0, viewSize.width, viewSize.height);
+							Rectangle componentInView = SwingUtilities.convertRectangle(component.getParent(), bounds, view);
+							boolean withinView = viewBounds.contains(componentInView);
+							boolean scrollableX = viewSize.width > extent.width
+								&& (screenBounds.x < viewportBounds.x
+									|| screenBounds.x + screenBounds.width > viewportBounds.x + viewportBounds.width);
+							boolean scrollableY = viewSize.height > extent.height
+								&& (screenBounds.y < viewportBounds.y
+									|| screenBounds.y + screenBounds.height > viewportBounds.y + viewportBounds.height);
+							boolean scrollable = scroll != null && withinView && (scrollableX || scrollableY);
+							if (!scrollable) {
+								violation[0] = component.getClass().getSimpleName() + " escapes a non-scrollable viewport bounds="
+									+ screenBounds + " viewport=" + viewportBounds;
+								return;
+							}
+							Point scrollLocation = scroll.getLocationOnScreen();
+							Rectangle scrollBounds = new Rectangle(scrollLocation, scroll.getSize());
+							if (!dialogBounds.contains(scrollBounds)) {
+								violation[0] = "scroll pane escapes dialog bounds=" + scrollBounds + " dialog=" + dialogBounds;
+								return;
+							}
+							clippedByScrollableViewport = true;
+							break;
+						}
+					}
+					if (clippedByScrollableViewport) break;
+					if (parent instanceof JScrollPane)
+						break;
+					Point parentLocation = parent.getLocationOnScreen();
+					Rectangle parentBounds = new Rectangle(parentLocation.x, parentLocation.y,
+							parent.getWidth(), parent.getHeight());
+					if (!parentBounds.contains(new Point(screenBounds.x, screenBounds.y))
+							|| !parentBounds.contains(new Point(screenBounds.x + screenBounds.width - 1,
+									screenBounds.y + screenBounds.height - 1))) {
+						violation[0] = component.getClass().getSimpleName() + " escapes parent "
+								+ parent.getClass().getSimpleName() + " bounds=" + screenBounds
+								+ " parent=" + parentBounds;
+						return;
+					}
+				}
+				if (!clippedByScrollableViewport && (!dialogBounds.contains(new Point(screenBounds.x, screenBounds.y))
+						|| !dialogBounds.contains(new Point(screenBounds.x + screenBounds.width - 1,
+							screenBounds.y + screenBounds.height - 1)))) {
+					violation[0] = component.getClass().getSimpleName() + " bounds=" + screenBounds
+						+ " dialog=" + dialogBounds;
+					return;
+				}
+			}
+			for (Component parentComponent : allComponents(value)) {
+				if (!(parentComponent instanceof Container parent) || parent instanceof JScrollPane)
+					continue;
+				java.util.List<Component> probes = java.util.Arrays.stream(parent.getComponents())
+					.filter(ChangeWorkingTimeDialogGuiAcceptanceTest::isLayoutProbe)
+					.filter(Component::isShowing).toList();
+				for (int first = 0; first < probes.size(); first++) {
+					for (int second = first + 1; second < probes.size(); second++) {
+						Rectangle a = probes.get(first).getBounds();
+						Rectangle b = probes.get(second).getBounds();
+						if (a.intersects(b) && !DialogLayoutAssertions.isExpectedSpinnerStepperBorderSeam(
+								parent, probes.get(first), probes.get(second))) {
+							violation[0] = parent.getClass().getSimpleName() + " children overlap: "
+									+ probes.get(first).getClass().getSimpleName() + "=" + a + " and "
+									+ probes.get(second).getClass().getSimpleName() + "=" + b;
+							return;
+						}
+					}
+				}
+			}
+		});
+		assertTrue(violation[0] == null, () -> surface + " has an out-of-bounds or overlapping control: " + violation[0]);
+	}
+
+	private static boolean isLayoutProbe(Component component) {
+		if (component instanceof AbstractButton
+				&& SwingUtilities.getAncestorOfClass(JScrollBar.class, component) != null)
+			return false;
+		return component instanceof JLabel || component instanceof AbstractButton
+				|| component instanceof JTextComponent || component instanceof JComboBox
+				|| component instanceof JSpinner;
+	}
+
+	private static java.util.List<Component> allComponents(Container root) {
+		java.util.ArrayList<Component> result = new java.util.ArrayList<>();
+		for (Component child : root.getComponents()) {
+			result.add(child);
+			if (child instanceof Container container)
+				result.addAll(allComponents(container));
+		}
+		return result;
+	}
+
+	@Test
+	void robotSelectsDisplayedDateMarksNonWorkingAndCommits() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("gui-working-time-save", undo);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		WorkingCalendar calendar = WorkingCalendar.getStandardBasedInstance();
+		calendar.setName("GUI Save Calendar");
+		project.setWorkCalendar(calendar);
+		SwingUtilities.invokeAndWait(() -> {
+			frame = new JFrame("Working time GUI save acceptance");
+			frame.setPreferredSize(new Dimension(900, 420));
+			frame.pack();
+			frame.setAlwaysOnTop(true);
+			frame.setVisible(true);
+			new GraphicManager(frame).getMenuManager();
+			dialog = ChangeWorkingTimeDialogBox.getInstance(frame, project, calendar, null, false, undo);
+			dialog.projectCalendars.add(calendar);
+			SwingUtilities.invokeLater(dialog::doModal);
+		});
+		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isVisible(), "working-time dialog did not open");
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
+		robot.setAutoDelay(50);
+		long selectedDate = selectDisplayedWorkingDate(robot, calendar);
+		assertTrue(dialog.nonWorking.isEnabled(), "Non-working radio button must be enabled for an editable project calendar");
+		click(robot, dialog.nonWorking);
+		robot.delay(200);
+		click(robot, okButton(dialog));
+		GuiAcceptanceSupport.await(() -> !dialog.isVisible(), "OK did not close working-time dialog");
+		assertTrue(dialog.isCalendarCommitted(), "OK must commit calendar changes");
+		DayDescriptor changed = CalendarService.getInstance().getDay(calendar, selectedDate);
+		assertFalse(changed.isWorking(), "Selected displayed date must be persisted as non-working");
+		ByteArrayOutputStream saved = new ByteArrayOutputStream();
+		MpoFileImporter mpo = new MpoFileImporter();
+		assertTrue(mpo.saveProject(project, saved), "MPO save rejected the edited working calendar");
+		Project restored = mpo.loadProject(new ByteArrayInputStream(saved.toByteArray()));
+		assertFalse(CalendarService.getInstance().getDay((WorkingCalendar) restored.getWorkCalendar(), selectedDate).isWorking(),
+			"MPO reload must preserve the selected Gregorian date's non-working exception");
+	}
+
+	@Test
+	void switchingCalendarsDoesNotCommitEditsBeforeParentOk() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool pool = ResourcePool.createRourcePool("gui-working-time-staged", undo);
+		Project project = Project.createProject(pool, undo);
+		project.initialize(false, false);
+		WorkingCalendar first = WorkingCalendar.getStandardBasedInstance();
+		first.setName("Staged first calendar");
+		project.setWorkCalendar(first);
+		WorkingCalendar second = WorkingCalendar.getStandardBasedInstance();
+		second.setName("Staged second calendar");
+		CalendarService service = CalendarService.getInstance();
+		long[] editedDate = new long[1];
+		DayDescriptor[] original = new DayDescriptor[1];
+		SwingUtilities.invokeAndWait(() -> {
+			frame = new JFrame("Working time staged edit acceptance");
+			frame.setPreferredSize(new Dimension(1000, 600));
+			frame.pack();
+			frame.setAlwaysOnTop(true);
+			frame.setVisible(true);
+			new GraphicManager(frame).getMenuManager();
+			dialog = ChangeWorkingTimeDialogBox.getInstance(frame, project, first, null, false, undo);
+			dialog.projectCalendars.add(first);
+			dialog.projectCalendars.add(second);
+			SwingUtilities.invokeLater(dialog::doModal);
+		});
+		GuiAcceptanceSupport.await(() -> dialog != null && dialog.isVisible(), "working-time dialog did not open");
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
+		robot.setAutoDelay(45);
+		editedDate[0] = selectDisplayedWorkingDate(robot, first);
+		original[0] = service.getDay(first, editedDate[0]);
+		click(robot, dialog.nonWorking);
+		SwingUtilities.invokeAndWait(() -> dialog.calendarType.setSelectedItem(second));
+		assertEquals(original[0].isWorking(), service.getDay(first, editedDate[0]).isWorking(),
+			"switching the calendar must keep the first calendar edit in the dialog's scratch state");
+		click(robot, cancelButton(dialog));
+		GuiAcceptanceSupport.await(() -> !dialog.isVisible(), "Cancel did not close working-time dialog");
+		assertEquals(original[0].isWorking(), service.getDay(first, editedDate[0]).isWorking(),
+			"Cancel must discard edits made before switching calendars");
+		assertFalse(dialog.isCalendarCommitted(), "Cancel must not commit any staged calendar");
+	}
+
+	private long selectDisplayedWorkingDate(Robot robot, WorkingCalendar calendar) throws Exception {
+		robot.waitForIdle();
+		CalendarService service = CalendarService.getInstance();
+		Point[] point = new Point[1];
+		long[] date = new long[1];
+		SwingUtilities.invokeAndWait(() -> {
+			for (int y = 0; y < dialog.sdCalendar.getHeight() && point[0] == null; y += 2) {
+				for (int x = 0; x < dialog.sdCalendar.getWidth(); x += 2) {
+					long candidate = dialog.sdCalendar.getDayAt(x, y);
+					if (candidate > 0 && service.getDay(calendar, candidate).isWorking()) {
+						Point location = dialog.sdCalendar.getLocationOnScreen();
+						point[0] = new Point(location.x + x + 1, location.y + y + 1);
+						date[0] = candidate;
+						break;
+					}
+				}
+			}
+		});
+		assertTrue(point[0] != null, "A working displayed date cell must be discoverable");
+		robot.mouseMove(point[0].x, point[0].y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		GuiAcceptanceSupport.await(() -> !dialog.sdCalendar.getSelectedFixedIntervals().isEmpty(), "Date cell selection did not register");
+		return date[0];
+	}
+
+	private static void selectCalendarWithRobot(Robot robot, ChangeWorkingTimeDialogBox value,
+		WorkingCalendar calendar) throws Exception {
+		int[] targetIndex = new int[1];
+		SwingUtilities.invokeAndWait(() -> {
+			targetIndex[0] = -1;
+			for (int index = 0; index < value.calendarType.getItemCount(); index++) {
+				if (value.calendarType.getItemAt(index) == calendar) {
+					targetIndex[0] = index;
+					break;
+				}
+			}
+		});
+		assertTrue(targetIndex[0] >= 0, "target calendar must be present in For calendar");
+		clickScrolled(robot, value.calendarType, "For calendar selector");
+		robot.keyPress(KeyEvent.VK_HOME);
+		robot.keyRelease(KeyEvent.VK_HOME);
+		for (int index = 0; index < targetIndex[0]; index++) {
+			robot.keyPress(KeyEvent.VK_DOWN);
+			robot.keyRelease(KeyEvent.VK_DOWN);
+		}
+		robot.keyPress(KeyEvent.VK_ENTER);
+		robot.keyRelease(KeyEvent.VK_ENTER);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> value.calendarType.getSelectedItem() == calendar,
+			"physical For calendar selection did not choose the project calendar");
+		boolean[] selectionState = new boolean[1];
+		SwingUtilities.invokeAndWait(() -> selectionState[0] = value.isVisible() && value.calendarTabs.isShowing()
+			&& value.calendarTabs.getSelectedIndex() == 2);
+		assertTrue(selectionState[0], "physical For calendar selection must keep the dialog open on the Exceptions tab");
+	}
+
+	private static AbstractButton cancelButton(ChangeWorkingTimeDialogBox value) throws Exception {
+		Field field = AbstractDialog.class.getDeclaredField("cancel");
+		field.setAccessible(true);
+		return (AbstractButton) field.get(value);
+	}
+
+	private static AbstractButton cancelButton(NewBaseCalendarDialog value) throws Exception {
+		Field field = AbstractDialog.class.getDeclaredField("cancel");
+		field.setAccessible(true);
+		return (AbstractButton) field.get(value);
+	}
+
+	private static AbstractButton okButton(ChangeWorkingTimeDialogBox value) throws Exception {
+		Field field = AbstractDialog.class.getDeclaredField("ok");
+		field.setAccessible(true);
+		return (AbstractButton) field.get(value);
+	}
+
+	private static void click(Robot robot, AbstractButton button) throws Exception {
+		Point[] center = new Point[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Point location = button.getLocationOnScreen();
+			center[0] = new Point(location.x + button.getWidth() / 2, location.y + button.getHeight() / 2);
+		});
+		robot.mouseMove(center[0].x, center[0].y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+	}
+
+	private static void clickComponent(Robot robot, Component component) throws Exception {
+		Point[] center = new Point[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Point location = component.getLocationOnScreen();
+			center[0] = new Point(location.x + component.getWidth() / 2, location.y + component.getHeight() / 2);
+		});
+		robot.mouseMove(center[0].x, center[0].y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+	}
+
+	private static void pressEscape(Robot robot) {
+		robot.keyPress(KeyEvent.VK_ESCAPE);
+		robot.keyRelease(KeyEvent.VK_ESCAPE);
+	}
+
+	private static void clickTab(Robot robot, JTabbedPane tabs, int index) throws Exception {
+		Rectangle[] tabBounds = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> tabBounds[0] = new Rectangle(tabs.getBoundsAt(index)));
+		physicallyClick(robot, tabs, tabBounds[0], "Change Working Time tab header " + index);
+	}
+
+	private void constrainDialogHeightForScrollableTabs() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle usable = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+			dialog.setSize(Math.min(650, Math.min(dialog.getWidth(), usable.width)), Math.min(480, usable.height));
+			dialog.validate();
+		});
+	}
+
+	private static void constrainExceptionDetailsForScrollableViewport(JDialog details) throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			details.setSize(Math.min(636, details.getWidth()), Math.min(415, details.getHeight()));
+			details.validate();
+		});
+	}
+
+	private static void scrollCalendarBodyToBottom(Robot robot, JTabbedPane tabs) throws Exception {
+		Component[] scrollView = new Component[1];
+		SwingUtilities.invokeAndWait(() -> {
+			for (Container parent = tabs.getParent(); parent != null; parent = parent.getParent())
+				if (parent instanceof JViewport viewport) {
+					scrollView[0] = viewport.getView();
+					return;
+				}
+		});
+		assertTrue(scrollView[0] != null, "Change Working Time dialog must have a scrollable body");
+		Rectangle[] bottom = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> bottom[0] = new Rectangle(0,
+			Math.max(0, scrollView[0].getHeight() - 1), Math.max(1, scrollView[0].getWidth()), 1));
+		physicallyScrollIntoView(robot, scrollView[0], bottom[0], "Change Working Time dialog lower content");
+		Rectangle[] header = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> header[0] = new Rectangle(tabs.getBoundsAt(0)));
+		SwingUtilities.invokeAndWait(() -> assertTrue(!tabs.getVisibleRect().intersects(header[0]),
+			"scroll fixture must move the tab strip above the viewport before the physical tab route"));
+	}
+
+	private static void clickScrolled(Robot robot, Component component, String description) throws Exception {
+		Rectangle[] bounds = new Rectangle[1];
+		SwingUtilities.invokeAndWait(() -> bounds[0] = new Rectangle(0, 0,
+			Math.max(1, component.getWidth()), Math.max(1, component.getHeight())));
+		physicallyScrollIntoView(robot, component, bounds[0], description);
+		WindowAcceptanceAssertions.clickComponent(robot, component);
+	}
+
+	private static AbstractButton findButton(Container root, String name) {
+		for (Component component : allComponents(root))
+			if (component instanceof AbstractButton button && name.equals(button.getName())) return button;
+		throw new AssertionError("button not found: " + name);
+	}
+
+	private static Window visibleFileChooser() {
+		for (Window window : Window.getWindows())
+			if (window.isShowing() && allComponents(window).stream().anyMatch(JFileChooser.class::isInstance)) return window;
+		return null;
+	}
+
+	private static AbstractButton findChooserCancel(Window chooser) {
+		return allComponents(chooser).stream().filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(button -> "cancel".equalsIgnoreCase(button.getText()) || "取消".equals(button.getText())
+				|| "キャンセル".equals(button.getText()))
+			.findFirst().orElse(null);
+	}
+
+	private static AbstractButton findChooserApprove(Window chooser) {
+		return allComponents(chooser).stream().filter(AbstractButton.class::isInstance).map(AbstractButton.class::cast)
+			.filter(button -> {
+				String action = button.getActionCommand();
+				String text = button.getText();
+				return (action != null && action.toLowerCase(Locale.ROOT).contains("approve"))
+					|| "open".equalsIgnoreCase(text) || "開く".equals(text) || "選択".equals(text);
+			})
+			.findFirst().orElseThrow(() -> new AssertionError("chooser has no Open button"));
+	}
+
+	private static AbstractButton buttonNamed(Container root, String text) {
+		for (Component component : allComponents(root))
+			if (component instanceof AbstractButton button && text.equals(button.getText())) return button;
+		throw new AssertionError("button not found: " + text);
+	}
+
+	private static JTextComponent findNamedText(Container root, String name) {
+		for (Component component : allComponents(root))
+			if (component instanceof JTextComponent text && name.equals(text.getName())) return text;
+		throw new AssertionError("text field not found: " + name);
+	}
+
+	private static JSpinner findNamedSpinner(Container root, String name) {
+		for (Component component : allComponents(root))
+			if (component instanceof JSpinner spinner && name.equals(spinner.getName())) return spinner;
+		throw new AssertionError("spinner not found: " + name);
+	}
+
+	private static JCheckBox findNamedCheckBox(Container root, String name) {
+		for (Component component : allComponents(root))
+			if (component instanceof JCheckBox checkbox && name.equals(checkbox.getName())) return checkbox;
+		throw new AssertionError("checkbox not found: " + name);
+	}
+
+	private static JList<?> findNamedList(Container root, String name) {
+		for (Component component : allComponents(root))
+			if (component instanceof JList<?> list && name.equals(list.getName())) return list;
+		throw new AssertionError("list not found: " + name);
+	}
+
+	private static void showInScrollPane(Component component) throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			for (Container parent = component.getParent(); parent != null; parent = parent.getParent())
+				if (parent instanceof JScrollPane scroll) {
+					Component view = scroll.getViewport().getView();
+					if (view instanceof javax.swing.JComponent swingView) {
+						Rectangle bounds = SwingUtilities.convertRectangle(component.getParent(), component.getBounds(), view);
+						swingView.scrollRectToVisible(bounds);
+					}
+					return;
+				}
+		});
+	}
+
+	private static boolean isOwnedBy(Window window, Window owner) {
+		for (Window current = window.getOwner(); current != null; current = current.getOwner())
+			if (current == owner) return true;
+		return false;
+	}
+
+	private static int ownerDepth(Window window) {
+		int depth = 0;
+		for (Window current = window.getOwner(); current != null; current = current.getOwner()) depth++;
+		return depth;
+	}
+
+	private JDialog visibleChildDialog() {
+		for (Window window : Window.getWindows())
+			if (window instanceof JDialog child && child.isVisible() && child != dialog) return child;
+		return null;
+	}
+
+	private static java.util.List<com.microproject.model.calendar.WorkWeekPeriod> calendarWorkWeeks(
+			ChangeWorkingTimeDialogBox value) {
+		return value.getScratchCalendar().getWorkWeekPeriods();
+	}
+}

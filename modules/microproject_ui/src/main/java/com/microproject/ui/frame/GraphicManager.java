@@ -1,0 +1,7180 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.frame;
+import java.awt.*;
+import java.awt.desktop.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
+import java.awt.event.InputEvent;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowStateListener;
+import java.io.IOException;
+import java.io.File;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.function.Consumer;
+import java.util.function.BooleanSupplier;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.prefs.Preferences;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+import javax.swing.AbstractButton;
+import javax.swing.Action;
+import javax.swing.AbstractAction;
+import javax.swing.ActionMap;
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.ImageIcon;
+import javax.swing.InputMap;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JCheckBox;
+import javax.swing.JComponent;
+import javax.swing.JDialog;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JRadioButtonMenuItem;
+import javax.swing.JRadioButton;
+import javax.swing.ButtonGroup;
+import javax.swing.JSpinner;
+import javax.swing.SpinnerNumberModel;
+import javax.swing.JTabbedPane;
+import javax.swing.JToolBar;
+import javax.swing.JTextField;
+import javax.swing.KeyStroke;
+import javax.swing.LookAndFeel;
+import javax.swing.JOptionPane;
+import javax.swing.RootPaneContainer;
+import javax.swing.JRootPane;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+import javax.swing.border.EmptyBorder;
+import javax.swing.undo.AbstractUndoableEdit;
+import javax.swing.undo.CannotRedoException;
+import javax.swing.undo.CannotUndoException;
+
+import com.microproject.ui.menu.resource.MissingListenerException;
+import com.microproject.ui.shell.MicroProjectShell;
+import com.microproject.ui.ribbon.RibbonController;
+import com.microproject.ui.ribbon.RibbonDropDownSource;
+import com.microproject.configuration.Configuration;
+import com.microproject.configuration.FieldDictionary;
+import com.microproject.configuration.Settings;
+import com.microproject.application.ProjectDocumentWorkflow;
+import com.microproject.application.ProjectLoadWorkflow;
+import com.microproject.application.ProjectPortCoordinator;
+import com.microproject.application.ProjectArtifactLifecycleCoordinator;
+import com.microproject.application.RecentProjectStore;
+import com.microproject.collaboration.CollaborationMetadataStore;
+import com.microproject.collaboration.CollaborationUserIdentity;
+import com.microproject.collaboration.CollaborationSession;
+import com.microproject.collaboration.ProjectMergeService;
+import com.microproject.util.ClassLoaderUtils;
+import com.microproject.ui.dialog.AbstractDialog;
+import com.microproject.ui.dialog.LocaleDialog;
+import com.microproject.ui.dialog.ProjectDialog;
+import com.microproject.ui.dialog.ResourceSortOrderPanel;
+import com.microproject.ui.dialog.TaskSortOptionsPanel;
+import com.microproject.ui.dialog.PreferencesDialogBox;
+import com.microproject.ui.dialog.RenameProjectDialog;
+import com.microproject.ui.dialog.WelcomeDialog;
+import com.microproject.ui.dialog.UsabilityStrings;
+import com.microproject.ui.dialog.assignment.TimesheetDialog;
+import com.microproject.ui.dialog.options.CalendarDialogBox;
+import com.microproject.document.Document;
+import com.microproject.document.ObjectEvent;
+import com.microproject.persistence.ResourceMappingForm;
+import com.microproject.field.Field;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
+import com.microproject.node.Node;
+import com.microproject.node.VoidNodeImpl;
+import com.microproject.node.model.NodeModel;
+import com.microproject.node.model.DefaultNodeModel;
+import com.microproject.node.transform.CommonTransformFactory;
+import com.microproject.node.transform.ViewTransformer;
+import com.microproject.node.transform.filtering.NodeFilter;
+import com.microproject.node.transform.filtering.ResourceInTeamFilter;
+import com.microproject.node.transform.sorting.NodeSorter;
+import com.microproject.node.transform.sorting.TaskSortSpec;
+import com.microproject.job.Job;
+import com.microproject.job.JobQueue;
+import com.microproject.job.JobRunnable;
+import com.microproject.job.Mutex;
+import com.microproject.ui.menu.MenuActionConstants;
+import com.microproject.ui.menu.MenuActionsMap;
+import com.microproject.ui.menu.MenuManager;
+import com.microproject.ui.menu.ProjectMenuActionMap;
+import com.microproject.options.CalendarOption;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.dependency.DependencyService;
+import com.microproject.model.dependency.DependencyType;
+import com.microproject.ui.view.IconManager;
+import com.microproject.ui.view.TabbedNavigation;
+import com.microproject.ui.view.collaboration.CollaborationHelper;
+import com.microproject.ui.frame.workspace.DefaultFrameManager;
+import com.microproject.ui.frame.workspace.FrameHolder;
+import com.microproject.ui.frame.workspace.FrameManager;
+import com.microproject.ui.frame.workspace.NamedFrame;
+import com.microproject.ui.frame.workspace.NamedFrameEvent;
+import com.microproject.ui.frame.workspace.NamedFrameListener;
+import com.microproject.ui.theme.LafManager;
+import com.microproject.ui.theme.LafManagerImpl;
+import com.microproject.ui.view.spreadsheet.SpreadSheet;
+import com.microproject.ui.view.spreadsheet.common.CommonSpreadSheet;
+import com.microproject.ui.view.spreadsheet.selection.event.SelectionNodeEvent;
+import com.microproject.ui.view.spreadsheet.selection.event.SelectionNodeListener;
+import com.microproject.ui.view.chart.ResourceGraphSettings;
+import com.microproject.ui.view.views.ChartView;
+import com.microproject.ui.view.views.GanttView;
+import com.microproject.ui.view.views.PertView;
+import com.microproject.ui.view.views.BaseView;
+import com.microproject.ui.privacy.PrivacyDisplayMode;
+import com.microproject.ui.view.views.ProjectsDialog;
+import com.microproject.ui.view.views.ResourceView;
+import com.microproject.ui.view.views.UsageDetailView;
+import com.microproject.ui.view.views.Searchable;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.resource.SharedResourcePoolService;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.DefaultSubProj;
+import com.microproject.model.task.ProjectFactory;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.SubProj;
+import com.microproject.model.task.Task;
+import com.microproject.model.task.TaskPathAnalyzer;
+import com.microproject.ui.view.gantt.GanttBarColorScheme;
+import com.microproject.preference.ConfigurationFile;
+import com.microproject.preference.GlobalPreferences;
+import com.microproject.ui.print.GraphPageable;
+import com.microproject.ui.print.PrintDocumentFactory;
+import com.microproject.session.CreateOptions;
+import com.microproject.session.LoadOptions;
+import com.microproject.session.LocalSession;
+import com.microproject.session.FileHelper;
+import com.microproject.session.SaveOptions;
+import com.microproject.session.SessionFactory;
+import com.microproject.i18n.Messages;
+import com.microproject.ui.toolbar.FilterToolBarManager;
+import com.microproject.ui.toolbar.TransformComboBox;
+import com.microproject.ui.toolbar.TransformComboBoxModel;
+import com.microproject.undo.CommandInfo;
+import com.microproject.undo.UndoController;
+import com.microproject.util.Alert;
+import com.microproject.util.BrowserControl;
+import com.microproject.util.Environment;
+import com.microproject.util.FilePathUtils;
+import com.microproject.ui.util.FlatUiSupport;
+import com.microproject.ui.util.FlatLafSupport;
+import com.microproject.ui.util.PopupDialogSupport;
+import com.microproject.ui.util.SwingUiDispatcher;
+import com.microproject.ui.util.UiLinkTargets;
+import com.microproject.workspace.SavableToWorkspace;
+import com.microproject.workspace.WorkspaceSetting;
+import com.microproject.ribbon.RibbonCommandResult;
+import com.microproject.ribbon.CommandId;
+
+
+
+/**
+ *
+ */
+public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowStateListener,  SelectionNodeListener, ObjectEvent.Listener, ProjectMenuActionMap, MenuActionConstants, SavableToWorkspace {
+	private static final Logger logger = Logger.getLogger(GraphicManager.class.getName());
+	private static final String WORKSPACE_CONFLICT_STATUS = "Workspace saving did not complete. Local and shared layouts are preserved; resolve the conflict before retrying.";
+	private static final String UI_DEBUG_PROPERTY = "microproject.ui.debug";
+	private static final String ACTION_CANCEL_FORMAT_PAINTER = "CancelFormatPainter";
+	private RibbonCommandResult lastRibbonCommandResult;
+	private static final GraphicManagerRegistry MANAGER_REGISTRY = GraphicManagerRegistry.getInstance();
+	private final DocumentGeneration documentGeneration = new DocumentGeneration();
+
+	/** Returns a snapshot of projects currently open in this desktop window. */
+	public List<Project> getOpenProjects() {
+		List<DocumentFrame> openFrames = getOpenDocumentFrames();
+		List<Project> projects = new ArrayList<>(openFrames.size());
+		for (DocumentFrame frame : openFrames) {
+			if (frame.getProject() != null)
+				projects.add(frame.getProject());
+		}
+		return projects;
+	}
+//    private JFileChooser fileChooser = null;
+
+	private NamedFrame viewBarFrame;
+	private FrameManager frameManager;
+
+	private MenuManager menuManager;
+	MenuActionsMap actionsMap = null;
+	//private String[] projectUrl;
+
+    private final AssignmentDialogCoordinator assignmentDialogCoordinator = new AssignmentDialogCoordinator();
+	private final InformationDialogCoordinator informationDialogCoordinator = new InformationDialogCoordinator();
+    private final ApplicationInfoDialogCoordinator applicationInfoDialogCoordinator = new ApplicationInfoDialogCoordinator();
+	private final ResourceMappingDialogCoordinator resourceMappingDialogCoordinator = new ResourceMappingDialogCoordinator();
+	ProjectFactory projectFactory = null;
+	private final AutoRecoveryManager autoRecoveryManager;
+	private final ProjectArtifactLifecycleCoordinator projectArtifactLifecycleCoordinator = new ProjectArtifactLifecycleCoordinator();
+	private final RecentProjectStore recentProjectStore = new RecentProjectStore();
+	private Runnable afterSaveNewProject;
+	private volatile boolean quitting;
+	static final long QUIT_WAIT_TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(30);
+	protected Container container;
+	protected Frame frame;
+	TabbedNavigation topTabs = null;
+
+    private static LafManager lafManager;
+	public static boolean badLAF = false;
+	private final ApplicationRestartCoordinator applicationRestartCoordinator = new ApplicationRestartCoordinator();
+	protected JobQueue jobQueue=null;
+	private volatile boolean cleanedUp;
+
+	protected GlobalPreferences preferences=null;
+	private FilterToolBarManager filterToolBarManager;
+	private JMenu projectListMenu = null;
+
+	private ArrayList<CommandInfo> history=new ArrayList<>();
+
+	/** determines the parent graphic manager for a component
+	 *
+	 * @param component
+	 * @return
+	 */
+	public static GraphicManager getInstance(Component component){
+		Component c = component;
+		for (c = component; c != null; c = c.getParent()) {
+			if (c instanceof FrameHolder)
+				return ((FrameHolder)c).getGraphicManager();
+		}
+		return MANAGER_REGISTRY.getActiveManager(); // if none found, use last used one
+	}
+	public static GraphicManager getInstance(){
+		return MANAGER_REGISTRY.getActiveManager();
+	}
+
+	public static Frame getFrameInstance(){
+		GraphicManager manager = MANAGER_REGISTRY.getActiveManager();
+		return manager == null ? null : manager.getFrame();
+	}
+
+	public static DocumentFrame getDocumentFrameInstance(){
+		GraphicManager manager = MANAGER_REGISTRY.getActiveManager();
+		return manager == null ? null : manager.getCurrentFrame();
+	}
+
+	void setMeAsLastGraphicManager() { // makes this the current graphic manager for job queue and dialogs
+		MANAGER_REGISTRY.activate(this);
+		if (jobQueue != null)
+			SessionFactory.getInstance().setJobQueue(getJobQueue());
+
+	}
+
+
+
+	public static LinkedList<GraphicManager> getGraphicManagers() {
+		return new LinkedList<>(MANAGER_REGISTRY.snapshot());
+	}
+
+	public GraphicManager(Container container) throws HeadlessException {
+		this(container, null, null, null);
+	}
+
+	GraphicManager(Container container, java.nio.file.Path workspaceRoot,
+			com.microproject.application.AutoRecoveryStore recoveryStore, java.util.prefs.Preferences recoveryPreferences) throws HeadlessException {
+		if ((workspaceRoot == null || recoveryStore == null || recoveryPreferences == null)
+				&& (workspaceRoot != null || recoveryStore != null || recoveryPreferences != null))
+			throw new IllegalArgumentException("Test workspace, recovery store and preferences must be supplied together");
+		AssignmentCalendarWarningPresenter.install();
+		DependencyWarningPresenter.install();
+		MANAGER_REGISTRY.register(this);
+		container.addFocusListener(new FocusListener() {
+
+			public void focusGained(FocusEvent e) {
+				setMeAsLastGraphicManager();
+			}
+
+			public void focusLost(FocusEvent e) {
+			}});
+
+		projectFactory = ProjectFactory.getInstance();
+		try {
+			boolean opened = workspaceRoot == null
+				? projectArtifactLifecycleCoordinator.openDefaultWorkspace(LocalSession.MPO_PROJECT_IMPORTER)
+				: projectArtifactLifecycleCoordinator.ownWorkspace(LocalSession.MPO_PROJECT_IMPORTER,
+					com.microproject.application.TemporaryWorkspace.open(workspaceRoot,
+						com.microproject.application.TemporaryWorkspace.DEFAULT_RETENTION));
+			if (!opened)
+				logger.warning("No MPO project artifact lifecycle provider is registered");
+		} catch (IOException exception) {
+			if (workspaceRoot != null) throw new java.io.UncheckedIOException(exception);
+			// MPOF falls back to the same platform default when the workspace cannot
+			// be initialized; opening ordinary project files must remain available.
+			logger.log(Level.WARNING, "Unable to initialize temporary workspace", exception);
+		}
+		autoRecoveryManager = recoveryStore == null ? new AutoRecoveryManager(projectFactory, this)
+			: new AutoRecoveryManager(projectFactory, this, recoveryStore, java.util.Objects.requireNonNull(recoveryPreferences));
+		projectFactory.getPortfolio().addObjectListener(this);
+
+		this.container=container;
+		if (container instanceof Frame ownerFrame)
+			frame=ownerFrame;
+		if (container instanceof FrameHolder frameHolder)
+			frameHolder.setGraphicManager(this);
+		registerForMacOSXEvents();
+	}
+	public void cleanUp() {
+		cleanedUp = true;
+		// Discard any document-load completions already queued on the EDT before
+		// tearing down the frame manager they would otherwise target.
+		documentGeneration.advance();
+		autoRecoveryManager.stop();
+		if (!projectArtifactLifecycleCoordinator.closeAll(LocalSession.MPO_PROJECT_IMPORTER))
+			logger.warning("Unable to close MPO project artifacts: no lifecycle provider is registered");
+		projectArtifactLifecycleCoordinator.closeWorkspace();
+
+//		On quitting, a sleep interrupted exception (below) is thrown by Substance. Without changing the source
+//		java.lang.InterruptedException: sleep interrupted
+//		at java.lang.Thread.sleep(Native Method)
+//		at org.jvnet.substance.utils.FadeTracker$FadeTrackerThread.run(FadeTracker.java:210)
+//		I have submitted a bug report: https://substance.dev.java.net/issues/show_bug.cgi?id=155 with a proposed fix
+
+		projectFactory.getPortfolio().removeObjectListener(this);
+		if (frameManager != null)
+			frameManager.cleanUp();
+		// Portfolio events may already be queued on the EDT when a window closes.
+		// Mark this manager inactive before they are delivered; objectChanged()
+		// must never route a later project-open event into an emptied workspace.
+		frameManager = null;
+		MANAGER_REGISTRY.remove(this);
+		if (MANAGER_REGISTRY.isEmpty())
+			getLafManager().clean();
+
+		if (jobQueue != null)
+			jobQueue.cancel();
+		jobQueue = null;
+	}
+
+	public LafManager getLafManager(){
+		if (lafManager==null)
+			lafManager=new LafManagerImpl(this);
+		return lafManager;
+	}
+
+
+
+	private String fileName = "../microproject_exchange/testdata/New Product.mpp"; //$NON-NLS-1$
+	private ViewAction resourceAction;
+
+    private static String getTabIdForProject(Project project) {
+    	if (project == null)
+    		return null;
+    	return "" + project.getUniqueId(); //see later //$NON-NLS-1$
+    }
+
+    void setTabNameAndTitle(DocumentFrame frame, Project project) {
+    	frame.setTabNameAndTitle(project);
+    }
+
+
+    public void switchToProject(long projectId) {
+    	Project project = ProjectFactory.getInstance().findFromId(projectId);
+    	if (project == null)
+    		return;
+		DocumentFrame f = getFrameForProject(project);
+    	if (f == null)
+    		return;
+    	setCurrentFrame(f);
+
+    }
+	public DocumentFrame getFrameForProject(Project project) {
+		if (project == null || frameManager == null)
+			return null;
+		NamedFrame frame = frameManager.getFrame(getTabIdForProject(project));
+		return frame instanceof DocumentFrame documentFrame && documentFrame.getProject() == project
+			? documentFrame : null;
+	}
+
+	private List<DocumentFrame> getOpenDocumentFrames() {
+		if (frameManager == null)
+			return List.of();
+		return frameManager.getDocumentFrames();
+	}
+	/** Finds an already-open document by canonical file identity. */
+	public DocumentFrame findFrameForProjectFile(String fileName) {
+		if (frameManager == null)
+			return null;
+		return frameManager.findFrameForProjectFile(fileName);
+	}
+
+	/** Activates a linked subproject in its own document view without duplicating its model. */
+	public boolean activateSubproject(SubProj reference) {
+		if (reference == null)
+			return false;
+		Project subproject = reference.getSubproject();
+		if (subproject == null && reference.getSubprojectFile() != null
+				&& !reference.getSubprojectFile().isBlank()) {
+			String linkedFile = reference.getSubprojectFile();
+			if (getCurrentFrame() != null && getCurrentFrame().getProject() != null
+					&& FilePathUtils.sameFileIdentity(getCurrentFrame().getProject().getFileName(), linkedFile))
+				return false;
+			boolean loadRequested = loadLocalDocument(linkedFile, false);
+			subproject = reference.getSubproject();
+			if (subproject == null) {
+				DocumentFrame loaded = findFrameForProjectFile(linkedFile);
+				if (loaded != null)
+					subproject = loaded.getProject();
+				else if (loadRequested)
+					return true; // The asynchronous load callback will create and activate the frame.
+			}
+		}
+		if (subproject == null)
+			return false;
+		DocumentFrame frame = getFrameForProject(subproject);
+		if (frame == null)
+			frame = addProjectFrame(subproject);
+		if (frame == null)
+			return false;
+		setCurrentFrame(frame);
+		return true;
+	}
+
+	/**
+	 * Removes a linked subproject from the current master without deleting the
+	 * linked file.  The model removal also detaches the materialized projection
+	 * and unregisters an in-memory child project, so a later insertion starts
+	 * from a clean reference rather than leaving orphaned projected tasks.
+	 */
+	public boolean removeLinkedSubproject(SubProj reference) {
+		if (reference == null || getCurrentFrame() == null || getCurrentFrame().getProject() == null)
+			return false;
+		Project master = getCurrentFrame().getProject();
+		Node node = master.getTaskOutline().search(reference);
+		if (node == null)
+			return false;
+		master.getTaskOutline().remove(node, NodeModel.EVENT, true);
+		master.setGroupDirty(true);
+		repaintProject(master);
+		return true;
+	}
+
+	/**
+	 * Refreshes one linked child only when doing so cannot discard in-memory
+	 * edits.  A closed reference is opened through the established asynchronous
+	 * loader; an open clean child receives the same safe external-file merge used
+	 * by collaboration refreshes.
+	 */
+	public boolean refreshLinkedSubproject(SubProj reference) {
+		if (reference == null || getCurrentFrame() == null || getCurrentFrame().getProject() == null)
+			return false;
+		Project master = getCurrentFrame().getProject();
+		Project child = reference.getSubproject();
+		if (child == null) {
+			String linkedFile = reference.getSubprojectFile();
+			if (linkedFile == null || linkedFile.isBlank() || !new File(linkedFile).isFile()) {
+				reference.setLoadStatus(SubProj.LoadStatus.MISSING);
+				Alert.warn("The linked project file is missing. The master reference was kept so it can be repaired or removed.");
+				return false;
+			}
+			Node node = master.getTaskOutline().search(reference);
+			if (node == null)
+				return false;
+			ProjectFactory.getInstance().openSubproject(master, node, false);
+			return true;
+		}
+		if (child.needsSaving()) {
+			UnsavedSubprojectRefreshDecision decision = chooseUnsavedSubprojectRefreshDecision(child);
+			if (decision == UnsavedSubprojectRefreshDecision.CANCEL)
+				return false;
+			if (decision == UnsavedSubprojectRefreshDecision.SAVE) {
+				if (!saveLinkedSubproject(child))
+					return false;
+			} else if (!discardLinkedSubproject(master, reference, child)) {
+				return false;
+			}
+			child = reference.getSubproject();
+			if (child == null)
+				return false;
+		}
+		String fileName = child.getFileName();
+		if (fileName == null || fileName.isBlank()) {
+			Alert.warn("The linked project has no file location to refresh.");
+			return false;
+		}
+		ProjectMergeService.ApplyResult result = projectMergeService()
+				.applyExternalTaskUpdates(child, fileName, java.util.Collections.emptySet());
+		if (result.hasLoadFailure()) {
+			reference.setLoadStatus(subprojectLoadStatus(result.getLoadStatus()));
+			Alert.warn("The linked project could not be refreshed (" + result.getLoadStatus()
+					+ ")." + externalLoadFailureDetail(result.getLoadFailure())
+					+ " Its existing master projection remains available.");
+			return false;
+		}
+		if (result.hasChanges()) {
+			master.fireUpdateEvent(this, reference);
+			repaintProject(master);
+		}
+		reference.setLoadStatus(SubProj.LoadStatus.OPEN);
+		return true;
+	}
+
+	/** Factory seam for refresh recovery; production always uses the normal merge service. */
+	protected ProjectMergeService projectMergeService() {
+		return new ProjectMergeService();
+	}
+
+	/**
+	 * Refreshes each linked project of the active master.  References are
+	 * captured before refreshing because a Discard refresh can replace a child
+	 * project and its document frame.  Every iteration restores the master as
+	 * the active document, so a child frame can never redirect later refreshes.
+	 */
+	public boolean refreshLinkedSubprojects() {
+		if (getCurrentFrame() == null || getCurrentFrame().getProject() == null)
+			return false;
+		Project master = getCurrentFrame().getProject();
+		java.util.List<SubProj> references = new java.util.ArrayList<>();
+		for (Object task : master.getTasks())
+			if (task instanceof SubProj reference)
+				references.add(reference);
+		if (references.isEmpty())
+			return false;
+		DocumentFrame masterFrame = getFrameForProject(master);
+		boolean allRefreshed = true;
+		for (SubProj reference : references) {
+			if (masterFrame != null)
+				setCurrentFrame(masterFrame);
+			if (!refreshLinkedSubproject(reference))
+				allRefreshed = false;
+		}
+		if (masterFrame != null)
+			setCurrentFrame(masterFrame);
+		return allRefreshed;
+	}
+
+	private enum UnsavedSubprojectRefreshDecision { SAVE, DISCARD, CANCEL }
+
+	/** The safe default (including Escape) is Cancel; refresh must never discard edits implicitly. */
+	private UnsavedSubprojectRefreshDecision chooseUnsavedSubprojectRefreshDecision(Project child) {
+		if (GraphicsEnvironment.isHeadless())
+			return UnsavedSubprojectRefreshDecision.CANCEL;
+		Object[] options = { "Save", "Discard", "Cancel" };
+		int choice = PopupDialogSupport.showOptionDialog(getFrame(),
+				"The linked project '" + linkedProjectDisplayName(child)
+						+ "' has unsaved changes. Save them, discard them and reload from disk, or cancel refresh.",
+				"Refresh Linked Project", JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
+				null, options, options[2], JOptionPane.CLOSED_OPTION);
+		if (choice == 0)
+			return UnsavedSubprojectRefreshDecision.SAVE;
+		if (choice == 1)
+			return UnsavedSubprojectRefreshDecision.DISCARD;
+		return UnsavedSubprojectRefreshDecision.CANCEL;
+	}
+
+	private static String linkedProjectDisplayName(Project project) {
+		if (project == null)
+			return "";
+		if (project.getName() != null && !project.getName().isBlank())
+			return project.getName();
+		if (project.getFileName() != null && !project.getFileName().isBlank())
+			return new File(project.getFileName()).getName();
+		return "Untitled";
+	}
+
+	private boolean saveLinkedSubproject(Project child) {
+		String fileName = child.getFileName();
+		if (fileName == null || fileName.isBlank()) {
+			Alert.warn("The linked project has no file location to save.");
+			return false;
+		}
+		// Refresh is initiated on the EDT.  The generic synchronous save job
+		// waits for Swing callbacks and therefore deadlocks here.  MPO children
+		// can be written atomically without scheduling a nested Swing job.
+		if (FileHelper.isMpoFile(fileName)) {
+			var result = new ProjectPortCoordinator().saveProject(
+					LocalSession.MPO_PROJECT_IMPORTER, child, Path.of(fileName));
+			if (!result.succeeded()) {
+				logger.warning("Unable to save linked MPO project: " + result.diagnostics());
+				Alert.warn("The linked project could not be saved. Refresh was cancelled and its in-memory edits were retained.");
+				return false;
+			}
+			return true;
+		}
+		SaveOptions options = new SaveOptions();
+		options.setLocal(child.isLocal());
+		options.setFileName(fileName);
+		options.setSync(true);
+		ProjectFactory.getInstance().saveProject(child, options);
+		if (child.needsSaving()) {
+			Alert.warn("The linked project could not be saved. Refresh was cancelled and its in-memory edits were retained.");
+			return false;
+		}
+		return true;
+	}
+
+	/** Replaces the complete child model, rather than merging fields, after an explicit Discard. */
+	private boolean discardLinkedSubproject(Project master, SubProj reference, Project child) {
+		String fileName = child.getFileName();
+		ProjectMergeService.ExternalProjectLoadResult load = new ProjectMergeService().loadExternalProjectResult(fileName);
+		if (!load.isSuccess()) {
+			reference.setLoadStatus(subprojectLoadStatus(load.getStatus()));
+			Alert.warn("The linked project could not be reloaded (" + load.getStatus()
+					+ ")." + externalLoadFailureDetail(load.getCause())
+					+ " Its unsaved edits and master projection were retained.");
+			return false;
+		}
+		DocumentFrame sourceFrame = getFrameForProject(child);
+		if (!ProjectFactory.getInstance().replaceOpenSubproject(master, reference, load.getProject())) {
+			Alert.warn("The linked project could not be replaced safely. Its unsaved edits were retained.");
+			return false;
+		}
+		load.getProject().markSaved();
+		if (sourceFrame != null) {
+			// The replacement succeeded; now discard the old view and build one bound
+			// to the newly loaded child.  Keeping the old view until this point makes
+			// a failed replacement non-destructive.
+			closeProjectFrame(child);
+			addProjectFrame(reference.getSubproject());
+		}
+		master.setGroupDirty(true);
+		repaintProject(master);
+		return true;
+	}
+
+	private static SubProj.LoadStatus subprojectLoadStatus(ProjectMergeService.LoadStatus status) {
+		if (status == ProjectMergeService.LoadStatus.NOT_FOUND)
+			return SubProj.LoadStatus.MISSING;
+		if (status == ProjectMergeService.LoadStatus.INVALID_FILE)
+			return SubProj.LoadStatus.INVALID;
+		if (status == ProjectMergeService.LoadStatus.ACCESS_DENIED)
+			return SubProj.LoadStatus.ACCESS_DENIED;
+		return SubProj.LoadStatus.UNAVAILABLE;
+	}
+
+	static String externalLoadFailureDetail(Throwable cause) {
+		if (cause == null || cause.getMessage() == null || cause.getMessage().isBlank())
+			return "";
+		return " Details: " + cause.getMessage().replaceAll("[\\r\\n]+", " ").trim() + ".";
+	}
+
+	/** Prompts for a replacement file and repairs a missing master reference. */
+	public boolean locateLinkedSubproject(SubProj reference) {
+		if (reference == null)
+			return false;
+		String replacement = SessionFactory.getInstance().getLocalSession()
+				.chooseFileName(false, reference.getSubprojectFile());
+		return relinkMissingSubproject(reference, replacement);
+	}
+
+	/**
+	 * Replaces only the persisted path of an unloaded subproject reference.  This
+	 * leaves the master hierarchy intact, so a failed replacement can always be
+	 * retried or removed without losing other subprojects.
+	 */
+	public boolean relinkMissingSubproject(SubProj reference, String replacementFile) {
+		if (reference == null || getCurrentFrame() == null || getCurrentFrame().getProject() == null
+				|| reference.getSubproject() != null || replacementFile == null || replacementFile.isBlank())
+			return false;
+		Project master = getCurrentFrame().getProject();
+		File replacement;
+		try {
+			replacement = new File(replacementFile).getCanonicalFile();
+		} catch (java.io.IOException exception) {
+			Alert.error("The selected replacement project path is invalid.");
+			return false;
+		}
+		if (!replacement.isFile()) {
+			Alert.error("The selected replacement project file does not exist.");
+			return false;
+		}
+		String canonicalPath = replacement.getPath();
+		if (FilePathUtils.sameFileIdentity(master.getFileName(), canonicalPath)
+				|| (!FilePathUtils.sameFileIdentity(reference.getSubprojectFile(), canonicalPath)
+						&& master.getSubprojectHandler().hasSubprojectReference(canonicalPath))) {
+			Alert.error("The selected project is already referenced by this master project.");
+			return false;
+		}
+		long localId = SessionFactory.getInstance().getLocalSession().registerProjectFile(canonicalPath);
+		if (localId <= 0L) {
+			Alert.error(Messages.getString("Error.projectDoesNotExist"));
+			return false;
+		}
+		Task task = (Task) reference;
+		task.setSubprojectFile(canonicalPath);
+		task.setName(replacement.getName());
+		reference.setSubprojectUniqueId(localId);
+		reference.setLoadStatus(SubProj.LoadStatus.NOT_LOADED);
+		master.setDirty(true);
+		return refreshLinkedSubproject(reference);
+	}
+
+	protected void setCurrentFrame(DocumentFrame frame){
+		setCurrentFrame(frame, true);
+	}
+
+	private void setCurrentFrame(DocumentFrame frame, boolean requestNativeFocus){
+		if (frame instanceof DocumentFrame) {
+			DocumentFrame previousFrame = getCurrentFrame();
+			if (previousFrame != frame)
+				documentGeneration.advance();
+
+			if (requestNativeFocus)
+				getFrameManager().activateFrame(frame);
+			else
+				getFrameManager().activateFrameFromWindow(frame);
+			// Native window focus callbacks can repeat while this document is already
+			// selected. Keep the host's active/title state current, but avoid replaying
+			// document-selection listeners and the expensive ribbon/menu/view refresh.
+			if (!requestNativeFocus && previousFrame == frame) {
+				setTitle(false);
+				return;
+			}
+			if (previousFrame != null && projectListMenu != null&&!Environment.isPlugin()) {
+				previousFrame.getMenuItem().setSelected(false);
+			}
+
+			if (previousFrame != null&&!Environment.isPlugin())
+				previousFrame.refreshViewButtons(false); // disable buttons for old view
+			if (projectListMenu != null&&!Environment.isPlugin()) {
+				frame.getMenuItem().setSelected(true);
+			}
+			if (topTabs != null&&!Environment.isPlugin()) {
+				topTabs.setCurrentFrame(frame);
+			}
+			DocumentSelectedEvent.fire(this,frame);
+			informationDialogCoordinator.documentSelected(new DocumentSelectedEvent(this,frame));
+
+			setTitle(false);
+			frame.refreshViewButtons(true);
+			updateRibbonContext(frame.getRibbonContextViewId());
+
+			if(!Environment.isPlugin()){
+				setEnabledDocumentMenuActions(true);
+				setButtonState(null,frame.getProject());
+				// Ribbon construction can be deferred until the frame is laid out;
+				// refresh once more after that registration point so the value is not
+				// lost behind the bundle's static button text.
+				SwingUtilities.invokeLater(this::refreshStatusDateControl);
+			}
+			if (frame.getProject() != null) {
+				if (!Environment.isPlugin()) frame.getFilterToolBarManager().transformBasedOnValue();
+				CalendarOption calendarOption = frame.getProject().getCalendarOption();
+
+				if (calendarOption != null) {
+					CalendarOption.setInstance(calendarOption);
+				}
+			} else {
+				CalendarOption.setInstance(CalendarOption.getDefaultInstance());
+			}
+		}
+	}
+
+	void setTitle(boolean isSaving) {
+		DocumentFrame dframe = getCurrentFrame();
+		Project project = dframe == null ? null : dframe.getProject();
+		String title = DocumentTitles.windowTitle(project, project == null ? null : project.getTitle(), isSaving);
+		FrameManager frameManager = getFrameManager();
+		if (dframe != null && frameManager != null && frameManager.setDocumentWindowTitle(dframe, title))
+			return;
+		Frame f=getFrame();
+		if (f != null) f.setTitle(title);
+
+	}
+    /**
+	 * Adds a new document frame and shows it
+	 * @param project
+	 * @return
+	 */
+
+	public DocumentFrame addProjectFrame(final Project project) {
+		if (project == null) // in case of out of memory error
+			return null;
+		DocumentFrame existing = getFrameForProject(project);
+		if (existing == null)
+			existing = findFrameForProjectFile(project.getFileName());
+		if (existing != null) {
+			setCurrentFrame(existing);
+			return existing;
+		}
+		String tabId = getTabIdForProject(project);
+		final DocumentFrame frame = new DocumentFrame(this,project,tabId);
+		if (frame == null) // in case of out memory error
+			return null;
+		getFrameManager().addFrame(frame);
+//		DocumentFrame newDocumentFrame = (DocumentFrame)getFrameManager().getFrame(tabId);
+
+		setTabNameAndTitle(frame,project);
+		frame.setShowTitleBar(false);
+		getFrameManager().showFrame(frame); // show the frame
+		frame.addNamedFrameListener(this); // main frame listens to changes in selection
+
+		project.addProjectListener(frame);
+
+
+		if (projectListMenu != null) {
+			JRadioButtonMenuItem mi = new JRadioButtonMenuItem(new SelectDocumentAction(frame));
+			mi.setSelected(true);
+			frame.setMenuItem(mi);
+			projectListMenu.add(mi);
+		}
+		setCurrentFrame(frame);
+		showDocumentRibbon();
+
+		// A secondary MainRibbonFrame is created while addFrame() is running,
+		// before the project is attached to the DocumentFrame.  Refresh all
+		// native window titles after the frame is fully registered so the
+		// secondary ribbon shell identifies the document it actually contains.
+		getFrameManager().update();
+		if (project.getFileName() != null) recentProjectStore.recordOpened(project.getFileName());
+
+		// clear filter/grouping/sort for newly opened or created project
+		if (!Environment.isPlugin())
+			SwingUtilities.invokeLater(() -> frame.getFilterToolBarManager().clear());
+		getMenuManager().setActionEnabled(ACTION_OPEN_PROJECT,frame==null || !frame.isEditingResourcePool()); //resource pool can not be opened at same time as another proj
+		getMenuManager().setActionEnabled(ACTION_RECENT_PROJECTS,frame==null || !frame.isEditingResourcePool());
+		return frame;
+	}
+
+	private String getCollaborationUserKey() {
+		return CollaborationUserIdentity.currentUserKey();
+	}
+
+	private void initializeCollaboration(Project project) {
+		if (project == null) {
+			return;
+		}
+		String fileName = project.getFileName();
+		if (!CollaborationMetadataStore.isMpoCollaborationCandidate(fileName)) {
+			return;
+		}
+		if (project.getCollaborationSession() != null) {
+			DocumentFrame frame = getFrameForProject(project);
+			if (frame != null && project.getCollaborationWorkspace() != null) {
+				frame.restoreWorkspace(project.getCollaborationWorkspace(), SavableToWorkspace.VIEW);
+				project.setCollaborationWorkspace(null);
+			}
+			return;
+		}
+		CollaborationSession session = CollaborationSession.create(project, fileName, getCollaborationUserKey());
+		if (session == null) {
+			return;
+		}
+		try {
+			session.setExternalChangeNoticeHandler(message -> SwingUtilities.invokeLater(() -> Alert.warn(message)));
+			session.setExternalReloadHandler(new CollaborationSession.ExternalProjectReloadHandler() {
+				public void reload(Project changedProject) {
+					SwingUtilities.invokeLater(() -> refreshProjectFromExternalFile(changedProject));
+				}
+			});
+			project.setCollaborationSession(session);
+			project.setCollaborationWorkspace(session.loadWorkspace());
+			session.start();
+		} catch (RuntimeException e) {
+			logger.log(java.util.logging.Level.WARNING, "Collaboration could not be initialized for " + fileName, e);
+			session.stop();
+			project.setCollaborationSession(null);
+			project.setCollaborationWorkspace(null);
+			return;
+		}
+		DocumentFrame frame = getFrameForProject(project);
+		if (frame != null && session.hasWorkspaceConflictNotice()) {
+			frame.statusBar.setMessage(WORKSPACE_CONFLICT_STATUS);
+		}
+		if (frame != null && project.getCollaborationWorkspace() != null) {
+			frame.restoreWorkspace(project.getCollaborationWorkspace(), SavableToWorkspace.VIEW);
+			project.setCollaborationWorkspace(null);
+		}
+	}
+
+	private void persistCollaborationWorkspace(Project project) {
+		if (project == null) {
+			return;
+		}
+		CollaborationSession session = project.getCollaborationSession();
+		if (session == null) {
+			return;
+		}
+		DocumentFrame frame = getFrameForProject(project);
+		if (frame != null) {
+			WorkspaceSetting workspace = frame.createWorkspace(SavableToWorkspace.VIEW);
+			project.setCollaborationWorkspace(workspace);
+			boolean saved = session.saveWorkspace(workspace);
+			if (session.hasWorkspaceConflictNotice()) {
+				frame.statusBar.setMessage(WORKSPACE_CONFLICT_STATUS);
+			} else if (saved) {
+				frame.statusBar.clearMessageIfEquals(WORKSPACE_CONFLICT_STATUS);
+			}
+		}
+	}
+
+	/** Captures every open document's layout while its frame still exists; a failure never blocks quitting. */
+	private void persistOpenCollaborationWorkspaces() {
+		for (DocumentFrame frame : getOpenDocumentFrames()) {
+			try {
+				persistCollaborationWorkspace(frame.getProject());
+			} catch (RuntimeException e) {
+				logger.log(Level.WARNING, "Workspace could not be saved on quit", e);
+			}
+		}
+	}
+
+	private void refreshProjectFromExternalFile(Project project) {
+		if (project == null || project.getFileName() == null) {
+			return;
+		}
+		CollaborationSession session = project.getCollaborationSession();
+		if (!isActiveProject(project)) {
+			return;
+		}
+		String fileName = project.getFileName();
+		Set<Long> lockedTaskIds = null;
+		CollaborationSession.ExternalProjectRefreshLease refreshLease = null;
+		if (session != null) {
+			try {
+				refreshLease = session.beginExternalProjectRefresh();
+				lockedTaskIds = refreshLease.getLockedTaskIds();
+			} catch (RuntimeException leaseCheckFailure) {
+				session.afterExternalProjectRefreshFailure();
+				if (session.shouldWarnExternalProjectRefreshFailure()) {
+					DocumentFrame frame = getFrameForProject(project);
+					if (frame != null) frame.statusBar.setMessage("Collaboration locks could not be checked; external refresh will retry.");
+				}
+				logger.log(Level.FINE, "External project refresh deferred because collaboration locks could not be checked for " + fileName, leaseCheckFailure);
+				return;
+			}
+		}
+		try {
+			ProjectMergeService.ApplyResult result = new ProjectMergeService().applyExternalTaskUpdates(project, fileName, lockedTaskIds);
+			if (session != null && !result.hasLoadFailure()) {
+				session.afterExternalProjectRefresh(refreshLease);
+			}
+			if (result.hasLoadFailure()) {
+				if (session != null) {
+					session.afterExternalProjectRefreshFailure();
+				}
+				logger.log(Level.WARNING, "External project refresh failed for " + fileName + " ("
+					+ result.getLoadStatus() + ")", result.getLoadFailure());
+				if (session == null || session.shouldWarnExternalProjectRefreshFailure()) {
+					String message = "External refresh failed (" + result.getLoadStatus() + "); change remains pending.";
+					DocumentFrame frame = getFrameForProject(project);
+					if (result.getLoadStatus() == ProjectMergeService.LoadStatus.TRANSIENT_FAILURE && frame != null) {
+						frame.statusBar.setMessage(message + " Retrying.");
+					} else {
+						Alert.warn("The external project could not be refreshed (" + result.getLoadStatus()
+							+ "). The change remains pending; retry or save a copy.");
+					}
+				}
+				return;
+			}
+			if (result.hasChanges()) {
+				repaintProject(project);
+			}
+			DocumentFrame frame = getFrameForProject(project);
+			if (frame != null) {
+				if (refreshLease != null && !refreshLease.getDirtyLostTaskIds().isEmpty()) {
+					frame.statusBar.setMessage("Unsaved changes remain on task(s) after a collaboration lock expired; external refresh kept them. Reacquire the lock and save or use Save Copy.");
+				} else {
+					frame.statusBar.setMessage(null);
+				}
+			}
+		} catch (RuntimeException | Error failure) {
+			if (session != null) session.afterExternalProjectRefreshFailure();
+			throw failure;
+		} finally {
+			if (refreshLease != null) refreshLease.close();
+		}
+	}
+
+	private boolean isActiveProject(Project project) {
+		DocumentFrame current = getCurrentFrame();
+		return current != null && project.equals(current.getProject());
+	}
+
+	private void repaintProject(Project project) {
+		DocumentFrame frame = getFrameForProject(project);
+		if (frame != null) {
+			frame.repaint();
+		}
+	}
+
+	private void closeProjectFrame(Project project) {
+		String tabId = getTabIdForProject(project);
+		DocumentFrame frame = getFrameForProject(project);
+		if (frame!=null){
+			boolean activeDocumentWasClosed = false;
+
+			if (getCurrentFrame() == frame){
+		    	frame.setVisible(false);
+				JMenuItem mi = frame.getMenuItem();
+				if (mi != null && projectListMenu != null)
+					projectListMenu.remove(mi);
+
+				List<DocumentFrame> openFrames = getOpenDocumentFrames();
+			    if (openFrames.size()<=1) {
+			    	frame.refreshViewButtons(false); // disable old buttons
+				    activeDocumentWasClosed = true;
+			        setEnabledDocumentMenuActions(false);
+			    } else{
+			        DocumentFrame current;
+			        int index=0;
+			        for (Iterator<DocumentFrame> i=openFrames.iterator();i.hasNext();index++){
+			            current=i.next();
+			            if (tabId.equals(getTabIdForProject(current.getProject())))
+			                break;
+			        }
+					setCurrentFrame(openFrames.get((index==0)?1:index-1));
+			    }
+			}
+			project.removeProjectListener(frame);
+			frame.removeNamedFrameListener(this); // main frame listens to changes in selection
+
+			getFrameManager().removeFrame(frame);
+			if (activeDocumentWasClosed) {
+				setTitle(false);
+				updateRibbonContext(null);
+			}
+			frame.onClose();
+
+
+		}
+		setAllButResourceDisabled(false);
+		getMenuManager().setActionEnabled(ACTION_OPEN_PROJECT,true); // no matter what, you can open a project after closing, since if you closed resource pool you can open after
+		getMenuManager().setActionEnabled(ACTION_RECENT_PROJECTS,true);
+	}
+	public String doRenameProjectDialog(String name,Set<String> projectNames,boolean saveAs) {
+		finishAnyOperations();
+		RenameProjectDialog renameProjectDialog = RenameProjectDialog.getInstance(getFrame(),null);
+		renameProjectDialog.getForm().setName(name);
+		renameProjectDialog.getForm().setProjectNames(projectNames);
+		renameProjectDialog.getForm().setSaveAs(saveAs);
+		if (renameProjectDialog.doModal())
+			return renameProjectDialog.getForm().getName();
+		return null;
+	}
+
+	public void doWelcomeDialog() {
+		//claur, for test purpose to preload a project
+		String preloadProject=ConfigurationFile.getProperty("preLoadProject"); 
+		if (preloadProject!=null){
+			loadLocalDocument(preloadProject,false);
+			return;
+		}
+
+		showWelcomeDialog(false);
+	}
+
+	public void doRecentProjectsDialog() {
+		showWelcomeDialog(true);
+	}
+
+	private void showWelcomeDialog(boolean focusRecentProjects) {
+		WelcomeDialog instance = focusRecentProjects
+			? WelcomeDialog.getRecentProjectsInstance(getFrame(),getMenuManager())
+			: WelcomeDialog.getInstance(getFrame(),getMenuManager());
+		if (instance.doModal()) {
+			waitInitialization();
+			if (instance.getForm().isCreateProject())
+				doNewProjectDialog();
+			else if (instance.getForm().isOpenProject()){
+				openLocalProject();
+			}else if (instance.getForm().getRecentPath() != null) {
+				loadLocalDocument(instance.getForm().getRecentPath(), false);
+			}else if (instance.getForm().getTemplateId() != null) {
+				createProjectFromTemplate(instance.getForm().getTemplateId());
+			}
+		}
+	}
+
+	private void createProjectFromTemplate(String templateId) {
+		Project project = projectFactory.createProject();
+		if (project == null) return;
+		String[][] definitions = switch (templateId) {
+			case "software" -> new String[][] {
+				{UsabilityStrings.text("template.software.backlog"), "2"},
+				{UsabilityStrings.text("template.software.architecture"), "3"},
+				{UsabilityStrings.text("template.software.implementation"), "10"},
+				{UsabilityStrings.text("template.software.test"), "5"},
+				{UsabilityStrings.text("template.software.release"), "0"} };
+			case "construction" -> new String[][] {
+				{UsabilityStrings.text("template.construction.site"), "5"},
+				{UsabilityStrings.text("template.construction.foundation"), "8"},
+				{UsabilityStrings.text("template.construction.structure"), "15"},
+				{UsabilityStrings.text("template.construction.utilities"), "8"},
+				{UsabilityStrings.text("template.construction.inspection"), "0"} };
+			default -> new String[][] {
+				{UsabilityStrings.text("template.basic.planning"), "2"},
+				{UsabilityStrings.text("template.basic.execution"), "5"},
+				{UsabilityStrings.text("template.basic.review"), "2"},
+				{UsabilityStrings.text("template.basic.complete"), "0"} };
+		};
+		project.setName(switch (templateId) {
+			case "software" -> UsabilityStrings.text("template.name.software");
+			case "construction" -> UsabilityStrings.text("template.name.construction");
+			default -> UsabilityStrings.text("template.name.basic");
+		});
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		NormalTask previous = null;
+		for (String[] definition : definitions) {
+			if (definition == null || definition.length == 0) {
+				// Malformed template row: skip instead of indexing past the array.
+				continue;
+			}
+			NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
+			task.setName(definition[0]);
+			long durationDays = templateTaskDurationDays(definition);
+			task.getCurrentSchedule().setStart(project.getStart());
+			task.setDuration(day * durationDays);
+			if (durationDays == 0) task.setMarkTaskAsMilestone(true);
+			if (previous != null) try { DependencyService.getInstance().newDependency(previous, task, DependencyType.Kind.FS, 0L, this); } catch (Exception ignored) { }
+			previous = task;
+		}
+		project.setDirty(true); project.recalculate();
+		// Keep template creation on the same frame-registration path as the
+		// interactive New Project command.  ProjectFactory registers the project
+		// with Portfolio asynchronously, so relying on that notification here can
+		// leave the newly created project without a visible document frame.
+		registerNewProjectFrame(project);
+	}
+
+	/**
+	 * Parses a template task duration (in days) from the task definition row.
+	 * A malformed token or a short row degrades to a zero-day (milestone) task
+	 * instead of crashing template creation with an uncaught
+	 * NumberFormatException / ArrayIndexOutOfBoundsException (issue #178).
+	 */
+	static long templateTaskDurationDays(String[] definition) {
+		if (definition == null || definition.length < 2) {
+			return 0L;
+		}
+		return parseTemplateDurationDays(definition[1]);
+	}
+
+	/**
+	 * Parses a template task duration (in days) from the template definition.
+	 * A malformed token degrades to a zero-day (milestone) task instead of
+	 * crashing template creation with an uncaught NumberFormatException
+	 * (issue #178).
+	 */
+	static long parseTemplateDurationDays(String token) {
+		if (token == null) {
+			return 0L;
+		}
+		try {
+			return Long.parseLong(token);
+		} catch (NumberFormatException e) {
+			logger.log(Level.WARNING, "Ignoring malformed template task duration ''{0}''", token);
+			return 0L;
+		}
+	}
+
+	/**
+	 * Keeps startup and document-open dialogs above the normal ribbon. The File
+	 * tab uses the same ribbon surface as every other tab.
+	 */
+	private void showDocumentRibbon() {
+		if (container instanceof MainRibbonFrame ribbonFrame) ribbonFrame.showProjectRibbon();
+	}
+
+	public boolean doNewProjectDialog() {
+		ProjectDialog.Form form=doNewProjectDialog1();
+		if (form==null) return false;
+		else return doNewProjectDialog2(form);
+	}
+	/** Creates a local master shell for linked subprojects. */
+	public boolean doNewMasterProjectDialog() {
+		ProjectDialog.Form form = doNewProjectDialog1();
+		if (form == null) return false;
+		configureMasterProjectForm(form);
+		return doNewProjectDialog2(form);
+	}
+
+	static void configureMasterProjectForm(ProjectDialog.Form form) {
+		if (form != null) form.setLocal(true);
+	}
+	public boolean doNewProjectNoDialog(HashMap opts) {
+		ProjectDialog.Form form=doNewProjectNoDialog1();
+		if (form==null) return false;
+		if (opts!=null){
+			Consumer<Object> updateViewClosure=(Consumer<Object>)opts.get("updateViewClosure");
+			if (updateViewClosure!=null) updateViewClosure.accept(form);
+		}
+		return doNewProjectDialog2(form);
+	}
+	public ProjectDialog.Form doNewProjectDialog1() {
+		addHistory("doNewProjectDialog");
+		finishAnyOperations();
+		ProjectDialog projectDialog = ProjectDialog.getInstance(getFrame(),null);
+		// Plugin and embedded hosts may intentionally have no user. The
+		// old unconditional dereference made the physical New button appear to do
+		// nothing because the EDT exception happened before the dialog was shown.
+		var user = Environment.getUser();
+		if (user != null)
+			projectDialog.getForm().setManager(user.getName());
+		if (!projectDialog.doModal())
+			return null; // if cancelled
+		return projectDialog.getForm();
+	}
+	protected static int project_suffix_count=1;
+//	protected static ProjectDialog.Form lastNewProjectForm;
+//	public ProjectDialog.Form getLastNewProjectForm() {
+//		return lastNewProjectForm;
+//	}
+	public ProjectDialog.Form doNewProjectNoDialog1() {
+		logger.fine("doNewProjectNoDialog1 begin");
+		addHistory("doNewProjectNoDialog");
+		finishAnyOperations();
+		ProjectDialog.Form form=new ProjectDialog.Form();
+		form.setName("Project"+(project_suffix_count++));
+//		lastNewProjectForm=form;
+		logger.fine("doNewProjectNoDialog1 end");
+		return form;
+	}
+	public boolean doNewProjectDialog2(ProjectDialog.Form form) {
+		showWaitCursor(true);
+		ResourcePool resourcePool=form.getResourcePool();
+		boolean local=form.isLocal();
+		if (resourcePool!=null) resourcePool.setLocal(local);
+		CreateOptions opt=new CreateOptions();
+		opt.setResourcePool(form.getResourcePool());
+		opt.setLocal(local);
+		opt.setName(form.getName());
+		opt.setAddResources(!local);
+		Project project = projectFactory.createProject(opt);
+		if (project == null) {
+			showWaitCursor(false);
+			return false;
+		}
+		try {
+			//createProject above might make a new resource pool, so make sur it is used when copying properties
+			//projectDialog.getForm().setResourcePool(project.getResourcePool());
+
+			project.setManager(form.getManager());
+			project.setName(form.getName());
+			project.setNotes(form.getNotes());
+			project.setForward(form.isForward());
+			project.setGroup(form.getGroup());
+			project.setDivision(form.getDivision());
+			project.setProjectTypeKind(form.getProjectTypeKind());
+			project.setProjectStatusKind(form.getProjectStatusKind());
+			project.setExpenseKind(form.getExpenseKind());
+
+			if (!form.isLocal()){
+				project.setAccessControlPolicy(form.getAccessControlType());
+				project.resetRoles(form.getAccessControlType()==0);
+			}
+
+
+			if (form.isLocal())
+				project.setLocal(true);
+			else project.setTemporaryLocal(true);
+			if (form.isResourcePoolProject()) {
+				project.setResourcePoolProject(true);
+				project.getResourcePool().setMaster(true);
+			}
+			if (resourcePool != null) {
+				for (Project poolProject : resourcePool.getProjects()) {
+					if (poolProject != project && poolProject.getFileName() != null) {
+						project.setSharedResourcePoolFile(poolProject.getFileName());
+						project.setResourcePoolTakesPrecedence(true);
+						break;
+					}
+				}
+			}
+			if (form.isForward())
+				project.setStartDate(form.getStartDate());
+			else
+				project.setFinishDate(form.getStartDate());
+			// copy any extra fields to the project
+			project.getExtraFields().putAll(form.getExtra().getExtraFields());
+		} catch (Exception propertyException) {
+			logger.log(Level.WARNING, "Failed to populate project from form", propertyException);
+		}
+		showWaitCursor(false);
+		// ProjectFactory registers the project asynchronously.  Do not make the
+		// visible document depend on that portfolio event: the event can arrive
+		// after this command returns (or be ignored while a secondary shell is
+		// being initialized).  addProjectFrame is idempotent and the later event
+		// will reuse the same frame.
+		registerNewProjectFrame(project);
+
+		return true;
+	}
+
+	/** Registers a freshly created project without waiting for Portfolio's event. */
+	void registerNewProjectFrame(Project project) {
+		if (project != null) addProjectFrame(project);
+	}
+
+	private boolean doingOpenDialog = false;
+	private void doInsertProjectDialog() {
+		if (doingOpenDialog) return;
+		DocumentFrame frame = getCurrentFrame();
+		Project project = frame == null ? null : frame.getProject();
+		if (project == null) return;
+		doingOpenDialog = true;
+		try {
+			finishAnyOperations();
+			insertLocalSubprojects(project);
+		} finally {
+			doingOpenDialog = false;
+		}
+	}
+
+	public void insertSubproject(final Project project, final long subprojectUniqueId,final boolean undo) {
+		insertSubproject(project, subprojectUniqueId, undo, false, null);
+	}
+
+	/** Called by an independent project window when it receives desktop focus. */
+	public void activateDocumentWindow(DocumentFrame frame) {
+		if (frame != null) setCurrentFrame(frame, false);
+	}
+
+	/** Routes a secondary desktop window close request through normal project close handling. */
+	public void closeDocumentWindow(DocumentFrame frame) {
+		if (frame == null || frame.getProject() == null)
+			return;
+		// A secondary title-bar close can be the first command received by a
+		// manager created through an alternate startup path.  Establish the same
+		// session/job-queue context used by ribbon and menu commands before the
+		// asynchronous project-removal job is built.
+		getJobQueue();
+		setMeAsLastGraphicManager();
+		Project project = frame.getProject();
+		boolean needsSaving = project.needsSaving();
+		closeProject(project);
+		// A freshly constructed secondary document may not yet be registered in
+		// the portfolio.  In that case removeProject has no delete event to drive
+		// the normal frame listener, but a clean document is safe to close now.
+		if (!needsSaving) {
+			releaseClosedProject(project);
+			Runnable removeFrame = () -> getFrameManager().removeFrame(frame);
+			if (SwingUtilities.isEventDispatchThread())
+				removeFrame.run();
+			else
+				SwingUtilities.invokeLater(removeFrame);
+		}
+	}
+
+	private void insertSubproject(final Project project, final long subprojectUniqueId, final boolean undo,
+			boolean readOnly) {
+		insertSubproject(project, subprojectUniqueId, undo, readOnly, null);
+	}
+
+	private void insertSubproject(final Project project, final long subprojectUniqueId, final boolean undo,
+			boolean readOnly, String linkedFileName) {
+		addHistory("insertSubproject", new Object[]{project.getName(),project.getUniqueId(),subprojectUniqueId});
+		Project openedAlready = ProjectFactory.getInstance().findFromId(subprojectUniqueId);
+
+		if (!project.getSubprojectHandler().canInsertProject(subprojectUniqueId)) {
+			Alert.error(Messages.getString("GraphicManager.SelectedProjectAlreadySubproject")); //$NON-NLS-1$
+			return;
+		}
+		if (openedAlready != null && openedAlready.isOpenedAsSubproject()) {
+			Alert.error(Messages.getString("GraphicManager.SelectedProjectAlreadyOpenedAsSubproject")); //$NON-NLS-1$
+			return;
+		}
+		SubProj subprojectTask = project.getSubprojectHandler().createSubProj(subprojectUniqueId);
+		((Task)subprojectTask).setDirty(true);
+		project.connectTask((Task)subprojectTask);
+		if (subprojectTask instanceof DefaultSubProj localSubproject) {
+			localSubproject.setSubprojectReadOnly(readOnly);
+			if (linkedFileName != null && !linkedFileName.isBlank()) {
+				localSubproject.setSubprojectFile(linkedFileName);
+				localSubproject.setName(new java.io.File(linkedFileName).getName());
+			}
+		}
+		Node subprojectNode = getCurrentFrame().addNodeForImpl(subprojectTask,NodeModel.EVENT);
+		ProjectFactory.getInstance().openSubproject(project, subprojectNode, true);
+
+		//Undo
+		if (undo){
+			UndoController undoContoller=project.getUndoController();
+			if (undoContoller.getEditSupport()!=null){
+				undoContoller.clear();
+				//undoContoller.getEditSupport().postEdit(new CreateSubprojectEdit(project,subprojectNode,subprojectUniqueId));
+			}
+		}
+
+	}
+
+
+
+	protected class CreateSubprojectEdit extends AbstractUndoableEdit{
+		private static final long serialVersionUID = 1270771120330978599L;
+
+		protected Project project;
+		protected final Node subprojectNode;
+		protected long subprojectUniqueId;
+
+
+		public CreateSubprojectEdit(Project project, final Node subprojectNode, long subprojectUniqueId) {
+			super();
+			this.project = project;
+			this.subprojectNode = subprojectNode;
+			this.subprojectUniqueId = subprojectUniqueId;
+		}
+		public void redo() throws CannotRedoException {
+			super.redo();
+			insertSubproject(project, subprojectUniqueId, false);
+		}
+		public void undo() throws CannotUndoException {
+			super.undo();
+			project.getTaskOutline().remove(subprojectNode,NodeModel.EVENT);
+
+//			UndoController undoContoller=project.getUndoController();
+//			if (undoContoller.getEditSupport()!=null){
+//				undoContoller.clear();
+//			}
+		}
+	}
+
+
+
+	private void doProjectInformationDialog() {
+		if (!isDocumentActive())
+			return;
+		DocumentFrame frame = getCurrentFrame();
+		Project project = frame.getProject();
+		if (!beforeProjectInformationRoute(project))
+			return;
+
+		informationDialogCoordinator.showProject(getFrame(), frame, project);
+
+	}
+
+	private enum InformationTargetKind { TASK, RESOURCE, PROJECT }
+	private enum InformationSelectionKind { NONE, TASK, RESOURCE, ASSIGNMENT, PROJECT, OTHER, MULTIPLE, HEADER }
+
+	/** Immutable target snapshot shared by every Information entry route. */
+	private record InformationTarget(InformationTargetKind kind, Task task,
+			Resource resource, Project project, boolean assignmentResourcesTab) {
+		static InformationTarget task(Task task, boolean assignmentResourcesTab) {
+			return new InformationTarget(InformationTargetKind.TASK, task, null, null,
+				assignmentResourcesTab);
+		}
+		static InformationTarget resource(Resource resource) {
+			return new InformationTarget(InformationTargetKind.RESOURCE, null, resource,
+				null, false);
+		}
+		static InformationTarget project(Project project) {
+			return new InformationTarget(InformationTargetKind.PROJECT, null, null, project,
+				false);
+		}
+	}
+
+	/** Immutable, typed view of the one selection used by both enablement and dispatch. */
+	private record InformationSelection(InformationSelectionKind kind, Task task,
+			Resource resource, Assignment assignment, Project project) {
+		static InformationSelection empty(InformationSelectionKind kind) {
+			return new InformationSelection(kind, null, null, null, null);
+		}
+		static InformationSelection of(Object impl) {
+			if (impl instanceof Task task)
+				return new InformationSelection(InformationSelectionKind.TASK, task, null, null, null);
+			if (impl instanceof Resource resource)
+				return new InformationSelection(InformationSelectionKind.RESOURCE, null, resource, null, null);
+			if (impl instanceof Assignment assignment)
+				return new InformationSelection(InformationSelectionKind.ASSIGNMENT, null, null, assignment, null);
+			if (impl instanceof Project project)
+				return new InformationSelection(InformationSelectionKind.PROJECT, null, null, null, project);
+			return empty(InformationSelectionKind.OTHER);
+		}
+		InformationTarget targetFor(boolean allowProject, boolean allowTask, boolean allowResource,
+				boolean taskMode, boolean resourceMode) {
+			return switch (kind) {
+			case TASK -> allowTask ? InformationTarget.task(task, false) : null;
+			case ASSIGNMENT -> {
+				if (allowTask && taskMode)
+					yield InformationTarget.task(assignment.getTask(), true);
+				if (allowResource && resourceMode)
+					yield InformationTarget.resource(assignment.getResource());
+				yield null;
+			}
+			case RESOURCE -> allowResource ? InformationTarget.resource(resource) : null;
+			case PROJECT -> allowProject ? InformationTarget.project(project) : null;
+			default -> null;
+			};
+		}
+	}
+
+	/**
+	 * Resolves one selected node before ending an active cell edit.  The caller
+	 * receives an immutable model target, so ribbon focus changes and editor
+	 * teardown cannot silently redirect the Information command.
+	 */
+	private InformationSelection informationSelectionSnapshot() {
+		if (!isDocumentActive() || getCurrentFrame() == null)
+			return InformationSelection.empty(InformationSelectionKind.NONE);
+		DocumentFrame frame = getCurrentFrame();
+		SpreadSheet activeSheet = frame.getActiveSpreadSheet();
+		if (activeSheet != null && activeSheet.isHeaderColumnSelectionActive())
+			return InformationSelection.empty(InformationSelectionKind.HEADER);
+		if (activeSheet != null && activeSheet.getSelectedRows().length > 0) {
+			List<com.microproject.node.Node> activeSelection = activeSheet.getSelectedNodes();
+			if (activeSelection == null || activeSelection.isEmpty())
+				return InformationSelection.empty(InformationSelectionKind.NONE);
+			if (activeSelection.size() != 1)
+				return InformationSelection.empty(InformationSelectionKind.MULTIPLE);
+			Object impl = activeSelection.get(0).getImpl();
+			if (impl instanceof Task) {
+				List<com.microproject.node.Node> selectedTasks = frame.getSelectedTaskNodes(false, false);
+				if (selectedTasks.size() != 1 || selectedTasks.get(0).getImpl() != impl)
+					return InformationSelection.empty(InformationSelectionKind.NONE);
+			}
+			return InformationSelection.of(impl);
+		}
+		List<?> nodes = frame.getSelectedNodes(false);
+		if (isEmptySelection(nodes))
+			return InformationSelection.empty(InformationSelectionKind.NONE);
+		if (nodes.size() != 1)
+			return InformationSelection.empty(InformationSelectionKind.MULTIPLE);
+		if (!(nodes.get(0) instanceof Node node))
+			return InformationSelection.empty(InformationSelectionKind.NONE);
+		return InformationSelection.of(node.getImpl());
+	}
+
+	/** Execution-only wrapper; enablement calls the pure snapshot directly. */
+	private InformationTarget resolveInformationTarget(boolean allowProject,
+			boolean allowTask, boolean allowResource) {
+		InformationSelection selection = informationSelectionSnapshot();
+		if (selection.kind() == InformationSelectionKind.MULTIPLE)
+			Alert.warn(Messages.getString("Message.onlySelectOneElement"), getContainer()); //$NON-NLS-1$
+		InformationTarget target = selection.targetFor(allowProject, allowTask, allowResource,
+			taskType, resourceType);
+		if (target != null)
+			traceUi("information.selection snapshot kind=" + target.kind());
+		return target;
+	}
+
+	/** Canonical Information command: target snapshot, edit teardown, route, view. */
+	private void executeInformation(InformationTarget target, boolean notes) {
+		if (target == null)
+			return;
+		finishAnyOperations();
+		switch (target.kind()) {
+		case TASK:
+			if (!beforeTaskInformationRoute(target.task(), notes, target.assignmentResourcesTab()))
+				return;
+			openTaskInformation(target.task(), notes, target.assignmentResourcesTab());
+			break;
+		case RESOURCE:
+			if (!beforeResourceInformationRoute(target.resource(), notes))
+				return;
+			informationDialogCoordinator.showResource(getFrame(), getCurrentFrame(), target.resource(), notes);
+			break;
+		case PROJECT:
+			doProjectInformationDialog();
+			break;
+		default:
+			break;
+		}
+	}
+
+	public void doInformationDialog(boolean notes) {
+		executeInformation(resolveInformationTarget(true, true, true), notes);
+	}
+
+	public void doInformationDialog(Task task, boolean notes) {
+		if (task == null)
+			return;
+		// A Gantt double-click supplies the exact clicked task. Keep that explicit
+		// target even while focus/activation events are still settling.
+		setMeAsLastGraphicManager();
+		executeInformation(InformationTarget.task(task, false), notes);
+	}
+
+	/**
+	 * Opens task details without acquiring an edit lock.  Task Information is also
+	 * the inspection surface for read-only and collaboratively locked tasks; the
+	 * dialog's fields already enforce their individual read-only state.  Editing
+	 * commands acquire locks at the point where they change the model.
+	 */
+	private void openTaskInformation(Task task, boolean notes, boolean resourcesTab) {
+		if (task != null && !showTaskInformationDialog(task, notes, resourcesTab))
+			logger.warning("UI_BUTTON_FAILURE id=TaskInformation reason=dialog-not-visible taskId=" + task.getId());
+	}
+
+	/** Delegates task information dialog presentation to its lifecycle owner. */
+	private boolean showTaskInformationDialog(Task task, boolean notes, boolean resourcesTab) {
+		traceUi("task-information.dialog requested taskId=" + task.getId()
+			+ " existingDialog=" + (informationDialogCoordinator.hasTaskDialog())
+			+ " notes=" + notes + " resourcesTab=" + resourcesTab);
+		informationDialogCoordinator.showTask(getFrame(), getCurrentFrame(), task, notes, resourcesTab);
+		boolean visible = informationDialogCoordinator.isTaskDialogVisible();
+		if (visible) {
+			traceUi("task-information.dialog visible taskId=" + task.getId());
+		}
+		return visible;
+	}
+
+	/** Presents Task Information and reports whether its lifecycle owner made it visible. */
+	protected boolean presentTaskInformationDialog(Task task, boolean notes, boolean resourcesTab) {
+		return showTaskInformationDialog(task, notes, resourcesTab);
+	}
+
+	private void showTaskInformationForSelection(Action action, boolean notes) {
+		traceUi("task-information.command received notes=" + notes);
+		InformationTarget target = resolveInformationTarget(false, true, false);
+		if (target == null) {
+			publishTaskCommandOutcome(action,
+				RibbonCommandResult.rejected("RibbonTaskInformation", "no-selection")
+					.withSelectedTaskIds(selectedTaskIdsForActiveFrame()));
+			return;
+		}
+		finishAnyOperations();
+		if (!beforeTaskInformationRoute(target.task(), notes, target.assignmentResourcesTab())) {
+			publishTaskCommandOutcome(action, new RibbonCommandResult("RibbonTaskInformation",
+				RibbonCommandResult.Status.REJECTED, "route-rejected", List.of(target.task().getUniqueId()),
+				List.of(), ""));
+			return;
+		}
+		List<Long> selectedTaskIds = List.of(target.task().getUniqueId());
+		try {
+			boolean visible = presentTaskInformationDialog(target.task(), notes, target.assignmentResourcesTab());
+			RibbonCommandResult outcome = visible
+				? new RibbonCommandResult("RibbonTaskInformation", RibbonCommandResult.Status.DISPATCHED,
+					"", selectedTaskIds, List.of(), "")
+				: new RibbonCommandResult("RibbonTaskInformation", RibbonCommandResult.Status.FAILED,
+					"dialog-not-visible", selectedTaskIds, List.of(), "");
+			publishTaskCommandOutcome(action, outcome);
+		} catch (RuntimeException | Error failure) {
+			publishTaskCommandOutcome(action, RibbonCommandResult.failed("RibbonTaskInformation", failure)
+				.withSelectedTaskIds(selectedTaskIds));
+			throw failure;
+		}
+	}
+
+	private void showResourceInformationForSelection(boolean notes) {
+		executeInformation(resolveInformationTarget(false, false, true), notes);
+	}
+
+	protected boolean beforeActionRoute(String actionId) {
+		return false;
+	}
+
+	/**
+	 * Canonical task-command route shared by menu, ribbon, popup and shortcuts.
+	 * The frame owns the typed selection/precondition/mutation pipeline; this
+	 * manager only records the semantic result for diagnostics and enablement.
+	 */
+	private RibbonCommandResult dispatchTaskCommand(CommandId command) {
+		Objects.requireNonNull(command, "command");
+		if (getCurrentFrame() == null)
+			return RibbonCommandResult.rejected(command.actionId(), "no-active-document");
+		DocumentFrame frame = getCurrentFrame();
+		List<Long> selectedTaskIds = frame.getSelectedTaskIds();
+		RibbonCommandResult result = frame.routeTaskCommand(command);
+		if (result.status() == RibbonCommandResult.Status.DISPATCHED && result.selectedTaskIds().isEmpty())
+			return result.withSelectedTaskIds(selectedTaskIds);
+		return result;
+	}
+
+	private List<Long> selectedTaskIdsForActiveFrame() {
+		DocumentFrame frame = getCurrentFrame();
+		return frame == null ? List.of() : frame.getSelectedTaskIds();
+	}
+
+	private void publishTaskCommandOutcome(Action action, RibbonCommandResult result) {
+		if (result != null && getCurrentFrame() != null) {
+			DocumentFrame frame = getCurrentFrame();
+			result = result.withActiveView(frame.getTopViewId());
+		}
+		action.putValue(RibbonCommandResult.STATUS_ACTION_PROPERTY, result.status());
+		action.putValue(RibbonCommandResult.REASON_ACTION_PROPERTY, result.reason());
+		action.putValue(RibbonCommandResult.SELECTED_TASK_IDS_ACTION_PROPERTY, result.selectedTaskIds());
+		action.putValue(RibbonCommandResult.AFFECTED_TASK_IDS_ACTION_PROPERTY, result.affectedTaskIds());
+		action.putValue(RibbonCommandResult.RESULT_ACTION_PROPERTY, result);
+		action.putValue(RibbonCommandResult.ACTIVE_VIEW_ACTION_PROPERTY, result.activeViewId());
+		recordRibbonCommandResult(result);
+	}
+
+	protected boolean beforeExternalRoute(String routeId) {
+		return true;
+	}
+
+	/** Executes an external ribbon route and records its dispatch outcome. */
+	protected final RibbonCommandResult executeExternalRibbonCommand(String commandId, Runnable command) {
+		Objects.requireNonNull(command, "command");
+		if (Boolean.getBoolean("microproject.session.traceQueueLifecycle")) {
+			GraphicManager active = MANAGER_REGISTRY.getActiveManager();
+			logger.warning("EXTERNAL_COMMAND_START id=" + commandId + " manager=" + diagnosticIdentity(this)
+				+ " activeManager=" + diagnosticIdentity(active) + " cleanedUp=" + cleanedUp
+				+ " managerQueue=" + diagnosticIdentity(jobQueue) + " factoryQueue="
+				+ diagnosticIdentity(SessionFactory.getInstance().getJobQueue()) + " sessionQueue="
+				+ diagnosticIdentity(SessionFactory.getInstance().getLocalSession().getJobQueue()));
+		}
+		if (cleanedUp) {
+			RibbonCommandResult result = RibbonCommandResult.rejected(commandId, "manager-closed");
+			recordRibbonCommandResult(result);
+			logger.fine("Ignoring external command for a closed GraphicManager: " + commandId);
+			return result;
+		}
+		if (!beforeExternalRoute(commandId)) {
+			RibbonCommandResult result = RibbonCommandResult.rejected(commandId, "route-rejected");
+			recordRibbonCommandResult(result);
+			return result;
+		}
+		try {
+			command.run();
+			// Several File routes schedule work or show a modal dialog.  Returning
+			// from the listener only proves dispatch, not that a project was created,
+			// loaded, saved, or rendered; callers must record those semantic outcomes
+			// at their completion boundary.
+			RibbonCommandResult result = RibbonCommandResult.dispatched(commandId);
+			recordRibbonCommandResult(result);
+			return result;
+		} catch (RuntimeException | Error failure) {
+			RibbonCommandResult result = RibbonCommandResult.failed(commandId, failure);
+			recordRibbonCommandResult(result);
+			logger.log(Level.WARNING, "UI_COMMAND_FAILURE id=" + commandId + " reason=" + result.reason(), failure);
+			throw failure;
+		}
+	}
+
+	private static String diagnosticIdentity(Object value) {
+		return value == null ? "null" : value.getClass().getSimpleName() + "@"
+			+ Integer.toHexString(System.identityHashCode(value));
+	}
+
+	public RibbonCommandResult getLastRibbonCommandResult() {
+		return lastRibbonCommandResult;
+	}
+
+	/** Records a semantic outcome for a user gesture that has no Swing Action route. */
+	public RibbonCommandResult recordUserCommandOutcome(RibbonCommandResult result) {
+		Objects.requireNonNull(result, "result");
+		DocumentFrame frame = getCurrentFrame();
+		if (frame != null)
+			result = result.withActiveView(frame.getTopViewId());
+		recordRibbonCommandResult(result);
+		return result;
+	}
+
+	private void recordRibbonCommandResult(RibbonCommandResult result) {
+		lastRibbonCommandResult = result;
+		logger.fine("UI_COMMAND_RESULT id=" + result.commandId() + " status=" + result.status()
+			+ (result.reason().isEmpty() ? "" : " reason=" + result.reason())
+			+ " selectedTaskIds=" + result.selectedTaskIds()
+			+ " affectedTaskIds=" + result.affectedTaskIds()
+			+ " activeView=" + result.activeViewId());
+	}
+
+	protected boolean beforeViewSwitchRoute(String viewId) {
+		return true;
+	}
+
+	protected boolean beforeChooserRoute(String chooserId) {
+		return true;
+	}
+
+	protected boolean beforeFindRoute(Searchable searchable, Field field) {
+		return true;
+	}
+
+	protected boolean beforeToggleRoute(String actionId) {
+		return true;
+	}
+
+	protected boolean beforeProjectInformationRoute(Project project) {
+		return true;
+	}
+
+	protected boolean beforeProjectsDialogRoute(Project project) {
+		return true;
+	}
+
+	protected boolean beforeTaskInformationRoute(Task task, boolean notes, boolean resourcesTab) {
+		return true;
+	}
+
+	protected boolean beforeResourceInformationRoute(Resource resource, boolean notes) {
+		return true;
+	}
+
+	protected boolean beforeAssignResourcesRoute(DocumentFrame documentFrame) {
+		return true;
+	}
+
+	protected boolean beforeTimesheetRoute(DocumentFrame documentFrame) {
+		return true;
+	}
+
+	protected boolean beforeChangeWorkingTimeRoute(Project project, boolean restrict) {
+		return true;
+	}
+
+	protected boolean beforeCalendarOptionsRoute() {
+		return true;
+	}
+
+	protected boolean beforeUpdateTasksRoute(DocumentFrame documentFrame) {
+		return true;
+	}
+
+	protected boolean beforeUpdateProjectRoute(DocumentFrame documentFrame) {
+		return true;
+	}
+
+	protected boolean beforeMoveProjectRoute(DocumentFrame documentFrame) {
+		return true;
+	}
+
+	protected boolean beforeSaveBaselineRoute(DocumentFrame documentFrame) {
+		return true;
+	}
+
+	protected boolean beforeClearBaselineRoute(DocumentFrame documentFrame) {
+		return true;
+	}
+
+
+	public Action getAction(String key) throws MissingListenerException {
+		if (actionsMap == null)
+			addHandlers();
+
+		return actionsMap.requireAction(key, "mainFrame", getClass().getName()); //$NON-NLS-1$
+	}
+
+	public String getStringFromAction(Action action) throws MissingListenerException {
+		return actionsMap.getStringFromAction(action);
+	}
+
+	public void addHandlers() {
+		if (menuManager == null)
+			menuManager = MenuManager.getInstance(this);
+		actionsMap = new MenuActionsMap(menuManager);
+		menuManager.setRibbonDropDownSource(new TransformDropDownSource());
+		actionsMap.addHandler(ACTION_NEW_PROJECT, new NewProjectAction());
+		actionsMap.addHandler(ACTION_NEW_MASTER_PROJECT, new NewMasterProjectAction());
+		actionsMap.addHandler(ACTION_OPEN_PROJECT, new OpenProjectAction());
+		actionsMap.addHandler(ACTION_RECENT_PROJECTS, new RecentProjectsAction());
+		actionsMap.addHandler(ACTION_INSERT_PROJECT, new InsertProjectAction());
+		actionsMap.addHandler(ACTION_REFRESH_SUBPROJECTS, new RefreshSubprojectsAction());
+		actionsMap.addHandler(ACTION_OPEN_SUBPROJECT, new OpenSubprojectAction());
+		actionsMap.addHandler(ACTION_REMOVE_SUBPROJECT, new RemoveSubprojectAction());
+		actionsMap.addHandler(ACTION_EXIT, new ExitAction());
+		actionsMap.addHandler(ACTION_IMPORT_MSPROJECT, new ImportMSProjectAction());
+		actionsMap.addHandler(ACTION_EXPORT_MSPROJECT, new ExportMSProjectAction());
+		actionsMap.addHandler(ACTION_ABOUT_MICROPROJECT, new AboutAction());
+		actionsMap.addHandler(ACTION_MICROPROJECT, new MicroProjectAction());
+		actionsMap.addHandler(ACTION_MICROPROJECT_DOCUMENTATION, new HelpAction());
+		actionsMap.addHandler(ACTION_PROJECT_INFORMATION, new ProjectInformationAction());
+		actionsMap.addHandler(ACTION_DEFINE_CODE, new DefineCodeAction());
+		actionsMap.addHandler(ACTION_PROJECTS_DIALOG, new ProjectsDialogAction());
+		actionsMap.addHandler(ACTION_TEAM_FILTER, new TeamFilterAction());
+		actionsMap.addHandler(ACTION_DOCUMENTS, new DocumentsAction());
+		actionsMap.addHandler(ACTION_INFORMATION, new InformationAction());
+		actionsMap.addHandler("RibbonTaskInformation", new RibbonTaskInformationAction());
+		actionsMap.addHandler("RibbonTaskInspector", new RibbonTaskInspectorAction());
+		actionsMap.addHandler(ACTION_INSPECT_TASK, new InspectTaskAction());
+		actionsMap.addHandler(ACTION_SHOW_TASK_WARNINGS, new ShowTaskWarningsAction());
+		actionsMap.addHandler(ACTION_SHOW_TASK_SUGGESTIONS, new ShowTaskSuggestionsAction());
+		actionsMap.addHandler(ACTION_SHOW_IGNORED_PROBLEMS, new ShowIgnoredProblemsAction());
+		actionsMap.addHandler("RibbonResourceInformation", new RibbonResourceInformationAction());
+		actionsMap.addHandler(ACTION_NOTES, new NotesAction());
+		actionsMap.addHandler(ACTION_ASSIGN_RESOURCES, new AssignResourcesAction());
+		actionsMap.addHandler(ACTION_TIMESHEET, new TimesheetAction());
+
+		actionsMap.addHandler(ACTION_FIND, new FindAction());
+		actionsMap.addHandler(ACTION_GOTO, new GoToAction());
+		actionsMap.addHandler(ACTION_INSERT_TASK, new InsertTaskAction());
+		actionsMap.addHandler(ACTION_TASK_MODE_MANUAL, new TaskModeAction(true));
+		actionsMap.addHandler(ACTION_TASK_MODE_AUTOMATIC, new TaskModeAction(false));
+		actionsMap.addHandler(ACTION_INACTIVATE_TASK, new InactivateTaskAction());
+		actionsMap.addHandler(CommandId.RESPECT_LINKS.actionId(), new RespectLinksAction());
+		actionsMap.addHandler("TaskSplit", new SplitTaskRibbonAction());
+		actionsMap.addHandler(ACTION_STATUS_DATE, new StatusDateAction());
+		actionsMap.addHandler(ACTION_MARK_ON_TRACK, new MarkOnTrackAction());
+		actionsMap.addHandler(ACTION_PERCENT_COMPLETE_0, new PercentCompleteAction(CommandId.PERCENT_COMPLETE_0));
+		actionsMap.addHandler(ACTION_PERCENT_COMPLETE_25, new PercentCompleteAction(CommandId.PERCENT_COMPLETE_25));
+		actionsMap.addHandler(ACTION_PERCENT_COMPLETE_50, new PercentCompleteAction(CommandId.PERCENT_COMPLETE_50));
+		actionsMap.addHandler(ACTION_PERCENT_COMPLETE_75, new PercentCompleteAction(CommandId.PERCENT_COMPLETE_75));
+		actionsMap.addHandler(ACTION_PERCENT_COMPLETE_100, new PercentCompleteAction(CommandId.PERCENT_COMPLETE_100));
+		actionsMap.addHandler(ACTION_INSERT_MILESTONE, new InsertTaskKindAction(CommandId.INSERT_MILESTONE));
+		actionsMap.addHandler(ACTION_INSERT_SUMMARY, new InsertTaskKindAction(CommandId.INSERT_SUMMARY));
+		actionsMap.addHandler(ACTION_CLEAR_CONTENTS, new ClearContentsAction());
+		for (String fillAction : List.of(ACTION_FILL_DOWN, ACTION_FILL_UP, ACTION_FILL_LEFT, ACTION_FILL_RIGHT))
+			actionsMap.addHandler(fillAction, new FillAction(fillAction));
+		actionsMap.addHandler(ACTION_SELECT_ALL, new SelectAllAction());
+		actionsMap.addHandler(ACTION_INSERT_RESOURCE, new InsertResourceAction());
+		actionsMap.addHandler(ACTION_SAVE_PROJECT, new SaveProjectAction());
+		actionsMap.addHandler(ACTION_SAVE_PROJECT_AS, new SaveProjectAsAction());
+		actionsMap.addHandler(ACTION_SAVE_MPO_AS, new SaveMpoAsAction());
+		actionsMap.addHandler(ACTION_PRINT, new PrintAction());
+		actionsMap.addHandler(ACTION_PRINT_PREVIEW, new PrintPreviewAction());
+		actionsMap.addHandler(ACTION_PDF, new PDFAction());
+		actionsMap.addHandler(ACTION_CLOSE_PROJECT, new CloseProjectAction());
+		actionsMap.addHandler(ACTION_UNDO, new UndoAction());
+		actionsMap.addHandler(ACTION_REDO, new RedoAction());
+//		actionsMap.addHandler(ACTION_ENTERPRISE_RESOURCES, new EnterpriseResourcesAction());
+		actionsMap.addHandler(ACTION_CHANGE_WORKING_TIME, new ChangeWorkingTimeAction());
+		actionsMap.addHandler(ACTION_LEVEL_RESOURCES, new LevelResourcesAction());
+		actionsMap.addHandler(ACTION_LEVEL_ALL, new LevelAllAction());
+		actionsMap.addHandler(ACTION_LEVEL_SELECTION, new LevelSelectionAction());
+		actionsMap.addHandler(ACTION_CLEAR_LEVEL_ALL, new ClearLevelAllAction());
+		actionsMap.addHandler(ACTION_CLEAR_LEVEL_SELECTION, new ClearLevelSelectionAction());
+		actionsMap.addHandler(ACTION_NEXT_OVERALLOCATION, new NextOverallocationAction());
+		actionsMap.addHandler(ACTION_USE_RESOURCE_POOL, new UseResourcePoolAction());
+		actionsMap.addHandler(ACTION_CREATE_RESOURCE_POOL, new CreateResourcePoolAction());
+		actionsMap.addHandler(ACTION_REFRESH_RESOURCE_POOL, new RefreshResourcePoolAction());
+		actionsMap.addHandler(ACTION_CCPM_SETTINGS, new CCPMSettingsAction());
+		actionsMap.addHandler(ACTION_CCPM_CLEAR, new CCPMClearAction());
+		actionsMap.addHandler(ACTION_CCPM_BUFFER_STATUS, new CCPMBufferStatusAction());
+		actionsMap.addHandler(ACTION_CCPM_NETWORK, new CCPMNetworkAction());
+		actionsMap.addHandler(ACTION_TOGGLE_CRITICAL_CHAIN, new ToggleCriticalChainAction());
+		actionsMap.addHandler(ACTION_DELEGATE_TASKS, new DelegateTasksAction());
+		actionsMap.addHandler(ACTION_TIMELINE, new TimelineAction());
+		actionsMap.addHandler(ACTION_CALENDAR_VIEW, new ViewAction(ACTION_CALENDAR_VIEW));
+		actionsMap.addHandler(ACTION_CUSTOM_REPORT, new CustomReportAction());
+		actionsMap.addHandler(ACTION_UPDATE_TASKS, new UpdateTasksAction());
+		actionsMap.addHandler(ACTION_UPDATE_PROJECT, new UpdateProjectAction());
+		actionsMap.addHandler(ACTION_MOVE_PROJECT, new MoveProjectAction());
+		actionsMap.addHandler(ACTION_RECALCULATE, new RecalculateAction());
+		// Keep the legacy action id as a compatibility alias, but expose only the
+		// canonical Bar Styles command in the current ribbon/menu definition.
+		BarStylesAction barStylesAction = new BarStylesAction();
+		actionsMap.addHandler(ACTION_BAR, barStylesAction);
+		actionsMap.addHandler(ACTION_TIMESCALE, new TimescaleAction());
+		actionsMap.addHandler(ACTION_GRIDLINES, new GridlinesAction());
+		actionsMap.addHandler(ACTION_SHEET_GRIDLINES, new SheetGridlinesAction());
+		actionsMap.addHandler(ACTION_TEXT_STYLES, new TextStylesAction());
+		actionsMap.addHandler(ACTION_BAR_STYLES, barStylesAction);
+		actionsMap.addHandler(ACTION_LAYOUT, new LayoutAction());
+		// Gantt Chart Format contextual tab
+		actionsMap.addHandler(ACTION_GFMT_INSERT_COLUMN, sheetFormatAction(ACTION_GFMT_INSERT_COLUMN, view -> view.getSpreadSheet().insertColumnFromRibbon()));
+		actionsMap.addHandler(ACTION_GFMT_HIDE_COLUMN, sheetFormatAction(ACTION_GFMT_HIDE_COLUMN, view -> view.getSpreadSheet().hideColumnFromRibbon()));
+		actionsMap.addHandler(ACTION_GFMT_FIELD_SETTINGS, sheetFormatAction(ACTION_GFMT_FIELD_SETTINGS, view -> view.getSpreadSheet().showFieldSettingsFromRibbon()));
+		actionsMap.addHandler(ACTION_GFMT_ALIGN_LEFT, sheetFormatAction(ACTION_GFMT_ALIGN_LEFT, view -> view.getSpreadSheet().setColumnAlignment(view.getSpreadSheet().getRibbonFieldIndex(), SpreadSheetFieldArray.ALIGN_LEFT)));
+		actionsMap.addHandler(ACTION_GFMT_ALIGN_CENTER, sheetFormatAction(ACTION_GFMT_ALIGN_CENTER, view -> view.getSpreadSheet().setColumnAlignment(view.getSpreadSheet().getRibbonFieldIndex(), SpreadSheetFieldArray.ALIGN_CENTER)));
+		actionsMap.addHandler(ACTION_GFMT_ALIGN_RIGHT, sheetFormatAction(ACTION_GFMT_ALIGN_RIGHT, view -> view.getSpreadSheet().setColumnAlignment(view.getSpreadSheet().getRibbonFieldIndex(), SpreadSheetFieldArray.ALIGN_RIGHT)));
+		actionsMap.addHandler(ACTION_GFMT_FORMAT_BAR, ganttFormatAction(ACTION_GFMT_FORMAT_BAR, GanttView::showFormatBarDialog));
+		actionsMap.addHandler(ACTION_GFMT_CRITICAL_TASKS, ganttFormatAction(ACTION_GFMT_CRITICAL_TASKS, view -> view.setCriticalTasksVisible(!view.isCriticalTasksVisible())));
+		actionsMap.addHandler(ACTION_GFMT_SLACK, ganttFormatAction(ACTION_GFMT_SLACK, view -> view.setSlackVisible(!view.isSlackVisible())));
+		actionsMap.addHandler(ACTION_GFMT_LATE_TASKS, ganttFormatAction(ACTION_GFMT_LATE_TASKS, view -> view.setLateTasksVisible(!view.isLateTasksVisible())));
+		actionsMap.addHandler(ACTION_GFMT_BASELINE, ganttFormatAction(ACTION_GFMT_BASELINE, view -> view.setBaselineVisible(!view.isBaselineVisible())));
+		actionsMap.addHandler(ACTION_GFMT_SLIPPAGE, ganttFormatAction(ACTION_GFMT_SLIPPAGE, view -> view.setSlippageVisible(!view.isSlippageVisible())));
+		actionsMap.addHandler(ACTION_GFMT_OUTLINE_NUMBERS, sheetFormatAction(ACTION_GFMT_OUTLINE_NUMBERS, view -> view.setOutlineNumbersVisible(!view.isOutlineNumbersVisible())));
+		actionsMap.addHandler(ACTION_GFMT_SUMMARY_TASKS, summaryTasksAction());
+		registerNetworkCalendarFormatActions();
+		registerTimelineTeamPlannerFormatActions();
+		registerResourceGraphFormatActions();
+		actionsMap.addHandler(ACTION_NETWORK_LAYOUT_NOW, new MenuActionsMap.DocumentMenuAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) {
+				setMeAsLastGraphicManager();
+				if (!beforeToggleRoute(ACTION_NETWORK_LAYOUT_NOW)) return;
+				if (getActiveNetworkView() != null) getActiveNetworkView().layoutNow();
+			}
+		});
+		actionsMap.addHandler(ACTION_GFMT_PATH_PREDECESSORS, ganttFormatAction(ACTION_GFMT_PATH_PREDECESSORS, view -> view.setTaskPathKind(TaskPathAnalyzer.Kind.PREDECESSORS)));
+		actionsMap.addHandler(ACTION_GFMT_PATH_DRIVING_PREDECESSORS, ganttFormatAction(ACTION_GFMT_PATH_DRIVING_PREDECESSORS, view -> view.setTaskPathKind(TaskPathAnalyzer.Kind.DRIVING_PREDECESSORS)));
+		actionsMap.addHandler(ACTION_GFMT_PATH_SUCCESSORS, ganttFormatAction(ACTION_GFMT_PATH_SUCCESSORS, view -> view.setTaskPathKind(TaskPathAnalyzer.Kind.SUCCESSORS)));
+		actionsMap.addHandler(ACTION_GFMT_PATH_DRIVEN_SUCCESSORS, ganttFormatAction(ACTION_GFMT_PATH_DRIVEN_SUCCESSORS, view -> view.setTaskPathKind(TaskPathAnalyzer.Kind.DRIVEN_SUCCESSORS)));
+		actionsMap.addHandler(ACTION_GFMT_PATH_REMOVE, ganttFormatAction(ACTION_GFMT_PATH_REMOVE, view -> view.setTaskPathKind(null)));
+		actionsMap.addHandler(ACTION_GFMT_STYLE_DEFAULT, ganttFormatAction(ACTION_GFMT_STYLE_DEFAULT, view -> view.setBarColorScheme(GanttBarColorScheme.DEFAULT)));
+		actionsMap.addHandler(ACTION_GFMT_STYLE_BLUE, ganttFormatAction(ACTION_GFMT_STYLE_BLUE, view -> view.setBarColorScheme(GanttBarColorScheme.BLUE)));
+		actionsMap.addHandler(ACTION_GFMT_STYLE_GREEN, ganttFormatAction(ACTION_GFMT_STYLE_GREEN, view -> view.setBarColorScheme(GanttBarColorScheme.GREEN)));
+		actionsMap.addHandler(ACTION_GFMT_STYLE_ORANGE, ganttFormatAction(ACTION_GFMT_STYLE_ORANGE, view -> view.setBarColorScheme(GanttBarColorScheme.ORANGE)));
+		actionsMap.addHandler(ACTION_GFMT_STYLE_PURPLE, ganttFormatAction(ACTION_GFMT_STYLE_PURPLE, view -> view.setBarColorScheme(GanttBarColorScheme.PURPLE)));
+		actionsMap.addHandler(ACTION_GFMT_STYLE_GRAY, ganttFormatAction(ACTION_GFMT_STYLE_GRAY, view -> view.setBarColorScheme(GanttBarColorScheme.GRAY)));
+		// Usage Format tabs: detail rows of the usage grid
+		actionsMap.addHandler(ACTION_USAGE_DETAIL_WORK, usageDetailAction(ACTION_USAGE_DETAIL_WORK, "Field.work"));
+		actionsMap.addHandler(ACTION_USAGE_DETAIL_ACTUAL_WORK, usageDetailAction(ACTION_USAGE_DETAIL_ACTUAL_WORK, "Field.actualWork"));
+		actionsMap.addHandler(ACTION_USAGE_DETAIL_BASELINE_WORK, usageDetailAction(ACTION_USAGE_DETAIL_BASELINE_WORK, "Field.baselineWork"));
+		actionsMap.addHandler(ACTION_USAGE_DETAIL_CUMULATIVE_WORK, usageDetailAction(ACTION_USAGE_DETAIL_CUMULATIVE_WORK, "Field.cumulativeWork"));
+		actionsMap.addHandler(ACTION_USAGE_DETAIL_OVERALLOCATION, usageDetailAction(ACTION_USAGE_DETAIL_OVERALLOCATION, "Field.overallocation"));
+		actionsMap.addHandler(ACTION_USAGE_DETAIL_REMAINING_AVAILABILITY, usageDetailAction(ACTION_USAGE_DETAIL_REMAINING_AVAILABILITY, "Field.remainingAvailability"));
+		actionsMap.addHandler(ACTION_USAGE_DETAIL_COST, usageDetailAction(ACTION_USAGE_DETAIL_COST, "Field.cost"));
+		actionsMap.addHandler(ACTION_USAGE_DETAIL_ACTUAL_COST, usageDetailAction(ACTION_USAGE_DETAIL_ACTUAL_COST, "Field.actualCost"));
+		actionsMap.addHandler(ACTION_USAGE_DETAILS_ADD, new UsageDetailsAddAction());
+		actionsMap.addHandler(ACTION_INSERT_RECURRING, new RecurringTaskAction());
+		// Legacy menu ids remain aliases of the canonical transform commands.  A
+		// single action instance keeps menu, ribbon and toolbar behavior identical.
+		TransformAction filterTransform = new TransformAction(TransformComboBoxModel.FILTER);
+		TransformAction sortTransform = new SortOrderAction();
+		TransformAction groupTransform = new TransformAction(TransformComboBoxModel.GROUPER);
+		actionsMap.addHandler(ACTION_FILTER, filterTransform);
+		actionsMap.addHandler(ACTION_CHOOSE_FILTER, filterTransform);
+		actionsMap.addHandler(ACTION_SORT, sortTransform);
+		actionsMap.addHandler(ACTION_CHOOSE_SORT, sortTransform);
+		actionsMap.addHandler(ACTION_GROUP, groupTransform);
+		actionsMap.addHandler(ACTION_CHOOSE_GROUP, groupTransform);
+		actionsMap.addHandler(ACTION_CALENDAR_OPTIONS, new CalendarOptionsAction());
+		actionsMap.addHandler(ACTION_CALENDAR_VIEW_SETTINGS, new CalendarViewSettingsAction());
+		actionsMap.addHandler("GeneralOptions", new GeneralOptionsAction());
+		actionsMap.addHandler(ACTION_SAVE_BASELINE, new SaveBaselineAction());
+		actionsMap.addHandler(ACTION_CLEAR_BASELINE, new ClearBaselineAction());
+		actionsMap.addHandler(ACTION_LOCALE, new LocaleAction());
+		actionsMap.addHandler(ACTION_LINK, new LinkAction());
+		actionsMap.addHandler(ACTION_UNLINK, new UnlinkAction());
+		actionsMap.addHandler(ACTION_ZOOM_IN, new ZoomInAction());
+		actionsMap.addHandler(ACTION_ZOOM_OUT, new ZoomOutAction());
+		actionsMap.addHandler(ACTION_ZOOM_SELECTED_TASKS, new ZoomSelectedTasksAction());
+		actionsMap.addHandler(ACTION_ZOOM_ENTIRE_PROJECT, new ZoomEntireProjectAction());
+		actionsMap.addHandler(ACTION_SCROLL_TO_TASK, new ScrollToTaskAction());
+		actionsMap.addHandler(ACTION_SCROLL_TO_TODAY, new ScrollToTodayAction());
+		actionsMap.addHandler(ACTION_TOGGLE_PROGRESS_LINE, new ToggleProgressLineAction());
+		actionsMap.addHandler(ACTION_LABEL_RESOURCE_NAMES, new LabelResourceNamesAction());
+		actionsMap.addHandler(ACTION_LABEL_TASK_NAME, new LabelTaskNameAction());
+		actionsMap.addHandler(ACTION_INDENT, new IndentAction());
+		actionsMap.addHandler(ACTION_OUTDENT, new OutdentAction());
+		actionsMap.addHandler(ACTION_MOVE_TASK_UP, new MoveTaskUpAction());
+		actionsMap.addHandler(ACTION_MOVE_TASK_DOWN, new MoveTaskDownAction());
+		actionsMap.addHandler(ACTION_COLLAPSE, new CollapseAction());
+		actionsMap.addHandler(ACTION_EXPAND, new ExpandAction());
+		actionsMap.addHandler(ACTION_HIDE_SELECTED_TASKS, new HideSelectedTasksAction());
+		actionsMap.addHandler(ACTION_SHOW_ALL_TASKS, new ShowAllTasksAction());
+		actionsMap.addHandler(ACTION_CLEAR_FILTER, new ClearFilterAction());
+		actionsMap.addHandler(ACTION_TOGGLE_PRIVACY_MASK, new TogglePrivacyMaskAction());
+
+
+		actionsMap.addHandler(ACTION_CUT, new CutAction());
+		actionsMap.addHandler(ACTION_COPY, new CopyAction());
+		actionsMap.addHandler(ACTION_PASTE, new PasteAction());
+		actionsMap.addHandler("PasteSpecialAction", new PasteSpecialAction());
+		actionsMap.addHandler("CopyPictureAction", new CopyPictureAction());
+		actionsMap.addHandler("ReplaceAction", new ReplaceAction());
+		actionsMap.addHandler("QuickSortStartDate", new QuickSortAction("QuickSortStartDate", "Sorter.StartDate", "Field.start"));
+		actionsMap.addHandler("QuickSortFinishDate", new QuickSortAction("QuickSortFinishDate", "Sorter.FinishDate", "Field.finish"));
+		actionsMap.addHandler("QuickSortPriority", new QuickSortAction("QuickSortPriority", "Field.priority", "Field.priority"));
+		actionsMap.addHandler("QuickSortCost", new QuickSortAction("QuickSortCost", "Sorter.Cost", "Field.cost"));
+		actionsMap.addHandler("QuickSortId", new QuickSortAction("QuickSortId", null, "Field.id"));
+		actionsMap.addHandler(ACTION_PASTE_INSERT, new PasteInsertAction());
+		actionsMap.addHandler("RibbonFormatPainter", new FormatPainterAction());
+		actionsMap.addHandler(ACTION_BOLD, new TaskFontAction(ACTION_BOLD));
+		actionsMap.addHandler(ACTION_ITALIC, new TaskFontAction(ACTION_ITALIC));
+		actionsMap.addHandler(ACTION_FONT_COLOR, new TaskFontAction(ACTION_FONT_COLOR));
+		actionsMap.addHandler(ACTION_UNDERLINE, new TaskFontAction(ACTION_UNDERLINE));
+		actionsMap.addHandler(ACTION_BACKGROUND_COLOR, new TaskFontAction(ACTION_BACKGROUND_COLOR));
+		actionsMap.addHandler(ACTION_FONT_NAME, new TaskFontAction(ACTION_FONT_NAME));
+		actionsMap.addHandler(ACTION_FONT_SIZE, new TaskFontAction(ACTION_FONT_SIZE));
+		actionsMap.addHandler(CommandId.RESOURCE_LEVEL_RESOURCE.actionId(), new TaskRouteAction(CommandId.RESOURCE_LEVEL_RESOURCE));
+		for (CommandId moveCommand : TASK_ROUTED_COMMANDS)
+			actionsMap.addHandler(moveCommand.actionId(), new TaskRouteAction(moveCommand));
+		actionsMap.addHandler(ACTION_DELETE, new DeleteAction());
+
+		actionsMap.addHandler(ACTION_GANTT, new ViewAction(ACTION_GANTT));
+		actionsMap.addHandler(ACTION_TRACKING_GANTT, new ViewAction(ACTION_TRACKING_GANTT));
+		actionsMap.addHandler(ACTION_TASK_SHEET, new ViewAction(ACTION_TASK_SHEET));
+		actionsMap.addHandler(ACTION_TASK_USAGE_DETAIL, new ViewAction(ACTION_TASK_USAGE_DETAIL));
+		actionsMap.addHandler(ACTION_RESOURCE_USAGE_DETAIL, new ViewAction(ACTION_RESOURCE_USAGE_DETAIL));
+		actionsMap.addHandler(ACTION_NETWORK, new ViewAction(ACTION_NETWORK));
+		actionsMap.addHandler(ACTION_WBS, new ViewAction(ACTION_WBS));
+		actionsMap.addHandler(ACTION_RBS, new ViewAction(ACTION_RBS));
+		actionsMap.addHandler(ACTION_REPORT, new ViewAction(ACTION_REPORT));
+		actionsMap.addHandler(ACTION_PROJECTS, new ViewAction(ACTION_PROJECTS));
+		actionsMap.addHandler(ACTION_RESOURCES, resourceAction = new ViewAction(ACTION_RESOURCES));
+		actionsMap.addHandler(ACTION_HISTOGRAM, new ViewAction(ACTION_HISTOGRAM));
+		actionsMap.addHandler(ACTION_CHARTS, new ViewAction(ACTION_CHARTS));
+		actionsMap.addHandler(ACTION_TASK_USAGE, new ViewAction(ACTION_TASK_USAGE));
+		actionsMap.addHandler(ACTION_RESOURCE_USAGE, new ViewAction(ACTION_RESOURCE_USAGE));
+		actionsMap.addHandler(ACTION_DETAILS, new ViewAction(ACTION_DETAILS));
+		actionsMap.addHandler(ACTION_NO_SUB_WINDOW, new ViewAction(ACTION_NO_SUB_WINDOW));
+		actionsMap.addHandler(ACTION_ARRANGE_ALL, new ArrangeAllAction());
+		actionsMap.addHandler(ACTION_SWITCH_WINDOWS, new SwitchWindowsAction());
+		actionsMap.addHandler(ACTION_TEAM_PLANNER, new TeamPlannerAction());
+		actionsMap.addHandler(ACTION_RECENT_REPORTS, new RecentReportsAction());
+
+
+		actionsMap.addHandler(ACTION_PALETTE, new PaletteAction());
+		actionsMap.addHandler(ACTION_LOOK_AND_FEEL, new LookAndFeelAction());
+		actionsMap.addHandler(ACTION_FULL_SCREEN, new FullScreenAction());
+		actionsMap.addHandler(ACTION_REFRESH, new RefreshAction());
+
+
+	}
+
+	public class NewProjectAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			executeExternalRibbonCommand("newProject", () -> {
+				DocumentFrame current = getCurrentFrame();
+				Project project = current == null ? null : current.getProject();
+				if (project != null && project.needsSaving()) {
+					int choice = PopupDialogSupport.showConfirmDialog(getFrame(),
+						Messages.getString("Message.unsavedProject"),
+						Messages.getString("ProjectDialog.NewProject"),
+						JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
+					if (choice == JOptionPane.CANCEL_OPTION || choice == JOptionPane.CLOSED_OPTION) return;
+					if (choice == JOptionPane.YES_OPTION) {
+						afterSaveNewProject = GraphicManager.this::doNewProjectDialog;
+						if (!saveLocalProject(false)) afterSaveNewProject = null;
+						return;
+					}
+				}
+				doNewProjectDialog();
+			});
+		}
+		protected boolean allowed(boolean enable){
+			DocumentFrame dframe = getCurrentFrame();
+			return dframe == null || !dframe.isEditingResourcePool();
+		}
+	}
+
+	/** Explicit MSP-style entry point for creating a master project. */
+	public class NewMasterProjectAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			executeExternalRibbonCommand("newMasterProject", GraphicManager.this::doNewMasterProjectDialog);
+		}
+		protected boolean allowed(boolean enable) {
+			DocumentFrame dframe = getCurrentFrame();
+			return dframe == null || !dframe.isEditingResourcePool();
+		}
+	}
+
+	public class OpenProjectAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+
+			setMeAsLastGraphicManager();
+			executeExternalRibbonCommand("openProject", () -> {
+				openLocalProject();
+			});
+		}
+		protected boolean allowed(boolean enable){
+			DocumentFrame dframe = getCurrentFrame();
+			return dframe == null || !dframe.isEditingResourcePool();
+		}
+		protected boolean needsDocument() {
+			return  !allowed(true); // force it to be called iff the resource pool is open
+		}
+
+
+	}
+
+	public class RecentProjectsAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			String requested = arg0 == null ? null : arg0.getActionCommand();
+			if (isRecentProjectPath(requested)) {
+				String path = requested;
+				executeExternalRibbonCommand("openProject", () -> loadLocalDocument(path, false));
+			} else {
+				executeExternalRibbonCommand("openProject", GraphicManager.this::doRecentProjectsDialog);
+			}
+		}
+		/** A Backstage row passes the project path as the command value; a normal click does not. */
+		private boolean isRecentProjectPath(String value) {
+			if (value == null || value.isBlank()) return false;
+			try {
+				return java.nio.file.Path.of(value).isAbsolute();
+			} catch (RuntimeException invalidPath) {
+				return false;
+			}
+		}
+		protected boolean allowed(boolean enable){
+			DocumentFrame dframe = getCurrentFrame();
+			return dframe == null || !dframe.isEditingResourcePool();
+		}
+		protected boolean needsDocument() {
+			return !allowed(true);
+		}
+	}
+
+	public class InsertProjectAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			executeExternalRibbonCommand("insertProject", GraphicManager.this::doInsertProjectDialog);
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return isDocumentWritable();
+		}
+	}
+
+	public class ExitAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+		    closeApplication();
+		}
+	}
+
+	public class ImportMSProjectAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			executeExternalRibbonCommand("openProject", GraphicManager.this::openLocalProject);		}
+	}
+
+	public class ExportMSProjectAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			executeExternalRibbonCommand("saveAsProject", () -> saveLocalProject(true));		}
+	}
+
+	public class AboutAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			executeExternalRibbonCommand("about", GraphicManager.this::showAboutDialog);		}
+	}
+
+	public class MicroProjectAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			executeExternalRibbonCommand("microProject",
+				() -> BrowserControl.displayURL(UiLinkTargets.PROJECT_HOME));
+		}
+	}
+
+	public class HelpAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			executeExternalRibbonCommand("help", GraphicManager.this::showHelpDialog);		}
+	}
+
+	public class ProjectInformationAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			finishAnyOperations();
+			doProjectInformationDialog();
+		}
+	}
+
+	public class ProjectsDialogAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (!beforeProjectsDialogRoute(getCurrentFrame().getProject())) return;
+			ProjectsDialog.show(GraphicManager.this);
+		}
+	}
+
+	public class TeamFilterAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			GlobalPreferences preferences=getPreferences();
+			//Field field = Configuration.getFieldFromId("Field.showProjectResourcesOnly");
+			boolean teamOnly=!preferences.isShowProjectResourcesOnly();
+			//field.setValue(preferences,this,teamOnly);
+			preferences.setShowProjectResourcesOnly(teamOnly);
+			List<AbstractButton> buttons = getMenuManager().getToolBarFactory().getButtonsFromId("TeamFilter"); //$NON-NLS-1$
+			if (buttons!=null){
+				for (AbstractButton button : buttons) {
+					if (Environment.isNewLook())
+						button.setIcon(IconManager.getIcon(teamOnly?"menu24.showTeamResources":"menu24.showAllResources")); //$NON-NLS-1$ //$NON-NLS-2$
+					else
+						button.setIcon(IconManager.getIcon(teamOnly?"menu.showTeamResourcesSmall":"menu.showAllResourcesSmall")); //$NON-NLS-1$ //$NON-NLS-2$
+				}
+			}
+			menuManager.setActionSelected(ACTION_TEAM_FILTER,teamOnly);
+
+
+		}
+	}
+	public class DocumentsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive())
+				return;
+			invokeFieldAction(ACTION_DOCUMENTS,getCurrentFrame().getProject());
+		}
+	}
+
+	private boolean isEnabledFieldAction(String action, Object obj) {
+		Field f = FieldDictionary.getInstance().getActionField(ACTION_DOCUMENTS);
+		return (obj != null && f != null && f.getValue(obj,null) != null);
+
+	}
+	private void invokeFieldAction(String action, Object obj) {
+		Field f = FieldDictionary.getInstance().getActionField(ACTION_DOCUMENTS);
+		if (f != null)
+			f.invokeAction(obj);
+
+	}
+	public class CalendarOptionsAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (!beforeCalendarOptionsRoute()) return;
+			doCalendarOptionsDialog();
+		}
+	}
+
+	/** Opens the calendar view settings dialog; the Task Views group dialog launcher runs it. */
+	public class CalendarViewSettingsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive())
+				getCurrentFrame().doCalendarViewDialog();
+		}
+	}
+
+	/** Selection routing must tolerate a cleared table selection. */
+	static boolean isEmptySelection(List<?> nodes) {
+		return nodes == null || nodes.isEmpty();
+	}
+
+	public class GeneralOptionsAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			// The Quick Access Toolbar menu asks for its own category through the action command.
+			showPreferences(arg0 != null && PreferencesDialogBox.CATEGORY_QUICK_ACCESS.equals(arg0.getActionCommand())
+				? PreferencesDialogBox.CATEGORY_QUICK_ACCESS : PreferencesDialogBox.CATEGORY_GENERAL);
+		}
+	}
+
+
+	public class InformationAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			doInformationDialog(false);
+		}
+	}
+	public class RibbonTaskInformationAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			traceUi("task-information.ribbon actionPerformed source=" + describeUiObject(arg0.getSource()));
+			setMeAsLastGraphicManager();
+			showTaskInformationForSelection(this, false);
+		}
+	}
+	public class RibbonTaskInspectorAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			DocumentFrame frame = getCurrentFrame();
+			if (frame != null) frame.toggleTaskInspector();
+		}
+	}
+	public class InspectTaskAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			DocumentFrame frame = getCurrentFrame();
+			if (frame != null) frame.inspectTask();
+		}
+	}
+	public class ShowTaskWarningsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!beforeToggleRoute(ACTION_SHOW_TASK_WARNINGS)) return;
+			GlobalPreferences prefs = getPreferences();
+			prefs.setShowTaskWarnings(!prefs.isShowTaskWarnings());
+			syncTaskDiagnosticToggles();
+		}
+	}
+	public class ShowTaskSuggestionsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!beforeToggleRoute(ACTION_SHOW_TASK_SUGGESTIONS)) return;
+			GlobalPreferences prefs = getPreferences();
+			prefs.setShowTaskSuggestions(!prefs.isShowTaskSuggestions());
+			syncTaskDiagnosticToggles();
+		}
+	}
+	public class ShowIgnoredProblemsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			DocumentFrame frame = getCurrentFrame();
+			if (frame != null) frame.showIgnoredProblems();
+		}
+	}
+
+	/** Task context menu: opens the Task Inspector on the clicked task. */
+	public void fixTaskInInspector(Task task) {
+		DocumentFrame frame = getCurrentFrame();
+		if (frame != null && task != null) frame.fixTaskInInspector(task);
+	}
+
+	/** Task context menu: undoably sets Ignore Warnings on the clicked task. */
+	public void ignoreTaskProblems(Task task) {
+		DocumentFrame frame = getCurrentFrame();
+		if (frame != null && task != null) frame.setIgnoreWarnings(List.of(task), true);
+	}
+
+	private void syncTaskDiagnosticToggles() {
+		GlobalPreferences prefs = getPreferences();
+		getMenuManager().setActionSelected(ACTION_SHOW_TASK_WARNINGS, prefs.isShowTaskWarnings());
+		getMenuManager().setActionSelected(ACTION_SHOW_TASK_SUGGESTIONS, prefs.isShowTaskSuggestions());
+	}
+
+	public void setTaskModeAutomatic(Task task) {
+		DocumentFrame frame = getCurrentFrame();
+		if (frame == null || task == null || frame.getActiveSpreadSheet() == null) return;
+		List<Node> selected = frame.getSelectedTaskNodes(true, false);
+		if (selected.size() != 1 || selected.get(0).getImpl() != task) return;
+		publishTaskCommandOutcome(getMenuManager().getActionFromId(ACTION_TASK_MODE_AUTOMATIC),
+			dispatchTaskCommand(CommandId.TASK_MODE_AUTOMATIC));
+	}
+
+	public boolean canSetTaskModeAutomatic(Task task) {
+		DocumentFrame frame = getCurrentFrame();
+		if (frame == null || task == null || frame.getActiveSpreadSheet() == null || task.isReadOnly()) return false;
+		List<Node> selected = frame.getSelectedTaskNodes(true, false);
+		Action action = getMenuManager().getActionFromId(ACTION_TASK_MODE_AUTOMATIC);
+		return selected.size() == 1 && selected.get(0).getImpl() == task && action != null && action.isEnabled();
+	}
+	public class RibbonResourceInformationAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			showResourceInformationForSelection(false);
+		}
+	}
+	public class NotesAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			doInformationDialog(true);
+		}
+	}
+
+	public class AssignResourcesAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (!beforeAssignResourcesRoute(getCurrentFrame())) return;
+			showAssignmentDialog(getCurrentFrame());
+		}
+	}
+
+	public class TimesheetAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (!beforeTimesheetRoute(getCurrentFrame())) return;
+			showTimesheetDialog(getCurrentFrame());
+		}
+	}
+
+	public class SelectDocumentAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		DocumentFrame frame;
+		public SelectDocumentAction(DocumentFrame frame) {
+			this.frame = frame;
+		}
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			GraphicManager.this.setCurrentFrame(frame);
+		}
+		@Override
+		public Object getValue(String key) {
+			if (key == Action.NAME)
+				return frame.getProject().getName();
+			return super.getValue(key);
+		}
+	}
+
+	// Document actions
+	public class FindAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive()) {
+				String query = arg0.getSource() instanceof JTextField ? arg0.getActionCommand() : null;
+				Field field = query == null || query.isBlank() ? null : Configuration.getFieldFromId("Field.name");
+				doFind(getCurrentFrame().getTopSpreadSheet(), field, query);
+			}
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return getCurrentFrame() != null && getCurrentFrame().getActiveSpreadSheet() != null;
+		}
+	}
+
+	public class GoToAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive())
+				doFind(getCurrentFrame().getTopSpreadSheet(),Configuration.getFieldFromId("Field.id"));
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return getCurrentFrame() != null && getCurrentFrame().getActiveSpreadSheet() != null;
+		}
+	}
+
+	public class RecalculateAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive())
+				recalculateProject(getCurrentFrame().getProject());
+		}
+	}
+
+	void recalculateProject(Project project) {
+		if (project != null)
+			project.recalculate();
+	}
+
+	public class InsertTaskAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			// A visible MPOF frame may be transiently deactivated while its table is
+			// already ready.  Route by current frame identity; the frame performs the
+			// authoritative writable/selection checks.
+			publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.INSERT));
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return isDocumentWritable();
+		}
+	}
+
+	public class SaveProjectAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+				executeExternalRibbonCommand("saveProject", () -> saveLocalProject(false));
+
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			NamedFrame frame=getCurrentFrame();
+			if (frame==null) return false;
+			Project project=getCurrentFrame().getProject();
+			if (project==null) return false;
+			return true;
+		}
+	}
+
+	public class SaveProjectAsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+				Path folder = saveAsFolderFromCommand(arg0 == null ? null : arg0.getActionCommand());
+				executeExternalRibbonCommand("saveAsProject", () -> saveLocalProject(true, folder));
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			NamedFrame frame=getCurrentFrame();
+			if (frame==null) return false;
+			Project project=getCurrentFrame().getProject();
+			if (project==null) return false;
+			return (project.isSavable());
+//			return true;//!project.isLocal()&&!project.isMaster();
+		}
+	}
+
+	public class PrintAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			executeExternalRibbonCommand("print", () -> {
+				if (isDocumentActive()) print();
+			});
+		}
+	}
+	public class PrintPreviewAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			executeExternalRibbonCommand("printPreview", () -> {
+				if (isDocumentActive()) {
+					Component c = (Component)arg0.getSource();
+					Cursor cur = c.getCursor();
+					c.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+					printPreview();
+					c.setCursor(cur);
+				}
+			});
+		}
+	}
+	public class PDFAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+//claur - PDF enabled
+//			if (true) {
+//				PODOnlyFeature.doDialog(getFrame());
+//				return;
+//			}
+			setMeAsLastGraphicManager();
+			executeExternalRibbonCommand("pdf", () -> {
+				if (isDocumentActive()) {
+					Component c = (Component)arg0.getSource();
+					Cursor cur = c.getCursor();
+					c.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+					savePDF();
+					c.setCursor(cur);
+				}
+			});
+		}
+	}
+
+	public class CloseProjectAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			executeExternalRibbonCommand("closeProject", () -> {
+				if (isDocumentActive()) closeProject(getCurrentFrame().getProject());
+			});
+		}
+	}
+
+	public class UndoAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive()){
+				doUndoRedo(true);
+			}
+		}
+	}
+	public class RedoAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive()){
+				doUndoRedo(false);
+			}
+		}
+	}
+
+
+	public void doUndoRedo(boolean isUndo){
+		DocumentFrame frame=getCurrentFrame();
+		UndoController undoController=getUndoController();
+		Object[] args=null;
+		if (undoController!=null){
+			if (isUndo){
+	            String name=undoController.getUndoName();
+	            if (name!=null) args=new Object[]{true,name};
+			}else{
+	            String name=undoController.getRedoName();
+	            if (name!=null) args=new Object[]{false,name};
+			}
+		}
+		if (args==null) args=new Object[]{isUndo};
+		addHistory("doUndoRedo",args);
+		frame.doUndoRedo(isUndo);
+
+	}
+
+//	public class EnterpriseResourcesAction extends MenuActionsMap.DocumentMenuAction {
+//		public void actionPerformed(ActionEvent arg0) {
+//			if (isDocumentActive())
+//				getCurrentFrame().doEnterpriseResourcesDialog();
+//		}
+//	}
+
+	public class ChangeWorkingTimeAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			JDialog dlg = AbstractDialog.containedInDialog(arg0.getSource());
+			boolean restrict = dlg != null;
+			if (!beforeChangeWorkingTimeRoute(getCurrentFrame().getProject(), restrict)) return;
+			if (isDocumentActive())
+				getCurrentFrame().doChangeWorkingTimeDialog(restrict);
+		}
+	}
+
+	public class LevelResourcesAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive())
+				getCurrentFrame().doLevelResourcesDialog();
+		}
+	}
+
+	private final class LevelAllAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.RESOURCE_LEVEL_ALL));
+		}
+	}
+
+	private final class LevelSelectionAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.RESOURCE_LEVEL_SELECTION));
+		}
+	}
+
+	private final class ClearLevelAllAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.RESOURCE_CLEAR_LEVEL_ALL));
+		}
+	}
+
+	private final class ClearLevelSelectionAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.RESOURCE_CLEAR_LEVEL_SELECTION));
+		}
+	}
+
+	private final class NextOverallocationAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.NEXT_OVERALLOCATION));
+		}
+	}
+
+	/** Typed view-to-context contract; unsupported contexts remain absent rather than fake-enabled. */
+	static record ContextualRibbonDescriptor(String viewId, String tabId, String titleKey, boolean implemented) { }
+
+	static ContextualRibbonDescriptor contextualRibbonDescriptor(String topViewId) {
+		if (ACTION_GANTT.equals(topViewId))
+			return new ContextualRibbonDescriptor(topViewId, "FormatRibbonTask", "GanttChartFormat.contextualTitle", true);
+		if (ACTION_TRACKING_GANTT.equals(topViewId))
+			return new ContextualRibbonDescriptor(topViewId, "FormatRibbonTask", "TrackingGanttFormat.contextualTitle", true);
+		if (ACTION_TASK_SHEET.equals(topViewId))
+			return new ContextualRibbonDescriptor(topViewId, "TaskSheetFormatRibbonTask", "TaskSheetFormat.contextualTitle", true);
+		if (ACTION_NETWORK.equals(topViewId))
+			return new ContextualRibbonDescriptor(topViewId, "NetworkFormatRibbonTask", "NetworkFormat.contextualTitle", true);
+		if (ACTION_CALENDAR_VIEW.equals(topViewId))
+			return new ContextualRibbonDescriptor(topViewId, "CalendarFormatRibbonTask", "CalendarFormat.contextualTitle", true);
+		if (ACTION_TIMELINE.equals(topViewId))
+			return new ContextualRibbonDescriptor(topViewId, "TimelineFormatRibbonTask", "TimelineFormat.contextualTitle", true);
+		if (ACTION_DELEGATE_TASKS.equals(topViewId))
+			return new ContextualRibbonDescriptor(topViewId, "TeamPlannerFormatRibbonTask", "TeamPlannerFormat.contextualTitle", true);
+		if (ACTION_TASK_USAGE_DETAIL.equals(topViewId))
+			return new ContextualRibbonDescriptor(topViewId, "TaskUsageFormatRibbonTask", "TaskUsageFormat.contextualTitle", true);
+		if (ACTION_RESOURCES.equals(topViewId))
+			return new ContextualRibbonDescriptor(topViewId, "ResourceSheetFormatRibbonTask", "ResourceSheetFormat.contextualTitle", true);
+		if (ACTION_RESOURCE_USAGE_DETAIL.equals(topViewId))
+			return new ContextualRibbonDescriptor(topViewId, "ResourceUsageFormatRibbonTask", "ResourceUsageFormat.contextualTitle", true);
+		if (ACTION_HISTOGRAM.equals(topViewId))
+			return new ContextualRibbonDescriptor(topViewId, "ResourceGraphFormatRibbonTask", "ResourceGraphFormat.contextualTitle", true);
+		return new ContextualRibbonDescriptor(topViewId == null ? "" : topViewId, "", "", false);
+	}
+
+	/** Keeps the Format tab contextual, matching the active Project view. */
+	void updateRibbonContext(String topViewId) {
+		if (!(container instanceof MainRibbonFrame ribbonFrame)) return;
+		ContextualRibbonDescriptor descriptor = contextualRibbonDescriptor(topViewId);
+		ribbonFrame.setVisibleContextualRibbonTabs(descriptor.implemented()
+			? List.of(descriptor.tabId()) : List.of());
+		ribbonFrame.setContextualRibbonTabTitles(descriptor.implemented()
+			? Map.of(descriptor.tabId(), getMenuManager().getString(descriptor.titleKey())) : Map.of());
+		syncGanttViewRibbonState();
+	}
+
+	/** The view whose contextual tab applies: the Resource Graph while its lower pane is active, else the top view. */
+	public String getRibbonContextViewId() {
+		if (getCurrentFrame() == null)
+			return ACTION_GANTT;
+		return getCurrentFrame().getRibbonContextViewId();
+	}
+
+	/** The Resource Graph while it is the active pane of the current document, otherwise null. */
+	ChartView getActiveResourceGraphView() {
+		DocumentFrame frame = getCurrentFrame();
+		if (frame == null || frame.getProject() == null)
+			return null;
+		return frame.getActiveResourceGraphView();
+	}
+
+	/** Project-level entry point; the dialog owns preview, apply, and cancel semantics. */
+	public class CCPMSettingsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive()) getCurrentFrame().doCriticalChainDialog();
+		}
+	}
+
+	public class CCPMClearAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive() || !isDocumentWritable()) return;
+			finishAnyOperations();
+			if (!GraphicsEnvironment.isHeadless() && PopupDialogSupport.showConfirmDialog(getFrame(),
+				com.microproject.ui.dialog.UsabilityStrings.text("ccpm.clearPrompt"),
+				com.microproject.ui.dialog.UsabilityStrings.text("ccpm.clearTitle"),
+				JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.YES_OPTION) return;
+			Project project = getCurrentFrame().getProject();
+			new com.microproject.schedule.ccpm.CriticalChainService().clear(project);
+			getMenuManager().setActionSelected(ACTION_TOGGLE_CRITICAL_CHAIN, false);
+			getCurrentFrame().repaint();
+			setButtonState(null, project);
+		}
+	}
+
+	public class CCPMBufferStatusAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive()) {
+				rememberReport(ACTION_CCPM_BUFFER_STATUS);
+				com.microproject.ui.dialog.CriticalChainStatusDialogBox.show(
+					getFrame(), getCurrentFrame().getProject(), com.microproject.ui.dialog.CriticalChainStatusDialogBox.Surface.BUFFER_STATUS);
+			}
+		}
+	}
+
+	public class CCPMNetworkAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive()) com.microproject.ui.dialog.CriticalChainStatusDialogBox.show(
+				getFrame(), getCurrentFrame().getProject(), com.microproject.ui.dialog.CriticalChainStatusDialogBox.Surface.NETWORK);
+		}
+	}
+
+	public class ToggleCriticalChainAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive()) return;
+			Project project = getCurrentFrame().getProject();
+			com.microproject.schedule.ccpm.CriticalChainService service = new com.microproject.schedule.ccpm.CriticalChainService();
+			if (service.findSettings(project) == null || service.findBaseline(project) == null) return;
+			boolean visible = com.microproject.ui.view.gantt.CriticalChainDisplayState.toggle(project);
+			getMenuManager().setActionSelected(ACTION_TOGGLE_CRITICAL_CHAIN, visible);
+			getCurrentFrame().repaint();
+		}
+	}
+	public class DelegateTasksAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive())
+				getCurrentFrame().doDelegateTasksDialog();
+		}
+	}
+
+	public class UpdateTasksAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			DocumentFrame frame = getCurrentFrame();
+			if (!isDocumentActive() || frame == null) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected("RibbonUpdateTasks", "no-active-document"));
+				return;
+			}
+			if (!beforeUpdateTasksRoute(frame)) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected("RibbonUpdateTasks", "route-rejected"));
+				return;
+			}
+			List<Long> selectedTaskIds = frame.getSelectedTaskIds();
+			publishTaskCommandOutcome(this, RibbonCommandResult.dispatched("RibbonUpdateTasks")
+				.withSelectedTaskIds(selectedTaskIds));
+			try {
+				boolean accepted = frame.doUpdateTasksDialog();
+				RibbonCommandResult outcome = accepted
+					? RibbonCommandResult.dispatched("RibbonUpdateTasks")
+					: new RibbonCommandResult("RibbonUpdateTasks", RibbonCommandResult.Status.NO_CHANGE,
+						"dialog-cancelled");
+				publishTaskCommandOutcome(this, outcome.withSelectedTaskIds(selectedTaskIds));
+			} catch (RuntimeException | Error failure) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.failed("RibbonUpdateTasks", failure)
+					.withSelectedTaskIds(selectedTaskIds));
+				throw failure;
+			}
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return isDocumentWritable();
+		}
+	}
+	public class UpdateProjectAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (!beforeUpdateProjectRoute(getCurrentFrame())) return;
+			if (isDocumentActive()) {
+				// The confirmation dialog is modal and blocks this action until it
+				// closes. Publish the physical dispatch before entering it so every
+				// route exposes the same observable two-phase command lifecycle.
+				publishTaskCommandOutcome(this, RibbonCommandResult.dispatched(CommandId.UPDATE_PROJECT.actionId()));
+				publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.UPDATE_PROJECT));
+			}
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return isDocumentWritable();
+		}
+	}
+
+	public class DefineCodeAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive())
+				getCurrentFrame().doDefineCodeDialog();
+		}
+	}
+
+	public class TimescaleAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (!beforeChooserRoute(ACTION_TIMESCALE)) return;
+			showTimescaleChooser();
+		}
+	}
+	public class GridlinesAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (!beforeChooserRoute(ACTION_GRIDLINES)) return;
+			if (getActiveResourceGraphView() != null) {
+				actionsMap.getConcreteAction(ACTION_RESOURCE_GRAPH_GRIDLINES).actionPerformed(arg0);
+				return;
+			}
+			if (!GraphicsEnvironment.isHeadless())
+				com.microproject.ui.dialog.GridlinesDialogBox.show(getFrame(), getActiveGanttView());
+		}
+	}
+	/** Gridlines of a table view: the sheet has no chart lines, so the dialog only chooses whether the sheet grid shows. */
+	/** A Gantt view keeps its own gridline state (saved in the workspace), so it is set through the view. */
+	static void applySheetGridVisibility(BaseView sheetView, boolean visible) {
+		if (sheetView instanceof GanttView ganttView)
+			ganttView.setSpreadsheetGridVisible(visible);
+		else
+			sheetView.getSpreadSheet().setGridVisible(visible);
+	}
+	public class SheetGridlinesAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (!beforeChooserRoute(ACTION_SHEET_GRIDLINES)) return;
+			com.microproject.ui.dialog.CalendarViewDialogBox calendar = getActiveCalendarDialog();
+			if (calendar != null) {
+				if (GraphicsEnvironment.isHeadless()) return;
+				javax.swing.JCheckBox calendarGrid = new javax.swing.JCheckBox(
+					getMenuManager().getString("RibbonSheetGridlines.text"), calendar.isGridlinesVisible());
+				int answer = PopupDialogSupport.showConfirmDialog(getFrame(), calendarGrid,
+					getMenuManager().getString("RibbonSheetGridlines.text"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+				if (answer == JOptionPane.OK_OPTION) calendar.setGridlinesVisible(calendarGrid.isSelected());
+				return;
+			}
+			BaseView sheetView = getActiveSheetView();
+			if (sheetView == null || GraphicsEnvironment.isHeadless()) return;
+			javax.swing.JCheckBox visible = new javax.swing.JCheckBox(
+				getMenuManager().getString("RibbonSheetGridlines.text"), sheetView.getSpreadSheet().isGridVisible());
+			int choice = PopupDialogSupport.showConfirmDialog(getFrame(), visible,
+				getMenuManager().getString("RibbonSheetGridlines.text"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+			if (choice == JOptionPane.OK_OPTION) {
+				applySheetGridVisibility(sheetView, visible.isSelected());
+				syncGanttViewRibbonState();
+			}
+		}
+	}
+	public class TextStylesAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (!beforeChooserRoute(ACTION_TEXT_STYLES)) return;
+			if (getActiveResourceGraphView() != null) {
+				actionsMap.getConcreteAction(ACTION_RESOURCE_GRAPH_TEXT_STYLES).actionPerformed(arg0);
+				return;
+			}
+			if (getActiveTimelineDialog() != null) {
+				actionsMap.getConcreteAction(ACTION_TIMELINE_TEXT_STYLES).actionPerformed(arg0);
+				return;
+			}
+			if (getActiveTeamPlannerDialog() != null) {
+				actionsMap.getConcreteAction(ACTION_TEAM_PLANNER_TEXT_STYLES).actionPerformed(arg0);
+				return;
+			}
+			showTextStyleChooser();
+		}
+	}
+
+	/** Adapter of one Gantt Chart Format command: acts on the active Gantt view, then refreshes the ribbon state. */
+	private MenuActionsMap.DocumentMenuAction ganttFormatAction(String actionId, java.util.function.Consumer<GanttView> body) {
+		return new MenuActionsMap.DocumentMenuAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) {
+				setMeAsLastGraphicManager();
+				if (!beforeToggleRoute(actionId)) return;
+				GanttView view = getActiveGanttView();
+				if (view == null) return;
+				body.accept(view);
+				syncGanttViewRibbonState();
+			}
+		};
+	}
+
+	/** Adapter of one sheet Format command (Columns, Show/Hide): acts on the active spreadsheet-based view. */
+	private MenuActionsMap.DocumentMenuAction sheetFormatAction(String actionId, java.util.function.Consumer<BaseView> body) {
+		return new MenuActionsMap.DocumentMenuAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) {
+				setMeAsLastGraphicManager();
+				if (!beforeToggleRoute(actionId)) return;
+				BaseView view = getActiveSheetView();
+				if (view == null) return;
+				body.accept(view);
+				syncGanttViewRibbonState();
+			}
+		};
+	}
+
+	private String formatText(String key) {
+		return getMenuManager().getString(key);
+	}
+
+	/** A toggle of the Network Diagram Format tab, acting on the active Network view. */
+	private MenuActionsMap.DocumentMenuAction networkToggle(String actionId, java.util.function.Consumer<PertView> toggle) {
+		return new MenuActionsMap.DocumentMenuAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) {
+				setMeAsLastGraphicManager();
+				if (!beforeToggleRoute(actionId)) return;
+				PertView view = getActiveNetworkView();
+				if (view == null) return;
+				toggle.accept(view);
+				syncGanttViewRibbonState();
+			}
+		};
+	}
+
+	/** A dialog command of the Network Diagram Format tab: shows the panel and applies it on OK. */
+	private MenuActionsMap.DocumentMenuAction networkDialog(String actionId, String titleKey,
+			java.util.function.Function<PertView, NetworkCalendarFormatDialogs.OptionPanel> panelFactory, java.util.function.Consumer<PertView> afterApply) {
+		return new MenuActionsMap.DocumentMenuAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) {
+				setMeAsLastGraphicManager();
+				if (!beforeChooserRoute(actionId)) return;
+				PertView view = getActiveNetworkView();
+				if (view == null || GraphicsEnvironment.isHeadless()) return;
+				NetworkCalendarFormatDialogs.OptionPanel panel = panelFactory.apply(view);
+				int answer = PopupDialogSupport.showConfirmDialog(getFrame(), panel, formatText(titleKey),
+					JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+				if (answer != JOptionPane.OK_OPTION) return;
+				panel.apply();
+				afterApply.accept(view);
+				syncGanttViewRibbonState();
+			}
+		};
+	}
+
+	/** A command or toggle of the Calendar Format tab, acting on the active Calendar view. */
+	private MenuActionsMap.DocumentMenuAction calendarCommand(String actionId, boolean toggle,
+			java.util.function.Consumer<com.microproject.ui.dialog.CalendarViewDialogBox> run) {
+		return new MenuActionsMap.DocumentMenuAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) {
+				setMeAsLastGraphicManager();
+				if (!beforeToggleRoute(actionId)) return;
+				com.microproject.ui.dialog.CalendarViewDialogBox calendar = getActiveCalendarDialog();
+				if (calendar == null) return;
+				run.accept(calendar);
+				syncGanttViewRibbonState();
+			}
+		};
+	}
+
+	private MenuActionsMap.DocumentMenuAction calendarDialog(String actionId, String titleKey,
+			java.util.function.Function<com.microproject.ui.dialog.CalendarViewSettings, NetworkCalendarFormatDialogs.OptionPanel> panelFactory) {
+		return new MenuActionsMap.DocumentMenuAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) {
+				setMeAsLastGraphicManager();
+				if (!beforeChooserRoute(actionId)) return;
+				com.microproject.ui.dialog.CalendarViewDialogBox calendar = getActiveCalendarDialog();
+				if (calendar == null || GraphicsEnvironment.isHeadless()) return;
+				NetworkCalendarFormatDialogs.OptionPanel panel = panelFactory.apply(calendar.getSettings());
+				int answer = PopupDialogSupport.showConfirmDialog(getFrame(), panel, formatText(titleKey),
+					JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+				if (answer != JOptionPane.OK_OPTION) return;
+				panel.apply();
+				calendar.settingsChanged();
+				syncGanttViewRibbonState();
+			}
+		};
+	}
+
+	private void registerNetworkCalendarFormatActions() {
+		java.util.function.Function<String, String> text = this::formatText;
+		actionsMap.addHandler(ACTION_NETWORK_BOX_COLLAPSED, networkToggle(ACTION_NETWORK_BOX_COLLAPSED,
+			view -> view.setCollapsedBoxes(!view.getDisplayOptions().isCollapsed())));
+		actionsMap.addHandler(ACTION_NETWORK_LINK_LABELS, networkToggle(ACTION_NETWORK_LINK_LABELS,
+			view -> view.setLinkLabels(!view.getDisplayOptions().isLinkLabels())));
+		actionsMap.addHandler(ACTION_NETWORK_STRAIGHT_LINKS, networkToggle(ACTION_NETWORK_STRAIGHT_LINKS,
+			view -> view.setStraightLinks(!view.getDisplayOptions().isStraightLinks())));
+		actionsMap.addHandler(ACTION_NETWORK_PROGRESS_MARKS, networkToggle(ACTION_NETWORK_PROGRESS_MARKS,
+			view -> view.setProgressMarks(!view.getDisplayOptions().isProgressMarks())));
+		actionsMap.addHandler(ACTION_NETWORK_BOX_STYLES, networkDialog(ACTION_NETWORK_BOX_STYLES, "RibbonNetworkBoxStyles.text",
+			view -> NetworkCalendarFormatDialogs.boxStyles(view.getDisplayOptions(), java.util.List.of(com.microproject.ui.view.network.NetworkDisplayOptions.BoxType.values()), text),
+			PertView::repaintDiagram));
+		actionsMap.addHandler(ACTION_NETWORK_BOX_FORMAT, networkDialog(ACTION_NETWORK_BOX_FORMAT, "RibbonNetworkBoxFormat.text",
+			view -> NetworkCalendarFormatDialogs.boxStyles(view.getDisplayOptions(), selectedBoxTypes(), text),
+			PertView::repaintDiagram));
+		actionsMap.addHandler(ACTION_NETWORK_LAYOUT_OPTIONS, networkDialog(ACTION_NETWORK_LAYOUT_OPTIONS, "RibbonNetworkLayout.text",
+			view -> NetworkCalendarFormatDialogs.networkLayout(new NetworkCalendarFormatDialogs.NetworkLayoutChoice(
+				view.getDisplayOptions().isStraightLinks(), view.getDisplayOptions().getBoxSpacing(), view.isSummaryTasksVisible()), text,
+				choice -> view.applyLayoutChoice(choice.straight(), choice.spacing(), choice.summaryTasks())),
+			PertView::layoutNow));
+		actionsMap.addHandler(ACTION_CALENDAR_TEXT_STYLES, calendarDialog(ACTION_CALENDAR_TEXT_STYLES, "RibbonCalendarTextStyles.text",
+			settings -> NetworkCalendarFormatDialogs.calendarTextStyles(settings, text)));
+		actionsMap.addHandler(ACTION_CALENDAR_BAR_STYLES, calendarDialog(ACTION_CALENDAR_BAR_STYLES, "RibbonCalendarBarStyles.text",
+			settings -> NetworkCalendarFormatDialogs.calendarBarStyles(settings, text)));
+		actionsMap.addHandler(ACTION_CALENDAR_LAYOUT_OPTIONS, calendarDialog(ACTION_CALENDAR_LAYOUT_OPTIONS, "RibbonCalendarLayout.text",
+			settings -> NetworkCalendarFormatDialogs.calendarLayout(settings, text)));
+		actionsMap.addHandler(ACTION_CALENDAR_LAYOUT_NOW, calendarCommand(ACTION_CALENDAR_LAYOUT_NOW, false,
+			com.microproject.ui.dialog.CalendarViewDialogBox::layoutNow));
+		actionsMap.addHandler(ACTION_CALENDAR_BEST_FIT, calendarCommand(ACTION_CALENDAR_BEST_FIT, false,
+			com.microproject.ui.dialog.CalendarViewDialogBox::weekHeightBestFit));
+		actionsMap.addHandler(ACTION_CALENDAR_TASK_LIST, calendarCommand(ACTION_CALENDAR_TASK_LIST, true, calendar -> {
+			calendar.getSettings().setTaskListVisible(!calendar.getSettings().isTaskListVisible());
+			calendar.settingsChanged();
+		}));
+	}
+
+	/** A command or toggle of a view-specific Format tab, acting on that view's active dialog. */
+	private <D> MenuActionsMap.DocumentMenuAction viewCommand(String actionId, java.util.function.Supplier<D> active,
+			java.util.function.Consumer<D> run, java.util.function.Consumer<D> after) {
+		return new MenuActionsMap.DocumentMenuAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) {
+				setMeAsLastGraphicManager();
+				if (!beforeToggleRoute(actionId)) return;
+				D dialog = active.get();
+				if (dialog == null) return;
+				run.accept(dialog);
+				after.accept(dialog);
+				syncGanttViewRibbonState();
+			}
+		};
+	}
+
+	/** A dialog command of a view-specific Format tab: shows the panel and applies it on OK. */
+	private <D> MenuActionsMap.DocumentMenuAction viewDialog(String actionId, java.util.function.Supplier<D> active, String titleKey,
+			java.util.function.Function<D, NetworkCalendarFormatDialogs.OptionPanel> panelFactory, java.util.function.Consumer<D> after) {
+		return new MenuActionsMap.DocumentMenuAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) {
+				setMeAsLastGraphicManager();
+				if (!beforeChooserRoute(actionId)) return;
+				D dialog = active.get();
+				if (dialog == null || GraphicsEnvironment.isHeadless()) return;
+				NetworkCalendarFormatDialogs.OptionPanel panel = panelFactory.apply(dialog);
+				int answer = PopupDialogSupport.showConfirmDialog(getFrame(), panel, formatText(titleKey),
+					JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+				if (answer != JOptionPane.OK_OPTION) return;
+				if (!panel.validateInput()) {
+					Alert.warn(panel.validationMessage, getFrame());
+					return;
+				}
+				panel.apply();
+				after.accept(dialog);
+				syncGanttViewRibbonState();
+			}
+		};
+	}
+
+	private static final ResourceGraphSettings.GraphType[] RESOURCE_GRAPH_TYPES = ResourceGraphSettings.GraphType.values();
+	private static final String[] RESOURCE_GRAPH_TYPE_ACTIONS = {
+		ACTION_RESOURCE_GRAPH_PEAK_UNITS, ACTION_RESOURCE_GRAPH_WORK, ACTION_RESOURCE_GRAPH_CUMULATIVE_WORK,
+		ACTION_RESOURCE_GRAPH_OVERALLOCATION, ACTION_RESOURCE_GRAPH_PERCENT_ALLOCATION, ACTION_RESOURCE_GRAPH_REMAINING_AVAILABILITY,
+		ACTION_RESOURCE_GRAPH_COST, ACTION_RESOURCE_GRAPH_CUMULATIVE_COST, ACTION_RESOURCE_GRAPH_WORK_AVAILABILITY,
+		ACTION_RESOURCE_GRAPH_UNIT_AVAILABILITY };
+
+	/** Resource Graph Format tab: the Graph options, Values, Previous/Next Resource and the three format dialogs. */
+	private void registerResourceGraphFormatActions() {
+		java.util.function.Function<String, String> text = this::formatText;
+		java.util.function.Supplier<ChartView> graph = this::getActiveResourceGraphView;
+		java.util.function.Consumer<ChartView> refresh = ChartView::resourceGraphSettingsChanged;
+		java.util.function.Consumer<ChartView> none = view -> { };
+		actionsMap.addHandler(ACTION_RESOURCE_GRAPH_TEXT_STYLES, viewDialog(ACTION_RESOURCE_GRAPH_TEXT_STYLES, graph, "ResourceGraph.title.textStyles",
+			view -> ResourceGraphFormatDialogs.textStyle(view.getResourceGraphSettings(), text), refresh));
+		actionsMap.addHandler(ACTION_RESOURCE_GRAPH_GRIDLINES, viewDialog(ACTION_RESOURCE_GRAPH_GRIDLINES, graph, "ResourceGraph.title.gridlines",
+			view -> ResourceGraphFormatDialogs.gridlines(view.getResourceGraphSettings(), text), refresh));
+		actionsMap.addHandler(ACTION_RESOURCE_GRAPH_BAR_STYLES, viewDialog(ACTION_RESOURCE_GRAPH_BAR_STYLES, graph, "ResourceGraph.title.barStyles",
+			view -> ResourceGraphFormatDialogs.barStyles(view.getResourceGraphSettings(), text), refresh));
+		for (int i = 0; i < RESOURCE_GRAPH_TYPES.length; i++) {
+			ResourceGraphSettings.GraphType type = RESOURCE_GRAPH_TYPES[i];
+			String action = RESOURCE_GRAPH_TYPE_ACTIONS[i];
+			actionsMap.addHandler(action, viewCommand(action, graph, view -> view.getResourceGraphSettings().setGraphType(type), refresh));
+		}
+		actionsMap.addHandler(ACTION_RESOURCE_GRAPH_SHOW_VALUES, viewCommand(ACTION_RESOURCE_GRAPH_SHOW_VALUES, graph,
+			view -> view.getResourceGraphSettings().setShowValues(!view.getResourceGraphSettings().isShowValues()), refresh));
+		actionsMap.addHandler(ACTION_RESOURCE_GRAPH_PREVIOUS_RESOURCE, viewCommand(ACTION_RESOURCE_GRAPH_PREVIOUS_RESOURCE, graph,
+			view -> view.selectAdjacentResource(-1), none));
+		actionsMap.addHandler(ACTION_RESOURCE_GRAPH_NEXT_RESOURCE, viewCommand(ACTION_RESOURCE_GRAPH_NEXT_RESOURCE, graph,
+			view -> view.selectAdjacentResource(1), none));
+	}
+
+	/** Enable and check state of the Resource Graph Format tab. */
+	private void syncResourceGraphRibbonState() {
+		ChartView graph = getActiveResourceGraphView();
+		boolean active = graph != null;
+		ResourceGraphSettings settings = active ? graph.getResourceGraphSettings() : null;
+		for (int i = 0; i < RESOURCE_GRAPH_TYPES.length; i++) {
+			getMenuManager().setActionEnabled(RESOURCE_GRAPH_TYPE_ACTIONS[i], active);
+			getMenuManager().setActionSelected(RESOURCE_GRAPH_TYPE_ACTIONS[i], active && settings.getGraphType() == RESOURCE_GRAPH_TYPES[i]);
+		}
+		getMenuManager().setActionEnabled(ACTION_RESOURCE_GRAPH_TEXT_STYLES, active);
+		getMenuManager().setActionEnabled(ACTION_RESOURCE_GRAPH_GRIDLINES, active);
+		getMenuManager().setActionEnabled(ACTION_RESOURCE_GRAPH_BAR_STYLES, active);
+		getMenuManager().setActionEnabled(ACTION_RESOURCE_GRAPH_SHOW_VALUES, active);
+		getMenuManager().setActionSelected(ACTION_RESOURCE_GRAPH_SHOW_VALUES, active && settings.isShowValues());
+		getMenuManager().setActionEnabled(ACTION_RESOURCE_GRAPH_PREVIOUS_RESOURCE, active && graph.hasAdjacentResource(-1));
+		getMenuManager().setActionEnabled(ACTION_RESOURCE_GRAPH_NEXT_RESOURCE, active && graph.hasAdjacentResource(1));
+	}
+
+	private void registerTimelineTeamPlannerFormatActions() {
+		java.util.function.Function<String, String> text = this::formatText;
+		java.util.function.Supplier<com.microproject.ui.dialog.TimelineDialogBox> timeline = this::getActiveTimelineDialog;
+		java.util.function.Consumer<com.microproject.ui.dialog.TimelineDialogBox> refresh = com.microproject.ui.dialog.TimelineDialogBox::settingsChanged;
+		java.util.function.Consumer<com.microproject.ui.dialog.TimelineDialogBox> none = dialog -> { };
+		actionsMap.addHandler(ACTION_TIMELINE_TEXT_STYLES, viewDialog(ACTION_TIMELINE_TEXT_STYLES, timeline, "RibbonTimelineTextStyles.text",
+			dialog -> TimelineTeamPlannerFormatDialogs.timelineTextStyles(dialog.getSettings(), text), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_SET_DATE_RANGE, viewDialog(ACTION_TIMELINE_SET_DATE_RANGE, timeline, "RibbonTimelineDateRange.text",
+			dialog -> TimelineTeamPlannerFormatDialogs.dateRange(dialog.getSettings(), dialog.axisRange(), text), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_VIEW_TEXT_LINE_HEIGHT, viewDialog(ACTION_TIMELINE_VIEW_TEXT_LINE_HEIGHT, timeline, "RibbonTimelineTextLines.text",
+			dialog -> TimelineTeamPlannerFormatDialogs.textLines(dialog.getSettings().getTextLines(),
+				com.microproject.ui.dialog.TimelineViewSettings.MIN_TEXT_LINES, com.microproject.ui.dialog.TimelineViewSettings.MAX_TEXT_LINES,
+				dialog.getSettings()::setTextLines, text), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_ADD_EXISTING_TASKS, viewDialog(ACTION_TIMELINE_ADD_EXISTING_TASKS, timeline, "RibbonTimelineAddExisting.text",
+			dialog -> TimelineTeamPlannerFormatDialogs.existingTasks(
+				dialog.allTasks().stream().filter(task -> !task.isDisplayOnTimeline()).toList(),
+				chosen -> dialog.displayTasks(chosen, true), text), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_SHOW_TASK_DATES, viewCommand(ACTION_TIMELINE_SHOW_TASK_DATES, timeline,
+			dialog -> dialog.getSettings().setShowTaskDates(!dialog.getSettings().isShowTaskDates()), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_SHOW_TODAY, viewCommand(ACTION_TIMELINE_SHOW_TODAY, timeline,
+			dialog -> dialog.getSettings().setShowToday(!dialog.getSettings().isShowToday()), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_SHOW_TIMESCALE, viewCommand(ACTION_TIMELINE_SHOW_TIMESCALE, timeline,
+			dialog -> dialog.getSettings().setShowTimescale(!dialog.getSettings().isShowTimescale()), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_SHOW_TASK_PROGRESS, viewCommand(ACTION_TIMELINE_SHOW_TASK_PROGRESS, timeline,
+			dialog -> dialog.getSettings().setShowProgress(!dialog.getSettings().isShowProgress()), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_VIEW_EXPAND, viewCommand(ACTION_TIMELINE_VIEW_EXPAND, timeline,
+			dialog -> dialog.getSettings().setExpanded(!dialog.getSettings().isExpanded()), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_BAR_SET_LABEL, viewCommand(ACTION_TIMELINE_BAR_SET_LABEL, timeline,
+			dialog -> dialog.getSettings().setBarLabels(!dialog.getSettings().isBarLabels()), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_VIEW_OVERLAPPED_TASKS_SHOW, viewCommand(ACTION_TIMELINE_VIEW_OVERLAPPED_TASKS_SHOW, timeline,
+			dialog -> dialog.getSettings().setShowOverlapped(!dialog.getSettings().isShowOverlapped()), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_VIEW_PAN_AND_ZOOM_SHOW, viewCommand(ACTION_TIMELINE_VIEW_PAN_AND_ZOOM_SHOW, timeline,
+			dialog -> dialog.getSettings().setShowPanZoom(!dialog.getSettings().isShowPanZoom()), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_INSERT_BAR, viewCommand(ACTION_TIMELINE_INSERT_BAR, timeline,
+			dialog -> dialog.insertBar(), refresh));
+		actionsMap.addHandler(ACTION_TIMELINE_INSERT_TASK, viewCommand(ACTION_TIMELINE_INSERT_TASK, timeline,
+			dialog -> dialog.insertNewTask(false, false), none));
+		actionsMap.addHandler(ACTION_TIMELINE_INSERT_CALLOUT, viewCommand(ACTION_TIMELINE_INSERT_CALLOUT, timeline,
+			dialog -> dialog.insertNewTask(false, true), none));
+		actionsMap.addHandler(ACTION_TIMELINE_INSERT_MILESTONE, viewCommand(ACTION_TIMELINE_INSERT_MILESTONE, timeline,
+			dialog -> dialog.insertNewTask(true, false), none));
+		actionsMap.addHandler(ACTION_TIMELINE_DISPLAY_ON_TIMELINE, viewCommand(ACTION_TIMELINE_DISPLAY_ON_TIMELINE, timeline,
+			dialog -> dialog.displayTasks(dialog.getSelectedTasks(), !allDisplayedOnTimeline(dialog)), none));
+		actionsMap.addHandler(ACTION_TIMELINE_DISPLAY_AS_CALLOUT, viewCommand(ACTION_TIMELINE_DISPLAY_AS_CALLOUT, timeline,
+			dialog -> dialog.setCallouts(dialog.getSelectedTasks(), !allCallouts(dialog)), none));
+		actionsMap.addHandler(ACTION_TIMELINE_REMOVE_TASK, viewCommand(ACTION_TIMELINE_REMOVE_TASK, timeline,
+			dialog -> dialog.displayTasks(dialog.getSelectedTasks(), false), none));
+		actionsMap.addHandler(ACTION_TIMELINE_COPY_FOR_EMAIL, viewCommand(ACTION_TIMELINE_COPY_FOR_EMAIL, timeline,
+			dialog -> dialog.copyPicture(com.microproject.ui.dialog.TimelineDialogBox.PictureSize.EMAIL), none));
+		actionsMap.addHandler(ACTION_TIMELINE_COPY_FOR_PRESENTATION, viewCommand(ACTION_TIMELINE_COPY_FOR_PRESENTATION, timeline,
+			dialog -> dialog.copyPicture(com.microproject.ui.dialog.TimelineDialogBox.PictureSize.PRESENTATION), none));
+		actionsMap.addHandler(ACTION_TIMELINE_COPY_FULL_SIZE, viewCommand(ACTION_TIMELINE_COPY_FULL_SIZE, timeline,
+			dialog -> dialog.copyPicture(com.microproject.ui.dialog.TimelineDialogBox.PictureSize.FULL), none));
+
+		java.util.function.Supplier<com.microproject.ui.dialog.TeamPlannerDialogBox> planner = this::getActiveTeamPlannerDialog;
+		java.util.function.Consumer<com.microproject.ui.dialog.TeamPlannerDialogBox> plannerRefresh = com.microproject.ui.dialog.TeamPlannerDialogBox::settingsChanged;
+		String[] outlineActions = { ACTION_TEAM_PLANNER_OUTLINE_SHOW_ALL, ACTION_TEAM_PLANNER_OUTLINE_LEVEL1, ACTION_TEAM_PLANNER_OUTLINE_LEVEL2,
+			ACTION_TEAM_PLANNER_OUTLINE_LEVEL3, ACTION_TEAM_PLANNER_OUTLINE_LEVEL4, ACTION_TEAM_PLANNER_OUTLINE_LEVEL5,
+			ACTION_TEAM_PLANNER_OUTLINE_LEVEL6, ACTION_TEAM_PLANNER_OUTLINE_LEVEL7, ACTION_TEAM_PLANNER_OUTLINE_LEVEL8,
+			ACTION_TEAM_PLANNER_OUTLINE_LEVEL9 };
+		for (int level = 0; level < outlineActions.length; level++) {
+			int outlineLevel = level;
+			actionsMap.addHandler(outlineActions[level], viewCommand(outlineActions[level], planner,
+				dialog -> dialog.getSettings().setOutlineLevel(outlineLevel), plannerRefresh));
+		}
+		actionsMap.addHandler(ACTION_TEAM_PLANNER_GRIDLINES, viewCommand(ACTION_TEAM_PLANNER_GRIDLINES, planner,
+			dialog -> dialog.getSettings().setGridlines(!dialog.getSettings().isGridlines()), plannerRefresh));
+		actionsMap.addHandler(ACTION_TEAM_PLANNER_TEXT_STYLES, viewDialog(ACTION_TEAM_PLANNER_TEXT_STYLES, planner, "RibbonTeamPlannerTextStyles.text",
+			dialog -> TimelineTeamPlannerFormatDialogs.textStyle(dialog.getSettings().getTextStyle(), dialog.getSettings()::setTextStyle, text), plannerRefresh));
+		actionsMap.addHandler(ACTION_TEAM_PLANNER_TEXT_LINES, viewDialog(ACTION_TEAM_PLANNER_TEXT_LINES, planner, "RibbonTeamPlannerTextLines.text",
+			dialog -> TimelineTeamPlannerFormatDialogs.textLines(dialog.getSettings().getTextLines(),
+				com.microproject.ui.dialog.TeamPlannerViewSettings.MIN_TEXT_LINES, com.microproject.ui.dialog.TeamPlannerViewSettings.MAX_TEXT_LINES,
+				dialog.getSettings()::setTextLines, text), plannerRefresh));
+		actionsMap.addHandler(ACTION_TEAM_PLANNER_SELECTED_FILL, viewDialog(ACTION_TEAM_PLANNER_SELECTED_FILL, planner, "RibbonTeamPlannerSelectedFill.text",
+			dialog -> {
+				java.util.List<Task> selected = dialog.getSelectedTasks();
+				Integer current = selected.isEmpty() ? null : dialog.getSettings().getTaskFill(selected.get(0).getUniqueId());
+				return TimelineTeamPlannerFormatDialogs.color(formatText("RibbonTeamPlannerSelectedFill.text"), current,
+					rgb -> selected.forEach(task -> dialog.getSettings().setTaskFill(task.getUniqueId(), rgb)), text);
+			}, plannerRefresh));
+		actionsMap.addHandler(ACTION_TEAM_PLANNER_SELECTED_BORDER, viewDialog(ACTION_TEAM_PLANNER_SELECTED_BORDER, planner, "RibbonTeamPlannerSelectedBorder.text",
+			dialog -> {
+				java.util.List<Task> selected = dialog.getSelectedTasks();
+				Integer current = selected.isEmpty() ? null : dialog.getSettings().getTaskBorder(selected.get(0).getUniqueId());
+				return TimelineTeamPlannerFormatDialogs.color(formatText("RibbonTeamPlannerSelectedBorder.text"), current,
+					rgb -> selected.forEach(task -> dialog.getSettings().setTaskBorder(task.getUniqueId(), rgb)), text);
+			}, plannerRefresh));
+		registerTeamPlannerCategory("Auto", com.microproject.ui.dialog.TeamPlannerViewSettings.Category.AUTO,
+			ACTION_TEAM_PLANNER_AUTO_BORDER, ACTION_TEAM_PLANNER_AUTO_FILL, ACTION_TEAM_PLANNER_AUTO_RESET);
+		registerTeamPlannerCategory("Manual", com.microproject.ui.dialog.TeamPlannerViewSettings.Category.MANUAL,
+			ACTION_TEAM_PLANNER_MANUAL_BORDER, ACTION_TEAM_PLANNER_MANUAL_FILL, ACTION_TEAM_PLANNER_MANUAL_RESET);
+		registerTeamPlannerCategory("Actual", com.microproject.ui.dialog.TeamPlannerViewSettings.Category.ACTUAL,
+			ACTION_TEAM_PLANNER_ACTUAL_BORDER, ACTION_TEAM_PLANNER_ACTUAL_FILL, ACTION_TEAM_PLANNER_ACTUAL_RESET);
+		registerTeamPlannerCategory("External", com.microproject.ui.dialog.TeamPlannerViewSettings.Category.EXTERNAL,
+			ACTION_TEAM_PLANNER_EXTERNAL_BORDER, ACTION_TEAM_PLANNER_EXTERNAL_FILL, ACTION_TEAM_PLANNER_EXTERNAL_RESET);
+		registerTeamPlannerCategory("Late", com.microproject.ui.dialog.TeamPlannerViewSettings.Category.LATE,
+			ACTION_TEAM_PLANNER_LATE_BORDER, ACTION_TEAM_PLANNER_LATE_FILL, ACTION_TEAM_PLANNER_LATE_RESET);
+		actionsMap.addHandler(ACTION_TEAM_PLANNER_PREVENT_OVERALLOCATION, viewCommand(ACTION_TEAM_PLANNER_PREVENT_OVERALLOCATION, planner,
+			dialog -> dialog.getSettings().setPreventOverallocation(!dialog.getSettings().isPreventOverallocation()), plannerRefresh));
+		actionsMap.addHandler(ACTION_TEAM_PLANNER_EXPAND_ROWS, viewCommand(ACTION_TEAM_PLANNER_EXPAND_ROWS, planner,
+			dialog -> dialog.getSettings().setExpandRows(!dialog.getSettings().isExpandRows()), plannerRefresh));
+		actionsMap.addHandler(ACTION_TEAM_PLANNER_UNASSIGNED_TASKS_SHOW, viewCommand(ACTION_TEAM_PLANNER_UNASSIGNED_TASKS_SHOW, planner,
+			dialog -> dialog.getSettings().setShowUnassigned(!dialog.getSettings().isShowUnassigned()), plannerRefresh));
+		actionsMap.addHandler(ACTION_TEAM_PLANNER_UNSCHEDULED_TASKS_SHOW, viewCommand(ACTION_TEAM_PLANNER_UNSCHEDULED_TASKS_SHOW, planner,
+			dialog -> dialog.getSettings().setShowUnscheduled(!dialog.getSettings().isShowUnscheduled()), plannerRefresh));
+	}
+
+	/** The Border, Fill and Reset commands of one Team Planner task category. */
+	private void registerTeamPlannerCategory(String key, com.microproject.ui.dialog.TeamPlannerViewSettings.Category category,
+			String borderAction, String fillAction, String resetAction) {
+		java.util.function.Function<String, String> text = this::formatText;
+		java.util.function.Supplier<com.microproject.ui.dialog.TeamPlannerDialogBox> planner = this::getActiveTeamPlannerDialog;
+		java.util.function.Consumer<com.microproject.ui.dialog.TeamPlannerDialogBox> refresh = com.microproject.ui.dialog.TeamPlannerDialogBox::settingsChanged;
+		String borderKey = "RibbonTeamPlanner" + key + "Border.text";
+		String fillKey = "RibbonTeamPlanner" + key + "Fill.text";
+		actionsMap.addHandler(borderAction, viewDialog(borderAction, planner, "RibbonTeamPlanner" + key + "Style.text",
+			dialog -> TimelineTeamPlannerFormatDialogs.color(formatText(borderKey), dialog.getSettings().getBorder(category),
+				rgb -> dialog.getSettings().setBorder(category, rgb), text), refresh));
+		actionsMap.addHandler(fillAction, viewDialog(fillAction, planner, "RibbonTeamPlanner" + key + "Style.text",
+			dialog -> TimelineTeamPlannerFormatDialogs.color(formatText(fillKey), dialog.getSettings().getFill(category),
+				rgb -> dialog.getSettings().setFill(category, rgb), text), refresh));
+		actionsMap.addHandler(resetAction, viewCommand(resetAction, planner,
+			dialog -> dialog.getSettings().resetCategory(category), refresh));
+	}
+
+	private static boolean allDisplayedOnTimeline(com.microproject.ui.dialog.TimelineDialogBox dialog) {
+		java.util.List<Task> selected = dialog.getSelectedTasks();
+		return !selected.isEmpty() && selected.stream().allMatch(Task::isDisplayOnTimeline);
+	}
+
+	private static boolean allCallouts(com.microproject.ui.dialog.TimelineDialogBox dialog) {
+		java.util.List<Task> selected = dialog.getSelectedTasks();
+		return !selected.isEmpty() && selected.stream().allMatch(task -> dialog.getSettings().isCallout(task.getUniqueId()));
+	}
+
+	/** The box kinds of the tasks selected in the Network Diagram; every kind when nothing is selected. */
+	private java.util.List<com.microproject.ui.view.network.NetworkDisplayOptions.BoxType> selectedBoxTypes() {
+		java.util.Set<com.microproject.ui.view.network.NetworkDisplayOptions.BoxType> types = new java.util.TreeSet<>();
+		DocumentFrame frame = getCurrentFrame();
+		if (frame != null)
+			for (Object node : frame.getSelectedTaskNodes(false, false))
+				if (node instanceof com.microproject.node.Node selected)
+					types.add(com.microproject.ui.view.network.NetworkDisplayOptions.boxType(selected.getImpl()));
+		return types.isEmpty()
+			? java.util.List.of(com.microproject.ui.view.network.NetworkDisplayOptions.BoxType.values())
+			: new java.util.ArrayList<>(types);
+	}
+
+	/** Summary Tasks toggle: acts on the active spreadsheet-based view, or on the Network Diagram. */
+	private MenuActionsMap.DocumentMenuAction summaryTasksAction() {
+		return new MenuActionsMap.DocumentMenuAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) {
+				setMeAsLastGraphicManager();
+				if (!beforeToggleRoute(ACTION_GFMT_SUMMARY_TASKS)) return;
+				BaseView view = getActiveSummaryTasksView();
+				if (view == null) return;
+				view.setSummaryTasksVisible(!view.isSummaryTasksVisible());
+				syncGanttViewRibbonState();
+			}
+		};
+	}
+
+	/** Adapter of one usage Details toggle: shows or hides one detail row of the active usage view. */
+	private MenuActionsMap.DocumentMenuAction usageDetailAction(String actionId, String fieldId) {
+		return new MenuActionsMap.DocumentMenuAction() {
+			private static final long serialVersionUID = 1L;
+			@Override public void actionPerformed(ActionEvent event) {
+				setMeAsLastGraphicManager();
+				if (!beforeToggleRoute(actionId)) return;
+				UsageDetailView view = getActiveUsageView();
+				if (view == null) return;
+				view.toggleDetailField(fieldId);
+				syncGanttViewRibbonState();
+			}
+		};
+	}
+
+	/** Add Details: picks further detail rows (those not shown yet) for the active usage view. */
+	public class UsageDetailsAddAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!beforeChooserRoute(ACTION_USAGE_DETAILS_ADD)) return;
+			UsageDetailView view = getActiveUsageView();
+			if (view == null || GraphicsEnvironment.isHeadless()) return;
+			List<Field> available = view.getAvailableDetailFields();
+			if (available.isEmpty()) return;
+			javax.swing.JList<Field> list = new javax.swing.JList<>(available.toArray(new Field[0]));
+			int choice = PopupDialogSupport.showConfirmDialog(getFrame(), new javax.swing.JScrollPane(list),
+					getMenuManager().getString("RibbonUsageDetailsAdd.text"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+			if (choice == JOptionPane.OK_OPTION) {
+				view.addDetailFields(list.getSelectedValuesList());
+				syncGanttViewRibbonState();
+			}
+		}
+	}
+
+	public class BarStylesAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (!beforeChooserRoute(ACTION_BAR_STYLES)) return;
+			if (getActiveResourceGraphView() != null) {
+				actionsMap.getConcreteAction(ACTION_RESOURCE_GRAPH_BAR_STYLES).actionPerformed(arg0);
+				return;
+			}
+			showBarStyleChooser();
+		}
+	}
+	public class LayoutAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (!beforeChooserRoute(ACTION_LAYOUT)) return;
+			showLayoutChooser();
+		}
+	}
+	public class RecurringTaskAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive())
+				getCurrentFrame().doRecurringTaskDialog();
+		}
+	}
+	public class SaveBaselineAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (!beforeSaveBaselineRoute(getCurrentFrame())) return;
+			if (isDocumentActive())
+				getCurrentFrame().doBaselineDialog(true);
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return isDocumentWritable();
+		}
+	}
+
+	public class ClearBaselineAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (!beforeClearBaselineRoute(getCurrentFrame())) return;
+			if (isDocumentActive())
+				getCurrentFrame().doBaselineDialog(false);
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return isDocumentWritable();
+		}
+	}
+
+	public class ToggleProgressLineAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (!beforeToggleRoute(ACTION_TOGGLE_PROGRESS_LINE)) return;
+			if (!isActiveGanttView())
+				return;
+			showProgressLinesDialog();
+		}
+		protected boolean allowed(boolean enable) {
+			return !enable || isDocumentWritable();
+		}
+	}
+
+	public class LabelResourceNamesAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (!beforeToggleRoute(ACTION_LABEL_RESOURCE_NAMES)) return;
+			if (!isActiveGanttView())
+				return;
+			getCurrentFrame().getGanttView().setCurrentAnnotationFieldId(GanttView.ANNOTATION_FIELD_RESOURCE_NAMES);
+			syncGanttViewRibbonState();
+		}
+	}
+
+	public class LabelTaskNameAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (!beforeToggleRoute(ACTION_LABEL_TASK_NAME)) return;
+			if (!isActiveGanttView())
+				return;
+			getCurrentFrame().getGanttView().setCurrentAnnotationFieldId(GanttView.ANNOTATION_FIELD_TASK_NAME);
+			syncGanttViewRibbonState();
+		}
+	}
+	
+	public class LocaleAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			executeExternalRibbonCommand("locale", GraphicManager.this::showLocaleDialog);
+		}
+	}
+
+	/** Canonical Ribbon/menu/popup adapter for MSP task scheduling mode. */
+	private final class TaskModeAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private final boolean manual;
+		private TaskModeAction(boolean manual) { this.manual = manual; }
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this,
+				dispatchTaskCommand(manual ? CommandId.TASK_MODE_MANUAL : CommandId.TASK_MODE_AUTOMATIC));
+		}
+	}
+	/** Starts the existing interactive Gantt split mode from the Task ribbon. */
+	private final class SplitTaskRibbonAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			GanttView ganttView = getActiveGanttView();
+			if (ganttView != null && ganttView.getGantt() != null)
+				ganttView.getGantt().getInteractor().setSplitMode();
+		}
+		@Override protected boolean allowed(boolean enable) {
+			return !enable || (isActiveGanttView() && canStartSplitOnActiveGantt());
+		}
+	}
+	private boolean canStartSplitOnActiveGantt() {
+		GanttView ganttView = getActiveGanttView();
+		return ganttView != null && ganttView.getGantt() != null
+			&& ganttView.getGantt().getInteractor().canStartSplitMode();
+	}
+	private final class RespectLinksAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.RESPECT_LINKS));
+		}
+	}
+	private final class InactivateTaskAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.INACTIVATE_TASK));
+		}
+	}
+	private final class StatusDateAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) { setMeAsLastGraphicManager(); publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.STATUS_DATE)); }
+	}
+	private final class MarkOnTrackAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) { setMeAsLastGraphicManager(); publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.MARK_ON_TRACK)); }
+	}
+
+	/** Task &gt; Schedule 0/25/50/75/100% Complete; one Action per value, shared by every presentation. */
+	private final class PercentCompleteAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private final CommandId command;
+		private PercentCompleteAction(CommandId command) { this.command = command; }
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, dispatchTaskCommand(command));
+		}
+	}
+	/** Task &gt; Insert Milestone / Summary Task. */
+	private final class InsertTaskKindAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private final CommandId command;
+		private InsertTaskKindAction(CommandId command) { this.command = command; }
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, dispatchTaskCommand(command));
+		}
+		@Override protected boolean allowed(boolean enable) {
+			return !enable || isDocumentWritable();
+		}
+	}
+	/** Task &gt; Editing &gt; Select (Ctrl+Shift+Space): the one Select All action for ribbon and shortcut. */
+	private final class SelectAllAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive()) return;
+			DocumentFrame frame = getCurrentFrame();
+			SpreadSheet sheet = frame == null ? null : frame.getActiveSpreadSheet();
+			if (sheet != null) sheet.selectAll();
+		}
+	}
+
+	public class MoveProjectAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (!beforeMoveProjectRoute(getCurrentFrame())) return;
+			if (isDocumentActive())
+				getCurrentFrame().doMoveProjectDialog();
+		}
+		protected boolean allowed(boolean enable) {
+			if (!enable) return true;
+			return isDocumentWritable() && getCurrentFrame() != null && getCurrentFrame().getProject().isForward();
+		}
+	}
+
+	public class TogglePrivacyMaskAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive()) return;
+			DocumentFrame frame = getCurrentFrame();
+			boolean masked = PrivacyDisplayMode.toggle(frame.getProject());
+			frame.syncPrivacyMaskToggle();
+			GanttView ganttView = frame.getGanttView();
+			if (ganttView != null) {
+				if (ganttView.getGantt() != null) ganttView.getGantt().repaint();
+				if (ganttView.getSpreadSheet() != null) ganttView.getSpreadSheet().repaint();
+			}
+			frame.repaint();
+			if (frame.getCalendarViewDialog() != null) {
+				frame.getCalendarViewDialog().refreshTaskList();
+				frame.getCalendarViewDialog().repaint();
+			}
+			if (frame.getEmbeddedCalendarDialog() != null) {
+				frame.getEmbeddedCalendarDialog().refreshTaskList();
+				frame.getEmbeddedCalendarDialog().repaint();
+			}
+			if (frame.getTimelineView() != null) frame.getTimelineView().repaint();
+			frame.setTabTitle(masked ? "Project (Masked)" : frame.getProject().getName());
+		}
+	}
+
+	private void showLocaleDialog() {
+		showPreferences(PreferencesDialogBox.CATEGORY_LANGUAGE);
+	}
+
+	private void showPreferences(String categoryId) {
+		Preferences pref = Preferences.userNodeForPackage(ConfigurationFile.class);
+		String previousLocale = pref.get("locale", "default");
+		PreferencesDialogBox.showDialog(getFrame(), getPreferences(), () -> applyLocaleChange(previousLocale),
+			autoRecoveryManager, categoryId);
+	}
+
+	private void applyLocaleChange(String previousLocale) {
+		Preferences pref = Preferences.userNodeForPackage(ConfigurationFile.class);
+		String currentLocale = pref.get("locale", "default");
+		if (Objects.equals(previousLocale, currentLocale)) {
+			return;
+		}
+		Locale.setDefault(ConfigurationFile.getLocale(currentLocale));
+		Messages.reset();
+		restartApplication();
+	}
+
+	public class LinkAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.LINK.actionId(), "no-active-document"));
+			if (isDocumentActive()) {
+				if (!getCurrentFrame().hasTaskSelection(true, 2, true)) {
+					publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.LINK.actionId(), "selection-too-small")
+						.withSelectedTaskIds(selectedTaskIdsForActiveFrame()));
+					return;
+				}
+				if (beforeActionRoute("link"))
+					return;
+				publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.LINK));
+			}
+		}
+	}
+	public class UnlinkAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.UNLINK.actionId(), "no-active-document"));
+			if (isDocumentActive()) {
+				if (!getCurrentFrame().hasTaskSelection(true, 1, true)) {
+					publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.UNLINK.actionId(), "no-selection")
+						.withSelectedTaskIds(selectedTaskIdsForActiveFrame()));
+					return;
+				}
+				if (beforeActionRoute("unlink"))
+					return;
+				publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.UNLINK));
+			}
+		}
+	}
+	public class ZoomInAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive())
+				getCurrentFrame().doZoomIn();
+			setZoomButtons();
+
+		}
+	}
+	public class ZoomOutAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive())
+				getCurrentFrame().doZoomOut();
+			setZoomButtons();
+		}
+	}
+	public class ZoomSelectedTasksAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive()) {
+				BaseView activeView = getCurrentFrame().getActiveTopView();
+				if (activeView instanceof UsageDetailView usageView && usageView.canZoomToSelectedTasks())
+					usageView.zoomToSelectedTasks();
+				else if (activeView instanceof GanttView ganttView && ganttView.canZoomToSelectedTasks())
+					ganttView.zoomToSelectedTasks();
+			}
+			setZoomButtons();
+		}
+	}
+	public class ZoomEntireProjectAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive()) {
+				BaseView activeView = getCurrentFrame().getActiveTopView();
+				if (activeView instanceof UsageDetailView usageView && usageView.canZoomToProject())
+					usageView.zoomToProject();
+				else if (activeView instanceof GanttView ganttView && ganttView.canZoomToProject())
+					ganttView.zoomToProject();
+			}
+			setZoomButtons();
+		}
+	}
+	public class ScrollToTodayAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive() && getCurrentFrame().getActiveTopView() instanceof GanttView ganttView)
+				ganttView.scrollToToday();
+		}
+	}
+	public class ScrollToTaskAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(true, 1, false))
+				getCurrentFrame().doScrollToTask();
+		}
+	}
+	public class ExpandAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(false, 1, false))
+				publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.EXPAND));
+			else
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.EXPAND.actionId(), "no-selection")
+					.withSelectedTaskIds(selectedTaskIdsForActiveFrame()));
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return isDocumentWritable();
+		}
+	}
+	public class CollapseAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(false, 1, false))
+				publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.COLLAPSE));
+			else
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.COLLAPSE.actionId(), "no-selection")
+					.withSelectedTaskIds(selectedTaskIdsForActiveFrame()));
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return isDocumentWritable();
+		}
+	}
+	public class HideSelectedTasksAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive()) {
+				publishTaskCommandOutcome(this,
+					RibbonCommandResult.rejected(CommandId.HIDE_SELECTED.actionId(), "no-active-document"));
+				return;
+			}
+			publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.HIDE_SELECTED));
+		}
+		protected boolean allowed(boolean enable) {
+			return !enable || isDocumentWritable();
+		}
+	}
+	public class ShowAllTasksAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive()) {
+				publishTaskCommandOutcome(this,
+					RibbonCommandResult.rejected(CommandId.SHOW_ALL.actionId(), "no-active-document"));
+				return;
+			}
+			publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.SHOW_ALL));
+		}
+		protected boolean allowed(boolean enable) {
+			return !enable || isDocumentWritable();
+		}
+	}
+
+	public class IndentAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.INDENT.actionId(), "no-active-document"));
+			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(true, 1, false))
+				publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.INDENT));
+			else if (isDocumentActive())
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.INDENT.actionId(), "no-selection")
+					.withSelectedTaskIds(selectedTaskIdsForActiveFrame()));
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return isDocumentWritable();
+		}
+	}
+	public class OutdentAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.OUTDENT.actionId(), "no-active-document"));
+			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(true, 1, false))
+				publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.OUTDENT));
+			else if (isDocumentActive())
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.OUTDENT.actionId(), "no-selection")
+					.withSelectedTaskIds(selectedTaskIdsForActiveFrame()));
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return isDocumentWritable();
+		}
+	}
+	public class MoveTaskUpAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(false,1,false)) getCurrentFrame().doMoveSelectedTasks(-1);
+		}
+		protected boolean allowed(boolean enable) {
+			return !enable || isDocumentWritable();
+		}
+	}
+	public class MoveTaskDownAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive() && getCurrentFrame().hasTaskSelection(false,1,false)) getCurrentFrame().doMoveSelectedTasks(1);
+		}
+		protected boolean allowed(boolean enable) {
+			return !enable || isDocumentWritable();
+		}
+	}
+	public class CutAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, isDocumentActive()
+				? dispatchTaskCommand(CommandId.CUT)
+				: RibbonCommandResult.rejected(CommandId.CUT.actionId(), "no-active-document"));
+		}
+	}
+	public class CopyAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, isDocumentActive()
+				? dispatchTaskCommand(CommandId.COPY)
+				: RibbonCommandResult.rejected(CommandId.COPY.actionId(), "no-active-document"));
+		}
+	}
+	/** Task > Font group: Bold, Italic and Font Color of the selected tasks (one undoable edit each). */
+	private static final List<CommandId> TASK_ROUTED_COMMANDS = List.of(
+		CommandId.TASK_MOVE_FORWARD_DAY, CommandId.TASK_MOVE_FORWARD_WEEK, CommandId.TASK_MOVE_FORWARD_FOUR_WEEKS,
+		CommandId.TASK_MOVE_FORWARD_CUSTOM, CommandId.TASK_MOVE_BACK_DAY, CommandId.TASK_MOVE_BACK_WEEK,
+		CommandId.TASK_MOVE_BACK_FOUR_WEEKS, CommandId.TASK_MOVE_BACK_CUSTOM, CommandId.TASK_ADD_TO_TIMELINE);
+	/** Routes a ribbon command straight through the shared task-command pipeline. */
+	private final class TaskRouteAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private final CommandId command;
+		TaskRouteAction(CommandId command) {
+			this.command = command;
+		}
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, dispatchTaskCommand(command));
+			DocumentFrame frame = getCurrentFrame();
+			if (frame != null)
+				getMenuManager().setActionSelected(CommandId.TASK_ADD_TO_TIMELINE.actionId(), frame.isSelectedTaskOnTimeline());
+		}
+	}
+	public class TaskFontAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private final String fontAction;
+		public TaskFontAction(String fontAction) {
+			this.fontAction = fontAction;
+		}
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			DocumentFrame frame = isDocumentActive() ? getCurrentFrame() : null;
+			if (frame == null || !isDocumentWritable())
+				return;
+			switch (fontAction) {
+			case ACTION_BOLD -> frame.toggleSelectedTaskBold();
+			case ACTION_ITALIC -> frame.toggleSelectedTaskItalic();
+			case ACTION_UNDERLINE -> frame.toggleSelectedTaskUnderline();
+			case ACTION_BACKGROUND_COLOR -> applyTaskBackground(frame, event);
+			case ACTION_FONT_COLOR -> applyTaskFontColor(frame, event);
+			case ACTION_FONT_NAME, ACTION_FONT_SIZE -> { }
+			default -> frame.chooseSelectedTaskFontColor();
+			}
+			getMenuManager().setActionSelected(ACTION_BOLD, frame.isSelectedTaskTextBold());
+			getMenuManager().setActionSelected(ACTION_ITALIC, frame.isSelectedTaskTextItalic());
+			getMenuManager().setActionSelected(ACTION_UNDERLINE, frame.isSelectedTaskTextUnderline());
+		}
+		private void applyTaskBackground(DocumentFrame frame, ActionEvent event) {
+			String value = event.getActionCommand();
+			if ("__automatic__".equals(value)) {
+				frame.applySelectedTaskBackground(null);
+			} else if (isColorValue(value)) {
+				frame.applySelectedTaskBackground(Integer.parseInt(value.substring(1), 16));
+			} else {
+				frame.chooseSelectedTaskBackground();
+			}
+		}
+		private void applyTaskFontColor(DocumentFrame frame, ActionEvent event) {
+			String value = event.getActionCommand();
+			if ("__automatic__".equals(value)) {
+				frame.applySelectedTaskFontColor(null);
+			} else if (isColorValue(value)) {
+				frame.applySelectedTaskFontColor(Integer.parseInt(value.substring(1), 16));
+			} else {
+				frame.chooseSelectedTaskFontColor();
+			}
+		}
+		private boolean isColorValue(String value) {
+			return value != null && value.matches("#[0-9A-Fa-f]{6}");
+		}
+		@Override protected boolean allowed(boolean enable) {
+			return !enable || isDocumentActive() && getCurrentFrame() != null
+				&& getCurrentFrame().canFormatSelectedTaskText();
+		}
+	}
+	public class FormatPainterAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive() && getCurrentFrame() != null)
+				getCurrentFrame().startOrPromoteFormatPainter();
+		}
+		@Override protected boolean allowed(boolean enable) {
+			return !enable || isDocumentActive() && getCurrentFrame() != null
+				&& getCurrentFrame().canStartFormatPainter();
+		}
+	}
+	public class PasteAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive() && beforeActionRoute("paste")) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.PASTE.actionId(), "route-rejected"));
+				return;
+			}
+			publishTaskCommandOutcome(this, isDocumentActive()
+				? dispatchTaskCommand(CommandId.PASTE)
+				: RibbonCommandResult.rejected(CommandId.PASTE.actionId(), "no-active-document"));
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return isDocumentWritable();
+		}
+	}
+	public class PasteInsertAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive() && beforeActionRoute("pasteInsert")) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(CommandId.PASTE_INSERT.actionId(), "route-rejected"));
+				return;
+			}
+			publishTaskCommandOutcome(this, isDocumentActive()
+				? dispatchTaskCommand(CommandId.PASTE_INSERT)
+				: RibbonCommandResult.rejected(CommandId.PASTE_INSERT.actionId(), "no-active-document"));
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return isDocumentWritable();
+		}
+	}
+
+	/** Paste: lets the user choose how the clipboard is pasted (Paste Special). */
+	public class PasteSpecialAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private static final String COMMAND_ID = "PasteSpecial";
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive() || getCurrentFrame() == null) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(COMMAND_ID, "no-active-document"));
+				return;
+			}
+			DocumentFrame frame = getCurrentFrame();
+			javax.swing.JPanel panel = new javax.swing.JPanel(new java.awt.GridLayout(0, 1, 0, 4));
+			panel.add(new javax.swing.JLabel(Messages.getString("PasteSpecial.Prompt")));
+			javax.swing.JRadioButton paste = new javax.swing.JRadioButton(Messages.getString("PasteSpecial.Paste"), true);
+			javax.swing.JRadioButton insert = new javax.swing.JRadioButton(Messages.getString("PasteSpecial.PasteInsert"));
+			javax.swing.JRadioButton values = new javax.swing.JRadioButton(Messages.getString("PasteSpecial.PasteValues"));
+			javax.swing.ButtonGroup group = new javax.swing.ButtonGroup();
+			for (javax.swing.JRadioButton option : new javax.swing.JRadioButton[] { paste, insert, values }) {
+				group.add(option);
+				panel.add(option);
+			}
+			int choice = PopupDialogSupport.showConfirmDialog(getFrame(), panel, Messages.getString("PasteSpecial.Title"),
+				JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+			if (choice != JOptionPane.OK_OPTION) {
+				publishTaskCommandOutcome(this, new RibbonCommandResult(COMMAND_ID, RibbonCommandResult.Status.NO_CHANGE,
+					"dialog-cancelled").withActiveView(frame.getTopViewId()));
+			} else if (insert.isSelected()) {
+				new PasteInsertAction().actionPerformed(event);
+			} else if (values.isSelected()) {
+				SpreadSheet sheet = frame.getActiveSpreadSheet();
+				boolean pasted = sheet != null && sheet.pasteClipboardAsValues();
+				publishTaskCommandOutcome(this, (pasted ? RibbonCommandResult.changed(COMMAND_ID)
+					: RibbonCommandResult.rejected(COMMAND_ID, "nothing-to-paste")).withActiveView(frame.getTopViewId()));
+			} else {
+				new PasteAction().actionPerformed(event);
+			}
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return isDocumentWritable();
+		}
+	}
+
+	/** Copy: puts an image of the active view on the system clipboard (Copy Picture). */
+	public class CopyPictureAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private static final String COMMAND_ID = "CopyPicture";
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive() || getCurrentFrame() == null) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(COMMAND_ID, "no-active-document"));
+				return;
+			}
+			DocumentFrame frame = getCurrentFrame();
+			boolean copied = false;
+			try {
+				copied = frame.getActiveTopView() instanceof javax.swing.JComponent view && ViewPictureClipboard.copy(view);
+			} catch (java.awt.HeadlessException | IllegalStateException failure) {
+				logger.log(Level.WARNING, "Unable to copy the view picture", failure);
+			}
+			publishTaskCommandOutcome(this, (copied ? RibbonCommandResult.noChange(COMMAND_ID)
+				: RibbonCommandResult.rejected(COMMAND_ID, "no-view-image")).withActiveView(frame.getTopViewId()));
+		}
+	}
+
+	/** Find: the Find dialog in replace mode (Replace). */
+	public class ReplaceAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive())
+				doFind(getCurrentFrame().getTopSpreadSheet(), null, null, true);
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return isDocumentWritable() && getCurrentFrame() != null && getCurrentFrame().getActiveSpreadSheet() != null;
+		}
+	}
+
+	/**
+	 * Sort quick sort (ascending) by one field of the active view. Task views use the
+	 * view's sorter {@code taskSorterId} (outline order when {@code null}); resource views sort
+	 * by {@code resourceFieldId} and reject the command when that column is not shown.
+	 */
+	public class QuickSortAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private final String commandId;
+		private final String taskSorterId;
+		private final String resourceFieldId;
+		QuickSortAction(String commandId, String taskSorterId, String resourceFieldId) {
+			this.commandId = commandId;
+			this.taskSorterId = taskSorterId;
+			this.resourceFieldId = resourceFieldId;
+		}
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			DocumentFrame frame = getCurrentFrame();
+			if (!isDocumentActive() || frame == null) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(commandId, "no-active-document"));
+				return;
+			}
+			if (frame.getActiveTopView() instanceof ResourceView resourceView) {
+				List<ResourceView.SortKey> previousKeys = resourceView.getSortKeys();
+				if (!resourceView.applySortOrder(resourceFieldId, true)) {
+					publishTaskCommandOutcome(this, RibbonCommandResult.rejected(commandId, "invalid-sort-field")
+						.withActiveView(frame.getTopViewId()));
+					return;
+				}
+				publishTaskCommandOutcome(this, (previousKeys.equals(resourceView.getSortKeys())
+					? RibbonCommandResult.noChange(commandId) : RibbonCommandResult.changed(commandId))
+					.withActiveView(frame.getTopViewId()));
+				return;
+			}
+			com.microproject.node.transform.ViewConfiguration view =
+				com.microproject.node.transform.ViewConfiguration.getView(frame.getTopViewId());
+			if (view == null || view.getTransform() == null) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(commandId, "no-sortable-view"));
+				return;
+			}
+			TaskSortSpec spec = taskSorterId == null ? TaskSortSpec.outlineDefault()
+				: new TaskSortSpec(List.of(new TaskSortSpec.Key(taskSorterId, true)), true);
+			boolean same = spec.equals(view.getTransform().getTaskSortSpec());
+			view.getTransform().setTaskSortSpec(spec);
+			publishTaskCommandOutcome(this, (same ? RibbonCommandResult.noChange(commandId)
+				: RibbonCommandResult.changed(commandId)).withActiveView(frame.getTopViewId()));
+		}
+	}
+
+	public class DeleteAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			publishTaskCommandOutcome(this, isDocumentActive()
+				? dispatchTaskCommand(CommandId.DELETE)
+				: RibbonCommandResult.rejected(CommandId.DELETE.actionId(), "no-active-document"));
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return isDocumentWritable();
+		}
+	}
+
+	public class ViewAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private String viewName;
+		public ViewAction(String viewName) {
+			this.viewName = viewName;
+		}
+		public void actionPerformed(ActionEvent e) {
+			setMeAsLastGraphicManager();
+			if (getCurrentFrame() == null)
+				return;
+			rememberReport(viewName);
+			if (!beforeViewSwitchRoute(viewName))
+				return;
+			setColorTheme(viewName);
+			getCurrentFrame().activateView(viewName);
+			setButtonState(null,getCurrentFrame().getProject()); // disable buttons because no selection when first activated
+
+		}
+		public final String getViewName() {
+			return viewName;
+		}
+
+	}
+
+	public class TransformAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private final int type;
+		public TransformAction(int type) {
+			this.type = type;
+		}
+		public void actionPerformed(ActionEvent e) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive())
+				return;
+			String actionId = switch (type) {
+			case TransformComboBoxModel.SORTER -> ACTION_CHOOSE_SORT;
+			case TransformComboBoxModel.GROUPER -> ACTION_CHOOSE_GROUP;
+			default -> ACTION_CHOOSE_FILTER;
+			};
+			if (!beforeChooserRoute(actionId))
+				return;
+	        CommonSpreadSheet spreadSheet=getCurrentFrame().getTopSpreadSheet();
+	        List<Node> taskSortSelection = List.of();
+	        if (type == TransformComboBoxModel.SORTER && spreadSheet != null) {
+			taskSortSelection = new ArrayList<>(spreadSheet.getSelectedNodes());
+		}
+	        if (spreadSheet!=null){
+	            if (spreadSheet.isEditing())
+	            	spreadSheet.getCellEditor().stopCellEditing();//.cancelCellEditing();
+	            if (type != TransformComboBoxModel.SORTER) spreadSheet.clearSelection();
+	        }
+	        if (e.getSource() instanceof TransformComboBox combo) {
+	        	combo.transformBasedOnValue();
+	        	return;
+	        }
+	        showTransformChooser(type, this, actionId, taskSortSelection);
+	        refreshTransformDropDowns();
+		}
+	}
+
+	private static final String RIBBON_FILTER_ID = "RibbonChooseFilter";
+	private static final String RIBBON_GROUP_ID = "RibbonChooseGroup";
+	private static final String RIBBON_FONT_NAME_ID = "RibbonFontName";
+	private static final String RIBBON_FONT_SIZE_ID = "RibbonFontSize";
+	private static final List<Integer> FONT_SIZES = List.of(8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72);
+
+	/** Re-reads the filter and group labels of the ribbon from the active view. */
+	private void refreshTransformDropDowns() {
+		getMenuManager().refreshRibbonDropDown(RIBBON_FILTER_ID);
+		getMenuManager().refreshRibbonDropDown(RIBBON_GROUP_ID);
+	}
+
+	private static final String RIBBON_UNDO_ID = "RibbonTopBarUndo";
+	private static final String RIBBON_REDO_ID = "RibbonTopBarRedo";
+	private static final int HISTORY_LIST_SIZE = 20;
+
+	/** Values and choices of the ribbon Filter and Group drop-downs (the transforms of the active top view) and the undo/redo history lists. */
+	private final class TransformDropDownSource implements RibbonDropDownSource {
+		@Override
+		public List<String> popupEntries(String commandId) {
+			if (RIBBON_SWITCH_WINDOWS_ID.equals(commandId)) {
+				List<DocumentFrame> frames = openDocumentFrames();
+				List<String> names = new ArrayList<>(frames.size());
+				for (int index = 0; index < frames.size(); index++) {
+					Project project = frames.get(index).getProject();
+					names.add((index + 1) + " " + (project == null ? "" : project.getName()));
+				}
+				return names;
+			}
+			if (RIBBON_RECENT_REPORTS_ID.equals(commandId)) {
+				if (!isDocumentActive())
+					return List.of();
+				List<String> names = new ArrayList<>(recentReportActions.size());
+				for (String actionId : recentReportActions)
+					names.add(getMenuManager().getString("Ribbon" + actionId + ".text"));
+				return names;
+			}
+			boolean undo = RIBBON_UNDO_ID.equals(commandId);
+			if (!undo && !RIBBON_REDO_ID.equals(commandId))
+				return List.of();
+			DocumentFrame frame = getCurrentFrame();
+			UndoController controller = frame == null || !isDocumentActive() ? null : frame.getUndoController();
+			if (controller == null)
+				return List.of();
+			List<String> names = undo ? controller.getUndoNames(HISTORY_LIST_SIZE) : controller.getRedoNames(HISTORY_LIST_SIZE);
+			List<String> entries = new ArrayList<>(names.size());
+			for (int index = 0; index < names.size(); index++) {
+				String name = names.get(index);
+				entries.add(name == null || name.isBlank() ? "#" + (index + 1) : name);
+			}
+			return entries;
+		}
+
+		/** Choosing entry {@code n} undoes or redoes the steps up to and including it. */
+		@Override
+		public void selectPopupEntry(String commandId, int index) {
+			if (RIBBON_SWITCH_WINDOWS_ID.equals(commandId)) {
+				List<DocumentFrame> frames = openDocumentFrames();
+				if (index >= 0 && index < frames.size()) {
+					setMeAsLastGraphicManager();
+					setCurrentFrame(frames.get(index));
+				}
+				return;
+			}
+			if (RIBBON_RECENT_REPORTS_ID.equals(commandId)) {
+				setMeAsLastGraphicManager();
+				openRecentReport(index);
+				return;
+			}
+			boolean undo = RIBBON_UNDO_ID.equals(commandId);
+			if (index < 0 || (!undo && !RIBBON_REDO_ID.equals(commandId)))
+				return;
+			setMeAsLastGraphicManager();
+			for (int step = 0; step <= index; step++)
+				doUndoRedo(undo);
+		}
+
+		private TransformComboBoxModel model(String commandId) {
+			int type = RIBBON_FILTER_ID.equals(commandId) ? TransformComboBoxModel.FILTER
+					: RIBBON_GROUP_ID.equals(commandId) ? TransformComboBoxModel.GROUPER : 0;
+			DocumentFrame frame = getCurrentFrame();
+			if (type == 0 || frame == null)
+				return null;
+			com.microproject.node.transform.ViewConfiguration view =
+				com.microproject.node.transform.ViewConfiguration.getView(frame.getTopViewId());
+			if (view == null || view.getTransform() == null)
+				return null;
+			TransformComboBoxModel model = new TransformComboBoxModel(type);
+			model.setView(view);
+			return model;
+		}
+
+		@Override
+		public String currentValue(String commandId) {
+			if (RIBBON_TIMESCALE_ID.equals(commandId)) {
+				GanttView ganttView = getActiveGanttView();
+				List<String> labels = timescaleLabels(ganttView);
+				int scale = ganttView == null ? -1 : ganttView.getScale();
+				return scale >= 0 && scale < labels.size() ? labels.get(scale) : null;
+			}
+			if (RIBBON_FONT_NAME_ID.equals(commandId) || RIBBON_FONT_SIZE_ID.equals(commandId)) {
+				DocumentFrame frame = isDocumentActive() ? getCurrentFrame() : null;
+				if (frame == null)
+					return null;
+				if (RIBBON_FONT_NAME_ID.equals(commandId))
+					return frame.selectedTaskFontFamily();
+				int size = frame.selectedTaskFontSize();
+				return size <= 0 ? null : Integer.toString(size);
+			}
+			TransformComboBoxModel model = model(commandId);
+			return model == null || model.getSelectedItem() == null ? null : model.getSelectedItem().toString();
+		}
+
+		@Override
+		public List<String> choices(String commandId) {
+			if (RIBBON_TIMESCALE_ID.equals(commandId))
+				return timescaleLabels(getActiveGanttView());
+			if (RIBBON_FONT_NAME_ID.equals(commandId))
+				return List.of(java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames());
+			if (RIBBON_FONT_SIZE_ID.equals(commandId))
+				return FONT_SIZES.stream().map(String::valueOf).toList();
+			TransformComboBoxModel model = model(commandId);
+			List<String> names = new ArrayList<>();
+			for (int index = 0; model != null && index < model.getSize(); index++)
+				names.add(model.getElementAt(index).toString());
+			return names;
+		}
+
+		@Override
+		public void select(String commandId, int index) {
+			if (RIBBON_TIMESCALE_ID.equals(commandId)) {
+				GanttView ganttView = getActiveGanttView();
+				if (ganttView == null || index < 0 || index >= ganttView.getScaleCount())
+					return;
+				setMeAsLastGraphicManager();
+				ganttView.setScale(index);
+				setZoomButtons();
+				return;
+			}
+			if (RIBBON_FONT_NAME_ID.equals(commandId) || RIBBON_FONT_SIZE_ID.equals(commandId)) {
+				List<String> options = choices(commandId);
+				DocumentFrame frame = isDocumentActive() ? getCurrentFrame() : null;
+				if (frame == null || !isDocumentWritable() || index < 0 || index >= options.size())
+					return;
+				setMeAsLastGraphicManager();
+				if (RIBBON_FONT_NAME_ID.equals(commandId))
+					frame.setSelectedTaskFontFamily(options.get(index));
+				else
+					frame.setSelectedTaskFontSize(Integer.parseInt(options.get(index)));
+				getMenuManager().refreshRibbonDropDown(commandId);
+				return;
+			}
+			TransformComboBoxModel model = model(commandId);
+			if (model == null || index < 0 || index >= model.getSize())
+				return;
+			setMeAsLastGraphicManager();
+			CommonSpreadSheet spreadSheet = getCurrentFrame().getTopSpreadSheet();
+			if (spreadSheet != null) {
+				if (spreadSheet.isEditing())
+					spreadSheet.getCellEditor().stopCellEditing();
+				spreadSheet.clearSelection();
+			}
+			model.changeTransform(model.getElementAt(index));
+			refreshTransformDropDowns();
+		}
+	}
+
+	/** Opens Resource Sort Order through the existing resource-view sort pipeline. */
+	public class SortOrderAction extends TransformAction {
+		private static final long serialVersionUID = 1L;
+		public SortOrderAction() { super(TransformComboBoxModel.SORTER); }
+
+		@Override
+		public void actionPerformed(ActionEvent event) {
+			String commandId = event == null || event.getActionCommand() == null
+					? ACTION_SORT : event.getActionCommand();
+			if (event.getSource() instanceof TransformComboBox) {
+				super.actionPerformed(event);
+				return;
+			}
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive()) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(commandId, "no-active-document"));
+				return;
+			}
+			DocumentFrame frame = getCurrentFrame();
+			if (frame == null || !(frame.getActiveTopView() instanceof ResourceView resourceView)) {
+				super.actionPerformed(event);
+				return;
+			}
+			if (!beforeChooserRoute("SortOrder")) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(commandId, "route-rejected"));
+				return;
+			}
+			ResourceSortOrderPanel panel = new ResourceSortOrderPanel(resourceView.getResourceSortFields(),
+				resourceView.getSortKeys());
+			int choice = PopupDialogSupport.showConfirmDialog(getFrame(), panel,
+				Messages.getString("ResourceSortOrder.Title"), JOptionPane.OK_CANCEL_OPTION,
+				JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+			if (choice != JOptionPane.OK_OPTION) {
+				publishTaskCommandOutcome(this, new RibbonCommandResult(commandId, RibbonCommandResult.Status.NO_CHANGE,
+					"dialog-cancelled").withActiveView(frame.getTopViewId()));
+				return;
+			}
+			List<ResourceView.SortKey> previousKeys = resourceView.getSortKeys();
+			boolean applied = resourceView.applySortOrder(panel.getKeys());
+			if (!applied) {
+				publishTaskCommandOutcome(this, RibbonCommandResult.rejected(commandId, "invalid-sort-field"));
+				return;
+			}
+			boolean changed = !previousKeys.equals(resourceView.getSortKeys());
+			publishTaskCommandOutcome(this, (changed ? RibbonCommandResult.changed(commandId) : RibbonCommandResult.noChange(commandId))
+				.withActiveView(frame.getTopViewId()));
+		}
+	}
+
+
+	public void closeApplication(){
+		addHistory("closeApplication");
+		quitting = true;
+		persistOpenCollaborationWorkspaces();
+//		if (true) {
+//			Frame frame=getFrame();
+//			if (frame!=null)
+//				frame.dispose();
+//			System.exit(0);
+//			return;
+//		}
+
+		new Thread(() -> {
+			JobRunnable exitRunnable=new JobRunnable("Local: closeProjects"){
+				public Object run() throws Exception{
+					Frame frame=getFrame();
+					autoRecoveryManager.completeNormalShutdown();
+					if (frame!=null) frame.dispose();
+					System.exit(0);
+					return null; //return not used anyway
+				}
+			};
+
+
+			Job job=projectFactory.getPortfolio().getRemoveAllProjectsJob(exitRunnable,true,null);
+			SessionFactory.getInstance().getLocalSession().schedule(job);
+
+		}).start();
+	}
+
+	public void initLayout() {
+		getFrameManager().getWorkspace().setLayout(new BorderLayout());
+	}
+	public void initProject(){
+		//projects loaded in doStartupAction
+//        if (projectUrl == null && !GeneralOption.getInstance().isStartWithBlankProject()) {
+//			//System.out.println("not opening anything");
+//		} else if (projectUrl == null   || projectUrl.length==0 || projectUrl[0].startsWith("http")) { //same as in Main //$NON-NLS-1$
+//			boolean ok = loadLocalDocument(projectUrl[0],true); //if null then it will create a new project. WebStart will send a file name
+//			if (!ok)
+//				return;
+//		}
+////		else {
+////			loadDownloadedDocument(); //not used anymore
+////		}
+		if (getCurrentFrame() != null)
+			getCurrentFrame().activateView(ACTION_GANTT);
+
+	}
+
+	void setEnabledDocumentMenuActions(boolean enable) {
+		if (Environment.isPlugin()) return;
+       actionsMap.setEnabledDocumentMenuActions(enable);
+        if (getCurrentFrame() != null && getCurrentFrame().getFilterToolBarManager() != null) {
+        	getCurrentFrame().getFilterToolBarManager().setEnabled(enable);
+        }
+        if (topTabs != null)
+        	topTabs.setTrackingEnabled(enable && isDocumentWritable());
+		syncGanttViewRibbonState();
+	}
+
+	protected boolean loadLocalDocument(String fileName,boolean merge){
+		return loadLocalDocument(fileName, merge, null);
+	}
+	/** Clears the active view's user filter without changing project data. */
+	public class ClearFilterAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive()) return;
+			DocumentFrame frame = getCurrentFrame();
+			com.microproject.node.transform.ViewConfiguration view =
+				com.microproject.node.transform.ViewConfiguration.getView(frame.getTopViewId());
+			if (view == null || view.getTransform() == null) return;
+			if (!view.getTransform().isNoneFilter()) {
+				view.getTransform().setUserFilterId(
+					com.microproject.node.transform.ViewTransformer.FILTER_NONE_ID);
+				frame.setComboBoxesViewName(frame.getTopViewId());
+			}
+			setButtonState(frame.getSelectedImpl(), frame.getProject());
+		}
+		@Override protected boolean allowed(boolean enable) {
+			// This action is reachable only by the document-wide F3 binding.  Keep it
+			// enabled for every active document: when no filter is active it is a
+			// deterministic no-op, and a later filter activation cannot leave a stale
+			// disabled Action in the root-pane map.
+			return !enable || isDocumentActive();
+		}
+	}
+
+	/** Microsoft Project Ctrl+Delete: clear selected field values without deleting rows. */
+	public class ClearContentsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive())
+				getCurrentFrame().doClearContents();
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return isDocumentWritable();
+		}
+	}
+
+
+	/** Edit > Fill (Down, Up, Left, Right) on the active sheet's selected cells. */
+	public class FillAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		private final String fillAction;
+		public FillAction(String fillAction) {
+			this.fillAction = fillAction;
+		}
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive() && isDocumentWritable())
+				getCurrentFrame().doFill(fillAction);
+		}
+		protected boolean allowed(boolean enable) {
+			if (enable==false) return true;
+			return isDocumentWritable();
+		}
+	}
+
+	/** Routes the Resource ribbon command to the resource sheet's canonical New action. */
+	public class InsertResourceAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			DocumentFrame frame = getCurrentFrame();
+			if (frame == null || !(frame.getActiveTopView() instanceof ResourceView)
+					|| frame.getProject() == null || frame.getProject().isReadOnly())
+				return;
+			ResourceView resourceView = (ResourceView) frame.getActiveTopView();
+			int[] selectedRows = resourceView.getSpreadSheet().getSelectedRows();
+			finishAnyOperations();
+			resourceView.getSpreadSheet().executeAction(MenuActionConstants.ACTION_INSERT_RESOURCE, selectedRows);
+		}
+
+		@Override
+		protected boolean allowed(boolean enable) {
+			return !enable || resourceType && isDocumentWritable();
+		}
+	}
+
+	/** Saves a master through the portable MPO workflow required by issue #395. */
+	public class SaveMpoAsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			executeExternalRibbonCommand("saveMpoAs", () -> {
+				if (isDocumentActive()) saveMasterAsMpo();
+			});
+		}
+		@Override protected boolean allowed(boolean enable) {
+			if (!enable) return true;
+			DocumentFrame frame = getCurrentFrame();
+			return frame != null && frame.getProject() != null && frame.getProject().isMaster()
+				&& frame.getProject().isSavable();
+		}
+	}
+	/**
+	 * Opens one local file and invokes {@code afterLoad} on the EDT after its load
+	 * job has reached a terminal state.  Callers that expand a multiple-file
+	 * chooser selection use this to submit the next file only after the local
+	 * loader has released its single-load critical section.
+	 */
+	private boolean loadLocalDocument(String fileName, boolean merge, Consumer<Object> afterLoad){
+		return loadLocalDocument(fileName, merge, afterLoad, false);
+	}
+
+	/**
+	 * Opens a document and optionally permits its completion to advance the
+	 * active-document generation.  A sequential multi-file open deliberately
+	 * changes the current frame after each file, so using the ordinary stale
+	 * completion guard would discard every callback after the first document.
+	 */
+	private boolean loadLocalDocument(String fileName, boolean merge, Consumer<Object> afterLoad,
+			boolean completionMayFollowFrameSwitch){
+		// A background load reports failures through Alert, whose default parent is
+		// the last active manager.  Make this manager current before scheduling the
+		// job so repeated opens from different desktop windows cannot route the
+		// error dialog to a disposed window.
+		setMeAsLastGraphicManager();
+		final long loadGeneration = documentGeneration.current();
+	addHistory("loadLocalDocument",new Object[]{fileName,merge});
+		//showWaitCursor(true);
+		if (fileName != null && !merge) {
+			DocumentFrame existing = findFrameForProjectFile(fileName);
+			if (existing != null) {
+				setCurrentFrame(existing);
+				showDocumentRibbon();
+				if (afterLoad != null)
+				documentGeneration.dispatchCompletion(documentGeneration.current(), () -> afterLoad.accept(existing.getProject()));
+				return true;
+			}
+		}
+		Project project;
+		if (fileName==null) {
+			project = projectFactory.createProject();
+
+		} else {
+			LoadOptions opt=ProjectLoadWorkflow.prepareLoadOptions(fileName, true, getCollaborationUserKey());
+			opt.setId(SessionFactory.getInstance().getLocalSession().registerProjectFile(fileName));
+			opt.setEndSwingClosure(new Consumer<Object>() { public void accept(Object arg0) {
+					Runnable completion = () -> {
+						// Some loads intentionally survive a project-frame switch, but no
+						// completion may publish into a manager that has already been closed.
+						if (frameManager == null)
+							return;
+					setMeAsLastGraphicManager();
+					if (arg0 instanceof Project) {
+						Project loadedProject = (Project)arg0;
+						// The portfolio normally creates the document frame.  Keep the
+						// standalone multi-file path resilient when that notification is
+						// delivered before the frame listener is ready.
+						if (!loadedProject.isOpenedAsSubproject() && getFrameForProject(loadedProject) == null)
+							addProjectFrame(loadedProject);
+						initializeCollaboration(loadedProject);
+					}
+					if (afterLoad != null)
+						afterLoad.accept(arg0);
+					};
+					if (completionMayFollowFrameSwitch)
+						SwingUtilities.invokeLater(completion);
+					else
+						documentGeneration.dispatchCompletion(loadGeneration, completion);
+				}
+			});
+
+			if (merge) opt.setResourceMapping(new ResourceMappingForm(){
+				public boolean execute(){
+					if (getImportedResources().size() == 0) // don't show dialog if no resources were imported
+						return true;
+					return resourceMappingDialogCoordinator.show(this, getCurrentFrame());
+				}
+			});
+			Exception preflightFailure = ProjectLoadWorkflow.preflightStandaloneFile(fileName);
+			if (preflightFailure != null) {
+				String message = ProjectFactory.projectLoadFailureMessage(fileName, preflightFailure);
+				SwingUtilities.invokeLater(() -> Alert.error(message));
+				return false;
+			}
+
+			project=projectFactory.openProject(opt);
+
+		}
+		//showWaitCursor(false);
+		return project != null;
+	}
+
+	protected void saveLocalDocument(String fileName,final boolean saveAs){
+		addHistory("saveLocalDocument",new Object[]{fileName,saveAs});
+		//showWaitCursor(true);
+		final DocumentFrame frame = getCurrentFrame();
+		if (frame == null) {
+			return;
+		}
+		final Project project=frame.getProject();
+		final CollaborationSession collaborationSession = project.getCollaborationSession();
+		SaveOptions opt = com.microproject.application.ProjectDocumentWorkflow.prepareSaveOptions(project, fileName, saveAs, true,
+			collaborationSession,
+			getCollaborationUserKey(),
+			collaborationSession == null ? null : collaborationSession.getSidecarFileName(),
+			new com.microproject.application.ProjectDocumentWorkflow.SaveCallbacks() {
+				public void persistWorkspace(Project projectToPersist) {
+					persistCollaborationWorkspace(projectToPersist);
+				}
+
+				public int resolveSaveDecision(Project projectToSave, CollaborationSession session) {
+					return CollaborationHelper.checkBeforeSave(session, getCurrentFrame());
+				}
+
+				public String chooseSaveAsCopyFileName(Project projectToSave) {
+					return SessionFactory.getInstance().getLocalSession().chooseFileName(true, projectToSave.getGuessedFileName());
+				}
+
+				public void afterSave(Project savedProject, boolean saveAsRequested, boolean fileNameChanged, boolean collaborationEnabled) {
+					autoRecoveryManager.discard(savedProject);
+					recentProjectStore.recordOpened(savedProject.getFileName());
+					if (saveAsRequested) {
+						frame.setId(savedProject.getUniqueId()+""); //$NON-NLS-1$
+					}
+					if (fileNameChanged && savedProject.getCollaborationSession() != null) {
+						savedProject.getCollaborationSession().stop();
+						savedProject.setCollaborationSession(null);
+						initializeCollaboration(savedProject);
+					}
+					if (collaborationEnabled && savedProject.getCollaborationSession() != null) {
+						savedProject.getCollaborationSession().afterSave();
+						persistCollaborationWorkspace(savedProject);
+					}
+					refreshSaveStatus(true);
+					CollaborationSession savedSession = savedProject.getCollaborationSession();
+					if (frame != null && savedSession != null && savedSession.hasAmbiguousWorkspaceFallback()) {
+						frame.statusBar.setMessage("The project was saved, but workspace recovery remains unresolved. Both workspace copies were preserved.");
+					}
+					Runnable continuation = afterSaveNewProject;
+					afterSaveNewProject = null;
+					if (continuation != null) SwingUtilities.invokeLater(continuation);
+				}
+			});
+		if (opt == null) {
+			return;
+		}
+		opt.setPreSaving(getSavingClosure());
+		projectFactory.saveProject(project,opt);
+		//showWaitCursor(false);
+	}
+
+	private Consumer<Object> getSavingClosure() {
+		return arg0 -> {
+			if (!(arg0 instanceof Project project))
+				return;
+			DocumentFrame frame = getCurrentFrame();
+			if (frame != null && frame.getProject() == project)
+				project.setFieldArray(getCurrentFieldArray());
+		};
+	}
+
+	private Consumer<Object> getLoadClosure() {
+		return null;
+//		return new Consumer<Object>() {
+//
+//			public void accept(Object arg0) {
+//				Project proj = (Project)arg0;
+//				SpreadSheetFieldArray fieldArray = (SpreadSheetFieldArray) proj.getDocumentWorkspace().getSetting("fieldArray");
+//				if (fieldArray != null)
+//					getCurrentFrame().getGanttView().getSpreadSheet().setFieldArray(fieldArray);
+//			}
+//
+//		};
+
+	}
+
+	protected void closeProject(Project project){
+		persistCollaborationWorkspace(project);
+		projectFactory.removeProject(project,true,true,true);
+	}
+
+	/** The close is certain only here: until the save prompt is answered the document keeps its recovery snapshot and extracted files. */
+	private void releaseClosedProject(Project project) {
+		autoRecoveryManager.discard(project);
+		// Subprojects do not always have a DocumentFrame; release their MPOF
+		// extraction ownership at the project-removal boundary as well.
+		closeProjectArtifacts(project);
+	}
+
+	void closeProjectArtifacts(Project project) {
+		if (project != null && !projectArtifactLifecycleCoordinator.close(LocalSession.MPO_PROJECT_IMPORTER, project))
+			logger.warning("Unable to close MPO project artifacts: no lifecycle provider is registered");
+	}
+
+	public void openLocalProject(){
+		java.util.List<String> fileNames = SessionFactory.getInstance().getLocalSession().chooseFileNames(false, null);
+		if (fileNames == null || fileNames.isEmpty()) return;
+		openLocalProjectsSequentially(fileNames, 0);
+	}
+
+	/**
+	 * Opens every project supplied by desktop startup.  Startup arguments use the
+	 * same serial loader as File/Open because the local importer has a single-load
+	 * critical section.  In particular, do not open only the first command-line
+	 * project: every successfully parsed path is an independent document.
+	 */
+	void openLocalProjectsSequentially(String[] fileNames) {
+		if (fileNames == null || fileNames.length == 0)
+			return;
+		openLocalProjectsSequentially(java.util.Arrays.asList(fileNames), 0);
+	}
+
+	/** Opens every entry selected by the native multiple-file chooser in order. */
+	private void openLocalProjectsSequentially(List<String> fileNames, int index) {
+		for (int current = index; current < fileNames.size(); current++) {
+			String fileName = fileNames.get(current);
+			if (fileName == null || fileName.isBlank())
+				continue;
+			DocumentFrame existingFrame = findFrameForProjectFile(fileName);
+			if (existingFrame == null) {
+				final int next = current + 1;
+				loadLocalDocument(fileName, false,
+					ignored -> openLocalProjectsSequentially(fileNames, next), true);
+				return;
+			}
+			setCurrentFrame(existingFrame);
+		}
+	}
+
+	/**
+	 * Makes the active project a sharer of another saved project already open in
+	 * this desktop.  Requiring both documents to be saved prevents a reference
+	 * that cannot be restored after reopening either project.
+	 */
+	public class UseResourcePoolAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive() || !isDocumentWritable()) return;
+			Project sharer = getCurrentFrame().getProject();
+			List<Project> candidates = getOpenProjects().stream()
+				.filter(project -> project != sharer && project.getFileName() != null && !project.getFileName().isBlank())
+				.toList();
+			if (candidates.isEmpty()) {
+				Alert.warn(Messages.getString("SharedResourcePool.noSavedPool"));
+				return;
+			}
+			List<PoolChoice> choices = candidates.stream().map(PoolChoice::new).toList();
+			PoolChoice selected = (PoolChoice) JOptionPane.showInputDialog(getFrame(),
+				Messages.getString("SharedResourcePool.choosePool"), Messages.getString("SharedResourcePool.title"),
+				JOptionPane.PLAIN_MESSAGE, null, choices.toArray(), choices.get(0));
+			if (selected == null) return;
+			Project poolProject = selected.project();
+			if (sharer.isDirty() || poolProject.isDirty()) {
+				Alert.warn(Messages.getString("SharedResourcePool.saveBeforeUse"));
+				return;
+			}
+			Object policy = JOptionPane.showInputDialog(getFrame(), Messages.getString("SharedResourcePool.choosePrecedence"),
+				Messages.getString("SharedResourcePool.title"), JOptionPane.PLAIN_MESSAGE, null,
+				new String[] { Messages.getString("SharedResourcePool.poolPrecedence"), Messages.getString("SharedResourcePool.sharerPrecedence") },
+				Messages.getString("SharedResourcePool.poolPrecedence"));
+			if (policy == null) return;
+			SharedResourcePoolService.ConflictPolicy conflictPolicy = Messages.getString("SharedResourcePool.sharerPrecedence").equals(policy)
+				? SharedResourcePoolService.ConflictPolicy.SHARER_TAKES_PRECEDENCE : SharedResourcePoolService.ConflictPolicy.POOL_TAKES_PRECEDENCE;
+			SharedResourcePoolService.getInstance().share(sharer, poolProject, conflictPolicy);
+			sharer.setDirty(true);
+			getCurrentFrame().repaint();
+		}
+	}
+
+	/** Creates the independent document that will become a saved shared resource pool. */
+	public class CreateResourcePoolAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			ProjectDialog.Form form = doNewProjectNoDialog1();
+			form.setName("Resource Pool " + project_suffix_count++);
+			form.setResourcePoolProject(true);
+			doNewProjectDialog2(form);
+			Alert.warn("Save the new resource-pool project, then choose Use Resource Pool from each sharer project.");
+		}
+	}
+
+	private record PoolChoice(Project project) {
+		@Override public String toString() {
+			String name = project.getName();
+			return (name == null || name.isBlank() ? "(unnamed resource pool)" : name)
+				+ " — " + new File(project.getFileName()).getName();
+		}
+	}
+
+	/** Resolves a persisted pool link only after both open documents are saved. */
+	public class RefreshResourcePoolAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive() || !isDocumentWritable()) return;
+			Project sharer = getCurrentFrame().getProject();
+			if (sharer.getSharedResourcePoolFile() == null) {
+				Alert.warn(Messages.getString("SharedResourcePool.noReference"));
+				return;
+			}
+			Project poolProject = getOpenProjects().stream().filter(project -> project != sharer)
+				.filter(project -> SharedResourcePoolService.getInstance().isPoolReference(sharer, project)).findFirst().orElse(null);
+			if (poolProject == null) {
+				Alert.warn(Messages.getString("SharedResourcePool.poolNotOpen"));
+				return;
+			}
+			if (sharer.isDirty() || poolProject.isDirty()) {
+				Alert.warn(Messages.getString("SharedResourcePool.saveBeforeRefresh"));
+				return;
+			}
+			SharedResourcePoolService.getInstance().share(sharer, poolProject, sharer.isResourcePoolTakesPrecedence()
+				? SharedResourcePoolService.ConflictPolicy.POOL_TAKES_PRECEDENCE : SharedResourcePoolService.ConflictPolicy.SHARER_TAKES_PRECEDENCE);
+			getCurrentFrame().repaint();
+		}
+	}
+
+	/** Refreshes all links in the active master without changing the active document. */
+	public class RefreshSubprojectsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive())
+				refreshLinkedSubprojects();
+		}
+	}
+
+	/** Opens the selected master-project reference as its own document, if needed. */
+	public class OpenSubprojectAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			SubProj reference = selectedSubprojectReference();
+			if (reference != null) activateSubproject(reference);
+		}
+	}
+
+	/** Removes only the selected reference; the linked project file is never deleted. */
+	public class RemoveSubprojectAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		@Override public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentWritable()) return;
+			SubProj reference = selectedSubprojectReference();
+			if (reference != null) removeLinkedSubproject(reference);
+		}
+		@Override protected boolean allowed(boolean enable) {
+			return !enable || isDocumentWritable();
+		}
+	}
+
+	private SubProj selectedSubprojectReference() {
+		DocumentFrame frame = getCurrentFrame();
+		return frame != null && frame.getSelectedImpl() instanceof SubProj reference ? reference : null;
+	}
+
+	private void insertLocalSubprojects(Project masterProject) {
+		java.util.List<String> fileNames = SessionFactory.getInstance().getLocalSession()
+			.chooseFileNames(false, masterProject.getFileName());
+		if (fileNames == null)
+			return;
+		JCheckBox readOnly = new JCheckBox(Messages.getString("Field.subprojectReadOnly"));
+		if (PopupDialogSupport.showConfirmDialog(getFrame(), readOnly, Messages.getString("Text.insertProject"),
+				JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION) != JOptionPane.OK_OPTION)
+			return;
+		com.microproject.session.LocalSession session = SessionFactory.getInstance().getLocalSession();
+		for (String fileName : fileNames) {
+			if (FilePathUtils.sameFileIdentity(masterProject.getFileName(), fileName)
+					|| masterProject.getSubprojectHandler().hasSubprojectReference(fileName)) {
+				Alert.error(Messages.getString("GraphicManager.SelectedProjectAlreadySubproject"));
+				continue;
+			}
+			long id = session.registerProjectFile(fileName);
+			if (id <= 0L) {
+				Alert.error(Messages.getString("Error.projectDoesNotExist"));
+				continue;
+			}
+			insertSubproject(masterProject, id, true, readOnly.isSelected(), fileName);
+		}
+	}
+
+	public boolean saveLocalProject(boolean saveAs){
+		return saveLocalProject(saveAs, null);
+	}
+
+	/**
+	 * Runs the same local save chooser, optionally starting it in a folder picked
+	 * on the Backstage Save As page.  Only the suggested path changes; the chooser
+	 * and the existing save routine remain the single save flow.
+	 */
+	boolean saveLocalProject(boolean saveAs, Path initialFolder){
+		if (getCurrentFrame() == null || getCurrentFrame().getProject() == null) return false;
+		Project project=getCurrentFrame().getProject();
+		String fileName = project.getFileName();
+		boolean chooseSaveAs = saveAs || com.microproject.application.ProjectFilePolicies.requiresSaveAs(fileName);
+		if (chooseSaveAs) {
+			String suggested = com.microproject.application.ProjectFilePolicies.defaultSaveAsFileName(
+				fileName == null ? project.getGuessedFileName() : fileName);
+			suggested = saveAsInFolder(suggested, initialFolder);
+			fileName = SessionFactory.getInstance().getLocalSession().chooseFileName(true, suggested);
+		} else if (fileName == null) {
+			fileName = SessionFactory.getInstance().getLocalSession().chooseFileName(true, project.getGuessedFileName());
+		}
+		if (fileName!=null) {
+			saveLocalDocument(fileName,chooseSaveAs);
+			return true;
+		}
+		return false;
+	}
+
+	/** A Backstage folder choice arrives as an absolute directory command value. */
+	public static Path saveAsFolderFromCommand(String value) {
+		if (value == null || value.isBlank()) return null;
+		try {
+			Path candidate = Path.of(value);
+			if (!candidate.isAbsolute() || !java.nio.file.Files.isDirectory(candidate)) return null;
+			return candidate.toAbsolutePath().normalize();
+		} catch (RuntimeException invalidPath) {
+			return null;
+		}
+	}
+
+	/** Keeps the default MPO file name while pointing the existing chooser at the picked folder. */
+	public static String saveAsInFolder(String suggested, Path folder) {
+		if (suggested == null || suggested.isBlank() || folder == null) return suggested;
+		try {
+			Path name = Path.of(suggested).getFileName();
+			return name == null ? suggested : folder.resolve(name).toString();
+		} catch (RuntimeException invalidPath) {
+			return suggested;
+		}
+	}
+
+	/** Shows the local save chooser and forces the master portable format. */
+	public boolean saveMasterAsMpo() {
+		DocumentFrame frame = getCurrentFrame();
+		Project project = frame == null ? null : frame.getProject();
+		if (project == null || !project.isMaster()) return false;
+		String suggested = com.microproject.application.ProjectFilePolicies.defaultSaveAsFileName(project.getFileName());
+		if (suggested == null || suggested.isBlank()) suggested = project.getGuessedFileName();
+		suggested = com.microproject.application.ProjectFilePolicies.defaultSaveAsFileName(suggested);
+		if (suggested == null || suggested.isBlank()) suggested = "master.mpo";
+		if (!suggested.toLowerCase(java.util.Locale.ROOT).endsWith(".mpo")) suggested += ".mpo";
+		String selected = SessionFactory.getInstance().getLocalSession().chooseFileName(true, suggested);
+		if (selected == null || selected.isBlank()) return false;
+		if (!selected.toLowerCase(java.util.Locale.ROOT).endsWith(".mpo")) selected += ".mpo";
+		saveLocalDocument(selected, true);
+		return true;
+	}
+
+	private static final String RIBBON_TIMESCALE_ID = "RibbonTimescaleGallery";
+	private static final String RIBBON_SWITCH_WINDOWS_ID = "RibbonSwitchWindows";
+	private static final String RIBBON_RECENT_REPORTS_ID = "RibbonReportRecent";
+	private static final int RECENT_REPORT_LIMIT = 8;
+	/** Report commands remembered by Report > Recent; each is also a registered action id. */
+	private static final List<String> REPORT_ACTION_IDS = List.of(ACTION_REPORT, ACTION_CHARTS, ACTION_HISTOGRAM,
+		ACTION_TASK_USAGE, ACTION_RESOURCE_USAGE, ACTION_CUSTOM_REPORT, ACTION_CCPM_BUFFER_STATUS);
+	/** Report action ids opened in this session, most recent first. */
+	private final List<String> recentReportActions = new ArrayList<>();
+
+	private void rememberReport(String actionId) {
+		if (!REPORT_ACTION_IDS.contains(actionId))
+			return;
+		recentReportActions.remove(actionId);
+		recentReportActions.add(0, actionId);
+		while (recentReportActions.size() > RECENT_REPORT_LIMIT)
+			recentReportActions.remove(recentReportActions.size() - 1);
+	}
+
+	/** Report > Recent: reopens the report opened last in this session. */
+	public class RecentReportsAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			openRecentReport(0);
+		}
+	}
+
+	private void openRecentReport(int index) {
+		if (!isDocumentActive() || index < 0 || index >= recentReportActions.size())
+			return;
+		Action action = actionsMap.getConcreteAction(recentReportActions.get(index));
+		if (action != null && action.isEnabled())
+			action.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, recentReportActions.get(index)));
+	}
+
+	/** View > Team Planner: shows the Team Planner view. */
+	public class TeamPlannerAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive()) getCurrentFrame().doDelegateTasksDialog();
+		}
+	}
+
+	private List<DocumentFrame> openDocumentFrames() {
+		return getFrameManager() == null ? List.of() : getFrameManager().getDocumentFrames();
+	}
+
+	/** View > Switch Windows: activates the next open project; the ribbon menu lists them all. */
+	public class SwitchWindowsAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			List<DocumentFrame> frames = openDocumentFrames();
+			if (frames.size() < 2)
+				return;
+			int current = frames.indexOf(getCurrentFrame());
+			setCurrentFrame(frames.get((current + 1) % frames.size()));
+		}
+	}
+
+	public class ArrangeAllAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			getFrameManager().arrangeAll();
+		}
+		protected boolean allowed(boolean enable) {
+			return getFrameManager() != null && getFrameManager().getAllFrames().size() > 1;
+		}
+	}
+
+
+    public void showAboutDialog() {
+		applicationInfoDialogCoordinator.showAbout(getFrame());
+    }
+
+    public void showHelpDialog(/*DocumentFrame documentFrame*/) {
+		applicationInfoDialogCoordinator.showHelp(getFrame());
+    }
+
+
+/**
+ * Show or focus the assignment dialog.  If showing, initilize to project
+ * @param project
+ */
+    public void showAssignmentDialog(DocumentFrame documentFrame) {
+		if (getCurrentFrame()==null||!getCurrentFrame().isActive())
+			return;
+		assignmentDialogCoordinator.show(documentFrame);
+    }
+
+    public void showTimesheetDialog(DocumentFrame documentFrame) {
+		if (documentFrame == null || documentFrame.getProject() == null)
+			return;
+
+		documentFrame.finishAnyOperations();
+		TimesheetDialog dialog = new TimesheetDialog(documentFrame, getSelectedResourcesForTimesheet(documentFrame));
+		dialog.pack();
+		dialog.setLocationRelativeTo(documentFrame);
+		dialog.setVisible(true);
+    }
+
+	private List<Resource> getSelectedResourcesForTimesheet(DocumentFrame documentFrame) {
+		List<Object> selectedImpls = documentFrame.getSelectedImpls(false);
+		ArrayList<Resource> selectedResources = new ArrayList<>(selectedImpls.size());
+		for (Object impl : selectedImpls) {
+			if (impl instanceof Resource)
+				selectedResources.add((Resource) impl);
+		}
+		return selectedResources;
+    }
+
+
+	void doCalendarOptionsDialog() {
+		finishAnyOperations();
+		CalendarOption calendarOption = CalendarOption.getInstance();
+		CalendarDialogBox dialog = CalendarDialogBox.getInstance(getFrame(), calendarOption);
+		if (dialog.doModal()) {
+			dialog.getForm().copyToOption(calendarOption);
+		}
+	}
+
+	/** The active top view when the shared sheet Format commands apply to it (a spreadsheet-based view), else null. */
+	BaseView getActiveSheetView() {
+		DocumentFrame frame = getCurrentFrame();
+		if (frame == null || frame.getProject() == null)
+			return null;
+		String topViewId = frame.getTopViewId();
+		if (!(ACTION_GANTT.equals(topViewId) || ACTION_TRACKING_GANTT.equals(topViewId) || ACTION_TASK_SHEET.equals(topViewId)
+				|| ACTION_TASK_USAGE_DETAIL.equals(topViewId) || ACTION_RESOURCE_USAGE_DETAIL.equals(topViewId)
+				|| ACTION_RESOURCES.equals(topViewId)))
+			return null;
+		BaseView view = frame.getActiveTopView();
+		return view != null && view.getSpreadSheet() != null ? view : null;
+	}
+
+	/** The active Network Diagram view, else null. */
+	PertView getActiveNetworkView() {
+		DocumentFrame frame = getCurrentFrame();
+		if (frame == null || frame.getProject() == null || !ACTION_NETWORK.equals(frame.getTopViewId()))
+			return null;
+		return frame.getActiveTopView() instanceof PertView view ? view : null;
+	}
+
+	/** The active embedded Calendar view's dialog, else null. */
+	com.microproject.ui.dialog.CalendarViewDialogBox getActiveCalendarDialog() {
+		DocumentFrame frame = getCurrentFrame();
+		if (frame == null || frame.getProject() == null || !ACTION_CALENDAR_VIEW.equals(frame.getTopViewId()))
+			return null;
+		if (!(frame.getActiveTopView() instanceof javax.swing.JComponent view))
+			return null;
+		for (java.awt.Component child : view.getComponents())
+			if (child instanceof javax.swing.JComponent component
+					&& component.getClientProperty(com.microproject.ui.dialog.CalendarViewDialogBox.DIALOG_PROPERTY) instanceof com.microproject.ui.dialog.CalendarViewDialogBox dialog)
+				return dialog;
+		return null;
+	}
+
+	/** The active embedded Timeline view's dialog, else null. */
+	com.microproject.ui.dialog.TimelineDialogBox getActiveTimelineDialog() {
+		DocumentFrame frame = getCurrentFrame();
+		if (frame == null || frame.getProject() == null || !ACTION_TIMELINE.equals(frame.getTopViewId()))
+			return null;
+		return frame.getEmbeddedTimelineDialog();
+	}
+
+	/** The active embedded Team Planner view's dialog, else null. */
+	com.microproject.ui.dialog.TeamPlannerDialogBox getActiveTeamPlannerDialog() {
+		DocumentFrame frame = getCurrentFrame();
+		if (frame == null || frame.getProject() == null || !ACTION_DELEGATE_TASKS.equals(frame.getTopViewId()))
+			return null;
+		return frame.getEmbeddedTeamPlannerDialog();
+	}
+
+	/** Enable and check state of the Timeline Format and Team Planner Format tabs. */
+	private void syncTimelineTeamPlannerRibbonState() {
+		com.microproject.ui.dialog.TimelineDialogBox timeline = getActiveTimelineDialog();
+		com.microproject.ui.dialog.TeamPlannerDialogBox planner = getActiveTeamPlannerDialog();
+		for (String action : new String[] { ACTION_TIMELINE_TEXT_STYLES, ACTION_TIMELINE_SET_DATE_RANGE, ACTION_TIMELINE_SHOW_TASK_DATES,
+				ACTION_TIMELINE_SHOW_TODAY, ACTION_TIMELINE_SHOW_TIMESCALE, ACTION_TIMELINE_SHOW_TASK_PROGRESS, ACTION_TIMELINE_VIEW_EXPAND,
+				ACTION_TIMELINE_BAR_SET_LABEL, ACTION_TIMELINE_VIEW_OVERLAPPED_TASKS_SHOW, ACTION_TIMELINE_VIEW_PAN_AND_ZOOM_SHOW,
+				ACTION_TIMELINE_VIEW_TEXT_LINE_HEIGHT, ACTION_TIMELINE_INSERT_BAR, ACTION_TIMELINE_ADD_EXISTING_TASKS,
+				ACTION_TIMELINE_INSERT_TASK, ACTION_TIMELINE_INSERT_CALLOUT, ACTION_TIMELINE_INSERT_MILESTONE,
+				ACTION_TIMELINE_COPY_FOR_EMAIL, ACTION_TIMELINE_COPY_FOR_PRESENTATION, ACTION_TIMELINE_COPY_FULL_SIZE })
+			getMenuManager().setActionEnabled(action, timeline != null);
+		boolean timelineSelection = timeline != null && !timeline.getSelectedTasks().isEmpty();
+		for (String action : new String[] { ACTION_TIMELINE_DISPLAY_ON_TIMELINE, ACTION_TIMELINE_DISPLAY_AS_CALLOUT, ACTION_TIMELINE_REMOVE_TASK })
+			getMenuManager().setActionEnabled(action, timelineSelection);
+		com.microproject.ui.dialog.TimelineViewSettings timelineSettings = timeline == null ? null : timeline.getSettings();
+		getMenuManager().setActionSelected(ACTION_TIMELINE_SHOW_TASK_DATES, timelineSettings != null && timelineSettings.isShowTaskDates());
+		getMenuManager().setActionSelected(ACTION_TIMELINE_SHOW_TODAY, timelineSettings != null && timelineSettings.isShowToday());
+		getMenuManager().setActionSelected(ACTION_TIMELINE_SHOW_TIMESCALE, timelineSettings != null && timelineSettings.isShowTimescale());
+		getMenuManager().setActionSelected(ACTION_TIMELINE_SHOW_TASK_PROGRESS, timelineSettings != null && timelineSettings.isShowProgress());
+		getMenuManager().setActionSelected(ACTION_TIMELINE_VIEW_EXPAND, timelineSettings != null && timelineSettings.isExpanded());
+		getMenuManager().setActionSelected(ACTION_TIMELINE_BAR_SET_LABEL, timelineSettings != null && timelineSettings.isBarLabels());
+		getMenuManager().setActionSelected(ACTION_TIMELINE_VIEW_OVERLAPPED_TASKS_SHOW, timelineSettings != null && timelineSettings.isShowOverlapped());
+		getMenuManager().setActionSelected(ACTION_TIMELINE_VIEW_PAN_AND_ZOOM_SHOW, timelineSettings != null && timelineSettings.isShowPanZoom());
+		getMenuManager().setActionSelected(ACTION_TIMELINE_DISPLAY_ON_TIMELINE, timelineSelection && allDisplayedOnTimeline(timeline));
+		getMenuManager().setActionSelected(ACTION_TIMELINE_DISPLAY_AS_CALLOUT, timelineSelection && allCallouts(timeline));
+
+		for (String action : new String[] { ACTION_TEAM_PLANNER_OUTLINE_SHOW_ALL, ACTION_TEAM_PLANNER_OUTLINE_LEVEL1,
+				ACTION_TEAM_PLANNER_OUTLINE_LEVEL2, ACTION_TEAM_PLANNER_OUTLINE_LEVEL3, ACTION_TEAM_PLANNER_OUTLINE_LEVEL4,
+				ACTION_TEAM_PLANNER_OUTLINE_LEVEL5, ACTION_TEAM_PLANNER_OUTLINE_LEVEL6, ACTION_TEAM_PLANNER_OUTLINE_LEVEL7,
+				ACTION_TEAM_PLANNER_OUTLINE_LEVEL8, ACTION_TEAM_PLANNER_OUTLINE_LEVEL9, ACTION_TEAM_PLANNER_GRIDLINES,
+				ACTION_TEAM_PLANNER_TEXT_STYLES, ACTION_TEAM_PLANNER_TEXT_LINES, ACTION_TEAM_PLANNER_AUTO_BORDER, ACTION_TEAM_PLANNER_AUTO_FILL,
+				ACTION_TEAM_PLANNER_AUTO_RESET, ACTION_TEAM_PLANNER_MANUAL_BORDER, ACTION_TEAM_PLANNER_MANUAL_FILL,
+				ACTION_TEAM_PLANNER_MANUAL_RESET, ACTION_TEAM_PLANNER_ACTUAL_BORDER, ACTION_TEAM_PLANNER_ACTUAL_FILL,
+				ACTION_TEAM_PLANNER_ACTUAL_RESET, ACTION_TEAM_PLANNER_EXTERNAL_BORDER, ACTION_TEAM_PLANNER_EXTERNAL_FILL,
+				ACTION_TEAM_PLANNER_EXTERNAL_RESET, ACTION_TEAM_PLANNER_LATE_BORDER, ACTION_TEAM_PLANNER_LATE_FILL,
+				ACTION_TEAM_PLANNER_LATE_RESET, ACTION_TEAM_PLANNER_PREVENT_OVERALLOCATION, ACTION_TEAM_PLANNER_EXPAND_ROWS,
+				ACTION_TEAM_PLANNER_UNASSIGNED_TASKS_SHOW, ACTION_TEAM_PLANNER_UNSCHEDULED_TASKS_SHOW })
+			getMenuManager().setActionEnabled(action, planner != null);
+		boolean plannerSelection = planner != null && !planner.getSelectedTasks().isEmpty();
+		getMenuManager().setActionEnabled(ACTION_TEAM_PLANNER_SELECTED_FILL, plannerSelection);
+		getMenuManager().setActionEnabled(ACTION_TEAM_PLANNER_SELECTED_BORDER, plannerSelection);
+		com.microproject.ui.dialog.TeamPlannerViewSettings plannerSettings = planner == null ? null : planner.getSettings();
+		getMenuManager().setActionSelected(ACTION_TEAM_PLANNER_GRIDLINES, plannerSettings != null && plannerSettings.isGridlines());
+		getMenuManager().setActionSelected(ACTION_TEAM_PLANNER_PREVENT_OVERALLOCATION, plannerSettings != null && plannerSettings.isPreventOverallocation());
+		getMenuManager().setActionSelected(ACTION_TEAM_PLANNER_EXPAND_ROWS, plannerSettings != null && plannerSettings.isExpandRows());
+		getMenuManager().setActionSelected(ACTION_TEAM_PLANNER_UNASSIGNED_TASKS_SHOW, plannerSettings != null && plannerSettings.isShowUnassigned());
+		getMenuManager().setActionSelected(ACTION_TEAM_PLANNER_UNSCHEDULED_TASKS_SHOW, plannerSettings != null && plannerSettings.isShowUnscheduled());
+	}
+
+	/** The view whose summary rows/boxes the Summary Tasks command toggles: a sheet view or the Network Diagram. */
+	private BaseView getActiveSummaryTasksView() {
+		BaseView sheet = getActiveSheetView();
+		return sheet != null ? sheet : getActiveNetworkView();
+	}
+
+	private UsageDetailView getActiveUsageView() {
+		return getActiveSheetView() instanceof UsageDetailView view ? view : null;
+	}
+
+	private GanttView getActiveGanttView() {
+		if (!isActiveGanttView() || getCurrentFrame() == null)
+			return null;
+		return getCurrentFrame().getGanttView();
+	}
+
+	private void showTransformChooser(int type, Action action, String actionId, List<Node> taskSortSelection) {
+		if (!isDocumentActive())
+			return;
+		TransformComboBox combo = new TransformComboBox(getMenuManager(), actionId, type);
+		combo.setView(com.microproject.node.transform.ViewConfiguration.getView(getTopViewId()));
+		if (combo.getItemCount() == 0)
+			return;
+		if (combo.getSelectedIndex() < 0)
+			combo.setSelectedIndex(0);
+		boolean taskSort = type == TransformComboBoxModel.SORTER
+				&& getCurrentFrame() != null
+				&& !(getCurrentFrame().getActiveTopView() instanceof ResourceView)
+				&& getCurrentFrame().getProject() != null
+				&& !getCurrentFrame().getProject().isReadOnly();
+		boolean taskViewSort = type == TransformComboBoxModel.SORTER
+				&& getCurrentFrame() != null
+				&& !(getCurrentFrame().getActiveTopView() instanceof ResourceView)
+				&& getCurrentFrame().getProject() != null;
+		JComboBox<String> sortDirection = taskViewSort
+				? new JComboBox<>(new String[] {
+					Messages.getString("ResourceSortOrder.Ascending"),
+					Messages.getString("ResourceSortOrder.Descending") }) : null;
+		if (sortDirection != null) {
+			sortDirection.setName("microproject.taskSort.direction");
+			ViewTransformer viewTransform = ((TransformComboBoxModel) combo.getModel()).getView().getTransform();
+			boolean[] lastNonNoneAscending = { viewTransform.isUserSorterAscending() };
+			sortDirection.setSelectedIndex(lastNonNoneAscending[0] ? 0 : 1);
+			sortDirection.addActionListener(event -> {
+				boolean noneSelected = combo.getSelectedItem() instanceof CommonTransformFactory factory
+						&& ViewTransformer.SORTER_NONE_ID.equals(factory.getId());
+				if (!noneSelected) lastNonNoneAscending[0] = sortDirection.getSelectedIndex() == 0;
+			});
+			Runnable syncSortDirection = () -> {
+				boolean noneSelected = combo.getSelectedItem() instanceof CommonTransformFactory factory
+						&& ViewTransformer.SORTER_NONE_ID.equals(factory.getId());
+				if (noneSelected) sortDirection.setSelectedIndex(0);
+				else sortDirection.setSelectedIndex(lastNonNoneAscending[0] ? 0 : 1);
+				sortDirection.setEnabled(!noneSelected);
+			};
+			combo.addActionListener(event -> syncSortDirection.run());
+			syncSortDirection.run();
+		}
+		JCheckBox permanentOrder = taskSort
+				? new JCheckBox(getMenuManager().getString("Sort.PermanentTaskOrder")) : null;
+		TaskSortOptionsPanel taskSortOptions = null;
+		if (taskViewSort) {
+			ViewTransformer taskViewTransformer = ((TransformComboBoxModel) combo.getModel()).getView().getTransform();
+			TaskSortSpec current = taskViewTransformer.getTaskSortSpec();
+			List<CommonTransformFactory> sortChoices = new ArrayList<>();
+			for (int index = 0; index < combo.getItemCount(); index++)
+				if (combo.getItemAt(index) instanceof CommonTransformFactory factory) sortChoices.add(factory);
+			taskSortOptions = new TaskSortOptionsPanel(sortChoices, current);
+			if (permanentOrder != null) {
+				permanentOrder.setName("microproject.taskSort.permanentOrder");
+				permanentOrder.setEnabled(current.keepOutline());
+				taskSortOptions.addKeepOutlineListener(event -> {
+					boolean keepOutline = event.getStateChange() == java.awt.event.ItemEvent.SELECTED;
+					if (!keepOutline) permanentOrder.setSelected(false);
+					permanentOrder.setEnabled(keepOutline);
+				});
+			}
+		}
+		JPanel chooser = new JPanel(new BorderLayout(0, 8));
+		chooser.add(combo, BorderLayout.CENTER);
+		if (taskSortOptions != null) chooser.add(taskSortOptions, BorderLayout.NORTH);
+		if (sortDirection != null || permanentOrder != null) {
+			JPanel options = new JPanel(new FlowLayout(FlowLayout.LEADING, 8, 0));
+			if (sortDirection != null) {
+				options.add(new JLabel(Messages.getString("ResourceSortOrder.Order")));
+				options.add(sortDirection);
+			}
+			if (permanentOrder != null) options.add(permanentOrder);
+			chooser.add(options, BorderLayout.SOUTH);
+		}
+		int choice = PopupDialogSupport.showConfirmDialog(getFrame(), chooser,
+				getMenuManager().getString(actionId + ".text"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+		if (choice == JOptionPane.OK_OPTION) {
+			if (permanentOrder != null && permanentOrder.isSelected()) {
+				int confirm = PopupDialogSupport.showConfirmDialog(getFrame(),
+						getMenuManager().getString("Sort.PermanentTaskOrderConfirm"),
+						getMenuManager().getString("Sort.PermanentTaskOrder"),
+						JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE, JOptionPane.NO_OPTION);
+				if (confirm != JOptionPane.YES_OPTION) {
+					publishTaskCommandOutcome(action, new RibbonCommandResult(actionId, RibbonCommandResult.Status.NO_CHANGE,
+							"permanent-sort-cancelled").withActiveView(getCurrentFrame().getTopViewId()));
+					return;
+				}
+				CommonTransformFactory factory = (CommonTransformFactory) combo.getSelectedItem();
+				TaskSortSpec sortSpec = taskSortSpec(combo, sortDirection, taskSortOptions);
+				try {
+					if (!sortSpec.keepOutline()) {
+						publishTaskCommandOutcome(action, RibbonCommandResult.rejected(actionId, "permanent-sort-requires-outline"));
+						return;
+					}
+					if (factory == null || sortSpec.keys().isEmpty()) {
+						publishTaskCommandOutcome(action, RibbonCommandResult.rejected(actionId, "invalid-sorter"));
+						return;
+					}
+					DocumentFrame frame = getCurrentFrame();
+					Project sortingProject = frame.getProject();
+					NodeModel taskModel = frame.getTaskModel();
+					if (!(taskModel instanceof DefaultNodeModel defaultNodeModel)) {
+						publishTaskCommandOutcome(action, RibbonCommandResult.rejected(actionId, "unsupported-task-model"));
+						return;
+					}
+					boolean changed = defaultNodeModel.sortOutlineBy(sortSpec.comparator(), NodeModel.NORMAL);
+					if (changed) {
+						for (int index = 0; index < combo.getItemCount(); index++) {
+							Object item = combo.getItemAt(index);
+							if (item instanceof CommonTransformFactory noneFactory
+									&& ViewTransformer.SORTER_NONE_ID.equals(noneFactory.getId())) {
+								combo.setSelectedItem(noneFactory);
+								((TransformComboBoxModel) combo.getModel()).getView().getTransform()
+									.setTaskSortSpec(TaskSortSpec.outlineDefault());
+								break;
+							}
+						}
+						if (frame.getActiveSpreadSheet() instanceof SpreadSheet taskSheet && !taskSortSelection.isEmpty()) {
+							List<Node> selectionToRestore = List.copyOf(taskSortSelection);
+							SwingUtilities.invokeLater(() -> {
+								if (getCurrentFrame() == frame && frame.getProject() == sortingProject
+										&& frame.getActiveSpreadSheet() == taskSheet)
+									taskSheet.restoreTaskRowSelection(selectionToRestore);
+							});
+						}
+					}
+					publishTaskCommandOutcome(action, (changed ? RibbonCommandResult.changed(actionId)
+							: RibbonCommandResult.noChange(actionId)).withActiveView(frame.getTopViewId()));
+				} catch (Exception exception) {
+					logger.log(Level.WARNING, "Unable to apply permanent task order", exception);
+					publishTaskCommandOutcome(action, RibbonCommandResult.rejected(actionId, "sort-failed"));
+				}
+				return;
+			}
+			if (taskSortOptions != null) {
+				ViewTransformer taskViewTransformer = ((TransformComboBoxModel) combo.getModel()).getView().getTransform();
+				taskViewTransformer.setTaskSortSpec(taskSortSpec(combo, sortDirection, taskSortOptions));
+			} else if (sortDirection == null) combo.transformBasedOnValue();
+			else combo.transformBasedOnValue(sortDirection.getSelectedIndex() == 0);
+		}
+	}
+
+	private TaskSortSpec taskSortSpec(TransformComboBox combo, JComboBox<String> direction, TaskSortOptionsPanel options) {
+		List<TaskSortSpec.Key> keys = new ArrayList<>();
+		Object selected = combo.getSelectedItem();
+		if (selected instanceof CommonTransformFactory factory && factory.getId() != null
+				&& !ViewTransformer.SORTER_NONE_ID.equals(factory.getId())) {
+			keys.add(new TaskSortSpec.Key(factory.getId(), direction == null || direction.getSelectedIndex() == 0));
+			for (TaskSortSpec.Key key : options.getAdditionalKeys()) {
+				if (keys.stream().noneMatch(existing -> existing.fieldId().equals(key.fieldId()))) keys.add(key);
+			}
+		}
+		return new TaskSortSpec(keys, options.isKeepOutline());
+	}
+
+	private List<String> timescaleLabels(GanttView ganttView) {
+		if (ganttView == null)
+			return List.of();
+		return List.of(DocumentStatusBar.formatScaleChoices(getMenuManager().getString("RibbonTimescale.text"),
+			ganttView.getScaleCount(), ganttView::getTimeScale));
+	}
+
+	private void showTimescaleChooser() {
+		GanttView ganttView = getActiveGanttView();
+		if (ganttView == null)
+			return;
+		MenuManager manager = getMenuManager();
+		int scaleCount = ganttView.getScaleCount();
+		String[] labels = DocumentStatusBar.formatScaleChoices(manager.getString("RibbonTimescale.text"),
+			scaleCount, ganttView::getTimeScale);
+		JComboBox<String> combo = new JComboBox<>(labels);
+		combo.setSelectedIndex(ganttView.getScale());
+		int choice = PopupDialogSupport.showConfirmDialog(getFrame(), combo,
+				manager.getString("RibbonTimescale.text"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+		if (choice == JOptionPane.OK_OPTION) {
+			ganttView.setScale(combo.getSelectedIndex());
+			setZoomButtons();
+		}
+	}
+
+	public void showBarStyleChooser() {
+		GanttView ganttView = getActiveGanttView();
+		if (ganttView == null)
+			return;
+		MenuManager manager = getMenuManager();
+		String[] styles = { "standard", "Tracking" };
+		JComboBox<String> combo = new JComboBox<>(styles);
+		combo.setSelectedItem(ganttView.getCurrentBarStyleName());
+		int choice = PopupDialogSupport.showConfirmDialog(getFrame(), combo,
+				manager.getString("RibbonBarStyles.text"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+		if (choice == JOptionPane.OK_OPTION) {
+			ganttView.setBarStyles((String) combo.getSelectedItem());
+			ganttView.getGantt().repaint();
+		}
+	}
+
+	private void toggleGridlines() {
+		GanttView ganttView = getActiveGanttView();
+		if (ganttView == null)
+			return;
+		ganttView.setSpreadsheetGridVisible(!ganttView.isSpreadsheetGridVisible());
+	}
+
+	private void showTextStyleChooser() {
+		GanttView ganttView = getActiveGanttView();
+		if (ganttView == null)
+			return;
+		MenuManager manager = getMenuManager();
+		String[] labels = {
+			manager.getString("RibbonLabelResourceNames.text"),
+			manager.getString("RibbonLabelTaskName.text")
+		};
+		JComboBox<String> combo = new JComboBox<>(labels);
+		combo.setSelectedIndex(ganttView.isTaskNameAnnotationSelected() ? 1 : 0);
+		int choice = PopupDialogSupport.showConfirmDialog(getFrame(), combo,
+				manager.getString("RibbonTextStyles.text"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+		if (choice == JOptionPane.OK_OPTION) {
+			ganttView.setCurrentAnnotationFieldId(combo.getSelectedIndex() == 1
+				? GanttView.ANNOTATION_FIELD_TASK_NAME
+				: GanttView.ANNOTATION_FIELD_RESOURCE_NAMES);
+			syncGanttViewRibbonState();
+		}
+	}
+
+	private void showLayoutChooser() {
+		GanttView ganttView = getActiveGanttView();
+		if (ganttView == null)
+			return;
+		MenuManager manager = getMenuManager();
+		int scaleCount = ganttView.getScaleCount();
+		String[] scaleLabels = DocumentStatusBar.formatScaleChoices(manager.getString("RibbonTimescale.text"),
+			scaleCount, ganttView::getTimeScale);
+		JComboBox<String> timescaleCombo = new JComboBox<>(scaleLabels);
+		timescaleCombo.setSelectedIndex(ganttView.getScale());
+		JComboBox<String> barStyleCombo = new JComboBox<>(new String[] { "standard", "Tracking" });
+		barStyleCombo.setSelectedItem(ganttView.getCurrentBarStyleName());
+		JComboBox<String> labelCombo = new JComboBox<>(new String[] {
+			manager.getString("RibbonLabelResourceNames.text"),
+			manager.getString("RibbonLabelTaskName.text")
+		});
+		labelCombo.setSelectedIndex(ganttView.isTaskNameAnnotationSelected() ? 1 : 0);
+		JCheckBox gridlines = new JCheckBox(manager.getString("RibbonGridlines.text"), ganttView.isSpreadsheetGridVisible());
+
+		JPanel panel = new JPanel(new GridLayout(0, 1, 0, 8));
+		panel.setBorder(new EmptyBorder(8, 8, 8, 8));
+		panel.add(new JLabel(manager.getString("RibbonTimescale.text")));
+		panel.add(timescaleCombo);
+		panel.add(new JLabel(manager.getString("RibbonBarStyles.text")));
+		panel.add(barStyleCombo);
+		panel.add(new JLabel(manager.getString("RibbonTextStyles.text")));
+		panel.add(labelCombo);
+		panel.add(gridlines);
+
+		int choice = PopupDialogSupport.showConfirmDialog(getFrame(), panel,
+				manager.getString("RibbonLayout.text"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+		if (choice == JOptionPane.OK_OPTION) {
+			ganttView.setScale(timescaleCombo.getSelectedIndex());
+			ganttView.setBarStyles((String) barStyleCombo.getSelectedItem());
+			ganttView.setCurrentAnnotationFieldId(labelCombo.getSelectedIndex() == 1
+				? GanttView.ANNOTATION_FIELD_TASK_NAME
+				: GanttView.ANNOTATION_FIELD_RESOURCE_NAMES);
+			ganttView.setSpreadsheetGridVisible(gridlines.isSelected());
+			ganttView.getGantt().repaint();
+			setZoomButtons();
+			syncGanttViewRibbonState();
+		}
+	}
+
+	private void showProgressLinesDialog() {
+		GanttView ganttView = getActiveGanttView();
+		if (ganttView == null || getCurrentFrame() == null || getCurrentFrame().getProject() == null)
+			return;
+		Project project = getCurrentFrame().getProject();
+		com.microproject.model.task.ProgressLineSettings current = project.getProgressLineSettings();
+		if (current == null)
+			current = new com.microproject.model.task.ProgressLineSettings(ganttView.isProgressLineEnabled(),
+				com.microproject.model.task.ProgressLineSettings.ReferenceDate.STATUS_DATE,
+				false, 1, com.microproject.model.task.ProgressLineSettings.IntervalUnit.WEEK);
+		MenuManager manager = getMenuManager();
+		JCheckBox showReference = new JCheckBox(manager.getString("ProgressLines.showCurrent"), current.showCurrentLine());
+		JRadioButton statusDate = new JRadioButton(manager.getString("ProgressLines.statusDate"),
+			current.referenceDate() == com.microproject.model.task.ProgressLineSettings.ReferenceDate.STATUS_DATE);
+		JRadioButton currentDate = new JRadioButton(manager.getString("ProgressLines.currentDate"),
+			current.referenceDate() == com.microproject.model.task.ProgressLineSettings.ReferenceDate.CURRENT_DATE);
+		ButtonGroup referenceDates = new ButtonGroup();
+		referenceDates.add(statusDate);
+		referenceDates.add(currentDate);
+		JCheckBox showRecurring = new JCheckBox(manager.getString("ProgressLines.showRecurring"), current.showRecurringLines());
+		JSpinner interval = new JSpinner(new SpinnerNumberModel(current.recurringInterval(), 1,
+			com.microproject.model.task.ProgressLineSettings.MAX_RECURRING_INTERVAL, 1));
+		JComboBox<String> unit = new JComboBox<>(new String[] { manager.getString("ProgressLines.day"),
+			manager.getString("ProgressLines.week"), manager.getString("ProgressLines.month") });
+		unit.setSelectedIndex(current.recurringIntervalUnit().ordinal());
+		JPanel panel = new JPanel(new GridLayout(0, 1, 0, 6));
+		panel.setBorder(new EmptyBorder(8, 8, 8, 8));
+		panel.add(showReference);
+		panel.add(statusDate);
+		panel.add(currentDate);
+		panel.add(showRecurring);
+		panel.add(new JLabel(manager.getString("ProgressLines.interval")));
+		panel.add(interval);
+		panel.add(unit);
+		JButton ok = new JButton(UsabilityStrings.text("dialog.ok", "OK"));
+		JButton cancel = new JButton(UsabilityStrings.text("dialog.cancel", "Cancel"));
+		ok.setName("progress-lines-ok");
+		cancel.setName("progress-lines-cancel");
+		JPanel content = new JPanel(new BorderLayout(0, 8));
+		content.setBorder(new EmptyBorder(8, 8, 8, 8));
+		content.add(panel, BorderLayout.CENTER);
+		JPanel buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.TRAILING));
+		buttons.add(ok);
+		buttons.add(cancel);
+		content.add(buttons, BorderLayout.SOUTH);
+		javax.swing.JOptionPane optionPane = new javax.swing.JOptionPane(content,
+			JOptionPane.PLAIN_MESSAGE, JOptionPane.DEFAULT_OPTION);
+		JDialog dialog = optionPane.createDialog(getFrame(), manager.getString("RibbonToggleProgressLine.text"));
+		PopupDialogSupport.bindEscapeToDispose(dialog);
+		dialog.getRootPane().setDefaultButton(ok);
+		int[] choice = { JOptionPane.CANCEL_OPTION };
+		ok.addActionListener(event -> {
+			try {
+				interval.commitEdit();
+			} catch (java.text.ParseException | IllegalArgumentException invalidInterval) {
+				PopupDialogSupport.showMessageDialog(dialog, manager.getString("ProgressLines.invalidInterval"),
+					manager.getString("RibbonToggleProgressLine.text"), JOptionPane.ERROR_MESSAGE);
+				interval.requestFocusInWindow();
+				return;
+			}
+			choice[0] = JOptionPane.OK_OPTION;
+			dialog.setVisible(false);
+			dialog.dispose();
+		});
+		cancel.addActionListener(event -> {
+			choice[0] = JOptionPane.CANCEL_OPTION;
+			dialog.setVisible(false);
+			dialog.dispose();
+		});
+		dialog.setAlwaysOnTop(true);
+		dialog.setVisible(true);
+		dialog.setAlwaysOnTop(false);
+		if (choice[0] != JOptionPane.OK_OPTION)
+			return;
+		var updated = new com.microproject.model.task.ProgressLineSettings(showReference.isSelected(),
+			statusDate.isSelected()
+				? com.microproject.model.task.ProgressLineSettings.ReferenceDate.STATUS_DATE
+				: com.microproject.model.task.ProgressLineSettings.ReferenceDate.CURRENT_DATE,
+			showRecurring.isSelected(), ((Number) interval.getValue()).intValue(),
+			com.microproject.model.task.ProgressLineSettings.IntervalUnit.values()[unit.getSelectedIndex()]);
+		applyProgressLineSettings(project, ganttView, updated, true);
+	}
+
+	boolean applyProgressLineSettings(Project project, GanttView ganttView,
+		com.microproject.model.task.ProgressLineSettings updated, boolean postUndo) {
+		if (project == null || ganttView == null || project.isReadOnly())
+			return false;
+		com.microproject.model.task.ProgressLineSettings previous = project.getProgressLineSettings();
+		com.microproject.model.task.ProgressLineSettings effectivePrevious = previous == null
+			? new com.microproject.model.task.ProgressLineSettings(ganttView.getGantt().isProgressLineEnabled(),
+				com.microproject.model.task.ProgressLineSettings.ReferenceDate.STATUS_DATE,
+				false, 1, com.microproject.model.task.ProgressLineSettings.IntervalUnit.WEEK)
+			: previous;
+		if (effectivePrevious.equals(updated))
+			return false;
+		boolean previousEnabled = ganttView.getGantt().isProgressLineEnabled();
+		mutateProgressLineSettings(project, updated);
+		ganttView.getGantt().setProgressLineEnabled(updated.showCurrentLine() || updated.showRecurringLines());
+		ganttView.getGantt().repaint();
+		if (postUndo && project.getUndoController() != null) {
+			project.getUndoController().getEditSupport().postEdit(new AbstractUndoableEdit() {
+				private static final long serialVersionUID = 1L;
+				private void restore(com.microproject.model.task.ProgressLineSettings settings, boolean enabled) {
+					mutateProgressLineSettings(project, settings);
+					ganttView.getGantt().setProgressLineEnabled(enabled);
+					ganttView.getGantt().repaint();
+				}
+				@Override public void undo() throws CannotUndoException { super.undo(); restore(previous, previousEnabled); }
+				@Override public void redo() throws CannotRedoException {
+					super.redo(); restore(updated, updated.showCurrentLine() || updated.showRecurringLines());
+				}
+				@Override public String getPresentationName() { return "Progress Lines"; }
+			});
+		}
+		getCurrentFrame().refreshUndoButtons();
+		syncGanttViewRibbonState();
+		return true;
+	}
+
+	private static void mutateProgressLineSettings(Project project,
+		com.microproject.model.task.ProgressLineSettings settings) {
+		project.runModelMutation(markApplied -> {
+			markApplied.run();
+			project.setProgressLineSettings(settings);
+			project.setDirty(true);
+			return true;
+		});
+	}
+
+
+
+	void print(){
+		GraphPageable document=PrintDocumentFactory.getInstance().createDocument(getCurrentFrame(),true,false);
+		if (document!=null) document.print();
+	}
+
+
+	void printPreview(){
+		GraphPageable document=PrintDocumentFactory.getInstance().createDocument(getCurrentFrame(),false,false);
+		if (document!=null) document.preview();
+	}
+
+	void savePDF() {
+		GraphPageable document=PrintDocumentFactory.getInstance().createDocument(getCurrentFrame(),false,false);
+		try {
+			Class<?> generator=ClassLoaderUtils.forName("com.microproject.ui.export.ImageExport"); //claur
+				generator.getMethod("export", GraphPageable.class, Component.class).invoke(null, document, getContainer());
+		} catch (Exception e) {
+			logger.log(Level.WARNING, "Failed to export PDF", e);
+		}
+	}
+
+
+	public DocumentFrame getCurrentFrame() {
+		FrameManager manager = getFrameManager();
+		if (manager == null)
+			return null;
+		NamedFrame activeFrame = manager.getActiveFrame();
+		return activeFrame instanceof DocumentFrame documentFrame ? documentFrame : null;
+	}
+
+	public Frame getFrame(){
+		return frame;
+	}
+
+	public Container getContainer() {
+		return container;
+	}
+
+	public JobQueue getJobQueue(){
+		if (jobQueue==null){
+			jobQueue=new JobQueue("GraphicManager",false); //$NON-NLS-1$
+		}
+		return jobQueue;
+	}
+
+
+	public boolean isDocumentActive() {
+		return getCurrentFrame() != null && getCurrentFrame().isActive();
+	}
+	public boolean isDocumentWritable() {
+		// A document frame can remain active for one EDT turn while its project is
+		// being detached during cleanup.  A detached frame is never writable; do
+		// not let deferred Undo/Redo button refreshes turn that normal lifecycle
+		// state into an EDT exception.
+		return getCurrentFrame() != null && getCurrentFrame().isActive()
+				&& getCurrentFrame().getProject() != null && !getCurrentFrame().getProject().isReadOnly();
+	}
+
+
+	public void namedFrameActivated(NamedFrameEvent evt) {
+		NamedFrame frame = evt.getNamedFrame();
+		if (frame instanceof DocumentFrame){
+			DocumentFrame df=(DocumentFrame)frame;
+			setCurrentFrame(df);
+
+		}
+	}
+	public void namedFrameShown(NamedFrameEvent arg0) {
+	}
+	public void namedFrameTabShown(NamedFrameEvent evt) {
+		NamedFrame frame = evt.getNamedFrame();
+		if (frame instanceof DocumentFrame){
+			DocumentFrame df=(DocumentFrame)frame;
+			setCurrentFrame(df);
+
+		}
+	}
+	public void windowActivated(WindowEvent arg0) {
+	}
+	public void windowClosed(WindowEvent evt) {
+		assignmentDialogCoordinator.windowClosed(evt.getWindow());
+	}
+
+	public void windowClosing(WindowEvent arg0) {
+	}
+
+	public void windowDeactivated(WindowEvent arg0) {
+	}
+
+	public void windowDeiconified(WindowEvent arg0) {
+	}
+
+	public void windowIconified(WindowEvent arg0) {
+	}
+
+	public void windowStateChanged(WindowEvent arg0) {
+	}
+
+	protected boolean resourceType=false;
+	protected boolean taskType=false;
+	public void setTaskInformation(boolean taskType,boolean resourceType){
+		this.taskType=taskType;
+		this.resourceType=resourceType;
+//		JButton button = null;
+//		String infoText = "Task Information";
+//		String notesText = "Task Notes";
+//		String insertText = getMenuManager().getString(ACTION_INSERT_TASK + ButtonFactory.TOOLTIP_SUFFIX);
+//		if (resourceType&&!taskType){
+//			infoText = "Resource Information";
+//			notesText = "Resource Notes";
+//			insertText = "Insert Resource";
+//		}
+//		getMenuManager().setText(ACTION_INFORMATION,infoText);
+//		getMenuManager().setText(ACTION_NOTES,notesText);
+//		getMenuManager().setText(ACTION_INSERT_TASK,insertText);
+	}
+
+
+	public void setConnected(boolean connected){
+		getMenuManager().setActionEnabled(ACTION_IMPORT_MSPROJECT,connected);
+		getMenuManager().setActionEnabled(ACTION_OPEN_PROJECT,connected);
+		getMenuManager().setActionEnabled(ACTION_RECENT_PROJECTS,connected);
+		getMenuManager().setActionEnabled(ACTION_NEW_PROJECT,connected);
+		if (connected) refreshSaveStatus(true);
+
+	}
+
+	Set getActionSet(){
+		Set actions=null;
+		DocumentFrame df=getCurrentFrame();
+		if (df!=null){
+			SpreadSheet sp=df.getActiveSpreadSheet();
+			actions=new HashSet();
+			if (sp!=null){
+				String[] a=sp.getActionList();
+				if (a!=null){
+					for (int i=0;i<a.length;i++) actions.add(a[i]);
+				}
+			}
+		}
+		return actions;
+	}
+
+	void setButtonState(Object currentImpl, Project project) {
+		Set actions=getActionSet();
+		InformationSelection informationSelection = informationSelectionSnapshot();
+		boolean infoEnabled = informationSelection.targetFor(true, true, true, taskType, resourceType) != null;
+		boolean taskInfoEnabled = informationSelection.targetFor(false, true, false, taskType, resourceType) != null;
+		boolean resourceInfoEnabled = informationSelection.targetFor(false, false, true, taskType, resourceType) != null;
+		DocumentFrame editFrame = getCurrentFrame();
+		SpreadSheet editSheet = editFrame == null ? null : editFrame.getActiveSpreadSheet();
+		boolean hasClipboardSelection = editSheet != null && !editSheet.getSelectedNodes().isEmpty();
+		boolean hasProjectSummarySelection = editFrame != null && editFrame.hasProjectSummaryRowSelected();
+		traceUi("button-state impl=" + describeUiObject(currentImpl)
+			+ " taskInformationEnabled=" + taskInfoEnabled
+			+ " documentActive=" + isDocumentActive());
+
+		boolean readOnly = !isDocumentWritable();
+		getMenuManager().setActionEnabled(ACTION_INFORMATION,infoEnabled);
+		getMenuManager().setActionEnabled("RibbonTaskInformation", taskInfoEnabled);
+		getMenuManager().setActionEnabled("RibbonTaskInspector", taskInfoEnabled);
+		getMenuManager().setActionEnabled(ACTION_INSPECT_TASK, taskInfoEnabled);
+		getMenuManager().setActionEnabled(ACTION_SHOW_TASK_WARNINGS, isDocumentActive());
+		getMenuManager().setActionEnabled(ACTION_SHOW_TASK_SUGGESTIONS, isDocumentActive());
+		getMenuManager().setActionEnabled(ACTION_SHOW_IGNORED_PROBLEMS, isDocumentWritable());
+		syncTaskDiagnosticToggles();
+		getMenuManager().setActionEnabled("RibbonResourceInformation", resourceInfoEnabled);
+		getMenuManager().setActionEnabled(ACTION_NOTES,infoEnabled);
+		getMenuManager().setActionEnabled(ACTION_INSERT_TASK, !readOnly && (taskType || resourceType)&&(actions==null||actions.contains(ACTION_INSERT_TASK)));
+		getMenuManager().setActionEnabled(ACTION_INSERT_RESOURCE, !readOnly && resourceType && (actions==null||actions.contains(ACTION_INSERT_RESOURCE)));
+		getMenuManager().setActionEnabled(ACTION_INSERT_RECURRING, !readOnly && taskType);
+		getMenuManager().setActionEnabled(ACTION_CUT,!readOnly && hasClipboardSelection && (actions==null||actions.contains(ACTION_CUT)));
+		getMenuManager().setActionEnabled(ACTION_COPY,hasClipboardSelection&&(actions==null||actions.contains(ACTION_COPY)));
+		getMenuManager().setActionEnabled(ACTION_PASTE,!readOnly && (actions==null||actions.contains(ACTION_PASTE)));
+		getMenuManager().setActionEnabled(ACTION_DELETE,!readOnly && !hasProjectSummarySelection
+			&& (actions==null||actions.contains(ACTION_DELETE)));
+		getMenuManager().setActionEnabled("RibbonFormatPainter", !readOnly && taskType && editFrame != null
+			&& editFrame.canStartFormatPainter());
+		boolean canFormatTaskText = !readOnly && taskType && editFrame != null && editFrame.canFormatSelectedTaskText();
+		for (String fontAction : List.of(ACTION_BOLD, ACTION_ITALIC, ACTION_FONT_COLOR,
+				ACTION_UNDERLINE, ACTION_BACKGROUND_COLOR, ACTION_FONT_NAME, ACTION_FONT_SIZE))
+			getMenuManager().setActionEnabled(fontAction, canFormatTaskText);
+		getMenuManager().setActionSelected(ACTION_BOLD, canFormatTaskText && editFrame.isSelectedTaskTextBold());
+		getMenuManager().setActionSelected(ACTION_ITALIC, canFormatTaskText && editFrame.isSelectedTaskTextItalic());
+		getMenuManager().setActionSelected(ACTION_UNDERLINE, canFormatTaskText && editFrame.isSelectedTaskTextUnderline());
+		getMenuManager().refreshRibbonDropDown(RIBBON_FONT_NAME_ID);
+		getMenuManager().refreshRibbonDropDown(RIBBON_FONT_SIZE_ID);
+		for (CommandId moveCommand : TASK_ROUTED_COMMANDS)
+			getMenuManager().setActionEnabled(moveCommand.actionId(), canFormatTaskText);
+		getMenuManager().setActionSelected(CommandId.TASK_ADD_TO_TIMELINE.actionId(),
+			canFormatTaskText && editFrame.isSelectedTaskOnTimeline());
+		// After hierarchy Undo/Redo the lead node supplied by the selection event
+		// may still describe the pre-mutation row.  Command enablement must use the
+		// same stable task selection that execution uses, not that stale singleton.
+		List<com.microproject.node.Node> selectedTaskNodes = getCurrentFrame() == null
+			? java.util.List.of() : getCurrentFrame().getSelectedTaskNodes(false, true);
+		List<com.microproject.node.Node> hierarchyTaskNodes = getCurrentFrame() == null
+			? java.util.List.of() : getCurrentFrame().getSelectedTaskNodes(true, true);
+		List<com.microproject.node.Node> pureHierarchyTaskNodes = getCurrentFrame() == null
+			? java.util.List.of() : getCurrentFrame().getSelectedTaskNodes(true, false);
+		boolean isTask = currentImpl instanceof Task || !selectedTaskNodes.isEmpty();
+		boolean isLinkedSubproject = selectedSubprojectReference() != null;
+		boolean hasEditableTaskSelection = !hierarchyTaskNodes.isEmpty();
+		boolean hasOutlineTaskSelection = getCurrentFrame() != null
+			&& getCurrentFrame().hasTaskSelection(false, 1, false);
+		boolean hasPureHierarchySelection = getCurrentFrame() != null
+			&& getCurrentFrame().hasTaskSelection(true, 1, false);
+		boolean canOutdent = pureHierarchyTaskNodes.stream().anyMatch(DocumentFrame::canOutdent);
+		// The task table owns both hierarchy commands even while its model cache is
+		// being rebuilt after an indent/undo/redo.  Consulting the transient action
+		// list here caused the ribbon and root shortcut to remain disabled although
+		// the canonical command had a valid task selection.
+		boolean hierarchyCommandsAvailable = isTask || actions == null
+			|| actions.contains(ACTION_INDENT) || actions.contains(ACTION_OUTDENT);
+		getMenuManager().setActionEnabled(ACTION_INDENT,
+				!readOnly && !hasProjectSummarySelection && hasPureHierarchySelection && hierarchyCommandsAvailable);
+		getMenuManager().setActionEnabled(ACTION_OUTDENT,
+				!readOnly && !hasProjectSummarySelection && hasPureHierarchySelection && canOutdent && hierarchyCommandsAvailable);
+		getMenuManager().setActionEnabled(ACTION_MOVE_TASK_UP,!readOnly && isTask && getCurrentFrame() != null && getCurrentFrame().canMoveSelectedTasks(-1));
+		getMenuManager().setActionEnabled(ACTION_MOVE_TASK_DOWN,!readOnly && isTask && getCurrentFrame() != null && getCurrentFrame().canMoveSelectedTasks(1));
+		getMenuManager().setActionEnabled(ACTION_EXPAND,
+				!readOnly && hasOutlineTaskSelection && (actions==null||actions.contains(ACTION_EXPAND)));
+		getMenuManager().setActionEnabled(ACTION_COLLAPSE,
+				!readOnly && hasOutlineTaskSelection && (actions==null||actions.contains(ACTION_COLLAPSE)));
+		boolean hasLinkSelection = hierarchyTaskNodes.size() >= 2;
+		getMenuManager().setActionEnabled(ACTION_LINK, !readOnly && !hasProjectSummarySelection && hasLinkSelection);
+		getMenuManager().setActionEnabled(ACTION_UNLINK, !readOnly && hasEditableTaskSelection);
+		boolean taskModeEnabled = !readOnly && taskType && hasEditableTaskSelection;
+		getMenuManager().setActionEnabled(ACTION_TASK_MODE_MANUAL, taskModeEnabled);
+		getMenuManager().setActionEnabled(ACTION_TASK_MODE_AUTOMATIC, taskModeEnabled);
+		getMenuManager().setActionEnabled(ACTION_INACTIVATE_TASK,
+			!readOnly && taskType && hasEditableTaskSelection && getCurrentFrame() != null);
+		getMenuManager().setActionEnabled(ACTION_HIDE_SELECTED_TASKS,
+				!readOnly && getCurrentFrame() != null
+					&& !getCurrentFrame().getSelectedVisibilityTaskNodes().isEmpty());
+		getMenuManager().setActionEnabled(ACTION_SHOW_ALL_TASKS,
+				!readOnly && TaskVisibilityService.hasHiddenTasks(project));
+		getMenuManager().setActionEnabled(ACTION_ASSIGN_RESOURCES, !readOnly && hasEditableTaskSelection);
+		getMenuManager().setActionEnabled(ACTION_TIMESHEET,!readOnly && project != null);
+		getMenuManager().setActionEnabled(ACTION_LEVEL_RESOURCES,!readOnly && project != null);
+		getMenuManager().setActionEnabled(ACTION_LEVEL_ALL,!readOnly && project != null);
+		getMenuManager().setActionEnabled(CommandId.RESOURCE_LEVEL_RESOURCE.actionId(), !readOnly && project != null);
+		getMenuManager().setActionEnabled(ACTION_LEVEL_SELECTION,
+			!readOnly && getCurrentFrame() != null && getCurrentFrame().hasTaskSelection(true, 1, false));
+		getMenuManager().setActionEnabled(ACTION_CLEAR_LEVEL_ALL, !readOnly && project != null);
+		getMenuManager().setActionEnabled(ACTION_CLEAR_LEVEL_SELECTION,
+			!readOnly && getCurrentFrame() != null && getCurrentFrame().hasTaskSelection(true, 1, false));
+		getMenuManager().setActionEnabled(ACTION_NEXT_OVERALLOCATION,
+			getCurrentFrame() != null && getCurrentFrame().canNavigateToNextOverallocatedTask());
+		boolean hasCcpmPlan = project != null && new com.microproject.schedule.ccpm.CriticalChainService().findBaseline(project) != null;
+		getMenuManager().setActionEnabled(ACTION_CCPM_SETTINGS,!readOnly && project != null);
+		getMenuManager().setActionEnabled(ACTION_CCPM_CLEAR,!readOnly && hasCcpmPlan);
+		getMenuManager().setActionEnabled(ACTION_CCPM_BUFFER_STATUS,project != null);
+		getMenuManager().setActionEnabled(ACTION_CCPM_NETWORK,project != null);
+		getMenuManager().setActionEnabled(ACTION_TEAM_PLANNER, project != null);
+		getMenuManager().setActionEnabled(ACTION_RECENT_REPORTS, project != null);
+		getMenuManager().setActionEnabled(ACTION_TOGGLE_CRITICAL_CHAIN,hasCcpmPlan && isActiveGanttView());
+		Action criticalChainAction = getMenuManager().getActionFromId(ACTION_TOGGLE_CRITICAL_CHAIN);
+		if (criticalChainAction != null) {
+			String criticalChainTip = hasCcpmPlan
+				? getMenuManager().getFullTipText(ACTION_TOGGLE_CRITICAL_CHAIN)
+				: com.microproject.ui.dialog.UsabilityStrings.text("ccpm.toggleUnavailable");
+			criticalChainAction.putValue(Action.SHORT_DESCRIPTION, criticalChainTip);
+			criticalChainAction.putValue(Action.LONG_DESCRIPTION, criticalChainTip);
+		}
+		getMenuManager().setActionSelected(ACTION_TOGGLE_CRITICAL_CHAIN,
+			hasCcpmPlan && com.microproject.ui.view.gantt.CriticalChainDisplayState.isVisible(project));
+		getMenuManager().setActionEnabled(ACTION_DELEGATE_TASKS, !readOnly && hasEditableTaskSelection);
+		getMenuManager().setActionEnabled(ACTION_UPDATE_TASKS,
+				!readOnly && hasEditableTaskSelection);
+		// MSP documents Mark on Track as an operation on selected tasks. Keep its
+		// enablement aligned with the typed selection snapshot used by dispatch.
+		getMenuManager().setActionEnabled(ACTION_MARK_ON_TRACK,
+				!readOnly && taskType && hasEditableTaskSelection);
+		// Task > Schedule % Complete uses the same typed selection as Mark on Track.
+		for (String percentAction : List.of(ACTION_PERCENT_COMPLETE_0, ACTION_PERCENT_COMPLETE_25,
+				ACTION_PERCENT_COMPLETE_50, ACTION_PERCENT_COMPLETE_75, ACTION_PERCENT_COMPLETE_100))
+			getMenuManager().setActionEnabled(percentAction, !readOnly && taskType && hasEditableTaskSelection);
+		// Milestone / Summary insert at the task table selection like Insert.
+		getMenuManager().setActionEnabled(ACTION_INSERT_MILESTONE, !readOnly && taskType && getCurrentFrame() != null);
+		getMenuManager().setActionEnabled(ACTION_INSERT_SUMMARY, !readOnly && taskType && hasEditableTaskSelection);
+		getMenuManager().setActionEnabled(ACTION_CLEAR_CONTENTS, !readOnly && getCurrentFrame() != null
+				&& getCurrentFrame().getActiveSpreadSheet() != null);
+		for (String fillAction : List.of(ACTION_FILL_DOWN, ACTION_FILL_UP, ACTION_FILL_LEFT, ACTION_FILL_RIGHT))
+			getMenuManager().setActionEnabled(fillAction, !readOnly && getCurrentFrame() != null
+					&& getCurrentFrame().getActiveSpreadSheet() != null);
+		getMenuManager().setActionEnabled(ACTION_SELECT_ALL, getCurrentFrame() != null
+				&& getCurrentFrame().getActiveSpreadSheet() != null);
+		getMenuManager().setActionEnabled(ACTION_CALENDAR_OPTIONS,getCurrentFrame() != null);
+		refreshStatusDateControl(project);
+
+
+		boolean insertProject = getCurrentFrame() != null && project != null && getCurrentFrame().isCurrentRowInMainProject();
+
+
+//			taskType && (!notVoid || currentImpl == null || ((Task)currentImpl).getOwningProject() == null || ((Task)currentImpl).getOwningProject() == project);
+		getMenuManager().setActionEnabled(ACTION_INSERT_PROJECT,!readOnly &&insertProject);
+		getMenuManager().setActionEnabled(ACTION_REFRESH_SUBPROJECTS, project != null
+				&& project.getTasks().stream().anyMatch(SubProj.class::isInstance));
+		getMenuManager().setActionEnabled(ACTION_OPEN_SUBPROJECT, isLinkedSubproject);
+		getMenuManager().setActionEnabled(ACTION_REMOVE_SUBPROJECT, !readOnly && isLinkedSubproject);
+
+		DocumentFrame frame=getCurrentFrame();
+		getMenuManager().setActionEnabled(ACTION_SCROLL_TO_TASK,
+				frame != null && frame.hasTaskSelection(true, 1, false)
+					&& frame.canScrollToTask());
+		boolean hasDocument = getCurrentFrame() != null;
+		getMenuManager().setActionEnabled(ACTION_CHOOSE_FILTER, hasDocument);
+		getMenuManager().setActionEnabled(ACTION_CHOOSE_SORT, hasDocument);
+		getMenuManager().setActionEnabled(ACTION_CHOOSE_GROUP, hasDocument);
+		refreshTransformDropDowns();
+
+		if (getCurrentFrame() != null) {
+			getCurrentFrame().refreshUndoButtons();
+			//refreshSaveStatus(false);
+		}
+		boolean printable = getCurrentFrame()!= null && getCurrentFrame().isPrintable();
+		getMenuManager().setActionEnabled(ACTION_PRINT,printable);
+		getMenuManager().setActionEnabled(ACTION_PRINT_PREVIEW,printable);
+
+		setZoomButtons();
+
+		Field f = FieldDictionary.getInstance().getActionField(ACTION_DOCUMENTS);
+		getMenuManager().setActionVisible(ACTION_DOCUMENTS,getCurrentFrame() != null && f != null);
+		getMenuManager().setActionEnabled(ACTION_DOCUMENTS,getCurrentFrame() != null && isEnabledFieldAction(ACTION_DOCUMENTS,  getCurrentFrame().getProject()));
+
+
+	}
+
+	/** Keeps the ribbon control identical to MSP's "Status Date: <date>" field. */
+	public void refreshStatusDateControl() {
+		DocumentFrame frame = getCurrentFrame();
+		refreshStatusDateControl(frame == null ? null : frame.getProject());
+	}
+
+	private void refreshStatusDateControl(Project project) {
+		StatusDateControlUpdater.refresh(getMenuManager(), getFrame(), project);
+	}
+
+	public void setZoomButtons() {
+		DocumentFrame frame = getCurrentFrame();
+		getMenuManager().setActionEnabled(ACTION_ZOOM_IN,frame != null && frame.canZoomIn());
+		getMenuManager().setActionEnabled(ACTION_ZOOM_OUT,frame != null && frame.canZoomOut());
+		BaseView activeView = frame == null ? null : frame.getActiveTopView();
+		boolean canZoomSelection = activeView instanceof UsageDetailView usageView
+				? usageView.canZoomToSelectedTasks()
+				: activeView instanceof GanttView ganttView && ganttView.canZoomToSelectedTasks();
+		getMenuManager().setActionEnabled(ACTION_ZOOM_SELECTED_TASKS, canZoomSelection);
+		boolean canZoomProject = activeView instanceof UsageDetailView usageView
+				? usageView.canZoomToProject()
+				: activeView instanceof GanttView ganttView && ganttView.canZoomToProject();
+		getMenuManager().setActionEnabled(ACTION_ZOOM_ENTIRE_PROJECT, canZoomProject);
+		getMenuManager().refreshRibbonDropDown(RIBBON_TIMESCALE_ID);
+		getMenuManager().setActionEnabled(ACTION_SCROLL_TO_TODAY, activeView instanceof GanttView);
+
+	}
+
+	private boolean isActiveGanttView() {
+		DocumentFrame currentFrame = getCurrentFrame();
+		if (currentFrame == null || currentFrame.getProject() == null)
+			return false;
+		String topViewId = currentFrame.getTopViewId();
+		return ACTION_GANTT.equals(topViewId) || ACTION_TRACKING_GANTT.equals(topViewId);
+	}
+
+	/** Usage Details toggles: action id and the distribution field each one shows as a detail row. */
+	private static final String[][] USAGE_DETAIL_ACTIONS = {
+		{ ACTION_USAGE_DETAIL_WORK, "Field.work" },
+		{ ACTION_USAGE_DETAIL_ACTUAL_WORK, "Field.actualWork" },
+		{ ACTION_USAGE_DETAIL_BASELINE_WORK, "Field.baselineWork" },
+		{ ACTION_USAGE_DETAIL_CUMULATIVE_WORK, "Field.cumulativeWork" },
+		{ ACTION_USAGE_DETAIL_OVERALLOCATION, "Field.overallocation" },
+		{ ACTION_USAGE_DETAIL_REMAINING_AVAILABILITY, "Field.remainingAvailability" },
+		{ ACTION_USAGE_DETAIL_COST, "Field.cost" },
+		{ ACTION_USAGE_DETAIL_ACTUAL_COST, "Field.actualCost" }
+	};
+
+	void syncGanttViewRibbonState() {
+		boolean ganttActive = isActiveGanttView();
+		getMenuManager().setActionEnabled("TaskSplit", ganttActive && canStartSplitOnActiveGantt());
+		BaseView sheetView = getActiveSheetView();
+		boolean sheetActive = sheetView != null;
+		getMenuManager().setActionEnabled(ACTION_TOGGLE_PROGRESS_LINE, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_LABEL_RESOURCE_NAMES, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_LABEL_TASK_NAME, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_BAR, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_TIMESCALE, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GRIDLINES, ganttActive || getActiveResourceGraphView() != null);
+		getMenuManager().setActionEnabled(ACTION_SHEET_GRIDLINES, sheetActive || getActiveCalendarDialog() != null);
+		getMenuManager().setActionEnabled(ACTION_NETWORK_LAYOUT_NOW, getActiveNetworkView() != null);
+		PertView networkView = getActiveNetworkView();
+		com.microproject.ui.dialog.CalendarViewDialogBox calendarView = getActiveCalendarDialog();
+		for (String action : new String[] { ACTION_NETWORK_BOX_COLLAPSED, ACTION_NETWORK_BOX_FORMAT, ACTION_NETWORK_BOX_STYLES,
+				ACTION_NETWORK_LAYOUT_OPTIONS, ACTION_NETWORK_LINK_LABELS, ACTION_NETWORK_STRAIGHT_LINKS, ACTION_NETWORK_PROGRESS_MARKS })
+			getMenuManager().setActionEnabled(action, networkView != null);
+		for (String action : new String[] { ACTION_CALENDAR_TEXT_STYLES, ACTION_CALENDAR_BAR_STYLES, ACTION_CALENDAR_LAYOUT_NOW,
+				ACTION_CALENDAR_BEST_FIT, ACTION_CALENDAR_LAYOUT_OPTIONS, ACTION_CALENDAR_TASK_LIST })
+			getMenuManager().setActionEnabled(action, calendarView != null);
+		getMenuManager().setActionSelected(ACTION_NETWORK_BOX_COLLAPSED, networkView != null && networkView.getDisplayOptions().isCollapsed());
+		getMenuManager().setActionSelected(ACTION_NETWORK_LINK_LABELS, networkView != null && networkView.getDisplayOptions().isLinkLabels());
+		getMenuManager().setActionSelected(ACTION_NETWORK_STRAIGHT_LINKS, networkView != null && networkView.getDisplayOptions().isStraightLinks());
+		getMenuManager().setActionSelected(ACTION_NETWORK_PROGRESS_MARKS, networkView != null && networkView.getDisplayOptions().isProgressMarks());
+		getMenuManager().setActionSelected(ACTION_CALENDAR_TASK_LIST, calendarView != null && calendarView.getSettings().isTaskListVisible());
+		syncTimelineTeamPlannerRibbonState();
+		syncResourceGraphRibbonState();
+		getMenuManager().setActionEnabled(ACTION_TEXT_STYLES, ganttActive || getActiveTimelineDialog() != null || getActiveTeamPlannerDialog() != null
+			|| getActiveResourceGraphView() != null);
+		getMenuManager().setActionEnabled(ACTION_BAR_STYLES, ganttActive || getActiveResourceGraphView() != null);
+		getMenuManager().setActionEnabled(ACTION_LAYOUT, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_INSERT_COLUMN, sheetActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_HIDE_COLUMN, sheetActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_FIELD_SETTINGS, sheetActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_ALIGN_LEFT, sheetActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_ALIGN_CENTER, sheetActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_ALIGN_RIGHT, sheetActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_FORMAT_BAR, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_CRITICAL_TASKS, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_SLACK, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_LATE_TASKS, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_BASELINE, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_SLIPPAGE, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_PATH_PREDECESSORS, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_PATH_DRIVING_PREDECESSORS, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_PATH_SUCCESSORS, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_PATH_DRIVEN_SUCCESSORS, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_PATH_REMOVE, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_STYLE_DEFAULT, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_STYLE_BLUE, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_STYLE_GREEN, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_STYLE_ORANGE, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_STYLE_PURPLE, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_STYLE_GRAY, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_GFMT_OUTLINE_NUMBERS, sheetActive);
+		BaseView summaryView = getActiveSummaryTasksView();
+		getMenuManager().setActionEnabled(ACTION_GFMT_SUMMARY_TASKS, summaryView != null && summaryView.supportsSummaryTasksToggle());
+
+		boolean resourceLabelSelected = false;
+		boolean taskLabelSelected = false;
+		if (ganttActive) {
+			GanttView ganttView = getCurrentFrame().getGanttView();
+			resourceLabelSelected = ganttView.isResourceNameAnnotationSelected();
+			taskLabelSelected = ganttView.isTaskNameAnnotationSelected();
+		}
+		getMenuManager().setActionSelected(ACTION_LABEL_RESOURCE_NAMES, resourceLabelSelected);
+		getMenuManager().setActionSelected(ACTION_LABEL_TASK_NAME, taskLabelSelected);
+		getMenuManager().setActionSelected(ACTION_GFMT_CRITICAL_TASKS, ganttActive && getCurrentFrame().getGanttView().isCriticalTasksVisible());
+		getMenuManager().setActionSelected(ACTION_GFMT_SLACK, ganttActive && getCurrentFrame().getGanttView().isSlackVisible());
+		getMenuManager().setActionSelected(ACTION_GFMT_LATE_TASKS, ganttActive && getCurrentFrame().getGanttView().isLateTasksVisible());
+		getMenuManager().setActionSelected(ACTION_GFMT_BASELINE, ganttActive && getCurrentFrame().getGanttView().isBaselineVisible());
+		getMenuManager().setActionSelected(ACTION_GFMT_SLIPPAGE, ganttActive && getCurrentFrame().getGanttView().isSlippageVisible());
+		getMenuManager().setActionSelected(ACTION_GFMT_OUTLINE_NUMBERS, sheetActive && sheetView.isOutlineNumbersVisible());
+		getMenuManager().setActionSelected(ACTION_GFMT_SUMMARY_TASKS, summaryView != null && summaryView.isSummaryTasksVisible());
+		UsageDetailView usageView = sheetView instanceof UsageDetailView view ? view : null;
+		for (String[] detail : USAGE_DETAIL_ACTIONS) {
+			getMenuManager().setActionEnabled(detail[0], usageView != null);
+			getMenuManager().setActionSelected(detail[0], usageView != null && usageView.isDetailFieldVisible(detail[1]));
+		}
+		getMenuManager().setActionEnabled(ACTION_USAGE_DETAILS_ADD, usageView != null);
+		getMenuManager().setActionSelected(ACTION_GFMT_STYLE_DEFAULT, ganttActive && getCurrentFrame().getGanttView().getBarColorScheme() == GanttBarColorScheme.DEFAULT);
+		getMenuManager().setActionSelected(ACTION_GFMT_STYLE_BLUE, ganttActive && getCurrentFrame().getGanttView().getBarColorScheme() == GanttBarColorScheme.BLUE);
+		getMenuManager().setActionSelected(ACTION_GFMT_STYLE_GREEN, ganttActive && getCurrentFrame().getGanttView().getBarColorScheme() == GanttBarColorScheme.GREEN);
+		getMenuManager().setActionSelected(ACTION_GFMT_STYLE_ORANGE, ganttActive && getCurrentFrame().getGanttView().getBarColorScheme() == GanttBarColorScheme.ORANGE);
+		getMenuManager().setActionSelected(ACTION_GFMT_STYLE_PURPLE, ganttActive && getCurrentFrame().getGanttView().getBarColorScheme() == GanttBarColorScheme.PURPLE);
+		getMenuManager().setActionSelected(ACTION_GFMT_STYLE_GRAY, ganttActive && getCurrentFrame().getGanttView().getBarColorScheme() == GanttBarColorScheme.GRAY);
+	}
+	/**
+	 * React to selection changed events and forward them on to any bottom window
+	 */
+	protected Node lastNode=null;
+	public void selectionChanged(SelectionNodeEvent e) {
+		setZoomButtons();
+		assignmentDialogCoordinator.selectionChanged(e);
+		if (isActiveGanttView())
+			getCurrentFrame().getGanttView().refreshTaskPath();
+
+		Node currentNode=e.getCurrentNode();
+		Object currentImpl=currentNode.getImpl();
+		traceUi("selection changed impl=" + describeUiObject(currentImpl));
+		setButtonState(currentImpl,getCurrentFrame().getProject());
+		// if on resource view, hide task info and vice versa.  Otherwise just show it
+		if (lastNode!=null&&informationDialogCoordinator.hasTaskDialog()&&(lastNode.getImpl() instanceof Task||lastNode.getImpl() instanceof Assignment)&&currentNode.getImpl() instanceof Resource){
+			informationDialogCoordinator.hideTaskDialog();
+			doInformationDialog(false);
+		} else if (lastNode!=null&&informationDialogCoordinator.hasResourceDialog()&&lastNode.getImpl() instanceof Resource&&(currentNode.getImpl() instanceof Task||currentNode.getImpl() instanceof Assignment)){
+			informationDialogCoordinator.hideResourceDialog();
+			doInformationDialog(false);
+		}else{
+			informationDialogCoordinator.selectionChanged(e);
+		}
+		lastNode=currentNode;
+	}
+
+	static void traceUi(String message) {
+		if (Boolean.getBoolean(UI_DEBUG_PROPERTY))
+			logger.fine("UI_DEBUG " + message);
+	}
+
+	private static String describeUiObject(Object object) {
+		return object == null ? "null" : object.getClass().getSimpleName();
+	}
+
+	void refreshSaveStatus(boolean isSaving) {
+		DocumentFrame frame = getCurrentFrame();
+		Project project = frame == null ? null : frame.getProject();
+		getMenuManager().setActionEnabled(ACTION_SAVE_PROJECT, project != null && !isSaving && project.needsSaving());
+		FrameManager dm=getFrameManager();
+		if (dm!=null) dm.update(); //update project combo; it titles every window as not saving
+		setTitle(isSaving); // so the saving title of the current frame is applied last
+	}
+
+	public void objectChanged(ObjectEvent objectEvent) {
+		// A manager can receive a queued portfolio event while its enclosing test
+		// or application window is being disposed.  It is no longer a valid frame
+		// owner at that point; ignore the event rather than preventing the active
+		// desktop manager from opening its document.
+		if (frameManager == null || !frameManager.isActive())
+			return;
+
+		if (objectEvent.getObject() instanceof Project) {
+			Project project = (Project)objectEvent.getObject();
+			if (objectEvent.isCreate()) {
+				if (project.isOpenedAsSubproject())
+					closeProjectFrame(project); // because it's now in a project
+				else {
+					DocumentFrame f = addProjectFrame(project);
+				}
+
+			} else if (objectEvent.isDelete()) {
+				releaseClosedProject(project);
+				closeProjectFrame(project);
+			}
+			informationDialogCoordinator.objectChanged(objectEvent);
+
+		}
+	}
+
+
+	/**
+	 * @return Returns the menuManager.
+	 */
+	public MenuManager getMenuManager() {
+		if (menuManager == null) {
+			menuManager = MenuManager.getInstance(this);
+			addHandlers();
+		}
+
+		return menuManager;
+	}
+
+	public void finishAnyOperations() {
+		if (getCurrentFrame() != null)
+			getCurrentFrame().finishAnyOperations();
+	}
+	public void showWaitCursor(boolean show) {
+		Frame frame=getFrame();
+		if (frame==null) return;
+		if (show)
+			frame.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+		else
+			frame.setCursor(Cursor.getDefaultCursor());
+	}
+
+
+	public final ProjectFactory getProjectFactory() {
+		return projectFactory;
+	}
+
+
+    public String getTopViewId() {
+    	if (getCurrentFrame() == null)
+    		return ACTION_GANTT;
+    	else
+    		return getCurrentFrame().getTopViewId();
+    }
+
+
+    public void setToolBarAndMenus(final Container contentPane) {
+		MenuManager documentMenuManager = getMenuManager();
+		installDocumentShortcuts((RootPaneContainer) container);
+		documentMenuManager.setDocumentShortcuts(((RootPaneContainer) container).getRootPane()
+			.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW));
+    	if (Environment.isRibbonUI()){
+			MicroProjectShell.installRibbonShell((MainRibbonFrame) container, documentMenuManager, this::showHelpDialog,
+				autoRecoveryManager);
+    	} else if (Environment.isNewLook()) {
+			MicroProjectShell.ShellHandles handles = MicroProjectShell.installNewLookShell(
+				contentPane,
+				documentMenuManager,
+				getLafManager(),
+				getFrameManager(),
+				Environment.isMac(),
+				menuBar -> ((JFrame) container).setJMenuBar(menuBar));
+			topTabs = handles.getTopTabs();
+			projectListMenu = handles.getProjectListMenu();
+		} else {
+			MicroProjectShell.ShellHandles handles = MicroProjectShell.installClassicShell(
+				contentPane,
+				documentMenuManager,
+				Environment.isMac(),
+				menuBar -> ((JFrame) container).setJMenuBar(menuBar));
+			filterToolBarManager = handles.getFilterToolBarManager();
+			projectListMenu = handles.getProjectListMenu();
+		}
+    }
+
+	/** Installs this document manager's shortcuts on one native document window. */
+	public void installDocumentShortcuts(RootPaneContainer shortcutRoot) {
+		JRootPane rootPane = shortcutRoot.getRootPane();
+		applyMicrosoftShortcuts(rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW),
+			rootPane.getActionMap(), shortcutRoot instanceof MainRibbonFrame mainFrame ? mainFrame : null);
+	}
+
+    /**
+     * Installs every document-wide shortcut onto the supplied root-pane maps. Extracted
+     * from {@link #setToolBarAndMenus} so the same wiring can be unit-tested without a
+     * window. Keys resolve to the existing action constants (or to
+     * {@link SpreadSheetDispatchAction} instances that route to the active spreadsheet),
+     * all of which already exist elsewhere in the app.
+     */
+	private static final String DELETE_ROW_ACTION = "DeleteRow";
+	private static final String GANTT_KEYPAD_ZOOM_IN = "GanttKeypadZoomIn";
+	private static final String GANTT_KEYPAD_ZOOM_OUT = "GanttKeypadZoomOut";
+
+	void applyMicrosoftShortcuts(InputMap inputMap, ActionMap actionMap) {
+		applyMicrosoftShortcuts(inputMap, actionMap, container instanceof MainRibbonFrame mainFrame ? mainFrame : null);
+	}
+
+	private void applyMicrosoftShortcuts(InputMap inputMap, ActionMap actionMap, MainRibbonFrame shortcutFrame) {
+		Action expandAction = new ExpandAction();
+		Action collapseAction = new CollapseAction();
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_G, ACTION_GOTO, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_L, ACTION_GOTO, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_F, ACTION_FIND, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_Z, ACTION_UNDO, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_Y, ACTION_REDO, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_N, ACTION_NEW_PROJECT, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_O, ACTION_OPEN_PROJECT, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_S, ACTION_SAVE_PROJECT, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_P, ACTION_PRINT, 0, null);
+		// Microsoft Project uses the numeric keypad divide/multiply keys to zoom
+		// the active Gantt timescale. Keep this on the document root pane so there
+		// is one keyboard registration layer, and ignore it in non-Gantt views.
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_DIVIDE, GANTT_KEYPAD_ZOOM_IN, 0,
+			new GanttKeypadZoomAction(true));
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_MULTIPLY, GANTT_KEYPAD_ZOOM_OUT, 0,
+			new GanttKeypadZoomAction(false));
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_I, ACTION_INSERT_TASK, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_PERIOD, ACTION_INDENT, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_COMMA, ACTION_OUTDENT, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_PLUS, ACTION_EXPAND, 0, expandAction);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_ADD, ACTION_EXPAND, 0, expandAction);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_EQUALS, ACTION_EXPAND, 0, expandAction);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_SUBTRACT, ACTION_COLLAPSE, 0, collapseAction);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_R, ACTION_RECALCULATE, 0, new RecalculateAction());
+		// Task Mode has no built-in MSP keystroke. Keep both variants on the
+		// document root pane so physical keyboard input follows the same typed
+		// selection and Undo pipeline as menu, popup, and ribbon actions.
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_M, ACTION_TASK_MODE_MANUAL,
+			InputEvent.SHIFT_DOWN_MASK, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_M, ACTION_TASK_MODE_AUTOMATIC,
+			InputEvent.ALT_DOWN_MASK, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_T, ACTION_MARK_ON_TRACK,
+			InputEvent.SHIFT_DOWN_MASK, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_S, ACTION_STATUS_DATE,
+			InputEvent.ALT_DOWN_MASK, null);
+
+		// Critical Chain (CCPM) shortcuts. CCPM is a feature Microsoft Project does not
+		// have, so there is no MS-conformant binding to follow. We use chords that do NOT
+		// collide with MS Project's reserved keys (Ctrl+B = Bold, Ctrl+Shift+B = set work
+		// to 100%, Ctrl+Shift+P = task information, etc.) so the rest of the app stays
+		// MS-conformant: Ctrl+Shift+K shows the remaining-buffer chart, Ctrl+Shift+N the
+		// CCPM network, Ctrl+Alt+C opens CCPM settings, Ctrl+Shift+J toggles the
+		// critical-chain Gantt overlay.
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_K, ACTION_CCPM_BUFFER_STATUS, InputEvent.SHIFT_DOWN_MASK, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_N, ACTION_CCPM_NETWORK, InputEvent.SHIFT_DOWN_MASK, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_C, ACTION_CCPM_SETTINGS, InputEvent.ALT_DOWN_MASK, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_J, ACTION_TOGGLE_CRITICAL_CHAIN, InputEvent.SHIFT_DOWN_MASK, null);
+
+		// MS Project-conformant editing shortcuts. These bind the same action constants
+		// MS Project uses for the same keys, so the keyboard behaves like Project.
+		// Ctrl+Shift+F opens the Font dialog (MSP), Ctrl+Shift+P opens Task Information
+		// (MSP; also reachable via Shift+F2).
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_F, ACTION_FONT, InputEvent.SHIFT_DOWN_MASK, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_P, ACTION_INFORMATION, InputEvent.SHIFT_DOWN_MASK, null);
+
+		// Spreadsheet editing / outline / information shortcuts (issue #47).
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_X, ACTION_CUT, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_C, ACTION_COPY, 0, null);
+		// MSP Ctrl+Delete clears selected field values. Keep this distinct from plain
+		// Delete (row deletion) and bind it only on the document root pane.
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_DELETE, ACTION_CLEAR_CONTENTS, 0, null);
+		// Clipboard and task-edit commands must reuse the menu actions.  Those actions
+		// perform the document-level writability, collaboration-routing, and history
+		// checks; spreadsheet-local implementations would make keyboard behavior differ
+		// from the corresponding menu command.
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_V, ACTION_PASTE, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_D, ACTION_FILL_DOWN, 0, new SpreadSheetDispatchAction("FillDown") {
+			private static final long serialVersionUID = 1L;
+			@Override protected void runOnSpreadSheet(SpreadSheet sheet) { sheet.fillDownSelection(); }
+		});
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_F2, ACTION_LINK, 0, null);
+		putCtrlAccel(inputMap, actionMap, KeyEvent.VK_F2, ACTION_UNLINK, InputEvent.SHIFT_DOWN_MASK, null);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F5, InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_SCROLL_TO_TASK, null);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0), ACTION_GOTO, null);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F5, InputEvent.SHIFT_DOWN_MASK), ACTION_FIND, null);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0), ACTION_MICROPROJECT_DOCUMENTATION, null);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F1, InputEvent.CTRL_DOWN_MASK),
+			"ToggleRibbonDisplayMode", new AbstractAction() {
+				private static final long serialVersionUID = 1L;
+				@Override public void actionPerformed(ActionEvent event) {
+					if (shortcutFrame == null || shortcutFrame.getRibbonPanel() == null) return;
+					Object controller = shortcutFrame.getRibbonPanel()
+						.getClientProperty(RibbonController.CONTEXTUAL_TABS_PROPERTY);
+					if (controller instanceof RibbonController ribbon) ribbon.toggleRibbonCollapseMode();
+				}
+			});
+		// Microsoft Project uses F3 to clear the active view's filter and show all
+		// rows. Find is Ctrl+F (and Shift+F5).
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F3, 0), ACTION_CLEAR_FILTER, null);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_INSERT, 0), ACTION_NEW, null);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), ACTION_DELETE, null);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), ACTION_CANCEL_FORMAT_PAINTER,
+			new AbstractAction() {
+				private static final long serialVersionUID = 1L;
+				@Override public void actionPerformed(ActionEvent event) {
+					DocumentFrame activeFrame = getCurrentFrame();
+					if (activeFrame == null)
+						return;
+					SpreadSheet sheet = activeFrame.getActiveSpreadSheet();
+					if (sheet != null && sheet.isEditing()) {
+						sheet.getCellEditor().cancelCellEditing();
+						return;
+					}
+					activeFrame.cancelFormatPainter();
+				}
+			});
+		putShortcut(inputMap, actionMap,
+			KeyStroke.getKeyStroke(KeyEvent.VK_UP, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK),
+			ACTION_MOVE_TASK_UP, null);
+		putShortcut(inputMap, actionMap,
+			KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK),
+			ACTION_MOVE_TASK_DOWN, null);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0), "EditField", new SpreadSheetDispatchAction("EditField") {
+			private static final long serialVersionUID = 1L;
+			@Override protected void runOnSpreadSheet(SpreadSheet sheet) { sheet.editActiveCell(); }
+		});
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_F2, InputEvent.SHIFT_DOWN_MASK), ACTION_INFORMATION, null);
+		// Microsoft Project outline keys.  Project documents both the top-row
+		// spelling (=/-) and the numeric-keypad spelling (+/-); keep both physical
+		// key codes because Windows reports them differently to Swing.  The
+		// editor-local VK_CONVERT binding is intentionally not installed here: the
+		// Japanese IME conversion key belongs to the active cell editor.
+		// Keep the root-pane binding enabled while a reused cell editor owns
+		// focus. The canonical DocumentFrame command performs the real selection
+		// and precondition checks; using a dispatch action here avoids stale menu
+		// enablement suppressing the physical root-pane route.
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_INDENT,
+			new SpreadSheetDispatchAction(ACTION_INDENT) {
+				private static final long serialVersionUID = 1L;
+				@Override protected void runOnSpreadSheet(SpreadSheet sheet) {
+					publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.INDENT));
+				}
+			});
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_OUTDENT,
+			new SpreadSheetDispatchAction(ACTION_OUTDENT) {
+				private static final long serialVersionUID = 1L;
+				@Override protected void runOnSpreadSheet(SpreadSheet sheet) {
+					publishTaskCommandOutcome(this, dispatchTaskCommand(CommandId.OUTDENT));
+				}
+			});
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_EXPAND, expandAction);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_ADD, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_EXPAND, expandAction);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_COLLAPSE, collapseAction);
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, InputEvent.ALT_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_COLLAPSE, collapseAction);
+		// Microsoft Project selection shortcuts: Ctrl+Space selects the row, Shift+Space
+		// the column, Ctrl+Shift+Space the whole sheet.
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, InputEvent.CTRL_DOWN_MASK), "SelectRow",
+				new SpreadSheetDispatchAction("SelectRow") {
+					private static final long serialVersionUID = 1L;
+					@Override protected void runOnSpreadSheet(SpreadSheet sheet) {
+						sheet.selectRowAndAllColumns(sheet.getSelectedRow());
+					}
+				});
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, InputEvent.SHIFT_DOWN_MASK), "SelectColumn",
+				new SpreadSheetDispatchAction("SelectColumn") {
+					private static final long serialVersionUID = 1L;
+					@Override protected void runOnSpreadSheet(SpreadSheet sheet) {
+						int column = sheet.getCurrentViewColumn();
+						if (column >= 0)
+							sheet.selectColumnAndAllRows(column);
+					}
+				});
+		// Select All resolves to the single menu/ribbon Action registered in actionsMap.
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK), ACTION_SELECT_ALL, null);
+		// Microsoft Project "Ctrl+Minus" deletes the selected row (MS sheet-view behavior).
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, InputEvent.CTRL_DOWN_MASK), DELETE_ROW_ACTION,
+				new SpreadSheetDispatchAction("DeleteRow") {
+					private static final long serialVersionUID = 1L;
+					@Override protected void runOnSpreadSheet(SpreadSheet sheet) {
+						sheet.selectRowAndAllColumns(sheet.getSelectedRow());
+						sheet.executeAction(ACTION_DELETE);
+					}
+				});
+    }
+
+    private void putCtrlAccel(InputMap inputMap, ActionMap actionMap, int vk, String actionConstant, int extraModifiers, Action action) {
+		int modifiers = menuShortcutMask() | extraModifiers;
+		putShortcut(inputMap, actionMap, KeyStroke.getKeyStroke(vk, modifiers), actionConstant, action);
+	}
+
+	private final class GanttKeypadZoomAction extends AbstractAction {
+		private static final long serialVersionUID = 1L;
+		private final boolean zoomIn;
+
+		private GanttKeypadZoomAction(boolean zoomIn) {
+			this.zoomIn = zoomIn;
+		}
+
+		@Override
+		public boolean isEnabled() {
+			DocumentFrame frame = getCurrentFrame();
+			return frame != null && isDocumentActive() && frame.getActiveTopView() instanceof GanttView;
+		}
+
+		@Override
+		public void actionPerformed(ActionEvent event) {
+			if (!isEnabled())
+				return;
+			DocumentFrame frame = getCurrentFrame();
+			dispatchGanttKeypadZoom(frame.getActiveTopView(), zoomIn);
+		}
+	}
+
+	static void dispatchGanttKeypadZoom(BaseView activeTopView, boolean zoomIn) {
+		if (!(activeTopView instanceof GanttView ganttView))
+			return;
+		if (zoomIn)
+			ganttView.zoomIn();
+		else
+			ganttView.zoomOut();
+	}
+
+	/**
+	 * The platform menu-shortcut mask (Ctrl on Windows/Linux, Cmd on macOS).
+	 * {@link Toolkit#getMenuShortcutKeyMaskEx()} throws {@link HeadlessException} under a
+	 * headless toolkit, which would crash shortcut wiring during headless tests and any
+	 * future headless launch. Fall back to {@link InputEvent#CTRL_DOWN_MASK} so the wiring
+	 * is always safe and the same key bindings resolve on every platform.
+	 */
+	private static int menuShortcutMask() {
+		try {
+			return Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
+		} catch (HeadlessException e) {
+			return InputEvent.CTRL_DOWN_MASK;
+		}
+	}
+
+	private void putShortcut(InputMap inputMap, ActionMap actionMap, KeyStroke key, String actionConstant, Action action) {
+		Object existing = localBinding(inputMap, key);
+		if (existing != null && !actionConstant.equals(existing)) {
+			throw new IllegalStateException("Duplicate shortcut " + key + ": " + existing + " vs " + actionConstant);
+		}
+		inputMap.put(key, actionConstant);
+		if (action == null) {
+			try {
+				action = menuManager.getActionFromId(actionConstant);
+			} catch (RuntimeException e) {
+				// An action constant without a menu.properties definition (or handler) must
+				// not crash shortcut wiring. Leave the key bound but the action unresolved;
+				// a later, fully-initialized environment may still resolve it, and callers
+				// that need a guaranteed action pass it explicitly.
+				action = null;
+			}
+		}
+		actionMap.put(actionConstant, action);
+	}
+
+	/** Reads only this registration layer; inherited UI defaults must not count as conflicts. */
+	private static Object localBinding(InputMap inputMap, KeyStroke key) {
+		KeyStroke[] keys = inputMap.keys();
+		if (keys == null) {
+			return null;
+		}
+		for (KeyStroke registeredKey : keys) {
+			if (key.equals(registeredKey)) {
+				return inputMap.get(registeredKey);
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Routes a shortcut to the active spreadsheet when one exists. Keeps the existing
+	 * document/frame handlers authoritative for selection and collaboration locking while
+	 * letting keyboard shortcuts fire from anywhere in the focused document window.
+	 */
+	private abstract class SpreadSheetDispatchAction extends AbstractAction {
+		private static final long serialVersionUID = 1L;
+		protected SpreadSheetDispatchAction(String name) { putValue(Action.NAME, name); }
+		@Override
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (!isDocumentActive())
+				return;
+			DocumentFrame frame = getCurrentFrame();
+			if (frame == null)
+				return;
+			SpreadSheet sheet = frame.getActiveSpreadSheet();
+			if (sheet != null)
+				runOnSpreadSheet(sheet);
+		}
+		protected abstract void runOnSpreadSheet(SpreadSheet sheet);
+	}
+    private LookAndFeel getPlaf() {
+    	return getLafManager().getPlaf();
+    }
+
+    public void invalidate() {
+    	container.invalidate();
+    	((RootPaneContainer)container).getContentPane().invalidate();
+    	((RootPaneContainer)container).getContentPane().repaint();
+    }
+
+    public void initLookAndFeel() {
+   		getLafManager().initLookAndFeel();
+
+    }
+
+
+	private HashMap colorThemes = null;
+	public HashMap getColorThemes() {
+		if (colorThemes == null) {
+			colorThemes = new HashMap();
+			colorThemes.put(ACTION_GANTT,"Bloody Moon"); //$NON-NLS-1$
+			colorThemes.put(ACTION_TRACKING_GANTT,"Mahogany"); //$NON-NLS-1$
+			colorThemes.put(ACTION_TASK_SHEET,"Bloody Moon"); //$NON-NLS-1$
+			colorThemes.put(ACTION_NETWORK,"Emerald Grass"); //$NON-NLS-1$
+			colorThemes.put(ACTION_RESOURCES,"Blue Yonder"); //$NON-NLS-1$
+			colorThemes.put(ACTION_PROJECTS,"Emerald Grass"); //$NON-NLS-1$
+			colorThemes.put(ACTION_WBS,"Sepia"); //$NON-NLS-1$
+			colorThemes.put(ACTION_RBS,"Steel Blue"); //$NON-NLS-1$
+			colorThemes.put(ACTION_REPORT,"Aqua"); //$NON-NLS-1$
+			colorThemes.put(ACTION_TASK_USAGE_DETAIL,"Brown Velvet"); //$NON-NLS-1$
+			colorThemes.put(ACTION_RESOURCE_USAGE_DETAIL,"Earth Fresco"); //$NON-NLS-1$
+		}
+		return colorThemes;
+	}
+
+	public void setPaletteText(String themeName){
+		getMenuManager().setText(ACTION_PALETTE,themeName);
+	}
+
+	void setColorTheme(String viewName){
+		getLafManager().setColorTheme(viewName);
+	}
+
+	public class PaletteAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+
+			getLafManager().changePalette();
+
+		}
+		protected boolean allowed(boolean enable){
+			LookAndFeel lookAndFeel = UIManager.getLookAndFeel();
+			return getLafManager().isChangePaletteAllowed(lookAndFeel);
+		}
+
+	}
+
+	public class LookAndFeelAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+
+		}
+	}
+
+	public class FullScreenAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+//			setMeAsLastGraphicManager();
+//			encodeWorkspace(); // so new window takes this one's preferences
+//			// see http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=5029025
+//			try {
+//				Class cl=Class.forName("netscape.javascript.JSObject");
+//				Object win=cl.getMethod("getWindow", new Class[]{Applet.class}).invoke(null, new Object[]{container});
+		}
+	}
+	public class RefreshAction extends MenuActionsMap.GlobalMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent arg0) {
+			setMeAsLastGraphicManager();
+			restartApplication();
+		}
+	}
+
+	private void restartApplication() {
+		applicationRestartCoordinator.restart();
+	}
+
+	public Workspace decodeWorkspace() {
+		WorkspaceSetting workspace = WorkspaceTransferStore.restore();
+		return workspace instanceof Workspace decodedWorkspace ? decodedWorkspace : null;
+	}
+
+	public void encodeWorkspace() {
+		WorkspaceTransferStore.capture(createWorkspace(SavableToWorkspace.VIEW));
+	}
+
+
+	public void restoreWorkspace(WorkspaceSetting w, int context) {
+		Workspace ws = (Workspace) w;
+		colorThemes = ws.colorThemes;
+		getFrameManager().restoreWorkspace(ws.frames, context);
+	}
+
+	public WorkspaceSetting createWorkspace(int context) {
+		Workspace ws = new Workspace();
+		ws.colorThemes = getColorThemes();
+		ws.frames = getFrameManager().createWorkspace(context);
+		return ws;
+	}
+
+	public static class Workspace implements WorkspaceSetting   {
+		private static final long serialVersionUID = -6606344141026658401L;
+		private HashMap colorThemes;
+		WorkspaceSetting frames;
+		public HashMap getColorThemes() {
+			return colorThemes;
+		}
+		public void setColorThemes(HashMap colorThemes) {
+			this.colorThemes = colorThemes;
+		}
+		public WorkspaceSetting getFrames() {
+			return frames;
+		}
+		public void setFrames(WorkspaceSetting frames) {
+			this.frames = frames;
+		}
+	}
+
+	public static final Object getLastWorkspace() {
+		return WorkspaceTransferStore.getSnapshot();
+	}
+
+
+	public GraphicManager getGraphicManager() {
+		return this;
+	}
+
+
+	public void setGraphicManager(GraphicManager manager) {
+	}
+
+	public FrameManager getFrameManager() {
+		return frameManager;
+	}
+
+	public void setFrameManager(FrameManager frameManager) {
+		this.frameManager = frameManager;
+	}
+
+	public void initView() {
+		Container c=container;
+		if (container!=null && container instanceof RootPaneContainer){
+			c=((RootPaneContainer)container).getContentPane();
+		}
+        if (!Environment.isRibbonUI()) c.setLayout(new BorderLayout());
+        JPanel panel = new JPanel();
+        c.add(panel, "Center"); //$NON-NLS-1$
+        setFrameManager(new DefaultFrameManager(container, panel,this));
+
+		initLayout();
+
+		if (!Environment.isPlugin()) setToolBarAndMenus(c);
+
+        setEnabledDocumentMenuActions(false);
+        Workspace workspace = decodeWorkspace();
+        if (workspace != null) {
+			try {
+				restoreWorkspace(workspace, SavableToWorkspace.VIEW);
+			} finally {
+				SwingUtilities.invokeLater(WorkspaceTransferStore::clear);
+			}
+		} else {
+			WorkspaceTransferStore.clear();
+			initProject();
+		}
+//        container.invalidate();
+ 	}
+
+	void setRestartAction(Runnable restartAction) {
+		applicationRestartCoordinator.setRestartAction(restartAction);
+	}
+
+	public boolean isEditingMasterProject() {
+		if (getCurrentFrame() == null)
+			return false;
+		Project currentProject=getCurrentFrame().getProject();
+		if (currentProject == null)
+			return false;
+		return currentProject.isMaster() && !currentProject.isReadOnly();
+
+	}
+
+	public GlobalPreferences getPreferences(){
+		if (preferences==null) {
+			preferences=new GlobalPreferences();
+			if (Environment.isExternal())
+				preferences.setShowProjectResourcesOnly(true);
+			applyPreferenceFont(preferences);
+		}
+		return preferences;
+	}
+
+	/** Applies persisted typography to Swing defaults and refreshes the active window. */
+	public void applyPreferenceFont(GlobalPreferences value) {
+		if (value == null) return;
+		FlatLafSupport.applyUserFontPreference(value.getFontFamily(), value.getFontSize());
+		if (getFrame() != null) FlatUiSupport.updateComponentTreeUI(getFrame());
+	}
+
+
+	//for AssignmentDialog
+	private ResourceInTeamFilter assignmentDialogTransformerInitializationClosure;
+	public Consumer<Object> setAssignmentDialogTransformerInitializationClosure(){
+		return new Consumer<Object>() { public void accept(Object arg) {
+				ViewTransformer transformer=(ViewTransformer)arg;
+		        NodeFilter hiddenFilter=transformer.getHiddenFilter();
+		        if (hiddenFilter!=null&& hiddenFilter instanceof ResourceInTeamFilter){
+		        	assignmentDialogTransformerInitializationClosure=(ResourceInTeamFilter)hiddenFilter;
+		        	assignmentDialogTransformerInitializationClosure.setFilterTeam(getGraphicManager().getPreferences().isShowProjectResourcesOnly());
+		        }else assignmentDialogTransformerInitializationClosure=null;
+			}
+		};
+	}
+	public ResourceInTeamFilter getAssignmentDialogTransformerInitializationClosure() {
+		return assignmentDialogTransformerInitializationClosure;
+	}
+	public FilterToolBarManager getFilterToolBarManager() {
+		return filterToolBarManager;
+	}
+
+	boolean initialized=false;
+	private Mutex initializing=new Mutex();
+	public void beginInitialization(){
+		showWaitCursor(true);
+		initializing.lock();
+	}
+	public void finishInitialization(){
+		container.setVisible(true);
+		// A native FlatLaf window can be visible without becoming the active
+		// foreground window after synchronous startup.  In that state its ribbon
+		// looks ready but physical input is delivered to the previously active
+		// window.  Complete the desktop startup transition by activating the
+		// owning window once the complete command surface has been installed.
+		if (container instanceof Window window) {
+			window.toFront();
+			window.requestFocus();
+			window.requestFocusInWindow();
+		}
+		initialized=true;
+		initializing.unlock();
+		showWaitCursor(false);
+	}
+	public void waitInitialization(){
+		initializing.waitUntilUnlocked();
+	}
+
+	/**
+	 * Methods that are called using reflection to save workspace stuff into project
+	 * @return
+	 */
+	public static SpreadSheetFieldArray getCurrentFieldArray() {
+		return getDocumentFrameInstance().getGanttView().getSpreadSheet().getFieldArrayWithWidths(null);
+	}
+	public static void setCurrentFieldArray(Object fieldArray) {
+		getDocumentFrameInstance().getGanttView().getSpreadSheet().setFieldArrayWithWidths((SpreadSheetFieldArray)fieldArray);
+	}
+
+	public static UndoController getUndoController(){
+		DocumentFrame frame=GraphicManager.getDocumentFrameInstance();
+		if (frame==null) return null;
+		return frame.getUndoController();
+	}
+	public void setAllButResourceDisabled(boolean disable) {
+		if (topTabs!=null) topTabs.setAllButResourceDisabled(disable);
+	}
+	public void doFind(Searchable searchable, Field field) {
+		doFind(searchable, field, null);
+	}
+	public void showReportView() {
+		if (getCurrentFrame() != null) {
+			getCurrentFrame().activateView(MenuActionConstants.ACTION_REPORT);
+		}
+	}
+	public class TimelineAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive()) getCurrentFrame().toggleTimelineView();
+		}
+	}
+	public class CustomReportAction extends MenuActionsMap.DocumentMenuAction {
+		private static final long serialVersionUID = 1L;
+		public void actionPerformed(ActionEvent event) {
+			setMeAsLastGraphicManager();
+			if (isDocumentActive()) {
+				getCurrentFrame().doCustomReportDialog();
+				rememberReport(ACTION_CUSTOM_REPORT);
+			}
+		}
+	}
+	public void doFind(Searchable searchable, Field field, String initialQuery) {
+		doFind(searchable, field, initialQuery, false);
+	}
+	public void doFind(Searchable searchable, Field field, String initialQuery, boolean replaceMode) {
+		if (getCurrentFrame()==null||!getCurrentFrame().isActive())
+			return;
+		if (searchable == null)
+			return;
+		if (!beforeFindRoute(searchable, field))
+			return;
+		getCurrentFrame().doFind(searchable, field, initialQuery, replaceMode);
+
+	}
+
+
+    public void registerForMacOSXEvents() {
+
+		if (Desktop.isDesktopSupported()) { //Mac OS X
+			Desktop desktop = Desktop.getDesktop();
+
+			// Check if AboutHandler is supported
+			if (desktop.isSupported(Desktop.Action.APP_ABOUT)) {
+				desktop.setAboutHandler(new AboutHandler() {
+					@Override
+					public void handleAbout(AboutEvent e) {
+						showAboutDialog();
+					}
+				});
+			}
+			if (desktop.isSupported(Desktop.Action.APP_QUIT_HANDLER)) {
+				desktop.setQuitHandler(new QuitHandler() {
+					@Override
+					public void handleQuitRequestWith(QuitEvent e, QuitResponse response){
+						requestQuit(response);
+                    }
+				});
+			}
+
+			if (desktop.isSupported(Desktop.Action.APP_OPEN_FILE)) {
+				desktop.setOpenFileHandler(new OpenFilesHandler() {
+					@Override
+					public void openFiles(OpenFilesEvent e){
+						if (e.getFiles()!=null && !e.getFiles().isEmpty()) {
+							openFile(e.getFiles().getFirst().getPath());
+						}
+					}
+				});
+			}
+
+		}
+    }
+
+    protected String lastFileName;
+    public void openFile(String fileName){
+    	lastFileName=fileName;
+		if (fileName!=null&&initialized) loadLocalDocument(fileName,false);
+    }
+
+	public String getLastFileName() {
+		return lastFileName;
+	}
+
+	public boolean quitApplication() throws Exception{
+		if (SwingUtilities.isEventDispatchThread()) {
+			throw new IllegalStateException("quitApplication must not wait on the EDT");
+		}
+		final AtomicReference<QuitOperation> operationReference = new AtomicReference<>();
+		SwingUiDispatcher.runAndWait(() -> operationReference.set(prepareQuitOperation()));
+		QuitOperation operation = operationReference.get();
+		if (operation == null)
+			throw new IllegalStateException("Quit operation was not prepared");
+		SessionFactory.getInstance().getLocalSession().schedule(operation.job());
+		try {
+			if (!QuitCompletionAwaiter.await(operation.monitor(), operation.completed(), QUIT_WAIT_TIMEOUT_MILLIS)) {
+				logger.warning("Timed out while waiting for projects to close");
+				return false;
+			}
+		} catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			logger.log(Level.FINE, "Interrupted while waiting for projects to close", ex);
+			return false;
+		}
+		if (operation.closeStatus()[0]){
+			autoRecoveryManager.completeNormalShutdown();
+			Frame frame=getFrame();
+			if (frame!=null) frame.dispose();
+			//System.exit(0);
+			return true;
+		}
+		return false;
+	}
+
+	/** Captures the close job on the caller's UI/model context without waiting. */
+	private QuitOperation prepareQuitOperation() {
+		quitting = true;
+		persistOpenCollaborationWorkspaces();
+		final Object monitor = new Object();
+		final boolean[] completed = new boolean[]{false};
+
+		JobRunnable exitRunnable=new JobRunnable("Local: closeProjects"){
+			public Object run() throws Exception{
+				synchronized (monitor) {
+					completed[0]=true;
+					monitor.notifyAll();
+				}
+    	    	return null;
+			}
+		};
+		final boolean[] closeStatus=new boolean[]{false};
+		final Job job=projectFactory.getPortfolio().getRemoveAllProjectsJob(exitRunnable,false,closeStatus);
+		return new QuitOperation(monitor, () -> completed[0], closeStatus, job);
+	}
+
+	/**
+	 * Starts the desktop quit handshake without blocking the thread supplied by
+	 * AWT.  Save prompts are created on the EDT; queue completion is observed by
+	 * a daemon worker and the response is returned on the EDT afterwards.
+	 */
+	private void requestQuit(QuitResponse response) {
+		if (response == null)
+			return;
+		final AtomicReference<QuitOperation> operationReference = new AtomicReference<>();
+		try {
+			SwingUiDispatcher.runAndWait(() -> operationReference.set(prepareQuitOperation()));
+			QuitOperation operation = operationReference.get();
+			if (operation == null)
+				throw new IllegalStateException("Quit operation was not prepared");
+			SwingUiDispatcher.runAndWait(() -> SessionFactory.getInstance().getLocalSession().schedule(operation.job()));
+			QuitCompletionAwaiter.awaitAsync(operation.monitor(), operation.completed(), QUIT_WAIT_TIMEOUT_MILLIS,
+					completed -> {
+						if (completed && operation.closeStatus()[0]) {
+							// Recovery cleanup is filesystem I/O; keep it on the waiter
+							// before handing the final AWT response back to the EDT.
+							autoRecoveryManager.completeNormalShutdown();
+						}
+						SwingUtilities.invokeLater(() -> {
+							if (completed && operation.closeStatus()[0]) {
+								Frame frame = getFrame();
+								if (frame != null) frame.dispose();
+								response.performQuit();
+							} else {
+								response.cancelQuit();
+							}
+						});
+					});
+		} catch (Exception ex) {
+			logger.log(Level.WARNING, "Could not start application quit", ex);
+			Runnable cancel = response::cancelQuit;
+			if (SwingUtilities.isEventDispatchThread())
+				cancel.run();
+			else
+				SwingUtilities.invokeLater(cancel);
+		}
+	}
+
+	private record QuitOperation(Object monitor, BooleanSupplier completed, boolean[] closeStatus, Job job) {
+		private QuitOperation {
+			Objects.requireNonNull(monitor, "monitor");
+			Objects.requireNonNull(completed, "completed");
+			Objects.requireNonNull(closeStatus, "closeStatus");
+			Objects.requireNonNull(job, "job");
+		}
+	}
+
+	public static Project getProject() {
+		GraphicManager lastGraphicManager = MANAGER_REGISTRY.getActiveManager();
+		if (lastGraphicManager == null)
+			return null;
+		if (lastGraphicManager.getCurrentFrame()==null)
+			return null;
+		return lastGraphicManager.getCurrentFrame().getProject();
+	}
+
+	public void addHistory(String command,Object[] args){
+		history.add(new CommandInfo(command,args));
+	}
+	public void addHistory(String command){
+		history.add(new CommandInfo(command,null));
+	}
+	public static List<CommandInfo> getHistory() {
+		GraphicManager lastGraphicManager = MANAGER_REGISTRY.getActiveManager();
+		if (lastGraphicManager == null)
+			return null;
+		return lastGraphicManager.history;
+	}
+
+	void loadRecoveryDocument(com.microproject.application.AutoRecoveryStore.Entry entry,
+			java.util.function.Consumer<Boolean> completed) {
+		loadRecoveryDocument(entry, getCollaborationUserKey(), options -> projectFactory.openProject(options),
+			this::initializeCollaboration, completed);
+	}
+
+	static void loadRecoveryDocument(com.microproject.application.AutoRecoveryStore.Entry entry, String userKey,
+			java.util.function.Consumer<LoadOptions> load, java.util.function.Consumer<Project> initialize,
+			java.util.function.Consumer<Boolean> completed) {
+		LoadOptions options = ProjectLoadWorkflow.prepareLoadOptions(entry.snapshot().toString(), true, userKey);
+		java.util.concurrent.atomic.AtomicBoolean delivered = new java.util.concurrent.atomic.AtomicBoolean();
+		options.setEndSwingClosure(result -> {
+			if (!delivered.compareAndSet(false, true)) return;
+			boolean loaded = false;
+			try {
+				Project project = (Project) result;
+				if (project != null) {
+					project.setFileName(entry.originalFileName());
+					project.setGroupDirty(true);
+					if (entry.originalFileName() != null) initialize.accept(project);
+					loaded = true;
+				}
+			} catch (RuntimeException ex) {
+				logger.log(Level.WARNING, "Could not initialize recovered project", ex);
+			}
+			completed.accept(loaded);
+		});
+		load.accept(options);
+	}
+
+	void offerRecoveryAtStartup(java.util.function.Consumer<Boolean> completed) {
+		autoRecoveryManager.offerRecoveryAtStartup(completed);
+	}
+
+}
+

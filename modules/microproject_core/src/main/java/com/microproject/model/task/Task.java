@@ -1,0 +1,2266 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.model.task;
+
+import com.microproject.util.DataUtils;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.util.Collection;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
+import java.util.Date;
+import java.util.IdentityHashMap;
+import java.util.Set;
+import java.util.List;
+import java.util.SortedSet;
+import java.util.TreeSet;
+import java.util.logging.Logger;
+
+
+
+import com.microproject.association.Association;
+import com.microproject.association.AssociationFormatParameters;
+import com.microproject.association.AssociationList;
+import com.microproject.association.AssociationListFormat;
+import com.microproject.configuration.CircularDependencyException;
+import com.microproject.configuration.Configuration;
+import com.microproject.configuration.Settings;
+import com.microproject.datatype.Duration;
+import com.microproject.document.Document;
+import com.microproject.document.ObjectEvent;
+import com.microproject.field.CustomFields;
+import com.microproject.field.CustomFieldsImpl;
+import com.microproject.field.Field;
+import com.microproject.field.FieldContext;
+import com.microproject.field.FieldParseException;
+import com.microproject.node.Node;
+import com.microproject.node.NodeList;
+import com.microproject.node.OutlineCollection;
+import com.microproject.node.hierarchy.BelongsToHierarchy;
+import com.microproject.node.model.NodeModel;
+import com.microproject.node.summaries.DivisionSummaryVisitor;
+import com.microproject.node.summaries.DeepChildWalker;
+import com.microproject.options.CalculationOption;
+import com.microproject.options.CalendarOption;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.assignment.HasTimeDistributedData;
+import com.microproject.model.assignment.timesheet.UpdatesFromTimesheet;
+import com.microproject.model.calendar.HasCalendar;
+import com.microproject.model.calendar.WorkCalendar;
+import com.microproject.model.costing.EarnedValueMethodType;
+import com.microproject.model.costing.ExpenseType;
+import com.microproject.model.costing.HasExpenseType;
+import com.microproject.schedule.criticalpath.PredecessorTaskList;
+import com.microproject.schedule.criticalpath.ScheduleWindow;
+import com.microproject.schedule.criticalpath.TaskSchedule;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.dependency.DependencyGraph;
+import com.microproject.model.dependency.DependencyFormat;
+import com.microproject.model.dependency.DependencyService;
+import com.microproject.model.dependency.DependencyType;
+import com.microproject.model.dependency.HasDependencies;
+import com.microproject.model.dependency.HasDependenciesImpl;
+import com.microproject.model.key.HasKey;
+import com.microproject.model.key.HasKeyImpl;
+import com.microproject.model.resource.Resource;
+import com.microproject.schedule.CanBeLeveled;
+import com.microproject.schedule.ConstraintType;
+import com.microproject.schedule.Schedule;
+import com.microproject.schedule.ScheduleInterval;
+import com.microproject.schedule.ScheduleUtil;
+import com.microproject.model.snapshot.Snapshottable;
+import com.microproject.model.snapshot.SnapshottableImpl;
+import com.microproject.collaboration.CollaborationUserIdentity;
+import com.microproject.util.ErrorLogger;
+import com.microproject.persistence.data.DataObject;
+import com.microproject.i18n.Messages;
+import com.microproject.util.Alert;
+import com.microproject.util.DateTime;
+import com.microproject.util.Environment;
+
+import com.microproject.util.UiDispatch;
+
+/**
+ * @stereotype thing
+ */
+public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependencies, Schedule, ScheduleWindow,  Snapshottable, HasTimeDistributedData, HasPriority, CustomFields, BelongsToDocument, BelongsToHierarchy, DataObject, CanBeLeveled,UpdatesFromTimesheet,HasExpenseType,TaskLinkReference {
+	private static final Logger logger = Logger.getLogger(Task.class.getName());
+	static final long serialVersionUID = 786665335611L;
+	protected static final double COMPLETE_THRESHOLD = 0.9999D;
+    /**
+     * @link aggregation
+     * @supplierCardinality 0..*
+     */
+    /*# com.microproject.model.assignment.Assignment lnkAssignment; */
+	transient Project project;
+	/** Runtime-only: true when Duration was the field last entered through the task sheet; not persisted. */
+	transient boolean durationPinnedByScheduleEdit;
+	transient Project owningProject;
+	transient TaskSchedule currentSchedule = null;
+
+	protected transient int debugDependencyOrder = -1;
+	protected transient TaskSchedule earlySchedule;
+	protected transient TaskSchedule lateSchedule;
+	protected transient Snapshottable snapshots;
+	protected transient HasDependencies dependencies;
+	protected String notes = "";
+	protected String wbs = "";
+	protected boolean markTaskAsMilestone = false;
+	/** MSP-compatible Marked task field. Transient to keep the frozen POD object stream unchanged. */
+	protected transient boolean marked;
+	protected transient CustomFieldsImpl customFields = new CustomFieldsImpl();
+	protected transient HasKeyImpl hasKey;
+	/**
+	 * Issue #227 root cause: created (and modified) timestamps were held only on the
+	 * transient {@code hasKey} and therefore regenerated with {@code new Date()} on
+	 * every load, permanently drifting (and inflating) saved .pod files. This field
+	 * is a real, non-transient part of the object so Java's default serialization
+	 * round-trips it. {@code hasKey} keeps a mirror copy for code that reads it via
+	 * the key; both stay in sync through {@link #setCreated(Date)}.
+	 * Backward compatible: files serialized before this field existed deserialize it
+	 * as null, and {@code readObject} falls back to {@code new Date()} (the old
+	 * behavior) so existing .pod files still load.
+	 */
+	protected Date created = new Date();
+	protected transient boolean external = false;
+	protected transient long projectId = 0;
+	/** External project path used when an MSP link has no numeric project id. */
+	protected String externalProjectFile;
+	double physicalPercentComplete = 0.0;
+
+	protected long windowEarlyStart = 0;
+	protected long windowEarlyFinish = 0;
+	protected long windowLateStart = 0;
+	protected long windowLateFinish = 0;
+
+	protected long actualStart = 0;
+
+	protected long levelingDelay = 0L;
+	private transient LevelingManualDateState levelingManualDateState;
+	private transient boolean levelingCanSplit = true;
+	private transient boolean levelAssignments = true;
+	/** Hides Task Inspector warning and suggestion indicators for this task. */
+	private transient boolean ignoreWarnings;
+	private transient boolean recurringTask;
+	/** Keeps incomplete planning data fixed until the user returns to automatic scheduling. */
+	protected boolean manuallyScheduled = false;
+	/** Keeps a scenario task in the plan without affecting dates, dependencies, or resource load. */
+	protected boolean inactiveTask = false;
+	/** Excludes the task from task views without changing its schedule or assignments. */
+	protected boolean hiddenTask = false;
+	/** Optional per-task text styling used by Gantt annotations and task sheets. */
+	protected String fontFamily;
+	protected int fontSize;
+	protected Integer fontColor;
+	protected boolean fontBold;
+	protected boolean fontItalic;
+	protected boolean fontStrikethrough;
+	protected boolean fontUnderline;
+	/** Cell background (fill) color as 0xRRGGBB, or null for the view default. */
+	protected Integer fontBackground;
+	protected Double inactivePercentComplete;
+	/** Explicit user choice for the concise project timeline. */
+	protected boolean displayOnTimeline = false;
+	protected long manualStart = 0L;
+	protected long manualFinish = 0L;
+	protected transient int calculationStateCount = 0;
+	protected transient boolean markerStatus = false;
+	protected int earnedValueMethod = EarnedValueMethodType.Kind.PERCENT_COMPLETE.code();
+	protected static Field startFieldInstance = null;
+
+	/**
+	 * POD is a frozen format and cannot persist the newer task-level leveling
+	 * options. Restore their documented defaults when reading a legacy object
+	 * graph; these transient fields remain absent from the serialized descriptor.
+	 */
+	private void readObject(ObjectInputStream input) throws IOException, ClassNotFoundException {
+		input.defaultReadObject();
+		levelingCanSplit = true;
+		levelAssignments = true;
+		ignoreWarnings = false;
+	}
+
+	protected int constraintType = ConstraintType.Kind.ASAP.code();
+	protected long deadline = 0;
+	protected int expenseType = ExpenseType.Kind.NONE.code();
+	protected transient boolean inSubproject = false;
+	protected transient long lastSavedStart = 0L;
+	protected transient long lastSavedFinish = 0L;
+	protected transient boolean dirty;
+	protected transient long lastSavedParentId = -1L;
+	protected transient long lastSavedPosistion = 0L;
+	protected SummaryEnvelope summaryEnvelope = new SummaryEnvelope();
+
+
+	public static Field getStartField() {
+		if (startFieldInstance == null)
+			startFieldInstance = Configuration.getFieldFromId("Field.start");
+		return startFieldInstance;
+	}
+	/**
+	 * @return Returns the taskSchedule.
+	 */
+	public TaskSchedule getCurrentSchedule() {
+		return currentSchedule;
+	}
+	private static Field endFieldInstance = null;
+	public static Field getEndField() {
+		if (endFieldInstance == null)
+			endFieldInstance = Configuration.getFieldFromId("Field.finish");
+		return endFieldInstance;
+	}
+
+	public Task() {
+		this(true);
+	}
+	public Task(boolean local) {
+		hasKey = new HasKeyImpl(local,this);
+		currentSchedule = new TaskSchedule();
+		initializeTransientTaskObjects();
+	}
+
+	public boolean isReadOnly() {
+		return isExternal() || isSubproject() || (getOwningProject() != null && getOwningProject().isReadOnly());
+	}
+	protected void initializeTransientTaskObjects() {
+		currentSchedule.initSerialized(this,TaskSchedule.Kind.CURRENT);
+		earlySchedule = new TaskSchedule(this,TaskSchedule.Kind.EARLY);
+		lateSchedule = new TaskSchedule(this,TaskSchedule.Kind.LATE);
+	    snapshots = new SnapshottableImpl(Settings.numBaselines());
+	    dependencies = new HasDependenciesImpl(this);
+
+		createSnapshot(CURRENT);
+		((TaskSnapshot)getCurrentSnapshot()).setCurrentSchedule(currentSchedule); // put the current schedule in the snapshot
+		setLastSavedStart(currentSchedule.getStart());
+		setLastSavedFinish(currentSchedule.getFinish());
+	}
+	protected void initializeTransientTaskObjectsAfterDeserialization() {
+		earlySchedule = new TaskSchedule(this,TaskSchedule.Kind.EARLY);
+		lateSchedule = new TaskSchedule(this,TaskSchedule.Kind.LATE);
+	    dependencies = new HasDependenciesImpl(this);
+
+	    currentSchedule=((TaskSnapshot)getCurrentSnapshot()).getCurrentSchedule();
+		currentSchedule.initSerialized(this,TaskSchedule.Kind.CURRENT);
+
+		setLastSavedStart(currentSchedule.getStart());
+		setLastSavedFinish(currentSchedule.getFinish());
+	}
+	public TaskSnapshot getBaselineSnapshot() {
+		return (TaskSnapshot) getSnapshot(CalculationOption.getInstance().getEarnedValueBaselineId());
+	}
+
+	private TaskSnapshot createSnapshot(Object snapshotId) {
+		TaskSnapshot newOne = new TaskSnapshot();
+		setSnapshot(snapshotId, newOne);
+		return newOne;
+	}
+	public HasCalendar getHasCalendar() {
+		return this;
+	}
+
+	public Assignment getBaselineAssignment(Resource resource) {
+		TaskSnapshot baseline = getBaselineSnapshot();
+		if (baseline == null)
+			return null;
+		return getBaselineSnapshot().findAssignment(resource);
+	}
+
+	public Assignment getBaselineAssignment(Resource resource,Object snapshot, boolean createIfDoesntExist) {
+		TaskSnapshot baselineSnapshot = (TaskSnapshot) getSnapshot(snapshot);
+		if (baselineSnapshot == null) {
+			if (createIfDoesntExist)
+				baselineSnapshot = createSnapshot(snapshot);
+			else
+				return null;
+		}
+		Assignment assignment = baselineSnapshot.findAssignment(resource);
+
+		if (assignment == null && createIfDoesntExist) {
+			assignment = Assignment.getInstance(this,resource,1.0,0);
+			baselineSnapshot.addAssignment(assignment);
+			TaskSchedule baselineSchedule = baselineSnapshot.getCurrentSchedule();
+			if (baselineSchedule == null) {
+				baselineSchedule = new TaskSchedule(this,TaskSchedule.Kind.CURRENT);
+				baselineSnapshot.setCurrentSchedule(baselineSchedule);
+			}
+			assignment.setTaskSchedule(baselineSchedule);
+			assignment.convertToBaselineAssignment(false);
+		}
+
+
+		return assignment;
+	}
+
+
+	public Project getProject() {
+		return project;
+	}
+	public Document getDocument() {
+		return getProject();
+	}
+
+	public WorkCalendar getProjectCalendar() {
+		return project.getWorkCalendar();
+	}
+	public void connectToProject() {
+		project.connectTask(this);
+	}
+
+	protected boolean isInitialized() {
+		return getProject() != null && getProject().isInitialized();
+	}
+
+
+	public void setProject(Project project) {
+		this.project = project;
+	}
+
+	public static Consumer<Object> forProject(Consumer<Object> visitor) {
+		return value -> visitor.accept(((Task) value).getProject());
+	}
+		public static Consumer<Object> forParent(Consumer<Object> visitor) {
+		return value -> visitor.accept(((Task) value).getProject().getTaskOutline().getHierarchy().getParent((Node) value));
+	}
+
+
+	public static Consumer<Object> forAllChildren(Consumer<Object> visitor, Predicate<Object> filter) {
+		return value -> ((Task) value).getProject().getTaskOutline().getHierarchy().getChildren((Node) value)
+				.stream().filter(filter).forEach(visitor);
+	}
+
+	public static Consumer<Object> forAllChildren(Consumer<Object> visitor) {
+		return value -> ((Task) value).getProject().getTaskOutline().getHierarchy().getChildren((Node) value)
+				.forEach(visitor);
+	}
+
+	/**
+	 * @return Returns the notes.
+	 */
+	public String getNotes() {
+		return notes;
+	}
+	/**
+	 * @param notes The notes to set.
+	 */
+	public void setNotes(String notes) {
+		this.notes = notes;
+
+	}
+	public double getCustomCost(int i) {
+		return customFields.getCustomCost(i);
+	}
+	public long getCustomDate(int i) {
+		return customFields.getCustomDate(i);
+	}
+	public long getCustomDuration(int i) {
+		return customFields.getCustomDuration(i);
+	}
+	public long getCustomFinish(int i) {
+		return customFields.getCustomFinish(i);
+	}
+	public boolean getCustomFlag(int i) {
+		return customFields.getCustomFlag(i);
+	}
+	public double getCustomNumber(int i) {
+		return customFields.getCustomNumber(i);
+	}
+	public long getCustomStart(int i) {
+		return customFields.getCustomStart(i);
+	}
+	public String getCustomText(int i) {
+		return customFields.getCustomText(i);
+	}
+	public void setCustomCost(int i, double cost) {
+		customFields.setCustomCost(i, cost);
+	}
+	public void setCustomDate(int i, long date) {
+		customFields.setCustomDate(i, date);
+	}
+	public void setCustomDuration(int i, long duration) {
+		customFields.setCustomDuration(i, duration);
+	}
+	public void setCustomFinish(int i, long finish) {
+		customFields.setCustomFinish(i, finish);
+	}
+	public void setCustomFlag(int i, boolean flag) {
+		customFields.setCustomFlag(i, flag);
+	}
+	public void setCustomNumber(int i, double number) {
+		customFields.setCustomNumber(i, number);
+	}
+	public void setCustomStart(int i, long start) {
+		customFields.setCustomStart(i, start);
+	}
+	public void setCustomText(int i, String text) {
+		customFields.setCustomText(i, text);
+	}
+
+
+	/************************************************************************************************
+	 * Task Schedule and methods
+	 *************************************************************************************************/
+
+		/**
+		 * @return start from task schedule
+		 */
+		public long getStart() {
+			return currentSchedule.getStart();
+		}
+		/**
+		 * Set the dependency start, not the task schedule start.  Only the CP can do that
+		 */
+		public void setStart(long start,FieldContext fieldContext) {
+			if (FieldContext.isTaskSheetUpdate(fieldContext)) {
+				TaskSheetScheduleWorkflow.applyStart(this, start);
+				return;
+			}
+			if (getActualStart() != 0) // you can't change the start date of an in progress task
+				return;
+			start = CalendarOption.getInstance().makeValidStart(start, false);
+			if (start != getStart() && !Environment.isImporting()) {
+				long projectStart=getProject().getStart();
+				if (projectStart > start) {
+					if (!Alert.okCancel(Messages.getString("Message.allowTaskStartBeforeProjectStart")))
+						return;
+	                setScheduleConstraint(ConstraintType.Kind.SNLT, start);
+
+				} else {
+                   setScheduleConstraint(ConstraintType.Kind.SNET, start);
+				}
+			}
+		}
+		public void setStart(long start) {
+			setStart(start,null);
+		}
+
+		/**
+		 * @return
+		 */
+		public long getEnd() {
+			return currentSchedule.getFinish();
+		}
+
+
+		/**
+		 * @param end
+		 */
+		public void setEnd(long end) {
+			setEnd(end,null);
+		}
+		public void setEnd(long end,FieldContext fieldContext) {
+			if (FieldContext.isTaskSheetUpdate(fieldContext)) {
+				TaskSheetScheduleWorkflow.applyFinish(this, end);
+				return;
+			}
+			if (end != getEnd()) { // only set if it changes
+				getCurrentSchedule().setEnd(end);
+			}
+		}
+
+		/**
+		 * @return Returns the dependencyStart.
+		 */
+		public long getDependencyStart() {
+			return currentSchedule.getRemainingDependencyDate();
+		}
+		/**
+		 * @param dependencyStart The dependencyStart to set.
+		 */
+		public void setDependencyStart(long dependencyStart) {
+			currentSchedule.setRemainingDependencyDate(dependencyStart);
+		}
+
+		/**
+		 * Sets the duration without controls that setDuration performs
+		 *
+		 * @param duration
+		 */
+		public abstract void setRawDuration(long duration);
+
+		public long getRawDuration() {
+			return currentSchedule.getRawDuration();
+		}
+
+
+		public void clearDuration() {
+			setRawDuration(0);
+		}
+
+	/**
+	 * @return
+	 */
+	public abstract WorkCalendar getEffectiveWorkCalendar();
+
+	/**
+	 * Returns the task start implied by dropping the first Gantt bar at {@code barStart}.
+	 * The first bar of an assigned task begins at the earliest assignment, which may lie
+	 * after the task start by an assignment delay; that working-time lead is kept.
+	 */
+	public long getStartForFirstBarStart(long barStart, ScheduleInterval firstBar) {
+		if (firstBar == null)
+			return barStart;
+		WorkCalendar cal = getEffectiveWorkCalendar();
+		long lead = cal.compare(firstBar.getStart(), getStart(), false);
+		return lead > 0L ? cal.add(barStart, -lead, false) : barStart;
+	}
+
+	public boolean isMilestone() {
+		return false;
+	}
+	/** A task is a subproject reference when it implements the subproject contract. */
+	public boolean isSubproject() {
+		return SubProj.isSubprojectReference(this);
+	}
+	transient Collection<Node> wbsChildrenNodes = null;
+	transient Task wbsParentTask = null;
+	transient Resource delegatedTo = null;
+
+	/**
+	 * @return Returns the wbsChildrenNodes.
+	 */
+	public Collection<Node> getWbsChildrenNodes() {
+		return wbsChildrenNodes;
+	}
+	/**
+	 * @param wbsChildrenNodes The wbsChildrenNodes to set.
+	 */
+	public void setWbsChildrenNodes(Collection<Node> wbsChildrenNodes) {
+		this.wbsChildrenNodes = wbsChildrenNodes;
+	}
+
+	public List<Object> getWbsChildrenTasks() {
+		return NodeList.nodeListToImplList(getWbsChildrenNodes());
+	}
+	/**
+	 * @return Returns the wbsParent.
+	 */
+	public Task getWbsParentTask() {
+		return wbsParentTask;
+	}
+	/**
+	 * @param wbsParent The wbsParent to set.
+	 */
+	public void setWbsParent(Task wbsParentTask) {
+		this.wbsParentTask = wbsParentTask;
+	}
+
+
+	/**
+	 * See if a this task is a child, grandchild... of another
+	 * @param potentialParentTask - task to see if parent
+	 * @return true if the task descends from potentialParentTask
+	 */
+	public boolean wbsDescendentOf(Task potentialParentTask) {
+		if (this == potentialParentTask)
+			return true;
+		Task parentTask = getWbsParentTask();
+		if (parentTask == null)
+			return false;
+		return parentTask.wbsDescendentOf(potentialParentTask);
+
+	}
+
+	public boolean isParent() {
+		return isWbsParent();
+	}
+	public boolean isWbsParent() {
+		if (wbsChildrenNodes == null || wbsChildrenNodes.size() == 0) {//a task has at least one assignment
+			return false;
+		}
+
+		for (Node childNode : wbsChildrenNodes) {
+			if (childNode.getImpl() instanceof Task) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public String getWbsParentName() {
+		if (wbsParentTask == null)
+			return "";
+		return wbsParentTask.getName();
+	}
+
+
+	//arranges a task in predecessor/parent order in a colleciton
+	public void arrangeTask(Collection<? super PredecessorTaskList.TaskReference> addTo, boolean markerStatus, int depth) {
+		if (this.markerStatus == markerStatus) // if task has been added, don't treat it again
+			return;
+
+		if (Environment.isImporting() && depth >= 1000) // guard against circular links while importing
+			throw new RuntimeException(CircularDependencyException.RUNTIME_EXCEPTION_TEXT);
+		// Arrange my parent
+
+		// Arrange my predecessors
+		Task parent = getWbsParentTask();
+		if (parent != null) {
+			parent.arrangeTask(addTo,markerStatus,depth+1);
+		}
+		//May 2 2008. this seems to be right place for setting marker status
+		// If it is after adding this task below, you can get into an endless loop
+		// If it is put at the top, you can get into situations where the PARENT_END is added before all children are added
+		this.markerStatus = markerStatus;
+
+		for (Association association : getPredecessorList()) {
+			Dependency dep = (Dependency) association;
+			if (dep.isDisabled())
+				continue;
+			Task predecessor = (Task) dep.getPredecessor();
+			predecessor.arrangeTask(addTo,markerStatus,depth+1);
+			predecessor.arrangeChildren(addTo,markerStatus,depth);
+		}
+
+
+		// Process current task
+		PredecessorTaskList.TaskReference taskReference = new PredecessorTaskList.TaskReference(this);
+		addTo.add(taskReference);
+
+		// Arrange my children
+		if (isWbsParent()) {
+			taskReference.setParentBegin();
+			arrangeChildren(addTo,markerStatus,depth);
+			taskReference =  new PredecessorTaskList.TaskReference(this);
+			taskReference.setParentEnd();
+			addTo.add(taskReference);
+		}
+	}
+
+	private void arrangeChildren(Collection<? super PredecessorTaskList.TaskReference> addTo, boolean markerStatus, int depth) {
+
+		//note that it is possible that this is called for non parents
+
+		Collection<Node> children = getWbsChildrenNodes(); // I depend on my predecessors children
+		if (children != null) {
+			for (Node childNode : children) {
+				if (!(childNode.getImpl() instanceof Task child))
+					continue;
+
+				child.arrangeTask(addTo,markerStatus,depth+1);
+			}
+		}
+	}
+
+
+
+	public boolean isAncestorOrDescendent(Task other) {
+		return (wbsDescendentOf(other) || other.wbsDescendentOf(this));
+	}
+	public boolean dependsOn(HasDependencies other) {
+		Task task = (Task)other;
+		return DependencyGraph.dependsOn(this, task);
+	}
+
+	/**
+	 * @return
+	 */
+	public Date getCreated() {
+		return created;
+	}
+	/**
+	 * @return
+	 */
+	public long getId() {
+		return hasKey.getId();
+	}
+	/**
+	 * @param id
+	 */
+	public void setId(long id) {
+		hasKey.setId(id);
+	}
+	/**
+	 * @param created
+	 */
+	public void setCreated(Date created) {
+		this.created = created;
+		if (hasKey != null) hasKey.setCreated(created);
+	}
+
+	public String getPredecessors() {
+		return AssociationListFormat.getInstance(DependencyFormat.getInstance(AssociationFormatParameters.getInstance(this,true,Configuration.getFieldFromId("Field.id"),false, true)))
+			.format(getPredecessorList());
+	}
+	public String getSuccessors() {
+		return AssociationListFormat.getInstance(DependencyFormat.getInstance(AssociationFormatParameters.getInstance(this,false,Configuration.getFieldFromId("Field.id"),false, true)))
+			.format(getSuccessorList());
+	}
+
+	public String getUniqueIdPredecessors() {
+		return AssociationListFormat.getInstance(DependencyFormat.getInstance(AssociationFormatParameters.getInstance(this,true,Configuration.getFieldFromId("Field.uniqueId"),false, true)))
+			.format(getPredecessorList());
+	}
+	public String getUniqueIdSuccessors() {
+		return AssociationListFormat.getInstance(DependencyFormat.getInstance(AssociationFormatParameters.getInstance(this,false,Configuration.getFieldFromId("Field.uniqueId"),false, true)))
+			.format(getSuccessorList());
+	}
+
+	public String getWbsPredecessors() {
+		return AssociationListFormat.getInstance(DependencyFormat.getInstance(AssociationFormatParameters.getInstance(this,true,Configuration.getFieldFromId("Field.wbs"),true, true)))
+			.format(getPredecessorList());
+	}
+
+	public String getWbsSuccessors() {
+		return AssociationListFormat.getInstance(DependencyFormat.getInstance(AssociationFormatParameters.getInstance(this,false,Configuration.getFieldFromId("Field.wbs"),true, true)))
+			.format(getSuccessorList());
+	}
+
+	public void setPredecessors(String predecessors) throws FieldParseException {
+		getPredecessorList().setAssociations(predecessors,DependencyFormat.getInstance(AssociationFormatParameters.getInstance(this,true,Configuration.getFieldFromId("Field.id"),false, true)));
+	}
+
+	public void setSuccessors(String successors) throws FieldParseException {
+		getSuccessorList().setAssociations(successors,DependencyFormat.getInstance(AssociationFormatParameters.getInstance(this,false,Configuration.getFieldFromId("Field.id"),false, true)));
+	}
+
+	public void setUniqueIdPredecessors(String predecessors) throws FieldParseException {
+		getPredecessorList().setAssociations(predecessors,DependencyFormat.getInstance(AssociationFormatParameters.getInstance(this,true,Configuration.getFieldFromId("Field.uniqueId"),false, true)));
+	}
+
+	public void setUniqueIdSuccessors(String successors) throws FieldParseException {
+		getSuccessorList().setAssociations(successors,DependencyFormat.getInstance(AssociationFormatParameters.getInstance(this,false,Configuration.getFieldFromId("Field.uniqueId"),false, true)));
+	}
+
+	/**
+	 * @return Returns the wbs.
+	 */
+	public String getWbs() {
+		return wbs;
+	}
+	/**
+	 * @param wbs The wbs to set.
+	 */
+	public void setWbs(String wbs) {
+		this.wbs = wbs;
+	}
+	/**
+	 * @return
+	 */
+	public long getUniqueId() {
+		return hasKey.getUniqueId();
+	}
+
+	/**
+	 * @param id
+	 */
+	public void setUniqueId(long id) {
+		hasKey.setUniqueId(id);
+	}
+	/**
+	 * @return
+	 */
+	public String getName() {
+		return hasKey.getName();
+	}
+	/**
+	 * @param name
+	 */
+	public void setName(String name) {
+		hasKey.setName(name);
+	}
+
+
+	public String toString() {
+		if (getName() == null)
+			return "<null name>";
+		return getName();
+	}
+
+	public String getName(FieldContext context) {
+		return hasKey.getName(context);
+	}
+
+	public boolean isNormal() {
+		return false;
+	}
+	public boolean isCritical() {
+		return false;
+	}
+	/** if task is currently critical or will become critical after CP */
+	public boolean isOrWasCritical() {
+		if (isCritical())
+			return true;
+		if (currentSchedule.isForward())
+			return getEnd() >= getLateFinish();
+		else // reverse schedule
+			return getStart() <= getEarlyStart();
+	}
+
+	public boolean isSummary() {
+		return isWbsParent();
+	}
+	public boolean isAssignment() {
+		return false;
+	}
+
+
+	/**
+	 * @return Returns the physicalPercentComplete.
+	 */
+	public double getPhysicalPercentComplete() {
+		return physicalPercentComplete;
+	}
+	/**
+	 * @param physicalPercentComplete The physicalPercentComplete to set.
+	 */
+	public void setPhysicalPercentComplete(double physicalPercentComplete) {
+		this.physicalPercentComplete = physicalPercentComplete;
+	}
+
+	public void markTaskAsNeedingRecalculation() {
+		int nextStateCount = project.getCalculationStateCount()+1;
+		setCalculationStateCount(nextStateCount);
+	}
+
+		/**
+		 * Flags all tasks which depend on this one for scheduling as dirty.
+		 * @param doSelf include this task in the recalculation
+		 */
+		public void markAllDependentTasksAsNeedingRecalculation(boolean doSelf) {
+			markDependentClosureAsNeedingRecalculation(List.of(this), doSelf);
+		}
+
+		/** Marks the union of multiple dependency/WBS closures with one identity-based walk. */
+		public static void markDependentClosureAsNeedingRecalculation(Collection<? extends Task> roots) {
+			markDependentClosureAsNeedingRecalculation(roots, true);
+		}
+
+		private static void markDependentClosureAsNeedingRecalculation(Collection<? extends Task> roots,
+				boolean includeRoots) {
+			Set<Task> rootSet = Collections.newSetFromMap(new IdentityHashMap<>());
+			ArrayDeque<Task> pending = new ArrayDeque<>();
+			for (Task root : roots) {
+				if (root != null && rootSet.add(root)) pending.addLast(root);
+			}
+			Set<Task> visited = Collections.newSetFromMap(new IdentityHashMap<>());
+			while (!pending.isEmpty()) {
+				Task task = pending.removeFirst();
+				if (!visited.add(task)) continue;
+				if (includeRoots || !rootSet.contains(task)) task.markTaskAsNeedingRecalculation();
+				AssociationList successors = task.getSuccessorList();
+				if (successors.isEmpty()) {
+					task.getProject().getSchedulingAlgorithm().markDependentBoundsAsDirty();
+				} else {
+					for (Association association : successors)
+						pending.addLast((Task) ((Dependency) association).getSuccessor());
+				}
+				for (Task parent = task.getWbsParentTask(); parent != null; parent = parent.getWbsParentTask())
+					pending.addLast(parent);
+				Collection<Node> children = task.getWbsChildrenNodes();
+				if (children != null) {
+					for (Node childNode : children)
+						if (childNode.getImpl() instanceof Task child) pending.addLast(child);
+				}
+			}
+		}
+
+
+	void cleanUp(Object eventSource,boolean deep,boolean undo,boolean cleanDependencies) {
+		if (cleanDependencies) {
+			markAllDependentTasksAsNeedingRecalculation(false);
+
+			// remove sentinel dependencies if any
+			project.removeStartSentinelDependency(this);
+			project.removeEndSentinelDependency(this);
+
+			// One service command removes both sides and owns the revisioned publication.
+			DependencyService.getInstance().remove(
+				DependencyService.getInstance().getIncidentDependencies(this), eventSource, undo);
+		}
+
+	}
+
+	public void recalculate(Object eventSource) {
+		((Project)getDocument()).updateScheduling(eventSource,this,ObjectEvent.UPDATE,getEndField());
+	}
+	public void recalculateLater(final Object eventSource) {
+		markTaskAsNeedingRecalculation(); // task needs to be recalculated
+
+            UiDispatch.invokeLater(() -> recalculate(eventSource));
+	}
+
+
+	/**
+	 * @return
+	 */
+	public long getActualStart() {
+		return actualStart;
+	}
+
+	public abstract void setActualStart(long actualStart);
+
+
+	public long getActualFinish() {
+		if (getPercentComplete() == 1.0)
+			return getEnd();
+		return 0;
+	}
+	/**
+	 * @param actualFinish
+	 */
+	public void setActualFinish(long actualFinish) {
+		long old = getActualFinish();
+		if (actualFinish == old)
+			return;
+		setEnd(actualFinish);
+		setPercentComplete(1.0);
+	}
+	public boolean isZeroDuration() {
+		return Duration.millis(getRawDuration()) == 0;
+	}
+
+	/**
+	 * Leaf task percent complete is calculated from assignments. WBS summaries
+	 * aggregate their leaf task percentages by task duration.
+	 */
+	public double getPercentComplete() {
+		if (isInactiveTask() && inactivePercentComplete != null)
+			return inactivePercentComplete.doubleValue();
+		if (isWbsParent())
+			return taskDurationPercentRollup();
+		DivisionSummaryVisitor divisionClosure = ScheduleUtil.percentCompleteClosureInstance(false);
+		DataUtils.forAllDo(((NormalTask)this).getAssignments().iterator(), divisionClosure);
+		double val = divisionClosure.getValue();
+		if (val >=COMPLETE_THRESHOLD) // adjust for rounding
+			val = 1.0D;
+		return val;
+	}
+
+	/**
+	 * Summary task % Complete is the duration-weighted rollup of its leaf tasks.
+	 * Assignment calendars can produce different completion percentages from the
+	 * task's actual duration / duration, so assignments are not the summary unit.
+	 */
+	private double taskDurationPercentRollup() {
+		Project project = (Project) (getMasterDocument() == null ? getProject() : getMasterDocument());
+		return taskDurationPercentRollup(project, new Object[] { this });
+	}
+
+	double taskDurationPercentRollup(Object[] rootNodes) {
+		Project project = (Project) (getMasterDocument() == null ? getProject() : getMasterDocument());
+		return taskDurationPercentRollup(project, rootNodes);
+	}
+
+	private double taskDurationPercentRollup(Project project, Object[] rootNodes) {
+		DivisionSummaryVisitor rollup = ScheduleUtil.percentCompleteClosureInstance(true);
+		for (Object root : rootNodes) {
+			Object branch = root instanceof Node node ? node.getImpl() : root;
+			DeepChildWalker.recursivelyTreatBranch(project.getTaskOutline(), branch, value -> {
+				if (!(value instanceof Node leafNode) || !(leafNode.getImpl() instanceof Task task)
+						|| task == this || task.isWbsParent()) return;
+				rollup.accept(leafNode);
+			});
+		}
+		double value = rollup.getValue();
+		return value >= COMPLETE_THRESHOLD ? 1.0D : value;
+	}
+
+	public boolean inProgress() {
+		double percentComplete = getPercentComplete();
+		return (percentComplete > 0.0D
+				&& percentComplete < 1.0D);
+	}
+
+	private long calcTimeToStartFromNow() {
+		return getStart() - System.currentTimeMillis();
+
+	}
+	private static long millisInWeek = 1000L*60L*60L*24L*7L;
+	public boolean isStartingWithinOneWeek() {
+		if (getPercentComplete() > 0.0D)
+			return false;
+		long diff = calcTimeToStartFromNow();
+		return diff > 0 && diff < millisInWeek;
+	}
+	public boolean isStartingWithinTwoWeeks() {
+		if (getPercentComplete() > 0.0D)
+			return false;
+		long diff = calcTimeToStartFromNow();
+		return diff > 0 && diff < 2L*millisInWeek;
+	}
+	public boolean isLateStarting() {
+		if (getPercentComplete() > 0.0D)
+			return false;
+		long diff = calcTimeToStartFromNow();
+		return diff < 0;
+	}
+
+	public boolean isComplete() {
+		return getPercentComplete() >= 1.0D;
+	}
+	public boolean isUnstarted() {
+		return getPercentComplete() == 0.0D;
+	}
+
+	public long getDurationMillis() {
+		return Duration.millis(getDuration());
+	}
+
+/**
+ * Actual duration is % complete * duration for all tasks including parents
+ */
+	public long getActualDuration() {
+		long duration = getDuration();
+		long result = Math.round(getPercentComplete() * Duration.millis(duration));
+		return Duration.useTimeUnitOfInNone(result, duration);
+	}
+
+	/**
+	 * @param actualDuration
+	 */
+	public void setActualDuration(long actualDuration) {
+		actualDuration = DateTime.closestDate(Duration.millis(actualDuration));
+
+		if (actualDuration == Duration.millis(getActualDuration()))
+			return;
+		long stop = getEffectiveWorkCalendar().add(getStart(),actualDuration,true);
+		setStop(stop);
+	}
+	/**
+	 * @return
+	 */
+	public long getRemainingDuration() {
+		long actualDuration = getActualDuration();
+		long result = getDurationMillis() - Duration.millis(actualDuration);
+		return Duration.useTimeUnitOfInNone(result, actualDuration);
+	}
+	/**
+	 * @param remainingDuration
+	 */
+	public void setRemainingDuration(long remainingDuration) {
+		remainingDuration = DateTime.closestDate(Duration.millis(remainingDuration));
+		setActualDuration(getDurationMillis() - remainingDuration);
+	}
+
+
+	public Object clone(){
+		try {
+			Task task=(Task)super.clone();
+			_cloneTo(task);
+//				Handle wbs outside
+			return task;
+		} catch (CloneNotSupportedException e) {
+			throw new InternalError();
+		}
+	}
+	public void cleanClone(){
+		owningProject=null;
+		project=null;
+	}
+
+	private void _cloneTo(Task task){
+		task.hasKey=new HasKeyImpl(isLocal(),task);
+		task.setName(getName());
+		task.setRawDuration(getRawDuration());
+
+		task.earlySchedule=(TaskSchedule)earlySchedule.cloneWithTask(task);
+		task.lateSchedule=(TaskSchedule)lateSchedule.cloneWithTask(task);
+		task.customFields=(CustomFieldsImpl)customFields.clone();
+		task.snapshots=(Snapshottable)((SnapshottableImpl)snapshots).cloneWithTask(task);
+		task.currentSchedule= ((TaskSnapshot)task.getCurrentSnapshot()).getCurrentSchedule();
+		task.notes=notes;
+		task.wbs=wbs;
+		task.wbsChildrenNodes=null;
+		task.wbsParentTask=null;
+
+		task.dependencies=new HasDependenciesImpl(task);
+		task.summaryEnvelope = (summaryEnvelope == null) ? new SummaryEnvelope() : summaryEnvelope.clone();
+
+		task.currentSchedule.copyDatesAfterClone(currentSchedule);
+		task.setDirty(true);
+	}
+	public boolean hasSummaryEnvelope() {
+		return summaryEnvelope != null && summaryEnvelope.hasAnyManualValue();
+	}
+	public SummaryEnvelope getSummaryEnvelope() {
+		if (summaryEnvelope == null)
+			summaryEnvelope = new SummaryEnvelope();
+		return summaryEnvelope;
+	}
+	public void clearSummaryEnvelopePart(SummaryEnvelopePart part) {
+		getSummaryEnvelope().clearPart(part);
+	}
+	public RollupSpan calculateRollupSpan() {
+		return RollupSpanCalculator.forTask(this);
+	}
+
+	RollupSpan calculateRollupSpan(Object[] childNodes) {
+		return RollupSpanCalculator.forChildren(this, java.util.Arrays.asList(childNodes));
+	}
+	public void cloneTo(Task task){
+		task.project=project;
+		task.owningProject=owningProject;
+
+		task.debugDependencyOrder=debugDependencyOrder;
+		task.markTaskAsMilestone = markTaskAsMilestone;
+		task.marked = marked;
+		task.hiddenTask = hiddenTask;
+		task.fontFamily = fontFamily;
+		task.fontSize = fontSize;
+		task.fontColor = fontColor;
+		task.fontBold = fontBold;
+		task.fontItalic = fontItalic;
+		task.fontStrikethrough = fontStrikethrough;
+		task.fontUnderline = fontUnderline;
+		task.fontBackground = fontBackground;
+		task.external = external;
+		task.projectId = projectId;
+		task.physicalPercentComplete = physicalPercentComplete;
+
+		task.windowEarlyStart = windowEarlyStart;
+		task.windowEarlyFinish = windowEarlyFinish;
+		task.windowLateStart = windowLateStart;
+		task.windowLateFinish = windowLateFinish;
+
+		task.actualStart = actualStart;
+
+		task.levelingDelay = levelingDelay;
+		task.manuallyScheduled = manuallyScheduled;
+		task.inactiveTask = inactiveTask;
+		task.ignoreWarnings = ignoreWarnings;
+		task.inactivePercentComplete = inactivePercentComplete;
+		task.displayOnTimeline = displayOnTimeline;
+		task.manualStart = manualStart;
+		task.manualFinish = manualFinish;
+		task.calculationStateCount = calculationStateCount;
+		task.markerStatus = markerStatus;
+		task.earnedValueMethod = earnedValueMethod;
+
+		task.constraintType = constraintType;
+		task.deadline = deadline;
+		task.expenseType = expenseType;
+		task.inSubproject = inSubproject;
+		task.lastSavedStart = lastSavedStart;
+		task.lastSavedFinish = lastSavedFinish;
+		task.dirty=dirty;
+
+		task.delegatedTo = delegatedTo;
+
+		_cloneTo(task);
+	}
+
+
+	/**
+	 * @return Returns the splitDuration.
+	 */
+	public long getSplitDuration() {
+		long r = getResume();
+		if (r == 0)
+			return 0;
+		return getEffectiveWorkCalendar().compare(r,getStop(),false);
+	}
+/******************************************************************************
+ * Getters and setters
+ ****************************************************************************/
+
+	/**
+	 * @return Returns the constraintType.
+	 */
+	public int getConstraintType() {
+		return constraintType;
+	}
+
+	/** Returns the typed constraint when the stored compatibility code is known. */
+	public ConstraintType.Kind getConstraintTypeKind() {
+		return ConstraintType.Kind.fromCodeOrNull(getConstraintType());
+	}
+
+	/**
+	 * @param constraintType The constraintType to set.
+	 */
+	public void setConstraintType(int constraintType) throws FieldParseException {
+		int newConstraintType = makeValidConstraintType(constraintType); // limit to valid options
+		if (newConstraintType != constraintType)
+			throw new FieldParseException(Messages.getString("Message.parentConstraintType"));
+		setRawConstraintType(constraintType);
+		long d = getConstraintDate(); // save off old date, it will be reused
+		if (!isDatelessConstraintType() && d < 5* WorkCalendar.MILLIS_IN_DAY) // if the constraint requires a date and there is none, set a date to today. added a bit of margin 5/5/08
+			setConstraintDate(getEffectiveWorkCalendar().adjustInsideCalendar(DateTime.midnightToday(),false));
+
+	}
+
+	public void setRawConstraintType(int constraintType) {
+		long d = getConstraintDate(); // save off old date, it will be reused
+		clearDateConstraints(); // get rid of all constraints
+		setScheduleConstraint(constraintType,d); // set new constraint with old date
+
+	}
+	public void setRawConstraintType(ConstraintType.Kind constraintType) {
+		setRawConstraintType(java.util.Objects.requireNonNull(constraintType, "constraintType").code());
+	}
+	/**
+	 * @return Returns the windowEarlyStart.
+	 */
+	public long getWindowEarlyStart() {
+		return windowEarlyStart;
+	}
+
+	/**
+	 * @param windowEarlyStart The windowEarlyStart to set.
+	 */
+	public void setWindowEarlyStart(long windowEarlyStart) {
+		this.windowEarlyStart = windowEarlyStart;
+	}
+
+	/**
+	 * @return Returns the windowEarlyFinish.
+	 */
+	public long getWindowEarlyFinish() {
+		return windowEarlyFinish;
+	}
+
+	/**
+	 * @param windowEarlyFinish The windowEarlyFinish to set.
+	 */
+	public void setWindowEarlyFinish(long windowEarlyFinish) {
+		this.windowEarlyFinish = windowEarlyFinish;
+	}
+	/**
+	 * @return Returns the windowLateFinish.
+	 */
+	public long getWindowLateFinish() {
+		return windowLateFinish;
+	}
+
+	/**
+	 * @param windowLateFinish The windowLateFinish to set.
+	 */
+	public void setWindowLateFinish(long windowLateFinish) {
+		this.windowLateFinish = windowLateFinish;
+	}
+
+	/**
+	 * @return Returns the windowLateStart.
+	 */
+	public long getWindowLateStart() {
+		return windowLateStart;
+	}
+
+	/**
+	 * @param windowLateStart The windowLateStart to set.
+	 */
+	public void setWindowLateStart(long windowLateStart) {
+		this.windowLateStart = windowLateStart;
+	}
+
+
+	/**
+	 * @param mustStart The date the task must start on.
+	 */
+	public void setMustStartOn(long mustStart) {
+		setWindowEarlyStart(mustStart);
+		setWindowLateStart(mustStart);
+	}
+
+	/**
+	 * @param mustStart The date the task must finish on.
+	 */
+	public void setMustFinishOn(long mustFinish) {
+		setWindowEarlyFinish(mustFinish);
+		setWindowLateFinish(mustFinish);
+	}
+
+	/**
+	 * Set constraint FNET
+	 * @param date
+	 */
+	public void setFinishNoEarlierThan(long date) {
+		setWindowEarlyFinish(date);
+	}
+
+	/**
+	 * Set constraint FNLT
+	 * @param date
+	 */
+	public void setFinishNoLaterThan(long date) {
+		setWindowLateFinish(date);
+		setWindowEarlyFinish(0);
+	}
+
+	/**
+	 * Set constraint SNET
+	 * @param date
+	 */
+	public void setStartNoEarlierThan(long date) {
+		setWindowEarlyStart(date);
+		setWindowLateStart(0);
+	}
+
+	/**
+	 * Set constraint SNLT
+	 * @param date
+	 */
+	public void setStartNoLaterThan(long date) {
+		setWindowLateStart(date);
+		setWindowEarlyStart(0);
+	}
+
+
+
+	/**
+	 * @return Returns the earlyFinish.
+	 */
+	public long getEarlyFinish() {
+		return earlySchedule.getFinish();
+	}
+
+	/**
+	 * @return Returns the earlyStart.
+	 */
+	public long getEarlyStart() {
+		return earlySchedule.getStart();
+	}
+
+
+	/**
+	 * @return Returns the lateFinish.
+	 */
+	public long getLateFinish() {
+		return lateSchedule.getFinish();
+	}
+
+
+	/**
+	 * @return Returns the lateStart.
+	 */
+	public long getLateStart() {
+		return lateSchedule.getStart();
+	}
+
+	/**
+	 * Is this task reverse scheduled:  Is it ALAP in forward scheduling or ASAP in reverse?
+	 * @return
+	 */
+	public final boolean isReverseScheduled() {
+		ConstraintType.Kind kind = getConstraintTypeKind();
+		if (project.isForward())
+			return kind == ConstraintType.Kind.ALAP;
+		else
+			return kind == ConstraintType.Kind.ASAP;
+	}
+
+	protected final boolean isDatelessConstraintType() {
+		ConstraintType.Kind kind = getConstraintTypeKind();
+		return kind == ConstraintType.Kind.ALAP || kind == ConstraintType.Kind.ASAP;
+
+	}
+/*********************************************************************************
+ * Constraints
+***********************************************************************************/
+	private void clearDateConstraints() {
+		setWindowEarlyStart(0);
+		setWindowLateStart(0);
+		setWindowEarlyFinish(0);
+		setWindowLateFinish(0);
+	}
+
+	boolean validateConstraints() {
+		long little = WorkCalendar.MILLIS_IN_DAY  * 10;
+		if (!isDatelessConstraintType()) {
+			if (windowEarlyStart < little
+				&& windowEarlyFinish <little
+				&& windowLateStart <little
+				&& windowLateFinish < little) {
+				setConstraintDate(0L);
+				ErrorLogger.log("Repairing invalid constraints " + getId() + " " + getName()); // under unknown circumstances, constraints are becoming invalid. this repairs them.
+				setDirty(true);
+				return true;
+
+			}
+
+		}
+		return false;
+	}
+
+	public void setScheduleConstraint(int constraintType, long date) {
+		this.constraintType = constraintType;
+		ConstraintType.Kind kind = ConstraintType.Kind.fromCodeOrNull(constraintType);
+		if (kind == ConstraintType.Kind.FNET) {
+			setFinishNoEarlierThan(date);
+		} else if (kind == ConstraintType.Kind.FNLT) {
+			setFinishNoLaterThan(date);
+		} else if(kind == ConstraintType.Kind.SNET) {
+			setStartNoEarlierThan(date);
+		} else if(kind == ConstraintType.Kind.SNLT) {
+			setStartNoLaterThan(date);
+		} else if(kind == ConstraintType.Kind.MSO) {
+			setMustStartOn(date);
+		} else if(kind == ConstraintType.Kind.MFO) {
+			setMustFinishOn(date);
+		} else {
+			clearDateConstraints();
+		}
+
+	}
+
+	public void setConstraintTypeKind(ConstraintType.Kind constraintType) throws FieldParseException {
+		setConstraintType(java.util.Objects.requireNonNull(constraintType, "constraintType").code());
+	}
+	public void setScheduleConstraint(ConstraintType.Kind constraintType, long date) {
+		setScheduleConstraint(java.util.Objects.requireNonNull(constraintType, "constraintType").code(), date);
+	}
+	public void setScheduleConstraintAndUpdate(int constraintType, long date) {
+		setScheduleConstraint(constraintType,date);
+		getDocument().getObjectEventManager().fireUpdateEvent(this,this,Configuration.getFieldFromId("Field.constraintType"));
+	}
+	public void setScheduleConstraintAndUpdate(ConstraintType.Kind constraintType, long date) {
+		setScheduleConstraintAndUpdate(java.util.Objects.requireNonNull(constraintType, "constraintType").code(), date);
+	}
+	public void setConstraintDate(long date) {
+		if (date == 0) {
+			clearDateConstraints();
+			constraintType = getProject() == null ? ConstraintType.Kind.ASAP.code()
+				: getProject().getDefaultConstraintTypeKind().code();
+		} else {
+			date = getEffectiveWorkCalendar().adjustInsideCalendar(date,false); // make date valid
+
+		}
+		setScheduleConstraint(constraintType,date);
+
+	}
+	public long getConstraintDate() {
+		ConstraintType.Kind kind = getConstraintTypeKind();
+		if (kind == ConstraintType.Kind.FNET) {
+			return getWindowEarlyFinish();
+		} else if (kind == ConstraintType.Kind.FNLT) {
+			return getWindowLateFinish();
+		} else if(kind == ConstraintType.Kind.SNET) {
+			return getWindowEarlyStart();
+		} else if(kind == ConstraintType.Kind.SNLT) {
+			return getWindowLateStart();
+		} else if(kind == ConstraintType.Kind.MSO) {
+			return getWindowEarlyStart();
+		} else if(kind == ConstraintType.Kind.MFO) {
+			return getWindowEarlyFinish();
+		} else {
+			return 0;
+		}
+	}
+
+	public boolean isReadOnlyConstraintDate(FieldContext fieldContext) {
+		ConstraintType.Kind kind = getConstraintTypeKind();
+		return kind == ConstraintType.Kind.ALAP || kind == ConstraintType.Kind.ASAP;
+	}
+
+/**************************************************************************
+ * Critical path methods for slack
+***************************************************************************/
+	public final long getTotalSlack() {
+		return Math.min(getStartSlack(), getFinishSlack());
+	}
+
+	/** The amount of excess time an activity has between its Early Start and Late Start dates. */
+	public final long getStartSlack() {
+		return getEffectiveWorkCalendar().compare(getLateStart(),getEarlyStart(), false);
+	}
+
+	/** The amount of excess time an activity has between its Early Finish and Late Finish dates. */
+	public final long getFinishSlack() {
+		return getEffectiveWorkCalendar().compare(getLateFinish(),getEarlyFinish(), false);  // note that this is same as total float
+	}
+
+	/**
+	 * Used to calculate the free slack on a given dependency
+	 *
+	 * @param dependency
+	 * @return
+	 */
+	public static long calcFreeSlack(Dependency dependency) {
+		ScheduleWindow predecessor = (ScheduleWindow) dependency
+				.getPredecessor();
+		ScheduleWindow successor = (ScheduleWindow) dependency.getSuccessor();
+		long t = 0;
+		WorkCalendar cal = dependency.getEffectiveWorkCalendar();
+		if (dependency.getDependencyKind() == DependencyType.Kind.FS) {
+			t = cal.compare(cal.add(successor.getEarlyStart(),
+					-dependency.getLeadValue(), true), predecessor
+					.getEarlyFinish(), false);
+		} else if (dependency.getDependencyKind() == DependencyType.Kind.FF) {
+			t = cal.compare(cal.add(successor.getEarlyFinish(),
+					-dependency.getLeadValue(), true), predecessor
+					.getEarlyFinish(), false);
+		} else if (dependency.getDependencyKind() == DependencyType.Kind.SS) {
+			t = cal.compare(cal.add(successor.getEarlyStart(),
+					-dependency.getLeadValue(), true), predecessor
+					.getEarlyStart(), false);
+		} else if (dependency.getDependencyKind() == DependencyType.Kind.SF) {
+			t = cal.compare(cal.add(successor.getEarlyFinish(),
+					-dependency.getLeadValue(), true), predecessor
+					.getEarlyStart(), false);
+		}
+		return t;
+	}
+
+	/**
+	 * Used in calculating free slack. Free Float = For FS: Early Start (next
+	 * activity) � Lag (if any) � Early Finish*
+	 *
+	 * @param dependencyList
+	 * @param duration
+	 * @return
+	 */
+	public long getFreeSlack() {
+		long least = getTotalSlack(); // free slack is at most the total slack
+		for (Association association : getSuccessorList()) {
+			Dependency dependency = (Dependency) association;
+			least = Math.min(least, calcFreeSlack(dependency));
+		}
+		return least;
+	}
+
+/**********************************************************************************
+ * Access to Dependencies
+ **********************************************************************************/
+
+	public AssociationList getPredecessorList() {
+		return dependencies.getPredecessorList();
+	}
+	public AssociationList getSuccessorList() {
+		return dependencies.getSuccessorList();
+	}
+
+	public AssociationList getDependencyList(boolean pred) {
+		return dependencies.getDependencyList(pred);
+	}
+
+
+/************************************************************************************
+ * Critical Path stuff
+ **************************************************************************************/
+
+	public long calcOffsetFrom(long startDate, long dependencyDate, boolean ahead, boolean remainingOnly, boolean useSooner) {
+		throw new RuntimeException("calcOffsetFrom should not be called in ScheduleWindow");
+	}
+
+
+
+	public long getElapsedDuration() {
+		return Math.round(getEffectiveWorkCalendar().compare(getEnd(), getStart(),true) * CalendarOption.getInstance().getFractionOfDayThatIsWorking());
+	}
+
+	public long getDeadline() {
+		return deadline;
+	}
+	public void setDeadline(long deadline) {
+		if (deadline != 0L)
+			deadline = CalendarOption.getInstance().makeValidEnd(deadline, false);
+		this.deadline = deadline;
+	}
+	public boolean isMarkTaskAsMilestone() {
+		return markTaskAsMilestone;
+	}
+	public void setMarkTaskAsMilestone(boolean markTaskAsMilestone) {
+		this.markTaskAsMilestone = markTaskAsMilestone;
+	}
+	public boolean isMarked() {
+		return marked;
+	}
+	public void setMarked(boolean marked) {
+		this.marked = marked;
+	}
+	/** @deprecated use {@link #getEarnedValueMethodKind()} for typed access. */
+	@Deprecated
+	public int getEarnedValueMethod() {
+		return earnedValueMethod;
+	}
+
+	public EarnedValueMethodType.Kind getEarnedValueMethodKind() {
+		return EarnedValueMethodType.Kind.fromCode(earnedValueMethod);
+	}
+	public void setEarnedValueMethodKind(EarnedValueMethodType.Kind earnedValueMethod) {
+		this.earnedValueMethod = java.util.Objects.requireNonNull(earnedValueMethod, "earnedValueMethod").code();
+	}
+	/** @deprecated use {@link #setEarnedValueMethodKind(EarnedValueMethodType.Kind)} for typed access. */
+	@Deprecated
+	public void setEarnedValueMethod(int earnedValueMethod) {
+		this.earnedValueMethod = earnedValueMethod;
+	}
+
+	/** Update a task from the Update Project dialog.  There are several options:
+	 *
+	 * @param date Date to either update completion to, or to move remaining work to
+	 * @param updateWorkAsCompleteThrough If true, then update % complete, if false, then move remaining
+	 *  to the date
+	 * @param setFractionalPercentComplete If true, then allow setting of % complete for uncompleted tasks,
+	 *  otherwise, if a task is not completed, it's current completion will not be modified
+	 * @return True if task was updated, false if unchanged
+	 */
+	public boolean updateProjectTask(long date, boolean updateWorkAsCompleteThrough, boolean setFractionalPercentComplete) {
+		long start = getStart();
+		long end = getEnd();
+		long completedDate = getStop();
+		boolean updated = false;
+		if (updateWorkAsCompleteThrough) {
+			if (setFractionalPercentComplete) {
+				if (completedDate != end) {// if task is not finished, adjust its completion.  This may actually reduce % complete
+					setStop(date);
+					updated = true;
+				}
+			} else if (date >= end) { // if date is equal or later to end date of task, set its percent complete to 100%, otherwise do nothing
+				setPercentComplete(1.0);
+				updated = true;
+			}
+		} else {
+			if (date > start) { // move remaining after status date
+				moveRemainingToDate(date);
+				updated = true;
+			}
+		}
+		if (updated) {
+			recalculate(this);
+			setDirty(true);
+		}
+		return updated;
+	}
+
+	/**
+	 * @return Returns the calculationStateCount.
+	 */
+	public final int getCalculationStateCount() {
+		return calculationStateCount;
+	}
+	/**
+	 * @param calculationStateCount The calculationStateCount to set.
+	 */
+	public final void setCalculationStateCount(int calculationStateCount) {
+		this.calculationStateCount = calculationStateCount;
+	}
+
+	public void updateEndSentinel() {
+		if (getSuccessorList().isEmpty()) { // if pred has no successors, tell end sentinel about it
+			project.addEndSentinelDependency(this);
+		} else { // make sure not in sentinel's list
+			project.removeEndSentinelDependency(this);
+		}
+	}
+	public void updateStartSentinel() {
+		if (getPredecessorList().isEmpty()) { // if pred has no successors, tell end sentinel about it
+			project.addStartSentinelDependency(this);
+		} else { // make sure not in sentinel's list
+			project.removeStartSentinelDependency(this);
+		}
+	}
+
+	public final TaskSchedule getEarlySchedule() {
+		return earlySchedule;
+	}
+	public final TaskSchedule getLateSchedule() {
+		return lateSchedule;
+	}
+
+	public final TaskSchedule getSchedule(TaskSchedule.Kind scheduleType) {
+		return switch (java.util.Objects.requireNonNull(scheduleType, "scheduleType")) {
+			case CURRENT -> currentSchedule;
+			case EARLY -> earlySchedule;
+			case LATE -> lateSchedule;
+		};
+	}
+
+	/** @deprecated use {@link #getSchedule(TaskSchedule.Kind)}. */
+	@Deprecated
+	public final TaskSchedule getSchedule(int scheduleType) {
+		if (scheduleType == TaskSchedule.Kind.CURRENT.code())
+			return currentSchedule;
+		if (scheduleType == TaskSchedule.Kind.EARLY.code())
+			return earlySchedule;
+		return lateSchedule;
+	}
+
+/**
+ * Used for debugging primarily - says if a task was just modified by last recalculation - either has same count or is one less
+ * @return
+ */	public boolean isJustModified() {
+	 	if (project.getSchedulingAlgorithm() == null)
+	 		return false;
+		return calculationStateCount + PredecessorTaskList.CALCULATION_STATUS_STEP >= project.getSchedulingAlgorithm().getCalculationStateCount();
+	}
+
+ 	public abstract boolean hasDuration();
+	/**
+	 * @param markerStatus The markerStatus to set.
+	 */
+	public final void setMarkerStatus(boolean markerStatus) {
+		this.markerStatus = markerStatus;
+	}
+	/**
+	 * Set the task to be forward or rerverse scheduled
+	 * @param forward
+	 */
+	public void setForward(boolean forward) {
+		getCurrentSchedule().setForward(forward);
+		restrictToValidConstraintType();
+
+	}
+	/**
+	 * Parent tasks have only 3 possible consraint types ASAP/ALAP (depending on forward or reverse scheduling), SNET, and FNLT
+	 */
+	void restrictToValidConstraintType() {
+		setRawConstraintType(makeValidConstraintType(getConstraintType()));
+	}
+
+	protected int makeValidConstraintType(int type) {
+		if (isWbsParent()) { // parents have a limited choice of constraint types
+			ConstraintType.Kind kind = ConstraintType.Kind.fromCodeOrNull(type);
+			if (kind == ConstraintType.Kind.FNLT || kind == ConstraintType.Kind.SNET)
+				return type;
+			else
+				return project.getDefaultConstraintTypeKind().code();
+		}
+		return type;
+
+	}
+
+	public static Predicate<Object> instanceofPredicate() {
+		return Task.class::isInstance;
+	}
+
+	public void invalidateSchedules() {
+		earlySchedule.invalidate();
+		lateSchedule.invalidate();
+	}
+
+	public Document getMasterDocument() {
+		if (getProject().getSchedulingAlgorithm() == null)
+			return null;
+		return getProject().getSchedulingAlgorithm().getMasterDocument();
+	}
+	public String getTaskAndProjectName() {
+		Project p = getOwningProject();
+		if (p == null)
+			p = getProject();
+		return getName() + " (" + p.getName() + ")";
+	}
+	public String getSubprojectFile() {
+		return null;
+	}
+
+	public boolean fieldHideSubprojectFile(FieldContext fieldContext) {
+		return true;
+	}
+
+	/**
+	 * The master-project spreadsheet includes this column for every task row.
+	 * Ordinary tasks have no linked-project state, so keep the cell empty and
+	 * hidden while allowing {@link DefaultSubProj} to expose its load state.
+	 */
+	public String getSubprojectStatus() {
+		return null;
+	}
+
+	public boolean fieldHideSubprojectStatus(FieldContext fieldContext) {
+		return true;
+	}
+
+	public void setSubprojectFile(String sub) {
+	}
+
+	public boolean isSubprojectReadOnly() {
+		return false;
+	}
+
+	public boolean fieldHideSubprojectReadOnly(FieldContext fieldContext) {
+		return true;
+	}
+
+	public long getParentId(int outlineNumber) {
+		NodeModel model= project.getTaskOutline(outlineNumber);
+		if (model == null)
+			return 0;
+		Node node = model.getParent(model.search(this));
+		Object impl = node.getImpl();
+		if (impl instanceof HasKey hasKey)
+			return hasKey.getId();
+		return 0;
+	}
+
+	public int getOutlineLevel(int outlineNumber) {
+		NodeModel model= project.getTaskOutline(outlineNumber);
+		if (model == null)
+			return 0;
+		Node node = model.getParent(model.search(this));
+		return model.getHierarchy().getLevel(node);
+	}
+	public int getOutlineLevel() {
+		return getOutlineLevel(OutlineCollection.DEFAULT_OUTLINE);
+	}
+
+	public final int getDebugDependencyOrder() {
+		return debugDependencyOrder;
+	}
+	public final void setDebugDependencyOrder(int debugDependencyOrder) {
+		this.debugDependencyOrder = debugDependencyOrder;
+	}
+	public final long getLevelingDelay() {
+		return levelingDelay;
+	}
+	public final void setLevelingDelay(long levelingDelay) {
+		this.levelingDelay = levelingDelay;
+	}
+	public final LevelingManualDateState getLevelingManualDateState() { return levelingManualDateState; }
+	public final void setLevelingManualDateState(LevelingManualDateState state) { levelingManualDateState = state; }
+	public record LevelingManualDateState(long originalStart, long originalFinish, long generatedStart, long generatedFinish) { }
+	public final boolean isLevelingCanSplit() { return levelingCanSplit; }
+	public final void setLevelingCanSplit(boolean value) { levelingCanSplit = value; setDirty(true); }
+	public final boolean isLevelAssignments() { return levelAssignments; }
+	public final void setLevelAssignments(boolean value) { levelAssignments = value; setDirty(true); }
+	public final boolean isIgnoreWarnings() { return ignoreWarnings; }
+	public final void setIgnoreWarnings(boolean value) { ignoreWarnings = value; setDirty(true); }
+	/** Calculated Warning field: a manually scheduled task whose dates conflict with links or constraints. */
+	public final boolean isWarning() { return ScheduleDiagnosticsService.hasWarning(this); }
+	public final boolean isRecurringTask() { return recurringTask; }
+	public final void setRecurringTask(boolean value) { recurringTask = value; }
+	public final boolean isManuallyScheduled() {
+		return manuallyScheduled;
+	}
+	final void restoreManualSchedulingState(boolean manuallyScheduled, long manualStart, long manualFinish) {
+		this.manuallyScheduled = manuallyScheduled;
+		this.manualStart = manualStart;
+		this.manualFinish = manualFinish;
+	}
+	final void initializeManualScheduling() {
+		manuallyScheduled = true;
+		captureManualDates();
+	}
+	public final void setManuallyScheduled(boolean manuallyScheduled) {
+		if (!setManuallyScheduledWithoutRecalculation(manuallyScheduled)) return;
+		if (project != null)
+			project.recalculate();
+	}
+	/** Changes scheduling mode and captures manual dates without running a project pass. */
+	final boolean setManuallyScheduledWithoutRecalculation(boolean manuallyScheduled) {
+		if (this.manuallyScheduled == manuallyScheduled) return false;
+		if (manuallyScheduled) captureManualDates();
+		this.manuallyScheduled = manuallyScheduled;
+		setDirty(true);
+		return true;
+	}
+	public final boolean isInactiveTask() {
+		return inactiveTask;
+	}
+	public final void setInactiveTask(boolean inactiveTask) {
+		if (this.inactiveTask == inactiveTask)
+			return;
+		double preservedPercentComplete = getPercentComplete();
+		if (inactiveTask) {
+			captureManualDates();
+			inactivePercentComplete = preservedPercentComplete;
+		}
+		this.inactiveTask = inactiveTask;
+		if (!inactiveTask && inactivePercentComplete != null) {
+			setPercentComplete(inactivePercentComplete.doubleValue());
+			inactivePercentComplete = null;
+		}
+		setDirty(true);
+		if (project != null)
+			project.recalculate();
+	}
+	public final boolean isHiddenTask() {
+		return hiddenTask;
+	}
+	public final void setHiddenTask(boolean hiddenTask) {
+		if (this.hiddenTask == hiddenTask)
+			return;
+		this.hiddenTask = hiddenTask;
+		setDirty(true);
+	}
+	public final String getFontFamily() {
+		return fontFamily;
+	}
+	public final void setFontFamily(String fontFamily) {
+		String normalized = fontFamily == null ? null : fontFamily.trim();
+		if (normalized != null && normalized.isEmpty())
+			normalized = null;
+		if (java.util.Objects.equals(this.fontFamily, normalized))
+			return;
+		this.fontFamily = normalized;
+		setDirty(true);
+	}
+	public final int getFontSize() {
+		return fontSize;
+	}
+	public final void setFontSize(int fontSize) {
+		int normalized = Math.max(0, Math.min(72, fontSize));
+		if (this.fontSize == normalized)
+			return;
+		this.fontSize = normalized;
+		setDirty(true);
+	}
+	public final Integer getFontColor() {
+		return fontColor;
+	}
+	public final void setFontColor(Integer fontColor) {
+		Integer normalized = fontColor == null ? null : Integer.valueOf(fontColor.intValue() & 0x00FFFFFF);
+		if (java.util.Objects.equals(this.fontColor, normalized))
+			return;
+		this.fontColor = normalized;
+		setDirty(true);
+	}
+	public final boolean isFontBold() {
+		return fontBold;
+	}
+	public final void setFontBold(boolean fontBold) {
+		if (this.fontBold == fontBold)
+			return;
+		this.fontBold = fontBold;
+		setDirty(true);
+	}
+	public final boolean isFontItalic() {
+		return fontItalic;
+	}
+	public final void setFontItalic(boolean fontItalic) {
+		if (this.fontItalic == fontItalic)
+			return;
+		this.fontItalic = fontItalic;
+		setDirty(true);
+	}
+	public final boolean isFontStrikethrough() {
+		return fontStrikethrough;
+	}
+	public final void setFontStrikethrough(boolean fontStrikethrough) {
+		if (this.fontStrikethrough == fontStrikethrough)
+			return;
+		this.fontStrikethrough = fontStrikethrough;
+		setDirty(true);
+	}
+	public final boolean isFontUnderline() {
+		return fontUnderline;
+	}
+	public final void setFontUnderline(boolean fontUnderline) {
+		if (this.fontUnderline == fontUnderline)
+			return;
+		this.fontUnderline = fontUnderline;
+		setDirty(true);
+	}
+	public final Integer getFontBackground() {
+		return fontBackground;
+	}
+	public final void setFontBackground(Integer fontBackground) {
+		Integer normalized = fontBackground == null ? null : Integer.valueOf(fontBackground.intValue() & 0x00FFFFFF);
+		if (java.util.Objects.equals(this.fontBackground, normalized))
+			return;
+		this.fontBackground = normalized;
+		setDirty(true);
+	}
+	protected final void updateInactivePercentComplete(double percentComplete) {
+		if (inactiveTask)
+			inactivePercentComplete = percentComplete;
+	}
+	public final boolean isDisplayOnTimeline() {
+		return displayOnTimeline;
+	}
+	public final void setDisplayOnTimeline(boolean displayOnTimeline) {
+		if (this.displayOnTimeline == displayOnTimeline)
+			return;
+		this.displayOnTimeline = displayOnTimeline;
+		setDirty(true);
+	}
+	public final long getManualStart() {
+		return manualStart == 0L ? getStart() : manualStart;
+	}
+	public final long getManualFinish() {
+		return manualFinish == 0L ? getEnd() : manualFinish;
+	}
+	public final void setManualDates(long start, long finish) {
+		if (start <= 0L || finish < start)
+			throw new IllegalArgumentException("Manual finish must not be before manual start");
+		manualStart = start;
+		manualFinish = finish;
+		manuallyScheduled = true;
+		setAllSchedules(start, finish);
+		setDirty(true);
+	}
+	private void captureManualDates() {
+		manualStart = getStart();
+		manualFinish = getEnd();
+	}
+	public CustomFields getCustomFields() {
+		return customFields;
+	}
+	public void updateCachedDuration() {
+		setRawDuration(getDuration());
+	}
+
+	public boolean isDirty() {
+		return dirty ||getStart() != getLastSavedStart() || getEnd() != getLastSavedFinish();
+	}
+	public void setDirty(boolean dirty) {
+		this.dirty = dirty;
+		if (!dirty){
+			setLastSavedStart(currentSchedule.getStart());
+			setLastSavedFinish(currentSchedule.getFinish());
+		}
+		if (dirty&&project!=null) project.setGroupDirty(true);
+	}
+
+	public boolean isMissedDeadline() {
+		if (deadline == 0)
+			return false;
+		else
+			return deadline < getEnd();
+	}
+	public final boolean isExternal() {
+		return external;
+	}
+	public final void setExternal(boolean external) {
+		this.external = external;
+	}
+	public final long getProjectId() {
+		return projectId;
+	}
+	public final void setProjectId(long projectId) {
+		this.projectId = projectId;
+	}
+	public final String getExternalProjectFile() {
+		return externalProjectFile;
+	}
+	public final void setExternalProjectFile(String externalProjectFile) {
+		this.externalProjectFile = externalProjectFile;
+	}
+
+	public Project getRootProject() {
+		Task parent = getWbsParentTask();
+		if (parent == null)
+			return getProject();
+		return parent.getRootProject();
+	}
+	public Project getEnclosingProject() {
+		if (isSubproject())
+			return ((SubProj)this).getSubproject();
+		Task parent = getWbsParentTask();
+		if (parent == null)
+			return getProject();
+		return parent.getEnclosingProject();
+	}
+	public SubProj getEnclosingSubproject() {
+		Task parent = getWbsParentTask();
+
+		if (parent == null)
+			return null;
+		if (parent.isSubproject())
+			return (SubProj)parent;
+		return parent.getEnclosingSubproject();
+	}
+	/**
+	 * Will return a node in the master project that holds he subproject
+	 * @return
+	 */
+	public Node getEnclosingSubprojectNode() {
+		SubProj s = getEnclosingSubproject();
+		if (s == null)
+			return null;
+		return ((Task)s).getProject().getTaskOutline().search(s);
+	}
+
+	public boolean liesInSubproject() {
+		Task parent = getWbsParentTask();
+		if (parent == null)
+			return false;
+		if (parent.isSubproject())
+			return true;
+		return parent.liesInSubproject();
+	}
+	public final boolean isInSubproject() {
+		return inSubproject;
+	}
+	public final void setInSubproject(boolean inSubproject) {
+		this.inSubproject = inSubproject;
+	}
+	public final Project getOwningProject() {
+		return owningProject;
+	}
+	/**
+	 * Returns the document that owns this task rather than the document whose
+	 * outline is currently displaying it.  A master project projects child
+	 * tasks into its outline, so this value is the stable, user-visible source
+	 * of a projected row.
+	 */
+	public final String getSourceProject() {
+		return owningProject == null ? null : owningProject.getName();
+	}
+	public final void setOwningProject(Project owningProject) {
+		this.owningProject = owningProject;
+	}
+
+	public void copyScheduleTo(Task to) {
+		to.getCurrentSchedule().setStart(getCurrentSchedule().getStart());
+		to.getCurrentSchedule().setFinish(getCurrentSchedule().getFinish());
+		to.setRawDuration(getDuration());
+	}
+	/**
+	 * Set all schedules to a fixed start and end
+	 * @param start
+	 * @param finish
+	 */
+	protected void setAllSchedules(long start, long finish) {
+		getCurrentSchedule().setStart(start);
+	    getCurrentSchedule().setFinish(finish);
+		getEarlySchedule().setStart(start);
+		getEarlySchedule().setFinish(finish);
+		getLateSchedule().setStart(start);
+		getLateSchedule().setFinish(finish);
+	}
+	public void setAllSchedulesToCurrentDates() {
+		long start = getCurrentSchedule().getStart();
+		long finish = getCurrentSchedule().getFinish();
+		setAllSchedules(start,finish);
+
+	}
+	public boolean isAssignable() {
+		return !isReadOnly();
+	}
+	public final long getLastSavedFinish() {
+		return lastSavedFinish;
+	}
+	public final void setLastSavedFinish(long currendFinish) {
+		this.lastSavedFinish = currendFinish;
+	}
+	public final long getLastSavedStart() {
+		return lastSavedStart;
+	}
+	public final void setLastSavedStart(long currentStart) {
+		this.lastSavedStart = currentStart;
+	}
+	public final long getLastSavedParentId() {
+		return lastSavedParentId;
+	}
+	public final void setLastSavedParentId(long lastSavedParentId) {
+		this.lastSavedParentId = lastSavedParentId;
+	}
+	public final long getLastSavedPosistion() {
+		return lastSavedPosistion;
+	}
+	public final void setLastSavedPosistion(long lastSavedPosistion) {
+		this.lastSavedPosistion = lastSavedPosistion;
+	}
+
+	/** @deprecated use {@link #getExpenseKind()} for domain logic. */
+	@Deprecated
+	public int getExpenseType() {
+		return expenseType;
+	}
+
+	/** @deprecated use {@link #setExpenseKind(ExpenseType.Kind)} for domain logic. */
+	@Deprecated
+	public void setExpenseType(int budgetType) {
+		this.expenseType = budgetType;
+	}
+
+	@Override
+	public ExpenseType.Kind getEffectiveExpenseKind() {
+		return ExpenseType.Kind.fromCode(resolveEffectiveExpenseTypeCode());
+	}
+
+	/** @deprecated use {@link #getEffectiveExpenseKind()} for typed access. */
+	@Deprecated
+	public int getEffectiveExpenseType() {
+		return resolveEffectiveExpenseTypeCode();
+	}
+
+	private int resolveEffectiveExpenseTypeCode() {
+		int result = expenseType;
+		if (result == ExpenseType.Kind.NONE.code()) {
+			Task parent = getWbsParentTask();
+			if (parent != null)
+				return parent.resolveEffectiveExpenseTypeCode();
+		}
+		if (result == ExpenseType.Kind.NONE.code())
+			return getOwningProject().getExpenseType();
+		return result;
+	}
+
+	public boolean startsBeforeProject() { // special case for SNLT tasks that start before project
+		return (getConstraintTypeKind() == ConstraintType.Kind.SNLT  // this was changed from SNET - MSP mistakenly displays SNET for these tasks
+				&& getPredecessorList().isEmpty()
+				&& getConstraintDate() < getOwningProject().getStart());
+	}
+
+/**
+ * Get value of delegateTo, or if null, recursively get parent's value
+ * @return
+ */
+	public Resource getDelegatedTo() {
+		if (delegatedTo == null) {
+			Task parent = getWbsParentTask();
+			if (parent != null)
+				return parent.getDelegatedTo();
+		}
+		return delegatedTo;
+	}
+	public void setDelegatedTo(Resource delegatedTo) {
+		this.delegatedTo = delegatedTo;
+	}
+	public boolean isDelegatedToUser() {
+		Resource del = getDelegatedTo();
+		return del != null && CollaborationUserIdentity.isCurrentUser(del.getUserAccount());
+	}
+	public String getDelegatedToName() {
+		Resource del = getDelegatedTo();
+		return del == null ? "" : del.getName();
+	}
+
+	public void forSnapshotsAssignments(Consumer<Object> c,boolean onlyCurrent){
+		if (onlyCurrent) forSnapshotsAssignments(c,-1);
+		else{
+		    for (int s=0;s<Settings.numBaselines();s++){
+		    	forSnapshotsAssignments(c, s);
+		    }
+		}
+	}
+
+	public void forSnapshotsAssignments(Consumer<Object> c,int s){
+		TaskSnapshot snapshot;
+		if (s==-1) snapshot=(TaskSnapshot)getCurrentSnapshot();
+		else snapshot=(TaskSnapshot)getSnapshot(Integer.valueOf(s));
+        if (snapshot==null) return;
+		AssociationList snapshotAssignments = snapshot.getHasAssignments().getAssignments();
+		for (Association association : snapshotAssignments) {
+			Assignment assignment = (Assignment) association;
+			c.accept(assignment);
+		}
+	}
+	public void forSnapshots(Consumer<Object> c){
+	}
+	public void forSnapshots(Consumer<Object> c,int s){
+	}
+
+/**
+ * Get a task's position in the predecessor-ordered list of the critical path.  Parent tasks will have a pair indicating the parent start and parent end
+ * @return
+ */	public String getPredecessorOrder() {
+		int pos[] = ((com.microproject.schedule.criticalpath.CriticalPath)project.getSchedulingAlgorithm()).findTaskPosition(this);
+		String result = "" + pos[0];
+		if (pos.length ==2)
+			result += ", " + pos[1];
+		return result;
+	}
+
+
+
+
+}
+

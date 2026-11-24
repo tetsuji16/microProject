@@ -1,0 +1,75 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.view.graph;
+
+import java.awt.Component;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+import javax.swing.JPopupMenu;
+import javax.swing.JRadioButtonMenuItem;
+
+import com.microproject.view.configuration.BarStyle;
+
+
+/**
+ *
+ */
+public abstract class GraphPopupMenu extends JPopupMenu{
+    protected final GraphInteractor interactor;
+    
+    public GraphPopupMenu(final GraphInteractor interactor) {
+        super();
+        this.interactor = interactor;
+    }
+    
+	
+	protected void init(){}
+
+	/** Radio item that toggles whether a bar style is drawn. */
+	protected class BarMenuAction extends JRadioButtonMenuItem implements ActionListener {
+		private static final long serialVersionUID = 8168153384233811506L;
+		BarStyle style;
+
+		public BarMenuAction(final BarStyle style) {
+			super(style.getName());
+			this.style = style;
+			setSelected(style.isActive());
+			addActionListener(this);
+		}
+		public void actionPerformed(ActionEvent arg0) {
+			style.setActive(isSelected());
+			(interactor.getGraph().getModel()).updateAll(true);
+		}
+	}
+
+	/**
+	 * Show the menu, making sure to build it fresh each time
+	 */
+	public void show(Component arg0, int arg1, int arg2) {
+		init();
+		super.show(arg0, arg1, arg2);
+	}
+}
+

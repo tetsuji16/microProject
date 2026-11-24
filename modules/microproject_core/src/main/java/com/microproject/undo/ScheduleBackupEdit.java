@@ -33,7 +33,7 @@ import javax.swing.undo.AbstractUndoableEdit;
 import javax.swing.undo.CannotRedoException;
 import javax.swing.undo.CannotUndoException;
 
-import com.microproject.pm.scheduling.Schedule;
+import com.microproject.schedule.Schedule;
 
 public class ScheduleBackupEdit  extends AbstractUndoableEdit{
 	private static final long serialVersionUID = -3471142156134048634L;

@@ -15,8 +15,8 @@ import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.menu.MenuActionMapSupport;
-import com.microproject.menu.MenuManager;
+import com.microproject.ui.menu.MenuActionMapSupport;
+import com.microproject.ui.menu.MenuManager;
 
 /** Locks the view-dependent contextual-tab visibility contract without duplicating routing. */
 class ContextualRibbonVisibilityContractTest {

@@ -1,0 +1,78 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.frame;
+
+import java.awt.Dimension;
+import java.awt.HeadlessException;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+
+import javax.swing.WindowConstants;
+
+import com.microproject.ui.view.IconManager;
+import com.microproject.ui.frame.workspace.FrameHolder;
+import com.microproject.ui.frame.workspace.FrameManager;
+import com.microproject.util.Environment;
+import com.microproject.ui.util.FlatLafFrame;
+
+public class MainFrame extends FlatLafFrame implements FrameHolder{
+	private static final long serialVersionUID = -5161903673269959353L;
+	protected GraphicManager graphicManager;
+
+	MainFrame(String name, String projectUrl) throws HeadlessException {
+		super(name);
+		setIconImage(IconManager.getImage("application.icon"));
+		init();
+	}
+
+	public GraphicManager getGraphicManager() {
+		return graphicManager;
+	}
+
+	public void init() {
+		if (Environment.isWindows()) // in windows, this is needed otherwise initial display has no frame
+		   setSize(1024, 768);
+		if (Environment.isMac()) setPreferredSize(new Dimension(1280, 768));
+		else setPreferredSize(new Dimension(1024, 768));
+		setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE/*DISPOSE_ON_CLOSE*/);
+		addWindowListener(new WindowAdapter() {
+			public void windowClosing(WindowEvent e) {
+				graphicManager.closeApplication();
+			}
+		});
+	}
+
+	public void setGraphicManager(GraphicManager graphicManager) {
+		this.graphicManager = graphicManager;
+	}
+	public FrameManager getFrameManager() {
+		return graphicManager.getFrameManager();
+	}
+
+
+	public void setVisible(boolean visible){
+		super.setVisible(visible);
+	}
+
+}

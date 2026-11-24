@@ -53,10 +53,21 @@ import javax.swing.SwingConstants;
  * detail on the right.  Every section stays attached so every command assigned
  * to the page remains physically discoverable; choosing a left entry brings its
  * section into view.  This is a pure view: all content is supplied by the caller.
+ *
+ * <p>The detail column narrows with the window instead of being laid out at its
+ * preferred width, which would push the right side of a section out of view in a
+ * narrow window or at a large display scale. Only below the sections' minimum
+ * width does the column scroll sideways.</p>
  */
 public class BackstageChoicePage extends JPanel {
 	private static final long serialVersionUID = 1L;
 	private static final int CHOICE_WIDTH = 220;
+	/** The choice list may give up width in a narrow window before the detail column is squeezed. */
+	private static final int CHOICE_MINIMUM_WIDTH = 110;
+	/** Wrapping width of a section description; wide enough to read, narrow enough to fit a small window. */
+	private static final int DESCRIPTION_WIDTH = 200;
+	/** Below this width the choice list moves above the detail instead of squeezing it. */
+	static final int STACKED_BELOW_WIDTH = 560;
 	/** Client property that marks the currently chosen left entry. */
 	public static final String SELECTED_PROPERTY = "microproject.backstageChoice.selected";
 
@@ -71,6 +82,7 @@ public class BackstageChoicePage extends JPanel {
 
 	private final Map<String, JButton> choiceButtons = new LinkedHashMap<>();
 	private final Map<String, JComponent> sections = new LinkedHashMap<>();
+	private final JPanel choiceList;
 	private final JScrollPane detailScroll;
 
 	protected BackstageChoicePage(String pageName, List<Section> choices) {
@@ -80,16 +92,28 @@ public class BackstageChoicePage extends JPanel {
 		Objects.requireNonNull(choices, "choices");
 		if (choices.isEmpty()) throw new IllegalArgumentException("A Backstage choice page needs at least one choice");
 
-		JPanel list = new JPanel();
+		// Only the width is fixed; the height follows the entries so the list keeps its buttons
+		// when it is stacked above the detail.
+		JPanel list = new JPanel() {
+			private static final long serialVersionUID = 1L;
+
+			@Override public Dimension getPreferredSize() {
+				Dimension preferred = super.getPreferredSize();
+				return new Dimension(CHOICE_WIDTH, preferred.height);
+			}
+
+			@Override public Dimension getMinimumSize() {
+				Dimension minimum = super.getMinimumSize();
+				return new Dimension(CHOICE_MINIMUM_WIDTH, minimum.height);
+			}
+		};
+		choiceList = list;
 		list.setName("officeBackstage" + pageName + "Choices");
 		list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
 		list.setOpaque(false);
-		list.setPreferredSize(new Dimension(CHOICE_WIDTH, 0));
 
-		JPanel stack = new JPanel();
+		DetailStack stack = new DetailStack();
 		stack.setName("officeBackstage" + pageName + "Sections");
-		stack.setLayout(new BoxLayout(stack, BoxLayout.Y_AXIS));
-		stack.setOpaque(false);
 
 		for (Section choice : choices) {
 			JButton button = new JButton(choice.text());
@@ -119,31 +143,46 @@ public class BackstageChoicePage extends JPanel {
 		list.add(Box.createVerticalGlue());
 
 		detailScroll = new JScrollPane(stack, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
-				JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+				JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
 		detailScroll.setName("officeBackstage" + pageName + "Detail");
 		detailScroll.setBorder(BorderFactory.createEmptyBorder());
 		detailScroll.setOpaque(false);
 		detailScroll.getViewport().setOpaque(false);
 
+		add(choiceList);
+		add(detailScroll);
+		arrangeColumns(false);
+
+		select(choices.getFirst().id());
+	}
+
+	@Override
+	public void doLayout() {
+		// A narrow window cannot hold the choice list and a readable detail column side by side;
+		// the list then moves above the detail instead of being cut off or squeezing it.
+		arrangeColumns(getWidth() > 0 && getWidth() < STACKED_BELOW_WIDTH);
+		super.doLayout();
+	}
+
+	private void arrangeColumns(boolean stacked) {
+		GridBagLayout layout = (GridBagLayout) getLayout();
 		GridBagConstraints left = new GridBagConstraints();
 		left.gridx = 0;
 		left.gridy = 0;
-		left.weightx = 0;
-		left.weighty = 1;
+		left.weightx = stacked ? 1 : 0;
+		left.weighty = stacked ? 0 : 1;
 		left.anchor = GridBagConstraints.NORTHWEST;
-		left.fill = GridBagConstraints.BOTH;
-		left.insets = new Insets(0, 0, 0, 24);
-		add(list, left);
+		left.fill = stacked ? GridBagConstraints.HORIZONTAL : GridBagConstraints.BOTH;
+		left.insets = stacked ? new Insets(0, 0, 16, 0) : new Insets(0, 0, 0, 24);
+		layout.setConstraints(choiceList, left);
 		GridBagConstraints right = new GridBagConstraints();
-		right.gridx = 1;
-		right.gridy = 0;
+		right.gridx = stacked ? 0 : 1;
+		right.gridy = stacked ? 1 : 0;
 		right.weightx = 1;
 		right.weighty = 1;
 		right.anchor = GridBagConstraints.NORTHWEST;
 		right.fill = GridBagConstraints.BOTH;
-		add(detailScroll, right);
-
-		select(choices.getFirst().id());
+		layout.setConstraints(detailScroll, right);
 	}
 
 	/** Marks an entry chosen and brings its detail into view without hiding the others. */
@@ -167,6 +206,47 @@ public class BackstageChoicePage extends JPanel {
 
 	/** The scrolling host of all detail sections. */
 	public JComponent detailHost() { return detailScroll; }
+
+	/**
+	 * A section description that wraps inside the column instead of widening it. A plain label reports
+	 * its whole text as its minimum width, which is what pushed the right side of a section out of view.
+	 */
+	static JLabel description(String text, String name) {
+		JLabel description = new JLabel("<html><div style='width:" + DESCRIPTION_WIDTH + "px'>"
+				+ com.microproject.util.MarkupEscape.escape(text) + "</div></html>");
+		description.setName(name);
+		description.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+		return description;
+	}
+
+	/**
+	 * The scrolling content of the detail column. It tracks the viewport width so the sections are laid
+	 * out at the width the user can see, and only keeps its own width below the sections' minimum.
+	 */
+	private static final class DetailStack extends JPanel implements javax.swing.Scrollable {
+		private static final long serialVersionUID = 1L;
+
+		DetailStack() {
+			setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+			setOpaque(false);
+		}
+
+		@Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
+
+		@Override public int getScrollableUnitIncrement(java.awt.Rectangle visibleRect, int orientation, int direction) {
+			return 16;
+		}
+
+		@Override public int getScrollableBlockIncrement(java.awt.Rectangle visibleRect, int orientation, int direction) {
+			return Math.max(16, orientation == SwingConstants.VERTICAL ? visibleRect.height : visibleRect.width);
+		}
+
+		@Override public boolean getScrollableTracksViewportWidth() {
+			return getParent() instanceof javax.swing.JViewport viewport && viewport.getWidth() >= getMinimumSize().width;
+		}
+
+		@Override public boolean getScrollableTracksViewportHeight() { return false; }
+	}
 
 	/** All label and button texts below a root, used by tests and diagnostics. */
 	static List<String> texts(Component root) {

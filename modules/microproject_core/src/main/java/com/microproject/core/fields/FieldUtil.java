@@ -41,7 +41,7 @@ import com.microproject.core.configuration.LegacyConfiguration;
 import com.microproject.core.dictionary.DictionaryCategory;
 import com.microproject.core.dictionary.HasStringId;
 
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.Task;
 
 /**
  * @author Laurent Chretienneau

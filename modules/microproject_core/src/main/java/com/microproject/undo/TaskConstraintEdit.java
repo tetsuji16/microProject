@@ -27,7 +27,7 @@ import javax.swing.undo.AbstractUndoableEdit;
 import javax.swing.undo.CannotRedoException;
 import javax.swing.undo.CannotUndoException;
 
-import com.microproject.pm.task.Task;
+import com.microproject.model.task.Task;
 
 /**
  * Undoable edit for Gantt drag constraint changes.

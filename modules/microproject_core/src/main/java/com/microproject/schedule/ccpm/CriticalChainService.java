@@ -1,0 +1,785 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ ******************************************************************************/
+package com.microproject.schedule.ccpm;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.PriorityQueue;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
+
+import javax.swing.undo.AbstractUndoableEdit;
+import com.microproject.undo.EditSupport;
+
+import com.microproject.datatype.Duration;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.resource.Resource;
+import com.microproject.model.resource.ResourceLevelingService;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectHierarchyQueries;
+import com.microproject.model.task.Task;
+
+/**
+ * CCPM coordinator built on the normal scheduler and deterministic resource
+ * leveling. It does not change a project until {@link #apply(Project, Collection)}
+ * is explicitly called.
+ */
+public final class CriticalChainService {
+	public static final class DuplicateTaskIdentityException extends IllegalStateException {
+		private static final long serialVersionUID = 1L;
+
+		public DuplicateTaskIdentityException(long uniqueId) {
+			super("Critical chain cannot distinguish tasks with duplicate unique ID " + uniqueId);
+		}
+	}
+	/** Generation guard shared by asynchronous Analyze/Apply/Refresh callers. */
+	public static final class Generation {
+		private final AtomicLong value = new AtomicLong();
+		public long begin() { return value.incrementAndGet(); }
+		public long current() { return value.get(); }
+		public boolean isCurrent(long token) { return token == value.get(); }
+		public boolean accept(long token, Runnable completion) {
+			Objects.requireNonNull(completion, "completion");
+			if (!isCurrent(token)) return false;
+			completion.run();
+			return true;
+		}
+	}
+
+	/** Outcome of clearing CCPM state, including a report when the baseline was edited. */
+	public record ClearResult(boolean cleared, boolean baselineEdited, Baseline discardedBaseline) { }
+	public enum BufferStatus { GREEN, AMBER, RED }
+	/** Stable semantic category used by all CCPM projections. */
+	public enum BufferKind { PROJECT, FEEDING, RESOURCE }
+	public record ChainEdge(long predecessorTaskId, long successorTaskId, Kind kind) {
+		public enum Kind { DEPENDENCY, RESOURCE_CONSTRAINT }
+	}
+
+	/** Immutable buffer measurement. Consumption is never allowed to exceed the planned amount. */
+	public record Buffer(long plannedMillis, long consumedMillis, long remainingMillis, double consumptionRatio,
+		BufferStatus status, BufferKind kind) {
+		public Buffer {
+			Objects.requireNonNull(status, "status");
+			Objects.requireNonNull(kind, "kind");
+			if (plannedMillis < 0L || consumedMillis < 0L || remainingMillis < 0L || !Double.isFinite(consumptionRatio)) {
+				throw new IllegalArgumentException("Invalid CCPM buffer");
+			}
+		}
+		/** Source-compatible constructor for callers predating typed buffers. */
+		public Buffer(long plannedMillis, long consumedMillis, long remainingMillis, double consumptionRatio,
+			BufferStatus status) {
+			this(plannedMillis, consumedMillis, remainingMillis, consumptionRatio, status, BufferKind.PROJECT);
+		}
+	}
+
+	/** Immutable reference captured when a CCPM plan is applied, and persisted only in mpo. */
+	public record Baseline(long projectFinishMillis, long projectBufferMillis, double bufferFraction,
+		List<Long> criticalTaskIds, Map<Long, Long> feedingTaskStartMillis, Map<Long, Long> feedingBufferMillis,
+		boolean allResources, List<Long> resourceIds) {
+		public Baseline {
+			if (projectFinishMillis < 0L || projectBufferMillis < 0L || Double.isNaN(bufferFraction)
+				|| bufferFraction < 0D || bufferFraction > 1D) throw new IllegalArgumentException("Invalid CCPM baseline");
+			criticalTaskIds = List.copyOf(criticalTaskIds);
+			feedingTaskStartMillis = Map.copyOf(feedingTaskStartMillis);
+			feedingBufferMillis = Map.copyOf(feedingBufferMillis);
+			resourceIds = List.copyOf(resourceIds);
+		}
+		/** Compatibility constructor for MPO files created before the scope was recorded. */
+		public Baseline(long projectFinishMillis, long projectBufferMillis, double bufferFraction,
+			List<Long> criticalTaskIds, Map<Long, Long> feedingTaskStartMillis, Map<Long, Long> feedingBufferMillis) {
+			this(projectFinishMillis, projectBufferMillis, bufferFraction, criticalTaskIds, feedingTaskStartMillis,
+				feedingBufferMillis, true, List.of());
+		}
+	}
+
+	/** CCPM options. They are persisted by MPOF's optional settings.xml entry. */
+	public static final class Settings implements Serializable {
+		private static final long serialVersionUID = 1L;
+		private boolean enabled;
+		private double bufferFraction = 0.5D;
+		private ResourceLevelingService.Order levelingOrder = ResourceLevelingService.Order.PRIORITY_STANDARD;
+		private boolean onlyWithinAvailableSlack;
+		private boolean allowTaskSplits = true;
+		private boolean levelAssignments = true;
+		private boolean includeProposedResources;
+		private boolean levelManuallyScheduledTasks;
+		private ResourceLevelingService.Sensitivity sensitivity = ResourceLevelingService.Sensitivity.DAY;
+
+		public boolean isEnabled() { return enabled; }
+		public void setEnabled(boolean enabled) { this.enabled = enabled; }
+		public double getBufferFraction() { return bufferFraction; }
+		public void setBufferFraction(double bufferFraction) {
+			if (Double.isNaN(bufferFraction) || bufferFraction < 0D || bufferFraction > 1D) {
+				throw new IllegalArgumentException("bufferFraction must be between 0 and 1");
+			}
+			this.bufferFraction = bufferFraction;
+		}
+		public ResourceLevelingService.Order getLevelingOrder() { return levelingOrder; }
+		public void setLevelingOrder(ResourceLevelingService.Order levelingOrder) {
+			this.levelingOrder = Objects.requireNonNull(levelingOrder, "levelingOrder");
+		}
+		public boolean isOnlyWithinAvailableSlack() { return onlyWithinAvailableSlack; }
+		public void setOnlyWithinAvailableSlack(boolean onlyWithinAvailableSlack) { this.onlyWithinAvailableSlack = onlyWithinAvailableSlack; }
+		public boolean isAllowTaskSplits() { return allowTaskSplits; }
+		public void setAllowTaskSplits(boolean allowTaskSplits) { this.allowTaskSplits = allowTaskSplits; }
+		public boolean isLevelAssignments() { return levelAssignments; }
+		public void setLevelAssignments(boolean levelAssignments) { this.levelAssignments = levelAssignments; }
+		public boolean isIncludeProposedResources() { return includeProposedResources; }
+		public void setIncludeProposedResources(boolean includeProposedResources) { this.includeProposedResources = includeProposedResources; }
+		public boolean isLevelManuallyScheduledTasks() { return levelManuallyScheduledTasks; }
+		public void setLevelManuallyScheduledTasks(boolean levelManuallyScheduledTasks) { this.levelManuallyScheduledTasks = levelManuallyScheduledTasks; }
+		public ResourceLevelingService.Sensitivity getSensitivity() { return sensitivity; }
+		public void setSensitivity(ResourceLevelingService.Sensitivity sensitivity) {
+			this.sensitivity = Objects.requireNonNull(sensitivity, "sensitivity");
+		}
+		public Settings copy() {
+			Settings copy = new Settings();
+			copy.enabled = enabled;
+			copy.bufferFraction = bufferFraction;
+			copy.levelingOrder = levelingOrder;
+			copy.onlyWithinAvailableSlack = onlyWithinAvailableSlack;
+			copy.allowTaskSplits = allowTaskSplits;
+			copy.levelAssignments = levelAssignments;
+			copy.includeProposedResources = includeProposedResources;
+			copy.levelManuallyScheduledTasks = levelManuallyScheduledTasks;
+			copy.sensitivity = sensitivity;
+			return copy;
+		}
+	}
+
+	public record Analysis(ResourceLevelingService.Plan levelingPlan, List<Long> criticalTaskIds,
+		long projectBufferMillis, Map<Long, Long> feedingBufferMillis, Buffer projectBuffer,
+		Map<Long, Buffer> feedingBuffers, Map<Long, List<Long>> resourcePredecessors,
+		List<ChainEdge> graphEdges, Map<Long, Buffer> resourceBuffers) {
+		public Analysis {
+			criticalTaskIds = List.copyOf(criticalTaskIds);
+			feedingBufferMillis = Map.copyOf(feedingBufferMillis);
+			feedingBuffers = Map.copyOf(feedingBuffers);
+			resourcePredecessors = Map.copyOf(resourcePredecessors);
+			graphEdges = List.copyOf(graphEdges);
+			resourceBuffers = Map.copyOf(resourceBuffers);
+		}
+		/** Source-compatible constructor for untyped analysis fixtures. */
+		public Analysis(ResourceLevelingService.Plan levelingPlan, List<Long> criticalTaskIds,
+			long projectBufferMillis, Map<Long, Long> feedingBufferMillis, Buffer projectBuffer,
+			Map<Long, Buffer> feedingBuffers, Map<Long, List<Long>> resourcePredecessors,
+			List<ChainEdge> graphEdges) {
+			this(levelingPlan, criticalTaskIds, projectBufferMillis, feedingBufferMillis, projectBuffer,
+				feedingBuffers, resourcePredecessors, graphEdges, Map.of());
+		}
+	}
+
+	/**
+	 * The one analysis version displayed by Gantt, network and buffer surfaces.
+	 * It is document-scoped but intentionally not serialized: a reopened project
+	 * creates a fresh, internally consistent analysis from its persisted baseline.
+	 */
+	private static final class AnalysisSnapshot {
+		private final Analysis analysis;
+		private final long fingerprint;
+		private AnalysisSnapshot(Analysis analysis, long fingerprint) { this.analysis = analysis; this.fingerprint = fingerprint; }
+	}
+
+	private record State(Settings settings, Baseline baseline, Analysis analysis, BufferHistoryState history) { }
+
+	public Settings settings(Project project) {
+		Objects.requireNonNull(project, "project");
+		return project.getOrCreateTransientDocumentState(Settings.class, Settings::new);
+	}
+
+	/** Returns configured settings without creating CCPM state for an ordinary project. */
+	public Settings findSettings(Project project) {
+		return project == null ? null : project.findTransientDocumentState(Settings.class);
+	}
+
+	/** CCPM state needs mpo; legacy POD deliberately has no CCPM extension. */
+	public boolean requiresMpo(Project project) {
+		Settings settings = findSettings(project);
+		return settings != null && settings.isEnabled();
+	}
+
+	public void forget(Project project) {
+		if (project != null) {
+			project.removeTransientDocumentState(Settings.class);
+			project.removeTransientDocumentState(Baseline.class);
+			project.removeTransientDocumentState(AnalysisSnapshot.class);
+			project.removeTransientDocumentState(CriticalChainBufferHistory.class);
+		}
+	}
+
+	/** Removes CCPM state while participating in a caller-owned undo transaction. */
+	public void forget(Project project, EditSupport editSupport) {
+		if (project == null) return;
+		State before = captureState(project);
+		forget(project);
+		postStateEdit(project, editSupport, before, captureState(project));
+	}
+
+	public Baseline findBaseline(Project project) {
+		return project == null ? null : project.findTransientDocumentState(Baseline.class);
+	}
+
+	/** Returns the last display snapshot without recalculating it. */
+	public Analysis findAnalysis(Project project) {
+		AnalysisSnapshot snapshot = project == null ? null : project.findTransientDocumentState(AnalysisSnapshot.class);
+		return snapshot == null ? null : snapshot.analysis;
+	}
+
+	/**
+	 * Gets a current analysis for every read-only CCPM surface.  The user may
+	 * edit duration, remaining work, or progress between two openings of a
+	 * status dialog, so reusing an old snapshot would show a stale buffer value.
+	 */
+	public Analysis analysis(Project project) {
+		Settings settings = findSettings(project);
+		if (settings == null || !settings.isEnabled() || findBaseline(project) == null) return null;
+		// Rebuild every read surface. Dependencies, assignments, calendars, and
+		// resource availability can change without changing a task's own dates.
+		Analysis analysis = preview(project, resourcesForBaseline(project), settings);
+		rememberAnalysis(project, analysis);
+		return analysis;
+	}
+
+	/** Immutable-only work item; compute() never reads a live project. */
+	public static final class ResourceWork {
+		private final ResourceConstraints constraints;
+		private final List<ResourceBufferInput> buffers;
+		private final double fraction;
+		private ResourceWork(ResourceConstraints constraints, List<ResourceBufferInput> buffers, double fraction) {
+			this.constraints = constraints; this.buffers = buffers; this.fraction = fraction;
+		}
+		public ResourceWorkResult compute() { return new ResourceWorkResult(this, resourceGraph(resourceLinks(constraints)), resourceBuffers(buffers, fraction)); }
+	}
+	public static final class ResourceWorkResult {
+		private final ResourceWork work;
+		private final ResourceGraph graph;
+		private final Map<Long, Buffer> buffers;
+		private ResourceWorkResult(ResourceWork work, ResourceGraph graph, Map<Long, Buffer> buffers) {
+			this.work = work; this.graph = graph; this.buffers = buffers;
+		}
+	}
+	/** Caller-owned model references remain on the model thread. */
+	public static final class PendingAnalysis {
+		private final Project project;
+		private final Settings settings;
+		private final Baseline baseline;
+		private final long revision;
+		private final ResourceLevelingService.Plan plan;
+		private final ResourceCapture capture;
+		private final ResourceWork work;
+		private PendingAnalysis(Project project, Settings settings, Baseline baseline,
+			ResourceLevelingService.Plan plan, ResourceCapture capture) {
+			this.project = project; this.settings = settings.copy(); this.baseline = baseline;
+			this.revision = project.getMutationState().revision(); this.plan = plan; this.capture = capture;
+			this.work = new ResourceWork(capture.constraints(), capture.buffers(), settings.getBufferFraction());
+		}
+		public ResourceWork work() { return work; }
+	}
+
+	/** Captures the status analysis on the model thread. Leveling remains synchronous. */
+	public PendingAnalysis prepareAnalysis(Project project) {
+		Settings settings = findSettings(project);
+		Baseline baseline = findBaseline(project);
+		if (settings == null || !settings.isEnabled() || baseline == null) return null;
+		Settings copy = settings.copy();
+		Collection<? extends Resource> resources = resourcesForBaseline(project);
+		assertUnambiguousTaskIds(project, resources);
+		ResourceLevelingService.Options options = levelingOptions(copy);
+		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(project, resources, options);
+		return new PendingAnalysis(project, copy, baseline, plan, captureResourceConstraints(project, resources, plan));
+	}
+
+	/** Returns null for a stale result; finish on the model thread. */
+	public Analysis finishAnalysis(PendingAnalysis pending, ResourceWorkResult result) {
+		Objects.requireNonNull(pending, "pending");
+		if (result == null || result.work != pending.work) throw new IllegalArgumentException("Mismatched CCPM work result");
+		return com.microproject.transaction.ProjectMutationState.coordinated(() -> {
+			Project project = pending.project;
+			if (project.getMutationState().revision() != pending.revision
+				|| !Objects.equals(findBaseline(project), pending.baseline)
+				|| !sameSettings(findSettings(project), pending.settings)) return null;
+			try { pending.plan.assertCurrent(); } catch (IllegalStateException stale) { return null; }
+			Collection<? extends Resource> resources = resourcesForBaseline(project);
+			assertUnambiguousTaskIds(project, resources);
+			ResourceCapture current = captureResourceConstraints(project, resources, pending.plan);
+			if (!current.constraints().equals(pending.capture.constraints())
+				|| !current.buffers().equals(pending.capture.buffers())
+				|| current.tasks().size() != pending.capture.tasks().size()) return null;
+			for (int i = 0; i < current.tasks().size(); i++)
+				if (current.tasks().get(i) != pending.capture.tasks().get(i)) return null;
+			Analysis analysis = analyze(project, pending.plan, pending.settings, resources, current, result.graph, result.buffers);
+			rememberAnalysis(project, analysis);
+			return analysis;
+		});
+	}
+
+	private static boolean sameSettings(Settings left, Settings right) {
+		return left != null && left.isEnabled() == right.isEnabled()
+			&& Double.compare(left.getBufferFraction(), right.getBufferFraction()) == 0
+			&& left.getLevelingOrder() == right.getLevelingOrder() && left.getSensitivity() == right.getSensitivity()
+			&& left.isOnlyWithinAvailableSlack() == right.isOnlyWithinAvailableSlack()
+			&& left.isAllowTaskSplits() == right.isAllowTaskSplits()
+			&& left.isLevelAssignments() == right.isLevelAssignments()
+			&& left.isIncludeProposedResources() == right.isIncludeProposedResources()
+			&& left.isLevelManuallyScheduledTasks() == right.isLevelManuallyScheduledTasks();
+	}
+
+	/** Restores the mpo-only reference used to measure later schedule slippage. */
+	public void restoreBaseline(Project project, Baseline baseline) {
+		Objects.requireNonNull(project, "project");
+		project.removeTransientDocumentState(Baseline.class);
+		project.removeTransientDocumentState(AnalysisSnapshot.class);
+		if (baseline != null) project.getOrCreateTransientDocumentState(Baseline.class, () -> baseline);
+	}
+
+	public Analysis preview(Project project, Collection<? extends Resource> resources) {
+		return preview(project, resources, settingsOrDefault(project));
+	}
+
+	public Analysis preview(Project project, Collection<? extends Resource> resources, Settings settings) {
+		Objects.requireNonNull(settings, "settings");
+		Objects.requireNonNull(project, "project");
+		if (settings.isEnabled()) assertUnambiguousTaskIds(project, resources);
+		ResourceLevelingService.Options options = levelingOptions(settings);
+		ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(project, resources, options);
+		if (!settings.isEnabled()) {
+			try {
+				assertUnambiguousTaskIds(project, resources);
+			} catch (DuplicateTaskIdentityException ambiguous) {
+				return new Analysis(plan, List.of(), 0L, Map.of(), null, Map.of(), Map.of(), List.of(), Map.of());
+			}
+		}
+		return analyze(project, plan, settings, resources);
+	}
+
+	/** Leveling options for a CCPM run: the whole project span, with the CCPM settings' choices. */
+	private static ResourceLevelingService.Options levelingOptions(Settings settings) {
+		return new ResourceLevelingService.Options(settings.getLevelingOrder(),
+			settings.isOnlyWithinAvailableSlack(), settings.isAllowTaskSplits(), Long.MIN_VALUE, Long.MAX_VALUE,
+			settings.isIncludeProposedResources(), settings.getSensitivity(), settings.isLevelAssignments(), settings.isLevelManuallyScheduledTasks());
+	}
+
+	private Settings settingsOrDefault(Project project) {
+		Objects.requireNonNull(project, "project");
+		Settings settings = findSettings(project);
+		return settings == null ? new Settings() : settings;
+	}
+
+	/** Applies the resource-constrained schedule and returns the resulting CCPM buffers. */
+	public Analysis apply(Project project, Collection<? extends Resource> resources) {
+		return apply(project, resources, settings(project));
+	}
+
+	public Analysis apply(Project project, Collection<? extends Resource> resources, Settings requestedSettings) {
+		assertUnambiguousTaskIds(project, resources);
+		EditSupport editSupport = project.getUndoController().getEditSupport();
+		State before = captureState(project);
+		if (editSupport != null) editSupport.beginUpdate();
+		try {
+			Settings settings = settings(project);
+			settings.setEnabled(requestedSettings.isEnabled());
+			settings.setBufferFraction(requestedSettings.getBufferFraction());
+			settings.setLevelingOrder(requestedSettings.getLevelingOrder());
+			settings.setOnlyWithinAvailableSlack(requestedSettings.isOnlyWithinAvailableSlack());
+			settings.setAllowTaskSplits(requestedSettings.isAllowTaskSplits());
+			settings.setLevelAssignments(requestedSettings.isLevelAssignments());
+			settings.setIncludeProposedResources(requestedSettings.isIncludeProposedResources());
+			settings.setLevelManuallyScheduledTasks(requestedSettings.isLevelManuallyScheduledTasks());
+			settings.setSensitivity(requestedSettings.getSensitivity());
+			if (!settings.isEnabled()) {
+				throw new IllegalStateException("Enable CCPM before applying a critical chain");
+			}
+			ResourceLevelingService.Options options = levelingOptions(settings);
+			ResourceLevelingService.Plan plan = new ResourceLevelingService().preview(project, resources, options);
+			plan.apply(editSupport);
+			Analysis analysis = analyze(project, plan, settings, resources);
+			boolean allResources = resources == null || resources.isEmpty();
+			Baseline baseline = new Baseline(currentProjectFinish(project), analysis.projectBufferMillis(), settings.getBufferFraction(),
+				analysis.criticalTaskIds(), taskStarts(project, analysis.feedingBufferMillis().keySet()), analysis.feedingBufferMillis(),
+				allResources, allResources ? List.of() : resourceIds(resources));
+			project.removeTransientDocumentState(Baseline.class);
+			project.getOrCreateTransientDocumentState(Baseline.class, () -> baseline);
+			Analysis result = analyze(project, plan, settings, resources);
+			rememberAnalysis(project, result);
+			postStateEdit(project, editSupport, before, captureState(project));
+			return result;
+		} finally {
+			if (editSupport != null) editSupport.endUpdate();
+		}
+	}
+
+	/** Clears leveling and CCPM state as one undoable operation. */
+	public void clear(Project project) {
+		clearWithReport(project);
+	}
+
+	public ClearResult clearWithReport(Project project) {
+		if (project == null) return new ClearResult(false, false, null);
+		EditSupport editSupport = project.getUndoController().getEditSupport();
+		State before = captureState(project);
+		Baseline baseline = before.baseline();
+		boolean baselineEdited = baseline != null && currentProjectFinish(project) != baseline.projectFinishMillis();
+		if (editSupport != null) editSupport.beginUpdate();
+		try {
+			new ResourceLevelingService().clear(project, editSupport);
+			forget(project);
+			postStateEdit(project, editSupport, before, captureState(project));
+			return new ClearResult(true, baselineEdited, baseline);
+		} finally {
+			if (editSupport != null) editSupport.endUpdate();
+		}
+	}
+
+	private static State captureState(Project project) {
+		Settings settings = project.findTransientDocumentState(Settings.class);
+		AnalysisSnapshot snapshot = project.findTransientDocumentState(AnalysisSnapshot.class);
+		Analysis analysis = snapshot == null ? null : snapshot.analysis;
+		return new State(settings == null ? null : settings.copy(),
+			project.findTransientDocumentState(Baseline.class), analysis,
+			BufferHistoryState.capture(project.findTransientDocumentState(CriticalChainBufferHistory.class)));
+	}
+
+	private static void restoreState(Project project, State state) {
+		project.removeTransientDocumentState(Settings.class);
+		project.removeTransientDocumentState(Baseline.class);
+		project.removeTransientDocumentState(AnalysisSnapshot.class);
+		project.removeTransientDocumentState(CriticalChainBufferHistory.class);
+		if (state.settings != null) project.getOrCreateTransientDocumentState(Settings.class, state.settings::copy);
+		if (state.baseline != null) project.getOrCreateTransientDocumentState(Baseline.class, () -> state.baseline);
+		if (state.analysis != null) project.getOrCreateTransientDocumentState(AnalysisSnapshot.class,
+			() -> new AnalysisSnapshot(state.analysis, analysisFingerprint(project, project.findTransientDocumentState(Settings.class))));
+		if (state.history != null) state.history.restore(project);
+	}
+
+	private static void rememberAnalysis(Project project, Analysis analysis) {
+		project.removeTransientDocumentState(AnalysisSnapshot.class);
+		project.getOrCreateTransientDocumentState(AnalysisSnapshot.class,
+			() -> new AnalysisSnapshot(analysis, analysisFingerprint(project, project.findTransientDocumentState(Settings.class))));
+	}
+
+	/** The persisted baseline and public projections use unqualified task IDs.
+	 * Refuse ambiguous input before leveling or publishing a misleading result. */
+	private static void assertUnambiguousTaskIds(Project project, Collection<? extends Resource> selectedResources) {
+		Objects.requireNonNull(project, "project");
+		Map<Long, Task> tasks = new LinkedHashMap<>();
+		for (Task task : project.getTaskList()) registerTaskId(tasks, task);
+		for (Task task : ProjectHierarchyQueries.outline(project)) registerTaskId(tasks, task);
+		Collection<? extends Resource> resources = selectedResources == null
+			? project.getResourcePool().getResourceList() : selectedResources;
+		for (Resource resource : resources) {
+			for (Object value : resource.getAssignments()) {
+				Task task = ((Assignment) value).getTask();
+				if (task != null) registerTaskId(tasks, task);
+			}
+		}
+	}
+
+	private static void registerTaskId(Map<Long, Task> tasks, Task task) {
+		Task previous = tasks.putIfAbsent(Long.valueOf(task.getUniqueId()), task);
+		if (previous != null && previous != task)
+			throw new DuplicateTaskIdentityException(task.getUniqueId());
+	}
+
+	private static List<Long> resourceIds(Collection<? extends Resource> resources) {
+		List<Long> ids = new ArrayList<>(resources.size());
+		for (Resource resource : resources) ids.add(Long.valueOf(resource.getUniqueId()));
+		return ids;
+	}
+
+	private static Collection<? extends Resource> resourcesForBaseline(Project project) {
+		Baseline baseline = findBaselineStatic(project);
+		if (baseline == null || baseline.allResources()) return null;
+		List<Resource> projectResources = project.getResourcePool().getResourceList();
+		Map<Long, Resource> byId = LinkedHashMap.newLinkedHashMap(projectResources.size());
+		for (Resource resource : projectResources) byId.put(Long.valueOf(resource.getUniqueId()), resource);
+		List<Resource> selected = new ArrayList<>(baseline.resourceIds().size());
+		for (Long id : baseline.resourceIds()) {
+			Resource resource = byId.get(id);
+			if (resource != null) selected.add(resource);
+		}
+		return selected;
+	}
+
+	private static Baseline findBaselineStatic(Project project) { return project == null ? null : project.findTransientDocumentState(Baseline.class); }
+
+	private static long analysisFingerprint(Project project, Settings settings) {
+		long result = 17L;
+		if (settings != null) {
+			result = 31L * result + (settings.isEnabled() ? 1L : 0L);
+			result = 31L * result + Double.doubleToLongBits(settings.getBufferFraction());
+			result = 31L * result + settings.getLevelingOrder().ordinal();
+			result = 31L * result + (settings.isOnlyWithinAvailableSlack() ? 1L : 0L);
+			result = 31L * result + (settings.isAllowTaskSplits() ? 1L : 0L);
+			result = 31L * result + (settings.isLevelAssignments() ? 1L : 0L);
+			result = 31L * result + (settings.isIncludeProposedResources() ? 1L : 0L);
+			result = 31L * result + (settings.isLevelManuallyScheduledTasks() ? 1L : 0L);
+		}
+		for (Task task : ProjectHierarchyQueries.outline(project)) {
+			result = 31L * result + task.getUniqueId();
+			result = 31L * result + task.getStart();
+			result = 31L * result + task.getEnd();
+			result = 31L * result + task.getDuration();
+			result = 31L * result + Double.doubleToLongBits(task.getPercentComplete());
+			result = 31L * result + task.getLevelingDelay();
+		}
+		return result;
+	}
+
+	private static void postStateEdit(Project project, EditSupport editSupport, State before, State after) {
+		if (editSupport == null) return;
+		editSupport.postEdit(new AbstractUndoableEdit() {
+			private static final long serialVersionUID = 1L;
+			@Override public String getPresentationName() { return "Critical Chain"; }
+			@Override public void undo() { super.undo(); restoreState(project, before); }
+			@Override public void redo() { super.redo(); restoreState(project, after); }
+		});
+	}
+
+	private Analysis analyze(Project project, ResourceLevelingService.Plan plan, Settings settings, Collection<? extends Resource> selectedResources) {
+		ResourceCapture capture = captureResourceConstraints(project, selectedResources, plan);
+		return analyze(project, plan, settings, selectedResources, capture, resourceGraph(resourceLinks(capture.constraints())),
+			resourceBuffers(capture.buffers(), settings.getBufferFraction()));
+	}
+
+	private Analysis analyze(Project project, ResourceLevelingService.Plan plan, Settings settings,
+		Collection<? extends Resource> selectedResources, ResourceCapture capture, ResourceGraph graph, Map<Long, Buffer> resourceBuffers) {
+		java.util.Set<Task> criticalSet = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<Task, Boolean>());
+		Map<Long, Task> tasksById = LinkedHashMap.newLinkedHashMap(project.getTaskList().size());
+		for (Task task : ProjectHierarchyQueries.outline(project)) {
+			tasksById.put(Long.valueOf(task.getUniqueId()), task);
+			if (!task.isSummary() && task.isCritical()) {
+				criticalSet.add(task);
+			}
+		}
+		// The resource-leveling plan adds precedence constraints that the normal
+		// critical-path flag cannot see until it is applied. Include its delayed
+		// tasks in the preview chain without mutating the schedule.
+		for (ResourceLevelingService.Change change : plan.changes()) {
+			if (!change.task().isSummary()) criticalSet.add(change.task());
+		}
+		for (Integer taskIndex : graph.taskIndices()) criticalSet.add(capture.tasks().get(taskIndex.intValue()));
+		Map<Long, List<Long>> resourcePredecessors = graph.predecessors();
+		List<ChainEdge> graphEdges = new ArrayList<>(Math.max(4, criticalSet.size() * 2));
+		for (Task successor : criticalSet) {
+			for (Object value : successor.getPredecessorList()) {
+				Dependency dependency = (Dependency) value;
+				Task predecessor = (Task) dependency.getPredecessor();
+				if (criticalSet.contains(predecessor)) graphEdges.add(new ChainEdge(predecessor.getUniqueId(), successor.getUniqueId(), ChainEdge.Kind.DEPENDENCY));
+			}
+			for (Long predecessorId : resourcePredecessors.getOrDefault(Long.valueOf(successor.getUniqueId()), List.of()))
+				graphEdges.add(new ChainEdge(predecessorId.longValue(), successor.getUniqueId(), ChainEdge.Kind.RESOURCE_CONSTRAINT));
+		}
+		List<Task> criticalTasks = new ArrayList<>(criticalSet);
+		criticalTasks.sort(java.util.Comparator.comparingLong(Task::getStart).thenComparingLong(Task::getUniqueId));
+		List<Long> ids = new ArrayList<>(criticalTasks.size());
+		long chainDuration = 0L;
+		for (Task task : criticalTasks) {
+			ids.add(Long.valueOf(task.getUniqueId()));
+			chainDuration += Math.max(0L, Duration.millis(task.getDuration()));
+		}
+		Map<Long, Long> feeding = LinkedHashMap.newLinkedHashMap(criticalTasks.size());
+		for (Task critical : criticalTasks) {
+			long feederDuration = 0L;
+			for (Object value : critical.getPredecessorList()) {
+				Dependency dependency = (Dependency) value;
+				Task predecessor = (Task) dependency.getPredecessor();
+				if (!criticalSet.contains(predecessor)) {
+					feederDuration += Math.max(0L, Duration.millis(predecessor.getDuration()));
+				}
+			}
+			if (feederDuration > 0L) {
+				feeding.put(Long.valueOf(critical.getUniqueId()), scaled(feederDuration, settings.getBufferFraction()));
+			}
+		}
+		long recommendedProjectBuffer = scaled(chainDuration, settings.getBufferFraction());
+		Baseline baseline = findBaseline(project);
+		// A newly applied leveling plan is empty on the next preview, so its
+		// resource-constrained candidate set can legitimately differ from the
+		// captured chain. The schedule baseline remains valid as long as the
+		// buffer policy did not change.
+		boolean baselineMatches = baseline != null && Double.compare(baseline.bufferFraction(), settings.getBufferFraction()) == 0;
+		Buffer projectBuffer = buffer(baselineMatches ? baseline.projectBufferMillis() : recommendedProjectBuffer,
+			baselineMatches ? Math.max(0L, currentProjectFinish(project) - baseline.projectFinishMillis()) : 0L);
+		Map<Long, Buffer> feedingBuffers = LinkedHashMap.newLinkedHashMap(feeding.size());
+		for (Map.Entry<Long, Long> entry : feeding.entrySet()) {
+			long planned = baselineMatches ? baseline.feedingBufferMillis().getOrDefault(entry.getKey(), entry.getValue()) : entry.getValue();
+			Task target = tasksById.get(entry.getKey());
+			long referenceStart = baselineMatches ? baseline.feedingTaskStartMillis().getOrDefault(entry.getKey(), target == null ? 0L : target.getStart()) : (target == null ? 0L : target.getStart());
+			feedingBuffers.put(entry.getKey(), buffer(planned, target == null ? 0L : Math.max(0L, target.getStart() - referenceStart), BufferKind.FEEDING));
+		}
+		return new Analysis(plan, ids, recommendedProjectBuffer, feeding, projectBuffer, feedingBuffers, resourcePredecessors, graphEdges, resourceBuffers);
+	}
+
+	private static long currentProjectFinish(Project project) {
+		// Task-sheet edits update leaf intervals immediately, while Project.end is
+		// the scheduling boundary and can remain stale until a full recalculation.
+		long finish = Long.MIN_VALUE;
+		for (Task task : project.getTaskList()) {
+			if (!task.isSummary()) finish = Math.max(finish, task.getEnd());
+		}
+		return finish == Long.MIN_VALUE ? project.getEnd() : finish;
+	}
+
+	private record BufferAssignment(long duration, double percentComplete) { }
+	private record ResourceBufferInput(long id, List<BufferAssignment> assignments) {
+		ResourceBufferInput { assignments = List.copyOf(assignments); }
+	}
+
+	private static Map<Long, Buffer> resourceBuffers(List<ResourceBufferInput> resources, double fraction) {
+		Map<Long, Buffer> result = LinkedHashMap.newLinkedHashMap(resources.size());
+		for (ResourceBufferInput resource : resources) {
+			if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
+			long planned = 0L;
+			long consumed = 0L;
+			for (BufferAssignment assignment : resource.assignments()) {
+				if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
+				long duration = assignment.duration();
+				planned = Math.addExact(planned, duration);
+				long remaining = Math.max(0L, Math.round(duration * Math.max(0D, 1D - assignment.percentComplete())));
+				consumed = Math.addExact(consumed, Math.max(0L, duration - remaining));
+			}
+			long plannedBuffer = scaled(planned, fraction);
+			long consumedBuffer = Math.min(plannedBuffer, scaled(consumed, fraction));
+			result.put(Long.valueOf(resource.id()), buffer(plannedBuffer, consumedBuffer, BufferKind.RESOURCE));
+		}
+		return result;
+	}
+
+	/* These values contain no live model references. taskIndex is an identity token,
+	 * since task IDs need not be unique across linked projects. */
+	static record ResourceInterval(int taskIndex, long taskId, long start, long end) { }
+	static record ResourceLink(int predecessorIndex, int successorIndex, long predecessorId, long successorId) { }
+	static record ResourceConstraints(List<List<ResourceInterval>> resources) {
+		ResourceConstraints {
+			resources = resources.stream().map(List::copyOf).toList();
+		}
+	}
+
+	private record ResourceCapture(ResourceConstraints constraints, List<Task> tasks, List<ResourceBufferInput> buffers) { }
+
+	private static ResourceCapture captureResourceConstraints(Project project, Collection<? extends Resource> selectedResources,
+		ResourceLevelingService.Plan plan) {
+		Collection<? extends Resource> resources = selectedResources == null ? project.getResourcePool().getResourceList() : selectedResources;
+		Map<Task, ResourceLevelingService.Change> changes = new java.util.IdentityHashMap<>();
+		for (ResourceLevelingService.Change change : plan.changes()) changes.put(change.task(), change);
+		Map<Task, Integer> taskIndices = new java.util.IdentityHashMap<>();
+		Map<Assignment, ResourceInterval> assignmentIntervals = new java.util.IdentityHashMap<>();
+		List<Task> tasks = new ArrayList<>();
+		List<List<ResourceInterval>> groups = new ArrayList<>(resources.size());
+		List<ResourceBufferInput> buffers = new ArrayList<>(resources.size());
+		for (Resource resource : resources) {
+			List<ResourceInterval> intervals = new ArrayList<>(resource.getAssignments().size());
+			List<BufferAssignment> bufferAssignments = new ArrayList<>(resource.getAssignments().size());
+			for (Object value : resource.getAssignments()) {
+				Assignment assignment = (Assignment) value;
+				Task task = assignment.getTask();
+				if (task == null || task.isSummary() || assignment.isDefault()) continue;
+				Integer index = taskIndices.get(task);
+				if (index == null) {
+					index = Integer.valueOf(tasks.size());
+					taskIndices.put(task, index);
+					tasks.add(task);
+				}
+				long start = originalStart(task, changes);
+				long duration = Math.max(0L, assignment.getEnd() - assignment.getStart());
+				bufferAssignments.add(new BufferAssignment(duration, task.getPercentComplete()));
+				ResourceInterval interval = assignmentIntervals.get(assignment);
+				if (interval == null) {
+					interval = new ResourceInterval(index.intValue(), task.getUniqueId(), start, start + duration);
+					assignmentIntervals.put(assignment, interval);
+				}
+				intervals.add(interval);
+			}
+			groups.add(intervals);
+			buffers.add(new ResourceBufferInput(resource.getUniqueId(), bufferAssignments));
+		}
+		return new ResourceCapture(new ResourceConstraints(groups), List.copyOf(tasks), List.copyOf(buffers));
+	}
+
+	private record ResourceGraph(Map<Long, List<Long>> predecessors, List<Integer> taskIndices) { }
+
+	/** Build graph data from detached links without touching model objects. */
+	private static ResourceGraph resourceGraph(List<ResourceLink> links) {
+		Map<Long, List<Long>> result = new LinkedHashMap<>();
+		Set<Integer> taskIndices = new LinkedHashSet<>();
+		for (ResourceLink link : links) {
+			if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
+			result.computeIfAbsent(Long.valueOf(link.successorId()), ignored -> new ArrayList<>(1))
+				.add(Long.valueOf(link.predecessorId()));
+			taskIndices.add(Integer.valueOf(link.predecessorIndex()));
+			taskIndices.add(Integer.valueOf(link.successorIndex()));
+		}
+		for (Map.Entry<Long, List<Long>> entry : result.entrySet()) entry.setValue(List.copyOf(entry.getValue()));
+		return new ResourceGraph(java.util.Collections.unmodifiableMap(result), List.copyOf(taskIndices));
+	}
+
+	/** Pure sweep over an immutable resource interval snapshot. */
+	static List<ResourceLink> resourceLinks(ResourceConstraints snapshot) {
+		List<ResourceLink> result = new ArrayList<>();
+		for (List<ResourceInterval> resource : snapshot.resources()) {
+			if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
+			List<ResourceInterval> assignments = new ArrayList<>(resource);
+			assignments.sort(java.util.Comparator.comparingLong(ResourceInterval::start).thenComparingLong(ResourceInterval::taskId));
+			java.util.Set<ResourceInterval> active = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+			PriorityQueue<ResourceInterval> byEnd = new PriorityQueue<>(java.util.Comparator.comparingLong(ResourceInterval::end)
+				.thenComparingLong(ResourceInterval::taskId));
+			PriorityQueue<ResourceInterval> byStartDescending = new PriorityQueue<>((left, right) -> {
+				int compared = Long.compare(right.start(), left.start());
+				return compared != 0 ? compared : Long.compare(right.taskId(), left.taskId());
+			});
+			for (ResourceInterval current : assignments) {
+				if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
+				if (current.end() <= current.start()) continue;
+				while (!byEnd.isEmpty() && byEnd.peek().end() <= current.start()) active.remove(byEnd.poll());
+				while (!byStartDescending.isEmpty() && !active.contains(byStartDescending.peek())) byStartDescending.poll();
+				ResourceInterval previous = byStartDescending.peek();
+				if (previous != null && previous.taskIndex() != current.taskIndex()
+					&& previous.start() < current.end() && current.start() < previous.end()) {
+					result.add(new ResourceLink(previous.taskIndex(), current.taskIndex(), previous.taskId(), current.taskId()));
+				}
+				active.add(current);
+				byEnd.add(current);
+				byStartDescending.add(current);
+			}
+		}
+		return List.copyOf(result);
+	}
+
+	private static long originalStart(Task task, Map<Task, ResourceLevelingService.Change> changes) { ResourceLevelingService.Change change = changes.get(task); return change == null ? task.getStart() : change.oldStart(); }
+
+	private static Buffer buffer(long planned, long consumed) { return buffer(planned, consumed, BufferKind.PROJECT); }
+
+	private static Buffer buffer(long planned, long consumed, BufferKind kind) {
+		long safePlanned = Math.max(0L, planned);
+		long safeConsumed = Math.max(0L, consumed);
+		long remaining = Math.max(0L, safePlanned - safeConsumed);
+		double ratio = safePlanned == 0L ? (safeConsumed == 0L ? 0D : 1D) : Math.min(1D, (double) safeConsumed / safePlanned);
+		BufferStatus status = ratio < 1D / 3D ? BufferStatus.GREEN : ratio < 2D / 3D ? BufferStatus.AMBER : BufferStatus.RED;
+		return new Buffer(safePlanned, safeConsumed, remaining, ratio, status, kind);
+	}
+
+	private static Map<Long, Long> taskStarts(Project project, Collection<Long> ids) {
+		Map<Long, Long> result = LinkedHashMap.newLinkedHashMap(ids.size());
+		Map<Long, Task> tasksById = LinkedHashMap.newLinkedHashMap(project.getTaskList().size());
+		for (Task task : ProjectHierarchyQueries.outline(project)) {
+			tasksById.put(Long.valueOf(task.getUniqueId()), task);
+		}
+		for (Long id : ids) { Task task = tasksById.get(id); if (task != null) result.put(id, Long.valueOf(task.getStart())); }
+		return result;
+	}
+
+	private static long scaled(long duration, double fraction) {
+		return Math.round(duration * fraction);
+	}
+}

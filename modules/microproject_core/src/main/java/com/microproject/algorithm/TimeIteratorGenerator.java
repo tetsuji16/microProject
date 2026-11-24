@@ -23,7 +23,7 @@
  *******************************************************************************/
 package com.microproject.algorithm;
 
-import com.microproject.pm.time.HasStartAndEnd;
+import com.microproject.model.time.HasStartAndEnd;
 import com.microproject.timescale.TimeIterator;
 
 /**

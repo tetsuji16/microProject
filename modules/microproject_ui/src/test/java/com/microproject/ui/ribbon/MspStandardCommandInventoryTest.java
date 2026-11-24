@@ -11,10 +11,10 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.menu.ExtToolBarFactory;
-import com.microproject.menu.MenuActionMapSupport;
-import com.microproject.menu.MenuManager;
-import com.microproject.menu.testsupport.MenuDefinitionSupport;
+import com.microproject.ui.menu.ExtToolBarFactory;
+import com.microproject.ui.menu.MenuActionMapSupport;
+import com.microproject.ui.menu.MenuManager;
+import com.microproject.ui.menu.testsupport.MenuDefinitionSupport;
 import com.microproject.ribbon.SwingRibbonModel;
 
 /** Ensures unsupported MSP services are not advertised as successful commands. */
@@ -24,7 +24,7 @@ class MspStandardCommandInventoryTest {
 		ExtToolBarFactory buttons = new ExtToolBarFactory(MenuActionMapSupport.noopActionMap(),
 			MenuDefinitionSupport.ribbonBundles(java.util.Locale.ROOT));
 		SwingRibbonModel model = new SwingRibbonFactory(
-			new com.microproject.menu.MenuRibbonCommandSource(buttons),
+			new com.microproject.ui.menu.MenuRibbonCommandSource(buttons),
 			MenuDefinitionSupport.ribbonBundles(java.util.Locale.ROOT))
 			.createModel(MenuManager.STANDARD_RIBBON);
 		Set<String> advertised = RibbonCommandCatalog.from(model).stream()

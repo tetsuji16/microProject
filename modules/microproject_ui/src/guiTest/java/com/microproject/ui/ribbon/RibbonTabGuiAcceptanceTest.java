@@ -58,23 +58,23 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.microproject.dialog.PreferencesDialogBox;
-import com.microproject.dialog.UsabilityStrings;
+import com.microproject.ui.dialog.PreferencesDialogBox;
+import com.microproject.ui.dialog.UsabilityStrings;
 import com.microproject.preference.GlobalPreferences;
-import com.microproject.menu.MenuActionMapSupport;
-import com.microproject.menu.MenuManager;
+import com.microproject.ui.menu.MenuActionMapSupport;
+import com.microproject.ui.menu.MenuManager;
 import com.microproject.ribbon.RibbonControlKind;
-import com.microproject.menu.ProjectMenuActionMap;
-import com.microproject.pm.graphic.frames.MainRibbonFrame;
-import com.microproject.menu.testsupport.MenuDefinitionSupport;
-import com.microproject.menu.testsupport.UiComponentWalker;
+import com.microproject.ui.menu.ProjectMenuActionMap;
+import com.microproject.ui.frame.MainRibbonFrame;
+import com.microproject.ui.menu.testsupport.MenuDefinitionSupport;
+import com.microproject.ui.menu.testsupport.UiComponentWalker;
 import com.microproject.ribbon.CommandId;
-import com.microproject.testsupport.GuiAcceptanceSupport;
-import com.microproject.testsupport.GuiPhysicalRouteAdapter;
-import com.microproject.testsupport.RibbonGuiEnvironment;
+import com.microproject.ui.testsupport.GuiAcceptanceSupport;
+import com.microproject.ui.testsupport.GuiPhysicalRouteAdapter;
+import com.microproject.ui.testsupport.RibbonGuiEnvironment;
 import com.microproject.ui.shell.MicroProjectShell;
 import com.microproject.util.Environment;
-import com.microproject.util.FlatUiSupport;
+import com.microproject.ui.util.FlatUiSupport;
 
 /** Non-headless coverage for a real mouse click on a responsive ribbon tab. */
 class RibbonTabGuiAcceptanceTest {
@@ -115,7 +115,7 @@ class RibbonTabGuiAcceptanceTest {
 		show(host, 1200, false);
 		AbstractButton taskTab = findButton(host,
 			MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString("TaskRibbonTask.title"));
-		Robot robot = new com.microproject.testsupport.GuiRobot();
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		rightClick(robot, taskTab);
 		JPopupMenu firstPopup = awaitDisplayModePopup();
@@ -158,7 +158,7 @@ class RibbonTabGuiAcceptanceTest {
 			String title = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString(tabId + ".title");
 			tabs.add(findButton(host, title));
 		}
-		Robot robot = new com.microproject.testsupport.GuiRobot();
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		for (int index = 0; index < MenuDefinitionSupport.ribbonTaskIds().size(); index++) {
 			String tabId = MenuDefinitionSupport.ribbonTaskIds().get(index);
@@ -234,7 +234,7 @@ class RibbonTabGuiAcceptanceTest {
 		});
 		GuiAcceptanceSupport.await(frame::isShowing, "production ribbon shell did not become visible");
 
-		Robot robot = new com.microproject.testsupport.GuiRobot();
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		EnumSet<CommandId> physicalTaskCommands = EnumSet.noneOf(CommandId.class);
 		for (String tabId : MenuDefinitionSupport.ribbonTaskIds()) {
@@ -333,7 +333,7 @@ class RibbonTabGuiAcceptanceTest {
 			assertTrue(actionId != null, () -> commandId + " has no mapped action");
 			int before = actions.count(actionId);
 			Point clickPoint = kind == RibbonControlKind.SPLIT_BUTTON
-				? com.microproject.testsupport.RibbonGuiSupport.clickSplitPrimary(robot, button) : clickCommand(robot, button);
+				? com.microproject.ui.testsupport.RibbonGuiSupport.clickSplitPrimary(robot, button) : clickCommand(robot, button);
 			GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
 				"Robot click did not dispatch " + commandId + " (" + actionId + ") at " + clickPoint);
 			recordPhysicalCommand(physicalCommands, actionId, commandId);
@@ -434,7 +434,7 @@ class RibbonTabGuiAcceptanceTest {
 		// Keep the window within a normal desktop at 125/150%; commands that do
 		// not fit are intentionally represented by the responsive popup route.
 		show(host, 1000, false);
-		Robot robot = new com.microproject.testsupport.GuiRobot();
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		for (String tabId : MenuDefinitionSupport.ribbonTaskIds()) {
 			// Each contextual tab is available only while its corresponding view is active.
@@ -464,7 +464,7 @@ class RibbonTabGuiAcceptanceTest {
 		ModernRibbonPanel ribbon = (ModernRibbonPanel) host
 			.getClientProperty(ModernRibbonPanel.CONTEXTUAL_TABS_PROPERTY);
 		show(host, 1200, false);
-		Robot robot = new com.microproject.testsupport.GuiRobot();
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 
 		List<String> contextualTabs = List.of("NetworkFormatRibbonTask", "CalendarFormatRibbonTask", "TimelineFormatRibbonTask", "TeamPlannerFormatRibbonTask");
@@ -526,7 +526,7 @@ class RibbonTabGuiAcceptanceTest {
 		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
 		show(host, 320, true);
 
-		Robot robot = new com.microproject.testsupport.GuiRobot();
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		AbstractButton tab = findButton(host, MenuDefinitionSupport.menuBundle(Locale.getDefault())
 				.getString("TaskRibbonTask.title"));
@@ -605,7 +605,7 @@ class RibbonTabGuiAcceptanceTest {
 		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
 		show(host, 1200, true);
 
-		Robot robot = new com.microproject.testsupport.GuiRobot();
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		AbstractButton tab = findButton(host, MenuDefinitionSupport.menuBundle(Locale.getDefault())
 			.getString("TaskRibbonTask.title"));
@@ -686,10 +686,10 @@ class RibbonTabGuiAcceptanceTest {
 			frame.setVisible(true);
 		});
 		String taskTitle = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString("TaskRibbonTask.title");
-		click(new com.microproject.testsupport.GuiRobot(), findButton(host, taskTitle));
+		click(new com.microproject.ui.testsupport.GuiRobot(), findButton(host, taskTitle));
 		String fileTitle = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString("FileRibbonTask.title");
 		AbstractButton fileTab = findButton(host, fileTitle);
-		Robot robot = new com.microproject.testsupport.GuiRobot();
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		click(robot, fileTab);
 		GuiAcceptanceSupport.await(() -> namedComponent(frame.getRootPane(), "officeBackstageOverlay") != null,
@@ -831,7 +831,7 @@ class RibbonTabGuiAcceptanceTest {
 		});
 		String taskTitle = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString("TaskRibbonTask.title");
 		String fileTitle = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString("FileRibbonTask.title");
-		Robot robot = new com.microproject.testsupport.GuiRobot();
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		click(robot, findButton(host, taskTitle));
 		click(robot, findButton(host, fileTitle));
@@ -935,7 +935,7 @@ class RibbonTabGuiAcceptanceTest {
 			frame.setLocation(0, 0);
 			frame.setVisible(true);
 		});
-		Robot robot = new com.microproject.testsupport.GuiRobot();
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		String fileTitle = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString("FileRibbonTask.title");
 
@@ -995,7 +995,7 @@ class RibbonTabGuiAcceptanceTest {
 		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
 		show(host, 1200, true);
 
-		Robot robot = new com.microproject.testsupport.GuiRobot();
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(40);
 		String viewTitle = MenuDefinitionSupport.menuBundle(Locale.getDefault()).getString("ViewRibbonTask.title");
 		AbstractButton viewTab = findButton(host, viewTitle);
@@ -1009,7 +1009,7 @@ class RibbonTabGuiAcceptanceTest {
 			AbstractButton largeGantt = gantt;
 			SwingUtilities.invokeAndWait(() -> assertContainedInRibbonBand(largeGantt));
 		} else if (gantt == null) {
-			gantt = com.microproject.testsupport.RibbonGuiSupport.findVisibleOrExpand(robot, host, "RibbonGantt");
+			gantt = com.microproject.ui.testsupport.RibbonGuiSupport.findVisibleOrExpand(robot, host, "RibbonGantt");
 		}
 		Rectangle ganttScreenBounds = safeScreenBounds(gantt);
 		Rectangle windowBounds = frame.getBounds();
@@ -1019,7 +1019,7 @@ class RibbonTabGuiAcceptanceTest {
 
 		String actionId = manager.getToolBarFactory().getActionStringFromId("RibbonGantt");
 		int before = actions.count(actionId);
-		com.microproject.testsupport.RibbonGuiSupport.clickSplitPrimary(robot, gantt);
+		com.microproject.ui.testsupport.RibbonGuiSupport.clickSplitPrimary(robot, gantt);
 		GuiAcceptanceSupport.await(() -> actions.count(actionId) == before + 1,
 			"Robot click did not dispatch RibbonGantt exactly once");
 	}
@@ -1033,7 +1033,7 @@ class RibbonTabGuiAcceptanceTest {
 		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
 		show(host, 320, true);
 
-		Robot robot = new com.microproject.testsupport.GuiRobot();
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		AbstractButton tab = findButton(host, MenuDefinitionSupport.menuBundle(Locale.getDefault())
 			.getString("TaskRibbonTask.title"));
@@ -1091,7 +1091,7 @@ class RibbonTabGuiAcceptanceTest {
 		ribbon.setVisibleContextualTabs(Set.of("FormatRibbonTask"));
 		show(host, 320, true);
 
-		Robot robot = new com.microproject.testsupport.GuiRobot();
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(35);
 		AbstractButton taskTab = findTab(host, "TaskRibbonTask");
 		AbstractButton fileTab = findTab(host, "FileRibbonTask");
@@ -1311,7 +1311,7 @@ class RibbonTabGuiAcceptanceTest {
 				"File tab did not open Backstage before command " + commandId);
 		}
 		java.util.ResourceBundle metadata = java.util.ResourceBundle.getBundle(
-			"com.microproject.menu.menuInternal", Locale.ROOT);
+			"com.microproject.ui.menu.menuInternal", Locale.ROOT);
 		String pageId = metadata.getString(commandId + ".backstagePage");
 		Component destination = findShowingComponent(frame, "officeBackstageNav-" + pageId);
 		if (!(destination instanceof AbstractButton pageButton))

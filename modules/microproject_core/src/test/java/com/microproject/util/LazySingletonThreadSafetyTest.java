@@ -27,10 +27,10 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.datatype.DurationFormat;
 import com.microproject.datatype.RateFormat;
-import com.microproject.pm.calendar.CalendarCatalog;
-import com.microproject.pm.calendar.CalendarService;
-import com.microproject.pm.calendar.WorkDay;
-import com.microproject.pm.calendar.WorkingHours;
+import com.microproject.model.calendar.CalendarCatalog;
+import com.microproject.model.calendar.CalendarService;
+import com.microproject.model.calendar.WorkDay;
+import com.microproject.model.calendar.WorkingHours;
 
 /** Issue #1041: shared lazily created singletons must be safe to request from several threads. */
 class LazySingletonThreadSafetyTest {

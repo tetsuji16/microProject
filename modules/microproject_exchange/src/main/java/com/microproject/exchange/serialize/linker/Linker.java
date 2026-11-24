@@ -1,0 +1,144 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.exchange.serialize.linker;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Consumer;
+
+
+import com.microproject.node.Node;
+import com.microproject.node.hierarchy.NodeHierarchy;
+import com.microproject.model.assignment.Assignment;
+
+/**
+ *
+ */
+public abstract class Linker {
+	protected Map<Object, Object> transformationMap = new HashMap<>();
+	protected Collection<Object> transformed = new ArrayList<>();
+	protected Iterator<?> iterator;
+	protected Object parent;
+	protected Object transformedParent;
+	protected Object[] args=null;
+	protected boolean incremental;
+
+	public Map<?, ?> getTransformationMap() {
+		return transformationMap;
+	}
+	public Collection<?> getTransformed() {
+		return transformed;
+	}
+	public boolean isIncremental() {
+		return incremental;
+	}
+	public void setIncremental(boolean incremental) {
+		this.incremental = incremental;
+	}
+
+	public Object getParent() {
+		return parent;
+	}
+	public void setParent(Object parent) {
+		this.parent = parent;
+	}
+	public Object getTransformedParent() {
+		return transformedParent;
+	}
+	public void setTransformedParent(Object transformedParent) {
+		this.transformedParent = transformedParent;
+	}
+
+	public Object[] getArgs() {
+		return args;
+	}
+	public void setArgs(Object[] args) {
+		this.args = args;
+	}
+	public boolean hasNext() { return iterator != null && iterator.hasNext(); }
+	public void addTransformedObjects() throws Exception{
+		while(hasNext()){
+			Object obj=executeNext();
+			if (obj!=null){
+				Object trans=addTransformedObjects(obj);
+				if (trans!=null) transformed.add(trans);
+			}
+		}
+		executeFinally();
+	}
+	public void init(){
+		transformationMap.clear();
+		transformed.clear();
+		initIterator();
+	}
+
+    public void addOutline(Node root){
+		final Set<Node> endVoids = new HashSet<>();
+        getHierarchy().visitAll(root, true, arg -> {
+            Node node=(Node)arg;
+            Object nodeImpl=node.getImpl();
+            if (!(nodeImpl instanceof Assignment)){
+                if (node.isVoid()) endVoids.add(node);
+                else endVoids.clear();
+            }
+        });
+
+        getHierarchy().visitAllLevelOrder(root, true,new Consumer<>(){
+        	Node thisParent=null;
+        	long position=0;
+        	public void accept(Object arg) {
+        		Node node=(Node)arg;
+        		if (endVoids.contains(node)) return;
+        		Object nodeImpl=node.getImpl();
+        		if (!(nodeImpl instanceof Assignment)){
+        			Node currentParent=getHierarchy().getParent(node);
+        			if (currentParent!=null&&currentParent.isRoot()) currentParent=null; //for compatibility
+        			if (thisParent!=currentParent){
+        				thisParent=currentParent;
+        				position=0;
+        			}
+        			if (node.isVoid()||addOutlineElement(nodeImpl,(thisParent==null)?null:thisParent.getImpl(),position))
+        				position++; //skip voids but increment position
+        		}
+        	}
+        });
+    }
+	protected void initIterator(){}
+	public Object executeNext(){
+		throw new UnsupportedOperationException(getClass().getSimpleName() + " must implement executeNext()");
+	}
+	public void executeFinally(){}
+    public abstract Object addTransformedObjects(Object child) throws Exception;
+    public NodeHierarchy getHierarchy(){
+		throw new UnsupportedOperationException(getClass().getSimpleName() + " must implement getHierarchy()");
+	}
+    public boolean addOutlineElement(Object outlineChild,Object outlineParent,long position){
+		throw new UnsupportedOperationException(getClass().getSimpleName() + " must implement addOutlineElement()");
+	}
+}

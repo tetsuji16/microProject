@@ -59,13 +59,13 @@ import com.microproject.exchange.MicrosoftImporter;
 import com.microproject.exchange.BoundedInput;
 import com.microproject.exchange.LocalFileImporter;
 import com.microproject.exchange.xlsx.MicroProjectXlsxWriter;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.core.pm.exchange.MspImporter;
+import com.microproject.model.task.NormalTask;
+import com.microproject.exchange.mpx.MspImporter;
 import com.microproject.collaboration.CollaborationMetadataStore;
-import com.microproject.pm.calendar.CalendarService;
-import com.microproject.pm.calendar.WorkingCalendar;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.server.data.MSPDISerializer;
+import com.microproject.model.calendar.CalendarService;
+import com.microproject.model.calendar.WorkingCalendar;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.exchange.serialize.MSPDISerializer;
 import com.microproject.session.FileHelper;
 import com.microproject.undo.DataFactoryUndoController;
 
@@ -219,7 +219,7 @@ public class XlsxSupportTest {
 		assertTrue(sample.exists());
 
 		MspImporter importer = new MspImporter();
-		com.microproject.pm.task.Project imported = importer.importProject(sample.getAbsolutePath(), new MspImporter.ProgressClosure() {
+		com.microproject.model.task.Project imported = importer.importProject(sample.getAbsolutePath(), new MspImporter.ProgressClosure() {
 			@Override
 			public void updateProgress(float progress, String label) {
 			}
@@ -228,7 +228,7 @@ public class XlsxSupportTest {
 		assertNotNull(imported);
 		assertTrue(imported.getTasks().size() > 0);
 		assertTrue(imported.getTasks().stream()
-			.anyMatch(task -> task instanceof com.microproject.pm.task.NormalTask normalTask
+			.anyMatch(task -> task instanceof com.microproject.model.task.NormalTask normalTask
 				&& !normalTask.getAssignments().isEmpty()));
 	}
 
@@ -287,14 +287,14 @@ public class XlsxSupportTest {
 		}
 
 		assertEquals(2L * 24L * 60L * 60L * 1000L,
-				com.microproject.core.pm.exchange.converters.mpx.MpxUtils.toMillis(byName.get("Succ").getPredecessors().get(0).getLag()));
+				com.microproject.exchange.mpx.converter.MpxUtils.toMillis(byName.get("Succ").getPredecessors().get(0).getLag()));
 		assertEquals(-1L * 60L * 60L * 1000L,
-				com.microproject.core.pm.exchange.converters.mpx.MpxUtils.toMillis(byName.get("OtherSucc").getPredecessors().get(0).getLag()));
+				com.microproject.exchange.mpx.converter.MpxUtils.toMillis(byName.get("OtherSucc").getPredecessors().get(0).getLag()));
 		org.mpxj.Duration percentLag = byName.get("PercentSucc").getPredecessors().get(0).getLag();
 		assertEquals(org.mpxj.TimeUnit.PERCENT, percentLag.getUnits());
 		assertEquals(50.0, percentLag.getDuration(), 0.0001);
 		org.mpxj.Duration elapsedLag = byName.get("ElapsedSucc").getPredecessors().get(0).getLag();
-		assertEquals(2L * 24L * 60L * 60L * 1000L, com.microproject.core.pm.exchange.converters.mpx.MpxUtils.toMillis(elapsedLag));
+		assertEquals(2L * 24L * 60L * 60L * 1000L, com.microproject.exchange.mpx.converter.MpxUtils.toMillis(elapsedLag));
 	}
 
 	@Test
@@ -324,9 +324,9 @@ public class XlsxSupportTest {
 		ProjectFile externalRead = new MicroProjectXlsxReader().read(new ByteArrayInputStream(out.toByteArray()));
 		assertEquals(1, externalRead.getChildTasks().size());
 		assertEquals(4, externalRead.getTasks().size());
-		com.microproject.pm.task.Project imported = new MspImporter().importProject(
+		com.microproject.model.task.Project imported = new MspImporter().importProject(
 			new ByteArrayInputStream(out.toByteArray()), "xlsx", (progress, label) -> {});
-		com.microproject.pm.task.Task parent = imported.getTaskList().stream()
+		com.microproject.model.task.Task parent = imported.getTaskList().stream()
 			.filter(task -> "Release".equals(task.getName())).findFirst().orElseThrow();
 		NormalTask child = (NormalTask) imported.getTaskList().stream()
 			.filter(task -> "Deploy".equals(task.getName())).findFirst().orElseThrow();
@@ -338,16 +338,16 @@ public class XlsxSupportTest {
 		assertEquals("Release", child.getWbsParentTask().getName());
 		assertEquals(0.4D, child.getPercentComplete(), 0.0001D);
 		assertEquals(1, child.getAssignments().size());
-		assertEquals(0.5D, ((com.microproject.pm.assignment.Assignment) child.getAssignments().get(0)).getUnits(), 0.0001D);
-		assertEquals(0.0D, ((com.microproject.pm.assignment.Assignment) zeroUnitTask.getAssignments().get(0)).getUnits(), 0.0001D);
-		assertEquals(1.0D, ((com.microproject.pm.assignment.Assignment) missingUnitsTask.getAssignments().get(0)).getUnits(), 0.0001D);
-		assertEquals(0.5D, ((com.microproject.pm.assignment.Assignment) child.getAssignments().get(0))
+		assertEquals(0.5D, ((com.microproject.model.assignment.Assignment) child.getAssignments().get(0)).getUnits(), 0.0001D);
+		assertEquals(0.0D, ((com.microproject.model.assignment.Assignment) zeroUnitTask.getAssignments().get(0)).getUnits(), 0.0001D);
+		assertEquals(1.0D, ((com.microproject.model.assignment.Assignment) missingUnitsTask.getAssignments().get(0)).getUnits(), 0.0001D);
+		assertEquals(0.5D, ((com.microproject.model.assignment.Assignment) child.getAssignments().get(0))
 			.getResource().getMaximumUnits(), 0.0001D);
 		assertEquals(3, parent.getWbsChildrenNodes().size());
 
 		ByteArrayOutputStream exported = new ByteArrayOutputStream();
 		new MicroProjectXlsxWriter().writeMicroProjectProject(imported, exported);
-		String resourceUid = Long.toString(((com.microproject.pm.assignment.Assignment) child.getAssignments().get(0))
+		String resourceUid = Long.toString(((com.microproject.model.assignment.Assignment) child.getAssignments().get(0))
 			.getResource().getUniqueId());
 		try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(exported.toByteArray()))) {
 			org.apache.poi.ss.usermodel.Sheet exportedResources = workbook.getSheet("Resources");
@@ -389,11 +389,11 @@ public class XlsxSupportTest {
 			workbook.removeSheetAt(nativePayloadIndex);
 			workbook.write(summaryOnly);
 		}
-		com.microproject.pm.task.Project summaryImported = new MspImporter().importProject(
+		com.microproject.model.task.Project summaryImported = new MspImporter().importProject(
 			new ByteArrayInputStream(summaryOnly.toByteArray()), "xlsx", (progress, label) -> {});
 		NormalTask summaryChild = (NormalTask) summaryImported.getTaskList().stream()
 			.filter(task -> "Deploy".equals(task.getName())).findFirst().orElseThrow();
-		com.microproject.pm.task.Task summaryParent = summaryImported.getTaskList().stream()
+		com.microproject.model.task.Task summaryParent = summaryImported.getTaskList().stream()
 			.filter(task -> "Release".equals(task.getName())).findFirst().orElseThrow();
 		NormalTask summaryZeroUnit = (NormalTask) summaryImported.getTaskList().stream()
 			.filter(task -> "Audit".equals(task.getName())).findFirst().orElseThrow();
@@ -402,16 +402,16 @@ public class XlsxSupportTest {
 		assertEquals("Release", summaryChild.getWbsParentTask().getName());
 		assertEquals(3, summaryParent.getWbsChildrenNodes().size());
 		assertEquals(0.4D, summaryChild.getPercentComplete(), 0.0001D);
-		assertEquals(0.0D, ((com.microproject.pm.assignment.Assignment) summaryZeroUnit.getAssignments().get(0)).getUnits(), 0.0001D);
-		assertEquals(1.0D, ((com.microproject.pm.assignment.Assignment) summaryMissingUnits.getAssignments().get(0)).getUnits(), 0.0001D);
-		assertEquals(0.5D, ((com.microproject.pm.assignment.Assignment) summaryChild.getAssignments().get(0))
+		assertEquals(0.0D, ((com.microproject.model.assignment.Assignment) summaryZeroUnit.getAssignments().get(0)).getUnits(), 0.0001D);
+		assertEquals(1.0D, ((com.microproject.model.assignment.Assignment) summaryMissingUnits.getAssignments().get(0)).getUnits(), 0.0001D);
+		assertEquals(0.5D, ((com.microproject.model.assignment.Assignment) summaryChild.getAssignments().get(0))
 			.getResource().getMaximumUnits(), 0.0001D);
-		com.microproject.pm.task.Project mpoReloaded = mpoRoundTrip(summaryImported);
+		com.microproject.model.task.Project mpoReloaded = mpoRoundTrip(summaryImported);
 		assertSummarySemantics(mpoReloaded);
 	}
 
-	private static void assertSummarySemantics(com.microproject.pm.task.Project project) {
-		com.microproject.pm.task.Task parent = project.getTaskList().stream()
+	private static void assertSummarySemantics(com.microproject.model.task.Project project) {
+		com.microproject.model.task.Task parent = project.getTaskList().stream()
 			.filter(task -> "Release".equals(task.getName())).findFirst().orElseThrow();
 		NormalTask deploy = (NormalTask) project.getTaskList().stream()
 			.filter(task -> "Deploy".equals(task.getName())).findFirst().orElseThrow();
@@ -423,13 +423,13 @@ public class XlsxSupportTest {
 		assertEquals("Release", deploy.getWbsParentTask().getName());
 		assertEquals(3, parent.getWbsChildrenNodes().size());
 		assertEquals(0.4D, deploy.getPercentComplete(), 0.0001D);
-		assertEquals(0.0D, ((com.microproject.pm.assignment.Assignment) audit.getAssignments().get(0)).getUnits(), 0.0001D);
-		assertEquals(1.0D, ((com.microproject.pm.assignment.Assignment) review.getAssignments().get(0)).getUnits(), 0.0001D);
-		assertEquals(0.5D, ((com.microproject.pm.assignment.Assignment) deploy.getAssignments().get(0))
+		assertEquals(0.0D, ((com.microproject.model.assignment.Assignment) audit.getAssignments().get(0)).getUnits(), 0.0001D);
+		assertEquals(1.0D, ((com.microproject.model.assignment.Assignment) review.getAssignments().get(0)).getUnits(), 0.0001D);
+		assertEquals(0.5D, ((com.microproject.model.assignment.Assignment) deploy.getAssignments().get(0))
 			.getResource().getMaximumUnits(), 0.0001D);
 	}
 
-	private static com.microproject.pm.task.Project mpoRoundTrip(com.microproject.pm.task.Project project) throws Exception {
+	private static com.microproject.model.task.Project mpoRoundTrip(com.microproject.model.task.Project project) throws Exception {
 		ByteArrayOutputStream output = new ByteArrayOutputStream();
 		com.microproject.exchange.MpoFileImporter writer = new com.microproject.exchange.MpoFileImporter();
 		assertTrue(writer.saveProject(project, output));
@@ -486,7 +486,7 @@ public class XlsxSupportTest {
 
 	private static byte[] writeNativeWorkbook(String taskName) throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
-		com.microproject.pm.task.Project project = com.microproject.pm.task.Project.createProject(
+		com.microproject.model.task.Project project = com.microproject.model.task.Project.createProject(
 			ResourcePool.createRourcePool("native-xlsx", undo), undo);
 		NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
 		task.setName(taskName);
@@ -585,7 +585,7 @@ public class XlsxSupportTest {
 		writer.write(file, tempFile);
 
 		MspImporter importer = new MspImporter();
-		com.microproject.pm.task.Project imported = importer.importProject(tempFile.getAbsolutePath(), new MspImporter.ProgressClosure() {
+		com.microproject.model.task.Project imported = importer.importProject(tempFile.getAbsolutePath(), new MspImporter.ProgressClosure() {
 			@Override
 			public void updateProgress(float progress, String label) {
 			}
@@ -597,7 +597,7 @@ public class XlsxSupportTest {
 	@Test
 	void microsoftAndDirectMspImportUseTheSameNativeXlsxPayload() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
-		com.microproject.pm.task.Project source = com.microproject.pm.task.Project.createProject(
+		com.microproject.model.task.Project source = com.microproject.model.task.Project.createProject(
 			ResourcePool.createRourcePool("native-xlsx", undo), undo);
 		NormalTask first = (NormalTask) source.createLocalTaskNode(null).getImpl();
 		first.setName("Native first task");
@@ -630,7 +630,7 @@ public class XlsxSupportTest {
 
 		MicrosoftImporter microsoftImporter = new MicrosoftImporter();
 		microsoftImporter.setFileName(tempFile.getAbsolutePath());
-		com.microproject.pm.task.Project microsoftProject;
+		com.microproject.model.task.Project microsoftProject;
 		byte[] nativeWorkbook = java.nio.file.Files.readAllBytes(tempFile.toPath());
 		final boolean[] streamClosed = {false};
 		InputStream in = new ByteArrayInputStream(nativeWorkbook) {
@@ -643,7 +643,7 @@ public class XlsxSupportTest {
 		microsoftProject = microsoftImporter.loadProject(in);
 		assertTrue("native XLSX import must release its source stream", streamClosed[0]);
 		MspImporter directImporter = new MspImporter();
-		com.microproject.pm.task.Project directProject = directImporter.importProject(tempFile.getAbsolutePath(),
+		com.microproject.model.task.Project directProject = directImporter.importProject(tempFile.getAbsolutePath(),
 			new MspImporter.ProgressClosure() {
 				@Override
 				public void updateProgress(float progress, String label) {
@@ -652,28 +652,28 @@ public class XlsxSupportTest {
 
 		assertEquals(microsoftProject.getDocumentId(), directProject.getDocumentId());
 		assertEquals(microsoftProject.getTasks().size(), directProject.getTasks().size());
-		com.microproject.pm.task.Project directNative = MicroProjectXlsxReader.readMicroProjectProject(
+		com.microproject.model.task.Project directNative = MicroProjectXlsxReader.readMicroProjectProject(
 			new ByteArrayInputStream(nativeWorkbook));
 		assertEquals(source.getDocumentId(), directNative.getDocumentId());
 		assertEquals(java.util.Set.of("Native first task", "Native second task"), directNative.getTaskList().stream()
-			.map(com.microproject.pm.task.Task::getName).collect(java.util.stream.Collectors.toSet()));
+			.map(com.microproject.model.task.Task::getName).collect(java.util.stream.Collectors.toSet()));
 		for (int i = 0; i < microsoftProject.getTasks().size(); i++) {
-			com.microproject.pm.task.Task microsoftTask =
-				(com.microproject.pm.task.Task) microsoftProject.getTasks().get(i);
-			com.microproject.pm.task.Task directTask =
-				(com.microproject.pm.task.Task) directProject.getTasks().get(i);
+			com.microproject.model.task.Task microsoftTask =
+				(com.microproject.model.task.Task) microsoftProject.getTasks().get(i);
+			com.microproject.model.task.Task directTask =
+				(com.microproject.model.task.Task) directProject.getTasks().get(i);
 			assertEquals(microsoftTask.getUniqueId(), directTask.getUniqueId());
 			assertEquals(microsoftTask.getName(), directTask.getName());
 		}
-		com.microproject.pm.task.Project nativeMpoReloaded = mpoRoundTrip(directProject);
+		com.microproject.model.task.Project nativeMpoReloaded = mpoRoundTrip(directProject);
 		assertEquals(java.util.Set.of("Native first task", "Native second task"), nativeMpoReloaded.getTaskList().stream()
-			.map(com.microproject.pm.task.Task::getName).collect(java.util.stream.Collectors.toSet()));
+			.map(com.microproject.model.task.Task::getName).collect(java.util.stream.Collectors.toSet()));
 	}
 
 	@Test
 	void legacyNativeXlsxNamesReadAndCanonicalPayloadWinsOrFailsClosed() throws Exception {
 		byte[] legacyBytes = toLegacyNativeWorkbook(writeNativeWorkbook("Legacy task"));
-		com.microproject.pm.task.Project legacy = MicroProjectXlsxReader.readMicroProjectProject(
+		com.microproject.model.task.Project legacy = MicroProjectXlsxReader.readMicroProjectProject(
 			new ByteArrayInputStream(legacyBytes));
 		assertTrue(legacy.getTaskList().stream().anyMatch(task -> "Legacy task".equals(task.getName())));
 		ProjectFile legacyMspdi = new MicroProjectXlsxReader().read(new ByteArrayInputStream(legacyBytes));
@@ -682,9 +682,9 @@ public class XlsxSupportTest {
 
 		byte[] canonicalBytes = writeNativeWorkbook("Canonical task");
 		byte[] bothNames = addLegacyPayload(canonicalBytes, legacyBytes);
-		com.microproject.pm.task.Project preferred = MicroProjectXlsxReader.readMicroProjectProject(
+		com.microproject.model.task.Project preferred = MicroProjectXlsxReader.readMicroProjectProject(
 			new ByteArrayInputStream(bothNames));
-		assertEquals("Canonical task", ((com.microproject.pm.task.Task) preferred.getTaskList().get(0)).getName());
+		assertEquals("Canonical task", ((com.microproject.model.task.Task) preferred.getTaskList().get(0)).getName());
 
 		assertNativeReadFails(rewriteWorkbook(bothNames, workbook ->
 			workbook.getSheet("_MicroProject_META").getRow(1).getCell(1).setCellValue("999")));
@@ -716,11 +716,11 @@ public class XlsxSupportTest {
 		assertNull("a subsequent summary-only read has no stale payload", reader.consumeEmbeddedMspdiXml());
 
 		HeaderTrackingMspImporter importer = new HeaderTrackingMspImporter();
-		com.microproject.pm.task.Project project = importer.importProject(new ByteArrayInputStream(embeddedOnly), "xlsx",
+		com.microproject.model.task.Project project = importer.importProject(new ByteArrayInputStream(embeddedOnly), "xlsx",
 			(progress, label) -> {});
 		assertTrue(project.getTaskList().stream().anyMatch(task -> "Embedded MSPDI fallback task".equals(task.getName())));
 		assertEquals("embedded declared project boundary is applied before tasks", 1, importer.earlyHeaderPasses);
-		com.microproject.pm.task.Project embeddedMpoReloaded = mpoRoundTrip(project);
+		com.microproject.model.task.Project embeddedMpoReloaded = mpoRoundTrip(project);
 		assertTrue(embeddedMpoReloaded.getTaskList().stream()
 			.anyMatch(task -> "Embedded MSPDI fallback task".equals(task.getName())));
 	}
@@ -728,7 +728,7 @@ public class XlsxSupportTest {
 	private static final class HeaderTrackingMspImporter extends MspImporter {
 		private int earlyHeaderPasses;
 
-		@Override protected void importProjectHeader(com.microproject.pm.task.Project project) {
+		@Override protected void importProjectHeader(com.microproject.model.task.Project project) {
 			if (project.getTaskList().isEmpty()) earlyHeaderPasses++;
 			super.importProjectHeader(project);
 		}
@@ -747,7 +747,7 @@ public class XlsxSupportTest {
 		new MSPDIWriter().write(file, output);
 
 		MspImporter importer = new MspImporter();
-		com.microproject.pm.task.Project imported = importer.importProject(
+		com.microproject.model.task.Project imported = importer.importProject(
 				new ByteArrayInputStream(output.toByteArray()), "xml", new MspImporter.ProgressClosure() {
 					@Override
 					public void updateProgress(float progress, String label) {
@@ -762,7 +762,7 @@ public class XlsxSupportTest {
 	@Test
 	void mspdiRoundTripPreservesProjectDefaultCalendar() throws Exception {
 		DataFactoryUndoController undo = new DataFactoryUndoController();
-		com.microproject.pm.task.Project source = com.microproject.pm.task.Project.createProject(
+		com.microproject.model.task.Project source = com.microproject.model.task.Project.createProject(
 				ResourcePool.createRourcePool("calendar-round-trip", undo), undo);
 		WorkingCalendar calendar = CalendarService.getInstance().getStandardBasedInstance();
 		calendar.setName("MSP custom project calendar");
@@ -774,7 +774,7 @@ public class XlsxSupportTest {
 		new MSPDIWriter().write(exported, output);
 
 		MspImporter importer = new MspImporter();
-		com.microproject.pm.task.Project imported = importer.importProject(
+		com.microproject.model.task.Project imported = importer.importProject(
 				new ByteArrayInputStream(output.toByteArray()), "xml", new MspImporter.ProgressClosure() {
 					@Override
 					public void updateProgress(float progress, String label) {
@@ -804,9 +804,9 @@ public class XlsxSupportTest {
 
 		LocalFileImporter sourceImporter = new LocalFileImporter();
 		sourceImporter.setFileName(sample.getAbsolutePath());
-		sourceImporter.setProjectFactory(com.microproject.pm.task.ProjectFactory.getInstance());
+		sourceImporter.setProjectFactory(com.microproject.model.task.ProjectFactory.getInstance());
 		sourceImporter.importFile();
-		com.microproject.pm.task.Project project = sourceImporter.getProject();
+		com.microproject.model.task.Project project = sourceImporter.getProject();
 		assertNotNull(project);
 		int taskCount = project.getTasks().size();
 		assertTrue(taskCount > 0);
@@ -826,7 +826,7 @@ public class XlsxSupportTest {
 		assertTrue(tempFile.length() > 0);
 		assertNotNull(MicroProjectXlsxReader.readMicroProjectProject(tempFile));
 		ProjectMergeService mergeService = new ProjectMergeService();
-		com.microproject.pm.task.Project reloaded = mergeService.loadExternalProject(tempFile.getAbsolutePath());
+		com.microproject.model.task.Project reloaded = mergeService.loadExternalProject(tempFile.getAbsolutePath());
 		assertNotNull(reloaded);
 		assertEquals(taskCount, reloaded.getTasks().size());
 
@@ -885,7 +885,7 @@ public class XlsxSupportTest {
 		throw new AssertionError("Missing sample: " + name);
 	}
 
-	private Map<Long, TaskSnapshot> snapshotsById(com.microproject.pm.task.Project project) {
+	private Map<Long, TaskSnapshot> snapshotsById(com.microproject.model.task.Project project) {
 		Map<Long, TaskSnapshot> tasks = new HashMap<Long, TaskSnapshot>();
 		for (Object value : project.getTasks()) {
 			if (!(value instanceof NormalTask)) {
@@ -933,7 +933,7 @@ public class XlsxSupportTest {
 
 		MspImporter importer = new MspImporter();
 		InputStream in = new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8));
-		com.microproject.pm.task.Project imported = importer.importProject(in, "xlsx", new MspImporter.ProgressClosure() {
+		com.microproject.model.task.Project imported = importer.importProject(in, "xlsx", new MspImporter.ProgressClosure() {
 			@Override
 			public void updateProgress(float progress, String label) {
 			}
@@ -959,7 +959,7 @@ public class XlsxSupportTest {
 			}
 		};
 
-		com.microproject.pm.task.Project imported = new MspImporter().importProject(unmarked, "xml",
+		com.microproject.model.task.Project imported = new MspImporter().importProject(unmarked, "xml",
 			(progress, label) -> {});
 
 		assertNotNull(imported);

@@ -1,0 +1,482 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.model.assignment;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+import com.microproject.options.CalendarOption;
+import com.microproject.model.availability.Availability;
+import com.microproject.model.assignment.contour.ContourFactory;
+import com.microproject.model.assignment.contour.ContourTypes;
+import com.microproject.model.assignment.contour.ContourBucketIntervalGenerator;
+import com.microproject.model.assignment.contour.AbstractContourBucket;
+import com.microproject.model.assignment.contour.PersonalContourBucket;
+import com.microproject.model.assignment.functor.ResourceAvailabilityFunctor;
+import com.microproject.schedule.ScheduleInterval;
+import com.microproject.model.resource.ResourceImpl;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.model.time.MutableInterval;
+import com.microproject.undo.DataFactoryUndoController;
+
+class AssignmentContourBehaviorTest {
+	@Test
+	void assignmentChildrenToRollupIsEmptyForLeafAssignments() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+
+		Assignment assignment = Assignment.getInstance(task, resource, 1.0D, 0);
+		Collection children = assignment.childrenToRollup();
+
+		assertTrue(children.isEmpty());
+	}
+
+	@Test
+	void contourFactoryRejectsUnknownContourTypes() {
+		IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+				() -> ContourFactory.getInstance(-1));
+
+		assertEquals("Unknown contour type: -1", exception.getMessage());
+	}
+
+	@Test
+	void typedContourKindsKeepMspdiCodesAndFactoryBehavior() {
+		for (ContourTypes.Kind kind : ContourTypes.Kind.values()) {
+			assertEquals(kind, ContourTypes.Kind.fromCode(kind.code()));
+			if (kind != ContourTypes.Kind.CONTOURED) {
+				assertEquals(kind, ContourFactory.getInstance(kind).getTypeKind());
+				assertEquals(kind, ContourFactory.getInstance(kind.code()).getTypeKind());
+			}
+		}
+		assertThrows(IllegalArgumentException.class,
+				() -> ContourFactory.getInstance(ContourTypes.Kind.CONTOURED));
+	}
+
+	@Test
+	void assignmentContourApiExposesKindAndPreservesLegacyCode() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0D, 0L, this);
+
+		assignment.setWorkContourTypeKind(ContourTypes.Kind.BACK_LOADED);
+
+		assertEquals(ContourTypes.Kind.BACK_LOADED, assignment.getWorkContourTypeKind());
+		assertEquals(ContourTypes.Kind.BACK_LOADED.code(), assignment.getWorkContourType());
+	}
+
+	@Test
+	void settingWorkWithAStandardContourUsesItsMeanUnits() {
+		long assignmentSpan = 16L * 60L * 60L * 1000L;
+		double[] meanUnits = { 1.0D, 0.6D, 0.6D, 0.5D, 0.5D, 0.5D, 0.5D, 0.7D };
+		ContourTypes.Kind[] kinds = ContourTypes.Kind.values();
+		for (double units : new double[] { 0.5D, 1.0D, 2.0D }) {
+			for (int code = 0; code < meanUnits.length; code++) {
+				Project project = createProject();
+				NormalTask task = createTask(project);
+				Assignment assignment = Assignment.getInstance(task,
+					project.getResourcePool().newResourceInstance(), units, 0L);
+				long expectedWork = Math.round(assignmentSpan * meanUnits[code] * units);
+
+				assignment.setWorkContourTypeKind(kinds[code]);
+				assignment.setWork(expectedWork, null);
+
+				assertEquals(expectedWork, assignment.getWork(null),
+					"contour " + code + " at assignment units " + units);
+				assertEquals(assignmentSpan, assignment.getDuration(),
+					"contour " + code + " must preserve the source assignment span");
+				assertEquals(units, assignment.getUnits(), 0.00001D,
+					"contour " + code + " must preserve assignment units");
+				assertEquals(kinds[code], assignment.getWorkContourTypeKind(),
+					"contour " + code + " must preserve the selected standard type");
+				assertEquals(expectedWork,
+					Math.round(assignment.getWorkContour().calcTotalWork(assignment.getDuration()) * units),
+					"contour " + code + " work must match the contour total");
+			}
+		}
+	}
+
+	@Test
+	void settingAlreadyZeroWorkPreservesExplicitAssignmentUnits() {
+		for (double units : new double[] { 0.0D, 0.5D, 1.0D, 2.0D }) {
+			Project project = createProject();
+			NormalTask task = createTask(project);
+			Assignment assignment = Assignment.getInstance(task,
+				project.getResourcePool().newResourceInstance(), units, 0L);
+			assignment.setWorkContourTypeKind(ContourTypes.Kind.BACK_LOADED);
+			long start = assignment.getStart();
+			long end = assignment.getEnd();
+
+			assignment.setWork(0L, null);
+
+			assertEquals(units, assignment.getUnits(), "zero-work no-op must preserve " + units + " units");
+			assertEquals(0L, assignment.getWork(null), "zero-work no-op must preserve work");
+			assertEquals(0L, assignment.getDuration(), "zero-work no-op must preserve duration");
+			assertEquals(ContourTypes.Kind.BACK_LOADED, assignment.getWorkContourTypeKind(),
+				"zero-work no-op must preserve non-flat contour");
+			assertEquals(start, assignment.getStart(), "zero-work no-op must preserve start");
+			assertEquals(end, assignment.getEnd(), "zero-work no-op must preserve end");
+		}
+	}
+
+	@Test
+	void importedBoundsMustBeInitializedBeforeAssignmentWork() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		Assignment assignment = Assignment.getInstance(task,
+			project.getResourcePool().newResourceInstance(), 1.0D, 0L);
+		long start = task.getStart();
+		assignment.initializeImportedBounds(start, start + 60L * 60L * 1000L);
+		assertEquals(0L, assignment.getWork(null));
+		assertEquals(0L, assignment.getActualWork(null));
+		assertEquals(0L, assignment.getRemainingWork(null));
+
+		assignment.setWork(60L * 60L * 1000L, null);
+		assertThrows(IllegalStateException.class,
+			() -> assignment.initializeImportedBounds(start, start + 60L * 60L * 1000L));
+		assertEquals(60L * 60L * 1000L, assignment.getWork(null));
+	}
+
+	@Test
+	void importedBoundsAtZeroUnitsPreserveZeroWorkAndPositiveSpan() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		Assignment assignment = Assignment.getInstance(task,
+			project.getResourcePool().newResourceInstance(), 0.0D, 0L);
+		long start = task.getStart();
+		long finish = start + 60L * 60L * 1000L;
+
+		assignment.initializeImportedBounds(start, finish);
+
+		assertEquals(0L, assignment.getWork(null));
+		assertEquals(0L, assignment.getActualWork(null));
+		assertEquals(0L, assignment.getRemainingWork(null));
+		assertEquals(0.0D, assignment.getUnits(), 0.00001D);
+		assertEquals(start, assignment.getStart());
+		assertEquals(finish, assignment.getEnd());
+	}
+
+	@Test
+	void settingActualWorkOnAStandardContourUsesItsCumulativeProfile() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long span = 8L * 60L * 60L * 1000L;
+		long totalWork = Math.round(span * 0.6D);
+		long actualWork = totalWork / 2L;
+		Assignment assignment = Assignment.getInstance(task,
+			project.getResourcePool().newResourceInstance(), 1.0D, 0L);
+		assignment.setWorkContourTypeKind(ContourTypes.Kind.BACK_LOADED);
+		assignment.setWork(totalWork, null);
+		assertEquals(span, assignment.getDuration(), "source work must map back to the 8-hour contour span");
+		assertEquals(totalWork, assignment.getWork(null), "source work must be preserved before progress");
+		assignment.setPercentComplete(0.5D);
+
+		assignment.setActualWork(actualWork, null);
+
+		assertEquals(actualWork, assignment.getActualWork(null));
+		assertEquals(totalWork, assignment.getWork(null), "source work must be preserved after actual work");
+		assertEquals(span, assignment.getDuration(), "source duration must be preserved after actual work");
+		assignment.setActualWork(actualWork, null);
+		assertEquals(actualWork, assignment.getActualWork(null),
+			"reapplying the same actual-work scalar must not move its contour position");
+		assignment.setRemainingWork(totalWork - actualWork, null);
+		assertEquals(actualWork, assignment.getActualWork(null),
+			"importing matching remaining work must preserve the explicit actual-work scalar");
+	}
+
+	@Test
+	void personalContourBucketRejectsNegativeDuration() {
+		IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+				() -> PersonalContourBucket.getInstance(-1L, 0.5D));
+
+		assertEquals("Negative contour bucket duration: -1", exception.getMessage());
+	}
+
+	@Test
+	void assignmentDetailSetWorkCalendarOverridesEffectiveCalendar() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		Assignment assignment = Assignment.getInstance(task, resource, 1.0D, 0);
+
+		assignment.detail.setWorkCalendar(project.getWorkCalendar());
+
+		assertEquals(project.getWorkCalendar(), assignment.getEffectiveWorkCalendar());
+	}
+
+	@Test
+	void assignmentResourceAvailabilityRespectsAvailabilityTable() throws Exception {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(2L * day);
+		Assignment assignment = firstAssignment(task);
+		ResourceImpl resource = (ResourceImpl) assignment.getResource();
+		long split = assignment.getEffectiveWorkCalendar().add(assignment.getStart(), day, false);
+		Availability halfRate = (Availability) resource.getAvailabilityTable().newValueObject(split);
+		halfRate.setMaximumUnits(0.5D);
+
+		assertEquals((long) (1.5D * day), assignment.getResourceAvailability());
+	}
+
+	@Test
+	void resourceAvailabilityFunctorUsesTimeScaledAvailability() throws Exception {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		Assignment assignment = Assignment.getInstance(task, project.getResourcePool().newResourceInstance(), 1.0D, 0);
+		ResourceImpl resource = (ResourceImpl) assignment.getResource();
+		long split = assignment.getEffectiveWorkCalendar().add(assignment.getStart(), day, false);
+		Availability halfRate = (Availability) resource.getAvailabilityTable().newValueObject(split);
+		halfRate.setMaximumUnits(0.5D);
+
+		ResourceAvailabilityFunctor functor = ResourceAvailabilityFunctor.getInstance(resource);
+		functor.initialize();
+		functor.accept(new MutableInterval(assignment.getStart(), split));
+		functor.accept(new MutableInterval(split, assignment.getEffectiveWorkCalendar().add(split, day, false)));
+
+		assertEquals((long) (1.5D * day), (long) functor.getValue());
+	}
+
+	@Test
+	void assignmentDetailSplitShiftsTheRemainingWork() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		long duration = 3L * day;
+		task.setDuration(duration);
+		Assignment assignment = firstAssignment(task);
+		var calendar = assignment.getEffectiveWorkCalendar();
+		long splitFrom = calendar.add(assignment.getStart(), day, false);
+		long splitTo = calendar.add(splitFrom, day, false);
+		List<ScheduleInterval> before = assignmentIntervals(assignment);
+
+		assignment.detail.split(null, splitFrom, splitTo);
+
+		assertTrue(assignment.getWorkContour().isPersonal());
+		List<ScheduleInterval> after = assignmentIntervals(assignment);
+		assertEquals(1, before.size());
+		assertEquals(2, after.size(), "split must add a distinct working interval after the nonworking gap");
+		assertEquals(before.getFirst().getStart(), after.getFirst().getStart());
+		assertTrue(after.getFirst().getEnd() < after.getLast().getStart(),
+			"split must leave a nonworking gap in the requested interval");
+		assertEquals(day, calendar.compare(after.getLast().getStart(), after.getFirst().getEnd(), false));
+	}
+
+	@Test
+	void assignmentSplitKeepsPersonalContourWorkAndRequestedGapExact() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		task.getCurrentSchedule().setStart(project.getStart());
+		task.setDuration(5L * CalendarOption.getInstance().getMillisPerDay());
+		Assignment assignment = firstAssignment(task);
+		project.recalculate();
+		long workBefore = assignment.getWork(null);
+		long actualBefore = assignment.getActualWork(null);
+		long remainingBefore = assignment.getRemainingWork();
+		String originalContour = assignment.getWorkContour().toString(assignment.getDurationMillis());
+		long gapStart = assignment.getStart() + com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		long gapEnd = gapStart + com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR;
+		var undoController = project.getUndoController();
+		undoController.discardAllEdits();
+
+		assertTrue(com.microproject.schedule.ScheduleService.getInstance().split(this, assignment, gapStart, gapEnd,
+			undoController.getEditSupport()));
+		project.recalculate();
+
+		assertEquals(workBefore, assignment.getWork(null), "a split must not change scalar assignment work");
+		assertEquals(actualBefore, assignment.getActualWork(null), "a split must preserve actual work");
+		assertEquals(remainingBefore, assignment.getRemainingWork(), "a split must preserve remaining work");
+		assertEquals(assignment.getWork(null), assignment.getWorkContour().calcTotalWork(assignment.getDurationMillis()),
+			"personal contour buckets must sum to the exact scalar assignment work");
+		List<ScheduleInterval> intervals = assignmentIntervals(assignment);
+		assertEquals(2, intervals.size(), "manual split must retain two working intervals around its gap");
+		assertEquals(com.microproject.model.calendar.WorkCalendar.MILLIS_IN_HOUR,
+			assignment.getEffectiveWorkCalendar().compare(intervals.getLast().getStart(), intervals.getFirst().getEnd(), false),
+			"manual split must retain the exact one-hour gap");
+		String splitContour = assignment.getWorkContour().toString(assignment.getDurationMillis());
+		undoController.undo();
+		assertEquals(originalContour, assignment.getWorkContour().toString(assignment.getDurationMillis()),
+			"Undo must restore the exact pre-split contour");
+		assertEquals(workBefore, assignment.getWork(null));
+		assertEquals(actualBefore, assignment.getActualWork(null));
+		assertEquals(remainingBefore, assignment.getRemainingWork());
+		undoController.redo();
+		assertEquals(splitContour, assignment.getWorkContour().toString(assignment.getDurationMillis()),
+			"Redo must restore the exact split contour and zero-work gap");
+		assertEquals(workBefore, assignment.getWork(null));
+		assertEquals(actualBefore, assignment.getActualWork(null));
+		assertEquals(remainingBefore, assignment.getRemainingWork());
+	}
+
+	private List<ScheduleInterval> assignmentIntervals(Assignment assignment) {
+		List<ScheduleInterval> intervals = new ArrayList<>();
+		assignment.consumeIntervals(intervals::add);
+		return List.copyOf(intervals);
+	}
+
+	@Test
+	void assignmentCloneCopiesDetailState() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		Assignment assignment = Assignment.getInstance(task, resource, 1.0D, 0);
+		assignment.detail.setPercentComplete(0.25D);
+		assignment.detail.setWorkCalendar(project.getWorkCalendar());
+
+		Assignment cloned = (Assignment) assignment.clone();
+
+		assertTrue(assignment != cloned);
+		assertTrue(assignment.detail != cloned.detail);
+		assertEquals(0.25D, cloned.getPercentComplete());
+		assertEquals(project.getWorkCalendar(), cloned.getEffectiveWorkCalendar());
+		assignment.detail.setPercentComplete(0.5D);
+		assertEquals(0.25D, cloned.getPercentComplete());
+	}
+
+	@Test
+	void assignmentPercentCompleteIsBoundedAndZeroDurationDoesNotProduceNaN() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		Assignment assignment = Assignment.getInstance(task, project.getResourcePool().newResourceInstance(), 1.0D, 0);
+
+		assignment.detail.setPercentComplete(-0.5D);
+		assertEquals(0.0D, assignment.getPercentComplete());
+		assignment.detail.setPercentComplete(1.5D);
+		assertEquals(1.0D, assignment.getPercentComplete());
+		assignment.detail.setRemainingDuration(0L);
+		assertTrue(Double.isFinite(assignment.getPercentComplete()));
+	}
+
+	@Test
+	void assignmentPercentCompleteRejectsNonFiniteValues() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		Assignment assignment = Assignment.getInstance(task, project.getResourcePool().newResourceInstance(), 1.0D, 0);
+
+		assertThrows(IllegalArgumentException.class, () -> assignment.detail.setPercentComplete(Double.NaN));
+		assertThrows(IllegalArgumentException.class, () -> assignment.detail.setPercentComplete(Double.POSITIVE_INFINITY));
+	}
+
+	@Test
+	void makingAContourPersonalPreservesWorkState() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(2L * day);
+		Assignment assignment = firstAssignment(task);
+		assignment.detail.setPercentComplete(0.5D);
+
+		long work = assignment.getWork(null);
+		long actualWork = assignment.getActualWork(null);
+		long remainingWork = assignment.getRemainingWork();
+		double units = assignment.getUnits();
+
+		assignment.makeContourPersonal();
+
+		assertEquals(work, assignment.getWork(null));
+		assertEquals(actualWork, assignment.getActualWork(null));
+		assertEquals(remainingWork, assignment.getRemainingWork());
+		assertEquals(units, assignment.getUnits());
+	}
+
+	@Test
+	void contourGeneratorTraversesReverseScheduledAssignments() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(2L * day);
+		project.setForward(false);
+		Assignment assignment = firstAssignment(task);
+		ContourBucketIntervalGenerator generator = assignment.contourGeneratorInstance(HasTimeDistributedData.WORK);
+		long initialEnd = generator.getEnd();
+
+		assertTrue(generator.test(generator));
+		assertTrue(generator.current() != null);
+		assertTrue(generator.getEnd() != initialEnd);
+	}
+
+	@Test
+	void dependencySplitPreservesEffectiveUnitsForHalfUnitStandardContour() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		task.setDuration(2L * CalendarOption.getInstance().getMillisPerDay());
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 0.5D, 0L, this);
+		assignment.setWorkContourTypeKind(ContourTypes.Kind.FLAT);
+		assignment.setPercentComplete(0.5D);
+		long actualDuration = assignment.getActualDuration();
+		assertTrue(actualDuration > 0L, "fixture needs a completed portion to trigger dependency splitting");
+		long delayedStart = assignment.getEffectiveWorkCalendar().add(assignment.getStart(),
+			actualDuration + CalendarOption.getInstance().getMillisPerDay() / 2L, true);
+		task.setDependencyStart(delayedStart);
+
+		ContourBucketIntervalGenerator generator = assignment.contourGeneratorInstance(HasTimeDistributedData.WORK);
+		boolean sawSplitBucket = false;
+		long generatedWork = 0L;
+		while (generator.hasNext() && generator.test(null)) {
+			if (!(generator.current() instanceof AbstractContourBucket bucket)
+					|| bucket.isFiller())
+				continue;
+			double effectiveUnits = bucket.getEffectiveUnits(assignment.getUnits());
+			if (bucket instanceof PersonalContourBucket && effectiveUnits > 0D) {
+				sawSplitBucket = true;
+				assertEquals(0.5D, effectiveUnits, 0.000001D,
+					"split personal buckets must retain the effective allocation from the standard contour");
+			}
+			generatedWork += Math.round(effectiveUnits * bucket.getBucketDuration(assignment.getDurationMillis()));
+		}
+		assertTrue(sawSplitBucket, "dependency delay should split a standard contour bucket into a personal bucket");
+		assertEquals(assignment.getWork(null), generatedWork,
+			"splitting a standard contour must preserve the assignment's calculated work");
+	}
+
+	private Project createProject() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		return project;
+	}
+
+	private NormalTask createTask(Project project) {
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+		return task;
+	}
+
+	private Assignment firstAssignment(NormalTask task) {
+		return (Assignment) task.getAssignments().iterator().next();
+	}
+}

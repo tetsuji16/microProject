@@ -192,7 +192,7 @@ foreach ($locale in @('ja','en')) {
   foreach ($scale in @('1','1.25','1.5')) {
     .\gradlew.bat :microproject_ui:guiTest `
       "-PguiTestLocale=$locale" "-PguiTestUiScale=$scale" `
-      --tests "com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest" `
+      --tests "com.microproject.model.graphic.frames.TaskInformationRibbonGuiAcceptanceTest" `
       --tests "com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest" `
       --max-workers=1 --no-daemon --console=plain
   }
