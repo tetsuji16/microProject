@@ -730,6 +730,8 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 
 	/** Per-category sheet text styles, persisted by MPO sidecar (not POD). */
 	public SheetTextStyles getSheetTextStyles() {
+		if (sheetTextStyles == null)
+			sheetTextStyles = SheetTextStyles.empty();
 		return sheetTextStyles;
 	}
 

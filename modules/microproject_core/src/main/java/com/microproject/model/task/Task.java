@@ -1581,7 +1581,10 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 		return marked;
 	}
 	public void setMarked(boolean marked) {
+		if (this.marked == marked)
+			return;
 		this.marked = marked;
+		setDirty(true);
 	}
 	/** @deprecated use {@link #getEarnedValueMethodKind()} for typed access. */
 	@Deprecated

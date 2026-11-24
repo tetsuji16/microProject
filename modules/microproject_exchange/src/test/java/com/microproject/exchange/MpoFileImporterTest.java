@@ -7082,15 +7082,10 @@ class MpoFileImporterTest {
 	}
 
 	@Test
-	void olderMpoWithoutSheetTextStylesLoadsWithAnEmptyStyleSet() throws Exception {
-		Map<String, byte[]> entries = readEntries(saveProjectBytes(projectForRoundTrip()));
-		entries.remove(MpoFileImporter.SHEET_TEXT_STYLES_ENTRY);
-		String manifest = new String(entries.get(MpoFileImporter.MANIFEST_ENTRY), StandardCharsets.UTF_8);
-		manifest = manifest.replaceAll("(?m)^\\s*<entry\\s+path=\\\""
-			+ java.util.regex.Pattern.quote(MpoFileImporter.SHEET_TEXT_STYLES_ENTRY)
-			+ "\\\" sha256=\\\"[^\\\"]*\\\"\\s*/>\\R?", "");
-		entries.put(MpoFileImporter.MANIFEST_ENTRY, manifest.getBytes(StandardCharsets.UTF_8));
-		Project reopened = loadFromBytes(zip(entries).toByteArray());
+	void olderMpoFixtureWithoutSheetTextStylesLoadsWithAnEmptyStyleSet() throws Exception {
+		Path fixture = Path.of("testdata", "mpo", "v024-1265-previous-writer.mpo");
+		assertTrue(Files.isRegularFile(fixture), "legacy MPO fixture must be present");
+		Project reopened = loadFromBytes(Files.readAllBytes(fixture));
 		assertNotNull(reopened.getSheetTextStyles());
 		assertTrue(reopened.getSheetTextStyles().isEmpty());
 	}

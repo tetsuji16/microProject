@@ -11,7 +11,9 @@ Baseline working tree: clean in the dedicated integration worktree
 
 Create the core model (`SheetTextFormat`, `SheetTextStyleCategory`, `SheetTextStyles`) and MPO sidecar persistence for per-category sheet text styles, without changing UI/rendering or POD format.
 
-The task model did not have MSP's Marked field. To meet AC1, add a transient boolean to `Task` and store it in an MPO sidecar so existing POD serialization remains unchanged. Microsoft defines Marked as an entered Yes/No task field and documents that Text Styles' Marked Tasks category applies to marked tasks: https://support.microsoft.com/en-us/project/marked-task-field. This is a document-derived compatibility rule; physical MSP comparison was not performed.
+The task model did not have MSP's Marked field. To meet AC1, add a transient boolean to `Task` and store it in an MPO sidecar so existing POD serialization remains unchanged. Microsoft defines Marked as an entered Yes/No task field and says it can apply text formatting to marked tasks in Text Styles: https://support.microsoft.com/en-us/project/marked-task-field. This is a document-derived compatibility rule; physical MSP comparison was not performed. The direct model setter marks the task dirty. No UI/editor/Undo command is added here; those remain in #1283.
+
+For resource styles, a shared `ResourcePool` can belong to multiple Projects, so `resolve(Resource)` cannot infer which sheet is active. It returns no style when that context is ambiguous; callers must use `resolve(Project, Resource)`. The shared-pool behavior has a core regression test.
 
 Out of scope:
 - Dialog, ribbon, rendering application (#1283)
@@ -26,13 +28,15 @@ Blockers: none
 |---|---|---|---|
 | AC1 | `SheetTextStylesTest` proves `MARKED_TASKS` wins over `CRITICAL_TASKS` for a task matching both | done | `markedTasksTakePriorityOverCriticalTasks`, tested SHA pending push |
 | AC2 | MPO round-trip test: save 2 categories and a marked task, reload, values match | done | `mpoRoundTripPreservesSheetTextStylesAndMarkedTasks`, tested SHA pending push |
-| AC3 | MPO archive without `sheetTextStyles` loads with `isEmpty() == true` | done | `olderMpoWithoutSheetTextStylesLoadsWithAnEmptyStyleSet`, tested SHA pending push |
+| AC3 | MPO archive without `sheetTextStyles` loads with `isEmpty() == true` | done | `olderMpoFixtureWithoutSheetTextStylesLoadsWithAnEmptyStyleSet` using `testdata/mpo/v024-1265-previous-writer.mpo`; previous samples/CCPM sample English.mpo is corrupt (ZipException invalid entry size) |
 | AC4 | POD read/write tests unchanged and all pass | done | `build`; both new POD-owned properties are transient and a focused reflection assertion enforces this |
 | AC5 | `git diff --check` passes; `build` and module tests pass | done | full `build` and `git diff --cached --check` pass; exact SHA CI pending |
 
 ## Current slice
 
-**Current slice:** Merged current master after its package-layout refactor; moved format types under `com.microproject.model.format`; added transient `Task.marked` plus MPO persistence; completed sheet-style MPO read/write and regression tests.
+**Current slice:** Integrated the package-layout refactor; added transient Marked state + MPO sidecar, guaranteed lazy empty styles on legacy deserialization, and added explicit project context for shared resource style resolution. Restored master-only trailing blank lines through the pending master integration.
+
+**Compatibility limits:** Marked is not currently exposed as an editor/UI command and no Undo/revision publication path is implemented here; #1283 owns UI. Resource format callers must pass active Project context for shared pools.
 
 **Done when:** All AC1–AC5 pass locally.
 
@@ -45,7 +49,7 @@ Blockers: none
 ## Latest evidence
 
 - `.\gradlew.bat :microproject_core:test --tests "*SheetTextStylesTest*" --console=plain`: PASS
-- `.\gradlew.bat :microproject_exchange:test --tests "com.microproject.exchange.MpoFileImporterTest.mpoRoundTripPreservesSheetTextStylesAndMarkedTasks" --tests "com.microproject.exchange.MpoFileImporterTest.olderMpoWithoutSheetTextStylesLoadsWithAnEmptyStyleSet" --console=plain`: PASS
+- `.\gradlew.bat :microproject_exchange:test --tests "com.microproject.exchange.MpoFileImporterTest.mpoRoundTripPreservesSheetTextStylesAndMarkedTasks" --tests "com.microproject.exchange.MpoFileImporterTest.olderMpoFixtureWithoutSheetTextStylesLoadsWithAnEmptyStyleSet" --console=plain`: PASS
 - `.\gradlew.bat :microproject_core:test :microproject_exchange:test --console=plain`: PASS
 - `.\gradlew.bat build --console=plain`: PASS (5m16s)
 - `git diff --cached --check`: PASS

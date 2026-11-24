@@ -118,16 +118,23 @@ public final class SheetTextStyles {
     public static SheetTextFormat resolve(Resource resource) {
         if (resource == null) return null;
         Document doc = resource.getDocument();
-        Project project = null;
-        if (doc instanceof Project) {
-            project = (Project) doc;
-        } else if (doc instanceof ResourcePool) {
-            List<Project> projects = ((ResourcePool) doc).getProjects();
-            if (!projects.isEmpty()) {
-                project = projects.get(0);
-            }
+        if (doc instanceof Project project) return resolve(project, resource);
+        if (doc instanceof ResourcePool pool) {
+            List<Project> projects = pool.getProjects();
+            // A shared pool has no active-project context. Never apply an arbitrary project's styles.
+            if (projects.size() == 1) return resolve(projects.get(0), resource);
         }
-        if (project == null) return null;
+        return null;
+    }
+
+    /**
+     * Resolves resource text style in the context of the project whose sheet is being rendered.
+     * The resource must belong to the project or its shared resource pool.
+     */
+    public static SheetTextFormat resolve(Project project, Resource resource) {
+        if (project == null || resource == null) return null;
+        Document doc = resource.getDocument();
+        if (doc != project && doc != project.getResourcePool()) return null;
         SheetTextStyles styles = project.getSheetTextStyles();
         if (styles == null || styles.isEmpty()) return null;
 

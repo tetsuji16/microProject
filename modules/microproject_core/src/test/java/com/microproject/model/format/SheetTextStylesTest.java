@@ -64,6 +64,13 @@ class SheetTextStylesTest {
     }
 
     @Test
+    void newProjectStartsWithAnEmptySheetTextStyleSet() {
+        Project project = newProject();
+        assertNotNull(project.getSheetTextStyles());
+        assertTrue(project.getSheetTextStyles().isEmpty());
+    }
+
+    @Test
     void emptyStylesReturnsNull() {
         Project project = newProject();
         SheetTextStyles styles = SheetTextStyles.empty();
@@ -102,7 +109,7 @@ class SheetTextStylesTest {
         // Create a critical task (long duration) and a parallel non-critical task (short duration, no dependency)
         NormalTask criticalTask = addTask(project, "Critical", null);
         criticalTask.setDuration(10L * 8L * 60L * 60L * 1000L); // 10 days
-        
+
         NormalTask nonCriticalTask = addTask(project, "NonCritical", null);
         nonCriticalTask.setDuration(1L * 8L * 60L * 60L * 1000L); // 1 day
         // No dependency - nonCriticalTask runs in parallel, finishes early, has slack
@@ -111,6 +118,45 @@ class SheetTextStylesTest {
         // Non-critical task should not match CRITICAL_TASKS or MILESTONE_TASKS
         SheetTextFormat resolved = SheetTextStyles.resolve(nonCriticalTask);
         assertNull(resolved); // No ALL set, not critical, not milestone
+    }
+
+    @Test
+    void sharedResourceStylesRequireAnExplicitProjectContext() {
+        DataFactoryUndoController undo = new DataFactoryUndoController();
+        ResourcePool pool = ResourcePool.createRourcePool("shared-format-test", undo);
+        Project first = Project.createProject(pool, undo);
+        first.initialize(false, false);
+        pool.addProject(first);
+        Project second = Project.createProject(pool, undo);
+        second.initialize(false, false);
+        pool.addProject(second);
+        Resource resource = pool.newResourceInstance();
+        SheetTextFormat firstStyle = new SheetTextFormat("First", 11, null, false, false, false, false, null);
+        SheetTextFormat secondStyle = new SheetTextFormat("Second", 12, null, false, false, false, false, null);
+        SheetTextStyles firstStyles = SheetTextStyles.empty();
+        firstStyles.set(SheetTextStyleCategory.ALL_RESOURCES, firstStyle);
+        first.setSheetTextStyles(firstStyles);
+        SheetTextStyles secondStyles = SheetTextStyles.empty();
+        secondStyles.set(SheetTextStyleCategory.ALL_RESOURCES, secondStyle);
+        second.setSheetTextStyles(secondStyles);
+
+        assertNull(SheetTextStyles.resolve(resource), "shared pool alone cannot identify the active project");
+        assertEquals(firstStyle, SheetTextStyles.resolve(first, resource));
+        assertEquals(secondStyle, SheetTextStyles.resolve(second, resource));
+    }
+
+    @Test
+    void changingMarkedStateMarksTaskDirty() {
+        Project project = newProject();
+        NormalTask task = addTask(project, "Marked", null);
+        task.setDirty(false);
+
+        task.setMarked(true);
+
+        assertTrue(task.isDirty());
+        task.setDirty(false);
+        task.setMarked(true);
+        assertFalse(task.isDirty(), "setting the existing value must not create a dirty change");
     }
 
     @Test
@@ -145,7 +191,7 @@ class SheetTextStylesTest {
         // Add a long-duration task to make the critical path longer
         NormalTask longTask = addTask(project, "LongTask", null);
         longTask.setDuration(20L * 8L * 60L * 60L * 1000L); // 20 days
-        
+
         NormalTask summary = addTask(project, "Summary", null);
         NormalTask child = addTask(project, "Child", summary);
         // Summary and child are short, so they have slack
@@ -171,7 +217,7 @@ class SheetTextStylesTest {
         // Create a non-critical task by giving it slack (parallel, shorter duration)
         NormalTask criticalTask = addTask(project, "Critical", null);
         criticalTask.setDuration(10L * 8L * 60L * 60L * 1000L); // 10 days
-        
+
         NormalTask nonCriticalTask = addTask(project, "NonCritical", null);
         nonCriticalTask.setDuration(1L * 8L * 60L * 60L * 1000L); // 1 day
         // No dependency - nonCriticalTask runs in parallel, finishes early, has slack
