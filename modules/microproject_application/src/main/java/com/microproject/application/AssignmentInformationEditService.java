@@ -35,7 +35,10 @@ public final class AssignmentInformationEditService {
 		Map<Assignment, Object> before = new LinkedHashMap<>();
 		before.put(assignment, assignment.backupDetail());
 		int transaction = project.fireMultipleTransaction(0, true);
-		project.beginUndoUpdate();
+		var editSupport = project.getUndoController().getEditSupport();
+		var command = editSupport.beginCommand();
+		var checkpoint = editSupport.checkpoint(command.group());
+		boolean applied = false;
 		try {
 			project.getUndoController().getEditSupport().postEdit(new AssignmentDetailStateEdit(before, Map.of()));
 			if (Double.compare(units, assignment.getUnits()) != 0) assignment.forceUnits(units);
@@ -44,14 +47,23 @@ public final class AssignmentInformationEditService {
 			assignment.doUpdateService(source);
 			Map<Assignment, Object> after = Map.of(assignment, assignment.backupDetail());
 			project.getUndoController().getEditSupport().postFinalEdit(new AssignmentDetailStateEdit(Map.of(), after));
+			applied = true;
 			return true;
 		} catch (RuntimeException | Error failure) {
-			assignment.restoreDetail(before.get(assignment));
-			assignment.doUpdateService(source);
+			var rollbackRecording = editSupport.suppressRecording();
+			try {
+				assignment.restoreDetail(before.get(assignment));
+				assignment.doUpdateService(source);
+			} finally {
+				rollbackRecording.close();
+			}
+			editSupport.discardSince(command.group(), checkpoint);
 			throw failure;
 		} finally {
 			project.fireMultipleTransaction(transaction, false);
-			project.endUndoUpdate();
+			if (applied) editSupport.reserveCommit(command.group());
+			command.close();
+			editSupport.completePublication(command.group());
 		}
 	}
 }

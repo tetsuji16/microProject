@@ -157,10 +157,26 @@ class AssignmentInformationDialogTest {
 		assignment.setWorkContourTypeKind(ContourTypes.Kind.FLAT);
 		assignment.setNotes("Before");
 		project.getUndoController().clear();
+		boolean[] priorEditUndone = { false };
+		project.getUndoController().getEditSupport().postEdit(new javax.swing.undo.AbstractUndoableEdit() {
+			private static final long serialVersionUID = 1L;
+			@Override public void undo() {
+				super.undo();
+				priorEditUndone[0] = true;
+			}
+		});
+		assertTrue(project.getUndoController().canUndo(), "pre-existing history is available before the failed edit");
 
 		org.junit.jupiter.api.Assertions.assertThrows(NullPointerException.class, () ->
 			com.microproject.application.AssignmentInformationEditService.apply(assignment,
 				2.0, null, "After", this));
+		assertEquals(1.0, assignment.getUnits(), 0.001);
+		assertEquals(ContourTypes.Kind.FLAT, assignment.getWorkContourTypeKind());
+		assertEquals("Before", assignment.getNotes());
+		assertTrue(project.getUndoController().canUndo(), "failure must retain the earlier history without a broken edit");
+		project.getUndoController().undo();
+		assertTrue(priorEditUndone[0], "the earlier undo entry remains the top history item");
+		assertFalse(project.getUndoController().canUndo(), "the failed assignment edit must not be added to history");
 		assertEquals(1.0, assignment.getUnits(), 0.001);
 		assertEquals(ContourTypes.Kind.FLAT, assignment.getWorkContourTypeKind());
 		assertEquals("Before", assignment.getNotes());
