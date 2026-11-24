@@ -8,6 +8,10 @@ package com.microproject.ui.print;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import javax.print.PrintService;
+import javax.print.attribute.standard.MediaPrintableArea;
+import javax.print.attribute.standard.MediaSizeName;
+
 import org.junit.jupiter.api.Test;
 
 import com.microproject.ui.export.svg.GanttSVGRenderer;
@@ -16,6 +20,7 @@ import com.microproject.model.task.NormalTask;
 import com.microproject.model.task.Project;
 import com.microproject.model.resource.ResourcePool;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.print.ExtendedPageFormat;
 
 /**
  * Issue #1336: fitting a drawing to a page grid must not stretch it. A Gantt chart fitted to "1 page wide by
@@ -73,6 +78,9 @@ class GraphPageableFitToZoomTest {
 		var cache = NodeModelCacheFactory.getInstance().createFilteredCache(referenceCache, "OfflineGantt", null);
 		GanttSVGRenderer renderer = new GanttSVGRenderer();
 		renderer.init(project, cache, null, null, -1, true);
-		return new GraphPageable(renderer, false, false, true);
+		GraphPageable document = new GraphPageable(renderer, false, false, false, new PrintService[0], null);
+		document.setPageFormat(new ExtendedPageFormat(MediaSizeName.NA_LETTER,
+				new MediaPrintableArea(28f / 72, 28f / 72, 556f / 72, 736f / 72, MediaPrintableArea.INCH)));
+		return document;
 	}
 }
