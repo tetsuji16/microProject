@@ -24,6 +24,8 @@
 package com.microproject.ui.dialog;
 
 import java.awt.Frame;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 import javax.swing.JComponent;
 
@@ -44,13 +46,26 @@ public class PageSetupDialog extends AbstractDialog {
 	private PageSetupDialog(Frame owner,PageSetup setup) {
 		super(owner, Messages.getString("PageSetupDialog.Title"),false);
 		this.setup=setup;
+		setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
+		addWindowListener(new WindowAdapter(){
+			@Override public void windowClosing(WindowEvent event){
+				onCancel();
+			}
+		});
 		HelpUtil.addDocHelp(this,"Print_Preview"); // Keep the help topic aligned with the print preview flow.
 	}
 	public JComponent createContentPanel() {
 		return setup.createContentPanel(false);
 	}
+	@Override
+	protected boolean beforeAccept() {
+		setup.saveDialogSettings();
+		return true;
+	}
+	@Override
 	protected void onCancel() {
-		setVisible(false);
+		setup.cancelDialogChanges();
+		super.onCancel();
 	}
 }
 
