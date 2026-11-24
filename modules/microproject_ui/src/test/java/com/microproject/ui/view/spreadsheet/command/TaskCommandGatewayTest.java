@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.CountDownLatch;
@@ -56,6 +57,7 @@ import com.microproject.model.dependency.Dependency;
 import com.microproject.schedule.Schedule;
 import com.microproject.schedule.ScheduleEvent;
 import com.microproject.schedule.ScheduleEventListener;
+import com.microproject.schedule.ScheduleInterval;
 import com.microproject.schedule.ScheduleService;
 import com.microproject.undo.DataFactoryUndoController;
 
@@ -741,6 +743,182 @@ class TaskCommandGatewayTest {
 		assertArrayEquals(scheduleBefore, scheduleState(fixture.task()), "lock rejection must preserve schedule and constraints");
 		assertEquals(canUndoBefore, fixture.project().getUndoController().canUndo());
 		assertEquals(undoNameBefore, fixture.project().getUndoController().getUndoPresentationName());
+	}
+
+	/**
+	 * Every Gantt schedule operation shares one optimistic contract: a gesture whose
+	 * captured projection, schedule values, constraint or work interval changed, and
+	 * a gesture that resolves to the already rendered value, must be rejected before
+	 * the scheduling mutation runs. Neither outcome may publish a domain revision,
+	 * dirty the project or append an Undo entry.
+	 */
+	@Test
+	void everyGanttScheduleOperationRejectsStaleAndNoOpGesturesBeforeMutation() throws Exception {
+		Fixture fixture = createFixture();
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		long hour = 60L * 60_000L;
+		fixture.task().setDuration(8L * day);
+		RevisionedProjectionIndex projection = fixture.cache().getVisibleNodes().getProjectionIndex();
+		ProjectionRowKey.TaskRow row = taskRowFor(projection, fixture.task());
+		Schedule schedule = (Schedule) fixture.task();
+		ScheduleInterval interval = firstInterval(schedule);
+		assertTrue(interval.getStart() < interval.getEnd(), "the fixture must render one non-empty work interval");
+		long[] untouched = scheduleState(fixture.task());
+
+		for (TaskScheduleEditIntent.Operation operation : TaskScheduleEditIntent.Operation.values()) {
+			Gesture changed = changedGesture(operation, schedule, interval, day, hour);
+			Gesture noOp = noOpGesture(operation, schedule, interval, hour);
+
+			List<RejectedGesture> stale = new ArrayList<>();
+			stale.add(new RejectedGesture(scheduleIntent(fixture, projection, row, operation, changed,
+				ScheduleExpectation.STALE_PROJECTION), TaskCommandResult.Status.STALE_PROJECTION,
+				"projection-revision-changed"));
+			stale.add(new RejectedGesture(scheduleIntent(fixture, projection, row, operation, changed,
+				ScheduleExpectation.STALE_SCHEDULE_START), TaskCommandResult.Status.STALE_VALUE,
+				"schedule-value-changed"));
+			stale.add(new RejectedGesture(scheduleIntent(fixture, projection, row, operation, changed,
+				ScheduleExpectation.STALE_CONSTRAINT), TaskCommandResult.Status.STALE_VALUE,
+				"schedule-value-changed"));
+			if (operation != TaskScheduleEditIntent.Operation.PROGRESS
+					&& operation != TaskScheduleEditIntent.Operation.SPLIT)
+				stale.add(new RejectedGesture(scheduleIntent(fixture, projection, row, operation, changed,
+					ScheduleExpectation.STALE_INTERVAL), TaskCommandResult.Status.STALE_VALUE,
+					"schedule-interval-changed"));
+
+			for (RejectedGesture gesture : stale) {
+				AtomicInteger mutationCalls = new AtomicInteger();
+				ScheduleEditBaseline baseline = baseline(fixture);
+				AtomicReference<TaskCommandResult> result = new AtomicReference<>();
+				SwingUtilities.invokeAndWait(() -> result.set(TaskCommandGateway.executeScheduleEdit(
+					fixture.cache(), gesture.intent(), fixture.sheet(), () -> {
+						mutationCalls.incrementAndGet();
+						return true;
+					})));
+				assertEquals(gesture.expected(), result.get().status(),
+					operation + " must report " + gesture.expected() + " for a stale gesture");
+				assertEquals(gesture.reason(), result.get().reason(),
+					operation + " must reject the gesture through its own stale check");
+				assertEquals(0, mutationCalls.get(),
+					operation + " must not enter the scheduling mutation for a stale gesture");
+				assertScheduleEditHadNoSideEffects(fixture, baseline, operation + " stale gesture");
+			}
+
+			AtomicInteger noOpCalls = new AtomicInteger();
+			ScheduleEditBaseline noOpBaseline = baseline(fixture);
+			AtomicReference<TaskCommandResult> noOpResult = new AtomicReference<>();
+			TaskScheduleEditIntent noOpIntent = scheduleIntent(fixture, projection, row, operation, noOp,
+				ScheduleExpectation.CURRENT);
+			SwingUtilities.invokeAndWait(() -> noOpResult.set(TaskCommandGateway.executeScheduleEdit(
+				fixture.cache(), noOpIntent, fixture.sheet(), () -> {
+					noOpCalls.incrementAndGet();
+					return true;
+				})));
+			assertEquals(TaskCommandResult.Status.NO_CHANGE, noOpResult.get().status(),
+				operation + " must report NO_CHANGE when the gesture resolves to the rendered value");
+			assertEquals(0, noOpCalls.get(), operation + " must not enter the scheduling mutation for a no-op gesture");
+			assertScheduleEditHadNoSideEffects(fixture, noOpBaseline, operation + " no-op gesture");
+
+			AtomicInteger changedCalls = new AtomicInteger();
+			AtomicReference<TaskCommandResult> changedResult = new AtomicReference<>();
+			TaskScheduleEditIntent changedIntent = scheduleIntent(fixture, projection, row, operation, changed,
+				ScheduleExpectation.CURRENT);
+			SwingUtilities.invokeAndWait(() -> changedResult.set(TaskCommandGateway.executeScheduleEdit(
+				fixture.cache(), changedIntent, fixture.sheet(), () -> {
+					changedCalls.incrementAndGet();
+					return true;
+				})));
+			assertEquals(TaskCommandResult.Status.CHANGED, changedResult.get().status(),
+				operation + " must apply a current gesture");
+			assertEquals(1, changedCalls.get(),
+				operation + " must run exactly one scheduling mutation for one gesture");
+			assertArrayEquals(untouched, scheduleState(fixture.task()),
+				operation + " must leave the domain mutation to its single command callback");
+		}
+	}
+
+	private record Gesture(long start, long end, long value) { }
+
+	private record RejectedGesture(TaskScheduleEditIntent intent, TaskCommandResult.Status expected,
+			String reason) { }
+
+	private record ScheduleEditBaseline(long[] schedule, boolean dirty, String undoName, boolean canUndo,
+			boolean canRedo, long revision, int pendingEvents) { }
+
+	private enum ScheduleExpectation { CURRENT, STALE_PROJECTION, STALE_SCHEDULE_START, STALE_INTERVAL, STALE_CONSTRAINT }
+
+	/** A gesture that would change the schedule, shaped the way the Gantt routes build it. */
+	private Gesture changedGesture(TaskScheduleEditIntent.Operation operation, Schedule schedule,
+			ScheduleInterval interval, long day, long hour) {
+		return switch (operation) {
+			case MOVE -> new Gesture(interval.getStart() + day, interval.getEnd() + day, 0L);
+			case RESIZE_START -> new Gesture(interval.getStart() + day, interval.getEnd(), 0L);
+			case RESIZE_END -> new Gesture(schedule.getStart(), interval.getEnd() + day, 0L);
+			case PROGRESS -> new Gesture(schedule.getStart(), schedule.getEnd(),
+				schedule.getCompletedThrough() + day);
+			case SPLIT -> new Gesture(interval.getStart() + hour, interval.getStart() + 2 * hour,
+				interval.getStart() + hour);
+		};
+	}
+
+	/** A gesture that resolves to the values the view already renders. */
+	private Gesture noOpGesture(TaskScheduleEditIntent.Operation operation, Schedule schedule,
+			ScheduleInterval interval, long hour) {
+		return switch (operation) {
+			case MOVE, RESIZE_START -> new Gesture(interval.getStart(), interval.getEnd(), 0L);
+			case RESIZE_END -> new Gesture(schedule.getStart(), interval.getEnd(), 0L);
+			case PROGRESS -> new Gesture(schedule.getStart(), schedule.getEnd(), schedule.getCompletedThrough());
+			// A split without a resume-date drag leaves an empty nonworking gap.
+			case SPLIT -> new Gesture(interval.getStart() + hour, interval.getStart() + hour,
+				interval.getStart() + hour);
+		};
+	}
+
+	private TaskScheduleEditIntent scheduleIntent(Fixture fixture, RevisionedProjectionIndex projection,
+			ProjectionRowKey.TaskRow row, TaskScheduleEditIntent.Operation operation, Gesture gesture,
+			ScheduleExpectation expectation) {
+		Schedule schedule = (Schedule) fixture.task();
+		ScheduleInterval interval = firstInterval(schedule);
+		return new TaskScheduleEditIntent(row,
+			projection.topologyRevision() + (expectation == ScheduleExpectation.STALE_PROJECTION ? 1 : 0),
+			operation,
+			schedule.getStart() + (expectation == ScheduleExpectation.STALE_SCHEDULE_START ? 1 : 0),
+			schedule.getEnd(), schedule.getCompletedThrough(),
+			interval.getStart() + (expectation == ScheduleExpectation.STALE_INTERVAL ? 1 : 0),
+			interval.getEnd(),
+			fixture.task().getConstraintType() + (expectation == ScheduleExpectation.STALE_CONSTRAINT ? 1 : 0),
+			fixture.task().getConstraintDate(), gesture.start(), gesture.end(), gesture.value());
+	}
+
+	private ScheduleInterval firstInterval(Schedule schedule) {
+		ScheduleInterval[] found = { null };
+		schedule.consumeIntervals(interval -> {
+			if (found[0] == null) found[0] = interval;
+		});
+		assertNotNull(found[0], "the fixture task must expose a work interval");
+		return found[0];
+	}
+
+	private ScheduleEditBaseline baseline(Fixture fixture) {
+		return new ScheduleEditBaseline(scheduleState(fixture.task()), fixture.project().isDirty(),
+			fixture.project().getUndoController().getUndoPresentationName(),
+			fixture.project().getUndoController().canUndo(), fixture.project().getUndoController().canRedo(),
+			fixture.project().getMutationState().revision(), fixture.project().pendingEventCount());
+	}
+
+	private void assertScheduleEditHadNoSideEffects(Fixture fixture, ScheduleEditBaseline baseline, String gesture) {
+		assertArrayEquals(baseline.schedule(), scheduleState(fixture.task()),
+			gesture + " must preserve the schedule and constraint");
+		assertEquals(baseline.dirty(), fixture.project().isDirty(), gesture + " must not change the project dirty state");
+		assertEquals(baseline.undoName(), fixture.project().getUndoController().getUndoPresentationName(),
+			gesture + " must not append Undo history");
+		assertEquals(baseline.canUndo(), fixture.project().getUndoController().canUndo(),
+			gesture + " must not change Undo availability");
+		assertEquals(baseline.canRedo(), fixture.project().getUndoController().canRedo(),
+			gesture + " must not change Redo availability");
+		assertEquals(baseline.revision(), fixture.project().getMutationState().revision(),
+			gesture + " must not publish a domain revision");
+		assertEquals(baseline.pendingEvents(), fixture.project().pendingEventCount(),
+			gesture + " must not leave deferred events pending");
 	}
 
 	private TaskScheduleEditIntent currentProgressIntent(Fixture fixture) {

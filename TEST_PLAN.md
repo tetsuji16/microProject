@@ -42,6 +42,7 @@ MS Project 互換性に関する形式テストでは read と write を独立�
 | Gantt UI replacement→GraphInteractor detach | GraphInteractorLifecycleTest: `updateUI()` 反復後も現行 interactor のみが mouse/motion listener として残り、cleanup後は0件 |
 | #414 Gantt wheel ownership | TaskTableGanttGridGuiAcceptanceTest.physicalGanttWheelModifiersHaveOneScrollOwnerAndOneStep: 物理plain/Shift/Ctrl+wheelが縦/横/zoomの意図した状態だけを各1段変更し、表との縦同期を維持 |
 | #414 Gantt drag auto-scroll | GanttBarDateDragGuiAcceptanceTest.robotDragToChartEdgeAutoScrollsAndPersistsMovedTaskDate: 物理バー移動で表示端までドラッグし横スクロール、描画中のタスクバーと日付/model、Undo/Redo、MPO reloadを確認 |
+| [#403](https://github.com/tetsuji16/microProject/issues/403) P5 Gantt 予定編集の stale/no-op 契約 | TaskCommandGatewayTest.everyGanttScheduleOperationRejectsStaleAndNoOpGesturesBeforeMutation: MOVE / RESIZE_START / RESIZE_END / PROGRESS / SPLIT の各操作で、stale な projection・予定値・制約・作業区間と、描画済み値に一致する no-op を mutation 前に拒否し、revision・dirty・Undo・保留 event を変更しないことを確認 |
 | Offline print/export completion→renderer/cache detach | NetworkSVGRendererLifecycleTest, ExportJobSchedulerTest: renderer listener解除、filtered cache close、safe print copy、chooser/job cancelを確認 |
 | Task row-header popup の物理経路 | TaskTableGanttGridGuiAcceptanceTest.physicalRowHeaderPopupSelectsTheClickedTaskAndOpensOnce: 通常 JTable UI delegate、未選択行、task ID、全行選択、popup対象行とinvoker、popup 1回を Robot で確認 |
 | Usage Detail の左右ビュー生成 | TaskInformationRibbonGuiAcceptanceTest.usageDetailViewRouteConstructsWithoutRuntimeFailure: 割当済み1日タスクからTask/Resource Usageの左右モデルと行を確認 |
