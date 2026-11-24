@@ -125,6 +125,28 @@ class TeamPlannerCanvasTest {
 		assertEquals(TeamPlannerViewSettings.Timescale.YEARS, canvas.getTimescale(), "Zoom Out must stay at the coarsest unit");
 	}
 
+	/** The finest supported scale must not cut off dates beyond the old fixed 100,000 px canvas cap. */
+	@Test
+	void hourlyTimescaleKeepsTheFullLongProjectInTheScrollableExtent() throws Exception {
+		Fixture fixture = fixture();
+		TeamPlannerDialogBox.TeamPlannerCanvas canvas = canvas(fixture);
+		SwingUtilities.invokeAndWait(() -> {
+			fixture.task.setDuration(250L * 24L * 60L * 60L * 1000L);
+			canvas.reload();
+			canvas.setTimescale(TeamPlannerViewSettings.Timescale.HOURS);
+		});
+
+		assertTrue(canvas.getPreferredSize().width > 120_000,
+			"the horizontal scroll extent must include a task 250 days after the timeline start at 480 px/day; actual width="
+				+ canvas.getPreferredSize().width);
+	}
+
+	@Test
+	void partialPeriodLabelsStartAtTheVisibleHeaderEdge() {
+		assertEquals(3, TeamPlannerDialogBox.TeamPlannerCanvas.visibleLabelStartX(-40));
+		assertEquals(18, TeamPlannerDialogBox.TeamPlannerCanvas.visibleLabelStartX(15));
+	}
+
 	private static TeamPlannerDialogBox.TeamPlannerCanvas canvas(Fixture fixture) throws Exception {
 		TeamPlannerDialogBox.TeamPlannerCanvas[] canvas = new TeamPlannerDialogBox.TeamPlannerCanvas[1];
 		SwingUtilities.invokeAndWait(() -> {

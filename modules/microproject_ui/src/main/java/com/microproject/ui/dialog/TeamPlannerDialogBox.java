@@ -466,7 +466,7 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 
 		private void updatePreferredSize() {
 			long days = Math.max(30L, (timelineEnd - timelineStart + DAY - 1L) / DAY);
-			setPreferredSize(new Dimension((int) Math.min(100_000L, days * getPixelsPerDay()),
+			setPreferredSize(new Dimension((int) Math.min(Integer.MAX_VALUE, days * getPixelsPerDay()),
 				rows.isEmpty() ? ROW_HEIGHT : rowTops[rows.size() - 1] + rowHeights[rows.size() - 1]));
 		}
 
@@ -673,6 +673,11 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 				.format(Instant.ofEpochMilli(start));
 		}
 
+		/** Keeps a period's label visible when its start is before the left edge of the viewport. */
+		static int visibleLabelStartX(int periodStartX) {
+			return Math.max(0, periodStartX) + 3;
+		}
+
 		private static long startOfDay(long value) {
 			return startOfDay(Instant.ofEpochMilli(value).atZone(ZoneId.systemDefault()).toLocalDate());
 		}
@@ -862,13 +867,14 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 					guard++, period = TeamPlannerCanvas.nextTimescaleStart(period, unit)) {
 				long next = TeamPlannerCanvas.nextTimescaleStart(period, unit);
 				int x = canvas.dateToX(period);
-				int available = canvas.dateToX(next) - Math.max(0, x) - 6;
+				int labelX = TeamPlannerCanvas.visibleLabelStartX(x);
+				int available = canvas.dateToX(next) - labelX - 3;
 				g2.setColor(FlatUiSupport.separatorColor());
 				g2.drawLine(x, top, x, bottom);
 				String label = TeamPlannerCanvas.timescaleLabel(period, unit);
 				if (available >= metrics.stringWidth(label)) {
 					g2.setColor(FlatUiSupport.labelForeground());
-					g2.drawString(label, x + 3, bottom - 5);
+					g2.drawString(label, labelX, bottom - 5);
 				}
 			}
 		}

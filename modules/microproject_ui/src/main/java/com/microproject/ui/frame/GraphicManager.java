@@ -5622,8 +5622,8 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		int choice = PopupDialogSupport.showConfirmDialog(getFrame(), combo,
 				com.microproject.ui.dialog.UsabilityStrings.text("team.timescale"), JOptionPane.OK_CANCEL_OPTION,
 				JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
-		if (choice == JOptionPane.OK_OPTION)
-			chooseTeamPlannerTimescale(planner, combo.getSelectedIndex());
+		if (choice == JOptionPane.OK_OPTION && chooseTeamPlannerTimescale(planner, combo.getSelectedIndex()))
+			setZoomButtons();
 	}
 
 	public void showBarStyleChooser() {
