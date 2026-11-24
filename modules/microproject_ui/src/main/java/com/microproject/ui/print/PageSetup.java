@@ -250,9 +250,10 @@ public class PageSetup{
 		paperWidthLabel.setEnabled(false);
 		initFont(paperWidthLabel);
 		DecimalFormat decimalFormat=new DecimalFormat("#0.0");
-		paperWidth=new JFormattedTextField(decimalFormat);
-		paperWidth.setEnabled(false);
-		paperWidth.addPropertyChangeListener("value",new PropertyChangeListener(){
+		        paperWidth=new JFormattedTextField(decimalFormat);
+		        paperWidth.setEnabled(false);
+		        paperWidth.setColumns(8);
+		        paperWidth.addPropertyChangeListener("value",new PropertyChangeListener(){
 			public void propertyChange(PropertyChangeEvent e) {
 				if (isUpdaping()) return;
 				updateImageableArea(((Number)e.getNewValue()).doubleValue(),-1.0,ExtendedPageFormat.CUSTOM);
@@ -264,8 +265,9 @@ public class PageSetup{
 		paperHeightLabel.setEnabled(false);
 		initFont(paperHeightLabel);
 		paperHeight=new JFormattedTextField(decimalFormat);
-		paperHeight.setEnabled(false);
-		paperHeight.addPropertyChangeListener("value",new PropertyChangeListener(){
+		        paperHeight.setEnabled(false);
+		        paperHeight.setColumns(8);
+		        paperHeight.addPropertyChangeListener("value",new PropertyChangeListener(){
 			public void propertyChange(PropertyChangeEvent e) {
 				if (isUpdaping()) return;
 				updateImageableArea(-1.0,((Number)e.getNewValue()).doubleValue(),ExtendedPageFormat.CUSTOM);
@@ -281,7 +283,8 @@ public class PageSetup{
 		marginLeftLabel=new JLabel(Messages.getString("PageSetupDialog.Margins.Left"));
 		initFont(marginLeftLabel);
 		marginLeft=new JFormattedTextField(decimalFormat);
-		marginLeft.addPropertyChangeListener("value",new PropertyChangeListener(){
+		        marginLeft.setColumns(8);
+		        marginLeft.addPropertyChangeListener("value",new PropertyChangeListener(){
 			public void propertyChange(PropertyChangeEvent e) {
 				if (isUpdaping()) return;
 				beginUpdate();
@@ -302,7 +305,8 @@ public class PageSetup{
 		marginRightLabel=new JLabel(Messages.getString("PageSetupDialog.Margins.Right"));
 		initFont(marginRightLabel);
 		marginRight=new JFormattedTextField(decimalFormat);
-		marginRight.addPropertyChangeListener("value",new PropertyChangeListener(){
+		        marginRight.setColumns(8);
+		        marginRight.addPropertyChangeListener("value",new PropertyChangeListener(){
 			public void propertyChange(PropertyChangeEvent e) {
 				if (isUpdaping()) return;
 				beginUpdate();
@@ -323,7 +327,8 @@ public class PageSetup{
 		marginTopLabel=new JLabel(Messages.getString("PageSetupDialog.Margins.Top"));
 		initFont(marginTopLabel);
 		marginTop=new JFormattedTextField(decimalFormat);
-		marginTop.addPropertyChangeListener("value",new PropertyChangeListener(){
+		        marginTop.setColumns(8);
+		        marginTop.addPropertyChangeListener("value",new PropertyChangeListener(){
 			public void propertyChange(PropertyChangeEvent e) {
 				if (isUpdaping()) return;
 				beginUpdate();
@@ -344,7 +349,8 @@ public class PageSetup{
 		marginBottomLabel=new JLabel(Messages.getString("PageSetupDialog.Margins.Bottom"));
 		initFont(marginBottomLabel);
 		marginBottom=new JFormattedTextField(decimalFormat);
-		marginBottom.addPropertyChangeListener("value",new PropertyChangeListener(){
+		        marginBottom.setColumns(8);
+		        marginBottom.addPropertyChangeListener("value",new PropertyChangeListener(){
 			public void propertyChange(PropertyChangeEvent e) {
 				if (isUpdaping()) return;
 				beginUpdate();
@@ -1038,10 +1044,10 @@ public class PageSetup{
 		return panel;
 	}
 	private JComponent createPaperSizePanel(){
-		return paperSizePanel("p, 3dlu,50dlu");
+	        return paperSizePanel("p, 3dlu,70dlu");
 	}
 	private JComponent createFlowPaperSizePanel(){
-		return paperSizePanel("p, 3dlu,40dlu");
+	        return paperSizePanel("p, 3dlu,60dlu");
 	}
 	private JComponent paperSizePanel(String columns){
 		FormLayout layout = new FormLayout(columns,"p, 3dlu, p, 3dlu, p");
@@ -1056,7 +1062,7 @@ public class PageSetup{
 	}
 
 	private JComponent createOrientationPanel(){
-		return orientationPanel("8dlu, 100dlu, 8dlu");
+	        return orientationPanel("8dlu, 120dlu, 8dlu");
 	}
 	private JComponent createFlowOrientationPanel(){
 		return orientationPanel("1dlu, p:grow, 1dlu");
@@ -1074,10 +1080,10 @@ public class PageSetup{
 
 
 	private JComponent createMarginsPanel(){
-		return marginsPanel("8dlu, 50dlu, 3dlu, 50dlu, 8dlu");
+	        return marginsPanel("8dlu, 70dlu, 3dlu, 70dlu, 8dlu");
 	}
 	private JComponent createFlowMarginsPanel(){
-		return marginsPanel("1dlu, 41dlu, 3dlu, 41dlu, 1dlu");
+	        return marginsPanel("1dlu, 60dlu, 3dlu, 60dlu, 1dlu");
 	}
 	private JComponent marginsPanel(String columns){
 		FormLayout layout = new FormLayout(columns,"p,1dlu,p,3dlu, p,1dlu,p,2dlu");
@@ -1112,9 +1118,9 @@ public class PageSetup{
 	}
 
 	private JComponent createScalingPanel(){
-		FormLayout layout = new FormLayout(
-		        "8dlu, p, 3dlu,30dlu,3dlu,p,3dlu,p,p,p,8dlu",
-		        "p, 3dlu,p,10dlu,p,3dlu,p,3dlu");
+	        FormLayout layout = new FormLayout(
+	                "8dlu, p, 3dlu,50dlu,3dlu,p,3dlu,p,p,p,8dlu",
+	                "p, 3dlu,p,10dlu,p,3dlu,p,3dlu");
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		CellConstraints cc = new CellConstraints();
@@ -1141,9 +1147,9 @@ public class PageSetup{
 		return panel;
 	}
 	private JComponent createFlowScalingPanel(){
-		FormLayout layout = new FormLayout(
-		        "1dlu, 5dlu,p,22dlu,3dlu,p,1dlu",
-		        "p, 3dlu,p,3dlu,p,3dlu,p,p,10dlu,p,3dlu,p,3dlu,p,3dlu");
+	        FormLayout layout = new FormLayout(
+	                "1dlu, 5dlu,p,40dlu,3dlu,p,1dlu",
+	                "p, 3dlu,p,3dlu,p,3dlu,p,p,10dlu,p,3dlu,p,3dlu,p,3dlu");
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		CellConstraints cc = new CellConstraints();
