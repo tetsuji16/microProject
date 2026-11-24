@@ -23,7 +23,9 @@
  *******************************************************************************/
 package com.microproject.ui.dialog;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -79,6 +81,48 @@ class TeamPlannerCanvasTest {
 			.add(before, 2L * CalendarOption.getInstance().getMillisPerDay(), false);
 		assertEquals(expected, fixture.task.getStart(),
 			"a two-day drag must move the bar by two working days, as it did before the resource column was split out");
+	}
+
+	/** The View tab's Timescale unit fixes the day width and the two date-header bands. */
+	@Test
+	void choosingATimeUnitChangesTheDayWidthAndTheHeaderBands() throws Exception {
+		Fixture fixture = fixture();
+		TeamPlannerDialogBox.TeamPlannerCanvas canvas = canvas(fixture);
+		assertEquals(TeamPlannerViewSettings.Timescale.WEEKS.getPixelsPerDay(), canvas.getPixelsPerDay(),
+			"the planner opens at its default week scale");
+		assertArrayEquals(new TeamPlannerViewSettings.Timescale[] {
+			TeamPlannerViewSettings.Timescale.MONTHS, TeamPlannerViewSettings.Timescale.WEEKS }, canvas.headerUnits());
+
+		SwingUtilities.invokeAndWait(() -> canvas.setTimescale(TeamPlannerViewSettings.Timescale.HOURS));
+		assertEquals(TeamPlannerViewSettings.Timescale.HOURS.getPixelsPerDay(), canvas.getPixelsPerDay(),
+			"a finer unit must widen each day, as the toolbar slider used to do");
+		assertArrayEquals(new TeamPlannerViewSettings.Timescale[] {
+			TeamPlannerViewSettings.Timescale.DAYS, TeamPlannerViewSettings.Timescale.HOURS }, canvas.headerUnits(),
+			"the header must show the selected unit below the one coarser than it");
+	}
+
+	/** Zoom In and Zoom Out move one unit step and stop at the finest and coarsest units. */
+	@Test
+	void zoomMovesOneUnitAndStopsAtTheEnds() throws Exception {
+		Fixture fixture = fixture();
+		TeamPlannerDialogBox.TeamPlannerCanvas canvas = canvas(fixture);
+		SwingUtilities.invokeAndWait(() -> {
+			canvas.setTimescale(TeamPlannerViewSettings.Timescale.DAYS);
+			canvas.zoomIn();
+		});
+		assertEquals(TeamPlannerViewSettings.Timescale.HOURS, canvas.getTimescale());
+		assertFalse(canvas.canZoomIn(), "Zoom In must be disabled at the finest unit");
+		SwingUtilities.invokeAndWait(canvas::zoomIn);
+		assertEquals(TeamPlannerViewSettings.Timescale.HOURS, canvas.getTimescale(), "Zoom In must stay at the finest unit");
+
+		SwingUtilities.invokeAndWait(() -> {
+			canvas.setTimescale(TeamPlannerViewSettings.Timescale.QUARTERS);
+			canvas.zoomOut();
+		});
+		assertEquals(TeamPlannerViewSettings.Timescale.YEARS, canvas.getTimescale());
+		assertFalse(canvas.canZoomOut(), "Zoom Out must be disabled at the coarsest unit");
+		SwingUtilities.invokeAndWait(canvas::zoomOut);
+		assertEquals(TeamPlannerViewSettings.Timescale.YEARS, canvas.getTimescale(), "Zoom Out must stay at the coarsest unit");
 	}
 
 	private static TeamPlannerDialogBox.TeamPlannerCanvas canvas(Fixture fixture) throws Exception {

@@ -187,6 +187,94 @@ class TimelineTeamPlannerRibbonGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> onEdt(() -> planner.getSettings().getTextStyle().size() == 15), "Text Styles did not set the text size");
 	}
 
+	/**
+	 * While the Team Planner is shown, the View tab's Zoom In / Zoom Out and its Timescale gallery move the
+	 * planner's own unit one step at a time, and none of them changes the Gantt chart's timescale.
+	 */
+	@Test
+	void teamPlannerTimescaleCommandsChangeItsOwnScaleOnly() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for team planner timescale ribbon coverage.");
+		previousRibbonUi = Environment.isRibbonUI();
+		previousNewLook = Environment.isNewLook();
+		previousRibbonDisplayMode = RibbonDisplayPreferences.load();
+		RibbonDisplayPreferences.save(RibbonDisplayMode.ALWAYS_SHOW);
+		Environment.setRibbonUI(true);
+		Environment.setNewLook(true);
+		Project project = project();
+		showProject(project);
+		Robot robot = new GuiRobot();
+		robot.setAutoDelay(45);
+		GuiAcceptanceSupport.await(() -> onEdt(() -> window.isShowing() && manager.getCurrentFrame() != null),
+			"project window did not become visible");
+		ResourceBundle menu = ResourceBundle.getBundle("com.microproject.ui.menu.menu");
+		int ganttScale = onEdt(() -> manager.getCurrentFrame().getGanttView().getScale());
+
+		onEdt(() -> { manager.getAction(com.microproject.ui.menu.MenuActionConstants.ACTION_TEAM_PLANNER).actionPerformed(
+			new java.awt.event.ActionEvent(this, java.awt.event.ActionEvent.ACTION_PERFORMED, "TeamPlanner")); return null; });
+		GuiAcceptanceSupport.await(() -> onEdt(() -> manager.getActiveTeamPlannerDialog() != null), "Team Planner did not open");
+		com.microproject.ui.dialog.TeamPlannerDialogBox planner = onEdt(() -> manager.getActiveTeamPlannerDialog());
+
+		AbstractButton viewTab = GuiAcceptanceSupport.findShowingButtonByText(window, menu.getString("ViewRibbonTask.title"));
+		click(robot, screenBounds(viewTab));
+		GuiAcceptanceSupport.await(() -> onEdt(viewTab::isSelected), "View tab click did not select the View ribbon");
+
+		// Zoom In and Zoom Out walk the planner's units from its default week scale.
+		com.microproject.ui.dialog.TeamPlannerViewSettings.Timescale start = onEdt(planner::getTimescale);
+		clickCommand(robot, "RibbonZoomIn");
+		GuiAcceptanceSupport.await(() -> onEdt(() -> planner.getTimescale() == start.finer()),
+			"Zoom In did not move the planner one unit finer");
+		clickCommand(robot, "RibbonZoomOut");
+		GuiAcceptanceSupport.await(() -> onEdt(() -> planner.getTimescale() == start),
+			"Zoom Out did not move the planner one unit coarser");
+		clickCommand(robot, "RibbonZoomOut");
+		GuiAcceptanceSupport.await(() -> onEdt(() -> planner.getTimescale() == start.coarser()),
+			"Zoom Out did not move the planner to the next coarser unit");
+		org.junit.jupiter.api.Assertions.assertEquals(ganttScale,
+			onEdt(() -> manager.getCurrentFrame().getGanttView().getScale()),
+			"zooming the Team Planner must not change the Gantt chart's timescale");
+
+		// The Timescale gallery lists the planner's units through the ribbon's combo-box route.
+		com.microproject.ui.dialog.TeamPlannerViewSettings.Timescale hours =
+			com.microproject.ui.dialog.TeamPlannerViewSettings.Timescale.HOURS;
+		AbstractButton gallery = RibbonGuiSupport.findVisibleOrExpand(robot, window, "RibbonTimescaleGallery");
+		click(robot, screenBounds(gallery));
+		GuiAcceptanceSupport.await(() -> onEdt(() -> ribbonPopupItem(hours.label()) != null),
+			"the Timescale gallery did not list the planner's units");
+		click(robot, screenBounds(onEdt(() -> ribbonPopupItem(hours.label()))));
+		GuiAcceptanceSupport.await(() -> onEdt(() -> planner.getTimescale() == hours),
+			"choosing Hours in the Timescale gallery did not change the planner's unit");
+		GuiAcceptanceSupport.await(() -> onEdt(() -> !planner.canZoomIn()),
+			"the finest planner unit must leave Zoom In unavailable");
+		org.junit.jupiter.api.Assertions.assertFalse(onEdt(() ->
+			manager.getAction(com.microproject.ui.menu.MenuActionConstants.ACTION_ZOOM_IN).isEnabled()),
+			"Zoom In must follow the planner's finest unit, not the Gantt chart's scale");
+		org.junit.jupiter.api.Assertions.assertEquals(ganttScale,
+			onEdt(() -> manager.getCurrentFrame().getGanttView().getScale()),
+			"choosing a planner unit must not change the Gantt chart's timescale");
+
+		onEdt(() -> { manager.getAction(com.microproject.ui.menu.MenuActionConstants.ACTION_GANTT).actionPerformed(
+			new java.awt.event.ActionEvent(this, java.awt.event.ActionEvent.ACTION_PERFORMED, "Gantt")); return null; });
+		GuiAcceptanceSupport.await(() -> onEdt(() -> manager.getActiveTeamPlannerDialog() == null),
+			"the Gantt view did not become active again");
+		org.junit.jupiter.api.Assertions.assertEquals(ganttScale,
+			onEdt(() -> manager.getCurrentFrame().getGanttView().getScale()),
+			"returning to the Gantt chart must keep its timescale");
+	}
+
+	/** The visible item of the currently open ribbon popup with the given text, or null. */
+	private static javax.swing.JMenuItem ribbonPopupItem(String text) {
+		javax.swing.JPopupMenu popup = null;
+		for (Object element : javax.swing.MenuSelectionManager.defaultManager().getSelectedPath())
+			if (element instanceof javax.swing.JPopupMenu candidate) popup = candidate;
+		return popup == null ? null : menuItem(find(popup, javax.swing.JMenuItem.class), text);
+	}
+
+	private static javax.swing.JMenuItem menuItem(java.util.List<javax.swing.JMenuItem> items, String text) {
+		for (javax.swing.JMenuItem item : items)
+			if (item.isShowing() && text.equals(item.getText())) return item;
+		return null;
+	}
+
 	private static <T extends Component> java.util.List<T> find(Container container, Class<T> type) {
 		java.util.List<T> result = new java.util.ArrayList<>();
 		for (Component c : container.getComponents()) {

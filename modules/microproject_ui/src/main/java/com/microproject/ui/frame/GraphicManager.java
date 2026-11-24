@@ -4423,6 +4423,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		@Override
 		public String currentValue(String commandId) {
 			if (RIBBON_TIMESCALE_ID.equals(commandId)) {
+				com.microproject.ui.dialog.TeamPlannerDialogBox planner = getActiveTeamPlannerDialog();
+				if (planner != null)
+					return planner.getTimescale().label();
 				GanttView ganttView = getActiveGanttView();
 				List<String> labels = timescaleLabels(ganttView);
 				int scale = ganttView == null ? -1 : ganttView.getScale();
@@ -4444,7 +4447,9 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		@Override
 		public List<String> choices(String commandId) {
 			if (RIBBON_TIMESCALE_ID.equals(commandId))
-				return timescaleLabels(getActiveGanttView());
+				return getActiveTeamPlannerDialog() != null
+					? java.util.Arrays.asList(com.microproject.ui.dialog.TeamPlannerViewSettings.Timescale.labels())
+					: timescaleLabels(getActiveGanttView());
 			if (RIBBON_FONT_NAME_ID.equals(commandId))
 				return List.of(java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames());
 			if (RIBBON_FONT_SIZE_ID.equals(commandId))
@@ -4459,6 +4464,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		@Override
 		public void select(String commandId, int index) {
 			if (RIBBON_TIMESCALE_ID.equals(commandId)) {
+				com.microproject.ui.dialog.TeamPlannerDialogBox planner = getActiveTeamPlannerDialog();
+				if (planner != null) {
+					if (!chooseTeamPlannerTimescale(planner, index))
+						return;
+					setMeAsLastGraphicManager();
+					setZoomButtons();
+					return;
+				}
 				GanttView ganttView = getActiveGanttView();
 				if (ganttView == null || index < 0 || index >= ganttView.getScaleCount())
 					return;
@@ -5552,6 +5565,22 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		return new TaskSortSpec(keys, options.isKeepOutline());
 	}
 
+	/**
+	 * The one place that turns a row of the Team Planner Timescale list into the planner's unit. Both the
+	 * View tab's Timescale gallery and its options dialog pass the row they chose, so the list order and the
+	 * labels live only in {@link com.microproject.ui.dialog.TeamPlannerViewSettings.Timescale#labels()}.
+	 *
+	 * @return false when the row does not name a unit, leaving the planner unchanged
+	 */
+	private static boolean chooseTeamPlannerTimescale(com.microproject.ui.dialog.TeamPlannerDialogBox planner, int index) {
+		com.microproject.ui.dialog.TeamPlannerViewSettings.Timescale unit =
+			com.microproject.ui.dialog.TeamPlannerViewSettings.Timescale.at(index);
+		if (unit == null)
+			return false;
+		planner.setTimescale(unit);
+		return true;
+	}
+
 	private List<String> timescaleLabels(GanttView ganttView) {
 		if (ganttView == null)
 			return List.of();
@@ -5560,6 +5589,11 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 	}
 
 	private void showTimescaleChooser() {
+		com.microproject.ui.dialog.TeamPlannerDialogBox planner = getActiveTeamPlannerDialog();
+		if (planner != null) {
+			showTeamPlannerTimescaleChooser(planner);
+			return;
+		}
 		GanttView ganttView = getActiveGanttView();
 		if (ganttView == null)
 			return;
@@ -5575,6 +5609,21 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			ganttView.setScale(combo.getSelectedIndex());
 			setZoomButtons();
 		}
+	}
+
+	/**
+	 * The Team Planner follows the same View tab Timescale command as the Gantt chart, but chooses one of the
+	 * planner's own time units. Choosing a unit fixes the pixels per day and the two date-header bands.
+	 */
+	private void showTeamPlannerTimescaleChooser(com.microproject.ui.dialog.TeamPlannerDialogBox planner) {
+		JComboBox<String> combo = new JComboBox<>(
+			com.microproject.ui.dialog.TeamPlannerViewSettings.Timescale.labels());
+		combo.setSelectedItem(planner.getTimescale().label());
+		int choice = PopupDialogSupport.showConfirmDialog(getFrame(), combo,
+				com.microproject.ui.dialog.UsabilityStrings.text("team.timescale"), JOptionPane.OK_CANCEL_OPTION,
+				JOptionPane.PLAIN_MESSAGE, JOptionPane.CANCEL_OPTION);
+		if (choice == JOptionPane.OK_OPTION)
+			chooseTeamPlannerTimescale(planner, combo.getSelectedIndex());
 	}
 
 	public void showBarStyleChooser() {
@@ -6186,7 +6235,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		getMenuManager().setActionEnabled(ACTION_LABEL_RESOURCE_NAMES, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_LABEL_TASK_NAME, ganttActive);
 		getMenuManager().setActionEnabled(ACTION_BAR, ganttActive);
-		getMenuManager().setActionEnabled(ACTION_TIMESCALE, ganttActive);
+		getMenuManager().setActionEnabled(ACTION_TIMESCALE, ganttActive || getActiveTeamPlannerDialog() != null);
 		getMenuManager().setActionEnabled(ACTION_GRIDLINES, ganttActive || getActiveResourceGraphView() != null);
 		getMenuManager().setActionEnabled(ACTION_SHEET_GRIDLINES, sheetActive || getActiveCalendarDialog() != null);
 		getMenuManager().setActionEnabled(ACTION_NETWORK_LAYOUT_NOW, getActiveNetworkView() != null);

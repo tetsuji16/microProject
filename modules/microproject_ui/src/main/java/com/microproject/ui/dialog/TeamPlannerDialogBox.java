@@ -39,13 +39,19 @@ import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAdjusters;
+import java.time.temporal.WeekFields;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -57,7 +63,6 @@ import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JSlider;
 import javax.swing.ToolTipManager;
 
 import com.microproject.options.CalendarOption;
@@ -104,11 +109,6 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 	private void buildUi() {
 		FlatUiSupport.styleDialogRoot(getRootPane());
 		JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT));
-		toolbar.add(new JLabel(UsabilityStrings.text("team.zoom")));
-		JSlider zoom = new JSlider(8, 48, canvas.getPixelsPerDay());
-		zoom.setPreferredSize(new Dimension(180, 32));
-		zoom.addChangeListener(event -> canvas.setPixelsPerDay(zoom.getValue()));
-		toolbar.add(zoom);
 		JButton today = new JButton(UsabilityStrings.text("team.today"));
 		JScrollPane scrollPane = new JScrollPane(canvas);
 		TeamPlannerRowHeader rowHeader = new TeamPlannerRowHeader(canvas);
@@ -187,6 +187,22 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 
 	public TeamPlannerViewSettings getSettings() { return settings; }
 
+	/** The time unit the timeline and its date header are drawn with. */
+	public TeamPlannerViewSettings.Timescale getTimescale() { return canvas.getTimescale(); }
+
+	/** Chooses the time unit, as the View tab's Timescale gallery does. */
+	public void setTimescale(TeamPlannerViewSettings.Timescale unit) { canvas.setTimescale(unit); }
+
+	/** Moves the timeline one unit finer, as the View tab's Zoom In command does. */
+	public void zoomIn() { canvas.zoomIn(); }
+
+	/** Moves the timeline one unit coarser, as the View tab's Zoom Out command does. */
+	public void zoomOut() { canvas.zoomOut(); }
+
+	public boolean canZoomIn() { return canvas.canZoomIn(); }
+
+	public boolean canZoomOut() { return canvas.canZoomOut(); }
+
 	/** Tasks whose bars the user has selected on the planner. */
 	public List<Task> getSelectedTasks() { return canvas.selectedTasks(); }
 
@@ -228,6 +244,8 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 		private static final int ROW_HEIGHT = 54;
 		private static final int BAR_HEIGHT = 28;
 		private static final long DAY = 24L * 60L * 60L * 1000L;
+		/** Bound on the unit boundaries one paint walks, so a malformed range cannot spin forever. */
+		private static final int MAX_TIMESCALE_PERIODS = 8192;
 		private final Project project;
 		private final TeamPlannerViewSettings settings;
 		private final Runnable selectionListener;
@@ -242,7 +260,6 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 		private final Map<Rectangle, TeamPlannerService.Slot> hitAreas = new LinkedHashMap<>();
 		private List<Resource> rows = List.of();
 		private List<TeamPlannerService.Slot> slots = List.of();
-		private int pixelsPerDay = 20;
 		private long timelineStart;
 		private long timelineEnd;
 		private TeamPlannerService.Slot dragged;
@@ -294,16 +311,51 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 			reload();
 		}
 
+		/** The width of one day, fixed by the time unit the View tab's Timescale command chose. */
 		int getPixelsPerDay() {
-			return pixelsPerDay;
+			return settings.getTimescale().getPixelsPerDay();
 		}
 
 		long getTimelineStart() {
 			return timelineStart;
 		}
 
-		void setPixelsPerDay(int value) {
-			pixelsPerDay = Math.max(8, value);
+		TeamPlannerViewSettings.Timescale getTimescale() {
+			return settings.getTimescale();
+		}
+
+		/** The upper and lower header bands: the chosen unit below the one coarser than it. */
+		TeamPlannerViewSettings.Timescale[] headerUnits() {
+			TeamPlannerViewSettings.Timescale lower = getTimescale();
+			return new TeamPlannerViewSettings.Timescale[] { lower.coarser(), lower };
+		}
+
+		void setTimescale(TeamPlannerViewSettings.Timescale unit) {
+			if (unit == getTimescale())
+				return;
+			settings.setTimescale(unit);
+			applyTimescale();
+		}
+
+		/** One step finer, so the project covers more width; stays at the finest unit. */
+		void zoomIn() {
+			setTimescale(getTimescale().finer());
+		}
+
+		/** One step coarser, so the project covers less width; stays at the coarsest unit. */
+		void zoomOut() {
+			setTimescale(getTimescale().coarser());
+		}
+
+		boolean canZoomIn() {
+			return getTimescale().hasFiner();
+		}
+
+		boolean canZoomOut() {
+			return getTimescale().hasCoarser();
+		}
+
+		private void applyTimescale() {
 			updatePreferredSize();
 			geometryListener.run();
 			revalidate();
@@ -414,7 +466,7 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 
 		private void updatePreferredSize() {
 			long days = Math.max(30L, (timelineEnd - timelineStart + DAY - 1L) / DAY);
-			setPreferredSize(new Dimension((int) Math.min(100_000L, days * pixelsPerDay),
+			setPreferredSize(new Dimension((int) Math.min(100_000L, days * getPixelsPerDay()),
 				rows.isEmpty() ? ROW_HEIGHT : rowTops[rows.size() - 1] + rowHeights[rows.size() - 1]));
 		}
 
@@ -441,12 +493,20 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 				g2.setColor(FlatUiSupport.borderColor());
 				g2.drawLine(0, y + rowHeights[row] - 1, getWidth(), y + rowHeights[row] - 1);
 			}
-			for (long date = timelineStart; date <= timelineEnd; date += DAY) {
-				int x = dateToX(date);
-				if (settings.isGridlines()) {
-					g2.setColor(FlatUiSupport.separatorColor());
-					g2.drawLine(x, 0, x, getHeight());
+			if (!settings.isGridlines()) {
+				return;
+			}
+			// The vertical lines follow the chosen time unit, so a coarse scale is not covered by day lines.
+			TeamPlannerViewSettings.Timescale unit = getTimescale();
+			long period = timescaleStart(timelineStart, unit);
+			for (int guard = 0; period <= timelineEnd && guard < MAX_TIMESCALE_PERIODS;
+					guard++, period = nextTimescaleStart(period, unit)) {
+				int x = dateToX(period);
+				if (x < 0) {
+					continue;
 				}
+				g2.setColor(FlatUiSupport.separatorColor());
+				g2.drawLine(x, 0, x, getHeight());
 			}
 		}
 
@@ -517,7 +577,7 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 		}
 
 		private void commitDrag(Point release) {
-			int dayDelta = Math.round((release.x - dragOrigin.x) / (float) pixelsPerDay);
+			int dayDelta = Math.round((release.x - dragOrigin.x) / (float) getPixelsPerDay());
 			int row = targetRow(release.y);
 			Resource sourceResource = dragged.resource();
 			Resource target = row >= 0 && rows.get(row) != sourceResource ? rows.get(row) : null;
@@ -569,12 +629,56 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 		}
 
 		private int dateToX(long date) {
-			return (int) Math.round((date - timelineStart) / (double) DAY * pixelsPerDay);
+			return (int) Math.round((date - timelineStart) / (double) DAY * getPixelsPerDay());
+		}
+
+		/** The start of the unit period that contains the date. */
+		static long timescaleStart(long date, TeamPlannerViewSettings.Timescale unit) {
+			ZonedDateTime time = Instant.ofEpochMilli(date).atZone(ZoneId.systemDefault());
+			LocalDate day = time.toLocalDate();
+			return switch (unit) {
+				case HOURS -> time.truncatedTo(ChronoUnit.HOURS).toInstant().toEpochMilli();
+				case DAYS -> startOfDay(day);
+				case WEEKS -> startOfDay(day.with(TemporalAdjusters.previousOrSame(
+					WeekFields.of(Locale.getDefault()).getFirstDayOfWeek())));
+				case MONTHS -> startOfDay(day.withDayOfMonth(1));
+				case QUARTERS -> startOfDay(LocalDate.of(day.getYear(), (day.getMonthValue() - 1) / 3 * 3 + 1, 1));
+				case YEARS -> startOfDay(LocalDate.of(day.getYear(), 1, 1));
+			};
+		}
+
+		/** The start of the unit period after the one beginning at {@code start}. */
+		static long nextTimescaleStart(long start, TeamPlannerViewSettings.Timescale unit) {
+			ZonedDateTime time = Instant.ofEpochMilli(start).atZone(ZoneId.systemDefault());
+			return switch (unit) {
+				case HOURS -> time.plusHours(1).toInstant().toEpochMilli();
+				case DAYS -> time.plusDays(1).toInstant().toEpochMilli();
+				case WEEKS -> time.plusWeeks(1).toInstant().toEpochMilli();
+				case MONTHS -> time.plusMonths(1).toInstant().toEpochMilli();
+				case QUARTERS -> time.plusMonths(3).toInstant().toEpochMilli();
+				case YEARS -> time.plusYears(1).toInstant().toEpochMilli();
+			};
+		}
+
+		/** The label of the unit period that begins at the date. */
+		static String timescaleLabel(long start, TeamPlannerViewSettings.Timescale unit) {
+			String pattern = switch (unit) {
+				case HOURS -> "H";
+				case DAYS, WEEKS -> "MMM d";
+				case MONTHS -> "MMM yyyy";
+				case QUARTERS -> "'Q'Q yyyy";
+				case YEARS -> "yyyy";
+			};
+			return DateTimeFormatter.ofPattern(pattern).withZone(ZoneId.systemDefault())
+				.format(Instant.ofEpochMilli(start));
 		}
 
 		private static long startOfDay(long value) {
-			return Instant.ofEpochMilli(value).atZone(ZoneId.systemDefault()).toLocalDate()
-				.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli();
+			return startOfDay(Instant.ofEpochMilli(value).atZone(ZoneId.systemDefault()).toLocalDate());
+		}
+
+		private static long startOfDay(LocalDate day) {
+			return day.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli();
 		}
 
 		private static String ellipsize(String value, FontMetrics metrics, int width) {
@@ -737,20 +841,35 @@ public final class TeamPlannerDialogBox extends FlatLafDialog {
 				g2.setFont(FlatUiSupport.uiFont());
 				g2.setColor(FlatUiSupport.panelBackground());
 				g2.fillRect(0, 0, getWidth(), getHeight());
-				for (long date = canvas.timelineStart; date <= canvas.timelineEnd; date += TeamPlannerCanvas.DAY) {
-					if (((date - canvas.timelineStart) / TeamPlannerCanvas.DAY) % 7L != 0L) {
-						continue;
-					}
-					int x = canvas.dateToX(date);
-					g2.setColor(FlatUiSupport.separatorColor());
-					g2.drawLine(x, 0, x, getHeight());
-					g2.setColor(FlatUiSupport.labelForeground());
-					g2.drawString(canvas.dateFormat.format(Instant.ofEpochMilli(date)), x + 3, 26);
-				}
+				int middle = TeamPlannerCanvas.HEADER_HEIGHT / 2;
+				TeamPlannerViewSettings.Timescale[] units = canvas.headerUnits();
+				paintBand(g2, units[0], 0, middle);
+				g2.setColor(FlatUiSupport.separatorColor());
+				g2.drawLine(0, middle, getWidth(), middle);
+				paintBand(g2, units[1], middle, TeamPlannerCanvas.HEADER_HEIGHT);
 				g2.setColor(FlatUiSupport.borderColor());
 				g2.drawLine(0, getHeight() - 1, getWidth(), getHeight() - 1);
 			} finally {
 				g2.dispose();
+			}
+		}
+
+		/** Draws one header band: a tick at each unit boundary and the period's start label when it fits. */
+		private void paintBand(Graphics2D g2, TeamPlannerViewSettings.Timescale unit, int top, int bottom) {
+			FontMetrics metrics = g2.getFontMetrics();
+			long period = TeamPlannerCanvas.timescaleStart(canvas.timelineStart, unit);
+			for (int guard = 0; period <= canvas.timelineEnd && guard < TeamPlannerCanvas.MAX_TIMESCALE_PERIODS;
+					guard++, period = TeamPlannerCanvas.nextTimescaleStart(period, unit)) {
+				long next = TeamPlannerCanvas.nextTimescaleStart(period, unit);
+				int x = canvas.dateToX(period);
+				int available = canvas.dateToX(next) - Math.max(0, x) - 6;
+				g2.setColor(FlatUiSupport.separatorColor());
+				g2.drawLine(x, top, x, bottom);
+				String label = TeamPlannerCanvas.timescaleLabel(period, unit);
+				if (available >= metrics.stringWidth(label)) {
+					g2.setColor(FlatUiSupport.labelForeground());
+					g2.drawString(label, x + 3, bottom - 5);
+				}
 			}
 		}
 	}

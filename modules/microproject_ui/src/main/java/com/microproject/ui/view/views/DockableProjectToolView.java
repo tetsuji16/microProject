@@ -10,6 +10,7 @@ import java.awt.BorderLayout;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 
+import com.microproject.ui.dialog.TeamPlannerDialogBox;
 import com.microproject.ui.dialog.ViewSettingsState;
 import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
@@ -38,11 +39,11 @@ public final class DockableProjectToolView extends JPanel implements BaseView {
 	}
 
 	@Override public UndoController getUndoController() { return project.getUndoController(); }
-	@Override public void zoomIn() { }
-	@Override public void zoomOut() { }
+	@Override public void zoomIn() { TeamPlannerDialogBox planner = teamPlanner(); if (planner != null) planner.zoomIn(); }
+	@Override public void zoomOut() { TeamPlannerDialogBox planner = teamPlanner(); if (planner != null) planner.zoomOut(); }
 	@Override public void scrollToTask() { }
-	@Override public boolean canZoomIn() { return false; }
-	@Override public boolean canZoomOut() { return false; }
+	@Override public boolean canZoomIn() { TeamPlannerDialogBox planner = teamPlanner(); return planner != null && planner.canZoomIn(); }
+	@Override public boolean canZoomOut() { TeamPlannerDialogBox planner = teamPlanner(); return planner != null && planner.canZoomOut(); }
 	@Override public boolean canScrollToTask() { return false; }
 	@Override public int getScale() { return -1; }
 	@Override public SpreadSheet getSpreadSheet() { return null; }
@@ -54,6 +55,13 @@ public final class DockableProjectToolView extends JPanel implements BaseView {
 	@Override public boolean isPrintable() { return false; }
 	@Override public void cleanUp() { removeAll(); }
 	@Override public NodeModelCache getCache() { return null; }
+	/** The embedded Team Planner, when this tool view hosts one; the other tools have no timescale to zoom. */
+	private TeamPlannerDialogBox teamPlanner() {
+		return content != null
+			&& content.getClientProperty(TeamPlannerDialogBox.DIALOG_PROPERTY) instanceof TeamPlannerDialogBox planner
+			? planner : null;
+	}
+
 	@Override public WorkspaceSetting createWorkspace(int context) {
 		Workspace workspace = new Workspace();
 		if (content != null && content.getClientProperty(ViewSettingsState.PROPERTY) instanceof ViewSettingsState state)

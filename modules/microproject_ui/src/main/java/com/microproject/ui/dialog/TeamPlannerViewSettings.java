@@ -25,6 +25,7 @@ package com.microproject.ui.dialog;
 
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 
@@ -35,6 +36,55 @@ public final class TeamPlannerViewSettings implements ViewSettingsState {
 	/** Task categories that carry their own bar style. */
 	public enum Category { AUTO, MANUAL, ACTUAL, EXTERNAL, LATE }
 
+	/**
+	 * Time units of the planner's scale, finest first. The View tab's Timescale gallery chooses a unit directly and
+	 * Zoom In / Zoom Out move one step along this order, like the Gantt chart's timescale.
+	 */
+	public enum Timescale {
+		HOURS(480), DAYS(60), WEEKS(20), MONTHS(10), QUARTERS(6), YEARS(3);
+
+		private final int pixelsPerDay;
+
+		Timescale(int pixelsPerDay) {
+			this.pixelsPerDay = pixelsPerDay;
+		}
+
+		/** The width one day takes at this unit; the canvas and its date header are laid out from it. */
+		public int getPixelsPerDay() { return pixelsPerDay; }
+
+		/** Whether a finer unit exists; Zoom In stops at the finest one. */
+		public boolean hasFiner() { return ordinal() > 0; }
+
+		/** Whether a coarser unit exists; Zoom Out stops at the coarsest one. */
+		public boolean hasCoarser() { return ordinal() < values().length - 1; }
+
+		/** The next finer unit, or this one at the finest unit. */
+		public Timescale finer() { return hasFiner() ? values()[ordinal() - 1] : this; }
+
+		/** The next coarser unit, or this one at the coarsest unit. */
+		public Timescale coarser() { return hasCoarser() ? values()[ordinal() + 1] : this; }
+
+		/** The localized unit name shown in the Timescale chooser. */
+		public String label() {
+			return UsabilityStrings.text("team.timescale." + name().toLowerCase(Locale.ROOT), name());
+		}
+
+		/** The one ordered list of unit names both Team Planner Timescale choosers list, finest first. */
+		public static String[] labels() {
+			Timescale[] units = values();
+			String[] labels = new String[units.length];
+			for (int index = 0; index < units.length; index++)
+				labels[index] = units[index].label();
+			return labels;
+		}
+
+		/** The unit on row {@code index} of {@link #labels()}, or null when the row does not exist. */
+		public static Timescale at(int index) {
+			return index >= 0 && index < values().length ? values()[index] : null;
+		}
+	}
+
+	public static final Timescale DEFAULT_TIMESCALE = Timescale.WEEKS;
 	public static final int MIN_TEXT_LINES = 1;
 	public static final int MAX_TEXT_LINES = 4;
 	public static final int MAX_OUTLINE_LEVEL = 9;
@@ -46,6 +96,7 @@ public final class TeamPlannerViewSettings implements ViewSettingsState {
 	private boolean showUnassigned;
 	private boolean showUnscheduled;
 	private boolean preventOverallocation;
+	private Timescale timescale = DEFAULT_TIMESCALE;
 	private TextStyle textStyle = TextStyle.DEFAULT;
 	private final Map<Category, Integer> fills = new EnumMap<>(Category.class);
 	private final Map<Category, Integer> borders = new EnumMap<>(Category.class);
@@ -67,6 +118,8 @@ public final class TeamPlannerViewSettings implements ViewSettingsState {
 	public void setShowUnscheduled(boolean value) { showUnscheduled = value; }
 	public boolean isPreventOverallocation() { return preventOverallocation; }
 	public void setPreventOverallocation(boolean value) { preventOverallocation = value; }
+	public Timescale getTimescale() { return timescale; }
+	public void setTimescale(Timescale value) { timescale = value == null ? DEFAULT_TIMESCALE : value; }
 	public TextStyle getTextStyle() { return textStyle; }
 	public void setTextStyle(TextStyle style) { textStyle = style == null ? TextStyle.DEFAULT : style; }
 
@@ -95,6 +148,17 @@ public final class TeamPlannerViewSettings implements ViewSettingsState {
 		else map.put(key, rgb);
 	}
 
+	/** A saved unit name, ignoring an unknown or missing one so an older workspace keeps the default scale. */
+	private static Timescale parseTimescale(String name) {
+		if (name == null)
+			return DEFAULT_TIMESCALE;
+		try {
+			return Timescale.valueOf(name.trim());
+		} catch (IllegalArgumentException malformed) {
+			return DEFAULT_TIMESCALE;
+		}
+	}
+
 	@Override
 	public String saveSettings() {
 		Properties p = new Properties();
@@ -105,6 +169,7 @@ public final class TeamPlannerViewSettings implements ViewSettingsState {
 		if (showUnassigned) p.setProperty("showUnassigned", "true");
 		if (showUnscheduled) p.setProperty("showUnscheduled", "true");
 		if (preventOverallocation) p.setProperty("preventOverallocation", "true");
+		if (timescale != DEFAULT_TIMESCALE) p.setProperty("timescale", timescale.name());
 		if (!TextStyle.DEFAULT.equals(textStyle)) p.setProperty("text", textStyle.size() + "," + textStyle.bold());
 		for (Map.Entry<Category, Integer> e : fills.entrySet()) p.setProperty("fill." + e.getKey().name(), e.getValue().toString());
 		for (Map.Entry<Category, Integer> e : borders.entrySet()) p.setProperty("border." + e.getKey().name(), e.getValue().toString());
@@ -123,6 +188,7 @@ public final class TeamPlannerViewSettings implements ViewSettingsState {
 		showUnassigned = Codec.bool(p, "showUnassigned", false);
 		showUnscheduled = Codec.bool(p, "showUnscheduled", false);
 		preventOverallocation = Codec.bool(p, "preventOverallocation", false);
+		setTimescale(parseTimescale(p.getProperty("timescale")));
 		textStyle = TextStyle.DEFAULT;
 		String text = p.getProperty("text");
 		if (text != null) {
