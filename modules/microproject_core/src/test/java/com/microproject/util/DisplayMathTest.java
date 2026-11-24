@@ -33,8 +33,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.scheduling.Schedule;
-import com.microproject.pm.scheduling.ScheduleInterval;
+import com.microproject.schedule.Schedule;
+import com.microproject.schedule.ScheduleInterval;
 
 class DisplayMathTest {
 	@Test

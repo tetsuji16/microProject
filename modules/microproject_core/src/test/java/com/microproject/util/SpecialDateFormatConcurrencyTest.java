@@ -34,7 +34,7 @@ import java.util.concurrent.CountDownLatch;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /**
  * Issue #176: SpecialDateFormat.getSpecialInstance() previously published a

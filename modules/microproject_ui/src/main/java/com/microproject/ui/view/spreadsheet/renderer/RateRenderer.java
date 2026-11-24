@@ -1,0 +1,94 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.view.spreadsheet.renderer;
+
+import java.awt.Component;
+import java.text.Format;
+
+import javax.swing.JLabel;
+import javax.swing.JTable;
+
+import com.microproject.ui.view.model.cache.GraphicNode;
+import com.microproject.ui.view.spreadsheet.SpreadSheetModel;
+import com.microproject.ui.view.spreadsheet.SpreadSheetParams;
+import com.microproject.datatype.CanSupplyRateUnit;
+import com.microproject.datatype.RateFormat;
+import com.microproject.field.Field;
+
+/**
+ *
+ */
+public class RateRenderer extends SimpleRenderer {
+	public Component getTableCellRendererComponent(JTable table, Object value,
+			boolean isSelected, boolean hasFocus, int row, int column) {
+		JLabel result = (JLabel) super.getTableCellRendererComponent(table, value, isSelected,
+				hasFocus, row, column);
+		if (value != null)
+			result.setText(formatValue(table, row, column, value));
+		return result;
+	}
+	
+	public static Format getFormat(JTable table, int row, int column) {
+		SpreadSheetModel model  = (SpreadSheetModel) table.getModel();
+		Object rowObject = model.getObjectInRow(row);
+		Field field = model.getFieldInViewColumn(column);
+		boolean labor = true;
+		if (rowObject instanceof CanSupplyRateUnit) 
+			labor = ((CanSupplyRateUnit)rowObject).getTimeUnitLabel() == null;
+		return RateFormat.getInstance(rowObject, field.isMoney(), labor && field.isPercent(),labor);
+	}
+
+	public static String formatValue(JTable table, int row, int column, Object value) {
+		SpreadSheetModel model = (SpreadSheetModel) table.getModel();
+		var defaults = model.getFieldContext() == null ? null : model.getFieldContext().getDurationDefaults();
+		return defaults == null ? getFormat(table, row, column).format(value)
+			: ((RateFormat) getFormat(table, row, column)).format(value, defaults);
+	}
+	
+	public Component getComponent(Object value, GraphicNode node,Field field,SpreadSheetParams params){
+		JLabel result = (JLabel) super.getTableCellRendererComponent(null, value, false,
+				false, -1, -1);
+		if (value != null){
+			Object rowObject=node.getNode().getImpl();
+			boolean labor = true;
+			if (rowObject instanceof CanSupplyRateUnit) 
+				labor = ((CanSupplyRateUnit)rowObject).getTimeUnitLabel() == null;
+			var defaults = params.getFieldContext() == null ? null : params.getFieldContext().getDurationDefaults();
+			RateFormat format = RateFormat.getInstance(rowObject, field.isMoney(), labor && field.isPercent(),labor);
+			result.setText(defaults == null ? format.format(value) : format.format(value, defaults));
+		}
+		return result;
+	}
+
+	
+	
+	/**
+	 * 
+	 */
+	public RateRenderer() {
+		super();
+	}
+
+}
+

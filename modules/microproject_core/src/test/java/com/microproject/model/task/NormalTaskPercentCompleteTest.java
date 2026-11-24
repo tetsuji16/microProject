@@ -1,0 +1,1160 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.model.task;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.ListIterator;
+
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.MutableTreeNode;
+import javax.swing.tree.TreeNode;
+
+import org.junit.jupiter.api.Test;
+
+import com.microproject.options.CalendarOption;
+import com.microproject.datatype.Duration;
+import com.microproject.datatype.DurationFormat;
+import com.microproject.datatype.Rate;
+import com.microproject.datatype.TimeUnit;
+import com.microproject.configuration.FieldDictionary;
+import com.microproject.field.Field;
+import com.microproject.field.FieldContext;
+import com.microproject.node.Node;
+import com.microproject.node.NodeException;
+import com.microproject.node.NodeVisitor;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.assignment.AssignmentService;
+import com.microproject.model.calendar.WorkDay;
+import com.microproject.model.calendar.WorkingCalendar;
+import com.microproject.model.calendar.WorkingHours;
+import com.microproject.model.costing.Accrual;
+import com.microproject.model.dependency.Dependency;
+import com.microproject.model.dependency.DependencyService;
+import com.microproject.model.dependency.DependencyType;
+import com.microproject.model.resource.ResourceImpl;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.schedule.ScheduleInterval;
+import com.microproject.schedule.criticalpath.TaskSchedule;
+import com.microproject.model.snapshot.Snapshottable;
+import com.microproject.undo.DataFactoryUndoController;
+
+class NormalTaskPercentCompleteTest {
+	@Test
+	void creatingBaselineAssignmentPreservesItsTaskScheduleAndImportsAtomically() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		Assignment currentAssignment = assignWork(project, task, 8L * 60L * 60L * 1000L);
+		TaskSnapshot baselineSnapshot = new TaskSnapshot();
+		TaskSchedule baselineSchedule = new TaskSchedule(task, TaskSchedule.Kind.CURRENT);
+		baselineSchedule.setStart(task.getStart());
+		baselineSchedule.setFinish(task.getEnd());
+		baselineSnapshot.setCurrentSchedule(baselineSchedule);
+		task.setSnapshot(Snapshottable.BASELINE, baselineSnapshot);
+		assertNull(currentAssignment.getBaselineValues(0),
+			"a task baseline schedule without an assignment baseline must not invent assignment scalars");
+
+		Assignment baseline = task.getBaselineAssignment(currentAssignment.getResource(), Snapshottable.BASELINE, true);
+
+		assertSame(baselineSchedule, baselineSnapshot.getCurrentSchedule());
+		assertEquals(task.getStart(), baseline.getStart());
+		assertEquals(task.getEnd(), baseline.getFinish());
+		currentAssignment.importBaselineValues(0, Long.valueOf(baseline.getStart()), Long.valueOf(baseline.getFinish()),
+			Long.valueOf(0L));
+		assertEquals(Long.valueOf(0L), currentAssignment.getBaselineValues(0).work());
+		baseline.setStart(baseline.getStart() + 1L);
+		assertEquals(Long.valueOf(baseline.getStart()), currentAssignment.getBaselineValues(0).start(),
+			"editing an anchored baseline assignment must invalidate imported source metadata");
+		baseline.setWork(baseline.getWork(null) + 1_000L, null);
+		assertEquals(Long.valueOf(baseline.getWork(null)), currentAssignment.getBaselineValues(0).work(),
+			"editing baseline work must invalidate the current assignment's imported scalar metadata");
+		long baselineStart = baseline.getStart();
+		long baselineWork = baseline.getWork(null);
+		assertThrows(IllegalArgumentException.class, () -> baseline.importBaselineValues(null, null, Long.valueOf(-1L)));
+		assertEquals(baselineStart, baseline.getStart());
+		assertEquals(baselineWork, baseline.getWork(null));
+		long currentStart = currentAssignment.getStart();
+		long currentFinish = currentAssignment.getFinish();
+		assertThrows(IllegalStateException.class,
+			() -> currentAssignment.importBaselineValues(Long.valueOf(task.getStart()), null, null));
+		assertEquals(currentStart, currentAssignment.getStart());
+		assertEquals(currentFinish, currentAssignment.getFinish());
+	}
+
+	@Test
+	void newBaselineAssignmentSnapshotsTheCurrentEffectiveCalendar() throws Exception {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		WorkingCalendar taskCalendar = WorkingCalendar.getInstanceBasedOn(project.getWorkCalendar());
+		taskCalendar.setName("Task baseline calendar");
+		WorkingHours taskHours = new WorkingHours();
+		taskHours.setInterval(0, WorkingHours.hourTime(9), WorkingHours.hourTime(11));
+		WorkDay taskDay = new WorkDay();
+		taskDay.setWorkingHours(taskHours);
+		taskCalendar.setWeekDay(1, taskDay);
+		task.setWorkCalendar(taskCalendar);
+		Assignment current = assignWork(project, task, 2L * 60L * 60L * 1000L);
+		TaskSnapshot snapshot = new TaskSnapshot();
+		TaskSchedule schedule = new TaskSchedule(task, TaskSchedule.Kind.CURRENT);
+		schedule.setStart(task.getStart());
+		schedule.setFinish(task.getEnd());
+		snapshot.setCurrentSchedule(schedule);
+		task.setSnapshot(Snapshottable.BASELINE, snapshot);
+
+		Assignment baseline = task.getBaselineAssignment(current.getResource(), Snapshottable.BASELINE, true);
+		WorkingCalendar baselineCalendar = (WorkingCalendar) baseline.getEffectiveWorkCalendar();
+		assertNotSame(taskCalendar, baselineCalendar);
+		assertEquals(current.getEffectiveWorkCalendar().getName(), baselineCalendar.getName());
+		assertEquals(WorkingHours.hourTime(9), baselineCalendar.getWeekDay(1).getWorkingHours()
+			.getInterval(0).getStart());
+		assertEquals(WorkingHours.hourTime(11), baselineCalendar.getWeekDay(1).getWorkingHours()
+			.getInterval(0).getEnd());
+
+		WorkingHours changedHours = new WorkingHours();
+		changedHours.setInterval(0, WorkingHours.hourTime(13), WorkingHours.hourTime(15));
+		WorkDay changedDay = new WorkDay();
+		changedDay.setWorkingHours(changedHours);
+		taskCalendar.setWeekDay(1, changedDay);
+		assertEquals(WorkingHours.hourTime(9), baselineCalendar.getWeekDay(1).getWorkingHours()
+			.getInterval(0).getStart(), "a saved baseline keeps the copied source calendar after live edits");
+	}
+
+	@Test
+	void assignmentOnlyBaselineIsReplacedByCaptureAndRemovedWithSnapshot() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		Assignment assignment = assignWork(project, task, 8L * 60L * 60L * 1000L);
+		assignment.importBaselineValues(0, Long.valueOf(task.getStart()), Long.valueOf(task.getEnd()),
+			Long.valueOf(4L * 60L * 60L * 1000L));
+		assertEquals(Long.valueOf(4L * 60L * 60L * 1000L), assignment.getBaselineValues(0).work());
+		assertNull(task.getSnapshot(Integer.valueOf(0)));
+		Assignment copy = (Assignment) assignment.clone();
+		copy.clearBaselineValues(0);
+		assertNull(copy.getBaselineValues(0));
+		assertEquals(Long.valueOf(4L * 60L * 60L * 1000L), assignment.getBaselineValues(0).work());
+		assertThrows(IllegalArgumentException.class, () -> assignment.clearBaselineValues(11));
+
+		task.saveCurrentToSnapshot(Integer.valueOf(0));
+		assertNotNull(task.getSnapshot(Integer.valueOf(0)));
+		assertEquals(Long.valueOf(assignment.getStart()), assignment.getBaselineValues(0).start());
+		assertEquals(Long.valueOf(assignment.getWork(null)), assignment.getBaselineValues(0).work());
+
+		task.clearSnapshot(Integer.valueOf(0));
+		assertNull(assignment.getBaselineValues(0));
+		assertNull(task.getSnapshot(Integer.valueOf(0)));
+	}
+
+	@Test
+	void mostLoadedAssignmentUnitsIncludesAssignedResources() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		assignWork(project, task, Duration.millis(3_600_000L));
+
+		assertEquals(1.0d, task.getMostLoadedAssignmentUnits());
+	}
+
+	@Test
+	void earliestStopMatchesTheTaskAssignmentForLeafTasks() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		Assignment assignment = firstAssignment(task);
+
+		assertEquals(assignment.getEarliestStop(), task.getEarliestStop());
+	}
+
+	@Test
+	void summaryEarliestStopUsesItsScheduleChildren() {
+		Project project = createProject();
+		NormalTask parent = createTask(project);
+		NormalTask child = createTask(project);
+		attachChildren(parent, child);
+
+		assertEquals(child.getEarliestStop(), parent.getEarliestStop());
+	}
+
+	@Test
+	void resumeSetterAndQueryUseTheTaskAssignments() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		Assignment assignment = firstAssignment(task);
+
+		task.setResume(task.getStart());
+
+		assertEquals(assignment.getResume(), task.getResume());
+	}
+
+	@Test
+	void settingPercentCompleteSynchronizesAssignmentPercentages() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+
+		Assignment assignment = firstAssignment(task);
+		assignment.setPercentComplete(0.2d);
+		assertEquals(0.2d, task.getPercentComplete(), 0.00001d);
+
+		task.setPercentComplete(1.0d);
+
+		assertEquals(1.0d, assignment.getPercentComplete(), 0.00001d);
+		assertEquals(1.0d, task.getPercentComplete(), 0.00001d);
+
+		NormalTask milestone = createTask(project);
+		milestone.setDuration(0L);
+		Assignment milestoneAssignment = firstAssignment(milestone);
+		milestone.setPercentComplete(1.0d);
+
+		assertEquals(1.0d, milestoneAssignment.getPercentComplete(), 0.00001d);
+		assertEquals(1.0d, milestone.getPercentComplete(), 0.00001d);
+	}
+
+	@Test
+	void settingPercentCompleteDoesNotChangePlannedBarBounds() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+
+		long originalStart = task.getStart();
+		long originalEnd = task.getEnd();
+		long originalDuration = task.getDuration();
+
+		task.setPercentComplete(0.1d);
+		task.setPercentComplete(1.0d);
+
+		assertEquals(originalStart, task.getStart());
+		assertEquals(originalEnd, task.getEnd());
+		assertEquals(originalDuration, task.getDuration());
+	}
+
+	@Test
+	void unstartedTaskKeepsActualStartEmptyUntilProgressBegins() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+
+		// CCPM plans must not report an actual start for a 0% task.  The UI
+		// renders the zero timestamp as an empty Actual Start cell.
+		assertEquals(0L, task.getActualStart());
+		task.setPercentComplete(0.0d);
+		assertEquals(0L, task.getActualStart());
+
+		task.setPercentComplete(0.01d);
+		assertEquals(task.getStart(), task.getActualStart());
+	}
+
+	@Test
+	void adjustingActualStartFromAssignmentsUsesAnyStartedAssignment() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		Assignment assignment = firstAssignment(task);
+
+		assignment.setPercentComplete(0.0d);
+		task.adjustActualStartFromAssignments();
+		assertEquals(0L, task.getActualStart());
+
+		assignment.setPercentComplete(0.01d);
+		task.adjustActualStartFromAssignments();
+		assertEquals(task.getStart(), task.getActualStart());
+	}
+
+	@Test
+	void setStopRecomputesActualStartFromAssignments() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(8L * day);
+		Assignment assignment = firstAssignment(task);
+		assignment.setPercentComplete(0.25d);
+		long assignmentActualStart = assignment.getActualStart();
+
+		long laterStop = task.getEffectiveWorkCalendar().add(task.getStart(), 4L * day, false);
+		task.setStop(laterStop);
+
+		assertEquals(assignment.getActualStart(), task.getActualStart());
+		assertEquals(assignmentActualStart, task.getActualStart());
+	}
+
+	@Test
+	void taskOffsetMatchesAssignmentOffsetForStartedAndUnstartedAssignments() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(8L * day);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		resource.setName("Offset test resource");
+		AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
+		Assignment assignment = firstAssignment(task);
+		long startDate = task.getStart();
+		long dependencyDate = task.getEffectiveWorkCalendar().add(startDate, 2L * day, false);
+
+		for (double percentComplete : new double[] { 0.0d, 0.25d }) {
+			assignment.setPercentComplete(percentComplete);
+			for (boolean ahead : new boolean[] { false, true }) {
+				assertEquals(assignment.calcOffsetFrom(startDate, dependencyDate, ahead, false, false),
+					task.calcOffsetFrom(startDate, dependencyDate, ahead, false, false),
+					"percentComplete=" + percentComplete + ", ahead=" + ahead);
+			}
+		}
+	}
+
+	@Test
+	void unassignedTaskOffsetPreservesAssignmentForwardAndInverseContracts() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(8L * day);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		resource.setName("Unassigned offset contract resource");
+		AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
+		Assignment assignment = firstAssignment(task);
+		long startDate = task.getStart();
+		long dependencyDate = task.getEffectiveWorkCalendar().add(startDate, 2L * day, false);
+
+		for (double percentComplete : new double[] { 0.0d, 0.5d }) {
+			assignment.setPercentComplete(percentComplete);
+			for (boolean ahead : new boolean[] { false, true }) {
+				for (boolean remainingOnly : new boolean[] { false, true }) {
+					long expected = assignment.calcOffsetFrom(startDate, dependencyDate, ahead, remainingOnly, false);
+					long actual = task.calcOffsetFrom(startDate, dependencyDate, ahead, remainingOnly, false);
+					assertEquals(expected, actual, "assigned percent=" + percentComplete + ", ahead=" + ahead
+						+ ", remainingOnly=" + remainingOnly);
+				}
+			}
+		}
+
+		task.removeAssignment(assignment);
+		assertFalse(task.hasRealAssignments());
+		for (double percentComplete : new double[] { 0.0d, 0.5d }) {
+			task.setPercentComplete(percentComplete);
+			for (boolean ahead : new boolean[] { false, true }) {
+				for (boolean remainingOnly : new boolean[] { false, true }) {
+					long offsetStart = ahead && percentComplete == 0.0d
+						? Math.max(startDate, dependencyDate) : startDate;
+					if (percentComplete > 0.0d)
+						offsetStart = task.getEffectiveWorkCalendar().add(offsetStart,
+							Duration.millis(task.getActualDuration()), false);
+					long duration = remainingOnly ? Duration.millis(task.getRemainingDuration()) : task.getDurationMillis();
+					long expected = task.getEffectiveWorkCalendar().add(offsetStart, ahead ? duration : -duration, false);
+					long actual = task.calcOffsetFrom(startDate, dependencyDate, ahead, remainingOnly, false);
+					assertEquals(expected, actual, "unassigned percent=" + percentComplete + ", ahead=" + ahead
+						+ ", remainingOnly=" + remainingOnly);
+				}
+			}
+		}
+	}
+
+	@Test
+	void completedThroughUpdatePropagatesAssignmentActualStart() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(8L * day);
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		resource.setName("Completion test resource");
+		AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
+		Assignment assignment = firstAssignment(task);
+		long completedThrough = task.getEffectiveWorkCalendar().add(task.getStart(), 4L * day, false);
+
+		task.setCompletedThrough(completedThrough);
+
+		assertEquals(assignment.getCompletedThrough(), task.getCompletedThrough());
+		assertEquals(assignment.getActualStart(), task.getActualStart());
+	}
+
+	@Test
+	void percentCompleteCalculatesExactRemainingDurationAtBoundariesAndIntermediateProgress() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		task.setDuration(8L * day);
+
+		task.setPercentComplete(0.0d);
+		assertEquals(8L * day, Duration.millis(task.getRemainingDuration()));
+		task.setPercentComplete(0.10d);
+		assertEquals(7.2d * day, Duration.millis(task.getRemainingDuration()), 1.0d,
+			"remaining duration must follow Duration - (Duration * Percent Complete)");
+		Field remainingDuration = FieldDictionary.getInstance().getFieldFromId("Field.remainingDuration");
+		assertEquals(DurationFormat.getInstance().format(new Duration(task.getRemainingDuration())),
+			remainingDuration.getText(task, null),
+			"the task-sheet field must render the calculated remaining duration, not a stale value");
+		task.setPercentComplete(1.0d);
+		assertEquals(0L, Duration.millis(task.getRemainingDuration()));
+	}
+
+	@Test
+	void settingPercentWorkCompleteDoesNotChangeDurationBasedPercentComplete() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+
+		long originalStart = task.getStart();
+		long originalEnd = task.getEnd();
+		long originalDuration = task.getDuration();
+
+		task.setPercentWorkComplete(0.1d);
+		task.setPercentWorkComplete(0.2d);
+		task.setPercentWorkComplete(0.4d);
+
+		assertEquals(0.0d, task.getPercentComplete(), 0.00001d);
+		assertEquals(originalStart, task.getStart());
+		assertEquals(originalEnd, task.getEnd());
+		assertEquals(originalDuration, task.getDuration());
+	}
+
+	@Test
+	void settingPercentWorkCompleteKeepsRequestedValue() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+
+		task.setPercentWorkComplete(0.2d);
+		assertEquals(0.2d, task.getPercentWorkComplete(), 0.00001d);
+	}
+
+	@Test
+	void settingPercentWorkCompleteUpdatesActualAndRemainingWork() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		Assignment assignment = assignWork(project, task, 8L * 60L * 60L * 1000L);
+		long plannedWork = task.getWork(null);
+		long originalStart = task.getStart();
+		long originalEnd = task.getEnd();
+
+		task.setPercentWorkComplete(0.25d);
+
+		assertEquals(Math.round(plannedWork * 0.25d), task.getActualWork(null));
+		assertEquals(plannedWork - Math.round(plannedWork * 0.25d), task.getRemainingWork(null));
+		assertEquals(Math.round(assignment.getWork(null) * 0.25d), assignment.getActualWork(null));
+		assertEquals(0.25d, task.getPercentWorkComplete(), 0.00001d);
+		assertEquals(0.0d, task.getPercentComplete(), 0.00001d);
+		assertEquals(originalStart, task.getStart());
+		assertEquals(originalEnd, task.getEnd());
+	}
+
+	@Test
+	void settingPercentWorkCompletePreservesExistingDurationBasedProgress() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		assignWork(project, task, 8L * 60L * 60L * 1000L);
+		task.setPercentComplete(0.60d);
+
+		task.setPercentWorkComplete(0.25d);
+
+		assertEquals(0.25d, task.getPercentWorkComplete(), 0.00001d);
+		assertEquals(0.60d, task.getPercentComplete(), 0.00001d);
+	}
+
+	@Test
+	void settingActualWorkUpdatesWorkProgressWithoutChangingDurationProgress() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		assignWork(project, task, 8L * 60L * 60L * 1000L);
+
+		task.setActualWork(2L * 60L * 60L * 1000L, null);
+
+		assertEquals(0.25d, task.getPercentWorkComplete(), 0.00001d);
+		assertEquals(0.0d, task.getPercentComplete(), 0.00001d);
+		assertEquals(2L * 60L * 60L * 1000L, task.getActualWork(null));
+		assertEquals(6L * 60L * 60L * 1000L, task.getRemainingWork(null));
+	}
+
+	@Test
+	void intervalActualWorkUpdateIsAppliedToTaskAssignments() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		task.setDuration(8L * 60L * 60L * 1000L);
+		assignWork(project, task, 8L * 60L * 60L * 1000L);
+		FieldContext context = new FieldContext();
+		context.setInterval(new ScheduleInterval(task.getStart(), task.getEnd()));
+		long actualWork = 2L * 60L * 60L * 1000L;
+
+		task.setActualWork(actualWork, context);
+
+		assertEquals(actualWork, task.getActualWork(context));
+	}
+
+	@Test
+	void repairedTaskMarksAssignmentsDirtyAndPredecessorsClean() throws Exception {
+		Project project = createProject();
+		NormalTask predecessor = createTask(project);
+		NormalTask task = createTask(project);
+		Dependency dependency = DependencyService.getInstance()
+			.newDependency(predecessor, task, DependencyType.FS, 0L, this);
+		Assignment assignment = firstAssignment(task);
+		assignment.setDirty(false);
+		dependency.setDirty(true);
+
+		task.setTaskAssignementAndPredsDirty();
+
+		assertTrue(task.isDirty());
+		assertTrue(assignment.isDirty());
+		assertFalse(dependency.isDirty());
+	}
+
+	@Test
+	void percentWorkCompleteDoesNotCompleteTaskDurationProgress() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		assignWork(project, task, 8L * 60L * 60L * 1000L);
+
+		task.setPercentWorkComplete(0.25d);
+		assertEquals(task.getStart(), task.getActualStart());
+
+		task.setPercentWorkComplete(1.0d);
+		assertEquals(1.0d, task.getPercentWorkComplete(), 0.00001d);
+		assertEquals(0.0d, task.getPercentComplete(), 0.00001d);
+	}
+
+	@Test
+	void enteringActualFinishPopulatesActualStartWithoutAssignments() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long plannedStart = task.getStart();
+		long plannedFinish = task.getEnd();
+
+		task.setActualFinish(plannedFinish);
+
+		assertEquals(plannedStart, task.getActualStart());
+	}
+
+	@Test
+	void parentPercentWorkCompleteUsesWorkWeightedChildCompletion() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+
+		NormalTask parent = new NormalTask(project);
+		project.connectTask(parent);
+		NormalTask firstChild = new NormalTask(project);
+		project.connectTask(firstChild);
+		NormalTask secondChild = new NormalTask(project);
+		project.connectTask(secondChild);
+
+		firstChild.setDuration(10L);
+		secondChild.setDuration(10L);
+		assignWork(project, firstChild, 10L * 60L * 60L * 1000L);
+		assignWork(project, secondChild, 30L * 60L * 60L * 1000L);
+		firstChild.setPercentWorkComplete(1.0d);
+		secondChild.setPercentWorkComplete(0.5d);
+
+		firstChild.setWbsParent(parent);
+		secondChild.setWbsParent(parent);
+		parent.setWbsChildrenNodes(childNodes(firstChild, secondChild));
+
+		assertEquals(0.625d, parent.getPercentWorkComplete(), 0.00001d);
+	}
+
+	@Test
+	void parentSummaryAggregatesChildSpanWorkCostAndProgress() {
+		Project project = createProject();
+		NormalTask parent = createTask(project);
+		NormalTask first = createTask(project);
+		NormalTask second = createTask(project);
+		long start = project.getStart();
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		configureTask(first, start, 2L * day);
+		configureTask(second, project.getEffectiveWorkCalendar().add(start, 3L * day, false), 3L * day);
+		assignWork(project, first, 2L * day);
+		assignWork(project, second, 3L * day);
+		first.setFixedCost(100D);
+		second.setFixedCost(250D);
+		first.setPercentWorkComplete(1D);
+		second.setPercentWorkComplete(0.5D);
+		attachChildren(parent, first, second);
+		RollupSpan span = parent.calculateRollupSpan();
+		assertEquals(first.getStart(), span.getStart());
+		assertEquals(second.getEnd(), span.getFinish());
+		assertEquals(first.work(span.getStart(), span.getFinish()) + second.work(span.getStart(), span.getFinish()), parent.work(span.getStart(), span.getFinish()));
+		assertEquals(first.cost(span.getStart(), span.getFinish()) + second.cost(span.getStart(), span.getFinish()),
+				parent.cost(span.getStart(), span.getFinish()), 0.001D);
+		assertEquals(350D, parent.fixedCost(span.getStart(), span.getFinish()), 0.001D);
+		assertEquals(0.7D, parent.getPercentWorkComplete(), 0.001D);
+	}
+
+	@Test
+	void parentSummaryAggregatesActualAndRemainingWork() {
+		Project project = createProject();
+		NormalTask parent = createTask(project);
+		NormalTask first = createTask(project);
+		NormalTask second = createTask(project);
+		long start = project.getStart();
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		configureTask(first, start, 2L * day);
+		configureTask(second, project.getEffectiveWorkCalendar().add(start, 3L * day, false), 3L * day);
+		assignWork(project, first, 2L * day);
+		assignWork(project, second, 3L * day);
+		first.setActualWork(day, null);
+		second.setActualWork(2L * day, null);
+		attachChildren(parent, first, second);
+		RollupSpan span = parent.calculateRollupSpan();
+
+		assertEquals(first.actualWork(span.getStart(), span.getFinish())
+				+ second.actualWork(span.getStart(), span.getFinish()),
+				parent.actualWork(span.getStart(), span.getFinish()));
+		assertEquals(first.remainingWork(span.getStart(), span.getFinish())
+				+ second.remainingWork(span.getStart(), span.getFinish()),
+				parent.remainingWork(span.getStart(), span.getFinish()));
+	}
+
+	@Test
+	void fixedCostAccrualPreservesStartAndEndBoundaryInclusion() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long start = project.getStart();
+		long duration = 2L * CalendarOption.getInstance().getMillisPerDay();
+		configureTask(task, start, duration);
+		task.setFixedCost(100D);
+		long end = task.getEnd();
+
+		task.setFixedCostAccrual(Accrual.Kind.START);
+		assertEquals(100D, task.fixedCost(start, start), 0.001D);
+		assertEquals(0D, task.fixedCost(start + 1L, end), 0.001D);
+
+		task.setFixedCostAccrual(Accrual.Kind.END);
+		assertEquals(100D, task.fixedCost(end, end), 0.001D);
+		assertEquals(0D, task.fixedCost(start, end - 1L), 0.001D);
+
+		// Unknown stored accrual values have historically fallen back to END.
+		task.setFixedCostAccrual(99);
+		assertEquals(100D, task.fixedCost(end, end), 0.001D);
+	}
+
+	@Test
+	void proratedFixedCostUsesWorkingTimeOverlap() {
+		Project project = createProject();
+		NormalTask task = createTask(project);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		long start = project.getStart();
+		configureTask(task, start, 4L * day);
+		task.setFixedCost(120D);
+		task.setFixedCostAccrual(Accrual.Kind.PRORATED);
+		var calendar = task.getEffectiveWorkCalendar();
+		long partialStart = calendar.add(start, day, false);
+		long partialEnd = calendar.add(partialStart, 2L * day, false);
+		double expected = 120D * calendar.compare(partialEnd, partialStart, false)
+			/ calendar.compare(task.getEnd(), task.getStart(), false);
+
+		assertEquals(expected, task.fixedCost(partialStart, partialEnd), 0.001D);
+		assertEquals(0D, task.fixedCost(task.getEnd(), task.getEnd()), 0.001D);
+	}
+
+	@Test
+	void parentSummaryAggregatesBaselineWorkFromChildSnapshots() {
+		Project project = createProject();
+		NormalTask parent = createTask(project);
+		NormalTask first = createTask(project);
+		NormalTask second = createTask(project);
+		long start = project.getStart();
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		configureTask(first, start, 2L * day);
+		configureTask(second, project.getEffectiveWorkCalendar().add(start, 3L * day, false), 3L * day);
+		assignWork(project, first, 2L * day);
+		assignWork(project, second, 3L * day);
+		attachChildren(parent, first, second);
+		project.saveCurrentToSnapshot(Snapshottable.BASELINE, true, null);
+		RollupSpan span = parent.calculateRollupSpan();
+
+		assertEquals(first.baselineWork(span.getStart(), span.getFinish())
+				+ second.baselineWork(span.getStart(), span.getFinish()),
+				parent.baselineWork(span.getStart(), span.getFinish()));
+	}
+
+	@Test
+	void summaryActualDateSpanUsesProgressingChildrenAndCompletedFallback() {
+		Project project = createProject();
+		NormalTask parent = createTask(project);
+		NormalTask completed = createTask(project);
+		NormalTask progressing = createTask(project);
+		NormalTask notStarted = createTask(project);
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		long projectStart = project.getStart();
+		configureTask(parent, projectStart, 12L * day);
+		configureTask(completed, projectStart, 2L * day);
+		configureTask(progressing, projectStart + 4L * day, 4L * day);
+		configureTask(notStarted, projectStart + 8L * day, 2L * day);
+		completed.setPercentComplete(1.0d);
+		progressing.setPercentComplete(0.5d);
+		notStarted.setPercentComplete(0.0d);
+		progressing.setActualStart(project.getEffectiveWorkCalendar().add(progressing.getStart(), day, false));
+		long progressingStop = project.getEffectiveWorkCalendar().add(progressing.getStart(), 3L * day, false);
+		progressing.setStop(progressingStop);
+		attachChildren(parent, completed, progressing, notStarted);
+
+		SummaryActualDateSpan span = SummaryActualDateSpan.from(parent.getWbsChildrenNodes());
+		long expectedFinish = Math.max(Math.max(completed.getActualFinish(), completed.getStop()),
+				Math.max(progressing.getActualFinish(), progressing.getStop()));
+
+		assertEquals(completed.getStart(), span.start());
+		assertEquals(expectedFinish, span.finish());
+		parent.assignActualDatesFromChildren();
+		assertEquals(span.start(), parent.getActualStart());
+	}
+
+	@Test
+	void parentSummaryAggregatesEarnedValueFromChildren() {
+		Project project = createProject();
+		NormalTask parent = createTask(project);
+		NormalTask first = createTask(project);
+		NormalTask second = createTask(project);
+		long start = project.getStart();
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		configureTask(first, start, 2L * day);
+		configureTask(second, project.getEffectiveWorkCalendar().add(start, 3L * day, false), 3L * day);
+		assignWorkAtRate(project, first, 2L * day, day);
+		assignWorkAtRate(project, second, 3L * day, 2L * day);
+		attachChildren(parent, first, second);
+		project.saveCurrentToSnapshot(Snapshottable.BASELINE, true, null);
+		RollupSpan span = parent.calculateRollupSpan();
+		project.setStatusDate(span.getFinish());
+
+		assertEquals(first.acwp(span.getStart(), span.getFinish())
+				+ second.acwp(span.getStart(), span.getFinish()),
+				parent.acwp(span.getStart(), span.getFinish()), 0.001D);
+		assertEquals(first.bac(span.getStart(), span.getFinish())
+				+ second.bac(span.getStart(), span.getFinish()),
+				parent.bac(span.getStart(), span.getFinish()), 0.001D);
+		assertEquals(first.bcwp(span.getStart(), span.getFinish())
+				+ second.bcwp(span.getStart(), span.getFinish()),
+				parent.bcwp(span.getStart(), span.getFinish()), 0.001D);
+		assertEquals(first.bcws(span.getStart(), span.getFinish())
+				+ second.bcws(span.getStart(), span.getFinish()),
+				parent.bcws(span.getStart(), span.getFinish()), 0.001D);
+	}
+
+	@Test
+	void parentPercentWorkCompleteIgnoresZeroWorkLeaves() {
+		Project project = createProject();
+		NormalTask parent = createTask(project);
+		NormalTask firstChild = createTask(project);
+		NormalTask secondChild = createTask(project);
+		NormalTask milestoneChild = createTask(project);
+
+		firstChild.setDuration(10L);
+		secondChild.setDuration(10L);
+		milestoneChild.setDuration(0L);
+		assignWork(project, firstChild, 10L * 60L * 60L * 1000L);
+		assignWork(project, secondChild, 30L * 60L * 60L * 1000L);
+		firstChild.setPercentWorkComplete(1.0d);
+		secondChild.setPercentWorkComplete(0.5d);
+		milestoneChild.setPercentWorkComplete(0.0d);
+
+		attachChildren(parent, firstChild, secondChild, milestoneChild);
+
+		assertEquals(0.625d, parent.getPercentWorkComplete(), 0.00001d);
+	}
+
+	@Test
+	void parentPercentWorkCompleteInputRedistributesParallelChildrenByElapsedTime() {
+		Project project = createProject();
+		NormalTask parent = createTask(project);
+		NormalTask shortTask = createTask(project);
+		NormalTask longTask = createTask(project);
+
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		long start = project.getStart();
+		configureTask(shortTask, start, 10L * day);
+		configureTask(longTask, start, 20L * day);
+		attachChildren(parent, shortTask, longTask);
+
+		parent.setPercentWorkComplete(0.2d);
+
+		assertEquals(completedDuration(shortTask), completedDuration(longTask), 0.00001d);
+		assertEquals(0.2d, parent.getPercentWorkComplete(), 0.00001d);
+	}
+
+	@Test
+	void parentPercentWorkCompleteInputCanReduceCompletedChildren() {
+		Project project = createProject();
+		NormalTask parent = createTask(project);
+		NormalTask doneTask = createTask(project);
+		NormalTask remainingTask = createTask(project);
+
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		long start = project.getStart();
+		configureTask(doneTask, start, 10L * day);
+		configureTask(remainingTask, start, 30L * day);
+		doneTask.setPercentWorkComplete(1.0d);
+		remainingTask.setPercentWorkComplete(0.5d);
+		attachChildren(parent, doneTask, remainingTask);
+
+		parent.setPercentWorkComplete(0.25d);
+
+		assertTrue(doneTask.getPercentWorkComplete() < 1.0d);
+		assertTrue(remainingTask.getPercentWorkComplete() < 0.5d);
+		assertEquals(0.25d, parent.getPercentWorkComplete(), 0.00001d);
+	}
+
+	@Test
+	void parentPercentWorkCompleteInputRedistributesSerialChildrenByTimelineOrder() {
+		Project project = createProject();
+		NormalTask parent = createTask(project);
+		NormalTask firstTask = createTask(project);
+		NormalTask secondTask = createTask(project);
+
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		long start = project.getStart();
+		configureTask(firstTask, start, 10L * day);
+		configureTask(secondTask, firstTask.getEnd(), 10L * day);
+		attachChildren(parent, firstTask, secondTask);
+
+		parent.setPercentWorkComplete(0.75d);
+
+		assertEquals(1.0d, firstTask.getPercentWorkComplete(), 0.00001d);
+		assertTrue(secondTask.getPercentWorkComplete() > 0.0d);
+		assertTrue(secondTask.getPercentWorkComplete() < 1.0d);
+		assertEquals(0.75d, parent.getPercentWorkComplete(), 0.00001d);
+	}
+
+	@Test
+	void parentPercentWorkCompleteDecreaseRedistributesParallelChildrenByElapsedTime() {
+		Project project = createProject();
+		NormalTask parent = createTask(project);
+		NormalTask shortTask = createTask(project);
+		NormalTask longTask = createTask(project);
+
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		long start = project.getStart();
+		configureTask(shortTask, start, 10L * day);
+		configureTask(longTask, start, 20L * day);
+		attachChildren(parent, shortTask, longTask);
+
+		parent.setPercentWorkComplete(0.8d);
+		parent.setPercentWorkComplete(0.2d);
+
+		assertEquals(completedDuration(shortTask), completedDuration(longTask), 0.00001d);
+		assertEquals(0.2d, parent.getPercentWorkComplete(), 0.00001d);
+	}
+
+	@Test
+	void parentPercentWorkCompleteDecreaseRedistributesSerialChildrenFromLatestTask() {
+		Project project = createProject();
+		NormalTask parent = createTask(project);
+		NormalTask firstTask = createTask(project);
+		NormalTask secondTask = createTask(project);
+
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		long start = project.getStart();
+		configureTask(firstTask, start, 10L * day);
+		configureTask(secondTask, firstTask.getEnd(), 10L * day);
+		attachChildren(parent, firstTask, secondTask);
+
+		parent.setPercentWorkComplete(0.8d);
+		parent.setPercentWorkComplete(0.2d);
+
+		assertTrue(firstTask.getPercentWorkComplete() > 0.0d);
+		assertTrue(firstTask.getPercentWorkComplete() < 1.0d);
+		assertTrue(secondTask.getPercentWorkComplete() < 0.6d);
+		assertTrue(firstTask.getPercentWorkComplete() >= secondTask.getPercentWorkComplete());
+		assertEquals(0.2d, parent.getPercentWorkComplete(), 0.00001d);
+	}
+
+	@Test
+	void parentPercentWorkCompleteDecreaseToZeroClearsAllChildren() {
+		Project project = createProject();
+		NormalTask parent = createTask(project);
+		NormalTask firstTask = createTask(project);
+		NormalTask secondTask = createTask(project);
+
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		long start = project.getStart();
+		configureTask(firstTask, start, 10L * day);
+		configureTask(secondTask, start, 20L * day);
+		attachChildren(parent, firstTask, secondTask);
+
+		parent.setPercentWorkComplete(0.7d);
+		parent.setPercentWorkComplete(0.0d);
+
+		assertEquals(0.0d, firstTask.getPercentWorkComplete(), 0.00001d);
+		assertEquals(0.0d, secondTask.getPercentWorkComplete(), 0.00001d);
+		assertEquals(0.0d, parent.getPercentWorkComplete(), 0.00001d);
+	}
+
+	@Test
+	void parentPercentWorkCompleteInputDoesNotChangePlannedBarBounds() {
+		Project project = createProject();
+		NormalTask parent = createTask(project);
+		NormalTask firstTask = createTask(project);
+		NormalTask secondTask = createTask(project);
+
+		long day = CalendarOption.getInstance().getMillisPerDay();
+		long start = project.getStart();
+		configureTask(firstTask, start, 10L * day);
+		configureTask(secondTask, start, 20L * day);
+		attachChildren(parent, firstTask, secondTask);
+
+		long firstStart = firstTask.getStart();
+		long firstEnd = firstTask.getEnd();
+		long firstDuration = firstTask.getDuration();
+		long secondStart = secondTask.getStart();
+		long secondEnd = secondTask.getEnd();
+		long secondDuration = secondTask.getDuration();
+
+		parent.setPercentWorkComplete(0.4d);
+
+		assertEquals(firstStart, firstTask.getStart());
+		assertEquals(firstEnd, firstTask.getEnd());
+		assertEquals(firstDuration, firstTask.getDuration());
+		assertEquals(secondStart, secondTask.getStart());
+		assertEquals(secondEnd, secondTask.getEnd());
+		assertEquals(secondDuration, secondTask.getDuration());
+	}
+
+	private Project createProject() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		return project;
+	}
+
+	private NormalTask createTask(Project project) {
+		NormalTask task = new NormalTask(project);
+		project.connectTask(task);
+		return task;
+	}
+
+	private Assignment firstAssignment(NormalTask task) {
+		Iterator iterator = task.getAssignments().iterator();
+		return (Assignment) iterator.next();
+	}
+
+	private Assignment assignWork(Project project, NormalTask task, long work) {
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
+		assignment.setWork(work, null);
+		return assignment;
+	}
+
+	private Assignment assignWorkAtRate(Project project, NormalTask task, long work, long actualWork) {
+		ResourceImpl resource = project.getResourcePool().newResourceInstance();
+		resource.setStandardRate(new Rate(60.0D, TimeUnit.HOURS));
+		Assignment assignment = AssignmentService.getInstance().newAssignment(task, resource, 1.0d, 0L, this);
+		assignment.setWork(work, null);
+		assignment.setActualWork(actualWork, null);
+		return assignment;
+	}
+
+	private void configureTask(NormalTask task, long start, long duration) {
+		task.setDuration(duration);
+		task.setStart(start);
+		task.setEnd(task.getEffectiveWorkCalendar().add(start, duration, false));
+	}
+
+	private void attachChildren(NormalTask parent, NormalTask... children) {
+		for (NormalTask child : children)
+			child.setWbsParent(parent);
+		parent.setWbsChildrenNodes(childNodes(children));
+	}
+
+	private double completedDuration(NormalTask task) {
+		return task.getPercentWorkComplete() * task.getDurationMillis();
+	}
+
+	private List<Node> childNodes(NormalTask... tasks) {
+		List<Node> nodes = new ArrayList<Node>(tasks.length);
+		for (NormalTask task : tasks)
+			nodes.add(new TestNode(task));
+		return nodes;
+	}
+
+	private static final class TestNode implements Node {
+		private Object impl;
+		private final List<MutableTreeNode> children = new ArrayList<MutableTreeNode>();
+		private MutableTreeNode parent;
+		private boolean dirty;
+		private int subprojectLevel;
+
+		private TestNode(Object impl) {
+			this.impl = impl;
+		}
+
+		public void accept(NodeVisitor visitor) {
+			visitor.accept(this);
+		}
+
+		public Class getType() throws NodeException {
+			return impl == null ? Object.class : impl.getClass();
+		}
+
+		public boolean isVirtual() {
+			return false;
+		}
+
+		public void setVirtual(boolean virtual) {
+		}
+
+		public boolean isVoid() {
+			return false;
+		}
+
+		public void setVoid(boolean voidNode) {
+		}
+
+		public boolean isRoot() {
+			return false;
+		}
+
+		public void setRoot(boolean root) {
+		}
+
+		public boolean hasNumber() {
+			return false;
+		}
+
+		public Object getImpl() {
+			return impl;
+		}
+
+		public void setImpl(Object imp) {
+			impl = imp;
+		}
+
+		public ListIterator childrenIterator() {
+			return children.listIterator();
+		}
+
+		public ListIterator childrenIterator(int i) {
+			return children.listIterator(i);
+		}
+
+		public List getChildren() {
+			return children;
+		}
+
+		public void add(MutableTreeNode node) {
+			children.add(node);
+			node.setParent(this);
+		}
+
+		public DefaultMutableTreeNode getPreviousSibling() {
+			return null;
+		}
+
+		public DefaultMutableTreeNode getNextSibling() {
+			return null;
+		}
+
+		public boolean isIndentable(int value) {
+			return true;
+		}
+
+		public boolean isLazyParent() {
+			return false;
+		}
+
+		public boolean canBeChildOf(Node parent) {
+			return true;
+		}
+
+		public boolean isDirty() {
+			return dirty;
+		}
+
+		public void setDirty(boolean dirty) {
+			this.dirty = dirty;
+		}
+
+		public int getSubprojectLevel() {
+			return subprojectLevel;
+		}
+
+		public void setSubprojectLevel(int subprojectLevel) {
+			this.subprojectLevel = subprojectLevel;
+		}
+
+		public boolean isInSubproject() {
+			return false;
+		}
+
+		public void insert(MutableTreeNode child, int index) {
+			children.add(index, child);
+			child.setParent(this);
+		}
+
+		public void remove(int index) {
+			children.remove(index);
+		}
+
+		public void remove(MutableTreeNode node) {
+			children.remove(node);
+		}
+
+		public void setUserObject(Object object) {
+			impl = object;
+		}
+
+		public void removeFromParent() {
+			if (parent != null)
+				parent.remove(this);
+		}
+
+		public void setParent(MutableTreeNode newParent) {
+			parent = newParent;
+		}
+
+		public TreeNode getChildAt(int childIndex) {
+			return (TreeNode) children.get(childIndex);
+		}
+
+		public int getChildCount() {
+			return children.size();
+		}
+
+		public TreeNode getParent() {
+			return (TreeNode) parent;
+		}
+
+		public int getIndex(TreeNode node) {
+			return children.indexOf(node);
+		}
+
+		public boolean getAllowsChildren() {
+			return true;
+		}
+
+		public boolean isLeaf() {
+			return children.isEmpty();
+		}
+
+		public java.util.Enumeration children() {
+			return java.util.Collections.enumeration(children);
+		}
+	}
+}

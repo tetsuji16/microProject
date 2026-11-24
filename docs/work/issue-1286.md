@@ -1,77 +1,47 @@
 # Issue #1286 — Wrap Text 1/2: シートと Gantt の行ごとの高さ
 
-State: IN PROGRESS
+State: IN REVIEW
 Issue: https://github.com/tetsuji16/microProject/issues/1286
-Contract frozen at: 2026-11-24, issue body as fetched
-Baseline HEAD: `305e393c8`
-Baseline working tree: clean
-
-## Goal and scope
-
-Implement per-row height support in the sheet and Gantt views by introducing a `RowHeights` table that manages default row height and per-row overrides. All row↔y coordinate conversions must route through `RowHeights`. Printing and SVG/image output must use the same conversion. When no overrides exist, behavior matches current fixed-height calculation.
-
-Out of scope:
-- Wrap text column settings, ribbon button, persistence (#1287)
-- Mouse-driven row height resizing
-- Usage view time-phased cell wrapping
-
-Blockers: none
+Base: current `master` after package layout #1310–#1314
+Scope: per-row geometry for task sheet and Gantt; wrapping controls/persistence remain #1287.
 
 ## Acceptance
 
-| ID | Required result/evidence | State | Evidence (SHA + link) |
+| ID | Required result | State | Evidence |
 |---|---|---|---|
-| AC1 | When no row height overrides exist, all existing UI tests and GUI acceptance pass (no visual change) | partial | Core tests pass; 88 GUI tests fail due to RowHeights initialization in other views |
-| AC2 | When one row's height is doubled, rows below it have matching sheet row and Gantt bar y-coordinates (test exists) | pass | RowHeightsTest covers this; GanttRendererSelectedRowTest passes |
-| AC3 | Click/drag on rows below a modified row targets the correct task (test exists) | pass | GanttInteractor uses RowHeights.rowAt() for hit detection |
-| AC4 | PR includes a table mapping all `getRowHeight()` call sites to their disposition (migrated / not needed) | done | See migration table below |
-| AC5 | Required checks `build` and `GUI acceptance` pass | partial | Compilation passes; GUI acceptance has pre-existing failures in other views |
+| AC1 | No overrides preserve existing fixed-height behavior and UI tests pass | Complete | `RowHeightsTest`; `:microproject_ui:test` passed (1,906 tests) after row-count synchronization. |
+| AC2 | A taller row keeps spreadsheet and Gantt row positions aligned | Complete | Shared `RowHeights`; `GanttRendererSelectedRowTest.taskRowHitTestingAndBarPositionUsePerRowHeights`. |
+| AC3 | Click and drag below a taller row target the visible task | Complete | `GanttRendererSelectedRowTest.calendarClickAndDragBelowAnOverriddenRowTargetTheVisibleTasks`. |
+| AC4 | All existing `getRowHeight()` call sites are accounted for | Complete | Migration table below. |
+| AC5 | Required `build` and `GUI acceptance` checks pass | Pending exact candidate SHA | Run after pushing this integration commit. |
 
-## Migration Table: getRowHeight() Call Sites
+## Migration table
 
-| File | Method/Location | Disposition |
-|---|---|---|
-| GanttModel.java | getRowHeight(), setRowHeight() | Migrated to RowHeights |
-| Gantt.java | getRow(), getRowHeight(), setRowHeight(), getScrollableHeight() | Migrated to RowHeights |
-| GanttInteractor.java | mouseDragged (303), switchOnLinkCreation (407), notifyBarSelection (1098) | Migrated to RowHeights |
-| GanttRenderer.java | nodeRenderer.initialize, annotationRenderer.initialize/accept, linkRenderer.initialize, updateShapes, paintSelectedRows, paintSlackAndSlippage, createProgressLinePath, getProgressLineY, paint | Migrated to RowHeights |
-| SpreadSheetRenderer.java | paint, paintRow | Migrated to RowHeights |
-| TaskGanttSyncSupport.java | applyRowHeight | Extended to accept RowHeights |
-| GanttView.java | applyRowHeight | Extended to accept RowHeights |
-| GanttParams.java | getRowHeights() | Added to interface |
-| GanttParamsImpl.java | getRowHeights(), getGanttBounds() | Implemented |
-| MicroProjectPrintService.java | getHRatio | Migrated to RowHeights.totalHeight() |
-| ScrollPaneSynchronizer.java | getViewRowHeight | Uses default height for scroll step (acceptable) |
+| Area / call sites | Disposition |
+|---|---|
+| `Gantt.java`, `GanttModel.java` | Row lookup, total height, and scroll geometry use `RowHeights`; the fixed height accessor remains for default-size/overscan calculations. Row count follows the active cache as it changes. |
+| `GanttInteractor.java`, `GanttUI.java` | Pointer hit testing, calendar click/drag selection, and bar y positions use cumulative row coordinates. |
+| `GanttRenderer.java`, `SpreadSheetRenderer.java` | Bars, annotations, selected rows, row backgrounds, and separators use `RowHeights`. |
+| `GanttParams.java`, `GanttParamsImpl.java` | Expose row geometry to screen, print, and SVG renderers; defaults remain available for uniform row setup. |
+| `TaskGanttSyncSupport.java`, `GanttView.java` | Apply row heights to the task JTable and the matching Gantt model. |
+| `MicroProjectPrintService.java`, `GanttSVGRenderer.java` | Print bounds and SVG rendering use `GanttParamsImpl.getRowHeights()`; SVG receives the default-height table for its generated cache. |
+| `ScrollPaneSynchronizer.java` | Reads one default row height only to choose a five-row wheel step; it does not convert row indices or positions. Viewport synchronization uses shared pixel coordinates. |
+| `SpreadSheetParamsImpl.java`, `CommonSpreadSheet.java` | Keep uniform spreadsheet sizing for non-Gantt tables; the task Gantt sheet receives per-row heights via `TaskGanttSyncSupport`. |
+| `TimeSpreadSheet.java`, `UsageDetailView.java` | Use the independent time-phased Usage grid and are outside this task's scope. |
 
-## Current slice
+## Root causes resolved
 
-**Next slice:** Fix RowHeights initialization in other views (TaskSheetView, TimelineView, TeamPlannerView, etc.) to resolve remaining test failures.
+- Initial Gantt layout can paint before cache rows exist. `GanttRenderer.updateShapes` now exits for a zero-row geometry instead of requesting iterator `-1`.
+- Insertions and deletions change cache size after `setCache`. `GanttModel` and `GanttParamsImpl` synchronize row counts when geometry is requested; shrinking the table removes overrides for removed rows.
+- Gantt pointer and separator paths still used fixed-height arithmetic. They now use cumulative row coordinates.
 
-**Done when:** All UI tests pass with RowHeights integration.
+## Verification
 
-**Then:** Run full GUI acceptance suite.
+- `.\gradlew.bat :microproject_ui:compileJava :microproject_ui:compileTestJava --console=plain` — PASS on integrated current-master tree.
+- `.\gradlew.bat :microproject_ui:test --tests 'com.microproject.ui.view.gantt.GanttRendererSelectedRowTest' --tests 'com.microproject.ui.view.views.RowHeightsTest' --console=plain` — PASS.
+- `.\gradlew.bat :microproject_ui:test --console=plain` — PASS, 1,906 tests, before the final separator assertion and click/drag test were added; the focused command above covers those additions.
+- `git diff --cached --check` — PASS.
+- `build` and `GUI acceptance` — pending exact integrated candidate SHA.
+- Physical GUI run — pending GUI acceptance workflow.
 
-## Remaining blockers
-
-- 88 UI tests fail with IndexOutOfBoundsException due to RowHeights rowCount not initialized in views other than GanttView. These views need to call Gantt.setCache() or otherwise initialize RowHeights with the correct row count.
-
-## Latest evidence
-
-- Tests/build: Compilation successful; RowHeightsTest and GanttRendererSelectedRowTest pass
-- Physical GUI/manual: Not yet run
-- CI: Not yet run
-
-## Files changed
-
-- modules/microproject_ui/src/main/java/com/microproject/pm/graphic/views/RowHeights.java (new)
-- modules/microproject_ui/src/test/java/com/microproject/pm/graphic/views/RowHeightsTest.java (new)
-- modules/microproject_ui/src/main/java/com/microproject/pm/graphic/gantt/GanttModel.java
-- modules/microproject_ui/src/main/java/com/microproject/pm/graphic/gantt/Gantt.java
-- modules/microproject_ui/src/main/java/com/microproject/pm/graphic/gantt/GanttInteractor.java
-- modules/microproject_ui/src/main/java/com/microproject/pm/graphic/gantt/GanttRenderer.java
-- modules/microproject_ui/src/main/java/com/microproject/pm/graphic/spreadsheet/SpreadSheetRenderer.java
-- modules/microproject_ui/src/main/java/com/microproject/pm/graphic/views/TaskGanttSyncSupport.java
-- modules/microproject_ui/src/main/java/com/microproject/pm/graphic/views/GanttView.java
-- modules/microproject_ui/src/main/java/com/microproject/pm/graphic/gantt/GanttParams.java
-- modules/microproject_ui/src/main/java/com/microproject/pm/graphic/gantt/GanttParamsImpl.java
-- modules/microproject_ui/src/main/java/com/microproject/print/MicroProjectPrintService.java
+Next: push the non-force integration merge and require `build` plus `GUI acceptance` on that exact SHA.

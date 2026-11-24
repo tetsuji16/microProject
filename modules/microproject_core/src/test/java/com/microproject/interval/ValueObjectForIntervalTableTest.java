@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.availability.AvailabilityTable;
+import com.microproject.model.availability.AvailabilityTable;
 
 /**
  * Issue #167: findActive() used to call valueObjects.get(-1) when the table

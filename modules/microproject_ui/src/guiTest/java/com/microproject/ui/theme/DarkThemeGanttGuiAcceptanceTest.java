@@ -35,18 +35,18 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.options.CalendarOption;
-import com.microproject.pm.graphic.frames.DocumentFrame;
-import com.microproject.pm.graphic.frames.GraphicManager;
-import com.microproject.pm.graphic.frames.MainRibbonFrame;
-import com.microproject.pm.graphic.timescale.ScaledScrollPane;
-import com.microproject.pm.graphic.views.GanttView;
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
-import com.microproject.testsupport.GuiAcceptanceSupport;
+import com.microproject.ui.frame.DocumentFrame;
+import com.microproject.ui.frame.GraphicManager;
+import com.microproject.ui.frame.MainRibbonFrame;
+import com.microproject.ui.view.timescale.ScaledScrollPane;
+import com.microproject.ui.view.views.GanttView;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.ui.testsupport.GuiAcceptanceSupport;
 import com.microproject.undo.DataFactoryUndoController;
-import com.microproject.util.FlatLafSupport;
-import com.microproject.util.FlatUiSupport;
+import com.microproject.ui.util.FlatLafSupport;
+import com.microproject.ui.util.FlatUiSupport;
 
 /**
  * Keeps the dark-theme Gantt evidence attached to issue #483: the production
@@ -102,7 +102,7 @@ class DarkThemeGanttGuiAcceptanceTest {
 		});
 		GuiAcceptanceSupport.await(() -> frame.isShowing() && view[0] != null && view[0].isShowing(),
 			"the production Gantt view did not become visible");
-		Robot robot = new com.microproject.testsupport.GuiRobot();
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
 		robot.setAutoDelay(30);
 		GuiAcceptanceSupport.activateAndAwaitRenderedWindow(frame, frame.getContentPane(), robot, true,
 			"dark theme Gantt");

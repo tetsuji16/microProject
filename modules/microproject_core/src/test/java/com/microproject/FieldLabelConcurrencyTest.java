@@ -34,7 +34,7 @@ import java.util.concurrent.CountDownLatch;
 import org.junit.jupiter.api.Test;
 
 import com.microproject.field.FieldContext;
-import com.microproject.pm.time.Interval;
+import com.microproject.model.time.Interval;
 
 /**
  * Issue #158: Field.getLabel() previously used a shared static SimpleDateFormat,

@@ -1,4 +1,4 @@
-param(
+﻿param(
   [ValidateSet('smoke', 'journeys', 'full', 'visual')]
   [string]$Suite = 'smoke',
   [string]$TestFilter,
@@ -363,20 +363,20 @@ function Invoke-GuiGate([string]$label, [string[]]$arguments, [int]$timeoutSecon
 # Stable-candidate releases use these visual acceptance selectors at 100%.
 # Full ja/100% remains the complete functional suite.
 $visualClasses = @(
-  'com.microproject.dialog.ProjectDialogGuiAcceptanceTest',
-  'com.microproject.dialog.calendar.ChangeWorkingTimeDialogGuiAcceptanceTest',
-  'com.microproject.dialog.ProjectInformationDialogGuiAcceptanceTest',
-  'com.microproject.dialog.BaselineDialogGuiAcceptanceTest',
-  'com.microproject.dialog.ResourceMappingDialogGuiAcceptanceTest',
-  'com.microproject.pm.graphic.spreadsheet.TaskInformationGuiAcceptanceTest',
-  'com.microproject.pm.graphic.frames.workspace.DefaultFrameManagerGuiAcceptanceTest',
+  'com.microproject.ui.dialog.ProjectDialogGuiAcceptanceTest',
+  'com.microproject.ui.dialog.calendar.ChangeWorkingTimeDialogGuiAcceptanceTest',
+  'com.microproject.ui.dialog.ProjectInformationDialogGuiAcceptanceTest',
+  'com.microproject.ui.dialog.BaselineDialogGuiAcceptanceTest',
+  'com.microproject.ui.dialog.ResourceMappingDialogGuiAcceptanceTest',
+  'com.microproject.ui.view.spreadsheet.TaskInformationGuiAcceptanceTest',
+  'com.microproject.ui.frame.workspace.DefaultFrameManagerGuiAcceptanceTest',
   'com.microproject.ui.shell.WindowShellNativeDecorationGuiAcceptanceTest',
   'com.microproject.ui.ribbon.RibbonTabGuiAcceptanceTest',
-  'com.microproject.dialog.FlatLafLegacyDialogRefreshGuiAcceptanceTest',
-  'com.microproject.pm.graphic.frames.RibbonExternalCommandGuiAcceptanceTest',
-  'com.microproject.dialog.PreferencesCustomizeGuiAcceptanceTest'
+  'com.microproject.ui.dialog.FlatLafLegacyDialogRefreshGuiAcceptanceTest',
+  'com.microproject.ui.frame.RibbonExternalCommandGuiAcceptanceTest',
+  'com.microproject.ui.dialog.PreferencesCustomizeGuiAcceptanceTest'
 )
-$taskInformationTestClass = 'com.microproject.pm.graphic.frames.TaskInformationRibbonGuiAcceptanceTest'
+$taskInformationTestClass = 'com.microproject.ui.frame.TaskInformationRibbonGuiAcceptanceTest'
 # Keep scale-sensitive report/view surfaces, viewport and dialog-fit checks,
 # and physical routes whose coordinates or available screen area are asserted.
 # The remaining functional/mutation and route-variant cases still run in full ja/100%.

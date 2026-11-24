@@ -23,7 +23,7 @@
  *******************************************************************************/
 package com.microproject.document;
 
-import com.microproject.pm.calendar.WorkCalendar;
+import com.microproject.model.calendar.WorkCalendar;
 
 
 /**

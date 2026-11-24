@@ -23,7 +23,7 @@
  *******************************************************************************/
 package com.microproject.configuration;
 
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /**
  * Exception thrown if the user tries to make a circular link

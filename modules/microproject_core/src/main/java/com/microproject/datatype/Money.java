@@ -29,7 +29,7 @@ import java.text.NumberFormat;
 import java.util.Currency;
 import java.util.Locale;
 
-import com.microproject.strings.Messages;
+import com.microproject.i18n.Messages;
 
 /**
  * 

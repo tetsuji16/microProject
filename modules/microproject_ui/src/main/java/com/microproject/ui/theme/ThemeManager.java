@@ -51,9 +51,9 @@ import javax.swing.border.LineBorder;
 import javax.swing.border.MatteBorder;
 import javax.swing.plaf.UIResource;
 
-import com.microproject.pm.graphic.IconManager;
-import com.microproject.util.FlatLafSupport;
-import com.microproject.util.FlatUiSupport;
+import com.microproject.ui.view.IconManager;
+import com.microproject.ui.util.FlatLafSupport;
+import com.microproject.ui.util.FlatUiSupport;
 
 /**
  * Switches the dark/light theme of all open windows at run time.

@@ -21,9 +21,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.scheduling.ScheduleEvent;
-import com.microproject.pm.task.Project;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.schedule.ScheduleEvent;
+import com.microproject.model.task.Project;
 import com.microproject.document.ObjectEventManager;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.document.ObjectEventManager;

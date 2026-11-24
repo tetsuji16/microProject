@@ -33,10 +33,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.ResourceLock;
 import org.junit.jupiter.api.parallel.Resources;
 
-import com.microproject.pm.resource.ResourcePool;
-import com.microproject.pm.task.NormalTask;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.Task;
+import com.microproject.model.resource.ResourcePool;
+import com.microproject.model.task.NormalTask;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.Task;
 import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.workspace.WorkspaceSetting;
 
@@ -1303,14 +1303,14 @@ class CollaborationSessionSameUserLifecycleTest {
 	}
 
 	private String isolatedWorkspaceRoot() {
-		String previous = System.getProperty(com.microproject.temporary.TemporaryRoot.ROOT_PROPERTY);
-		System.setProperty(com.microproject.temporary.TemporaryRoot.ROOT_PROPERTY, tempDir.resolve("temporary-root").toString());
+		String previous = System.getProperty(com.microproject.util.temporary.TemporaryRoot.ROOT_PROPERTY);
+		System.setProperty(com.microproject.util.temporary.TemporaryRoot.ROOT_PROPERTY, tempDir.resolve("temporary-root").toString());
 		return previous;
 	}
 
 	private static void restoreWorkspaceRoot(String previous) {
-		if (previous == null) System.clearProperty(com.microproject.temporary.TemporaryRoot.ROOT_PROPERTY);
-		else System.setProperty(com.microproject.temporary.TemporaryRoot.ROOT_PROPERTY, previous);
+		if (previous == null) System.clearProperty(com.microproject.util.temporary.TemporaryRoot.ROOT_PROPERTY);
+		else System.setProperty(com.microproject.util.temporary.TemporaryRoot.ROOT_PROPERTY, previous);
 	}
 
 	private static final class ControlledStore extends CollaborationMetadataStore {

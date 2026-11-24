@@ -6,7 +6,7 @@ package com.microproject.port;
 
 import java.nio.file.Path;
 
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 
 /** Lifecycle operations for temporary artifacts owned by a project format. */
 public interface ProjectArtifactLifecyclePort {

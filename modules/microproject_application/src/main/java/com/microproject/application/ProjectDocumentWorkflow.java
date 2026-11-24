@@ -27,7 +27,7 @@ import java.util.function.Consumer;
 
 
 import com.microproject.collaboration.CollaborationSession;
-import com.microproject.pm.task.Project;
+import com.microproject.model.task.Project;
 import com.microproject.session.SaveOptions;
 
 public final class ProjectDocumentWorkflow {

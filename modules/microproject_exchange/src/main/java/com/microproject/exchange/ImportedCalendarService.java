@@ -26,9 +26,9 @@ package com.microproject.exchange;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.microproject.pm.calendar.CalendarService;
-import com.microproject.pm.calendar.WorkCalendar;
-import com.microproject.pm.calendar.WorkingCalendar;
+import com.microproject.model.calendar.CalendarService;
+import com.microproject.model.calendar.WorkCalendar;
+import com.microproject.model.calendar.WorkingCalendar;
 
 import org.mpxj.ProjectCalendar;
 

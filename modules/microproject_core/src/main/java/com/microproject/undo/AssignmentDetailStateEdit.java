@@ -32,8 +32,8 @@ import javax.swing.undo.AbstractUndoableEdit;
 import javax.swing.undo.CannotRedoException;
 import javax.swing.undo.CannotUndoException;
 
-import com.microproject.pm.assignment.Assignment;
-import com.microproject.pm.task.NormalTask;
+import com.microproject.model.assignment.Assignment;
+import com.microproject.model.task.NormalTask;
 
 /** Restores assignment detail state after connection edits have been replayed. */
 public final class AssignmentDetailStateEdit extends AbstractUndoableEdit {

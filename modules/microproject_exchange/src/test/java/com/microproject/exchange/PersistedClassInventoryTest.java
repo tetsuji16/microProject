@@ -4,6 +4,8 @@
  ******************************************************************************/
 package com.microproject.exchange;
 
+import com.microproject.persistence.FileImporter;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -21,8 +23,8 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.ProjectFactory;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.ProjectFactory;
 import com.microproject.util.SafeObjectInput;
 
 /**

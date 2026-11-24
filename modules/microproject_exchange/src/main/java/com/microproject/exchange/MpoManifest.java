@@ -12,10 +12,10 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.microproject.pm.ccpm.CriticalChainService;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.SubProj;
-import com.microproject.pm.assignment.Assignment;
+import com.microproject.schedule.ccpm.CriticalChainService;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.SubProj;
+import com.microproject.model.assignment.Assignment;
 import com.microproject.util.MarkupEscape;
 
 /**
@@ -207,7 +207,7 @@ final class MpoManifest {
 				catch (NumberFormatException exception) { throw new IOException("Invalid legacy assignment baseline cost type", exception); }
 				boolean baselineCost = false;
 				for (int slot = 0; slot <= 10; slot++)
-					if (type == com.microproject.core.pm.exchange.converters.mpx.MpxImportState
+					if (type == com.microproject.exchange.mpx.converter.MpxImportState
 							.assignmentBaselineCostType(slot)) { baselineCost = true; break; }
 				if (!baselineCost) continue;
 				String value;
@@ -269,7 +269,7 @@ final class MpoManifest {
 	}
 	static String settingsXml(CriticalChainService.Settings settings, CriticalChainService.Baseline baseline, Project project) {
 		StringBuilder xml = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<settings schemaVersion=\"1\">");
-		com.microproject.pm.task.ProgressLineSettings progress = project == null ? null : project.getProgressLineSettings();
+		com.microproject.model.task.ProgressLineSettings progress = project == null ? null : project.getProgressLineSettings();
 		if (progress != null) {
 			xml.append("<progressLines showCurrentLine=\"").append(progress.showCurrentLine())
 				.append("\" referenceDate=\"").append(progress.referenceDate())
@@ -321,12 +321,12 @@ final class MpoManifest {
 			if (progressNodes.getLength() > 1) throw new IOException("Duplicate progressLines setting");
 			if (progressNodes.getLength() == 1) {
 				org.w3c.dom.Element progress = (org.w3c.dom.Element) progressNodes.item(0);
-				project.setProgressLineSettings(new com.microproject.pm.task.ProgressLineSettings(
+				project.setProgressLineSettings(new com.microproject.model.task.ProgressLineSettings(
 					Boolean.parseBoolean(MpoFileImporter.requiredAttribute(progress, "showCurrentLine")),
-					com.microproject.pm.task.ProgressLineSettings.ReferenceDate.valueOf(MpoFileImporter.requiredAttribute(progress, "referenceDate")),
+					com.microproject.model.task.ProgressLineSettings.ReferenceDate.valueOf(MpoFileImporter.requiredAttribute(progress, "referenceDate")),
 					Boolean.parseBoolean(MpoFileImporter.requiredAttribute(progress, "showRecurringLines")),
 					Integer.parseInt(MpoFileImporter.requiredAttribute(progress, "recurringInterval")),
-					com.microproject.pm.task.ProgressLineSettings.IntervalUnit.valueOf(MpoFileImporter.requiredAttribute(progress, "recurringIntervalUnit"))));
+					com.microproject.model.task.ProgressLineSettings.IntervalUnit.valueOf(MpoFileImporter.requiredAttribute(progress, "recurringIntervalUnit"))));
 			}
 			org.w3c.dom.NodeList nodes = root.getElementsByTagName("ccpm");
 			if (nodes.getLength() == 0) return;
@@ -334,7 +334,7 @@ final class MpoManifest {
 			CriticalChainService.Settings settings = new CriticalChainService.Settings();
 			settings.setEnabled(Boolean.parseBoolean(MpoFileImporter.requiredAttribute(value, "enabled")));
 			settings.setBufferFraction(Double.parseDouble(MpoFileImporter.requiredAttribute(value, "bufferFraction")));
-			settings.setLevelingOrder(com.microproject.pm.resource.ResourceLevelingService.Order.valueOf(MpoFileImporter.requiredAttribute(value, "levelingOrder")));
+			settings.setLevelingOrder(com.microproject.model.resource.ResourceLevelingService.Order.valueOf(MpoFileImporter.requiredAttribute(value, "levelingOrder")));
 			settings.setOnlyWithinAvailableSlack(Boolean.parseBoolean(MpoFileImporter.requiredAttribute(value, "onlyWithinAvailableSlack")));
 			settings.setAllowTaskSplits(Boolean.parseBoolean(MpoFileImporter.requiredAttribute(value, "allowTaskSplits")));
 			settings.setLevelAssignments(value.hasAttribute("levelAssignments")
@@ -344,8 +344,8 @@ final class MpoManifest {
 			settings.setLevelManuallyScheduledTasks(value.hasAttribute("levelManuallyScheduledTasks")
 				&& Boolean.parseBoolean(value.getAttribute("levelManuallyScheduledTasks")));
 			settings.setSensitivity(value.hasAttribute("sensitivity")
-				? com.microproject.pm.resource.ResourceLevelingService.Sensitivity.valueOf(value.getAttribute("sensitivity"))
-				: com.microproject.pm.resource.ResourceLevelingService.Sensitivity.DAY);
+				? com.microproject.model.resource.ResourceLevelingService.Sensitivity.valueOf(value.getAttribute("sensitivity"))
+				: com.microproject.model.resource.ResourceLevelingService.Sensitivity.DAY);
 			CriticalChainService service = new CriticalChainService();
 			applySettings(service.settings(project), settings);
 			org.w3c.dom.NodeList baselines = value.getElementsByTagName("baseline");

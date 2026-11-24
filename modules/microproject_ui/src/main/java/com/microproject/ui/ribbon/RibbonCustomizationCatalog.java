@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.MissingResourceException;
 
-import com.microproject.menu.MenuManager;
+import com.microproject.ui.menu.MenuManager;
 
 /**
  * Read-only view of the default ribbon for the settings dialog: the canonical commands with their display names,

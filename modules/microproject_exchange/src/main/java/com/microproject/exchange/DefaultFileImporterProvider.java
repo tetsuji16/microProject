@@ -5,6 +5,9 @@
  *******************************************************************************/
 package com.microproject.exchange;
 
+import com.microproject.persistence.PodFormatIdentifiers;
+import com.microproject.persistence.FileImporter;
+
 import java.util.List;
 import java.util.function.Supplier;
 

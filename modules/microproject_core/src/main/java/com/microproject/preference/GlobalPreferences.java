@@ -31,7 +31,7 @@ import java.util.prefs.Preferences;
 import com.microproject.datatype.Money;
 import com.microproject.document.ObjectEvent;
 import com.microproject.document.ObjectEventManager;
-import com.microproject.graphic.configuration.GanttBarFormatOverrides.BarFormat;
+import com.microproject.view.configuration.GanttBarFormatOverrides.BarFormat;
 import com.microproject.options.EditOption;
 import com.microproject.util.DateTime;
 

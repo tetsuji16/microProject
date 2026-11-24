@@ -27,7 +27,7 @@ import java.text.DateFormat;
 import java.util.Calendar;
 import java.util.Date;
 
-import com.microproject.pm.time.HasStartAndEnd;
+import com.microproject.model.time.HasStartAndEnd;
 import com.microproject.util.DateTime;
 
 

@@ -1,0 +1,106 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.frame.workspace;
+
+import java.awt.Component;
+import java.io.Serializable;
+import java.util.AbstractList;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.microproject.ui.frame.DocumentFrame;
+import com.microproject.util.FilePathUtils;
+import com.microproject.workspace.SavableToWorkspace;
+
+public interface FrameManager extends Serializable, SavableToWorkspace {
+	enum WindowArrangement {
+		TILE,
+		HORIZONTAL,
+		VERTICAL,
+		CASCADE,
+		SINGLE
+	}
+
+	public void showFrame(NamedFrame frame);
+	void addFrame(NamedFrame frame);
+	void removeFrame(NamedFrame frame);
+	Workspace getWorkspace();
+	void activateFrame(NamedFrame frame);
+	default void activateFrameFromWindow(NamedFrame frame) {
+		activateFrame(frame);
+	}
+	default void arrangeAll() { arrangeAll(WindowArrangement.TILE); }
+	default void arrangeAll(WindowArrangement arrangement) { }
+	Component getSelectedFrame();
+	/** Returns the document currently active in the frame manager. */
+	default NamedFrame getActiveFrame() {
+		Component selected = getSelectedFrame();
+		return selected instanceof NamedFrame frame ? frame : null;
+	}
+	AbstractList getAllFrames();
+	/** Returns a stable snapshot of the document frames owned by this manager. */
+	default List<DocumentFrame> getDocumentFrames() {
+		AbstractList frames = getAllFrames();
+		List<DocumentFrame> documents = new ArrayList<>(frames.size());
+		for (Object value : frames) {
+			if (value instanceof DocumentFrame frame)
+				documents.add(frame);
+		}
+		return List.copyOf(documents);
+	}
+	/** Returns the registered document frame with this stable workspace ID. */
+	default NamedFrame getFrame(String id) {
+		if (id == null)
+			return null;
+		for (Object value : getAllFrames()) {
+			if (value instanceof NamedFrame frame && id.equals(frame.getId()))
+				return frame;
+		}
+		return null;
+	}
+	/** Finds an open document by the canonical identity of its project file. */
+	default DocumentFrame findFrameForProjectFile(String fileName) {
+		if (fileName == null || fileName.isBlank())
+			return null;
+		for (DocumentFrame frame : getDocumentFrames()) {
+			if (frame.getProject() == null)
+				continue;
+			if (FilePathUtils.sameFileIdentity(frame.getProject().getFileName(), fileName))
+				return frame;
+		}
+		return null;
+	}
+	void setTabTitle(NamedFrame frame, String tabTitle);
+	/** Updates the native host that owns the document frame, when one is available. */
+	default boolean setDocumentWindowTitle(DocumentFrame frame, String title) {
+		return false;
+	}
+	void update();
+	/** Releases resources owned by this frame manager when its workspace closes. */
+	void cleanUp();
+	/** Whether this manager still owns a live workspace. */
+	default boolean isActive() {
+		return true;
+	}
+}

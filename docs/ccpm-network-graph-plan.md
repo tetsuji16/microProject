@@ -92,7 +92,7 @@ Diagnostic result: opened / rejected(no-active-project|no-applied-plan) / failed
 ```powershell
 .\gradlew.bat :microproject_ui:test --tests "com.microproject.dialog.CriticalChainApplyAndRenderTest" --console=plain
 .\gradlew.bat :microproject_ui:test --console=plain
-.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.pm.graphic.views.CcpmSampleProgressGuiAcceptanceTest" --max-workers=1 --console=plain
+.\gradlew.bat :microproject_ui:guiTest --tests "com.microproject.model.graphic.views.CcpmSampleProgressGuiAcceptanceTest" --max-workers=1 --console=plain
 .\gradlew.bat :microproject_ui:guiTest -PguiTestLocale=ja -PguiTestUiScale=125 --max-workers=1 --console=plain
 .\gradlew.bat :microproject_ui:guiTest -PguiTestLocale=en -PguiTestUiScale=150 --max-workers=1 --console=plain
 ```

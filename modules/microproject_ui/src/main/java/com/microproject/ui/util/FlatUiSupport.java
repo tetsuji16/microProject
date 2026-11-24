@@ -1,0 +1,1515 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.util;
+
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Insets;
+import java.awt.RenderingHints;
+import java.awt.Window;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.function.Supplier;
+
+import javax.swing.Action;
+import javax.swing.ActionMap;
+import javax.swing.AbstractButton;
+import javax.swing.ButtonModel;
+import javax.swing.BorderFactory;
+import javax.swing.JComboBox;
+import javax.swing.event.ChangeListener;
+import javax.swing.JComponent;
+import javax.swing.JToggleButton;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JMenu;
+import javax.swing.JPanel;
+import javax.swing.JDialog;
+import javax.swing.JButton;
+import javax.swing.JRootPane;
+import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
+import javax.swing.JSpinner;
+import javax.swing.JTable;
+import javax.swing.JTabbedPane;
+import javax.swing.JToolBar;
+import javax.swing.JViewport;
+import javax.swing.InputMap;
+import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+import javax.swing.border.AbstractBorder;
+import javax.swing.border.Border;
+import javax.swing.plaf.UIResource;
+import javax.swing.text.JTextComponent;
+import javax.swing.plaf.FontUIResource;
+
+/**
+ * Small FlatLaf-friendly UI helpers for shared Swing styling.
+ */
+public final class FlatUiSupport {
+	/** Client property published while a ribbon control's popup is showing. */
+	public static final String POPUP_OPEN_PROPERTY = "MicroProject.ribbon.popupOpen";
+	/** Client property holding the arrow button a ribbon split button owns; it paints its own arrow area. */
+	public static final String SPLIT_ARROW_PROPERTY = "MicroProject.ribbon.controlMenuButton";
+	/** Width of the arrow strip of a small split button, and of the chevron column of a large one. */
+	public static final int SPLIT_ARROW_WIDTH = 18;
+	public static final String BUTTON_STYLE_ROLE_PROPERTY = "MicroProject.buttonStyleRole";
+	public static final String BUTTON_STYLE_ROLE_TOOLBAR = "toolbar";
+	public static final String BUTTON_STYLE_ROLE_RIBBON_LARGE = "ribbonLarge";
+	public static final String BUTTON_STYLE_ROLE_RIBBON_SMALL = "ribbonSmall";
+	public static final String BUTTON_STYLE_ROLE_RIBBON_TAB = "ribbonTab";
+	private static final String THEME_KEY_PREFIX = "MicroProject.";
+	private static final String RIBBON_CHROME_BACKGROUND_KEY = THEME_KEY_PREFIX + "ribbonChromeBackground";
+	private static final String RIBBON_SURFACE_BACKGROUND_KEY = THEME_KEY_PREFIX + "ribbonSurfaceBackground";
+	private static final String RIBBON_ACCENT_COLOR_KEY = THEME_KEY_PREFIX + "ribbonAccentColor";
+	private static final String RIBBON_CHROME_HEIGHT_KEY = THEME_KEY_PREFIX + "ribbonChromeHeight";
+	private static final String RIBBON_CHROME_VERTICAL_INSET_KEY = THEME_KEY_PREFIX + "ribbonChromeVerticalInset";
+	private static final String RIBBON_HORIZONTAL_INSET_KEY = THEME_KEY_PREFIX + "ribbonHorizontalInset";
+	private static final String RIBBON_TAB_HEIGHT_KEY = THEME_KEY_PREFIX + "ribbonTabHeight";
+	private static final String RIBBON_TAB_HORIZONTAL_PADDING_KEY = THEME_KEY_PREFIX + "ribbonTabHorizontalPadding";
+	private static final String RIBBON_TAB_VERTICAL_PADDING_KEY = THEME_KEY_PREFIX + "ribbonTabVerticalPadding";
+	private static final String RIBBON_SURFACE_HEIGHT_KEY = THEME_KEY_PREFIX + "ribbonSurfaceHeight";
+	private static final String RIBBON_BAND_VERTICAL_INSET_KEY = THEME_KEY_PREFIX + "ribbonBandVerticalInset";
+	private static final String RIBBON_BUTTON_VERTICAL_INSET_KEY = THEME_KEY_PREFIX + "ribbonButtonVerticalInset";
+	private static final String RIBBON_SEARCH_HEIGHT_KEY = THEME_KEY_PREFIX + "ribbonSearchHeight";
+	private static final String RIBBON_SEARCH_PREFERRED_WIDTH_KEY = THEME_KEY_PREFIX + "ribbonSearchPreferredWidth";
+	private static final String RIBBON_SEARCH_MAX_WIDTH_KEY = THEME_KEY_PREFIX + "ribbonSearchMaxWidth";
+	private static final String RIBBON_CORNER_RADIUS_KEY = THEME_KEY_PREFIX + "ribbonCornerRadius";
+	private static final String RIBBON_BUTTON_ARC_KEY = THEME_KEY_PREFIX + "ribbonButtonArc";
+	private static final String RIBBON_QUICK_ACCESS_BUTTON_SIZE_KEY = THEME_KEY_PREFIX + "ribbonQuickAccessButtonSize";
+	private static final String RIBBON_LARGE_BUTTON_HEIGHT_KEY = THEME_KEY_PREFIX + "ribbonLargeButtonHeight";
+	private static final String RIBBON_LARGE_BUTTON_MIN_WIDTH_KEY = THEME_KEY_PREFIX + "ribbonLargeButtonMinWidth";
+	private static final String RIBBON_INLINE_BUTTON_HEIGHT_KEY = THEME_KEY_PREFIX + "ribbonInlineButtonHeight";
+	private static final String RIBBON_INLINE_BUTTON_MEDIUM_MIN_WIDTH_KEY = THEME_KEY_PREFIX + "ribbonInlineButtonMediumMinWidth";
+	private static final String RIBBON_INLINE_BUTTON_SMALL_MIN_WIDTH_KEY = THEME_KEY_PREFIX + "ribbonInlineButtonSmallMinWidth";
+	private static final String RIBBON_BAND_TITLE_HEIGHT_KEY = THEME_KEY_PREFIX + "ribbonBandTitleHeight";
+
+	private FlatUiSupport() {
+	}
+
+	public static Font uiFont() {
+		Font font = UIManager.getFont("defaultFont");
+		if (font == null)
+			font = UIManager.getFont("Table.font");
+		if (font == null)
+			font = UIManager.getFont("Label.font");
+		if (font == null)
+			font = new Font("SansSerif", Font.PLAIN, 12);
+		return font;
+	}
+
+	public static Font headerFont() {
+		return ganttHeaderFont();
+	}
+
+	public static Font mediumFont() {
+		return uiFont().deriveFont(Font.PLAIN, Math.max(12f, uiFont().getSize2D()));
+	}
+
+	public static Font compactFont() {
+		return uiFont().deriveFont(Font.PLAIN, Math.max(11f, uiFont().getSize2D() - 1f));
+	}
+
+	/** The single typeface and size used by the ribbon's text-bearing controls. */
+	public static Font ribbonFont() {
+		return mediumFont();
+	}
+
+	public static Font ribbonTabFont() {
+		return ribbonFont();
+	}
+
+	public static Font ribbonButtonFont() {
+		return ribbonFont();
+	}
+
+	public static Font ribbonBandTitleFont() {
+		return ribbonFont();
+	}
+
+	public static Font ribbonChromeLabelFont() {
+		return ribbonFont();
+	}
+
+	public static Font ganttHeaderFont() {
+		return mediumFont();
+	}
+
+	public static void applyMinimumSize(JDialog dialog, Dimension minimumSize) {
+		if (dialog == null || minimumSize == null) {
+			return;
+		}
+		dialog.setMinimumSize(minimumSize);
+	}
+
+	public static Color color(String key, Color fallback) {
+		Color value = UIManager.getColor(key);
+		return value != null ? value : fallback;
+	}
+
+	public static Color appBackground() {
+		return workspaceBackground();
+	}
+
+	public static Color panelBackground() {
+		return color("Panel.background", FlatUiTheme.appBackground());
+	}
+
+	public static Color workspaceBackground() {
+		return color(THEME_KEY_PREFIX + "workspaceBackground", FlatUiTheme.appBackground());
+	}
+
+	public static Color dialogBackground() {
+		return color(THEME_KEY_PREFIX + "dialogBackground", FlatUiTheme.appBackground());
+	}
+
+	public static Color dialogSurfaceBackground() {
+		return color(THEME_KEY_PREFIX + "dialogSurfaceBackground", Color.WHITE);
+	}
+
+	public static Color dataSurfaceBackground() {
+		return tableContentBackground();
+	}
+
+	public static Color viewportBackground() {
+		return dataSurfaceBackground();
+	}
+
+	public static Color surfaceBackground() {
+		Color color = UIManager.getColor("Panel.background");
+		if (color == null)
+			color = UIManager.getColor("Table.background");
+		if (color == null)
+			color = FlatUiTheme.appBackground();
+		return color;
+	}
+
+	public static Color ribbonChromeBackground() {
+		return color(RIBBON_CHROME_BACKGROUND_KEY, FlatUiTheme.ribbonChromeBackground());
+	}
+
+	public static Color officeTitleBarBackground() {
+		return color(THEME_KEY_PREFIX + "officeTitleBarBackground", ribbonChromeBackground());
+	}
+
+	public static Color officeTitleBarForeground() {
+		return color(THEME_KEY_PREFIX + "officeTitleBarForeground", labelForeground());
+	}
+
+	public static boolean isDarkTheme() {
+		return ColorLuminance.isDark(panelBackground());
+	}
+
+	public static Color tableBackground() {
+		return FlatUiTheme.tableBackground();
+	}
+
+	public static Color tableContentBackground() {
+		return FlatUiTheme.tableBackground();
+	}
+
+	public static Color tableForeground() {
+		return color("Table.foreground", FlatUiTheme.tableForeground());
+	}
+
+	public static Color tableSelectionBackground() {
+		return color("Table.selectionBackground", FlatUiTheme.tableSelectionBackground());
+	}
+
+	public static Color tableSelectionForeground() {
+		return color("Table.selectionForeground", FlatUiTheme.tableSelectionForeground());
+	}
+
+	public static Color headerBackground() {
+		return color("TableHeader.background", FlatUiTheme.headerBackground());
+	}
+
+	public static Color headerForeground() {
+		return color("TableHeader.foreground", FlatUiTheme.headerForeground());
+	}
+
+	public static Color disabledForeground() {
+		return color("Label.disabledForeground", FlatUiTheme.disabledForeground());
+	}
+
+	public static Color infoForeground() {
+		return color("TextField.foreground", FlatUiTheme.infoForeground());
+	}
+
+	public static Color errorForeground() {
+		Color color = UIManager.getColor("Actions.Red");
+		if (color == null)
+			color = UIManager.getColor("Component.errorFocusColor");
+		if (color == null)
+			color = FlatUiTheme.error();
+		return color;
+	}
+
+	public static Color labelForeground() {
+		return color("Label.foreground", FlatUiTheme.labelForeground());
+	}
+
+	public static Color borderColor() {
+		return color("Component.borderColor", FlatUiTheme.border());
+	}
+
+	public static Color separatorColor() {
+		return color("Separator.foreground", FlatUiTheme.separator());
+	}
+
+	public static Color ribbonTopLineColor() {
+		return color(THEME_KEY_PREFIX + "ribbonTopLineColor", new Color(0xD1D1D1));
+	}
+
+	public static Color ribbonSurfaceColor() {
+		return color(RIBBON_SURFACE_BACKGROUND_KEY, surfaceBackground());
+	}
+
+	public static Color ribbonSurfaceBorderColor() {
+		return color(THEME_KEY_PREFIX + "ribbonSurfaceBorderColor", new Color(0xD1D1D1));
+	}
+
+	public static Color ribbonAccentColor() {
+		return color(RIBBON_ACCENT_COLOR_KEY, new Color(0x0F6CBD));
+	}
+
+	public static Color ribbonSelectedTabColor() {
+		return ribbonChromeBackground();
+	}
+
+	public static Color ribbonTabHoverColor() {
+		return color(THEME_KEY_PREFIX + "ribbonTabHoverColor", new Color(0xEAF3FF));
+	}
+
+	public static Color ribbonTabBorderHoverColor() {
+		return color(THEME_KEY_PREFIX + "ribbonTabBorderHoverColor", new Color(0xB9D7F5));
+	}
+
+	public static Color ribbonTabUnderlineColor() {
+		return ribbonAccentColor();
+	}
+
+	public static Color tabSelectedForeground() {
+		return labelForeground();
+	}
+
+	public static Color tabUnselectedForeground() {
+		return labelForeground();
+	}
+
+	public static Color tableGridColor() {
+		return color("Table.gridColor", FlatUiTheme.spreadsheetGrid());
+	}
+
+	public static Color ganttHeaderGridColor() {
+		return spreadsheetGridColor();
+	}
+
+	public static Color spreadsheetBodyBackground() {
+		return color(THEME_KEY_PREFIX + "spreadsheetBodyBackground", FlatUiTheme.spreadsheetBodyBackground());
+	}
+
+	public static Color assignmentCompleteBackground() {
+		return color(THEME_KEY_PREFIX + "assignmentCompleteBackground", new Color(0xE5F0E5));
+	}
+
+	public static Color assignmentPartialBackground() {
+		return color(THEME_KEY_PREFIX + "assignmentPartialBackground", new Color(0xFFF3D9));
+	}
+
+	public static Color spreadsheetReadOnlyForeground() {
+		return color(THEME_KEY_PREFIX + "spreadsheetReadOnlyForeground", FlatUiTheme.spreadsheetReadOnlyForeground());
+	}
+
+	/**
+	 * Background of a spreadsheet cell that cannot be edited.  It follows the
+	 * active theme so that the cell text stays readable in light and dark themes.
+	 */
+	public static Color spreadsheetReadOnlyBackground() {
+		return color(THEME_KEY_PREFIX + "spreadsheetReadOnlyBackground",
+			blend(spreadsheetBodyBackground(), spreadsheetHeaderBackground(), 0.5f));
+	}
+
+	public static Color spreadsheetHeaderBackground() {
+		return color(THEME_KEY_PREFIX + "spreadsheetHeaderBackground", FlatUiTheme.spreadsheetHeaderBackground());
+	}
+
+	public static Color spreadsheetHeaderSelectedBackground() {
+		return color(THEME_KEY_PREFIX + "spreadsheetHeaderSelectedBackground", FlatUiTheme.spreadsheetHeaderSelectedBackground());
+	}
+
+	public static Color spreadsheetRangeSelectionBackground() {
+		return color(THEME_KEY_PREFIX + "spreadsheetRangeSelectionBackground", FlatUiTheme.spreadsheetRangeSelectionBackground());
+	}
+
+	public static Color spreadsheetActiveCellBorderColor() {
+		return color(THEME_KEY_PREFIX + "spreadsheetActiveCellBorder", FlatUiTheme.spreadsheetActiveCellBorder());
+	}
+
+	public static Color spreadsheetGridColor() {
+		return color(THEME_KEY_PREFIX + "spreadsheetGridColor", FlatUiTheme.spreadsheetGrid());
+	}
+
+	public static Color ribbonBandSeparatorColor() {
+		return color(THEME_KEY_PREFIX + "ribbonBandSeparatorColor", new Color(0xD8E0EA));
+	}
+
+	public static Color ribbonBandTitleForeground() {
+		return color(THEME_KEY_PREFIX + "ribbonBandTitleForeground", new Color(0x616161));
+	}
+
+	public static Color ribbonIconColor() {
+		return color(THEME_KEY_PREFIX + "ribbonIconColor", new Color(0x323130));
+	}
+
+	public static Color ribbonIconHoverColor() {
+		return ribbonAccentColor();
+	}
+
+	public static Color ribbonIconSelectedColor() {
+		return ribbonAccentColor();
+	}
+
+	public static Color ribbonIconDisabledColor() {
+		return color(THEME_KEY_PREFIX + "ribbonIconDisabledColor", new Color(0xA19F9D));
+	}
+
+	public static Color chromeButtonPressedBackground() {
+		return color(THEME_KEY_PREFIX + "chromeButtonPressedBackground", new Color(0xE2E5E9));
+	}
+
+	public static Color chromeButtonActiveBackground() {
+		return color(THEME_KEY_PREFIX + "chromeButtonActiveBackground", new Color(0xEAF3EA));
+	}
+
+	public static Color chromeButtonHoverBackground() {
+		return color(THEME_KEY_PREFIX + "chromeButtonHoverBackground", new Color(0xECECEC));
+	}
+
+	public static Color switchTrackBackground() {
+		return color(THEME_KEY_PREFIX + "switchTrackBackground", new Color(0xC6CBD1));
+	}
+
+	public static Color ribbonLogoSeparatorColor() {
+		return blend(borderColor(), ribbonChromeBackground(), 0.88f);
+	}
+
+	public static Color accentColor() {
+		Color color = UIManager.getColor("Component.focusColor");
+		if (color == null)
+			color = UIManager.getColor("ProgressBar.foreground");
+		if (color == null)
+			color = UIManager.getColor("Actions.Blue");
+		if (color == null)
+			color = FlatUiTheme.accent();
+		return color;
+	}
+
+	private static Color buttonStyleBaseBackground(AbstractButton button) {
+		Object role = button == null ? null : button.getClientProperty(BUTTON_STYLE_ROLE_PROPERTY);
+		if (BUTTON_STYLE_ROLE_TOOLBAR.equals(role))
+			return panelBackground();
+		if (BUTTON_STYLE_ROLE_RIBBON_TAB.equals(role))
+			return ribbonChromeBackground();
+		return ribbonSurfaceColor();
+	}
+
+	private static Color buttonAccentColor(AbstractButton button) {
+		Object role = button == null ? null : button.getClientProperty(BUTTON_STYLE_ROLE_PROPERTY);
+		return BUTTON_STYLE_ROLE_RIBBON_LARGE.equals(role) || BUTTON_STYLE_ROLE_RIBBON_SMALL.equals(role)
+			? ribbonAccentColor()
+			: accentColor();
+	}
+
+	private static boolean isRibbonCommandButton(AbstractButton button) {
+		Object role = button == null ? null : button.getClientProperty(BUTTON_STYLE_ROLE_PROPERTY);
+		return BUTTON_STYLE_ROLE_RIBBON_LARGE.equals(role) || BUTTON_STYLE_ROLE_RIBBON_SMALL.equals(role);
+	}
+
+	/**
+	 * Installs state-aware background painting for ribbon commands. Swing paints
+	 * a button's border after its content (including the icon), so a filled
+	 * border would cover the icon in pressed/selected states. Let the button UI
+	 * paint the background first, then let the icon and label paint normally.
+	 */
+	private static void installRibbonCommandStatePainting(AbstractButton button) {
+		if (button.getClientProperty("MicroProject.ribbonStateChangeListener") != null) {
+			updateRibbonCommandStatePainting(button);
+			return;
+		}
+		ChangeListener listener = event -> updateRibbonCommandStatePainting(button);
+		button.getModel().addChangeListener(listener);
+		button.putClientProperty("MicroProject.ribbonStateChangeListener", listener);
+		button.addPropertyChangeListener("enabled", event -> updateRibbonCommandStatePainting(button));
+		button.addPropertyChangeListener(POPUP_OPEN_PROPERTY, event -> {
+			updateRibbonCommandStatePainting(button);
+			button.repaint();
+		});
+		updateRibbonCommandStatePainting(button);
+	}
+
+	private static void updateRibbonCommandStatePainting(AbstractButton button) {
+		if (button == null) {
+			return;
+		}
+		Color fill = resolveCommandButtonBackground(button);
+		button.setBackground(fill == null ? ribbonSurfaceColor() : fill);
+		button.setContentAreaFilled(fill != null);
+		button.setOpaque(fill != null);
+	}
+
+	private static boolean supportsPersistentSelectedState(AbstractButton button) {
+		return button instanceof JToggleButton && !BUTTON_STYLE_ROLE_RIBBON_TAB.equals(button.getClientProperty(BUTTON_STYLE_ROLE_PROPERTY));
+	}
+
+	public static Color commandButtonHoverBackground(AbstractButton button) {
+		if (isRibbonCommandButton(button))
+			return color(THEME_KEY_PREFIX + "ribbonCommandHoverBackground", new Color(0xEAF3FF));
+		return blend(buttonAccentColor(button), buttonStyleBaseBackground(button), 0.08f);
+	}
+
+	public static Color commandButtonPressedBackground(AbstractButton button) {
+		if (isRibbonCommandButton(button))
+			return color(THEME_KEY_PREFIX + "ribbonCommandPressedBackground", new Color(0xCFE8FF));
+		return blend(buttonAccentColor(button), buttonStyleBaseBackground(button), 0.16f);
+	}
+
+	public static Color commandButtonSelectedBackground(AbstractButton button) {
+		if (isRibbonCommandButton(button))
+			return color(THEME_KEY_PREFIX + "ribbonCommandSelectedBackground", new Color(0xDCEEFF));
+		return blend(buttonAccentColor(button), buttonStyleBaseBackground(button), 0.14f);
+	}
+
+	public static Color commandButtonHoverBorderColor(AbstractButton button) {
+		if (isRibbonCommandButton(button))
+			return null;
+		return blend(buttonAccentColor(button), buttonStyleBaseBackground(button), 0.38f);
+	}
+
+	public static Color commandButtonPressedBorderColor(AbstractButton button) {
+		if (isRibbonCommandButton(button))
+			return null;
+		return blend(buttonAccentColor(button), buttonStyleBaseBackground(button), 0.50f);
+	}
+
+	public static Color commandButtonSelectedBorderColor(AbstractButton button) {
+		if (isRibbonCommandButton(button))
+			return ribbonAccentColor();
+		return blend(buttonAccentColor(button), buttonStyleBaseBackground(button), 0.46f);
+	}
+
+	/** True while the popup of a ribbon control is showing; set by the ribbon popup wiring. */
+	public static boolean isPopupOpen(AbstractButton button) {
+		return button != null && Boolean.TRUE.equals(button.getClientProperty(POPUP_OPEN_PROPERTY));
+	}
+
+	/** True for a ribbon command laid out as a large (icon above label) button. */
+	public static boolean isLargeRibbonButton(AbstractButton button) {
+		return button != null && "large".equals(button.getClientProperty("MicroProject.ribbonButtonSize"));
+	}
+
+	/**
+	 * The area of a split button that opens its popup, in the button's coordinates.
+	 * A large button has its arrow on the lower half (the label row, as in Office);
+	 * a small or medium one on a strip at the right edge.
+	 */
+	public static java.awt.Rectangle ribbonSplitArrowBounds(AbstractButton button) {
+		int width = Math.max(0, button.getWidth());
+		int height = Math.max(0, button.getHeight());
+		if (isLargeRibbonButton(button)) {
+			int top = height / 2;
+			return new java.awt.Rectangle(0, top, width, height - top);
+		}
+		int arrowWidth = Math.min(SPLIT_ARROW_WIDTH, width);
+		return new java.awt.Rectangle(width - arrowWidth, 0, arrowWidth, height);
+	}
+
+	/**
+	 * Paints the arrow area of a split button into {@code area}: the optional
+	 * highlight, the separator against the body and the chevron.
+	 */
+	public static void paintRibbonSplitArrowArea(Graphics2D g2, AbstractButton button, java.awt.Rectangle area, Color fill) {
+		enableAntialiasing(g2);
+		if (fill != null) {
+			g2.setColor(fill);
+			g2.fillRect(area.x, area.y, area.width, area.height);
+		}
+		g2.setColor(separatorColor());
+		int centerX;
+		if (isLargeRibbonButton(button)) {
+			g2.drawLine(area.x + 4, area.y, area.x + area.width - 5, area.y);
+			centerX = area.x + area.width - SPLIT_ARROW_WIDTH / 2;
+		} else {
+			g2.drawLine(area.x, area.y + 4, area.x, area.y + area.height - 5);
+			centerX = area.x + SPLIT_ARROW_WIDTH / 2;
+		}
+		int centerY = area.y + area.height / 2;
+		g2.setColor(button.isEnabled() ? labelForeground() : disabledForeground());
+		g2.drawLine(centerX - 3, centerY - 1, centerX, centerY + 2);
+		g2.drawLine(centerX, centerY + 2, centerX + 3, centerY - 1);
+	}
+
+	/**
+	 * The highlight of the arrow area for the state of {@code arrowModel}. The body and the
+	 * arrow light up separately: while the body is highlighted the arrow area is
+	 * painted back to the surface color.
+	 */
+	public static Color ribbonSplitArrowFill(AbstractButton button, ButtonModel arrowModel) {
+		if (!button.isEnabled())
+			return null;
+		if (arrowModel.isPressed() || arrowModel.isArmed())
+			return commandButtonPressedBackground(button);
+		if (isPopupOpen(button))
+			return commandButtonSelectedBackground(button);
+		if (arrowModel.isRollover())
+			return commandButtonHoverBackground(button);
+		return button.isOpaque() && button.isContentAreaFilled() ? ribbonSurfaceColor() : null;
+	}
+
+	private static boolean isRibbonSplitButton(AbstractButton button) {
+		return Boolean.TRUE.equals(button.getClientProperty("MicroProject.ribbonSplit"));
+	}
+
+	public static Color resolveCommandButtonBackground(AbstractButton button) {
+		if (button == null)
+			return null;
+		ButtonModel model = button.getModel();
+		if (model == null || !button.isEnabled())
+			return null;
+		if (model.isPressed() || model.isArmed())
+			return commandButtonPressedBackground(button);
+		// A split button shows its open popup on the arrow strip only (see CommandButtonBorder).
+		if (isPopupOpen(button) && !isRibbonSplitButton(button))
+			return commandButtonSelectedBackground(button);
+		if (supportsPersistentSelectedState(button) && model.isSelected())
+			return commandButtonSelectedBackground(button);
+		if (model.isRollover())
+			return commandButtonHoverBackground(button);
+		return null;
+	}
+
+	public static Color resolveCommandButtonBorderColor(AbstractButton button) {
+		if (button == null)
+			return null;
+		if (button.isFocusOwner() && isRibbonCommandButton(button))
+			return ribbonAccentColor();
+		ButtonModel model = button.getModel();
+		if (model == null || !button.isEnabled())
+			return blend(borderColor(), buttonStyleBaseBackground(button), 0.20f);
+		if (model.isPressed() || model.isArmed())
+			return commandButtonPressedBorderColor(button);
+		if (supportsPersistentSelectedState(button) && model.isSelected())
+			return commandButtonSelectedBorderColor(button);
+		if (model.isRollover())
+			return commandButtonHoverBorderColor(button);
+		return null;
+	}
+
+	public static Color resolveRibbonTabBackground(AbstractButton button) {
+		if (button == null || !button.isEnabled())
+			return null;
+		ButtonModel model = button.getModel();
+		if (model == null || model.isSelected())
+			return null;
+		if (model.isPressed() || model.isArmed())
+			return color(THEME_KEY_PREFIX + "ribbonTabPressedBackground", new Color(0xE5F1FB));
+		if (model.isRollover())
+			return ribbonTabHoverColor();
+		return null;
+	}
+
+	public static Color resolveRibbonTabBorderColor(AbstractButton button) {
+		if (button == null || !button.isEnabled())
+			return null;
+		ButtonModel model = button.getModel();
+		if (model == null || model.isSelected())
+			return null;
+		return null;
+	}
+
+	public static Color resolveRibbonTabUnderlineColor(AbstractButton button) {
+		return button != null && button.isSelected() ? ribbonTabUnderlineColor() : null;
+	}
+
+	private static int intValue(String key, int fallback) {
+		Object value = UIManager.get(key);
+		return value instanceof Integer integer ? integer.intValue() : fallback;
+	}
+
+	public static int ribbonChromeHeight() {
+		return intValue(RIBBON_CHROME_HEIGHT_KEY, 40);
+	}
+
+	public static int ribbonChromeVerticalInset() {
+		return intValue(RIBBON_CHROME_VERTICAL_INSET_KEY, 4);
+	}
+
+	public static int ribbonHorizontalInset() {
+		return intValue(RIBBON_HORIZONTAL_INSET_KEY, 10);
+	}
+
+	public static int ribbonTabHeight() {
+		return intValue(RIBBON_TAB_HEIGHT_KEY, 28);
+	}
+
+	public static int ribbonTabHorizontalPadding() {
+		return intValue(RIBBON_TAB_HORIZONTAL_PADDING_KEY, 10);
+	}
+
+	public static int ribbonTabVerticalPadding() {
+		return intValue(RIBBON_TAB_VERTICAL_PADDING_KEY, 4);
+	}
+
+	public static int ribbonSurfaceHeight() {
+		return intValue(RIBBON_SURFACE_HEIGHT_KEY, 96);
+	}
+
+	public static int ribbonBandVerticalInset() {
+		return intValue(RIBBON_BAND_VERTICAL_INSET_KEY, 1);
+	}
+
+	public static int ribbonButtonVerticalInset() {
+		return intValue(RIBBON_BUTTON_VERTICAL_INSET_KEY, 4);
+	}
+
+	public static int ribbonSearchHeight() {
+		return intValue(RIBBON_SEARCH_HEIGHT_KEY, 28);
+	}
+
+	public static int ribbonSearchPreferredWidth() {
+		return intValue(RIBBON_SEARCH_PREFERRED_WIDTH_KEY, 352);
+	}
+
+	public static int ribbonSearchMaxWidth() {
+		return intValue(RIBBON_SEARCH_MAX_WIDTH_KEY, 392);
+	}
+
+	public static int ribbonCornerRadius() {
+		return intValue(RIBBON_CORNER_RADIUS_KEY, 0);
+	}
+
+	public static int ribbonButtonArc() {
+		return intValue(RIBBON_BUTTON_ARC_KEY, 0);
+	}
+
+	public static int ribbonQuickAccessButtonSize() {
+		return intValue(RIBBON_QUICK_ACCESS_BUTTON_SIZE_KEY, 24);
+	}
+
+	/** Icon size inside a quick-access button (MS Project QAT uses ~16px icons). */
+	public static int ribbonQuickAccessIconSize() {
+		return 16;
+	}
+
+	public static int ribbonLargeButtonHeight() {
+		return intValue(RIBBON_LARGE_BUTTON_HEIGHT_KEY, 90);
+	}
+
+	public static int ribbonLargeButtonMinWidth() {
+		return intValue(RIBBON_LARGE_BUTTON_MIN_WIDTH_KEY, 64);
+	}
+
+	public static int ribbonInlineButtonHeight() {
+		return intValue(RIBBON_INLINE_BUTTON_HEIGHT_KEY, 24);
+	}
+
+	public static int ribbonInlineButtonMediumMinWidth() {
+		return intValue(RIBBON_INLINE_BUTTON_MEDIUM_MIN_WIDTH_KEY, 96);
+	}
+
+	public static int ribbonInlineButtonSmallMinWidth() {
+		return intValue(RIBBON_INLINE_BUTTON_SMALL_MIN_WIDTH_KEY, 84);
+	}
+
+	public static int ribbonBandTitleHeight() {
+		return intValue(RIBBON_BAND_TITLE_HEIGHT_KEY, 9);
+	}
+
+	public static int compactSpacing() {
+		Object value = UIManager.get(THEME_KEY_PREFIX + "contentSpacing");
+		return value instanceof Integer ? ((Integer) value).intValue() : 10;
+	}
+
+	public static int sectionSpacing() {
+		Object value = UIManager.get(THEME_KEY_PREFIX + "sectionSpacing");
+		return value instanceof Integer ? ((Integer) value).intValue() : 16;
+	}
+
+	public static int dialogButtonHeight() {
+		Object value = UIManager.get(THEME_KEY_PREFIX + "dialogButtonHeight");
+		return value instanceof Integer ? ((Integer) value).intValue() : 30;
+	}
+
+	/**
+	 * Returns preferred-height tracks for a form built with
+	 * {@code DefaultFormBuilder.nextLine(2)}.
+	 *
+	 * Each logical form line occupies a preferred-height track followed by a
+	 * small spacer track.  The trailing spacer is omitted because the builder
+	 * never advances beyond the last component line.
+	 */
+	public static String preferredFormRows(int rowCount) {
+		if (rowCount < 1)
+			throw new IllegalArgumentException("rowCount must be positive");
+		StringBuilder rows = new StringBuilder(rowCount * 8);
+		for (int row = 0; row < rowCount; row++) {
+			if (row > 0)
+				rows.append(',');
+			rows.append('p');
+			if (row + 1 < rowCount)
+				rows.append(",3dlu");
+		}
+		return rows.toString();
+	}
+
+	public static Color blend(Color first, Color second, float firstWeight) {
+		return ColorLuminance.mix(second, first, firstWeight);
+	}
+
+	public static void enableAntialiasing(Graphics2D g2) {
+		if (g2 == null)
+			return;
+		g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+		g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+	}
+
+	public static void styleToolBar(JToolBar toolBar) {
+		if (toolBar == null)
+			return;
+		toolBar.setFloatable(false);
+		toolBar.setRollover(true);
+		toolBar.setOpaque(false);
+		toolBar.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 4));
+		toolBar.setMargin(new Insets(2, 6, 2, 6));
+		toolBar.setBackground(panelBackground());
+		toolBar.putClientProperty("JToolBar.isRollover", Boolean.TRUE);
+	}
+
+	public static void styleToolBarButton(AbstractButton button) {
+		if (button == null)
+			return;
+		button.setFocusable(false);
+		button.putClientProperty(BUTTON_STYLE_ROLE_PROPERTY, BUTTON_STYLE_ROLE_TOOLBAR);
+		button.setBorder(new CommandButtonBorder(new Insets(3, 5, 3, 5), 8));
+		button.setBorderPainted(true);
+		button.setContentAreaFilled(false);
+		button.setOpaque(false);
+		button.setFocusPainted(false);
+		button.setRolloverEnabled(true);
+		button.setMargin(new Insets(3, 5, 3, 5));
+		button.setForeground(labelForeground());
+	}
+
+	public static void styleRibbonTabButton(AbstractButton button) {
+		if (button == null)
+			return;
+		button.setFocusable(false);
+		button.putClientProperty(BUTTON_STYLE_ROLE_PROPERTY, BUTTON_STYLE_ROLE_RIBBON_TAB);
+		button.setOpaque(false);
+		button.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
+		button.setHorizontalTextPosition(javax.swing.SwingConstants.LEFT);
+		button.setBorder(new RibbonTabBorder());
+		button.setBackground(ribbonChromeBackground());
+		button.setForeground(tabUnselectedForeground());
+		button.setContentAreaFilled(false);
+		button.setBorderPainted(true);
+		button.setFocusPainted(false);
+		button.setRolloverEnabled(true);
+		installRibbonTabStatePainting(button);
+	}
+
+	/**
+	 * Paint a tab's rollover fill as button content rather than as part of its
+	 * border. Swing paints borders after the label, so painting the fill from
+	 * {@link RibbonTabBorder} would cover the label while the tab is hovered.
+	 */
+	private static void installRibbonTabStatePainting(AbstractButton button) {
+		if (button.getClientProperty("MicroProject.ribbonTabStateChangeListener") != null) {
+			updateRibbonTabStatePainting(button);
+			return;
+		}
+		ChangeListener listener = event -> updateRibbonTabStatePainting(button);
+		button.getModel().addChangeListener(listener);
+		button.putClientProperty("MicroProject.ribbonTabStateChangeListener", listener);
+		button.addPropertyChangeListener("enabled", event -> updateRibbonTabStatePainting(button));
+		updateRibbonTabStatePainting(button);
+	}
+
+	private static void updateRibbonTabStatePainting(AbstractButton button) {
+		Color fill = resolveRibbonTabBackground(button);
+		button.setBackground(fill == null ? ribbonChromeBackground() : fill);
+		button.setContentAreaFilled(fill != null);
+		button.setOpaque(fill != null);
+	}
+
+	public static void styleRibbonLargeButton(AbstractButton button) {
+		styleRibbonCommandButton(button, BUTTON_STYLE_ROLE_RIBBON_LARGE, new Insets(2, 5, 2, 5), new Insets(2, 2, 2, 2));
+	}
+
+	public static void styleRibbonSmallButton(AbstractButton button) {
+		styleRibbonCommandButton(button, BUTTON_STYLE_ROLE_RIBBON_SMALL, new Insets(1, 3, 1, 3), new Insets(1, 2, 1, 2));
+	}
+
+	private static void styleRibbonCommandButton(AbstractButton button, String role, Insets borderInsets, Insets margin) {
+		if (button == null)
+			return;
+		button.setFocusable(false);
+		button.putClientProperty(BUTTON_STYLE_ROLE_PROPERTY, role);
+		button.setOpaque(false);
+		button.setBackground(ribbonSurfaceColor());
+		button.setForeground(labelForeground());
+		button.setBorder(new CommandButtonBorder(borderInsets, ribbonButtonArc()));
+		button.setContentAreaFilled(false);
+		button.setBorderPainted(true);
+		button.setFocusPainted(false);
+		button.setRolloverEnabled(true);
+		button.setMargin(margin);
+		installRibbonCommandStatePainting(button);
+	}
+
+	public static void styleTabbedPane(JTabbedPane tabbedPane) {
+		if (tabbedPane == null)
+			return;
+		tabbedPane.putClientProperty("JTabbedPane.tabType", "underlined");
+		tabbedPane.putClientProperty("JTabbedPane.showTabSeparators", Boolean.TRUE);
+		tabbedPane.putClientProperty("JTabbedPane.tabSeparatorsFullHeight", Boolean.TRUE);
+		tabbedPane.putClientProperty("JTabbedPane.showContentSeparator", Boolean.FALSE);
+		tabbedPane.putClientProperty("JTabbedPane.tabHeight", Integer.valueOf(36));
+		tabbedPane.setOpaque(true);
+		tabbedPane.setBackground(appBackground());
+		tabbedPane.setForeground(tabUnselectedForeground());
+	}
+
+	public static Border focusBorder() {
+		Border border = UIManager.getBorder("TextField.border");
+		if (border == null)
+			border = BorderFactory.createLineBorder(borderColor());
+		return border;
+	}
+
+	private record CachedLineBorder(Color color, Border border) {
+	}
+
+	private static volatile CachedLineBorder activeCellBorderCache;
+	private static volatile CachedLineBorder editingCellBorderCache;
+
+	public static Border spreadsheetActiveCellBorder() {
+		Color color = spreadsheetActiveCellBorderColor();
+		CachedLineBorder cached = activeCellBorderCache;
+		if (cached != null && cached.color().equals(color))
+			return cached.border();
+		Border border = BorderFactory.createLineBorder(color, 1);
+		activeCellBorderCache = new CachedLineBorder(color, border);
+		return border;
+	}
+
+	public static Border spreadsheetEditingCellBorder() {
+		Color color = spreadsheetActiveCellBorderColor();
+		CachedLineBorder cached = editingCellBorderCache;
+		if (cached != null && cached.color().equals(color))
+			return cached.border();
+		Border border = BorderFactory.createLineBorder(color, 2);
+		editingCellBorderCache = new CachedLineBorder(color, border);
+		return border;
+	}
+
+	public static Border tableCellBorder() {
+		Border border = UIManager.getBorder("Table.cellNoFocusBorder");
+		if (border == null)
+			border = BorderFactory.createEmptyBorder(2, 4, 2, 4);
+		return border;
+	}
+
+	public static Border withRowGridOverlay(Border baseBorder, Color gridColor) {
+		Color resolved = gridColor == null ? tableGridColor() : gridColor;
+		synchronized (ROW_GRID_OVERLAY_CACHE) {
+			for (RowGridOverlayBorder cached : ROW_GRID_OVERLAY_CACHE) {
+				if (cached != null && cached.baseBorder == baseBorder && cached.gridColor.equals(resolved))
+					return cached;
+			}
+			RowGridOverlayBorder created = new RowGridOverlayBorder(baseBorder, resolved);
+			ROW_GRID_OVERLAY_CACHE[rowGridOverlayNext] = created;
+			rowGridOverlayNext = (rowGridOverlayNext + 1) % ROW_GRID_OVERLAY_CACHE.length;
+			return created;
+		}
+	}
+
+	/** Tiny identity(base)+color keyed cache; a theme switch changes the base or color and so misses. */
+	private static final RowGridOverlayBorder[] ROW_GRID_OVERLAY_CACHE = new RowGridOverlayBorder[6];
+	private static int rowGridOverlayNext;
+
+	private static final class RowGridOverlayBorder extends AbstractBorder {
+		private static final long serialVersionUID = 6874837498917515255L;
+
+		private final Border baseBorder;
+		private final Color gridColor;
+
+		private RowGridOverlayBorder(Border baseBorder, Color gridColor) {
+			this.baseBorder = baseBorder;
+			this.gridColor = gridColor;
+		}
+
+		@Override
+		public Insets getBorderInsets(Component component) {
+			return baseBorder == null ? new Insets(0, 0, 0, 0) : baseBorder.getBorderInsets(component);
+		}
+
+		@Override
+		public Insets getBorderInsets(Component component, Insets target) {
+			Insets resolved = getBorderInsets(component);
+			target.set(resolved.top, resolved.left, resolved.bottom, resolved.right);
+			return target;
+		}
+
+		@Override
+		public void paintBorder(Component component, Graphics graphics, int x, int y, int width, int height) {
+			if (width <= 0 || height <= 0)
+				return;
+			Color oldColor = graphics.getColor();
+			graphics.setColor(gridColor);
+			graphics.drawLine(x, y + height - 1, x + width - 1, y + height - 1);
+			graphics.setColor(oldColor);
+			if (baseBorder != null)
+				baseBorder.paintBorder(component, graphics, x, y, width, height);
+		}
+	}
+
+	public static Color spreadsheetAlternateRowBackground(int row) {
+		Color alternate = UIManager.getColor("Table.alternateRowColor");
+		if (alternate != null)
+			return alternate;
+		return spreadsheetBodyBackground();
+	}
+
+	public static Border spreadsheetCellBorder() {
+		return tableCellBorder();
+	}
+
+	public static void applySpreadsheetTableStyle(JTable table) {
+		if (table == null)
+			return;
+		table.setOpaque(true);
+		table.setBackground(spreadsheetBodyBackground());
+		table.setForeground(tableForeground());
+		table.setSelectionBackground(spreadsheetRangeSelectionBackground());
+		table.setSelectionForeground(tableSelectionForeground());
+		table.setGridColor(spreadsheetGridColor());
+		table.setIntercellSpacing(new Dimension(0, 0));
+		table.setShowHorizontalLines(true);
+		table.setShowVerticalLines(true);
+		table.setRowMargin(0);
+		table.setFillsViewportHeight(true);
+	}
+
+	public static Border tableEditorBorder() {
+		Border border = UIManager.getBorder("TextField.border");
+		if (border == null)
+			border = BorderFactory.createLineBorder(borderColor());
+		return border;
+	}
+
+	public static Border tableHeaderBorder() {
+		Border border = UIManager.getBorder("TableHeader.cellBorder");
+		if (border == null)
+			border = BorderFactory.createMatteBorder(0, 0, 1, 0, borderColor());
+		return border;
+	}
+
+	public static FontUIResource asFontUIResource(Font font) {
+		return font == null ? null : new FontUIResource(font);
+	}
+
+	public static void applyDataSurface(JComponent component) {
+		applyThemedBackground(component, DATA_SURFACE_TOKEN);
+	}
+
+	public static void applyPanelSurface(JComponent component) {
+		applyThemedBackground(component, PANEL_BACKGROUND_TOKEN);
+		applyThemedForeground(component, LABEL_FOREGROUND_TOKEN);
+	}
+
+	public static void applyWorkspaceSurface(JComponent component) {
+		applyThemedBackground(component, WORKSPACE_BACKGROUND_TOKEN);
+		applyThemedForeground(component, LABEL_FOREGROUND_TOKEN);
+	}
+
+	public static void applyViewportSurface(JViewport viewport) {
+		applyThemedBackground(viewport, VIEWPORT_BACKGROUND_TOKEN);
+	}
+
+	private static final String DATA_SURFACE_TOKEN = "dataSurface";
+	private static final String PANEL_BACKGROUND_TOKEN = "panel";
+	private static final String WORKSPACE_BACKGROUND_TOKEN = "workspace";
+	private static final String VIEWPORT_BACKGROUND_TOKEN = "viewport";
+	private static final String TABLE_HEADER_BACKGROUND_TOKEN = "spreadsheetHeader";
+	private static final String HEADER_FOREGROUND_TOKEN = "headerForeground";
+	private static final String LABEL_FOREGROUND_TOKEN = "labelForeground";
+
+	/**
+	 * Client properties that record which theme token painted a component. The
+	 * window-tree colour remap in {@code ThemeManager} can only match colours, and
+	 * several tokens are white in the light theme, so a colour match alone cannot
+	 * tell a viewport from a dialog surface once the theme switches. A component
+	 * painted from a token records the token and is re-resolved from it instead.
+	 */
+	private static final String BACKGROUND_TOKEN_PROPERTY = "MicroProject.themeBackgroundToken";
+	private static final String FOREGROUND_TOKEN_PROPERTY = "MicroProject.themeForegroundToken";
+
+	private static void applyThemedBackground(JComponent component, String token) {
+		if (component == null)
+			return;
+		Color color = themeTokenColor(token);
+		if (color == null)
+			return;
+		component.putClientProperty(BACKGROUND_TOKEN_PROPERTY, token);
+		component.setOpaque(true);
+		component.setBackground(color);
+	}
+
+	private static void applyThemedForeground(JComponent component, String token) {
+		if (component == null)
+			return;
+		Color color = themeTokenColor(token);
+		if (color == null)
+			return;
+		component.putClientProperty(FOREGROUND_TOKEN_PROPERTY, token);
+		component.setForeground(color);
+	}
+
+	/** Resolves a token recorded by {@link #applyViewportSurface} and friends. */
+	public static Color themeTokenColor(String token) {
+		if (token == null)
+			return null;
+		return switch (token) {
+			case DATA_SURFACE_TOKEN -> dataSurfaceBackground();
+			case PANEL_BACKGROUND_TOKEN -> panelBackground();
+			case WORKSPACE_BACKGROUND_TOKEN -> workspaceBackground();
+			case VIEWPORT_BACKGROUND_TOKEN -> viewportBackground();
+			case TABLE_HEADER_BACKGROUND_TOKEN -> spreadsheetHeaderBackground();
+			case HEADER_FOREGROUND_TOKEN -> headerForeground();
+			case LABEL_FOREGROUND_TOKEN -> labelForeground();
+			default -> null;
+		};
+	}
+
+	/**
+	 * Re-resolves the token-painted colours of a component tree after the theme
+	 * switched. Ambiguous light values (several surfaces are white) are resolved
+	 * from each component's own token instead of from its previous colour.
+	 */
+	public static void refreshThemeColors(Component root) {
+		if (root == null)
+			return;
+		if (root instanceof JComponent component) {
+			Object background = component.getClientProperty(BACKGROUND_TOKEN_PROPERTY);
+			if (background != null) {
+				Color color = themeTokenColor(background.toString());
+				if (color != null) {
+					component.setOpaque(true);
+					component.setBackground(color);
+				}
+			}
+			Object foreground = component.getClientProperty(FOREGROUND_TOKEN_PROPERTY);
+			if (foreground != null) {
+				Color color = themeTokenColor(foreground.toString());
+				if (color != null)
+					component.setForeground(color);
+			}
+		}
+		if (root instanceof JMenu menu)
+			refreshThemeColors(menu.getPopupMenu());
+		if (root instanceof Container container) {
+			for (Component child : container.getComponents())
+				refreshThemeColors(child);
+		}
+		if (root instanceof Window window) {
+			for (Window owned : window.getOwnedWindows())
+				refreshThemeColors(owned);
+		}
+	}
+
+	public static void styleDialogRoot(JRootPane rootPane) {
+		if (rootPane == null)
+			return;
+		rootPane.setBorder(BorderFactory.createLineBorder(borderColor()));
+	}
+
+	static record RootPaneActionBinding(KeyStroke keyStroke, Object actionKey, Action action) { }
+
+	static List<RootPaneActionBinding> captureRootPaneActionBindings(JRootPane rootPane) {
+		if (rootPane == null)
+			return List.of();
+		InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+		ActionMap actionMap = rootPane.getActionMap();
+		KeyStroke[] keyStrokes = inputMap.keys();
+		Object[] localActionKeys = actionMap.keys();
+		if (keyStrokes == null || localActionKeys == null)
+			return List.of();
+
+		List<RootPaneActionBinding> bindings = new ArrayList<>();
+		for (KeyStroke keyStroke : keyStrokes) {
+			Object actionKey = inputMap.get(keyStroke);
+			boolean hasLocalAction = false;
+			for (Object localActionKey : localActionKeys) {
+				if (Objects.equals(actionKey, localActionKey)) {
+					hasLocalAction = true;
+					break;
+				}
+			}
+			if (!hasLocalAction)
+				continue;
+			Action action = actionMap.get(actionKey);
+			if (action != null && !(action instanceof UIResource))
+				bindings.add(new RootPaneActionBinding(keyStroke, actionKey, action));
+		}
+		return List.copyOf(bindings);
+	}
+
+	static void restoreRootPaneActionBindings(JRootPane rootPane, List<RootPaneActionBinding> bindings) {
+		if (rootPane == null || bindings == null || bindings.isEmpty())
+			return;
+		InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+		ActionMap actionMap = rootPane.getActionMap();
+		for (RootPaneActionBinding binding : bindings) {
+			inputMap.put(binding.keyStroke(), binding.actionKey());
+			actionMap.put(binding.actionKey(), binding.action());
+		}
+	}
+
+	/**
+	 * Sets a background that is read again from the theme whenever the component's
+	 * UI is updated, so a theme change does not leave the earlier colour behind.
+	 */
+	public static void followThemeBackground(JComponent component, Supplier<Color> background) {
+		Objects.requireNonNull(background);
+		Runnable apply = () -> {
+			Color color = background.get();
+			// A UIResource colour would be replaced by the look-and-feel default.
+			component.setBackground(color == null ? null : new Color(color.getRGB(), true));
+		};
+		apply.run();
+		component.addPropertyChangeListener("UI", event -> apply.run());
+	}
+
+	/** Refreshes a Swing tree and its owned dialogs after a look-and-feel change. */
+	public static void updateComponentTreeUI(Component component) {
+		if (component == null)
+			return;
+		SwingUtilities.updateComponentTreeUI(component);
+		Window owner = component instanceof Window window ? window : SwingUtilities.getWindowAncestor(component);
+		if (owner != null)
+			updateOwnedWindowTrees(owner);
+	}
+
+	/**
+	 * Refreshes every open window (visible or not) after a look-and-feel change,
+	 * preserving window-level key bindings that the UI reset would drop.
+	 */
+	public static void updateAllWindowTrees() {
+		for (Window window : Window.getWindows()) {
+			if (window.getOwner() != null)
+				continue; // owned windows are refreshed through their owner
+			JRootPane root = window instanceof JDialog dialog ? dialog.getRootPane()
+				: window instanceof javax.swing.JFrame frame ? frame.getRootPane() : null;
+			List<RootPaneActionBinding> rootPaneBindings = captureRootPaneActionBindings(root);
+			SwingUtilities.updateComponentTreeUI(window);
+			if (window instanceof JDialog dialog) {
+				restoreRootPaneActionBindings(dialog.getRootPane(), rootPaneBindings);
+				styleDialogRoot(dialog.getRootPane());
+				styleDialogComponents(dialog.getContentPane());
+			} else if (window instanceof javax.swing.JFrame frame) {
+				restoreRootPaneActionBindings(frame.getRootPane(), rootPaneBindings);
+			}
+			updateOwnedWindowTrees(window);
+		}
+	}
+
+	private static void updateOwnedWindowTrees(Window owner) {
+		for (Window child : owner.getOwnedWindows()) {
+			JRootPane root = child instanceof JDialog dialog ? dialog.getRootPane() : null;
+			List<RootPaneActionBinding> rootPaneBindings = captureRootPaneActionBindings(root);
+			SwingUtilities.updateComponentTreeUI(child);
+			if (child instanceof JDialog dialog) {
+				restoreRootPaneActionBindings(dialog.getRootPane(), rootPaneBindings);
+				styleDialogRoot(dialog.getRootPane());
+				styleDialogComponents(dialog.getContentPane());
+			}
+			updateOwnedWindowTrees(child);
+		}
+	}
+
+	public static void styleDialogContent(JComponent component) {
+		if (component == null)
+			return;
+		component.setOpaque(true);
+		component.setBackground(dialogBackground());
+		component.setForeground(labelForeground());
+	}
+
+	/**
+	 * Applies the shared FlatLaf dialog contract to a dialog assembled from
+	 * ordinary Swing components.  Legacy dialogs cannot all extend
+	 * {@link com.microproject.ui.dialog.AbstractDialog}, so this is the single
+	 * migration path for their component tree.
+	 */
+	public static void styleDialogComponents(Component component) {
+		if (component == null)
+			return;
+		if (component instanceof JTable table)
+			applySpreadsheetTableStyle(table);
+		else if (component instanceof JTabbedPane tabs)
+			styleTabbedPane(tabs);
+		else if (component instanceof JScrollPane scrollPane) {
+			applyPanelSurface(scrollPane);
+			applyViewportSurface(scrollPane.getViewport());
+		}
+		else if (component instanceof JSplitPane splitPane) {
+			applyPanelSurface(splitPane);
+			splitPane.setBorder(BorderFactory.createEmptyBorder());
+		}
+		else if (component instanceof JToolBar toolBar)
+			styleToolBar(toolBar);
+		else if (component instanceof JButton button)
+			styleDialogButton(button, false);
+		else if (component instanceof JComboBox<?> comboBox)
+			styleDialogControl(comboBox);
+		else if (component instanceof JSpinner spinner)
+			styleDialogControl(spinner);
+		else if (component instanceof JList<?> list)
+			styleDialogList(list);
+		else if (component instanceof JTextComponent textComponent)
+			styleDialogControl(textComponent);
+		else if (component instanceof JLabel label)
+			label.setForeground(labelForeground());
+		else if (component instanceof JPanel panel) {
+			Color lookAndFeelPanel = UIManager.getColor("Panel.background");
+			if (Objects.equals(panel.getBackground(), lookAndFeelPanel))
+				applyPanelSurface(panel);
+			else
+				panel.setForeground(labelForeground());
+		}
+
+		if (component instanceof Container container) {
+			for (Component child : container.getComponents()) {
+				styleDialogComponents(child);
+			}
+		}
+	}
+
+	private static void styleDialogControl(JComponent component) {
+		component.setFont(uiFont());
+		component.setForeground(labelForeground());
+	}
+
+	private static void styleDialogList(JList<?> list) {
+		list.setFont(uiFont());
+		list.setForeground(tableForeground());
+		list.setBackground(dataSurfaceBackground());
+		list.setSelectionBackground(tableSelectionBackground());
+		list.setSelectionForeground(tableSelectionForeground());
+	}
+
+	public static void styleButtonPanel(JPanel panel) {
+		if (panel == null)
+			return;
+		panel.setOpaque(true);
+		panel.setBackground(dialogBackground());
+		panel.setBorder(BorderFactory.createCompoundBorder(
+			BorderFactory.createMatteBorder(1, 0, 0, 0, separatorColor()),
+			BorderFactory.createEmptyBorder(compactSpacing(), sectionSpacing(), compactSpacing(), sectionSpacing())));
+	}
+
+	public static void styleDialogButton(AbstractButton button, boolean primary) {
+		if (button == null)
+			return;
+		button.setFocusPainted(false);
+		button.setMargin(new Insets(4, 12, 4, 12));
+		if (primary) {
+			button.setOpaque(true);
+			button.setForeground(ColorLuminance.isDark(accentColor()) ? Color.WHITE : Color.BLACK);
+			button.setBackground(accentColor());
+			button.setBorder(BorderFactory.createCompoundBorder(
+				BorderFactory.createLineBorder(accentColor().darker()),
+				BorderFactory.createEmptyBorder(0, 8, 0, 8)));
+		} else {
+			button.setOpaque(true);
+			button.setForeground(labelForeground());
+			button.setBackground(dialogSurfaceBackground());
+			button.setBorder(BorderFactory.createCompoundBorder(
+				BorderFactory.createLineBorder(borderColor()),
+				BorderFactory.createEmptyBorder(0, 8, 0, 8)));
+		}
+		// The theme height is a minimum. Font metrics, margin, and border
+		// insets determine the actual content height, especially for Japanese
+		// text and when the platform scales fonts independently of UI pixels.
+		Dimension preferred = button.getPreferredSize();
+		int width = Math.max(preferred.width, 92);
+		int height = Math.max(preferred.height, dialogButtonHeight());
+		button.setPreferredSize(new Dimension(width, height));
+		button.setMinimumSize(new Dimension(92, height));
+	}
+
+	public static void applyTableHeaderStyle(JComponent component) {
+		if (component == null)
+			return;
+		applyThemedBackground(component, TABLE_HEADER_BACKGROUND_TOKEN);
+		applyThemedForeground(component, HEADER_FOREGROUND_TOKEN);
+		component.setFont(ganttHeaderFont());
+		component.setBorder(tableHeaderBorder());
+	}
+
+	public static void applyTableHeaderCellStyle(JLabel component, boolean selected) {
+		applyTableHeaderCellStyle(component, selected, false);
+	}
+
+	public static void applyTableHeaderCellStyle(JLabel component, boolean selected, boolean active) {
+		if (component == null)
+			return;
+		component.setOpaque(true);
+		component.setForeground(headerForeground());
+		component.setBackground((selected || active) ? spreadsheetHeaderSelectedBackground() : spreadsheetHeaderBackground());
+		component.setFont(headerFont());
+		component.setBorder(active ? spreadsheetActiveCellBorder() : tableHeaderBorder());
+	}
+
+	private static final class CommandButtonBorder extends AbstractBorder {
+		private static final long serialVersionUID = -3017592506618514857L;
+
+		private final Insets insets;
+		private final int arc;
+
+		private CommandButtonBorder(Insets insets, int arc) {
+			this.insets = insets;
+			this.arc = arc;
+		}
+
+		@Override
+		public Insets getBorderInsets(Component component) {
+			int splitInset = isRibbonSplit(component) ? 18 : 0;
+			return new Insets(insets.top, insets.left, insets.bottom, insets.right + splitInset);
+		}
+
+		@Override
+		public Insets getBorderInsets(Component component, Insets insetsTarget) {
+			insetsTarget.top = insets.top;
+			insetsTarget.left = insets.left;
+			insetsTarget.bottom = insets.bottom;
+			insetsTarget.right = insets.right + (isRibbonSplit(component) ? 18 : 0);
+			return insetsTarget;
+		}
+
+		@Override
+		public void paintBorder(Component component, Graphics graphics, int x, int y, int width, int height) {
+			if (!(component instanceof AbstractButton button) || width <= 0 || height <= 0)
+				return;
+			Color border = resolveCommandButtonBorderColor(button);
+			if (!button.isEnabled() || border == null)
+				return;
+			Graphics2D g2 = (Graphics2D) graphics.create();
+			try {
+				enableAntialiasing(g2);
+				if (button.isFocusOwner() && isRibbonCommandButton(button))
+					g2.setStroke(new BasicStroke(2.0f));
+				int right = x + width - 1;
+				int bottom = y + height - 1;
+				g2.setColor(border);
+				g2.drawRoundRect(x, y, width - 1, height - 1, arc, arc);
+				if (isRibbonSplit(button) && !(button.getClientProperty(SPLIT_ARROW_PROPERTY) instanceof Component)) {
+					int splitX = x + width - 18;
+					if (isPopupOpen(button)) {
+						g2.setColor(commandButtonSelectedBackground(button));
+						g2.fillRect(splitX + 1, y + 1, width - 19, height - 2);
+					}
+					g2.setColor(separatorColor());
+					g2.drawLine(splitX, y + 4, splitX, y + height - 5);
+					int centerX = splitX + 9;
+					int centerY = y + height / 2;
+					g2.setColor(button.isEnabled() ? labelForeground() : disabledForeground());
+					g2.drawLine(centerX - 3, centerY - 1, centerX, centerY + 2);
+					g2.drawLine(centerX, centerY + 2, centerX + 3, centerY - 1);
+				}
+			} finally {
+				g2.dispose();
+			}
+		}
+
+		private boolean isRibbonSplit(Component component) {
+			return component instanceof JComponent jc
+				&& Boolean.TRUE.equals(jc.getClientProperty("MicroProject.ribbonSplit"));
+		}
+	}
+
+	private static final class RibbonTabBorder extends AbstractBorder {
+		private static final long serialVersionUID = -8361399314006210874L;
+
+		@Override
+		public Insets getBorderInsets(Component component) {
+			return new Insets(
+				ribbonTabVerticalPadding(),
+				ribbonTabHorizontalPadding(),
+				Math.max(1, ribbonTabVerticalPadding() - 1) + 2,
+				ribbonTabHorizontalPadding());
+		}
+
+		@Override
+		public Insets getBorderInsets(Component component, Insets insetsTarget) {
+			Insets computed = getBorderInsets(component);
+			insetsTarget.top = computed.top;
+			insetsTarget.left = computed.left;
+			insetsTarget.bottom = computed.bottom;
+			insetsTarget.right = computed.right;
+			return insetsTarget;
+		}
+
+		@Override
+		public void paintBorder(Component component, Graphics graphics, int x, int y, int width, int height) {
+			if (!(component instanceof AbstractButton button) || width <= 0 || height <= 0)
+				return;
+			Graphics2D g2 = (Graphics2D) graphics.create();
+			try {
+				enableAntialiasing(g2);
+				Color border = resolveRibbonTabBorderColor(button);
+				Color underline = resolveRibbonTabUnderlineColor(button);
+				if (underline != null) {
+					g2.setColor(underline);
+					g2.fillRect(x, y + height - 3, width, 3);
+				}
+				if (button.isFocusOwner()) {
+					g2.setColor(ribbonAccentColor());
+					g2.drawRoundRect(x + 2, y + 2, Math.max(0, width - 5), Math.max(0, height - 8), 5, 5);
+				}
+			} finally {
+				g2.dispose();
+			}
+		}
+	}
+}

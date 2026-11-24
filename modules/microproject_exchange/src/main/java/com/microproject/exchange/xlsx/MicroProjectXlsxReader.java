@@ -56,9 +56,9 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import com.microproject.pm.task.Project;
-import com.microproject.server.data.DocumentData;
-import com.microproject.server.data.Serializer;
+import com.microproject.model.task.Project;
+import com.microproject.persistence.data.DocumentData;
+import com.microproject.exchange.serialize.Serializer;
 import com.microproject.util.SafeObjectInput;
 
 public class MicroProjectXlsxReader extends AbstractProjectReader {
@@ -327,10 +327,10 @@ public class MicroProjectXlsxReader extends AbstractProjectReader {
 			task.setName(stringCell(row, 3));
 			task.setNotes(stringCell(row, 4));
 			if (dateCell(row, 5) != null) {
-				task.setStart(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(dateCell(row, 5)));
+				task.setStart(com.microproject.exchange.mpx.converter.MpxDates.toLocalDateTime(dateCell(row, 5)));
 			}
 			if (dateCell(row, 6) != null) {
-				task.setFinish(com.microproject.core.pm.exchange.converters.mpx.MpxDates.toLocalDateTime(dateCell(row, 6)));
+				task.setFinish(com.microproject.exchange.mpx.converter.MpxDates.toLocalDateTime(dateCell(row, 6)));
 			}
 			Double percent = doubleCell(row, 7);
 			if (percent != null) {

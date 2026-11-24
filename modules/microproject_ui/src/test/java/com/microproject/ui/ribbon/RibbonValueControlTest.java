@@ -110,12 +110,12 @@ class RibbonValueControlTest {
 		Action command = new AbstractAction() {
 			@Override public void actionPerformed(ActionEvent event) { committed.add(event.getActionCommand()); }
 		};
-		com.microproject.menu.ProjectMenuActionMap actions = new com.microproject.menu.ProjectMenuActionMap() {
+		com.microproject.ui.menu.ProjectMenuActionMap actions = new com.microproject.ui.menu.ProjectMenuActionMap() {
 			@Override public Action getAction(String key) { return command; }
 			@Override public String getStringFromAction(Action action) { return "RibbonValue"; }
 		};
-		RibbonCommandSource actual = new com.microproject.menu.MenuRibbonCommandSource(
-			new com.microproject.menu.ExtToolBarFactory(actions));
+		RibbonCommandSource actual = new com.microproject.ui.menu.MenuRibbonCommandSource(
+			new com.microproject.ui.menu.ExtToolBarFactory(actions));
 		SwingUtilities.invokeAndWait(() -> {
 			JTextField field = (JTextField) RibbonControlPopups.createInputControl(
 				spec(RibbonControlKind.EDIT_BOX), actual, key -> null);
@@ -131,15 +131,15 @@ class RibbonValueControlTest {
 		Action command = new AbstractAction("BackgroundColor") {
 			@Override public void actionPerformed(ActionEvent event) { received.set(event.getActionCommand()); }
 		};
-		com.microproject.menu.ProjectMenuActionMap actions = new com.microproject.menu.ProjectMenuActionMap() {
+		com.microproject.ui.menu.ProjectMenuActionMap actions = new com.microproject.ui.menu.ProjectMenuActionMap() {
 			@Override public Action getAction(String key) { return command; }
 			@Override public String getStringFromAction(Action action) { return "BackgroundColor"; }
 		};
-		RibbonCommandSource actual = new com.microproject.menu.MenuRibbonCommandSource(
-			new com.microproject.menu.ExtToolBarFactory(actions,
-				com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonBundles(java.util.Locale.ROOT)));
+		RibbonCommandSource actual = new com.microproject.ui.menu.MenuRibbonCommandSource(
+			new com.microproject.ui.menu.ExtToolBarFactory(actions,
+				com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonBundles(java.util.Locale.ROOT)));
 		java.util.ResourceBundle japaneseText = java.util.ResourceBundle.getBundle(
-			"com.microproject.menu.menu", java.util.Locale.JAPAN);
+			"com.microproject.ui.menu.menu", java.util.Locale.JAPAN);
 		SwingUtilities.invokeAndWait(() -> {
 			String commandId = "RibbonFillColor";
 			JButton owner = new JButton(actual.createAction(commandId));
@@ -169,15 +169,15 @@ class RibbonValueControlTest {
 		Action command = new AbstractAction("BackgroundColor") {
 			@Override public void actionPerformed(ActionEvent event) { dispatches.incrementAndGet(); }
 		};
-		com.microproject.menu.ProjectMenuActionMap actions = new com.microproject.menu.ProjectMenuActionMap() {
+		com.microproject.ui.menu.ProjectMenuActionMap actions = new com.microproject.ui.menu.ProjectMenuActionMap() {
 			@Override public Action getAction(String key) { return command; }
 			@Override public String getStringFromAction(Action action) { return "BackgroundColor"; }
 		};
-		com.microproject.menu.ExtToolBarFactory factory = new com.microproject.menu.ExtToolBarFactory(actions,
-			com.microproject.menu.testsupport.MenuDefinitionSupport.ribbonBundles(java.util.Locale.ROOT));
-		RibbonCommandSource actual = new com.microproject.menu.MenuRibbonCommandSource(factory);
+		com.microproject.ui.menu.ExtToolBarFactory factory = new com.microproject.ui.menu.ExtToolBarFactory(actions,
+			com.microproject.ui.menu.testsupport.MenuDefinitionSupport.ribbonBundles(java.util.Locale.ROOT));
+		RibbonCommandSource actual = new com.microproject.ui.menu.MenuRibbonCommandSource(factory);
 		java.util.ResourceBundle english = java.util.ResourceBundle.getBundle(
-			"com.microproject.menu.menu", java.util.Locale.ROOT);
+			"com.microproject.ui.menu.menu", java.util.Locale.ROOT);
 		SwingUtilities.invokeAndWait(() -> {
 			String commandId = "RibbonFillColor";
 			JButton owner = new JButton(actual.createAction(commandId));
@@ -186,7 +186,7 @@ class RibbonValueControlTest {
 			RibbonControlPopups.install(owner, specification, actual, english::getString);
 			JPopupMenu popup = assertInstanceOf(JPopupMenu.class,
 				owner.getClientProperty(RibbonControlPopups.POPUP_PROPERTY));
-			List<String> actionable = com.microproject.menu.testsupport.UiComponentWalker.flatten(popup).stream()
+			List<String> actionable = com.microproject.ui.menu.testsupport.UiComponentWalker.flatten(popup).stream()
 				.filter(javax.swing.AbstractButton.class::isInstance)
 				.map(javax.swing.AbstractButton.class::cast)
 				.map(javax.swing.AbstractButton::getActionCommand)
@@ -194,7 +194,7 @@ class RibbonValueControlTest {
 				.distinct().toList();
 			assertEquals(List.of(commandId), actionable,
 				"the gallery must expose command-addressable items so its popup is not inert");
-			com.microproject.menu.testsupport.UiComponentWalker.flatten(popup).stream()
+			com.microproject.ui.menu.testsupport.UiComponentWalker.flatten(popup).stream()
 				.filter(javax.swing.AbstractButton.class::isInstance)
 				.map(javax.swing.AbstractButton.class::cast)
 				.filter(button -> commandId.equals(button.getActionCommand()))

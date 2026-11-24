@@ -1,0 +1,302 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.ui.app;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.prefs.Preferences;
+import java.util.logging.FileHandler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
+
+import javax.swing.SwingUtilities;
+
+import com.microproject.util.Environment;
+import com.microproject.ui.util.FlatLafSupport;
+import com.microproject.ui.diagnostics.EdtWatchdog;
+
+
+/**
+ *
+ */
+public class Main {
+	private static EdtWatchdog edtWatchdog;
+	private static final String UI_DEBUG_PROPERTY = "microproject.ui.debug";
+	private static final String UI_DEBUG_LOG_FILE_PROPERTY = "microproject.ui.debug.logFile";
+	private static final String RUN_NUMBER_KEY = "microprojectRunNumber";
+	private static final String LEGACY_RUN_NUMBER_KEY = "projectlibreRunNumber";
+	private static final String FIRST_RUN_KEY = "microprojectFirstRun";
+	private static final String LEGACY_FIRST_RUN_READ_KEY = "projectlibreFirstRun";
+	private static final String LEGACY_FIRST_RUN_WRITE_KEY = "projectlibrefirstRun";
+	private static final DateTimeFormatter UI_DEBUG_LOG_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
+
+	public static void main(String[] args) {
+		configureRuntimeLogging();
+		FlatLafSupport.initialize();
+
+		Preferences preferences = Preferences.userNodeForPackage(Main.class);
+		incrementRunNumber(preferences);
+		initializeFirstRun(preferences, System.currentTimeMillis());
+		
+//		System.setProperty("file.encoding", "UTF-8");
+		// Desktop startup uses the local-document path in StartupFactory.  Keep
+		// client-side mode explicit; its default is false for server/plugin hosts.
+		Environment.setClientSide(true);
+		String[] formatedArgs;
+		if (args!=null && args.length>0){
+			ArrayList<String> nonEmptyArgs = new ArrayList<>(args.length);
+			for (int i=0;i<args.length;i++){
+				if (args[i]!=null&& args[i].length()>0) nonEmptyArgs.add(args[i]);
+			}
+			if (nonEmptyArgs.size()>0){
+				ArrayList<String> formatedList = new ArrayList<>(nonEmptyArgs.size() + 1);
+				if (nonEmptyArgs.get(0).startsWith("--")) {
+					formatedArgs = normalizeFileNameArguments(nonEmptyArgs).toArray(new String[]{});
+					startApplication(formatedArgs);
+					return;
+				}
+				if (allExistingFiles(nonEmptyArgs)) {
+					formatedList.add("--fileNames");
+					formatedList.addAll(nonEmptyArgs);
+					formatedArgs=formatedList.toArray(new String[]{});
+					startApplication(formatedArgs);
+					return;
+				}
+				String s1,s2;
+				for (Iterator<String> i=nonEmptyArgs.iterator();i.hasNext();){
+					s1=i.next();
+					if (i.hasNext()){
+						s2=i.next();
+					}else{
+						s2=s1;
+						s1="--fileNames";
+					}
+					formatedList.add(s1);
+					formatedList.add(s2);
+				}
+				formatedArgs=formatedList.toArray(new String[]{});
+			} else formatedArgs=args;
+		} else formatedArgs=args;
+
+		startApplication(formatedArgs);
+	}
+
+	private static void startApplication(final String[] args) {
+		SwingUtilities.invokeLater(() -> com.microproject.ui.view.gantt.Main.main(args));
+	}
+
+	private static boolean allExistingFiles(ArrayList<String> args) {
+		if (args == null || args.size() == 0) {
+			return false;
+		}
+		for (String fileName : args)
+			if (fileName == null || !new File(fileName).isFile()) return false;
+		return true;
+	}
+
+	/**
+	 * Windows batch launchers can pass an unquoted path with spaces as several
+	 * Java arguments.  Reassemble the documented --fileNames values at the
+	 * application boundary, using a native project-file suffix as the end of a
+	 * path.  Properly quoted arguments remain unchanged.  Include every project
+	 * format accepted by the desktop opener: an MPP supplied by Explorer is just
+	 * as likely to contain spaces as a native MPO file.
+	 */
+	static ArrayList<String> normalizeFileNameArguments(ArrayList<String> args) {
+		if (args.size() < 2 || !"--fileNames".equals(args.get(0)))
+			return args;
+		ArrayList<String> normalized = new ArrayList<>(args.size());
+		normalized.add(args.get(0));
+		StringBuilder path = new StringBuilder();
+		for (int i = 1; i < args.size(); i++) {
+			String value = args.get(i);
+			if (value.startsWith("--")) {
+				if (path.length() > 0) normalized.add(path.toString());
+				path.setLength(0);
+				normalized.add(value);
+				continue;
+			}
+			if (path.length() > 0) path.append(' ');
+			path.append(value);
+			String lower = path.toString().toLowerCase(java.util.Locale.ROOT);
+			if (isProjectFileName(lower)) {
+				normalized.add(path.toString());
+				path.setLength(0);
+			}
+		}
+		if (path.length() > 0) normalized.add(path.toString());
+		return normalized;
+	}
+
+	private static boolean isProjectFileName(String lowerCasePath) {
+		return lowerCasePath.endsWith(".mpo") || lowerCasePath.endsWith(".pod")
+			|| lowerCasePath.endsWith(".mpp") || lowerCasePath.endsWith(".xml");
+	}
+	public static int getRunNumber() {
+		return getRunNumber(Preferences.userNodeForPackage(Main.class));
+	}
+
+	static int getRunNumber(Preferences preferences) {
+		String canonicalValue = preferences.get(RUN_NUMBER_KEY, null);
+		if (canonicalValue != null) {
+			return parseRunNumber(canonicalValue, 0);
+		}
+		return parseRunNumber(preferences.get(LEGACY_RUN_NUMBER_KEY, null), 0);
+	}
+
+	static int incrementRunNumber(Preferences preferences) {
+		int runNumber = getRunNumber(preferences) + 1;
+		preferences.putInt(RUN_NUMBER_KEY, runNumber);
+		return runNumber;
+	}
+
+	private static int parseRunNumber(String value, int defaultValue) {
+		if (value == null) {
+			return defaultValue;
+		}
+		try {
+			return Integer.parseInt(value);
+		} catch (NumberFormatException ignored) {
+			return defaultValue;
+		}
+	}
+
+	public static long getFirstRun() {
+		return getFirstRun(Preferences.userNodeForPackage(Main.class), System.currentTimeMillis());
+	}
+
+	static long getFirstRun(Preferences preferences, long defaultValue) {
+		String canonicalValue = preferences.get(FIRST_RUN_KEY, null);
+		if (canonicalValue != null) {
+			return parseFirstRun(canonicalValue, defaultValue);
+		}
+		Long legacyValue = parseFirstRun(preferences.get(LEGACY_FIRST_RUN_READ_KEY, null));
+		if (legacyValue == null) {
+			legacyValue = parseFirstRun(preferences.get(LEGACY_FIRST_RUN_WRITE_KEY, null));
+		}
+		return legacyValue == null ? defaultValue : legacyValue.longValue();
+	}
+
+	static long initializeFirstRun(Preferences preferences, long defaultValue) {
+		String canonicalValue = preferences.get(FIRST_RUN_KEY, null);
+		if (canonicalValue != null) {
+			Long parsed = parseFirstRun(canonicalValue);
+			if (parsed != null) {
+				return parsed.longValue();
+			}
+			preferences.putLong(FIRST_RUN_KEY, defaultValue);
+			return defaultValue;
+		}
+		long firstRun = getFirstRun(preferences, defaultValue);
+		preferences.putLong(FIRST_RUN_KEY, firstRun);
+		return firstRun;
+	}
+
+	private static Long parseFirstRun(String value) {
+		if (value == null) {
+			return null;
+		}
+		try {
+			return Long.valueOf(value);
+		} catch (NumberFormatException ignored) {
+			return null;
+		}
+	}
+
+	private static long parseFirstRun(String value, long defaultValue) {
+		Long parsed = parseFirstRun(value);
+		return parsed == null ? defaultValue : parsed.longValue();
+	}
+	private static void configureRuntimeLogging() {
+		RuntimeErrorLogging.configure(RuntimeErrorLogging.defaultLogDirectory(
+				System.getenv("LOCALAPPDATA"), System.getProperty("os.name", ""), System.getProperty("user.home", ".")));
+		startEdtWatchdog();
+		Logger.getLogger("com.microproject.model.calendar.WorkWeek").setLevel(Level.WARNING);
+		Logger.getLogger("org.openide.util").setLevel(Level.SEVERE);
+		Logger.getLogger("org.openide.util.ImageUtilities").setLevel(Level.SEVERE);
+		Logger.getLogger("org.openide.util.ImageUtilities$CachedLookupLoader").setLevel(Level.SEVERE);
+		configureUiDebugLogging();
+	}
+
+	private static synchronized void startEdtWatchdog() {
+		if (edtWatchdog != null) return;
+		try {
+			edtWatchdog = EdtWatchdog.start();
+			Runtime.getRuntime().addShutdownHook(new Thread(edtWatchdog::close, "microproject-edt-watchdog-shutdown"));
+		} catch (RuntimeException | Error failure) {
+			Logger.getLogger(Main.class.getName()).log(Level.WARNING, "Could not start EDT watchdog.", failure);
+		}
+	}
+
+	/**
+	 * Enables a narrow, opt-in trace for diagnosing physical UI interactions in
+	 * an installed desktop build.  The trace is deliberately off by default so
+	 * normal application runs retain their current logging behaviour.
+	 */
+	private static void configureUiDebugLogging() {
+		if (!Boolean.getBoolean(UI_DEBUG_PROPERTY))
+			return;
+
+		try {
+			Path logFile = resolveUiDebugLogFile();
+			Path parent = logFile.getParent();
+			if (parent != null)
+				Files.createDirectories(parent);
+
+			FileHandler handler = new FileHandler(logFile.toString(), true);
+			handler.setLevel(Level.FINE);
+			handler.setFormatter(new SimpleFormatter());
+			Logger uiLogger = Logger.getLogger("com.microproject");
+			uiLogger.setLevel(Level.INFO);
+			uiLogger.addHandler(handler);
+			Logger.getLogger("com.microproject.ui.frame.GraphicManager").setLevel(Level.FINE);
+			Logger.getLogger("com.microproject.ui.diagnostics.UiButtonDiagnostics").setLevel(Level.FINE);
+			uiLogger.log(Level.INFO, "UI_DEBUG enabled; trace file: {0}", logFile.toAbsolutePath());
+		} catch (IOException | SecurityException e) {
+			System.err.println("Could not enable microProject UI debug logging: " + e.getMessage());
+		}
+	}
+
+	private static Path resolveUiDebugLogFile() {
+		String configuredFile = System.getProperty(UI_DEBUG_LOG_FILE_PROPERTY);
+		if (configuredFile != null && !configuredFile.isBlank())
+			return Paths.get(configuredFile);
+
+		String localAppData = System.getenv("LOCALAPPDATA");
+		Path logDirectory = localAppData == null || localAppData.isBlank()
+			? Paths.get(System.getProperty("user.home"), ".microproject", "logs")
+			: Paths.get(localAppData, "microProject", "logs");
+		String timestamp = LocalDateTime.now().format(UI_DEBUG_LOG_TIMESTAMP);
+		return logDirectory.resolve("ui-debug-" + timestamp + ".log");
+	}
+
+}

@@ -18,11 +18,11 @@ import java.util.zip.ZipOutputStream;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import com.microproject.pm.task.Project;
-import com.microproject.pm.task.DefaultSubProj;
-import com.microproject.pm.task.SubProj;
-import com.microproject.pm.task.Task;
-import com.microproject.temporary.TemporaryCleanupQueue;
+import com.microproject.model.task.Project;
+import com.microproject.model.task.DefaultSubProj;
+import com.microproject.model.task.SubProj;
+import com.microproject.model.task.Task;
+import com.microproject.util.temporary.TemporaryCleanupQueue;
 import com.microproject.util.MarkupEscape;
 import com.microproject.util.SafeFileReplace;
 

@@ -116,7 +116,7 @@ public final class SafeObjectInput {
 		@Override
 		protected Class<?> resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
 			String name = desc.getName();
-			String remapped = com.microproject.exchange.PodFormatIdentifiers.remapClassName(name);
+			String remapped = com.microproject.persistence.PodFormatIdentifiers.remapClassName(name);
 			if (!remapped.equals(name)) {
 				try {
 					return Class.forName(remapped, false, RemappingObjectInputStream.class.getClassLoader());
@@ -148,7 +148,7 @@ public final class SafeObjectInput {
 			observer.accept(type);
 
 		String className = type.getName();
-		if (com.microproject.exchange.PodFormatIdentifiers.isAllowedLegacyClass(className))
+		if (com.microproject.persistence.PodFormatIdentifiers.isAllowedLegacyClass(className))
 			return ObjectInputFilter.Status.ALLOWED;
 		for (String allowedClass : ALLOWED_JDK_CLASSES) {
 			if (className.equals(allowedClass))

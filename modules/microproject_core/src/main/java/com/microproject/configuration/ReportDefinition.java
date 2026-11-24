@@ -27,8 +27,8 @@ import java.util.ArrayList;
 
 import org.apache.commons.digester3.Digester;
 
-import com.microproject.graphic.configuration.SpreadSheetFieldArray;
-import com.microproject.strings.Messages;
+import com.microproject.view.configuration.SpreadSheetFieldArray;
+import com.microproject.i18n.Messages;
 
 /**
  * Holds the definition of a report read in from the view config
