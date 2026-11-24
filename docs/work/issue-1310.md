@@ -17,22 +17,21 @@ Scope revision 2026-11-24: user authorized relocating the core PertManualPositio
 | ID | Required result/evidence | State | Evidence |
 |---|---|---|---|
 | A1 | UI source/resource directories under com.microproject.ui | pass | directory inspection, `83e8b42d6` |
-| A2 | old package reference grep is empty | open | core class moved to `view.network`; final candidate grep pending |
-| A3 | installDist launch succeeds | open | physical startup pending |
+| A2 | old package reference grep is empty | pass | grep empty on `c09e99863` |
+| A3 | installDist launch succeeds | pass | Windows launcher from fresh installDist on `c09e99863`; welcome and ribbon displayed |
 | A4 | PR build and GUI acceptance pass | open | exact candidate CI pending |
 | A5 | relocated persisted classes mapped; exchange tests pass if applicable | pass | no moved main classes in persisted inventory; exchange test and clean build passed, `83e8b42d6` |
-| A6 | issue verification commands pass | open | clean build and compile, architecture, source inventory passed; physical startup pending |
+| A6 | issue verification commands pass | open | compile, exchange/UI tests, architecture, inventory and startup passed; exact candidate CI pending |
 
 ## Current slice
 
-**Next slice:** verify core position-state relocation, MPO round trips and GUI consumers.
-**Done when:** exchange/UI tests and architecture checks pass; old package grep is empty.
-**Then:** push candidate and assess required CI and startup.
+**Next slice:** assess exact candidate build and GUI acceptance.
+**Done when:** required CI checks pass on the pushed candidate.
+**Then:** review final PR state.
 
 ## Remaining blockers
 
-- A2: final grep and relocation checks pending.
-- A3, A4: physical startup and passing candidate CI.
+- A4: exact candidate CI pending.
 
 ## Latest evidence
 
@@ -43,3 +42,5 @@ Scope revision 2026-11-24: user authorized relocating the core PertManualPositio
 - Integration with master `305e393c8`: UI compile and architecture checks passed; focused network, summary and ribbon unit tests passed. CI pending.
 
 - `2ec4626ba`: PR build and GUI acceptance passed; user then authorized moving the core class to satisfy A2.
+
+- `c09e99863`: exchange/UI tests, GUI compilation, architecture checks, source inventory and old-name grep passed; fresh installDist launcher showed the welcome screen and ribbon on Windows.
