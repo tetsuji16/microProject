@@ -1,0 +1,1078 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.exchange.mpx;
+
+import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import org.mpxj.Duration;
+import org.mpxj.ProjectCalendar;
+import org.mpxj.ProjectFile;
+import org.mpxj.Relation;
+import org.mpxj.ResourceAssignment;
+import org.mpxj.mpp.MPPReader;
+import org.mpxj.mpx.MPXReader;
+import org.mpxj.mspdi.schema.TimephasedDataType;
+import org.mpxj.reader.AbstractProjectReader;
+import org.mpxj.reader.UniversalProjectReader;
+import org.mpxj.planner.PlannerReader;
+import com.microproject.exchange.xlsx.MicroProjectXlsxReader;
+
+import com.microproject.exchange.mpx.converter.MpxAssignmentConverter;
+import com.microproject.exchange.mpx.converter.type.MpxAccrueTypeConverter;
+import com.microproject.exchange.mpx.converter.MpxCalendarConverter;
+import com.microproject.exchange.mpx.converter.MpxDependencyConverter;
+import com.microproject.exchange.mpx.converter.MpxImportState;
+import com.microproject.exchange.mpx.converter.MpxProjectConverter;
+import com.microproject.exchange.mpx.converter.MpxResourceConverter;
+import com.microproject.exchange.mpx.converter.MpxTaskConverter;
+import com.microproject.exchange.mpx.converter.MpxUtils;
+import com.microproject.exchange.converter.type.DateUTCConverter;
+import com.microproject.exchange.converter.type.PercentNumberRatioDoubleConverter;
+import com.microproject.datatype.DurationDefaults;
+import com.microproject.exchange.ImportedCalendarService;
+import com.microproject.exchange.MspdiProjectBoundary;
+import com.microproject.exchange.BoundedInput;
+import com.microproject.grouping.core.Node;
+import com.microproject.grouping.core.NodeFactory;
+import com.microproject.pm.calendar.CalendarService;
+import com.microproject.pm.calendar.WorkCalendar;
+import com.microproject.pm.calendar.WorkingCalendar;
+import com.microproject.pm.resource.Resource;
+import com.microproject.pm.resource.EnterpriseResource;
+import com.microproject.pm.resource.ResourceImpl;
+import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.assignment.Assignment;
+import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.task.Project;
+import com.microproject.pm.task.BulkScheduleBuilder;
+import com.microproject.pm.task.Task;
+import com.microproject.pm.task.TaskSnapshot;
+import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.SubProj;
+import com.microproject.pm.task.DefaultSubProj;
+import com.microproject.pm.criticalpath.TaskSchedule;
+import com.microproject.session.FileHelper;
+import com.microproject.undo.DataFactoryUndoController;
+
+/**
+ * @author Laurent Chretienneau
+ *
+ */
+public class MspImporter {
+	private static final Logger logger = Logger.getLogger(MspImporter.class.getName());
+	protected ProjectFile mpxProjectFile;
+	protected MpxImportState state=new MpxImportState();
+	protected AbstractProjectReader reader;
+	/** Native microProject XLSX payload, when present and valid. */
+	protected Project nativeProject;
+	protected long earliestTaskStart=-1L;
+	protected org.mpxj.Task mpxRootTask=null;
+	private MspdiProjectBoundary.Declarations rawProjectBoundary = MspdiProjectBoundary.Declarations.NONE;
+	private final List<ImportedAssignmentScheduleDelays> importedAssignmentScheduleDelays = new ArrayList<>();
+	private boolean importTaskWorkSplits = true;
+
+	public void setImportTaskWorkSplits(boolean importTaskWorkSplits) {
+		this.importTaskWorkSplits = importTaskWorkSplits;
+	}
+
+	private record ImportedAssignmentScheduleDelays(ResourceAssignment source, Assignment target) {}
+	
+	public Project importProject(String name, ProgressClosure progress) throws Exception{
+		progress.updateProgress(0.0f, "Start");
+		parseProject(name);
+		return importProject_(progress);		
+	}
+
+	public Project importProject(InputStream in, String extension, ProgressClosure progress) throws Exception{
+		progress.updateProgress(0.0f, "Start");
+		parseProject(in,extension);
+		return importProject_(progress);		
+	}
+
+	private Project importProject_(ProgressClosure progress) throws Exception{
+		if (nativeProject != null) {
+			progress.updateProgress(1f, "Completed");
+			return nativeProject;
+		}
+		progress.updateProgress(0.2f, "File parsed");
+		state.initializeMpxTimephasedMap();
+		importedAssignmentScheduleDelays.clear();
+
+		DataFactoryUndoController undo = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("imported", undo);
+		Project project = Project.createProject(resourcePool, undo);
+		// Task creation and duration conversion happen before the remainder of
+		// the project header is applied. Install the source unit defaults first so
+		// task constructors and converters never interpret this project through
+		// the process-wide calendar settings.
+		project.setDurationDefaults(MpxProjectConverter.durationDefaults(mpxProjectFile.getProjectProperties()));
+
+		importOptions(project);
+		progress.updateProgress(0.3f, "Options converted");
+		importCalendars(project);
+		progress.updateProgress(0.4f, "Calendars converted");
+		if (hasDeclaredProjectBoundary()) {
+			// Source schedule mode changes can recalculate immediately while tasks are
+			// still being imported. Apply a declared source boundary before that happens;
+			// the final header pass below still applies inferred defaults and task fixes.
+			importProjectHeader(project);
+		}
+		importResourcePool(project);
+		progress.updateProgress(0.5f, "Resources converted");
+		importTasks(project);
+		progress.updateProgress(0.7f, "Tasks converted");
+		importDependencies(project);
+		progress.updateProgress(0.8f, "Dependencies converted");
+		importProjectHeader(project); // Reapply the header after tasks to correct the project start.
+		progress.updateProgress(0.9f, "Project headers converted");
+		// Tasks and links are created while importing is active, so their normal
+		// incremental scheduling callbacks are intentionally suppressed.  Restore
+		// the same initialized, calculated state as a persisted native project
+		// before exposing this imported project to a Gantt view.
+		BulkScheduleBuilder.initialize(project, false, false);
+		captureImportedBaselineFixedCostProfiles(project);
+		restoreImportedAssignmentScheduleDelays();
+		state.validatePostSchedule();
+
+		progress.updateProgress(1f, "Completed");
+		return project;
+	}
+
+	private static void captureImportedBaselineFixedCostProfiles(Project project) {
+		for (Task task : project.getTaskList()) {
+			if (!(task instanceof NormalTask summary)) continue;
+			for (int slot = 0; slot <= 10; slot++) {
+				if (!(summary.getSnapshot(Integer.valueOf(slot)) instanceof TaskSnapshot snapshot)) continue;
+				java.util.ArrayList<TaskSnapshot.FixedCostProfile> profiles = new java.util.ArrayList<>();
+				collectImportedBaselineFixedCosts(summary, slot, profiles);
+				snapshot.setRolledUpFixedCostProfiles(profiles);
+			}
+		}
+	}
+
+	private static void collectImportedBaselineFixedCosts(NormalTask summary, int slot,
+		java.util.List<TaskSnapshot.FixedCostProfile> profiles) {
+		java.util.Collection<com.microproject.grouping.core.Node> children = summary.getWbsChildrenNodes();
+		if (children == null) return;
+		for (com.microproject.grouping.core.Node node : children) {
+			if (!(node.getImpl() instanceof NormalTask child)) continue;
+			if (child.getSnapshot(Integer.valueOf(slot)) instanceof TaskSnapshot childSnapshot) {
+				TaskSnapshot.FixedCostProfile profile = childSnapshot.captureOwnFixedCostProfile(
+					child.getEffectiveWorkCalendar());
+				if (profile != null) profiles.add(profile);
+			}
+			collectImportedBaselineFixedCosts(child, slot, profiles);
+		}
+	}
+
+	private void restoreImportedAssignmentScheduleDelays() {
+		MpxAssignmentConverter converter = new MpxAssignmentConverter();
+		for (ImportedAssignmentScheduleDelays imported : importedAssignmentScheduleDelays) {
+			converter.restoreScheduleDelays(imported.source(), imported.target(), state);
+		}
+	}
+	
+	
+	public void parseProject(InputStream in, String extension) throws Exception {
+		resetRawMspdiInputState();
+		try {
+			InputStream source;
+			byte[] rawMspdiXml = null;
+			if ("xlsx".equalsIgnoreCase(extension)) {
+				// microProject XLSX contains both a lossless native payload and an
+				// MSPDI payload. Keep a replayable copy so native failure can use the
+				// established MSPDI fallback reader.
+				byte[] data = BoundedInput.readXlsxImport(in);
+				try {
+					nativeProject = MicroProjectXlsxReader.readMicroProjectProject(
+						new ByteArrayInputStream(data));
+				} catch (Exception e) {
+					// Non-ZIP XML supplied with an XLSX extension is an existing
+					// compatibility case; let the normal extension normalization and
+					// MSPDI reader handle it below.
+					nativeProject = null;
+				}
+				if (nativeProject != null) {
+					return;
+				}
+				source = prepareProjectStream(new ByteArrayInputStream(data));
+			} else {
+				nativeProject = null;
+				if ("xml".equalsIgnoreCase(extension)) {
+					rawMspdiXml = in.readAllBytes();
+					source = prepareProjectStream(new ByteArrayInputStream(rawMspdiXml));
+				} else if ("mpx".equalsIgnoreCase(extension)) {
+					byte[] rawMpx = in.readAllBytes();
+					validateMpxProjectHeader(rawMpx);
+					source = prepareProjectStream(new ByteArrayInputStream(rawMpx));
+				} else {
+					source = prepareProjectStream(in);
+				}
+			}
+			String effectiveExtension = normalizeExtension(extension, source);
+			if ("xml".equalsIgnoreCase(effectiveExtension)) {
+				if (rawMspdiXml == null)
+					rawMspdiXml = source.readAllBytes();
+				applyRawMspdiData(rawMspdiXml);
+				source = prepareProjectStream(new ByteArrayInputStream(rawMspdiXml));
+			}
+			reader = createReader(effectiveExtension);
+			mpxProjectFile = readProjectFile(source);
+			if (reader instanceof MicroProjectXlsxReader xlsxReader) {
+				byte[] embeddedMspdiXml = xlsxReader.consumeEmbeddedMspdiXml();
+				if (embeddedMspdiXml != null)
+					rawProjectBoundary = MspdiProjectBoundary.declarations(
+						MspdiProjectBoundary.parseSecureDocument(embeddedMspdiXml));
+			}
+			state.setMpxProjectFile(mpxProjectFile);
+		} finally {
+			if (in!=null)
+				in.close();
+		}	
+	}
+
+	private static void validateMpxProjectHeader(byte[] data) throws org.mpxj.MPXJException {
+		String text = new String(data, StandardCharsets.ISO_8859_1);
+		for (String line : text.split("\\r?\\n")) {
+			if (line.startsWith("30,")) {
+				return;
+			}
+		}
+		throw new org.mpxj.MPXJException("Invalid MPX file: missing Project Header record (30)");
+	}
+
+	private void resetRawMspdiInputState() {
+		rawProjectBoundary = MspdiProjectBoundary.Declarations.NONE;
+		mpxProjectFile = null;
+		reader = null;
+		earliestTaskStart = -1L;
+		mpxRootTask = null;
+		state.setMspdi(false);
+		state.setRawMspdiAssignmentWork(Map.of());
+		state.setRawMspdiAssignmentBaselineWork(Map.of());
+		state.setRawMspdiAssignmentBaselineCost(Map.of());
+		state.setRawMspdiAssignmentBaselines(Map.of());
+		state.setRawMspdiTaskBaselines(Map.of());
+		state.setRawMspdiResourceRates(Map.of());
+	}
+
+	private boolean hasDeclaredProjectBoundary() {
+		return rawProjectBoundary.appliesTo(mpxProjectFile.getProjectProperties().getScheduleFrom());
+	}
+
+	private void applyRawMspdiData(byte[] xml) throws Exception {
+		RawMspdiData rawData = parseRawMspdiData(xml);
+		rawProjectBoundary = rawData.projectBoundary();
+		state.setRawMspdiAssignmentWork(rawData.assignmentWork());
+		state.setRawMspdiAssignmentBaselineWork(rawData.assignmentBaselineWork());
+		state.setRawMspdiAssignmentBaselineCost(rawData.assignmentBaselineCost());
+		state.setRawMspdiAssignmentBaselines(rawData.assignmentBaselines());
+		state.setRawMspdiTaskBaselines(rawData.taskBaselines());
+		state.setRawMspdiResourceRates(rawData.resourceRates());
+	}
+
+	private AbstractProjectReader createReader(String extension) {
+		if (extension == null) {
+			throw new IllegalArgumentException("Unsupported import extension: null");
+		}
+		if (isMspdiExtension(extension)) {
+			state.setMspdi(true);
+			return new org.mpxj.mspdi.MSPDIReader();
+		}
+		if (extension.equals("mpp"))
+			return new MPPReader();
+		if (extension.equals("mpx"))
+			return new MPXReader();
+		if (extension.equals("planner"))
+			return new PlannerReader();
+		if (extension.equals("xlsx"))
+			return new MicroProjectXlsxReader();
+		throw new IllegalArgumentException("Unsupported import extension: " + extension);
+	}
+
+	private boolean isMspdiExtension(String extension) {
+		if (extension == null) {
+			return false;
+		}
+		return extension.equals("xml") || extension.equals("pod");
+	}
+
+	private ProjectFile readProjectFile(InputStream source) throws Exception {
+		return reader.read(source);
+	}
+
+	private InputStream prepareProjectStream(InputStream in) {
+		if (in instanceof BufferedInputStream) {
+			return in;
+		}
+		return new BufferedInputStream(in);
+	}
+
+	private record RawMspdiData(MspdiProjectBoundary.Declarations projectBoundary,
+		Map<Long, MpxImportState.RawMspdiAssignmentWork> assignmentWork,
+		Map<Long, Map<Integer, List<MpxImportState.RawMspdiWorkInterval>>> assignmentBaselineWork,
+		Map<Long, Map<Integer, List<MpxImportState.RawMspdiCostInterval>>> assignmentBaselineCost,
+		Map<Long, Map<Integer, MpxImportState.RawMspdiAssignmentBaseline>> assignmentBaselines,
+		Map<Long, Map<Integer, MpxImportState.RawMspdiTaskBaseline>> taskBaselines,
+		Map<Long, MpxImportState.RawMspdiResourceRates> resourceRates) { }
+
+	private RawMspdiData parseRawMspdiData(byte[] xml)
+			throws Exception {
+		org.w3c.dom.Document document = MspdiProjectBoundary.parseSecureDocument(xml);
+		MspdiProjectBoundary.Declarations projectBoundary = MspdiProjectBoundary.declarations(document);
+		String namespace = document.getDocumentElement().getNamespaceURI();
+		com.microproject.exchange.mpx.converter.MpxCustomFieldsConverter
+			.validateMspdiValues(document, namespace);
+		DurationDefaults durationDefaults = rawDurationDefaults(document.getDocumentElement(), namespace);
+		org.w3c.dom.NodeList assignments = document.getElementsByTagNameNS(namespace, "Assignment");
+		Map<Long, MpxImportState.RawMspdiAssignmentWork> result = new HashMap<>();
+		Map<Long, Map<Integer, List<MpxImportState.RawMspdiWorkInterval>>> assignmentBaselineWork = new HashMap<>();
+		Map<Long, Map<Integer, List<MpxImportState.RawMspdiCostInterval>>> assignmentBaselineCost = new HashMap<>();
+		Map<Long, Map<Integer, MpxImportState.RawMspdiAssignmentBaseline>> assignmentBaselines = new HashMap<>();
+		Map<Long, Map<Integer, MpxImportState.RawMspdiTaskBaseline>> taskBaselines = new HashMap<>();
+		Map<Long, MpxImportState.RawMspdiResourceRates> resourceRates = new HashMap<>();
+		org.w3c.dom.NodeList resources = document.getElementsByTagNameNS(namespace, "Resource");
+		for (int index = 0; index < resources.getLength(); index++) {
+			org.w3c.dom.Element resource = (org.w3c.dom.Element) resources.item(index);
+			String rawUid = xmlChildText(resource, "UID", namespace);
+			if (rawUid == null) continue;
+			MpxImportState.RawMspdiResourceRates rates = new MpxImportState.RawMspdiResourceRates(
+				parseMspdiResourceRate(xmlChildText(resource, "StandardRate", namespace),
+					xmlChildText(resource, "StandardRateFormat", namespace), durationDefaults),
+				parseMspdiResourceRate(xmlChildText(resource, "OvertimeRate", namespace),
+					xmlChildText(resource, "OvertimeRateFormat", namespace), durationDefaults),
+				parseMspdiResourceCost(xmlChildText(resource, "CostPerUse", namespace)));
+			if ((rates.standardRate() != null || rates.overtimeRate() != null || rates.costPerUse() != null)
+				&& resourceRates.put(Long.valueOf(rawUid), rates) != null)
+				throw new IllegalArgumentException("MSPDI contains duplicate resource UIDs with scalar rates");
+		}
+		org.w3c.dom.NodeList tasks = document.getElementsByTagNameNS(namespace, "Task");
+		for (int index = 0; index < tasks.getLength(); index++) {
+			org.w3c.dom.Element task = (org.w3c.dom.Element) tasks.item(index);
+			String rawUid = xmlChildText(task, "UID", namespace);
+			if (rawUid == null) continue;
+			long uid = Long.parseLong(rawUid);
+			Map<Integer, MpxImportState.RawMspdiTaskBaseline> baselines = new HashMap<>();
+			java.util.Set<Integer> seenBaselineSlots = new java.util.HashSet<>();
+			for (org.w3c.dom.Element baseline : xmlDirectChildren(task, "Baseline", namespace)) {
+				String rawNumber = xmlChildText(baseline, "Number", namespace);
+				String rawFormat = xmlChildText(baseline, "DurationFormat", namespace);
+				String rawDuration = xmlChildText(baseline, "Duration", namespace);
+				String rawBaselineCost = xmlChildText(baseline, "Cost", namespace);
+				String rawFixedCost = xmlChildText(baseline, "FixedCost", namespace);
+				if (rawNumber == null) continue;
+				if (rawBaselineCost != null) parseMspdiCurrency(rawBaselineCost, "MSPDI baseline Cost");
+				int slot = Integer.parseInt(rawNumber);
+				if (slot < 0 || slot > 10) throw new IllegalArgumentException("MSPDI baseline number is outside 0..10");
+				if (!seenBaselineSlots.add(Integer.valueOf(slot)))
+					throw new IllegalArgumentException("MSPDI task contains duplicate baseline slots");
+				Long durationMillis = null;
+				Integer durationFormat = null;
+				if (rawFormat != null && rawDuration != null) {
+					int parsedFormat = Integer.parseInt(rawFormat);
+					if (declaredDurationUnit(parsedFormat) != com.microproject.datatype.TimeUnit.NONE) {
+						long parsedDuration = parseMspdiDuration(rawDuration);
+						if (parsedDuration < 0L)
+							throw new IllegalArgumentException("MSPDI baseline duration cannot be negative");
+						durationMillis = Long.valueOf(parsedDuration);
+						durationFormat = Integer.valueOf(parsedFormat);
+					}
+				}
+				Double fixedCost = rawFixedCost == null ? null
+					: Double.valueOf(parseMspdiCurrency(rawFixedCost, "MSPDI baseline FixedCost"));
+				if (durationMillis == null && fixedCost == null) continue;
+				MpxImportState.RawMspdiTaskBaseline previous = baselines.put(Integer.valueOf(slot),
+					new MpxImportState.RawMspdiTaskBaseline(durationMillis, durationFormat, fixedCost));
+				if (previous != null) throw new IllegalArgumentException("MSPDI task contains duplicate baseline slots");
+			}
+			if (!baselines.isEmpty() && taskBaselines.put(Long.valueOf(uid), Map.copyOf(baselines)) != null)
+				throw new IllegalArgumentException("MSPDI contains duplicate task UIDs with baseline durations");
+		}
+		for (int index = 0; index < assignments.getLength(); index++) {
+			org.w3c.dom.Element assignment = (org.w3c.dom.Element) assignments.item(index);
+			String rawAssignmentUid = xmlChildText(assignment, "UID", namespace);
+			if (rawAssignmentUid == null) continue;
+			long assignmentUid = Long.parseLong(rawAssignmentUid);
+			Map<Integer, List<MpxImportState.RawMspdiWorkInterval>> baselineSlots = new HashMap<>();
+			Map<Integer, List<MpxImportState.RawMspdiCostInterval>> baselineCostSlots = new HashMap<>();
+			Map<Integer, MpxImportState.RawMspdiAssignmentBaseline> scalarBaselineSlots = new HashMap<>();
+			for (org.w3c.dom.Element baseline : xmlDirectChildren(assignment, "Baseline", namespace)) {
+				String rawNumber = xmlChildText(baseline, "Number", namespace);
+				if (rawNumber == null) continue;
+				int slot = Integer.parseInt(rawNumber);
+				if (slot < 0 || slot > 10)
+					throw new IllegalArgumentException("MSPDI assignment baseline number is outside 0..10");
+				String rawStart = xmlChildText(baseline, "Start", namespace);
+				String rawFinish = xmlChildText(baseline, "Finish", namespace);
+				String rawWork = xmlChildText(baseline, "Work", namespace);
+				if (rawStart != null || rawFinish != null || rawWork != null) {
+					MpxImportState.RawMspdiAssignmentBaseline scalar =
+						new MpxImportState.RawMspdiAssignmentBaseline(
+							parseNullableMspdiWallTime(rawStart), parseNullableMspdiWallTime(rawFinish),
+							parseMspdiDuration(rawWork));
+					if (scalarBaselineSlots.put(Integer.valueOf(slot), scalar) != null)
+						throw new IllegalArgumentException("MSPDI assignment contains duplicate baseline scalar slots");
+				}
+				List<MpxImportState.RawMspdiWorkInterval> intervals = new ArrayList<>();
+				int expectedType = MpxImportState.assignmentBaselineWorkType(slot);
+				List<MpxImportState.RawMspdiCostInterval> costIntervals = new ArrayList<>();
+				int expectedCostType = MpxImportState.assignmentBaselineCostType(slot);
+				for (org.w3c.dom.Element row : xmlDirectChildren(baseline, "TimephasedData", namespace)) {
+					String rawType = xmlChildText(row, "Type", namespace);
+					if (rawType == null) continue;
+					int type = Integer.parseInt(rawType);
+					if (type != expectedType && type != expectedCostType) continue;
+					if (!"2".equals(xmlChildText(row, "Unit", namespace)))
+						throw new IllegalArgumentException("Assignment baseline rows require per-day units");
+					long start = parseMspdiWallTime(xmlChildText(row, "Start", namespace));
+					long finish = parseMspdiWallTime(xmlChildText(row, "Finish", namespace));
+					if (finish <= start)
+						throw new IllegalArgumentException("Assignment baseline row has invalid bounds");
+					String rawValue = xmlChildText(row, "Value", namespace);
+					if (type == expectedType) {
+						Long rowWork = parseMspdiDuration(rawValue);
+						if (rowWork == null || rowWork.longValue() < 0L)
+							throw new IllegalArgumentException("Assignment baseline work row has invalid value");
+						intervals.add(new MpxImportState.RawMspdiWorkInterval(expectedType, start, finish,
+							rowWork.longValue()));
+					} else {
+						double rowCost = parseMspdiCost(rawValue);
+						costIntervals.add(new MpxImportState.RawMspdiCostInterval(expectedCostType, start, finish, rowCost));
+					}
+				}
+				if (!intervals.isEmpty() && baselineSlots.put(Integer.valueOf(slot), List.copyOf(intervals)) != null)
+					throw new IllegalArgumentException("MSPDI assignment contains duplicate baseline work slots");
+				if (!costIntervals.isEmpty() && baselineCostSlots.put(Integer.valueOf(slot), List.copyOf(costIntervals)) != null)
+					throw new IllegalArgumentException("MSPDI assignment contains duplicate baseline cost slots");
+			}
+			if (!baselineSlots.isEmpty() && assignmentBaselineWork.put(Long.valueOf(assignmentUid),
+				Map.copyOf(baselineSlots)) != null)
+				throw new IllegalArgumentException("MSPDI contains duplicate assignment UIDs with baseline work");
+			if (!baselineCostSlots.isEmpty() && assignmentBaselineCost.put(Long.valueOf(assignmentUid),
+				Map.copyOf(baselineCostSlots)) != null)
+				throw new IllegalArgumentException("MSPDI contains duplicate assignment UIDs with baseline cost");
+			if (assignmentBaselines.put(Long.valueOf(assignmentUid), Map.copyOf(scalarBaselineSlots)) != null)
+				throw new IllegalArgumentException("MSPDI contains duplicate assignment UIDs with baseline scalars");
+			if (!"8".equals(xmlChildText(assignment, "WorkContour", namespace))) continue;
+			long uid = assignmentUid;
+			Long assignmentStart = parseNullableMspdiWallTime(xmlChildText(assignment, "Start", namespace));
+			Long assignmentFinish = parseNullableMspdiWallTime(xmlChildText(assignment, "Finish", namespace));
+			Long work = parseMspdiDuration(xmlChildText(assignment, "Work", namespace));
+			Long actual = parseMspdiDuration(xmlChildText(assignment, "ActualWork", namespace));
+			Long remaining = parseMspdiDuration(xmlChildText(assignment, "RemainingWork", namespace));
+			List<MpxImportState.RawMspdiWorkInterval> intervals = new ArrayList<>();
+			for (org.w3c.dom.Element row : xmlDirectChildren(assignment, "TimephasedData", namespace)) {
+				String rawType = xmlChildText(row, "Type", namespace);
+				if (!"1".equals(rawType) && !"2".equals(rawType)) continue;
+				if (!"2".equals(xmlChildText(row, "Unit", namespace)))
+					throw new IllegalArgumentException("Custom MSPDI work rows require per-day units");
+				long start = parseMspdiWallTime(xmlChildText(row, "Start", namespace));
+				long finish = parseMspdiWallTime(xmlChildText(row, "Finish", namespace));
+				Long rowWork = parseMspdiDuration(xmlChildText(row, "Value", namespace));
+				if (finish <= start || rowWork == null || rowWork.longValue() < 0L)
+					throw new IllegalArgumentException("Custom MSPDI work row has invalid bounds or value");
+				intervals.add(new MpxImportState.RawMspdiWorkInterval(Integer.parseInt(rawType),
+					start, finish, rowWork.longValue()));
+			}
+			if (result.put(Long.valueOf(uid), new MpxImportState.RawMspdiAssignmentWork(
+				assignmentStart, assignmentFinish, work, actual, remaining, intervals)) != null)
+				throw new IllegalArgumentException("MSPDI contains duplicate assignment UIDs");
+		}
+		return new RawMspdiData(projectBoundary, Map.copyOf(result), Map.copyOf(assignmentBaselineWork),
+			Map.copyOf(assignmentBaselineCost), Map.copyOf(assignmentBaselines), Map.copyOf(taskBaselines),
+			Map.copyOf(resourceRates));
+	}
+
+	private static DurationDefaults rawDurationDefaults(org.w3c.dom.Element project, String namespace) {
+		DurationDefaults product = DurationDefaults.PRODUCT_DEFAULTS;
+		return new DurationDefaults(rawProjectNumber(project, "MinutesPerDay", namespace, product.minutesPerDay()),
+			rawProjectNumber(project, "MinutesPerWeek", namespace, product.minutesPerWeek()),
+			rawProjectNumber(project, "DaysPerMonth", namespace, product.daysPerMonth()),
+			product.durationEnteredIn(), product.workUnit());
+	}
+
+	private static double rawProjectNumber(org.w3c.dom.Element project, String field, String namespace,
+			double defaultValue) {
+		String value = xmlChildText(project, field, namespace);
+		return value == null ? defaultValue : Double.parseDouble(value.trim());
+	}
+
+	private static com.microproject.datatype.Rate parseMspdiResourceRate(String rawValue, String rawFormat,
+			DurationDefaults defaults) {
+		if (rawValue == null) return null;
+		double amount = new java.math.BigDecimal(rawValue.trim()).doubleValue();
+		int format = rawFormat == null ? 2 : Integer.parseInt(rawFormat.trim());
+		int unit = switch (format) {
+			case 1 -> com.microproject.datatype.TimeUnit.MINUTES;
+			case 2 -> com.microproject.datatype.TimeUnit.HOURS;
+			case 3 -> com.microproject.datatype.TimeUnit.DAYS;
+			case 4 -> com.microproject.datatype.TimeUnit.WEEKS;
+			case 5 -> com.microproject.datatype.TimeUnit.MONTHS;
+			case 7 -> com.microproject.datatype.TimeUnit.YEARS;
+			case 8 -> com.microproject.datatype.TimeUnit.NON_TEMPORAL;
+			default -> com.microproject.datatype.TimeUnit.NONE;
+		};
+		if (unit == com.microproject.datatype.TimeUnit.NONE) return null;
+		double factor = unit == com.microproject.datatype.TimeUnit.NON_TEMPORAL ? 1.0D
+			: com.microproject.datatype.Duration.timeUnitFactor(unit, defaults);
+		return new com.microproject.datatype.Rate(amount / factor, unit);
+	}
+
+	private static Double parseMspdiResourceCost(String rawValue) {
+		return rawValue == null ? null
+			: Double.valueOf(parseMspdiCurrency(rawValue, "MSPDI resource CostPerUse"));
+	}
+
+	private static double parseMspdiCurrency(String rawValue, String fieldName) {
+		double parsed;
+		try {
+			parsed = new java.math.BigDecimal(rawValue.trim()).doubleValue();
+		} catch (NumberFormatException exception) {
+			throw new IllegalArgumentException(fieldName + " must be numeric", exception);
+		}
+		if (!Double.isFinite(parsed)) throw new IllegalArgumentException(fieldName + " must be finite");
+		return org.mpxj.mspdi.DatatypeConverter.parseCurrency(Double.valueOf(parsed)).doubleValue();
+	}
+
+	private static double parseMspdiCost(String value) {
+		if (value == null)
+			throw new IllegalArgumentException("Assignment baseline cost row has no value");
+		double parsed = parseMspdiCurrency(value, "Assignment baseline cost");
+		if (parsed < 0.0D)
+			throw new IllegalArgumentException("Assignment baseline cost must be nonnegative");
+		return parsed;
+	}
+
+	private static String xmlChildText(org.w3c.dom.Element parent, String name, String namespace) {
+		for (org.w3c.dom.Node child = parent.getFirstChild(); child != null; child = child.getNextSibling())
+			if (child instanceof org.w3c.dom.Element element && name.equals(element.getLocalName())
+					&& namespace.equals(element.getNamespaceURI())) return element.getTextContent();
+		return null;
+	}
+
+	private static List<org.w3c.dom.Element> xmlDirectChildren(org.w3c.dom.Element parent, String name,
+		String namespace) {
+		List<org.w3c.dom.Element> result = new ArrayList<>();
+		for (org.w3c.dom.Node child = parent.getFirstChild(); child != null; child = child.getNextSibling())
+			if (child instanceof org.w3c.dom.Element element && name.equals(element.getLocalName())
+					&& namespace.equals(element.getNamespaceURI())) result.add(element);
+		return result;
+	}
+
+	private static Long parseMspdiDuration(String value) {
+		if (value == null || value.isBlank()) return null;
+		java.util.regex.Matcher matcher = java.util.regex.Pattern.compile(
+			"^P(?:(\\d+)Y)?(?:(\\d+)M)?(?:(\\d+)D)?(?:T(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+(?:\\.\\d+)?)S)?)?$").matcher(value);
+		if (!matcher.matches() || (matcher.group(1) == null && matcher.group(2) == null
+				&& matcher.group(3) == null && matcher.group(4) == null && matcher.group(5) == null
+				&& matcher.group(6) == null))
+			throw new IllegalArgumentException("Invalid MSPDI duration: " + value);
+		long years = matcher.group(1) == null ? 0L : Long.parseLong(matcher.group(1));
+		long months = matcher.group(2) == null ? 0L : Long.parseLong(matcher.group(2));
+		long days = matcher.group(3) == null ? 0L : Long.parseLong(matcher.group(3));
+		long hours = matcher.group(4) == null ? 0L : Long.parseLong(matcher.group(4));
+		long minutes = matcher.group(5) == null ? 0L : Long.parseLong(matcher.group(5));
+		java.math.BigDecimal seconds = matcher.group(6) == null ? java.math.BigDecimal.ZERO
+			: new java.math.BigDecimal(matcher.group(6));
+		long millis = seconds.movePointRight(3).longValueExact();
+		long total = Math.multiplyExact(years, 365L * 86_400_000L);
+		// These match the core's existing elapsed duration factors (365d/year,
+		// 30d/month); do not reinterpret them using the project working calendar.
+		total = Math.addExact(total, Math.multiplyExact(months, 30L * 86_400_000L));
+		total = Math.addExact(total, Math.multiplyExact(days, 86_400_000L));
+		total = Math.addExact(total, Math.multiplyExact(hours, 3_600_000L));
+		total = Math.addExact(total, Math.multiplyExact(minutes, 60_000L));
+		return Long.valueOf(Math.addExact(total, millis));
+	}
+
+	private static int declaredDurationUnit(int durationFormat) {
+		return switch (durationFormat) {
+			case 4, 36 -> com.microproject.datatype.TimeUnit.ELAPSED_MINUTES;
+			case 6, 38 -> com.microproject.datatype.TimeUnit.ELAPSED_HOURS;
+			case 8, 40 -> com.microproject.datatype.TimeUnit.ELAPSED_DAYS;
+			case 10, 42 -> com.microproject.datatype.TimeUnit.ELAPSED_WEEKS;
+			case 12, 44 -> com.microproject.datatype.TimeUnit.ELAPSED_MONTHS;
+			// Working units: MPXJ would otherwise re-express the value in the task's duration unit,
+			// changing the encoded unit (and the displayed text) across an MPO save/reload.
+			case 3, 35 -> com.microproject.datatype.TimeUnit.MINUTES;
+			case 5, 37 -> com.microproject.datatype.TimeUnit.HOURS;
+			case 7, 39 -> com.microproject.datatype.TimeUnit.DAYS;
+			case 9, 41 -> com.microproject.datatype.TimeUnit.WEEKS;
+			case 11, 43 -> com.microproject.datatype.TimeUnit.MONTHS;
+			default -> com.microproject.datatype.TimeUnit.NONE;
+		};
+	}
+
+	private static long toRawBaselineDuration(MpxImportState.RawMspdiTaskBaseline baseline,
+		com.microproject.datatype.DurationDefaults defaults) {
+		int unit = declaredDurationUnit(baseline.durationFormat().intValue());
+		double value = baseline.durationMillis().longValue()
+			/ com.microproject.datatype.Duration.timeUnitFactor(unit, defaults);
+		long duration = com.microproject.datatype.Duration.getInstance(value, unit, defaults);
+		if (baseline.durationFormat().intValue() >= 35)
+			duration = com.microproject.datatype.Duration.setAsEstimated(duration, true);
+		return duration;
+	}
+
+	private static long parseMspdiWallTime(String value) {
+		if (value == null) throw new IllegalArgumentException("Custom MSPDI work row is missing a date bound");
+		return MspdiProjectBoundary.parseWallTime(value);
+	}
+
+	private static Long parseNullableMspdiWallTime(String value) {
+		return value == null || value.isBlank() ? null : Long.valueOf(parseMspdiWallTime(value));
+	}
+
+	private String normalizeExtension(String extension, InputStream in) throws Exception {
+		if (!"xlsx".equals(extension) || !in.markSupported()) {
+			return extension;
+		}
+		in.mark(256);
+		byte[] header = new byte[256];
+		int read = in.read(header);
+		in.reset();
+		if (read <= 0) {
+			return extension;
+		}
+		String prefix = new String(header, 0, read, StandardCharsets.UTF_8).trim();
+		if (prefix.startsWith("<?xml") || prefix.startsWith("<Project")) {
+			return "xml"; //$NON-NLS-1$
+		}
+		return extension;
+	}
+	protected void parseProject(String fileName) throws Exception {
+		fileName=fileName.trim();
+		String extension = FileHelper.getFileExtension(fileName, "xml"); //$NON-NLS-1$
+		try (FileInputStream input = new FileInputStream(fileName)) {
+			parseProject(input, extension);
+		}
+	}
+	
+	
+	protected void importOptions(Project project) {
+		// Obsolete CalendarOptions conversion removed (see issue #154).
+	}
+	
+	protected void importProjectHeader(Project project) {
+		MpxProjectConverter converter=new MpxProjectConverter();
+		converter.from(mpxProjectFile.getProjectProperties(), mpxProjectFile.getCalendars(), project, state);
+
+		if (earliestTaskStart!=-1L) //fix project start
+			project.setStart(earliestTaskStart);
+	}
+
+	
+	protected void importCalendars(Project project) {
+		state.setProjectTitle(mpxProjectFile.getProjectProperties().getProjectTitle());
+
+		MpxCalendarConverter converter = new MpxCalendarConverter();
+		WorkCalendar standardBaseCalendar = null;
+		for (ProjectCalendar mpxBaseCalendar : mpxProjectFile.getCalendars()) {
+			WorkingCalendar calendar = WorkingCalendar.getStandardBasedInstance();
+			if (ProjectCalendar.DEFAULT_BASE_CALENDAR_NAME.equals(mpxBaseCalendar.getName())) {
+				state.setMpxStandardBaseCalendar(mpxBaseCalendar);
+				standardBaseCalendar = calendar;
+			}
+			converter.from(mpxBaseCalendar, calendar, state);
+			// register into the global calendar service via the import bridge
+			ImportedCalendarService.getInstance().addImportedCalendar(calendar, mpxBaseCalendar);
+			state.mapBaseCalendar(calendar, mpxBaseCalendar);
+		}
+		if (standardBaseCalendar == null) {
+			standardBaseCalendar = CalendarService.getInstance().getStandardInstance();
+		}
+		state.setProjectBaseCalendar(standardBaseCalendar);
+		WorkCalendar sourceDefaultCalendar = MpxProjectConverter.sourceDefaultCalendar(
+			mpxProjectFile.getProjectProperties(), mpxProjectFile.getCalendars(), state);
+		if (sourceDefaultCalendar != null)
+			standardBaseCalendar = sourceDefaultCalendar;
+		state.setProjectBaseCalendar(standardBaseCalendar);
+		try {
+			project.setBaseCalendar(standardBaseCalendar);
+		} catch (com.microproject.configuration.CircularDependencyException e) {
+			// ignore: a self-referential base calendar is not expected here
+		}
+		project.setWorkCalendar(standardBaseCalendar);
+	}
+	
+	protected void importResourcePool(Project project) {
+		ResourcePool resourcePool = project.getResourcePool();
+		state.setResourcePool(resourcePool);
+		importResources(resourcePool);
+	}
+
+	protected void importResources(ResourcePool resourcePool) {
+		state.setResourcePool(resourcePool);
+		MpxResourceConverter converter=new MpxResourceConverter();
+		for (org.mpxj.Resource mpxResource : mpxProjectFile.getResources()){
+			if (shouldSkipResource(mpxResource)) {
+				logSkippedResource(mpxResource);
+				continue;
+			}
+			Resource resource;
+			if (mpxResource.getID()==0) {
+				resource=ResourceImpl.getUnassignedInstance();
+				state.mapResource(mpxResource, resource);
+				continue;
+			}
+			resource=resourcePool.createScriptedResource();
+			converter.from(mpxResource, resource, state);
+			state.mapResource(mpxResource, resource);
+		}
+	}
+
+	private boolean shouldSkipResource(org.mpxj.Resource mpxResource) {
+		return mpxResource.getNull() || mpxResource.getID() == null;
+	}
+
+	private void logSkippedResource(org.mpxj.Resource mpxResource) {
+		logger.log(Level.FINE, "Skipping resource with missing identity: {0}", mpxResource);
+	}
+	
+	protected void importTasks(Project project) {
+		for (org.mpxj.Task mpxTask : mpxProjectFile.getChildTasks()){
+			importTasks(project,mpxTask,null);
+		}
+		// MPXJ materializes a cross-project predecessor as an external task
+		// placeholder. These placeholders are present in getTasks() but need not
+		// be reachable from the normal task hierarchy, so import them explicitly
+		// before resolving predecessor links.
+		for (org.mpxj.Task mpxTask : mpxProjectFile.getTasks()) {
+			if (mpxTask.getExternalTask() && state.getTask(mpxTask)==null && !shouldSkipTask(mpxTask))
+				importRegularTask(project,mpxTask,null);
+		}
+		restoreBlankRows(project);
+	}
+	
+	protected void importTasks(Project project,org.mpxj.Task mpxTask, Task parentTask) {
+		if (mpxTask.getID()==null) {
+			logSkippedTask(mpxTask);
+			return;
+		}
+
+		Task task = null;
+		if (mpxTask.getNull()) {
+			task = parentTask; // restoreBlankRows places the row itself
+		} else if (isRootTask(mpxTask)) {
+			registerRootTask(mpxTask);
+		} else {
+			task = importRegularTask(project, mpxTask, parentTask);
+		}
+		
+		for (org.mpxj.Task mpxChildTask : mpxTask.getChildTasks()){
+			importTasks(project,mpxChildTask,task);
+		}
+	}
+
+	/**
+	 * MPXJ lists blank rows after the task hierarchy, so their place comes from
+	 * the row order: each goes directly before the next real task.  A blank row
+	 * with no task after it is end-of-table filler and is not kept.
+	 */
+	private void restoreBlankRows(Project project) {
+		int pendingBlankRows = 0;
+		for (org.mpxj.Task mpxTask : mpxProjectFile.getTasks()) {
+			if (mpxTask.getID() == null || mpxTask.getExternalTask()) continue;
+			if (mpxTask.getNull()) {
+				pendingBlankRows++;
+				continue;
+			}
+			Task task = state.getTask(mpxTask);
+			if (task == null || pendingBlankRows == 0) continue;
+			Node node = project.getTaskModel().search(task);
+			Node parent = (Node) node.getParent();
+			int position = parent.getIndex(node);
+			for (; pendingBlankRows > 0; pendingBlankRows--) {
+				project.addToDefaultOutline(parent, NodeFactory.getInstance().createVoidNode(), position, false);
+			}
+		}
+	}
+
+	private boolean shouldSkipTask(org.mpxj.Task mpxTask) {
+		return mpxTask.getNull() || mpxTask.getID()==null;
+	}
+
+	private void logSkippedTask(org.mpxj.Task mpxTask) {
+		logger.log(Level.FINE, "Skipping task with missing identity: {0}", mpxTask);
+	}
+
+	private boolean isRootTask(org.mpxj.Task mpxTask) {
+		return mpxTask.getOutlineNumber()!=null && mpxTask.getOutlineLevel() == 0;
+	}
+
+	private void registerRootTask(org.mpxj.Task mpxTask) {
+		if (mpxRootTask==null)
+			mpxRootTask=mpxTask;
+	}
+
+	private Task importRegularTask(Project project, org.mpxj.Task mpxTask, Task parentTask) {
+		Task task = createTask(project, mpxTask, parentTask);
+		if (mpxTask.getExternalTask()) {
+			task.setExternal(true);
+			task.setProjectId(externalProjectId(mpxTask));
+			task.setExternalProjectFile(externalProjectFile(mpxTask));
+			project.addExternalTask(task);
+		}
+		updateEarliestTaskStart(task, com.microproject.exchange.mpx.converter.MpxDates.toDate(mpxTask.getStart()));
+		state.mapTask(mpxTask, task);
+		importTaskSnapshots(mpxTask, task);
+		if (importTaskWorkSplits && task instanceof NormalTask normalTask)
+			MpxTaskConverter.importWorkSplits(mpxTask, normalTask, state);
+		importAssignments(mpxTask, task);
+		// MS Project stores task % complete separately from assignment % work
+		// complete. Restore it after assignments have been imported.
+		if (task instanceof NormalTask && mpxTask.getPercentageComplete() != null)
+			((NormalTask) task).setImportedPercentComplete(mpxTask.getPercentageComplete().doubleValue() / 100.0D);
+		if (task instanceof NormalTask && mpxTask.getPercentageWorkComplete() != null)
+			((NormalTask) task).setImportedPercentWorkComplete(mpxTask.getPercentageWorkComplete().doubleValue() / 100.0D);
+		return task;
+	}
+
+	private long externalProjectId(org.mpxj.Task mpxTask) {
+		String externalProject=mpxTask.getProject();
+		if (externalProject==null)
+			externalProject=mpxTask.getSubprojectFile();
+		if (externalProject==null)
+			return 0L;
+		try {
+			return Long.parseLong(externalProject);
+		} catch (NumberFormatException e) {
+			return 0L;
+		}
+	}
+
+	private String externalProjectFile(org.mpxj.Task mpxTask) {
+		String externalProject = mpxTask.getProject();
+		if (isFileReference(externalProject))
+			return externalProject;
+		String subprojectFile = mpxTask.getSubprojectFile();
+		return isFileReference(subprojectFile) ? subprojectFile : null;
+	}
+
+	private boolean isFileReference(String value) {
+		if (value == null || value.isBlank())
+			return false;
+		try {
+			Long.parseLong(value);
+			return false;
+		} catch (NumberFormatException e) {
+			return true;
+		}
+	}
+
+	private Task createTask(Project project, org.mpxj.Task mpxTask, Task parentTask) {
+		MpxTaskConverter converter=new MpxTaskConverter();
+		Node parentNode = parentTask == null ? null : project.getTaskModel().search(parentTask);
+		Node node = project.createLocalTaskNode(parentNode, false);
+		Task task = (Task) node.getImpl();
+		if (mpxTask.getSubprojectFile() != null && !mpxTask.getExternalTask()) {
+			project.getTasks().remove(task);
+			SubProj subproject = project.getSubprojectHandler().createSubProj(0L);
+			task = (Task) subproject;
+			node.setImpl(task);
+			project.connectTask(task);
+			task.setWbsParent(parentTask);
+		}
+		converter.from(mpxTask, task, state);
+		if (task instanceof SubProj subproject) {
+			task.setSubprojectFile(mpxTask.getSubprojectFile());
+			((DefaultSubProj) subproject).setSubprojectReadOnly(mpxTask.getSubprojectReadOnly());
+		}
+		return task;
+	}
+
+	private void updateEarliestTaskStart(Task task, Date importedStart) {
+		// Task.setStart() records a scheduling constraint while importing instead
+		// of directly setting the calculated schedule. Read MPXJ's source date here
+		// so a task before the project header start can move the project boundary
+		// before the final recalculation. Reading task.getStart() at this point
+		// only sees the default project start and loses the imported earlier date.
+		final long taskStart = importedStart == null ? task.getStart()
+			: DateUTCConverter.toModelTime(importedStart);
+		if (taskStart == 0L) {
+			return;
+		}
+		if (earliestTaskStart == -1L || taskStart < earliestTaskStart)
+			earliestTaskStart = taskStart;
+	}
+
+	private void importTaskSnapshots(org.mpxj.Task mpxTask, Task task) {
+		// Slot 11 is the current snapshot. MSPDI baseline 0..10 map directly to
+		// the microProject baseline indices 0..10; keep the live schedule intact.
+		for (int snapshotId = 0; snapshotId <= 10; snapshotId++) {
+			Date start = getTaskBaselineStart(mpxTask, snapshotId);
+			Date finish = getTaskBaselineFinish(mpxTask, snapshotId);
+			Duration duration = getTaskBaselineDuration(mpxTask, snapshotId);
+			Number fixedCost = snapshotId == 0 ? mpxTask.getBaselineFixedCost()
+				: mpxTask.getBaselineFixedCost(snapshotId);
+			Number baselineCost = snapshotId == 0 ? mpxTask.getBaselineCost()
+				: mpxTask.getBaselineCost(snapshotId);
+			// MSPDI defines FixedCostAccrual on Task, not inside each Baseline
+			// element. Apply the task-level rule when importing its baseline amount.
+			org.mpxj.AccrueType fixedCostAccrual = mpxTask.getFixedCostAccrual();
+			MpxImportState.RawMspdiTaskBaseline rawBaseline = state.getRawMspdiTaskBaseline(
+				mpxTask.getUniqueID() == null ? null : Long.valueOf(mpxTask.getUniqueID().longValue()), snapshotId);
+			if (fixedCost == null && rawBaseline != null && rawBaseline.fixedCost() != null)
+				fixedCost = rawBaseline.fixedCost();
+			if (baselineCost != null && !Double.isFinite(baselineCost.doubleValue()))
+				throw new IllegalArgumentException("Imported baseline cost must be finite");
+			if (start == null && finish == null && duration == null && fixedCost == null && baselineCost == null
+					&& rawBaseline == null)
+				continue;
+
+			TaskSnapshot snapshot = new TaskSnapshot();
+			// Snapshot clone and serialization helpers expect the assignment holder
+			// to be initialized even when this baseline contains task dates only.
+			snapshot.getHasAssignments();
+			TaskSchedule schedule = new TaskSchedule(task, TaskSchedule.Kind.CURRENT);
+			if (start != null)
+				schedule.setStart(DateUTCConverter.toModelTime(start));
+			if (finish != null)
+				schedule.setFinish(DateUTCConverter.toModelTime(finish));
+			if (rawBaseline != null && rawBaseline.durationMillis() != null && rawBaseline.durationFormat() != null) {
+				schedule.setRawDuration(toRawBaselineDuration(rawBaseline, task.getProject().getDurationDefaults()));
+			} else if (duration != null) {
+				schedule.setRawDuration(MpxUtils.toProjectDuration(duration, task.getProject().getDurationDefaults()));
+			}
+			snapshot.setCurrentSchedule(schedule);
+			snapshot.setFixedCostCalendar(task.getEffectiveWorkCalendar());
+			if (fixedCost != null) snapshot.setFixedCost(fixedCost.doubleValue());
+			if (baselineCost != null) snapshot.setImportedBaselineCost(Double.valueOf(baselineCost.doubleValue()));
+			if (fixedCostAccrual != null)
+				snapshot.setFixedCostAccrual(((Integer) new MpxAccrueTypeConverter().from(fixedCostAccrual)).intValue());
+			task.setSnapshot(Integer.valueOf(snapshotId), snapshot);
+		}
+	}
+
+	private Date getTaskBaselineStart(org.mpxj.Task mpxTask, int snapshotId) {
+		if (snapshotId==0)
+			return com.microproject.exchange.mpx.converter.MpxDates.toDate(mpxTask.getBaselineStart());
+		return com.microproject.exchange.mpx.converter.MpxDates.toDate(mpxTask.getBaselineStart(snapshotId));
+	}
+
+	private Date getTaskBaselineFinish(org.mpxj.Task mpxTask, int snapshotId) {
+		if (snapshotId==0)
+			return com.microproject.exchange.mpx.converter.MpxDates.toDate(mpxTask.getBaselineFinish());
+		return com.microproject.exchange.mpx.converter.MpxDates.toDate(mpxTask.getBaselineFinish(snapshotId));
+	}
+
+	private Duration getTaskBaselineDuration(org.mpxj.Task mpxTask, int snapshotId) {
+		if (snapshotId==0)
+			return mpxTask.getBaselineDuration();
+		return mpxTask.getBaselineDuration(snapshotId);
+	}
+	
+	protected void importAssignments(org.mpxj.Task mpxTask, Task task) {
+		for (org.mpxj.ResourceAssignment mpxAssignment : mpxTask.getResourceAssignments()) {
+			boolean unassigned = isUnassignedAssignment(mpxAssignment);
+			if (unassigned && !com.microproject.exchange.mpxj.MpxjApi.hasCustomWorkContour(mpxAssignment))
+				continue;
+			MpxAssignmentConverter converter = new MpxAssignmentConverter();
+			Assignment assignment;
+			if (unassigned) {
+				assignment = ((NormalTask) task).findAssignment(ResourceImpl.getUnassignedInstance());
+				if (assignment == null)
+					throw new IllegalStateException("Task is missing its default assignment before source work import");
+				assignment.setWork(0L, null);
+				converter.from(mpxAssignment, assignment, state, task, 0);
+			} else {
+				assignment = Assignment.getInstance(task, ResourceImpl.getUnassignedInstance(), 0, 0);
+				converter.from(mpxAssignment, assignment, state, task, 0);
+				((NormalTask) task).addAssignment(assignment);
+				assignment.getResource().addAssignment(assignment);
+			}
+			// Attaching a non-default assignment can copy the default assignment's
+			// detail object and erase this imported value.
+			converter.restoreScheduleDelays(mpxAssignment, assignment, state);
+			converter.importBaselines(mpxAssignment, assignment, state);
+			importedAssignmentScheduleDelays.add(new ImportedAssignmentScheduleDelays(mpxAssignment, assignment));
+		}
+	}
+
+	private boolean isUnassignedAssignment(org.mpxj.ResourceAssignment assignment) {
+		Integer resourceUniqueId = assignment.getResourceUniqueID();
+		return resourceUniqueId == null || resourceUniqueId.intValue() == EnterpriseResource.UNASSIGNED_ID;
+	}
+
+	private Date getAssignmentBaselineStart(org.mpxj.ResourceAssignment mpxAssignment, int snapshotId) {
+		if (snapshotId==0)
+			return com.microproject.exchange.mpx.converter.MpxDates.toDate(mpxAssignment.getBaselineStart());
+		return com.microproject.exchange.mpx.converter.MpxDates.toDate(mpxAssignment.getBaselineStart(snapshotId));
+	}
+
+	private Date getAssignmentBaselineFinish(org.mpxj.ResourceAssignment mpxAssignment, int snapshotId) {
+		if (snapshotId==0)
+			return com.microproject.exchange.mpx.converter.MpxDates.toDate(mpxAssignment.getBaselineFinish());
+		return com.microproject.exchange.mpx.converter.MpxDates.toDate(mpxAssignment.getBaselineFinish(snapshotId));
+	}
+
+	private Duration getAssignmentBaselineWork(org.mpxj.ResourceAssignment mpxAssignment, int snapshotId) {
+		if (snapshotId==0)
+			return mpxAssignment.getBaselineWork();
+		return mpxAssignment.getBaselineWork(snapshotId);
+	}
+	
+	protected void importDependencies(Project project) {
+		MpxDependencyConverter converter=new MpxDependencyConverter();
+		for (org.mpxj.Task mpxTask : mpxProjectFile.getTasks()){
+//			if (mpxTask.getNull() || mpxTask.getID()==null)
+//				continue;
+			if (mpxTask==mpxRootTask)
+				continue;
+			List<Relation> mpxRelations=mpxTask.getPredecessors();
+			if (mpxRelations==null) {
+				logger.log(Level.FINE, "Task has no predecessors to import: {0}", mpxTask);
+				continue;
+			}
+			for (Relation mpxRelation : mpxRelations){
+				Dependency dependency=converter.from(mpxRelation, state);
+				if (dependency!=null) {
+					// dependency registered via DependencyService in converter
+			}
+		}
+	}
+	}
+
+	public interface ProgressClosure{
+		public void updateProgress(float progress, String label);
+	}
+
+	
+	
+
+	
+	
+
+}

@@ -60,12 +60,12 @@ import com.microproject.exchange.BoundedInput;
 import com.microproject.exchange.LocalFileImporter;
 import com.microproject.exchange.xlsx.MicroProjectXlsxWriter;
 import com.microproject.pm.task.NormalTask;
-import com.microproject.core.pm.exchange.MspImporter;
+import com.microproject.exchange.mpx.MspImporter;
 import com.microproject.collaboration.CollaborationMetadataStore;
 import com.microproject.pm.calendar.CalendarService;
 import com.microproject.pm.calendar.WorkingCalendar;
 import com.microproject.pm.resource.ResourcePool;
-import com.microproject.server.data.MSPDISerializer;
+import com.microproject.exchange.serialize.MSPDISerializer;
 import com.microproject.session.FileHelper;
 import com.microproject.undo.DataFactoryUndoController;
 
@@ -287,14 +287,14 @@ public class XlsxSupportTest {
 		}
 
 		assertEquals(2L * 24L * 60L * 60L * 1000L,
-				com.microproject.core.pm.exchange.converters.mpx.MpxUtils.toMillis(byName.get("Succ").getPredecessors().get(0).getLag()));
+				com.microproject.exchange.mpx.converter.MpxUtils.toMillis(byName.get("Succ").getPredecessors().get(0).getLag()));
 		assertEquals(-1L * 60L * 60L * 1000L,
-				com.microproject.core.pm.exchange.converters.mpx.MpxUtils.toMillis(byName.get("OtherSucc").getPredecessors().get(0).getLag()));
+				com.microproject.exchange.mpx.converter.MpxUtils.toMillis(byName.get("OtherSucc").getPredecessors().get(0).getLag()));
 		org.mpxj.Duration percentLag = byName.get("PercentSucc").getPredecessors().get(0).getLag();
 		assertEquals(org.mpxj.TimeUnit.PERCENT, percentLag.getUnits());
 		assertEquals(50.0, percentLag.getDuration(), 0.0001);
 		org.mpxj.Duration elapsedLag = byName.get("ElapsedSucc").getPredecessors().get(0).getLag();
-		assertEquals(2L * 24L * 60L * 60L * 1000L, com.microproject.core.pm.exchange.converters.mpx.MpxUtils.toMillis(elapsedLag));
+		assertEquals(2L * 24L * 60L * 60L * 1000L, com.microproject.exchange.mpx.converter.MpxUtils.toMillis(elapsedLag));
 	}
 
 	@Test

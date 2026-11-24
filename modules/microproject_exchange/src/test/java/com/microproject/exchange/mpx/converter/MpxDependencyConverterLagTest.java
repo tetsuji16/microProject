@@ -1,0 +1,203 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.exchange.mpx.converter;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import org.junit.jupiter.api.Test;
+
+import com.microproject.pm.dependency.Dependency;
+import com.microproject.pm.resource.ResourcePool;
+import com.microproject.pm.task.NormalTask;
+import com.microproject.pm.task.Project;
+import com.microproject.undo.DataFactoryUndoController;
+
+import org.mpxj.Duration;
+import org.mpxj.ProjectFile;
+import org.mpxj.Relation;
+import org.mpxj.RelationType;
+import org.mpxj.Task;
+import org.mpxj.TimeUnit;
+
+/**
+ * Issue #155: MpxDependencyConverter used to convert an MPXJ relation lag
+ * (value + unit) to a microproject Dependency lag by dropping the unit, so a
+ * "2d" lag became 2 milliseconds instead of 172800000. Dependency lag is
+ * stored in milliseconds (see Dependency.getLeadValue), so the unit must be
+ * applied.
+ */
+public class MpxDependencyConverterLagTest {
+
+	@Test
+	public void lagInDaysIsConvertedToMilliseconds() {
+		Project project = newProject();
+		ProjectFile file = new ProjectFile();
+		file.getProjectProperties().setMinutesPerDay(Integer.valueOf(1440));
+		Task mpxPred = file.addTask();
+		Task mpxSucc = file.addTask();
+		MpxImportState state = buildState(project, file, mpxPred, mpxSucc);
+
+		Relation relation = new Relation.Builder().successorTask(mpxSucc).predecessorTask(mpxPred).type(RelationType.FINISH_START)
+				.lag(Duration.getInstance(2, TimeUnit.DAYS)).build();
+		Dependency dependency = new MpxDependencyConverter().from(relation, state);
+
+		assertNotNull(dependency);
+		assertEquals(2L * 24L * 60L * 60L * 1000L, dependency.getLag());
+	}
+
+	@Test
+	public void lagInMinutesIsConvertedToMilliseconds() {
+		Project project = newProject();
+		ProjectFile file = new ProjectFile();
+		Task mpxPred = file.addTask();
+		Task mpxSucc = file.addTask();
+		MpxImportState state = buildState(project, file, mpxPred, mpxSucc);
+
+		Relation relation = new Relation.Builder().successorTask(mpxSucc).predecessorTask(mpxPred).type(RelationType.FINISH_START)
+				.lag(Duration.getInstance(90, TimeUnit.MINUTES)).build();
+		Dependency dependency = new MpxDependencyConverter().from(relation, state);
+
+		assertNotNull(dependency);
+		assertEquals(90L * 60L * 1000L, dependency.getLag());
+	}
+
+	@Test
+	public void negativeLagLeadIsPreserved() {
+		Project project = newProject();
+		ProjectFile file = new ProjectFile();
+		Task mpxPred = file.addTask();
+		Task mpxSucc = file.addTask();
+		MpxImportState state = buildState(project, file, mpxPred, mpxSucc);
+
+		Relation relation = new Relation.Builder().successorTask(mpxSucc).predecessorTask(mpxPred).type(RelationType.FINISH_START)
+				.lag(Duration.getInstance(-1, TimeUnit.HOURS)).build();
+		Dependency dependency = new MpxDependencyConverter().from(relation, state);
+
+		assertNotNull(dependency);
+		assertEquals(-1L * 60L * 60L * 1000L, dependency.getLag());
+	}
+
+	@Test
+	public void percentLagIsEncodedAsPercentNotLiteralMinutes() {
+		// Issue #163: a 50% lag used to become a literal 50-minute lag because
+		// MpxUtils.toMillis treats PERCENT as minutes. It must keep the percent
+		// encoding so Dependency.getLeadValue computes it against the
+		// predecessor duration.
+		long lag = MpxDependencyConverter.toDependencyLag(Duration.getInstance(50, TimeUnit.PERCENT));
+		assertTrue(com.microproject.datatype.Duration.isPercent(lag));
+		assertEquals(0.5f, com.microproject.datatype.Duration.getPercentAsDecimal(lag), 0.0001f);
+
+		long elapsedLag = MpxDependencyConverter.toDependencyLag(Duration.getInstance(25, TimeUnit.ELAPSED_PERCENT));
+		assertEquals(com.microproject.datatype.TimeUnit.ELAPSED_PERCENT, com.microproject.datatype.Duration.getType(elapsedLag));
+		assertEquals(0.25f, com.microproject.datatype.Duration.getPercentAsDecimal(elapsedLag), 0.0001f);
+	}
+
+	@Test
+	public void timeLagIsStillPlainMillis() {
+		long lag = MpxDependencyConverter.toDependencyLag(Duration.getInstance(2, TimeUnit.DAYS));
+		assertEquals(2L * 24L * 60L * 60L * 1000L, com.microproject.datatype.Duration.millis(lag));
+		assertEquals(0L, MpxDependencyConverter.toDependencyLag(null));
+	}
+
+	@Test
+	public void elapsedUnitLagDoesNotThrow() {
+		Project project = newProject();
+		ProjectFile file = new ProjectFile();
+		Task mpxPred = file.addTask();
+		Task mpxSucc = file.addTask();
+		file.getProjectProperties().setMinutesPerDay(Integer.valueOf(480));
+		file.getProjectProperties().setMinutesPerWeek(Integer.valueOf(2400));
+		MpxImportState state = buildState(project, file, mpxPred, mpxSucc);
+
+		// elapsed units (value >= 7) used to throw ArrayIndexOutOfBoundsException
+		Relation relation = new Relation.Builder().successorTask(mpxSucc).predecessorTask(mpxPred).type(RelationType.FINISH_START)
+				.lag(Duration.getInstance(1, TimeUnit.ELAPSED_DAYS)).build();
+		Dependency dependency = new MpxDependencyConverter().from(relation, state);
+
+		assertNotNull(dependency);
+		assertEquals(1440L * 60L * 1000L, com.microproject.datatype.Duration.millis(dependency.getLag()));
+		assertTrue(com.microproject.datatype.Duration.isElapsed(dependency.getLag()));
+	}
+
+	@Test
+	public void workingDayAndWeekUseSourceProjectDefaultsAndElapsedDaysStayElapsed() {
+		Project project = newProject();
+		ProjectFile file = new ProjectFile();
+		file.getProjectProperties().setMinutesPerDay(Integer.valueOf(480));
+		file.getProjectProperties().setMinutesPerWeek(Integer.valueOf(2400));
+		Task mpxPred = file.addTask();
+		Task mpxSucc = file.addTask();
+		MpxImportState state = buildState(project, file, mpxPred, mpxSucc);
+		MpxDependencyConverter converter = new MpxDependencyConverter();
+
+		Dependency workDay = converter.from(new Relation.Builder().successorTask(mpxSucc).predecessorTask(mpxPred).type(RelationType.FINISH_START)
+			.lag(Duration.getInstance(1, TimeUnit.DAYS)).build(), state);
+		assertNotNull(workDay);
+		assertEquals(8L * 60L * 60L * 1000L, workDay.getLag());
+		assertFalse(com.microproject.datatype.Duration.isElapsed(workDay.getLag()));
+
+		long workWeek = MpxDependencyConverter.toDependencyLag(Duration.getInstance(1, TimeUnit.WEEKS),
+			file.getProjectProperties());
+		assertEquals(40L * 60L * 60L * 1000L, workWeek);
+
+		long elapsedDay = MpxDependencyConverter.toDependencyLag(Duration.getInstance(1, TimeUnit.ELAPSED_DAYS),
+			file.getProjectProperties());
+		assertEquals(24L * 60L * 60L * 1000L, com.microproject.datatype.Duration.millis(elapsedDay));
+		assertTrue(com.microproject.datatype.Duration.isElapsed(elapsedDay));
+
+		assertThrows(IllegalArgumentException.class,
+			() -> MpxDependencyConverter.toDependencyLag(Duration.getInstance(Double.NaN, TimeUnit.DAYS),
+				file.getProjectProperties()));
+		assertThrows(IllegalArgumentException.class,
+			() -> MpxDependencyConverter.toDependencyLag(Duration.getInstance(Double.POSITIVE_INFINITY, TimeUnit.DAYS),
+				file.getProjectProperties()));
+		assertThrows(IllegalArgumentException.class,
+			() -> MpxDependencyConverter.toDependencyLag(Duration.getInstance(Double.NaN, TimeUnit.PERCENT),
+				file.getProjectProperties()));
+	}
+
+	private Project newProject() {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		ResourcePool resourcePool = ResourcePool.createRourcePool("test", undoController);
+		Project project = Project.createProject(resourcePool, undoController);
+		project.initialize(false, false);
+		return project;
+	}
+
+	private MpxImportState buildState(Project project, ProjectFile file, Task mpxPred, Task mpxSucc) {
+		NormalTask pred = new NormalTask(project);
+		project.connectTask(pred);
+		NormalTask succ = new NormalTask(project);
+		project.connectTask(succ);
+		MpxImportState state = new MpxImportState();
+		state.setMpxProjectFile(file);
+		state.mapTask(mpxPred, pred);
+		state.mapTask(mpxSucc, succ);
+		return state;
+	}
+}

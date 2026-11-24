@@ -31,7 +31,7 @@ import java.util.Date;
 import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
-import com.microproject.server.data.DataObject;
+import com.microproject.persistence.data.DataObject;
 public class HasCommonKeyImpl extends HasUniqueIdImpl implements HasKey{
 	private static final long serialVersionUID = 7392928769651766L;
 	protected Date created = new Date();

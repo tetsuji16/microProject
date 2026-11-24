@@ -15,7 +15,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.core.pm.exchange.MspImporter;
+import com.microproject.exchange.mpx.MspImporter;
 import com.microproject.pm.calendar.WorkCalendar;
 import com.microproject.pm.calendar.WorkDay;
 import com.microproject.pm.calendar.WorkingCalendar;

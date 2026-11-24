@@ -15,7 +15,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import com.microproject.core.pm.exchange.MspImporter;
+import com.microproject.exchange.mpx.MspImporter;
 import com.microproject.pm.task.Project;
 
 import org.mpxj.MPXJException;

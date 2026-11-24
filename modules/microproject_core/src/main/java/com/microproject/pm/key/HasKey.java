@@ -25,7 +25,7 @@ package com.microproject.pm.key;
 
 import java.util.Date;
 
-import com.microproject.server.data.DataObject;
+import com.microproject.persistence.data.DataObject;
 
 /**
  * Interface to objects which have a primary key

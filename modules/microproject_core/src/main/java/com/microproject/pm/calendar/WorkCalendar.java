@@ -24,7 +24,7 @@
 package com.microproject.pm.calendar;
 
 import com.microproject.configuration.NamedItem;
-import com.microproject.server.data.DataObject;
+import com.microproject.persistence.data.DataObject;
 import com.microproject.strings.Messages;
 
 public interface WorkCalendar extends Cloneable, NamedItem, DataObject {

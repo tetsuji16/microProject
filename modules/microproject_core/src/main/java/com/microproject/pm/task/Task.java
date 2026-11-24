@@ -97,7 +97,7 @@ import com.microproject.pm.snapshot.Snapshottable;
 import com.microproject.pm.snapshot.SnapshottableImpl;
 import com.microproject.collaboration.CollaborationUserIdentity;
 import com.microproject.util.ErrorLogger;
-import com.microproject.server.data.DataObject;
+import com.microproject.persistence.data.DataObject;
 import com.microproject.strings.Messages;
 import com.microproject.util.Alert;
 import com.microproject.util.DateTime;

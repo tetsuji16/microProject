@@ -1,0 +1,124 @@
+/*******************************************************************************
+ * MIT License
+ *
+ * Copyright (c) 2026 microProject
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *******************************************************************************/
+package com.microproject.exchange.serialize.linker;
+
+import java.util.Collection;
+import java.util.List;
+
+import com.microproject.exchange.serialize.SerializeOptions;
+import com.microproject.persistence.data.SerializedDataObject;
+import com.microproject.grouping.core.hierarchy.NodeHierarchy;
+import com.microproject.grouping.core.model.NodeModel;
+import com.microproject.pm.task.Project;
+import com.microproject.pm.task.ProjectHierarchyQueries;
+import com.microproject.pm.task.Task;
+
+/**
+ *
+ */
+public abstract class TaskLinker extends Linker {
+	public void initIterator(){
+		iterator=ProjectHierarchyQueries.outline((Project)getParent()).iterator();
+	}
+	public Object executeNext(){
+        Task task=(Task)iterator.next();
+		return task;
+	}
+
+	public NodeHierarchy getHierarchy(){return ((Project)getParent()).getTaskOutline().getHierarchy();}
+
+	protected Collection<?> flatAssignments;
+
+	public Collection<?> getFlatAssignments() {
+		return flatAssignments;
+	}
+	public void setFlatAssignments(Collection<?> flatAssignments) {
+		this.flatAssignments = flatAssignments;
+	}
+	// Legacy data holder retained for compatibility with TaskLinker subclasses.
+	protected class PreparedAttributes{
+		protected SerializedDataObject data;
+		protected Object obj;
+		protected Collection<?> extrafields; //extra fields
+		protected List<?> fieldArray;
+		protected NodeModel model;
+		public PreparedAttributes(SerializedDataObject data, Object obj, Collection<?> extrafields, List<?> fieldArray, NodeModel model) {
+			super();
+			this.data = data;
+			this.obj = obj;
+			this.extrafields = extrafields;
+			this.fieldArray = fieldArray;
+			this.model = model;
+		}
+		public SerializedDataObject getData() {
+			return data;
+		}
+		public void setData(SerializedDataObject data) {
+			this.data = data;
+		}
+		public Collection<?> getExtrafields() {
+			return extrafields;
+		}
+		public void setExtrafields(Collection<?> extrafields) {
+			this.extrafields = extrafields;
+		}
+		public List<?> getFieldArray() {
+			return fieldArray;
+		}
+		public void setFieldArray(List<?> fieldArray) {
+			this.fieldArray = fieldArray;
+		}
+		public NodeModel getModel() {
+			return model;
+		}
+		public void setModel(NodeModel model) {
+			this.model = model;
+		}
+		public Object getObj() {
+			return obj;
+		}
+		public void setObj(Object obj) {
+			this.obj = obj;
+		}
+	}
+	
+	public void computeAttributes(){
+
+	}
+
+	public void addTransformedObjects() throws Exception{
+		super.addTransformedObjects();
+		computeAttributes();
+	}
+
+	protected SerializeOptions options;
+	public SerializeOptions getOptions() {
+		return options;
+	}
+	public void setOptions(SerializeOptions options) {
+		this.options = options;
+	}
+
+
+}

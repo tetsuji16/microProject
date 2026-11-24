@@ -44,7 +44,7 @@ import com.microproject.pm.costing.EarnedValueValues;
 import com.microproject.pm.key.HasKey;
 import com.microproject.pm.task.BelongsToDocument;
 import com.microproject.pm.task.HasNotes;
-import com.microproject.server.data.DataObject;
+import com.microproject.persistence.data.DataObject;
 
 
 /**

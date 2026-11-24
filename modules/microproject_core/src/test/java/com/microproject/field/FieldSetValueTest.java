@@ -41,7 +41,7 @@ import com.microproject.grouping.core.Node;
 import com.microproject.grouping.core.model.NodeModelDataFactory;
 import com.microproject.grouping.core.model.WalkersNodeModel;
 import com.microproject.pm.task.NormalTask;
-import com.microproject.server.data.DataObject;
+import com.microproject.persistence.data.DataObject;
 
 class FieldSetValueTest {
 	@Test

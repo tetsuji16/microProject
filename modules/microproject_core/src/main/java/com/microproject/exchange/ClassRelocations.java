@@ -23,7 +23,28 @@ import java.util.Objects;
  */
 public final class ClassRelocations {
 	/** Old binary class name to new binary class name. */
-	private static final Map<String, String> RELOCATIONS = Map.of();
+	private static final Map<String, String> RELOCATIONS = Map.ofEntries(
+		Map.entry("com.microproject.server.data.AssignmentData", "com.microproject.exchange.serialize.AssignmentData"),
+		Map.entry("com.microproject.server.data.ByteArrayObject", "com.microproject.exchange.serialize.ByteArrayObject"),
+		Map.entry("com.microproject.server.data.CalendarData", "com.microproject.persistence.data.CalendarData"),
+		Map.entry("com.microproject.server.data.CommonDataObject", "com.microproject.persistence.data.CommonDataObject"),
+		Map.entry("com.microproject.server.data.CompanyData", "com.microproject.exchange.serialize.CompanyData"),
+		Map.entry("com.microproject.server.data.DataObject", "com.microproject.persistence.data.DataObject"),
+		Map.entry("com.microproject.server.data.DataObjectImpl", "com.microproject.exchange.serialize.DataObjectImpl"),
+		Map.entry("com.microproject.server.data.DistributionData", "com.microproject.persistence.data.DistributionData"),
+		Map.entry("com.microproject.server.data.DocumentData", "com.microproject.persistence.data.DocumentData"),
+		Map.entry("com.microproject.server.data.EnterpriseResourceData", "com.microproject.exchange.serialize.EnterpriseResourceData"),
+		Map.entry("com.microproject.server.data.ExtendedDistributionData", "com.microproject.persistence.data.ExtendedDistributionData"),
+		Map.entry("com.microproject.server.data.GroupData", "com.microproject.exchange.serialize.GroupData"),
+		Map.entry("com.microproject.server.data.IncrementalData", "com.microproject.exchange.serialize.IncrementalData"),
+		Map.entry("com.microproject.server.data.LinkData", "com.microproject.exchange.serialize.LinkData"),
+		Map.entry("com.microproject.server.data.LockException", "com.microproject.exchange.serialize.LockException"),
+		Map.entry("com.microproject.server.data.ProjectData", "com.microproject.persistence.data.ProjectData"),
+		Map.entry("com.microproject.server.data.ResourceData", "com.microproject.exchange.serialize.ResourceData"),
+		Map.entry("com.microproject.server.data.RoleData", "com.microproject.exchange.serialize.RoleData"),
+		Map.entry("com.microproject.server.data.SerializedDataObject", "com.microproject.persistence.data.SerializedDataObject"),
+		Map.entry("com.microproject.server.data.TaskData", "com.microproject.exchange.serialize.TaskData"),
+		Map.entry("com.microproject.server.data.UserData", "com.microproject.exchange.serialize.UserData"));
 
 	/** The JVM accepts at most this many dimensions in an array descriptor. */
 	private static final int MAX_ARRAY_DIMENSIONS = 255;

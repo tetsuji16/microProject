@@ -2186,7 +2186,7 @@ class MpoFileImporterTest {
 			(com.microproject.pm.assignment.Assignment) nativeTask.getAssignments().iterator().next();
 		assertEquals(7.5d, nativeAssignment.getResource().getCostPerUse(), 0.00001d,
 			"The released standard MSPDI resource writer already stored CostPerUse in hundredths");
-		Project external = new com.microproject.core.pm.exchange.MspImporter().importProject(
+		Project external = new com.microproject.exchange.mpx.MspImporter().importProject(
 			new ByteArrayInputStream(entries.get(MpoFileImporter.PROJECT_ENTRY)), "xml", (progress, label) -> { });
 		assertEquals(1.25d, ((NormalTask) firstTask(external)).getBaselineCost(0), 0.00001d,
 			"The same literal 125 in ordinary MSPDI means 1.25 normalized currency units");
@@ -3267,7 +3267,7 @@ class MpoFileImporterTest {
 			"Roll-up preserves the second contributor calendar before serialization");
 		assertTrue(summary.isDirty(), "A summary whose baseline profiles changed must be serialized");
 		java.util.ArrayList<Integer> serializedSnapshotSlots = new java.util.ArrayList<>();
-		com.microproject.server.data.Serializer.forAssignments(summary,
+		com.microproject.exchange.serialize.Serializer.forAssignments(summary,
 			(assignment, snapshotId) -> serializedSnapshotSlots.add(snapshotId));
 		assertEquals(2, serializedSnapshotSlots.stream().filter(slot -> slot == Snapshottable.BASELINE).count(),
 			"The baseline assignment walker must see both summary profiles");
@@ -5669,8 +5669,8 @@ class MpoFileImporterTest {
 					com.microproject.datatype.Duration.getType(back), "baseline effective unit" + label);
 				assertEquals(field.getText(task, liveContext), field.getText(restored, restoredContext),
 					"formatted baseline duration" + label);
-				org.mpxj.Duration liveExport = com.microproject.server.data.MPXConverter.toMPXDuration(live, defaults);
-				org.mpxj.Duration backExport = com.microproject.server.data.MPXConverter.toMPXDuration(back, defaults);
+				org.mpxj.Duration liveExport = com.microproject.exchange.serialize.MPXConverter.toMPXDuration(live, defaults);
+				org.mpxj.Duration backExport = com.microproject.exchange.serialize.MPXConverter.toMPXDuration(back, defaults);
 				assertEquals(liveExport, backExport, "exported baseline duration" + label);
 			}
 		}
@@ -5883,7 +5883,7 @@ class MpoFileImporterTest {
 			"the MSPDI fixture must carry its independent 1800-tenths-of-a-minute manual Delay");
 		assertTrue(mspdiXml.contains("<LevelingDelay>600</LevelingDelay>"),
 			"the MSPDI fixture must carry its independent 600-tenths-of-a-minute LevelingDelay");
-		Project externalMspdi = new com.microproject.core.pm.exchange.MspImporter().importProject(
+		Project externalMspdi = new com.microproject.exchange.mpx.MspImporter().importProject(
 			new ByteArrayInputStream(mspdi), "xml", (progress, label) -> { });
 		Assignment externalAssignment = firstRealAssignment(externalMspdi);
 		assertEquals(3L * 60L * 60L * 1000L,
@@ -6044,9 +6044,9 @@ class MpoFileImporterTest {
 		byte[] bytes = saveMpo(original);
 		String projectXml = new String(readEntries(bytes).get(MpoFileImporter.PROJECT_ENTRY), StandardCharsets.UTF_8);
 		org.mpxj.Resource mpxResource = new org.mpxj.ProjectFile().addResource();
-		com.microproject.server.data.MPXConverter.toMPXResource((com.microproject.pm.resource.ResourceImpl) resource,
+		com.microproject.exchange.serialize.MPXConverter.toMPXResource((com.microproject.pm.resource.ResourceImpl) resource,
 			mpxResource);
-		assertEquals(com.microproject.server.data.MPXConverter.toMPXRate(resource.getStandardRate()),
+		assertEquals(com.microproject.exchange.serialize.MPXConverter.toMPXRate(resource.getStandardRate()),
 			mpxResource.getStandardRate());
 		assertTrue(projectXml.contains("<StandardRate>137.5</StandardRate>"), projectXml);
 		assertTrue(projectXml.contains("<StandardRateFormat>2</StandardRateFormat>"), projectXml);
@@ -7188,7 +7188,7 @@ class MpoFileImporterTest {
 			int type = Integer.parseInt(matcher.group(2));
 			boolean cost = false;
 			for (int slot = 0; slot <= 10; slot++)
-				if (type == com.microproject.core.pm.exchange.converters.mpx.MpxImportState
+				if (type == com.microproject.exchange.mpx.converter.MpxImportState
 						.assignmentBaselineCostType(slot)) { cost = true; break; }
 			if (!cost) continue;
 			String raw = new java.math.BigDecimal(matcher.group(4)).movePointLeft(2).stripTrailingZeros().toPlainString();
