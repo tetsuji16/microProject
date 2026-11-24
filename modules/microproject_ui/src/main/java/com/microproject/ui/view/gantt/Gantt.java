@@ -1,7 +1,7 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2026 microProject
+	 * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -56,6 +56,7 @@ import com.microproject.model.task.Project;
 import com.microproject.model.task.Task;
 import com.microproject.model.task.TaskPathAnalyzer;
 import com.microproject.model.time.HasStartAndEnd;
+import com.microproject.ui.view.views.RowHeights;
 import com.microproject.preference.GlobalPreferences;
 import com.microproject.i18n.Messages;
 import com.microproject.timescale.TimeScaleEvent;
@@ -249,6 +250,14 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 		return ((GanttModel) model).getCoord();
 	}
 
+	@Override
+	public void setCache(com.microproject.ui.view.model.cache.NodeModelCache cache) {
+		super.setCache(cache);
+		if (cache != null) {
+			((GanttModel) model).getRowHeights().setRowCount(cache.getSize());
+		}
+	}
+
 	public GanttInteractor getInteractor() {
 		return ((GanttUI) ui).getInteractor();
 	}
@@ -273,12 +282,12 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 // 	 		}
 //
 // 		}
- 	}
+	}
 
 
 
 	public int getRow(double y){
-		return (int) (y / (double) getRowHeight());
+		return ((GanttModel)model).getRowHeights().rowAt((int)y);
 	}
 
 
@@ -287,6 +296,11 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 	}
 	public void setRowHeight(int rowHeight){
 		((GanttModel)model).setRowHeight(rowHeight);
+	}
+
+	/** Returns the RowHeights instance for per-row height management. */
+	public RowHeights getRowHeights() {
+		return ((GanttModel)model).getRowHeights();
 	}
 //	public int getColumnHeaderHeight() {
 //		return ((GanttModel)model).getColumnHeaderHeight();
@@ -597,7 +611,7 @@ public class Gantt extends Graph implements ScaledComponent, TimeScaleListener, 
 
 	public int getScrollableHeight(int viewportHeight) {
 		int rowCount = getCache() == null ? 0 : getCache().getSize();
-		int bufferedRowsHeight = (rowCount + BOTTOM_SCROLL_BUFFER_ROWS) * getRowHeight();
+		int bufferedRowsHeight = ((GanttModel)model).getRowHeights().totalHeight(rowCount) + BOTTOM_SCROLL_BUFFER_ROWS * getRowHeight();
 		return Math.max(viewportHeight, bufferedRowsHeight);
 	}
 

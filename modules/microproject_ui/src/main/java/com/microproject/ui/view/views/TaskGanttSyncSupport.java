@@ -35,6 +35,7 @@ import com.microproject.view.configuration.BarStyle;
 import com.microproject.ui.view.gantt.Gantt;
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
 import com.microproject.ui.util.FlatUiSupport;
+import com.microproject.ui.view.views.RowHeights;
 
 /**
  * Shared support for the Gantt view's left/right pane synchronization.
@@ -49,13 +50,42 @@ final class TaskGanttSyncSupport {
 	}
 
 	static void applyRowHeight(SpreadSheet spreadSheet, Gantt gantt, int rowHeight) {
+		int rowCount = spreadSheet != null ? spreadSheet.getRowCount()
+				: gantt != null && gantt.getCache() != null ? gantt.getCache().getSize() : 0;
+		applyRowHeight(spreadSheet, gantt, new RowHeights(rowHeight, rowCount));
+	}
+
+	static void applyRowHeight(SpreadSheet spreadSheet, Gantt gantt, RowHeights rowHeights) {
 		if (spreadSheet != null) {
-			spreadSheet.setRowHeight(rowHeight);
+			spreadSheet.setRowHeight(rowHeights.getDefaultHeight());
+			for (int row = 0; row < spreadSheet.getRowCount(); row++) {
+				spreadSheet.setRowHeight(row, requestedHeight(rowHeights, spreadsheetRowKey(spreadSheet, row), row));
+			}
 		}
 		if (gantt != null) {
-			gantt.setRowHeight(rowHeight);
+			gantt.setRowHeight(rowHeights.getDefaultHeight());
+			RowHeights ganttRowHeights = gantt.getRowHeights();
+			ganttRowHeights.setRowCount(gantt.getCache() == null ? 0 : gantt.getCache().getSize());
+			for (int row = 0; row < ganttRowHeights.getRowCount(); row++) {
+				int requested = requestedHeight(rowHeights,
+						ganttRowHeights.hasRowKeys() ? ganttRowHeights.rowKeyAt(row) : null, row);
+				if (requested != ganttRowHeights.getDefaultHeight()) {
+					ganttRowHeights.setRowHeight(row, requested);
+				}
+			}
 			gantt.synchronizeViewportSize();
 		}
+	}
+
+	private static int requestedHeight(RowHeights source, Object rowKey, int row) {
+		if (source.hasRowKeys() && rowKey != null) return source.heightForKey(rowKey);
+		return row < source.getRowCount() ? source.heightOf(row) : source.getDefaultHeight();
+	}
+
+	private static Object spreadsheetRowKey(SpreadSheet spreadSheet, int row) {
+		if (spreadSheet.getCache() == null) return null;
+		var projection = spreadSheet.getCache().getVisibleNodes().getProjectionIndex();
+		return row < projection.size() ? projection.keyAt(row) : null;
 	}
 
 	static void applySpreadsheetGridStyle(SpreadSheet spreadSheet, Gantt gantt, boolean spreadsheetGridVisible, Color gridLineColor) {

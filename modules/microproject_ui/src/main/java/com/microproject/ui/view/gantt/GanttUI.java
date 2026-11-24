@@ -1,7 +1,7 @@
 /*******************************************************************************
  * MIT License
  *
- * Copyright (c) 2026 microProject
+	 * Copyright (c) 2026 microProject
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -41,7 +41,7 @@ public class GanttUI extends GraphUI{
 	 */
 	public GanttUI(Gantt gantt) {
 		super(gantt,new GanttRenderer(gantt));
-    	interactor=new GanttInteractor(this);
+		interactor=new GanttInteractor(this);
 	}
 
 	public GanttRenderer getGanttRenderer() {
@@ -57,12 +57,11 @@ public class GanttUI extends GraphUI{
 
 
     public double getBarY(int row){
-    	return row*((Gantt)graph).getRowHeight()+config.getGanttBarYOffset();
+		return ((Gantt)graph).getRowHeights().yOf(row)+config.getGanttBarYOffset();
     }
 
 	public GraphZone getNodeAt(double x,double y){
-		double rowHeight=((Gantt)graph).getRowHeight();
-		int row=(int)Math.floor(y/rowHeight);
+		int row=getRowAt(y);
 		if (row<0||row>=graph.getModel().getCache().getSize()) return null;
 		GraphicNode node=(GraphicNode)graph.getModel().getCache().getElementAt(row);
 		double y0=getBarY(row)+node.getGanttShapeOffset();//row*rowHeight+config.getGanttBarYOffset();
@@ -97,13 +96,20 @@ public class GanttUI extends GraphUI{
 	 * click in calendar whitespace can never start moving a task bar.
 	 */
 	public GraphicNode getTaskRowAt(double y) {
-		double rowHeight = ((Gantt) graph).getRowHeight();
-		int row = (int) Math.floor(y / rowHeight);
+		Gantt gantt = (Gantt) graph;
+		int row = getRowAt(y);
 		if (row < 0 || graph.getModel().getCache() == null || row >= graph.getModel().getCache().getSize()) {
 			return null;
 		}
 		Object element = graph.getModel().getCache().getElementAt(row);
 		return element instanceof GraphicNode node ? node : null;
+	}
+
+	/** Returns -1 for y coordinates outside the actual row area. */
+	public int getRowAt(double y) {
+		Gantt gantt = (Gantt) graph;
+		if (gantt.getCache() == null || y < 0 || y >= gantt.getRowHeights().totalHeight(gantt.getCache().getSize())) return -1;
+		return gantt.getRowHeights().rowAt((int) Math.floor(y));
 	}
 
 
