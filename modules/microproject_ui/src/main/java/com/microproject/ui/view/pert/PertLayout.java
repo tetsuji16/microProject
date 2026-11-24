@@ -114,4 +114,3 @@ public class PertLayout extends AbstractNetworkLayout {
 		updateBounds();
 	}
 }
-

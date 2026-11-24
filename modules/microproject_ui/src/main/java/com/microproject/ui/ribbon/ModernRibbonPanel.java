@@ -1160,7 +1160,14 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 				try {
 					GraphicManager manager = GraphicManager.getInstance();
 					java.awt.Frame owner = manager == null ? null : manager.getFrame();
-					PageSetupDialog.getInstance(owner, PageSetup.getInstance(current)).setVisible(true);
+					PageSetupDialog dialog = PageSetupDialog.getInstance(owner, PageSetup.getInstance(current));
+					dialog.addComponentListener(new java.awt.event.ComponentAdapter() {
+						@Override public void componentHidden(java.awt.event.ComponentEvent event) {
+							settingsChanged();
+						}
+					});
+					dialog.pack();
+					dialog.setVisible(true);
 				} catch (RuntimeException ignored) {
 					// A preview-only settings failure must not surface as an error dialog.
 				}
@@ -1172,6 +1179,8 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 				// Refresh the preview that is installed now, not the placeholder it replaced.
 				BackstagePrintPage current = pageRef[0];
 				JComponent shown = current == null ? preview : current.getPreviewComponent();
+				Object canvas = shown.getClientProperty("officeBackstagePrintPreviewCanvas");
+				if (canvas instanceof BackstagePrintPreviewPanel panel) panel.refreshDocument();
 				shown.revalidate();
 				shown.repaint();
 			}
@@ -1266,6 +1275,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 		pageLabel.setName("officeBackstagePrintPageNumber");
 		zoom.setName("officeBackstagePrintZoom");
 		BackstagePrintPreviewPanel panel = document == null ? null : new BackstagePrintPreviewPanel(document, pageLabel);
+		root.putClientProperty("officeBackstagePrintPreviewCanvas", panel);
 		previous.addActionListener(event -> { if (panel != null) panel.previousPage(); });
 		next.addActionListener(event -> { if (panel != null) panel.nextPage(); });
 		zoom.addActionListener(event -> {
@@ -1310,6 +1320,11 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 			}
 		}
 		void setZoom(double value) { zoom = value; revalidate(); repaint(); }
+		void refreshDocument() {
+			pageIndex = Math.min(pageIndex, Math.max(0, document.getNumberOfPages() - 1));
+			updatePageLabel();
+			repaint();
+		}
 		private void updatePageLabel() {
 			pageLabel.setText((pageIndex + 1) + " / " + Math.max(1, document.getNumberOfPages()));
 		}
