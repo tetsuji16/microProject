@@ -5,13 +5,30 @@
 - Issue:
 - What changed and why:
 
+<!--
+Before opening this pull request (draft or not), every box below must be checked.
+The only box that may stay open is the issue's "`build` と `GUI acceptance` が通る" line.
+Run this locally before `gh pr create`; the "PR checklist" check runs the same script:
+
+    python scripts/check_pr_checklist.py --body-file pr-body.md
+
+Do not check a box for something you did not run yourself. If you cannot do it,
+delete the box and explain it under "Risk / remaining work" (and use "Refs #N").
+-->
+
 ## Verification
 
-<!-- Exact commands and results, chosen from TEST_PLAN.md section 1.3. Write "not run" for anything you did not run. -->
+<!-- Exact commands you ran and their results, chosen from the issue's 検証 section and TEST_PLAN.md section 1.3. -->
 
 - [ ] `<command>` → `<result>`
 - [ ] `git diff --check` is empty.
-- [ ] Each completion criterion of the issue is met, or listed under "Risk / remaining work".
+
+## Completion criteria
+
+<!-- Copy every line of the issue's 完了条件 verbatim, check it, and add "→ <command and result, or test name>". -->
+
+- [ ] <criterion copied from the issue> → <evidence>
+- [ ] PR の `build` と `GUI acceptance` が通る
 
 ## Command contract (required for GUI-observable changes)
 

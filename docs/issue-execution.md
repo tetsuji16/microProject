@@ -127,4 +127,8 @@ Honor fixed review counts already in the issue contract. Reuse completed
 evidence; do not add review rounds or repeat acceptance checks without a
 changed relevant diff or a finding. Re-review only changed code or a finding's
 scope. Do not add monitoring, automation, validators, dependencies, dashboards,
-or another status layer to this workflow.
+or another status layer to this workflow. The one validator is
+`scripts/check_pr_checklist.py` (the `PR checklist` workflow): before a pull
+request is opened, every checkbox in its body is checked except the required
+CI line, and every completion criterion of the issue is copied verbatim with
+`→ <evidence>`.

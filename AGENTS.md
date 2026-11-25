@@ -90,6 +90,20 @@ Anything that still carries the `projectLibre` / `ProjectLibre`
 - An issue body is the specification for its implementer. Write issues so that someone who has not seen the surrounding discussion can finish them: required sections, checkable completion criteria, and labels are defined in `docs/issue-authoring.md`. If an issue's steps do not match the current code, comment on the issue instead of guessing.
 - Do not name the tools or models used for the work in commits, pull requests, issues, or comments.
 
+## Issue implementation procedure (every agent)
+
+This section applies to every agent and tool, including ones that do not read `CLAUDE.md` or `.claude/skills`. When asked to implement an issue, read `.claude/skills/implement-issue/SKILL.md` as a file and follow it step by step; read `docs/issue-execution.md` for the evidence rules.
+
+1. Read the issue body and all comments (`gh issue view <N> --comments`). Write the issue's 完了条件 lines into a local `pr-body.md` built from `.github/pull_request_template.md` **before** editing code, so the criteria are the work list.
+2. Implement the 作業手順 in order. Do not stop at "it compiles": each criterion needs its own evidence (command and result, or the name of a test that you added or ran).
+3. Run every command in the issue's 検証 section yourself. Save output to a file and record the result line (for example `BUILD SUCCESSFUL; 51 tests, 0 failures`). If a command cannot run in your environment, that criterion is not met: do not check it, and do not write "CI" as its evidence.
+4. Fill `pr-body.md`: copy each 完了条件 line verbatim under `## Completion criteria`, check it, and append `→ <evidence>`. The only box that may stay unchecked is the issue's "`build` と `GUI acceptance` が通る" line.
+5. Run `python scripts/check_pr_checklist.py --body-file pr-body.md --issue-body-file <issue body file>` (or without `--issue-body-file` when `gh` is available). Fix the work, not the wording, until it prints `OK`. Only then run `gh pr create --body-file pr-body.md`.
+6. If a criterion cannot be met, do not open a `Closes` PR. Either open `Refs #N` with the unmet criterion under `## Risk / remaining work`, or comment on the issue with what blocks it and stop.
+7. After CI finishes, open the PR's checks and review comments. Fix failures and actionable review comments, update the PR body evidence, and re-run the checker. Do not change `scripts/check_pr_checklist.py` or the PR template in an issue PR.
+
+The `PR checklist` workflow runs the same checker on every PR; a PR whose checklist fails is not ready for review or merge.
+
 ## Git / PR workflow
 
 - Never push directly to `master` or force-push. Use one `issue/<number>-<summary>` branch and one PR per issue; use exactly one of `Closes #N` or `Refs #N` in the PR body. Keep incomplete work in draft, and merge only after required checks pass and review requirements are met.
