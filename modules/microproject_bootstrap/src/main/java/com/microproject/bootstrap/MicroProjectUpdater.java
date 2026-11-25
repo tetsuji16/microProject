@@ -7,18 +7,23 @@ package com.microproject.bootstrap;
 import org.update4j.Configuration;
 
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.Reader;
+import java.io.StringReader;
 import java.net.URI;
-import java.net.URL;
-import java.net.URLConnection;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
+import java.time.Duration;
 import java.util.Base64;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.prefs.Preferences;
 
 /**
@@ -68,6 +73,9 @@ public final class MicroProjectUpdater {
     /** Update feed connect/read timeouts, so an unresponsive network cannot stall startup. */
     static final int CONNECT_TIMEOUT_MILLIS = 5000;
     static final int READ_TIMEOUT_MILLIS = 10000;
+
+    /** Upper bound for a remote update configuration, so a hostile feed cannot exhaust memory. */
+    static final long MAX_CONFIGURATION_BYTES = 4L * 1024 * 1024;
 
     private MicroProjectUpdater() {
     }
@@ -179,7 +187,6 @@ public final class MicroProjectUpdater {
         return "https".equalsIgnoreCase(scheme) || "file".equalsIgnoreCase(scheme);
     }
 
-    @SuppressWarnings("deprecation") // URI.toURL() is the simplest cross-scheme stream opener here
     static Configuration readConfiguration(URI uri, PublicKey publicKey,
             int connectTimeoutMillis, int readTimeoutMillis) {
         if (!isAllowedFeedScheme(uri)) {
@@ -195,10 +202,7 @@ public final class MicroProjectUpdater {
                 }
                 in = Files.newBufferedReader(Paths.get(uri), StandardCharsets.UTF_8);
             } else {
-                URLConnection connection = uri.toURL().openConnection();
-                connection.setConnectTimeout(connectTimeoutMillis);
-                connection.setReadTimeout(readTimeoutMillis);
-                in = new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8);
+                in = new StringReader(readHttpsConfiguration(uri, connectTimeoutMillis, readTimeoutMillis));
             }
             try (Reader r = in) {
                 return publicKey != null
@@ -209,6 +213,47 @@ public final class MicroProjectUpdater {
             // IOException, signature mismatch, unreachable host, etc.
             System.err.println("update4j: failed to read configuration from " + uri + ": " + e);
             return null;
+        }
+    }
+
+    /**
+     * Reads an {@code https} configuration with one overall deadline and a size limit.
+     *
+     * <p>Redirects are never followed, so a feed cannot bounce the bootstrap to an unverified host.
+     * The deadline covers connect plus read, so a server that trickles bytes cannot stall startup.</p>
+     */
+    private static String readHttpsConfiguration(URI uri, int connectTimeoutMillis, int readTimeoutMillis)
+            throws IOException, InterruptedException {
+        HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(connectTimeoutMillis))
+                .followRedirects(HttpClient.Redirect.NEVER)
+                .build();
+        HttpRequest request = HttpRequest.newBuilder(uri)
+                .timeout(Duration.ofMillis(readTimeoutMillis))
+                .GET()
+                .build();
+        var future = client.sendAsync(request, HttpResponse.BodyHandlers.limiting(
+                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8), MAX_CONFIGURATION_BYTES));
+        try {
+            HttpResponse<String> response = future.get(
+                    (long) connectTimeoutMillis + readTimeoutMillis, TimeUnit.MILLISECONDS);
+            if (response.statusCode() != 200) {
+                throw new IOException("unexpected HTTP status " + response.statusCode());
+            }
+            return response.body();
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            throw new IOException("timed out after " + (connectTimeoutMillis + readTimeoutMillis) + " ms", e);
+        } catch (InterruptedException e) {
+            future.cancel(true);
+            Thread.currentThread().interrupt();
+            throw e;
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof IOException io) {
+                throw io;
+            }
+            throw new IOException(cause == null ? e.toString() : cause.toString(), cause);
         }
     }
 
