@@ -9,13 +9,20 @@ import org.update4j.FileMetadata;
 import org.update4j.service.Launcher;
 
 import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.HttpsConfigurator;
+import com.sun.net.httpserver.HttpsServer;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStreamWriter;
 import java.io.OutputStream;
 import java.io.Writer;
 import java.net.InetAddress;
@@ -27,10 +34,19 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.KeyStore;
 import java.security.PublicKey;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -77,6 +93,67 @@ class BootstrapUpdateTest {
         KeyPairGenerator g = KeyPairGenerator.getInstance("RSA");
         g.initialize(2048);
         return g.generateKeyPair();
+    }
+
+    private static Path tlsKeyStore;
+    private static SSLContext previousDefaultSslContext;
+
+    @BeforeAll
+    static void createTlsMaterial(@TempDir Path temp) throws Exception {
+        tlsKeyStore = temp.resolve("bootstrap-test.p12");
+        String keytool = Path.of(System.getProperty("java.home"), "bin", "keytool").toString();
+        Process keytoolProcess = new ProcessBuilder(keytool, "-genkeypair", "-alias", "bootstrap",
+                "-keyalg", "RSA", "-keysize", "2048", "-validity", "2", "-storetype", "PKCS12",
+                "-keystore", tlsKeyStore.toString(), "-storepass", "changeit", "-keypass", "changeit",
+                "-dname", "CN=127.0.0.1", "-ext", "SAN=ip:127.0.0.1")
+                .redirectErrorStream(true).start();
+        String output = new String(keytoolProcess.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        assertEquals(0, keytoolProcess.waitFor(), "keytool must create the test keystore: " + output);
+    }
+
+    @BeforeAll
+    static void trustTheLocalTestServer() throws Exception {
+        previousDefaultSslContext = SSLContext.getDefault();
+        SSLContext trusting = SSLContext.getInstance("TLS");
+        trusting.init(null, new TrustManager[] {new X509TrustManager() {
+            @Override
+            public void checkClientTrusted(X509Certificate[] chain, String authType) {
+            }
+
+            @Override
+            public void checkServerTrusted(X509Certificate[] chain, String authType) {
+            }
+
+            @Override
+            public X509Certificate[] getAcceptedIssuers() {
+                return new X509Certificate[0];
+            }
+        }}, new SecureRandom());
+        SSLContext.setDefault(trusting);
+    }
+
+    @AfterAll
+    static void restoreDefaultSslContext() {
+        if (previousDefaultSslContext != null) {
+            SSLContext.setDefault(previousDefaultSslContext);
+        }
+    }
+
+    private HttpsServer startTlsServer(com.sun.net.httpserver.HttpHandler handler) throws Exception {
+        KeyStore keyStore = KeyStore.getInstance("PKCS12");
+        try (InputStream in = Files.newInputStream(tlsKeyStore)) {
+            keyStore.load(in, "changeit".toCharArray());
+        }
+        KeyManagerFactory keyManagers = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+        keyManagers.init(keyStore, "changeit".toCharArray());
+        SSLContext serverContext = SSLContext.getInstance("TLS");
+        serverContext.init(keyManagers.getKeyManagers(), null, null);
+        HttpsServer s = HttpsServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        s.setHttpsConfigurator(new HttpsConfigurator(serverContext));
+        s.createContext("/", handler);
+        s.start();
+        this.server = s;
+        return s;
     }
 
     private HttpServer startServer(Path dir) throws IOException {
@@ -377,6 +454,121 @@ class BootstrapUpdateTest {
         config.launch(recorder);
         assertTrue(RecordingLauncher.RAN.get(),
                 "the launch path must execute the supplied launcher");
+    }
+
+    @Test
+    void redirectResponseIsNotFollowed(@TempDir Path temp) throws Exception {
+        KeyPair kp = generateRsa();
+        Path dir = temp.resolve("feed");
+        Files.createDirectories(dir);
+        Files.writeString(dir.resolve(APP_FILE), "content");
+        Configuration config = Configuration.builder()
+                .basePath(dir)
+                .baseUri(dir.toUri().toString())
+                .signer(kp.getPrivate())
+                .files(FileMetadata.streamDirectory(dir).toList())
+                .build();
+        ByteArrayOutputStream manifest = new ByteArrayOutputStream();
+        try (Writer w = new OutputStreamWriter(manifest, StandardCharsets.UTF_8)) {
+            config.write(w);
+        }
+        byte[] body = manifest.toByteArray();
+
+        AtomicInteger redirects = new AtomicInteger();
+        AtomicInteger manifestRequests = new AtomicInteger();
+        HttpsServer tls = startTlsServer(exchange -> {
+            if (exchange.getRequestURI().getPath().endsWith("/redirect.xml")) {
+                redirects.incrementAndGet();
+                exchange.getResponseHeaders().add("Location", "/configuration.xml");
+                exchange.sendResponseHeaders(302, -1);
+                exchange.close();
+                return;
+            }
+            manifestRequests.incrementAndGet();
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(body);
+            }
+        });
+        URI uri = URI.create("https://127.0.0.1:" + tls.getAddress().getPort() + "/redirect.xml");
+
+        assertNull(MicroProjectUpdater.readConfiguration(uri, kp.getPublic()),
+                "a redirect must not be followed, even to a valid manifest on the same host");
+        assertEquals(1, redirects.get(), "the redirecting feed must be contacted exactly once");
+        assertEquals(0, manifestRequests.get(), "the redirect target must never be requested");
+    }
+
+    @Test
+    void notFoundResponseIsRejected() throws Exception {
+        KeyPair kp = generateRsa();
+        HttpsServer tls = startTlsServer(exchange -> {
+            exchange.sendResponseHeaders(404, -1);
+            exchange.close();
+        });
+        URI uri = URI.create("https://127.0.0.1:" + tls.getAddress().getPort() + "/configuration.xml");
+
+        assertNull(MicroProjectUpdater.readConfiguration(uri, kp.getPublic()),
+                "a missing configuration must yield null");
+    }
+
+    @Test
+    void oversizedConfigurationIsRejectedWithoutWaitingForTheBodyToEnd() throws Exception {
+        KeyPair kp = generateRsa();
+        byte[] oversized = new byte[(int) MicroProjectUpdater.MAX_CONFIGURATION_BYTES + 1024];
+        java.util.Arrays.fill(oversized, (byte) ' ');
+        HttpsServer tls = startTlsServer(exchange -> {
+            exchange.sendResponseHeaders(200, 0);
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(oversized);
+                os.flush();
+                // Keep the chunked body open: only the size limit can end the read here.
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (IOException expected) {
+                // the client stopped reading at the limit
+            }
+        });
+        URI uri = URI.create("https://127.0.0.1:" + tls.getAddress().getPort() + "/configuration.xml");
+
+        long start = System.nanoTime();
+        Configuration loaded = MicroProjectUpdater.readConfiguration(uri, kp.getPublic(), 2000, 2000);
+        long elapsedMillis = (System.nanoTime() - start) / 1_000_000;
+
+        assertNull(loaded, "a body larger than " + MicroProjectUpdater.MAX_CONFIGURATION_BYTES + " bytes must be rejected");
+        assertTrue(elapsedMillis < 2000,
+                "the size limit must end the read before the timeout, took " + elapsedMillis + " ms");
+    }
+
+    @Test
+    void tricklingFeedGivesUpWithinTheOverallDeadline() throws Exception {
+        KeyPair kp = generateRsa();
+        AtomicLong written = new AtomicLong();
+        HttpsServer tls = startTlsServer(exchange -> {
+            exchange.sendResponseHeaders(200, 0);
+            try (OutputStream os = exchange.getResponseBody()) {
+                for (int i = 0; i < 50; i++) {
+                    os.write('<');
+                    os.flush();
+                    written.incrementAndGet();
+                    Thread.sleep(200);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (IOException ignored) {
+                // the client gives up and closes the connection; that is the behaviour under test
+            }
+        });
+        URI uri = URI.create("https://127.0.0.1:" + tls.getAddress().getPort() + "/configuration.xml");
+
+        long start = System.nanoTime();
+        Configuration loaded = MicroProjectUpdater.readConfiguration(uri, kp.getPublic(), 300, 300);
+        long elapsedMillis = (System.nanoTime() - start) / 1_000_000;
+
+        assertNull(loaded, "a feed that keeps trickling bytes must be treated as no update");
+        assertTrue(elapsedMillis < 2000,
+                "the overall deadline must stop the read within 2 seconds, took " + elapsedMillis + " ms");
+        assertTrue(written.get() < 50, "the client must close the trickling feed early");
     }
 
     private static void restoreProperty(String name, String value) {
