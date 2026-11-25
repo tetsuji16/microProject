@@ -302,25 +302,23 @@ public class Job extends Thread {
 			if (showProgess){
 				progressMonitor=jobQueue.getProgressMonitor(title,monitorComponent);
 				if (progressMonitor!=null&&cancelMonitorClosure!=null&&monitorChecker==null){
-					monitorChecker=new Thread(getName()+"_cancelMonitor"){
-						public void run() {
-			    			if (isInterrupted() || isCanceled()) // if thread is not alive, do nothing
-			    				return;
+					monitorChecker=Thread.ofPlatform().name(getName()+"_cancelMonitor").unstarted(() -> {
+						if (Thread.currentThread().isInterrupted() || isCanceled()) // if thread is not alive, do nothing
+							return;
 
-							while(true){
-								if (progressMonitor.isCanceled()){
-									cancelMonitorClosure.accept(null);
-									break;
-								}else if (progressMonitor.isClosed()) break;
-								try {
-									sleep(100);
-								} catch (InterruptedException e) {
-									interrupt();
-									return;
-								}
+						while(true){
+							if (progressMonitor.isCanceled()){
+								cancelMonitorClosure.accept(null);
+								break;
+							}else if (progressMonitor.isClosed()) break;
+							try {
+								Thread.sleep(100);
+							} catch (InterruptedException e) {
+								Thread.currentThread().interrupt();
+								return;
 							}
 						}
-					};
+					});
 					monitorChecker.start();
 				}
 			}
