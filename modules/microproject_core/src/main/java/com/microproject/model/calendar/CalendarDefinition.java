@@ -25,7 +25,6 @@ package com.microproject.model.calendar;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.text.SimpleDateFormat;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -652,9 +651,6 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 			}
 			forward = !forward;
 		}
-
-		private static SimpleDateFormat f = DateTime.dateFormatInstance();
-
 
 		public long dayOf(long date) {
 			scratchDate.setTimeInMillis(date);
