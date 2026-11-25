@@ -299,7 +299,7 @@ class DefaultNodeModelTest {
 		model.add(root, first, NodeModel.SILENT);
 		model.add(first, child, NodeModel.SILENT);
 		model.add(root, second, NodeModel.SILENT);
-		StringBuffer buffer = new StringBuffer();
+		StringBuilder buffer = new StringBuilder();
 
 		((AbstractMutableNodeHierarchy) model.getHierarchy()).dump(buffer);
 
