@@ -316,18 +316,10 @@ class ViewNodeModelCacheHierarchyDependencyTest {
 		SwingUtilities.invokeAndWait(() -> {
 			ObjectEvent taskFact = ObjectEvent.getInstance(this, predecessor, ObjectEvent.UPDATE, null);
 			taskFact.setPublicationRevision(revision);
-			try {
-				reference.objectChanged(taskFact);
-			} finally {
-				taskFact.recycle();
-			}
+			reference.objectChanged(taskFact);
 			ObjectEvent dependencyFact = ObjectEvent.getInstance(this, dependencyHolder[0], ObjectEvent.CREATE, null);
 			dependencyFact.setPublicationRevision(revision);
-			try {
-				reference.objectChanged(dependencyFact);
-			} finally {
-				dependencyFact.recycle();
-			}
+			reference.objectChanged(dependencyFact);
 		});
 
 		assertTrue(firstListenerSawCompleteState.get(),

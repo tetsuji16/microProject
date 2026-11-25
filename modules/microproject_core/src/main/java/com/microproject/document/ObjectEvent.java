@@ -25,11 +25,6 @@ package com.microproject.document;
 
 import java.util.EventListener;
 import java.util.EventObject;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import org.apache.commons.pool.BasePoolableObjectFactory;
-import org.apache.commons.pool.impl.GenericObjectPool;
 
 import com.microproject.field.Field;
 import com.microproject.undo.NodeUndoInfo;
@@ -40,7 +35,6 @@ import com.microproject.undo.NodeUndoInfo;
 public class ObjectEvent extends EventObject {
 	private static final long serialVersionUID = 2778399810760252048L;
 
-	private static final Logger logger = Logger.getLogger(ObjectEvent.class.getName());
     
 	public Object getObject() {
 		return object;
@@ -83,13 +77,7 @@ public class ObjectEvent extends EventObject {
 	private long publicationRevision = -1L;
 	
 	public static ObjectEvent getInstance(Object source) {
-		ObjectEvent objectEvent;
-		try {
-			objectEvent = (ObjectEvent) pool.borrowObject();
-		} catch (Exception e) {
-			logger.log(Level.WARNING, "Error", e);
-			return null;
-		}
+		ObjectEvent objectEvent = new ObjectEvent();
 		objectEvent.source = source;
 		return objectEvent;
 	}
@@ -100,14 +88,6 @@ public class ObjectEvent extends EventObject {
 			objectEvent.eventType = eventType;
 			objectEvent.info = info;
 			return objectEvent;
-	}
-	
-	public void recycle() {
-		try {
-			pool.returnObject(this);
-		} catch (Exception e) {
-			logger.log(Level.WARNING, "Error", e);
-		}
 	}
 	
 	private void reset() {
@@ -135,19 +115,6 @@ public class ObjectEvent extends EventObject {
 	
 	
 	
-	private static GenericObjectPool pool = new GenericObjectPool(new ObjectEventFactory());
-	
-	private static class ObjectEventFactory extends BasePoolableObjectFactory {
-		public Object makeObject() { //claur
-			return new ObjectEvent();
-		}
-
-		public void activateObject(Object arg0){ //claur
-			ObjectEvent objectEvent = (ObjectEvent)arg0;
-			objectEvent.reset();
-
-		}
-	}
 	public interface Listener extends EventListener {
 		public void objectChanged(ObjectEvent objectEvent);
 	}	

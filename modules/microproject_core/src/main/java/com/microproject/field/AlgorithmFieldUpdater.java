@@ -67,7 +67,6 @@ public abstract class AlgorithmFieldUpdater extends Thread {
 			objectEvent.setField(field);
 			document.getObjectEventManager().fire(objectEvent);
 		}
-		objectEvent.recycle();
 	}
 
 	public boolean inputContains(Field field) {

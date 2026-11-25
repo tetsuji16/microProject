@@ -40,6 +40,31 @@ change keeps Pool 1 rather than claim a performance win or remove active reuse
 without evidence. Revisit Pool 2 when a benchmark can compare the event and
 calendar hot paths.
 
+### Update: Pool 1 removed (#1371)
+
+A later review found that three of the four pooled objects did not need
+reuse, and that the pool itself could block:
+
+- `Factory.GregorianCalendarPool` and `Factory.DatePool` had no callers, so
+  `Factory` was deleted.
+- `NodeSorter.getList()` and `recycleList(List<?>)` had no callers, including
+  the generated Groovy sorter classes, yet every `NodeSorter` created its own
+  `GenericObjectPool`. Both methods and the pool were removed.
+- `ObjectEvent` is a small object that was reset on every borrow. Reuse also
+  let a holder of a returned event see it rewritten, and
+  `AlgorithmFieldUpdater.fireOutputEvents` kept firing one event after the
+  first dispatch had already returned it to the pool. `getInstance` now
+  allocates a new event and `recycle()` was removed.
+- `CalendarIterator` owns a `Calendar` and is used on every scheduled-time
+  calculation, so reuse is kept. It now comes from a thread-local stack
+  (at most 8 idle iterators per thread) instead of a `GenericObjectPool`.
+  Commons Pool 1's default `GenericObjectPool` allowed 8 active objects and
+  blocked further borrowers, so a ninth thread computing a schedule waited;
+  the thread-local stack never blocks and gives nested calls distinct
+  iterators.
+
+`commons-pool:commons-pool` is no longer a dependency.
+
 ## Commons Digester
 
 All production `org.apache.commons.digester` imports in core and the test import
