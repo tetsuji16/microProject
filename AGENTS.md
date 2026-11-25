@@ -76,6 +76,7 @@ Anything that still carries the `projectLibre` / `ProjectLibre`
   (issue #43); complete partial renames when you touch a file rather than leaving
   mixed namespaces, but do not launch opportunistic broad renames unrelated to the
   task at hand. See "Dependency and namespace hygiene" above.
+- Date and time code follows [ADR-0003](docs/architecture/ADR-0003-date-time-api.md): keep stored schedule values as GMT-read milliseconds, use `java.time` for new boundary code, and convert existing call sites test-first.
 - Keep UI work Swing-safe. Preserve EDT boundaries, model/view index conversions, selection state, and repaint/revalidation behavior.
 - Avoid broad refactors unless they remove duplicated responsibility directly involved in the bug. Do not mix unrelated formatting or cleanup into a functional patch.
 
