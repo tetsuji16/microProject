@@ -76,23 +76,18 @@ public final class UpdateChecker {
 			return;
 		}
 		if (java.awt.GraphicsEnvironment.isHeadless()) return;
-		Thread thread = new Thread("update-check") {
-			@Override
-			public void run() {
-				try {
-					String latest = fetchLatestVersion();
-					if (latest == null) return;
-					final String current = VersionUtils.getVersion();
-					if (current == null || isNewer(latest.trim(), current.trim())) {
-						SwingUtilities.invokeLater(() -> offerUpgrade(current, latest.trim()));
-					}
-				} catch (Exception e) {
-					logger.log(Level.FINE, "Update check skipped", e);
+		Thread.ofPlatform().name("update-check").daemon(true).start(() -> {
+			try {
+				String latest = fetchLatestVersion();
+				if (latest == null) return;
+				final String current = VersionUtils.getVersion();
+				if (current == null || isNewer(latest.trim(), current.trim())) {
+					SwingUtilities.invokeLater(() -> offerUpgrade(current, latest.trim()));
 				}
+			} catch (Exception e) {
+				logger.log(Level.FINE, "Update check skipped", e);
 			}
-		};
-		thread.setDaemon(true);
-		thread.start();
+		});
 	}
 
 	/**
@@ -114,39 +109,34 @@ public final class UpdateChecker {
 			SwingUtilities.invokeLater(() -> callback.accept(new UpdateResult(current, null, null)));
 			return;
 		}
-		Thread thread = new Thread("about-update-check") {
-			@Override
-			public void run() {
-				UpdateResult result;
-				try {
-					String current = VersionUtils.getVersion();
-					String json = fetchLatestReleaseJson();
-					String latest = extractTagName(json);
-					if (latest == null || current == null || !isNewer(latest.trim(), current.trim())) {
+		Thread.ofPlatform().name("about-update-check").daemon(true).start(() -> {
+			UpdateResult result;
+			try {
+				String current = VersionUtils.getVersion();
+				String json = fetchLatestReleaseJson();
+				String latest = extractTagName(json);
+				if (latest == null || current == null || !isNewer(latest.trim(), current.trim())) {
+					result = new UpdateResult(current, latest, null);
+				} else {
+					MsiAsset asset = extractMsiAsset(json);
+					if (asset == null) {
 						result = new UpdateResult(current, latest, null);
+					} else if (!isTrustedDownloadUrl(asset.url())) {
+						// Nothing is downloaded; the caller falls back to pointing at the release page.
+						logger.warning("Refusing to download an installer from an untrusted address: " + asset.url());
+						result = new UpdateResult(current, latest.trim(), null);
 					} else {
-						MsiAsset asset = extractMsiAsset(json);
-						if (asset == null) {
-							result = new UpdateResult(current, latest, null);
-						} else if (!isTrustedDownloadUrl(asset.url())) {
-							// Nothing is downloaded; the caller falls back to pointing at the release page.
-							logger.warning("Refusing to download an installer from an untrusted address: " + asset.url());
-							result = new UpdateResult(current, latest.trim(), null);
-						} else {
-							Path installer = stageInstaller(asset, latest.trim());
-							result = new UpdateResult(current, latest.trim(), installer);
-						}
+						Path installer = stageInstaller(asset, latest.trim());
+						result = new UpdateResult(current, latest.trim(), installer);
 					}
-				} catch (Exception e) {
-					logger.log(Level.FINE, "Update staging skipped", e);
-					result = new UpdateResult(VersionUtils.getVersion(), null, null);
 				}
-				final UpdateResult completed = result;
-				SwingUtilities.invokeLater(() -> callback.accept(completed));
+			} catch (Exception e) {
+				logger.log(Level.FINE, "Update staging skipped", e);
+				result = new UpdateResult(VersionUtils.getVersion(), null, null);
 			}
-		};
-		thread.setDaemon(true);
-		thread.start();
+			final UpdateResult completed = result;
+			SwingUtilities.invokeLater(() -> callback.accept(completed));
+		});
 	}
 
 	/** Applies the staged MSI after the current process exits. */
