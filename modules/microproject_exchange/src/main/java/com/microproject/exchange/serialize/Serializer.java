@@ -1384,11 +1384,6 @@ public class Serializer {
 		printTaskDataHierarchy(tasks,b);
     	logger.info(b.toString());
     }
-    public void printTaskDataHierarchy(Collection<TaskData> tasks,final StringBuffer b){
-		StringBuilder builder = new StringBuilder();
-		printTaskDataHierarchy(tasks, builder);
-		b.append(builder.toString());
-    }
     private void printTaskDataHierarchy(Collection<TaskData> tasks,final StringBuilder b){
 		Map<Long, Set<TaskData>> taskMap = HashMap.newHashMap(tasks.size());
     	for (TaskData taskData:tasks){
