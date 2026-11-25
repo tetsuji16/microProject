@@ -23,17 +23,17 @@
  *******************************************************************************/
 package com.microproject.undo;
 
-import java.util.Vector;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import javax.swing.undo.CompoundEdit;
 import javax.swing.undo.UndoableEdit;
 
 /** Core-owned publisher for undo edits, including nested compound batches. */
 public final class EditSupport {
-	private final Vector<EditListener> listeners = new Vector<>();
+	private final CopyOnWriteArrayList<EditListener> listeners = new CopyOnWriteArrayList<>();
 	private final ThreadLocal<Activation> active = new ThreadLocal<>();
 	private final ThreadLocal<Boolean> recordingSuppressed = new ThreadLocal<>();
 	private final ArrayDeque<Group> committed = new ArrayDeque<>();
@@ -139,11 +139,11 @@ public final class EditSupport {
 	}
 
 	public synchronized void addEditListener(EditListener listener) {
-		listeners.addElement(listener);
+		listeners.add(listener);
 	}
 
 	public synchronized void removeEditListener(EditListener listener) {
-		listeners.removeElement(listener);
+		listeners.remove(listener);
 	}
 
 	public void postEdit(UndoableEdit edit) {
