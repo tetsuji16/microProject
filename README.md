@@ -188,7 +188,3 @@ Microsoft Project 形式のショートカット、CCPM（クリティカルチ�
   対象外です。
 - **開発状況**: 公開仕様と独自のテストデータに基づくクリーンルーム実装を
   進めています。
-
-## Code signing policy
-
-Free code signing provided by SignPath.io, certificate by SignPath Foundation. See [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md) for details.
