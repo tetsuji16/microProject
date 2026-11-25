@@ -51,10 +51,10 @@ public final class FormBorders {
 
 	private static final class SizedEmptyBorder extends EmptyBorder {
 		private static final long serialVersionUID = 1L;
-		private final transient FormSpec.ConstantSize top;
-		private final transient FormSpec.ConstantSize left;
-		private final transient FormSpec.ConstantSize bottom;
-		private final transient FormSpec.ConstantSize right;
+		private final FormSpec.ConstantSize top;
+		private final FormSpec.ConstantSize left;
+		private final FormSpec.ConstantSize bottom;
+		private final FormSpec.ConstantSize right;
 
 		private SizedEmptyBorder(FormSpec.ConstantSize top, FormSpec.ConstantSize left, FormSpec.ConstantSize bottom,
 				FormSpec.ConstantSize right) {

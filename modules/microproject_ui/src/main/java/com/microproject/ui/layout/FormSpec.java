@@ -75,7 +75,7 @@ final class FormSpec {
 
 	enum Unit { PIXEL, DIALOG_UNITS_X, DIALOG_UNITS_Y, POINT }
 
-	record ConstantSize(int value, Unit unit) implements Size {
+	record ConstantSize(int value, Unit unit) implements Size, java.io.Serializable {
 		int pixels(Component component) {
 			return switch (unit) {
 				case PIXEL -> value;
@@ -328,7 +328,10 @@ final class FormSpec {
 		if ((token.startsWith("grow(") || token.startsWith("g(")) && token.endsWith(")")) {
 			String weight = token.substring(token.indexOf('(') + 1, token.length() - 1);
 			try {
-				return Double.parseDouble(weight);
+				double parsed = Double.parseDouble(weight);
+				if (!Double.isFinite(parsed) || parsed < 0)
+					throw new IllegalArgumentException("Invalid resize weight: " + weight);
+				return parsed;
 			} catch (NumberFormatException e) {
 				throw new IllegalArgumentException("'" + token + "' has an invalid weight", e);
 			}

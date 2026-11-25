@@ -182,7 +182,7 @@ public class DefaultFormBuilder implements FormRowBuilder {
 		JSeparator separator = new JSeparator();
 		separator.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
 		separatorPanel.add(separator, BorderLayout.CENTER);
-		add(separatorPanel, new CellConstraints().xyw(getColumn(), getRow(), Math.max(1, getColumnCount() - currentColumn + 1)));
+		add(separatorPanel, new CellConstraints().xyw(getColumn(), getRow(), Math.max(1, getColumnCount() - getColumn() + 1)));
 		nextLine();
 		return separator;
 	}
@@ -214,8 +214,6 @@ public class DefaultFormBuilder implements FormRowBuilder {
 		if (component instanceof JPanel) {
 			return (JPanel) component;
 		}
-		JPanel panel = new JPanel(new BorderLayout());
-		panel.add(component);
-		return panel;
+		throw new IllegalArgumentException("The builder requires a JPanel.");
 	}
 }

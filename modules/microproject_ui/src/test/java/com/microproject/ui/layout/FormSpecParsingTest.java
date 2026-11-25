@@ -118,6 +118,29 @@ class FormSpecParsingTest {
 		assertThrows(IllegalArgumentException.class, () -> constraints.xy(1, 1, CellConstraints.DEFAULT, CellConstraints.LEFT));
 	}
 
+	@Test
+	void rejectsInvalidSpansAndResizeWeightsWithoutChangingConstraints() {
+		CellConstraints cc = new CellConstraints().xywh(1, 1, 2, 3);
+		assertThrows(IllegalArgumentException.class, () -> cc.xywh(2, 2, 0, 1));
+		assertThrows(IllegalArgumentException.class, () -> cc.xywh(2, 2, 1, -1));
+		assertEquals(2, cc.gridWidth);
+		assertEquals(3, cc.gridHeight);
+		assertThrows(IllegalArgumentException.class, () -> new FormLayout("10px:g(-1)"));
+		assertThrows(IllegalArgumentException.class, () -> new FormLayout("10px:g(NaN)"));
+		assertEquals(0.0, FormSpec.parse("10px:g(0)", true).resizeWeight);
+	}
+
+	@Test
+	void sizedBorderSurvivesSerialization() throws Exception {
+		javax.swing.border.Border border = FormBorders.createEmptyBorder("1px, 2px, 3px, 4px");
+		java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+		try (java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(bytes)) { out.writeObject(border); }
+		try (java.io.ObjectInputStream in = new java.io.ObjectInputStream(new java.io.ByteArrayInputStream(bytes.toByteArray()))) {
+			javax.swing.border.Border restored = (javax.swing.border.Border) in.readObject();
+			assertEquals(border.getBorderInsets(new JPanel()), restored.getBorderInsets(new JPanel()));
+		}
+	}
+
 	private static void assertSpec(FormSpec spec, FormSpec.Align alignment, FormSpec.Size size, double weight) {
 		assertEquals(alignment, spec.defaultAlignment);
 		assertEquals(size, spec.size);

@@ -99,6 +99,8 @@ public class CellConstraints implements Cloneable {
 			throw new IllegalArgumentException("Illegal horizontal alignment " + colAlign);
 		if (!rowAlign.vertical)
 			throw new IllegalArgumentException("Illegal vertical alignment " + rowAlign);
+		if (colSpan <= 0 || rowSpan <= 0)
+			throw new IllegalArgumentException("Cell spans must be positive.");
 		gridX = col;
 		gridY = row;
 		gridWidth = colSpan;

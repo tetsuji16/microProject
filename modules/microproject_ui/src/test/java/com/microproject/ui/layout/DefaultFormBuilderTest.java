@@ -82,6 +82,19 @@ class DefaultFormBuilderTest {
 	}
 
 	@Test
+	void separatorRespectsLeadingOffsetAndNonPanelIsRejected() {
+		DefaultFormBuilder builder = new DefaultFormBuilder(new FormLayout(COLUMNS, ROWS));
+		builder.setLeadingColumnOffset(2);
+		JSeparator separator = builder.addSeparator("Section");
+		JPanel panel = builder.getPanel();
+		panel.setSize(400, panel.getPreferredSize().height);
+		panel.doLayout();
+		assertEquals(400, separator.getParent().getX() + separator.getParent().getWidth());
+		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+				() -> new DefaultFormBuilder(new JLabel(), new FormLayout("p", "p")));
+	}
+
+	@Test
 	void addSpanningPlacesTheComponentAndMovesLikeAdd() {
 		DefaultFormBuilder builder = new DefaultFormBuilder(new FormLayout(COLUMNS, ROWS));
 		builder.addLabel("Label");
