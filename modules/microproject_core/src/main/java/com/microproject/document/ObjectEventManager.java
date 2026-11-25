@@ -180,16 +180,11 @@ public class ObjectEventManager {
     public void fire(ObjectEvent evt) {
         boolean deferred = batch.tryDefer(() -> new EventFacts(evt.getSource(), evt.getObject(), evt.getType(),
             evt.getInfo(), evt.getField()));
-        if (deferred) evt.recycle();
-        else dispatch(evt);
+        if (!deferred) dispatch(evt);
     }
 
     private void dispatch(ObjectEvent evt) {
-        try {
-            for (ObjectEvent.Listener listener : listeners.snapshot())
-                listener.objectChanged(evt);
-        } finally {
-            evt.recycle();
-        }
+        for (ObjectEvent.Listener listener : listeners.snapshot())
+            listener.objectChanged(evt);
     }
 }

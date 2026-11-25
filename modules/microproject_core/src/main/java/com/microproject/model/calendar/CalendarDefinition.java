@@ -26,6 +26,7 @@ package com.microproject.model.calendar;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.text.SimpleDateFormat;
+import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
@@ -38,8 +39,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 import org.apache.commons.lang3.time.DateUtils;
-import org.apache.commons.pool.BasePoolableObjectFactory;
-import org.apache.commons.pool.impl.GenericObjectPool;
 
 import com.microproject.datatype.Duration;
 import com.microproject.schedule.criticalpath.CriticalPath;
@@ -583,28 +582,38 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
 
 
 /**
- * This class manages a pool of calendar iterators.
- *
- */	private static class CalendarIteratorFactory extends BasePoolableObjectFactory {
-		private static GenericObjectPool pool =  new GenericObjectPool(new CalendarIteratorFactory());
-		public Object makeObject(){ //claur
-			return new CalendarIterator();
-		}
-		public static CalendarIterator getInstance() {
-			try {
-				return (CalendarIterator) pool.borrowObject();
-			} catch (Exception e) {
-				ErrorLogger.log("Failed to borrow CalendarIterator", e);
-				return null;
-			}
+ * Reuses calendar iterators on the thread that computes a schedule.  Each iterator owns
+ * a {@link Calendar}, so allocating one per call would cost more than the arithmetic it
+ * supports.  Borrow and recycle always happen on the same thread inside one call, so a
+ * thread-local stack needs no locking, hands nested borrowers distinct instances, and
+ * never makes one thread wait for another.
+ */
+	static final class CalendarIteratorFactory {
+		static final int MAX_IDLE_PER_THREAD = 8;
+		private static final ThreadLocal<ArrayDeque<CalendarIterator>> IDLE = ThreadLocal.withInitial(ArrayDeque::new);
+
+		private CalendarIteratorFactory() {
 		}
 
-		public static void recycle(CalendarIterator object) {
-			try {
-				pool.returnObject(object);
-			} catch (Exception e) {
-				ErrorLogger.log("Failed to return CalendarIterator", e);
-			}
+		static CalendarIterator getInstance() {
+			CalendarIterator iterator = IDLE.get().pollFirst();
+			return iterator != null ? iterator : new CalendarIterator();
+		}
+
+		static void recycle(CalendarIterator iterator) {
+			if (iterator == null)
+				return;
+			// Drop references so an idle iterator does not keep a calendar alive.
+			iterator.calendar = null;
+			iterator.week = null;
+			iterator.exceptions = null;
+			ArrayDeque<CalendarIterator> idle = IDLE.get();
+			if (idle.size() < MAX_IDLE_PER_THREAD)
+				idle.addFirst(iterator);
+		}
+
+		static int idleCount() {
+			return IDLE.get().size();
 		}
 	}
 
@@ -612,7 +621,7 @@ public class CalendarDefinition implements WorkCalendar, Cloneable {
  * This class is an iterator which is used to return week days or exception days
  *
  */
- 	private static class CalendarIterator {
+	static final class CalendarIterator {
 		WorkDay[] exceptions;
 		WorkWeek week;
 		Calendar scratchDate; // will get reused since this class is recycled
