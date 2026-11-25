@@ -33,8 +33,13 @@ CRITERIA_HEADINGS = ("完了条件", "完了基準・提出証跡", "完了基�
 CHECKBOX = re.compile(r"^(\s*)[-*]\s+\[( |x|X)\]\s*(.*)$")
 ISSUE_LINK = re.compile(r"\b(Closes|Refs)\s+#(\d+)\b", re.IGNORECASE)
 PLACEHOLDER = re.compile(r"<(command|result|command and result|evidence|criterion copied from the issue)>", re.IGNORECASE)
-NOT_DONE_EVIDENCE = re.compile(
-	r"→\s*`?(CI|CI で確認|CI で実行|not run|未実行|TODO|TBD|pending)`?\s*(\(|（|$)", re.IGNORECASE)
+# "→ CI", "→ not run: Windows required", "→ 未実行（理由）" and the like are not evidence.
+NOT_DONE_EVIDENCE = re.compile(r"→\s*`?(CI|not run|未実行|TODO|TBD|pending)(?![A-Za-z0-9])", re.IGNORECASE)
+# The one criterion that only CI can satisfy, after normalize(): "PR の `build` と `GUI acceptance` が通る".
+REQUIRED_CI_LABEL = re.compile(
+	r"^(PRの)?(buildとGUIacceptance|必須チェック(buildとGUIacceptance)?)(の両方)?が(通る|成功する)[。.]?$")
+# A trailing note that only tells the implementer what to write in the PR may be left out.
+PR_WRITING_NOTE = re.compile(r"\s*(\([^()]*PR[^()]*\)|（[^（）]*PR[^（）]*）)\s*[。.]?\s*$")
 
 
 @dataclass
@@ -100,7 +105,7 @@ def checkbox_items(markdown: str) -> list[Item]:
 
 
 def is_required_ci_item(text: str) -> bool:
-	return "GUI acceptance" in text or "必須チェック" in text
+	return bool(REQUIRED_CI_LABEL.match(normalize(text)))
 
 
 def issue_criteria(issue_body: str, comments: list[str] = ()) -> list[str]:
@@ -118,10 +123,10 @@ def issue_criteria(issue_body: str, comments: list[str] = ()) -> list[str]:
 def check(body: str, issue_number: int | None, criteria: list[str]) -> list[str]:
 	problems: list[str] = []
 	body = body or ""
-	links = {(kind.capitalize(), int(number)) for kind, number in ISSUE_LINK.findall(body)}
+	links = [(kind.capitalize(), int(number)) for kind, number in ISSUE_LINK.findall(body)]
 	if len(links) != 1:
 		problems.append("本文に `Closes #N` か `Refs #N` を 1 つだけ書く（今: %d 個）。" % len(links))
-	kind = next(iter(links))[0] if len(links) == 1 else "Closes"
+	kind = links[0][0] if len(links) == 1 else "Closes"
 
 	found = sections(body)
 	for heading in REQUIRED_HEADINGS:
@@ -151,25 +156,23 @@ def check(body: str, issue_number: int | None, criteria: list[str]) -> list[str]
 	risk = normalize(found.get("Risk / remaining work", ""))
 	normalized_items = [(item, normalize(item.text)) for item in items]
 	for criterion in criteria:
-		key = normalize(criterion)
-		if not key:
-			continue
-		# A trailing note in parentheses tells the implementer what to write; it may be replaced.
-		short = normalize(re.sub(r"\s*(\([^()]*\)|（[^（）]*）)\s*[。.]?\s*$", "", criterion)) or key
-		matches = [(item, text) for item, text in normalized_items if short in text]
-		key = short
 		if is_required_ci_item(criterion):
 			continue
+		labels = {normalize(criterion), normalize(PR_WRITING_NOTE.sub("", criterion))} - {""}
+		if not labels:
+			continue
+		# The checked line must start with the whole criterion and continue only with "→ <evidence>".
+		matches = [(item, text, label) for item, text in normalized_items for label in labels
+			if text == label or text.startswith(label + "→")]
 		if not matches:
-			if kind == "Refs" and key in risk:
+			if kind == "Refs" and any(label in risk for label in labels):
 				continue
 			problems.append("完了条件「%s」が PR にない。そのまま写して `- [x] <完了条件> → <根拠>` と書く。" % criterion[:80])
 			continue
-		item, text = matches[0]
+		item, text, label = matches[0]
 		if not item.checked:
 			continue  # already reported above
-		rest = text[text.index(key) + len(key):]
-		if not re.search(r"→.{2,}", rest):
+		if not re.search(r"→.{2,}", text[len(label):]):
 			problems.append("完了条件「%s」の後に `→ <コマンドと結果、またはテスト名>` がない。" % criterion[:80])
 	return problems
 
@@ -181,7 +184,14 @@ def gh_json(path: str) -> object:
 
 def fetch_issue(repo: str, number: int) -> tuple[str, list[str]]:
 	issue = gh_json("repos/%s/issues/%d" % (repo, number))
-	comments = gh_json("repos/%s/issues/%d/comments?per_page=100" % (repo, number))
+	comments: list = []
+	page = 1
+	while True:
+		batch = gh_json("repos/%s/issues/%d/comments?per_page=100&page=%d" % (repo, number, page))
+		comments.extend(batch)
+		if len(batch) < 100:
+			break
+		page += 1
 	return issue.get("body") or "", [comment.get("body") or "" for comment in comments]
 
 

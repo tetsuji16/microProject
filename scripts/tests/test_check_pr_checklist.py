@@ -91,6 +91,32 @@ class CheckPrChecklistTest(unittest.TestCase):
 		body = GOOD.replace("## Verification\n", "## Verification\n\n<!-- - [ ] `<command>` -->\n")
 		self.assertEqual([], problems(body))
 
+	def test_unrun_evidence_with_an_explanation_fails(self):
+		for marker in ("not run: Windows required", "未実行（環境がない）", "CI で確認する"):
+			body = GOOD.replace("BUILD SUCCESSFUL, 5 tests, 0 failures", marker)
+			self.assertTrue(any("実行していない" in p for p in problems(body)), marker)
+
+	def test_only_the_dedicated_ci_status_criterion_may_stay_open(self):
+		issue = ISSUE.replace("- [ ] PR の `build`", "- [ ] GUI acceptance の失敗時に診断ログを保存する\n- [ ] PR の `build`")
+		body = GOOD.replace("- [ ] PR の `build`", "- [ ] GUI acceptance の失敗時に診断ログを保存する\n- [ ] PR の `build`")
+		found = problems(body, issue)
+		self.assertTrue(any("診断ログ" in p and "チェックされていない" in p for p in found))
+		self.assertTrue(checklist.is_required_ci_item("上記の必須チェックが成功する") is False)
+		self.assertTrue(checklist.is_required_ci_item("PR の必須チェック `build` と `GUI acceptance` が通る"))
+
+	def test_a_repeated_issue_link_fails(self):
+		self.assertTrue(any("Closes #N" in p for p in problems(GOOD + "\nCloses #10\n")))
+
+	def test_a_substantive_trailing_parenthesis_is_kept(self):
+		issue = ISSUE.replace("- [ ] PR の `build`", "- [ ] 出力形式を維持する（旧版ファイルを読み込める）\n- [ ] PR の `build`")
+		body = GOOD.replace("- [ ] PR の `build`", "- [x] 出力形式を維持する → FormatTest: PASS\n- [ ] PR の `build`")
+		self.assertTrue(any("出力形式" in p and "PR にない" in p for p in problems(body, issue)))
+
+	def test_a_different_label_containing_the_criterion_does_not_match(self):
+		issue = ISSUE.replace("- [ ] PR の `build`", "- [ ] 保存テストが通る\n- [ ] PR の `build`")
+		body = GOOD.replace("- [ ] PR の `build`", "- [x] 自動保存テストが通る → AutoSaveTest: PASS\n- [ ] PR の `build`")
+		self.assertTrue(any("保存テストが通る" in p and "PR にない" in p for p in problems(body, issue)))
+
 
 if __name__ == "__main__":
 	unittest.main()
