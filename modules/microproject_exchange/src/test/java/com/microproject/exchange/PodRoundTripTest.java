@@ -25,10 +25,10 @@ package com.microproject.exchange;
 
 import com.microproject.persistence.PodFormatIdentifiers;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.ByteArrayInputStream;
@@ -118,7 +118,7 @@ public class PodRoundTripTest {
 			.getBytes(java.nio.charset.StandardCharsets.UTF_8);
 		int baselineSerializedEnd = indexOf(baseline, separator);
 		int pertSerializedEnd = indexOf(withPertState, separator);
-		assertTrue("both files must contain the embedded MSPDI separator", baselineSerializedEnd >= 0 && pertSerializedEnd >= 0);
+		assertTrue(baselineSerializedEnd >= 0 && pertSerializedEnd >= 0, "both files must contain the embedded MSPDI separator");
 		assertArrayEquals(java.util.Arrays.copyOfRange(baseline, 0, baselineSerializedEnd),
 			java.util.Arrays.copyOfRange(withPertState, 0, pertSerializedEnd),
 			"adding transient PERT state must not change the POD Java object stream");
@@ -176,14 +176,14 @@ public class PodRoundTripTest {
 		double[] earlyMetrics = earnedValueMetrics(project);
 		project.setStatusDate(task.getEnd());
 		double[] taskEndMetrics = earnedValueMetrics(project);
-		assertTrue("BCWS must accumulate as the status date advances: early=" + earlyMetrics[0]
+		assertTrue(earlyMetrics[0] > 0.0D && earlyMetrics[0] < taskEndMetrics[0],
+			"BCWS must accumulate as the status date advances: early=" + earlyMetrics[0]
 			+ ", taskEnd=" + taskEndMetrics[0] + ", earlyDate=" + earlyStatusDate + ", taskStart="
-			+ task.getStart() + ", taskEndDate=" + task.getEnd(),
-			earlyMetrics[0] > 0.0D && earlyMetrics[0] < taskEndMetrics[0]);
-		assertTrue("BCWP must not decrease as the status date advances",
-			earlyMetrics[1] > 0.0D && earlyMetrics[1] <= taskEndMetrics[1]);
-		assertTrue("ACWP must not decrease as the status date advances",
-			earlyMetrics[2] > 0.0D && earlyMetrics[2] <= taskEndMetrics[2]);
+			+ task.getStart() + ", taskEndDate=" + task.getEnd());
+		assertTrue(earlyMetrics[1] > 0.0D && earlyMetrics[1] <= taskEndMetrics[1],
+			"BCWP must not decrease as the status date advances");
+		assertTrue(earlyMetrics[2] > 0.0D && earlyMetrics[2] <= taskEndMetrics[2],
+			"ACWP must not decrease as the status date advances");
 		project.setStatusDate(earlyStatusDate);
 		long expectedStatusDate = project.getStatusDate();
 		double[] expectedMetrics = earnedValueMetrics(project);
@@ -260,7 +260,7 @@ public class PodRoundTripTest {
 			exporter.setFileName(saved.getAbsolutePath());
 			exporter.setProject(project);
 			exporter.exportFile();
-			assertTrue("native POD payload must be written without MSPDI task-date bounds", saved.length() > 0);
+			assertTrue(saved.length() > 0, "native POD payload must be written without MSPDI task-date bounds");
 			Project reopened = load(saved);
 			assertEquals("Shutdown week", ((com.microproject.model.calendar.WorkingCalendar) reopened.getWorkCalendar())
 				.getWorkWeekPeriods().getFirst().getName());
@@ -301,7 +301,7 @@ public class PodRoundTripTest {
 				com.microproject.util.DateTime.calendarInstance(2025, java.util.Calendar.JANUARY, 1).getTimeInMillis(),
 				com.microproject.util.DateTime.calendarInstance(2026, java.util.Calendar.JANUARY, 1).getTimeInMillis()),
 				restored.getRecurringExceptions().getFirst().getRecurrence().occurrenceDates());
-			assertEquals("POD must not flatten occurrences to one-off dates", 0, restored.getExceptionDays().length);
+			assertEquals(0, restored.getExceptionDays().length, "POD must not flatten occurrences to one-off dates");
 		} finally {
 			Files.deleteIfExists(saved.toPath());
 		}
@@ -345,8 +345,8 @@ public class PodRoundTripTest {
 			assertEquals(1, restoredCalendar.getRecurringExceptions().size());
 			assertEquals(recurrence.occurrenceDates(), restoredCalendar.getRecurringExceptions().getFirst()
 				.getRecurrence().occurrenceDates());
-			assertTrue("resource recurrence must remain a rule rather than flattened date exceptions",
-				restoredCalendar.getExceptionDays().length == 0);
+			assertTrue(restoredCalendar.getExceptionDays().length == 0,
+				"resource recurrence must remain a rule rather than flattened date exceptions");
 		} finally {
 			Files.deleteIfExists(saved.toPath());
 		}
@@ -611,12 +611,12 @@ public class PodRoundTripTest {
 		for (String sample : List.of("Commercial construction project plan.pod", "Commercial construction project plan2.pod")) {
 			Project construction = load(findSample(sample));
 			List<TaskState> states = snapshot(construction);
-			assertEquals(sample + " task count", 145, states.size());
-			assertEquals(sample + " root task", "Three-story Office Building (76,000 square feet)", states.getFirst().name);
+			assertEquals(145, states.size(), sample + " task count");
+			assertEquals("Three-story Office Building (76,000 square feet)", states.getFirst().name, sample + " root task");
 			assertEquals("Prepare and submit project schedule[parent=General Conditions,947491200000,947610000000,57600000,0.0,500,[Submit bond and insurance documents:1:1441151880758558720],[G.C. Project Management:0.25:14400000:0:14400000, G.C. Scheduler:1.0:57600000:0:57600000]]",
 				stateNamed(states, "Prepare and submit project schedule").toString());
-			assertTrue(sample, construction.getResourcePool().getResourceList().stream()
-				.anyMatch(resource -> "G.C. Scheduler".equals(resource.getName())));
+			assertTrue(construction.getResourcePool().getResourceList().stream()
+				.anyMatch(resource -> "G.C. Scheduler".equals(resource.getName())), sample);
 		}
 	}
 
@@ -638,16 +638,16 @@ public class PodRoundTripTest {
 		String expectedTaskState) throws Exception {
 		Project imported = load(findSample(sample));
 		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-		assertTrue(sample + " MPO save", new MpoFileImporter().saveProject(imported, bytes));
+		assertTrue(new MpoFileImporter().saveProject(imported, bytes), sample + " MPO save");
 		MpoFileImporter reader = new MpoFileImporter();
 		reader.setProjectFactory(ProjectFactory.getInstance());
 		Project reopened = reader.loadProject(new ByteArrayInputStream(bytes.toByteArray()));
-		assertNotNull(sample + " MPO reload", reopened);
+		assertNotNull(reopened, sample + " MPO reload");
 		List<TaskState> states = snapshot(reopened);
-		assertEquals(sample + " task count", taskCount, states.size());
-		assertEquals(sample + " root hierarchy", rootName, states.getFirst().name);
-		assertEquals(sample + " selected hierarchy/date/duration/progress/dependency/assignment manifest",
-			expectedTaskState, stateNamed(states, taskName).toString());
+		assertEquals(taskCount, states.size(), sample + " task count");
+		assertEquals(rootName, states.getFirst().name, sample + " root hierarchy");
+		assertEquals(expectedTaskState, stateNamed(states, taskName).toString(),
+			sample + " selected hierarchy/date/duration/progress/dependency/assignment manifest");
 	}
 
 	private static TaskState stateNamed(List<TaskState> states, String name) {
@@ -660,21 +660,21 @@ public class PodRoundTripTest {
 		File sample = findSample("June_1_sample.pod");
 		try (java.util.zip.ZipFile pod = new java.util.zip.ZipFile(sample)) {
 			java.util.zip.ZipEntry serializedEntry = pod.getEntry("Serialized");
-			assertNotNull("legacy POD must contain its serialized project payload", serializedEntry);
+			assertNotNull(serializedEntry, "legacy POD must contain its serialized project payload");
 			try (var serialized = pod.getInputStream(serializedEntry)) {
 				String classDescriptors = new String(serialized.readAllBytes(), java.nio.charset.StandardCharsets.ISO_8859_1);
-				assertTrue("fixture must retain old package names so SafeObjectInput's compatibility remap is exercised",
-					classDescriptors.contains("com.projectlibre1."));
+				assertTrue(classDescriptors.contains("com.projectlibre1."),
+					"fixture must retain old package names so SafeObjectInput's compatibility remap is exercised");
 			}
 		}
 
 		Project loaded = load(sample);
-		assertTrue("legacy POD must deserialize tasks through LocalFileImporter", loaded.getTaskList().size() > 0);
+		assertTrue(loaded.getTaskList().size() > 0, "legacy POD must deserialize tasks through LocalFileImporter");
 		for (Task task : loaded.getTaskList()) {
-			assertTrue("POD tasks default to split-enabled because the frozen format has no split-option field",
-				task.isLevelingCanSplit());
-			assertTrue("POD tasks default to assignment-leveling enabled because the frozen format has no option field",
-				task.isLevelAssignments());
+			assertTrue(task.isLevelingCanSplit(),
+				"POD tasks default to split-enabled because the frozen format has no split-option field");
+			assertTrue(task.isLevelAssignments(),
+				"POD tasks default to assignment-leveling enabled because the frozen format has no option field");
 		}
 	}
 
@@ -752,15 +752,15 @@ public class PodRoundTripTest {
 
 		long aStart = childA.getStart(), aEnd = childA.getEnd();
 		long bStart = childB.getStart(), bEnd = childB.getEnd();
-		assertEquals("parent start must be earliest child start", Math.min(aStart, bStart), parent.getStart());
-		assertEquals("parent finish must be latest child finish", Math.max(aEnd, bEnd), parent.getEnd());
+		assertEquals(Math.min(aStart, bStart), parent.getStart(), "parent start must be earliest child start");
+		assertEquals(Math.max(aEnd, bEnd), parent.getEnd(), "parent finish must be latest child finish");
 
 		// Move Child B's finish one day earlier. Parent finish must shrink to follow it.
 		childB.setEnd(bEnd - day);
 
-		assertEquals("parent start unchanged", Math.min(aStart, childB.getStart()), parent.getStart());
-		assertEquals("parent finish must follow child B's earlier finish",
-				Math.max(aEnd, childB.getEnd()), parent.getEnd());
+		assertEquals(Math.min(aStart, childB.getStart()), parent.getStart(), "parent start unchanged");
+		assertEquals(Math.max(aEnd, childB.getEnd()),
+				parent.getEnd(), "parent finish must follow child B's earlier finish");
 		// And the rollup computation must agree with the rendered values
 		RollupSpan span = parent.calculateRollupSpan();
 		assertEquals(span.getStart(), parent.getStart());
@@ -804,9 +804,9 @@ public class PodRoundTripTest {
 		byte[] bytesThree = readAll(roundThree);
 		// Legacy PODs acquire a document UUID on their first migration save. Once
 		// materialized, further unmodified saves must not grow the archive.
-		assertTrue("POD grew after identity migration: round-2 size=" + bytesTwo.length
-				+ ", round-3 size=" + bytesThree.length,
-				bytesThree.length <= bytesTwo.length);
+		assertTrue(bytesThree.length <= bytesTwo.length,
+				"POD grew after identity migration: round-2 size=" + bytesTwo.length
+				+ ", round-3 size=" + bytesThree.length);
 	}
 
 	/**
@@ -847,31 +847,31 @@ public class PodRoundTripTest {
 		byte[] bytesOne = readAll(roundOne);
 		byte[] bytesTwo = readAll(roundTwo);
 		byte[] bytesThree = readAll(roundThree);
-		assertEquals("round-1 POD project data must carry documentId", first.getDocumentId(), readProjectData(roundOne).getDocumentId());
-		assertEquals("round-2 POD project data must carry documentId", first.getDocumentId(), readProjectData(roundTwo).getDocumentId());
-		assertEquals("project documentId must survive round-trip", first.getDocumentId(), reloaded.getDocumentId());
+		assertEquals(first.getDocumentId(), readProjectData(roundOne).getDocumentId(), "round-1 POD project data must carry documentId");
+		assertEquals(first.getDocumentId(), readProjectData(roundTwo).getDocumentId(), "round-2 POD project data must carry documentId");
+		assertEquals(first.getDocumentId(), reloaded.getDocumentId(), "project documentId must survive round-trip");
 		// A legacy POD can gain the new stable document UUID in its first migration
 		// cycle. The migrated representation itself must be byte-size stable; this
 		// still detects the permanent namespace drift fixed by issue #227.
-		assertTrue("POD size is not stable after identity migration: round-2 size=" + bytesTwo.length
-				+ ", round-3 size=" + bytesThree.length,
-				bytesTwo.length == bytesThree.length);
+		assertTrue(bytesTwo.length == bytesThree.length,
+				"POD size is not stable after identity migration: round-2 size=" + bytesTwo.length
+				+ ", round-3 size=" + bytesThree.length);
 
 		// Issue #227 root cause assertions: the persistent identity of the project and
 		// its tasks must survive the round-trip. If `created` regenerated with a new
 		// Date() on load, or uniqueId re-minted, these would diverge.
-		assertEquals("project created must survive round-trip",
-				first.getCreated().getTime(), reloaded.getCreated().getTime());
-		assertEquals("project uniqueId must survive round-trip",
-				first.getUniqueId(), reloaded.getUniqueId());
-		assertEquals("project documentId must survive round-trip",
-				first.getDocumentId(), reloaded.getDocumentId());
+		assertEquals(first.getCreated().getTime(),
+				reloaded.getCreated().getTime(), "project created must survive round-trip");
+		assertEquals(first.getUniqueId(),
+				reloaded.getUniqueId(), "project uniqueId must survive round-trip");
+		assertEquals(first.getDocumentId(),
+				reloaded.getDocumentId(), "project documentId must survive round-trip");
 		Task firstTask = firstTask(first);
 		Task reloadedTask = firstTask(reloaded);
-		assertEquals("task created must survive round-trip",
-				firstTask.getCreated().getTime(), reloadedTask.getCreated().getTime());
-		assertEquals("task uniqueId must survive round-trip",
-				firstTask.getUniqueId(), reloadedTask.getUniqueId());
+		assertEquals(firstTask.getCreated().getTime(),
+				reloadedTask.getCreated().getTime(), "task created must survive round-trip");
+		assertEquals(firstTask.getUniqueId(),
+				reloadedTask.getUniqueId(), "task uniqueId must survive round-trip");
 	}
 
 
@@ -892,8 +892,8 @@ public class PodRoundTripTest {
 		e1.exportFile();
 
 		Project p1 = load(f1);
-		assertEquals("round-1 created", p0Created, p1.getCreated().getTime());
-		assertEquals("round-1 uid", p0Uid, p1.getUniqueId());
+		assertEquals(p0Created, p1.getCreated().getTime(), "round-1 created");
+		assertEquals(p0Uid, p1.getUniqueId(), "round-1 uid");
 
 		File f2 = File.createTempFile("rt2", ".pod");
 		f2.deleteOnExit();
@@ -903,10 +903,10 @@ public class PodRoundTripTest {
 		e2.exportFile();
 
 		Project p2 = load(f2);
-		assertEquals("effective Work Week rules must survive consecutive native round-trips",
-				workWeekSignature(p1), workWeekSignature(p2));
-		assertEquals("round-2 created", p0Created, p2.getCreated().getTime());
-		assertEquals("round-2 uid", p0Uid, p2.getUniqueId());
+		assertEquals(workWeekSignature(p1),
+				workWeekSignature(p2), "effective Work Week rules must survive consecutive native round-trips");
+		assertEquals(p0Created, p2.getCreated().getTime(), "round-2 created");
+		assertEquals(p0Uid, p2.getUniqueId(), "round-2 uid");
 	}
 
 	private static byte[] readAll(File file) throws Exception {
@@ -944,7 +944,7 @@ public class PodRoundTripTest {
 	// date must not make a round-trip fail.  Leaf values and explicit manual
 	// summary overrides remain persistence invariants; automatic summaries are
 	// checked against their descendant scheduled span below.
-	assertEquals(sampleName + " leaf state", leafSnapshot(expected, before), leafSnapshot(snapshot(after), after));
+	assertEquals(leafSnapshot(expected, before), leafSnapshot(snapshot(after), after), sampleName + " leaf state");
 	assertSummaryRollupInvariants(before, after);
 		assertEquals(Integer.valueOf(0x123456), after.getGanttBarFormatOverrides()
 				.get(GanttBarFormatOverrides.STANDARD_VIEW, formattedTask.getUniqueId())
@@ -998,8 +998,8 @@ public class PodRoundTripTest {
 				assertEquals(original.getSummaryEnvelope().getManualDuration(), restored.getSummaryEnvelope().getManualDuration());
 			} else {
 				RollupSpan span = descendantScheduledSpan(restored);
-				assertEquals("automatic summary start: " + restored.getName(), span.getStart(), restored.calculateRollupSpan().getStart());
-				assertEquals("automatic summary finish: " + restored.getName(), span.getFinish(), restored.calculateRollupSpan().getFinish());
+				assertEquals(span.getStart(), restored.calculateRollupSpan().getStart(), "automatic summary start: " + restored.getName());
+				assertEquals(span.getFinish(), restored.calculateRollupSpan().getFinish(), "automatic summary finish: " + restored.getName());
 			}
 		}
 	}
@@ -1038,7 +1038,7 @@ public class PodRoundTripTest {
 		importer.setFileName(file.getAbsolutePath());
 		importer.setProjectFactory(ProjectFactory.getInstance());
 		importer.importFile();
-		assertNotNull("Failed to load " + file, importer.getProject());
+		assertNotNull(importer.getProject(), "Failed to load " + file);
 		return importer.getProject();
 	}
 
@@ -1112,23 +1112,23 @@ public class PodRoundTripTest {
 		e2.exportFile();
 
 		Project p2 = load(f2);
-		assertEquals("task states must stabilize after one full save/reload cycle", snapshot(p1), snapshot(p2));
-		assertEquals("effective Work Week rules must stabilize after one full save/reload cycle",
-				workWeekSignature(p1), workWeekSignature(p2));
+		assertEquals(snapshot(p1), snapshot(p2), "task states must stabilize after one full save/reload cycle");
+		assertEquals(workWeekSignature(p1),
+				workWeekSignature(p2), "effective Work Week rules must stabilize after one full save/reload cycle");
 
 		// The real round-trip determinism guarantee: serializing the two loaded
 		// projects back to their ProjectData payloads must be bit-for-bit identical.
 		Serializer serializer = new Serializer();
 		byte[] payload1 = serializeProjectData(serializer, p1);
 		byte[] payload2 = serializeProjectData(serializer, p2);
-		assertEquals("consecutive .pod payloads must be byte-identical (issue #227/#268)",
-				java.util.Arrays.toString(payload1), java.util.Arrays.toString(payload2));
+		assertEquals(java.util.Arrays.toString(payload1),
+				java.util.Arrays.toString(payload2), "consecutive .pod payloads must be byte-identical (issue #227/#268)");
 
 		// created timestamp must survive the round-trip unchanged (issue #227)
-		assertEquals("created timestamp must survive round-trip (issue #227)",
-				p0.getCreated().getTime(), p2.getCreated().getTime());
-		assertEquals("work calendar uniqueId must survive round-trip (issue #268)",
-				p0.getWorkCalendar().getUniqueId(), p2.getWorkCalendar().getUniqueId());
+		assertEquals(p0.getCreated().getTime(),
+				p2.getCreated().getTime(), "created timestamp must survive round-trip (issue #227)");
+		assertEquals(p0.getWorkCalendar().getUniqueId(),
+				p2.getWorkCalendar().getUniqueId(), "work calendar uniqueId must survive round-trip (issue #268)");
 	}
 
 	private static byte[] serializeProjectData(Serializer serializer, Project project) throws Exception {

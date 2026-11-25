@@ -23,12 +23,12 @@
  *******************************************************************************/
 package test.com.microproject.exchange;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -122,7 +122,7 @@ public class XlsxSupportTest {
 				assertTrue(expected.getMessage().contains("configured limit"));
 			}
 			assertFalse(com.microproject.util.Environment.isImporting());
-			assertTrue("rejected input must release the caller's stream", streamClosed[0]);
+			assertTrue(streamClosed[0], "rejected input must release the caller's stream");
 
 			System.setProperty(property, "invalid");
 			final boolean[] invalidConfigStreamClosed = {false};
@@ -139,7 +139,7 @@ public class XlsxSupportTest {
 				assertTrue(expected.getMessage().contains("microproject.xlsx.maxImportBytes"));
 			}
 			assertFalse(com.microproject.util.Environment.isImporting());
-			assertTrue("invalid configuration must release the caller's stream", invalidConfigStreamClosed[0]);
+			assertTrue(invalidConfigStreamClosed[0], "invalid configuration must release the caller's stream");
 			System.setProperty(property, "4");
 
 			File oversizedFile = File.createTempFile("oversized-xlsx", ".xlsx");
@@ -184,11 +184,11 @@ public class XlsxSupportTest {
 				});
 				fail("Malformed XLSX must fail import");
 			} catch (Exception expected) {
-				assertFalse("failure must occur before domain conversion", importer.getProject() != null);
+				assertFalse(importer.getProject() != null, "failure must occur before domain conversion");
 			}
-			assertTrue("import must close the caller's stream", streamClosed[0]);
-			assertFalse("failed parsing must not leave the global importing flag set",
-				com.microproject.util.Environment.isImporting());
+			assertTrue(streamClosed[0], "import must close the caller's stream");
+			assertFalse(com.microproject.util.Environment.isImporting(),
+				"failed parsing must not leave the global importing flag set");
 		} finally {
 			if (previous == null) {
 				System.clearProperty(property);
@@ -361,7 +361,7 @@ public class XlsxSupportTest {
 					break;
 				}
 			}
-			assertTrue("50% resource capacity must use the summary sheet percent scale", wroteExpectedResourceCapacity);
+			assertTrue(wroteExpectedResourceCapacity, "50% resource capacity must use the summary sheet percent scale");
 
 			org.apache.poi.ss.usermodel.Sheet exportedAssignments = workbook.getSheet("Assignments");
 			String taskUid = Long.toString(child.getUniqueId());
@@ -376,16 +376,16 @@ public class XlsxSupportTest {
 					break;
 				}
 			}
-			assertTrue("50% assignment must use the summary sheet percent scale", wroteExpectedAssignmentAsPercent);
+			assertTrue(wroteExpectedAssignmentAsPercent, "50% assignment must use the summary sheet percent scale");
 		}
 
 		ByteArrayOutputStream summaryOnly = new ByteArrayOutputStream();
 		try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(exported.toByteArray()))) {
 			int payloadIndex = workbook.getSheetIndex("_MicroProject_MSPDI");
-			assertTrue("writer output contains its higher-priority MSPDI payload", payloadIndex >= 0);
+			assertTrue(payloadIndex >= 0, "writer output contains its higher-priority MSPDI payload");
 			workbook.removeSheetAt(payloadIndex);
 			int nativePayloadIndex = workbook.getSheetIndex("_MicroProject_NATIVE");
-			assertTrue("writer output contains its native project payload", nativePayloadIndex >= 0);
+			assertTrue(nativePayloadIndex >= 0, "writer output contains its native project payload");
 			workbook.removeSheetAt(nativePayloadIndex);
 			workbook.write(summaryOnly);
 		}
@@ -641,7 +641,7 @@ public class XlsxSupportTest {
 			}
 		};
 		microsoftProject = microsoftImporter.loadProject(in);
-		assertTrue("native XLSX import must release its source stream", streamClosed[0]);
+		assertTrue(streamClosed[0], "native XLSX import must release its source stream");
 		MspImporter directImporter = new MspImporter();
 		com.microproject.model.task.Project directProject = directImporter.importProject(tempFile.getAbsolutePath(),
 			new MspImporter.ProgressClosure() {
@@ -711,15 +711,15 @@ public class XlsxSupportTest {
 		MicroProjectXlsxReader reader = new MicroProjectXlsxReader();
 		reader.read(new ByteArrayInputStream(embeddedOnly));
 		assertNotNull(reader.consumeEmbeddedMspdiXml());
-		assertNull("consuming the payload clears reader state", reader.consumeEmbeddedMspdiXml());
+		assertNull(reader.consumeEmbeddedMspdiXml(), "consuming the payload clears reader state");
 		reader.read(new ByteArrayInputStream(summaryOnly));
-		assertNull("a subsequent summary-only read has no stale payload", reader.consumeEmbeddedMspdiXml());
+		assertNull(reader.consumeEmbeddedMspdiXml(), "a subsequent summary-only read has no stale payload");
 
 		HeaderTrackingMspImporter importer = new HeaderTrackingMspImporter();
 		com.microproject.model.task.Project project = importer.importProject(new ByteArrayInputStream(embeddedOnly), "xlsx",
 			(progress, label) -> {});
 		assertTrue(project.getTaskList().stream().anyMatch(task -> "Embedded MSPDI fallback task".equals(task.getName())));
-		assertEquals("embedded declared project boundary is applied before tasks", 1, importer.earlyHeaderPasses);
+		assertEquals(1, importer.earlyHeaderPasses, "embedded declared project boundary is applied before tasks");
 		com.microproject.model.task.Project embeddedMpoReloaded = mpoRoundTrip(project);
 		assertTrue(embeddedMpoReloaded.getTaskList().stream()
 			.anyMatch(task -> "Embedded MSPDI fallback task".equals(task.getName())));
