@@ -26,13 +26,20 @@ package com.microproject.util;
 import java.text.DateFormat;
 import java.text.ParsePosition;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import org.apache.commons.lang3.time.DateUtils;
 import java.time.DateTimeException;
-import java.time.ZoneId;
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.chrono.IsoChronology;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.ResolverStyle;
+import java.time.format.SignStyle;
+import java.time.temporal.ChronoField;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -79,15 +86,25 @@ public final class YearlessDateInputParser {
 		}
 	}
 
-	private static Date parseStrictIsoDate(String text) throws ParseException {
-		String normalized = text.replace('-', '/');
-		DateFormat iso = new SimpleDateFormat("yyyy/MM/dd", Locale.ROOT);
-		// Schedule dates are stored and rendered against DateTime's canonical UTC
-		// calendar.  Parsing an explicit yyyy/MM/dd in the desktop's local zone
-		// shifts the stored day for zones east or west of UTC.
-		iso.setTimeZone(java.util.TimeZone.getTimeZone("GMT"));
-		return parseStrict(iso, normalized);
-	}
+	private static final DateTimeFormatter ISO_INPUT = new DateTimeFormatterBuilder()
+			.appendValue(ChronoField.YEAR, 4)
+			.appendLiteral('/')
+			.appendValue(ChronoField.MONTH_OF_YEAR, 1, 2, SignStyle.NOT_NEGATIVE)
+			.appendLiteral('/')
+			.appendValue(ChronoField.DAY_OF_MONTH, 1, 2, SignStyle.NOT_NEGATIVE)
+			.toFormatter(Locale.ROOT)
+			.withChronology(IsoChronology.INSTANCE)
+			.withResolverStyle(ResolverStyle.STRICT);
+
+		private static Date parseStrictIsoDate(String text) throws ParseException {
+			String normalized = text.replace('-', '/');
+			try {
+				LocalDate date = LocalDate.parse(normalized, ISO_INPUT);
+				return Date.from(date.atStartOfDay(ZoneOffset.UTC).toInstant());
+			} catch (java.time.format.DateTimeParseException e) {
+				throw new ParseException(text, e.getErrorIndex());
+			}
+		}
 
 	/**
 	 * DateFormat.parse(String) accepts a valid prefix and silently normalizes
