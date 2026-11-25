@@ -342,7 +342,7 @@ tasks.register("verifyDependencyAllowlist") {
             "org.apache.logging.log4j", "org.apache.pdfbox", "org.apache.poi",
             "org.codehaus.groovy", "org.glassfish.jaxb", "org.imgscalr", "org.jfree", "org.slf4j", "org.pushingpixels", "org.pushing-pixels",
             "org.update4j", "com.github.librepdf",
-            "org.netbeans.api", "org.junit", "junit", "com.github"
+            "org.netbeans.api", "org.junit", "com.github"
         )
         subprojects.forEach { module ->
             module.configurations.findByName("implementation")?.dependencies?.forEach { dependency ->
