@@ -297,7 +297,7 @@ public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
     public void dump() {
         dump(null, "", line -> logger.log(Level.FINE, "{0}", line));
    }
-    public void dump(final StringBuffer buf) {
+    public void dump(final StringBuilder buf) {
         dump(null, "", line -> buf.append(line).append('\n'));
    }
     
