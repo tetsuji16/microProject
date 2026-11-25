@@ -52,31 +52,27 @@ This project includes software from the following third parties:
    - License: GNU Lesser General Public License (LGPL)
    - https://github.com/LibrePDF/OpenPDF
 
-6. imgscalr (Image scaling)
-   - License: BSD License
-   - https://www.thebuzzmedia.com/software/imgscalr-java-image-scaling-library/
-
-7. SLF4J / Logback (Logging)
+6. SLF4J / Logback (Logging)
    - License: Eclipse Public License 1.0
    - https://www.slf4j.org/
 
-8. Jackson (JSON processing)
+7. Jackson (JSON processing)
    - License: Apache License 2.0
    - https://github.com/FasterXML/jackson
 
-9. JGoodies Forms
+8. JGoodies Forms
     - License: BSD License
     - https://www.jgoodies.com/
 
-10. Radiance / Flamingo (Ribbon UI)
+9. Radiance / Flamingo (Ribbon UI)
     - License: BSD License
     - https://github.com/kirill-grouchnikov/radiance
 
-11. PDFBox (PDF parsing)
+10. PDFBox (PDF parsing)
     - License: Apache License 2.0
     - https://pdfbox.apache.org/
 
-12. Apache POI (Excel support)
+11. Apache POI (Excel support)
     - License: Apache License 2.0
     - https://poi.apache.org/
 
