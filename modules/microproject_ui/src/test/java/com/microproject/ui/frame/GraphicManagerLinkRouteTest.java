@@ -228,11 +228,7 @@ class GraphicManagerLinkRouteTest {
 		graphicManager.setFrameManager(frameManager);
 		ObjectEvent event = ObjectEvent.getInstance(this, new Object(), ObjectEvent.UPDATE, null);
 
-		try {
-			graphicManager.objectChanged(event);
-		} finally {
-			event.recycle();
-		}
+		graphicManager.objectChanged(event);
 
 		assertEquals(1, activeChecks.get(), "event handling must use the FrameManager lifecycle contract");
 	}

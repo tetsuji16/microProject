@@ -335,7 +335,7 @@ tasks.register("verifyDependencyAllowlist") {
             "com.fasterxml.jackson.core", "com.fasterxml.jackson.dataformat",
             "com.formdev", "com.jgoodies", "com.thoughtworks.xstream",
             "commons-codec",
-            "commons-io", "commons-logging", "commons-pool", "org.apache.commons",
+            "commons-io", "commons-logging", "org.apache.commons",
             "io.reactivex.rxjava3", "jakarta.xml.bind", "jakarta.activation",
 			"com.sun.istack",
 			"net.sf.mpxj",
