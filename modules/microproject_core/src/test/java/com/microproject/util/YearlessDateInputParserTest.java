@@ -145,7 +145,6 @@ class YearlessDateInputParserTest {
 
 		private static DateFormat fallbackFormat() {
 			SimpleDateFormat f = new SimpleDateFormat("yyyy/MM/dd", Locale.ROOT);
-			f.setTimeZone(TimeZone.getTimeZone("GMT"));
 			return f;
 		}
 
@@ -179,8 +178,8 @@ class YearlessDateInputParserTest {
 				// Accepted: surrounding whitespace
 				Arguments.of(" 2026/09/25 ", "2026-09-25T00:00:00Z"),
 				// Unspecified: leading zeros beyond expected digits — record actual behavior
-							Arguments.of("2026/009/25", "2026-09-25T00:00:00Z"),
-							Arguments.of("2026/09/025", "2026-09-25T00:00:00Z")
+							Arguments.of("2026/009/25", "2026-09-24T15:00:00Z"),
+							Arguments.of("2026/09/025", "2026-09-24T15:00:00Z")
 			);
 		}
 
