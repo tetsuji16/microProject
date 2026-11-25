@@ -6,6 +6,7 @@ on:
     branches: [master]
 
 permissions:
+  actions: write
   contents: read
   issues: read
   pull-requests: read
@@ -41,3 +42,16 @@ jobs:
           # The pull request that introduces the checker has no base copy yet.
           [ -f "$script" ] || script=head/scripts/check_pr_checklist.py
           python3 "$script" --event "$GITHUB_EVENT_PATH" --repo "$GITHUB_REPOSITORY"
+
+      # The required `build` check runs the same checker. When only the body was fixed, re-run its failed job.
+      - name: Re-run a build that failed on the checklist
+        if: ${{ success() && github.event.action == 'edited' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          run_id=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/build.yml/runs?head_sha=$HEAD_SHA&event=pull_request&per_page=1" \
+            --jq '.workflow_runs[0] | select(.status == "completed" and .conclusion == "failure") | .id')
+          if [ -n "$run_id" ]; then
+            gh run rerun "$run_id" --failed --repo "$GITHUB_REPOSITORY"
+          fi

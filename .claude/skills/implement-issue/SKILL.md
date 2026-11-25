@@ -9,6 +9,7 @@ description: GitHub の issue を 1 件、本文の作業手順と完了条件�
 
 ## 1. 読む
 
+0. 新しい issue に取りかかる前に、自分の開いている PR を `gh pr list --state open --json number,title,statusCheckRollup` で見る。`checklist`・`build`・`GUI acceptance` が失敗しているもの、返事をしていないレビューの指摘があるものは、`python scripts/check_pr_checklist.py --pr <番号>` で指摘を見て直し、push して本文を更新する（`gh pr edit <番号> --body-file pr-body.md`）。失敗している PR がなくなってから、新しい issue に進む。
 1. `gh issue view <番号> --comments` で、本文と最新のコメントを読む。コメントが本文を上書きしていることがある。
 2. 本文に「作業手順」「検証」「完了条件」がそろっていることを確かめる。そろっていれば、`.github/pull_request_template.md` を写した `pr-body.md` を作り、完了条件を 1 行ずつ「Completion criteria」に写しておく。これが作業の一覧になる。そろっていない、または手順が今のコードと合わないときは、実装せずに、足りない点を issue にコメントして止まる。
 3. ラベルが `status: blocked` のとき、または前提の issue が開いているときは、着手しない。
@@ -25,6 +26,7 @@ description: GitHub の issue を 1 件、本文の作業手順と完了条件�
 - `.editorconfig` に従う（UTF-8、CRLF、タブ）。新しいファイルには `Copyright (c) 2026 microProject` の MIT ヘッダーを付ける。パッケージは `com.microproject`。
 - 「範囲外」に書かれたこと、関係のない整形やリネームはしない。
 - 不具合の修正では、先に失敗するテストを書き、修正後に通ることを確かめる。
+- 完了条件が「置き換えの前と後の両方で通る」と言うときは、テストを先にコミットし、元のコードのまま実行した結果を控えてから置き換える。
 - 本文が決めていない選択が出てきたら、変更が小さく、元に戻しやすいほうを選び、理由を PR に書く。ファイル形式、スケジュール計算の結果、公開 API を変える選択は、自分で決めずに issue にコメントして止まる。
 
 ## 4. 検証する
@@ -33,6 +35,7 @@ description: GitHub の issue を 1 件、本文の作業手順と完了条件�
    ```
    .\gradlew.bat <タスク> --console=plain > "$env:TEMP\verify.log" 2>&1; $LASTEXITCODE
    ```
+   - `rg` が入っていないときは、同じ正規表現を `git grep -nE "<式>" -- <パス>` で実行する。完了条件の文は書き換えず、根拠に実際に実行したコマンドと結果を書く（例：`- [x] <完了条件のまま> → git grep -nE "..." -- modules で 0 件（rg がない）`）。
 2. `git diff --check` が空であることを確かめる。
 3. 完了条件を 1 行ずつ確かめ、満たした根拠（コマンドと結果、テスト名）を控える。
 4. 同じ失敗を 2 回直しても通らないときは、3 回目を試す前に、原因を調べ直す。分からなければ、分かったことを issue にコメントして止まる。試験を無効にしたり、期待値を弱めたりして通さない。
@@ -44,4 +47,4 @@ description: GitHub の issue を 1 件、本文の作業手順と完了条件�
 3. `python scripts/check_pr_checklist.py --body-file pr-body.md` を実行し、`OK` が出るまで作業（文面ではなく）を直す。`OK` が出る前に PR を作らない。
 4. `git push -u origin <ブランチ>` のあと、`gh pr create --body-file pr-body.md` で PR を作る。
 5. 実行していない確認、満たせなかった完了条件は、チェックを付けずに行を消し、PR の「Risk / remaining work」に書いて `Refs #<番号>` にする。「通った」と書いてよいのは、実行して通ったものだけ。「CI で確認」はチェックの根拠にならない。
-6. マージはしない。必須チェック（`build`、`GUI acceptance`）の結果を待ち、失敗したら原因を調べて直す。
+6. マージはしない。`gh pr checks <番号> --watch` でチェック（`checklist`、`build`、`GUI acceptance`）の結果を同じ実行の中で待ち、失敗したら原因を調べて直す。失敗したまま実行を終えない。
