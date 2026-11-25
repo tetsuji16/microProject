@@ -6,6 +6,7 @@
 package com.microproject.document;
 
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -30,7 +31,7 @@ import com.microproject.undo.NodeUndoInfo;
 class ObjectEventManagerTest {
 	@Test
 	@Timeout(value = 5, unit = TimeUnit.SECONDS)
-	void pooledEventsAreReturnedWhileBatchRetainsOrderedFacts() {
+	void deferredEventsArePublishedAsOrderedFacts() {
 		ObjectEventManager manager = new ObjectEventManager();
 		List<CapturedEvent> observed = new ArrayList<>();
 		manager.addListener(event -> observed.add(new CapturedEvent(event.getSource(), event.getObject(),
@@ -71,7 +72,7 @@ class ObjectEventManagerTest {
 	}
 
 	@Test
-	void nestedRollbackDiscardsFactsAndRecyclesEventsImmediately() {
+	void nestedRollbackDiscardsFacts() {
 		ObjectEventManager manager = new ObjectEventManager();
 		List<Object> observed = new ArrayList<>();
 		manager.addListener(event -> observed.add(event.getObject()));
@@ -108,10 +109,14 @@ class ObjectEventManagerTest {
 	}
 
 	@Test
-	void listenerFailureStillResetsAndRecyclesPooledEvent() {
+	void listenerFailurePropagatesAndLaterEventsStartEmpty() {
 		Object source = new Object();
-		ObjectEvent event = ObjectEvent.getInstance(source, new Object(), ObjectEvent.UPDATE, new NodeUndoInfo(true));
-		event.setField(new Field());
+		Object object = new Object();
+		NodeUndoInfo info = new NodeUndoInfo(true);
+		Field field = new Field();
+		ObjectEvent event = ObjectEvent.getInstance(source, object, ObjectEvent.UPDATE, info);
+		event.setField(field);
+		event.setPublicationRevision(7L);
 		ObjectEventManager manager = new ObjectEventManager();
 		manager.addListener(ignored -> {
 			throw new IllegalStateException("listener failure");
@@ -119,15 +124,42 @@ class ObjectEventManagerTest {
 
 		assertThrows(IllegalStateException.class, () -> manager.fire(event));
 
-		ObjectEvent reused = ObjectEvent.getInstance(new Object());
-		try {
-			assertSame(event, reused);
-			assertNull(reused.getField());
-			assertNull(reused.getInfo());
-			assertNull(reused.getObject());
-		} finally {
-			reused.recycle();
-		}
+		// The failed event keeps its facts for any caller that still holds it.
+		assertSame(source, event.getSource());
+		assertSame(object, event.getObject());
+		assertSame(info, event.getInfo());
+		assertSame(field, event.getField());
+
+		Object nextSource = new Object();
+		ObjectEvent next = ObjectEvent.getInstance(nextSource);
+		assertNotSame(event, next);
+		assertSame(nextSource, next.getSource());
+		assertNull(next.getField());
+		assertNull(next.getInfo());
+		assertNull(next.getObject());
+		assertEquals(ObjectEvent.UPDATE, next.getType());
+		assertEquals(-1L, next.getPublicationRevision());
+	}
+
+	@Test
+	void eachInstanceIsANewEventEvenWhileAnotherIsBeingDispatched() {
+		ObjectEventManager manager = new ObjectEventManager();
+		List<ObjectEvent> nested = new ArrayList<>();
+		ObjectEvent outer = ObjectEvent.getInstance(this, new Object(), ObjectEvent.UPDATE, null);
+		manager.addListener(event -> {
+			if (event == outer) {
+				ObjectEvent inner = ObjectEvent.getInstance(this, new Object(), ObjectEvent.CREATE, null);
+				nested.add(inner);
+				manager.fire(inner);
+			}
+		});
+
+		manager.fire(outer);
+
+		assertEquals(1, nested.size());
+		assertNotSame(outer, nested.get(0));
+		assertEquals(ObjectEvent.UPDATE, outer.getType(), "dispatching a nested event must not rewrite the outer one");
+		assertEquals(ObjectEvent.CREATE, nested.get(0).getType());
 	}
 
 	private record CapturedEvent(Object source, Object object, int type,

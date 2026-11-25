@@ -7,7 +7,6 @@ commons-lang3 = "3.22.0"
 commons-text = "1.15.0"
 commons-logging = "1.4.0"
 jcl-over-slf4j = "2.0.20"
-commons-pool = "1.6"
 flatlaf = "3.8"
 groovy = "3.0.25"
 openpdf = "3.0.6"
@@ -39,7 +38,6 @@ commons-lang3 = { module = "org.apache.commons:commons-lang3", version.ref = "co
 commons-text = { module = "org.apache.commons:commons-text", version.ref = "commons-text" }
 commons-logging = { module = "commons-logging:commons-logging", version.ref = "commons-logging" }
 jcl-over-slf4j = { module = "org.slf4j:jcl-over-slf4j", version.ref = "jcl-over-slf4j" }
-commons-pool = { module = "commons-pool:commons-pool", version.ref = "commons-pool" }
 forms = { module = "com.jgoodies:jgoodies-forms", version = "1.9.0" }
 flatlaf = { module = "com.formdev:flatlaf", version.ref = "flatlaf" }
 flatlaf-extras = { module = "com.formdev:flatlaf-extras", version.ref = "flatlaf" }
@@ -72,7 +70,6 @@ commons-runtime = [
 	"commons-digester3",
     "commons-lang3",
     "jcl-over-slf4j",
-    "commons-pool",
 ]
 jackson = ["jackson-annotations", "jackson-core", "jackson-databind"]
 logging = ["slf4j-api", "slf4j-simple"]

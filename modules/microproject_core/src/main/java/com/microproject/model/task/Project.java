@@ -1176,13 +1176,11 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	public void updateScheduling(Object source,Object newlyCreated,int type){
 		ObjectEvent evt = ObjectEvent.getInstance(source,newlyCreated,type,null);
 		getSchedulingAlgorithm().objectChanged(evt);
-		evt.recycle();
 	}
 	public void updateScheduling(Object source,Object newlyCreated,int type,Field field){
 		ObjectEvent evt = ObjectEvent.getInstance(source,newlyCreated,type,null);
 		evt.setField(field);
 		getSchedulingAlgorithm().objectChanged(evt);
-		evt.recycle();
 	}
 	public void remove(Object toRemove, NodeModel nodeModel,boolean deep,boolean undo,boolean cleanDependencies){
 		taskLifecycleFacade.remove(toRemove, nodeModel, deep, undo, cleanDependencies);
