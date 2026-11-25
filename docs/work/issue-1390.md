@@ -26,7 +26,7 @@ Blockers: none (ADR-0003 from #1389 is merged as `8b38c7369`).
 | A2 | `rg -n "SimpleDateFormat" .../core/time/TimeUtil.java` is empty | pass | `grep -c` → 0 |
 | A3 | `rg -n "static SimpleDateFormat f" .../calendar/CalendarDefinition.java` is empty | pass | `grep -c` → 0 |
 | A4 | `FormatConcurrencyTest` and `:microproject_core:test` pass | pass | `FormatConcurrencyTest` 2 tests / 0 failures; `:microproject_core:test` 1466 tests, 2 skipped, 0 failures |
-| A5 | The PR's `build` and `GUI acceptance` checks pass | open | CI on the candidate SHA |
+| A5 | The PR's `build` and `GUI acceptance` checks pass | pass | PR #1396 at `017cd8dd2`: `build`, `verify` (windows/ubuntu/macos), `GUI acceptance` and CodeRabbit all pass |
 
 ## Current slice
 
@@ -36,11 +36,11 @@ Blockers: none (ADR-0003 from #1389 is merged as `8b38c7369`).
 
 ## Remaining blockers
 
-- A5: CI evidence on the candidate SHA.
+- none
 
 ## Latest evidence
 
 - Tests/build: `.\gradlew.bat :microproject_core:test --console=plain` → BUILD
   SUCCESSFUL, 1466 tests / 2 skipped / 0 failures at `8b38c7369` + working tree.
 - Physical GUI/manual: not applicable — no Swing or user-facing route changes.
-- CI: pending.
+- CI: PR #1396 `build` / `verify` (3 OS) / `GUI acceptance` / CodeRabbit pass at `017cd8dd2`.
