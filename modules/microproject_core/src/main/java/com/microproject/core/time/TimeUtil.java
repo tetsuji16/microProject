@@ -23,9 +23,11 @@
  *******************************************************************************/
 package com.microproject.core.time;
 
-import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.Calendar;
-import java.util.Date;
+import java.util.Locale;
 import java.util.TimeZone;
 
 
@@ -37,6 +39,9 @@ public class TimeUtil { //thread safe: no shared mutable state (issue #184)
 	protected static long MINUTE=60000L;
 	protected static long HOUR=60*MINUTE;
 	protected static long DAY=24*HOUR;
+
+	private static final DateTimeFormatter UTC_SECONDS =
+			DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.ROOT).withZone(ZoneOffset.UTC);
 
 	private static int getTimeZoneOffset(long t){ 
 		Calendar c=Calendar.getInstance(); // local time zone
@@ -51,9 +56,7 @@ public class TimeUtil { //thread safe: no shared mutable state (issue #184)
 	}
 	
 	public static String toUTCString(long t){
-		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.ROOT);
-		format.setTimeZone(TimeZone.getTimeZone("GMT"));
-		return format.format(new Date(t));
+		return UTC_SECONDS.format(Instant.ofEpochMilli(t));
 	}
 	
 	public static long toHoursAndMinutes(long date) { //corrects the problem of mpx giving hours in local timezone not utc
