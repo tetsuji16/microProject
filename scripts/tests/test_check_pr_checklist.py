@@ -117,6 +117,14 @@ class CheckPrChecklistTest(unittest.TestCase):
 		body = GOOD.replace("- [ ] PR の `build`", "- [x] 自動保存テストが通る → AutoSaveTest: PASS\n- [ ] PR の `build`")
 		self.assertTrue(any("保存テストが通る" in p and "PR にない" in p for p in problems(body, issue)))
 
+	def test_refs_needs_the_whole_criterion_under_remaining_work(self):
+		issue = ISSUE.replace("- [ ] PR の `build`", "- [ ] 保存テストが通る\n- [ ] PR の `build`")
+		body = GOOD.replace("Closes #10", "Refs #10").replace(
+			"## Risk / remaining work\n\n- なし", "## Risk / remaining work\n\n- 自動保存テストが通る: 次の PR で行う。")
+		self.assertTrue(any("保存テストが通る" in p and "PR にない" in p for p in problems(body, issue)))
+		listed = body.replace("- 自動保存テストが通る: 次の PR で行う。", "- 保存テストが通る: 次の PR で行う。")
+		self.assertEqual([], problems(listed, issue))
+
 
 if __name__ == "__main__":
 	unittest.main()

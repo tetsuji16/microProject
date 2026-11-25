@@ -153,7 +153,9 @@ def check(body: str, issue_number: int | None, criteria: list[str]) -> list[str]
 		problems.append("issue #%d に `## 完了条件` のチェックボックスがない。実装する前に issue に完了条件を足す。" % issue_number)
 		return problems
 
-	risk = normalize(found.get("Risk / remaining work", ""))
+	# Each remaining-work bullet starts with a whole criterion label, optionally followed by an explanation.
+	risk_lines = [normalize(re.sub(r"^\s*([-*]|\d+\.)\s+(\[[ xX]\]\s*)?", "", line))
+		for line in found.get("Risk / remaining work", "").splitlines() if line.strip()]
 	normalized_items = [(item, normalize(item.text)) for item in items]
 	for criterion in criteria:
 		if is_required_ci_item(criterion):
@@ -165,7 +167,8 @@ def check(body: str, issue_number: int | None, criteria: list[str]) -> list[str]
 		matches = [(item, text, label) for item, text in normalized_items for label in labels
 			if text == label or text.startswith(label + "→")]
 		if not matches:
-			if kind == "Refs" and any(label in risk for label in labels):
+			if kind == "Refs" and any(line == label or (line.startswith(label) and line[len(label)] in ":：→—-、。(（")
+					for line in risk_lines for label in labels):
 				continue
 			problems.append("完了条件「%s」が PR にない。そのまま写して `- [x] <完了条件> → <根拠>` と書く。" % criterion[:80])
 			continue
