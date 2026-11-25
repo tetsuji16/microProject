@@ -23,7 +23,7 @@
  *******************************************************************************/
 package com.microproject.exchange.mpx.converter;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 
@@ -89,9 +89,8 @@ public class MpxDurationConversionTest {
 		// every elapsed unit (values >= 7). No TimeUnit value may throw.
 		for (TimeUnit unit : TimeUnit.values()) {
 			long millis = MpxUtils.toMillis(Duration.getInstance(1, unit));
-			org.junit.Assert.assertTrue(
-					"unit " + unit + " (value=" + unit.getValue() + ") produced invalid result " + millis,
-					millis >= 0L);
+			org.junit.jupiter.api.Assertions.assertTrue(millis >= 0L,
+					"unit " + unit + " (value=" + unit.getValue() + ") produced invalid result " + millis);
 		}
 	}
 
