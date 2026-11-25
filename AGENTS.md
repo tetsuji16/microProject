@@ -103,7 +103,7 @@ This section applies to every agent and tool, including ones that do not read `C
 6. If a criterion cannot be met, do not open a `Closes` PR. Either open `Refs #N` with the unmet criterion under `## Risk / remaining work`, or comment on the issue with what blocks it and stop.
 7. Wait for CI in the same run: `gh pr checks <N> --watch`. Do not end the run while the PR you opened has a failing check. After CI finishes, open the PR's checks and review comments. Fix failures and actionable review comments, update the PR body evidence, and re-run the checker. Do not change `scripts/check_pr_checklist.py` or the PR template in an issue PR.
 
-The `PR checklist` workflow runs the same checker on every PR; a PR whose checklist fails is not ready for review or merge.
+The `PR checklist` workflow runs the same checker on every PR, and the required `build` check runs it again, so a PR whose checklist fails cannot be merged. When you fix only the body, the `PR checklist` workflow re-runs the failed `build` job; after a push, `build` runs again anyway.
 
 ## Git / PR workflow
 
