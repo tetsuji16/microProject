@@ -46,7 +46,7 @@ in production sources, including packages shared at a boundary.
 - `microproject_exchange`: `exchange`, `exchange.converter`, `exchange.mpx`, `exchange.mpxj`, `exchange.serialize`, `exchange.xlsx` implement external formats, serialization and related conversions.
 - `microproject_reports`: `reports.adapter`, `reports.model`, `reports.render` provide report adapters, models and rendering.
 - `microproject_ribbon`: `ribbon` contains ribbon models, commands and theme abstractions.
-- `microproject_ui`: `ui.app`, `ui.command`, `ui.diagnostics`, `ui.dialog`, `ui.export`, `ui.frame`, `ui.help`, `ui.input`, `ui.menu`, `ui.print`, `ui.privacy`, `ui.report`, `ui.ribbon`, `ui.shell`, `ui.theme`, `ui.toolbar`, `ui.util`, `ui.view` contain the Swing application and views.
+- `microproject_ui`: `ui.app`, `ui.command`, `ui.diagnostics`, `ui.dialog`, `ui.export`, `ui.frame`, `ui.help`, `ui.input`, `ui.layout`, `ui.menu`, `ui.print`, `ui.privacy`, `ui.report`, `ui.ribbon`, `ui.shell`, `ui.theme`, `ui.toolbar`, `ui.util`, `ui.view` contain the Swing application and views.
 
 ## Renamed packages
 
