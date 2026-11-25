@@ -43,10 +43,6 @@ import javax.swing.JPopupMenu;
 import javax.swing.JToolBar;
 import javax.swing.InputMap;
 
-import org.pushingpixels.flamingo.api.common.RichTooltip;
-import org.pushingpixels.flamingo.api.common.AbstractCommandButton;
-import org.pushingpixels.flamingo.api.common.JCommandToggleButton;
-
 import com.microproject.ui.ribbon.SwingRibbonFactory;
 import com.microproject.ribbon.CustomRibbonBandGenerator;
 import com.microproject.ribbon.SwingRibbonModel;
@@ -257,66 +253,51 @@ public class MenuManager {
 			menuItem.setEnabled(enable);
 	}
 	public void setActionVisible(String id, boolean enable) {
-		Collection<?> buttons = getToolButtonsFromId(id);
-		if (buttons != null) {
-			for (Object button : buttons) {
-				if (button instanceof AbstractButton abstractButton)
-					abstractButton.setVisible(enable);
-				else if (button instanceof AbstractCommandButton commandButton)
-					commandButton.setVisible(enable);
-			}
-		}
-		JMenuItem menuItem = menuFactory.getMenuItemFromId(id);
-		if (menuItem != null)
-			menuItem.setVisible(enable);
-	}
-	public void setActionSelected(String id, boolean enable) {
-		Action action = getActionFromId(id);
-		if (action != null)
-			action.putValue(Action.SELECTED_KEY, enable);
-		Collection<?> buttons = getToolButtonsFromId(id);
-		if (buttons != null) {
-			for (Object button : buttons) {
-				if (button instanceof AbstractButton abstractButton) {
-					abstractButton.setSelected(enable);
-				} else if (button instanceof JCommandToggleButton commandToggleButton) {
-					commandToggleButton.getActionModel().setSelected(enable);
-				} else if (button instanceof AbstractCommandButton commandButton) {
-					commandButton.getActionModel().setSelected(enable);
+			Collection<?> buttons = getToolButtonsFromId(id);
+			if (buttons != null) {
+				for (Object button : buttons) {
+					if (button instanceof AbstractButton abstractButton)
+						abstractButton.setVisible(enable);
 				}
 			}
+			JMenuItem menuItem = menuFactory.getMenuItemFromId(id);
+			if (menuItem != null)
+				menuItem.setVisible(enable);
 		}
-		JMenuItem menuItem = menuFactory.getMenuItemFromId(id);
-		if (menuItem != null)
-			menuItem.setSelected(enable);
-		for (TabbedNavigation tabbedNavigation : tabbedNavigations) {
-			tabbedNavigation.setActivatedView(id, enable);
-		}
-
-	}
-	public void setText(String id, String text) {
-		Collection<?> buttons = getToolButtonsFromId(id);
-		if (buttons != null) {
-			for (Object button : buttons) {
-				if (button instanceof AbstractButton abstractButton)
-					abstractButton.setToolTipText(text);
-				else if (button instanceof AbstractCommandButton commandButton)
-					commandButton.setActionRichTooltip(richTooltip(text));
+	public void setActionSelected(String id, boolean enable) {
+			Action action = getActionFromId(id);
+			if (action != null)
+				action.putValue(Action.SELECTED_KEY, enable);
+			Collection<?> buttons = getToolButtonsFromId(id);
+			if (buttons != null) {
+				for (Object button : buttons) {
+					if (button instanceof AbstractButton abstractButton) {
+						abstractButton.setSelected(enable);
+					}
+				}
 			}
-		}
-		JMenuItem menuItem = menuFactory.getMenuItemFromId(id);
-		if (menuItem != null)
-			menuItem.setText(text);
-	}
+			JMenuItem menuItem = menuFactory.getMenuItemFromId(id);
+			if (menuItem != null)
+				menuItem.setSelected(enable);
+			for (TabbedNavigation tabbedNavigation : tabbedNavigations) {
+				tabbedNavigation.setActivatedView(id, enable);
+			}
 
-	private static RichTooltip richTooltip(String text) {
-		RichTooltip tooltip = new RichTooltip(text, text);
-		tooltip.addDescriptionSection(text);
-		return tooltip;
-	}
-	
-	
-    public String getTextForId(String id) {
+		}
+	public void setText(String id, String text) {
+			Collection<?> buttons = getToolButtonsFromId(id);
+			if (buttons != null) {
+				for (Object button : buttons) {
+					if (button instanceof AbstractButton abstractButton)
+						abstractButton.setToolTipText(text);
+				}
+			}
+			JMenuItem menuItem = menuFactory.getMenuItemFromId(id);
+			if (menuItem != null)
+				menuItem.setText(text);
+		}
+
+		public String getTextForId(String id) {
     	return menuFactory.getTextForId(id);
     }
     public String getFullTipText(String name) {

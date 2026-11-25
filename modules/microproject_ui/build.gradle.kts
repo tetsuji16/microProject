@@ -27,7 +27,6 @@ dependencies {
 	implementation(libs.org.netbeans.swing.outline)
 	implementation(libs.radiance.neon)
 	implementation(libs.radiance.trident)
-	implementation(libs.flamingo)
 	implementation(libs.bundles.jaxb)
 	implementation(libs.jackson.annotations)
 	implementation(libs.jackson.core)
