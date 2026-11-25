@@ -1,0 +1,43 @@
+name: PR checklist
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+    branches: [master]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: pr-checklist-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  checklist:
+    # Dependency updates have no issue or checklist.
+    if: github.event.pull_request.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Run the checker from the base branch so a pull request cannot loosen the check it is judged by.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: head
+          persist-credentials: false
+
+      - name: Check that every box is checked and every completion criterion has evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          script=base/scripts/check_pr_checklist.py
+          # The pull request that introduces the checker has no base copy yet.
+          [ -f "$script" ] || script=head/scripts/check_pr_checklist.py
+          python3 "$script" --event "$GITHUB_EVENT_PATH" --repo "$GITHUB_REPOSITORY"
