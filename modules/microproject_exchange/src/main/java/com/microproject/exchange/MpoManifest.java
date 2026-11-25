@@ -195,12 +195,12 @@ final class MpoManifest {
 		String xml = new String(xmlBytes, StandardCharsets.UTF_8);
 		Pattern assignment = Pattern.compile("(<Assignment(?:\\s[^>]*)?>)([\\s\\S]*?)(</Assignment>)");
 		Matcher matcher = assignment.matcher(xml);
-		StringBuffer migrated = new StringBuffer(xml.length());
+		StringBuilder migrated = new StringBuilder(xml.length());
 		while (matcher.find()) {
 			String assignmentBody = matcher.group(2);
 			Pattern row = Pattern.compile("(<TimephasedData(?:\\s[^>]*)?>[\\s\\S]*?<Type>)(\\d+)(</Type>[\\s\\S]*?<Value>)([^<]+)(</Value>[\\s\\S]*?</TimephasedData>)");
 			Matcher rows = row.matcher(assignmentBody);
-			StringBuffer migratedRows = new StringBuffer(assignmentBody.length());
+			StringBuilder migratedRows = new StringBuilder(assignmentBody.length());
 			while (rows.find()) {
 				int type;
 				try { type = Integer.parseInt(rows.group(2)); }
@@ -238,7 +238,7 @@ final class MpoManifest {
 	static byte[] migrateLegacyLevelingDelays(byte[] xmlBytes) throws IOException {
 		String xml = new String(xmlBytes, StandardCharsets.UTF_8);
 		Matcher matcher = MpoFileImporter.LEVELING_DELAY.matcher(xml);
-		StringBuffer migrated = new StringBuffer(xml.length());
+		StringBuilder migrated = new StringBuilder(xml.length());
 		while (matcher.find()) {
 			try {
 				// MPXJ serializes a minute-format leveling delay in tenths of a
