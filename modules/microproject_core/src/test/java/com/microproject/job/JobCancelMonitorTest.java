@@ -57,13 +57,16 @@ class JobCancelMonitorTest {
 			@Override public void invokeLater(Runnable task) { task.run(); }
 			@Override public boolean isDispatchThread() { return true; }
 		});
-		AtomicBoolean canceled = new AtomicBoolean();
+		// The monitor thread returns early when the job is already canceled, so the
+		// fake monitor reports cancellation only after its first few checks: the
+		// monitor's own start check plus the job's checks before the runnable runs.
+		AtomicInteger cancelChecks = new AtomicInteger();
 		AtomicBoolean closed = new AtomicBoolean();
 		JobProgressMonitor monitor = new JobProgressMonitor() {
 			@Override public void setProgress(int progress) { }
 			@Override public void setNote(String note) { }
 			@Override public void close() { closed.set(true); }
-			@Override public boolean isCanceled() { return canceled.get(); }
+			@Override public boolean isCanceled() { return cancelChecks.incrementAndGet() > 4; }
 			@Override public boolean isClosed() { return closed.get(); }
 		};
 		JobQueue queue = new JobQueue("cancel-monitor-test", false) {
@@ -83,15 +86,15 @@ class JobCancelMonitorTest {
 				return null;
 			}
 		});
+		Thread checker;
 		try {
 			assertTrue(queue.trySchedule(job));
 			assertTrue(workStarted.await(5, TimeUnit.SECONDS), "the job must reach its first runnable");
-			Thread checker = job.monitorChecker;
+			checker = job.monitorChecker;
 			assertNotNull(checker, "a progress monitor must install the cancel monitor");
 			assertEquals("cancelMonitorJob_cancelMonitor", checker.getName());
 			assertEquals(job.isDaemon(), checker.isDaemon(), "the monitor inherits the job's daemon setting");
 
-			canceled.set(true);
 			long deadline = System.currentTimeMillis() + 5000L;
 			while (closureCalls.get() == 0 && System.currentTimeMillis() < deadline)
 				Thread.sleep(20);
@@ -101,6 +104,8 @@ class JobCancelMonitorTest {
 			releaseWork.countDown();
 			job.join(5000);
 		}
+		checker.join(5000);
+		assertFalse(checker.isAlive(), "the cancel monitor must stop after running the closure");
 		assertEquals(1, closureCalls.get(), "the cancel monitor must not run the closure again");
 	}
 }
