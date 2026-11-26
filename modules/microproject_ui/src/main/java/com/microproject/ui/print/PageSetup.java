@@ -1028,10 +1028,10 @@ public class PageSetup{
 	}
 
 	private JComponent createPaperPanel(){
-		return paperPanel("8dlu, p,p,8dlu", "p, 3dlu:grow,p, 2dlu", 2, createPaperSizePanel());
+		return paperPanel("8dlu, p:grow, p:grow, 8dlu", "p, 3dlu:grow,p, 2dlu", 2, createPaperSizePanel());
 	}
 	private JComponent createFlowPaperPanel(){
-		return paperPanel("1dlu, p,p,p:grow,1dlu", "p, 3dlu:grow, 2dlu", 3, createFlowPaperSizePanel());
+		return paperPanel("1dlu, p:grow, p:grow, p:grow, 1dlu", "p, 3dlu:grow, 2dlu", 3, createFlowPaperSizePanel());
 	}
 	private JComponent paperPanel(String columns, String rows, int sizeSpan, JComponent sizePanel){
 		FormLayout layout = new FormLayout(columns, rows);

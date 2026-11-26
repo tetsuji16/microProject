@@ -44,6 +44,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.i18n.Messages;
 import com.microproject.ui.dialog.PageSetupDialog;
+import com.microproject.ui.print.PageSizes;
 import com.microproject.ui.menu.testsupport.MenuDefinitionSupport;
 import com.microproject.ui.menu.testsupport.UiComponentWalker;
 import com.microproject.ui.testsupport.DialogScreenshotArtifacts;
@@ -80,6 +81,17 @@ class PageSetupDialogGuiAcceptanceTest {
 
 			Rectangle dialogBounds = new Rectangle(0, 0, dialog.getRootPane().getWidth(), dialog.getRootPane().getHeight());
 			DialogScreenshotArtifacts.capture(dialog, "issue-1359-page-setup-" + locale.getLanguage());
+			JComboBox<?> paperSize = UiComponentWalker.flatten(dialog).stream()
+				.filter(JComboBox.class::isInstance).map(JComboBox.class::cast)
+				.filter(combo -> combo.getSelectedItem() instanceof PageSizes.Format).findFirst().orElse(null);
+			assertNotNull(paperSize, "Paper size selector must be present in the Paper group");
+			assertTrue(paperSize.isShowing(), "Paper size selector must be visible");
+			assertNotNull(paperSize.getSelectedItem(), "Paper size selector must show the current paper size");
+			Rectangle paperSizeBounds = SwingUtilities.convertRectangle(paperSize.getParent(), paperSize.getBounds(), dialog.getRootPane());
+			assertTrue(dialogBounds.contains(paperSizeBounds), "Paper size selector must fit the dialog: " + paperSizeBounds);
+			assertTrue(paperSize.getWidth() >= paperSize.getPreferredSize().width,
+				"Paper size selector must retain its preferred width: bounds=" + paperSize.getBounds()
+					+ " preferred=" + paperSize.getPreferredSize());
 			int checked = 0;
 			for (Component control : UiComponentWalker.flatten(dialog)) {
 				if (!control.isShowing() || !isTextControl(control)) continue;

@@ -7,6 +7,7 @@ package com.microproject.ui.print;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -56,8 +57,9 @@ class PageSetupSettingsTransactionTest {
 					PageSetup setup = PageSetup.getInstance(document);
 					JPanel panel = (JPanel) setup.createContentPanel(false);
 					layoutAtAssignedBounds(panel);
+					assertNotNull(setup.paperSize.getSelectedItem(), "paper size selection must be available for " + locale);
 					for (JComponent control : List.of(setup.paperWidthLabel, setup.paperWidth,
-							setup.paperHeightLabel, setup.paperHeight, setup.marginLeftLabel, setup.marginLeft,
+							setup.paperHeightLabel, setup.paperHeight, setup.paperSize, setup.marginLeftLabel, setup.marginLeft,
 							setup.marginRightLabel, setup.marginRight, setup.marginTopLabel, setup.marginTop,
 							setup.marginBottomLabel, setup.marginBottom, setup.scaleToWidth, setup.scaleToHeight,
 							setup.fitToWidth, setup.fitToHeight, setup.scaleToWidthLabel, setup.scaleToHeightLabel,
