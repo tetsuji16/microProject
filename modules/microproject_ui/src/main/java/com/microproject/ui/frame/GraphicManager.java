@@ -4570,7 +4570,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 //			return;
 //		}
 
-		new Thread(() -> {
+		Thread.ofPlatform().name("microproject-close-projects").start(() -> {
 			JobRunnable exitRunnable=new JobRunnable("Local: closeProjects"){
 				public Object run() throws Exception{
 					Frame frame=getFrame();
@@ -4585,7 +4585,7 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			Job job=projectFactory.getPortfolio().getRemoveAllProjectsJob(exitRunnable,true,null);
 			SessionFactory.getInstance().getLocalSession().schedule(job);
 
-		}).start();
+		});
 	}
 
 	public void initLayout() {

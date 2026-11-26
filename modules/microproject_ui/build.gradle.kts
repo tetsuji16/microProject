@@ -13,7 +13,6 @@ dependencies {
     implementation(project(":microproject_exchange"))
     implementation(project(":microproject_reports"))
     implementation(libs.commons.csv)
-    implementation(libs.imgscalr.lib)
 	implementation(libs.commons.collections4)
 	// UI uses these string libraries directly; other Commons dependencies come
 	// through the core module.

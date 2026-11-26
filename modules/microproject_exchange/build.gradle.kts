@@ -11,7 +11,6 @@ dependencies {
     implementation(libs.log4j.to.slf4j)
     testImplementation(platform(libs.junit.bom))
     testImplementation("org.junit.jupiter:junit-jupiter")
-    testImplementation(libs.junit4)
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

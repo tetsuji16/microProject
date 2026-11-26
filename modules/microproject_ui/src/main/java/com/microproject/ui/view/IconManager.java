@@ -32,7 +32,6 @@ import java.awt.RenderingHints;
 import java.awt.Color;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
-import java.awt.image.BufferedImageOp;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -49,8 +48,6 @@ import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
 
 import com.formdev.flatlaf.extras.FlatSVGIcon;
-import org.imgscalr.Scalr;
-
 import com.microproject.util.ClassLoaderUtils;
 import com.microproject.ui.util.ColorLuminance;
 import com.microproject.ui.util.FlatUiSupport;
@@ -235,7 +232,7 @@ public class IconManager {
 		double scale = Math.min((double) width / source.getWidth(), (double) height / source.getHeight());
 		int scaledWidth = Math.max(1, (int) Math.round(source.getWidth() * scale));
 		int scaledHeight = Math.max(1, (int) Math.round(source.getHeight() * scale));
-		BufferedImage resized = Scalr.resize(source, Scalr.Method.QUALITY, scaledWidth, scaledHeight, new BufferedImageOp[0]);
+		BufferedImage resized = ImageScaling.resize(source, scaledWidth, scaledHeight);
 		BufferedImage canvas = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D g2 = canvas.createGraphics();
 		try {
@@ -629,8 +626,8 @@ public class IconManager {
 		BufferedImage image = toBufferedImage(icon.getImage());
 		if (image == null)
 			return null;
-		BufferedImage resized = Scalr.resize(image, Scalr.Method.QUALITY,
-				Math.max(1, icon.getIconWidth() / 2), Math.max(1, icon.getIconHeight() / 2), new BufferedImageOp[0]);
+		BufferedImage resized = ImageScaling.resize(image,
+				Math.max(1, icon.getIconWidth() / 2), Math.max(1, icon.getIconHeight() / 2));
 		return new ImageIcon(resized);
 	}
 	

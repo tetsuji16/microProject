@@ -36,6 +36,8 @@ import com.microproject.datatype.Duration;
 import com.microproject.datatype.PercentFormat;
 import com.microproject.view.configuration.SpreadSheetCategories;
 import com.microproject.node.Node;
+import com.microproject.node.event.HierarchyEvent;
+import com.microproject.node.event.HierarchyListener;
 import com.microproject.node.model.NodeModel;
 import com.microproject.ui.view.model.cache.NodeModelCache;
 import com.microproject.ui.view.model.cache.NodeModelCacheFactory;
@@ -968,6 +970,62 @@ class TaskCommandGatewayTest {
 
 		assertEquals(TaskCommandResult.Status.MISSING_TASK, result.status());
 		assertEquals("Before", fixture.task().getName());
+	}
+
+	@Test
+	void failedHierarchyCommandLeavesRevisionUndoHistoryAndOutlineUnchanged() throws Exception {
+		Fixture fixture = createDependencyFixture();
+		RevisionedProjectionIndex projection = fixture.cache().getVisibleNodes().getProjectionIndex();
+		ProjectionRowKey.TaskRow row = taskRowFor(projection, fixture.task());
+		TaskHierarchyEditIntent intent = new TaskHierarchyEditIntent(TaskHierarchyEditIntent.Operation.MOVE,
+			List.of(row), projection.topologyRevision(), null, false, 1);
+		assertTrue(TaskCommandGateway.canExecute(fixture.sheet(), intent),
+			"the fixture must allow the move this test injects a failure into");
+		long revisionBefore = fixture.project().getMutationState().revision();
+		List<String> undoBefore = fixture.project().getUndoController().getEditNames();
+		AtomicReference<Throwable> failure = new AtomicReference<>();
+		HierarchyListener failing = new HierarchyListener() {
+			public void nodesChanged(HierarchyEvent e) {
+				throw new IllegalStateException("injected hierarchy failure");
+			}
+
+			public void nodesInserted(HierarchyEvent e) { }
+
+			public void nodesRemoved(HierarchyEvent e) { }
+
+			public void structureChanged(HierarchyEvent e) { }
+		};
+		fixture.project().getTaskModel().getHierarchy().addHierarchyListener(failing);
+		try {
+			SwingUtilities.invokeAndWait(() -> {
+				try {
+					TaskCommandGateway.execute(fixture.sheet(), intent);
+				} catch (RuntimeException | Error thrown) {
+					failure.set(thrown);
+				}
+			});
+		} finally {
+			fixture.project().getTaskModel().getHierarchy().removeHierarchyListener(failing);
+		}
+
+		assertNotNull(failure.get(), "the injected failure must reach the caller");
+		assertEquals(revisionBefore, fixture.project().getMutationState().revision(),
+			"a rolled-back hierarchy command must not commit a revision");
+		assertEquals(undoBefore, fixture.project().getUndoController().getEditNames(),
+			"a rolled-back hierarchy command must not post an Undo entry");
+		assertEquals(List.of("Before", "Successor", "Final task"), rootNames(fixture.project()),
+			"a rolled-back hierarchy command must restore the outline order");
+	}
+
+	private static List<String> rootNames(Project project) {
+		List<String> names = new java.util.ArrayList<>();
+		Node root = (Node)project.getTaskModel().getHierarchy().getRoot();
+		for (int index = 0; index < root.getChildCount(); index++) {
+			Node child = (Node)root.getChildAt(index);
+			if (child.getImpl() instanceof NormalTask task)
+				names.add(task.getName());
+		}
+		return names;
 	}
 
 	private Fixture createFixture() throws Exception {

@@ -36,7 +36,8 @@ import java.util.ListIterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Stack;
+import java.util.ArrayDeque;
+import java.util.Deque;
 
 import com.microproject.ui.view.model.cache.GraphicNode;
 import com.microproject.ui.view.model.cache.ReferenceNodeModelCache;
@@ -170,11 +171,11 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
 
 
         List<GraphicNode> localList=null;
-        Stack<GraphicNode> parents=null;
+        Deque<GraphicNode> parents=null;
         boolean alreadyExcluded;
         if (preserveHierarchy){
          	localList=new ArrayList<>();
-         	parents=new Stack<>();
+		parents=new ArrayDeque<>();
         }else localList=list;
 
         GraphicNode gnode,previous=null;
@@ -219,7 +220,7 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
 	                 }else if (previous.getLevel()>=gnode.getLevel()){
 	                	 while (parents.size()>=gnode.getLevel()) parents.pop();
 	                 }
-	                 parents.peek().getChildren().add(gnode);
+	                 parents.element().getChildren().add(gnode);
 	             }
 	             previous=gnode;
              }
@@ -495,7 +496,7 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
     private Map<GraphicNode,List<GraphicNode>> extractAssignments(List<GraphicNode> list){
 	Map<GraphicNode,List<GraphicNode>> map = HashMap.newHashMap(list.size());
     	GraphicNode current,last;
-	Stack<GraphicNode> path=new Stack<>();
+	Deque<GraphicNode> path=new ArrayDeque<>();
         for (ListIterator<GraphicNode> i=list.listIterator();i.hasNext();){
             current=i.next();
             if (current.getLevel()==1){
@@ -503,9 +504,9 @@ public class NodeCacheTransformer implements CacheTransformer<GraphicNode> {
             	path.push(current);
             	continue;
             }
-            while ((last=path.peek()).getLevel()>=current.getLevel()) path.pop();
+            while ((last=path.element()).getLevel()>=current.getLevel()) path.pop();
             if (current.isAssignment()){
-            	GraphicNode task=path.peek();
+			GraphicNode task=path.element();
             	List<GraphicNode> ass=map.get(task);
             	if (ass==null){
 		ass=new LinkedList<>();

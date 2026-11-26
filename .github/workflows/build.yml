@@ -77,11 +77,29 @@ jobs:
             build/audit/test-source-inventory.json
 
   build:
-    # The required status check; it passes only when every OS in verify passed.
+    # The required status check; it passes only when every OS in verify passed
+    # and, for a pull request, its body proves every completion criterion.
     needs: verify
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
     steps:
       - name: Require every OS to pass
         run: test "${{ needs.verify.result }}" = success
+
+      # Same checker as the PR checklist workflow, taken from the base branch so a pull request cannot loosen it.
+      # It reads the current PR body, so a re-run after the body is fixed passes.
+      - name: Require a complete PR checklist
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.user.type != 'Bot' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh api -H "Accept: application/vnd.github.raw" \
+            "repos/$GITHUB_REPOSITORY/contents/scripts/check_pr_checklist.py?ref=$BASE_SHA" > check_pr_checklist.py
+          python3 check_pr_checklist.py --pr "$PR_NUMBER" --repo "$GITHUB_REPOSITORY"
