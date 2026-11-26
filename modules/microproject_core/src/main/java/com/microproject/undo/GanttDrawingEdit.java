@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *******************************************************************************/
-package com.microproject.model.gantt;
+package com.microproject.undo;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,15 +30,18 @@ import javax.swing.undo.AbstractUndoableEdit;
 import javax.swing.undo.CannotRedoException;
 import javax.swing.undo.CannotUndoException;
 
+import com.microproject.model.gantt.GanttDrawing;
+import com.microproject.model.gantt.GanttDrawings;
+
 /** One Gantt drawing operation (add, move, format or delete) as a single undo step. */
-final class GanttDrawingChangeEdit extends AbstractUndoableEdit {
+public final class GanttDrawingEdit extends AbstractUndoableEdit {
 	private static final long serialVersionUID = 1L;
 
 	private final GanttDrawings target;
 	private final List<GanttDrawing> before;
 	private final List<GanttDrawing> after;
 
-	GanttDrawingChangeEdit(GanttDrawings target, List<GanttDrawing> before, List<GanttDrawing> after) {
+	public GanttDrawingEdit(GanttDrawings target, List<GanttDrawing> before, List<GanttDrawing> after) {
 		this.target = target;
 		this.before = new ArrayList<>(before);
 		this.after = new ArrayList<>(after);
@@ -46,11 +49,11 @@ final class GanttDrawingChangeEdit extends AbstractUndoableEdit {
 
 	@Override public void undo() throws CannotUndoException {
 		super.undo();
-		target.restoreFromEdit(before);
+		target.restore(before);
 	}
 
 	@Override public void redo() throws CannotRedoException {
 		super.redo();
-		target.restoreFromEdit(after);
+		target.restore(after);
 	}
 }

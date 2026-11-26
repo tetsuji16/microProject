@@ -93,6 +93,9 @@ com/microproject/undo/EditSupport.java	javax.swing.undo.UndoableEdit
 com/microproject/undo/FieldEdit.java	javax.swing.undo.AbstractUndoableEdit
 com/microproject/undo/FieldEdit.java	javax.swing.undo.CannotRedoException
 com/microproject/undo/FieldEdit.java	javax.swing.undo.CannotUndoException
+com/microproject/undo/GanttDrawingEdit.java	javax.swing.undo.AbstractUndoableEdit
+com/microproject/undo/GanttDrawingEdit.java	javax.swing.undo.CannotRedoException
+com/microproject/undo/GanttDrawingEdit.java	javax.swing.undo.CannotUndoException
 com/microproject/undo/ModelFieldEdit.java	javax.swing.undo.AbstractUndoableEdit
 com/microproject/undo/ModelFieldEdit.java	javax.swing.undo.CannotRedoException
 com/microproject/undo/ModelFieldEdit.java	javax.swing.undo.CannotUndoException

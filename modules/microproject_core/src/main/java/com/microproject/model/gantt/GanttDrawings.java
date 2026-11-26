@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Objects;
 
 import com.microproject.model.task.Project;
+import com.microproject.undo.GanttDrawingEdit;
 
 /**
  * The ordered Gantt drawings of one project document.
@@ -121,7 +122,8 @@ public final class GanttDrawings {
 		replace(values == null ? List.of() : values);
 	}
 
-	void restoreFromEdit(List<GanttDrawing> values) {
+	/** Restores a drawing snapshot for the undo edit; callers use the operations above. */
+	public void restore(List<GanttDrawing> values) {
 		replace(values);
 	}
 
@@ -141,7 +143,7 @@ public final class GanttDrawings {
 		replace(after);
 		if (project != null && project.getUndoController() != null)
 			project.getUndoController().getEditSupport()
-					.postEdit(new GanttDrawingChangeEdit(this, before, after));
+					.postEdit(new GanttDrawingEdit(this, before, after));
 		return true;
 	}
 

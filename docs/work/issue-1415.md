@@ -23,9 +23,9 @@
   - value type (kind, anchor task uid, anchor side, offsets, size, ARGB line/fill color, text); no drawing code
 - `.../model/gantt/GanttDrawings.java`
   - ordered list in `Project` transient document state (like `PertManualPositions`), monotonic ids
-  - `add`, `move`, `format`, `remove`, `removeForTask` each post one `GanttDrawingChangeEdit`;
+  - `add`, `move`, `format`, `remove`, `removeForTask` each post one `GanttDrawingEdit`;
     `setDrawings` is the silent loader path and `removeForTaskSilently` serves replayed removals
-- `.../model/gantt/GanttDrawingChangeEdit.java`
+- `.../undo/GanttDrawingEdit.java`
   - one before/after list snapshot per operation, so one Undo/Redo step
 - `.../model/task/Project.java`
   - `getGanttDrawings()` / `findGanttDrawings()`; `remove(...)` also removes the drawings anchored to a
