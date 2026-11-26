@@ -41,7 +41,9 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.microproject.session.FileHelper;
 import com.microproject.util.RetirableFileLock;
 import com.microproject.util.SafeFileReplace;
@@ -55,7 +57,7 @@ public class CollaborationMetadataStore {
 	static final long SESSION_TTL_MS = 120000L;
 	private static final String SESSION_ENTRY_PREFIX = "__microproject_session_v1__";
 	public static final int SCHEMA_VERSION = 1;
-	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+	private static final ObjectMapper OBJECT_MAPPER = JsonMapper.builderWithJackson2Defaults().build();
 	private static final Object JVM_LOCK_REGISTRY_GUARD = new Object();
 	private static final ConcurrentHashMap<String, JvmLockEntry> JVM_LOCKS = new ConcurrentHashMap<String, JvmLockEntry>();
 
@@ -592,7 +594,12 @@ public class CollaborationMetadataStore {
 	}
 
 	private void writeMetadataIfChanged(byte[] originalBytes, Metadata metadata) throws IOException {
-		byte[] bytes = OBJECT_MAPPER.writeValueAsBytes(metadata);
+		byte[] bytes;
+		try {
+			bytes = OBJECT_MAPPER.writeValueAsBytes(metadata);
+		} catch (JacksonException exception) {
+			throw new IOException("Failed to serialize collaboration metadata", exception);
+		}
 		if (Arrays.equals(originalBytes, bytes)) {
 			return;
 		}
@@ -637,7 +644,7 @@ public class CollaborationMetadataStore {
 	private Metadata parseMetadata(byte[] bytes) {
 		try {
 			return OBJECT_MAPPER.readValue(bytes, Metadata.class);
-		} catch (IOException e) {
+		} catch (JacksonException e) {
 			throw new RuntimeException("Failed to parse collaboration metadata", e);
 		}
 	}

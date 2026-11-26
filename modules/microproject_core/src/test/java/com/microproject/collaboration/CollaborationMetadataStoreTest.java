@@ -435,4 +435,18 @@ class CollaborationMetadataStoreTest {
 		int dot = name.lastIndexOf('.');
 		return project.resolveSibling(name.substring(0, dot) + ".projectlibre-sync.json");
 	}
+	@Test
+	void savedMetadataKeepsTheEstablishedBytes() throws Exception {
+		Path project = Files.createTempFile("mpo-collaboration-bytes", ".mpo");
+		CollaborationMetadataStore store = new CollaborationMetadataStore(project.toFile());
+		store.mutate(metadata -> {
+			metadata.setProjectFingerprint("test.mpo");
+			metadata.setProjectFileName("test.mpo");
+			metadata.setProjectFileLastModified(1234567890L);
+			metadata.setProjectFileLength(1000L);
+		});
+
+		assertEquals("{\"schemaVersion\":1,\"projectFingerprint\":\"test.mpo\",\"projectFileName\":\"test.mpo\",\"projectFileLastModified\":1234567890,\"projectFileLength\":1000,\"users\":{},\"locks\":{},\"perUserWorkspace\":{}}",
+				Files.readString(store.getSidecarFile().toPath(), StandardCharsets.UTF_8));
+	}
 }

@@ -83,9 +83,9 @@ class OperationLogTest {
 		OperationLog log = new OperationLog();
 		OperationLog.Operation first = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY, Map.of("name", "A"));
 		OperationLog.Operation next = new OperationLog.Operation(NEXT, ACTOR_B, 2, Set.of(FIRST), "task.update", ENTITY, Map.of("notes", "B"));
-		com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+		tools.jackson.databind.ObjectMapper mapper = new tools.jackson.databind.ObjectMapper();
 
-		com.fasterxml.jackson.databind.JsonNode operations = mapper.readTree(log.write(DOCUMENT, List.of(first, next))).get("operations");
+		tools.jackson.databind.JsonNode operations = mapper.readTree(log.write(DOCUMENT, List.of(first, next))).get("operations");
 		String[] lines = new String(log.writeJsonl(DOCUMENT, List.of(first, next)), java.nio.charset.StandardCharsets.UTF_8).split("\n");
 
 		assertEquals(2, operations.size());
@@ -117,8 +117,8 @@ class OperationLogTest {
 		OperationLog log = new OperationLog();
 		OperationLog.Operation operation = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY, Map.of());
 		String[] lines = new String(log.writeJsonl(DOCUMENT, List.of(operation)), java.nio.charset.StandardCharsets.UTF_8).split("\\n", -1);
-		com.fasterxml.jackson.databind.node.ObjectNode header = (com.fasterxml.jackson.databind.node.ObjectNode)
-			new com.fasterxml.jackson.databind.ObjectMapper().readTree(lines[0]);
+		tools.jackson.databind.node.ObjectNode header = (tools.jackson.databind.node.ObjectNode)
+			new tools.jackson.databind.ObjectMapper().readTree(lines[0]);
 		header.putArray("appliedOperationIds").add(MISSING);
 		lines[0] = header.toString();
 
@@ -131,8 +131,8 @@ class OperationLogTest {
 		OperationLog.Operation left = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY, Map.of("name", "A"));
 		OperationLog.Operation right = new OperationLog.Operation(NEXT, ACTOR_B, 1, Set.of(), "task.update", ENTITY, Map.of("name", "B"));
 		String[] lines = new String(log.writeJsonl(DOCUMENT, List.of(left, right)), java.nio.charset.StandardCharsets.UTF_8).split("\\n", -1);
-		com.fasterxml.jackson.databind.node.ObjectNode header = (com.fasterxml.jackson.databind.node.ObjectNode)
-			new com.fasterxml.jackson.databind.ObjectMapper().readTree(lines[0]);
+		tools.jackson.databind.node.ObjectNode header = (tools.jackson.databind.node.ObjectNode)
+			new tools.jackson.databind.ObjectMapper().readTree(lines[0]);
 		header.putArray("conflicts");
 		lines[0] = header.toString();
 
@@ -231,5 +231,36 @@ class OperationLogTest {
 		OperationLog log = new OperationLog();
 		org.junit.jupiter.api.Assertions.assertThrows(java.io.IOException.class, () -> log.read("{\"schemaVersion\":1,\"documentId\":\"not-a-uuid\",\"operations\":[],\"conflicts\":[]}".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
 		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> log.write("not-a-uuid", List.of()));
+	}
+	@Test void malformedJsonBecomesIoException() {
+		OperationLog log = new OperationLog();
+		org.junit.jupiter.api.Assertions.assertThrows(java.io.IOException.class,
+				() -> log.read("{\"schemaVersion\":1,".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+	}
+
+	@Test void duplicateJsonKeysBecomeIoException() {
+		String json = "{\"schemaVersion\":1,\"documentId\":\"" + DOCUMENT
+				+ "\",\"operations\":[],\"conflicts\":[],\"appliedOperationIds\":[],\"duplicate\":1,\"duplicate\":2}";
+		org.junit.jupiter.api.Assertions.assertThrows(java.io.IOException.class,
+				() -> new OperationLog().read(json.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+	}
+
+	@Test void trailingTokensBecomeIoException() {
+		String json = "{\"schemaVersion\":1,\"documentId\":\"" + DOCUMENT
+				+ "\",\"operations\":[],\"conflicts\":[],\"appliedOperationIds\":[]} trailing";
+		org.junit.jupiter.api.Assertions.assertThrows(java.io.IOException.class,
+				() -> new OperationLog().read(json.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+	}
+
+	@Test void writeKeepsTheEstablishedBytes() throws Exception {
+		OperationLog.Operation op = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY, Map.of("name", "A"));
+		assertEquals("{\"schemaVersion\":1,\"documentId\":\"00000000-0000-0000-0000-000000000001\",\"operations\":[{\"id\":\"00000000-0000-0000-0000-000000000002\",\"actorId\":\"00000000-0000-0000-0000-000000000004\",\"sequence\":1,\"parents\":[],\"kind\":\"task.update\",\"entityId\":\"00000000-0000-0000-0000-000000000006\",\"payload\":{\"name\":\"A\"}}],\"conflicts\":[],\"appliedOperationIds\":[\"00000000-0000-0000-0000-000000000002\"]}",
+				new String(new OperationLog().write(DOCUMENT, List.of(op)), java.nio.charset.StandardCharsets.UTF_8));
+	}
+
+	@Test void writeJsonlKeepsTheEstablishedBytes() throws Exception {
+		OperationLog.Operation op = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY, Map.of("name", "A"));
+		assertEquals("{\"type\":\"header\",\"schemaVersion\":1,\"documentId\":\"00000000-0000-0000-0000-000000000001\",\"conflicts\":[],\"appliedOperationIds\":[\"00000000-0000-0000-0000-000000000002\"]}\n{\"id\":\"00000000-0000-0000-0000-000000000002\",\"actorId\":\"00000000-0000-0000-0000-000000000004\",\"sequence\":1,\"parents\":[],\"kind\":\"task.update\",\"entityId\":\"00000000-0000-0000-0000-000000000006\",\"payload\":{\"name\":\"A\"}}\n",
+				new String(new OperationLog().writeJsonl(DOCUMENT, List.of(op)), java.nio.charset.StandardCharsets.UTF_8));
 	}
 }

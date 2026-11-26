@@ -16,16 +16,21 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.StreamReadFeature;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /** Deterministic, idempotent merge of mpo collaboration operations. */
 public final class OperationLog {
-	private static final ObjectMapper JSON = new ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION).enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
+	private static final ObjectMapper JSON = JsonMapper.builderWithJackson2Defaults()
+			.enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
+			.enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+			.build();
 	public record Operation(String id, String actorId, long sequence, Set<String> parents,
 		String kind, String entityId, Map<String, Object> payload) {
 		public Operation {
@@ -199,7 +204,11 @@ public final class OperationLog {
 		writeConflictMetadata(root, merged.conflicts());
 		ArrayNode applied = root.putArray("appliedOperationIds");
 		merged.ready().stream().map(Operation::id).sorted().forEach(applied::add);
-		return JSON.writeValueAsBytes(root);
+		try {
+			return JSON.writeValueAsBytes(root);
+		} catch (JacksonException exception) {
+			throw new java.io.IOException("Failed to write operation log", exception);
+		}
 	}
 	/** Writes the MPOF collaboration log as one JSON object per line. */
 	public byte[] writeJsonl(String documentId, Collection<Operation> operations) throws java.io.IOException {
@@ -222,11 +231,11 @@ public final class OperationLog {
 		writeConflictMetadata(header, merged.conflicts());
 		ArrayNode applied = header.putArray("appliedOperationIds");
 		appliedOperationIds.stream().sorted().forEach(applied::add);
-		result.append(JSON.writeValueAsString(header)).append('\n');
+		result.append(jsonText(header)).append('\n');
 		List<Operation> all = new ArrayList<>(merged.ready()); all.addAll(merged.pending());
 		for (Operation op : all) {
 			ObjectNode value = operationNode(op);
-			result.append(JSON.writeValueAsString(value)).append('\n');
+			result.append(jsonText(value)).append('\n');
 		}
 		return result.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
 	}
@@ -236,14 +245,14 @@ public final class OperationLog {
 		String content = new String(jsonl, java.nio.charset.StandardCharsets.UTF_8);
 		String[] lines = content.split("\\R", -1);
 		if (lines.length < 2 || !lines[lines.length - 1].isEmpty()) throw new java.io.IOException("Invalid JSONL operation log termination");
-		JsonNode header = JSON.readTree(lines[0]);
+		JsonNode header = jsonTree(lines[0]);
 		if (header == null || !header.isObject() || !"header".equals(text(header, "type")) || header.path("schemaVersion").asInt(-1) != 1) throw new java.io.IOException("Invalid JSONL operation log header");
 		String documentId = text(header, "documentId");
 		try { requireUuid(documentId, "document id"); } catch (IllegalArgumentException exception) { throw new java.io.IOException("Invalid operation document id", exception); }
 		List<Operation> operations = new ArrayList<>(Math.max(0, lines.length - 2));
 		for (int i = 1; i < lines.length - 1; i++) {
 			if (lines[i].isBlank()) throw new java.io.IOException("Invalid blank JSONL operation record");
-			JsonNode value = JSON.readTree(lines[i]);
+			JsonNode value = jsonTree(lines[i]);
 			if (value == null || !value.isObject() || value.has("type")) throw new java.io.IOException("Invalid JSONL operation record");
 			try {
 				Set<String> parents = LinkedHashSet.newLinkedHashSet(value.path("parents").size());
@@ -328,7 +337,7 @@ public final class OperationLog {
 		return readDocument(json).operations();
 	}
 	public DocumentLog readDocument(byte[] json) throws java.io.IOException {
-		JsonNode root = JSON.readTree(json);
+		JsonNode root = jsonTree(json);
 		if (root == null || !root.isObject() || !root.path("schemaVersion").canConvertToInt() || root.path("schemaVersion").asInt(-1) != 1 || !root.path("operations").isArray()) throw new java.io.IOException("Invalid operation log");
 		String documentId = text(root, "documentId");
 		try { requireUuid(documentId, "document id"); } catch (IllegalArgumentException exception) { throw new java.io.IOException("Invalid operation document id", exception); }
@@ -365,6 +374,29 @@ public final class OperationLog {
 		List<String> ids = new ArrayList<>(conflict.operationIds());
 		ids.sort(String::compareTo);
 		return conflict.entityId() + "|" + conflict.kind() + "|" + String.join(",", ids);
+	}
+	/** Jackson 3 reports parse failures as unchecked exceptions; keep the IOException contract. */
+	private static JsonNode jsonTree(String value) throws java.io.IOException {
+		try {
+			return JSON.readTree(value);
+		} catch (JacksonException exception) {
+			throw new java.io.IOException("Failed to read operation log", exception);
+		}
+	}
+	private static JsonNode jsonTree(byte[] value) throws java.io.IOException {
+		try {
+			return JSON.readTree(value);
+		} catch (JacksonException exception) {
+			throw new java.io.IOException("Failed to read operation log", exception);
+		}
+	}
+	/** Jackson 3 reports write failures as unchecked exceptions; keep the IOException contract. */
+	private static String jsonText(ObjectNode value) throws java.io.IOException {
+		try {
+			return JSON.writeValueAsString(value);
+		} catch (JacksonException exception) {
+			throw new java.io.IOException("Failed to write operation log", exception);
+		}
 	}
 	private static String text(JsonNode value, String field) throws java.io.IOException { JsonNode text = value.get(field); if (text == null || !text.isTextual()) throw new java.io.IOException("Invalid operation " + field); return text.textValue(); }
 	private static void requireUuid(String value, String description) { try { UUID.fromString(value); } catch (RuntimeException exception) { throw new IllegalArgumentException("Invalid " + description, exception); } }
