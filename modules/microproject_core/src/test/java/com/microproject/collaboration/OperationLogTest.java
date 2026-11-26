@@ -263,4 +263,24 @@ class OperationLogTest {
 		assertEquals("{\"type\":\"header\",\"schemaVersion\":1,\"documentId\":\"00000000-0000-0000-0000-000000000001\",\"conflicts\":[],\"appliedOperationIds\":[\"00000000-0000-0000-0000-000000000002\"]}\n{\"id\":\"00000000-0000-0000-0000-000000000002\",\"actorId\":\"00000000-0000-0000-0000-000000000004\",\"sequence\":1,\"parents\":[],\"kind\":\"task.update\",\"entityId\":\"00000000-0000-0000-0000-000000000006\",\"payload\":{\"name\":\"A\"}}\n",
 				new String(new OperationLog().writeJsonl(DOCUMENT, List.of(op)), java.nio.charset.StandardCharsets.UTF_8));
 	}
+
+	@Test void jsonlInvalidInputsAndUnserializablePayloadsBecomeIoException() {
+		OperationLog log = new OperationLog();
+		String header = "{\"type\":\"header\",\"schemaVersion\":1,\"documentId\":\"" + DOCUMENT + "\"}\n";
+		String recordPrefix = "{\"id\":\"" + FIRST + "\",\"actorId\":\"" + ACTOR_A + "\",\"sequence\":1,\"parents\":[],\"kind\":\"task.update\",\"entityId\":\"" + ENTITY + "\",";
+		for (String invalidJsonl : List.of(
+				"{\"type\":\"header\",\"schemaVersion\":1,\n",
+				"{\"type\":\"header\",\"schemaVersion\":1,\"documentId\":\"" + DOCUMENT + "\",\"duplicate\":1,\"duplicate\":2}\n",
+				header + "} trailing\n",
+				header + recordPrefix + "\"payload\":\"bad\"}\n",
+				header + recordPrefix + "\"payload\":[1,2]}\n",
+				header + "{\"id\":\"" + FIRST + "\",\"actorId\":\"" + ACTOR_A + "\",\"sequence\":\"1\",\"parents\":[],\"kind\":\"task.update\",\"entityId\":\"" + ENTITY + "\",\"payload\":{}}\n",
+				header + "{\"id\":\"" + FIRST + "\",\"actorId\":\"" + ACTOR_A + "\",\"parents\":[],\"kind\":\"task.update\",\"entityId\":\"" + ENTITY + "\",\"payload\":{}}\n")) {
+			org.junit.jupiter.api.Assertions.assertThrows(java.io.IOException.class,
+					() -> log.readJsonl(invalidJsonl.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		}
+		OperationLog.Operation unserializable = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY, Map.of("bad", new Object()));
+		org.junit.jupiter.api.Assertions.assertThrows(java.io.IOException.class, () -> log.write(DOCUMENT, List.of(unserializable)));
+		org.junit.jupiter.api.Assertions.assertThrows(java.io.IOException.class, () -> log.writeJsonl(DOCUMENT, List.of(unserializable)));
+	}
 }

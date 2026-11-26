@@ -258,9 +258,9 @@ public final class OperationLog {
 				Set<String> parents = LinkedHashSet.newLinkedHashSet(value.path("parents").size());
 				if (!value.path("parents").isArray()) throw new IllegalArgumentException("parents");
 				for (JsonNode parent : value.path("parents")) if (!parent.isTextual() || !parents.add(parent.textValue())) throw new IllegalArgumentException("parent");
-				@SuppressWarnings("unchecked") Map<String,Object> payload = JSON.convertValue(value.path("payload"), Map.class);
+				Map<String,Object> payload = payloadMap(value);
 				operations.add(new Operation(text(value, "id"), text(value, "actorId"), value.path("sequence").longValue(), parents, text(value, "kind"), text(value, "entityId"), payload));
-			} catch (IllegalArgumentException exception) { throw new java.io.IOException("Invalid JSONL operation record", exception); }
+			} catch (IllegalArgumentException | JacksonException exception) { throw new java.io.IOException("Invalid JSONL operation record", exception); }
 		}
 		MergeResult merged = merge(operations);
 		validateConflictMetadata(header, merged, false);
@@ -294,9 +294,15 @@ public final class OperationLog {
 	private static List<Operation> mergeAll(MergeResult merged) {
 		List<Operation> all = new ArrayList<>(merged.ready()); all.addAll(merged.pending()); return all;
 	}
-	private static ObjectNode operationNode(Operation op) {
+	private static ObjectNode operationNode(Operation op) throws java.io.IOException {
 		ObjectNode value = JSON.createObjectNode(); value.put("id", op.id()); value.put("actorId", op.actorId()); value.put("sequence", op.sequence());
-		ArrayNode parents = value.putArray("parents"); op.parents().stream().sorted().forEach(parents::add); value.put("kind", op.kind()); value.put("entityId", op.entityId()); value.set("payload", JSON.valueToTree(op.payload())); return value;
+		ArrayNode parents = value.putArray("parents"); op.parents().stream().sorted().forEach(parents::add); value.put("kind", op.kind()); value.put("entityId", op.entityId());
+		try {
+			value.set("payload", JSON.valueToTree(op.payload()));
+		} catch (JacksonException exception) {
+			throw new java.io.IOException("Failed to write operation log", exception);
+		}
+		return value;
 	}
 
 	private static void writeConflictMetadata(ObjectNode parent, List<Conflict> conflicts) {
@@ -344,7 +350,12 @@ public final class OperationLog {
 		List<Operation> result = new ArrayList<>(root.path("operations").size()); for (JsonNode value : root.path("operations")) {
 			if (!value.isObject() || !value.path("parents").isArray() || !value.path("sequence").isIntegralNumber() || !value.path("sequence").canConvertToLong() || !value.path("payload").isObject()) throw new java.io.IOException("Invalid operation");
 			Set<String> parents = LinkedHashSet.newLinkedHashSet(value.path("parents").size()); for (JsonNode parent : value.path("parents")) { if (!parent.isTextual() || !parents.add(parent.textValue())) throw new java.io.IOException("Invalid operation parent"); }
-			@SuppressWarnings("unchecked") Map<String,Object> payload = JSON.convertValue(value.path("payload"), Map.class);
+			Map<String,Object> payload;
+			try {
+				payload = payloadMap(value);
+			} catch (IllegalArgumentException | JacksonException exception) {
+				throw new java.io.IOException("Invalid operation", exception);
+			}
 			try { result.add(new Operation(text(value,"id"), text(value,"actorId"), value.path("sequence").longValue(), parents, text(value,"kind"), text(value,"entityId"), payload)); } catch (IllegalArgumentException exception) { throw new java.io.IOException("Invalid operation", exception); }
 		}
 		MergeResult merged = merge(result);
@@ -397,6 +408,10 @@ public final class OperationLog {
 		} catch (JacksonException exception) {
 			throw new java.io.IOException("Failed to write operation log", exception);
 		}
+	}
+	@SuppressWarnings("unchecked")
+	private static Map<String, Object> payloadMap(JsonNode value) {
+		return JSON.convertValue(value.path("payload"), Map.class);
 	}
 	private static String text(JsonNode value, String field) throws java.io.IOException { JsonNode text = value.get(field); if (text == null || !text.isTextual()) throw new java.io.IOException("Invalid operation " + field); return text.textValue(); }
 	private static void requireUuid(String value, String description) { try { UUID.fromString(value); } catch (RuntimeException exception) { throw new IllegalArgumentException("Invalid " + description, exception); } }
