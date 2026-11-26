@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.print.PageFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,6 +24,7 @@ import javax.print.attribute.standard.MediaSizeName;
 
 import javax.swing.JComponent;
 import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Test;
 
@@ -43,17 +45,17 @@ import com.microproject.undo.DataFactoryUndoController;
 class PageSetupSettingsTransactionTest {
 
 	@Test
-	void localizedPageSetupKeepsPaperAndScalingControlsAtPreferredWidth() {
+	void localizedPageSetupKeepsPaperAndScalingControlsAtPreferredWidth() throws Exception {
 		Locale original = Locale.getDefault();
 		try {
-			withLocalSettings(settings(1, 3, letterLandscape()), () -> {
+			SwingUtilities.invokeAndWait(() -> withLocalSettings(settings(1, 3, letterLandscape()), () -> {
 				GraphPageable document = document(true);
 				for (Locale locale : new Locale[] { Locale.JAPANESE, Locale.ENGLISH }) {
 					Locale.setDefault(locale);
 					Messages.reset();
 					PageSetup setup = PageSetup.getInstance(document);
-					JComponent panel = setup.createContentPanel(false);
-					layoutAtPreferredSize((JPanel) panel);
+					JPanel panel = (JPanel) setup.createContentPanel(false);
+					layoutAtAssignedBounds(panel);
 					for (JComponent control : List.of(setup.paperWidthLabel, setup.paperWidth,
 							setup.paperHeightLabel, setup.paperHeight, setup.marginLeftLabel, setup.marginLeft,
 							setup.marginRightLabel, setup.marginRight, setup.marginTopLabel, setup.marginTop,
@@ -65,7 +67,7 @@ class PageSetupSettingsTransactionTest {
 									+ " bounds=" + control.getBounds() + " preferred=" + control.getPreferredSize());
 					}
 				}
-			});
+			}));
 		} finally {
 			Locale.setDefault(original);
 			Messages.reset();
@@ -151,12 +153,16 @@ class PageSetupSettingsTransactionTest {
 		});
 	}
 
-	private static void layoutAtPreferredSize(JPanel panel) {
+	private static void layoutAtAssignedBounds(JPanel panel) {
 		panel.setSize(panel.getPreferredSize());
-		panel.doLayout();
-		for (Component child : panel.getComponents())
-			if (child instanceof JPanel nested)
-				layoutAtPreferredSize(nested);
+		layoutDescendants(panel);
+	}
+
+	private static void layoutDescendants(Container parent) {
+		parent.doLayout();
+		for (Component child : parent.getComponents())
+			if (child instanceof Container nested)
+				layoutDescendants(nested);
 	}
 
 	private static void withLocalSettings(PrintSettings settings, Runnable test) {
