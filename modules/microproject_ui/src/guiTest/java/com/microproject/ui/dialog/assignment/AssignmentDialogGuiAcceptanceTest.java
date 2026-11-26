@@ -568,7 +568,7 @@ class AssignmentDialogGuiAcceptanceTest {
 	private AbstractButton buttonByText(java.awt.Component root, String text) throws Exception {
 		final AbstractButton[] button = new AbstractButton[1];
 		SwingUtilities.invokeAndWait(() -> button[0] = com.microproject.ui.menu.testsupport.UiComponentWalker.flatten(root).stream()
-			.filter(component -> component instanceof AbstractButton || component instanceof org.pushingpixels.flamingo.api.common.AbstractCommandButton)
+			.filter(component -> component instanceof AbstractButton)
 			.map(RibbonGuiButton::adapt)
 			.filter(AbstractButton::isShowing).filter(value -> text.equals(value.getText()))
 			.findFirst().orElseThrow(() -> new AssertionError("Visible button not found: " + text)));

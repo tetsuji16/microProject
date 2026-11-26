@@ -10,7 +10,6 @@ flatlaf = "3.8"
 groovy = "5.0.8"
 openpdf = "3.0.6"
 radiance = "4.5.0"
-flamingo = "5.0"
 jakarta-jaxb-api = "4.0.5"
 jaxb-runtime = "4.0.9"
 jackson = "2.23.0"
@@ -43,7 +42,6 @@ groovy = { module = "org.apache.groovy:groovy", version.ref = "groovy" }
 openpdf = { module = "com.github.librepdf:openpdf", version.ref = "openpdf" }
 radiance-neon = { module = "org.pushing-pixels:radiance-neon", version.ref = "radiance" }
 radiance-trident = { module = "org.pushing-pixels:radiance-trident", version.ref = "radiance" }
-flamingo = { module = "org.pushingpixels:flamengo", version.ref = "flamingo" }
 jakarta-jaxb-api = { module = "jakarta.xml.bind:jakarta.xml.bind-api", version.ref = "jakarta-jaxb-api" }
 jaxb-runtime = { module = "org.glassfish.jaxb:jaxb-runtime", version.ref = "jaxb-runtime" }
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson-annotations" }
