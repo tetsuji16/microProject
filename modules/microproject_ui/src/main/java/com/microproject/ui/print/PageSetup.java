@@ -252,6 +252,7 @@ public class PageSetup{
 		DecimalFormat decimalFormat=new DecimalFormat("#0.0");
 		paperWidth=new JFormattedTextField(decimalFormat);
 		paperWidth.setEnabled(false);
+		paperWidth.setColumns(8);
 		paperWidth.addPropertyChangeListener("value",new PropertyChangeListener(){
 			public void propertyChange(PropertyChangeEvent e) {
 				if (isUpdaping()) return;
@@ -265,6 +266,7 @@ public class PageSetup{
 		initFont(paperHeightLabel);
 		paperHeight=new JFormattedTextField(decimalFormat);
 		paperHeight.setEnabled(false);
+		paperHeight.setColumns(8);
 		paperHeight.addPropertyChangeListener("value",new PropertyChangeListener(){
 			public void propertyChange(PropertyChangeEvent e) {
 				if (isUpdaping()) return;
@@ -281,6 +283,7 @@ public class PageSetup{
 		marginLeftLabel=new JLabel(Messages.getString("PageSetupDialog.Margins.Left"));
 		initFont(marginLeftLabel);
 		marginLeft=new JFormattedTextField(decimalFormat);
+		marginLeft.setColumns(8);
 		marginLeft.addPropertyChangeListener("value",new PropertyChangeListener(){
 			public void propertyChange(PropertyChangeEvent e) {
 				if (isUpdaping()) return;
@@ -302,6 +305,7 @@ public class PageSetup{
 		marginRightLabel=new JLabel(Messages.getString("PageSetupDialog.Margins.Right"));
 		initFont(marginRightLabel);
 		marginRight=new JFormattedTextField(decimalFormat);
+		marginRight.setColumns(8);
 		marginRight.addPropertyChangeListener("value",new PropertyChangeListener(){
 			public void propertyChange(PropertyChangeEvent e) {
 				if (isUpdaping()) return;
@@ -323,6 +327,7 @@ public class PageSetup{
 		marginTopLabel=new JLabel(Messages.getString("PageSetupDialog.Margins.Top"));
 		initFont(marginTopLabel);
 		marginTop=new JFormattedTextField(decimalFormat);
+		marginTop.setColumns(8);
 		marginTop.addPropertyChangeListener("value",new PropertyChangeListener(){
 			public void propertyChange(PropertyChangeEvent e) {
 				if (isUpdaping()) return;
@@ -344,6 +349,7 @@ public class PageSetup{
 		marginBottomLabel=new JLabel(Messages.getString("PageSetupDialog.Margins.Bottom"));
 		initFont(marginBottomLabel);
 		marginBottom=new JFormattedTextField(decimalFormat);
+		marginBottom.setColumns(8);
 		marginBottom.addPropertyChangeListener("value",new PropertyChangeListener(){
 			public void propertyChange(PropertyChangeEvent e) {
 				if (isUpdaping()) return;
@@ -970,7 +976,7 @@ public class PageSetup{
 	}
 
 	private JComponent createDialogPanel(){
-		FormLayout layout = new FormLayout("p, 3dlu, p, 3dlu","p, 3dlu,p, 3dlu, p, 3dlu,p,3dlu");
+		FormLayout layout = new FormLayout("p:grow, 3dlu, p:grow, 3dlu","p, 3dlu,p, 3dlu, p, 3dlu,p,3dlu");
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		CellConstraints cc = new CellConstraints();
 		builder.setDefaultDialogBorder();
@@ -1022,10 +1028,10 @@ public class PageSetup{
 	}
 
 	private JComponent createPaperPanel(){
-		return paperPanel("8dlu, p,p,8dlu", "p, 3dlu:grow,p, 2dlu", 2, createPaperSizePanel());
+		return paperPanel("8dlu, p:grow, p:grow, 8dlu", "p, 3dlu:grow,p, 2dlu", 2, createPaperSizePanel());
 	}
 	private JComponent createFlowPaperPanel(){
-		return paperPanel("1dlu, p,p,p:grow,1dlu", "p, 3dlu:grow, 2dlu", 3, createFlowPaperSizePanel());
+		return paperPanel("1dlu, p:grow, p:grow, p:grow, 1dlu", "p, 3dlu:grow, 2dlu", 3, createFlowPaperSizePanel());
 	}
 	private JComponent paperPanel(String columns, String rows, int sizeSpan, JComponent sizePanel){
 		FormLayout layout = new FormLayout(columns, rows);
@@ -1038,10 +1044,10 @@ public class PageSetup{
 		return panel;
 	}
 	private JComponent createPaperSizePanel(){
-		return paperSizePanel("p, 3dlu,50dlu");
+		return paperSizePanel("p, 3dlu, p");
 	}
 	private JComponent createFlowPaperSizePanel(){
-		return paperSizePanel("p, 3dlu,40dlu");
+		return paperSizePanel("p, 3dlu, p");
 	}
 	private JComponent paperSizePanel(String columns){
 		FormLayout layout = new FormLayout(columns,"p, 3dlu, p, 3dlu, p");
@@ -1056,7 +1062,7 @@ public class PageSetup{
 	}
 
 	private JComponent createOrientationPanel(){
-		return orientationPanel("8dlu, 100dlu, 8dlu");
+		return orientationPanel("8dlu, p, 8dlu");
 	}
 	private JComponent createFlowOrientationPanel(){
 		return orientationPanel("1dlu, p:grow, 1dlu");
@@ -1074,10 +1080,10 @@ public class PageSetup{
 
 
 	private JComponent createMarginsPanel(){
-		return marginsPanel("8dlu, 50dlu, 3dlu, 50dlu, 8dlu");
+		return marginsPanel("8dlu, p, 3dlu, p, 8dlu");
 	}
 	private JComponent createFlowMarginsPanel(){
-		return marginsPanel("1dlu, 41dlu, 3dlu, 41dlu, 1dlu");
+		return marginsPanel("1dlu, p, 3dlu, p, 1dlu");
 	}
 	private JComponent marginsPanel(String columns){
 		FormLayout layout = new FormLayout(columns,"p,1dlu,p,3dlu, p,1dlu,p,2dlu");
@@ -1113,8 +1119,8 @@ public class PageSetup{
 
 	private JComponent createScalingPanel(){
 		FormLayout layout = new FormLayout(
-		        "8dlu, p, 3dlu,30dlu,3dlu,p,3dlu,p,p,p,8dlu",
-		        "p, 3dlu,p,10dlu,p,3dlu,p,3dlu");
+				"8dlu, p, 3dlu, p, 3dlu, p, 3dlu, p, p, p, 8dlu",
+				"p, 3dlu,p,10dlu,p,3dlu,p,3dlu");
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		CellConstraints cc = new CellConstraints();
@@ -1142,8 +1148,8 @@ public class PageSetup{
 	}
 	private JComponent createFlowScalingPanel(){
 		FormLayout layout = new FormLayout(
-		        "1dlu, 5dlu,p,22dlu,3dlu,p,1dlu",
-		        "p, 3dlu,p,3dlu,p,3dlu,p,p,10dlu,p,3dlu,p,3dlu,p,3dlu");
+				"1dlu, 5dlu, p, p, 3dlu, p, 1dlu",
+				"p, 3dlu,p,3dlu,p,3dlu,p,p,10dlu,p,3dlu,p,3dlu,p,3dlu");
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		CellConstraints cc = new CellConstraints();

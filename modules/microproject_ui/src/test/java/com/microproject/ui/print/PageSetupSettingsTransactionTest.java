@@ -7,19 +7,29 @@ package com.microproject.ui.print;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.print.PageFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import javax.print.PrintService;
 import javax.print.attribute.standard.MediaPrintableArea;
 import javax.print.attribute.standard.MediaSize;
 import javax.print.attribute.standard.MediaSizeName;
 
+import javax.swing.JComponent;
+import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
+
 import org.junit.jupiter.api.Test;
 
+import com.microproject.i18n.Messages;
 import com.microproject.model.resource.ResourcePool;
 import com.microproject.model.task.NormalTask;
 import com.microproject.model.task.Project;
@@ -34,6 +44,37 @@ import com.microproject.ui.view.model.cache.NodeModelCacheFactory;
 import com.microproject.undo.DataFactoryUndoController;
 
 class PageSetupSettingsTransactionTest {
+
+	@Test
+	void localizedPageSetupKeepsPaperAndScalingControlsAtPreferredWidth() throws Exception {
+		Locale original = Locale.getDefault();
+		try {
+			SwingUtilities.invokeAndWait(() -> withLocalSettings(settings(1, 3, letterLandscape()), () -> {
+				GraphPageable document = document(true);
+				for (Locale locale : new Locale[] { Locale.JAPANESE, Locale.ENGLISH }) {
+					Locale.setDefault(locale);
+					Messages.reset();
+					PageSetup setup = PageSetup.getInstance(document);
+					JPanel panel = (JPanel) setup.createContentPanel(false);
+					layoutAtAssignedBounds(panel);
+					assertNotNull(setup.paperSize.getSelectedItem(), "paper size selection must be available for " + locale);
+					for (JComponent control : List.of(setup.paperWidthLabel, setup.paperWidth,
+							setup.paperHeightLabel, setup.paperHeight, setup.paperSize, setup.marginLeftLabel, setup.marginLeft,
+							setup.marginRightLabel, setup.marginRight, setup.marginTopLabel, setup.marginTop,
+							setup.marginBottomLabel, setup.marginBottom, setup.scaleToWidth, setup.scaleToHeight,
+							setup.fitToWidth, setup.fitToHeight, setup.scaleToWidthLabel, setup.scaleToHeightLabel,
+							setup.fitToWidthLabel, setup.fitToHeightLabel)) {
+						assertTrue(control.getWidth() >= control.getPreferredSize().width,
+								() -> "Page Setup locale=" + locale + " clips " + control.getClass().getSimpleName()
+									+ " bounds=" + control.getBounds() + " preferred=" + control.getPreferredSize());
+					}
+				}
+			}));
+		} finally {
+			Locale.setDefault(original);
+			Messages.reset();
+		}
+	}
 
 	@Test
 	void requestedFitHeightSurvivesLayoutRefreshAndPaperChange() {
@@ -112,6 +153,18 @@ class PageSetupSettingsTransactionTest {
 			assertEquals(preview.getTotalZoomX(), print.getTotalZoomX(), 1e-9);
 			assertEquals(preview.getTotalZoomY(), print.getTotalZoomY(), 1e-9);
 		});
+	}
+
+	private static void layoutAtAssignedBounds(JPanel panel) {
+		panel.setSize(panel.getPreferredSize());
+		layoutDescendants(panel);
+	}
+
+	private static void layoutDescendants(Container parent) {
+		parent.doLayout();
+		for (Component child : parent.getComponents())
+			if (child instanceof Container nested)
+				layoutDescendants(nested);
 	}
 
 	private static void withLocalSettings(PrintSettings settings, Runnable test) {
