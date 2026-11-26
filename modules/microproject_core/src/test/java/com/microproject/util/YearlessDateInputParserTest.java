@@ -124,6 +124,17 @@ class YearlessDateInputParserTest {
 	}
 
 	@Test
+	void historicalDatesRetainGregorianCalendarCutover() throws Exception {
+		SimpleDateFormat fallback = new SimpleDateFormat("yyyy/MM/dd", Locale.ROOT);
+		assertEquals(Date.from(java.time.Instant.parse("1500-03-11T00:00:00Z")),
+			YearlessDateInputParser.parse("1500/3/1", fallback, null));
+		assertEquals(Date.from(java.time.Instant.parse("1500-03-10T00:00:00Z")),
+			YearlessDateInputParser.parse("1500/2/29", fallback, null));
+		assertThrows(ParseException.class, () -> YearlessDateInputParser.parse("1582/10/10", fallback, null));
+		assertThrows(ParseException.class, () -> YearlessDateInputParser.parse("0000/1/1", fallback, null));
+	}
+
+	@Test
 		void rejectsInvalidNumericTimeSuffix() throws Exception {
 			Date reference = DateTime.calendarInstance(2026, Calendar.JUNE, 1).getTime();
 			assertThrows(ParseException.class, () ->

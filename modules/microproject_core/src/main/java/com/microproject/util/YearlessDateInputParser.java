@@ -27,6 +27,8 @@ import java.text.DateFormat;
 import java.text.ParsePosition;
 import java.text.ParseException;
 import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.TimeZone;
 import java.util.Locale;
 import org.apache.commons.lang3.time.DateUtils;
 import java.time.DateTimeException;
@@ -46,6 +48,7 @@ import java.util.regex.Pattern;
 public final class YearlessDateInputParser {
 	private static final Pattern YEARLESS_DATE_PATTERN = Pattern.compile("^\\s*(\\d{1,2})\\s*[/-]\\s*(\\d{1,2})(?:\\s+(.*?))?\\s*$");
 	private static final Pattern YEAR_PATTERN = Pattern.compile("(?<!\\d)\\d{4}(?!\\d)");
+	private static final Pattern HISTORICAL_DATE_PATTERN = Pattern.compile("^(\\d{4})/(\\d{1,2})/(\\d{1,2})$");
 	private static final Pattern ISO_DATE_PATTERN = Pattern.compile("^\\s*\\d{4}[-/]\\d{1,2}[-/]\\d{1,2}\\s*$");
 
 	private YearlessDateInputParser() {
@@ -96,15 +99,30 @@ public final class YearlessDateInputParser {
 			.withChronology(IsoChronology.INSTANCE)
 			.withResolverStyle(ResolverStyle.STRICT);
 
-		private static Date parseStrictIsoDate(String text) throws ParseException {
-			String normalized = text.replace('-', '/');
+	private static Date parseStrictIsoDate(String text) throws ParseException {
+		String normalized = text.replace('-', '/');
+		// SimpleDateFormat used GregorianCalendar's Julian/Gregorian cutover. Preserve
+		// those historical dates while modern dates use the strict java.time parser.
+		Matcher historical = HISTORICAL_DATE_PATTERN.matcher(normalized);
+		if (historical.matches() && Integer.parseInt(historical.group(1)) <= 1582) {
+			GregorianCalendar calendar = new GregorianCalendar(TimeZone.getTimeZone("GMT"), Locale.ROOT);
+			calendar.clear();
+			calendar.setLenient(false);
+			calendar.set(Integer.parseInt(historical.group(1)), Integer.parseInt(historical.group(2)) - 1,
+					Integer.parseInt(historical.group(3)), 0, 0, 0);
 			try {
-				LocalDate date = LocalDate.parse(normalized, ISO_INPUT);
-				return Date.from(date.atStartOfDay(ZoneOffset.UTC).toInstant());
-			} catch (java.time.format.DateTimeParseException e) {
-				throw new ParseException(text, e.getErrorIndex());
+				return calendar.getTime();
+			} catch (IllegalArgumentException e) {
+				throw new ParseException(text, 0);
 			}
 		}
+		try {
+			LocalDate date = LocalDate.parse(normalized, ISO_INPUT);
+			return Date.from(date.atStartOfDay(ZoneOffset.UTC).toInstant());
+		} catch (java.time.format.DateTimeParseException e) {
+			throw new ParseException(text, e.getErrorIndex());
+		}
+	}
 
 	/**
 	 * DateFormat.parse(String) accepts a valid prefix and silently normalizes
