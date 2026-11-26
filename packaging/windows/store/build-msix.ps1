@@ -28,9 +28,14 @@
 	most recently modified app-image under build\releases is used.
 
 .PARAMETER Version
-	Package version, three or four numeric components (for example
-	0.1.0 or 0.1.0.25). A three-component version is padded to four.
-	When omitted, the version is taken from the app-image folder name.
+	Release version of the app-image (for example 0.1.0.1324). When
+	omitted, it is taken from the app-image folder name.
+
+.PARAMETER PackageVersion
+	Explicit MSIX package version with a zero fourth component (for
+	example 0.1.1324.0). When omitted, it is derived from -Version:
+	Microsoft Store requires revision 0, so a release version
+	<major>.<minor>.0.<build> becomes <major>.<minor>.<build>.0.
 
 .PARAMETER OutputDir
 	Directory that receives the .msix file. Defaults to
@@ -49,6 +54,7 @@
 param(
 	[string]$AppImageDir,
 	[string]$Version,
+	[string]$PackageVersion,
 	[string]$OutputDir,
 	[string]$MakeAppxPath
 )
@@ -58,18 +64,28 @@ $ErrorActionPreference = 'Stop'
 $storeDir = $PSScriptRoot
 $repoRoot = (Resolve-Path (Join-Path $storeDir '..\..\..')).Path
 
-function ConvertTo-FourPartVersion([string]$Value) {
-	$parts = $Value.Trim().TrimStart('v') -split '\.'
+function ConvertTo-StorePackageVersion([string]$Value) {
+	# Microsoft Store reserves the fourth (revision) component: every
+	# submitted package must have revision 0. Release versions put the
+	# build number in the fourth component (0.1.0.<build>), so a release
+	# version with a zero third component maps to <major>.<minor>.<build>.0.
+	$parts = @($Value.Trim().TrimStart('v') -split '\.')
 	if ($parts.Count -lt 3 -or $parts.Count -gt 4) {
 		throw "Version '$Value' must have three or four numeric components."
 	}
 	foreach ($part in $parts) {
-		if ($part -notmatch '^\d+$') {
-			throw "Version '$Value' must have three or four numeric components."
+		if ($part -notmatch '^\d+$' -or [int64]$part -gt 65535) {
+			throw "Version '$Value' must have three or four numeric components between 0 and 65535."
 		}
 	}
 	while ($parts.Count -lt 4) { $parts += '0' }
-	return ($parts -join '.')
+	if ($parts[3] -ne '0') {
+		if ($parts[2] -ne '0') {
+			throw "Version '$Value' has a non-zero revision and a non-zero third component; pass -PackageVersion with a zero revision."
+		}
+		$parts = @($parts[0], $parts[1], $parts[3], '0')
+	}
+	return (($parts | ForEach-Object { [string][int64]$_ }) -join '.')
 }
 
 # --- Resolve the app-image -------------------------------------------------
@@ -93,7 +109,16 @@ if (-not $Version) {
 	$releaseDirName = Split-Path (Split-Path (Split-Path $AppImageDir -Parent) -Parent) -Leaf
 	$Version = $releaseDirName
 }
-$packageVersion = ConvertTo-FourPartVersion $Version
+if ($PackageVersion) {
+	$explicitParts = @($PackageVersion.Trim().TrimStart('v') -split '\.')
+	if ($explicitParts.Count -eq 4 -and $explicitParts[3] -ne '0') {
+		throw "PackageVersion '$PackageVersion' must have a zero fourth component; Microsoft Store reserves the revision."
+	}
+	$msixVersion = ConvertTo-StorePackageVersion $PackageVersion
+} else {
+	$msixVersion = ConvertTo-StorePackageVersion $Version
+}
+Write-Host "Release version: $Version; MSIX package version: $msixVersion"
 
 # --- Verify the Store update policy ----------------------------------------
 $launcherConfig = Join-Path $AppImageDir 'app\microProject.cfg'
@@ -133,8 +158,8 @@ Copy-Item -Path (Join-Path $AppImageDir '*') -Destination $stagingDir -Recurse -
 Copy-Item -Path (Join-Path $storeDir 'assets') -Destination (Join-Path $stagingDir 'assets') -Recurse -Force
 
 $manifestText = Get-Content -Path (Join-Path $storeDir 'AppxManifest.xml') -Raw
-$manifestText = $manifestText -replace 'Version="0\.0\.0\.0"', "Version=`"$packageVersion`""
-if ($manifestText -notmatch [regex]::Escape("Version=`"$packageVersion`"")) {
+$manifestText = $manifestText -replace 'Version="0\.0\.0\.0"', "Version=`"$msixVersion`""
+if ($manifestText -notmatch [regex]::Escape("Version=`"$msixVersion`"")) {
 	throw 'Failed to stamp the package version into the staged manifest.'
 }
 Set-Content -Path (Join-Path $stagingDir 'AppxManifest.xml') -Value $manifestText -Encoding UTF8 -NoNewline
@@ -144,7 +169,7 @@ if (-not $OutputDir) {
 	$OutputDir = Join-Path $repoRoot 'build\releases\store'
 }
 New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
-$msixPath = Join-Path $OutputDir "microProject-$packageVersion.msix"
+$msixPath = Join-Path $OutputDir "microProject-$msixVersion.msix"
 if (Test-Path $msixPath) { Remove-Item $msixPath -Force }
 
 & $MakeAppxPath pack /d $stagingDir /p $msixPath /o

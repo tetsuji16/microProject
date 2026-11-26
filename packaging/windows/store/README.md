@@ -45,10 +45,16 @@ packaging\windows\store\build-msix.ps1 -Version 0.1.0.25
 The `.msix` is written to `build\releases\store\`. Alternatively, run
 the manually dispatched GitHub Actions workflow
 `.github/workflows/store-msix.yml`, which performs the same steps on
-`windows-latest` and uploads the `.msix` as a workflow artifact.
+`windows-latest` for the release version given as its input and
+uploads the `.msix` as a workflow artifact.
 
-Each Store submission needs a package version higher than the previous
-submission; the four-component version is the Gradle release version.
+Microsoft Store reserves the fourth (revision) component of the package
+version: every submitted package must have revision 0. Release versions
+put the build number in the fourth component (`0.1.0.<build>`), so
+`build-msix.ps1` packs release `0.1.0.1324` as package version
+`0.1.1324.0`. The app-image itself keeps the release version. Pass
+`-PackageVersion` to choose a package version explicitly. Each Store
+submission needs a package version higher than the previous one.
 
 ## Update policy for the Store build
 
