@@ -14,14 +14,6 @@
 	first have to be signed with a certificate whose subject matches the
 	manifest Publisher; see README.md.)
 
-	Before packing, the script verifies that the app-image launcher
-	configuration disables the bootstrap self-update mechanism
-	(-Dmicroproject.updates.enabled=false). Store packages are serviced
-	by the Store, and the packaged application must never replace its own
-	files from the release feed. packageWindowsAppImage already writes
-	that option into microProject.cfg; this script fails the build if it
-	is missing so a Store package cannot silently regress.
-
 	The script also adds -Dmicroproject.distribution=store to the staged
 	launcher configuration. With it the application makes no update
 	request, and its "Check for updates" command opens the Store page.
@@ -124,13 +116,10 @@ if ($PackageVersion) {
 }
 Write-Host "Release version: $Version; MSIX package version: $msixVersion"
 
-# --- Verify the Store update policy ----------------------------------------
+# --- Locate the launcher configuration -------------------------------------
 $launcherConfig = Join-Path $AppImageDir 'app\microProject.cfg'
 if (-not (Test-Path $launcherConfig)) {
 	throw "Launcher configuration not found: $launcherConfig"
-}
-if (-not (Select-String -Path $launcherConfig -SimpleMatch '-Dmicroproject.updates.enabled=false' -Quiet)) {
-	throw 'The app-image launcher does not disable self-updates (-Dmicroproject.updates.enabled=false). Rebuild with packageWindowsAppImage; a Store package must not update itself outside the Store.'
 }
 
 # --- Find makeappx.exe -------------------------------------------------------

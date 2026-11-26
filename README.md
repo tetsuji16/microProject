@@ -129,7 +129,6 @@ lower-case `microproject` spelling; see the
 | `modules/microproject_exchange` | MPO, MPP, XML, XLSX, and other import/export |
 | `modules/microproject_reports` | Reports and templates |
 | `modules/microproject_ribbon` | Reusable Swing ribbon API and extension SPI |
-| `modules/microproject_bootstrap` | Update/bootstrap entry point |
 | `modules/microproject_contrib` | Bundled third-party compatibility code |
 | `packaging` | Icons, licenses, file associations, installer resources |
 | `samples` | Sample projects for screenshots and manual checks |

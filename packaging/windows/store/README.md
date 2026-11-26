@@ -59,15 +59,8 @@ submission needs a package version higher than the previous one.
 ## Update policy for the Store build
 
 Store packages must be serviced by the Store, not by the application
-itself. Two update mechanisms exist in the codebase:
+itself:
 
-- The bootstrap launcher (`MicroProjectUpdater`, update4j) is gated by
-  the system property `microproject.updates.enabled`.
-  `packageWindowsAppImage` already writes
-  `-Dmicroproject.updates.enabled=false` into `microProject.cfg`, so
-  an app-image built by that task never self-updates. `build-msix.ps1`
-  verifies the option is present in the staged launcher configuration
-  and fails the build if it is missing.
 - The in-app `UpdateChecker` only notifies; it never downloads or
   installs a release. `build-msix.ps1` adds
   `-Dmicroproject.distribution=store` to the staged
