@@ -26,7 +26,6 @@ slf4j-simple = "2.0.20"
 logback = "1.6.8"
 log4j = "2.26.1"
 junit-bom = "6.1.3"
-update4j = "1.5.9"
 
 [libraries]
 commons-collections4 = { module = "org.apache.commons:commons-collections4", version.ref = "commons-collections4" }
@@ -64,7 +63,6 @@ poi = { module = "org.apache.poi:poi", version.ref = "poi" }
 poi-ooxml = { module = "org.apache.poi:poi-ooxml", version.ref = "poi" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j-simple" }
-update4j = { module = "org.update4j:update4j", version.ref = "update4j" }
 
 [bundles]
 commons-runtime = [

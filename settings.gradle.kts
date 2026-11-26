@@ -6,7 +6,6 @@ include("microproject_application")
 include("microproject_ui")
 include("microproject_exchange")
 include("microproject_reports")
-include("microproject_bootstrap")
 include("microproject_ribbon")
 
 project(":microproject_contrib").projectDir = file("modules/microproject_contrib")
@@ -15,5 +14,4 @@ project(":microproject_application").projectDir = file("modules/microproject_app
 project(":microproject_ui").projectDir = file("modules/microproject_ui")
 project(":microproject_exchange").projectDir = file("modules/microproject_exchange")
 project(":microproject_reports").projectDir = file("modules/microproject_reports")
-project(":microproject_bootstrap").projectDir = file("modules/microproject_bootstrap")
 project(":microproject_ribbon").projectDir = file("modules/microproject_ribbon")

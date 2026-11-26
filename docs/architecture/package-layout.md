@@ -41,7 +41,6 @@ in production sources, including packages shared at a boundary.
 ## Other modules
 
 - `microproject_application`: `application` coordinates document open/save and application workflows.
-- `microproject_bootstrap`: `bootstrap` starts and updates the desktop application.
 - `microproject_contrib`: `contrib`, `contrib.calendar` contain bundled compatibility code.
 - `microproject_exchange`: `exchange`, `exchange.converter`, `exchange.mpx`, `exchange.mpxj`, `exchange.serialize`, `exchange.xlsx` implement external formats, serialization and related conversions.
 - `microproject_reports`: `reports.adapter`, `reports.model`, `reports.render` provide report adapters, models and rendering.

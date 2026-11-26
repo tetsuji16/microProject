@@ -30,7 +30,6 @@ See [package layout](docs/architecture/package-layout.md) for package responsibi
 - `modules/microproject_reports`: report code and templates.
 - `modules/microproject_contrib`: bundled compatibility and third-party code; avoid growing packaged dependencies unnecessarily.
 - `modules/microproject_ribbon`: shared ribbon model, command IDs/results, icons, and theme abstractions.
-- `modules/microproject_bootstrap`: startup and update bootstrap.
 - `packaging`: authoritative icons, licenses, file associations, and Windows release inputs.
 - `samples`: manual-verification fixtures. Application runs can modify files here, so inspect changes and do not commit incidental rewrites.
 
