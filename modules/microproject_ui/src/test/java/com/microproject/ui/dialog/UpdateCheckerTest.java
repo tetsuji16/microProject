@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.URL;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -141,7 +141,7 @@ class UpdateCheckerTest {
 		startBinaryResponse(200, installer);
 
 		Path staged = UpdateChecker.stageInstaller(
-				new UpdateChecker.MsiAsset(endpoint("/installer").toExternalForm(), digest), "v0.0.24", staging);
+						new UpdateChecker.MsiAsset(endpoint("/installer").toString(), digest), "v0.0.24", staging);
 
 		assertEquals(staging, staged.getParent());
 		assertTrue(Files.isRegularFile(staged));
@@ -178,8 +178,8 @@ class UpdateCheckerTest {
 		startBinaryResponse(200, installer);
 
 		assertThrows(IOException.class, () -> UpdateChecker.stageInstaller(
-				new UpdateChecker.MsiAsset(endpoint("/installer").toExternalForm(), sha256(installer)), "v0.0.24",
-				staging, UpdateChecker::isTrustedDownloadUrl));
+						new UpdateChecker.MsiAsset(endpoint("/installer").toString(), sha256(installer)), "v0.0.24",
+						staging, UpdateChecker::isTrustedDownloadUrl));
 		try (var files = Files.list(staging)) {
 			assertEquals(0, files.count());
 		}
@@ -204,8 +204,30 @@ class UpdateCheckerTest {
 		server.start();
 
 		assertThrows(IOException.class, () -> UpdateChecker.stageInstaller(
-				new UpdateChecker.MsiAsset(endpoint("/installer").toExternalForm(), sha256("fake-msi".getBytes(StandardCharsets.UTF_8))),
-				"v0.0.24", staging, url -> !url.endsWith("/blocked")));
+						new UpdateChecker.MsiAsset(endpoint("/installer").toString(), sha256("fake-msi".getBytes(StandardCharsets.UTF_8))),
+						"v0.0.24", staging, url -> !url.endsWith("/blocked")));
+		try (var files = Files.list(staging)) {
+			assertEquals(0, files.count());
+		}
+	}
+
+	@Test
+	void tooManyRedirectsFailWithoutLeavingArtifacts() throws Exception {
+		Path staging = temporaryDirectory.resolve("staging");
+		server = HttpServer.create(new InetSocketAddress(0), 0);
+		server.createContext("/installer", exchange -> {
+			exchange.getResponseHeaders().add("Location", "/installer");
+			exchange.sendResponseHeaders(302, -1);
+			exchange.close();
+		});
+		server.start();
+
+		assertThrows(IOException.class, () -> UpdateChecker.stageInstaller(
+						new UpdateChecker.MsiAsset(endpoint("/installer").toString(), "0".repeat(64)),
+						"v0.0.24", staging, url -> true));
+		try (var files = Files.list(staging)) {
+			assertEquals(0, files.count());
+		}
 	}
 
 	@Test
@@ -227,8 +249,8 @@ class UpdateCheckerTest {
 		server.start();
 
 		Path staged = UpdateChecker.stageInstaller(
-				new UpdateChecker.MsiAsset(endpoint("/installer").toExternalForm(), sha256(installer)), "v0.0.24",
-				staging, url -> true);
+						new UpdateChecker.MsiAsset(endpoint("/installer").toString(), sha256(installer)), "v0.0.24",
+						staging, url -> true);
 
 		assertTrue(Files.isRegularFile(staged));
 	}
@@ -239,54 +261,54 @@ class UpdateCheckerTest {
 		startBinaryResponse(200, "not-the-expected-installer".getBytes(StandardCharsets.UTF_8));
 
 		assertThrows(IOException.class, () -> UpdateChecker.stageInstaller(
-				new UpdateChecker.MsiAsset(endpoint("/installer").toExternalForm(), "0".repeat(64)), "v0.0.24", staging));
+						new UpdateChecker.MsiAsset(endpoint("/installer").toString(), "0".repeat(64)), "v0.0.24", staging));
 		try (var files = Files.list(staging)) {
 			assertEquals(0, files.count());
 		}
 	}
 
 	@Test
-	void successfulInstallerProcessCleansPublishedArtifacts() throws Exception {
-		Path staging = temporaryDirectory.resolve("staging-success");
-		byte[] installer = "fake-msi-success".getBytes(StandardCharsets.UTF_8);
-		startBinaryResponse(200, installer);
-		Path staged = UpdateChecker.stageInstaller(
-				new UpdateChecker.MsiAsset(endpoint("/installer").toExternalForm(), sha256(installer)), "v0.0.24", staging);
+		void successfulInstallerProcessCleansPublishedArtifacts() throws Exception {
+			Path staging = temporaryDirectory.resolve("staging-success");
+			byte[] installer = "fake-msi-success".getBytes(StandardCharsets.UTF_8);
+			startBinaryResponse(200, installer);
+			Path staged = UpdateChecker.stageInstaller(
+					new UpdateChecker.MsiAsset(endpoint("/installer").toString(), sha256(installer)), "v0.0.24", staging);
 
-		assertTrue(UpdateChecker.applyStagedUpdateForTest(path -> completedProcess(0)));
-		assertFalse(Files.exists(staged));
-		assertFalse(Files.exists(staged.resolveSibling(staged.getFileName() + ".manifest")));
-	}
-
-	@Test
-	void installerLaunchFailureCleansPublishedArtifacts() throws Exception {
-		Path staging = temporaryDirectory.resolve("staging-launch-failure");
-		byte[] installer = "fake-msi-launch-failure".getBytes(StandardCharsets.UTF_8);
-		startBinaryResponse(200, installer);
-		Path staged = UpdateChecker.stageInstaller(
-				new UpdateChecker.MsiAsset(endpoint("/installer").toExternalForm(), sha256(installer)), "v0.0.24", staging);
-
-		assertFalse(UpdateChecker.applyStagedUpdateForTest(path -> {
-			throw new IOException("Defender denied installer launch");
-		}));
-		assertFalse(Files.exists(staged));
-		assertFalse(Files.exists(staged.resolveSibling(staged.getFileName() + ".manifest")));
-	}
+			assertTrue(UpdateChecker.applyStagedUpdateForTest(path -> completedProcess(0)));
+			assertFalse(Files.exists(staged));
+			assertFalse(Files.exists(staged.resolveSibling(staged.getFileName() + ".manifest")));
+		}
 
 	@Test
-	void nonzeroInstallerExitRetainsArtifactsForRetryAndCancellationCanRemoveThem() throws Exception {
-		Path staging = temporaryDirectory.resolve("staging-nonzero");
-		byte[] installer = "fake-msi-nonzero".getBytes(StandardCharsets.UTF_8);
-		startBinaryResponse(200, installer);
-		Path staged = UpdateChecker.stageInstaller(
-				new UpdateChecker.MsiAsset(endpoint("/installer").toExternalForm(), sha256(installer)), "v0.0.24", staging);
+		void installerLaunchFailureCleansPublishedArtifacts() throws Exception {
+			Path staging = temporaryDirectory.resolve("staging-launch-failure");
+			byte[] installer = "fake-msi-launch-failure".getBytes(StandardCharsets.UTF_8);
+			startBinaryResponse(200, installer);
+			Path staged = UpdateChecker.stageInstaller(
+					new UpdateChecker.MsiAsset(endpoint("/installer").toString(), sha256(installer)), "v0.0.24", staging);
 
-		assertFalse(UpdateChecker.applyStagedUpdateForTest(path -> completedProcess(1603)));
-		assertTrue(Files.exists(staged), "failed MSI must remain retryable");
-		assertTrue(Files.exists(staged.resolveSibling(staged.getFileName() + ".manifest")));
-		UpdateChecker.discardStagedUpdate();
-		assertFalse(Files.exists(staged));
-	}
+			assertFalse(UpdateChecker.applyStagedUpdateForTest(path -> {
+				throw new IOException("Defender denied installer launch");
+			}));
+			assertFalse(Files.exists(staged));
+			assertFalse(Files.exists(staged.resolveSibling(staged.getFileName() + ".manifest")));
+		}
+
+	@Test
+		void nonzeroInstallerExitRetainsArtifactsForRetryAndCancellationCanRemoveThem() throws Exception {
+			Path staging = temporaryDirectory.resolve("staging-nonzero");
+			byte[] installer = "fake-msi-nonzero".getBytes(StandardCharsets.UTF_8);
+			startBinaryResponse(200, installer);
+			Path staged = UpdateChecker.stageInstaller(
+					new UpdateChecker.MsiAsset(endpoint("/installer").toString(), sha256(installer)), "v0.0.24", staging);
+
+			assertFalse(UpdateChecker.applyStagedUpdateForTest(path -> completedProcess(1603)));
+			assertTrue(Files.exists(staged), "failed MSI must remain retryable");
+			assertTrue(Files.exists(staged.resolveSibling(staged.getFileName() + ".manifest")));
+			UpdateChecker.discardStagedUpdate();
+			assertFalse(Files.exists(staged));
+		}
 
 	private static Process completedProcess(int exitCode) throws IOException {
 		if (System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win"))
@@ -314,40 +336,40 @@ class UpdateCheckerTest {
 	}
 
 	@Test
-	void decliningUpdateDeletesStagedInstaller() throws Exception {
-		Path staging = temporaryDirectory.resolve("staging");
-		byte[] installer = "fake-msi".getBytes(StandardCharsets.UTF_8);
-		startBinaryResponse(200, installer);
-		Path staged = UpdateChecker.stageInstaller(
-				new UpdateChecker.MsiAsset(endpoint("/installer").toExternalForm(), sha256(installer)), "v0.0.24", staging);
+		void decliningUpdateDeletesStagedInstaller() throws Exception {
+			Path staging = temporaryDirectory.resolve("staging");
+			byte[] installer = "fake-msi".getBytes(StandardCharsets.UTF_8);
+			startBinaryResponse(200, installer);
+			Path staged = UpdateChecker.stageInstaller(
+					new UpdateChecker.MsiAsset(endpoint("/installer").toString(), sha256(installer)), "v0.0.24", staging);
 
-		UpdateChecker.discardStagedUpdate();
+			UpdateChecker.discardStagedUpdate();
 
-		assertFalse(Files.exists(staged));
-		assertFalse(Files.exists(staged.resolveSibling(staged.getFileName() + ".manifest")));
-	}
+			assertFalse(Files.exists(staged));
+			assertFalse(Files.exists(staged.resolveSibling(staged.getFileName() + ".manifest")));
+		}
 
 	@Test
-	void concurrentStagingPublishesOneConsistentState() throws Exception {
-		Path staging = temporaryDirectory.resolve("staging");
-		byte[] installer = "fake-msi".getBytes(StandardCharsets.UTF_8);
-		startBinaryResponse(200, installer);
-		var asset = new UpdateChecker.MsiAsset(endpoint("/installer").toExternalForm(), sha256(installer));
-		ExecutorService executor = Executors.newFixedThreadPool(2);
-		try {
-			Future<Path> first = executor.submit(() -> UpdateChecker.stageInstaller(asset, "v0.0.24", staging));
-			Future<Path> second = executor.submit(() -> UpdateChecker.stageInstaller(asset, "v0.0.24", staging));
-			assertEquals(first.get(), second.get());
-		} finally {
-			executor.shutdownNow();
+		void concurrentStagingPublishesOneConsistentState() throws Exception {
+			Path staging = temporaryDirectory.resolve("staging");
+			byte[] installer = "fake-msi".getBytes(StandardCharsets.UTF_8);
+			startBinaryResponse(200, installer);
+			var asset = new UpdateChecker.MsiAsset(endpoint("/installer").toString(), sha256(installer));
+			ExecutorService executor = Executors.newFixedThreadPool(2);
+			try {
+				Future<Path> first = executor.submit(() -> UpdateChecker.stageInstaller(asset, "v0.0.24", staging));
+				Future<Path> second = executor.submit(() -> UpdateChecker.stageInstaller(asset, "v0.0.24", staging));
+				assertEquals(first.get(), second.get());
+			} finally {
+				executor.shutdownNow();
+			}
+			try (var files = Files.list(staging)) {
+				assertEquals(1, files.filter(path -> path.getFileName().toString().endsWith(".msi")).count());
+			}
+			try (var files = Files.list(staging)) {
+				assertEquals(1, files.filter(path -> path.getFileName().toString().endsWith(".manifest")).count());
+			}
 		}
-		try (var files = Files.list(staging)) {
-			assertEquals(1, files.filter(path -> path.getFileName().toString().endsWith(".msi")).count());
-		}
-		try (var files = Files.list(staging)) {
-			assertEquals(1, files.filter(path -> path.getFileName().toString().endsWith(".manifest")).count());
-		}
-	}
 
 	@Test
 	void failedDeletionLeavesMarkerAndStartupCleanupRetriesIt() throws Exception {
@@ -408,7 +430,7 @@ class UpdateCheckerTest {
 		return hex.toString();
 	}
 
-	private URL endpoint(String path) throws Exception {
-		return new URL("http://localhost:" + server.getAddress().getPort() + path);
+	private URI endpoint(String path) throws Exception {
+			return URI.create("http://localhost:" + server.getAddress().getPort() + path);
+		}
 	}
-}
