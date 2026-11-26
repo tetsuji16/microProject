@@ -68,15 +68,13 @@ itself. Two update mechanisms exist in the codebase:
   an app-image built by that task never self-updates. `build-msix.ps1`
   verifies the option is present in the staged launcher configuration
   and fails the build if it is missing.
-- The in-app `UpdateChecker` (startup check and the About dialog) is
-  **not** gated by that property. It is controlled by the user
-  preference `checkForUpdates` (default on) and by the
-  development-build marker in `version.properties`, which is off for
-  release builds. A Store build can therefore still offer the GitHub
-  Releases MSI from inside the app. This is a known gap: before the
-  first Store submission, decide whether to gate `UpdateChecker` on
-  the same property (a distribution-channel check in code) — no code
-  change has been made for this yet.
+- The in-app `UpdateChecker` only notifies; it never downloads or
+  installs a release. `build-msix.ps1` adds
+  `-Dmicroproject.distribution=store` to the staged
+  `microProject.cfg`. With that property the application makes no
+  update request at startup, hides the update preference, and the
+  Backstage "Check for updates" command opens the Store product page
+  (`ms-windows-store://pdp/?ProductId=9N89VPNDHP93`).
 
 ## Submitting to Partner Center
 
