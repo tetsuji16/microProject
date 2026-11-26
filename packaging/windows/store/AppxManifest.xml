@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	Microsoft Store package manifest for microProject (issue #1256).
+
+	The Identity values below are the ones reserved in Partner Center for
+	this application and must not change:
+
+		Store ID:             9N89VPNDHP93
+		Identity Name:        tetsuji.microProject
+		Publisher:            CN=43D05264-95D7-4B0C-89CD-FD36B3613B22
+		PublisherDisplayName: tetsuji
+		Package Family Name:  tetsuji.microProject_ay08s11nqabca
+
+	The Version attribute is a placeholder. build-msix.ps1 rewrites it with
+	the version being packaged before it calls makeappx.exe.
+-->
+<Package
+	xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+	xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+	xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+	IgnorableNamespaces="uap rescap">
+
+	<Identity
+		Name="tetsuji.microProject"
+		Publisher="CN=43D05264-95D7-4B0C-89CD-FD36B3613B22"
+		Version="0.0.0.0" />
+
+	<Properties>
+		<DisplayName>microProject</DisplayName>
+		<PublisherDisplayName>tetsuji</PublisherDisplayName>
+		<Logo>assets\StoreLogo.png</Logo>
+	</Properties>
+
+	<Dependencies>
+		<TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.19041.0" />
+	</Dependencies>
+
+	<Resources>
+		<Resource Language="en-us" />
+		<Resource Language="ja-jp" />
+	</Resources>
+
+	<Applications>
+		<Application Id="microProject" Executable="microProject.exe" EntryPoint="Windows.FullTrustApplication">
+			<uap:VisualElements
+				DisplayName="microProject"
+				Description="microProject desktop project management software"
+				BackgroundColor="transparent"
+				Square150x150Logo="assets\Square150x150Logo.png"
+				Square44x44Logo="assets\Square44x44Logo.png">
+				<uap:DefaultTile
+					Wide310x150Logo="assets\Wide310x150Logo.png"
+					Square71x71Logo="assets\Square71x71Logo.png"
+					Square310x310Logo="assets\Square310x310Logo.png" />
+			</uap:VisualElements>
+			<Extensions>
+				<!-- Same extensions as packaging/windows/file-associations/*.properties. -->
+				<uap:Extension Category="windows.fileTypeAssociation">
+					<uap:FileTypeAssociation Name="microproject.mpo">
+						<uap:DisplayName>microProject Open Project</uap:DisplayName>
+						<uap:SupportedFileTypes>
+							<uap:FileType ContentType="application/vnd.microproject.openproject">.mpo</uap:FileType>
+						</uap:SupportedFileTypes>
+					</uap:FileTypeAssociation>
+				</uap:Extension>
+				<uap:Extension Category="windows.fileTypeAssociation">
+					<uap:FileTypeAssociation Name="microproject.mpp">
+						<uap:DisplayName>MPP Project</uap:DisplayName>
+						<uap:SupportedFileTypes>
+							<uap:FileType ContentType="application/projectlibre">.mpp</uap:FileType>
+						</uap:SupportedFileTypes>
+					</uap:FileTypeAssociation>
+				</uap:Extension>
+				<uap:Extension Category="windows.fileTypeAssociation">
+					<uap:FileTypeAssociation Name="microproject.pod">
+						<uap:DisplayName>microProject POD Project</uap:DisplayName>
+						<uap:SupportedFileTypes>
+							<uap:FileType ContentType="application/projectlibre">.pod</uap:FileType>
+						</uap:SupportedFileTypes>
+					</uap:FileTypeAssociation>
+				</uap:Extension>
+				<uap:Extension Category="windows.fileTypeAssociation">
+					<uap:FileTypeAssociation Name="microproject.xml">
+						<uap:DisplayName>MSPDI Project</uap:DisplayName>
+						<uap:SupportedFileTypes>
+							<uap:FileType ContentType="application/projectlibre">.xml</uap:FileType>
+						</uap:SupportedFileTypes>
+					</uap:FileTypeAssociation>
+				</uap:Extension>
+			</Extensions>
+		</Application>
+	</Applications>
+
+	<Capabilities>
+		<rescap:Capability Name="runFullTrust" />
+	</Capabilities>
+</Package>
