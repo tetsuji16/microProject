@@ -976,7 +976,7 @@ public class PageSetup{
 	}
 
 	private JComponent createDialogPanel(){
-		FormLayout layout = new FormLayout("p, 3dlu, p, 3dlu","p, 3dlu,p, 3dlu, p, 3dlu,p,3dlu");
+		FormLayout layout = new FormLayout("p:grow, 3dlu, p:grow, 3dlu","p, 3dlu,p, 3dlu, p, 3dlu,p,3dlu");
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		CellConstraints cc = new CellConstraints();
 		builder.setDefaultDialogBorder();
@@ -1044,10 +1044,10 @@ public class PageSetup{
 		return panel;
 	}
 	private JComponent createPaperSizePanel(){
-	        return paperSizePanel("p, 3dlu,70dlu");
+	        return paperSizePanel("p, 3dlu, p");
 	}
 	private JComponent createFlowPaperSizePanel(){
-	        return paperSizePanel("p, 3dlu,60dlu");
+	        return paperSizePanel("p, 3dlu, p");
 	}
 	private JComponent paperSizePanel(String columns){
 		FormLayout layout = new FormLayout(columns,"p, 3dlu, p, 3dlu, p");
@@ -1062,7 +1062,7 @@ public class PageSetup{
 	}
 
 	private JComponent createOrientationPanel(){
-	        return orientationPanel("8dlu, 120dlu, 8dlu");
+	        return orientationPanel("8dlu, p, 8dlu");
 	}
 	private JComponent createFlowOrientationPanel(){
 		return orientationPanel("1dlu, p:grow, 1dlu");
@@ -1080,10 +1080,10 @@ public class PageSetup{
 
 
 	private JComponent createMarginsPanel(){
-	        return marginsPanel("8dlu, 70dlu, 3dlu, 70dlu, 8dlu");
+	        return marginsPanel("8dlu, p, 3dlu, p, 8dlu");
 	}
 	private JComponent createFlowMarginsPanel(){
-	        return marginsPanel("1dlu, 60dlu, 3dlu, 60dlu, 1dlu");
+	        return marginsPanel("1dlu, p, 3dlu, p, 1dlu");
 	}
 	private JComponent marginsPanel(String columns){
 		FormLayout layout = new FormLayout(columns,"p,1dlu,p,3dlu, p,1dlu,p,2dlu");
@@ -1119,7 +1119,7 @@ public class PageSetup{
 
 	private JComponent createScalingPanel(){
 	        FormLayout layout = new FormLayout(
-	                "8dlu, p, 3dlu,50dlu,3dlu,p,3dlu,p,p,p,8dlu",
+	                "8dlu, p, 3dlu, p, 3dlu, p, 3dlu, p, p, p, 8dlu",
 	                "p, 3dlu,p,10dlu,p,3dlu,p,3dlu");
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
@@ -1148,7 +1148,7 @@ public class PageSetup{
 	}
 	private JComponent createFlowScalingPanel(){
 	        FormLayout layout = new FormLayout(
-	                "1dlu, 5dlu,p,40dlu,3dlu,p,1dlu",
+	                "1dlu, 5dlu, p, p, 3dlu, p, 1dlu",
 	                "p, 3dlu,p,3dlu,p,3dlu,p,p,10dlu,p,3dlu,p,3dlu,p,3dlu");
 
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
