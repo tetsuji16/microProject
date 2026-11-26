@@ -22,6 +22,10 @@
 	that option into microProject.cfg; this script fails the build if it
 	is missing so a Store package cannot silently regress.
 
+	The script also adds -Dmicroproject.distribution=store to the staged
+	launcher configuration. With it the application makes no update
+	request, and its "Check for updates" command opens the Store page.
+
 .PARAMETER AppImageDir
 	The microProject folder produced by packageWindowsAppImage
 	(build\releases\v<version>\app-image\microProject). When omitted, the
@@ -163,6 +167,25 @@ if ($manifestText -notmatch [regex]::Escape("Version=`"$msixVersion`"")) {
 	throw 'Failed to stamp the package version into the staged manifest.'
 }
 Set-Content -Path (Join-Path $stagingDir 'AppxManifest.xml') -Value $manifestText -Encoding UTF8 -NoNewline
+
+# --- Mark the staged launcher as the Store distribution ----------------------
+# UpdateChecker reads microproject.distribution: a Store build makes no update
+# request and its "Check for updates" command opens the Store product page.
+$storeOption = '-Dmicroproject.distribution=store'
+$stagedConfig = Join-Path $stagingDir 'app\microProject.cfg'
+$configLines = [System.Collections.Generic.List[string]](Get-Content -Path $stagedConfig)
+if (-not ($configLines -contains "java-options=$storeOption")) {
+	$javaOptionsIndex = $configLines.IndexOf('[JavaOptions]')
+	if ($javaOptionsIndex -lt 0) {
+		throw "No [JavaOptions] section in the staged launcher configuration: $stagedConfig"
+	}
+	$configLines.Insert($javaOptionsIndex + 1, "java-options=$storeOption")
+	Set-Content -Path $stagedConfig -Value $configLines -Encoding ASCII
+}
+if (-not (Select-String -Path $stagedConfig -SimpleMatch "java-options=$storeOption" -Quiet)) {
+	throw "Failed to mark the staged launcher as the Store distribution ($storeOption)."
+}
+Write-Host "Staged launcher marked with $storeOption"
 
 # --- Pack (unsigned; the Store re-signs on submission) -----------------------
 if (-not $OutputDir) {
