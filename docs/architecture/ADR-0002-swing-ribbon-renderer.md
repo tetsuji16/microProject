@@ -44,9 +44,7 @@ revise this ADR before beginning another renderer migration.
 - Before proposing a UI toolkit migration, compare actual screenshots at the
   same dimensions and scale. Do not infer visual suitability from library
   popularity or feature lists.
-- The Flamingo dependency can only be removed after its remaining non-ribbon
-  callers have been migrated or removed; this ADR does not claim that the
-  dependency has already been eliminated.
+- The Flamingo dependency was removed in #1369.
 
 ## Verification
 

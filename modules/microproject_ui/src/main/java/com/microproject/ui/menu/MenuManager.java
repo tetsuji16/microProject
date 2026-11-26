@@ -43,10 +43,6 @@ import javax.swing.JPopupMenu;
 import javax.swing.JToolBar;
 import javax.swing.InputMap;
 
-import org.pushingpixels.flamingo.api.common.RichTooltip;
-import org.pushingpixels.flamingo.api.common.AbstractCommandButton;
-import org.pushingpixels.flamingo.api.common.JCommandToggleButton;
-
 import com.microproject.ui.ribbon.SwingRibbonFactory;
 import com.microproject.ribbon.CustomRibbonBandGenerator;
 import com.microproject.ribbon.SwingRibbonModel;
@@ -262,8 +258,6 @@ public class MenuManager {
 			for (Object button : buttons) {
 				if (button instanceof AbstractButton abstractButton)
 					abstractButton.setVisible(enable);
-				else if (button instanceof AbstractCommandButton commandButton)
-					commandButton.setVisible(enable);
 			}
 		}
 		JMenuItem menuItem = menuFactory.getMenuItemFromId(id);
@@ -279,10 +273,6 @@ public class MenuManager {
 			for (Object button : buttons) {
 				if (button instanceof AbstractButton abstractButton) {
 					abstractButton.setSelected(enable);
-				} else if (button instanceof JCommandToggleButton commandToggleButton) {
-					commandToggleButton.getActionModel().setSelected(enable);
-				} else if (button instanceof AbstractCommandButton commandButton) {
-					commandButton.getActionModel().setSelected(enable);
 				}
 			}
 		}
@@ -300,8 +290,6 @@ public class MenuManager {
 			for (Object button : buttons) {
 				if (button instanceof AbstractButton abstractButton)
 					abstractButton.setToolTipText(text);
-				else if (button instanceof AbstractCommandButton commandButton)
-					commandButton.setActionRichTooltip(richTooltip(text));
 			}
 		}
 		JMenuItem menuItem = menuFactory.getMenuItemFromId(id);
@@ -309,13 +297,6 @@ public class MenuManager {
 			menuItem.setText(text);
 	}
 
-	private static RichTooltip richTooltip(String text) {
-		RichTooltip tooltip = new RichTooltip(text, text);
-		tooltip.addDescriptionSection(text);
-		return tooltip;
-	}
-	
-	
     public String getTextForId(String id) {
     	return menuFactory.getTextForId(id);
     }
