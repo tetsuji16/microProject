@@ -134,6 +134,7 @@ import com.microproject.schedule.ScheduleInterval;
 import com.microproject.schedule.ScheduleUtil;
 import com.microproject.model.snapshot.BaselineScheduleFields;
 import com.microproject.model.format.SheetTextStyles;
+import com.microproject.model.gantt.GanttDrawings;
 import com.microproject.model.snapshot.Snapshottable;
 import com.microproject.model.snapshot.SnapshottableImpl;
 import com.microproject.model.time.MutableHasStartAndEnd;
@@ -1183,7 +1184,26 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 		getSchedulingAlgorithm().objectChanged(evt);
 	}
 	public void remove(Object toRemove, NodeModel nodeModel,boolean deep,boolean undo,boolean cleanDependencies){
+		if (toRemove instanceof Task task) removeGanttDrawingsForTask(task, undo);
 		taskLifecycleFacade.remove(toRemove, nodeModel, deep, undo, cleanDependencies);
+	}
+
+	/** Drawings anchored to a deleted task go with it, inside the same undoable user operation. */
+	private void removeGanttDrawingsForTask(Task task, boolean undo) {
+		GanttDrawings ganttDrawings = findTransientDocumentState(GanttDrawings.class);
+		if (ganttDrawings == null) return;
+		if (undo) ganttDrawings.removeForTask(this, task.getUniqueId());
+		else ganttDrawings.removeForTaskSilently(task.getUniqueId());
+	}
+
+	/** The project's Gantt drawings, created on first use. */
+	public GanttDrawings getGanttDrawings() {
+		return getOrCreateTransientDocumentState(GanttDrawings.class, GanttDrawings::new);
+	}
+
+	/** The project's Gantt drawings when the document has any. */
+	public GanttDrawings findGanttDrawings() {
+		return findTransientDocumentState(GanttDrawings.class);
 	}
 
 	public void removeExternal(Task toRemove) {

@@ -43,6 +43,8 @@ import com.microproject.model.task.NormalTask;
 import com.microproject.model.task.BaselineRollupOptions;
 import com.microproject.model.task.TaskSnapshot;
 import com.microproject.model.task.Task;
+import com.microproject.model.gantt.GanttDrawing;
+import com.microproject.model.gantt.GanttDrawings;
 import com.microproject.view.network.PertManualPositions;
 import com.microproject.model.task.TaskSplitInterval;
 import com.microproject.model.task.TaskModeService;
@@ -2307,6 +2309,51 @@ class MpoFileImporterTest {
 			StandardCharsets.UTF_8);
 		assertFalse(styles.contains("displayOnTimeline"), styles);
 		assertFalse(firstTask(loadFromBytes(plainArchive.toByteArray())).isDisplayOnTimeline());
+	}
+
+	@Test
+	void ganttDrawingsSurviveMpoSaveAndReload() throws Exception {
+		Project project = projectForRoundTrip();
+		Task task = firstTask(project);
+		GanttDrawings drawings = project.getGanttDrawings();
+		GanttDrawing rectangle = drawings.add(project, GanttDrawing.Kind.RECTANGLE, task.getUniqueId(),
+				GanttDrawing.AnchorSide.END, 12.5, 3.25, 40, 12, 0xFF102030, 0xFFFFFF00, "note");
+		GanttDrawing text = drawings.add(project, GanttDrawing.Kind.TEXT_BOX, task.getUniqueId(),
+				GanttDrawing.AnchorSide.START, 4, 5, 60, 14, 0xFF445566, 0, "label");
+
+		byte[] bytes = saveProjectBytes(project);
+		Project reopened = loadFromBytes(bytes);
+		GanttDrawings restored = reopened.findTransientDocumentState(GanttDrawings.class);
+		assertNotNull(restored);
+		assertEquals(2, restored.size());
+		GanttDrawing restoredRectangle = restored.find(rectangle.id());
+		assertNotNull(restoredRectangle);
+		assertEquals(GanttDrawing.Kind.RECTANGLE, restoredRectangle.kind());
+		assertEquals(firstTask(reopened).getUniqueId(), restoredRectangle.anchorTaskUniqueId());
+		assertEquals(GanttDrawing.AnchorSide.END, restoredRectangle.anchorSide());
+		assertEquals(12.5, restoredRectangle.x(), 1e-9);
+		assertEquals(3.25, restoredRectangle.y(), 1e-9);
+		assertEquals(40, restoredRectangle.width(), 1e-9);
+		assertEquals(12, restoredRectangle.height(), 1e-9);
+		assertEquals(0xFF102030, restoredRectangle.lineColor());
+		assertEquals(0xFFFFFF00, restoredRectangle.fillColor());
+		assertEquals("note", restoredRectangle.text());
+		GanttDrawing restoredText = restored.find(text.id());
+		assertNotNull(restoredText);
+		assertEquals(GanttDrawing.Kind.TEXT_BOX, restoredText.kind());
+		assertEquals(GanttDrawing.AnchorSide.START, restoredText.anchorSide());
+		assertEquals(0, restoredText.fillColor());
+		assertEquals("label", restoredText.text());
+		assertEquals(List.of(rectangle.id(), text.id()),
+				restored.getDrawings().stream().map(GanttDrawing::id).toList(),
+				"the painting order is preserved");
+	}
+
+	@Test
+	void mpoWithoutGanttDrawingsRestoresNoDrawings() throws Exception {
+		Project reopened = loadFromBytes(saveProjectBytes(projectForRoundTrip()));
+		GanttDrawings restored = reopened.findTransientDocumentState(GanttDrawings.class);
+		assertTrue(restored == null || restored.isEmpty(), "a document without the entry has no drawings");
 	}
 
 	@Test

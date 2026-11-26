@@ -8,12 +8,16 @@ package com.microproject.exchange;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.microproject.model.gantt.GanttDrawing;
+import com.microproject.model.gantt.GanttDrawings;
 import com.microproject.model.task.Project;
 import com.microproject.model.task.NormalTask;
 import com.microproject.model.task.TaskSplitInterval;
@@ -1070,6 +1074,76 @@ final class MpoSidecarJson {
 
 	static long requiredLong(JsonNode node, String name) throws IOException {
 		return integralLong(node.path(name), name);
+	}
+
+	/** Serializes the project's Gantt drawings; a document without any has no sidecar entry. */
+	static byte[] ganttDrawingsJson(Project project, String taskIdentities) throws IOException {
+		GanttDrawings drawings = project.findGanttDrawings();
+		if (drawings == null || drawings.isEmpty()) return null;
+		JsonNode identities = JSON.readTree(taskIdentities);
+		if (identities == null || !identities.isObject()) throw new IOException("Invalid mpo task identity map");
+		ObjectNode root = JSON.createObjectNode();
+		root.put("version", 1);
+		com.fasterxml.jackson.databind.node.ArrayNode values = root.putArray("drawings");
+		for (GanttDrawing drawing : drawings.getDrawings()) {
+			JsonNode serializedUid = identities.path(String.valueOf(drawing.anchorTaskUniqueId()));
+			if (!serializedUid.canConvertToLong()) continue;
+			ObjectNode value = values.addObject();
+			value.put("id", drawing.id());
+			value.put("kind", drawing.kind().name());
+			value.put("taskUid", serializedUid.longValue());
+			value.put("anchor", drawing.anchorSide().name());
+			value.put("x", drawing.x());
+			value.put("y", drawing.y());
+			value.put("width", drawing.width());
+			value.put("height", drawing.height());
+			value.put("lineColor", drawing.lineColor());
+			value.put("fillColor", drawing.fillColor());
+			value.put("text", drawing.text());
+		}
+		if (values.isEmpty()) return null;
+		return JSON.writeValueAsBytes(root);
+	}
+
+	/** Restores Gantt drawings; a document without the entry has none. */
+	static void restoreGanttDrawings(Project project, byte[] bytes, String taskIdentities) throws IOException {
+		JsonNode root = JSON.readTree(bytes);
+		if (root == null || !root.isObject() || requiredInt(root, "version") != 1)
+			throw new IOException("Invalid mpo gantt drawings version");
+		JsonNode values = root.path("drawings");
+		if (!values.isArray()) throw new IOException("Invalid mpo gantt drawings array");
+		JsonNode identities = taskIdentities == null ? null : JSON.readTree(taskIdentities);
+		java.util.Set<Long> serializedTaskIds = new java.util.HashSet<>();
+		if (identities != null) {
+			if (!identities.isObject()) throw new IOException("Invalid mpo task identity map");
+			java.util.Iterator<JsonNode> known = identities.elements();
+			while (known.hasNext()) {
+				JsonNode value = known.next();
+				if (value.canConvertToLong()) serializedTaskIds.add(value.longValue());
+			}
+		}
+		List<GanttDrawing> restored = new ArrayList<>();
+		for (JsonNode value : values) {
+			if (!value.isObject()) throw new IOException("Invalid mpo gantt drawing");
+			JsonNode idNode = value.path("id");
+			JsonNode taskUidNode = value.path("taskUid");
+			if (!idNode.canConvertToLong() || !taskUidNode.canConvertToLong()) continue;
+			long taskUid = taskUidNode.longValue();
+			if (!serializedTaskIds.isEmpty() && !serializedTaskIds.contains(taskUid)) continue;
+			GanttDrawing.Kind kind;
+			GanttDrawing.AnchorSide anchor;
+			try {
+				kind = GanttDrawing.Kind.valueOf(value.path("kind").asText());
+				anchor = GanttDrawing.AnchorSide.valueOf(value.path("anchor").asText());
+				restored.add(new GanttDrawing(idNode.longValue(), kind, taskUid, anchor,
+						value.path("x").asDouble(), value.path("y").asDouble(),
+						value.path("width").asDouble(), value.path("height").asDouble(),
+						value.path("lineColor").asInt(), value.path("fillColor").asInt(), value.path("text").asText("")));
+			} catch (IllegalArgumentException invalid) {
+				continue; // A record this build does not understand is dropped, not fatal.
+			}
+		}
+		project.getGanttDrawings().setDrawings(restored);
 	}
 
 	static int requiredInt(JsonNode node, String name) throws IOException {

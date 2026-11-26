@@ -128,6 +128,8 @@ public class MpoFileImporter extends FileImporter {
 		static final String ASSIGNMENT_LEVELING_SPLITS_ENTRY = "microproject/assignment-leveling-splits.json";
 		/** Network Diagram (PERT) manual box positions; MSPDI has no equivalent. */
 		static final String PERT_MANUAL_POSITIONS_ENTRY = "microproject/pert-manual-positions.json";
+		/** Gantt drawings anchored to task bars; MSPDI has no equivalent. */
+		static final String GANTT_DRAWINGS_ENTRY = "microproject/gantt-drawings.json";
 		/** MPOF v1.0 container layout (ODF conventions). */
 	static final String FORMAT_ID = "mpof";
 	/** Container version this build writes; every save rewrites the file at this version. */
@@ -369,6 +371,8 @@ public class MpoFileImporter extends FileImporter {
 			MpoSidecarJson.restoreAssignmentLevelingSplits(project, entries.get(ASSIGNMENT_LEVELING_SPLITS_ENTRY));
 		if (entries.containsKey(PERT_MANUAL_POSITIONS_ENTRY))
 			MpoSidecarJson.restorePertManualPositions(project, entries.get(PERT_MANUAL_POSITIONS_ENTRY), taskIdentities);
+		if (entries.containsKey(GANTT_DRAWINGS_ENTRY))
+			MpoSidecarJson.restoreGanttDrawings(project, entries.get(GANTT_DRAWINGS_ENTRY), taskIdentities);
 	}
 
 	@Override
@@ -705,12 +709,15 @@ public class MpoFileImporter extends FileImporter {
 			entries.put(ASSIGNMENT_LEVELING_SPLITS_ENTRY, MpoSidecarJson.assignmentLevelingSplitsJson(project, serialized.assignmentUids()));
 			byte[] pertManualPositions = MpoSidecarJson.pertManualPositionsJson(project, taskIdentities);
 			if (pertManualPositions != null) entries.put(PERT_MANUAL_POSITIONS_ENTRY, pertManualPositions);
+			byte[] ganttDrawings = MpoSidecarJson.ganttDrawingsJson(project, taskIdentities);
+			if (ganttDrawings != null) entries.put(GANTT_DRAWINGS_ENTRY, ganttDrawings);
 			entries.put(CCPM_HISTORY_ENTRY, ccpmHistoryJson(project));
 		MpoExtensions extensions = project.findTransientDocumentState(MpoExtensions.class);
 		if (extensions != null) for (java.util.Map.Entry<String, byte[]> extension : extensions.entries.entrySet()) {
 			// This sidecar is regenerated from the current transient document state above.
 			// Never let bytes retained from an older archive override a move or a clear.
 			if (PERT_MANUAL_POSITIONS_ENTRY.equals(extension.getKey())) continue;
+			if (GANTT_DRAWINGS_ENTRY.equals(extension.getKey())) continue;
 			if (MIMETYPE_ENTRY.equals(extension.getKey()) || MANIFEST_ENTRY.equals(extension.getKey()) || META_ENTRY.equals(extension.getKey()) || SETTINGS_ENTRY.equals(extension.getKey()) || CCPM_HISTORY_ENTRY.equals(extension.getKey()) || LAYOUT_ENTRY.equals(extension.getKey()) || VISIBILITY_ENTRY.equals(extension.getKey()) || TASK_SPLITS_ENTRY.equals(extension.getKey()) || TASK_LEVELING_OPTIONS_ENTRY.equals(extension.getKey()) || TASK_TEXT_STYLES_ENTRY.equals(extension.getKey()) || TASK_MARKED_ENTRY.equals(extension.getKey()) || SHEET_TEXT_STYLES_ENTRY.equals(extension.getKey()) || TASK_SCHEDULES_ENTRY.equals(extension.getKey()) || BASELINE_PROFILES_ENTRY.equals(extension.getKey()) || ASSIGNMENT_LEVELING_SPLITS_ENTRY.equals(extension.getKey()) || PROJECT_ENTRY.equals(extension.getKey()) || OPERATIONS_ENTRY.equals(extension.getKey()) || TASK_IDENTITIES_ENTRY.equals(extension.getKey()) || extension.getKey().startsWith(EMBEDDED_PROJECT_PREFIX)) continue;
 			entries.put(extension.getKey(), extension.getValue().clone());
 		}
