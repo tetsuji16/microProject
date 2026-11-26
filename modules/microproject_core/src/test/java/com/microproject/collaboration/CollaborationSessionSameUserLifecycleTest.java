@@ -1213,7 +1213,7 @@ class CollaborationSessionSameUserLifecycleTest {
 	private static String testRuntimeClasspath() throws Exception {
 		Set<Path> locations = new LinkedHashSet<>();
 		for (Class<?> type : new Class<?>[] {ChildSessionProcess.class, CollaborationSession.class,
-				com.fasterxml.jackson.databind.ObjectMapper.class, com.fasterxml.jackson.core.JsonFactory.class,
+				tools.jackson.databind.ObjectMapper.class, tools.jackson.core.json.JsonFactory.class,
 				com.fasterxml.jackson.annotation.JsonAnySetter.class}) {
 			locations.add(Path.of(type.getProtectionDomain().getCodeSource().getLocation().toURI()));
 		}

@@ -7,7 +7,7 @@ commons-text = "1.15.0"
 commons-logging = "1.4.0"
 jcl-over-slf4j = "2.0.20"
 flatlaf = "3.8"
-groovy = "3.0.25"
+groovy = "5.0.8"
 openpdf = "3.0.6"
 radiance = "4.5.0"
 flamingo = "5.0"
@@ -15,6 +15,7 @@ jakarta-jaxb-api = "4.0.5"
 jaxb-runtime = "4.0.9"
 jackson = "2.23.0"
 jackson-annotations = "2.23"
+jackson3 = "3.1.7"
 jfreechart = "1.5.6"
 netbeans = "RELEASE320"
 mpxj = "16.11.0"
@@ -39,7 +40,7 @@ jcl-over-slf4j = { module = "org.slf4j:jcl-over-slf4j", version.ref = "jcl-over-
 forms = { module = "com.jgoodies:jgoodies-forms", version = "1.9.0" }
 flatlaf = { module = "com.formdev:flatlaf", version.ref = "flatlaf" }
 flatlaf-extras = { module = "com.formdev:flatlaf-extras", version.ref = "flatlaf" }
-groovy = { module = "org.codehaus.groovy:groovy", version.ref = "groovy" }
+groovy = { module = "org.apache.groovy:groovy", version.ref = "groovy" }
 openpdf = { module = "com.github.librepdf:openpdf", version.ref = "openpdf" }
 radiance-neon = { module = "org.pushing-pixels:radiance-neon", version.ref = "radiance" }
 radiance-trident = { module = "org.pushing-pixels:radiance-trident", version.ref = "radiance" }
@@ -49,6 +50,8 @@ jaxb-runtime = { module = "org.glassfish.jaxb:jaxb-runtime", version.ref = "jaxb
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson-annotations" }
 jackson-core = { module = "com.fasterxml.jackson.core:jackson-core", version.ref = "jackson" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
+jackson3-core = { module = "tools.jackson.core:jackson-core", version.ref = "jackson3" }
+jackson3-databind = { module = "tools.jackson.core:jackson-databind", version.ref = "jackson3" }
 jfreechart = { module = "org.jfree:jfreechart", version.ref = "jfreechart" }
 org-netbeans-swing-outline = { module = "org.netbeans.api:org-netbeans-swing-outline", version.ref = "netbeans" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
@@ -70,6 +73,7 @@ commons-runtime = [
     "jcl-over-slf4j",
 ]
 jackson = ["jackson-annotations", "jackson-core", "jackson-databind"]
+jackson3 = ["jackson3-core", "jackson3-databind"]
 logging = ["slf4j-api", "slf4j-simple"]
 poi = ["poi", "poi-ooxml"]
 jaxb = ["jakarta-jaxb-api", "jaxb-runtime"]
