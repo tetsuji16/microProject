@@ -102,7 +102,6 @@ import com.microproject.application.RecentProjectStore;
 import com.microproject.ui.dialog.PageSetupDialog;
 import com.microproject.ui.dialog.UpdateChecker;
 import com.microproject.ui.dialog.UsabilityStrings;
-import com.microproject.preference.GlobalPreferences;
 import com.microproject.ui.print.GraphPageable;
 import com.microproject.print.PDFPrintService;
 import com.microproject.ui.print.PageSetup;
@@ -1001,7 +1000,7 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 				Messages.getContextString("Text.ShortTitle"),
 				version == null || version.isBlank() ? localized("FileBackstage.account.unknownVersion") : version,
 				localized("FileBackstage.account.licenseValue"));
-		Runnable checkForUpdates = () -> UpdateChecker.checkInBackground(new GlobalPreferences());
+		Runnable checkForUpdates = () -> UpdateChecker.checkNow();
 		Runnable about = () -> closeBackstageAndDispatch("RibbonAboutMicroProject");
 		return new BackstageAccountPage(product, FlatUiSupport.isDarkTheme(), checkForUpdates, about,
 				ThemeManager::applyTheme, this::localized);

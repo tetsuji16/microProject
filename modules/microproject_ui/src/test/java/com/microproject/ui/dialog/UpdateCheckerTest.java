@@ -29,6 +29,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.microproject.preference.GlobalPreferences;
 import com.microproject.util.VersionUtils;
 
 class UpdateCheckerTest {
@@ -39,20 +40,12 @@ class UpdateCheckerTest {
 	@AfterEach
 	void stopServer() {
 		if (server != null) server.stop(0);
-		UpdateChecker.discardStagedUpdate();
 	}
 
 	@Test
 	void extractsTagNameFromGitHubJson() {
 		String json = "{\"url\":\"x\",\"tag_name\": \"v0.0.24\",\"name\":\"release\"}";
 		assertEquals("v0.0.24", UpdateChecker.extractTagName(json));
-	}
-
-	@Test
-	void prefersTheStableLatestMsiAsset() {
-		String digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-		String json = "{\"assets\":[{\"browser_download_url\":\"https://x/microProject-0.0.24.msi\",\"digest\":\"sha256:" + digest + "\"},{\"browser_download_url\":\"https://x/microProject-latest.msi\",\"digest\":\"sha256:" + digest + "\"}]}";
-		assertEquals("https://x/microProject-latest.msi", UpdateChecker.extractMsiDownloadUrl(json));
 	}
 
 	@Test
@@ -133,264 +126,58 @@ class UpdateCheckerTest {
 		assertThrows(IOException.class, () -> UpdateChecker.fetchLatestReleaseJson(endpoint("/release"), 50));
 	}
 
-	@Test
-	void stagesCompleteInstallerInDedicatedDirectoryAndLeavesNoPartFile() throws Exception {
-		Path staging = temporaryDirectory.resolve("staging");
-		byte[] installer = "fake-msi".getBytes(StandardCharsets.UTF_8);
-		String digest = sha256(installer);
-		startBinaryResponse(200, installer);
-
-		Path staged = UpdateChecker.stageInstaller(
-						new UpdateChecker.MsiAsset(endpoint("/installer").toString(), digest), "v0.0.24", staging);
-
-		assertEquals(staging, staged.getParent());
-		assertTrue(Files.isRegularFile(staged));
-		String manifest = Files.readString(staged.resolveSibling(staged.getFileName() + ".manifest"));
-		assertTrue(manifest.contains("version=v0.0.24\n"));
-		assertTrue(manifest.contains("sha256=" + digest + "\n"));
-		assertTrue(manifest.contains("createdAt=") && manifest.endsWith("\n"));
-		try (var files = Files.list(staging)) {
-			assertEquals(1, files.filter(path -> path.getFileName().toString().endsWith(".msi")).count());
-		}
-		assertFalse(Files.exists(staged.resolveSibling(staged.getFileName() + ".part")));
-	}
 
 	@Test
-	void trustsOnlyHttpsReleaseHostsWithoutUserInfo() {
-		assertTrue(UpdateChecker.isTrustedDownloadUrl("https://github.com/tetsuji16/microProject/releases/download/v1/a.msi"));
-		assertTrue(UpdateChecker.isTrustedDownloadUrl("https://objects.githubusercontent.com/path/a.msi"));
-		assertTrue(UpdateChecker.isTrustedDownloadUrl("https://release-assets.githubusercontent.com/path/a.msi"));
-		assertFalse(UpdateChecker.isTrustedDownloadUrl("http://github.com/a.msi"));
-		assertFalse(UpdateChecker.isTrustedDownloadUrl("https://example.test/a.msi"));
-		assertFalse(UpdateChecker.isTrustedDownloadUrl("https://github.com.evil.test/a.msi"));
-		assertFalse(UpdateChecker.isTrustedDownloadUrl("https://user@github.com/a.msi"));
-		assertFalse(UpdateChecker.isTrustedDownloadUrl("https://github.com@evil.test/a.msi"));
-		assertFalse(UpdateChecker.isTrustedDownloadUrl("https://github.com:8443/a.msi"));
-		assertFalse(UpdateChecker.isTrustedDownloadUrl("file:///c:/a.msi"));
-		assertFalse(UpdateChecker.isTrustedDownloadUrl("not a url"));
-		assertFalse(UpdateChecker.isTrustedDownloadUrl(null));
-	}
-
-	@Test
-	void untrustedInstallerAddressIsNotDownloaded() throws Exception {
-		Path staging = temporaryDirectory.resolve("staging");
-		byte[] installer = "fake-msi".getBytes(StandardCharsets.UTF_8);
-		startBinaryResponse(200, installer);
-
-		assertThrows(IOException.class, () -> UpdateChecker.stageInstaller(
-						new UpdateChecker.MsiAsset(endpoint("/installer").toString(), sha256(installer)), "v0.0.24",
-						staging, UpdateChecker::isTrustedDownloadUrl));
-		try (var files = Files.list(staging)) {
-			assertEquals(0, files.count());
+	void storeDistributionIsRecognizedFromTheSystemProperty() {
+		String previous = System.getProperty("microproject.distribution");
+		try {
+			System.setProperty("microproject.distribution", "store");
+			assertTrue(UpdateChecker.isStoreDistribution());
+			System.setProperty("microproject.distribution", "STORE");
+			assertTrue(UpdateChecker.isStoreDistribution());
+			System.setProperty("microproject.distribution", "msi");
+			assertFalse(UpdateChecker.isStoreDistribution());
+			System.clearProperty("microproject.distribution");
+			assertFalse(UpdateChecker.isStoreDistribution());
+		} finally {
+			if (previous == null) System.clearProperty("microproject.distribution");
+			else System.setProperty("microproject.distribution", previous);
 		}
 	}
 
 	@Test
-	void redirectToUntrustedHostIsNotFollowed() throws Exception {
-		Path staging = temporaryDirectory.resolve("staging");
-		server = HttpServer.create(new InetSocketAddress(0), 0);
-		server.createContext("/installer", exchange -> {
-			exchange.getResponseHeaders().add("Location", "/blocked");
-			exchange.sendResponseHeaders(302, -1);
-			exchange.close();
-		});
-		server.createContext("/blocked", exchange -> {
-			byte[] body = "fake-msi".getBytes(StandardCharsets.UTF_8);
-			exchange.sendResponseHeaders(200, body.length);
-			try (var output = exchange.getResponseBody()) {
-				output.write(body);
-			}
-		});
-		server.start();
+	void storeDistributionStartsNoNetworkCheckButStillCleansLeftovers() throws Exception {
+		Path updates = Files.createDirectories(temporaryDirectory.resolve("updates"));
+		Path leftover = Files.createFile(updates.resolve("microProject-update-old.msi"));
 
-		assertThrows(IOException.class, () -> UpdateChecker.stageInstaller(
-						new UpdateChecker.MsiAsset(endpoint("/installer").toString(), sha256("fake-msi".getBytes(StandardCharsets.UTF_8))),
-						"v0.0.24", staging, url -> !url.endsWith("/blocked")));
-		try (var files = Files.list(staging)) {
-			assertEquals(0, files.count());
-		}
+		Thread check = UpdateChecker.checkInBackground(new GlobalPreferences(), true, updates);
+
+		assertNull(check);
+		assertFalse(Files.exists(leftover));
 	}
 
 	@Test
-	void tooManyRedirectsFailWithoutLeavingArtifacts() throws Exception {
-		Path staging = temporaryDirectory.resolve("staging");
-		server = HttpServer.create(new InetSocketAddress(0), 0);
-		server.createContext("/installer", exchange -> {
-			exchange.getResponseHeaders().add("Location", "/installer");
-			exchange.sendResponseHeaders(302, -1);
-			exchange.close();
-		});
-		server.start();
+	void cleanupDeletesEveryLeftoverInstallerFileRegardlessOfAge() throws Exception {
+		Path updates = Files.createDirectories(temporaryDirectory.resolve("updates"));
+		Path fresh = Files.createFile(updates.resolve("microProject-update-fresh.msi.part"));
+		Path old = Files.createFile(updates.resolve("microProject-update-old.msi"));
+		Path manifest = Files.createFile(updates.resolve("microProject-update-old.msi.manifest"));
+		Path unrelated = Files.createFile(updates.resolve("notes.txt"));
+		Files.setLastModifiedTime(old, FileTime.from(Instant.now().minus(Duration.ofDays(30))));
 
-		assertThrows(IOException.class, () -> UpdateChecker.stageInstaller(
-						new UpdateChecker.MsiAsset(endpoint("/installer").toString(), "0".repeat(64)),
-						"v0.0.24", staging, url -> true));
-		try (var files = Files.list(staging)) {
-			assertEquals(0, files.count());
-		}
+		UpdateChecker.cleanupStaleArtifacts(updates);
+
+		assertFalse(Files.exists(fresh));
+		assertFalse(Files.exists(old));
+		assertFalse(Files.exists(manifest));
+		assertTrue(Files.exists(unrelated));
+		assertTrue(Files.isDirectory(updates));
 	}
 
 	@Test
-	void trustedRedirectIsFollowed() throws Exception {
-		Path staging = temporaryDirectory.resolve("staging");
-		byte[] installer = "fake-msi".getBytes(StandardCharsets.UTF_8);
-		server = HttpServer.create(new InetSocketAddress(0), 0);
-		server.createContext("/installer", exchange -> {
-			exchange.getResponseHeaders().add("Location", "/final");
-			exchange.sendResponseHeaders(302, -1);
-			exchange.close();
-		});
-		server.createContext("/final", exchange -> {
-			exchange.sendResponseHeaders(200, installer.length);
-			try (var output = exchange.getResponseBody()) {
-				output.write(installer);
-			}
-		});
-		server.start();
-
-		Path staged = UpdateChecker.stageInstaller(
-						new UpdateChecker.MsiAsset(endpoint("/installer").toString(), sha256(installer)), "v0.0.24",
-						staging, url -> true);
-
-		assertTrue(Files.isRegularFile(staged));
-	}
-
-	@Test
-	void failedDownloadRemovesBothPartialAndPublishedArtifacts() throws Exception {
-		Path staging = temporaryDirectory.resolve("staging");
-		startBinaryResponse(200, "not-the-expected-installer".getBytes(StandardCharsets.UTF_8));
-
-		assertThrows(IOException.class, () -> UpdateChecker.stageInstaller(
-						new UpdateChecker.MsiAsset(endpoint("/installer").toString(), "0".repeat(64)), "v0.0.24", staging));
-		try (var files = Files.list(staging)) {
-			assertEquals(0, files.count());
-		}
-	}
-
-	@Test
-		void successfulInstallerProcessCleansPublishedArtifacts() throws Exception {
-			Path staging = temporaryDirectory.resolve("staging-success");
-			byte[] installer = "fake-msi-success".getBytes(StandardCharsets.UTF_8);
-			startBinaryResponse(200, installer);
-			Path staged = UpdateChecker.stageInstaller(
-					new UpdateChecker.MsiAsset(endpoint("/installer").toString(), sha256(installer)), "v0.0.24", staging);
-
-			assertTrue(UpdateChecker.applyStagedUpdateForTest(path -> completedProcess(0)));
-			assertFalse(Files.exists(staged));
-			assertFalse(Files.exists(staged.resolveSibling(staged.getFileName() + ".manifest")));
-		}
-
-	@Test
-		void installerLaunchFailureCleansPublishedArtifacts() throws Exception {
-			Path staging = temporaryDirectory.resolve("staging-launch-failure");
-			byte[] installer = "fake-msi-launch-failure".getBytes(StandardCharsets.UTF_8);
-			startBinaryResponse(200, installer);
-			Path staged = UpdateChecker.stageInstaller(
-					new UpdateChecker.MsiAsset(endpoint("/installer").toString(), sha256(installer)), "v0.0.24", staging);
-
-			assertFalse(UpdateChecker.applyStagedUpdateForTest(path -> {
-				throw new IOException("Defender denied installer launch");
-			}));
-			assertFalse(Files.exists(staged));
-			assertFalse(Files.exists(staged.resolveSibling(staged.getFileName() + ".manifest")));
-		}
-
-	@Test
-		void nonzeroInstallerExitRetainsArtifactsForRetryAndCancellationCanRemoveThem() throws Exception {
-			Path staging = temporaryDirectory.resolve("staging-nonzero");
-			byte[] installer = "fake-msi-nonzero".getBytes(StandardCharsets.UTF_8);
-			startBinaryResponse(200, installer);
-			Path staged = UpdateChecker.stageInstaller(
-					new UpdateChecker.MsiAsset(endpoint("/installer").toString(), sha256(installer)), "v0.0.24", staging);
-
-			assertFalse(UpdateChecker.applyStagedUpdateForTest(path -> completedProcess(1603)));
-			assertTrue(Files.exists(staged), "failed MSI must remain retryable");
-			assertTrue(Files.exists(staged.resolveSibling(staged.getFileName() + ".manifest")));
-			UpdateChecker.discardStagedUpdate();
-			assertFalse(Files.exists(staged));
-		}
-
-	private static Process completedProcess(int exitCode) throws IOException {
-		if (System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win"))
-			return new ProcessBuilder("cmd.exe", "/c", "exit " + exitCode).start();
-		return new ProcessBuilder("sh", "-c", "exit " + exitCode).start();
-	}
-
-	@Test
-	void staleArtifactsAreRemovedButFreshArtifactsAreRetained() throws Exception {
-		Path staging = temporaryDirectory.resolve("staging");
-		Files.createDirectories(staging);
-		Path stalePart = Files.createFile(staging.resolve("microProject-update-old.msi.part"));
-		Path staleInstaller = Files.createFile(staging.resolve("microProject-update-old.msi"));
-		Path fresh = Files.createFile(staging.resolve("microProject-update-fresh.msi.part"));
-		Instant now = Instant.parse("2026-09-12T00:00:00Z");
-		Files.setLastModifiedTime(stalePart, FileTime.from(now.minus(Duration.ofDays(8))));
-		Files.setLastModifiedTime(staleInstaller, FileTime.from(now.minus(Duration.ofDays(8))));
-		Files.setLastModifiedTime(fresh, FileTime.from(now.minus(Duration.ofDays(1))));
-
-		UpdateChecker.cleanupStaleArtifacts(staging, now, Duration.ofDays(7));
-
-		assertFalse(Files.exists(stalePart));
-		assertFalse(Files.exists(staleInstaller));
-		assertTrue(Files.exists(fresh));
-	}
-
-	@Test
-		void decliningUpdateDeletesStagedInstaller() throws Exception {
-			Path staging = temporaryDirectory.resolve("staging");
-			byte[] installer = "fake-msi".getBytes(StandardCharsets.UTF_8);
-			startBinaryResponse(200, installer);
-			Path staged = UpdateChecker.stageInstaller(
-					new UpdateChecker.MsiAsset(endpoint("/installer").toString(), sha256(installer)), "v0.0.24", staging);
-
-			UpdateChecker.discardStagedUpdate();
-
-			assertFalse(Files.exists(staged));
-			assertFalse(Files.exists(staged.resolveSibling(staged.getFileName() + ".manifest")));
-		}
-
-	@Test
-		void concurrentStagingPublishesOneConsistentState() throws Exception {
-			Path staging = temporaryDirectory.resolve("staging");
-			byte[] installer = "fake-msi".getBytes(StandardCharsets.UTF_8);
-			startBinaryResponse(200, installer);
-			var asset = new UpdateChecker.MsiAsset(endpoint("/installer").toString(), sha256(installer));
-			ExecutorService executor = Executors.newFixedThreadPool(2);
-			try {
-				Future<Path> first = executor.submit(() -> UpdateChecker.stageInstaller(asset, "v0.0.24", staging));
-				Future<Path> second = executor.submit(() -> UpdateChecker.stageInstaller(asset, "v0.0.24", staging));
-				assertEquals(first.get(), second.get());
-			} finally {
-				executor.shutdownNow();
-			}
-			try (var files = Files.list(staging)) {
-				assertEquals(1, files.filter(path -> path.getFileName().toString().endsWith(".msi")).count());
-			}
-			try (var files = Files.list(staging)) {
-				assertEquals(1, files.filter(path -> path.getFileName().toString().endsWith(".manifest")).count());
-			}
-		}
-
-	@Test
-	void failedDeletionLeavesMarkerAndStartupCleanupRetriesIt() throws Exception {
-		Path staging = temporaryDirectory.resolve("staging");
-		Files.createDirectories(staging);
-		Path blocked = Files.createDirectory(staging.resolve("microProject-update-blocked.msi"));
-		Files.writeString(blocked.resolve("still-open"), "data");
-		Instant now = Instant.parse("2026-09-12T00:00:00Z");
-		Files.setLastModifiedTime(blocked, FileTime.from(now.minus(Duration.ofDays(8))));
-
-		UpdateChecker.cleanupStaleArtifacts(staging, now, Duration.ofDays(7));
-
-		Path marker = staging.resolve("microProject-update-blocked.msi.delete");
-		assertTrue(Files.exists(blocked));
-		assertTrue(Files.exists(marker));
-		Files.delete(blocked.resolve("still-open"));
-
-		UpdateChecker.cleanupStaleArtifacts(staging, now, Duration.ofDays(7));
-
-		assertFalse(Files.exists(blocked));
-		assertFalse(Files.exists(marker));
+	void cleanupIgnoresAMissingFolder() {
+		UpdateChecker.cleanupStaleArtifacts(temporaryDirectory.resolve("missing"));
+		UpdateChecker.cleanupStaleArtifacts(null);
 	}
 
 	private void startResponse(int status, String body, long delayMillis) throws IOException {
