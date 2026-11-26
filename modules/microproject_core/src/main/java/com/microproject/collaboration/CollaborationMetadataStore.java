@@ -41,8 +41,9 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.microproject.session.FileHelper;
 import com.microproject.util.RetirableFileLock;
 import com.microproject.util.SafeFileReplace;
@@ -55,9 +56,9 @@ public class CollaborationMetadataStore {
 	private static final long CLOSE_RETRY_MILLIS = 50L;
 	static final long SESSION_TTL_MS = 120000L;
 	private static final String SESSION_ENTRY_PREFIX = "__microproject_session_v1__";
-	static final int SCHEMA_VERSION = 1;
-		private static final ObjectMapper OBJECT_MAPPER = JsonMapper.builderWithJackson2Defaults().build();
-		private static final Object JVM_LOCK_REGISTRY_GUARD = new Object();
+	public static final int SCHEMA_VERSION = 1;
+	private static final ObjectMapper OBJECT_MAPPER = JsonMapper.builderWithJackson2Defaults().build();
+	private static final Object JVM_LOCK_REGISTRY_GUARD = new Object();
 	private static final ConcurrentHashMap<String, JvmLockEntry> JVM_LOCKS = new ConcurrentHashMap<String, JvmLockEntry>();
 
 	private static final class JvmLockEntry {
@@ -593,15 +594,15 @@ public class CollaborationMetadataStore {
 	}
 
 	private void writeMetadataIfChanged(byte[] originalBytes, Metadata metadata) throws IOException {
-			byte[] bytes;
-			try {
-				bytes = OBJECT_MAPPER.writeValueAsBytes(metadata);
-			} catch (tools.jackson.core.JacksonException e) {
-				throw new IOException("Failed to serialize collaboration metadata", e);
-			}
-			if (Arrays.equals(originalBytes, bytes)) {
-				return;
-			}
+		byte[] bytes;
+		try {
+			bytes = OBJECT_MAPPER.writeValueAsBytes(metadata);
+		} catch (JacksonException exception) {
+			throw new IOException("Failed to serialize collaboration metadata", exception);
+		}
+		if (Arrays.equals(originalBytes, bytes)) {
+			return;
+		}
 		if (bytes.length > MAX_METADATA_BYTES) {
 			throw new IOException("Metadata file exceeds maximum allowed size of " + MAX_METADATA_BYTES + " bytes");
 		}
@@ -640,13 +641,13 @@ public class CollaborationMetadataStore {
 		metadata.setProjectFileLength(projectFile.exists() ? projectFile.length() : 0L);
 	}
 
-	private Metadata parseMetadata(byte[] bytes) throws IOException {
-			try {
-				return OBJECT_MAPPER.readValue(bytes, Metadata.class);
-			} catch (tools.jackson.core.JacksonException e) {
-				throw new IOException("Failed to parse collaboration metadata", e);
-			}
+	private Metadata parseMetadata(byte[] bytes) {
+		try {
+			return OBJECT_MAPPER.readValue(bytes, Metadata.class);
+		} catch (JacksonException e) {
+			throw new RuntimeException("Failed to parse collaboration metadata", e);
 		}
+	}
 
 	private void normalize(Metadata metadata) {
 		if (metadata.getSchemaVersion() <= 0) {

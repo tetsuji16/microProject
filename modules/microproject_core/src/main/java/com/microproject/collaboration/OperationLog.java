@@ -16,13 +16,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.StreamReadFeature;
 import tools.jackson.databind.DeserializationFeature;
-import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
-import tools.jackson.core.StreamReadFeature;
 
 /** Deterministic, idempotent merge of mpo collaboration operations. */
 public final class OperationLog {
@@ -195,108 +196,91 @@ public final class OperationLog {
 				|| "resourceUniqueId".equals(field)));
 	}
 	public byte[] write(String documentId, Collection<Operation> operations) throws java.io.IOException {
-			requireUuid(documentId, "document id");
-			try {
-				ObjectNode root = JSON.createObjectNode(); root.put("schemaVersion", 1); root.put("documentId", documentId);
-				ArrayNode values = root.putArray("operations");
-				MergeResult merged = merge(operations);
-				for (Operation op : mergeAll(merged)) values.add(operationNode(op));
-				writeConflictMetadata(root, merged.conflicts());
-				ArrayNode applied = root.putArray("appliedOperationIds");
-				merged.ready().stream().map(Operation::id).sorted().forEach(applied::add);
-				return JSON.writeValueAsBytes(root);
-			} catch (tools.jackson.core.JacksonException e) {
-				throw new java.io.IOException("Failed to write operation log", e);
-			}
+		requireUuid(documentId, "document id");
+		ObjectNode root = JSON.createObjectNode(); root.put("schemaVersion", 1); root.put("documentId", documentId);
+		ArrayNode values = root.putArray("operations");
+		MergeResult merged = merge(operations);
+		for (Operation op : mergeAll(merged)) values.add(operationNode(op));
+		writeConflictMetadata(root, merged.conflicts());
+		ArrayNode applied = root.putArray("appliedOperationIds");
+		merged.ready().stream().map(Operation::id).sorted().forEach(applied::add);
+		try {
+			return JSON.writeValueAsBytes(root);
+		} catch (JacksonException exception) {
+			throw new java.io.IOException("Failed to write operation log", exception);
 		}
+	}
 	/** Writes the MPOF collaboration log as one JSON object per line. */
-		/** Writes the MPOF collaboration log as one JSON object per line. */
-			public byte[] writeJsonl(String documentId, Collection<Operation> operations) throws java.io.IOException {
-				requireUuid(documentId, "document id");
-				try {
-					MergeResult merged = merge(operations);
-					return writeJsonl(documentId, merged, merged.ready().stream().map(Operation::id).collect(java.util.stream.Collectors.toUnmodifiableSet()));
-				} catch (tools.jackson.core.JacksonException e) {
-					throw new java.io.IOException("Failed to write JSONL operation log", e);
-				}
-			}
-			/** Writes the JSONL log while recording the operations represented by its project snapshot. */
-			public byte[] writeJsonl(String documentId, Collection<Operation> operations, Set<String> appliedOperationIds) throws java.io.IOException {
-				requireUuid(documentId, "document id");
-				try {
-					return writeJsonl(documentId, merge(operations), appliedOperationIds);
-				} catch (tools.jackson.core.JacksonException e) {
-					throw new java.io.IOException("Failed to write JSONL operation log", e);
-				}
-			}
-			private byte[] writeJsonl(String documentId, MergeResult merged, Set<String> appliedOperationIds) throws java.io.IOException {
-				requireUuid(documentId, "document id");
-				try {
-					Set<String> readyIds = merged.ready().stream().map(Operation::id).collect(java.util.stream.Collectors.toUnmodifiableSet());
-					validateAppliedOperationIds(merged, appliedOperationIds, readyIds);
-					StringBuilder result = new StringBuilder();
-					ObjectNode header = JSON.createObjectNode();
-					header.put("type", "header"); header.put("schemaVersion", 1); header.put("documentId", documentId);
-					writeConflictMetadata(header, merged.conflicts());
-					ArrayNode applied = header.putArray("appliedOperationIds");
-					appliedOperationIds.stream().sorted().forEach(applied::add);
-					result.append(JSON.writeValueAsString(header)).append('\n');
-					List<Operation> all = new ArrayList<>(merged.ready()); all.addAll(merged.pending());
-					for (Operation op : all) {
-						ObjectNode value = operationNode(op);
-						result.append(JSON.writeValueAsString(value)).append('\n');
-					}
-					return result.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
-				} catch (tools.jackson.core.JacksonException e) {
-					throw new java.io.IOException("Failed to write JSONL operation log", e);
-				}
-			}
+	public byte[] writeJsonl(String documentId, Collection<Operation> operations) throws java.io.IOException {
+		requireUuid(documentId, "document id");
+		MergeResult merged = merge(operations);
+		return writeJsonl(documentId, merged, merged.ready().stream().map(Operation::id).collect(java.util.stream.Collectors.toUnmodifiableSet()));
+	}
+	/** Writes the JSONL log while recording the operations represented by its project snapshot. */
+	public byte[] writeJsonl(String documentId, Collection<Operation> operations, Set<String> appliedOperationIds) throws java.io.IOException {
+		requireUuid(documentId, "document id");
+		return writeJsonl(documentId, merge(operations), appliedOperationIds);
+	}
+	private byte[] writeJsonl(String documentId, MergeResult merged, Set<String> appliedOperationIds) throws java.io.IOException {
+		requireUuid(documentId, "document id");
+		Set<String> readyIds = merged.ready().stream().map(Operation::id).collect(java.util.stream.Collectors.toUnmodifiableSet());
+		validateAppliedOperationIds(merged, appliedOperationIds, readyIds);
+		StringBuilder result = new StringBuilder();
+		ObjectNode header = JSON.createObjectNode();
+		header.put("type", "header"); header.put("schemaVersion", 1); header.put("documentId", documentId);
+		writeConflictMetadata(header, merged.conflicts());
+		ArrayNode applied = header.putArray("appliedOperationIds");
+		appliedOperationIds.stream().sorted().forEach(applied::add);
+		result.append(jsonText(header)).append('\n');
+		List<Operation> all = new ArrayList<>(merged.ready()); all.addAll(merged.pending());
+		for (Operation op : all) {
+			ObjectNode value = operationNode(op);
+			result.append(jsonText(value)).append('\n');
+		}
+		return result.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+	}
 
 	/** Reads the MPOF JSONL collaboration log and validates its causal metadata. */
-		public DocumentLog readJsonl(byte[] jsonl) throws java.io.IOException {
-			String content = new String(jsonl, java.nio.charset.StandardCharsets.UTF_8);
-			String[] lines = content.split("\\R", -1);
-			if (lines.length < 2 || !lines[lines.length - 1].isEmpty()) throw new java.io.IOException("Invalid JSONL operation log termination");
+	public DocumentLog readJsonl(byte[] jsonl) throws java.io.IOException {
+		String content = new String(jsonl, java.nio.charset.StandardCharsets.UTF_8);
+		String[] lines = content.split("\\R", -1);
+		if (lines.length < 2 || !lines[lines.length - 1].isEmpty()) throw new java.io.IOException("Invalid JSONL operation log termination");
+		JsonNode header = jsonTree(lines[0]);
+		if (header == null || !header.isObject() || !"header".equals(text(header, "type")) || header.path("schemaVersion").asInt(-1) != 1) throw new java.io.IOException("Invalid JSONL operation log header");
+		String documentId = text(header, "documentId");
+		try { requireUuid(documentId, "document id"); } catch (IllegalArgumentException exception) { throw new java.io.IOException("Invalid operation document id", exception); }
+		List<Operation> operations = new ArrayList<>(Math.max(0, lines.length - 2));
+		for (int i = 1; i < lines.length - 1; i++) {
+			if (lines[i].isBlank()) throw new java.io.IOException("Invalid blank JSONL operation record");
+			JsonNode value = jsonTree(lines[i]);
+			if (value == null || !value.isObject() || value.has("type")) throw new java.io.IOException("Invalid JSONL operation record");
 			try {
-				JsonNode header = JSON.readTree(lines[0]);
-				if (header == null || !header.isObject() || !"header".equals(text(header, "type")) || header.path("schemaVersion").asInt(-1) != 1) throw new java.io.IOException("Invalid JSONL operation log header");
-				String documentId = text(header, "documentId");
-				try { requireUuid(documentId, "document id"); } catch (IllegalArgumentException exception) { throw new java.io.IOException("Invalid operation document id", exception); }
-				List<Operation> operations = new ArrayList<>(Math.max(0, lines.length - 2));
-				for (int i = 1; i < lines.length - 1; i++) {
-					if (lines[i].isBlank()) throw new java.io.IOException("Invalid blank JSONL operation record");
-					JsonNode value = JSON.readTree(lines[i]);
-					if (value == null || !value.isObject() || value.has("type")) throw new java.io.IOException("Invalid JSONL operation record");
-					try {
-						Set<String> parents = LinkedHashSet.newLinkedHashSet(value.path("parents").size());
-						if (!value.path("parents").isArray()) throw new IllegalArgumentException("parents");
-						for (JsonNode parent : value.path("parents")) if (!parent.isTextual() || !parents.add(parent.textValue())) throw new IllegalArgumentException("parent");
-						@SuppressWarnings("unchecked") Map<String,Object> payload = JSON.convertValue(value.path("payload"), Map.class);
-						operations.add(new Operation(text(value, "id"), text(value, "actorId"), value.path("sequence").longValue(), parents, text(value, "kind"), text(value, "entityId"), payload));
-					} catch (IllegalArgumentException exception) { throw new java.io.IOException("Invalid JSONL operation record", exception); }
-				}
-				MergeResult merged = merge(operations);
-				validateConflictMetadata(header, merged, false);
-				Set<String> readyIds = merged.ready().stream().map(Operation::id).collect(java.util.stream.Collectors.toUnmodifiableSet());
-				JsonNode appliedNode = header.get("appliedOperationIds");
-				Set<String> appliedIds;
-				if (appliedNode == null) {
-					// Pre-generation JSONL logs represented every causally ready operation in their snapshot.
-					appliedIds = readyIds;
-				} else {
-					if (!appliedNode.isArray()) throw new java.io.IOException("Invalid applied operation generation");
-					appliedIds = LinkedHashSet.newLinkedHashSet(appliedNode.size());
-					Set<String> operationIds = operations.stream().map(Operation::id).collect(java.util.stream.Collectors.toSet());
-					for (JsonNode id : appliedNode)
-						if (!id.isTextual() || !operationIds.contains(id.textValue()) || !appliedIds.add(id.textValue()))
-							throw new java.io.IOException("Invalid applied operation generation");
-					validateAppliedOperationIds(merged, appliedIds, readyIds);
-				}
-				return new DocumentLog(documentId, mergeAll(merged), appliedIds);
-			} catch (tools.jackson.core.JacksonException e) {
-				throw new java.io.IOException("Failed to read JSONL operation log", e);
-			}
+				Set<String> parents = LinkedHashSet.newLinkedHashSet(value.path("parents").size());
+				if (!value.path("parents").isArray()) throw new IllegalArgumentException("parents");
+				for (JsonNode parent : value.path("parents")) if (!parent.isTextual() || !parents.add(parent.textValue())) throw new IllegalArgumentException("parent");
+				@SuppressWarnings("unchecked") Map<String,Object> payload = JSON.convertValue(value.path("payload"), Map.class);
+				operations.add(new Operation(text(value, "id"), text(value, "actorId"), value.path("sequence").longValue(), parents, text(value, "kind"), text(value, "entityId"), payload));
+			} catch (IllegalArgumentException exception) { throw new java.io.IOException("Invalid JSONL operation record", exception); }
 		}
+		MergeResult merged = merge(operations);
+		validateConflictMetadata(header, merged, false);
+		Set<String> readyIds = merged.ready().stream().map(Operation::id).collect(java.util.stream.Collectors.toUnmodifiableSet());
+		JsonNode appliedNode = header.get("appliedOperationIds");
+		Set<String> appliedIds;
+		if (appliedNode == null) {
+			// Pre-generation JSONL logs represented every causally ready operation in their snapshot.
+			appliedIds = readyIds;
+		} else {
+			if (!appliedNode.isArray()) throw new java.io.IOException("Invalid applied operation generation");
+			appliedIds = LinkedHashSet.newLinkedHashSet(appliedNode.size());
+			Set<String> operationIds = operations.stream().map(Operation::id).collect(java.util.stream.Collectors.toSet());
+			for (JsonNode id : appliedNode)
+				if (!id.isTextual() || !operationIds.contains(id.textValue()) || !appliedIds.add(id.textValue()))
+					throw new java.io.IOException("Invalid applied operation generation");
+			validateAppliedOperationIds(merged, appliedIds, readyIds);
+		}
+		return new DocumentLog(documentId, mergeAll(merged), appliedIds);
+	}
 
 	private static void validateAppliedOperationIds(MergeResult merged, Set<String> appliedOperationIds,
 			Set<String> readyIds) throws java.io.IOException {
@@ -353,47 +337,66 @@ public final class OperationLog {
 		return readDocument(json).operations();
 	}
 	public DocumentLog readDocument(byte[] json) throws java.io.IOException {
-			try {
-				JsonNode root = JSON.readTree(json);
-				if (root == null || !root.isObject() || !root.path("schemaVersion").canConvertToInt() || root.path("schemaVersion").asInt(-1) != 1 || !root.path("operations").isArray()) throw new java.io.IOException("Invalid operation log");
-				String documentId = text(root, "documentId");
-				try { requireUuid(documentId, "document id"); } catch (IllegalArgumentException exception) { throw new java.io.IOException("Invalid operation document id", exception); }
-				List<Operation> result = new ArrayList<>(root.path("operations").size()); for (JsonNode value : root.path("operations")) {
-					if (!value.isObject() || !value.path("parents").isArray() || !value.path("sequence").isIntegralNumber() || !value.path("sequence").canConvertToLong() || !value.path("payload").isObject()) throw new java.io.IOException("Invalid operation");
-					Set<String> parents = LinkedHashSet.newLinkedHashSet(value.path("parents").size()); for (JsonNode parent : value.path("parents")) { if (!parent.isTextual() || !parents.add(parent.textValue())) throw new java.io.IOException("Invalid operation parent"); }
-					@SuppressWarnings("unchecked") Map<String,Object> payload = JSON.convertValue(value.path("payload"), Map.class);
-					try { result.add(new Operation(text(value,"id"), text(value,"actorId"), value.path("sequence").longValue(), parents, text(value,"kind"), text(value,"entityId"), payload)); } catch (IllegalArgumentException exception) { throw new java.io.IOException("Invalid operation", exception); }
-				}
-				MergeResult merged = merge(result);
-				validateConflictMetadata(root, merged, true);
-				List<Operation> all = new ArrayList<>(merged.ready()); all.addAll(merged.pending());
-				JsonNode appliedNode = root.get("appliedOperationIds");
-				int appliedIdCount = appliedNode == null ? merged.ready().size()
-					: appliedNode.isArray() ? appliedNode.size() : 0;
-				Set<String> appliedIds = LinkedHashSet.newLinkedHashSet(appliedIdCount);
-				if (appliedNode == null) {
-					// Logs written before generation tracking are interpreted conservatively:
-					// only causally ready operations are considered applied.
-					for (Operation operation : merged.ready()) appliedIds.add(operation.id());
-				} else {
-					if (!appliedNode.isArray()) throw new java.io.IOException("Invalid applied operation generation");
-					for (JsonNode id : appliedNode) {
-						if (!id.isTextual() || !result.stream().anyMatch(operation -> operation.id().equals(id.textValue())) || !appliedIds.add(id.textValue()))
-							throw new java.io.IOException("Invalid applied operation generation");
-					}
-					Set<String> readyIds = LinkedHashSet.newLinkedHashSet(merged.ready().size());
-					for (Operation operation : merged.ready()) readyIds.add(operation.id());
-					if (!readyIds.equals(appliedIds)) throw new java.io.IOException("Applied operation generation does not match causal readiness");
-				}
-				return new DocumentLog(documentId, List.copyOf(all), appliedIds);
-			} catch (tools.jackson.core.JacksonException e) {
-				throw new java.io.IOException("Failed to read operation log", e);
-			}
+		JsonNode root = jsonTree(json);
+		if (root == null || !root.isObject() || !root.path("schemaVersion").canConvertToInt() || root.path("schemaVersion").asInt(-1) != 1 || !root.path("operations").isArray()) throw new java.io.IOException("Invalid operation log");
+		String documentId = text(root, "documentId");
+		try { requireUuid(documentId, "document id"); } catch (IllegalArgumentException exception) { throw new java.io.IOException("Invalid operation document id", exception); }
+		List<Operation> result = new ArrayList<>(root.path("operations").size()); for (JsonNode value : root.path("operations")) {
+			if (!value.isObject() || !value.path("parents").isArray() || !value.path("sequence").isIntegralNumber() || !value.path("sequence").canConvertToLong() || !value.path("payload").isObject()) throw new java.io.IOException("Invalid operation");
+			Set<String> parents = LinkedHashSet.newLinkedHashSet(value.path("parents").size()); for (JsonNode parent : value.path("parents")) { if (!parent.isTextual() || !parents.add(parent.textValue())) throw new java.io.IOException("Invalid operation parent"); }
+			@SuppressWarnings("unchecked") Map<String,Object> payload = JSON.convertValue(value.path("payload"), Map.class);
+			try { result.add(new Operation(text(value,"id"), text(value,"actorId"), value.path("sequence").longValue(), parents, text(value,"kind"), text(value,"entityId"), payload)); } catch (IllegalArgumentException exception) { throw new java.io.IOException("Invalid operation", exception); }
 		}
+		MergeResult merged = merge(result);
+		validateConflictMetadata(root, merged, true);
+		List<Operation> all = new ArrayList<>(merged.ready()); all.addAll(merged.pending());
+		JsonNode appliedNode = root.get("appliedOperationIds");
+		int appliedIdCount = appliedNode == null ? merged.ready().size()
+			: appliedNode.isArray() ? appliedNode.size() : 0;
+		Set<String> appliedIds = LinkedHashSet.newLinkedHashSet(appliedIdCount);
+		if (appliedNode == null) {
+			// Logs written before generation tracking are interpreted conservatively:
+			// only causally ready operations are considered applied.
+			for (Operation operation : merged.ready()) appliedIds.add(operation.id());
+		} else {
+			if (!appliedNode.isArray()) throw new java.io.IOException("Invalid applied operation generation");
+			for (JsonNode id : appliedNode) {
+				if (!id.isTextual() || !result.stream().anyMatch(operation -> operation.id().equals(id.textValue())) || !appliedIds.add(id.textValue()))
+					throw new java.io.IOException("Invalid applied operation generation");
+			}
+			Set<String> readyIds = LinkedHashSet.newLinkedHashSet(merged.ready().size());
+			for (Operation operation : merged.ready()) readyIds.add(operation.id());
+			if (!readyIds.equals(appliedIds)) throw new java.io.IOException("Applied operation generation does not match causal readiness");
+		}
+		return new DocumentLog(documentId, List.copyOf(all), appliedIds);
+	}
 	private static String conflictKey(Conflict conflict) {
 		List<String> ids = new ArrayList<>(conflict.operationIds());
 		ids.sort(String::compareTo);
 		return conflict.entityId() + "|" + conflict.kind() + "|" + String.join(",", ids);
+	}
+	/** Jackson 3 reports parse failures as unchecked exceptions; keep the IOException contract. */
+	private static JsonNode jsonTree(String value) throws java.io.IOException {
+		try {
+			return JSON.readTree(value);
+		} catch (JacksonException exception) {
+			throw new java.io.IOException("Failed to read operation log", exception);
+		}
+	}
+	private static JsonNode jsonTree(byte[] value) throws java.io.IOException {
+		try {
+			return JSON.readTree(value);
+		} catch (JacksonException exception) {
+			throw new java.io.IOException("Failed to read operation log", exception);
+		}
+	}
+	/** Jackson 3 reports write failures as unchecked exceptions; keep the IOException contract. */
+	private static String jsonText(ObjectNode value) throws java.io.IOException {
+		try {
+			return JSON.writeValueAsString(value);
+		} catch (JacksonException exception) {
+			throw new java.io.IOException("Failed to write operation log", exception);
+		}
 	}
 	private static String text(JsonNode value, String field) throws java.io.IOException { JsonNode text = value.get(field); if (text == null || !text.isTextual()) throw new java.io.IOException("Invalid operation " + field); return text.textValue(); }
 	private static void requireUuid(String value, String description) { try { UUID.fromString(value); } catch (RuntimeException exception) { throw new IllegalArgumentException("Invalid " + description, exception); } }

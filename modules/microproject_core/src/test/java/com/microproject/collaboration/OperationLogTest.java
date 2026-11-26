@@ -118,7 +118,7 @@ class OperationLogTest {
 		OperationLog.Operation operation = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY, Map.of());
 		String[] lines = new String(log.writeJsonl(DOCUMENT, List.of(operation)), java.nio.charset.StandardCharsets.UTF_8).split("\\n", -1);
 		tools.jackson.databind.node.ObjectNode header = (tools.jackson.databind.node.ObjectNode)
-				new tools.jackson.databind.ObjectMapper().readTree(lines[0]);
+			new tools.jackson.databind.ObjectMapper().readTree(lines[0]);
 		header.putArray("appliedOperationIds").add(MISSING);
 		lines[0] = header.toString();
 
@@ -132,7 +132,7 @@ class OperationLogTest {
 		OperationLog.Operation right = new OperationLog.Operation(NEXT, ACTOR_B, 1, Set.of(), "task.update", ENTITY, Map.of("name", "B"));
 		String[] lines = new String(log.writeJsonl(DOCUMENT, List.of(left, right)), java.nio.charset.StandardCharsets.UTF_8).split("\\n", -1);
 		tools.jackson.databind.node.ObjectNode header = (tools.jackson.databind.node.ObjectNode)
-				new tools.jackson.databind.ObjectMapper().readTree(lines[0]);
+			new tools.jackson.databind.ObjectMapper().readTree(lines[0]);
 		header.putArray("conflicts");
 		lines[0] = header.toString();
 
@@ -228,41 +228,39 @@ class OperationLogTest {
 	}
 
 	@Test void rejectsLogsThatDoNotConformToTheSchema() throws Exception {
-			OperationLog log = new OperationLog();
-			org.junit.jupiter.api.Assertions.assertThrows(java.io.IOException.class, () -> log.read("{\"schemaVersion\":1,\"documentId\":\"not-a-uuid\",\"operations\":[],\"conflicts\":[]}".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-			org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> log.write("not-a-uuid", List.of()));
-		}
-
-		@Test void malformedJsonThrowsIOException() throws Exception {
-			OperationLog log = new OperationLog();
-			org.junit.jupiter.api.Assertions.assertThrows(java.io.IOException.class, () -> log.read("{\"schemaVersion\":1,".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-		}
-
-		@Test void duplicateKeysThrowIOException() throws Exception {
-			OperationLog log = new OperationLog();
-			String json = "{\"schemaVersion\":1,\"documentId\":\"00000000-0000-0000-0000-000000000001\",\"operations\":[],\"conflicts\":[],\"appliedOperationIds\":[],\"duplicateKey\":1,\"duplicateKey\":2}";
-			org.junit.jupiter.api.Assertions.assertThrows(java.io.IOException.class, () -> log.read(json.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-		}
-
-		@Test void trailingTokensThrowIOException() throws Exception {
-			OperationLog log = new OperationLog();
-			String json = "{\"schemaVersion\":1,\"documentId\":\"00000000-0000-0000-0000-000000000001\",\"operations\":[],\"conflicts\":[],\"appliedOperationIds\":[]}extra";
-			org.junit.jupiter.api.Assertions.assertThrows(java.io.IOException.class, () -> log.read(json.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-		}
-
-		@Test void jsonSerializationMatchesExpectedBytes() throws Exception {
-			OperationLog log = new OperationLog();
-			OperationLog.Operation op = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY, Map.of("name", "A"));
-			byte[] jsonBytes = log.write(DOCUMENT, List.of(op));
-			String expectedJson = "{\"schemaVersion\":1,\"documentId\":\"00000000-0000-0000-0000-000000000001\",\"operations\":[{\"id\":\"00000000-0000-0000-0000-000000000002\",\"actorId\":\"00000000-0000-0000-0000-000000000004\",\"sequence\":1,\"parents\":[],\"kind\":\"task.update\",\"entityId\":\"00000000-0000-0000-0000-000000000006\",\"payload\":{\"name\":\"A\"}}],\"conflicts\":[],\"appliedOperationIds\":[\"00000000-0000-0000-0000-000000000002\"]}";
-			assertEquals(expectedJson, new String(jsonBytes, java.nio.charset.StandardCharsets.UTF_8));
-		}
-
-		@Test void jsonlSerializationMatchesExpectedBytes() throws Exception {
-			OperationLog log = new OperationLog();
-			OperationLog.Operation op = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY, Map.of("name", "A"));
-			byte[] jsonlBytes = log.writeJsonl(DOCUMENT, List.of(op));
-			String expectedJsonl = "{\"type\":\"header\",\"schemaVersion\":1,\"documentId\":\"00000000-0000-0000-0000-000000000001\",\"conflicts\":[],\"appliedOperationIds\":[\"00000000-0000-0000-0000-000000000002\"]}\n{\"id\":\"00000000-0000-0000-0000-000000000002\",\"actorId\":\"00000000-0000-0000-0000-000000000004\",\"sequence\":1,\"parents\":[],\"kind\":\"task.update\",\"entityId\":\"00000000-0000-0000-0000-000000000006\",\"payload\":{\"name\":\"A\"}}\n";
-			assertEquals(expectedJsonl, new String(jsonlBytes, java.nio.charset.StandardCharsets.UTF_8));
-		}
+		OperationLog log = new OperationLog();
+		org.junit.jupiter.api.Assertions.assertThrows(java.io.IOException.class, () -> log.read("{\"schemaVersion\":1,\"documentId\":\"not-a-uuid\",\"operations\":[],\"conflicts\":[]}".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> log.write("not-a-uuid", List.of()));
 	}
+	@Test void malformedJsonBecomesIoException() {
+		OperationLog log = new OperationLog();
+		org.junit.jupiter.api.Assertions.assertThrows(java.io.IOException.class,
+				() -> log.read("{\"schemaVersion\":1,".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+	}
+
+	@Test void duplicateJsonKeysBecomeIoException() {
+		String json = "{\"schemaVersion\":1,\"documentId\":\"" + DOCUMENT
+				+ "\",\"operations\":[],\"conflicts\":[],\"appliedOperationIds\":[],\"duplicate\":1,\"duplicate\":2}";
+		org.junit.jupiter.api.Assertions.assertThrows(java.io.IOException.class,
+				() -> new OperationLog().read(json.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+	}
+
+	@Test void trailingTokensBecomeIoException() {
+		String json = "{\"schemaVersion\":1,\"documentId\":\"" + DOCUMENT
+				+ "\",\"operations\":[],\"conflicts\":[],\"appliedOperationIds\":[]} trailing";
+		org.junit.jupiter.api.Assertions.assertThrows(java.io.IOException.class,
+				() -> new OperationLog().read(json.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+	}
+
+	@Test void writeKeepsTheEstablishedBytes() throws Exception {
+		OperationLog.Operation op = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY, Map.of("name", "A"));
+		assertEquals("{\"schemaVersion\":1,\"documentId\":\"00000000-0000-0000-0000-000000000001\",\"operations\":[{\"id\":\"00000000-0000-0000-0000-000000000002\",\"actorId\":\"00000000-0000-0000-0000-000000000004\",\"sequence\":1,\"parents\":[],\"kind\":\"task.update\",\"entityId\":\"00000000-0000-0000-0000-000000000006\",\"payload\":{\"name\":\"A\"}}],\"conflicts\":[],\"appliedOperationIds\":[\"00000000-0000-0000-0000-000000000002\"]}",
+				new String(new OperationLog().write(DOCUMENT, List.of(op)), java.nio.charset.StandardCharsets.UTF_8));
+	}
+
+	@Test void writeJsonlKeepsTheEstablishedBytes() throws Exception {
+		OperationLog.Operation op = new OperationLog.Operation(FIRST, ACTOR_A, 1, Set.of(), "task.update", ENTITY, Map.of("name", "A"));
+		assertEquals("{\"type\":\"header\",\"schemaVersion\":1,\"documentId\":\"00000000-0000-0000-0000-000000000001\",\"conflicts\":[],\"appliedOperationIds\":[\"00000000-0000-0000-0000-000000000002\"]}\n{\"id\":\"00000000-0000-0000-0000-000000000002\",\"actorId\":\"00000000-0000-0000-0000-000000000004\",\"sequence\":1,\"parents\":[],\"kind\":\"task.update\",\"entityId\":\"00000000-0000-0000-0000-000000000006\",\"payload\":{\"name\":\"A\"}}\n",
+				new String(new OperationLog().writeJsonl(DOCUMENT, List.of(op)), java.nio.charset.StandardCharsets.UTF_8));
+	}
+}
