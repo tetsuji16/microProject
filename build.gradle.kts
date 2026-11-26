@@ -93,9 +93,7 @@ val activeToolchainVersion =maxOf(minimumJavaRelease, JavaVersion.current().majo
 subprojects {
 	apply(plugin = "java-library")
 
-	// Flamingo still declares the obsolete JGoodies Forms artifact.  It contains
-	// the same com.jgoodies.forms classes as jgoodies-forms 1.9.0, so including
-	// both makes Swing layout behavior depend on wildcard classpath order.
+	// Keep the obsolete com.jgoodies:forms artifact out; jgoodies-forms 1.9.0 is the only provider.
 	configurations.configureEach {
 		exclude(group = "com.jgoodies", module = "forms")
 		// Exclude log4j2 core and logback: commons-logging 1.3.x auto-discovers them and
@@ -328,7 +326,7 @@ tasks.register("verifyDependencyAllowlist") {
                     "com.sun.istack",
                     "net.sf.mpxj",
                     "org.apache.logging.log4j", "org.apache.pdfbox", "org.apache.poi",
-                    "org.apache.groovy", "org.glassfish.jaxb", "org.jfree", "org.slf4j", "org.pushingpixels", "org.pushing-pixels",
+                    "org.apache.groovy", "org.glassfish.jaxb", "org.jfree", "org.slf4j", "org.pushing-pixels",
                     "com.github.librepdf",
                     "org.netbeans.api", "org.junit", "com.github",
                     "tools.jackson.core"

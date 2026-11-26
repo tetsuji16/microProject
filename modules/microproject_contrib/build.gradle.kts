@@ -10,7 +10,6 @@ dependencies {
     implementation(libs.pdfbox)
     implementation(libs.radiance.neon)
     implementation(libs.radiance.trident)
-    implementation(libs.flamingo)
     implementation(libs.slf4j.api)
     testImplementation(platform(libs.junit.bom))
     testImplementation("org.junit.jupiter:junit-jupiter")
