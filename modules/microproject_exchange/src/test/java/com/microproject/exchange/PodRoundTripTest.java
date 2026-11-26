@@ -27,6 +27,7 @@ import com.microproject.persistence.PodFormatIdentifiers;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -36,6 +37,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -122,9 +124,35 @@ public class PodRoundTripTest {
 		assertArrayEquals(java.util.Arrays.copyOfRange(baseline, 0, baselineSerializedEnd),
 			java.util.Arrays.copyOfRange(withPertState, 0, pertSerializedEnd),
 			"adding transient PERT state must not change the POD Java object stream");
-		assertArrayEquals(java.util.Arrays.copyOfRange(baseline, baselineSerializedEnd, baseline.length),
-			java.util.Arrays.copyOfRange(withPertState, pertSerializedEnd, withPertState.length),
+		assertArrayEquals(
+			normalizeEmbeddedCurrentDate(java.util.Arrays.copyOfRange(baseline, baselineSerializedEnd, baseline.length)),
+			normalizeEmbeddedCurrentDate(
+				java.util.Arrays.copyOfRange(withPertState, pertSerializedEnd, withPertState.length)),
 			"adding transient PERT state must not change the embedded MSPDI payload");
+	}
+
+	@Test
+	void embeddedCurrentDateComparisonIgnoresOnlyTheCurrentDateValue() {
+		byte[] first = "<Project><CurrentDate>2026-11-26T10:00:00Z</CurrentDate><Name>A</Name></Project>"
+			.getBytes(StandardCharsets.UTF_8);
+		byte[] second = "<Project><CurrentDate>2026-11-26T10:00:01Z</CurrentDate><Name>A</Name></Project>"
+			.getBytes(StandardCharsets.UTF_8);
+		byte[] outsideElement = "<Project><CurrentDate>2026-11-26T10:00:00Z</CurrentDate><Name>B</Name></Project>"
+			.getBytes(StandardCharsets.UTF_8);
+		assertArrayEquals(normalizeEmbeddedCurrentDate(first), normalizeEmbeddedCurrentDate(second),
+			"two saves that cross a second boundary must compare equal after normalizing CurrentDate");
+		assertFalse(java.util.Arrays.equals(normalizeEmbeddedCurrentDate(first), normalizeEmbeddedCurrentDate(outsideElement)),
+			"a byte outside the CurrentDate element must still make the comparison fail");
+	}
+
+	/** The MSPDI writer stamps the save wall clock here; every other payload byte is model content. */
+	private static byte[] normalizeEmbeddedCurrentDate(byte[] xml) {
+		String text = new String(xml, StandardCharsets.UTF_8);
+		java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("<CurrentDate>[^<]*</CurrentDate>")
+			.matcher(text);
+		assertEquals(1L, matcher.results().count(),
+			"the embedded MSPDI payload must contain exactly one CurrentDate element");
+		return matcher.replaceFirst("<CurrentDate>normalized</CurrentDate>").getBytes(StandardCharsets.UTF_8);
 	}
 
 	private static void savePodFile(Project project, File target) throws Exception {
