@@ -431,8 +431,29 @@ class CollaborationMetadataStoreTest {
 	}
 
 	private static Path legacySidecar(Path project) {
-		String name = project.getFileName().toString();
-		int dot = name.lastIndexOf('.');
-		return project.resolveSibling(name.substring(0, dot) + ".projectlibre-sync.json");
+			String name = project.getFileName().toString();
+			int dot = name.lastIndexOf('.');
+			return project.resolveSibling(name.substring(0, dot) + ".projectlibre-sync.json");
+		}
+
+		@Test void metadataSerializationMatchesExpectedBytes() throws Exception {
+			java.io.File tempFile = java.io.File.createTempFile("test", ".mpo");
+			tempFile.deleteOnExit();
+			CollaborationMetadataStore store = new CollaborationMetadataStore(tempFile);
+			CollaborationMetadataStore.Metadata metadata = store.load();
+			metadata.setSchemaVersion(1);
+			metadata.setProjectFileName("test.mpo");
+			metadata.setProjectFingerprint("test.mpo");
+			metadata.setProjectFileLastModified(1234567890L);
+			metadata.setProjectFileLength(1000L);
+
+			// Use reflection to access the internal OBJECT_MAPPER
+			java.lang.reflect.Field field = CollaborationMetadataStore.class.getDeclaredField("OBJECT_MAPPER");
+			field.setAccessible(true);
+			tools.jackson.databind.ObjectMapper mapper = (tools.jackson.databind.ObjectMapper) field.get(null);
+
+			byte[] directBytes = mapper.writeValueAsBytes(metadata);
+			String expectedJson = "{\"schemaVersion\":1,\"projectFingerprint\":\"test.mpo\",\"projectFileName\":\"test.mpo\",\"projectFileLastModified\":1234567890,\"projectFileLength\":1000,\"users\":{},\"locks\":{},\"perUserWorkspace\":{}}";
+			assertEquals(expectedJson, new String(directBytes, StandardCharsets.UTF_8));
+		}
 	}
-}

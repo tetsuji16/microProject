@@ -332,18 +332,19 @@ tasks.register("verifyDependencyAllowlist") {
         // centrally in libs.versions.toml, while this gate prevents a module
         // from quietly introducing an unrelated public/runtime dependency.
         val allowedGroups = setOf(
-            "com.fasterxml.jackson.core", "com.fasterxml.jackson.dataformat",
-            "com.formdev", "com.jgoodies", "com.thoughtworks.xstream",
-            "commons-codec",
-            "commons-io", "commons-logging", "org.apache.commons",
-            "io.reactivex.rxjava3", "jakarta.xml.bind", "jakarta.activation",
-			"com.sun.istack",
-			"net.sf.mpxj",
-            "org.apache.logging.log4j", "org.apache.pdfbox", "org.apache.poi",
-            "org.codehaus.groovy", "org.glassfish.jaxb", "org.jfree", "org.slf4j", "org.pushingpixels", "org.pushing-pixels",
-            "org.update4j", "com.github.librepdf",
-            "org.netbeans.api", "org.junit", "com.github"
-        )
+                    "com.fasterxml.jackson.core", "com.fasterxml.jackson.dataformat",
+                    "com.formdev", "com.jgoodies", "com.thoughtworks.xstream",
+                    "commons-codec",
+                    "commons-io", "commons-logging", "org.apache.commons",
+                    "io.reactivex.rxjava3", "jakarta.xml.bind", "jakarta.activation",
+                    "com.sun.istack",
+                    "net.sf.mpxj",
+                    "org.apache.logging.log4j", "org.apache.pdfbox", "org.apache.poi",
+                    "org.codehaus.groovy", "org.glassfish.jaxb", "org.jfree", "org.slf4j", "org.pushingpixels", "org.pushing-pixels",
+                    "org.update4j", "com.github.librepdf",
+                    "org.netbeans.api", "org.junit", "com.github",
+                    "tools.jackson.core"
+                )
         subprojects.forEach { module ->
             module.configurations.findByName("implementation")?.dependencies?.forEach { dependency ->
                 if (dependency is org.gradle.api.artifacts.ExternalModuleDependency) {

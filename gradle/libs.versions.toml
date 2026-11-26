@@ -15,6 +15,7 @@ jakarta-jaxb-api = "4.0.5"
 jaxb-runtime = "4.0.9"
 jackson = "2.23.0"
 jackson-annotations = "2.23"
+jackson3 = "3.1.7"
 jfreechart = "1.5.6"
 netbeans = "RELEASE320"
 mpxj = "16.11.0"
@@ -49,6 +50,8 @@ jaxb-runtime = { module = "org.glassfish.jaxb:jaxb-runtime", version.ref = "jaxb
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson-annotations" }
 jackson-core = { module = "com.fasterxml.jackson.core:jackson-core", version.ref = "jackson" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
+jackson3-core = { module = "tools.jackson.core:jackson-core", version.ref = "jackson3" }
+jackson3-databind = { module = "tools.jackson.core:jackson-databind", version.ref = "jackson3" }
 jfreechart = { module = "org.jfree:jfreechart", version.ref = "jfreechart" }
 org-netbeans-swing-outline = { module = "org.netbeans.api:org-netbeans-swing-outline", version.ref = "netbeans" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
@@ -70,6 +73,7 @@ commons-runtime = [
     "jcl-over-slf4j",
 ]
 jackson = ["jackson-annotations", "jackson-core", "jackson-databind"]
+jackson3 = ["jackson3-core", "jackson3-databind"]
 logging = ["slf4j-api", "slf4j-simple"]
 poi = ["poi", "poi-ooxml"]
 jaxb = ["jakarta-jaxb-api", "jaxb-runtime"]
