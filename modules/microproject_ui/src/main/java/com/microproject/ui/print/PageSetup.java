@@ -250,10 +250,10 @@ public class PageSetup{
 		paperWidthLabel.setEnabled(false);
 		initFont(paperWidthLabel);
 		DecimalFormat decimalFormat=new DecimalFormat("#0.0");
-		        paperWidth=new JFormattedTextField(decimalFormat);
-		        paperWidth.setEnabled(false);
-		        paperWidth.setColumns(8);
-		        paperWidth.addPropertyChangeListener("value",new PropertyChangeListener(){
+		paperWidth=new JFormattedTextField(decimalFormat);
+		paperWidth.setEnabled(false);
+		paperWidth.setColumns(8);
+		paperWidth.addPropertyChangeListener("value",new PropertyChangeListener(){
 			public void propertyChange(PropertyChangeEvent e) {
 				if (isUpdaping()) return;
 				updateImageableArea(((Number)e.getNewValue()).doubleValue(),-1.0,ExtendedPageFormat.CUSTOM);
@@ -265,9 +265,9 @@ public class PageSetup{
 		paperHeightLabel.setEnabled(false);
 		initFont(paperHeightLabel);
 		paperHeight=new JFormattedTextField(decimalFormat);
-		        paperHeight.setEnabled(false);
-		        paperHeight.setColumns(8);
-		        paperHeight.addPropertyChangeListener("value",new PropertyChangeListener(){
+		paperHeight.setEnabled(false);
+		paperHeight.setColumns(8);
+		paperHeight.addPropertyChangeListener("value",new PropertyChangeListener(){
 			public void propertyChange(PropertyChangeEvent e) {
 				if (isUpdaping()) return;
 				updateImageableArea(-1.0,((Number)e.getNewValue()).doubleValue(),ExtendedPageFormat.CUSTOM);
@@ -283,8 +283,8 @@ public class PageSetup{
 		marginLeftLabel=new JLabel(Messages.getString("PageSetupDialog.Margins.Left"));
 		initFont(marginLeftLabel);
 		marginLeft=new JFormattedTextField(decimalFormat);
-		        marginLeft.setColumns(8);
-		        marginLeft.addPropertyChangeListener("value",new PropertyChangeListener(){
+		marginLeft.setColumns(8);
+		marginLeft.addPropertyChangeListener("value",new PropertyChangeListener(){
 			public void propertyChange(PropertyChangeEvent e) {
 				if (isUpdaping()) return;
 				beginUpdate();
@@ -305,8 +305,8 @@ public class PageSetup{
 		marginRightLabel=new JLabel(Messages.getString("PageSetupDialog.Margins.Right"));
 		initFont(marginRightLabel);
 		marginRight=new JFormattedTextField(decimalFormat);
-		        marginRight.setColumns(8);
-		        marginRight.addPropertyChangeListener("value",new PropertyChangeListener(){
+		marginRight.setColumns(8);
+		marginRight.addPropertyChangeListener("value",new PropertyChangeListener(){
 			public void propertyChange(PropertyChangeEvent e) {
 				if (isUpdaping()) return;
 				beginUpdate();
@@ -327,8 +327,8 @@ public class PageSetup{
 		marginTopLabel=new JLabel(Messages.getString("PageSetupDialog.Margins.Top"));
 		initFont(marginTopLabel);
 		marginTop=new JFormattedTextField(decimalFormat);
-		        marginTop.setColumns(8);
-		        marginTop.addPropertyChangeListener("value",new PropertyChangeListener(){
+		marginTop.setColumns(8);
+		marginTop.addPropertyChangeListener("value",new PropertyChangeListener(){
 			public void propertyChange(PropertyChangeEvent e) {
 				if (isUpdaping()) return;
 				beginUpdate();
@@ -349,8 +349,8 @@ public class PageSetup{
 		marginBottomLabel=new JLabel(Messages.getString("PageSetupDialog.Margins.Bottom"));
 		initFont(marginBottomLabel);
 		marginBottom=new JFormattedTextField(decimalFormat);
-		        marginBottom.setColumns(8);
-		        marginBottom.addPropertyChangeListener("value",new PropertyChangeListener(){
+		marginBottom.setColumns(8);
+		marginBottom.addPropertyChangeListener("value",new PropertyChangeListener(){
 			public void propertyChange(PropertyChangeEvent e) {
 				if (isUpdaping()) return;
 				beginUpdate();
