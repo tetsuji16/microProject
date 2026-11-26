@@ -4,15 +4,14 @@
  *******************************************************************************/
 package com.microproject.ui.dialog;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InterruptedIOException;
 import java.io.OutputStream;
-import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,7 +20,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
 import java.util.Set;
-import java.util.stream.Stream;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -46,6 +47,7 @@ import com.microproject.util.temporary.TemporaryCleanupQueue;
  * Preferences ({@link GlobalPreferences#isCheckForUpdates()}).
  */
 public final class UpdateChecker {
+
 	private static final Logger logger = Logger.getLogger(UpdateChecker.class.getName());
 	static final String RELEASES_URL = "https://github.com/tetsuji16/microProject/releases/latest";
 	private static final String API_URL = "https://api.github.com/repos/tetsuji16/microProject/releases/latest";
@@ -55,6 +57,7 @@ public final class UpdateChecker {
 	private static final int MAX_DOWNLOAD_REDIRECTS = 5;
 	private static final int TIMEOUT_MILLIS = 5000;
 	private static final int MAX_RELEASE_JSON_BYTES = 1024 * 1024;
+	private static final Duration INSTALLER_DOWNLOAD_DEADLINE = Duration.ofMinutes(10);
 	private static final String STAGING_DIRECTORY_PROPERTY = "microproject.update.staging-directory";
 	private static final String STAGING_FILE_PREFIX = "microProject-update-";
 	private static final String MANIFEST_SUFFIX = ".manifest";
@@ -63,6 +66,12 @@ public final class UpdateChecker {
 	private static final Object STAGED_UPDATE_LOCK = new Object();
 	private static StagedUpdate stagedUpdate;
 	private static Path installerScheduledForApply;
+
+	/** Shared HTTP client with connection timeout and manual redirect handling. */
+	private static final HttpClient HTTP = HttpClient.newBuilder()
+			.connectTimeout(Duration.ofMillis(TIMEOUT_MILLIS))
+			.followRedirects(HttpClient.Redirect.NEVER)
+			.build();
 
 	private UpdateChecker() {
 	}
@@ -224,7 +233,7 @@ public final class UpdateChecker {
 			clearScheduledInstaller(update.installer());
 			deleteUpdateFiles(update);
 			return false;
-	}
+		}
 	}
 
 	/** Removes a downloaded installer when the user declines or closes the prompt. */
@@ -258,46 +267,22 @@ public final class UpdateChecker {
 	}
 
 	static String fetchLatestReleaseJson() throws IOException {
-		return fetchLatestReleaseJson(URI.create(API_URL).toURL(), TIMEOUT_MILLIS);
+		return fetchLatestReleaseJson(URI.create(API_URL), TIMEOUT_MILLIS);
 	}
 
-	static String fetchLatestReleaseJson(URL endpoint, int timeoutMillis) throws IOException {
-		HttpURLConnection connection = openReleaseConnection(endpoint, timeoutMillis);
-		try {
-			int responseCode = connection.getResponseCode();
-			if (responseCode != HttpURLConnection.HTTP_OK) {
-				throw new IOException("GitHub Releases API returned HTTP " + responseCode);
-			}
-			try (InputStream in = connection.getInputStream()) {
-				return readReleaseJson(in);
-			}
-		} finally {
-			connection.disconnect();
+	static String fetchLatestReleaseJson(URI endpoint, int timeoutMillis) throws IOException {
+		HttpRequest request = HttpRequest.newBuilder(endpoint)
+				.header("Accept", "application/vnd.github+json")
+				.header("User-Agent", "microProject-update-checker")
+				.timeout(Duration.ofMillis(timeoutMillis))
+				.GET()
+				.build();
+		HttpResponse<byte[]> response = send(request, HttpResponse.BodyHandlers.limiting(
+				HttpResponse.BodyHandlers.ofByteArray(), MAX_RELEASE_JSON_BYTES), Duration.ofMillis(timeoutMillis));
+		if (response.statusCode() != 200) {
+			throw new IOException("GitHub Releases API returned HTTP " + response.statusCode());
 		}
-	}
-
-	private static HttpURLConnection openReleaseConnection(URL endpoint, int timeoutMillis) throws IOException {
-		HttpURLConnection connection = (HttpURLConnection) endpoint.openConnection();
-		connection.setConnectTimeout(timeoutMillis);
-		connection.setReadTimeout(timeoutMillis);
-		connection.setRequestProperty("Accept", "application/vnd.github+json");
-		connection.setRequestProperty("User-Agent", "microProject-update-checker");
-		return connection;
-	}
-
-	private static String readReleaseJson(InputStream input) throws IOException {
-		ByteArrayOutputStream output = new ByteArrayOutputStream();
-		byte[] buffer = new byte[8192];
-		int total = 0;
-		int count;
-		while ((count = input.read(buffer)) != -1) {
-			if (count > MAX_RELEASE_JSON_BYTES - total) {
-				throw new IOException("GitHub Releases API response exceeds " + MAX_RELEASE_JSON_BYTES + " bytes");
-			}
-			output.write(buffer, 0, count);
-			total += count;
-		}
-		return output.toString(StandardCharsets.UTF_8);
+		return new String(response.body(), StandardCharsets.UTF_8);
 	}
 
 	/** Whether {@code url} is an https address on a host release installers are published from. */
@@ -313,7 +298,7 @@ public final class UpdateChecker {
 		return "https".equalsIgnoreCase(uri.getScheme()) && uri.getRawUserInfo() == null
 				&& uri.getRawAuthority() != null && uri.getRawAuthority().indexOf('@') < 0
 				&& (uri.getPort() == -1 || uri.getPort() == 443)
-				&& host != null && TRUSTED_DOWNLOAD_HOSTS.contains(host.toLowerCase(java.util.Locale.ROOT));
+				&& host != null && TRUSTED_DOWNLOAD_HOSTS.contains(host.toLowerCase(Locale.ROOT));
 	}
 
 	static Path stageInstaller(MsiAsset asset, String version) throws IOException {
@@ -342,18 +327,11 @@ public final class UpdateChecker {
 		Path manifest = manifestPath(installer);
 		String checksum = null;
 		try {
-			HttpURLConnection connection = openInstallerConnection(asset.url(), trustedUrl);
-			try {
-				try (InputStream in = connection.getInputStream(); OutputStream out = Files.newOutputStream(part)) {
-					copyDownload(in, out);
-				}
-			} finally {
-				connection.disconnect();
-			}
-			if (Files.size(part) == 0) throw new IOException("Downloaded installer is empty");
-			checksum = sha256(part);
+			Path downloaded = downloadInstaller(asset.url(), trustedUrl, part);
+			if (Files.size(downloaded) == 0) throw new IOException("Downloaded installer is empty");
+			checksum = sha256(downloaded);
 			if (!asset.sha256().equalsIgnoreCase(checksum)) throw new IOException("Downloaded installer checksum mismatch");
-			SafeFileReplace.replaceDurably(part, installer, true);
+			SafeFileReplace.replaceDurably(downloaded, installer, true);
 			writeManifest(manifest, version, checksum, Instant.now());
 			StagedUpdate previous;
 			synchronized (STAGED_UPDATE_LOCK) {
@@ -373,47 +351,58 @@ public final class UpdateChecker {
 		}
 	}
 
-	/** Opens the installer address, following redirects by hand so every hop is checked. */
-	private static HttpURLConnection openInstallerConnection(String url, java.util.function.Predicate<String> trustedUrl)
-			throws IOException {
+	/**
+	 * Downloads the installer, following redirects manually so every hop is checked.
+	 * Returns the path to the downloaded file (the {@code part} file).
+	 */
+	private static Path downloadInstaller(String url, java.util.function.Predicate<String> trustedUrl, Path part) throws IOException {
 		String current = url;
 		for (int hop = 0; hop <= MAX_DOWNLOAD_REDIRECTS; hop++) {
 			if (!trustedUrl.test(current)) throw new IOException("Installer address is not trusted: " + current);
-			HttpURLConnection connection = (HttpURLConnection) URI.create(current).toURL().openConnection();
-			boolean keep = false;
+			URI uri;
 			try {
-				connection.setConnectTimeout(TIMEOUT_MILLIS);
-				connection.setReadTimeout(30000);
-				connection.setInstanceFollowRedirects(false);
-				int code = connection.getResponseCode();
-				if (code == HttpURLConnection.HTTP_OK) {
-					keep = true;
-					return connection;
-				}
-				String location = connection.getHeaderField("Location");
-				boolean redirect = code == HttpURLConnection.HTTP_MOVED_PERM || code == HttpURLConnection.HTTP_MOVED_TEMP
-						|| code == HttpURLConnection.HTTP_SEE_OTHER || code == 307 || code == 308;
-				if (!redirect || location == null) throw new IOException("Installer download returned HTTP " + code);
-				try {
-					current = URI.create(current).resolve(location).toString();
-				} catch (IllegalArgumentException e) {
-					throw new IOException("Installer download redirected to an invalid address", e);
-				}
-			} finally {
-				if (!keep) connection.disconnect();
+				uri = URI.create(current);
+			} catch (IllegalArgumentException e) {
+				throw new IOException("Installer download address is not a valid URI: " + current, e);
+			}
+			HttpRequest request = HttpRequest.newBuilder(uri)
+					.timeout(INSTALLER_DOWNLOAD_DEADLINE)
+					.GET()
+					.build();
+			HttpResponse<Path> response = send(request, info -> info.statusCode() == 200
+					? HttpResponse.BodySubscribers.ofFile(part)
+					: HttpResponse.BodySubscribers.replacing(null), INSTALLER_DOWNLOAD_DEADLINE);
+			int code = response.statusCode();
+			if (code == 200) {
+				return part;
+			}
+			String location = response.headers().firstValue("Location").orElse(null);
+			boolean redirect = code == 301 || code == 302 || code == 303 || code == 307 || code == 308;
+			if (!redirect || location == null) throw new IOException("Installer download returned HTTP " + code);
+			try {
+				current = URI.create(current).resolve(location).toString();
+			} catch (IllegalArgumentException e) {
+				throw new IOException("Installer download redirected to an invalid address", e);
 			}
 		}
 		throw new IOException("Installer download redirected too many times");
 	}
 
-	private static void copyDownload(InputStream in, OutputStream out) throws IOException {
-		byte[] buffer = new byte[8192];
-		int count;
-		while ((count = in.read(buffer)) != -1) {
-			if (Thread.currentThread().isInterrupted()) {
-				throw new InterruptedIOException("Installer download interrupted");
-			}
-			out.write(buffer, 0, count);
+	/**
+	 * Sends an HTTP request with a deadline, converting common exceptions to IOExceptions.
+	 */
+	private static <T> HttpResponse<T> send(HttpRequest request, HttpResponse.BodyHandler<T> handler, Duration deadline) throws IOException {
+		try {
+			return HTTP.sendAsync(request, handler).get(deadline.toMillis(), TimeUnit.MILLISECONDS);
+		} catch (TimeoutException e) {
+			throw new java.net.http.HttpTimeoutException("Request timed out after " + deadline);
+		} catch (ExecutionException e) {
+			Throwable cause = e.getCause();
+			if (cause instanceof IOException) throw (IOException) cause;
+			throw new IOException("Request failed", cause);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new InterruptedIOException("Request interrupted");
 		}
 	}
 
@@ -492,7 +481,7 @@ public final class UpdateChecker {
 		if (directory == null || now == null || ttl == null || ttl.isNegative() || ttl.isZero()) return;
 		if (!Files.isDirectory(directory)) return;
 		Instant cutoff = now.minus(ttl);
-		try (Stream<Path> files = Files.list(directory)) {
+		try (var files = Files.list(directory)) {
 			files.filter(UpdateChecker::isUpdateArtifact)
 					.filter(path -> !isProtectedArtifact(path))
 					.forEach(path -> {
@@ -543,7 +532,7 @@ public final class UpdateChecker {
 	}
 
 	private static String sha256(Path file) throws IOException {
-		try (InputStream in = Files.newInputStream(file)) {
+		try (var in = Files.newInputStream(file)) {
 			MessageDigest digest = MessageDigest.getInstance("SHA-256");
 			in.transferTo(new OutputStream() {
 				@Override public void write(int b) { digest.update((byte) b); }
@@ -570,9 +559,9 @@ public final class UpdateChecker {
 	}
 
 	static String extractTagName(String json) {
-		Matcher matcher = Pattern.compile("\"tag_name\"\\s*:\\s*\"([^\"]+)\"").matcher(json);
-		return matcher.find() ? matcher.group(1) : null;
-	}
+		Matcher matcher = Pattern.compile("\\\"tag_name\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"").matcher(json);
+			return matcher.find() ? matcher.group(1) : null;
+		}
 
 	static boolean isUpdateCheckEnabled() {
 		return !VersionUtils.isDevelopmentBuild();
