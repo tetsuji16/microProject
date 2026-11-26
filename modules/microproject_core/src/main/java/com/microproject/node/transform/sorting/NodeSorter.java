@@ -23,16 +23,11 @@
  *******************************************************************************/
 package com.microproject.node.transform.sorting;
 
-import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.Comparator;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
-import org.apache.commons.pool.BasePoolableObjectFactory;
-import org.apache.commons.pool.impl.GenericObjectPool;
 
 import com.microproject.configuration.FieldDictionary;
 import com.microproject.field.Field;
@@ -45,7 +40,6 @@ import com.microproject.node.transform.HierarchicObject;
  *
  */
 public class NodeSorter extends CommonTransform implements Comparator<Object>{
-	private static final Logger logger = Logger.getLogger(NodeSorter.class.getName());
 	protected List fields = null;
 
 	protected NodeModel model;
@@ -84,34 +78,6 @@ public class NodeSorter extends CommonTransform implements Comparator<Object>{
 		}
 		return list;
 	}
-
-public List getList() {
-	try {
-		return (List) pool.borrowObject();
-	} catch (Exception e) {
-		return null;
-	}
-}
-
-	public void recycleList(List<?> list) {
-		try {
-			list.clear();
-			pool.returnObject(list);
-		} catch (Exception e) {
-			logger.log(Level.WARNING, "Sort error", e);
-		}
-	}
-
-private GenericObjectPool pool = new GenericObjectPool(new ListFactory());
-
-private class ListFactory extends BasePoolableObjectFactory {
-	public Object makeObject() { //claur
-		return new ArrayList<>();
-	}
-
-	public void activateObject(Object arg0){ //claur{
-	}
-}
 
     public void setRedefinitionCallBack(Consumer<Object> callback){}
 	

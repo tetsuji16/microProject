@@ -335,12 +335,12 @@ tasks.register("verifyDependencyAllowlist") {
             "com.fasterxml.jackson.core", "com.fasterxml.jackson.dataformat",
             "com.formdev", "com.jgoodies", "com.thoughtworks.xstream",
             "commons-codec",
-            "commons-io", "commons-logging", "commons-pool", "org.apache.commons",
+            "commons-io", "commons-logging", "org.apache.commons",
             "io.reactivex.rxjava3", "jakarta.xml.bind", "jakarta.activation",
 			"com.sun.istack",
 			"net.sf.mpxj",
             "org.apache.logging.log4j", "org.apache.pdfbox", "org.apache.poi",
-            "org.codehaus.groovy", "org.glassfish.jaxb", "org.imgscalr", "org.jfree", "org.slf4j", "org.pushingpixels", "org.pushing-pixels",
+            "org.codehaus.groovy", "org.glassfish.jaxb", "org.jfree", "org.slf4j", "org.pushingpixels", "org.pushing-pixels",
             "org.update4j", "com.github.librepdf",
             "org.netbeans.api", "org.junit", "com.github"
         )

@@ -37,11 +37,12 @@ import javax.swing.border.Border;
 
 import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
+import com.microproject.ui.layout.FormRowBuilder;
 
 /**
  * microProject compatibility shim for the older JGoodies DefaultFormBuilder API.
  */
-public class DefaultFormBuilder {
+public class DefaultFormBuilder implements FormRowBuilder {
 	private final JPanel panel;
 	private final FormLayout layout;
 	private int currentColumn = 1;
@@ -78,10 +79,12 @@ public class DefaultFormBuilder {
 		return panel;
 	}
 
+	@Override
 	public int getColumn() {
 		return currentColumn + leadingColumnOffset;
 	}
 
+	@Override
 	public int getRow() {
 		return currentRow;
 	}
@@ -114,6 +117,7 @@ public class DefaultFormBuilder {
 		return add(new JLabel(text));
 	}
 
+	@Override
 	public Component append(String text, Component component) {
 		add(new JLabel(text));
 		return add(component);
@@ -124,6 +128,7 @@ public class DefaultFormBuilder {
 		return add(component, new CellConstraints().xyw(getColumn(), getRow(), Math.max(1, columnSpan)));
 	}
 
+	@Override
 	public Component append(Component component) {
 		return add(component);
 	}
@@ -149,6 +154,12 @@ public class DefaultFormBuilder {
 		return component;
 	}
 
+	@Override
+	public Component addSpanning(Component component, int col, int row, int colSpan) {
+		return add(component, new CellConstraints().xyw(col, row, colSpan));
+	}
+
+	@Override
 	public JLabel addLabel(String text) {
 		JLabel label = new JLabel(text);
 		add(label);
@@ -182,6 +193,7 @@ public class DefaultFormBuilder {
 		nextLine(1);
 	}
 
+	@Override
 	public void nextLine(int lineCount) {
 		// This is the grid-row count from the original JGoodies builder API.
 		// Most forms declare each content row and its spacer separately
@@ -195,6 +207,7 @@ public class DefaultFormBuilder {
 		nextColumn(1);
 	}
 
+	@Override
 	public void nextColumn(int gapColumns) {
 		currentColumn += Math.max(1, gapColumns);
 	}

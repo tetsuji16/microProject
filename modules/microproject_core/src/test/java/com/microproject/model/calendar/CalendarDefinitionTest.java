@@ -27,11 +27,20 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.List;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import com.microproject.datatype.Duration;
 import com.microproject.util.DateTime;
@@ -305,6 +314,89 @@ class CalendarDefinitionTest {
 
 		// Default 8h working day: Mon 09:00 + 8h -> Tue 09:00.
 		assertEquals(timestamp(2024, Calendar.JUNE, 4, 9), result);
+	}
+
+	@Test
+	void iteratorReuseHandsNestedBorrowersDistinctInstances() {
+		CalendarDefinition.CalendarIterator outer = CalendarDefinition.CalendarIteratorFactory.getInstance();
+		CalendarDefinition.CalendarIterator inner = CalendarDefinition.CalendarIteratorFactory.getInstance();
+		try {
+			assertNotSame(outer, inner, "a nested calculation must not share the outer calculation's iterator");
+		} finally {
+			CalendarDefinition.CalendarIteratorFactory.recycle(inner);
+			CalendarDefinition.CalendarIteratorFactory.recycle(outer);
+		}
+		CalendarDefinition.CalendarIterator reused = CalendarDefinition.CalendarIteratorFactory.getInstance();
+		try {
+			assertSame(outer, reused, "the most recently recycled iterator is reused first");
+		} finally {
+			CalendarDefinition.CalendarIteratorFactory.recycle(reused);
+		}
+	}
+
+	@Test
+	void idleIteratorsKeptPerThreadAreCapped() {
+		int capacity = CalendarDefinition.CalendarIteratorFactory.MAX_IDLE_PER_THREAD;
+		List<CalendarDefinition.CalendarIterator> borrowed = new ArrayList<>();
+		for (int index = 0; index < capacity + 3; index++)
+			borrowed.add(CalendarDefinition.CalendarIteratorFactory.getInstance());
+		for (CalendarDefinition.CalendarIterator iterator : borrowed)
+			CalendarDefinition.CalendarIteratorFactory.recycle(iterator);
+		assertEquals(capacity, CalendarDefinition.CalendarIteratorFactory.idleCount());
+	}
+
+	@Test
+	@Timeout(value = 30, unit = TimeUnit.SECONDS)
+	void nineThreadsCanEachHoldAnIteratorAtTheSameTime() throws Exception {
+		int threads = 9;
+		CyclicBarrier allHolding = new CyclicBarrier(threads);
+		ExecutorService executor = Executors.newFixedThreadPool(threads);
+		try {
+			List<Future<?>> results = new ArrayList<>();
+			for (int index = 0; index < threads; index++) {
+				results.add(executor.submit(() -> {
+					CalendarDefinition.CalendarIterator iterator = CalendarDefinition.CalendarIteratorFactory.getInstance();
+					try {
+						// Commons Pool 1 allowed 8 active objects and blocked the ninth borrower.
+						allHolding.await(10, TimeUnit.SECONDS);
+					} finally {
+						CalendarDefinition.CalendarIteratorFactory.recycle(iterator);
+					}
+					return null;
+				}));
+			}
+			for (Future<?> result : results)
+				result.get(20, TimeUnit.SECONDS);
+		} finally {
+			executor.shutdownNow();
+		}
+	}
+
+	@Test
+	@Timeout(value = 60, unit = TimeUnit.SECONDS)
+	void concurrentScheduledTimeComparisonsMatchTheSingleThreadedResult() throws Exception {
+		CalendarDefinition calendar = standardWeekCalendar();
+		long earlier = timestamp(2024, Calendar.JUNE, 3, 9);
+		long later = timestamp(2024, Calendar.JUNE, 21, 15);
+		long expected = calendar.compare(later, earlier, false);
+		int threads = 9;
+		ExecutorService executor = Executors.newFixedThreadPool(threads);
+		try {
+			List<Future<Boolean>> results = new ArrayList<>();
+			for (int index = 0; index < threads; index++) {
+				results.add(executor.submit(() -> {
+					for (int round = 0; round < 2_000; round++) {
+						if (calendar.compare(later, earlier, false) != expected)
+							return false;
+					}
+					return true;
+				}));
+			}
+			for (Future<Boolean> result : results)
+				assertTrue(result.get(50, TimeUnit.SECONDS));
+		} finally {
+			executor.shutdownNow();
+		}
 	}
 
 	private static CalendarDefinition standardWeekCalendar() {

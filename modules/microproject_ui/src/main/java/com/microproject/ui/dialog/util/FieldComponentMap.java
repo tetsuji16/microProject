@@ -30,10 +30,9 @@ import java.util.Map;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 
-import com.jgoodies.forms.builder.DefaultFormBuilder;
-import com.jgoodies.forms.layout.CellConstraints;
 import com.microproject.ui.dialog.FieldDialog;
 import com.microproject.ui.help.HelpUtil;
+import com.microproject.ui.layout.FormRowBuilder;
 import com.microproject.configuration.Configuration;
 import com.microproject.field.Field;
 import com.microproject.field.ObjectRef;
@@ -100,26 +99,26 @@ public class FieldComponentMap implements ObjectRef {
 		}
 	}
 	
-	public JComponent append(DefaultFormBuilder builder, String fieldId) {
+	public JComponent append(FormRowBuilder builder, String fieldId) {
 		return appendField(builder,fieldId,0);
 	}
 
-	public void append(DefaultFormBuilder builder, Collection<? extends Field> fields) {
+	public void append(FormRowBuilder builder, Collection<? extends Field> fields) {
 		for (Field field : fields) {
 			appendField(builder,field.getId(),0);
 			builder.nextLine(2);
 		}
 	}
 
-	public JComponent appendReadOnly(DefaultFormBuilder builder, String fieldId) {
+	public JComponent appendReadOnly(FormRowBuilder builder, String fieldId) {
 		return appendField(builder,fieldId,ComponentFactory.READ_ONLY);
 	}
 
-	public JComponent appendSometimesReadOnly(DefaultFormBuilder builder, String fieldId) {
+	public JComponent appendSometimesReadOnly(FormRowBuilder builder, String fieldId) {
 		return appendField(builder,fieldId,ComponentFactory.SOMETIMES_READ_ONLY);
 	}
 
-	public JComponent appendField(DefaultFormBuilder builder, String fieldId, int flag) {
+	public JComponent appendField(FormRowBuilder builder, String fieldId, int flag) {
 		Field field = Configuration.getFieldFromId(fieldId);
 		if (field == null)
 			return null;
@@ -134,19 +133,20 @@ public class FieldComponentMap implements ObjectRef {
 		return component;
 	}
 	
-	public JComponent append(DefaultFormBuilder builder, String fieldId, int span) {
+	public JComponent append(FormRowBuilder builder, String fieldId, int span) {
 		Field field = Configuration.getFieldFromId(fieldId);
 		if (field == null)
 			return null;
 		JComponent component = getComponent(fieldId,0);
 		boolean isCheckbox = component instanceof JCheckBox;
-		CellConstraints cc = new CellConstraints().xyw(builder.getColumn() + (isCheckbox ? 0 : 2), builder.getRow(), span);
+		int column = builder.getColumn() + (isCheckbox ? 0 : 2);
+		int row = builder.getRow();
 		if (isCheckbox) {// checkboxes already have a label to the right
-			builder.add(component,cc);
+			builder.addSpanning(component, column, row, span);
 		} else {
 			builder.addLabel(getLabel(fieldId)+":");
 			builder.nextColumn(2);
-			builder.add(component,cc);
+			builder.addSpanning(component, column, row, span);
 			builder.nextColumn(1);
 		}
 		String fieldDoc = field.getHelp();
