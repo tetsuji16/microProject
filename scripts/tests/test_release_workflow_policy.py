@@ -85,10 +85,12 @@ class ReleaseWorkflowPolicyTest(unittest.TestCase):
 			set(re.findall(r'"release-assets/([^"]+)"', stage)),
 		)
 		self.assertIn("files: release-assets/*", self.release)
-		for retired in ("SHA256SUMS", "configuration.xml", "UPDATE4J_", "generateUpdateConfiguration", "*.jar"):
+		for retired in ("SHA256SUMS", "configuration.xml", "generateUpdateConfiguration", "*.jar"):
 			self.assertNotIn(retired, self.release)
-		self.assertEqual(2, self.release.count("-Dmicroproject.updates.enabled=false"))
-		self.assertNotIn("-Dmicroproject.updates.enabled=$", self.release)
+		self.assertEqual(2, self.release.count("--main-class com.microproject.ui.app.Main"))
+		self.assertEqual(2, self.release.count("--main-jar microproject_ui.jar"))
+		self.assertNotIn("com.microproject.bootstrap", self.release)
+		self.assertNotIn("microproject.updates.enabled", self.release)
 
 	def test_visual_gate_keeps_all_classes_and_only_the_reviewed_task_information_methods(self):
 		runner = (REPO_ROOT / ".github" / "scripts" / "run-gui-acceptance.ps1").read_text(encoding="utf-8")
