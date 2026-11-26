@@ -41,7 +41,7 @@ python -m unittest discover -s scripts/tests -v
 
 Windows リリース workflow は同じ source commit に対して clean build、MSI/ZIP、GUI watchdog、配布 EXE の実起動を実施する。Linux のローカル Robot 合格は Windows での合格の代替にしない。
 
-タグ（または管理用ブランチ `release/beta-0.0.24-1` の push）で出荷を開始する。タグは `v0.0.24-beta.1`、jpackage 数値版は `0.0.24.1`。beta は latest／安定版 update manifest を変更しない。`releaseChannel=beta` により MSI/ZIP の bootstrap launcher に自動更新禁止を固定し、stable feed が beta JAR を置き換える経路を防ぐ（共有 preferences は変更しない）。ゲート失敗時は公開せず、ログを保存して原因を修正し、同じ候補の検証をやり直す。公開後の blocker は次の beta 番号で修正し、既配布版のバイナリを差し替えない。
+タグ（または管理用ブランチ `release/beta-0.0.24-1` の push）で出荷を開始する。タグは `v0.0.24-beta.1`、jpackage 数値版は `0.0.24.1`。beta は latest／安定版 update manifest を変更しない。アプリは更新を自動適用しないため、stable feed が beta JAR を置き換える経路はない（共有 preferences は変更しない）。ゲート失敗時は公開せず、ログを保存して原因を修正し、同じ候補の検証をやり直す。公開後の blocker は次の beta 番号で修正し、既配布版のバイナリを差し替えない。
 
 テスト方針は [beta-test-strategy](testing/beta-test-strategy.md)、配布ノートは [beta-0.0.24](releases/beta-0.0.24.md)。Windows の出荷結果を以下に記録する。
 
@@ -66,6 +66,6 @@ Windows リリース workflow は同じ source commit に対して clean build�
 
 [Windows 出荷ジョブ](https://github.com/tetsuji16/ProjectLibre/actions/runs/38013978155/job/114100094698) は clean build、unit/headless、MSI/ZIP、MPP/POD 各145 tasks、GUI smoke 21 件、配布 UI JAR の SHA256 一致、配布 EXE の実ウィンドウ起動、SHA256SUMS、公開まで成功した。MSI、ZIP、リリースノート、SHA256SUMS の4 assetsを確認済み。draft=false / prerelease=true。stable latest は `v0.0.23.1219` のままで、beta に latest alias や update manifest は含まれない。
 
-ベータの更新禁止は bootstrap による無人の JAR 置換を防ぐ。About 画面で将来の新しい stable MSI を選び、確認後に切り替える明示的な操作は別の経路として残る。
+ベータは安定版 feed を取得せず、アプリは JAR を無人で置換しない。About 画面で将来の新しい stable MSI を選び、確認後に切り替える明示的な操作は別の経路として残る。
 
 同 run の付随 Pages ジョブは runner 起動前に失敗した（配布ジョブは成功）。管理用 beta ブランチでは Pages を要求しないよう修正し、公開済み beta の案内とこの結果を master の既存 Pages 更新経路で反映する。配布済みバイナリの差替えは行わない。

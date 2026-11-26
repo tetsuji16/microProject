@@ -44,7 +44,6 @@ import com.microproject.ui.util.FlatUiSupport;
 import com.microproject.util.ClassLoaderUtils;
 import com.microproject.ui.util.UiLinkTargets;
 import com.microproject.util.VersionUtils;
-import com.microproject.util.Alert;
 
 public final class AboutDialog extends AbstractDialog {
 	private static final long serialVersionUID = 1L;
@@ -56,26 +55,6 @@ public final class AboutDialog extends AbstractDialog {
 		super(owner, Messages.format("Format.words",
 				Messages.getString("AboutDialog.About"), Messages.getContextString("Text.ApplicationTitle")), true); //$NON-NLS-1$
 	}
-
-	@Override
-	public void setVisible(boolean visible) {
-		if (visible) {
-			UpdateChecker.checkAndStageInBackground(this::handleUpdateResult);
-		}
-		super.setVisible(visible);
-	}
-
-	private void handleUpdateResult(UpdateChecker.UpdateResult result) {
-		if (!result.updateAvailable() || !isShowing()) {
-			if (result.updateAvailable()) UpdateChecker.discardStagedUpdate();
-			return;
-		}
-		String message = UsabilityStrings.text("update.ready").replace("{0}", result.currentVersion())
-				.replace("{1}", result.latestVersion());
-		if (Alert.okCancel(message)) UpdateChecker.applyStagedUpdate();
-		else UpdateChecker.discardStagedUpdate();
-	}
-
 
 	// Building *************************************************************
 

@@ -192,7 +192,6 @@ tasks.register("verifyArchitectureBoundaries") {
             "microproject_application" to setOf("microproject_core"),
             "microproject_exchange" to setOf("microproject_contrib", "microproject_core"),
             "microproject_reports" to setOf("microproject_contrib", "microproject_core"),
-            "microproject_bootstrap" to emptySet(),
             "microproject_ribbon" to emptySet(),
             "microproject_ui" to setOf(
                 "microproject_application", "microproject_contrib", "microproject_core",
@@ -224,7 +223,6 @@ tasks.register("verifyArchitectureBoundaries") {
             "microproject_application" to emptySet(),
             "microproject_exchange" to emptySet(),
             "microproject_reports" to emptySet(),
-            "microproject_bootstrap" to emptySet(),
             "microproject_ribbon" to emptySet(),
             "microproject_ui" to emptySet()
         )
@@ -249,23 +247,13 @@ tasks.register("verifyArchitectureBoundaries") {
             "microproject_application" to listOf("com.microproject.exchange", "com.microproject.reports", "com.microproject.ui"),
             "microproject_reports" to listOf("com.microproject.application", "com.microproject.exchange", "com.microproject.ui"),
             "microproject_exchange" to listOf("com.microproject.application", "com.microproject.reports", "com.microproject.ui"),
-            "microproject_bootstrap" to listOf("com.microproject.application", "com.microproject.core", "com.microproject.exchange", "com.microproject.reports", "com.microproject.ui"),
             "microproject_ribbon" to listOf("com.microproject.application", "com.microproject.core", "com.microproject.exchange", "com.microproject.menu", "com.microproject.pm", "com.microproject.reports", "com.microproject.ui", "com.microproject.util")
-        )
-
-        val boundaryAllowlist = mapOf(
-            "modules/microproject_bootstrap/src/main/java/com/microproject/bootstrap/MicroProjectUpdater.java" to setOf(
-                "com.microproject.ui.app.Main"
-            )
         )
 
         boundaryRules.forEach { (module, forbiddenPackages) ->
             val sourceRoot = project(":$module").projectDir.resolve("src/main")
             fileTree(sourceRoot).matching { include("**/*.java", "**/*.kt") }.forEach { sourceFile ->
-                val relative = sourceFile.relativeTo(layout.projectDirectory.asFile).invariantSeparatorsPath
-                val allowed = boundaryAllowlist[relative].orEmpty()
                 architectureSourceBoundaryViolations(sourceFile, forbiddenPackages)
-                    .filterNot { violation -> allowed.any { violation.contains(it) } }
                     .forEach { violation ->
                         throw GradleException("Independent boundary violation in $violation")
                     }
@@ -338,8 +326,8 @@ tasks.register("verifyDependencyAllowlist") {
                     "com.sun.istack",
                     "net.sf.mpxj",
                     "org.apache.logging.log4j", "org.apache.pdfbox", "org.apache.poi",
-                    "org.codehaus.groovy", "org.glassfish.jaxb", "org.jfree", "org.slf4j", "org.pushing-pixels",
-                    "org.update4j", "com.github.librepdf",
+                    "org.apache.groovy", "org.glassfish.jaxb", "org.jfree", "org.slf4j", "org.pushing-pixels",
+                    "com.github.librepdf",
                     "org.netbeans.api", "org.junit", "com.github",
                     "tools.jackson.core"
                 )
@@ -504,7 +492,6 @@ tasks.register("verifyNamingConventions") {
             "microproject_ui",
             "microproject_exchange",
             "microproject_reports",
-            "microproject_bootstrap",
             "microproject_ribbon"
         )
         val configuredModules = rootProject.subprojects.map { it.name }.toSet()
@@ -705,7 +692,6 @@ require(releaseChannel == "stable" || releaseChannel == "beta") {
     "releaseChannel must be 'stable' or 'beta', got '$releaseChannel'"
 }
 // Updates are delivered as new packages; no release publishes an update feed.
-val updaterEnabledJavaOption = "-Dmicroproject.updates.enabled=false"
 val nativeAccessJavaOption = "--enable-native-access=ALL-UNNAMED"
 val applicationVendor = "microProject contributors"
 val applicationDescription = "microProject desktop project management software"
@@ -741,7 +727,7 @@ val windowsRuntimeModules = listOf(
 tasks.register<Sync>("prepareWindowsReleaseInput") {
     group = "distribution"
     description = "Prepares jpackage input files from the Gradle installDist output."
-    dependsOn(":microproject_ui:installDist", ":microproject_bootstrap:jar")
+    dependsOn(":microproject_ui:installDist")
 
     val installLibDir = project(":microproject_ui").layout.buildDirectory.dir("install/microproject_ui/lib")
     val iconFile = layout.projectDirectory.file("packaging/windows/icons/microproject.ico")
@@ -756,8 +742,6 @@ tasks.register<Sync>("prepareWindowsReleaseInput") {
             if (fileName == "jgoodies-forms-1.9.0.jar") "zz-jgoodies-forms-1.9.0.jar" else fileName
         }
     }
-    from(project(":microproject_bootstrap").tasks.named<Jar>("jar"))
-    from(project(":microproject_bootstrap").configurations.named("runtimeClasspath"))
     from(iconFile) {
         rename { "microproject.ico" }
     }
@@ -798,9 +782,8 @@ tasks.register<Exec>("packageWindowsAppImage") {
             "--description", applicationDescription,
             "--copyright", applicationCopyright,
             "--input", inputDir.absolutePath,
-            "--main-jar", "microproject_bootstrap.jar",
-            "--main-class", "com.microproject.bootstrap.MicroProjectUpdater",
-            "--java-options", updaterEnabledJavaOption,
+            "--main-jar", "microproject_ui.jar",
+            "--main-class", "com.microproject.ui.app.Main",
             "--java-options", nativeAccessJavaOption,
             "--icon", File(inputDir, "microproject.ico").absolutePath,
             "--add-modules", windowsRuntimeModules.joinToString(","),
@@ -814,9 +797,6 @@ tasks.register<Exec>("packageWindowsAppImage") {
             .file("microProject/app/microProject.cfg").asFile
         check(launcherConfig.isFile) {
             "jpackage did not generate the expected launcher config: $launcherConfig"
-        }
-        check(launcherConfig.readText(Charsets.UTF_8).contains(updaterEnabledJavaOption)) {
-            "Packaged launcher is missing the update policy: $updaterEnabledJavaOption"
         }
         val classpathEntries = launcherConfig.readLines(Charsets.UTF_8)
             .filter { it.startsWith("app.classpath=") }
@@ -869,9 +849,8 @@ tasks.register<Exec>("packageWindowsMsi") {
             "--description", applicationDescription,
             "--copyright", applicationCopyright,
             "--input", inputDir.absolutePath,
-            "--main-jar", "microproject_bootstrap.jar",
-            "--main-class", "com.microproject.bootstrap.MicroProjectUpdater",
-            "--java-options", updaterEnabledJavaOption,
+            "--main-jar", "microproject_ui.jar",
+            "--main-class", "com.microproject.ui.app.Main",
             "--java-options", nativeAccessJavaOption,
             "--icon", File(inputDir, "microproject.ico").absolutePath,
             "--license-file", File(inputDir, "license.txt").absolutePath,
@@ -908,9 +887,8 @@ tasks.register<Exec>("packageWindowsExe") {
             "--description", applicationDescription,
             "--copyright", applicationCopyright,
             "--input", inputDir.absolutePath,
-            "--main-jar", "microproject_bootstrap.jar",
-            "--main-class", "com.microproject.bootstrap.MicroProjectUpdater",
-            "--java-options", updaterEnabledJavaOption,
+            "--main-jar", "microproject_ui.jar",
+            "--main-class", "com.microproject.ui.app.Main",
             "--java-options", nativeAccessJavaOption,
             "--icon", File(inputDir, "microproject.ico").absolutePath,
             "--license-file", File(inputDir, "license.txt").absolutePath,

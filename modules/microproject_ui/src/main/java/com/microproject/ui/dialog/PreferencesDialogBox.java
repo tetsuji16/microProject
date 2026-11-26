@@ -90,7 +90,8 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		PopupDialogSupport.bindEscapeToDispose(this);
 		JTextField userName = new JTextField(preferences.getUserName(), 24);
 		JCheckBox rowLines = new JCheckBox(UsabilityStrings.text("preferences.rowLines"), preferences.isShowRowLines());
-		JCheckBox checkUpdates = new JCheckBox(UsabilityStrings.text("preferences.checkUpdates"), preferences.isCheckForUpdates());
+		JCheckBox checkUpdates = UpdateChecker.isStoreDistribution() ? null
+				: new JCheckBox(UsabilityStrings.text("preferences.checkUpdates"), preferences.isCheckForUpdates());
 		String lightTheme = UsabilityStrings.text("preferences.themeLight");
 		String darkTheme = UsabilityStrings.text("preferences.themeDark");
 		JComboBox<String> theme = new JComboBox<>(new String[] { lightTheme, darkTheme });
@@ -145,7 +146,7 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 		addRow(general, UsabilityStrings.text("preferences.theme"), theme);
 		addRow(general, UsabilityStrings.text("preferences.font"), font);
 		addRow(general, UsabilityStrings.text("preferences.fontSize"), size);
-		addRow(general, null, checkUpdates);
+		if (checkUpdates != null) addRow(general, null, checkUpdates);
 		JPanel display = newCategoryForm();
 		addRow(display, null, rowLines);
 		addRow(display, UsabilityStrings.text("preferences.ganttBarText"), ganttBarText);
@@ -251,7 +252,7 @@ public final class PreferencesDialogBox extends FlatLafDialog {
 			preferences.setDefaultMilestoneShape(((MilestoneShapeChoice)milestoneShape.getSelectedItem()).getShapeName());
 			preferences.setGridLineColor(gridColor.rgb());
 			preferences.setDefaultGanttBarColor(barColor.rgb());
-			preferences.setCheckForUpdates(checkUpdates.isSelected());
+			if (checkUpdates != null) preferences.setCheckForUpdates(checkUpdates.isSelected());
 			boolean themeChanged = preferences.isDarkTheme() != darkTheme.equals(theme.getSelectedItem());
 			preferences.setDarkTheme(darkTheme.equals(theme.getSelectedItem()));
 			boolean formatsChanged = !preferences.getDatePattern().equals(datePattern.value())

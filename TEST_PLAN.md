@@ -54,7 +54,7 @@ MS Project 互換性に関する形式テストでは read と write を独立�
 | 空行を挟むタスクの ID と予定を MPO 保存・再読込で保持 | MpoFileImporterTest の既存 native schedule snapshot 契約を強化 |
 | CCPM Clear の Undo が監視履歴と撤回記録を完全復元 | CriticalChainServiceTest の既存 clearUndoRedo 契約 |
 | 子 modal を閉じた後のモデルレス親への Escape | AssignmentDialogGuiAcceptanceTest。active window と focus owner の復帰を先に検証 |
-| ベータ起動が安定版 feed を取得せず、ファイル引数を保持 | BootstrapUpdateTest の loopback feed hit=0 契約、AppImage launcher config 検査 |
+| ベータ起動が安定版 feed を取得せず、ファイル引数を保持 | AppImage launcher config 検査（main-class は com.microproject.ui.app.Main） |
 | ダイアログの実際の重なり・文字欠け | 既存共有 assertion。FlatLaf JSpinner の縦 stepper 同士が共有する1px境界だけ除外 |
 | リボンの幅対応再構築後のグループ名基準線 | ModernRibbonPanelBandBaselineTest: 幅1100/1300/1450/1920で全タブのバンド名下端を比較し、幅による再構築で特定タブだけ高さがズレないことを確認 |
 | Calendar 書式設定のワークスペース往復 | CalendarViewSettingsTest: 行高さ・バー色・文字書式・レイアウト・タスク一覧の保存復元と、共有 DockableProjectToolView によるワークスペース往復を確認 |
@@ -73,7 +73,7 @@ issue の「検証」と PR の説明には、変更の種類に合う行のコ�
 | ファイル形式の読み書き（exchange、MPO / MPP / POD / XML） | `:microproject_exchange:test`。保存して読み直すテスト（round-trip）を 1 件以上、追加または更新する | POD は、既存の fixture のバイト列が変わらないことを確かめる。MPO は、過去のバージョンの fixture が読めることを確かめる |
 | Swing の部品、ダイアログ（画面の経路は変えない） | 変更したクラスのテスト、次に `:microproject_ui:test` | 文言やレイアウトを変えたら、日本語と英語の表示を確かめる |
 | 利用者が操作する経路（メニュー、リボン、ショートカット、表の編集） | 上の行に加えて、`docs/gui-quality-gate.md` の手順。PR の必須チェック `GUI acceptance` が通ること | 入力の方法を増やしたら、`@GuiJourney` を 1 件足す。同じ経路の重複は足さない |
-| 起動、更新（bootstrap） | `:microproject_bootstrap:test` | 配布物の構成を変えたら、`.\gradlew.bat clean build installDist --console=plain` |
+| 起動 | `:microproject_ui:test`（起動まわり） | 配布物の構成を変えたら、`.\gradlew.bat clean build installDist --console=plain` |
 | ビルド、CI、依存関係 | `.\gradlew.bat build --console=plain`。ワークフローを変えたら、PR 上で、そのワークフローが実際に動いた結果を確かめる | 依存を足したら、`verifyDependencyAllowlist` |
 | パッケージ名、モジュールの境界 | `.\gradlew.bat verifyArchitectureBoundaries verifyArchitectureBoundaryFixtures verifyNamingConventions --console=plain` | なし |
 | `scripts/` の保守スクリプト | `python -m unittest discover -s scripts/tests`、`python scripts/test_source_inventory.py --check --output build/audit/test-source-inventory.json` | なし |

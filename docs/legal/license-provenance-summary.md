@@ -13,7 +13,6 @@
 | Module | Total | KEEP_OPENPROJ | KEEP_THIRD_PARTY | KEEP_FORK_ORIGINAL | DELETE_PROJECTLIBRE_DELTA | REIMPLEMENT_PROJECTLIBRE_DELTA | REVIEW |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | microproject_application | 16 | 0 | 0 | 0 | 0 | 0 | 16 |
-| microproject_bootstrap | 7 | 0 | 0 | 0 | 0 | 0 | 7 |
 | microproject_contrib | 20 | 13 | 2 | 0 | 0 | 0 | 5 |
 | microproject_core | 924 | 154 | 0 | 0 | 0 | 0 | 770 |
 | microproject_exchange | 118 | 9 | 0 | 0 | 0 | 0 | 109 |

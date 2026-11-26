@@ -122,8 +122,8 @@ public class PodRoundTripTest {
 		assertArrayEquals(java.util.Arrays.copyOfRange(baseline, 0, baselineSerializedEnd),
 			java.util.Arrays.copyOfRange(withPertState, 0, pertSerializedEnd),
 			"adding transient PERT state must not change the POD Java object stream");
-		assertArrayEquals(java.util.Arrays.copyOfRange(baseline, baselineSerializedEnd, baseline.length),
-			java.util.Arrays.copyOfRange(withPertState, pertSerializedEnd, withPertState.length),
+		assertArrayEquals(maskCurrentDate(java.util.Arrays.copyOfRange(baseline, baselineSerializedEnd, baseline.length)),
+			maskCurrentDate(java.util.Arrays.copyOfRange(withPertState, pertSerializedEnd, withPertState.length)),
 			"adding transient PERT state must not change the embedded MSPDI payload");
 	}
 
@@ -132,6 +132,29 @@ public class PodRoundTripTest {
 		exporter.setFileName(target.getAbsolutePath());
 		exporter.setProject(project);
 		exporter.exportFile();
+	}
+
+	@Test
+	void currentDateMaskIgnoresOnlyTheSaveTimestamp() {
+		byte[] first = "<A>1</A><CurrentDate>2026-11-26T22:46:27</CurrentDate><B>2</B>".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+		byte[] laterSave = "<A>1</A><CurrentDate>2026-11-26T22:46:28</CurrentDate><B>2</B>".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+		byte[] otherChange = "<A>1</A><CurrentDate>2026-11-26T22:46:27</CurrentDate><B>3</B>".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+		assertArrayEquals(maskCurrentDate(first), maskCurrentDate(laterSave));
+		assertTrue(!java.util.Arrays.equals(maskCurrentDate(first), maskCurrentDate(otherChange)),
+			"a change outside <CurrentDate> must still be detected");
+	}
+
+	/**
+	 * MSPDI writes {@code <CurrentDate>} from the save time, to the second. Two saves of the same
+	 * project can therefore differ only in that value; every other byte is still compared.
+	 */
+	private static byte[] maskCurrentDate(byte[] mspdi) {
+		String text = new String(mspdi, java.nio.charset.StandardCharsets.ISO_8859_1);
+		java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("<CurrentDate>[^<]*</CurrentDate>").matcher(text);
+		assertTrue(matcher.find(), "the MSPDI payload must contain one <CurrentDate> element");
+		String masked = text.substring(0, matcher.start()) + "<CurrentDate>masked</CurrentDate>" + text.substring(matcher.end());
+		assertTrue(!matcher.find(), "the MSPDI payload must contain only one <CurrentDate> element");
+		return masked.getBytes(java.nio.charset.StandardCharsets.ISO_8859_1);
 	}
 
 	private static int indexOf(byte[] bytes, byte[] target) {

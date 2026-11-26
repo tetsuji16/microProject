@@ -6,20 +6,14 @@ package com.microproject.ui.dialog;
 
 import java.io.IOException;
 import java.io.InterruptedIOException;
-import java.io.OutputStream;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.MessageDigest;
 import java.time.Duration;
-import java.time.Instant;
-import java.util.Locale;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -27,15 +21,12 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.function.Consumer;
 
 import javax.swing.SwingUtilities;
 
 import com.microproject.preference.GlobalPreferences;
 import com.microproject.util.Alert;
 import com.microproject.util.BrowserControl;
-import com.microproject.util.Environment;
-import com.microproject.util.SafeFileReplace;
 import com.microproject.util.VersionUtils;
 import com.microproject.util.temporary.TemporaryCleanupQueue;
 
@@ -45,27 +36,23 @@ import com.microproject.util.temporary.TemporaryCleanupQueue;
  * releases page when a newer version is published. Never blocks the EDT,
  * silently skips when offline/headless, and can be disabled from
  * Preferences ({@link GlobalPreferences#isCheckForUpdates()}).
+ * <p>
+ * The application never downloads or installs an update itself. In the
+ * Microsoft Store distribution the Store updates the app, so no network
+ * request is made and the manual check opens the Store page instead.
  */
 public final class UpdateChecker {
 
 	private static final Logger logger = Logger.getLogger(UpdateChecker.class.getName());
 	static final String RELEASES_URL = "https://github.com/tetsuji16/microProject/releases/latest";
+	static final String STORE_PRODUCT_URI = "ms-windows-store://pdp/?ProductId=9N89VPNDHP93";
+	private static final String DISTRIBUTION_PROPERTY = "microproject.distribution";
 	private static final String API_URL = "https://api.github.com/repos/tetsuji16/microProject/releases/latest";
-	/** The only hosts a release installer may be downloaded from (over https, without user info). */
-	static final Set<String> TRUSTED_DOWNLOAD_HOSTS = Set.of("github.com", "objects.githubusercontent.com",
-			"release-assets.githubusercontent.com");
-	private static final int MAX_DOWNLOAD_REDIRECTS = 5;
 	private static final int TIMEOUT_MILLIS = 5000;
 	private static final int MAX_RELEASE_JSON_BYTES = 1024 * 1024;
-	private static final Duration INSTALLER_DOWNLOAD_DEADLINE = Duration.ofMinutes(10);
 	private static final String STAGING_DIRECTORY_PROPERTY = "microproject.update.staging-directory";
-	private static final String STAGING_FILE_PREFIX = "microProject-update-";
-	private static final String MANIFEST_SUFFIX = ".manifest";
-	private static final String RETRY_SUFFIX = ".delete";
-	private static final Duration STAGED_FILE_TTL = Duration.ofDays(7);
-	private static final Object STAGED_UPDATE_LOCK = new Object();
-	private static StagedUpdate stagedUpdate;
-	private static Path installerScheduledForApply;
+	/** Name prefix of every file earlier versions wrote to the update folder. */
+	private static final String STAGED_FILE_PREFIX = "microProject-update-";
 
 	/** Shared HTTP client with connection timeout and manual redirect handling. */
 	private static final HttpClient HTTP = HttpClient.newBuilder()
@@ -76,16 +63,30 @@ public final class UpdateChecker {
 	private UpdateChecker() {
 	}
 
+	/** Whether this installation was delivered by the Microsoft Store, which updates the app itself. */
+	public static boolean isStoreDistribution() {
+		return "store".equalsIgnoreCase(System.getProperty(DISTRIBUTION_PROPERTY));
+	}
+
 	/** Fire an asynchronous check; returns immediately. */
 	public static void checkInBackground(GlobalPreferences preferences) {
-		cleanupStaleArtifacts();
-		if (preferences == null || !preferences.isCheckForUpdates()) return;
+		checkInBackground(preferences, isStoreDistribution(), stagingDirectory());
+	}
+
+	/**
+	 * Testable variant. Returns the started check thread, or null when no network
+	 * request is made (Store distribution, preference off, development build, headless).
+	 */
+	static Thread checkInBackground(GlobalPreferences preferences, boolean store, Path leftoverDirectory) {
+		cleanupStaleArtifacts(leftoverDirectory);
+		if (store) return null;
+		if (preferences == null || !preferences.isCheckForUpdates()) return null;
 		if (!isUpdateCheckEnabled()) {
 			logger.fine("Skipping update check for a local development build");
-			return;
+			return null;
 		}
-		if (java.awt.GraphicsEnvironment.isHeadless()) return;
-		Thread.ofPlatform().name("update-check").daemon(true).start(() -> {
+		if (java.awt.GraphicsEnvironment.isHeadless()) return null;
+		return Thread.ofPlatform().name("update-check").daemon(true).start(() -> {
 			try {
 				String latest = fetchLatestVersion();
 				if (latest == null) return;
@@ -100,170 +101,38 @@ public final class UpdateChecker {
 	}
 
 	/**
-	 * Checks for a release when the user opens the About dialog and stages the
-	 * Windows installer without blocking the EDT. The installer is not applied
-	 * until the user agrees to restart the application.
+	 * User-requested check. Ignores the startup preference and always reports an outcome.
+	 * In the Store distribution it only opens the Store page.
 	 */
-	public static void checkAndStageInBackground(Consumer<UpdateResult> callback) {
-		cleanupStaleArtifacts();
-		if (callback == null || java.awt.GraphicsEnvironment.isHeadless()) return;
-		if (!Environment.isWindows()) {
-			String current = VersionUtils.getVersion();
-			SwingUtilities.invokeLater(() -> callback.accept(new UpdateResult(current, null, null)));
+	public static void checkNow() {
+		if (isStoreDistribution()) {
+			BrowserControl.displayURL(STORE_PRODUCT_URI);
 			return;
 		}
+		if (java.awt.GraphicsEnvironment.isHeadless()) return;
 		if (!isUpdateCheckEnabled()) {
-			logger.fine("Skipping update staging for a local development build");
-			String current = VersionUtils.getVersion();
-			SwingUtilities.invokeLater(() -> callback.accept(new UpdateResult(current, null, null)));
+			SwingUtilities.invokeLater(() -> Alert.warn(UsabilityStrings.text("update.developmentBuild")));
 			return;
 		}
-		Thread.ofPlatform().name("about-update-check").daemon(true).start(() -> {
-			UpdateResult result;
+		Thread.ofPlatform().name("update-check-now").daemon(true).start(() -> {
+			final String current = VersionUtils.getVersion();
+			String latest = null;
 			try {
-				String current = VersionUtils.getVersion();
-				String json = fetchLatestReleaseJson();
-				String latest = extractTagName(json);
-				if (latest == null || current == null || !isNewer(latest.trim(), current.trim())) {
-					result = new UpdateResult(current, latest, null);
-				} else {
-					MsiAsset asset = extractMsiAsset(json);
-					if (asset == null) {
-						result = new UpdateResult(current, latest, null);
-					} else if (!isTrustedDownloadUrl(asset.url())) {
-						// Nothing is downloaded; the caller falls back to pointing at the release page.
-						logger.warning("Refusing to download an installer from an untrusted address: " + asset.url());
-						result = new UpdateResult(current, latest.trim(), null);
-					} else {
-						Path installer = stageInstaller(asset, latest.trim());
-						result = new UpdateResult(current, latest.trim(), installer);
-					}
-				}
+				latest = fetchLatestVersion();
 			} catch (Exception e) {
-				logger.log(Level.FINE, "Update staging skipped", e);
-				result = new UpdateResult(VersionUtils.getVersion(), null, null);
+				logger.log(Level.FINE, "Manual update check failed", e);
 			}
-			final UpdateResult completed = result;
-			SwingUtilities.invokeLater(() -> callback.accept(completed));
+			final String found = latest == null ? null : latest.trim();
+			SwingUtilities.invokeLater(() -> {
+				if (found == null) {
+					Alert.warn(UsabilityStrings.text("update.checkFailed"));
+				} else if (current == null || isNewer(found, current.trim())) {
+					offerUpgrade(current, found);
+				} else {
+					Alert.warn(UsabilityStrings.text("update.upToDate").replace("{0}", current));
+				}
+			});
 		});
-	}
-
-	/** Applies the staged MSI after the current process exits. */
-	public static boolean applyStagedUpdate() {
-		final StagedUpdate update = claimStagedUpdate();
-		final boolean valid = update != null;
-		if (!valid) {
-			discardStagedUpdate();
-			return false;
-		}
-		if (!Environment.isWindows()) {
-			clearScheduledInstaller(update.installer());
-			deleteUpdateFiles(update);
-			return false;
-		}
-		try {
-			Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-				runInstaller(update, UpdateChecker::launchInstaller);
-			}, "microProject-installer"));
-		} catch (IllegalStateException | SecurityException e) {
-			clearScheduledInstaller(update.installer());
-			deleteUpdateFiles(update);
-			logger.log(Level.WARNING, "Failed to register staged installer shutdown hook", e);
-			return false;
-		}
-		System.exit(0);
-		return true;
-	}
-
-	/** Test seam for installer launch and cleanup outcomes without terminating the JVM. */
-	static boolean applyStagedUpdateForTest(InstallerLauncher launcher) {
-		StagedUpdate update = claimStagedUpdate();
-		if (update == null) return false;
-		return runInstaller(update, launcher);
-	}
-
-	@FunctionalInterface
-	interface InstallerLauncher {
-		Process launch(Path installer) throws IOException;
-	}
-
-	private static Process launchInstaller(Path installer) throws IOException {
-		return new ProcessBuilder("msiexec.exe", "/i", installer.toAbsolutePath().toString(),
-				"/passive", "/norestart").start();
-	}
-
-	private static StagedUpdate claimStagedUpdate() {
-		final StagedUpdate update;
-		final boolean valid;
-		synchronized (STAGED_UPDATE_LOCK) {
-			update = stagedUpdate;
-			valid = update != null && isValidStagedUpdate(update);
-			if (valid) {
-				stagedUpdate = null;
-				installerScheduledForApply = update.installer();
-			}
-		}
-		return valid ? update : null;
-	}
-
-	private static boolean runInstaller(StagedUpdate update, InstallerLauncher launcher) {
-		try {
-			Process process = launcher.launch(update.installer());
-			if (process == null || !process.waitFor(5, java.util.concurrent.TimeUnit.MINUTES)) {
-				logger.warning("Installer did not finish before shutdown cleanup deadline");
-				return false;
-			}
-			if (process.exitValue() == 0) {
-				deleteUpdateFiles(update);
-				clearScheduledInstaller(update.installer());
-				return true;
-			}
-			logger.warning("Installer exited with code " + process.exitValue() + "; retaining staged files for retry");
-			clearScheduledInstaller(update.installer());
-			synchronized (STAGED_UPDATE_LOCK) {
-				if (stagedUpdate == null && isValidStagedUpdate(update)) stagedUpdate = update;
-			}
-			return false;
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-			logger.log(Level.WARNING, "Interrupted while waiting for staged installer", e);
-			return false;
-		} catch (IOException e) {
-			logger.log(Level.WARNING, "Failed to start staged installer", e);
-			clearScheduledInstaller(update.installer());
-			deleteUpdateFiles(update);
-			return false;
-		}
-	}
-
-	/** Removes a downloaded installer when the user declines or closes the prompt. */
-	public static void discardStagedUpdate() {
-		final StagedUpdate update;
-		synchronized (STAGED_UPDATE_LOCK) {
-			update = stagedUpdate;
-			stagedUpdate = null;
-		}
-		if (update != null) deleteUpdateFiles(update);
-	}
-
-	static String extractMsiDownloadUrl(String json) {
-		MsiAsset asset = extractMsiAsset(json);
-		return asset == null ? null : asset.url();
-	}
-
-	static MsiAsset extractMsiAsset(String json) {
-		if (json == null) return null;
-		Matcher assets = Pattern.compile("\\{[^{}]*\\\"browser_download_url\\\"\\s*:\\s*\\\"([^\\\"]+\\.msi)\\\"[^{}]*\\}", Pattern.DOTALL).matcher(json);
-		MsiAsset fallback = null;
-		while (assets.find()) {
-			String object = assets.group();
-			Matcher digest = Pattern.compile("\\\"digest\\\"\\s*:\\s*\\\"sha256:([0-9a-fA-F]{64})\\\"").matcher(object);
-			if (!digest.find()) continue;
-			MsiAsset asset = new MsiAsset(assets.group(1), digest.group(1));
-			if (asset.url().contains("microProject-latest.msi")) return asset;
-			if (fallback == null) fallback = asset;
-		}
-		return fallback;
 	}
 
 	static String fetchLatestReleaseJson() throws IOException {
@@ -283,109 +152,6 @@ public final class UpdateChecker {
 			throw new IOException("GitHub Releases API returned HTTP " + response.statusCode());
 		}
 		return new String(response.body(), StandardCharsets.UTF_8);
-	}
-
-	/** Whether {@code url} is an https address on a host release installers are published from. */
-	static boolean isTrustedDownloadUrl(String url) {
-		if (url == null) return false;
-		URI uri;
-		try {
-			uri = new URI(url);
-		} catch (URISyntaxException e) {
-			return false;
-		}
-		String host = uri.getHost();
-		return "https".equalsIgnoreCase(uri.getScheme()) && uri.getRawUserInfo() == null
-				&& uri.getRawAuthority() != null && uri.getRawAuthority().indexOf('@') < 0
-				&& (uri.getPort() == -1 || uri.getPort() == 443)
-				&& host != null && TRUSTED_DOWNLOAD_HOSTS.contains(host.toLowerCase(Locale.ROOT));
-	}
-
-	static Path stageInstaller(MsiAsset asset, String version) throws IOException {
-		return stageInstaller(asset, version, stagingDirectory(), UpdateChecker::isTrustedDownloadUrl);
-	}
-
-	/** Test seam: stages from any address, so tests can serve the installer from a local server. */
-	static Path stageInstaller(MsiAsset asset, String version, Path stagingDirectory) throws IOException {
-		return stageInstaller(asset, version, stagingDirectory, url -> true);
-	}
-
-	static Path stageInstaller(MsiAsset asset, String version, Path stagingDirectory,
-			java.util.function.Predicate<String> trustedUrl) throws IOException {
-		if (asset == null || version == null || version.isBlank() || version.indexOf('\n') >= 0 || version.indexOf('\r') >= 0) {
-			throw new IllegalArgumentException("asset/version");
-		}
-		synchronized (STAGED_UPDATE_LOCK) {
-			if (stagedUpdate != null && version.equals(stagedUpdate.version()) && isValidStagedUpdate(stagedUpdate)) {
-				return stagedUpdate.installer();
-			}
-		}
-		Files.createDirectories(stagingDirectory);
-		Path part = Files.createTempFile(stagingDirectory, STAGING_FILE_PREFIX, ".msi.part");
-		Path installer = part.resolveSibling(part.getFileName().toString().substring(0,
-				part.getFileName().toString().length() - ".part".length()));
-		Path manifest = manifestPath(installer);
-		String checksum = null;
-		try {
-			Path downloaded = downloadInstaller(asset.url(), trustedUrl, part);
-			if (Files.size(downloaded) == 0) throw new IOException("Downloaded installer is empty");
-			checksum = sha256(downloaded);
-			if (!asset.sha256().equalsIgnoreCase(checksum)) throw new IOException("Downloaded installer checksum mismatch");
-			SafeFileReplace.replaceDurably(downloaded, installer, true);
-			writeManifest(manifest, version, checksum, Instant.now());
-			StagedUpdate previous;
-			synchronized (STAGED_UPDATE_LOCK) {
-				if (stagedUpdate != null && version.equals(stagedUpdate.version()) && isValidStagedUpdate(stagedUpdate)) {
-					previous = new StagedUpdate(installer, manifest, version);
-					deleteUpdateFiles(previous);
-					return stagedUpdate.installer();
-				}
-				previous = stagedUpdate;
-				stagedUpdate = new StagedUpdate(installer, manifest, version);
-			}
-			if (previous != null && !isProtectedArtifact(previous.installer())) deleteUpdateFiles(previous);
-			return installer;
-		} finally {
-			deleteQuietly(part, "partial installer");
-			if (!isCurrentStagedInstaller(installer)) deleteUpdateFiles(new StagedUpdate(installer, manifest, version));
-		}
-	}
-
-	/**
-	 * Downloads the installer, following redirects manually so every hop is checked.
-	 * Returns the path to the downloaded file (the {@code part} file).
-	 */
-	private static Path downloadInstaller(String url, java.util.function.Predicate<String> trustedUrl, Path part) throws IOException {
-		String current = url;
-		for (int hop = 0; hop <= MAX_DOWNLOAD_REDIRECTS; hop++) {
-			if (!trustedUrl.test(current)) throw new IOException("Installer address is not trusted: " + current);
-			URI uri;
-			try {
-				uri = URI.create(current);
-			} catch (IllegalArgumentException e) {
-				throw new IOException("Installer download address is not a valid URI: " + current, e);
-			}
-			HttpRequest request = HttpRequest.newBuilder(uri)
-					.timeout(INSTALLER_DOWNLOAD_DEADLINE)
-					.GET()
-					.build();
-			HttpResponse<Path> response = send(request, info -> info.statusCode() == 200
-					? HttpResponse.BodySubscribers.ofFile(part)
-					: HttpResponse.BodySubscribers.replacing(null), INSTALLER_DOWNLOAD_DEADLINE);
-			int code = response.statusCode();
-			if (code == 200) {
-				return part;
-			}
-			String location = response.headers().firstValue("Location").orElse(null);
-			boolean redirect = code == 301 || code == 302 || code == 303 || code == 307 || code == 308;
-			if (!redirect || location == null) throw new IOException("Installer download returned HTTP " + code);
-			try {
-				current = URI.create(current).resolve(location).toString();
-			} catch (IllegalArgumentException e) {
-				throw new IOException("Installer download redirected to an invalid address", e);
-			}
-		}
-		throw new IOException("Installer download redirected too many times");
 	}
 
 	/**
@@ -408,64 +174,7 @@ public final class UpdateChecker {
 		}
 	}
 
-	private static boolean isCurrentStagedInstaller(Path installer) {
-		synchronized (STAGED_UPDATE_LOCK) {
-			return stagedUpdate != null && installer.equals(stagedUpdate.installer());
-		}
-	}
-
-	private static boolean isValidStagedUpdate(StagedUpdate update) {
-		if (update == null || !Files.isRegularFile(update.installer()) || !Files.isRegularFile(update.manifest())) return false;
-		try {
-			String manifest = Files.readString(update.manifest(), StandardCharsets.UTF_8);
-			String version = manifestValue(manifest, "version");
-			String checksum = manifestValue(manifest, "sha256");
-			String createdAt = manifestValue(manifest, "createdAt");
-			return update.version().equals(version) && checksum != null && checksum.matches("[0-9a-fA-F]{64}")
-					&& createdAt != null && !createdAt.isBlank() && Instant.parse(createdAt) != null
-					&& checksum.equalsIgnoreCase(sha256(update.installer()));
-		} catch (IOException | RuntimeException e) {
-			return false;
-		}
-	}
-
-	private static String manifestValue(String manifest, String key) {
-		for (String line : manifest.split("\\R")) {
-			if (line.startsWith(key + "=")) return line.substring(key.length() + 1);
-		}
-		return null;
-	}
-
-	private static Path manifestPath(Path installer) {
-		return installer.resolveSibling(installer.getFileName() + MANIFEST_SUFFIX);
-	}
-
-	private static void writeManifest(Path manifest, String version, String checksum, Instant createdAt) throws IOException {
-		Path partial = manifest.resolveSibling(manifest.getFileName() + ".part");
-		try {
-			String content = "version=" + version + "\n"
-					+ "sha256=" + checksum + "\n"
-					+ "createdAt=" + createdAt + "\n";
-			Files.writeString(partial, content, StandardCharsets.UTF_8,
-					java.nio.file.StandardOpenOption.CREATE_NEW, java.nio.file.StandardOpenOption.WRITE);
-			SafeFileReplace.replaceDurably(partial, manifest, true);
-		} finally {
-			deleteQuietly(partial, "partial update manifest");
-		}
-	}
-
-	private static void deleteUpdateFiles(StagedUpdate update) {
-		if (update == null) return;
-		deleteQuietly(update.manifest(), "update manifest");
-		deleteQuietly(update.installer(), "staged installer");
-	}
-
-	private static void clearScheduledInstaller(Path installer) {
-		synchronized (STAGED_UPDATE_LOCK) {
-			if (installer != null && installer.equals(installerScheduledForApply)) installerScheduledForApply = null;
-		}
-	}
-
+	/** Folder where earlier versions staged installer downloads. */
 	private static Path stagingDirectory() {
 		String override = System.getProperty(STAGING_DIRECTORY_PROPERTY);
 		if (override != null && !override.isBlank()) return Path.of(override).toAbsolutePath().normalize();
@@ -475,84 +184,23 @@ public final class UpdateChecker {
 		return Path.of(userHome, "AppData", "Local", "microProject", "updates");
 	}
 
-	private static void cleanupStaleArtifacts() {
-		cleanupStaleArtifacts(stagingDirectory(), Instant.now(), STAGED_FILE_TTL);
-	}
-
-	static void cleanupStaleArtifacts(Path directory, Instant now, Duration ttl) {
-		if (directory == null || now == null || ttl == null || ttl.isNegative() || ttl.isZero()) return;
-		if (!Files.isDirectory(directory)) return;
-		Instant cutoff = now.minus(ttl);
+	/**
+	 * Deletes the installer files earlier versions left in the update folder,
+	 * regardless of age. Only files named with the staging prefix are touched.
+	 * This version never writes there.
+	 */
+	static void cleanupStaleArtifacts(Path directory) {
+		if (directory == null || !Files.isDirectory(directory)) return;
 		try (var files = Files.list(directory)) {
-			files.filter(UpdateChecker::isUpdateArtifact)
-					.filter(path -> !isProtectedArtifact(path))
+			files.filter(path -> path.getFileName().toString().startsWith(STAGED_FILE_PREFIX))
+					.filter(Files::isRegularFile)
 					.forEach(path -> {
-						try {
-							if (path.getFileName().toString().endsWith(RETRY_SUFFIX)) {
-								Path target = path.resolveSibling(path.getFileName().toString()
-										.substring(0, path.getFileName().toString().length() - RETRY_SUFFIX.length()));
-								deleteQuietly(target, "retry update artifact");
-								if (!Files.exists(target)) Files.deleteIfExists(path);
-							} else if (Files.getLastModifiedTime(path).toInstant().isBefore(cutoff)) {
-								deleteQuietly(path, "stale update artifact");
-							}
-						} catch (IOException e) {
-							logger.log(Level.FINE, "Failed to remove stale update artifact " + path, e);
-						}
+						if (!TemporaryCleanupQueue.deleteOrEnqueue(path))
+							logger.log(Level.FINE, "Failed to remove leftover update file " + path);
 					});
 		} catch (IOException e) {
-			logger.log(Level.FINE, "Failed to inspect update staging directory " + directory, e);
+			logger.log(Level.FINE, "Failed to inspect update folder " + directory, e);
 		}
-	}
-
-	private static boolean isUpdateArtifact(Path path) {
-		String name = path.getFileName().toString();
-		if (name.endsWith(RETRY_SUFFIX)) {
-			name = name.substring(0, name.length() - RETRY_SUFFIX.length());
-		}
-		return name.startsWith(STAGING_FILE_PREFIX)
-				&& (name.endsWith(".msi") || name.endsWith(".msi.part")
-						|| name.endsWith(MANIFEST_SUFFIX) || name.endsWith(MANIFEST_SUFFIX + ".part")
-						|| name.endsWith(RETRY_SUFFIX));
-	}
-
-	private static boolean isProtectedArtifact(Path path) {
-		synchronized (STAGED_UPDATE_LOCK) {
-			return (stagedUpdate != null && (path.equals(stagedUpdate.installer()) || path.equals(stagedUpdate.manifest())))
-					|| (installerScheduledForApply != null
-							&& (path.equals(installerScheduledForApply) || path.equals(manifestPath(installerScheduledForApply))));
-		}
-	}
-
-	private static void deleteQuietly(Path path, String description) {
-		if (path == null) return;
-		if (!TemporaryCleanupQueue.deleteOrEnqueue(path))
-			logger.log(Level.FINE, "Failed to remove " + description + " " + path);
-	}
-
-	private record StagedUpdate(Path installer, Path manifest, String version) {
-	}
-
-	private static String sha256(Path file) throws IOException {
-		try (var in = Files.newInputStream(file)) {
-			MessageDigest digest = MessageDigest.getInstance("SHA-256");
-			in.transferTo(new OutputStream() {
-				@Override public void write(int b) { digest.update((byte) b); }
-				@Override public void write(byte[] b, int off, int len) { digest.update(b, off, len); }
-			});
-			StringBuilder result = new StringBuilder(64);
-			for (byte value : digest.digest()) result.append(String.format(Locale.ROOT, "%02x", value));
-			return result.toString();
-		} catch (java.security.NoSuchAlgorithmException e) {
-			throw new IOException("SHA-256 is unavailable", e);
-		}
-	}
-
-	record MsiAsset(String url, String sha256) {
-	}
-
-	public record UpdateResult(String currentVersion, String latestVersion, Path stagedInstaller) {
-		public boolean updateAvailable() { return stagedInstaller != null; }
 	}
 
 	/** Returns the tag_name of the latest GitHub release, or null. */
@@ -562,8 +210,8 @@ public final class UpdateChecker {
 
 	static String extractTagName(String json) {
 		Matcher matcher = Pattern.compile("\\\"tag_name\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"").matcher(json);
-			return matcher.find() ? matcher.group(1) : null;
-		}
+		return matcher.find() ? matcher.group(1) : null;
+	}
 
 	static boolean isUpdateCheckEnabled() {
 		return !VersionUtils.isDevelopmentBuild();
