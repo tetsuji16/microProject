@@ -81,6 +81,45 @@ class DependencyGraphTest {
 		assertLongChain(50_000);
 	}
 
+	@Test
+	void precedesMatchesDependsOnAcrossRandomHierarchies() {
+		for (int seed = 0; seed < 30; seed++) {
+			Project project = project();
+			project.initialize(false, false);
+			List<NormalTask> all = new ArrayList<>();
+			List<com.microproject.node.Node> summaryNodes = new ArrayList<>();
+			for (int summary = 0; summary < 3; summary++) {
+				NormalTask phase = task(project);
+				phase.setName("Phase " + summary);
+				summaryNodes.add(com.microproject.node.NodeFactory.getInstance().createNode(phase));
+				all.add(phase);
+			}
+			project.getTaskModel().add(null, summaryNodes, com.microproject.node.model.NodeModel.NORMAL);
+			for (int summary = 0; summary < 3; summary++) {
+				List<com.microproject.node.Node> childNodes = new ArrayList<>();
+				for (int child = 0; child < 3; child++) {
+					NormalTask leaf = task(project);
+					leaf.setName("T" + summary + "." + child);
+					childNodes.add(com.microproject.node.NodeFactory.getInstance().createNode(leaf));
+					all.add(leaf);
+				}
+				project.getTaskModel().add(summaryNodes.get(summary), childNodes,
+					com.microproject.node.model.NodeModel.NORMAL);
+			}
+			java.util.Random random = new java.util.Random(seed);
+			for (int link = 0; link < 16; link++) {
+				NormalTask predecessor = all.get(random.nextInt(all.size()));
+				NormalTask successor = all.get(random.nextInt(all.size()));
+				if (predecessor == successor || predecessor.getSuccessorList().findRight(successor) != null) continue;
+				wire(predecessor, successor);
+			}
+			for (NormalTask first : all)
+				for (NormalTask second : all)
+					assertEquals(first.dependsOn(second), DependencyGraph.precedes(second, first),
+						"precedes must agree with dependsOn for seed " + seed + ": " + first + " / " + second);
+		}
+	}
+
 	private static void assertLongChain(int count) {
 		Project project = project();
 		List<NormalTask> tasks = new ArrayList<>(count);
@@ -93,6 +132,9 @@ class DependencyGraphTest {
 		assertFalse(tasks.get(0).dependsOn(tasks.get(count - 1)));
 		assertTrue(DependencyGraph.hasSuccessorPath(tasks.get(0), tasks.get(count - 1)));
 		assertFalse(DependencyGraph.hasSuccessorPath(tasks.get(count - 1), tasks.get(0)));
+		assertTrue(DependencyGraph.precedes(tasks.get(0), tasks.get(count - 1)));
+		// The reverse question is answered from the tail, which has no successors at all.
+		assertFalse(DependencyGraph.precedes(tasks.get(count - 1), tasks.get(0)));
 	}
 
 	private static Project project() {
