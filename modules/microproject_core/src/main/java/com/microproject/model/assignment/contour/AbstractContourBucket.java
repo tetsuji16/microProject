@@ -27,7 +27,6 @@ import java.io.Serializable;
 import java.util.Comparator;
 
 import com.microproject.algorithm.DoubleValue;
-import com.microproject.util.MathUtils;
 /**
  * This class is immutable, as should be its subclasses
  * Window - Preferences - Java - Code Generation - Code and Comments
@@ -50,7 +49,7 @@ public abstract class AbstractContourBucket implements Comparator, DoubleValue, 
 			return -1;
 		if (arg1 == null)
 			return 1;		
-		return MathUtils.signum(((AbstractContourBucket)arg0).units - ((AbstractContourBucket)arg1).units); 
+		return Double.compare(((AbstractContourBucket)arg0).units, ((AbstractContourBucket)arg1).units);
 	}
 	
 	public int compare(Object arg0, Object arg1) {

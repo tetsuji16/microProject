@@ -29,15 +29,8 @@ public class CreateOptions {
 	protected ResourcePool resourcePool;
 	protected boolean local;
 	protected String name;
-	protected boolean addResources=true;
 	protected boolean verify=true;
 	protected boolean sync;
-	public boolean isAddResources() {
-		return addResources;
-	}
-	public void setAddResources(boolean addResources) {
-		this.addResources = addResources;
-	}
 	public boolean isLocal() {
 		return local;
 	}
