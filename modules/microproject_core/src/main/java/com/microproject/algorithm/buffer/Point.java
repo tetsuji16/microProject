@@ -24,6 +24,7 @@
 package com.microproject.algorithm.buffer;
 
 import java.io.Serializable;
+import java.time.Instant;
 import java.util.Comparator;
 
 import com.microproject.algorithm.DoubleValue;
@@ -47,7 +48,7 @@ public class Point implements Comparable<Point>, Comparator<Point>, Serializable
 	double value;
 	
 	public String toString() {
-		return new java.util.Date(date) + " " + value;
+		return Instant.ofEpochMilli(date) + " " + value;
 	}
 
 	public int compareTo(Point other) {
