@@ -117,7 +117,10 @@ public class MicroProjectDateField extends JPanel {
 	/** Builds the month table used by the date chooser (issue #62). */
 	JPanel createCalendarPanel(JPopupMenu popup) {
 		Date initial = coerceDateValue();
-		LocalDate selected = initial.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+		// Stored schedule values are GMT-read milliseconds and the field text is
+		// formatted in the date format's zone, so the popup must use that zone too.
+		ZoneId zone = dateFormat.getTimeZone().toZoneId();
+		LocalDate selected = initial.toInstant().atZone(zone).toLocalDate();
 		JPanel panel = new JPanel(new BorderLayout(4, 4));
 		JPanel header = new JPanel(new BorderLayout(2, 2));
 		JButton previous = new JButton("‹");
@@ -159,7 +162,7 @@ public class MicroProjectDateField extends JPanel {
 				button.setMargin(new java.awt.Insets(1, 2, 1, 2));
 				if (date.equals(selected)) button.putClientProperty("dateField.selected", Boolean.TRUE);
 				button.addActionListener(event -> {
-					setValue(Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant()));
+					setValue(Date.from(date.atStartOfDay(zone).toInstant()));
 					popup.setVisible(false);
 					SwingUtilities.invokeLater(() -> textField.requestFocusInWindow());
 				});
