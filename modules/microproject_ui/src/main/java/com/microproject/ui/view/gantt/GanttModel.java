@@ -91,7 +91,7 @@ public class GanttModel extends GraphModel implements TimeScaleListener, Seriali
 		coord.addTimeScaleListener(this);
     }
 	public void timeScaleChanged(TimeScaleEvent e) {
-//		if (e.getType()!=TimeScaleEvent.END_ONLY_CHANGE){
+//		if (e.getType()!=TimeScaleEvent.ChangeType.END_ONLY){
 //			//update all
 //			Map propertyMap=new Hashtable();
 //			for (int i=0; i<cache.getSize();i++){

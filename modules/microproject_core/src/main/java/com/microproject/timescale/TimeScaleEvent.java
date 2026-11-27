@@ -26,31 +26,46 @@ package com.microproject.timescale;
 import java.util.EventObject;
 
 /**
- *
+ * Reports that the time scale of a view changed and which part of it moved.
  */
 public class TimeScaleEvent extends EventObject {
 	private static final long serialVersionUID = 6776054567705472617L;
 
-	public static final int ORIGIN_AND_END_CHANGE=1;
-	public static final int END_ONLY_CHANGE=2;
-	public static final int SCALE_CHANGE=4;
-	protected int type;
+	/**
+	 * The part of the time scale that changed. There is no "nothing changed"
+	 * value: listeners are only notified when one of these applies.
+	 */
+	public enum ChangeType {
+		/** The origin moved, so the visible range and its end both moved. */
+		ORIGIN_AND_END,
+		/** Only the end of the range moved. */
+		END_ONLY,
+		/** The scale itself (zoom level or minimum width) changed. */
+		SCALE
+	}
 
-	public TimeScaleEvent(Object source,int type) {
+	protected ChangeType type;
+
+	/**
+	 * @param source the converter that reports the change
+	 * @param type the part of the time scale that changed
+	 */
+	public TimeScaleEvent(Object source, ChangeType type) {
 		super(source);
 		this.type=type;
 	}
-	
+
 	/**
 	 * @return Returns the type.
 	 */
-	public int getType() {
+	public ChangeType getType() {
 		return type;
 	}
+
 	/**
 	 * @param type The type to set.
 	 */
-	public void setType(int type) {
+	public void setType(ChangeType type) {
 		this.type = type;
 	}
 }

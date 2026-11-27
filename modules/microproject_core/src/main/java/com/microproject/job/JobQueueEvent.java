@@ -26,19 +26,25 @@ package com.microproject.job;
 import java.util.EventObject;
 
 /**
- *
+ * Reports the progress of the job queue as a fraction.
  */
 public class JobQueueEvent extends EventObject {
 	private static final long serialVersionUID = -3731006891089384323L;
 
-	protected float progress;
-	
+	protected final float progress;
+
+	/**
+	 * @param source the queue that reports the progress
+	 * @param progress overall progress as a fraction between 0 and 1
+	 */
 	public JobQueueEvent(Object source, float progress) {
 		super(source);
 		this.progress=progress;
 	}
-	
-	
+
+	/**
+	 * @return overall progress as a fraction between 0 and 1
+	 */
 	public float getProgress() {
 		return progress;
 	}

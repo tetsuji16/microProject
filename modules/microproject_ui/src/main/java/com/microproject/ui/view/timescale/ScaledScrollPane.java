@@ -210,7 +210,7 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 	}
 	
 	public void timeScaleChanged(TimeScaleEvent e) {
-		if (e != null && (e.getType() & TimeScaleEvent.ORIGIN_AND_END_CHANGE) != 0) {
+		if (e != null && e.getType() == TimeScaleEvent.ChangeType.ORIGIN_AND_END) {
 			restoreViewportLeftDate();
 		}
 		lastOrigin = coord.getOrigin();

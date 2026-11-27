@@ -27,8 +27,16 @@ import java.util.EventListener;
 
 
 /**
- *
+ * Receives the job queue's progress notifications. The same event instance is
+ * handed to every listener of one notification, so a listener must not mutate
+ * it.
  */
 public interface JobQueueListener extends EventListener{
-    public void progressChanged(JobQueueEvent e);
+	/**
+	 * Called when the overall progress of the queue changes.
+	 *
+	 * @param e the progress notification; read the fraction with
+	 *          {@link JobQueueEvent#getProgress()}
+	 */
+	public void progressChanged(JobQueueEvent e);
 }

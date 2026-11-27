@@ -26,8 +26,16 @@ package com.microproject.timescale;
 import java.util.EventListener;
 
 /**
- *
+ * Receives notifications when the time scale of a view changes, either because
+ * the visible range moved or because the scale itself was zoomed.
  */
 public interface TimeScaleListener extends EventListener{
-     public void timeScaleChanged(TimeScaleEvent e);
+	/**
+	 * Called after the time scale changed. Views size and position themselves
+	 * from the converter, so an implementation may revalidate or repaint; the
+	 * event type only says which part of the range moved.
+	 *
+	 * @param e the change notification, never null
+	 */
+	public void timeScaleChanged(TimeScaleEvent e);
 }

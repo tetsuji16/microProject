@@ -26,8 +26,14 @@ package com.microproject.document;
 import java.util.EventListener;
 
 /**
- *
+ * Receives notifications that the selected objects of a document changed.
  */
 public interface ObjectSelectionListener extends EventListener{
-	  void objectSelected(ObjectSelectionEvent e);
+	/**
+	 * Called after the selection changed. Listeners read the new selection from
+	 * the document's selection manager; the event only reports that it changed.
+	 *
+	 * @param e the selection notification, never null
+	 */
+	void objectSelected(ObjectSelectionEvent e);
 }
