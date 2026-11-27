@@ -76,8 +76,43 @@ public final class DependencyGraph {
 	}
 
 	public static void wouldCreateCycle(Task predecessor, Task successor) throws CircularDependencyException {
-		if (predecessor == successor || dependsOn(predecessor, successor))
+		if (predecessor == successor || precedes(successor, predecessor))
 			throw new CircularDependencyException("Circular dependency");
+	}
+
+	/**
+	 * Returns whether {@code source} is ordered before {@code target}, i.e. whether
+	 * {@link #dependsOn(Task, Task) dependsOn(target, source)} holds.  The search runs
+	 * alternately forward from {@code source} and backward from {@code target} and stops
+	 * as soon as either side is exhausted, so a link that cannot close a cycle is rejected
+	 * after walking only the smaller side of the graph.
+	 */
+	public static boolean precedes(Task source, Task target) {
+		if (source == target || source.isAncestorOrDescendent(target)) return true;
+		Set<Task> forward = Collections.newSetFromMap(new IdentityHashMap<>());
+		Set<Task> backward = Collections.newSetFromMap(new IdentityHashMap<>());
+		ArrayDeque<Task> forwardPending = new ArrayDeque<>();
+		ArrayDeque<Task> backwardPending = new ArrayDeque<>();
+		forward.add(source);
+		forwardPending.add(source);
+		backward.add(target);
+		backwardPending.add(target);
+		while (!forwardPending.isEmpty() && !backwardPending.isEmpty()) {
+			if (forwardPending.size() <= backwardPending.size()) {
+				Task current = forwardPending.removeFirst();
+				for (Task next : successorCandidates(current, source)) {
+					if (backward.contains(next)) return true;
+					if (forward.add(next)) forwardPending.addLast(next);
+				}
+			} else {
+				Task current = backwardPending.removeFirst();
+				for (Task next : candidates(current, source)) {
+					if (forward.contains(next)) return true;
+					if (backward.add(next)) backwardPending.addLast(next);
+				}
+			}
+		}
+		return false;
 	}
 
 	/** Returns prerequisites before dependents, preserving encounter order among peers. */
@@ -115,6 +150,32 @@ public final class DependencyGraph {
 			dependents.get(prerequisite).add(dependent);
 			indegree.put(dependent, indegree.get(dependent) + 1);
 		}
+	}
+
+	/**
+	 * Returns the tasks ordered immediately after {@code task}.  This is the mirror image of
+	 * {@link #candidates(Task, Task)}, so the forward and backward searches in
+	 * {@link #precedes(Task, Task)} traverse the same edge set from opposite ends.
+	 */
+	private static List<Task> successorCandidates(Task task, Task other) {
+		List<Task> result = new ArrayList<>();
+		for (Association association : task.getSuccessorList()) {
+			Dependency dependency = (Dependency) association;
+			if (dependency.isDisabled()) continue;
+			Task successor = (Task) dependency.getSuccessor();
+			result.add(successor);
+			// candidates(successor) yields the summary above the successor when the
+			// predecessor lies outside that summary.
+			Task successorParent = successor.getWbsParentTask();
+			if (successorParent != null && !task.wbsDescendentOf(successorParent)) result.add(successorParent);
+		}
+		if (other.getWbsParentTask() != task) {
+			Collection<Node> children = task.getWbsChildrenNodes();
+			if (children != null) for (Node childNode : children) {
+				if (childNode.getImpl() instanceof Task child) result.add(child);
+			}
+		}
+		return result;
 	}
 
 	private static List<Task> candidates(Task task, Task other) {

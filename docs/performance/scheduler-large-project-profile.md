@@ -199,12 +199,52 @@ confirmed by the integration test. Other duration-edit paths still use their own
 applicable before/after Undo ownership. Keep the varying-duration profile's direct `setDuration` setup as the
 original acceptance baseline; the profile has not been switched to this refresh-specific API.
 
+### Cycle check and single-item link scaling (2026-11-28)
+
+This section answers two questions left open by the 2026-11-21 note: whether the link phase could be made
+cheaper, and whether the remaining single-item cost is avoidable work or required recalculation.
+
+**Measurement method.** Wall-clock numbers on this machine vary by more than 2x between runs of identical code
+because other builds and agents share it; a controlled alternating comparison of the two revisions still differed
+by less than that noise, so the timings below are not evidence of a speedup. The comparison therefore uses
+deterministic counters instead: `TaskSchedule.calcDates` invocations over the link phase only (the N-1
+`newDependency` calls), with the same 100-task phases and 1-5 day durations as the profile above. The counters
+were temporary instrumentation and are not in the repository.
+
+| Tasks | calcDates | per link | per task per link |
+|------:|----------:|---------:|------------------:|
+| 1,000 | 1,592,737 | 1,594 | 1.59 |
+| 2,000 | 6,265,677 | 3,134 | 1.57 |
+| 5,000 | 38,764,497 | 7,754 | 1.55 |
+
+Each single-item link recalculates about 1.6 times as many tasks as the project holds, independent of size. That
+is the quadratic term. The chain is built left to right, so every link moves the project finish, and the late
+dates of every task genuinely change; `CriticalPath` recomputes them eagerly per edit, and
+`extendingCriticalPathRefreshesLateDatesOutsideTheChangedDependencyClosure` requires that it keeps doing so.
+Removing the quadratic would therefore mean changing *when* slack is computed, not optimizing the per-edit path.
+The 2026-11-21 note reached the same conclusion from the profile shape; the counters above quantify it.
+
+**What was still avoidable** is the cycle check. `DependencyGraph.wouldCreateCycle` called
+`dependsOn(predecessor, successor)`, which walks the predecessor chain of the *predecessor*. Appending link i to a
+chain therefore cost O(i) graph steps, and building the chain O(n^2) steps of pure validation. It is now answered
+by a bidirectional search (`DependencyGraph.precedes`) that expands forward from the successor and backward from
+the predecessor and stops as soon as either side is exhausted; appending a link to a task with no successors is
+decided after a handful of steps regardless of chain length. `DependencyGraphTest.precedesMatchesDependsOnAcrossRandomHierarchies`
+checks the new traversal against `dependsOn` for every ordered pair over 30 randomly wired hierarchy projects.
+
+JFR attributes 6.0% of the baseline 2k sequential run to `wouldCreateCycle` (77 of 1,274 samples); after the
+change it is 1.0% (5 of 504). The link phase itself is unchanged in work, which is why the wall-clock totals stay
+inside the noise band.
+
 ### Growth order
 
 * Full recalculation, incremental edit and undo are roughly linear (about 10 ms per 1,000 tasks) and are not a bottleneck.
 * Building the project is the problem. Fitting 1k to 5k: node creation about n^1.9, link creation about n^2.7
   (2k to 5k: 13.8x time for 2.5x tasks, about n^2.9), assignment creation about n^2.2, total about n^2.4.
-  Building 5,000 tasks takes about 21 minutes.
+* The "about 21 minutes" figure above is the original 5k run, which had JFR enabled. The same sequential profile
+  without JFR on the 2026-11-28 revision measures 0.98s / 4.4s / 32s at 1k / 2k / 5k (best of three runs, no
+  recording). The earlier sections of this document describe how that was reached; the shape is still superlinear
+  for the reason quantified in "Cycle check and single-item link scaling".
 
 ## Hotspots (JFR, 5k run, 26,172 samples on the test thread)
 
