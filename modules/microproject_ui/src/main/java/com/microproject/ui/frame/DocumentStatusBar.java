@@ -26,6 +26,7 @@ package com.microproject.ui.frame;
 import java.awt.FlowLayout;
 import java.util.Calendar;
 import java.text.MessageFormat;
+import java.util.List;
 import java.util.function.IntFunction;
 
 import javax.swing.JLabel;
@@ -33,6 +34,7 @@ import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 
 import com.microproject.i18n.Messages;
+import com.microproject.model.task.Task;
 import com.microproject.timescale.TimeScale;
 
 /**
@@ -81,6 +83,15 @@ public class DocumentStatusBar extends JPanel {
 
 	public void setSelectedCount(int count) {
 		selectionLabel.setText(formatSelection(count));
+	}
+
+	static int selectedTaskCount(List<? extends com.microproject.node.Node> nodes) {
+		if (nodes == null) return 0;
+		int count = 0;
+		for (com.microproject.node.Node node : nodes) {
+			if (node != null && node.getImpl() instanceof Task) count++;
+		}
+		return count;
 	}
 
 	static String formatZoom(int scaleIndex, int scaleCount) {

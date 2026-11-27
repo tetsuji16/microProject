@@ -66,7 +66,7 @@ public class SpreadSheetNodeSelectionListener implements ListSelectionListener {
 		    //filter void nodes?
 		}
 
-		if (nodes.size()>0) spreadSheet.fireContentsChanged(spreadSheet,nodes,currentNode);
+		spreadSheet.fireContentsChanged(spreadSheet,nodes,currentNode);
 	}
 	
 }
