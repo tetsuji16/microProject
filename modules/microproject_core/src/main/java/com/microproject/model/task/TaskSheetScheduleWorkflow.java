@@ -204,7 +204,8 @@ public final class TaskSheetScheduleWorkflow {
 			return;
 
 		WorkCalendar calendar = task.getEffectiveWorkCalendar();
-		long normalizedFinish = DateTime.closestDate(finish);
+		// a finish entered in non-working time ends at the previous working period
+		long normalizedFinish = calendar.adjustInsideCalendar(DateTime.closestDate(finish), true);
 		// Document-derived compatibility rule (Microsoft Project, "Change a task duration"):
 		// when the last two fields edited were Finish and Duration, Duration is kept and Start
 		// moves; otherwise Start is kept and Duration is recalculated from Start to the new
@@ -222,7 +223,8 @@ public final class TaskSheetScheduleWorkflow {
 					task.setConstraintDate(0L);
 				applyDurationMutation(normalTask, Duration.setAsEstimated(recalculatedDuration, normalTask.isEstimated()));
 				normalTask.durationPinnedByScheduleEdit = false;
-				updateFinishConstraint(task, normalizedFinish);
+				// constrain the finish the task actually got, so the entry cannot violate its own constraint
+				updateFinishConstraint(task, task.getEnd());
 				return;
 			}
 		}
@@ -280,7 +282,8 @@ public final class TaskSheetScheduleWorkflow {
 				start = task.getProject().getStart();
 			start = calendar.adjustInsideCalendar(start, false);
 			long normalizedDuration = Duration.millis(duration);
-			task.setManualDates(start, normalizedDuration == 0L ? start : calendar.add(start, normalizedDuration, false));
+			// the finish is the end of the last working period, not the start of the next one
+			task.setManualDates(start, normalizedDuration == 0L ? start : calendar.add(start, normalizedDuration, true));
 			task.markAllDependentTasksAsNeedingRecalculation(true);
 			task.assignParentActualDatesFromChildren();
 			task.getProject().recalculate();
