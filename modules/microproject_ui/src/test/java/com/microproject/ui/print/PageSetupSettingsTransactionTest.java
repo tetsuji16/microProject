@@ -88,6 +88,9 @@ class PageSetupSettingsTransactionTest {
 			int formWidth = setup.paperSize.getParent().getPreferredSize().width;
 			int selectorWidth = Math.max(formWidth, preferred.width) + 40;
 			setup.paperSize.setPreferredSize(new Dimension(selectorWidth, preferred.height));
+			// The panel has no native peer, so invalidate cached FormLayout sizes directly.
+			for (Container parent = setup.paperSize.getParent(); parent != null; parent = parent.getParent())
+				parent.invalidate();
 
 			layoutAtAssignedBounds(panel);
 
