@@ -11,6 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -228,6 +230,70 @@ class TaskSheetScheduleWorkflowTest {
 		assertEquals(3L * day(), parent.getSummaryEnvelope().getManualDuration().longValue());
 		assertEquals(childStart, child.getStart());
 		assertEquals(childFinish, child.getEnd());
+	}
+
+	@Test
+	void manualDurationFinishesAtTheEndOfTheLastWorkingDay() {
+		NormalTask task = createManualFortyDayTask();
+
+		assertEquals(gmt(9, 25, 17), task.getEnd());
+		assertFalse(ScheduleDiagnosticsService.hasWarning(task));
+	}
+
+	@Test
+	void manualFinishOnANonWorkingDayFinishesAtThePreviousWorkingDayEnd() {
+		NormalTask task = createManualFortyDayTask();
+		task.durationPinnedByScheduleEdit = false;
+
+		TaskSheetScheduleWorkflow.applyFinish(task, gmt(9, 27, 17));
+
+		assertEquals(gmt(8, 3, 8), task.getStart());
+		assertEquals(gmt(9, 25, 17), task.getEnd());
+		assertEquals(40.0, durationDays(task));
+		assertFalse(ScheduleDiagnosticsService.hasWarning(task));
+	}
+
+	@Test
+	void manualFinishOnAWorkingDayIsKeptAsEntered() {
+		NormalTask task = createManualFortyDayTask();
+		task.durationPinnedByScheduleEdit = false;
+
+		TaskSheetScheduleWorkflow.applyFinish(task, gmt(9, 24, 17));
+
+		assertEquals(gmt(8, 3, 8), task.getStart());
+		assertEquals(gmt(9, 24, 17), task.getEnd());
+		assertEquals(39.0, durationDays(task));
+		assertFalse(ScheduleDiagnosticsService.hasWarning(task));
+	}
+
+	@Test
+	void manualFinishAfterADurationEditMovesStartWithoutAWarning() {
+		NormalTask task = createManualFortyDayTask();
+		assertTrue(task.durationPinnedByScheduleEdit);
+
+		TaskSheetScheduleWorkflow.applyFinish(task, gmt(9, 27, 17));
+
+		assertEquals(gmt(9, 25, 17), task.getEnd());
+		assertEquals(40.0, durationDays(task));
+		assertFalse(ScheduleDiagnosticsService.hasWarning(task));
+	}
+
+	private NormalTask createManualFortyDayTask() {
+		Project project = createProject();
+		project.setStart(gmt(8, 3, 8));
+		NormalTask task = createTask(project);
+		task.setManuallyScheduled(true);
+		TaskSheetScheduleWorkflow.applyDuration(task, 40L * day());
+		assertEquals(gmt(8, 3, 8), task.getStart());
+		return task;
+	}
+
+	private double durationDays(Task task) {
+		return Duration.millis(task.getDuration()) / (double) day();
+	}
+
+	private static long gmt(int month, int day, int hour) {
+		return LocalDateTime.of(2026, month, day, hour, 0).toInstant(ZoneOffset.UTC).toEpochMilli();
 	}
 
 	private Project createProject() {
