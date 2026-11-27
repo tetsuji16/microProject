@@ -34,6 +34,8 @@ import java.time.ZoneOffset;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import com.microproject.options.CalendarOption;
 import com.microproject.model.assignment.AssignmentService;
@@ -159,13 +161,18 @@ class TeamPlannerServiceTest {
 			"the earlier assignment overlaps the later one after its own start");
 	}
 
-	@Test void splitAssignmentGapDoesNotCountAsResourceOverload() {
+	@ParameterizedTest
+	@ValueSource(strings = {"2026-11-23", "2026-11-24", "2026-11-25", "2026-11-26", "2026-11-27"})
+	void splitAssignmentGapDoesNotCountAsResourceOverload(String projectStartDate) {
 		Fixture fixture = fixture();
+		long projectStart = CalendarOption.getInstance().makeValidStart(
+			LocalDate.parse(projectStartDate).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(), true);
+		fixture.project.setStart(projectStart); fixture.project.setStartConstraint(projectStart);
 		NormalTask splitTask = task(fixture.project, "Split");
 		splitTask.setDuration(day() * 5L);
 		var split = AssignmentService.getInstance().newAssignment(splitTask, fixture.first, 0.75D, 0L, this);
 		long gapStart = split.getStart() + 2L * 3_600_000L;
-		long gapEnd = gapStart + 2L * 24L * 60L * 60L * 1000L;
+		long gapEnd = fixture.project.getWorkCalendar().add(gapStart, day() * 2L, false);
 		split.split(this, gapStart, gapEnd);
 		NormalTask gapTask = task(fixture.project, "Only in gap");
 		gapTask.setStart(gapStart);
