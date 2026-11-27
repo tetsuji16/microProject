@@ -144,6 +144,8 @@ class BackstagePrintPageTest {
 			assertTrue(texts(page).contains("Looking for printers..."), texts(page).toString());
 			assertFalse(page.getPrinterCombo().isEnabled(), "the printer field waits for the list");
 			assertFalse(page.getPrintButton().isEnabled(), "printing needs a printer");
+			// Issue #1473: Page Setup needs the print document, which arrives with the printer list.
+			assertFalse(page.getPageSetupLink().isEnabled(), "Page Setup waits for the print document");
 			assertEquals(0, actions.printCalls.get());
 		});
 	}
