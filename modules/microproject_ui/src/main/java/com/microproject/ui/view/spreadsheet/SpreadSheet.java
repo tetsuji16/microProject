@@ -1347,6 +1347,15 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		return -1;
 	}
 
+	@Override
+	protected int lastNavigableRow() {
+		if (getModel() instanceof SpreadSheetModel model) {
+			int row = findBoundaryVisibleRow(model, true);
+			if (row >= 0)
+				return row;
+		}
+		return super.lastNavigableRow();
+	}
 	private int findBoundaryVisibleRow(SpreadSheetModel model, boolean last) {
 		if (model == null)
 			return -1;
@@ -1619,6 +1628,32 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		
 	}
 
+	/** Whether a header x coordinate is on a column's resize boundary. */
+	public boolean isColumnResizeBoundary(int x) {
+		JTableHeader header = getTableHeader();
+		return header != null && columnAtResizeBoundary(header, x) != null;
+	}
+
+	/**
+	 * Fits the column whose right header boundary is at {@code x} to its
+	 * content, the Excel double-click gesture (#1432).
+	 */
+	public boolean bestFitColumnAtHeaderBoundary(int x) {
+		JTableHeader header = getTableHeader();
+		if (header == null || !(getColumnModel() instanceof SpreadSheetColumnModel columns))
+			return false;
+		TableColumn column = columnAtResizeBoundary(header, x);
+		if (column == null)
+			return false;
+		int viewColumn = columns.getColumnIndex(column.getIdentifier());
+		if (!columns.bestFitColumn(this, viewColumn))
+			return false;
+		header.revalidate();
+		header.repaint();
+		revalidate();
+		repaint();
+		return true;
+	}
 	private TableColumn columnAtResizeBoundary(JTableHeader header, int x) {
 		for (int index = 0; index < header.getColumnModel().getColumnCount(); index++) {
 			TableColumn column = header.getColumnModel().getColumn(index);

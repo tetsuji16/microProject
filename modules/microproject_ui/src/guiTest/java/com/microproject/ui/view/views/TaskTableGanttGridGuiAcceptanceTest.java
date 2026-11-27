@@ -150,6 +150,57 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	}
 
 	@Test
+	@GuiJourney(InputMechanism.HEADER_DOUBLE_CLICK)
+	void doubleClickingTheNameColumnBoundaryFitsTheColumnToItsContent() throws Exception {
+		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
+		Fixture fixture = createFixture();
+		showFixture(fixture);
+
+		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
+		robot.setAutoDelay(40);
+		SwingUtilities.invokeAndWait(() -> {
+			frame.toFront();
+			frame.requestFocus();
+		});
+		GuiAcceptanceSupport.await(() -> fixture.sheet.isShowing(), "task table was not visible");
+		int nameColumn = findColumn(fixture.sheet, "Field.name");
+		int[] narrowWidth = new int[1];
+		SwingUtilities.invokeAndWait(() -> {
+			javax.swing.table.TableColumn column = fixture.sheet.getColumnModel().getColumn(nameColumn);
+			column.setPreferredWidth(40);
+			column.setWidth(40);
+			fixture.sheet.getTableHeader().revalidate();
+			fixture.sheet.revalidate();
+			narrowWidth[0] = column.getWidth();
+		});
+		robot.delay(250);
+
+		Point[] boundary = new Point[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Rectangle header = fixture.sheet.getTableHeader().getHeaderRect(nameColumn);
+			Point origin = fixture.sheet.getTableHeader().getLocationOnScreen();
+			boundary[0] = new Point(origin.x + header.x + header.width - 1, origin.y + header.y + header.height / 2);
+		});
+		robot.mouseMove(boundary[0].x, boundary[0].y);
+		robot.setAutoDelay(0);
+		for (int click = 0; click < 2; click++) {
+			robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+			robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+			robot.delay(30);
+		}
+		robot.setAutoDelay(40);
+
+		GuiAcceptanceSupport.await(() -> fixture.sheet.getColumnModel().getColumn(nameColumn).getWidth() > narrowWidth[0],
+			"double-clicking the name column boundary did not widen the column");
+		SwingUtilities.invokeAndWait(() -> {
+			javax.swing.table.TableColumn column = fixture.sheet.getColumnModel().getColumn(nameColumn);
+			assertTrue(column.getWidth() >= 140, "best fit must keep the name column readable: " + column.getWidth());
+			assertTrue(((SpreadSheetColumnModel) fixture.sheet.getColumnModel()).isWidthManuallyAdjusted("Field.name"),
+				"best fit must persist like a manual resize");
+		});
+	}
+
+	@Test
 	void visibleTaskTableAndGanttRemainLaidOutWhenTheirSharedGridStyleChanges() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture();
