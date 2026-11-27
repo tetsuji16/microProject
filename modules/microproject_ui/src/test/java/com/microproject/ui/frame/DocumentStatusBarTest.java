@@ -8,6 +8,10 @@ import java.util.ResourceBundle;
 import java.util.Calendar;
 import java.text.MessageFormat;
 import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
+import com.microproject.node.Node;
+import com.microproject.node.NodeFactory;
 
 import org.junit.jupiter.api.Test;
 import com.microproject.i18n.Messages;
@@ -186,4 +190,23 @@ class DocumentStatusBarTest {
 		assertEquals("microProject エラー", japanese.getString("Title.ApplicationError"));
 		assertTrue(japanese.getString("Message.invalidDuration").contains("3ed"));
 	}
+	@Test
+	void selectedTaskCountIgnoresVoidRows() throws Exception {
+		try (HeadlessDocumentFixture fx = new HeadlessDocumentFixture("Task")) {
+			List<Node> selected = new ArrayList<>();
+			selected.add(fx.project.getTaskModel().search(fx.task(0)));
+			for (int i = 0; i < 50; i++) selected.add(NodeFactory.getInstance().createVoidNode());
+			assertEquals(1, DocumentStatusBar.selectedTaskCount(selected));
+		}
+	}
+
+	@Test
+	void selectedTaskCountIgnoresVoidRowsOnly() {
+		List<Node> selected = new ArrayList<>();
+		for (int i = 0; i < 50; i++) selected.add(NodeFactory.getInstance().createVoidNode());
+		assertEquals(0, DocumentStatusBar.selectedTaskCount(selected));
+	}
+
 }
+
+
