@@ -53,15 +53,17 @@ public class SpreadSheetNodeSelectionListener implements ListSelectionListener {
 		Node currentNode = null;
 		int selectedRow = spreadSheet.getSelectedRow();
 		for (int i=0;i<rows.length;i++){
-		    if (rows[i] < 0 || rows[i] >= model.getRowCount()) {
+		    int viewRow = rows[i];
+		    if (viewRow < 0 || viewRow >= spreadSheet.getRowCount()) {
 		    	continue;
 		    }
-		    var graphicNode = model.getNode(rows[i]);
+		    int modelRow = spreadSheet.convertRowIndexToModel(viewRow);
+		    var graphicNode = model.getNode(modelRow);
 		    if (graphicNode == null || graphicNode.getNode() == null) {
 		    	continue;
 		    }
 		    nodes.add(graphicNode.getNode());
-		    if (selectedRow == rows[i])		// also set current row
+		    if (selectedRow == viewRow)		// also set current row
 		    	currentNode = graphicNode.getNode();
 		    //filter void nodes?
 		}

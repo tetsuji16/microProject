@@ -15,8 +15,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.swing.JTextField;
+import javax.swing.AbstractCellEditor;
 import javax.swing.RowSorter;
 import javax.swing.SortOrder;
+import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableRowSorter;
 
 import org.junit.jupiter.api.Test;
@@ -25,6 +27,7 @@ import com.microproject.node.Node;
 import com.microproject.model.task.Task;
 import com.microproject.ui.view.spreadsheet.common.CommonSpreadSheetModel;
 import com.microproject.ui.view.spreadsheet.renderer.NameCellComponent;
+import com.microproject.ui.view.spreadsheet.selection.event.SelectionNodeEvent;
 
 /** Select All covers task rows only; the trailing blank rows are never selected. */
 class SpreadSheetVoidRowSelectionTest {
@@ -126,12 +129,49 @@ class SpreadSheetVoidRowSelectionTest {
 				assertTrue(modelRow >= sorter.getViewRowCount(),
 					"the visible task's model row must be outside the filtered view-row range");
 
+				AtomicReference<SelectionNodeEvent> event = new AtomicReference<>();
+				sheet.addSelectionNodeListener(event::set);
 				sheet.selectAll();
 				assertEquals(List.of(0), java.util.Arrays.stream(sheet.getSelectedRows()).boxed().toList());
 				assertEquals(fx.task(2), model.getNode(sheet.convertRowIndexToModel(sheet.getSelectedRow())).getNode().getImpl(),
 					"Select All must keep the visible Zulu task selected even though its model row exceeds view count");
+				assertEquals(List.of(fx.task(2)), sheet.getSelectedNodes().stream().map(Node::getImpl).toList(),
+					"selected task commands must resolve the selected view row to Zulu, not model row zero");
+				assertEquals(List.of(fx.task(2)), sheet.getSelectedNodesImpl(),
+					"selected task implementation access must use the same visible-row identity");
+				assertEquals(List.of(fx.task(2)), event.get().getNodes().stream().map(Node::getImpl).toList(),
+					"selection events must report the selected visible task");
+				assertEquals(fx.task(2), event.get().getCurrentNode().getImpl(),
+					"selection events must identify the selected visible task as current");
 			});
 		}
+	}
+
+	@Test
+	void selectAllKeepsRejectedCellEditAndExistingSelection() throws Exception {
+		try (HeadlessDocumentFixture fx = new HeadlessDocumentFixture("Before", "Other")) {
+			HeadlessDocumentFixture.onEdt(() -> {
+				var sheet = fx.sheet();
+				var column = sheet.getColumnModel().getColumn(1);
+				column.setCellEditor(new RejectingEditor());
+				sheet.setRowSelectionInterval(0, 0);
+				assertTrue(sheet.editCellAt(0, 1));
+				JTextField editor = (JTextField) sheet.getEditorComponent();
+				sheet.selectAll();
+				assertTrue(sheet.isEditing(), "rejected edit must remain active");
+				assertEquals("Uncommitted", editor.getText(), "rejected edit text must be preserved");
+				assertEquals(List.of(0), java.util.Arrays.stream(sheet.getSelectedRows()).boxed().toList(),
+					"Select All must leave selection unchanged when the editor rejects stopping");
+			});
+		}
+	}
+
+	private static final class RejectingEditor extends AbstractCellEditor implements TableCellEditor {
+		private final JTextField editor = new JTextField("Uncommitted");
+		@Override public Object getCellEditorValue() { return editor.getText(); }
+		@Override public java.awt.Component getTableCellEditorComponent(javax.swing.JTable table,
+			Object value, boolean selected, int row, int column) { return editor; }
+		@Override public boolean stopCellEditing() { return false; }
 	}
 
 	@Test

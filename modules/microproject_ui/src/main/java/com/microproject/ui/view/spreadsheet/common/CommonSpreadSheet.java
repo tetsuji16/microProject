@@ -889,8 +889,10 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	private ArrayList<Node> collectSelectedNodes(SpreadSheetModel model) {
 		var rows = getSelectedRows();
 		var nodes = new ArrayList<Node>(rows.length);
-		for (int row : rows){
-			GraphicNode graphicNode = model.getNode(row);
+		for (int viewRow : rows){
+			if (viewRow < 0 || viewRow >= getRowCount()) continue;
+			int modelRow = convertRowIndexToModel(viewRow);
+			GraphicNode graphicNode = model.getNode(modelRow);
 			if (graphicNode != null && graphicNode.getNode() != null) {
 				nodes.add(graphicNode.getNode());
 			}
@@ -901,8 +903,10 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	private ArrayList<Object> collectSelectedNodeImpls(SpreadSheetModel model) {
 		var rows = getSelectedRows();
 		var nodes = new ArrayList<Object>(rows.length);
-		for (int row : rows){
-			GraphicNode graphicNode = model.getNode(row);
+		for (int viewRow : rows){
+			if (viewRow < 0 || viewRow >= getRowCount()) continue;
+			int modelRow = convertRowIndexToModel(viewRow);
+			GraphicNode graphicNode = model.getNode(modelRow);
 			if (graphicNode != null && graphicNode.getNode() != null) {
 				nodes.add(graphicNode.getNode().getImpl());
 			}
