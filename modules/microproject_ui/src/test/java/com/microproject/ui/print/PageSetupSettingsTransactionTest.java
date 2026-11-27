@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.Dimension;
 import java.awt.print.PageFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +29,8 @@ import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import com.microproject.i18n.Messages;
 import com.microproject.model.resource.ResourcePool;
@@ -73,6 +76,24 @@ class PageSetupSettingsTransactionTest {
 			Locale.setDefault(original);
 			Messages.reset();
 		}
+	}
+
+	@ParameterizedTest(name = "preview panel = {0}")
+	@ValueSource(booleans = { false, true })
+	void paperSelectorRetainsItsPreferredWidthWhenWiderThanTheDimensionFields(boolean previewPanel) throws Exception {
+		SwingUtilities.invokeAndWait(() -> withLocalSettings(settings(1, 3, letterLandscape()), () -> {
+			PageSetup setup = PageSetup.getInstance(document(true));
+			JPanel panel = (JPanel) setup.createContentPanel(previewPanel);
+			Dimension preferred = setup.paperSize.getPreferredSize();
+			int formWidth = setup.paperSize.getParent().getPreferredSize().width;
+			int selectorWidth = Math.max(formWidth, preferred.width) + 40;
+			setup.paperSize.setPreferredSize(new Dimension(selectorWidth, preferred.height));
+
+			layoutAtAssignedBounds(panel);
+
+			assertTrue(setup.paperSize.getWidth() >= selectorWidth,
+					() -> "Paper selector width " + setup.paperSize.getWidth() + " is less than " + selectorWidth);
+		}));
 	}
 
 	@Test
