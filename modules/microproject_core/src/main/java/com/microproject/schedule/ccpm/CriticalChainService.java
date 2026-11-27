@@ -17,9 +17,6 @@ import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
-import javax.swing.undo.AbstractUndoableEdit;
-import com.microproject.undo.EditSupport;
-
 import com.microproject.datatype.Duration;
 import com.microproject.model.dependency.Dependency;
 import com.microproject.model.assignment.Assignment;
@@ -29,6 +26,8 @@ import com.microproject.model.resource.ResourceLevelingService;
 import com.microproject.model.task.Project;
 import com.microproject.model.task.ProjectHierarchyQueries;
 import com.microproject.model.task.Task;
+import com.microproject.undo.EditSupport;
+import com.microproject.undo.ScheduleEdit;
 
 /**
  * CCPM coordinator built on the normal scheduler and deterministic resource
@@ -538,12 +537,8 @@ public final class CriticalChainService {
 
 	private static void postStateEdit(Project project, EditSupport editSupport, State before, State after) {
 		if (editSupport == null) return;
-		editSupport.postEdit(new AbstractUndoableEdit() {
-			private static final long serialVersionUID = 1L;
-			@Override public String getPresentationName() { return "Critical Chain"; }
-			@Override public void undo() { super.undo(); restoreState(project, before); }
-			@Override public void redo() { super.redo(); restoreState(project, after); }
-		});
+		ScheduleEdit.postChange(editSupport, () -> "Critical Chain",
+			() -> restoreState(project, before), () -> restoreState(project, after));
 	}
 
 	private Analysis analyze(Project project, ResourceLevelingService.Plan plan, Settings settings, Collection<? extends Resource> selectedResources) {

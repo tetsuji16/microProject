@@ -32,12 +32,9 @@ com/microproject/options/TimesheetOption.java	com.microproject.view.configuratio
 com/microproject/persistence/ClassRelocations.java	com.microproject.view.configuration.BarStyles
 com/microproject/persistence/ClassRelocations.java	com.microproject.view.configuration.GanttBarFormatOverrides
 com/microproject/persistence/ClassRelocations.java	com.microproject.view.configuration.SpreadSheetFieldArray
-com/microproject/schedule/ccpm/CriticalChainBufferHistoryService.java	javax.swing.undo.AbstractUndoableEdit
-com/microproject/schedule/ccpm/CriticalChainService.java	javax.swing.undo.AbstractUndoableEdit
 com/microproject/schedule/criticalpath/PredecessorTaskTree.java	javax.swing.tree.DefaultMutableTreeNode
 com/microproject/model/resource/ResourceImpl.java	com.microproject.view.configuration.HasIndicators
 com/microproject/model/resource/ResourceImpl.java	com.microproject.view.configuration.HasResourceIndicators
-com/microproject/model/resource/ResourceLevelingService.java	javax.swing.undo.AbstractUndoableEdit
 com/microproject/model/task/NormalTask.java	com.microproject.view.configuration.HasIndicators
 com/microproject/model/task/NormalTask.java	com.microproject.view.configuration.HasTaskIndicators
 com/microproject/model/task/Project.java	com.microproject.print.PrintSettings

@@ -9,10 +9,9 @@ import java.time.Instant;
 import java.util.UUID;
 import java.util.logging.Logger;
 
-import javax.swing.undo.AbstractUndoableEdit;
-import com.microproject.undo.EditSupport;
-
 import com.microproject.model.task.Project;
+import com.microproject.undo.EditSupport;
+import com.microproject.undo.ScheduleEdit;
 
 /** Canonical, undoable command service for excluding accidental CCPM observations. */
 public final class CriticalChainBufferHistoryService {
@@ -55,11 +54,7 @@ public final class CriticalChainBufferHistoryService {
 	private static void postUndo(Project project, BufferHistoryState before, BufferHistoryState after) {
 		EditSupport edits = project.getUndoController().getEditSupport();
 		if (edits == null) return;
-		edits.postEdit(new AbstractUndoableEdit() {
-			private static final long serialVersionUID = 1L;
-			@Override public String getPresentationName() { return "Discard CCPM observation"; }
-			@Override public void undo() { super.undo(); before.restore(project); }
-			@Override public void redo() { super.redo(); after.restore(project); }
-		});
+		ScheduleEdit.postChange(edits, () -> "Discard CCPM observation",
+			() -> before.restore(project), () -> after.restore(project));
 	}
 }
