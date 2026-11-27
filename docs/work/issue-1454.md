@@ -17,10 +17,10 @@ Blockers: none
 
 | ID | Required result/evidence | State | Evidence (SHA + link) |
 |---|---|---|---|
-| AC1 | Monday-Friday: old 48-hour gap fails only Friday; two-workday gap passes all five | pass | Pre-fix focused run: Friday case only failed (13 tests, 1 failure); post-fix focused run: `BUILD SUCCESSFUL` |
-| AC2 | Both `assertFalse` statements remain unchanged | pass | Scoped `git diff` review; both assertion lines unchanged |
-| AC3 | `TeamPlannerService.java` remains unchanged | pass | `git diff --quiet origin/master -- .../TeamPlannerService.java` exit 0 |
-| AC4 | `:microproject_core:test` passes | pass | `:microproject_core:test --console=plain` → `BUILD SUCCESSFUL` |
+| AC1 | Monday-Friday: old 48-hour gap fails only Friday; two-workday gap passes all five | pass | `c42bda97f`; pre-fix focused run: Friday case only failed (13 tests, 1 failure); post-fix focused run: `BUILD SUCCESSFUL` |
+| AC2 | Both `assertFalse` statements remain unchanged | pass | `c42bda97f`; scoped `git diff` review shows both assertion lines unchanged |
+| AC3 | `TeamPlannerService.java` remains unchanged | pass | `c42bda97f`; `git diff --quiet origin/master -- .../TeamPlannerService.java` exit 0 |
+| AC4 | `:microproject_core:test` passes | pass | `c42bda97f`; `:microproject_core:test --console=plain` → `BUILD SUCCESSFUL` |
 | AC5 | `build` and `GUI acceptance` pass | open | pending |
 
 ## Current slice
@@ -35,6 +35,6 @@ Blockers: none
 
 ## Latest evidence
 
-- Tests/build: pre-fix `:microproject_core:test --tests "*TeamPlannerServiceTest" --console=plain` → Friday parameter failed (13 tests, 1 failure); post-fix focused suite → `BUILD SUCCESSFUL`; `:microproject_core:test --console=plain` → `BUILD SUCCESSFUL`; source inventory check exit 0; `git diff --check` clean.
+- Tests/build (tested SHA `c42bda97fb119e6bf399ed2a7c90923df1f23427`): pre-fix `:microproject_core:test --tests "*TeamPlannerServiceTest" --console=plain` → Friday parameter failed (13 tests, 1 failure); post-fix focused suite → `BUILD SUCCESSFUL`; `:microproject_core:test --console=plain` → `BUILD SUCCESSFUL`; source inventory check exit 0; `git diff --check` clean.
 - Physical GUI/manual: not applicable; no user-visible route changed
 - CI: pending
