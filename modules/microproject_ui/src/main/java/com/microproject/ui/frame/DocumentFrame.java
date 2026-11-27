@@ -680,41 +680,58 @@ public class DocumentFrame extends NamedFrame implements
 	}
 
 	private RibbonCommandResult insertTaskRows(CommandId command) {
-		SpreadSheet sheet = getActiveSpreadSheet();
-		if (sheet == null)
-			return executeLegacyWithoutTable(command, () -> addNodeForImpl(null));
-		if (project == null || project.isReadOnly())
-			return RibbonCommandResult.rejected(command.actionId(), "document-read-only");
-		if (sheet.isHeaderColumnSelectionActive())
-			return RibbonCommandResult.rejected(command.actionId(), "task-row-selection-required");
-		int[] selectedRows = sheet.getSelectedRows();
-		if (selectedRows.length == 0) {
-			Object root = project.getTaskModel().getRoot();
-			int beforeNodes = project.getTaskModel().getChildCount(root);
-			try {
-				addNodeForImpl(null);
-				if (project.getTaskModel().getChildCount(root) == beforeNodes)
-					sheet.insertOneTaskRowAtCurrentRow();
-			} catch (RuntimeException failure) {
-				return RibbonCommandResult.failed(command.actionId(), failure);
+			SpreadSheet sheet = getActiveSpreadSheet();
+			if (sheet == null)
+				return executeLegacyWithoutTable(command, () -> addNodeForImpl(null));
+			if (project == null || project.isReadOnly())
+				return RibbonCommandResult.rejected(command.actionId(), "document-read-only");
+			if (sheet.isHeaderColumnSelectionActive())
+				return RibbonCommandResult.rejected(command.actionId(), "task-row-selection-required");
+			int[] selectedRows = sheet.getSelectedRows();
+			List<Node> selected = new ArrayList<>(sheet.getSelectedNodes());
+			// When no rows are selected, or all selected rows are void (blank), use the
+			// insertOneTaskRowAtCurrentRowOrBlank path which can fill an existing blank row
+			// or append to the end of the sheet.
+			boolean allVoid = !selected.isEmpty() && selected.stream().allMatch(Node::isVoid);
+			if (selectedRows.length == 0 || allVoid) {
+				if (allVoid) {
+					// Treat all-void selection as no selection for insertion purposes.
+					selected.clear();
+				}
+				var editSupport = project.getUndoController() == null ? null : project.getUndoController().getEditSupport();
+				if (editSupport != null)
+					editSupport.beginUpdate();
+				Node inserted;
+				try {
+					inserted = sheet.insertOneTaskRowAtCurrentRowOrBlank();
+					if (inserted == null)
+						return RibbonCommandResult.rejected(command.actionId(), "insertion-not-allowed");
+					// Insert creates a placeholder row; committing the name through the cell-edit
+					// route is what turns it into a real task, as when a user types into the row.
+					if (inserted.isVoid() && !sheet.commitTaskNameAtRow(inserted, UsabilityStrings.text("insert.task.name")))
+						throw new IllegalStateException("inserted row could not be turned into a task");
+				} catch (RuntimeException failure) {
+					return RibbonCommandResult.failed(command.actionId(), failure);
+				} finally {
+					if (editSupport != null)
+						editSupport.endUpdate();
+				}
+				sheet.restoreTaskRowSelection(List.of(inserted));
+				refreshUndoButtonsSafely();
+				Long newId = ((Task) inserted.getImpl()).getUniqueId();
+				return new RibbonCommandResult(command.actionId(), RibbonCommandResult.Status.CHANGED, "", List.of(), List.of(newId), getTopViewId());
 			}
-			if (lastTaskCommandResult != null) return lastTaskCommandResult;
-			return project.getTaskModel().getChildCount(root) != beforeNodes
-				? RibbonCommandResult.changed(command.actionId()).withActiveView("task")
-				: RibbonCommandResult.noChange(command.actionId()).withActiveView("task");
+			String siblingRejection = selected.size() != selectedRows.length
+				? "invalid-task-row-selection" : siblingTaskRowsRejection(selected, false);
+			if (siblingRejection != null)
+				return RibbonCommandResult.rejected(command.actionId(), siblingRejection);
+			List<Node> inserted = sheet.insertTaskRowsAfter(selected.get(selected.size() - 1), selected.size());
+			if (inserted.size() != selected.size())
+				return RibbonCommandResult.rejected(command.actionId(), "insertion-not-allowed");
+			sheet.restoreTaskRowSelection(inserted);
+			refreshUndoButtonsSafely();
+			return RibbonCommandResult.changed(command.actionId(), taskIds(selected)).withActiveView("task");
 		}
-		List<Node> selected = new ArrayList<>(sheet.getSelectedNodes());
-		String siblingRejection = selected.size() != selectedRows.length
-			? "invalid-task-row-selection" : siblingTaskRowsRejection(selected, false);
-		if (siblingRejection != null)
-			return RibbonCommandResult.rejected(command.actionId(), siblingRejection);
-		List<Node> inserted = sheet.insertTaskRowsAfter(selected.get(selected.size() - 1), selected.size());
-		if (inserted.size() != selected.size())
-			return RibbonCommandResult.rejected(command.actionId(), "insertion-not-allowed");
-		sheet.restoreTaskRowSelection(inserted);
-		refreshUndoButtonsSafely();
-		return RibbonCommandResult.changed(command.actionId(), taskIds(selected)).withActiveView("task");
-	}
 
 	/** Reject reason for a non-empty row selection that is not editable sibling tasks, else null. */
 	private static String siblingTaskRowsRejection(List<Node> selected, boolean rejectReadOnly) {
