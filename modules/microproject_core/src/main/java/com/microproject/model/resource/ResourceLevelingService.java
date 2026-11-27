@@ -37,9 +37,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import javax.swing.undo.AbstractUndoableEdit;
-import com.microproject.undo.EditSupport;
-
 import com.microproject.datatype.Duration;
 import com.microproject.options.CalendarOption;
 import com.microproject.model.availability.Availability;
@@ -58,6 +55,8 @@ import com.microproject.schedule.ScheduleService;
 import com.microproject.i18n.Messages;
 import com.microproject.transaction.ModelTransaction;
 import com.microproject.transaction.ProjectMutationState;
+import com.microproject.undo.EditSupport;
+import com.microproject.undo.ScheduleEdit;
 import static com.microproject.util.IdentityCollections.addIdentity;
 
 /**
@@ -372,12 +371,10 @@ public final class ResourceLevelingService {
 		}
 
 		private void postUndoEdit(EditSupport editSupport) {
-			if (editSupport != null && hasMutations()) editSupport.postEdit(new AbstractUndoableEdit() {
-				private static final long serialVersionUID = 1L;
-				@Override public String getPresentationName() { return Messages.getString("ResourceLevelingService.PresentationName"); }
-				@Override public void undo() { super.undo(); applyChanges(false); }
-				@Override public void redo() { super.redo(); applyChanges(true); }
-			});
+			if (editSupport != null && hasMutations()) {
+				ScheduleEdit.postChange(editSupport, () -> Messages.getString("ResourceLevelingService.PresentationName"),
+					() -> applyChanges(false), () -> applyChanges(true));
+			}
 		}
 
 		private void applyChanges(boolean forward) {

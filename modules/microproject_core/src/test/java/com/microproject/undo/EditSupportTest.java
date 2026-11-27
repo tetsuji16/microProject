@@ -42,6 +42,30 @@ import org.junit.jupiter.api.Test;
 
 class EditSupportTest {
 	@Test
+	void scheduleChangeResolvesItsNameOnDemandAndReplaysAfterTheStateChanges() {
+		EditSupport support = new EditSupport();
+		List<UndoableEdit> posted = new ArrayList<>();
+		support.addEditListener(posted::add);
+		AtomicReference<String> name = new AtomicReference<>("Initial name");
+		List<String> replay = new ArrayList<>();
+
+		ScheduleEdit.postChange(support, name::get,
+			() -> replay.add("undo: canRedo=" + posted.getFirst().canRedo()),
+			() -> replay.add("redo: canRedo=" + posted.getFirst().canRedo()));
+
+		assertEquals(1, posted.size());
+		UndoableEdit edit = posted.getFirst();
+		assertEquals("Initial name", edit.getPresentationName());
+		name.set("Updated name");
+		assertEquals("Updated name", edit.getPresentationName());
+		assertTrue(EditSupport.isUndoEditSource(edit));
+		assertTrue(replay.isEmpty());
+		edit.undo();
+		edit.redo();
+		assertEquals(List.of("undo: canRedo=true", "redo: canRedo=false"), replay);
+	}
+
+	@Test
 	void nestedUpdatesPublishOneCompoundWithUndoAndRedoInSwingOrder() {
 		EditSupport support = new EditSupport();
 		UndoController controller = new UndoController();

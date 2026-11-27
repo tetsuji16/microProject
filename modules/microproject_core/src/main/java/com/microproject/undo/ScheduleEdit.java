@@ -24,6 +24,7 @@
 package com.microproject.undo;
 
 import java.util.Map;
+import java.util.function.Supplier;
 
 import javax.swing.undo.AbstractUndoableEdit;
 import javax.swing.undo.CannotRedoException;
@@ -73,6 +74,32 @@ public class ScheduleEdit extends AbstractUndoableEdit{
 		this.afterDetailBackup = afterDetailBackup;
 		this.source = source;
 	}
+
+	/** Posts an already applied schedule change. The name is looked up when the history reads it. */
+	public static void postChange(EditSupport editSupport, Supplier<String> presentationName,
+			Runnable undoAction, Runnable redoAction) {
+		editSupport.postEdit(new AbstractUndoableEdit() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public String getPresentationName() {
+				return presentationName.get();
+			}
+
+			@Override
+			public void undo() {
+				super.undo();
+				undoAction.run();
+			}
+
+			@Override
+			public void redo() {
+				super.redo();
+				redoAction.run();
+			}
+		});
+	}
+
 	/** Posts one project-wide task-state edit through the normal compound/suppression path. */
 	public static void postProjectSnapshotEdit(Project project, ProjectTaskSnapshot before,
 			Map<Task, Integer> beforeCalculationStates, Map<Task, Integer> afterCalculationStates, Object source) {
