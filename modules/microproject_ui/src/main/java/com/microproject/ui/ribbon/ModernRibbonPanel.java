@@ -1210,6 +1210,8 @@ public final class ModernRibbonPanel extends JPanel implements RibbonController 
 				}
 				document[0] = installBackstagePrintDocument(printPage, frame, previewButton, lookup,
 						portrait, landscape);
+				// Enabled only after the assignment: openPageSetup() does nothing without a document.
+				printPage.getPageSetupLink().setEnabled(document[0] != null);
 			}
 		}.execute();
 		return printPage;
