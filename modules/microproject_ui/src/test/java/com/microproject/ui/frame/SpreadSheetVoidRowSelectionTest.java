@@ -101,6 +101,40 @@ class SpreadSheetVoidRowSelectionTest {
 	}
 
 	@Test
+	void selectAllResolvesFilteredModelRowsBeyondTheViewCount() throws Exception {
+		try (HeadlessDocumentFixture fx = new HeadlessDocumentFixture("Alpha", "Bravo", "Zulu")) {
+			HeadlessDocumentFixture.onEdt(() -> {
+				var sheet = fx.sheet();
+				CommonSpreadSheetModel model = (CommonSpreadSheetModel) sheet.getModel();
+				int nameColumn = -1;
+				for (int column = 0; column < model.getColumnCount(); column++) {
+					if ("Field.name".equals(model.getFieldInColumn(column).getId())) nameColumn = column;
+				}
+				assertTrue(nameColumn >= 0);
+				final int filterColumn = nameColumn;
+				TableRowSorter<CommonSpreadSheetModel> sorter = new TableRowSorter<>(model);
+				sheet.setRowSorter(sorter);
+				sorter.setRowFilter(new javax.swing.RowFilter<>() {
+					@Override public boolean include(Entry<? extends CommonSpreadSheetModel, ? extends Integer> entry) {
+						return "Zulu".equals(String.valueOf(entry.getValue(filterColumn)));
+					}
+				});
+				sorter.sort();
+				assertEquals(1, sorter.getViewRowCount());
+				int modelRow = sheet.convertRowIndexToModel(0);
+				assertEquals(2, modelRow);
+				assertTrue(modelRow >= sorter.getViewRowCount(),
+					"the visible task's model row must be outside the filtered view-row range");
+
+				sheet.selectAll();
+				assertEquals(List.of(0), java.util.Arrays.stream(sheet.getSelectedRows()).boxed().toList());
+				assertEquals(fx.task(2), model.getNode(sheet.convertRowIndexToModel(sheet.getSelectedRow())).getNode().getImpl(),
+					"Select All must keep the visible Zulu task selected even though its model row exceeds view count");
+			});
+		}
+	}
+
+	@Test
 	void selectAllCommitsTheActiveCellEdit() throws Exception {
 		try (HeadlessDocumentFixture fx = new HeadlessDocumentFixture("Before")) {
 			HeadlessDocumentFixture.onEdt(() -> {
