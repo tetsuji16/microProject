@@ -10,6 +10,7 @@ import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
+import javax.swing.JLabel;
 import com.microproject.node.Node;
 import com.microproject.node.NodeFactory;
 
@@ -203,8 +204,21 @@ class DocumentStatusBarTest {
 	@Test
 	void selectedTaskCountIgnoresVoidRowsOnly() {
 		List<Node> selected = new ArrayList<>();
+		selected.add(null);
 		for (int i = 0; i < 50; i++) selected.add(NodeFactory.getInstance().createVoidNode());
 		assertEquals(0, DocumentStatusBar.selectedTaskCount(selected));
+		assertEquals(0, DocumentStatusBar.selectedTaskCount(null));
+	}
+
+	@Test
+	void clearingSelectionResetsStatusBarCount() throws Exception {
+		try (HeadlessDocumentFixture fx = new HeadlessDocumentFixture("Task")) {
+			fx.select(fx.task(0));
+			JLabel selectionLabel = (JLabel) fx.frame.statusBar.getComponent(1);
+			assertTrue(selectionLabel.getText().contains("1"));
+			HeadlessDocumentFixture.onEdt(() -> fx.sheet().clearSelection());
+			assertTrue(selectionLabel.getText().contains("0"), selectionLabel.getText());
+		}
 	}
 
 }
