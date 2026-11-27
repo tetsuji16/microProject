@@ -915,7 +915,7 @@ tasks.register<JavaExec>("verifyPackagedFileImports") {
     val uiTestRuntimeClasspath = uiSourceSets.named("test").map { it.runtimeClasspath }
 
     classpath = files(uiTestOutput, uiTestRuntimeClasspath)
-    mainClass.set("com.microproject.integration.PackagedImportSmokeMain")
+    mainClass.set("com.microproject.ui.app.PackagedImportSmokeMain")
     args(
         "--windows-script",
         file("modules/microproject_ui/build/install/microproject_ui/bin/microproject_ui.bat").absolutePath,
