@@ -356,16 +356,16 @@ class RibbonButtonBehaviorTest {
 	}
 
 	@Test
-		void insertTaskRouteSurvivesTransientDocumentDeactivation() throws Exception {
-			Harness harness = newHarness();
-			int beforeTasks = harness.project.getTaskList().size();
-			harness.frame.setActive(false);
+	void insertTaskRouteSurvivesTransientDocumentDeactivation() throws Exception {
+		Harness harness = newHarness();
+		int beforeTasks = harness.project.getTaskList().size();
+		harness.frame.setActive(false);
 
-			SwingUtilities.invokeAndWait(() -> harness.manager.getAction(MenuActionConstants.ACTION_INSERT_TASK)
-				.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "insert")));
+		SwingUtilities.invokeAndWait(() -> harness.manager.getAction(MenuActionConstants.ACTION_INSERT_TASK)
+			.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "insert")));
 
-			assertEquals(beforeTasks + 1, harness.project.getTaskList().size());
-		}
+		assertEquals(beforeTasks + 1, harness.project.getTaskList().size());
+	}
 
 	@Test
 	void insertTaskAddsContiguousRowsAndOneUndoRevertsTheWholeBatch() throws Exception {
@@ -400,20 +400,37 @@ class RibbonButtonBehaviorTest {
 	}
 
 	@Test
-		void insertTaskInZeroTaskProjectCreatesOneTaskAndUndoReverts() throws Exception {
-			try (HeadlessDocumentFixture fx = new HeadlessDocumentFixture()) {
-				assertEquals(0, fx.project.getTaskList().size());
-				fx.undo.clear();
-				var outcome = fx.run(CommandId.INSERT);
-				assertEquals(RibbonCommandResult.Status.CHANGED, outcome.status(), outcome.reason());
-				assertEquals(1, fx.project.getTaskList().size());
-				fx.undo();
-				assertEquals(0, fx.project.getTaskList().size(), "one undo must remove the inserted task");
-			}
+	void insertTaskInZeroTaskProjectCreatesOneTaskAndUndoReverts() throws Exception {
+		try (HeadlessDocumentFixture fx = new HeadlessDocumentFixture()) {
+			assertEquals(0, fx.project.getTaskList().size());
+			fx.undo.clear();
+			var outcome = fx.run(CommandId.INSERT);
+			assertEquals(RibbonCommandResult.Status.CHANGED, outcome.status(), outcome.reason());
+			assertEquals(1, fx.project.getTaskList().size());
+			fx.undo();
+			assertEquals(0, fx.project.getTaskList().size(), "one undo must remove the inserted task");
 		}
+	}
+
+	@Test
+	void insertTaskInBlankSelectedRowCreatesOneTask() throws Exception {
+		try (HeadlessDocumentFixture fx = new HeadlessDocumentFixture()) {
+			assertEquals(0, fx.project.getTaskList().size());
+			HeadlessDocumentFixture.onEdt(() -> {
+				SpreadSheet sheet = fx.frame.getActiveSpreadSheet();
+				assertTrue(sheet.getRowCount() > 0, "empty task sheet exposes a blank row");
+				sheet.setRowSelectionInterval(0, 0);
+				assertTrue(sheet.getSelectedNodes().stream().allMatch(Node::isVoid),
+					"selected row must be blank");
+			});
+			var outcome = fx.run(CommandId.INSERT);
+			assertEquals(RibbonCommandResult.Status.CHANGED, outcome.status(), outcome.reason());
+			assertEquals(1, fx.project.getTaskList().size());
+		}
+	}
 
 		@Test
-		void assignmentReplaceRedoRunsThroughDocumentFrameShortcutRoute() throws Exception {
+	void assignmentReplaceRedoRunsThroughDocumentFrameShortcutRoute() throws Exception {
 		Harness harness = newHarness();
 		NormalTask task = (NormalTask) harness.task;
 		SwingUtilities.invokeAndWait(() -> {
