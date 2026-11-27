@@ -45,6 +45,7 @@ once at L3. Do not multiply the two.
 | `TASK_ROW_CLICK` | `TaskInformationRibbonGuiAcceptanceTest.physicalTaskInspectorFollowsSelectionAndNavigatesOnlyVisiblePredecessors` |
 | `CONTEXT_MENU` | `TaskInformationRibbonGuiAcceptanceTest.robotTaskPopupInsertAddsSelectedRowCountBelowSelectionAndOneUndoRevertsBatch` |
 | `HEADER_CLICK` | `ResourceHeaderSortingGuiAcceptanceTest.physicalHeaderClickSortsAndTogglesWithoutMutatingResources` |
+| `HEADER_DOUBLE_CLICK` | `TaskTableGanttGridGuiAcceptanceTest.doubleClickingTheNameColumnBoundaryFitsTheColumnToItsContent` |
 | `DIALOG` | `ChangeWorkingTimeDialogGuiAcceptanceTest.robotOpensWorkingTimeDialogAndCancelsWithoutCommit` |
 | `FILE_CHOOSER` | `RibbonExternalCommandGuiAcceptanceTest.robotEscapeAndCancelCloseTheFileOpenChooserWithoutOpeningAProject` |
 | `WINDOW_SHELL` | `ApplicationCloseGuiAcceptanceTest.closingTheApplicationWindowLeavesOnlyTheProjectFile` |
