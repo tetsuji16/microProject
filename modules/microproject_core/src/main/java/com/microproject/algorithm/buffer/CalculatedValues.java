@@ -35,7 +35,6 @@ public interface CalculatedValues {
 	Double getValue(int index);
 	Long getDate(int index);
 	void set(final int index, final long date, final long endDate, final double value, final WorkCalendar assignmentCalendar);
-	void dump();
 	void makeSeries(boolean cumulative, SeriesCallback callback);
 	void makeRectilinearSeries(SeriesCallback callback);
 }

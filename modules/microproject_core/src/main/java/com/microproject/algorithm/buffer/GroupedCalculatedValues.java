@@ -158,10 +158,6 @@ public class GroupedCalculatedValues implements CalculatedValues, Serializable {
 		
 	}
  
-	public void dump() {
-		for (int i = 0; i < values.size(); i++)
-			logger.fine(i + " " + new java.util.Date(getDate(i).longValue()) + " " + getValue(i));
-	}
 	
  	public ListIterator<Point> iterator(int index){
  		return values.listIterator(index);
