@@ -276,12 +276,14 @@ public final class BackstagePrintPage extends JPanel {
 
 	/**
 	 * Shows that the printer list is still being read. The printer controls stay disabled until
-	 * {@link #setPrinters} delivers a list.
+	 * {@link #setPrinters} delivers a list. The Page Setup link also stays disabled: it needs the
+	 * print document, which is created from that list, and the caller enables it once it exists.
 	 */
 	public void showPrintersLoading() {
 		printerCombo.setModel(new DefaultComboBoxModel<>());
 		printerCombo.setEnabled(false);
 		printButton.setEnabled(false);
+		pageSetupLink.setEnabled(false);
 		statusLabel.setText(loadingText);
 	}
 
