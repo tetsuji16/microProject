@@ -31,13 +31,9 @@ import java.util.EventObject;
  */
 public class ObjectSelectionEvent extends EventObject {
 	private static final long serialVersionUID = 1812216709844834184L;
-	Object obj;
+	private final Object obj;
 	public ObjectSelectionEvent(Object source, Object obj) {
 		super(source);
-		this.obj = obj;
-	}
-    public ObjectSelectionEvent(Object obj) {
-		super(null);
 		this.obj = obj;
 	}
 	public Object getObject() {

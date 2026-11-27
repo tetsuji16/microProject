@@ -1285,7 +1285,6 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 		opt.setResourcePool(form.getResourcePool());
 		opt.setLocal(local);
 		opt.setName(form.getName());
-		opt.setAddResources(!local);
 		Project project = projectFactory.createProject(opt);
 		if (project == null) {
 			showWaitCursor(false);
