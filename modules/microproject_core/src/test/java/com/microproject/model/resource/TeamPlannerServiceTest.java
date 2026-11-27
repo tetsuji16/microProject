@@ -29,6 +29,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -179,6 +181,9 @@ class TeamPlannerServiceTest {
 	private Fixture fixture() {
 		DataFactoryUndoController undo = new DataFactoryUndoController(); ResourcePool pool = ResourcePool.createRourcePool("team-test", undo);
 		Project project = Project.createProject(pool, undo); project.initialize(false, false); project.setFileName("C:/team-planner-fixtures/" + System.nanoTime() + ".mpo");
+		// A fixed Monday keeps the fixtures independent of the weekday the tests run on (#1451).
+		long start = CalendarOption.getInstance().makeValidStart(LocalDate.of(2026, 11, 23).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(), true);
+		project.setStart(start); project.setStartConstraint(start);
 		ResourceImpl first = pool.newResourceInstance(); first.setName("Engineer A"); ResourceImpl second = pool.newResourceInstance(); second.setName("Engineer B");
 		return new Fixture(project, first, second);
 	}
