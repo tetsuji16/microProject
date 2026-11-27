@@ -146,6 +146,11 @@ public final class EditSupport {
 		listeners.remove(listener);
 	}
 
+	/** Undo and redo can use the edit itself as the source of a replayed change. */
+	public static boolean isUndoEditSource(Object eventSource) {
+		return eventSource instanceof UndoableEdit;
+	}
+
 	public void postEdit(UndoableEdit edit) {
 		synchronized (this) {
 			Activation current = active.get();
