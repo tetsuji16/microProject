@@ -23,8 +23,23 @@
  *******************************************************************************/
 package com.microproject.field;
 
+/**
+ * Marks an object whose value may have changed since the document was last
+ * saved. The flag is informational: setting it never recalculates the object.
+ */
 public interface CanBeDirty {
+
+	/**
+	 * @return true when the object changed and still has to be saved
+	 */
 	boolean isDirty();
+
+	/**
+	 * Sets or clears the "changed since save" flag. Callers clear it after a
+	 * save, and set it when they change a value without notifying the document.
+	 *
+	 * @param dirty true when the object must be treated as unsaved
+	 */
 	void setDirty(boolean dirty);
 
 }

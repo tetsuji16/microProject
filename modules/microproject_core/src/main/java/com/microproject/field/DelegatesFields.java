@@ -23,7 +23,22 @@
  *******************************************************************************/
 package com.microproject.field;
 
+/**
+ * Lets an object answer a field from another object. A field that is delegated
+ * is read with {@link #getDelegatedFieldValue(Field)} instead of the object's
+ * own storage; a field that is not delegated is not read from the delegate.
+ */
 public interface DelegatesFields {
+
+	/**
+	 * @param field the field to read
+	 * @return true when this object answers {@code field} through its delegate
+	 */
 	boolean delegates(Field field);
+
+	/**
+	 * @param field the field to read; callers check {@link #delegates(Field)} first
+	 * @return the value the delegate holds for that field
+	 */
 	Object getDelegatedFieldValue(Field field);
 }

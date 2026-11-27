@@ -26,6 +26,11 @@ package com.microproject.algorithm;
 /**
  * Interface for something that calculates or has a double value
  */
+@FunctionalInterface
 public interface DoubleValue {
+
+	/**
+	 * @return the value this object holds or calculates
+	 */
 	double getValue();
 }

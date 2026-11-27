@@ -23,8 +23,18 @@
  *******************************************************************************/
 package com.microproject.field;
 
+/**
+ * Decides which fields the current user may see. The implementation is named
+ * by {@code FieldAccessible=} in {@code meta.properties}, which supplies the
+ * default that allows every field.
+ */
 public interface FieldAccessible {
 
+	/**
+	 * @param role the role of the current user, as in
+	 *             {@code ApplicationUser} (for example {@code TEAM_MEMBER})
+	 * @return true when a user with that role may access the field
+	 */
 	boolean isAuthorized(int role);
 
 }

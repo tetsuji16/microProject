@@ -23,9 +23,20 @@
  *******************************************************************************/
 package com.microproject.field;
 
+/**
+ * The default {@link FieldAccessible}, named by {@code FieldAccessible=} in
+ * {@code meta.properties}. It grants every role access to every field, so a
+ * standalone project has no restrictions. Role-based restrictions belong in a
+ * separate implementation selected by that property.
+ */
 public class DefaultFieldAccessControl implements FieldAccessible {
 
-	public boolean isAuthorized(int role) {
+	/**
+	 * @param role the role of the current user; ignored
+	 * @return always true
+	 */
+	@Override
+	public final boolean isAuthorized(int role) {
 		return true;
 	}
 

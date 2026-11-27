@@ -26,6 +26,16 @@ package com.microproject.algorithm.buffer;
 /**
  * Interface for a callback applied to series of values
  */
+@FunctionalInterface
 public interface IntervalCallback {
+
+	/**
+	 * Receives one interval of a series.
+	 *
+	 * @param index position of the interval in the series
+	 * @param start GMT-read start of the interval in milliseconds
+	 * @param end GMT-read end of the interval in milliseconds
+	 * @param value value held over the interval
+	 */
 	void add(int index, long start, long end, double value);
 }

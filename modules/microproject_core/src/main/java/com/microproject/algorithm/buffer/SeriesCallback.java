@@ -26,6 +26,15 @@ package com.microproject.algorithm.buffer;
 /**
  * Interface for callbacks applied to CalculatedValues arrays
  */
+@FunctionalInterface
 public interface SeriesCallback {
+
+	/**
+	 * Receives one point of a calculated series.
+	 *
+	 * @param index position of the point in the series
+	 * @param x horizontal coordinate of the point
+	 * @param y value of the point
+	 */
 	void add(int index, double x, double y);
 }
