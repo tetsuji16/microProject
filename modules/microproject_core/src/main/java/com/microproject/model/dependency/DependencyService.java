@@ -34,9 +34,6 @@ import java.util.Set;
 import java.util.Comparator;
 import java.util.Map;
 
-import javax.swing.undo.UndoableEdit;
-import com.microproject.undo.EditSupport;
-
 import com.microproject.association.InvalidAssociationException;
 import com.microproject.association.Association;
 import com.microproject.association.AssociationList;
@@ -49,6 +46,7 @@ import com.microproject.undo.DataFactoryUndoController;
 import com.microproject.undo.DependencyCreationEdit;
 import com.microproject.undo.DependencyDeletionEdit;
 import com.microproject.undo.DependencySetFieldsEdit;
+import com.microproject.undo.EditSupport;
 import com.microproject.util.ClassUtils;
 
 /**
@@ -396,7 +394,7 @@ public class DependencyService {
 	}
 
 	private static boolean shouldRecordUndo(Object eventSource) {
-		return !(eventSource instanceof UndoableEdit) && eventSource != LiveDependencyRefreshSource.INSTANCE;
+		return !EditSupport.isUndoEditSource(eventSource) && eventSource != LiveDependencyRefreshSource.INSTANCE;
 	}
 
 	@FunctionalInterface

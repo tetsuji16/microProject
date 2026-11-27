@@ -26,9 +26,6 @@ package com.microproject.schedule;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.swing.undo.UndoableEdit;
-import com.microproject.undo.EditSupport;
-
 import com.microproject.configuration.Configuration;
 import com.microproject.association.Association;
 import com.microproject.schedule.IntervalConsumer;
@@ -37,6 +34,7 @@ import com.microproject.model.task.Task;
 import com.microproject.model.task.Project;
 import com.microproject.model.task.NormalTask;
 import com.microproject.model.task.TaskSplitInterval;
+import com.microproject.undo.EditSupport;
 import com.microproject.undo.TaskConstraintEdit;
 import com.microproject.undo.ScheduleEdit;
 import com.microproject.undo.SplitEdit;
@@ -85,7 +83,7 @@ public class ScheduleService {
 		if (completed == oldCompleted) {
 			return false;
 		}
-		boolean recordUndo = undoableEditSupport != null && !(eventSource instanceof UndoableEdit);
+		boolean recordUndo = undoableEditSupport != null && !EditSupport.isUndoEditSource(eventSource);
 		Object beforeDetailBackup = recordUndo
 			? schedule.backupDetail() : null;
 		schedule.setCompletedThrough(completed);
@@ -120,7 +118,7 @@ public class ScheduleService {
 			}
 			throw failure;
 		}
-		if (undoableEditSupport != null && !(eventSource instanceof UndoableEdit)) {
+		if (undoableEditSupport != null && !EditSupport.isUndoEditSource(eventSource)) {
 			undoableEditSupport.postEdit(new TaskConstraintEdit(task, oldConstraintType, oldConstraintDate, constraintType, constraintDate, eventSource));
 		}
 		task.getDocument().getObjectEventManager().fireUpdateEvent(task, task,
@@ -166,7 +164,7 @@ public class ScheduleService {
 		end = DateTime.hourFloor(end);
 		if (interval.getStart() == start && interval.getEnd() == end) // if no move do nothing
 			return false;
-		if (detailBackup == null && undoableEditSupport!=null&&!(eventSource instanceof UndoableEdit)){
+		if (detailBackup == null && undoableEditSupport != null && !EditSupport.isUndoEditSource(eventSource)) {
 			detailBackup=schedule.backupDetail();
 		}
 		if (schedule instanceof NormalTask task) {
@@ -255,7 +253,7 @@ public class ScheduleService {
 		EditSupport undoableEditSupport, boolean levelingGenerated) {
 		if (isReadOnly(schedule))
 			return false;
-		boolean recordUndo = undoableEditSupport != null && !(eventSource instanceof UndoableEdit);
+		boolean recordUndo = undoableEditSupport != null && !EditSupport.isUndoEditSource(eventSource);
 		Object detailBackup = schedule instanceof NormalTask || schedule instanceof Assignment
 			|| recordUndo ? schedule.backupDetail() : null;
 		List<String> intervalsBefore = splitIntervalState(schedule);
