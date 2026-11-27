@@ -150,6 +150,7 @@ class TaskTableGanttGridGuiAcceptanceTest {
 	}
 
 	@Test
+	@GuiJourney(InputMechanism.HEADER_DOUBLE_CLICK)
 	void doubleClickingTheNameColumnBoundaryFitsTheColumnToItsContent() throws Exception {
 		Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), "A desktop session is required for Robot acceptance coverage.");
 		Fixture fixture = createFixture();
