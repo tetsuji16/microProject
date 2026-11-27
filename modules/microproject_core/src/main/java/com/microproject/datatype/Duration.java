@@ -25,7 +25,6 @@ package com.microproject.datatype;
 
 import com.microproject.options.CalendarOption;
 import com.microproject.options.ScheduleOption;
-import com.microproject.util.MathUtils;
 
 /**
  * Instead of creating a true Duration type, I use unused bits of the long which stores durations.
@@ -61,7 +60,7 @@ public class Duration extends Number implements Comparable<Duration> {
 	public int compareTo(Duration duration) {
 		if (duration == null)
 			 throw new NullPointerException();
-		return MathUtils.signum(getValue(encodedMillis) - getValue(duration.getEncodedMillis()));
+		return Double.compare(getValue(encodedMillis), getValue(duration.getEncodedMillis()));
 	}
 		
 	public long getEncodedMillis() {

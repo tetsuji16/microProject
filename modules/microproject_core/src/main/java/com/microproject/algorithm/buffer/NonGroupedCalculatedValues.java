@@ -25,7 +25,6 @@ package com.microproject.algorithm.buffer;
 
 import java.util.TreeMap;
 import java.util.Map;
-import java.util.logging.Logger;
 
 import com.microproject.options.CalendarOption;
 import com.microproject.model.calendar.WorkCalendar;
@@ -35,7 +34,6 @@ import com.microproject.model.calendar.WorkCalendar;
  * Stores an array of values as a bunch of ordered values at dates.  
  */
 public class NonGroupedCalculatedValues  implements CalculatedValues  {
-	private static final Logger logger = Logger.getLogger(NonGroupedCalculatedValues.class.getName());
 	private final TreeMap<Long, Double> values = new TreeMap<>();
 	private volatile long[] indexedDates;
 	private double[] indexedValues;
@@ -182,11 +180,6 @@ public class NonGroupedCalculatedValues  implements CalculatedValues  {
 	
 
  
-	public void dump() {
-		int index = 0;
-		for (Map.Entry<Long, Double> entry : values.entrySet())
-			logger.fine(index++ + " " + new java.util.Date(entry.getKey()) + " " + entry.getValue());
- 	}
 	
 
 	
