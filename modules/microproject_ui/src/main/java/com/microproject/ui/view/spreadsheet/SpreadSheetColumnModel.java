@@ -136,22 +136,47 @@ public class SpreadSheetColumnModel extends DefaultTableColumnModel {
 				continue;
 			}
 
-			// The content width of a heading is its single-line width, whatever the
-			// current column width or wrapping state.
-			int width = column.getHeaderRenderer() instanceof SpreadSheetColumnHeaderRenderer headerRenderer
-					? headerRenderer.singleLineWidth(table, field.getName(), viewColumn)
-					: preferredWidth(column.getHeaderRenderer()
-						.getTableCellRendererComponent(table, field.getName(), false, false, -1, viewColumn));
-			for (int row = 0; row < table.getRowCount(); row++) {
-				Component component = table.prepareRenderer(table.getCellRenderer(row, viewColumn), row, viewColumn);
-				width = Math.max(width, component.getPreferredSize().width);
-			}
-
-			column.setPreferredWidth(Math.max(minimumReadableWidth(field.getId()), width));
+			column.setPreferredWidth(contentWidth(table, viewColumn, column, field));
 			colWidthMap.put(field.getId(), column.getPreferredWidth());
 			totalWidth += column.getPreferredWidth();
 		}
 		colWidth = totalWidth;
+	}
+
+	/**
+	 * Fits one column to its widest heading or cell, as a double-click on the
+	 * column's right header boundary does in Excel (#1432).  The fitted width is
+	 * the user's explicit choice, so it is recorded like a dragged width and is
+	 * kept when the view is rebuilt or the project is saved.
+	 *
+	 * @return whether a column was fitted
+	 */
+	public boolean bestFitColumn(JTable table, int viewColumn) {
+		if (table == null || viewColumn < 0 || viewColumn >= getColumnCount())
+			return false;
+		TableColumn column = getColumn(viewColumn);
+		if (!column.getResizable() || !(column.getIdentifier() instanceof Field field))
+			return false;
+		int width = contentWidth(table, viewColumn, column, field);
+		column.setPreferredWidth(width);
+		column.setWidth(width);
+		colWidthMap.put(field.getId(), column.getPreferredWidth());
+		markWidthManuallyAdjusted(field.getId());
+		return true;
+	}
+
+	private int contentWidth(JTable table, int viewColumn, TableColumn column, Field field) {
+		// The content width of a heading is its single-line width, whatever the
+		// current column width or wrapping state.
+		int width = column.getHeaderRenderer() instanceof SpreadSheetColumnHeaderRenderer headerRenderer
+				? headerRenderer.singleLineWidth(table, field.getName(), viewColumn)
+				: preferredWidth(column.getHeaderRenderer()
+					.getTableCellRendererComponent(table, field.getName(), false, false, -1, viewColumn));
+		for (int row = 0; row < table.getRowCount(); row++) {
+			Component component = table.prepareRenderer(table.getCellRenderer(row, viewColumn), row, viewColumn);
+			width = Math.max(width, component.getPreferredSize().width);
+		}
+		return Math.max(minimumReadableWidth(field.getId()), width);
 	}
 
 	/**
