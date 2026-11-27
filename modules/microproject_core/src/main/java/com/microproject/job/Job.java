@@ -60,7 +60,7 @@ public class Job extends Thread {
 	private final List<Runnable> completionRunnables = new ArrayList<>();
 	private boolean completionRunnablesExecuted;
 	protected InternalRunnable exceptionHandlerRunnable;
-	protected JobMutex mutex;
+	protected Mutex mutex;
 	protected Mutex globalMutex,groupMutex;
 	protected InternalRunnable previousRunnable=null;
 	protected boolean queued=true;
@@ -79,7 +79,7 @@ public class Job extends Thread {
 		this.showProgess=showProgress;
 		this.sync=false;
 		jobId=System.currentTimeMillis();
-		mutex=new JobMutex("JobMutex");
+		mutex=new Mutex("JobRunMutex");
 		globalMutex=new Mutex("GlobalMutex");
 		groupMutex=new Mutex("GroupMutex");
 		progress=0.0f;
@@ -349,7 +349,7 @@ public class Job extends Thread {
 				log(runnable.runnable.getName()+": lock="+lock);
 
 
-				JobMutex runMutex;
+				Mutex runMutex;
 				if (lock){
 					runMutex=mutex;
 					runMutex.lock();
@@ -397,7 +397,7 @@ public class Job extends Thread {
 	public void run(){
 		run(false);
 	}
-	private void runThread(final InternalRunnable runnable,final JobMutex runMutex){
+	private void runThread(final InternalRunnable runnable,final Mutex runMutex){
 		if (runnable.isCreateThread()){
 			Thread t=new Thread(() -> runSwing(runnable,runMutex));
 			t.setDaemon(isDaemon());
@@ -406,7 +406,7 @@ public class Job extends Thread {
 	    	runSwing(runnable,runMutex);
 		}
 	}
-	private void runSwing(final InternalRunnable runnable,final JobMutex runMutex){
+	private void runSwing(final InternalRunnable runnable,final Mutex runMutex){
 		Runnable body = () -> {
 			try{
 				if (isInterrupted() || (isCanceled() && !runnable.isExceptionHandler())) // if thread is not alive, do nothing
