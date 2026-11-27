@@ -608,15 +608,12 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 			return;
 		int rowCount = getRowSorter() == null ? getRowCount() : getRowSorter().getViewRowCount();
 		int columnCount = getColumnCount();
-		SpreadSheetModel model = getModel() instanceof SpreadSheetModel spreadSheetModel ? spreadSheetModel : null;
 		var rows = getSelectionModel();
 		rows.setValueIsAdjusting(true);
 		try {
 			rows.clearSelection();
 			for (int row = 0; row < rowCount; row++) {
-				int modelRow = convertRowIndexToModel(row);
-				Node node = model == null || modelRow < 0 || modelRow >= model.getRowCount()
-					? null : model.getNodeForDisplayRow(modelRow);
+				Node node = getNodeAtViewRow(row);
 				if (node != null && !node.isVoid())
 					rows.addSelectionInterval(row, row);
 			}

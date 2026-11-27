@@ -886,30 +886,22 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		}
 	}
 
-	private ArrayList<Node> collectSelectedNodes(SpreadSheetModel model) {
+	private ArrayList<Node> collectSelectedNodes() {
 		var rows = getSelectedRows();
 		var nodes = new ArrayList<Node>(rows.length);
 		for (int viewRow : rows){
-			if (viewRow < 0 || viewRow >= getRowCount()) continue;
-			int modelRow = convertRowIndexToModel(viewRow);
-			GraphicNode graphicNode = model.getNode(modelRow);
-			if (graphicNode != null && graphicNode.getNode() != null) {
-				nodes.add(graphicNode.getNode());
-			}
+			Node node = getNodeAtViewRow(viewRow);
+			if (node != null) nodes.add(node);
 		}
 		return nodes;
 	}
 
-	private ArrayList<Object> collectSelectedNodeImpls(SpreadSheetModel model) {
+	private ArrayList<Object> collectSelectedNodeImpls() {
 		var rows = getSelectedRows();
 		var nodes = new ArrayList<Object>(rows.length);
 		for (int viewRow : rows){
-			if (viewRow < 0 || viewRow >= getRowCount()) continue;
-			int modelRow = convertRowIndexToModel(viewRow);
-			GraphicNode graphicNode = model.getNode(modelRow);
-			if (graphicNode != null && graphicNode.getNode() != null) {
-				nodes.add(graphicNode.getNode().getImpl());
-			}
+			Node node = getNodeAtViewRow(viewRow);
+			if (node != null) nodes.add(node.getImpl());
 		}
 		return nodes;
 	}
@@ -1280,14 +1272,14 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
         if (model == null) {
         	return new ArrayList<Node>();
         }
-		return collectSelectedNodes(model);
+		return collectSelectedNodes();
     }
     public ArrayList<Object> getSelectedNodesImpl(){
         var model = getSpreadSheetModel();
         if (model == null) {
         	return new ArrayList<Object>();
         }
-		return collectSelectedNodeImpls(model);
+		return collectSelectedNodeImpls();
     }
     public ArrayList<Field> getSelectedFields(){
     	if (hasRowHeaderSelection()) return null;
@@ -1316,6 +1308,15 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
         if (model == null || row < 0 || row >= getRowCount()) return null;
         return model.getNodeInRow(row);
     }
+
+	/** Resolves a visible view row to its domain node, accounting for sorting and filtering. */
+	public Node getNodeAtViewRow(int viewRow) {
+		var model = getSpreadSheetModel();
+		if (model == null || viewRow < 0 || viewRow >= getRowCount()) return null;
+		int modelRow = convertRowIndexToModel(viewRow);
+		if (modelRow < 0 || modelRow >= model.getRowCount()) return null;
+		return model.getNodeForDisplayRow(modelRow);
+	}
     public int getCurrentRow() {
         int row = getSelectedRow();
         if (row == -1)
