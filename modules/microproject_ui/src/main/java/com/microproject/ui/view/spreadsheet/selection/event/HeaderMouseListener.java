@@ -45,6 +45,14 @@ public class HeaderMouseListener extends MouseAdapter {
 	public void mouseClicked(MouseEvent e){
 		int col = table.columnAtPoint(e.getPoint());
 		if  (SwingUtilities.isLeftMouseButton(e)) {
+			// A click on a column boundary belongs to the resize gesture, not to
+			// column selection; a double-click there fits the column (#1432).
+			if (table.isColumnResizeBoundary(e.getX())) {
+				if (e.getClickCount() == 2)
+					table.bestFitColumnAtHeaderBoundary(e.getX());
+				e.consume();
+				return;
+			}
 			if (col >= 0 && table.handleHeaderClick(col)) {
 				e.consume();
 				return;

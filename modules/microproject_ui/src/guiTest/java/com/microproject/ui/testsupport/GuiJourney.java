@@ -56,6 +56,8 @@ public @interface GuiJourney {
 		CONTEXT_MENU,
 		/** Column header click. */
 		HEADER_CLICK,
+		/** Double-clicking a column header boundary to fit its content. */
+		HEADER_DOUBLE_CLICK,
 		/** Opening a modal dialog and closing it with OK or Cancel. */
 		DIALOG,
 		/** Native or Swing file chooser for open and save. */
