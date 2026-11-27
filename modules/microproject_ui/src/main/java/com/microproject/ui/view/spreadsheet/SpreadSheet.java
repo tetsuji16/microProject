@@ -604,16 +604,16 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	 */
 	@Override
 	public void selectAll() {
-		if (isEditing())
-			removeEditor();
-		int rowCount = getRowCount();
+		if (isEditing() && !getCellEditor().stopCellEditing())
+			return;
+		int rowCount = getRowSorter() == null ? getRowCount() : getRowSorter().getViewRowCount();
 		int columnCount = getColumnCount();
 		var rows = getSelectionModel();
 		rows.setValueIsAdjusting(true);
 		try {
 			rows.clearSelection();
 			for (int row = 0; row < rowCount; row++) {
-				Node node = getNodeAtRow(row);
+				Node node = getNodeAtRow(convertRowIndexToModel(row));
 				if (node != null && !node.isVoid())
 					rows.addSelectionInterval(row, row);
 			}
