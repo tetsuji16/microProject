@@ -21,20 +21,20 @@ Blockers: none
 | AC2 | Both `assertFalse` statements remain unchanged | pass | `c42bda97f`; scoped `git diff` review shows both assertion lines unchanged |
 | AC3 | `TeamPlannerService.java` remains unchanged | pass | `c42bda97f`; `git diff --quiet origin/master -- .../TeamPlannerService.java` exit 0 |
 | AC4 | `:microproject_core:test` passes | pass | `c42bda97f`; `:microproject_core:test --console=plain` → `BUILD SUCCESSFUL` |
-| AC5 | `build` and `GUI acceptance` pass | open | pending |
+| AC5 | `build` and `GUI acceptance` pass | pass | PR #1479 checks passed on `1bc9f31bacfd165ddb18833ba8279714573de8ff`: checklist, build (Linux/Windows/macOS), GUI acceptance |
 
 ## Current slice
 
-**Next slice:** Commit and publish the verified test change, then wait for required PR checks.
-**Done when:** AC5 has evidence from the PR head.
-**Then:** Report the completed issue.
+**Next slice:** Record completed PR evidence and update the PR checklist.
+**Done when:** PR body records the passing required checks.
+**Then:** Report the completed issue; merge remains reviewer/maintainer action.
 
 ## Remaining blockers
 
-- AC5 requires PR build and GUI acceptance checks.
+- PR #1479 has passed build on Linux, Windows, and macOS, GUI acceptance, and checklist. The CI evidence is on `1bc9f31bacfd165ddb18833ba8279714573de8ff`.
 
 ## Latest evidence
 
 - Tests/build (tested SHA `c42bda97fb119e6bf399ed2a7c90923df1f23427`): pre-fix `:microproject_core:test --tests "*TeamPlannerServiceTest" --console=plain` → Friday parameter failed (13 tests, 1 failure); post-fix focused suite → `BUILD SUCCESSFUL`; `:microproject_core:test --console=plain` → `BUILD SUCCESSFUL`; source inventory check exit 0; `git diff --check` clean.
 - Physical GUI/manual: not applicable; no user-visible route changed
-- CI: pending
+- CI: PR #1479 build and GUI acceptance passed on `1bc9f31bacfd165ddb18833ba8279714573de8ff` (build checks: https://github.com/tetsuji16/microProject/actions/runs/46042312873; GUI acceptance: https://github.com/tetsuji16/microProject/actions/runs/46042312957)
