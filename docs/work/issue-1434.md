@@ -35,6 +35,7 @@ Blockers: required PR checks on the follow-up PR.
 
 ## Latest evidence
 
+- Candidate: `9caaf034b` (source plus follow-up Robot test; current issue packet is updated in the following documentation commit).
 - Tests/build: `:microproject_ui:test --tests com.microproject.ui.frame.SpreadSheetVoidRowSelectionTest --console=plain` → `BUILD SUCCESSFUL`; `RibbonButtonBehaviorTest` → `BUILD SUCCESSFUL`; full `:microproject_ui:test` → `BUILD SUCCESSFUL` in 2m9s.
 - Physical GUI/manual: real `DocumentFrame`, Robot typed `Physical selection edit`, pressed `Ctrl+Shift+Space`; editor stopped, model Name and rendered Name matched, selected row still resolved to the same task, physical Ctrl+Z restored the prior name and Ctrl+Y restored the edit. Empty project and 11-task sample were checked on candidate `a96db4b0c71c5f1cebc49c1962eb998a29b4b5f0` by the #1435 worker; original PR #1480 also records the sample Undo check.
 - CI: pending exact follow-up PR SHA.
