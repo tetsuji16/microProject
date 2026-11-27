@@ -597,6 +597,38 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 	}
 
 	/**
+	 * Select All for the ribbon, the Ctrl+Shift+Space shortcut and the table's
+	 * own select-all binding.  Only task rows are selected: the trailing blank
+	 * rows hold no task, so an empty project ends with an empty selection
+	 * instead of a full-height band of blank rows.
+	 */
+	@Override
+	public void selectAll() {
+		if (isEditing())
+			removeEditor();
+		int rowCount = getRowCount();
+		int columnCount = getColumnCount();
+		var rows = getSelectionModel();
+		rows.setValueIsAdjusting(true);
+		try {
+			rows.clearSelection();
+			for (int row = 0; row < rowCount; row++) {
+				Node node = getNodeAtRow(row);
+				if (node != null && !node.isVoid())
+					rows.addSelectionInterval(row, row);
+			}
+		} finally {
+			rows.setValueIsAdjusting(false);
+		}
+		if (getSelectedRowCount() == 0 || columnCount == 0) {
+			clearSelection();
+			setRowHeaderSelectionActive(false);
+			return;
+		}
+		getColumnModel().getSelectionModel().setSelectionInterval(0, columnCount - 1);
+	}
+
+	/**
 	 * Row for a single-task insert such as Insert Milestone. A blank current row is used in
 	 * place, as Microsoft Project fills the selected blank row; otherwise a row is inserted
 	 * above the current task. A project without tasks uses its first blank row.
