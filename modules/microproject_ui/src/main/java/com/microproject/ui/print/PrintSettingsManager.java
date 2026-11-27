@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *******************************************************************************/
-package com.microproject.print;
+package com.microproject.ui.print;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -32,6 +32,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.microproject.model.task.Project;
+import com.microproject.print.PrintSettings;
 import com.microproject.util.SafeObjectInput;
 import com.microproject.workspace.SavableToWorkspace;
 

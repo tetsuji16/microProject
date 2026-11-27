@@ -71,7 +71,6 @@ import com.microproject.print.GanttSettings;
 import com.microproject.print.PDFPrintService;
 import com.microproject.print.PageSize;
 import com.microproject.print.PrintSettings;
-import com.microproject.print.PrintSettingsManager;
 import com.microproject.print.ScaleToSettings;
 import com.microproject.print.ScalingSettings;
 import com.microproject.print.ViewSettings;

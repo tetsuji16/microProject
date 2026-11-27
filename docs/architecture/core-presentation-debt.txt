@@ -54,7 +54,6 @@ com/microproject/print/PageSize.java	com.microproject.print
 com/microproject/print/PrintSettings.java	com.microproject.print
 com/microproject/print/PrintSettings.java	com.microproject.view.configuration.SpreadSheetCategories
 com/microproject/print/PrintSettings.java	com.microproject.view.configuration.SpreadSheetFieldArray
-com/microproject/print/PrintSettingsManager.java	com.microproject.print
 com/microproject/print/ScaleToSettings.java	com.microproject.print
 com/microproject/print/ScalingSettings.java	com.microproject.print
 com/microproject/print/ViewSettings.java	com.microproject.print

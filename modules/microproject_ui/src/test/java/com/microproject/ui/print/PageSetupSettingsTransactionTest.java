@@ -36,7 +36,6 @@ import com.microproject.model.task.Project;
 import com.microproject.print.ExtendedPageFormat;
 import com.microproject.print.FitToSettings;
 import com.microproject.print.PrintSettings;
-import com.microproject.print.PrintSettingsManager;
 import com.microproject.print.ScaleToSettings;
 import com.microproject.print.ScalingSettings;
 import com.microproject.ui.export.svg.GanttSVGRenderer;
