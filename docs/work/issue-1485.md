@@ -22,11 +22,11 @@ Blockers: none.
 | A3 | GUI gate does not start unless watcher startup is ready. | pass | Startup helper throws on timeout before `Invoke-GuiGate` launches Gradle; timeout case passed. |
 | A4 | Gradle build succeeds. | pass | `& $PWD\gradlew.bat build --console=plain`: BUILD SUCCESSFUL in 12s; 51 tasks, 4 executed and 47 up-to-date on final code. |
 | A5 | `git diff --check` is empty. | pass | No output on the current diff; rerun after staging. |
-| A6 | PR `build` and `GUI acceptance` pass. | open | Awaiting PR. |
+| A6 | PR `build` and `GUI acceptance` pass. | pass | PR #1486 at `ee3344c087b9e46fcf16c56ab761a7e735ee0aa1`: `build`, `GUI acceptance`, `verify (windows-latest)`, `verify (ubuntu-latest)`, `verify (macos-latest)`, and `checklist` pass; [run](https://github.com/tetsuji16/microProject/actions/runs/46083174148), [GUI](https://github.com/tetsuji16/microProject/actions/runs/46083174127). |
 
 ## Current slice
 
-**Next slice:** stage only issue files, run cached diff check and checklist, then open one PR.
+**Next slice:** rerun checks on the evidence-packet-only follow-up, update PR evidence, then merge #1486.
 **Done when:** required CI passes, review comments are resolved, and the PR is merged.
 **Then:** push the new integrated candidate once to the stable branch and verify publication.
 
@@ -39,4 +39,4 @@ Blockers: none.
 
 - Tests/build: `pwsh -NoProfile -File .github/scripts/test-hosted-warning-watcher-startup.ps1` passed all 3 cases after the final edit. `& $PWD\gradlew.bat build --console=plain` passed on final code in 12s; 51 tasks, 4 executed and 47 up-to-date.
 - Physical GUI/manual: not applicable; no user-visible route changed. Hosted guard remains fail-closed.
-- CI: PR exact head and required checks pending.
+- CI: PR #1486 required checks passed on code SHA `ee3344c087b9e46fcf16c56ab761a7e735ee0aa1`; review comments are empty.
