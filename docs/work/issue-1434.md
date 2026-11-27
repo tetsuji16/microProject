@@ -37,10 +37,10 @@ Blockers: required PR checks on the follow-up PR.
 
 ## Latest evidence
 
-- Candidate code: previous pushed base `071a96fe2`; this packet will be updated with the next commit SHA. Integrated with #1481 master merge `30b41ba73`.
+- Candidate code: `1535e89241ec44135605177124290c8517b051e9`, integrated with #1481 master merge `30b41ba73`.
 - Tests/build: focused `SpreadSheetVoidRowSelectionTest` → `BUILD SUCCESSFUL`, 6 tests; full `:microproject_ui:test` after selected-node/event and rejection regressions → `BUILD SUCCESSFUL` in 2m; physical journey `TwoDocumentShortcutIsolationGuiAcceptanceTest.physicalCtrlDeleteAndUndoStayWithEachActiveDocument` after these changes → `BUILD SUCCESSFUL` in 23s; inventory script exit 0 on previous candidate.
 - Selection regression: filtered Zulu is view row 0/model row 2; `getSelectedNodes()`, `getSelectedNodesImpl()`, event nodes and currentNode all resolve to Zulu. Rejected editor test confirms active editor, uncommitted text, and previous selection survive.
 - Physical GUI/manual: after #1481 integration, real `DocumentFrame` Robot typed `Physical selection edit`, pressed `Ctrl+Shift+Space`; editor stopped, model Name and rendered Name matched, selected row still resolved to the same task, physical Ctrl+Z restored the prior name and Ctrl+Y restored the edit. Empty project and 11-task sample were checked on #1435 candidate `a96db4b0c71c5f1cebc49c1962eb998a29b4b5f0`; original PR #1480 also records the sample Undo check.
-- CI: pending on [PR #1482](https://github.com/tetsuji16/microProject/pull/1482) after the latest push.
+- CI: pending for commit `1535e89241ec44135605177124290c8517b051e9` on [PR #1482](https://github.com/tetsuji16/microProject/pull/1482).
 
 For reused evidence, the production diff commits the active editor through its existing contract and resolves rows through the model's row accessor after view-to-model conversion. It does not alter the unsorted empty/11-task selection or rendering behavior tested by the original PR. The `getNodeForDisplayRow` documentation now describes model-row access rather than limiting it to renderers; no shared `getNodeAtRow` API change was made. #1481's empty selection notification and task-only status count passed in the merged master UI suite.
