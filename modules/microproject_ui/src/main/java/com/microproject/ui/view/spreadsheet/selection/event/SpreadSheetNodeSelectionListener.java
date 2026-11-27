@@ -30,7 +30,6 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 
 import com.microproject.ui.view.spreadsheet.common.CommonSpreadSheet;
-import com.microproject.ui.view.spreadsheet.common.CommonSpreadSheetModel;
 import com.microproject.ui.view.spreadsheet.selection.SpreadSheetListSelectionModel;
 import com.microproject.ui.view.spreadsheet.selection.SpreadSheetSelectionModel;
 import com.microproject.node.Node;
@@ -46,23 +45,20 @@ public class SpreadSheetNodeSelectionListener implements ListSelectionListener {
 		SpreadSheetListSelectionModel listSelectionModel = (SpreadSheetListSelectionModel)lse.getSource();
 		SpreadSheetSelectionModel selectionModel=listSelectionModel.getSelectionModel();
 		CommonSpreadSheet spreadSheet=(CommonSpreadSheet)selectionModel.getTable();
-		CommonSpreadSheetModel model=(CommonSpreadSheetModel)spreadSheet.getModel();
 		
 		int[] rows=spreadSheet.getSelectedRows();
 		List<Node> nodes=new ArrayList<>(rows.length);
 		Node currentNode = null;
 		int selectedRow = spreadSheet.getSelectedRow();
 		for (int i=0;i<rows.length;i++){
-		    if (rows[i] < 0 || rows[i] >= model.getRowCount()) {
+		    int viewRow = rows[i];
+		    Node node = spreadSheet.getNodeAtViewRow(viewRow);
+		    if (node == null) {
 		    	continue;
 		    }
-		    var graphicNode = model.getNode(rows[i]);
-		    if (graphicNode == null || graphicNode.getNode() == null) {
-		    	continue;
-		    }
-		    nodes.add(graphicNode.getNode());
-		    if (selectedRow == rows[i])		// also set current row
-		    	currentNode = graphicNode.getNode();
+		    nodes.add(node);
+		    if (selectedRow == viewRow)		// also set current row
+				currentNode = node;
 		    //filter void nodes?
 		}
 
