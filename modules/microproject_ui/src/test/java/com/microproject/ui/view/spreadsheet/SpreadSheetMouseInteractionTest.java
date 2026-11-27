@@ -253,6 +253,43 @@ class SpreadSheetMouseInteractionTest {
 	}
 
 	@Test
+	void doubleClickingAHeaderBoundaryFitsTheColumnToItsContent() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			Fixture fixture = createFixture();
+			RecordingSpreadSheet sheet = fixture.sheet();
+			int column = findNameColumn(sheet);
+			var tableColumn = sheet.getColumnModel().getColumn(column);
+			tableColumn.setPreferredWidth(20);
+			tableColumn.setWidth(20);
+			Rectangle bounds = sheet.getTableHeader().getHeaderRect(column);
+			int boundary = bounds.x + bounds.width;
+
+			// The first click of the double-click is part of the resize gesture,
+			// so it must not select the column under the boundary.
+			sheet.getTableHeader().dispatchEvent(headerBoundaryClick(sheet, boundary, 1));
+			assertFalse(sheet.isColumnFullySelected(column));
+			assertEquals(20, tableColumn.getWidth());
+
+			sheet.getTableHeader().dispatchEvent(headerBoundaryClick(sheet, boundary, 2));
+
+			int contentWidth = 0;
+			for (int row = 0; row < sheet.getRowCount(); row++)
+				contentWidth = Math.max(contentWidth, sheet.prepareRenderer(
+					sheet.getCellRenderer(row, column), row, column).getPreferredSize().width);
+			assertTrue(tableColumn.getWidth() >= contentWidth,
+				"the fitted width must show the widest cell: " + tableColumn.getWidth() + " < " + contentWidth);
+			assertEquals(tableColumn.getWidth(), tableColumn.getPreferredWidth());
+			assertFalse(sheet.isColumnFullySelected(column));
+			SpreadSheetColumnModel columns = (SpreadSheetColumnModel) sheet.getColumnModel();
+			assertTrue(columns.isWidthManuallyAdjusted(((Field) tableColumn.getIdentifier()).getId()),
+				"a fitted width is the user's width and must persist like a dragged one");
+
+			int fitted = tableColumn.getWidth();
+			sheet.getTableHeader().dispatchEvent(headerBoundaryClick(sheet, boundary - 20 + fitted, 2));
+			assertEquals(fitted, tableColumn.getWidth(), "fitting an already fitted column keeps its width");
+		});
+	}
+	@Test
 	void rowHeaderPopupDelegatesToTheTaskTablePopupPath() throws Exception {
 		SwingUtilities.invokeAndWait(() -> {
 			Fixture fixture = createFixture();
@@ -949,6 +986,12 @@ class SpreadSheetMouseInteractionTest {
 			1, true, MouseEvent.BUTTON3);
 	}
 
+	private MouseEvent headerBoundaryClick(SpreadSheet sheet, int x, int clickCount) {
+		return new MouseEvent(sheet.getTableHeader(), MouseEvent.MOUSE_CLICKED,
+			System.currentTimeMillis(), MouseEvent.BUTTON1_DOWN_MASK,
+			x, Math.max(1, sheet.getTableHeader().getHeaderRect(0).height / 2),
+			clickCount, false, MouseEvent.BUTTON1);
+	}
 	private MouseEvent headerClick(SpreadSheet sheet, int column) {
 		Rectangle bounds = sheet.getTableHeader().getHeaderRect(column);
 		return new MouseEvent(sheet.getTableHeader(), MouseEvent.MOUSE_CLICKED,

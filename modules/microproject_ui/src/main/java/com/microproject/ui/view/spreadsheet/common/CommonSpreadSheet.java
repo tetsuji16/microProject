@@ -591,8 +591,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 	 * must use the visible active coordinate instead of that incidental lead.
 	 */
 	private boolean moveActiveCellWithArrowKey(KeyEvent event) {
-		if (headerColumnSelectionActive || event.isShiftDown() || event.isControlDown()
-				|| event.isMetaDown() || event.isAltDown() || !hasSelectionModel())
+		if (headerColumnSelectionActive || event.isMetaDown() || event.isAltDown() || !hasSelectionModel())
 			return false;
 		int row = getSelection().getActiveRow();
 		int column = getSelection().getActiveColumn();
@@ -600,11 +599,42 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 			return false;
 		int targetRow = row;
 		int targetColumn = column;
+		boolean shift = event.isShiftDown();
+		boolean control = event.isControlDown();
 		switch (event.getKeyCode()) {
-		case KeyEvent.VK_LEFT -> targetColumn--;
-		case KeyEvent.VK_RIGHT -> targetColumn++;
-		case KeyEvent.VK_UP -> targetRow--;
-		case KeyEvent.VK_DOWN -> targetRow++;
+		case KeyEvent.VK_LEFT, KeyEvent.VK_RIGHT, KeyEvent.VK_UP, KeyEvent.VK_DOWN -> {
+			if (shift || control)
+				return false;
+			switch (event.getKeyCode()) {
+			case KeyEvent.VK_LEFT -> targetColumn--;
+			case KeyEvent.VK_RIGHT -> targetColumn++;
+			case KeyEvent.VK_UP -> targetRow--;
+			default -> targetRow++;
+			}
+		}
+		// Microsoft Project: Tab / Shift+Tab move one field right / left.
+		case KeyEvent.VK_TAB -> {
+			if (control)
+				return false;
+			targetColumn += shift ? -1 : 1;
+		}
+		// Microsoft Project: Home / End move to the first / last field of the
+		// row; Ctrl+Home / Ctrl+End move to the first field of the first row and
+		// the last field of the last task row.
+		case KeyEvent.VK_HOME -> {
+			if (shift)
+				return false;
+			targetColumn = 0;
+			if (control)
+				targetRow = 0;
+		}
+		case KeyEvent.VK_END -> {
+			if (shift)
+				return false;
+			targetColumn = getColumnCount() - 1;
+			if (control)
+				targetRow = Math.max(0, lastNavigableRow());
+		}
 		default -> {
 			return false;
 		}
@@ -616,6 +646,14 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		return true;
 	}
 
+
+	/**
+	 * The last row Ctrl+End moves to.  Sheets with trailing blank rows override
+	 * this to stop at the last real row, as Microsoft Project does.
+	 */
+	protected int lastNavigableRow() {
+		return getRowCount() - 1;
+	}
 
 	@Override
 	protected void processInputMethodEvent(InputMethodEvent e) {
