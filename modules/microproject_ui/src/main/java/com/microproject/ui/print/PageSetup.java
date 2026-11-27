@@ -1030,7 +1030,7 @@ public class PageSetup{
 		return paperPanel("8dlu, p:grow, p:grow, 8dlu", "p, 3dlu:grow,p, 2dlu", 2, createPaperSizePanel());
 	}
 	private JComponent createFlowPaperPanel(){
-		return paperPanel("1dlu, p:grow, p:grow, p:grow, 1dlu", "p, 3dlu:grow, 2dlu", 3, createFlowPaperSizePanel());
+		return paperPanel("1dlu, p:grow, p:grow, p:grow, 1dlu", "p, 3dlu:grow, 2dlu", 3, createPaperSizePanel());
 	}
 	private JComponent paperPanel(String columns, String rows, int sizeSpan, JComponent sizePanel){
 		FormLayout layout = new FormLayout(columns, rows);
@@ -1043,13 +1043,7 @@ public class PageSetup{
 		return panel;
 	}
 	private JComponent createPaperSizePanel(){
-		return paperSizePanel("p, 3dlu, p");
-	}
-	private JComponent createFlowPaperSizePanel(){
-		return paperSizePanel("p, 3dlu, p");
-	}
-	private JComponent paperSizePanel(String columns){
-		FormLayout layout = new FormLayout(columns,"p, 3dlu, p, 3dlu, p");
+		FormLayout layout = new FormLayout("p:grow, 3dlu, p","p, 3dlu, p, 3dlu, p");
 		DefaultFormBuilder builder = new DefaultFormBuilder(layout);
 		CellConstraints cc = new CellConstraints();
 		builder.add(paperSize,cc.xyw(1, 1, 3));
