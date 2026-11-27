@@ -293,8 +293,13 @@ public class DocumentFrame extends NamedFrame implements
 	}
 
 	private void setMainView(boolean activate) {
-		if (mainView != null)
-			remove(mainView); // any previous
+		// The previous main view lives inside the previous inspector split. Remove that split:
+		// BorderLayout keeps only the newest CENTER child in layout, so a stale split would stay
+		// at its old bounds, paint first-index on top, and cover the document with gray (#1447).
+		if (taskInspectorSplit != null)
+			remove(taskInspectorSplit);
+		else if (mainView != null)
+			remove(mainView);
 		mainView = new MainView();
 		mainView.setDividerDoubleClickHandler(this::deactivateBottomView);
 		mainView.setBorder(null);
