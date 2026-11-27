@@ -6565,6 +6565,13 @@ class TaskInformationRibbonGuiAcceptanceTest {
 			frame.getMainView().setDividerLocation(savedMainDivider == 100 ? 200 : 100);
 			frame.restoreWorkspace(savedWorkspace.get(), 0);
 		});
+		java.util.concurrent.atomic.AtomicReference<List<Component>> restoredSplits = new java.util.concurrent.atomic.AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> restoredSplits.set(java.util.Arrays.stream(frame.getComponents())
+			.filter(JSplitPane.class::isInstance).toList()));
+		assertEquals(List.of(frame.getTaskInspectorSplit()), restoredSplits.get(),
+			"workspace restore must replace the previous inspector split instead of leaving a stale opaque copy on top (#1447)");
+		assertSame(frame.getTaskInspectorSplit(), frame.getMainView().getParent(),
+			"the restored main view must sit in the frame's only inspector split");
 		ChartView restoredGraph = frame.getActiveResourceGraphView();
 		assertSame(graph, restoredGraph, "workspace restore must keep the active Resource Graph view attached");
 		assertEquals(0, restoredGraph.getResourceGraphSettings().getPercentBarOverlap(),
