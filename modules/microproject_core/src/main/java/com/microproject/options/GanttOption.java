@@ -23,32 +23,56 @@
  *******************************************************************************/
 package com.microproject.options;
 
+/**
+ * Gantt chart display options.
+ * This class manages the contiguous completion bar rendering setting.
+ * <p>
+ * The class follows a singleton pattern via {@link #getInstance()}, but the public constructor
+ * allows creating independent instances for testing or isolated configurations.
+ * </p>
+ */
 public class GanttOption {
 	private static GanttOption instance = null;
+
+	/**
+	 * Returns the shared singleton instance. Creates it on first call.
+	 *
+	 * @return the singleton instance
+	 */
 	public static GanttOption getInstance() {
 		if (instance == null)
 			instance = new GanttOption();
 		return instance;
 	}
-	
-	// when there are multiple assignments, it is possible that the % complete falls on a non working time. 
-	// if completionIsContiguous=true, then the bar is drawn on all off times. Otherwise it may be hidden.
+
+	/** Whether completion bars are drawn contiguously across non-working time (default false). */
 	private boolean completionIsContiguous = false;
 
 	/**
-	 * 
+	 * Creates a new instance with default values. This constructor is public to allow
+	 * independent instances for testing or isolated configurations, separate from the
+	 * singleton returned by {@link #getInstance()}.
 	 */
 	public GanttOption() {
 		super();
 	}
 
+	/**
+	 * Returns whether completion bars are drawn contiguously across non-working time.
+	 *
+	 * @return true if completion bars are contiguous, false otherwise
+	 */
 	public final boolean isCompletionIsContiguous() {
 		return completionIsContiguous;
 	}
 
+	/**
+	 * Sets whether completion bars are drawn contiguously across non-working time.
+	 *
+	 * @param completionIsContiguous true to draw bars contiguously, false to hide on non-working time
+	 */
 	public final void setCompletionIsContiguous(boolean completionIsContiguous) {
 		this.completionIsContiguous = completionIsContiguous;
 	}
-	
 
 }
