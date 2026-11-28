@@ -30,8 +30,6 @@ import java.util.Locale;
 
 import org.apache.commons.lang3.time.DateUtils;
 
-import com.microproject.timescale.CalendarUtil;
-
 
 public class TimeIntervals implements Serializable,Cloneable{
 	static final long serialVersionUID = 18828392223063L;
@@ -269,22 +267,55 @@ public class TimeIntervals implements Serializable,Cloneable{
 	private static void floorCal(int scale,Calendar c){
 		switch (scale) {
 		case TimeIntervals.DAY:
-			CalendarUtil.dayFloor(c);
+			dayFloor(c);
 			break;
 		case TimeIntervals.WEEK:
-			CalendarUtil.weekFloor(c);
+			weekFloor(c);
 			break;
 		case TimeIntervals.MONTH:
-			CalendarUtil.monthFloor(c);
+			monthFloor(c);
 			break;
 		case TimeIntervals.QUARTER:
-			CalendarUtil.monthFloor(c);
+			monthFloor(c);
 			c.set(Calendar.MONTH,(c.get(Calendar.MONTH)/3)*3);
 			break;
 		case TimeIntervals.YEAR:
-			CalendarUtil.yearFloor(c);
+			yearFloor(c);
 			break;
 		}
+	}
+
+	private static void dayFloor(Calendar c) {
+		c.set(Calendar.HOUR_OF_DAY, 0);
+		c.set(Calendar.MINUTE, 0);
+		c.set(Calendar.SECOND, 0);
+		c.set(Calendar.MILLISECOND, 0);
+	}
+
+	private static void weekFloor(Calendar c) {
+		int year = c.get(Calendar.YEAR);
+		int dayOfYear = c.get(Calendar.DAY_OF_YEAR);
+		int dayOfWeek = c.get(Calendar.DAY_OF_WEEK);
+		int firstDay = c.getFirstDayOfWeek();
+		int offset = dayOfWeek - firstDay;
+		if (offset > 0) dayOfYear -= offset;
+		else if (offset < 0) dayOfYear -= 7 + offset;
+		boolean lenient = c.isLenient();
+		c.clear();
+		if (!lenient) c.setLenient(true);
+		c.set(Calendar.YEAR, year);
+		c.set(Calendar.DAY_OF_YEAR, dayOfYear);
+		if (!lenient) c.setLenient(false);
+	}
+
+	private static void monthFloor(Calendar c) {
+		dayFloor(c);
+		c.set(Calendar.DAY_OF_MONTH, 1);
+	}
+
+	private static void yearFloor(Calendar c) {
+		monthFloor(c);
+		c.set(Calendar.MONTH, Calendar.JANUARY);
 	}
 
 

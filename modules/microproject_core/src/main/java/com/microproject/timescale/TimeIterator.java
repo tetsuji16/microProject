@@ -23,21 +23,16 @@
  *******************************************************************************/
 package com.microproject.timescale;
 
-import java.util.Calendar;
-
 import com.microproject.model.time.HasStartAndEnd;
-import com.microproject.util.DateTime;
 
 /**
  *
  */
 public class TimeIterator implements HasStartAndEnd {
-	//protected int calendarField=Calendar.DAY_OF_WEEK;
-	//protected int calendarIncrement=1;
 	protected long startTime;
 	protected long endTime;
-	protected Calendar calendar1;
-	protected Calendar calendar2;
+	protected long calendar1;
+	protected long calendar2;
 	protected TimeScale scale;
 	private boolean hasNext=true;
 	private long next2=-1;
@@ -67,30 +62,12 @@ public class TimeIterator implements HasStartAndEnd {
 		this.scale=scale;
 		
 		if (useLargeScale){
-			calendar2=DateTime.calendarInstance();
-			
-			calendar2.setTimeInMillis(s);
-			if (startRef==-1) scale.floor2(calendar2);
-			else{
-				scale.floor2(calendar2,startRef);
-			}
-			
-			this.startTime=calendar2.getTimeInMillis();
+			calendar2=scale.floor2(s);
+			this.startTime=calendar2;
 		}else{
-			calendar1=DateTime.calendarInstance();
-			
-			calendar1.setTimeInMillis(s);
-			if (startRef==-1) scale.floor1(calendar1);
-			else{
-				scale.floor1(calendar1,startRef);
-			}
-
-			calendar2=DateTime.calendarInstance();
-			calendar2.setTimeInMillis(s);
-			
-			scale.floor2(calendar2,startRef);
-			
-			this.startTime=calendar1.getTimeInMillis();
+			calendar1=scale.floor1(s);
+			calendar2=scale.floor2(s);
+			this.startTime=calendar1;
 		}
 	}
 	public TimeIterator(double startTime, double endTime,TimeScale scale,long startReference) {
@@ -105,17 +82,17 @@ public class TimeIterator implements HasStartAndEnd {
 	public TimeInterval next(){
 		if (!hasNext) return null;
 		if (useLargeScale){
-			long begin2=calendar2.getTimeInMillis();
-			scale.increment2(calendar2);
-			long end2=calendar2.getTimeInMillis();
+			long begin2=calendar2;
+			calendar2=scale.increment2(calendar2);
+			long end2=calendar2;
 			if (end2>=endTime) hasNext=false;
 			String text2=scale.getText2(begin2);
 			
 			return new TimeInterval(begin2,end2,text2,-1L,-1L,null);
 		}else{
-			long begin1=calendar1.getTimeInMillis();
-			scale.increment1(calendar1);
-			long end1=calendar1.getTimeInMillis();
+			long begin1=calendar1;
+			calendar1=scale.increment1(calendar1);
+			long end1=calendar1;
 			if (end1>=endTime) hasNext=false;
 			String text1=scale.getText1(begin1);
 			
@@ -123,9 +100,9 @@ public class TimeIterator implements HasStartAndEnd {
 			long end2=-1;
 			String text2=null;
 			if (next2==-1||begin1>=next2){
-				begin2=calendar2.getTimeInMillis();
-				scale.increment2(calendar2);
-				end2=calendar2.getTimeInMillis();
+				begin2=calendar2;
+				calendar2=scale.increment2(calendar2);
+				end2=calendar2;
 				next2=end2;
 				text2=scale.getText2(begin2);
 			}
