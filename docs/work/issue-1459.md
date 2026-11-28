@@ -23,19 +23,20 @@ Blockers: none; #1437 approval is recorded and #1459 has no blocked-by issue.
 | A4 | Resource class-name references remain unchanged | pass | `17a8870c`; both `git grep -nF` checks found the expected XML and properties references; resource diff empty |
 | A5 | Core tests pass | pass | `17a8870c`; `:microproject_core:test`: 1510 tests, 0 failures, 2 skipped |
 | A6 | `git diff --check` is clean | pass | `17a8870c`; `git diff --check`: no output |
+| A7 | PR build and GUI acceptance pass | pass | PR #1491 checks passed on `5eb10d91b197cd413dd1827c5b940625f5f4c443` |
 
 ## Current slice
 
-**Next slice:** stage the eight source files and this packet, review the staged diff, commit and open the PR.
-**Done when:** the checklist passes, the PR is created, and required CI passes on its head SHA.
-**Then:** record CI evidence and report completion; do not merge.
+**Next slice:** record the final PR body/check result and report the completed issue work.
+**Done when:** the checklist passes, the PR exists, and required checks pass on the tested source SHA.
+**Then:** leave the PR open for maintainer review and merge.
 
 ## Remaining blockers
 
-- Required PR `build` and `GUI acceptance` checks are pending.
+- None; PR #1491 remains open for review and merge.
 
 ## Latest evidence
 
 - Tests/build: SHA `17a8870c`; `.\gradlew.bat :microproject_core:test --tests "com.microproject.field.*" --console=plain` → BUILD SUCCESSFUL, 36 tests, 0 failures, 0 skipped; `.\gradlew.bat :microproject_core:test --console=plain` → BUILD SUCCESSFUL, 1510 tests, 0 failures, 2 skipped.
 - Physical GUI/manual: not applicable; no user-visible route changes.
-- CI: pending on PR candidate SHA.
+- CI: PR #1491 at `5eb10d91b197cd413dd1827c5b940625f5f4c443`: `build`, `GUI acceptance`, `checklist`, and Linux/macOS/Windows checks passed. CodeRabbit supplied only the automatic skip-review notice; no reviews were submitted. The later PR body/packet edits do not change source, tests, or dependencies.
