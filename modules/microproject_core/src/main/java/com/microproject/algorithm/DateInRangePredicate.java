@@ -23,7 +23,6 @@
  *******************************************************************************/
 package com.microproject.algorithm;
 
-import java.time.Instant;
 import java.util.function.Predicate;
 
 import com.microproject.model.time.HasStartAndEnd;
@@ -74,7 +73,7 @@ public class DateInRangePredicate implements Predicate<Object>, HasStartAndEnd {
 	}
 	
 	public String toString() {
-		return Instant.ofEpochMilli(start) + " " + Instant.ofEpochMilli(end);
+		return new java.util.Date(start) + " " + new java.util.Date(end);
 	}
 
 }
