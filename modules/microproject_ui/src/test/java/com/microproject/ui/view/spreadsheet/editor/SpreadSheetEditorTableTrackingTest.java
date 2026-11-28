@@ -7,6 +7,7 @@ package com.microproject.ui.view.spreadsheet.editor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Font;
@@ -63,6 +64,32 @@ class SpreadSheetEditorTableTrackingTest {
 
 			assertFalse(a.isEditing(), "the non-name editor in the previous table must be stopped");
 			assertTrue(b.isEditing());
+		});
+	}
+
+	@Test
+	void cleaningTrackedTableReleasesItBeforeAnotherTableBeginsEditing() throws Exception {
+		SwingUtilities.invokeAndWait(() -> {
+			SpreadSheetCellEditorAdapter.trackEditingTable(null);
+			SpreadSheet closed = sheet("closed");
+			SpreadSheet recovered = sheet("recovered");
+			try {
+				closed.setRowSelectionInterval(0, 0);
+				assertEquals(0, closed.getSelectedRow());
+				SpreadSheetCellEditorAdapter.trackEditingTable(closed);
+
+				closed.cleanUp();
+				SpreadSheetCellEditorAdapter.trackEditingTable(recovered);
+
+				assertEquals(0, closed.getSelectedRow(),
+					"a cleaned-up table must not receive selection changes when another table starts editing");
+				assertSame(recovered, SpreadSheetCellEditorAdapter.lastTable(),
+					"the new editing table remains the sole tracked table");
+			} finally {
+				SpreadSheetCellEditorAdapter.trackEditingTable(null);
+				closed.cleanUp();
+				recovered.cleanUp();
+			}
 		});
 	}
 
