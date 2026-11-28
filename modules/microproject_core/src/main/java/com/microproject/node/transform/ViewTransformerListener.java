@@ -26,8 +26,13 @@ package com.microproject.node.transform;
 import java.util.EventListener;
 
 /**
+ * Listener for {@link ViewTransformerEvent} notifications.
  *
+ * <p>Listeners are registered with {@link ViewTransformer#addViewTransformerListener}, are notified
+ * with a synchronized snapshot of the current listener array, and are removed after the event that
+ * removes them. Implementations therefore treat {@link #transformerChanged(ViewTransformerEvent)}
+ * as a notification only and never rely on being called again.
  */
-public interface ViewTransformerListener extends EventListener{
-     public void transformerChanged(ViewTransformerEvent e);
+public interface ViewTransformerListener extends EventListener {
+	void transformerChanged(ViewTransformerEvent e);
 }
