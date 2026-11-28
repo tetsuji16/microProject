@@ -24,9 +24,12 @@
 package com.microproject.configuration;
 
 /**
- * Interface for dictionary entries that have a name
+ * Supplies the name and category used to register configuration dictionary entries.
  */
 public interface NamedItem {
-	public String getName();
-	public String getCategory();
+	/** @return entry name used by the configuration registry */
+	String getName();
+
+	/** @return category key used to group the entry */
+	String getCategory();
 }
