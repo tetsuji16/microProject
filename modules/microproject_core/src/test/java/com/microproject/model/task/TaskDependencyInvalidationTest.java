@@ -26,6 +26,7 @@ package com.microproject.model.task;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,6 +40,7 @@ import com.microproject.node.Node;
 import com.microproject.node.NodeFactory;
 import com.microproject.node.model.NodeModel;
 import com.microproject.undo.DataFactoryUndoController;
+import com.microproject.schedule.criticalpath.CriticalPath;
 
 class TaskDependencyInvalidationTest {
 	@Test
@@ -122,6 +124,80 @@ class TaskDependencyInvalidationTest {
 		project.getUndoController().undo();
 		assertEquals(projectEndBefore, project.getEnd(), "undo must restore the project boundary before the link");
 		assertEquals(independentLateFinishBefore, independent.getLateFinish(), "undo must restore the independent task's late date");
+	}
+
+	@Test
+	void deferredLateDateReadKeepsProjectBoundaryExtrema() throws Exception {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("late date extrema", undoController), undoController);
+		project.initialize(false, false);
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		NormalTask first = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		NormalTask second = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		NormalTask third = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		first.setDuration(day);
+		second.setDuration(day);
+		third.setDuration(day);
+		DependencyService.getInstance().newDependency(first, second, DependencyType.FS, 0L, this);
+		DependencyService.getInstance().newDependency(second, third, DependencyType.FS, 0L, this);
+		project.recalculate();
+
+		long earliestBeforeLateDateRead = project.getEarliestStartingTaskOrStart();
+		long latestBeforeLateDateRead = project.getLatestFinishingTask();
+		first.getLateStart();
+
+		assertEquals(earliestBeforeLateDateRead, project.getEarliestStartingTaskOrStart(),
+				"the deferred backward pass must not change the project earliest task boundary");
+		assertEquals(latestBeforeLateDateRead, project.getLatestFinishingTask(),
+				"the deferred backward pass must not change the project latest task boundary");
+	}
+
+	@Test
+	void sequentialDependenciesDeferBackwardPassUntilLateDateIsRead() throws Exception {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("deferred late dates", undoController), undoController);
+		project.initialize(false, false);
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		List<NormalTask> tasks = new ArrayList<>();
+		for (int i = 0; i < 8; i++) {
+			NormalTask task = (NormalTask) project.createLocalTaskNode(null).getImpl();
+			task.setDuration(day);
+			tasks.add(task);
+		}
+		project.recalculate();
+		assertEquals(0L, project.getTaskList().stream().filter(Task::isReverseScheduled).count(),
+			"the counter fixture must exercise a project without reverse-scheduled tasks");
+
+		for (int i = 1; i < tasks.size(); i++) {
+			DependencyService.getInstance().newDependency(tasks.get(i - 1), tasks.get(i), DependencyType.FS, 0L, this);
+			assertEquals(1, currentCalculationPass(project),
+				"each dependency addition without a late-date read must leave the backward pass pending");
+		}
+
+		NormalTask first = tasks.get(0);
+		long lateStart = first.getLateStart();
+		assertEquals(2, currentCalculationPass(project),
+			"the first late-date read must perform one deferred backward pass");
+		assertEquals(lateStart, first.getLateStart());
+		first.getLateFinish();
+		first.getTotalSlack();
+		first.getFreeSlack();
+		assertEquals(2, currentCalculationPass(project),
+			"subsequent late-date and slack reads must not repeat the backward pass");
+		long totalSlack = first.getTotalSlack();
+		long freeSlack = first.getFreeSlack();
+		project.recalculate();
+		assertEquals(totalSlack, first.getTotalSlack(), "total slack must match the full recalculation result");
+		assertEquals(freeSlack, first.getFreeSlack(), "free slack must match the full recalculation result");
+	}
+
+	private int currentCalculationPass(Project project) throws ReflectiveOperationException {
+		Field contextField = CriticalPath.class.getDeclaredField("context");
+		contextField.setAccessible(true);
+		Object context = contextField.get(project.getSchedulingAlgorithm());
+		Field passField = context.getClass().getDeclaredField("pass");
+		passField.setAccessible(true);
+		return passField.getInt(context);
 	}
 
 	@Test

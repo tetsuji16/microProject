@@ -85,6 +85,15 @@ public class CriticalPath implements SchedulingAlgorithm {
 	long earliestStart;
 	long latestFinish;
 	private boolean criticalPathJustChanged = false;
+	private volatile boolean lateDatesDirty;
+	private boolean calculationInProgress;
+	private boolean lateDateAffectsCriticalPath;
+	private boolean lateDateHasReverseScheduledTasks;
+	private long lateDateFirstBoundary;
+	private Task lateDateBeginSentinel;
+	private Task lateDateEndSentinel;
+	private Task lateDateStartTask;
+	private TaskSchedule.Kind lateDateAssignedScheduleType;
 	private static Task traceTask;
 	TaskSchedule.CalculationContext context;
 	private static CriticalPath lastInstance;
@@ -187,14 +196,20 @@ public class CriticalPath implements SchedulingAlgorithm {
 	 * 3) The CP is modified and the project has ALAP tasks.  In which case, after both forward and backward passes are perfomed, a third pass sets current dates
 	 * @param startTask
 	 */
-	private void fastCalc(Task startTask) {
+	private synchronized void fastCalc(Task startTask) {
+		boolean previousCalculationState = calculationInProgress;
+		calculationInProgress = true;
 		try (CalendarDefinition.AddCacheScope _ = CalendarDefinition.beginAddCacheScope()) {
 			fastCalcInAddCacheScope(startTask);
+		} finally {
+			calculationInProgress = previousCalculationState;
 		}
 	}
 
 	private void fastCalcInAddCacheScope(Task startTask) {
 		lastInstance =this;
+		if (!isForward())
+			lateDatesDirty = false;
 		Task beginSentinel = getBeginSentinel(isForward());
 		Task endSentinel = getEndSentinel(isForward());
 
@@ -221,6 +236,23 @@ public class CriticalPath implements SchedulingAlgorithm {
 		context.pass = 1;
 		criticalPathJustChanged = affectsCriticalPath;
 		doPass(startTask,context); // always assign in first pass.  Dates may change in third pass
+		// Reverse-scheduled tasks need late bounds to produce their forward dates.
+		if (isForward() && !hasReverseScheduledTasks) {
+			lateDatesDirty = true;
+			lateDateAffectsCriticalPath = affectsCriticalPath;
+			lateDateHasReverseScheduledTasks = hasReverseScheduledTasks;
+			lateDateFirstBoundary = firstBoundary;
+			lateDateBeginSentinel = beginSentinel;
+			lateDateEndSentinel = endSentinel;
+			lateDateStartTask = startTask;
+			lateDateAssignedScheduleType = assignedScheduleType;
+			project.setStart(startSentinel.getEarlyStart());
+			project.setEnd(finishSentinel.getEarlyFinish());
+			if (startTask != beginSentinel)
+				refreshEarliestAndLatest(assignedScheduleType);
+			getFreshCalculationStateCount();
+			return;
+		}
 		
 		// A localized forward pass moves the task's own late dates and its predecessors' late finishes even off the critical path.
 		{
@@ -257,7 +289,59 @@ public class CriticalPath implements SchedulingAlgorithm {
 		}
 		if (startTask != beginSentinel)
 			refreshEarliestAndLatest(assignedScheduleType); // a localized pass only widens the extrema
+		lateDatesDirty = false;
 		getFreshCalculationStateCount(); // For next time;
+	}
+
+	/** Recomputes deferred late dates on the first observable late-date read. */
+	public synchronized void ensureLateDatesCurrent() {
+		if (!lateDatesDirty || calculationInProgress || suspendUpdates || context == null || lateDateBeginSentinel == null)
+			return;
+		calculationInProgress = true;
+		try (CalendarDefinition.AddCacheScope _ = CalendarDefinition.beginAddCacheScope()) {
+			lateDatesDirty = false;
+			project.markAllTasksAsNeedingRecalculation(false);
+			context.stateCount = getNextCalculationStateCount();
+			startSentinel.setCalculationStateCount(context.stateCount);
+			finishSentinel.setCalculationStateCount(context.stateCount);
+			for (Object taskObject : project.getTaskList())
+				((Task) taskObject).getLateSchedule().invalidate();
+			startSentinel.getLateSchedule().invalidate();
+			finishSentinel.getLateSchedule().invalidate();
+			context.sentinel = lateDateEndSentinel;
+			long secondBoundary = -lateDateEndSentinel.getSchedule(context.scheduleType).getBegin();
+			context.boundary = secondBoundary;
+			context.sentinel = lateDateBeginSentinel;
+			context.sentinelDependencyIndex = sentinelDependencyIndex(lateDateBeginSentinel);
+			context.forward = !context.forward;
+			context.assign = false;
+			context.scheduleType = context.scheduleType.opposite();
+			context.pass++;
+			doPass(null, context);
+
+			if (lateDateAffectsCriticalPath && lateDateHasReverseScheduledTasks) {
+				context.stateCount = getNextCalculationStateCount();
+				context.forward = !context.forward;
+				context.boundary = lateDateFirstBoundary;
+				context.sentinel = lateDateEndSentinel;
+				context.sentinelDependencyIndex = sentinelDependencyIndex(lateDateEndSentinel);
+				context.earlyOnly = false;
+				context.assign = true;
+				context.scheduleType = context.scheduleType.opposite();
+				context.pass++;
+				doPass(null, context);
+			}
+
+			project.setStart(startSentinel.getEarlyStart());
+			project.setEnd(finishSentinel.getEarlyFinish());
+			refreshEarliestAndLatest(lateDateAssignedScheduleType);
+			getFreshCalculationStateCount();
+		} catch (RuntimeException | Error failure) {
+			lateDatesDirty = true;
+			throw failure;
+		} finally {
+			calculationInProgress = false;
+		}
 	}
 	/**
 	 * Recomputes the project extrema from the current schedules of every task, exactly as a
@@ -330,6 +414,7 @@ public class CriticalPath implements SchedulingAlgorithm {
 	private void _calculate(boolean update, Task task) {
 		long t = System.currentTimeMillis();
 		if (predecessorTaskList.getList().size() < 3) {// if no tasks, nothing to calculate.  This is needed to avoid a null pointer execption because of sentinels not having any preds/succs
+			lateDatesDirty = false;
 			if (isForward())
 				project.setEnd(project.getStartConstraint());
 			else
@@ -637,6 +722,8 @@ public class CriticalPath implements SchedulingAlgorithm {
 			}
 			calculate(true,startTask);
 		} else {
+			if (isForward())
+				lateDatesDirty = true;
 			if (!suspendUpdates) {
 				deferredCalculationTask = null;
 				deferredFullCalculation = false;
