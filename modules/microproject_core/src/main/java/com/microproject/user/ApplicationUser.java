@@ -27,47 +27,72 @@ package com.microproject.user;
  * Information about the person running the application
  */
 public interface ApplicationUser {
+	/** Milliseconds of inactivity after which the user is considered idle. */
 	public static final long MAX_IDLE_TIME=3600000L;
+	/** Idle timeout for a user that never becomes idle. */
 	public static final long INFINITE_IDLE_TIME=Long.MAX_VALUE;
 
 	//roles
-	//public static final int INTERNAL = 4;
+	/** Role of a user who works on tasks. */
 	public static final int TEAM_MEMBER = 8;
+	/** Role of a user who manages the project. */
 	public static final int PROJECT_MANAGER = 16;
+	/** Role of a resource of the project, used instead of {@link #TEAM_MEMBER} for resources. */
 	public static final int TEAM_RESOURCE = 32;
 
 	//licenses
+	/** License of a user who may not work on projects. */
 	public static final int INACTIVE = 0;
+	/** License of a user with the full feature set. */
 	public static final int POWER_USER = 1;
+	/** License of a user with the reduced feature set. */
 	public static final int LITE_USER = 2;
 	//options
+	/** Option marking a user as an application administrator. */
 	public static final int ADMINISTRATOR = 1;
+	/** License option marking a user as external to the organization. */
 	public static final int EXTERNAL = 2; //license option
-	
-//	public static final int PORTFOLIO_MANANGER = 13;
-//	public static final int RESOURCE_MANANGER = 14;
-//	public static final int TEAM_LEAD = 7;
-//	public static final int EXECUTIVE = 8;
-//	public static final int HUMAN_RESOURCES = 9;
-//	public static final int SUBSCRIBER = 10;
-//	public static final int SUBCONTRACTOR = 12; // no costs
 
+	/** Name of the administrator role. */
 	public static final String ADMINISTRATOR_NAME = "Administrator";
+	/** Name of the {@link #TEAM_MEMBER} role. */
 	public static final String TEAM_MEMBER_NAME = "TeamMember";
+	/** Name of the {@link #PROJECT_MANAGER} role. */
 	public static final String PROJECT_MANAGER_NAME = "ProjectManager";
+	/** Name of an internal user. */
 	public static final String INTERNAL_NAME = "Internal";
 
+	/** Name of the {@link #LITE_USER} license. */
 	public static final String LITE_USER_NAME = "LiteUser";
+	/** Name of the {@link #POWER_USER} license. */
 	public static final String POWER_USER_NAME = "PowerUser";
-	
+
+	/** Name of an external user. */
 	public static final String EXTERNAL_NAME = "External";
 
+	/**
+	 * @return true when the user may change application settings
+	 */
 	boolean isAdministrator();
+
+	/**
+	 * @return true when the user is external to the organization
+	 */
 	boolean isExternal();
 
+	/**
+	 * @return identifier of the user, unique within the application
+	 */
 	long getUniqueId();
 
+	/**
+	 * @return identifier of the resource that represents this user, or 0 when
+	 *         the user is not a project resource
+	 */
 	long getResourceId();
 
+	/**
+	 * @return display name of the user
+	 */
 	String getName();
 }
