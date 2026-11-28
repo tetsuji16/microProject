@@ -26,33 +26,42 @@ package com.microproject.configuration;
 import com.microproject.i18n.Messages;
 
 /**
- * Exception thrown if the user tries to make a circular link
+ * Checked exception thrown when an imported or linked project introduces a circular dependency.
  */
 public class CircularDependencyException extends Exception {
 	private static final long serialVersionUID = -5477943199083401004L;
 
+	/** Localized message used when a circular project link is reported to the user. */
 	public static final String RUNTIME_EXCEPTION_TEXT = Messages.getString("Message.importCircularLink");
+
+	/** Creates the exception without a message or cause. */
 	public CircularDependencyException() {
 		super();
 	}
 
 	/**
-	 * @param arg0
+	 * Creates the exception with a detail message.
+	 *
+	 * @param arg0 detail message
 	 */
 	public CircularDependencyException(String arg0) {
 		super(arg0);
 	}
 
 	/**
-	 * @param arg0
+	 * Creates the exception with a cause and its derived detail message.
+	 *
+	 * @param arg0 cause of the circular dependency failure
 	 */
 	public CircularDependencyException(Throwable arg0) {
 		super(arg0);
 	}
 
 	/**
-	 * @param arg0
-	 * @param arg1
+	 * Creates the exception with a detail message and cause.
+	 *
+	 * @param arg0 detail message
+	 * @param arg1 cause of the circular dependency failure
 	 */
 	public CircularDependencyException(String arg0, Throwable arg1) {
 		super(arg0, arg1);
