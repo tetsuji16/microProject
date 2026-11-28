@@ -23,75 +23,78 @@
  *******************************************************************************/
 package com.microproject.timescale;
 
-import java.text.DateFormat;
-import java.text.DateFormatSymbols;
-import java.text.FieldPosition;
-import java.text.ParsePosition;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 import com.microproject.i18n.Messages;
 
-public class ExtendedDateFormat extends SimpleDateFormat {
-	private static final long serialVersionUID = -4920293891910018650L;
+/**
+ * Formats GMT-read milliseconds for the time scale. A pattern may start with
+ * the quarter prefix {@code Q} or {@code QQ} or the half-year prefix {@code L}
+ * or {@code LL}; the prefix is replaced by the localized label
+ * ({@code Date.Quarter1}, {@code Date.Quarter2}, {@code Date.Half1},
+ * {@code Date.Half2}) followed by the quarter or half number. The rest of the
+ * pattern is a {@link DateTimeFormatter} pattern.
+ */
+public final class ExtendedDateFormat {
+	private static final ZoneId GMT = ZoneId.of("GMT");
 
-	protected boolean quarter,half,normal;
-	protected String text;
+	private final DateTimeFormatter formatter;
+	private final String text;
+	private final int monthDivisor;
 
-	public ExtendedDateFormat() {
-		super();
-	}
-
-	public ExtendedDateFormat(String pattern, DateFormatSymbols formatSymbols) {
-		super(pattern, formatSymbols);
-	}
-
-	public ExtendedDateFormat(String pattern, Locale locale) {
-		super(pattern, locale);
-	}
-
+	/**
+	 * @param pattern the pattern, possibly starting with a quarter or half prefix
+	 */
 	public ExtendedDateFormat(String pattern) {
-		super(pattern);
+		this(pattern, Locale.getDefault());
 	}
 
-	
-	@Override
-	public void applyPattern(String pattern) {
-		quarter=false;
-		half=false;
-		normal=false;
-		if (pattern.startsWith("Q")){
-			int l=pattern.startsWith("QQ")?2:1;
-			text=Messages.getString("Date.Quarter"+l);
-			if (l==2) text+=" ";
-			pattern=pattern.substring(l);
-			quarter=true;
-		}else if (pattern.startsWith("L")){
-			int l=pattern.startsWith("LL")?2:1;
-			text=Messages.getString("Date.Half"+l);
-			if (l==2) text+=" ";
-			pattern=pattern.substring(l);
-			half=true;
+	/**
+	 * @param pattern the pattern, possibly starting with a quarter or half prefix
+	 * @param locale the locale of the formatted fields; null uses the default locale
+	 */
+	public ExtendedDateFormat(String pattern, Locale locale) {
+		String remaining = pattern == null ? "" : pattern;
+		Locale effectiveLocale = locale == null ? Locale.getDefault() : locale;
+		String label = "";
+		int divisor = 0;
+		if (remaining.startsWith("Q")) {
+			int length = remaining.startsWith("QQ") ? 2 : 1;
+			label = Messages.getString("Date.Quarter" + length);
+			if (length == 2) label += " ";
+			remaining = remaining.substring(length);
+			divisor = 3;
+		} else if (remaining.startsWith("L")) {
+			int length = remaining.startsWith("LL") ? 2 : 1;
+			label = Messages.getString("Date.Half" + length);
+			if (length == 2) label += " ";
+			remaining = remaining.substring(length);
+			divisor = 6;
 		}
-		if (pattern.length()>0){
-			super.applyPattern(pattern);
-			normal=true;
-		}
+		this.text = label;
+		this.monthDivisor = divisor;
+		this.formatter = remaining.length() == 0 ? null
+				: DateTimeFormatter.ofPattern(remaining, effectiveLocale).withZone(GMT);
 	}
 
-	@Override
-	public StringBuffer format(Date date, StringBuffer toAppendTo,
-			FieldPosition pos) {
-		if (quarter||half){
-			calendar.setTime(date);
-			int month=calendar.get(Calendar.MONTH);
-			toAppendTo.append(text).append(month/(quarter?3:6)+1);
+	/**
+	 * Formats a GMT-read millisecond value.
+	 *
+	 * @param epochMillis the value to format, read in GMT
+	 * @return the localized label of the quarter or half, followed by the rest
+	 *         of the pattern
+	 */
+	public String format(long epochMillis) {
+		Instant instant = Instant.ofEpochMilli(epochMillis);
+		StringBuilder result = new StringBuilder();
+		if (monthDivisor != 0) {
+			int month = instant.atZone(GMT).getMonthValue() - 1;
+			result.append(text).append(month / monthDivisor + 1);
 		}
-		if (normal) super.format(date, toAppendTo, pos);
-		return toAppendTo;
+		if (formatter != null) result.append(formatter.format(instant));
+		return result.toString();
 	}
-
-
 }

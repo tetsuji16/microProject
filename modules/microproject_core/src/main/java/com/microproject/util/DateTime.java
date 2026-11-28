@@ -72,9 +72,19 @@ public class DateTime {
 	}
 	public static ExtendedDateFormat extendedUtcDateFormatInstance(Locale locale) {
 		Locale effectiveLocale = locale == null ? Locale.getDefault() : locale;
-		ExtendedDateFormat f = new ExtendedDateFormat(((SimpleDateFormat) DateFormat.getDateTimeInstance(DateFormat.DEFAULT, DateFormat.DEFAULT, effectiveLocale)).toPattern(), effectiveLocale);
-		f.setTimeZone(java.util.TimeZone.getTimeZone("GMT"));
-		return f;
+		return extendedUtcDateFormatInstance(
+				((SimpleDateFormat) DateFormat.getDateTimeInstance(DateFormat.DEFAULT, DateFormat.DEFAULT, effectiveLocale)).toPattern(),
+				effectiveLocale);
+	}
+	/**
+	 * Creates a formatter for GMT-read millisecond values.
+	 *
+	 * @param pattern the pattern, possibly starting with a quarter or half prefix
+	 * @param locale the locale of the formatted fields; null uses the default locale
+	 * @return a formatter that reads its input in GMT
+	 */
+	public static ExtendedDateFormat extendedUtcDateFormatInstance(String pattern, Locale locale) {
+		return new ExtendedDateFormat(pattern, locale == null ? Locale.getDefault() : locale);
 	}
 	
 	public static DateFormat utcShortDateFormatInstance() {
