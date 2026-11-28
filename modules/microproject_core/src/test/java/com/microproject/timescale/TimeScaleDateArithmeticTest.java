@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.time.Instant;
 import java.util.Calendar;
+import java.util.Locale;
 
 import org.junit.jupiter.api.Test;
 
@@ -76,6 +77,27 @@ class TimeScaleDateArithmeticTest {
 		assertEquals(millis("2024-02-29T00:00:00Z"), days.nextDay());
 		assertEquals(millis("2024-03-01T00:00:00Z"), days.nextDay());
 		org.junit.jupiter.api.Assertions.assertFalse(days.hasMoreDays());
+	}
+
+	@Test
+	void weekFloorUsesTheConfiguredLocaleFirstDay() {
+		Locale original = Locale.getDefault();
+		try {
+			Locale.setDefault(Locale.US);
+			TimeScale scale = scale(Calendar.WEEK_OF_YEAR, 1);
+			assertEquals(millis("2024-05-12T00:00:00Z"), scale.floor1(millis("2024-05-17T13:00:00Z")));
+		} finally {
+			Locale.setDefault(original);
+		}
+	}
+
+	@Test
+	void groupedHourScaleKeepsLegacyTwelveHourFlooringAndDurationStep() {
+		TimeScale scale = scale(Calendar.HOUR_OF_DAY, 6);
+		long afternoon = millis("2024-05-17T17:45:00Z");
+
+		assertEquals(millis("2024-05-17T12:00:00Z"), scale.floor1(afternoon));
+		assertEquals(millis("2024-05-17T18:00:00Z"), scale.ceil1(afternoon));
 	}
 
 	private static TimeScale scale(int field, int number) {

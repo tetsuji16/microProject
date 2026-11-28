@@ -23,8 +23,8 @@
  *******************************************************************************/
 package com.microproject.timescale;
 
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -62,61 +62,35 @@ public class TimeScale {
 		formatterLocale = Locale.getDefault();
 	}
 	
-	private Calendar tmp=DateTime.calendarInstance();
 	public long floor1(long t){
-		tmp.setTimeInMillis(t);
-		floor(tmp,calendarField1,number1,-1);
-		return tmp.getTimeInMillis();
+		return floor(t, calendarField1, number1);
 	}
 	public long ceil1(long t){
-		tmp.setTimeInMillis(t);
-		ceil(tmp,calendarField1,number1,-1);
-		return tmp.getTimeInMillis();
+		return ceil(t, calendarField1, number1);
 	}
-	
-	public void floor1(Calendar calendar){
-		floor(calendar,calendarField1,number1,-1);
+	public long floor2(long t) {
+		return floor(t, calendarField2, number2);
 	}
-	public void floor1(Calendar calendar,long startReference){
-		
-		floor(calendar,calendarField1,number1,startReference);
+	public long ceil2(long t) {
+		return ceil(t, calendarField2, number2);
 	}
-	public void floor2(Calendar calendar){
-		floor(calendar,calendarField2,number2,-1);
+	private long floor(long epochMillis, int field, int number) {
+		return CalendarUtil.floor(Instant.ofEpochMilli(epochMillis).atZone(ZoneOffset.UTC), field, number)
+				.toInstant().toEpochMilli();
 	}
-	public void floor2(Calendar calendar,long startReference){
-		floor(calendar,calendarField2,number2,startReference);
+	private long ceil(long epochMillis, int field, int number) {
+		long floored = floor(epochMillis, field, number);
+		if (floored == epochMillis) return epochMillis;
+		return CalendarUtil.increment(Instant.ofEpochMilli(floored).atZone(ZoneOffset.UTC), field, number)
+				.toInstant().toEpochMilli();
 	}
-	public void ceil1(Calendar calendar){
-		ceil(calendar,calendarField1,number1,-1);
+	public long increment1(long epochMillis){
+		return CalendarUtil.increment(Instant.ofEpochMilli(epochMillis).atZone(ZoneOffset.UTC), calendarField1, number1)
+				.toInstant().toEpochMilli();
 	}
-	public void ceil1(Calendar calendar,long startReference){
-		
-		ceil(calendar,calendarField1,number1,startReference);
-	}
-	public void ceil2(Calendar calendar){
-		ceil(calendar,calendarField2,number2,-1);
-	}
-	public void ceil2(Calendar calendar,long startReference){
-		ceil(calendar,calendarField2,number2,startReference);
-	}
-	
-	protected void floor(Calendar calendar,int calendarField,int number,long startReference){
-		CalendarUtil.floor(calendar,calendarField,number);
-	}
-	protected void ceil(Calendar calendar,int calendarField,int number,long startReference){
-		Calendar ref=DateTime.calendarInstance();
-		ref.setTimeInMillis(calendar.getTimeInMillis());
-		floor(ref,calendarField,number,startReference);
-		if (ref.getTimeInMillis()==calendar.getTimeInMillis()) return;
-		floor(calendar,calendarField,number,startReference);
-		calendar.add(calendarField,number);
-	}
-	public void increment1(Calendar calendar){
-		calendar.add(calendarField1,number1);
-	}
-	public void increment2(Calendar calendar){
-		calendar.add(calendarField2,number2);
+	public long increment2(long epochMillis){
+		return CalendarUtil.increment(Instant.ofEpochMilli(epochMillis).atZone(ZoneOffset.UTC), calendarField2, number2)
+				.toInstant().toEpochMilli();
 	}
 	public int getCalendarField1() {
 		return calendarField1;
