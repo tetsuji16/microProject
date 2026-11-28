@@ -1341,6 +1341,7 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	 * @return Returns the lateFinish.
 	 */
 	public long getLateFinish() {
+		ensureLateDatesCurrent();
 		return lateSchedule.getFinish();
 	}
 
@@ -1349,7 +1350,14 @@ public abstract class Task implements HasKey, HasNotes, HasCalendar, HasDependen
 	 * @return Returns the lateStart.
 	 */
 	public long getLateStart() {
+		ensureLateDatesCurrent();
 		return lateSchedule.getStart();
+	}
+
+	private void ensureLateDatesCurrent() {
+		if (project != null
+				&& project.getSchedulingAlgorithm() instanceof com.microproject.schedule.criticalpath.CriticalPath criticalPath)
+			criticalPath.ensureLateDatesCurrent();
 	}
 
 	/**
