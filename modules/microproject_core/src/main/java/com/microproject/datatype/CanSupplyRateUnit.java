@@ -24,9 +24,20 @@
 package com.microproject.datatype;
 
 /**
- * 
+ * Something that is priced per time unit.
  */
 public interface CanSupplyRateUnit {
+
+	/**
+	 * @return the localized label of the rate's time unit; the label of
+	 *         {@link com.microproject.datatype.TimeUnit#NONE} (-1) when the rate
+	 *         has no time unit
+	 */
 	String getTimeUnitLabel(); // use TimeUnit.NONE if none
+
+	/**
+	 * @return true when the rate belongs to a material resource rather than a
+	 *         work resource
+	 */
 	boolean isMaterial();
 }
