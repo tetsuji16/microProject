@@ -26,8 +26,13 @@ package com.microproject.configuration;
 import org.apache.commons.digester3.Digester;
 
 /**
- * Interface for classes which are treated by the digester (xml config)
+ * Contract for configuration objects that register their XML parsing rules with Digester.
  */
 public interface ProvidesDigesterEvents {
-	void addDigesterEvents(Digester digester) ;
+	/**
+	 * Registers XML parsing rules for this configuration object.
+	 *
+	 * @param digester parser receiving the object creation and binding rules
+	 */
+	void addDigesterEvents(Digester digester);
 }
