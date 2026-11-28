@@ -26,9 +26,8 @@ package com.microproject.job;
 import java.util.EventListener;
 
 
-/**
- *
- */
-public interface JobQueueListener extends EventListener{
-    public void progressChanged(JobQueueEvent e);
+/** Receives progress updates from a job queue. */
+public interface JobQueueListener extends EventListener {
+	/** Called when the queue reports a job's progress. */
+	void progressChanged(JobQueueEvent event);
 }

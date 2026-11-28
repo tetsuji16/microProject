@@ -2522,7 +2522,7 @@ public class DocumentFrame extends NamedFrame implements
 		applyFormatPainterToSelection(e);
 		lastSelectionEvent=e;
 		syncTaskStateToggles();
-		statusBar.setSelectedCount(e.getNodes() == null ? 0 : e.getNodes().size());
+		statusBar.setSelectedCount(DocumentStatusBar.selectedTaskCount(e.getNodes()));
 		Component bottom = mainView.getBottomComponent();
 		if (bottom != null && bottom instanceof SelectionNodeListener)
 			((SelectionNodeListener) bottom).selectionChanged(e);

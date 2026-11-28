@@ -39,6 +39,7 @@ import javax.swing.event.ChangeListener;
 import com.microproject.ui.frame.DocumentFrame;
 import com.microproject.ui.view.spreadsheet.common.GradientCorner;
 import com.microproject.timescale.TimeScaleEvent;
+import com.microproject.timescale.TimeScaleEvent.ChangeType;
 import com.microproject.timescale.TimeScaleListener;
 import com.microproject.ui.util.FlatUiSupport;
 import com.microproject.workspace.SavableToWorkspace;
@@ -210,7 +211,7 @@ public class ScaledScrollPane extends JScrollPane implements TimeScaleListener, 
 	}
 	
 	public void timeScaleChanged(TimeScaleEvent e) {
-		if (e != null && (e.getType() & TimeScaleEvent.ORIGIN_AND_END_CHANGE) != 0) {
+		if (e != null && e.getType() == ChangeType.ORIGIN_AND_END) {
 			restoreViewportLeftDate();
 		}
 		lastOrigin = coord.getOrigin();

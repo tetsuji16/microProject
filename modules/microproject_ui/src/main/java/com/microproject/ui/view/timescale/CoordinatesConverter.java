@@ -40,6 +40,7 @@ import com.microproject.model.task.Project;
 import com.microproject.timescale.TimeInterval;
 import com.microproject.timescale.TimeIterator;
 import com.microproject.timescale.TimeScaleEvent;
+import com.microproject.timescale.TimeScaleEvent.ChangeType;
 import com.microproject.timescale.TimeScaleListener;
 import com.microproject.timescale.TimeScaleManager;
 import com.microproject.util.DateTime;
@@ -101,7 +102,7 @@ public class CoordinatesConverter implements ScheduleEventListener, Serializable
 		long tmp = calendar.getTimeInMillis();
 		if (this.origin!=tmp){
 			this.origin=tmp;
-			if (event) fireTimeScaleChanged(this,TimeScaleEvent.ORIGIN_AND_END_CHANGE);
+			if (event) fireTimeScaleChanged(this,ChangeType.ORIGIN_AND_END);
 		}
 	}
 	protected void adaptEnd(Calendar calendar,boolean event){
@@ -111,21 +112,21 @@ public class CoordinatesConverter implements ScheduleEventListener, Serializable
 		
 		if (this.end!=tmp){
 			this.end=tmp;
-			if (event) fireTimeScaleChanged(this,TimeScaleEvent.END_ONLY_CHANGE);
+			if (event) fireTimeScaleChanged(this,ChangeType.END_ONLY);
 		}
 	}
 	
 	protected void adaptInterval(Calendar origin,Calendar end,boolean event){
-		int modifType=0;
+		ChangeType modifType = null;
 		long tmp=this.end;
 		adaptEnd(end,false);
 		if (this.end!=tmp)
-			modifType=TimeScaleEvent.END_ONLY_CHANGE;
+			modifType=ChangeType.END_ONLY;
 		tmp=this.origin;
 		adaptOrigin(origin,false);
 		if (this.origin!=tmp)
-			modifType=TimeScaleEvent.ORIGIN_AND_END_CHANGE;
-		if (modifType>0&&event) fireTimeScaleChanged(this,modifType);
+			modifType=ChangeType.ORIGIN_AND_END;
+		if (modifType != null && event) fireTimeScaleChanged(this, modifType);
 		
 	}
 	
@@ -219,22 +220,22 @@ public class CoordinatesConverter implements ScheduleEventListener, Serializable
 		}
 		Calendar requiredStart = getLargeStart();
 		Calendar requiredEnd = getLargeEnd();
-		int changeType = 0;
+		ChangeType changeType = null;
 		if (requiredStart.getTimeInMillis() < origin) {
 			adaptOrigin(requiredStart, false);
-			changeType = TimeScaleEvent.ORIGIN_AND_END_CHANGE;
+			changeType = ChangeType.ORIGIN_AND_END;
 		}
 		if (requiredEnd.getTimeInMillis() > end) {
 			adaptEnd(requiredEnd, false);
-			if (changeType == 0) changeType = TimeScaleEvent.END_ONLY_CHANGE;
+			if (changeType == null) changeType = ChangeType.END_ONLY;
 		}
-		if (event && changeType != 0) fireTimeScaleChanged(this, changeType);
+		if (event && changeType != null) fireTimeScaleChanged(this, changeType);
     }
     
     
     public void toggleMinWidth(boolean normal){
     	if (timescaleManager.toggleMinWidth(normal)){
-    		fireTimeScaleChanged(this,TimeScaleEvent.SCALE_CHANGE);
+			fireTimeScaleChanged(this, ChangeType.SCALE);
     	}
     }
    
@@ -247,19 +248,19 @@ public class CoordinatesConverter implements ScheduleEventListener, Serializable
     
 	public void zoomIn(){
 		if(timescaleManager.zoomIn()){
-			fireTimeScaleChanged(this,TimeScaleEvent.SCALE_CHANGE);
+			fireTimeScaleChanged(this, ChangeType.SCALE);
 		}
 	}
 	
 	public void zoomOut(){
 		if(timescaleManager.zoomOut()){
-			fireTimeScaleChanged(this,TimeScaleEvent.SCALE_CHANGE);
+			fireTimeScaleChanged(this, ChangeType.SCALE);
 		}
 	}
 	
 	public void zoomReset(){
 		if(timescaleManager.zoomReset()){
-			fireTimeScaleChanged(this,TimeScaleEvent.SCALE_CHANGE);
+			fireTimeScaleChanged(this, ChangeType.SCALE);
 		}
 	}
 	public long getIntervalDuration() {
@@ -349,7 +350,7 @@ public class CoordinatesConverter implements ScheduleEventListener, Serializable
 	public TimeScaleListener[] getTimeScaleListeners() {
 		return listenerList.getListeners(TimeScaleListener.class);
 	}
-	protected void fireTimeScaleChanged(Object source,int type) {
+	protected void fireTimeScaleChanged(Object source, ChangeType type) {
 		Object[] listeners = listenerList.getListenerList();
 		TimeScaleEvent e = null;
 		for (int i = listeners.length - 2; i >= 0; i -= 2) {
@@ -374,14 +375,14 @@ public class CoordinatesConverter implements ScheduleEventListener, Serializable
 		end = ws.end;
 		// Views that already exist (a file opened into a visible frame) size and
 		// position themselves from time-scale notifications only.
-		int changeType = 0;
+		ChangeType changeType = null;
 		if (timescaleManager.getCurrentScaleIndex() != previousScaleIndex)
-			changeType |= TimeScaleEvent.SCALE_CHANGE;
+			changeType = ChangeType.SCALE;
 		if (origin != previousOrigin)
-			changeType |= TimeScaleEvent.ORIGIN_AND_END_CHANGE;
-		else if (end != previousEnd)
-			changeType |= TimeScaleEvent.END_ONLY_CHANGE;
-		if (changeType != 0)
+			changeType = ChangeType.ORIGIN_AND_END;
+		else if (end != previousEnd && changeType == null)
+			changeType = ChangeType.END_ONLY;
+		if (changeType != null)
 			fireTimeScaleChanged(this, changeType);
 	}
 	

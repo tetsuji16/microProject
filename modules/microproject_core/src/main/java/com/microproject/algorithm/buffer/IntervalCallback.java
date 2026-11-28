@@ -23,9 +23,15 @@
  *******************************************************************************/
 package com.microproject.algorithm.buffer;
 
-/**
- * Interface for a callback applied to series of values
- */
+/** Receives each interval and value produced while traversing calculated values. */
 public interface IntervalCallback {
+	/**
+	 * Accepts one interval from the calculated series.
+	 *
+	 * @param index index of the interval in the series
+	 * @param start start coordinate of the interval
+	 * @param end end coordinate of the interval
+	 * @param value value associated with the interval
+	 */
 	void add(int index, long start, long end, double value);
 }

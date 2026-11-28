@@ -1078,7 +1078,14 @@ class RibbonButtonBehaviorTest {
 			Action selectAll = harness.manager.getAction("SelectAll");
 			assertTrue(selectAll.isEnabled());
 			selectAll.actionPerformed(new ActionEvent(harness.frame, ActionEvent.ACTION_PERFORMED, "SelectAll"));
-			assertEquals(sheet.getRowCount(), sheet.getSelectedRowCount());
+			int taskRows = 0;
+			for (int row = 0; row < sheet.getRowCount(); row++) {
+				var node = sheet.getNodeAtRow(row);
+				if (node != null && !node.isVoid())
+					taskRows++;
+			}
+			assertTrue(taskRows > 0, "the harness project has task rows");
+			assertEquals(taskRows, sheet.getSelectedRowCount(), "Select All selects task rows, not the trailing blank rows");
 			assertTrue(harness.manager.getAction("ClearContents").isEnabled());
 			harness.project.setReadOnly(true);
 			harness.manager.setButtonState(null, harness.project);
