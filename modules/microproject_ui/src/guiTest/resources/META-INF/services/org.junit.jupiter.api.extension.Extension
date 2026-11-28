@@ -1,1 +1,2 @@
 com.microproject.ui.testsupport.GuiEnvironmentExtension
+com.microproject.ui.testsupport.GuiRunRecorder
