@@ -397,6 +397,59 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 		return intent != null && TaskCommandGateway.canExecute(this, intent);
 	}
 
+	/**
+	 * Applies one indent/outdent to the supplied view rows through the shared
+	 * hierarchy command, so the shortcut, popup and ribbon routes share one
+	 * mutation, one Undo entry and one published outcome.
+	 */
+	public TaskCommandResult changeTaskOutlineLevel(TaskHierarchyEditIntent.Operation operation, int[] viewRows,
+			String commandId) {
+		return changeTaskOutlineLevel(operation, viewRows, commandId, true);
+	}
+
+	public TaskCommandResult changeTaskOutlineLevel(TaskHierarchyEditIntent.Operation operation, int[] viewRows,
+			String commandId, boolean recordResult) {
+		if (operation == null || !operation.changesOutlineLevel())
+			throw new IllegalArgumentException("outline-level operation is required");
+		finishCurrentOperations();
+		if (hasProjectSummaryRow(viewRows))
+			return new TaskCommandResult(TaskCommandResult.Status.REJECTED, "project-summary-row");
+		TaskHierarchyEditIntent.SelectionSnapshot selection = captureTaskSelectionForRows(viewRows);
+		if (selection == null)
+			return new TaskCommandResult(TaskCommandResult.Status.INVALID_INTENT, "selection-not-visible");
+		TaskHierarchyEditIntent intent = new TaskHierarchyEditIntent(operation, selection.tasks(),
+			selection.projectionRevision(), null, false, 0);
+		TaskCommandResult commandResult = TaskCommandGateway.execute(this, intent);
+		publishTaskCommandOutcome(commandId, commandResult, taskIdsOf(intent), taskIdsOf(intent), recordResult);
+		if (commandResult.status() == TaskCommandResult.Status.CHANGED) {
+			refreshTaskMoveViews();
+			restoreTaskRowSelectionByKeys(intent.tasks());
+		}
+		return commandResult;
+	}
+
+	private static List<Long> taskIdsOf(TaskHierarchyEditIntent intent) {
+		return intent.tasks().stream().map(taskRow -> taskRow.taskKey().taskUniqueId()).distinct().toList();
+	}
+
+	/** Resolves the supplied view rows to stable task keys in one projection revision. */
+	private TaskHierarchyEditIntent.SelectionSnapshot captureTaskSelectionForRows(int[] viewRows) {
+		if (!(getModel() instanceof SpreadSheetModel model) || model.getCache() == null || model.getRowMultiple() != 1
+				|| viewRows == null || viewRows.length == 0)
+			return null;
+		var projection = model.getCache().getVisibleNodes().getProjectionIndex();
+		List<ProjectionRowKey.TaskRow> taskRows = new ArrayList<>();
+		for (int viewRow : viewRows) {
+			int modelRow = convertRowIndexToModel(viewRow);
+			if (modelRow < 0 || modelRow >= projection.size()
+					|| !(projection.keyAt(modelRow) instanceof ProjectionRowKey.TaskRow taskRow))
+				return null;
+			taskRows.add(taskRow);
+		}
+		return taskRows.isEmpty() ? null
+			: new TaskHierarchyEditIntent.SelectionSnapshot(taskRows, projection.topologyRevision());
+	}
+
 	public boolean moveTaskRowsTo(TaskHierarchyEditIntent intent) {
 		finishCurrentOperations();
 		if (intent == null)
@@ -2679,24 +2732,27 @@ public class SpreadSheet extends CommonSpreadSheet implements Cloneable {
 
 	protected SpreadSheetAction indentAction = new SpreadSheetAction("Spreadsheet.Action.indent",this) {
 		public void execute() {
-			finishCurrentOperations();
-			List<GraphicNode> selected = new ArrayList<>(getSelected());
-			if (selected.stream().anyMatch(SpreadSheet.this::isProjectSummaryRow)) return;
-			getCache().indentNodes(selected);
+			changeTaskOutlineLevel(TaskHierarchyEditIntent.Operation.INDENT,
+				rows == null ? getSelectedRows() : rows, MenuActionConstants.ACTION_INDENT);
 		}
 	};
 
 	protected SpreadSheetAction outdentAction = new SpreadSheetAction("Spreadsheet.Action.outdent",this) {
 		public void execute() {
-			finishCurrentOperations();
-			List<GraphicNode> selected = new ArrayList<>(getSelected());
-			if (selected.stream().anyMatch(SpreadSheet.this::isProjectSummaryRow)) return;
-			getCache().outdentNodes(selected);
+			changeTaskOutlineLevel(TaskHierarchyEditIntent.Operation.OUTDENT,
+				rows == null ? getSelectedRows() : rows, MenuActionConstants.ACTION_OUTDENT);
 		}
 	};
 
 	private boolean isProjectSummaryRow(GraphicNode graphicNode) {
 		return graphicNode != null && graphicNode.getNode() instanceof ProjectSummaryRow;
+	}
+
+	/** The project summary row is a view-only aggregate and never changes outline level. */
+	private boolean hasProjectSummaryRow(int[] viewRows) {
+		if (viewRows == null || viewRows.length == 0)
+			return false;
+		return rowsToGraphicNodes(viewRows).stream().anyMatch(this::isProjectSummaryRow);
 	}
 
 	protected SpreadSheetAction newAction=new SpreadSheetAction("Spreadsheet.Action.new",this){

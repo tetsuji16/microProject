@@ -24,7 +24,16 @@ public record TaskHierarchyEditIntent(Operation operation, List<ProjectionRowKey
 
 	public enum Operation {
 		MOVE,
-		RELOCATE
+		RELOCATE,
+		/** Moves the selected rows one outline level deeper. */
+		INDENT,
+		/** Moves the selected rows one outline level shallower. */
+		OUTDENT;
+
+		/** Whether this operation changes the outline level instead of the sibling order. */
+		public boolean changesOutlineLevel() {
+			return this == INDENT || this == OUTDENT;
+		}
 	}
 
 	public TaskHierarchyEditIntent {
@@ -43,5 +52,7 @@ public record TaskHierarchyEditIntent(Operation operation, List<ProjectionRowKey
 			if (direction != 0)
 				throw new IllegalArgumentException("relocation direction must be zero");
 		}
+		if (operation.changesOutlineLevel() && (anchor != null || after || direction != 0))
+			throw new IllegalArgumentException("outline-level intent cannot carry move or relocation parameters");
 	}
 }

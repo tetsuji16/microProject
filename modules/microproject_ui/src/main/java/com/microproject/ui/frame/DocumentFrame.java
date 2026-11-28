@@ -1826,13 +1826,30 @@ public class DocumentFrame extends NamedFrame implements
 				GraphicManager.traceUi(diagnosticId + " rejected reason=" + LOCK_DENIED_REASON + " selectedTasks=" + taskNodes.size());
 				return;
 			}
-			ss.executeAction(actionId, selectedRows);
+			// The outline mutation itself is owned by the shared hierarchy command so
+			// the shortcut, popup and ribbon routes cannot diverge in stale handling,
+			// Undo grouping or the published result.
+			TaskCommandResult outlineResult = ss.changeTaskOutlineLevel(
+				command == CommandId.INDENT ? TaskHierarchyEditIntent.Operation.INDENT
+					: TaskHierarchyEditIntent.Operation.OUTDENT,
+				selectedRows, actionId, false);
 			ss.restoreTaskRowSelection(taskNodes);
-			publishTaskCommandResult(command, RibbonCommandResult.Status.CHANGED, "", taskNodes);
+			publishTaskCommandResult(command, toRibbonStatus(outlineResult.status()), outlineResult.reason(),
+				taskNodes);
 			refreshUndoButtonsSafely();
 			GraphicManager.traceUi(diagnosticId + " complete selectedTasks=" + taskNodes.size()
+					+ " status=" + outlineResult.status()
 					+ " undo=" + canUndoState() + " redo=" + canRedoState());
 		}
+	}
+
+	/** Maps a task command outcome onto the ribbon vocabulary the frame publishes. */
+	static RibbonCommandResult.Status toRibbonStatus(TaskCommandResult.Status status) {
+		return switch (status) {
+			case CHANGED -> RibbonCommandResult.Status.CHANGED;
+			case NO_CHANGE -> RibbonCommandResult.Status.NO_CHANGE;
+			default -> RibbonCommandResult.Status.REJECTED;
+		};
 	}
 
 	private void refreshUndoButtonsSafely() {
