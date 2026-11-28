@@ -28,10 +28,12 @@ import java.util.Comparator;
 
 import com.microproject.algorithm.DoubleValue;
 /**
- * This class is immutable, as should be its subclasses
- * Window - Preferences - Java - Code Generation - Code and Comments
+ * Base for serializable work-contour buckets, ordered by ascending allocation units.
+ * The {@code units} field and declared serial version UID are part of the persisted contour shape.
+ * {@link #staticCompare(Object, Object)} orders a null value before a non-null bucket.
  */
-public abstract class AbstractContourBucket implements Comparator, DoubleValue, Cloneable, Serializable{
+public abstract class AbstractContourBucket
+		implements Comparator<AbstractContourBucket>, DoubleValue, Cloneable, Serializable {
 	static final long serialVersionUID = -961372350672424649L;//-1664394457689132915L;
 	public abstract long getBucketDuration(long assignmentDuration);
 	public abstract double weightedSum();
@@ -44,6 +46,13 @@ public abstract class AbstractContourBucket implements Comparator, DoubleValue, 
 		return units;
 	}
 	
+	/**
+	 * Compares two contour buckets by units, placing {@code null} before any bucket.
+	 *
+	 * @param arg0 first value; may be {@code null}
+	 * @param arg1 second value; may be {@code null}
+	 * @return a negative value, zero, or a positive value according to the units order
+	 */
 	public static int staticCompare(Object arg0, Object arg1) {
 		if (arg0 == null)
 			return -1;
@@ -52,7 +61,8 @@ public abstract class AbstractContourBucket implements Comparator, DoubleValue, 
 		return Double.compare(((AbstractContourBucket)arg0).units, ((AbstractContourBucket)arg1).units);
 	}
 	
-	public int compare(Object arg0, Object arg1) {
+	@Override
+	public int compare(AbstractContourBucket arg0, AbstractContourBucket arg1) {
 		return staticCompare(arg0,arg1);
 	}
 	
