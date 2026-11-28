@@ -27,17 +27,27 @@ import com.microproject.field.FieldContext;
 import com.microproject.interval.InvalidValueObjectForIntervalException;
 
 /**
- *
+ * Contract for a model object with maximum resource units and an availability interval.
+ * Field editability and visibility are evaluated in the caller's {@link FieldContext}.
  */
 public interface HasAvailability {
+	/** Returns the maximum assigned units allowed for this resource. */
 	double getMaximumUnits();
+	/** Sets the maximum assigned units allowed for this resource. */
 	void setMaximumUnits(double maximumUnits);
+	/** Returns the start of the current availability interval. */
 	long getAvailableFrom();
+	/** Returns the end of the current availability interval. */
 	long getAvailableTo();
+	/** Sets the start of the availability interval. */
 	void setAvailableFrom(long availableFrom) throws InvalidValueObjectForIntervalException;
+	/** Sets the end of the availability interval. */
 	void setAvailableTo(long availableTo);
+	/** Returns whether the start is read-only in this field context. */
 	boolean isReadOnlyAvailableFrom(FieldContext fieldContext);
+	/** Returns whether the end is read-only in this field context. */
 	boolean isReadOnlyAvailableTo(FieldContext fieldContext);
+	/** Returns whether the maximum-units field is hidden in this field context. */
 	boolean fieldHideMaximumUnits(FieldContext fieldContext);
 	
 }
