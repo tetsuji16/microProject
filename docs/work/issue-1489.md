@@ -17,17 +17,17 @@ Blockers: required PR CI. Open PR preflight: #1500/#1501 checks passed; #1497 wa
 
 | ID | Required result/evidence | State | Evidence (SHA + link) |
 |---|---|---|---|
-| C1 | Deterministic counter proves each unobserved link addition leaves the backward pass pending; first late read runs it once | pass | On unchanged master `4f6247d`, new regression test failed `expected 1, was 2`; post-change `TaskDependencyInvalidationTest` passes on `c36264c0b`, checking pass=1 after each link, pass=2 on first late read and no repeat |
-| C2 | First late read refreshes tasks outside dependency closure; repeat reads do not calculate again | pass | `TaskDependencyInvalidationTest.extendingCriticalPathRefreshesLateDatesOutsideTheChangedDependencyClosure` and new per-pass regression pass on `c36264c0b` |
-| C3 | total/free slack use current late dates and match a full recalculation | pass | New regression on `c36264c0b` asserts slack reads do not repeat pass and both values match after `project.recalculate()` |
-| C4 | existing schedule equivalence and Undo/late-date behavior pass | pass | `IncrementalScheduleEquivalenceTest` and `extendingCriticalPathRefreshesLateDatesOutsideTheChangedDependencyClosure` passed in full core suite on `c36264c0b` |
-| C5 | core module test and diff check pass | pass | `:microproject_core:test` on `c36264c0b`: 1511 tests, 0 failures, 2 skipped; `git diff --check` empty |
-| C6 | POD payload stays byte-stable across consecutive save/reload cycles while late dates are deferred | pass locally | `PodRoundTripTest.podSaveIsByteStableAcrossConsecutiveRoundTrips` failed on implementation before the serializer synchronization hook and passes with it; unchanged baseline `4f6247d` also passes |
-| C7 | PR build and GUI acceptance pass | open | Pending exact PR head |
+| C1 | Deterministic counter proves each unobserved link addition leaves the backward pass pending; first late read runs it once | pass | On unchanged master `4f6247d`, new regression test failed `expected 1, was 2`; `TaskDependencyInvalidationTest` passes on `6162ce6cb`, checking pass=1 after each link, pass=2 on first late read and no repeat |
+| C2 | First late read refreshes tasks outside dependency closure; repeat reads do not calculate again | pass | `TaskDependencyInvalidationTest.extendingCriticalPathRefreshesLateDatesOutsideTheChangedDependencyClosure` and new per-pass regression pass on `6162ce6cb` |
+| C3 | total/free slack use current late dates and match a full recalculation | pass | New regression on `6162ce6cb` asserts slack reads do not repeat pass and both values match after `project.recalculate()` |
+| C4 | existing schedule equivalence and Undo/late-date behavior pass | pass | `IncrementalScheduleEquivalenceTest` and `extendingCriticalPathRefreshesLateDatesOutsideTheChangedDependencyClosure` passed in full core suite on `6162ce6cb` |
+| C5 | core module test and diff check pass | pass | `:microproject_core:test` on `6162ce6cb`: 1522 tests, 0 failures, 2 skipped; `git diff --check` empty |
+| C6 | POD payload stays byte-stable across consecutive save/reload cycles while late dates are deferred | pass locally | `PodRoundTripTest.podSaveIsByteStableAcrossConsecutiveRoundTrips` failed before the serializer synchronization hook and passes after it; the full exchange suite also passes (428 tests) on `6162ce6cb`; unchanged baseline `4f6247d` passes |
+| C7 | PR build and GUI acceptance pass | open | Required CI pending for latest PR head |
 
 ## Current slice
 
-**Next slice:** Run affected-module/full required verification, update PR evidence, push, and wait for required checks/reviews.
+**Next slice:** Push latest implementation, update PR evidence, and wait for required checks/reviews.
 **Done when:** PR checklist returns `OK`; required checks pass on the exact pushed SHA; review comments are resolved.
 **Then:** Report PR URL and evidence to the parent; do not merge.
 
@@ -37,7 +37,7 @@ Blockers: required PR CI. Open PR preflight: #1500/#1501 checks passed; #1497 wa
 
 ## Latest evidence
 
-- Tests/build: Tested source commit `c36264c0b` for core checks: focused `TaskDependencyInvalidationTest` and `com.microproject.schedule.criticalpath.*` both `BUILD SUCCESSFUL`; full `:microproject_core:test` `BUILD SUCCESSFUL` (1511 tests, 0 failures, 2 skipped); includes `IncrementalScheduleEquivalenceTest`. POD focused test passed after serializer hook; rerun full exchange suite and current SHA verification.
+- Tests/build: Tested source commit `6162ce6cb`: focused `TaskDependencyInvalidationTest.deferredLateDateReadKeepsProjectBoundaryExtrema`, full `TaskDependencyInvalidationTest`, and `com.microproject.schedule.criticalpath.*` all `BUILD SUCCESSFUL`; full `:microproject_core:test` `BUILD SUCCESSFUL` (1522 tests, 0 failures, 2 skipped), includes `IncrementalScheduleEquivalenceTest`; full `:microproject_exchange:test` `BUILD SUCCESSFUL` (428 tests), including `PodRoundTripTest.podSaveIsByteStableAcrossConsecutiveRoundTrips`.
 - Static checks: `python scripts/test_source_inventory.py --check --output build/audit/test-source-inventory.json` exit 0; `git diff --check` empty.
 - Physical GUI/manual: not applicable; no user-visible route changes.
-- CI: PR #1531 initial build failed in `PodRoundTripTest.podSaveIsByteStableAcrossConsecutiveRoundTrips()` on all OS; exact test now passes locally after serialization-boundary synchronization. Required CI rerun pending.
+- CI: earlier PR head `bfe8532e3` passed required `build` and `GUI acceptance`; latest implementation `6162ce6cb` has not yet been pushed and needs fresh CI.
