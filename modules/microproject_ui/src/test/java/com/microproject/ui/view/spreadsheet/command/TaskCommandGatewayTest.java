@@ -1017,6 +1017,63 @@ class TaskCommandGatewayTest {
 			"a rolled-back hierarchy command must restore the outline order");
 	}
 
+	@Test
+	void outlineLevelCommandIndentsUnderThePrecedingSiblingAndOneUndoRestoresTheOutline() throws Exception {
+		Fixture fixture = createDependencyFixture();
+		NormalTask successor = fixture.project().getTaskList().stream()
+			.filter(NormalTask.class::isInstance).map(NormalTask.class::cast)
+			.filter(task -> "Successor".equals(task.getName())).findFirst().orElseThrow();
+		Node root = (Node) fixture.cache().getModel().getHierarchy().getRoot();
+		RevisionedProjectionIndex projection = fixture.cache().getVisibleNodes().getProjectionIndex();
+		TaskHierarchyEditIntent indent = new TaskHierarchyEditIntent(TaskHierarchyEditIntent.Operation.INDENT,
+			List.of(taskRowFor(projection, successor)), projection.topologyRevision(), null, false, 0);
+		assertTrue(TaskCommandGateway.canExecute(fixture.sheet(), indent),
+			"a task with a preceding sibling must be indented");
+		List<String> undoBefore = fixture.project().getUndoController().getEditNames();
+		AtomicReference<TaskCommandResult> result = new AtomicReference<>();
+		SwingUtilities.invokeAndWait(() -> result.set(TaskCommandGateway.execute(fixture.sheet(), indent)));
+
+		assertEquals(TaskCommandResult.Status.CHANGED, result.get().status());
+		Node indented = fixture.cache().getModel().search(successor);
+		assertNotNull(indented, "the indented task must stay in the outline");
+		assertEquals("Before", ((Task) ((Node) indented.getParent()).getImpl()).getName(),
+			"an indent must move the task under its preceding sibling");
+		assertEquals(undoBefore.size() + 1, fixture.project().getUndoController().getEditNames().size(),
+			"one indent must post exactly one Undo entry");
+
+		SwingUtilities.invokeAndWait(() -> fixture.project().getUndoController().undo());
+		Node restored = fixture.cache().getModel().search(successor);
+		assertEquals(root, restored.getParent(), "one Undo must return the task to the captured outline level");
+	}
+
+	@Test
+	void outlineLevelCommandRejectsStaleProjectionAndRootOutdentWithoutMutationOrUndo() throws Exception {
+		Fixture fixture = createDependencyFixture();
+		RevisionedProjectionIndex projection = fixture.cache().getVisibleNodes().getProjectionIndex();
+		ProjectionRowKey.TaskRow row = taskRowFor(projection, fixture.task());
+		Node root = (Node) fixture.cache().getModel().getHierarchy().getRoot();
+		List<String> undoBefore = fixture.project().getUndoController().getEditNames();
+		long revisionBefore = fixture.project().getMutationState().revision();
+
+		TaskHierarchyEditIntent stale = new TaskHierarchyEditIntent(TaskHierarchyEditIntent.Operation.INDENT,
+			List.of(row), projection.topologyRevision() + 1, null, false, 0);
+		assertEquals(TaskCommandResult.Status.STALE_PROJECTION, TaskCommandGateway.execute(fixture.sheet(), stale).status(),
+			"an outline command must be rejected when its projection revision is no longer current");
+
+		TaskHierarchyEditIntent outdentRoot = new TaskHierarchyEditIntent(TaskHierarchyEditIntent.Operation.OUTDENT,
+			List.of(row), projection.topologyRevision(), null, false, 0);
+		assertFalse(TaskCommandGateway.canExecute(fixture.sheet(), outdentRoot),
+			"a top-level task has no outline parent to leave");
+		assertEquals(TaskCommandResult.Status.REJECTED, TaskCommandGateway.execute(fixture.sheet(), outdentRoot).status());
+
+		assertEquals(root, fixture.cache().getModel().search(fixture.task()).getParent(),
+			"rejected outline commands must not move the task");
+		assertEquals(undoBefore, fixture.project().getUndoController().getEditNames(),
+			"rejected outline commands must not post an Undo entry");
+		assertEquals(revisionBefore, fixture.project().getMutationState().revision(),
+			"rejected outline commands must not commit a revision");
+	}
+
 	private static List<String> rootNames(Project project) {
 		List<String> names = new java.util.ArrayList<>();
 		Node root = (Node)project.getTaskModel().getHierarchy().getRoot();

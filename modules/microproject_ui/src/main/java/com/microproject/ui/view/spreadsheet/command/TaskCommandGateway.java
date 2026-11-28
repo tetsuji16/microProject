@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 
@@ -145,9 +146,11 @@ public final class TaskCommandGateway {
 		progress.markApplied();
 		boolean changed;
 		try {
-			changed = intent.operation() == TaskHierarchyEditIntent.Operation.MOVE
-				? prepared.cache().moveNodes(prepared.graphicNodes(), intent.direction())
-				: prepared.cache().relocateNodes(prepared.graphicNodes(), prepared.anchor(), intent.after());
+			changed = switch (intent.operation()) {
+				case MOVE -> prepared.cache().moveNodes(prepared.graphicNodes(), intent.direction());
+				case RELOCATE -> prepared.cache().relocateNodes(prepared.graphicNodes(), prepared.anchor(), intent.after());
+				case INDENT, OUTDENT -> applyOutlineLevelChange(prepared, intent.operation());
+			};
 		} catch (RuntimeException | Error failure) {
 			// The hierarchy applies the move before it posts the relocation Undo entry,
 			// so a listener failure in between leaves a changed outline with no edit.
@@ -159,6 +162,34 @@ public final class TaskCommandGateway {
 			throw failure;
 		}
 		return TaskCommandResult.of(changed ? TaskCommandResult.Status.CHANGED : TaskCommandResult.Status.REJECTED);
+	}
+
+	/**
+	 * Applies one indent/outdent through the outline model.  The outline mutation
+	 * reports no result, so the outline parent is captured per task and compared
+	 * afterwards; an indent of a first child changes nothing and must not report a
+	 * change of its own.
+	 */
+	private static boolean applyOutlineLevelChange(PreparedHierarchyEdit prepared,
+			TaskHierarchyEditIntent.Operation operation) {
+		Map<Task, Node> parentsBefore = new IdentityHashMap<>();
+		for (Node node : prepared.nodes()) {
+			if (node.getImpl() instanceof Task task)
+				parentsBefore.put(task, (Node) node.getParent());
+		}
+		// The outline mutators replace the entries of the list they receive with
+		// base nodes, so hand them a copy instead of the prepared graphic nodes.
+		List<GraphicNode> targets = new ArrayList<>(prepared.graphicNodes());
+		if (operation == TaskHierarchyEditIntent.Operation.INDENT)
+			prepared.cache().indentNodes(targets);
+		else
+			prepared.cache().outdentNodes(targets);
+		for (Map.Entry<Task, Node> entry : parentsBefore.entrySet()) {
+			Node node = prepared.cache().getModel().search(entry.getKey());
+			if (node != null && node.getParent() != entry.getValue())
+				return true;
+		}
+		return false;
 	}
 
 	/** Validates and applies one task-row paste against the captured projection and selection. */
@@ -496,10 +527,21 @@ public final class TaskCommandGateway {
 					"anchor-not-editable"));
 		}
 
-		boolean possible = intent.operation() == TaskHierarchyEditIntent.Operation.MOVE
-			? cache.canMoveNodes(graphicNodes, intent.direction())
-			: cache.canRelocateNodes(graphicNodes, anchor, intent.after());
+		boolean possible = switch (intent.operation()) {
+			case MOVE -> cache.canMoveNodes(graphicNodes, intent.direction());
+			case RELOCATE -> cache.canRelocateNodes(graphicNodes, anchor, intent.after());
+			// An indent is refused only by the outline model itself, so the gateway
+			// lets it run and reports the observed outline change.  An outdent has a
+			// single documented precondition: the task must have an outline parent.
+			case INDENT -> true;
+			case OUTDENT -> nodes.stream().anyMatch(TaskCommandGateway::hasOutlineParent);
+		};
 		return new PreparedHierarchyEdit(cache, graphicNodes, nodes, anchor, null, possible);
+	}
+
+	private static boolean hasOutlineParent(Node node) {
+		return node != null && !node.isRoot() && node.getImpl() instanceof Task task
+			&& task.getWbsParentTask() != null;
 	}
 
 	private record PreparedHierarchyEdit(NodeModelCache cache, List<GraphicNode> graphicNodes, List<Node> nodes,
