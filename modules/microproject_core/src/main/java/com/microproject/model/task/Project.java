@@ -82,6 +82,7 @@ import com.microproject.node.NodeList;
 import com.microproject.node.NodeVisitor;
 import com.microproject.node.OutlineCollection;
 import com.microproject.node.OutlineCollectionImpl;
+import com.microproject.node.OutlineModel;
 import com.microproject.node.event.HierarchyEvent;
 import com.microproject.node.event.HierarchyListener;
 import com.microproject.node.hierarchy.NodeHierarchy;
@@ -541,7 +542,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	private void bindAssignmentOutlines() {
 		int count=Settings.numHierarchies();
 		for (int i=0;i<count;i++){
-			NodeModel model=taskOutlines.getOutline(i);
+			NodeModel model=(NodeModel) taskOutlines.getOutline(i);
 			if (model==null) continue;
 			if (model instanceof AssignmentNodeModel assignmentModel){
 				assignmentModel.setContainsLeftObjects(true);
@@ -554,7 +555,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	public void disconnectOutlines(){
 		int count=Settings.numHierarchies();
 		for (int i=0;i<count;i++){
-			NodeModel model=taskOutlines.getOutline(i);
+			NodeModel model=(NodeModel) taskOutlines.getOutline(i);
 			if (model instanceof AssignmentNodeModel assignmentModel){
 				assignmentModel.setDocument(null); //remove ObjectListener
 			}
@@ -878,10 +879,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	private transient OutlineCollection taskOutlines = new OutlineCollectionImpl(Settings.numHierarchies(),this);
 
 	public NodeModel getTaskOutline() {
-		return taskOutlines.getOutline();
+		return (NodeModel) taskOutlines.getOutline();
 	}
 	public NodeModel getTaskOutline(int outlineNumber) {
-		return taskOutlines.getOutline(outlineNumber);
+		return (NodeModel) taskOutlines.getOutline(outlineNumber);
 	}
 
 	public void addToDefaultOutline(Node parentNode, Node childNode) {
@@ -1216,7 +1217,7 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 	public Runnable removeExternalForResolution(Task toRemove) {
 		int taskIndex = tasks.indexOf(toRemove);
 		List<ExternalOutlineEntry> outlineEntries = new ArrayList<>();
-		for (NodeModel model : taskOutlines.getOutlines()) {
+		for (NodeModel model : ((OutlineCollectionImpl) taskOutlines).getOutlines()) {
 			if (model == null) continue;
 			Node node = model.search(toRemove);
 			if (node == null) continue;
@@ -2186,10 +2187,10 @@ public class Project implements Document, BelongsToDocument, HasKey, HasPriority
 					transitionedToLeaf.add(new LeafScheduleTransition(normalTask, previousSummarySpan, previousSummaryPercentComplete));
 			}
 
-			NodeHierarchy hierarchy=taskOutlines.getDefaultOutline().getHierarchy();
+			OutlineModel.Hierarchy hierarchy=taskOutlines.getDefaultOutline().getHierarchy();
 			newParentNode = hierarchy.getParent(node);
 			newParentTask = null;
-			if (newParentNode!=hierarchy.getRoot()) {
+			if (newParentNode!=hierarchy.root()) {
 				newParentTask=(Task)newParentNode.getImpl();
 			}
 

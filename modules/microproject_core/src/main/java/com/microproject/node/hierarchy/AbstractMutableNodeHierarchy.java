@@ -57,6 +57,8 @@ import com.microproject.util.ListenerRegistry;
 public abstract class AbstractMutableNodeHierarchy implements NodeHierarchy{
     private static final Logger logger = Logger.getLogger(AbstractMutableNodeHierarchy.class.getName());
 	public abstract Object getRoot();
+	@Override
+	public Node root() { return (Node) getRoot(); }
 	public Object getChild(Object parent, int index) {
 		return ((Node)parent).getChildAt(index);
 	}

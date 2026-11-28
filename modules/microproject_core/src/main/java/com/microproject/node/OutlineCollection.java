@@ -23,20 +23,16 @@
  *******************************************************************************/
 package com.microproject.node;
 
-import com.microproject.node.model.NodeModel;
-
 /**
  *
  */
 public interface OutlineCollection {
 	public static final int DEFAULT_OUTLINE = 0;
-//TODO maybe use NodeHierarchy instead of node model?
-	NodeModel getOutline();
-	NodeModel getDefaultOutline();
-	NodeModel getOutline(int outlineNumber);
+// The collection exposes the core outline contract; Swing callers keep NodeModel at the boundary.
+	OutlineModel getOutline();
+	OutlineModel getDefaultOutline();
+	OutlineModel getOutline(int outlineNumber);
 	
-	//for internal use (undo)
-	public NodeModel[] getOutlines();
 
 	/**
 	 * @return Returns the currentHierarchy.
@@ -50,6 +46,6 @@ public interface OutlineCollection {
 	void addToDefaultOutline(Node parentNode, Node childNode);
 	void addToDefaultOutline(Node parentNode, Node childNode, int position,boolean event);
 	
-	void addToAll(Object object, NodeModel except);
-	void removeFromAll(Object object, NodeModel except);
+	void addToAll(Object object, OutlineModel except);
+	void removeFromAll(Object object, OutlineModel except);
 }
