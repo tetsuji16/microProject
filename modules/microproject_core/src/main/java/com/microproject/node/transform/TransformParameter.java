@@ -24,22 +24,34 @@
 package com.microproject.node.transform;
 
 /**
+ * One parameter of a configured transform, for example the date range of {@code Filter.DateRange}.
  *
+ * <p>The view configuration digester creates the bean from a {@code <param id="..."/>} element and
+ * binds only the {@code id} attribute, so the value stays {@code null} until a dialog or caller sets
+ * it. {@link #getValue()} is a heterogeneous {@link Object}: filters compare it against task dates
+ * (a {@link java.util.Date}) while other transforms store strings or numbers, and
+ * {@link CommonTransform#addParameter(TransformParameter)} keeps the value only when it is not
+ * {@code null}.
  */
 public class TransformParameter {
-    protected String id;
-    protected Object value;
-    
-    public String getId() {
-        return id;
-    }
-    public void setId(String id) {
-        this.id = id;
-    }
-    public Object getValue() {
-        return value;
-    }
-    public void setValue(Object value) {
-        this.value = value;
-    }
+	private String id;
+	private Object value;
+
+	/** The configured parameter ID, for example {@code TransformParameter.StartDate}. */
+	public String getId() {
+		return id;
+	}
+
+	public void setId(String id) {
+		this.id = id;
+	}
+
+	/** The parameter value as supplied by the caller; the type depends on the transform. */
+	public Object getValue() {
+		return value;
+	}
+
+	public void setValue(Object value) {
+		this.value = value;
+	}
 }
