@@ -46,6 +46,7 @@ import com.microproject.job.JobQueue;
 import com.microproject.session.SessionFactory;
 import com.microproject.exchange.MpoFileImporter;
 import com.microproject.ui.testsupport.GuiAcceptanceSupport;
+import com.microproject.ui.testsupport.GuiProjectWindow;
 import com.microproject.ui.testsupport.RibbonGuiSupport;
 import com.microproject.ui.testsupport.WindowAcceptanceAssertions;
 import com.microproject.ui.ribbon.RibbonDisplayMode;
@@ -69,59 +70,25 @@ final class RibbonCommandGuiFixture implements AutoCloseable {
 	final MainRibbonFrame window;
 	final GraphicManager manager;
 	final Robot robot;
-	private final boolean previousRibbonUi;
-	private final boolean previousNewLook;
-	private final RibbonDisplayMode previousDisplayMode;
+	private final GuiProjectWindow host;
 	private Path savedFixtureDirectory;
 	private final UiServices.FileChooserProvider previousFileChooser;
-	private final String previousSystemChooserProperty;
 	private final AtomicInteger chooserFileNameCalls;
 	private final AtomicInteger chooserFileNamesCalls;
-	private final JobQueue previousSessionJobQueue;
 	private String lastPhysicalButtonClick = "none";
 
-	private RibbonCommandGuiFixture(MainRibbonFrame window, GraphicManager manager, Robot robot,
-		boolean ribbonUi, boolean newLook, RibbonDisplayMode displayMode,
-		UiServices.FileChooserProvider previousFileChooser, String previousSystemChooserProperty,
-		AtomicInteger chooserFileNameCalls, AtomicInteger chooserFileNamesCalls, JobQueue previousSessionJobQueue) {
-		this.window = window;
-		this.manager = manager;
+	private RibbonCommandGuiFixture(GuiProjectWindow host, Robot robot) {
+		this.host = host;
+		this.window = host.window();
+		this.manager = host.manager();
 		this.robot = robot;
-		this.previousRibbonUi = ribbonUi;
-		this.previousNewLook = newLook;
-		this.previousDisplayMode = displayMode;
-		this.previousFileChooser = previousFileChooser;
-		this.previousSystemChooserProperty = previousSystemChooserProperty;
-		this.chooserFileNameCalls = chooserFileNameCalls;
-		this.chooserFileNamesCalls = chooserFileNamesCalls;
-		this.previousSessionJobQueue = previousSessionJobQueue;
+		this.previousFileChooser = host.previousFileChooser();
+		this.chooserFileNameCalls = host.chooserFileNameCalls();
+		this.chooserFileNamesCalls = host.chooserFileNamesCalls();
 	}
 
 	/** Opens the main window on a project with {@code taskCount} tasks and two resources. */
 	static RibbonCommandGuiFixture open(int taskCount) throws Exception {
-		boolean ribbonUi = Environment.isRibbonUI();
-		boolean newLook = Environment.isNewLook();
-		RibbonDisplayMode displayMode = RibbonDisplayPreferences.load();
-		UiServices.FileChooserProvider previousFileChooser = UiServices.getFileChooserProvider();
-		String previousSystemChooserProperty = System.getProperty("flatlaf.useSystemFileChooser");
-		JobQueue previousSessionJobQueue = SessionFactory.getInstance().getLocalSession().getJobQueue();
-		RibbonDisplayPreferences.save(RibbonDisplayMode.ALWAYS_SHOW);
-		System.setProperty("flatlaf.useSystemFileChooser", "false");
-		SwingFileChooserProvider swingChooser = new SwingFileChooserProvider();
-		AtomicInteger chooserFileNameCalls = new AtomicInteger();
-		AtomicInteger chooserFileNamesCalls = new AtomicInteger();
-		UiServices.setFileChooserProvider(new UiServices.FileChooserProvider() {
-			@Override public String chooseFileName(boolean save, String selectedFileName, Object parent) {
-				chooserFileNameCalls.incrementAndGet();
-				return swingChooser.chooseFileName(save, selectedFileName, parent);
-			}
-			@Override public List<String> chooseFileNames(boolean save, String selectedFileName, Object parent) {
-				chooserFileNamesCalls.incrementAndGet();
-				return swingChooser.chooseFileNames(save, selectedFileName, parent);
-			}
-		});
-		Environment.setRibbonUI(true);
-		Environment.setNewLook(true);
 		DataFactoryUndoController undo = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("ribbon-command-acceptance", undo), undo);
 		project.initialize(false, false);
@@ -130,57 +97,13 @@ final class RibbonCommandGuiFixture implements AutoCloseable {
 		}
 		project.getResourcePool().createScriptedResource().setName("Ribbon acceptance resource 1");
 		project.getResourcePool().createScriptedResource().setName("Ribbon acceptance resource 2");
-
-		MainRibbonFrame[] frame = new MainRibbonFrame[1];
-		GraphicManager[] manager = new GraphicManager[1];
-		SwingUtilities.invokeAndWait(() -> {
-			for (Window candidate : Window.getWindows()) {
-				if (candidate instanceof MainRibbonFrame) candidate.dispose();
-			}
-			frame[0] = new MainRibbonFrame("microProject ribbon command acceptance", null);
-			manager[0] = new GraphicManager(frame[0]);
-			// StartupFactory wires the application's LocalSession to the active manager's queue.
-			// A standalone ribbon fixture must follow that same initialization path for file commands.
-			SessionFactory.getInstance().setJobQueue(manager[0].getJobQueue());
-			frame[0].setGraphicManager(manager[0]);
-			manager[0].initView();
-			manager[0].addProjectFrame(project);
-			frame[0].setSize(1600, 700);
-			frame[0].setLocationByPlatform(true);
-			frame[0].setAlwaysOnTop(true);
-			frame[0].setVisible(true);
-			frame[0].toFront();
-			frame[0].requestFocus();
-		});
-		Robot robot = new com.microproject.ui.testsupport.GuiRobot();
-		robot.setAutoDelay(45);
-		RibbonCommandGuiFixture fixture = new RibbonCommandGuiFixture(frame[0], manager[0], robot, ribbonUi, newLook, displayMode,
-			previousFileChooser, previousSystemChooserProperty, chooserFileNameCalls, chooserFileNamesCalls,
-			previousSessionJobQueue);
-		GuiAcceptanceSupport.await(() -> frame[0].isShowing() && manager[0].getCurrentFrame() != null
-			&& manager[0].getCurrentFrame().getActiveSpreadSheet() != null, "the main window did not show its project");
-		fixture.activateWindow();
-		return fixture;
+		GuiProjectWindow host = GuiProjectWindow.open(project);
+		return new RibbonCommandGuiFixture(host, host.robot());
 	}
 
 	@Override
 	public void close() throws Exception {
-		SwingUtilities.invokeAndWait(() -> {
-			for (Window candidate : Window.getWindows()) {
-				if (candidate != window && candidate.isShowing() && (candidate instanceof Dialog || candidate instanceof Frame)) {
-					candidate.dispose();
-				}
-			}
-			manager.cleanUp();
-			window.dispose();
-		});
-		SessionFactory.getInstance().setJobQueue(previousSessionJobQueue);
-		RibbonDisplayPreferences.save(previousDisplayMode);
-		Environment.setRibbonUI(previousRibbonUi);
-		Environment.setNewLook(previousNewLook);
-		UiServices.setFileChooserProvider(previousFileChooser);
-		if (previousSystemChooserProperty == null) System.clearProperty("flatlaf.useSystemFileChooser");
-		else System.setProperty("flatlaf.useSystemFileChooser", previousSystemChooserProperty);
+		host.close();
 		if (savedFixtureDirectory != null) {
 			try (var paths = Files.walk(savedFixtureDirectory)) {
 				for (Path path : paths.sorted(java.util.Comparator.reverseOrder()).toList()) Files.deleteIfExists(path);
@@ -282,11 +205,7 @@ final class RibbonCommandGuiFixture implements AutoCloseable {
 	}
 
 	void activateWindow() throws Exception {
-		Rectangle bounds = onEdt(() -> window.isShowing() ? new Rectangle(window.getLocationOnScreen(), window.getSize()) : null);
-		robot.mouseMove(bounds.x + Math.min(40, bounds.width / 2), bounds.y + 12);
-		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-		robot.waitForIdle();
+		host.activate();
 	}
 
 	/** The showing ribbon tab button of {@code tabId}, or {@code null} while that tab is hidden. */

@@ -48,3 +48,44 @@ window with `GuiRunRecorder.attach(manager)`; otherwise it uses a showing `MainR
 - `-PguiTestFailOnUncaught=true` (system property `microproject.gui.failOnUncaught`): a test with an `uncaught`
   event or a `log-severe` record fails in its `afterEach`. Default `false`. `GuiRunRecorderTest` itself provokes both
   and so fails under this option.
+
+## JSON scenarios
+
+`.\gradlew.bat :microproject_ui:guiScenario` runs every `*.json` file in
+`modules/microproject_ui/src/guiTest/resources/scenarios` through the real main window and ribbon, one test per file.
+`-PguiScenarioDir=<dir>` runs the files of another directory instead. Each step writes a `step` event (with the Gantt
+`leftEdge` / `rightEdge`) and a `state-<n>.json` snapshot into the run record. A failure names the scenario, the
+1-based step number, the step JSON, and the expected and actual values.
+
+```json
+{
+	"name": "link-unlink",
+	"description": "optional",
+	"fixture": { "tasks": [ { "name": "A", "durationDays": 2 }, { "name": "B" } ], "links": [] },
+	"steps": [
+		{ "select": { "tasks": ["A", "B"] } },
+		{ "command": "RibbonLink" },
+		{ "expect": { "task[B].predecessors": ["A"] } }
+	]
+}
+```
+
+`fixture` is either `{"file": "samples/x.mpo"}` (copied to a temp directory first) or `{"tasks": [...], "links": [...]}`.
+A task has `name`, `durationDays` (default 1), `outlineLevel` (default 1) and `start` (default 2026-01-05T08:00).
+
+| Step | Argument |
+|---|---|
+| `select` | `{"tasks": [names]}` or `{"rows": [1-based rows]}`; the second and later entries are Ctrl-clicked |
+| `command` | ribbon command id; the button is found on the current tab, then on every tab |
+| `key` | a `KeyStroke` string such as `"ctrl Z"`, sent to the task table (a leftover ribbon popup is closed first) |
+| `edit` | `{"task": name or "row": n, "field": "Field.duration", "value": "3d"}`; click the cell, F2, type, Enter |
+| `scrollGantt` | `{"date": "2027-06-01T08:00"}`; the scroll is clamped to the chart's range |
+| `dialog` | `{"title": "text", "press": "escape" or "enter"}` for a modal dialog |
+| `expect` | map of path to expected value (below) |
+| `saveReload` | `"mpo"`: save, reload without the GUI, and compare the task state |
+| `snapshot` | label for an extra state snapshot |
+
+`expect` paths: `task[name].<field>` or `task#<row>.<field>` with field `name`, `outlineLevel` (top level is 1),
+`summary`, `start`, `end`, `durationDays`, `parent`, `predecessors`; and `project.taskCount`, `undo.canUndo`,
+`undo.canRedo`, `gantt.leftEdge`, `view.selectedTasks`, `dialog`, `errors`. Dates are UTC ISO strings compared by
+prefix (`"2026-01-07"` matches `2026-01-07T08:00`).

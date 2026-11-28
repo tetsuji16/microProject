@@ -1,0 +1,15 @@
+{
+	"name": "edit-duration",
+	"description": "Edit the Duration cell of a task in the table and check the model.",
+	"fixture": {
+		"tasks": [
+			{ "name": "A", "durationDays": 1 },
+			{ "name": "B", "durationDays": 1 }
+		]
+	},
+	"steps": [
+		{ "expect": { "task[B].durationDays": 1, "task[B].end": "2026-01-05" } },
+		{ "edit": { "task": "B", "field": "Field.duration", "text": "3d" } },
+		{ "expect": { "task[B].durationDays": 3, "task[B].end": "2026-01-07", "task[A].durationDays": 1 } }
+	]
+}

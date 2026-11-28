@@ -108,9 +108,8 @@ configurations.named(guiTestSourceSet.runtimeOnlyConfigurationName) {
     extendsFrom(configurations.testRuntimeOnly.get())
 }
 
-tasks.register<Test>("guiTest") {
-    group = "verification"
-    description = "Runs non-headless Swing acceptance tests after regenerating installDist."
+// Shared by guiTest and guiScenario so the two cannot drift apart.
+fun Test.configureGuiRun(scenarioOnly: Boolean) {
     enabled = true
     dependsOn(tasks.installDist)
     testClassesDirs = guiTestSourceSet.output.classesDirs
@@ -144,7 +143,10 @@ tasks.register<Test>("guiTest") {
 			"Missing: ${missingMechanisms.sorted()}; duplicate: $duplicateMechanisms; " +
 			"unknown: ${unknownMechanisms.sorted()}"
 	}
-	if (guiTestSuite == "smoke" || guiTestSuite == "journeys") {
+	if (scenarioOnly) {
+		// The scenario task runs only the JSON scenario acceptance test.
+		include("com/microproject/ui/testsupport/scenario/GuiScenarioAcceptanceTest.class")
+	} else if (guiTestSuite == "smoke" || guiTestSuite == "journeys") {
 		// smoke remains the workflow-compatible name for the per-input journey suite.
 		val journeyClasses = journeyJavaFiles
 			.filter { it.readText().contains("@GuiJourney(") }
@@ -219,7 +221,24 @@ tasks.register<Test>("guiTest") {
 		guiTestLocalAppData.deleteRecursively()
 		guiTestLocalAppData.mkdirs()
 	}
+    // -PguiScenarioDir=<directory> runs that directory's *.json scenarios instead of the checked-in ones.
+    val guiScenarioDir = providers.gradleProperty("guiScenarioDir").orNull
+    inputs.property("guiScenarioDir", guiScenarioDir ?: "default")
+    if (guiScenarioDir != null)
+        systemProperty("microproject.gui.scenarioDir", rootProject.file(guiScenarioDir).absolutePath)
     mustRunAfter(tasks.test)
+}
+
+tasks.register<Test>("guiTest") {
+    group = "verification"
+    description = "Runs non-headless Swing acceptance tests after regenerating installDist."
+    configureGuiRun(false)
+}
+
+tasks.register<Test>("guiScenario") {
+    group = "verification"
+    description = "Runs the JSON GUI scenarios (src/guiTest/resources/scenarios, or -PguiScenarioDir) through the real ribbon."
+    configureGuiRun(true)
 }
 
 val guiTestArtifactsDirectory = providers.gradleProperty("guiTestArtifactsDir")
