@@ -18,6 +18,7 @@ $gateLogs = 'modules/microproject_ui/build/reports/guiTest-artifacts'
 $gateFailures = [System.Collections.Generic.List[string]]::new()
 $hostedWarningWatcher = $null
 $isGitHubActions = $env:GITHUB_ACTIONS -eq 'true'
+. (Join-Path $PSScriptRoot 'hosted-watcher-startup.ps1')
 New-Item -ItemType Directory -Force -Path $gateLogs | Out-Null
 
 $primaryDisplay = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
@@ -28,21 +29,19 @@ if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {
 
 function Start-HostedWarningWatcher {
   if ($null -ne $script:hostedWarningWatcher -and -not $script:hostedWarningWatcher.HasExited) { return }
-  $watcherScript = Join-Path $PWD '.github/scripts/dismiss-hosted-windows-performance-dialogs.ps1'
+  $watcherScript = Join-Path $PSScriptRoot 'dismiss-hosted-windows-performance-dialogs.ps1'
   $watcherLog = Join-Path $script:gateLogs 'hosted-windows-dialog-watcher.log'
-  $script:hostedWarningWatcherLog = $watcherLog
   $argumentLine = '-NoProfile -NonInteractive -File "{0}" -LogFile "{1}"' -f $watcherScript, $watcherLog
-  $script:hostedWarningWatcher = Start-Process -FilePath (Join-Path $PSHOME 'pwsh.exe') `
-    -ArgumentList $argumentLine -PassThru -WindowStyle Hidden
-  $startupDeadline = [DateTime]::UtcNow.AddSeconds(10)
-  while ([DateTime]::UtcNow -lt $startupDeadline -and -not $script:hostedWarningWatcher.HasExited) {
-    if ((Test-Path -LiteralPath $watcherLog -PathType Leaf) -and (Get-Content -LiteralPath $watcherLog -Raw) -match 'hosted Win\+A keyboard guard installed') { break }
-    Start-Sleep -Milliseconds 100
-  }
-  if ($script:hostedWarningWatcher.HasExited -or -not (Test-Path -LiteralPath $watcherLog -PathType Leaf) -or (Get-Content -LiteralPath $watcherLog -Raw) -notmatch 'hosted Win\+A keyboard guard installed') {
-    throw 'Could not start the bounded hosted dialog and Win+A guard watcher.'
-  }
-  Write-Host "Started hosted dialog and Win+A guard watcher (PID $($script:hostedWarningWatcher.Id)); log=$watcherLog"
+  $startup = Start-HostedWatcherProcess `
+    -FilePath (Join-Path $PSHOME 'pwsh.exe') `
+    -ArgumentList $argumentLine `
+    -WorkingDirectory $PWD.Path `
+    -LogFile $watcherLog `
+    -ReadyPattern 'hosted Win\+A keyboard guard installed' `
+    -StartupTimeoutSeconds 30
+  $script:hostedWarningWatcher = $startup.Process
+  $script:hostedWarningWatcherLog = $startup.LogFile
+  Write-Host "Started hosted dialog and Win+A guard watcher (PID $($startup.Process.Id), startup=$($startup.ElapsedMilliseconds)ms); log=$watcherLog"
 }
 
 function Stop-HostedWarningWatcher {

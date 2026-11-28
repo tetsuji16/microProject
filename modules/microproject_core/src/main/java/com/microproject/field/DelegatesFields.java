@@ -23,7 +23,21 @@
  *******************************************************************************/
 package com.microproject.field;
 
+/** Supplies field applicability and values through another representation. */
 public interface DelegatesFields {
+	/**
+	 * Reports whether this object delegates the given field.
+	 *
+	 * @param field field whose applicability is being checked
+	 * @return {@code true} when the field is provided through this object's delegated data
+	 */
 	boolean delegates(Field field);
+
+	/**
+	 * Returns the value this object provides for a delegated field.
+	 *
+	 * @param field field whose delegated value is requested
+	 * @return the delegated value, or {@code null} when no value is available
+	 */
 	Object getDelegatedFieldValue(Field field);
 }

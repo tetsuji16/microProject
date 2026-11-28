@@ -23,8 +23,20 @@
  *******************************************************************************/
 package com.microproject.field;
 
+/** Exposes a mutable flag that records whether an object is dirty. */
 public interface CanBeDirty {
+	/**
+	 * Returns whether this object is marked dirty.
+	 *
+	 * @return {@code true} when the object is marked dirty
+	 */
 	boolean isDirty();
+
+	/**
+	 * Sets whether this object is marked dirty.
+	 *
+	 * @param dirty {@code true} to mark the object dirty; {@code false} to clear the flag
+	 */
 	void setDirty(boolean dirty);
 
 }

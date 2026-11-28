@@ -25,32 +25,30 @@ package com.microproject.timescale;
 
 import java.util.EventObject;
 
-/**
- *
- */
+/** Describes one change to the visible time scale. */
 public class TimeScaleEvent extends EventObject {
 	private static final long serialVersionUID = 6776054567705472617L;
 
-	public static final int ORIGIN_AND_END_CHANGE=1;
-	public static final int END_ONLY_CHANGE=2;
-	public static final int SCALE_CHANGE=4;
-	protected int type;
+	/** The kind of change represented by a time-scale notification. */
+	public enum ChangeType {
+		/** The visible origin changed, which may also change the visible end. */
+		ORIGIN_AND_END,
+		/** Only the visible end changed. */
+		END_ONLY,
+		/** The scale changed while the visible date range stayed the same. */
+		SCALE
+	}
 
-	public TimeScaleEvent(Object source,int type) {
+	private final ChangeType type;
+
+	/** Creates an event for a time-scale change. */
+	public TimeScaleEvent(Object source, ChangeType type) {
 		super(source);
-		this.type=type;
+		this.type = java.util.Objects.requireNonNull(type, "type");
 	}
-	
-	/**
-	 * @return Returns the type.
-	 */
-	public int getType() {
+
+	/** Returns the kind of time-scale change. */
+	public ChangeType getType() {
 		return type;
-	}
-	/**
-	 * @param type The type to set.
-	 */
-	public void setType(int type) {
-		this.type = type;
 	}
 }

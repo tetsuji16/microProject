@@ -14,10 +14,12 @@ import java.awt.GraphicsEnvironment;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
+import java.awt.Component;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 
 import javax.swing.SwingUtilities;
+import javax.swing.text.JTextComponent;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
@@ -25,6 +27,7 @@ import org.junit.jupiter.api.Test;
 
 import com.microproject.ui.view.spreadsheet.SpreadSheet;
 import com.microproject.ui.view.spreadsheet.SpreadSheetModel;
+import com.microproject.ui.view.spreadsheet.renderer.NameCellComponent;
 import com.microproject.model.resource.ResourcePool;
 import com.microproject.model.task.NormalTask;
 import com.microproject.model.task.Project;
@@ -125,6 +128,89 @@ class TwoDocumentShortcutIsolationGuiAcceptanceTest {
 		GuiAcceptanceSupport.await(() -> "".equals(tasks[0].getName()), "primary Ctrl+Y did not redo Alpha clear");
 		assertSelectedTask(sheets[0], cells[0][0], tasks[0]);
 		assertSelectedTask(sheets[1], cells[1][0], tasks[1]);
+		physicalSelectAllCommitsAnActiveEdit(robot, documents[0], sheets[0], cells[0], tasks[0]);
+	}
+
+	private void physicalSelectAllCommitsAnActiveEdit(Robot robot, DocumentFrame document, SpreadSheet sheet,
+			int[] cell, NormalTask task) throws Exception {
+		Rectangle[] bounds = new Rectangle[1];
+		java.awt.Window owner = SwingUtilities.getWindowAncestor(document);
+		SwingUtilities.invokeAndWait(() -> {
+			manager.activateDocumentWindow(document);
+			owner.setVisible(true);
+			owner.toFront();
+			owner.requestFocus();
+			bounds[0] = sheet.getCellRect(cell[0], cell[1], true);
+		});
+		GuiAcceptanceSupport.await(() -> owner.isActive() && manager.getCurrentFrame() == document,
+			"the real document must own the active selection route");
+		Point origin = sheet.getLocationOnScreen();
+		Point target = new Point(origin.x + bounds[0].x + Math.max(2, bounds[0].width / 2),
+			origin.y + bounds[0].y + Math.max(2, bounds[0].height / 2));
+		robot.mouseMove(target.x, target.y);
+		robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+		robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+		GuiAcceptanceSupport.await(() -> sheet.getSelectedRow() == cell[0],
+			"physical click must select the Name task before editing");
+		SwingUtilities.invokeAndWait(() -> {
+			sheet.changeSelection(cell[0], cell[1], false, false);
+			sheet.requestFocusInWindow();
+		});
+		robot.keyPress(KeyEvent.VK_SHIFT);
+		robot.keyPress(KeyEvent.VK_P);
+		robot.keyRelease(KeyEvent.VK_P);
+		robot.keyRelease(KeyEvent.VK_SHIFT);
+		GuiAcceptanceSupport.await(sheet::isEditing, "the first physical Name character must start editing");
+		JTextComponent input = activeTextEditor(sheet);
+		GuiAcceptanceSupport.await(input::isFocusOwner, "the active Name editor must own physical key focus");
+		for (char character : "hysical selection edit".toCharArray()) {
+			int keyCode = KeyEvent.getExtendedKeyCodeForChar(character);
+			robot.keyPress(keyCode);
+			robot.keyRelease(keyCode);
+		}
+		robot.waitForIdle();
+		assertEquals("Physical selection edit", input.getText(), "physical multi-character input must reach the Name editor");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_SHIFT);
+		robot.keyPress(KeyEvent.VK_SPACE);
+		robot.keyRelease(KeyEvent.VK_SPACE);
+		robot.keyRelease(KeyEvent.VK_SHIFT);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		robot.waitForIdle();
+		GuiAcceptanceSupport.await(() -> !sheet.isEditing(),
+			"physical Select All must commit the active Name edit in the real document sheet");
+		assertEquals("Physical selection edit", task.getName(), "Select All must retain the committed text");
+		assertSelectedTask(sheet, cell[0], task);
+		SwingUtilities.invokeAndWait(() -> {
+			Component renderer = sheet.prepareRenderer(sheet.getCellRenderer(cell[0], cell[1]), cell[0], cell[1]);
+			assertEquals("Physical selection edit", ((NameCellComponent) renderer).getText(),
+				"committed Name must render after the physical Select All route");
+		});
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_Z);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> "".equals(task.getName()),
+			"Ctrl+Z must undo the committed Name edit after Select All");
+		robot.keyPress(KeyEvent.VK_CONTROL);
+		robot.keyPress(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_Y);
+		robot.keyRelease(KeyEvent.VK_CONTROL);
+		GuiAcceptanceSupport.await(() -> "Physical selection edit".equals(task.getName()),
+			"Ctrl+Y must redo the committed Name edit after Select All");
+	}
+
+	private static JTextComponent activeTextEditor(SpreadSheet sheet) throws Exception {
+		JTextComponent[] editor = new JTextComponent[1];
+		SwingUtilities.invokeAndWait(() -> {
+			Component component = sheet.getEditorComponent();
+			if (component instanceof NameCellComponent nameCell
+					&& nameCell.getTextComponent() instanceof JTextComponent text)
+				editor[0] = text;
+			else if (component instanceof JTextComponent text)
+				editor[0] = text;
+		});
+		return editor[0];
 	}
 
 	private void selectAndClear(Robot robot, int index, DocumentFrame[] documents, SpreadSheet[] sheets, int[][] cells) throws Exception {

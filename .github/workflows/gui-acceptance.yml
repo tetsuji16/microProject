@@ -89,6 +89,10 @@ jobs:
         shell: pwsh
         run: .\.github\scripts\test-native-chooser-probe-trigger-retry.ps1
 
+      - name: Verify hosted warning watcher startup
+        shell: pwsh
+        run: .\.github\scripts\test-hosted-warning-watcher-startup.ps1
+
       - name: Run selected GUI acceptance suite and visual matrix
         shell: pwsh
         env:
