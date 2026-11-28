@@ -17,11 +17,11 @@ Blockers: required PR CI. Open PR preflight: #1500/#1501 checks passed; #1497 wa
 
 | ID | Required result/evidence | State | Evidence (SHA + link) |
 |---|---|---|---|
-| C1 | Deterministic counter proves each unobserved link addition leaves the backward pass pending; first late read runs it once | pass | On unchanged master `4f6247d`, new regression test failed `expected 1, was 2`; post-change TaskDependencyInvalidationTest passes, checking pass=1 after each link, pass=2 on first late read and no repeat |
-| C2 | First late read refreshes tasks outside dependency closure; repeat reads do not calculate again | pass | `TaskDependencyInvalidationTest.extendingCriticalPathRefreshesLateDatesOutsideTheChangedDependencyClosure` and new per-pass regression pass |
-| C3 | total/free slack use current late dates and match a full recalculation | pass | New regression asserts slack reads do not repeat pass and both values match after `project.recalculate()` |
-| C4 | existing schedule equivalence and Undo/late-date behavior pass | pass | `IncrementalScheduleEquivalenceTest` and `extendingCriticalPathRefreshesLateDatesOutsideTheChangedDependencyClosure` included in full core suite |
-| C5 | core module test and diff check pass | pass | `:microproject_core:test`: 1511 tests, 0 failures, 2 skipped; `git diff --check` empty |
+| C1 | Deterministic counter proves each unobserved link addition leaves the backward pass pending; first late read runs it once | pass | On unchanged master `4f6247d`, new regression test failed `expected 1, was 2`; post-change `TaskDependencyInvalidationTest` passes on `c36264c0b`, checking pass=1 after each link, pass=2 on first late read and no repeat |
+| C2 | First late read refreshes tasks outside dependency closure; repeat reads do not calculate again | pass | `TaskDependencyInvalidationTest.extendingCriticalPathRefreshesLateDatesOutsideTheChangedDependencyClosure` and new per-pass regression pass on `c36264c0b` |
+| C3 | total/free slack use current late dates and match a full recalculation | pass | New regression on `c36264c0b` asserts slack reads do not repeat pass and both values match after `project.recalculate()` |
+| C4 | existing schedule equivalence and Undo/late-date behavior pass | pass | `IncrementalScheduleEquivalenceTest` and `extendingCriticalPathRefreshesLateDatesOutsideTheChangedDependencyClosure` passed in full core suite on `c36264c0b` |
+| C5 | core module test and diff check pass | pass | `:microproject_core:test` on `c36264c0b`: 1511 tests, 0 failures, 2 skipped; `git diff --check` empty |
 | C6 | PR build and GUI acceptance pass | open | Pending exact PR head |
 
 ## Current slice
@@ -36,7 +36,7 @@ Blockers: required PR CI. Open PR preflight: #1500/#1501 checks passed; #1497 wa
 
 ## Latest evidence
 
-- Tests/build: focused `TaskDependencyInvalidationTest` `BUILD SUCCESSFUL`; focused `com.microproject.schedule.criticalpath.*` `BUILD SUCCESSFUL`; full `:microproject_core:test` `BUILD SUCCESSFUL` (1511 tests, 0 failures, 2 skipped); `IncrementalScheduleEquivalenceTest` included.
+- Tests/build: Tested SHA: `c36264c0b`. Focused `TaskDependencyInvalidationTest` and `com.microproject.schedule.criticalpath.*` both `BUILD SUCCESSFUL`; full `:microproject_core:test` `BUILD SUCCESSFUL` (1511 tests, 0 failures, 2 skipped); includes `IncrementalScheduleEquivalenceTest`.
 - Static checks: `python scripts/test_source_inventory.py --check --output build/audit/test-source-inventory.json` exit 0; `git diff --check` empty.
 - Physical GUI/manual: not applicable; no user-visible route changes.
 - CI: pending PR creation.
