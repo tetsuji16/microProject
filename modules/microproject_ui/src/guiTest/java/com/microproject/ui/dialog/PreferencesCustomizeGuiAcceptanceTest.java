@@ -513,10 +513,13 @@ class PreferencesCustomizeGuiAcceptanceTest {
 
 	/** The scroll pane of the preferences page whose contents are named {@code pageName}. */
 	private static JScrollPane pageScroll(Component root, String pageName) {
-		for (Component component : UiComponentWalker.flatten(root))
-			if (component instanceof JScrollPane scroll && scroll.getViewport() != null
-				&& scroll.getViewport().getView() != null && pageName.equals(scroll.getViewport().getView().getName()))
-				return scroll;
+		Component page = UiComponentWalker.flatten(root).stream()
+			.filter(component -> pageName.equals(component.getName()) && component.isShowing())
+			.findFirst().orElse(null);
+		if (page == null) return null;
+		for (java.awt.Container parent = page.getParent(); parent != null; parent = parent.getParent())
+			if (parent instanceof JScrollPane scroll && scroll.getViewport() != null
+				&& javax.swing.SwingUtilities.isDescendingFrom(page, scroll.getViewport())) return scroll;
 		return null;
 	}
 
