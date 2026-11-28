@@ -22,17 +22,17 @@ Blockers: none known; related open PRs have no failed required checks or actiona
 | A3 | AutoRecovery physical F2 editing, Undo/Redo, save, MPO reload pass | pass | `AutoRecoveryGuiAcceptanceTest.recoversSnapshotAndSavesTheRecoveredDocument`, 1 test passed on current implementation |
 | A4 | UI unit tests, source inventory, and diff check pass | pass | `:microproject_ui:test`: 2,001 tests, 0 failures/errors, 4 skipped; inventory exit 0; diff check clean |
 | A5 | TEST_PLAN records the editor tracker cleanup lifecycle regression | pass | existing Spreadsheet cleanup row now names `SpreadSheetEditorTableTrackingTest` and its invariant |
-| A6 | required PR build and GUI acceptance pass | open | exact-head checks pending PR |
+| A6 | required PR build and GUI acceptance pass | pass | PR #1541 at head `1f61d908a`: [Build matrix](https://github.com/tetsuji16/microProject/actions/runs/46107347989), [GUI acceptance](https://github.com/tetsuji16/microProject/actions/runs/46107346826), [checklist](https://github.com/tetsuji16/microProject/actions/runs/46107346853) passed; final packet-only head checks are tracked on the [PR checks page](https://github.com/tetsuji16/microProject/pull/1541/checks). |
 
 ## Current slice
 
-**Next slice:** stage and review the complete change, run the PR checklist, commit, push, and create one PR for #1540.
-**Done when:** required PR checks pass, review comments are resolved, and the resulting PR is ready to merge.
+**Next slice:** verify exact-head checks after this packet update, update the PR evidence, and resolve any actionable review comments.
+**Done when:** the final PR head has passing required checks and no unresolved actionable review.
 **Then:** integrate the fix and resume release stabilization.
 
 ## Remaining blockers
 
-- Exact-head PR Build and GUI acceptance checks.
+- Exact-head Build and GUI acceptance must be confirmed after the packet-only update.
 
 ## Latest evidence
 
