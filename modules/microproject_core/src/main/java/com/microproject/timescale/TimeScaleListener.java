@@ -25,9 +25,8 @@ package com.microproject.timescale;
 
 import java.util.EventListener;
 
-/**
- *
- */
-public interface TimeScaleListener extends EventListener{
-     public void timeScaleChanged(TimeScaleEvent e);
+/** Receives notifications when a view's visible time scale changes. */
+public interface TimeScaleListener extends EventListener {
+	/** Called after the origin, end, or display scale has changed. */
+	void timeScaleChanged(TimeScaleEvent event);
 }

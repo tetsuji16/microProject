@@ -28,21 +28,21 @@ import java.util.EventObject;
 
 import com.microproject.document.Document;
 
-/**
- * Takes care of notifying the creation or deletion of objects
- */
+/** Describes the beginning or end of a nested document transaction. */
 public class MultipleTransaction extends EventObject {
 	private static final long serialVersionUID = 7025122921168398507L;
 
     private boolean begin;
     private int id;
     private int depth;
+	/** Returns whether this event marks a transaction beginning. */
 	public boolean isBegin() {
 		return begin;
 	}
-	
+
+	/** Returns the document that emitted this event (also available as {@link #getSource()}). */
 	public Document getDocument() {
-		return (Document)getSource();
+		return (Document) getSource();
 	}
 	
 	
@@ -63,18 +63,18 @@ public class MultipleTransaction extends EventObject {
 		public void multipleTransaction(MultipleTransaction objectEvent);
 	}	
 	/**
-	 * @return Returns the depth.
+	 * Returns the nesting depth after this event: begins have positive depth,
+	 * and the outermost end has depth zero.
 	 */
 	public final int getDepth() {
 		return depth;
 	}
-	/**
-	 * @return Returns the id.
-	 */
+	/** Returns the identifier shared by the begin and end events of a transaction. */
 	public final int getId() {
 		return id;
 	}
 	
+	/** Returns whether this event ends the outermost transaction. */
 	public boolean isFinalEnd() {
 		return depth == 0;
 	}
