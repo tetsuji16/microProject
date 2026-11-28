@@ -93,6 +93,7 @@ import com.microproject.model.snapshot.Snapshottable;
 import com.microproject.model.task.NormalTask;
 import com.microproject.model.task.Project;
 import com.microproject.model.task.ProjectHierarchyQueries;
+import com.microproject.schedule.criticalpath.CriticalPath;
 import com.microproject.model.task.SubProj;
 import com.microproject.model.task.Task;
 import com.microproject.model.task.TaskSnapshot;
@@ -469,6 +470,10 @@ public class Serializer {
     	return serializeProject(project,null,null,false,null);
     }
     public ProjectData serializeProject(Project project,Collection<DataObject> flatAssignments,Collection<DataObject> flatLinks,boolean incremental,SerializeOptions options) throws Exception{
+		// Captured schedule fields must be based on the same completed forward and
+		// backward calculation. Ordinary task reads can defer the backward pass.
+		if (project.getSchedulingAlgorithm() instanceof CriticalPath criticalPath)
+			criticalPath.ensureLateDatesCurrent();
     	if (TMP_FILES) initTmpDir();
     	if (project.isForceNonIncremental()) incremental=false;
     	boolean incrementalDistributions=incremental&&!project.isForceNonIncrementalDistributions();

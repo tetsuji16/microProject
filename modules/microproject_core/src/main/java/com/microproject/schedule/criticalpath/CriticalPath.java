@@ -334,8 +334,7 @@ public class CriticalPath implements SchedulingAlgorithm {
 
 			project.setStart(startSentinel.getEarlyStart());
 			project.setEnd(finishSentinel.getEarlyFinish());
-			if (lateDateStartTask != lateDateBeginSentinel)
-				refreshEarliestAndLatest(lateDateAssignedScheduleType);
+			refreshEarliestAndLatest(lateDateAssignedScheduleType);
 			getFreshCalculationStateCount();
 		} catch (RuntimeException | Error failure) {
 			lateDatesDirty = true;
