@@ -27,20 +27,34 @@ import com.microproject.datatype.Rate;
 import com.microproject.model.task.Project;
 
 /**
- *
+ * Assignment projection of task, resource, project, rate, contour, and timesheet fields.
+ * Implementations expose these values to assignment-specific field and report consumers.
  */
 public interface AssignmentSpecificFields {
+	/** Returns the persisted work contour type code. */
 	int getWorkContourType();
+	/** Sets the persisted work contour type code. */
 	void setWorkContourType(int workContourType);
+	/** Returns the resource availability applicable to this assignment. */
 	long getResourceAvailability();
+	/** Returns the assigned task's display name. */
 	String getTaskName();
+	/** Returns the assigned task's identifier. */
 	String getTaskId();
+	/** Returns the assigned resource's display name. */
 	String getResourceName();
+	/** Returns the assigned resource's identifier. */
 	String getResourceId();
+	/** Returns the rate applied to this assignment. */
 	Rate getRate();
+	/** Replaces the rate applied to this assignment. */
 	void setRate(Rate rate);
+	/** Returns the owning project's display name. */
 	String getProjectName();
+	/** Returns the owning project. */
 	Project getProject();
+	/** Returns the start of the timesheet interval in milliseconds. */
 	long getTimesheetStart();
+	/** Returns the finish of the timesheet interval in milliseconds. */
 	long getTimesheetFinish();
 }

@@ -26,19 +26,28 @@ package com.microproject.model.assignment;
 import com.microproject.field.FieldContext;
 
 /**
- * Interface shared by tasks and assignments to handle adjusting the work, units, duration relationship.  These methods
- * are primarily called by SchedulingRule subclasses
+ * Shared allocation contract for reconciling work, units, and remaining duration.
+ * Scheduling rules use these operations for both tasks and assignments.
  */
 public interface Allocation {
+	/** Adjusts the remaining duration and, when requested, its child allocations. */
 	void adjustRemainingDuration(long newDuration, boolean doChildren);
+	/** Adjusts remaining units, optionally conserving the total units across children. */
 	void adjustRemainingUnits(double newRemainingUnits, double oldRemainingUnits, boolean doChildren, boolean conserveTotalUnits);
+	/** Multiplies remaining work by the supplied factor, optionally including children. */
 	void adjustRemainingWork(double multiplier, boolean doChildren);
 //	long calcWork();
+	/** Returns work not yet completed. */
 	long getRemainingWork();
+	/** Returns the allocation's total units. */
 	double getUnits();
+	/** Returns units not yet completed. */
 	double getRemainingUnits();
+	/** Reports whether the units field is read-only in the supplied field context. */
 	boolean isReadOnlyUnits(FieldContext fieldContext);
 //	long getDurationMillis();
+	/** Returns the remaining duration in milliseconds. */
 	long getRemainingDuration();
+	/** Returns the greatest units value among this allocation's assignments. */
 	double getMostLoadedAssignmentUnits();	
 }
