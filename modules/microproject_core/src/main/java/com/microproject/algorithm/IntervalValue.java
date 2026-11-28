@@ -23,7 +23,7 @@
  *******************************************************************************/
 package com.microproject.algorithm;
 
-import java.util.Date;
+import java.time.Instant;
 
 import com.microproject.model.time.ImmutableInterval;
 
@@ -34,9 +34,7 @@ public class IntervalValue extends ImmutableInterval implements DoubleValue {
 	private static final long serialVersionUID = -6991401364245973031L;
 
 	private double value;
-	/**
-	 * 
-	 */
+
 	private IntervalValue(long start, long end, double value) {
 		super(start,end);
 		this.value = value;
@@ -45,23 +43,30 @@ public class IntervalValue extends ImmutableInterval implements DoubleValue {
 	/**
 	 * @return Returns the value for the interval.
 	 */
+	@Override
 	public double getValue() {
 		return value;
 	}
 
+	/**
+	 * Describes the interval with its endpoints and its value. The endpoints
+	 * stay GMT-read milliseconds; only their textual form uses
+	 * {@link java.time.Instant} (ADR-0003).
+	 */
+	@Override
 	public String toString() {
-		return new Date(getStart()) + "-" + new Date(getEnd()) + " value: " + value;
+		return Instant.ofEpochMilli(getStart()) + "-" + Instant.ofEpochMilli(getEnd()) + " value: " + value;
 	}
 
-/**
- * Factory method
- * @param start
- * @param end
- * @param value
- * @return
- */	
+	/**
+	 * Factory method
+	 * @param start GMT-read start of the interval in milliseconds
+	 * @param end GMT-read end of the interval in milliseconds
+	 * @param value value associated with the interval
+	 * @return a new interval value
+	 */
 	public static IntervalValue getInstance(long start, long end, double value) {
 		return new IntervalValue(start, end, value);
 	}
-	
+
 }

@@ -24,8 +24,8 @@ Three constraints make a wholesale rewrite unsafe:
   directly.
 - The user's date format preference (`GlobalPreferences`) is a
   `SimpleDateFormat` pattern string, so its syntax is part of saved settings.
-- Classes that extend `java.text.Format` (`ExtendedDateFormat`,
-  `SpecialDateFormat`, `DurationFormat` and others) plug into Swing formatted
+- Classes that extend `java.text.Format` (`SpecialDateFormat`,
+  `DurationFormat` and others) plug into Swing formatted
   fields and must keep the `format(Object, StringBuffer, FieldPosition)` and
   `parseObject` contracts.
 

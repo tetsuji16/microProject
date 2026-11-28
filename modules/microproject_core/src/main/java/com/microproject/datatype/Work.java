@@ -24,14 +24,27 @@
 package com.microproject.datatype;
 
 /**
- * 
+ * A duration measured in work time rather than calendar time.
  */
 public class Work extends Duration {
 	private static final long serialVersionUID = 1250598041062656391L;
+
+	/**
+	 * @param encodedMillis duration in the encoded millisecond form of {@link Duration}
+	 */
 	public Work(long encodedMillis) {
 		super(encodedMillis);
-		work = true;
+		setWork(true);
 	}
+
+	/**
+	 * Creates a work duration from a boxed length. A null argument yields a
+	 * zero-length work duration, which is how a missing serialized value is
+	 * read back.
+	 *
+	 * @param doubleObject duration in the encoded millisecond form, or null for zero
+	 * @return the work duration, never null
+	 */
 	public static Work getWorkInstanceFromDouble(Double doubleObject) {
 		return new Work(doubleObject == null ? 0L : doubleObject.longValue());
 	}

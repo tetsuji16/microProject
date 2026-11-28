@@ -25,7 +25,9 @@ package com.microproject.timescale;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 import com.microproject.util.DateTime;
 import com.microproject.util.Environment;
@@ -50,7 +52,7 @@ public class TimeScale {
 	protected boolean upperCase1=false;
 	protected boolean upperCase2=false;
 
-	private ExtendedDateFormat recycledDateFormat;
+	private final Map<String, ExtendedDateFormat> formatters = new HashMap<>();
 	private Locale formatterLocale;
 
 	/**
@@ -58,7 +60,6 @@ public class TimeScale {
 	 */
 	public TimeScale() {
 		formatterLocale = Locale.getDefault();
-		recycledDateFormat = DateTime.extendedUtcDateFormatInstance(formatterLocale);
 	}
 	
 	private Calendar tmp=DateTime.calendarInstance();
@@ -133,10 +134,8 @@ public class TimeScale {
 	
 	
 	public String getText1(long t){
-		tmp.setTimeInMillis(t);
 		ensureFormatterLocale();
-		recycledDateFormat.applyPattern(localizedPattern(pattern1));
-		String r=recycledDateFormat.format(tmp.getTime());
+		String r=formatter(localizedPattern(pattern1)).format(t);
 		if (trunc1>=0) {
 			// patch for Chinese week display
 			if (Environment.isChinese()) {
@@ -150,10 +149,8 @@ public class TimeScale {
 		return r;
 	}
 	public String getText2(long t){
-		tmp.setTimeInMillis(t);
 		ensureFormatterLocale();
-		recycledDateFormat.applyPattern(localizedPattern(pattern2));
-		String r=recycledDateFormat.format(tmp.getTime());
+		String r=formatter(localizedPattern(pattern2)).format(t);
 		if (trunc2>=0) r=r.substring(0,trunc2);
 		if (upperCase2) r=r.toUpperCase(Locale.ROOT);
 		return r;
@@ -168,8 +165,18 @@ public class TimeScale {
 		Locale current = Locale.getDefault();
 		if (!current.equals(formatterLocale)) {
 			formatterLocale = current;
-			recycledDateFormat = DateTime.extendedUtcDateFormatInstance(current);
+			formatters.clear();
 		}
+	}
+
+	/**
+	 * Returns the formatter for a pattern, built once per pattern and locale.
+	 * A repaint formats many labels, so the pattern is not recompiled while the
+	 * pattern and the locale stay the same.
+	 */
+	private ExtendedDateFormat formatter(String pattern) {
+		return formatters.computeIfAbsent(String.valueOf(pattern),
+				p -> DateTime.extendedUtcDateFormatInstance(p, formatterLocale));
 	}
 
 	/**
