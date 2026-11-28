@@ -213,6 +213,7 @@ public class CommonSpreadSheet extends CommonTable implements CacheListener, Sav
 		return copy;
 	}
 	public void cleanUp() {
+		SpreadSheetCellEditorAdapter.releaseEditingTable(this);
 		if (corner != null)
 			corner.cleanUp();
 		NodeModelCache currentCache = getCache();

@@ -24,28 +24,34 @@
 package com.microproject.node.summaries;
 
 /**
- *
+ * Group summary that keeps its value only while every summarized value is equal.
  */
 public class Same extends SummaryVisitor {
-    protected Object summary=null;
-    protected boolean first=true;
-    public Same() {
-        super();
-    }
-    public Object getSummary() {
-        return summary;
-    }
+	protected Object summary = null;
+	protected boolean first = true;
 
-    public void addToSummary(Object value) {
-        if (first){
-            summary=value;
-            first=false;
-        } else if (summary!=null&&!summary.equals(value)) summary=null;        
-    }
+	public Same() {
+		super();
+	}
 
-    public void reset() {
-        summary=null;
-        first=true;
-    }
+	public Object getSummary() {
+		return summary;
+	}
 
+	/**
+	 * Remembers the first value and clears the summary as soon as a different value arrives, so the
+	 * group shows a value only when all of its tasks agree. A first {@code null} keeps the summary
+	 * {@code null} for the rest of the group.
+	 */
+	public void addToSummary(Object value) {
+		if (first) {
+			summary = value;
+			first = false;
+		} else if (summary != null && !summary.equals(value)) summary = null;
+	}
+
+	public void reset() {
+		summary = null;
+		first = true;
+	}
 }

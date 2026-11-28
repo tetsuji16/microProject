@@ -25,14 +25,16 @@ package com.microproject.model.calendar;
 
 import com.microproject.document.Document;
 
-/**
- * 
- */
+/** Provides an object's assigned and effective work calendars. */
 public interface HasCalendar {
+	/** Assigns the work calendar explicitly associated with this object. */
 	public void setWorkCalendar(WorkCalendar workCalendar);
+	/** Returns the explicitly assigned work calendar, if present. */
 	public WorkCalendar getWorkCalendar();
+	/** Returns the calendar used for scheduling after inheritance is resolved. */
 	public WorkCalendar getEffectiveWorkCalendar();
-	/** Returns the document whose schedule or resource state is affected by calendar edits. */
+	/** Returns the document affected by calendar edits, or {@code null} when unowned. */
 	public default Document getCalendarOwnerDocument() { return null; }
+	/** Invalidates the state affected by a calendar change and returns its document. */
 	public Document invalidateCalendar();
 }

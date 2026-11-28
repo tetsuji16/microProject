@@ -24,18 +24,15 @@
 package com.microproject.node.summaries;
 
 /**
- *
+ * Keeps the greatest summarized value, comparing it the way the field's {@link Comparable} does.
  */
 public class Maximum extends ComparableSummaryVisitor {
+	public Maximum() {
+		super();
+	}
 
-    public Maximum() {
-        super();
-    }
-
-    public void addToSummary(Object value) {
-        if (value==null) return;
-        if (summary==null||summary.compareTo(value)<0)
-            summary=(Comparable)value;
-    }
-
+	/** Nulls are ignored and a tie keeps the value summarized first. */
+	public void addToSummary(Object value) {
+		keepBoundary(value, true);
+	}
 }

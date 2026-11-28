@@ -26,10 +26,12 @@ package com.microproject.node.summaries;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
@@ -129,6 +131,169 @@ class SummaryVisitorFactoryTest {
 		visitor.setNode(parent);
 
 		assertEquals(Integer.valueOf(2), visitor.getSummary());
+	}
+
+	@Test
+	void maximumKeepsTheGreatestValueAndIgnoresNulls() {
+		Maximum maximum = new Maximum();
+		assertEquals(null, maximum.getSummary());
+
+		maximum.addToSummary(null);
+		maximum.addToSummary("b");
+		maximum.addToSummary("a");
+		maximum.addToSummary("c");
+		maximum.addToSummary("c");
+
+		assertEquals("c", maximum.getSummary());
+	}
+
+	@Test
+	void minimumKeepsTheSmallestValueAndIgnoresNulls() {
+		Minimum minimum = new Minimum();
+		minimum.addToSummary(null);
+		minimum.addToSummary(Integer.valueOf(5));
+		minimum.addToSummary(Integer.valueOf(2));
+		minimum.addToSummary(Integer.valueOf(9));
+
+		assertEquals(Integer.valueOf(2), minimum.getSummary());
+	}
+
+	@Test
+	void boundaryVisitorsCompareDatesChronologically() {
+		Date early = new Date(1_000_000L);
+		Date late = new Date(2_000_000L);
+
+		Maximum maximum = new Maximum();
+		maximum.addToSummary(early);
+		maximum.addToSummary(late);
+		assertSame(late, maximum.getSummary());
+
+		Minimum minimum = new Minimum();
+		minimum.addToSummary(late);
+		minimum.addToSummary(early);
+		assertSame(early, minimum.getSummary());
+	}
+
+	@Test
+	void boundaryVisitorsResetToNoSummary() {
+		Maximum maximum = new Maximum();
+		maximum.addToSummary("b");
+		maximum.reset();
+
+		assertEquals(null, maximum.getSummary());
+	}
+
+	@Test
+	void sameSummaryKeepsEqualValuesAndClearsOnMismatch() {
+		Same same = new Same();
+		assertEquals(null, same.getSummary());
+
+		same.addToSummary("a");
+		same.addToSummary("a");
+		assertEquals("a", same.getSummary());
+
+		same.addToSummary("b");
+		assertEquals(null, same.getSummary());
+		same.addToSummary("a");
+		assertEquals(null, same.getSummary(), "a cleared summary stays cleared until reset");
+
+		same.reset();
+		same.addToSummary("b");
+		assertEquals("b", same.getSummary());
+	}
+
+	@Test
+	void sameSummaryStaysNullWhenTheFirstValueIsNull() {
+		Same same = new Same();
+		same.addToSummary(null);
+		same.addToSummary(null);
+		same.addToSummary("a");
+
+		assertEquals(null, same.getSummary());
+	}
+
+	@Test
+	void concatTextSummaryJoinsValuesWithSemicolons() {
+		ConcatTextSummaryVisitor concat = new ConcatTextSummaryVisitor();
+		concat.reset();
+		assertEquals("", concat.getSummary());
+
+		concat.addToSummary("a");
+		concat.addToSummary("b");
+
+		assertEquals("a;b;", concat.getSummary());
+	}
+
+	@Test
+	void sumAddsNumbersAsDoubles() {
+		Sum sum = new Sum();
+		sum.reset();
+		sum.addToSummary(Integer.valueOf(1));
+		sum.addToSummary(Double.valueOf(2.5D));
+
+		assertEquals(Double.valueOf(3.5D), sum.getSummary());
+	}
+
+	@Test
+	void sumRejectsNullBecauseCallersFilterNullsBeforeSummarizing() {
+		Sum sum = new Sum();
+		sum.reset();
+
+		assertThrows(NullPointerException.class, () -> sum.addToSummary(null));
+	}
+
+	@Test
+	void summaryIdsKeepTheirStoredIntegers() {
+		assertEquals(0, SummaryNames.MAXIMUM);
+		assertEquals(0, SummaryNames.OR);
+		assertEquals(1, SummaryNames.MINIMUM);
+		assertEquals(1, SummaryNames.AND);
+		assertEquals(2, SummaryNames.COUNT_ALL);
+		assertEquals(3, SummaryNames.SUM);
+		assertEquals(4, SummaryNames.AVERAGE);
+		assertEquals(5, SummaryNames.AVERAGE_FIRST_SUBLEVEL);
+		assertEquals(6, SummaryNames.COUNT_FIRST_SUBLEVEL);
+		assertEquals(7, SummaryNames.COUNT_NONSUMMARIES);
+		assertEquals(8, SummaryNames.SAME);
+		assertEquals(-1, SummaryNames.NONE);
+		assertEquals(-2, SummaryNames.LIST);
+		assertEquals(-3, SummaryNames.CUSTOM);
+		assertEquals(-4, SummaryNames.THIS);
+	}
+
+	@Test
+	void configuredSummaryNamesResolveToTheirIntegers() {
+		assertEquals(SummaryNames.MAXIMUM, SummaryVisitorFactory.getSummaryId("Maximum"));
+		assertEquals(SummaryNames.MINIMUM, SummaryVisitorFactory.getSummaryId("Minimum"));
+		assertEquals(SummaryNames.SAME, SummaryVisitorFactory.getSummaryId("Same"));
+		assertEquals(SummaryNames.SUM, SummaryVisitorFactory.getSummaryId("Sum"));
+		assertEquals(SummaryNames.AVERAGE, SummaryVisitorFactory.getSummaryId("Average"));
+		assertEquals(SummaryNames.AVERAGE_FIRST_SUBLEVEL, SummaryVisitorFactory.getSummaryId("AverageFirstSublevel"));
+		assertEquals(SummaryNames.COUNT_ALL, SummaryVisitorFactory.getSummaryId("CountAll"));
+		assertEquals(SummaryNames.COUNT_FIRST_SUBLEVEL, SummaryVisitorFactory.getSummaryId("CountFirstSublevel"));
+		assertEquals(SummaryNames.COUNT_NONSUMMARIES, SummaryVisitorFactory.getSummaryId("CountNonsummaries"));
+		assertEquals(SummaryNames.LIST, SummaryVisitorFactory.getSummaryId("List"));
+		assertEquals(SummaryNames.NONE, SummaryVisitorFactory.getSummaryId("None"));
+		assertEquals(SummaryNames.THIS, SummaryVisitorFactory.getSummaryId("This"));
+		assertEquals(SummaryNames.OR, SummaryVisitorFactory.getSummaryId("OR"));
+		assertEquals(SummaryNames.AND, SummaryVisitorFactory.getSummaryId("AND"));
+	}
+
+	@Test
+	void factorySelectsAVisitorForEveryConfiguredSummaryId() {
+		assertInstanceOf(LeafWalker.class, SummaryVisitorFactory.getInstance(SummaryNames.MAXIMUM, Double.class, false));
+		assertInstanceOf(LeafWalker.class, SummaryVisitorFactory.getInstance(SummaryNames.MINIMUM, Date.class, false));
+		assertInstanceOf(LeafWalker.class, SummaryVisitorFactory.getInstance(SummaryNames.SUM, Double.class, false));
+		assertInstanceOf(LeafWalker.class, SummaryVisitorFactory.getInstance(SummaryNames.AVERAGE, Double.class, false));
+		assertInstanceOf(LeafWalker.class, SummaryVisitorFactory.getInstance(SummaryNames.LIST, String.class, false));
+		assertInstanceOf(DeepChildWalker.class,
+			SummaryVisitorFactory.getInstance(SummaryNames.COUNT_ALL, Double.class, false));
+		assertInstanceOf(ShallowChildWalker.class,
+			SummaryVisitorFactory.getInstance(SummaryNames.COUNT_FIRST_SUBLEVEL, Double.class, false));
+		assertInstanceOf(ShallowChildWalker.class, SummaryVisitorFactory.getInstance(SummaryNames.SAME, Double.class, false));
+		assertInstanceOf(LeafWalker.class, SummaryVisitorFactory.getInstance(SummaryNames.OR, Boolean.class, false));
+		assertInstanceOf(LeafWalker.class, SummaryVisitorFactory.getInstance(SummaryNames.AND, Boolean.class, false));
+		assertEquals(null, SummaryVisitorFactory.getInstance(SummaryNames.NONE, Double.class, false).getSummary());
 	}
 
 	private static Map<Object, Object> mapOf(Object key1, Object value1, Object key2, Object value2) {

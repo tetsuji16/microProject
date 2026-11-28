@@ -111,6 +111,12 @@ public class SpreadSheetCellEditorAdapter implements TableCellEditor {
 		return lastTableRef.get();
 	}
 
+	/** Releases a table from the shared editor tracker when it is the tracked instance. */
+	public static void releaseEditingTable(JTable table) {
+		if (table != null && lastTableRef.get() == table)
+			lastTableRef = new WeakReference<>(null);
+	}
+
 	/**
 	 * Single entry point for name and non-name editors: when editing moves to another
 	 * table, the previous table's editor is stopped and its selection cleared.
