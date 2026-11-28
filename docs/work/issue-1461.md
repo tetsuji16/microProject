@@ -39,4 +39,4 @@ Implementation is complete in the isolated branch; create a follow-up PR that cl
 - `python scripts/test_source_inventory.py --check --output build/audit/test-source-inventory.json`: passed.
 - `git diff origin/master -- modules/microproject_core/src/main/resources`: empty.
 
-- Tested source candidate SHA: aa77db67ec81ef272b7931645d25d64e6be0dfa; final branch 2a4eb2562 differs only by this evidence-packet update.
+- Tested source candidate SHA: aaa77db67ec81ef272b7931645d25d64e6be0dfa; subsequent commits differ only by evidence-packet updates.
