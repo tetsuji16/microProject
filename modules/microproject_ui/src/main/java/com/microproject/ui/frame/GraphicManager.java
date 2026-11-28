@@ -6324,14 +6324,14 @@ public class GraphicManager implements  FrameHolder, NamedFrameListener, WindowS
 			getCurrentFrame().getGanttView().refreshTaskPath();
 
 		Node currentNode=e.getCurrentNode();
-		Object currentImpl=currentNode.getImpl();
+		Object currentImpl=currentNode == null ? null : currentNode.getImpl();
 		traceUi("selection changed impl=" + describeUiObject(currentImpl));
 		setButtonState(currentImpl,getCurrentFrame().getProject());
 		// if on resource view, hide task info and vice versa.  Otherwise just show it
-		if (lastNode!=null&&informationDialogCoordinator.hasTaskDialog()&&(lastNode.getImpl() instanceof Task||lastNode.getImpl() instanceof Assignment)&&currentNode.getImpl() instanceof Resource){
+		if (currentNode != null && lastNode!=null&&informationDialogCoordinator.hasTaskDialog()&&(lastNode.getImpl() instanceof Task||lastNode.getImpl() instanceof Assignment)&&currentNode.getImpl() instanceof Resource){
 			informationDialogCoordinator.hideTaskDialog();
 			doInformationDialog(false);
-		} else if (lastNode!=null&&informationDialogCoordinator.hasResourceDialog()&&lastNode.getImpl() instanceof Resource&&(currentNode.getImpl() instanceof Task||currentNode.getImpl() instanceof Assignment)){
+		} else if (currentNode != null && lastNode!=null&&informationDialogCoordinator.hasResourceDialog()&&lastNode.getImpl() instanceof Resource&&(currentNode.getImpl() instanceof Task||currentNode.getImpl() instanceof Assignment)){
 			informationDialogCoordinator.hideResourceDialog();
 			doInformationDialog(false);
 		}else{

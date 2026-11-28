@@ -25,20 +25,19 @@ package com.microproject.job;
 
 import java.util.EventObject;
 
-/**
- *
- */
+/** Reports a job queue progress update. */
 public class JobQueueEvent extends EventObject {
 	private static final long serialVersionUID = -3731006891089384323L;
 
-	protected float progress;
-	
+	protected final float progress;
+
+	/** Creates a progress event with the reported progress value. */
 	public JobQueueEvent(Object source, float progress) {
 		super(source);
-		this.progress=progress;
+		this.progress = progress;
 	}
-	
-	
+
+	/** Returns the progress value reported by this event. */
 	public float getProgress() {
 		return progress;
 	}
