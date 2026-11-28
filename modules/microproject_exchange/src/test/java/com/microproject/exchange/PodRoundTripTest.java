@@ -1112,7 +1112,8 @@ public class PodRoundTripTest {
 	 * the on-disk format also embeds a live-generated MSPDI XML trailer (produced by
 	 * the external mpxj library) which legitimately carries a current timestamp and
 	 * is therefore expected to differ between saves. Comparing the ProjectData
-	 * payload isolates the real determinism guarantee.
+	 * payload isolates the real determinism guarantee. The serializer must also
+	 * synchronize deferred late dates before capturing task state.
 	 */
 	@Test
 	public void podSaveIsByteStableAcrossConsecutiveRoundTrips() throws Exception {
@@ -1141,6 +1142,8 @@ public class PodRoundTripTest {
 
 		// The real round-trip determinism guarantee: serializing the two loaded
 		// projects back to their ProjectData payloads must be bit-for-bit identical.
+		// Do not read late dates here: serialization must synchronize deferred
+		// backward calculation before capturing the payload.
 		Serializer serializer = new Serializer();
 		byte[] payload1 = serializeProjectData(serializer, p1);
 		byte[] payload2 = serializeProjectData(serializer, p2);
