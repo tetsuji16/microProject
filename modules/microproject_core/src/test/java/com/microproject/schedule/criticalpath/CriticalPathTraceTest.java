@@ -75,6 +75,7 @@ class CriticalPathTraceTest {
 			ResourcePool resourcePool = ResourcePool.createRourcePool("critical-path-trace-test", undoController);
 			project = Project.createProject(resourcePool, undoController);
 			project.initialize(false, false);
+			lastInstanceField.set(null, project.getSchedulingAlgorithm());
 			traceTaskField.set(null, null);
 
 			assertTrue(CriticalPath.getTrace().contains("(no task is being traced)"));
