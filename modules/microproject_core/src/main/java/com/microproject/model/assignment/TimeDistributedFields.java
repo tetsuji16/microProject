@@ -26,7 +26,8 @@ package com.microproject.model.assignment;
 import com.microproject.field.FieldContext;
 
 /**
- * Basic time distributed values.  See also EarnedValueFields for the fields that use them.
+ * Read/write contract for time-distributed work and cost values, including actual and baseline data.
+ * A {@link FieldContext} controls field access and visibility for each query.
  */
 public interface TimeDistributedFields {
 	double getCost(FieldContext fieldContext);

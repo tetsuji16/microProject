@@ -34,21 +34,36 @@ import com.microproject.model.resource.Resource;
 import com.microproject.schedule.SchedulingFields;
 import com.microproject.model.task.Task;
 /**
- * Interface for assignment container
+ * Contract for a task or other model object that owns an association list of assignments.
+ * Assignment queries and time-distributed calculations operate on that same association.
  */
 public interface HasAssignments extends HasTimeDistributedData, SchedulingFields, EarnedValueValues {
+	/** Returns the association list containing this object's assignments. */
 	AssociationList getAssignments();
+	/** Adds the assignment to this object's assignment association. */
 	void addAssignment(Assignment assignment);
+	/** Removes the assignment from this object's assignment association. */
 	void removeAssignment(Assignment assignment);
+	/** Finds the assignment for a resource, or returns {@code null} when absent. */
 	Assignment findAssignment(Resource resource);
+	/** Finds the assignment for a task, or returns {@code null} when absent. */
 	Assignment findAssignment(Task task);
+	/** Updates the assignment entry after one of its values changes. */
 	public void updateAssignment(Assignment modified);
+	/** Returns the scheduling type used to distribute assignment work. */
 	public int getSchedulingType();
+	/** Sets the scheduling type used to distribute assignment work. */
 	public void setSchedulingType(int schedulingType);
+	/** Calculates time-distributed values over the requested interval. */
 	public void calcDataBetween(Object type, TimeIteratorGenerator generator, CalculatedValues values);
+	/** Calculates assigned time that is active in the supplied work calendar. */
 	public long calcActiveAssignmentDuration(WorkCalendar workCalendar);	
+	/** Returns whether at least one assignment is a labor assignment. */
 	boolean hasLaborAssignment();
+	/** Invalidates work calendars cached by the assignments. */
 	void invalidateAssignmentCalendars();
+	/** Returns whether an assignment has active work between the supplied endpoints. */
 	boolean hasActiveAssignment(long start, long end);
+	/** Returns the earliest assignment start, or {@link Long#MAX_VALUE} when empty. */
 	long getEarliestAssignmentStart();
 }

@@ -27,8 +27,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.ObjectStreamClass;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -40,6 +43,7 @@ import com.microproject.model.assignment.contour.ContourTypes;
 import com.microproject.model.assignment.contour.ContourBucketIntervalGenerator;
 import com.microproject.model.assignment.contour.AbstractContourBucket;
 import com.microproject.model.assignment.contour.PersonalContourBucket;
+import com.microproject.model.assignment.contour.StandardContourBucket;
 import com.microproject.model.assignment.functor.ResourceAvailabilityFunctor;
 import com.microproject.schedule.ScheduleInterval;
 import com.microproject.model.resource.ResourceImpl;
@@ -50,6 +54,34 @@ import com.microproject.model.time.MutableInterval;
 import com.microproject.undo.DataFactoryUndoController;
 
 class AssignmentContourBehaviorTest {
+	@Test
+	void contourBucketComparatorUsesTypedUnitsOrderAndKeepsNullOrder() throws NoSuchFieldException {
+		AbstractContourBucket lower = PersonalContourBucket.getInstance(1L, 0.5D);
+		AbstractContourBucket higher = PersonalContourBucket.getInstance(1L, 1.5D);
+		Comparator<AbstractContourBucket> comparator = lower;
+
+		List<AbstractContourBucket> buckets = new ArrayList<>(List.of(higher, lower));
+		buckets.sort(comparator);
+
+		assertEquals(List.of(lower, higher), buckets);
+		assertEquals(-1, comparator.compare(null, lower));
+		assertEquals(1, comparator.compare(lower, null));
+		assertEquals(-1, AbstractContourBucket.staticCompare(null, lower));
+		assertEquals(1, AbstractContourBucket.staticCompare(lower, null));
+		assertEquals("com.microproject.model.assignment.contour.AbstractContourBucket",
+				AbstractContourBucket.class.getName());
+		assertEquals("com.microproject.model.assignment.contour.StandardContourBucket",
+				StandardContourBucket.class.getName());
+		assertEquals(-961372350672424649L,
+				ObjectStreamClass.lookup(AbstractContourBucket.class).getSerialVersionUID());
+		assertEquals(7171775892861366292L,
+				ObjectStreamClass.lookup(StandardContourBucket.class).getSerialVersionUID());
+		Field units = AbstractContourBucket.class.getDeclaredField("units");
+		assertEquals(double.class, units.getType());
+		Field fractionOfDuration = StandardContourBucket.class.getDeclaredField("fractionOfDuration");
+		assertEquals(double.class, fractionOfDuration.getType());
+	}
+
 	@Test
 	void assignmentChildrenToRollupIsEmptyForLeafAssignments() {
 		Project project = createProject();

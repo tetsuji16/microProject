@@ -24,7 +24,8 @@
 package com.microproject.model.assignment.contour;
 
 /**
- * A Contour bucket is a tiny class used to define one of the standard contoured work patterns.
+ * A standard contour segment stores a units value over a fraction of an assignment's duration.
+ * Its {@code fractionOfDuration} field is part of the serialized contour shape.
  */
 public final class StandardContourBucket extends AbstractContourBucket {
 	private static final long serialVersionUID = 7171775892861366292L;
@@ -38,12 +39,13 @@ public final class StandardContourBucket extends AbstractContourBucket {
 		return fractionOfDuration;
 	}
 
+	/** Returns this segment's share of the supplied assignment duration. */
 	public long getBucketDuration(long assignmentDuration) {
 		return (long) (assignmentDuration * getFractionOfDuration());
 	}
 	/**
-	 * Gets the amount this contour bucket contributes to the total
-	 * @return
+	 * Returns the contribution of this segment to the contour's weighted total.
+	 * @return units multiplied by this segment's duration fraction
 	 */
 	public double weightedSum() {
 		return units * fractionOfDuration;
