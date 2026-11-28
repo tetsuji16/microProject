@@ -22,13 +22,18 @@
  * SOFTWARE.
  *******************************************************************************/
 package com.microproject.node.summaries;
+
 /**
- *  
+ * Joins the summarized texts with the semicolon separator the List summary shows.
+ *
+ * <p>Every value is followed by {@code ';'}, so {@code "a"} and {@code "b"} become {@code "a;b;"}
+ * and a single value keeps its trailing separator.
  */
 public class ConcatTextSummaryVisitor extends TextSummaryVisitor {
 	public ConcatTextSummaryVisitor() {
 		super();
 	}
+
 	public void addToSummary(Object value) {
 		summary.append((String) value).append(';');
 	}
