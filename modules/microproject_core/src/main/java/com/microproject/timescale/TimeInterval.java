@@ -23,8 +23,11 @@
  *******************************************************************************/
 package com.microproject.timescale;
 
-import java.text.DateFormat;
-import java.util.Date;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
+import java.util.Locale;
 
 import com.microproject.model.time.HasStartAndEnd;
 
@@ -41,17 +44,18 @@ public class TimeInterval implements HasStartAndEnd {
 	
 	public String toString(){
 		StringBuilder buf = new StringBuilder();
-		DateFormat df = DateFormat.getDateTimeInstance();
+		DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM)
+				.withLocale(Locale.getDefault()).withZone(ZoneId.systemDefault());
 		
 		buf.append("TimeInterval[")
-			.append(df.format(new Date(start1)))
+			.append(formatter.format(Instant.ofEpochMilli(start1)))
 			.append(',')
-			.append(df.format(new Date(end1)))
+			.append(formatter.format(Instant.ofEpochMilli(end1)))
 			.append(',')
 			.append(text1)
-			.append(df.format(new Date(start2)))
+			.append(formatter.format(Instant.ofEpochMilli(start2)))
 			.append(',')
-			.append(df.format(new Date(end2)))
+			.append(formatter.format(Instant.ofEpochMilli(end2)))
 			.append(',')
 			.append(text2)
 			.append(']');
