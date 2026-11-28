@@ -24,22 +24,33 @@
 package com.microproject.node.transform;
 
 /**
+ * Identifier of a configured view transform, read from a stored view configuration.
  *
+ * <p>{@code ViewConfiguration} creates this bean for every {@code transform/filter},
+ * {@code transform/sorter}, {@code transform/grouper} and {@code transform/transformer} element and
+ * binds the {@code id} and {@code hidden} attributes to it by property name. The property names are
+ * therefore configuration contract: renaming {@link #setId(String)} or {@link #setHidden(boolean)}
+ * silently drops the stored view settings instead of failing a test.
  */
 public class TransformId {
-    String id;
-    boolean hidden=false;
-    
-    public boolean isHidden() {
-        return hidden;
-    }
-    public void setHidden(boolean hidden) {
-        this.hidden = hidden;
-    }
-    public String getId() {
-        return id;
-    }
-    public void setId(String id) {
-        this.id = id;
-    }
+	private String id;
+	private boolean hidden = false;
+
+	/** Whether the referenced transform is hidden from the transform menus. */
+	public boolean isHidden() {
+		return hidden;
+	}
+
+	public void setHidden(boolean hidden) {
+		this.hidden = hidden;
+	}
+
+	/** The configured transform ID, for example {@code Filter.DateRange}. */
+	public String getId() {
+		return id;
+	}
+
+	public void setId(String id) {
+		this.id = id;
+	}
 }
