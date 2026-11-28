@@ -38,7 +38,7 @@ MS Project 互換性に関する形式テストでは read と write を独立�
 | 契約 | 回帰の配置 |
 | --- | --- |
 | タスク追加→物理名前入力→MPO reload、削除→Undo/Redo | TaskInformationRibbonGuiAcceptanceTest の既存 Insert/Delete 旅程 |
-| Spreadsheet view cleanup→選択モデル listener detach | SpreadSheetCornerLifecycleTest: row/column selection modelsからCorner listenerが外れ、cleanup後の選択変更でcallbackされない |
+| Spreadsheet view cleanup→選択モデル listener / editor tracker detach | SpreadSheetCornerLifecycleTest: cleanup後の選択変更でCorner listenerがcallbackされない。SpreadSheetEditorTableTrackingTest: cleanup済みの編集テーブルが共有trackerから解除され、別テーブルの編集開始で選択が変更されない |
 | Gantt UI replacement→GraphInteractor detach | GraphInteractorLifecycleTest: `updateUI()` 反復後も現行 interactor のみが mouse/motion listener として残り、cleanup後は0件 |
 | #414 Gantt wheel ownership | TaskTableGanttGridGuiAcceptanceTest.physicalGanttWheelModifiersHaveOneScrollOwnerAndOneStep: 物理plain/Shift/Ctrl+wheelが縦/横/zoomの意図した状態だけを各1段変更し、表との縦同期を維持 |
 | #414 Gantt drag auto-scroll | GanttBarDateDragGuiAcceptanceTest.robotDragToChartEdgeAutoScrollsAndPersistsMovedTaskDate: 物理バー移動で表示端までドラッグし横スクロール、描画中のタスクバーと日付/model、Undo/Redo、MPO reloadを確認 |

@@ -80,6 +80,7 @@ class SpreadSheetEditorTableTrackingTest {
 
 				closed.cleanUp();
 				SpreadSheetCellEditorAdapter.trackEditingTable(recovered);
+				SpreadSheetCellEditorAdapter.releaseEditingTable(closed);
 
 				assertEquals(0, closed.getSelectedRow(),
 					"a cleaned-up table must not receive selection changes when another table starts editing");
