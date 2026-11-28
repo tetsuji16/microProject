@@ -27,9 +27,16 @@ import org.apache.commons.digester3.AbstractObjectCreationFactory;
 import org.xml.sax.Attributes;
 
 /**
- * Factory that ensures that the digester uses a singleton instance of the Field Dictionary
+ * Creates the configured FieldDictionary for Digester, reusing the existing singleton when present.
  */
-public class FieldDictionaryFactory extends AbstractObjectCreationFactory  {
+public class FieldDictionaryFactory extends AbstractObjectCreationFactory {
+	/**
+	 * Returns the configured dictionary, or creates one when configuration has none yet.
+	 *
+	 * @param arg0 XML attributes supplied by Digester; the factory does not use them
+	 * @return the existing or newly created FieldDictionary
+	 */
+	@Override
 	public Object createObject(Attributes arg0) { //claur
 		FieldDictionary fieldDictionary = Configuration.getInstance().getFieldDictionary();
 		if (fieldDictionary == null) // make it a singleton

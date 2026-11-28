@@ -22,18 +22,49 @@
  * SOFTWARE.
  *******************************************************************************/
 package com.microproject.node.summaries;
+
 /**
- *  
+ * Base visitor for the summaries that keep one of the summarized values, used by {@link Maximum}
+ * and {@link Minimum}.
+ *
+ * <p>The summarized field decides the value type, so the comparison is the one {@link Comparable}
+ * declares on the first stored value: dates compare chronologically, numbers numerically and text
+ * lexicographically. {@code null} values are ignored, a value of a different type keeps throwing
+ * {@link ClassCastException} as before, and a tie keeps the value summarized first.
  */
 public abstract class ComparableSummaryVisitor extends SummaryVisitor {
 	protected Comparable summary;
+
 	public ComparableSummaryVisitor() {
 		super();
 	}
+
 	public void reset() {
 		summary = null;
 	}
+
 	public Object getSummary() {
 		return summary;
+	}
+
+	/**
+	 * Keeps {@code value} when it is strictly beyond the current summary in the requested
+	 * direction; an equal value does not replace the stored one.
+	 *
+	 * @param value    the value to summarize, ignored when {@code null}
+	 * @param greatest {@code true} for a maximum, {@code false} for a minimum
+	 */
+	protected final void keepBoundary(Object value, boolean greatest) {
+		if (value == null) return;
+		if (summary == null || (compareSummaryWith(value) < 0) == greatest) summary = asComparable(value);
+	}
+
+	@SuppressWarnings("unchecked")
+	private static Comparable<Object> asComparable(Object value) {
+		return (Comparable<Object>) value;
+	}
+
+	private int compareSummaryWith(Object value) {
+		return asComparable(summary).compareTo(value);
 	}
 }

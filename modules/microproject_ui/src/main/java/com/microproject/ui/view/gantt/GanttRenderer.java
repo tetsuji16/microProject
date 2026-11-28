@@ -1439,7 +1439,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 					long s=interval.getStart();
 					if (CalendarService.getInstance().getDay(wc, s).isWorking()){
 						if (startNonworking!=-1L){
-							drawNonWorking(g2, startNonworking, endNonWorking, cal, coord, bounds,useScale2);
+							drawNonWorking(g2, startNonworking, endNonWorking, coord, bounds,useScale2);
 							startNonworking=endNonWorking=-1L;
 						}
 					}else{
@@ -1449,7 +1449,7 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 					}
 				}
 				if (startNonworking!=-1L){
-					drawNonWorking(g2, startNonworking, endNonWorking, cal, coord, bounds,useScale2);
+					drawNonWorking(g2, startNonworking, endNonWorking, coord, bounds,useScale2);
 					startNonworking=endNonWorking=-1L;
 				}
 			}
@@ -1498,12 +1498,10 @@ public class GanttRenderer extends GraphRenderer implements Serializable {
 		}
 	}
 
-	private void drawNonWorking(Graphics2D g2,long startNonworking,long endNonWorking, Calendar cal,CoordinatesConverter coord, Rectangle bounds,boolean userScale2){
+	private void drawNonWorking(Graphics2D g2,long startNonworking,long endNonWorking,CoordinatesConverter coord, Rectangle bounds,boolean userScale2){
 		GanttParams params = graphInfo instanceof GanttParams ? (GanttParams) graphInfo : null;
-		cal.setTimeInMillis(endNonWorking);
-		if (userScale2) coord.getTimescaleManager().getScale().increment2(cal);
-		else coord.getTimescaleManager().getScale().increment1(cal);
-		endNonWorking=cal.getTimeInMillis();
+		if (userScale2) endNonWorking=coord.getTimescaleManager().getScale().increment2(endNonWorking);
+		else endNonWorking=coord.getTimescaleManager().getScale().increment1(endNonWorking);
 		g2.fillRect((int)Math.round(coord.toX(startNonworking)), bounds.y, (int)Math.round(coord.toW(endNonWorking-startNonworking)), bounds.height);
 		if (params != null && params.isNonWorkingBoundaryVisible()) {
 			Color color = params.getNonWorkingBoundaryColor() == null ? palette.getGridLine() : params.getNonWorkingBoundaryColor();

@@ -26,7 +26,13 @@ package com.microproject.node.transform;
 import java.util.EventObject;
 
 /**
+ * Notification that a {@link ViewTransformer} changed its state.
  *
+ * <p>The serialized identity is fixed: the explicit {@code serialVersionUID} and the class name are
+ * preserved so streamed view state keeps reading, and {@code ClassRelocations} keeps the alias from
+ * the pre-rename {@code com.microproject.grouping.core.transform} package. The only state is the
+ * inherited, transient {@link EventObject#getSource() source}, so the event carries no serialized
+ * fields of its own.
  */
 public class ViewTransformerEvent extends EventObject {
 	private static final long serialVersionUID = 6416736838418985755L;

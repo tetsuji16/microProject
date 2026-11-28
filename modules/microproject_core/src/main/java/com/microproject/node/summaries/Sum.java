@@ -22,13 +22,20 @@
  * SOFTWARE.
  *******************************************************************************/
 package com.microproject.node.summaries;
+
 /**
- *  
+ * Adds the summarized numbers and keeps the total as a {@code double}.
+ *
+ * <p>Every {@link Number} subclass contributes its {@code doubleValue()}, matching the numeric
+ * rollup the spreadsheet and Gantt views display. Callers pass non-null values
+ * ({@link SummaryVisitor#accept(Object)} filters them), so a {@code null} value keeps throwing
+ * {@link NullPointerException}.
  */
 public class Sum extends NumberSummaryVisitor {
 	public Sum() {
 		super();
 	}
+
 	public void addToSummary(Object value) {
 		summary += ((Number) value).doubleValue();
 	}

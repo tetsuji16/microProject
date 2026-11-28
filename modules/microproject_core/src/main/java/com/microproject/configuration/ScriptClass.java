@@ -24,17 +24,19 @@
 package com.microproject.configuration;
 
 /**
- * A class that is resolved in scripting
+ * Stores a Java class name allowed by the scripting configuration XML.
  */
 public class ScriptClass {
+	/** Configured fully qualified class name. */
 	protected String name;
 
+	/** @return configured fully qualified class name */
 	public String getName() {
 		return name;
 	}
 
+	/** @param name fully qualified class name from the XML name attribute */
 	public void setName(String name) {
 		this.name = name;
 	}
-	
 }
