@@ -23,9 +23,14 @@
  *******************************************************************************/
 package com.microproject.algorithm.buffer;
 
-/**
- * Interface for callbacks applied to CalculatedValues arrays
- */
+/** Receives indexed points produced while traversing calculated values. */
 public interface SeriesCallback {
+	/**
+	 * Accepts one point from the calculated series.
+	 *
+	 * @param index index of the point in the series
+	 * @param x horizontal coordinate of the point
+	 * @param y value at the point
+	 */
 	void add(int index, double x, double y);
 }
