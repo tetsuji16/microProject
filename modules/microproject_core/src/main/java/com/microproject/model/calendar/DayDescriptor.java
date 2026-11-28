@@ -23,29 +23,31 @@
  *******************************************************************************/
 package com.microproject.model.calendar;
 
-/**
- * 
- */
+/** Describes the effective workday selected for a calendar date. */
 public class DayDescriptor {
 	WorkDay workDay = null;
 	boolean modified = false;
-	
+
+	/** Returns whether the described day has working time. */
 	public boolean isWorking() {
 		if (workDay == null)
 			return false;
 		return workDay.isWorking();
 	}
-	
+
+	/** Returns whether this day differs from its inherited or default value. */
 	public boolean isModified() {
 		return modified;
 	}
-	
+
+	/** Returns the day's effective working hours, or {@code null} when absent. */
 	public WorkingHours getWorkingHours() {
 		if (workDay == null)
 			return null;
 		return workDay.getWorkingHours();
 	}
-	
+
+	/** Returns the workday and override state for diagnostics. */
 	public String toString() {
 		return workDay + "\nmodified=" + modified;
 	}

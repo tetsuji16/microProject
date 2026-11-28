@@ -26,8 +26,12 @@ package com.microproject.model.calendar;
 import com.microproject.configuration.CircularDependencyException;
 import com.microproject.field.FieldContext;
 
+/** Exposes a calendar's inherited base calendar and its configuration field. */
 public interface HasBaseCalendar {
+	/** Returns the base calendar whose schedule this calendar inherits. */
 	WorkCalendar getBaseCalendar();
+	/** Sets the inherited calendar, rejecting a circular calendar dependency. */
 	void setBaseCalendar(WorkCalendar baseCalendar) throws CircularDependencyException;;
+	/** Reports whether the base-calendar field is hidden in this field context. */
 	boolean fieldHideBaseCalendar(FieldContext fieldContext);
 }

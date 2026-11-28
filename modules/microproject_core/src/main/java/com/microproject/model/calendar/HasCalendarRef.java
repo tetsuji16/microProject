@@ -23,9 +23,8 @@
  *******************************************************************************/
 package com.microproject.model.calendar;
 
-/**
- *
- */
+/** Provides access to the calendar-bearing object referenced by a model value. */
 public interface HasCalendarRef {
+	/** Returns the referenced object that supplies calendar access. */
 	public HasCalendar getHasCalendar();
 }
