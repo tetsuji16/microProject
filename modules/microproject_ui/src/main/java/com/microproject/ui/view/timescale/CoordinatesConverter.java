@@ -97,18 +97,16 @@ public class CoordinatesConverter implements ScheduleEventListener, Serializable
     }*/
     
 	protected void adaptOrigin(Calendar calendar,boolean event){
-		getTimescaleManager().getScale().floor1(calendar,-1);
-		
-		long tmp = calendar.getTimeInMillis();
+		long tmp = getTimescaleManager().getScale().floor1(calendar.getTimeInMillis());
+		calendar.setTimeInMillis(tmp);
 		if (this.origin!=tmp){
 			this.origin=tmp;
 			if (event) fireTimeScaleChanged(this,ChangeType.ORIGIN_AND_END);
 		}
 	}
 	protected void adaptEnd(Calendar calendar,boolean event){
-		getTimescaleManager().getScale().ceil1(calendar,-1);
-		
-		long tmp = calendar.getTimeInMillis();
+		long tmp = getTimescaleManager().getScale().ceil1(calendar.getTimeInMillis());
+		calendar.setTimeInMillis(tmp);
 		
 		if (this.end!=tmp){
 			this.end=tmp;
