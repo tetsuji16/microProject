@@ -17,12 +17,12 @@ Blockers: none; #1437 approval is recorded and #1459 has no blocked-by issue.
 
 | ID | Required result/evidence | State | Evidence (SHA + link) |
 |---|---|---|---|
-| A1 | Eight files document type and method contracts | pass | reviewed all eight issue-listed source files |
-| A2 | `CustomFields` declarations have no redundant `public` | pass | `rg` found 0 redundant declarations |
-| A3 | `DefaultFieldAccessControl` has `@Override` and `final` | pass | source check confirmed final class and `@Override` |
-| A4 | Resource class-name references remain unchanged | pass | both `git grep -nF` checks found the expected XML and properties references; resource diff empty |
-| A5 | Core tests pass | pass | `:microproject_core:test`: 1510 tests, 0 failures, 2 skipped |
-| A6 | `git diff --check` is clean | pass | `git diff --check`: no output |
+| A1 | Eight files document type and method contracts | pass | `17a8870c`; reviewed all eight issue-listed source files |
+| A2 | `CustomFields` declarations have no redundant `public` | pass | `17a8870c`; `rg` found 0 redundant declarations |
+| A3 | `DefaultFieldAccessControl` has `@Override` and `final` | pass | `17a8870c`; source check confirmed final class and `@Override` |
+| A4 | Resource class-name references remain unchanged | pass | `17a8870c`; both `git grep -nF` checks found the expected XML and properties references; resource diff empty |
+| A5 | Core tests pass | pass | `17a8870c`; `:microproject_core:test`: 1510 tests, 0 failures, 2 skipped |
+| A6 | `git diff --check` is clean | pass | `17a8870c`; `git diff --check`: no output |
 
 ## Current slice
 
@@ -36,6 +36,6 @@ Blockers: none; #1437 approval is recorded and #1459 has no blocked-by issue.
 
 ## Latest evidence
 
-- Tests/build: `.\gradlew.bat :microproject_core:test --tests "com.microproject.field.*" --console=plain` → BUILD SUCCESSFUL, 36 tests, 0 failures, 0 skipped; `.\gradlew.bat :microproject_core:test --console=plain` → BUILD SUCCESSFUL, 1510 tests, 0 failures, 2 skipped.
+- Tests/build: SHA `17a8870c`; `.\gradlew.bat :microproject_core:test --tests "com.microproject.field.*" --console=plain` → BUILD SUCCESSFUL, 36 tests, 0 failures, 0 skipped; `.\gradlew.bat :microproject_core:test --console=plain` → BUILD SUCCESSFUL, 1510 tests, 0 failures, 2 skipped.
 - Physical GUI/manual: not applicable; no user-visible route changes.
 - CI: pending on PR candidate SHA.
