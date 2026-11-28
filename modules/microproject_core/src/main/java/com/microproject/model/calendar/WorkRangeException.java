@@ -23,15 +23,11 @@
  *******************************************************************************/
 package com.microproject.model.calendar;
 
-/**
- * 
- */
+/** Signals that working-time intervals are incomplete or not in valid order. */
 public class WorkRangeException extends Exception {
 	private static final long serialVersionUID = 6736666073323363123L;
 
-	/**
-	 * @param arg0
-	 */
+	/** Creates an exception with the localized validation message. */
 	public WorkRangeException(String arg0) {
 		super(arg0);
 	}

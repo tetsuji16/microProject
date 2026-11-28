@@ -27,6 +27,11 @@ import com.microproject.configuration.NamedItem;
 import com.microproject.persistence.data.DataObject;
 import com.microproject.i18n.Messages;
 
+/**
+ * A named calendar that defines working-time adjustment and scheduling operations.
+ * Date arguments are scheduler timestamps; durations use the scheduler's
+ * millisecond-based duration representation, including its elapsed-time flag.
+ */
 public interface WorkCalendar extends Cloneable, NamedItem, DataObject {
 	static final long MILLIS_IN_DAY = (1000L * 60 * 60 * 24);
 	static final long MILLIS_IN_WEEK = (7L * MILLIS_IN_DAY);
@@ -44,15 +49,25 @@ public interface WorkCalendar extends Cloneable, NamedItem, DataObject {
 	static final String EDITS_TO_AN_INDIVIDUAL_DAY=Messages.getString("Calendar.EditsToAnIndividualDay");
 	static final String UNMODIFIED=Messages.getString("Calendar.Unmodified");
 	
-	long adjustInsideCalendar(long date, boolean useSooner);	
+	/** Moves a timestamp to an allowed working-time boundary in the selected direction. */
+	long adjustInsideCalendar(long date, boolean useSooner);
+	/** Adds a duration according to this calendar and the requested boundary direction. */
     long add(long date, long duration, boolean useSooner);
+    /** Returns the signed elapsed or scheduled working duration from earlier to later. */
     long compare(long laterDate, long earlierDate, boolean elapsed);
+    /** Creates an independent calendar copy. */
     Object clone() throws CloneNotSupportedException;
+	/** Changes this calendar's display name. */
     void setName(String name);
+	/** Returns the concrete calendar definition used for calculations. */
 	CalendarDefinition getConcreteInstance();
+	/** Returns the calendar from which this one inherits. */
 	WorkCalendar getBaseCalendar();
+	/** Returns whether this calendar depends on the supplied calendar. */
 	boolean dependsOn(WorkCalendar cal);
+	/** Invalidates cached schedule values after a calendar change. */
 	void invalidate();
+	/** Returns whether the concrete calculation state needs rebuilding. */
 	boolean isInvalid();
 
 }
