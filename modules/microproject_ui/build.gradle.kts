@@ -196,6 +196,15 @@ tasks.register<Test>("guiTest") {
     if (guiTestUiScale != null)
         systemProperty("sun.java2d.uiScale", guiTestUiScale)
     systemProperty("microproject.gui.artifacts.dir", guiTestArtifactsDir)
+    systemProperty("microproject.gui.failOnUncaught", providers.gradleProperty("guiTestFailOnUncaught").orElse("false").get())
+    if (providers.gradleProperty("guiTestJfr").orNull == "true") {
+        jvmArgs("-XX:StartFlightRecording=disk=true,dumponexit=true,filename=$guiTestArtifactsDir/jfr/")
+    }
+    finalizedBy("guiRunReport")
+    // The run report summarises every runs/*/*/summary.json it finds, so a
+    // record left by an earlier invocation would be reported as this one's.
+    val guiRunRecords = file("$guiTestArtifactsDir/runs")
+    doFirst { guiRunRecords.deleteRecursively() }
 	systemProperty("microproject.gui.contentionMarker", guiTestContentionMarker)
 	// GUI tests run from the generated install layout, not the repository root.
 	// Expose the fixture root explicitly so sample-file acceptance routes test
@@ -211,4 +220,16 @@ tasks.register<Test>("guiTest") {
 		guiTestLocalAppData.mkdirs()
 	}
     mustRunAfter(tasks.test)
+}
+
+val guiTestArtifactsDirectory = providers.gradleProperty("guiTestArtifactsDir")
+    .orElse(layout.buildDirectory.dir("reports/guiTest-artifacts").map { it.asFile.absolutePath })
+
+tasks.register<JavaExec>("guiRunReport") {
+    group = "verification"
+    description = "Summarises the per-test GUI run records of the last guiTest run."
+    classpath = guiTestSourceSet.runtimeClasspath
+    mainClass.set("com.microproject.ui.testsupport.GuiRunReport")
+    argumentProviders.add(CommandLineArgumentProvider { listOf(guiTestArtifactsDirectory.get()) })
+    dependsOn(guiTestSourceSet.classesTaskName)
 }
