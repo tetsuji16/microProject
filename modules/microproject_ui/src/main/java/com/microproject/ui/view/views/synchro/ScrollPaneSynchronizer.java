@@ -51,6 +51,16 @@ import com.microproject.ui.view.timescale.CoordinatesConverter;
  */
 public class ScrollPaneSynchronizer {
 	private static final Map ganttSynchronizers = new WeakHashMap();
+	private static final String USER_NAVIGATION_CALLBACK = "microproject.userNavigationCallback";
+
+	public static void setUserNavigationCallback(JScrollPane pane, Runnable callback) {
+		pane.putClientProperty(USER_NAVIGATION_CALLBACK, callback);
+	}
+
+	private static void notifyUserNavigation(JScrollPane pane) {
+		if (pane != null && pane.getClientProperty(USER_NAVIGATION_CALLBACK) instanceof Runnable callback)
+			callback.run();
+	}
 
 	public static final int HORIZONTAL = JSplitPane.VERTICAL_SPLIT;
 
@@ -629,6 +639,8 @@ public class ScrollPaneSynchronizer {
 				if (event.isConsumed()) {
 					return;
 				}
+				notifyUserNavigation(scrollPane1);
+				if (scrollPane2 != scrollPane1) notifyUserNavigation(scrollPane2);
 				if (handleZoomWheel(scrollPane, event)) {
 					event.consume();
 					return;

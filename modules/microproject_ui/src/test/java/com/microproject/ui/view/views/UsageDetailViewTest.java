@@ -153,6 +153,29 @@ class UsageDetailViewTest {
 		});
 	}
 
+	@Test
+	void cancelledInitialZoomDoesNotApplyItsDeferredScroll() throws Exception {
+		var valid = new java.util.concurrent.atomic.AtomicBoolean(true);
+		ScaledScrollPane[] pane = new ScaledScrollPane[1];
+		java.awt.Point[] manual = new java.awt.Point[1];
+		SwingUtilities.invokeAndWait(() -> {
+			var undo = new DataFactoryUndoController();
+			var project = Project.createProject(ResourcePool.createRourcePool("cancelled-initial-zoom", undo), undo);
+			project.initialize(false, false);
+			var coord = new CoordinatesConverter(project);
+			pane[0] = new ScaledScrollPane(new TestScaledComponent(), coord, null, 10);
+			var viewport = pane[0].getViewport();
+			viewport.setExtentSize(new Dimension(250, 200));
+			viewport.setViewSize(new Dimension(4000, 240));
+			assertTrue(SelectedTasksTimescaleZoom.zoomProject(project, coord, pane[0], valid::get));
+			valid.set(false);
+			viewport.setViewPosition(new java.awt.Point(500, 0));
+			manual[0] = viewport.getViewPosition();
+		});
+		SwingUtilities.invokeAndWait(() -> assertEquals(manual[0], pane[0].getViewport().getViewPosition(),
+			"a cancelled initial zoom must not override a later navigation in its deferred callback"));
+	}
+
 	private static NormalTask projectTask(Project project, String name) {
 		NormalTask task = new NormalTask(project);
 		task.setName(name);
