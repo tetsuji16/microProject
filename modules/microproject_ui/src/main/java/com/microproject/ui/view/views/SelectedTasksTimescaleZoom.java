@@ -25,6 +25,7 @@ package com.microproject.ui.view.views;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 
 import javax.swing.SwingUtilities;
 
@@ -80,6 +81,11 @@ public final class SelectedTasksTimescaleZoom {
 		return project != null && zoom(java.util.List.of(project), coord, scrollPane);
 	}
 
+	static boolean zoomProject(Project project, CoordinatesConverter coord, ScaledScrollPane scrollPane,
+			BooleanSupplier stillValid) {
+		return project != null && zoom(java.util.List.of(project), coord, scrollPane, stillValid);
+	}
+
 	static boolean canZoomProject(Project project) {
 		return project != null && canZoom(java.util.List.of(project));
 	}
@@ -89,6 +95,11 @@ public final class SelectedTasksTimescaleZoom {
 	}
 
 	static boolean zoom(Collection<?> selected, CoordinatesConverter coord, ScaledScrollPane scrollPane) {
+		return zoom(selected, coord, scrollPane, () -> true);
+	}
+
+	private static boolean zoom(Collection<?> selected, CoordinatesConverter coord, ScaledScrollPane scrollPane,
+			BooleanSupplier stillValid) {
 		DateRange range = resolve(selected);
 		if (range == null || coord == null || scrollPane == null)
 			return false;
@@ -115,7 +126,7 @@ public final class SelectedTasksTimescaleZoom {
 		while (manager.getCurrentScaleIndex() < targetScale && coord.canZoomOut())
 			coord.zoomOut();
 		SwingUtilities.invokeLater(() -> {
-			if (scrollPane.getViewport() != null)
+			if (stillValid.getAsBoolean() && scrollPane.getViewport() != null)
 				scrollPane.getHorizontalScrollBar().setValue(Math.max(0, (int) Math.floor(coord.toX(range.start()))));
 		});
 		return true;

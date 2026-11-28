@@ -66,6 +66,7 @@ public abstract class SplittedView extends JSplitPane {
     private Synchronizer synchronizer;
 	private boolean dividerLocationManuallyAdjusted;
 	private boolean responsiveDividerUpdatePending;
+	private boolean responsiveDividerLayoutApplied;
 	private Component trackedDivider;
 	private MouseAdapter dividerGestureListener;
 	private int dividerPressLocation = -1;
@@ -140,10 +141,24 @@ public abstract class SplittedView extends JSplitPane {
 		SwingUtilities.invokeLater(() -> {
 			Window window = SwingUtilities.getWindowAncestor(this);
 			if (window != null && window.isDisplayable()) window.validate();
+			if (!responsiveDividerUpdatePending) onSplitHierarchyValidated();
 		});
 	}
 
+	/** Called after the pending responsive divider update and hierarchy validation. */
+	protected void onSplitHierarchyValidated() {
+	}
+
+	/** Gives a view the opportunity to cancel pending initial positioning. */
+	protected void onDividerUserInteraction() {
+	}
+
+	protected final boolean isResponsiveDividerLayoutApplied() {
+		return responsiveDividerLayoutApplied;
+	}
+
 	public void init() {
+		responsiveDividerLayoutApplied = false;
 		if (leftScrollPane != null || rightScrollPane != null) {
 			disposeSplitView();
 		}
@@ -232,6 +247,7 @@ public abstract class SplittedView extends JSplitPane {
 			int location = insets.left + Math.max(MINIMUM_RESTORED_PANE_WIDTH,
 					Math.min(preferredLeftPaneWidth(), maximumLeftWidth));
 			setDividerLocationSilently(location);
+			responsiveDividerLayoutApplied = true;
 			publishDividerLocationAndRequestValidation(this, location);
 		});
 	}
@@ -301,6 +317,7 @@ public abstract class SplittedView extends JSplitPane {
 			dividerGestureListener = new MouseAdapter() {
 				@Override
 				public void mousePressed(MouseEvent event) {
+					onDividerUserInteraction();
 					dividerPressLocation = getDividerLocation();
 				}
 

@@ -28,6 +28,10 @@ import java.awt.Dimension;
 import java.awt.Insets;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.AdjustmentEvent;
+import java.awt.event.AdjustmentListener;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.SortedSet;
@@ -113,6 +117,14 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	private boolean synchronizingRowGeometry;
 	private Runnable columnHeaderHeightBinding;
 	private ComponentAdapter initialProjectFitListener;
+	private long initialProjectFitGeneration;
+	private final MouseAdapter initialFitNavigationListener = new MouseAdapter() {
+		@Override public void mousePressed(MouseEvent event) { cancelInitialProjectFit(); }
+	};
+	private final AdjustmentListener initialFitAdjustmentListener = event -> {
+		if (event.getValueIsAdjusting() || event.getAdjustmentType() != AdjustmentEvent.TRACK)
+			cancelInitialProjectFit();
+	};
 	private final TableColumnModelListener dividerColumnListener = new TableColumnModelListener() {
 		@Override public void columnAdded(TableColumnModelEvent event) { requestDividerBoundsEnforcement(); }
 		@Override public void columnRemoved(TableColumnModelEvent event) { requestDividerBoundsEnforcement(); }
@@ -185,7 +197,12 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		columnHeaderHeightBinding = ganttScrollPane.followColumnHeaderHeight(spreadSheet);
 	}
 	public void cleanUp() {
-		removeInitialProjectFitListener();
+		cancelInitialProjectFit();
+		if (ganttScrollPane != null) {
+			ScrollPaneSynchronizer.setUserNavigationCallback(ganttScrollPane, null);
+			ganttScrollPane.getHorizontalScrollBar().removeAdjustmentListener(initialFitAdjustmentListener);
+		}
+		if (gantt != null) gantt.removeMouseListener(initialFitNavigationListener);
 		if (columnHeaderHeightBinding != null) {
 			columnHeaderHeightBinding.run();
 			columnHeaderHeightBinding = null;
@@ -266,6 +283,9 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 			setProgressLineEnabled(progressLineSettings.showCurrentLine() || progressLineSettings.showRecurringLines());
 		gantt.setBarStyles((BarStyles) Dictionary.get(BarStyles.category, DEFAULT_GANTT_BAR_STYLE));
 		ganttScrollPane = new ScaledScrollPane(gantt, coord, documentFrame, spreadSheet.getRowHeight());
+		ScrollPaneSynchronizer.setUserNavigationCallback(ganttScrollPane, this::cancelInitialProjectFit);
+		ganttScrollPane.getHorizontalScrollBar().addAdjustmentListener(initialFitAdjustmentListener);
+		gantt.addMouseListener(initialFitNavigationListener);
 		ganttScrollPane.preserveCenterDateOnWidthResize();
 		ganttScrollPane.getViewport().setScrollMode(JViewport.SIMPLE_SCROLL_MODE);
 		applySpreadsheetGridStyle();
@@ -299,16 +319,35 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 	public void fitProjectRangeOnInitialDisplay() {
 		if (ganttScrollPane == null)
 			return;
+		cancelInitialProjectFit();
 		initialProjectFitListener = new ComponentAdapter() {
-			@Override public void componentResized(ComponentEvent event) { tryInitialProjectFit(); }
+			@Override public void componentResized(ComponentEvent event) { requestSplitHierarchyValidation(); }
 		};
 		ganttScrollPane.addComponentListener(initialProjectFitListener);
-		SwingUtilities.invokeLater(this::tryInitialProjectFit);
+		requestSplitHierarchyValidation();
+	}
+
+	@Override
+	protected void onSplitHierarchyValidated() {
+		if (isResponsiveDividerLayoutApplied()) tryInitialProjectFit();
+	}
+
+	@Override
+	protected void onDividerUserInteraction() {
+		cancelInitialProjectFit();
 	}
 
 	private void tryInitialProjectFit() {
-		if (ganttScrollPane != null && SelectedTasksTimescaleZoom.zoomProject(project, coord, ganttScrollPane))
+		long generation = initialProjectFitGeneration;
+		if (initialProjectFitListener != null && ganttScrollPane != null
+				&& SelectedTasksTimescaleZoom.zoomProject(project, coord, ganttScrollPane,
+						() -> generation == initialProjectFitGeneration))
 			removeInitialProjectFitListener();
+	}
+
+	private void cancelInitialProjectFit() {
+		initialProjectFitGeneration++;
+		removeInitialProjectFitListener();
 	}
 
 	private void removeInitialProjectFitListener() {
@@ -430,11 +469,13 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		return project.getUndoController();
 	}
 	public void zoomIn() {
+		cancelInitialProjectFit();
 		if (gantt == null || !ScrollPaneSynchronizer.zoomIn(gantt, selectedTaskStart())) {
 			coord.zoomIn();
 		}
 	}
 	public void zoomOut() {
+		cancelInitialProjectFit();
 		if (gantt == null || !ScrollPaneSynchronizer.zoomOut(gantt, selectedTaskStart())) {
 			coord.zoomOut();
 		}
@@ -666,6 +707,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 			spreadSheet.getColumnModel().removeColumnModelListener(dividerColumnListener);
 	}
 	public void restoreWorkspace(WorkspaceSetting w, int context) {
+		cancelInitialProjectFit();
 		Workspace ws = (Workspace) w;
 		spreadSheet.restoreWorkspace(ws.spreadSheet, context);
 		setSpreadsheetGridVisible(gridLinesVisibleFromWorkspace(ws));
@@ -838,6 +880,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 
 	/** Centres the current system date in the chart; selection and model data are untouched. */
 	public boolean scrollToToday() {
+		cancelInitialProjectFit();
 		return gantt != null && gantt.scrollToDate(System.currentTimeMillis());
 	}
 
@@ -848,6 +891,7 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		return spreadSheet != null && SelectedTasksTimescaleZoom.canZoom(spreadSheet.getSelectedNodesImpl());
 	}
 	public void zoomToSelectedTasks() {
+		cancelInitialProjectFit();
 		if (spreadSheet != null)
 			SelectedTasksTimescaleZoom.zoom(spreadSheet.getSelectedNodesImpl(), coord, ganttScrollPane);
 	}
@@ -855,12 +899,14 @@ public class GanttView extends SplittedView implements BaseView, ScheduleEventLi
 		return SelectedTasksTimescaleZoom.canZoomProject(project);
 	}
 	public void zoomToProject() {
+		cancelInitialProjectFit();
 		SelectedTasksTimescaleZoom.zoomProject(project, coord, ganttScrollPane);
 	}
 	public SelectedTasksTimescaleZoom.DateRange getVisibleDateRange() {
 		return SelectedTasksTimescaleZoom.visibleRange(coord, ganttScrollPane);
 	}
 	public void scrollToTask() {
+		cancelInitialProjectFit();
 		List impls = spreadSheet.getSelectedNodesImpl();
 		if (impls.isEmpty() || !(impls.get(0) instanceof HasStartAndEnd interval)) {
 			return;
