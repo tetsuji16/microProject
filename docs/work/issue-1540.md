@@ -36,6 +36,6 @@ Blockers: none known; related open PRs have no failed required checks or actiona
 
 ## Latest evidence
 
-- Tests/build: pre-fix `:microproject_ui:test --tests "com.microproject.ui.view.spreadsheet.editor.SpreadSheetEditorTableTrackingTest"` failed in `cleaningTrackedTableReleasesItBeforeAnotherTableBeginsEditing` at line 84; after fix, focused class 4/0 and full UI suite 2,001/0 failures/errors/4 skipped.
-- Physical GUI/manual: `:microproject_ui:guiTest --tests "com.microproject.ui.frame.AutoRecoveryGuiAcceptanceTest.recoversSnapshotAndSavesTheRecoveredDocument" --max-workers=1 --console=plain --no-daemon` passed 1/0; includes recovered-project F2, Undo/Redo, save, and MPO reload.
-- CI: no PR yet.
+- Tests/build: pre-fix `:microproject_ui:test --tests "com.microproject.ui.view.spreadsheet.editor.SpreadSheetEditorTableTrackingTest"` failed in `cleaningTrackedTableReleasesItBeforeAnotherTableBeginsEditing` at line 84; after fix on `b8a40b60c`, focused class 4/0 and full UI suite 2,001/0 failures/errors/4 skipped.
+- Physical GUI/manual: `:microproject_ui:guiTest --tests "com.microproject.ui.frame.AutoRecoveryGuiAcceptanceTest.recoversSnapshotAndSavesTheRecoveredDocument" --max-workers=1 --console=plain --no-daemon` passed 1/0 on `b8a40b60c`; includes recovered-project F2, Undo/Redo, save, and MPO reload.
+- CI: no PR yet; exact-head PR checks will be required.
