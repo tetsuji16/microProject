@@ -127,6 +127,32 @@ class TaskDependencyInvalidationTest {
 	}
 
 	@Test
+	void deferredLateDateReadKeepsProjectBoundaryExtrema() throws Exception {
+		DataFactoryUndoController undoController = new DataFactoryUndoController();
+		Project project = Project.createProject(ResourcePool.createRourcePool("late date extrema", undoController), undoController);
+		project.initialize(false, false);
+		long day = com.microproject.options.CalendarOption.getInstance().getMillisPerDay();
+		NormalTask first = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		NormalTask second = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		NormalTask third = (NormalTask) project.createLocalTaskNode(null).getImpl();
+		first.setDuration(day);
+		second.setDuration(day);
+		third.setDuration(day);
+		DependencyService.getInstance().newDependency(first, second, DependencyType.FS, 0L, this);
+		DependencyService.getInstance().newDependency(second, third, DependencyType.FS, 0L, this);
+		project.recalculate();
+
+		long earliestBeforeLateDateRead = project.getEarliestStartingTaskOrStart();
+		long latestBeforeLateDateRead = project.getLatestFinishingTask();
+		first.getLateStart();
+
+		assertEquals(earliestBeforeLateDateRead, project.getEarliestStartingTaskOrStart(),
+				"the deferred backward pass must not change the project earliest task boundary");
+		assertEquals(latestBeforeLateDateRead, project.getLatestFinishingTask(),
+				"the deferred backward pass must not change the project latest task boundary");
+	}
+
+	@Test
 	void sequentialDependenciesDeferBackwardPassUntilLateDateIsRead() throws Exception {
 		DataFactoryUndoController undoController = new DataFactoryUndoController();
 		Project project = Project.createProject(ResourcePool.createRourcePool("deferred late dates", undoController), undoController);
