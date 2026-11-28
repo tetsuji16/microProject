@@ -23,9 +23,9 @@
  *******************************************************************************/
 package com.microproject.algorithm;
 
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.function.Consumer;
-import java.util.Date;
 
 
 /**
@@ -135,7 +135,7 @@ public class Merge implements Consumer<Object> {
 		}
 		
 		public String toString() {
-			return new Date(start) + "-" + new Date(end) + template;
+			return Instant.ofEpochMilli(start) + "-" + Instant.ofEpochMilli(end) + template;
 		}
 
 	}
