@@ -300,7 +300,14 @@ public class CriticalPath implements SchedulingAlgorithm {
 		calculationInProgress = true;
 		try (CalendarDefinition.AddCacheScope _ = CalendarDefinition.beginAddCacheScope()) {
 			lateDatesDirty = false;
+			long earliestStartBeforeLatePass = earliestStart;
+			long latestFinishBeforeLatePass = latestFinish;
 			project.markAllTasksAsNeedingRecalculation(false);
+			// The deferred backward pass does not assign forward dates or extrema.
+			// markAllTasksAsNeedingRecalculation resets these extrema, so preserve the
+			// valid values established by the forward pass until an incremental refresh.
+			earliestStart = earliestStartBeforeLatePass;
+			latestFinish = latestFinishBeforeLatePass;
 			context.stateCount = getNextCalculationStateCount();
 			startSentinel.setCalculationStateCount(context.stateCount);
 			finishSentinel.setCalculationStateCount(context.stateCount);
@@ -332,9 +339,8 @@ public class CriticalPath implements SchedulingAlgorithm {
 				doPass(null, context);
 			}
 
-			project.setStart(startSentinel.getEarlyStart());
-			project.setEnd(finishSentinel.getEarlyFinish());
-			refreshEarliestAndLatest(lateDateAssignedScheduleType);
+			if (lateDateStartTask != lateDateBeginSentinel)
+				refreshEarliestAndLatest(lateDateAssignedScheduleType);
 			getFreshCalculationStateCount();
 		} catch (RuntimeException | Error failure) {
 			lateDatesDirty = true;
