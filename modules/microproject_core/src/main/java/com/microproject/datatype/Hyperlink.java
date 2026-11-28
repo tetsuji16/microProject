@@ -28,46 +28,87 @@ import java.io.Serializable;
 import com.microproject.util.BrowserControl;
 
 /**
- * 
+ * A labeled address that a view can show and open. The label and the address
+ * are independent; a hyperlink whose {@link #isLink()} is false is displayed
+ * as an image with a tip instead of a link.
  */
 public class Hyperlink implements Serializable {
 	private static final long serialVersionUID = 2128717155977724501L;
 	private String label;
 	private String address;
 	boolean link = true; // if not link, then just image with maybe a tip
+
+	/**
+	 * @param label text shown to the user, possibly null
+	 * @param address destination opened by {@link #invoke()}, possibly null
+	 */
 	public Hyperlink(String label, String address) {
 		this.label = label;
 		this.address = address;
 	}
+
+	/**
+	 * @return the destination of the hyperlink, possibly null
+	 */
 	public final String getAddress() {
 		return address;
 	}
+
+	/**
+	 * @param address the destination of the hyperlink, possibly null
+	 */
 	public final void setAddress(String address) {
 		this.address = address;
 	}
+
+	/**
+	 * @return the text shown to the user, possibly null
+	 */
 	public final String getLabel() {
 		return label;
 	}
+
+	/**
+	 * @param label the text shown to the user, possibly null
+	 */
 	public final void setLabel(String label) {
 		this.label = label;
 	}
+
+	/**
+	 * @return the label as HTML that links to the address, with both escaped
+	 */
+	@Override
 	public String toString() {
 		return "<html><a href=\"" + escapeHtml(address) + "\">" + escapeHtml(label) + "</a></html>";
 	}
+
 	private static String escapeHtml(String text) {
 		return String.valueOf(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
 				.replace("'", "&#39;");
 	}
+
+	/**
+	 * Opens the address in the browser of the platform. Does nothing when the
+	 * address is null.
+	 */
 	public void invoke() {
 		String address = getAddress();
 		if (address != null)
 			BrowserControl.displayURL(address);
 	}
-	public boolean isLink() {
+
+	/**
+	 * @return true when the hyperlink is displayed as a link rather than an image
+	 */
+	public final boolean isLink() {
 		return link;
 	}
 
-	public void setLink(boolean link) {
+	/**
+	 * @param link true when the hyperlink is displayed as a link rather than an image
+	 */
+	public final void setLink(boolean link) {
 		this.link = link;
 	}
 

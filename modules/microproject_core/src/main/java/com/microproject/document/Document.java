@@ -27,19 +27,55 @@ import com.microproject.model.calendar.WorkCalendar;
 
 
 /**
- *
+ * A project document: the object and selection event hubs, the default
+ * calendar of the project and the dirty flags that drive saving.
  */
 public interface Document{
 	void addObjectListener(ObjectEvent.Listener listener);
 	void removeObjectListener(ObjectEvent.Listener listener);
 	ObjectEventManager getObjectEventManager();
 	ObjectSelectionEventManager getObjectSelectionEventManager();
-    void fireUpdateEvent(Object source, Object object);
-    int fireMultipleTransaction(int id, boolean begin);
-    WorkCalendar getDefaultCalendar();
-    boolean isGroupDirty();
+
+	/**
+	 * Announces that {@code object} changed, so views refresh it.
+	 *
+	 * @param source the object that reports the change, which may differ from
+	 *               the changed object
+	 * @param object the changed object; null is passed through unchanged
+	 */
+	void fireUpdateEvent(Object source, Object object);
+
+	/**
+	 * Opens or closes a transaction that groups several object changes into one
+	 * notification.
+	 *
+	 * @param id identifier of the transaction, echoed to the listeners
+	 * @param begin true to open the transaction, false to close it
+	 * @return the nesting depth after the call; 0 means no transaction is open
+	 */
+	int fireMultipleTransaction(int id, boolean begin);
+
+	WorkCalendar getDefaultCalendar();
+
+	/**
+	 * @return true when the document has unsaved changes
+	 */
+	boolean isGroupDirty();
+
+	/**
+	 * Marks the document as having or not having unsaved changes.
+	 *
+	 * @param dirty true when the document must be saved
+	 */
 	void setGroupDirty(boolean dirty);
+
+	/**
+	 * Sets the dirty flag of every child of the document, typically before a
+	 * full recalculation.
+	 *
+	 * @param dirty true when the children must be treated as changed
+	 */
 	void setAllChildrenDirty(boolean dirty);
 
-    
+
 }

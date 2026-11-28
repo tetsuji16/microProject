@@ -24,28 +24,46 @@
 package com.microproject.job;
 
 
+/**
+ * A unit of work that a {@link Job} runs. A runnable only reports progress
+ * after it belongs to a job; {@link Job#addRunnable(JobRunnable)} attaches it.
+ */
 public abstract class JobRunnable{
 	protected Job job;
 	protected Object previousResult;
 	protected Exception previousException;
 	protected String name;
 	protected float weight;
-	
+
+	/**
+	 * @param name user-visible name of the unit of work
+	 * @param weight share of the job's progress this runnable reports
+	 */
 	public JobRunnable(String name,float weight) {
 		this.name=name;
 		this.weight=weight;
 	}
+
+	/**
+	 * @param name user-visible name of the unit of work
+	 */
 	public JobRunnable(String name) {
 		this(name,0.0f);
 	}
-	
+
+	/**
+	 * Runs the work.
+	 *
+	 * @return the result handed to the next runnable
+	 * @throws Exception when the work failed; the job enters its exception handler
+	 */
 	public abstract Object run() throws Exception;
 
 	protected Object getPreviousResult() {
 		return previousResult;
 	}
 
-    void setPreviousResult(Object previousResult) {
+	void setPreviousResult(Object previousResult) {
 		this.previousResult = previousResult;
 	}
 
@@ -72,12 +90,29 @@ public abstract class JobRunnable{
 	public void setWeight(float weight) {
 		this.weight = weight;
 	}
-	
+
+	/**
+	 * Reports the progress of this runnable to its job.
+	 *
+	 * @param progress progress as a fraction between 0 and 1
+	 * @throws IllegalStateException when this runnable has not been added to a job
+	 */
 	public void setProgress(float progress) {
+		if (job == null)
+			throw new IllegalStateException("Runnable " + name + " is not attached to a job");
 		job.setProgress(progress,this);
 	}
-		
+
+	/**
+	 * Reports the progress of this runnable and the note shown next to it.
+	 *
+	 * @param progress progress as a fraction between 0 and 1
+	 * @param note note shown by the progress monitor, possibly null
+	 * @throws IllegalStateException when this runnable has not been added to a job
+	 */
 	public void setProgress(float progress, final String note) {
+		if (job == null)
+			throw new IllegalStateException("Runnable " + name + " is not attached to a job");
 		job.setProgress(progress,note,this);
 	}
 	public Job getJob() {

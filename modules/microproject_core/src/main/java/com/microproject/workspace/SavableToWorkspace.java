@@ -24,9 +24,38 @@
 package com.microproject.workspace;
 
 
+/**
+ * A view that can save and restore its state. The caller decides which parts of
+ * the state are wanted through the {@code context} argument.
+ */
 public interface SavableToWorkspace {
+	/**
+	 * Context for the state that only affects what the user sees, such as the
+	 * visible date range; it is restored when a window is laid out again and is
+	 * not part of the saved project.
+	 */
 	public static final int VIEW = 0;
+	/**
+	 * Context for the state that has to survive saving and reopening the
+	 * project, such as the column configuration of a view.
+	 */
 	public static final int PERSIST = 1;
+
+	/**
+	 * Applies a previously created workspace state.
+	 *
+	 * @param setting the state to apply, as returned by
+	 *                {@link #createWorkspace(int)}
+	 * @param context {@link #VIEW} or {@link #PERSIST}
+	 */
 	void restoreWorkspace(WorkspaceSetting setting, int context);
+
+	/**
+	 * Captures the current state of this view.
+	 *
+	 * @param context {@link #VIEW} or {@link #PERSIST}; implementations may
+	 *                capture only the fields that belong to it
+	 * @return the state, to be applied later with {@link #restoreWorkspace}
+	 */
 	WorkspaceSetting createWorkspace(int context);
 }
