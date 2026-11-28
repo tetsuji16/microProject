@@ -24,23 +24,29 @@
 package com.microproject.node.summaries;
 
 /**
+ * Integer IDs of the summary kinds.
  *
+ * <p>The IDs are persisted: configuration files name a summary ({@code groupSum="Maximum"}) and
+ * {@link SummaryVisitorFactory#getSummaryId(String)} maps that name back to these integers, while
+ * stored fields keep the number. The values therefore stay as they are, including the aliases
+ * ({@code MAXIMUM}/{@code OR}, {@code MINIMUM}/{@code AND}) that share an ID.
  */
 public interface SummaryNames {
-	public static int MAXIMUM = 0; //"Maximum";
-	public static int OR = 0; // "OR";
-	public static int MINIMUM = 1; //"Minimum";
-	public static int AND = 1; //"AND";
-	public static int COUNT_ALL = 2; // "Count All";
-	public static int SUM = 3; //"Sum";	
-	public static int AVERAGE = 4; //"Average";
-	public static int AVERAGE_FIRST_SUBLEVEL = 5; //"Average First Sublevel";	
-	public static int COUNT_FIRST_SUBLEVEL = 6; //"Count All";	
-	public static int COUNT_NONSUMMARIES = 7; //"Count Nonsummaries";
-	public static int SAME = 8; //"Groups";
-	public static int NONE = -1; //"None";	
-	public static int LIST = -2; //"List";
-	public static int CUSTOM = -3; //"Custom";	
-	public static int THIS = -4; //"This";
+	/** Greatest value of the group; also the flag OR. */
+	int MAXIMUM = 0;
+	int OR = 0;
+	/** Smallest value of the group; also the flag AND. */
+	int MINIMUM = 1;
+	int AND = 1;
+	int COUNT_ALL = 2;
+	int SUM = 3;
+	int AVERAGE = 4;
+	int AVERAGE_FIRST_SUBLEVEL = 5;
+	int COUNT_FIRST_SUBLEVEL = 6;
+	int COUNT_NONSUMMARIES = 7;
+	int SAME = 8;
+	int NONE = -1;
+	int LIST = -2;
+	int CUSTOM = -3;
+	int THIS = -4;
 }
-
