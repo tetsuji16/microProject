@@ -23,8 +23,15 @@
  *******************************************************************************/
 package com.microproject.field;
 
+/** Defines role-based access for a configured field. */
 public interface FieldAccessible {
 
+	/**
+	 * Checks whether the specified role may access the field.
+	 *
+	 * @param role role identifier used by field authorization
+	 * @return {@code true} when the role is authorized
+	 */
 	boolean isAuthorized(int role);
 
 }

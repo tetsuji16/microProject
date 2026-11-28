@@ -23,8 +23,20 @@
  *******************************************************************************/
 package com.microproject.field;
 
-public class DefaultFieldAccessControl implements FieldAccessible {
+/**
+ * Default field access policy configured by {@code meta.properties}.
+ *
+ * <p>This implementation allows every role.</p>
+ */
+public final class DefaultFieldAccessControl implements FieldAccessible {
 
+	/**
+	 * Allows access for every role.
+	 *
+	 * @param role configured role identifier; it does not restrict default access
+	 * @return always {@code true}
+	 */
+	@Override
 	public boolean isAuthorized(int role) {
 		return true;
 	}
