@@ -26,9 +26,11 @@ package com.microproject.workspace;
 import java.io.Serializable;
 
 /**
- * Stores information necessary for restablishing the state of a view
- * Implementers should also have getters and setters for their fields so that
- * XMLEncoder/XMLDecoder can be used in place of Serialization if desired
+ * Stores information necessary for restablishing the state of a view.
+ * Implementations are written with Java binary serialization into the
+ * in-memory snapshot that the frame manager restores when the UI is rebuilt
+ * (see the workspace transfer store in the UI module); they are not written to
+ * the project file.
  */
 public interface WorkspaceSetting extends Serializable {
 

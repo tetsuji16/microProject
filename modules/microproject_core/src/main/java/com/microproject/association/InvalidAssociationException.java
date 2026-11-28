@@ -24,32 +24,31 @@
 package com.microproject.association;
 
 /**
- * Used to throw exceptions zhen parsing predecessors or assign;ents
+ * Used to throw exceptions when parsing predecessors or assignments
  */
 public class InvalidAssociationException extends Exception {
 	private static final long serialVersionUID = 1L;
 
 	public InvalidAssociationException() {
-		super();
 	}
 
 	/**
-	 * @param arg0
+	 * @param arg0 the message describing the invalid association
 	 */
 	public InvalidAssociationException(String arg0) {
 		super(arg0);
 	}
 
 	/**
-	 * @param arg0
+	 * @param arg0 the cause of the invalid association
 	 */
 	public InvalidAssociationException(Throwable arg0) {
 		super(arg0);
 	}
 
 	/**
-	 * @param arg0
-	 * @param arg1
+	 * @param arg0 the message describing the invalid association
+	 * @param arg1 the cause of the invalid association
 	 */
 	public InvalidAssociationException(String arg0, Throwable arg1) {
 		super(arg0, arg1);
