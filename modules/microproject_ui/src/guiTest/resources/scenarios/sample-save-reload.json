@@ -1,0 +1,10 @@
+{
+	"name": "sample-save-reload",
+	"description": "Open a checked-in sample copy, indent a task, save it as MPO and read it back.",
+	"fixture": { "file": "samples/CCPM sample English.mpo" },
+	"steps": [
+		{ "select": { "rows": [3] } },
+		{ "command": "RibbonIndent" },
+		{ "saveReload": "mpo" }
+	]
+}

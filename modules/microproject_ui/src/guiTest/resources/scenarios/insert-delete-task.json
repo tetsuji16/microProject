@@ -1,0 +1,22 @@
+{
+	"name": "insert-delete-task",
+	"description": "Insert a row, name it so it becomes a task, then delete that task again.",
+	"fixture": {
+		"tasks": [
+			{ "name": "A", "durationDays": 1 },
+			{ "name": "B", "durationDays": 1 },
+			{ "name": "C", "durationDays": 1 }
+		]
+	},
+	"steps": [
+		{ "expect": { "project.taskCount": 3 } },
+		{ "select": { "rows": [2] } },
+		{ "command": "RibbonInsert" },
+		{ "expect": { "project.taskCount": 3, "task#2.name": "B", "task#4.name": "C" } },
+		{ "edit": { "row": 3, "field": "Field.name", "text": "Inserted" } },
+		{ "expect": { "project.taskCount": 4, "task#3.name": "Inserted", "task#4.name": "C" } },
+		{ "select": { "tasks": ["Inserted"] } },
+		{ "command": "RibbonDelete" },
+		{ "expect": { "project.taskCount": 3, "task#2.name": "B", "task#3.name": "C", "errors": 0 } }
+	]
+}

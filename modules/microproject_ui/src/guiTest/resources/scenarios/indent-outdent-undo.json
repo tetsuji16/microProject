@@ -1,0 +1,23 @@
+{
+	"name": "indent-outdent-undo",
+	"description": "Indent and outdent a task through the ribbon, then undo and redo with the keyboard.",
+	"fixture": {
+		"tasks": [
+			{ "name": "A", "durationDays": 1 },
+			{ "name": "B", "durationDays": 1 },
+			{ "name": "C", "durationDays": 1 }
+		]
+	},
+	"steps": [
+		{ "expect": { "task[B].outlineLevel": 1, "task[A].summary": false, "task[B].parent": null } },
+		{ "select": { "tasks": ["B"] } },
+		{ "command": "RibbonIndent" },
+		{ "expect": { "task[B].outlineLevel": 2, "task[A].summary": true, "task[B].parent": "A", "task[C].outlineLevel": 1 } },
+		{ "command": "RibbonOutdent" },
+		{ "expect": { "task[B].outlineLevel": 1, "task[A].summary": false, "task[B].parent": null } },
+		{ "key": "ctrl Z" },
+		{ "expect": { "task[B].outlineLevel": 2, "task[A].summary": true } },
+		{ "key": "ctrl Y" },
+		{ "expect": { "task[B].outlineLevel": 1, "task[A].summary": false, "errors": 0 } }
+	]
+}

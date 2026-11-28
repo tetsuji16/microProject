@@ -1,0 +1,19 @@
+{
+	"name": "link-unlink",
+	"description": "Link two selected tasks, check the successor moves, then unlink them.",
+	"fixture": {
+		"tasks": [
+			{ "name": "A", "durationDays": 2 },
+			{ "name": "B", "durationDays": 2 },
+			{ "name": "C", "durationDays": 1 }
+		]
+	},
+	"steps": [
+		{ "expect": { "task[B].start": "2026-01-05", "task[B].predecessors": [] } },
+		{ "select": { "tasks": ["A", "B"] } },
+		{ "command": "RibbonLink" },
+		{ "expect": { "task[B].predecessors": ["A"], "task[B].start": "2026-01-07", "task[A].start": "2026-01-05" } },
+		{ "command": "RibbonUnlink" },
+		{ "expect": { "task[B].predecessors": [], "task[B].start": "2026-01-05" } }
+	]
+}

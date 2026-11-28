@@ -1,0 +1,15 @@
+{
+	"name": "gantt-left-edge",
+	"description": "Scroll the Gantt chart to its far end and back, and check the left edge of the visible chart.",
+	"fixture": {
+		"tasks": [
+			{ "name": "Long task", "durationDays": 120 }
+		]
+	},
+	"steps": [
+		{ "scrollGantt": { "date": "2026-06-01T08:00" } },
+		{ "expect": { "gantt.leftEdge": "2026-01" } },
+		{ "scrollGantt": { "date": "2026-01-05T08:00" } },
+		{ "expect": { "gantt.leftEdge": "2025-1" } }
+	]
+}
