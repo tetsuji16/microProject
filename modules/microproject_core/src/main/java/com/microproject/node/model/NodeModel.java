@@ -36,13 +36,14 @@ import com.microproject.field.Field;
 import com.microproject.field.FieldContext;
 import com.microproject.field.FieldParseException;
 import com.microproject.node.Node;
+import com.microproject.node.OutlineModel;
 import com.microproject.node.hierarchy.NodeHierarchy;
 import com.microproject.undo.UndoController;
 
 /**
  *
  */
-public interface NodeModel extends TreeModel, WalkersNodeModel{
+public interface NodeModel extends OutlineModel, TreeModel, WalkersNodeModel{
 	public static int EVENT=1;
 	public static int UNDO=2;
 

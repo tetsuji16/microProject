@@ -44,15 +44,15 @@ public class OutlineCollectionImpl implements OutlineCollection {
 	}
 	
 	
-	public NodeModel getOutline() {
+	public OutlineModel getOutline() {
 		return getOutline(currentOutline);
 	}
 
-	public NodeModel getDefaultOutline() {
+	public OutlineModel getDefaultOutline() {
 		return getOutline(DEFAULT_OUTLINE);
 	}
 
-	public NodeModel getOutline(int outlineNumber) {
+	public OutlineModel getOutline(int outlineNumber) {
 		NodeModel outline = outlines[outlineNumber];
 		if (outline == null) {
 			outline =  NodeModelFactory.getInstance().createNodeModel(dataFactory);
@@ -96,7 +96,7 @@ public class OutlineCollectionImpl implements OutlineCollection {
 	 * @param object
 	 * @param except - A node model to ignore.  This node model should be treated separately.
 	 */
-	public void addToAll(Object object, NodeModel except) {
+	public void addToAll(Object object, OutlineModel except) {
 		for (int i=0; i < outlines.length; i++) {
 			if (outlines[i] != null && outlines[i] != except) {
 				if (outlines[i].search(object) == null) 
@@ -105,7 +105,7 @@ public class OutlineCollectionImpl implements OutlineCollection {
 		}
 	}
 
-	public void removeFromAll(Object object, NodeModel except) {
+	public void removeFromAll(Object object, OutlineModel except) {
 		Node node;
 		for (int i=0; i < outlines.length; i++) {
 			if (outlines[i] != null && outlines[i] != except) {

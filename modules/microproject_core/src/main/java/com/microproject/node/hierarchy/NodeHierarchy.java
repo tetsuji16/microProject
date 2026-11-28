@@ -40,7 +40,7 @@ import com.microproject.node.model.NodeModel;
 /**
  *
  */
-public interface NodeHierarchy extends TreeModel{
+public interface NodeHierarchy extends com.microproject.node.OutlineModel.Hierarchy, TreeModel{
 	
 	
 //	public void add(Node parent,Node child,int actionType);

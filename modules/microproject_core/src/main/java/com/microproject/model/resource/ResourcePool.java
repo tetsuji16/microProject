@@ -38,6 +38,7 @@ import com.microproject.node.Node;
 import com.microproject.node.NodeList;
 import com.microproject.node.OutlineCollection;
 import com.microproject.node.OutlineCollectionImpl;
+import com.microproject.node.OutlineModel;
 import com.microproject.node.model.AssignmentNodeModel;
 import com.microproject.node.model.NodeModel;
 import com.microproject.node.model.NodeModelDataFactory;
@@ -112,7 +113,7 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 	public void initializeOutlines(){
 		int count=Settings.numHierarchies();
 		for (int i=0;i<count;i++){
-			NodeModel model=resourceOutlines.getOutline(i);
+			NodeModel model=(NodeModel) resourceOutlines.getOutline(i);
 			if (model==null) continue;
 			if (model instanceof AssignmentNodeModel aModel){
 				aModel.setDocument(this);
@@ -200,11 +201,11 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 	private OutlineCollection resourceOutlines = new OutlineCollectionImpl(Settings.numHierarchies(),this); 
 	
 	public NodeModel getResourceOutline() {
-		NodeModel model=resourceOutlines.getOutline();
+		NodeModel model=(NodeModel) resourceOutlines.getOutline();
 		return model;
 	}
 	public NodeModel getResourceOutline(int outlineNumber) {
-		NodeModel model=resourceOutlines.getOutline(outlineNumber);
+		NodeModel model=(NodeModel) resourceOutlines.getOutline(outlineNumber);
 		return model;
 	}
 	
@@ -427,7 +428,7 @@ public class ResourcePool implements Document, NodeModelDataFactory {
 	
 	
 	public void updateOutlineTypes(){
-		NodeModel[] models=resourceOutlines.getOutlines();
+		NodeModel[] models=((OutlineCollectionImpl) resourceOutlines).getOutlines();
 		for (int i=0;i<models.length;i++){
 			initOutline(models[i]);
 		}
