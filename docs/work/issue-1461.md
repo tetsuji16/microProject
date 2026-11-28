@@ -1,6 +1,6 @@
 # Issue #1461 — ExtendedDateFormat を java.time で書き直す
 
-State: IMPLEMENTATION COMPLETE; follow-up PR awaiting checks
+State: IMPLEMENTATION COMPLETE; PR #1532 checks passed, awaiting maintainer review/merge
 Issue: https://github.com/tetsuji16/microProject/issues/1461
 Prior formatter-only PR: https://github.com/tetsuji16/microProject/pull/1501 (merged at `e71f9cb`; did not include the owner-approved package-wide migration)
 Approved scope clarification: https://github.com/tetsuji16/microProject/issues/1461#issuecomment-7232208674
