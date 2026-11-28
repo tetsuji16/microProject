@@ -10,30 +10,30 @@ Baseline working tree: clean isolated worktree; pre-existing changes in the prim
 
 Make the Customize Ribbon GUI acceptance test resolve its named page through the `CategoryPageHolder` wrapper and preserve the current layout assertions.
 
-Out of scope: production layout or user-visible behavior; the other full-release GUI failures pending diagnosis.
+Out of scope: production layout or user-visible behavior; the other full-release GUI failures.
 Blockers: none.
 
 ## Acceptance
 
 | ID | Required result/evidence | State | Evidence (SHA + link) |
 |---|---|---|---|
-| A1 | `pageScroll` obtains `ribbonCustomizationPanel` and its outer category scroll pane through `CategoryPageHolder`. | pass | Local focused GUI test passed on uncommitted fix; exact PR SHA pending. |
-| A2 | Focused GUI test checks page visibility, no horizontal scroll, and the Up button visible area. | pass | `:microproject_ui:guiTest --tests PreferencesCustomizeGuiAcceptanceTest.capturesTheCustomizedRibbonOverflowMenuAndBothCategoriesAtNormalAndNarrowWidth`: BUILD SUCCESSFUL, test PASSED (worktree SHA not committed). |
-| A3 | Gradle build and required PR checks pass. | open | Local `build` passed; PR checks pending. |
+| A1 | `pageScroll` obtains `ribbonCustomizationPanel` and its outer category scroll pane through `CategoryPageHolder`. | pass | Focused GUI test passed with code committed at `72bbff4b3e58669d77377e6d6c70d06cc8e5a19e`; the helper searches the named visible page then walks to its containing scroll pane. |
+| A2 | Focused GUI test checks page visibility, no horizontal scroll, and the Up button visible area. | pass | `capturesTheCustomizedRibbonOverflowMenuAndBothCategoriesAtNormalAndNarrowWidth` passed locally on code SHA `72bbff4b3e58669d77377e6d6c70d06cc8e5a19e`. |
+| A3 | Gradle build and required PR checks pass. | pass | Local build passed; PR #1488 checks `build`, `GUI acceptance`, checklist, and Windows/Linux/macOS verify passed on code SHA `72bbff4b3e58669d77377e6d6c70d06cc8e5a19e`. [GUI run](https://github.com/tetsuji16/microProject/actions/runs/46091470295), [checks](https://github.com/tetsuji16/microProject/actions/runs/46091470408), [checklist](https://github.com/tetsuji16/microProject/actions/runs/46091470380). A later packet-only commit does not change production, GUI test, fixture, or build inputs. |
 
 ## Current slice
 
-**Next slice:** push branch and open PR #1487; wait for required checks and review.
-**Done when:** A1–A3 have evidence and PR #1487 is merged.
-**Then:** resume the stable release failure investigation and prepare a new exact-SHA candidate.
+**Next slice:** finalize PR #1488 on its latest head and merge it.
+**Done when:** A1–A3 evidence is retained and PR #1488 is merged.
+**Then:** investigate the separate AutoRecovery F2 failure before restarting the release gate.
 
 ## Remaining blockers
 
-- A1–A3 evidence is pending.
-- Release run 46084523423 had three other GUI failures; the ResourceHeaderSorting test passed focused rerun 46089565939, while AutoRecovery failed focused rerun 46089947875 and TaskInformationRibbon is running as 46090348600.
+- PR #1488 latest-head checks must complete after the evidence packet commit.
+- Release run 46084523423 had three other GUI failures; the ResourceHeaderSorting test passed focused rerun 46089565939, AutoRecovery failed focused rerun 46089947875, and TaskInformationRibbon passed focused rerun 46090348600.
 
 ## Latest evidence
 
-- Tests/build: the pre-fix focused Preferences test failed at `pageScroll(dialog, "ribbonCustomizationPanel") == null` on SHA `c7a4d021c4ab3dc5a8912f0d0090911db708328a` in [run 46089557804](https://github.com/tetsuji16/microProject/actions/runs/46089557804); captured screenshot shows the page content.
-- Physical GUI/manual: focused hosted physical test; Japanese, 100%, 1024x768; page content captured, locator failed.
-- CI: no PR yet.
+- Tests/build: focused GUI test passed in 59s; `build --console=plain` passed in 4m 46s (51 tasks, 30 executed, 21 up-to-date) on code SHA `72bbff4b3e58669d77377e6d6c70d06cc8e5a19e`.
+- Physical GUI/manual: focused Windows GUI on Japanese/100%/1024x768 passed and retained page, horizontal-scroll, and Up-button visibility checks.
+- CI: PR #1488 passed GUI acceptance and the three OS verification legs; checklist passed. The current evidence-packet-only head is being rechecked.
